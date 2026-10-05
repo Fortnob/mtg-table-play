@@ -9,7 +9,9 @@ const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const CACHE = path.join(__dirname, '.cache');
+// MTG_CACHE_DIR points the cache somewhere else (an empty one shows what a
+// fresh checkout, or CI, has to fetch)
+const CACHE = process.env.MTG_CACHE_DIR ? path.resolve(process.env.MTG_CACHE_DIR) : path.join(__dirname, '.cache');
 fs.mkdirSync(CACHE, { recursive: true });
 
 const ENGINE_MODULES = [
@@ -66,13 +68,29 @@ function installShims() {
     }
     if (process.env.OFFLINE) return { ok: false, status: 404, statusText: 'offline', json: async () => ({}) };
     live++;
-    // Scryfall asks for no more than ~10 requests a second
-    const wait = lastLive + 120 - Date.now();
-    lastLive = Math.max(Date.now(), lastLive + 120);
-    if (wait > 0) await new Promise(r => setTimeout(r, wait));
-    const res = await realFetch(url, Object.assign({}, opts, {
-      headers: Object.assign({ 'User-Agent': 'mtg-table-sim/1.0', 'Accept': 'application/json' }, opts.headers || {}),
-    }));
+    /* Scryfall's hard limits: two a second for search, named, random and
+       collection, ten a second for everything else. A 429 shuts the door
+       for thirty seconds, so it is waited out here rather than handed to
+       the client, whose short backoff would only knock again too soon. */
+    const slow = /\/cards\/(search|named|random|collection)/.test(String(url));
+    let res, t0;
+    for (let attempt = 0; ; attempt++) {
+      const gap = slow ? 550 : 120;
+      const wait = lastLive + gap - Date.now();
+      lastLive = Math.max(Date.now(), lastLive + gap);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
+      t0 = Date.now();
+      res = await realFetch(url, Object.assign({}, opts, {
+        headers: Object.assign({ 'User-Agent': 'mtg-table-sim/1.0', 'Accept': 'application/json' }, opts.headers || {}),
+      }));
+      // FETCH_LOG=1 lists every live request on stderr, with how long it took
+      if (process.env.FETCH_LOG) console.error(`[fetch] ${res.status} ${Date.now() - t0}ms ${opts.method || 'GET'} ${String(url).slice(0, 160)}`);
+      if (res.status !== 429 || attempt >= 3) break;
+      const after = parseInt(res.headers && res.headers.get && res.headers.get('retry-after'), 10);
+      const pause = (after > 0 ? after : 30) * 1000 + 1000;
+      console.error(`[fetch] Scryfall says slow down; waiting ${Math.round(pause / 1000)}s`);
+      lastLive = Date.now() + pause;
+    }
     if (res.status === 404) { fs.writeFileSync(file, '__404__'); return res; }
     if (!res.ok) return res;
     const text = await res.text();
@@ -89,9 +107,15 @@ function load(opts) {
   vm.runInThisContext(code, { filename: 'engine.js' });
   const MTG = globalThis.MTG;
   MTG.settings.botSpeed = 0;
-  // the request queue spaces live calls ~120ms apart; cached ones need no gap
+  // the request queue spaces live calls out; cached ones need no gap
   // (the fetch shim does that spacing itself, for live requests only)
-  if (MTG.scry && MTG.scry.q) MTG.scry.q.gap = 0;
+  if (MTG.scry && MTG.scry.q) { MTG.scry.q.gap = 0; MTG.scry.q.slowGap = 0; }
+  /* A request the shim is holding back after a 429 can wait half a minute;
+     the client's twenty-second patience would call that a dead connection. */
+  if (MTG.scry && MTG.scry._withTimeout) {
+    const withTimeout = MTG.scry._withTimeout.bind(MTG.scry);
+    MTG.scry._withTimeout = (promise, ms) => withTimeout(promise, Math.max(ms || 0, 150000));
+  }
   return MTG;
 }
 

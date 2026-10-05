@@ -1,7 +1,8 @@
 /* ============================================================
    02-scryfall.js - Scryfall API client + IndexedDB card/art cache
    Public data, fetched live, cached locally so repeat games are instant.
-   Respects Scryfall's rate-limit guidance (<=10 req/s, we use ~8).
+   Respects Scryfall's rate limits: 10 requests a second in general, and
+   2 a second for search, named, random and collection lookups.
    ============================================================ */
 'use strict';
 (function (MTG) {
@@ -109,12 +110,14 @@
 
   /* ---------------- request queue with rate limiting ---------------- */
   class Queue {
-    constructor(minGap) { this.gap = minGap; this.last = 0; this.chain = Promise.resolve(); this.pending = 0; }
-    run(fn) {
+    /* `slowGap` is for the endpoints Scryfall holds to two a second; a 429
+       from those locks the whole client out for thirty seconds. */
+    constructor(minGap, slowGap) { this.gap = minGap; this.slowGap = slowGap || minGap; this.last = 0; this.chain = Promise.resolve(); this.pending = 0; }
+    run(fn, slow) {
       this.pending++;
       MTG.bus.emit('scryfall:pending', this.pending);
       const p = this.chain.then(async () => {
-        const wait = this.gap - (Date.now() - this.last);
+        const wait = (slow ? this.slowGap : this.gap) - (Date.now() - this.last);
         if (wait > 0) await U.sleep(wait);
         this.last = Date.now();
         try { return await fn(); } finally { this.pending--; MTG.bus.emit('scryfall:pending', this.pending); }
@@ -128,7 +131,7 @@
   class Scryfall {
     constructor() {
       this.db = new IDB();
-      this.q = new Queue(120);              // ~8 requests/sec
+      this.q = new Queue(120, 550);         // ~8 requests/sec, under 2/sec for searches
       this.offline = false;
       this.stats = { hits: 0, misses: 0, requests: 0, errors: 0 };
     }
@@ -142,7 +145,7 @@
     async _fetch(path, opts) {
       opts = opts || {};
       this.stats.requests++;
-      return this.q.run(() => this._doFetch(path, opts));
+      return this.q.run(() => this._doFetch(path, opts), /\/cards\/(search|named|random|collection)/.test(path));
     }
 
     async _doFetch(path, opts) {
