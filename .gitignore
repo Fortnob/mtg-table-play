@@ -1,0 +1,11 @@
+# Scryfall responses cached by the headless tools (large, re-downloadable)
+tools/.cache/
+# Scryfall bulk card data, downloaded by tools/fetch-bulk.py
+tools/oracle-cards.jsonl.gz
+tools/*.jsonl.gz
+# third-party sources fetched for the generators
+vendor/
+node_modules/
+# scratch output from tools
+*.log
+tools/out/

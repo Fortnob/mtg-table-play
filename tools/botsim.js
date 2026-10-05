@@ -1,0 +1,193 @@
+/* Bot-vs-bot games for tuning the bots, headless. sim.js is the quick
+   two-seat check; this one can hold the deck or the play still, seat more
+   than two, and play at browser pacing.
+
+   node tools/botsim.js --format standard --games 10 --a 3 --b 8 [--seed 1] [--turns 40] [--verbose] [--json]
+
+   Separating deck from play:
+     --deckd 5      both seats build at difficulty 5; only the play differs
+     --mirror       both seats play the very same list (implies --deckd 5)
+     --playd 5      both seats play at difficulty 5; only the decks differ
+   More players:
+     --ds 3,5,7,9   one seat per difficulty, a free-for-all; the winner is
+                    credited to its difficulty. --format commander is the
+                    usual partner for this.
+   Pacing:
+     --speed 300    bots pause this many ms after each move, as they do in
+                    the browser (the default 0 plays at full speed). This is
+                    the path where a runner can trip over a bot that is
+                    still thinking, so it is worth a run now and then.
+
+   Reports winners by difficulty, turns, stalls, crashes, runner nudges
+   ("Nobody could act"), engine warnings, and cards that needed a person. */
+'use strict';
+const { load } = require('./engine');
+
+function args() {
+  const a = { format: 'standard', games: 4, a: 5, b: 5, seed: 1, turns: 40, verbose: false, json: false,
+    deckd: null, playd: null, mirror: false, ds: null, speed: 0, timeout: 240000, trace: null, tuneA: null, tuneB: null, playA: null, playB: null };
+  const v = process.argv.slice(2);
+  for (let i = 0; i < v.length; i++) {
+    const k = v[i].replace(/^--/, '');
+    if (k === 'verbose' || k === 'json' || k === 'mirror') { a[k] = true; continue; }
+    const val = v[++i];
+    a[k] = isNaN(Number(val)) ? val : Number(val);
+  }
+  if (a.mirror && a.deckd == null) a.deckd = 5;
+  return a;
+}
+
+async function playOne(MTG, o) {
+  const { formatId, seed, maxTurns, verbose } = o;
+  const seats = o.seats;                  // [{ id, play, deck, deckSeed }]
+  const fmt = MTG.formats.effective(formatId, MTG.formats.houseDefaults(formatId));
+  const rules = MTG.formats.houseDefaults(formatId);
+  const t0 = Date.now();
+  const decks = o.decks ? o.decks.slice() : [];
+  if (o.decks) { /* built by the caller */ } else if (o.mirror) {
+    const one = await MTG.bots.buildBotDeck({ formatId, difficulty: seats[0].deck, rules, rng: new MTG.RNG(seed * 7 + 1), name: 'M' });
+    for (let i = 0; i < seats.length; i++) decks.push(one);
+  } else {
+    for (const s of seats) {
+      decks.push(await MTG.bots.buildBotDeck({ formatId, difficulty: s.deck, rules, rng: new MTG.RNG(seed * 7 + 1 + s.deckSeed), name: s.id, tuning: s.tune }));
+    }
+  }
+  const buildMs = Date.now() - t0;
+  const g = new MTG.rules.Game({
+    formatId, startingLife: rules.startingLife, startingHand: rules.startingHand || 7,
+    commanderDamage: fmt.commander ? (rules.commanderDamage || null) : null,
+    freeMulligans: rules.freeMulligans || 0, maxPlayers: Math.max(fmt.maxPlayers, seats.length), seed,
+    firstPlayerDraws: seats.length > 2,
+  });
+  seats.forEach((s, i) => {
+    g.addPlayer({ id: s.id, name: `${s.id}(d${s.play})`, isBot: true, botDifficulty: s.play });
+    g.loadDeck(s.id, decks[i]);
+  });
+  const errors = [];
+  const origWarn = console.warn;
+  console.warn = (...x) => {
+    errors.push(x.map(v => (v && v.stack) ? v.stack.split('\n').slice(0, 3).join(' | ') : (typeof v === 'object' ? JSON.stringify(v).slice(0, 200) : String(v))).join(' '));
+    if (verbose) origWarn(...x);
+  };
+  /* --trace dir: every log line goes to a file as it happens, so a game
+     that hangs (and so never gets to report) leaves its last moves behind. */
+  if (o.trace) {
+    const fs = require('fs');
+    const file = require('path').join(o.trace, `trace-${o.chunkSeed || seed}.log`);
+    fs.appendFileSync(file, `
+=== game seed ${seed}: ${seats.map(s => s.id + ' d' + s.play + '/' + s.deck).join(' ')}
+`);
+    g.on('log', (e) => { try { fs.appendFileSync(file, `${e.turn} ${e.type}: ${e.text}
+`); } catch (err) { /* tracing is best effort */ } });
+  }
+  const runner = new MTG.bots.BotRunner(g);
+  for (const s of seats) runner.add(s.id, s.play, s.playTune || undefined);
+  g.start();
+  runner.kick();
+
+  const started = Date.now();
+  let lastV = -1, still = 0;
+  const stillLimit = 150 + Math.ceil((o.speed || 0) * 6 / 40);
+  while (!g.over && g.turn <= maxTurns) {
+    await new Promise(r => setTimeout(r, 40));
+    if (g.stateVersion === lastV) { if (++still > stillLimit) break; } else { still = 0; lastV = g.stateVersion; }
+    if (Date.now() - started > (o.timeout || 240000)) break;
+  }
+  runner.stop();
+  console.warn = origWarn;
+  const stalled = !g.over && g.turn <= maxTurns;
+  const manualCards = new Set();
+  for (const o2 of g.objects.values()) {
+    const a = o2.analysis && o2.analysis();
+    if (a && !a.fullyAutomated && !a.isLand && !o2.isToken) {
+      const why = (a.abilities || []).filter(x => !x.auto && x.kind !== 'castModifier').map(x => x.text).join(' | ');
+      manualCards.add(verbose ? `${o2.card.name} [${why.slice(0, 120)}]` : o2.card.name);
+    }
+  }
+  const rulesLines = g.log.filter(l => /manual|by hand|assisted/i.test(l.text || l.msg || ''));
+  const nudges = g.log.filter(l => /Nobody could act/i.test(l.text || l.msg || '')).length;
+  const winners = g.winners && g.winners.length ? g.winners.map(w => (typeof w === 'string' ? w : w.id)) : [];
+  return {
+    seed, winner: winners.join(',') || null,
+    turns: g.turn, over: g.over, stalled, buildMs, ms: Date.now() - started, nudges,
+    life: g.players.map(p => p.life), errors: errors.slice(0, 20),
+    manualCards: Array.from(manualCards),
+    rulesLines: rulesLines.slice(0, 10).map(l => l.text || l.msg),
+    decks: decks.map(d => ({ plan: d.plan || null, commanders: (d.commanders || []).map(c => c.name) })),
+    stuckAt: stalled ? { step: g.step, choice: g.pendingChoice && g.pendingChoice.type, prio: g.priorityPlayer && g.priorityPlayer.id, lastError: g.lastError } : null,
+    fullLog: o.fullLog ? g.log.map(l => l.text || l.msg) : undefined,
+    lastLog: verbose ? g.log.slice(-40).map(l => l.text || l.msg) : undefined,
+  };
+}
+
+/** The seats for game i, rotated so the play/draw washes out. */
+function seatsFor(a, i) {
+  if (a.ds) {
+    const ds = String(a.ds).split(',').map(Number);
+    const rot = ds.map((_, k) => ds[(k + i) % ds.length]);
+    return rot.map((d, k) => ({ id: 'P' + k, play: a.playd != null ? a.playd : d, deck: a.deckd != null ? a.deckd : d, diff: d, deckSeed: k }));
+  }
+  const swap = i % 2 === 1;
+  const da = swap ? a.b : a.a, db = swap ? a.a : a.b;
+  // deck-building experiments: --tuneA/--tuneB are JSON knobs for the a and b sides
+  const ta = a.tuneA ? JSON.parse(a.tuneA) : null, tb = a.tuneB ? JSON.parse(a.tuneB) : null;
+  // play experiments: --playA/--playB override numbers from the ladder for that side's bot
+  const pa = a.playA ? JSON.parse(a.playA) : null, pb = a.playB ? JSON.parse(a.playB) : null;
+  return [
+    { id: 'A', play: a.playd != null ? a.playd : da, deck: a.deckd != null ? a.deckd : da, diff: da, deckSeed: 0, tune: swap ? tb : ta, playTune: swap ? pb : pa, side: swap ? 'b' : 'a' },
+    { id: 'B', play: a.playd != null ? a.playd : db, deck: a.deckd != null ? a.deckd : db, diff: db, deckSeed: 1, tune: swap ? ta : tb, playTune: swap ? pa : pb, side: swap ? 'a' : 'b' },
+  ];
+}
+
+async function main() {
+  const a = args();
+  const MTG = load();
+  MTG.settings.botSpeed = a.speed || 0;
+  const results = [];
+  for (let i = 0; i < a.games; i++) {
+    const seats = seatsFor(a, i);
+    let r;
+    try {
+      r = await playOne(MTG, {
+        formatId: a.format, seed: a.seed + i, seats, maxTurns: a.turns, verbose: a.verbose,
+        mirror: a.mirror, speed: a.speed, timeout: a.timeout, trace: a.trace, chunkSeed: a.seed,
+      });
+    } catch (e) {
+      r = { seed: a.seed + i, winner: null, turns: 0, over: false, stalled: false, crashed: String(e && e.stack || e).slice(0, 400),
+        errors: [String(e)], life: [], manualCards: [], rulesLines: [], nudges: 0 };
+    }
+    r.seats = seats.map(s => ({ id: s.id, diff: s.diff, play: s.play, deck: s.deck }));
+    // credit the win to the difficulty, not the seat
+    const w = seats.find(s => s.id === r.winner);
+    r.winnerDiff = w ? w.diff : null;
+    r.winnerSide = w ? w.side || null : null;
+    results.push(r);
+    if (!a.json) {
+      console.log(`game ${i + 1}: ${r.over ? 'winner d' + r.winnerDiff : r.crashed ? 'CRASHED ' + r.crashed : r.stalled ? 'STALLED ' + JSON.stringify(r.stuckAt) : 'turn cap'}` +
+        ` turns=${r.turns} life=${r.life.join('/')} build=${r.buildMs}ms play=${r.ms}ms errors=${r.errors.length} nudges=${r.nudges} manual=${r.manualCards.length}`);
+      if (a.verbose) {
+        for (const e of r.errors) console.log('   err:', e.slice(0, 300));
+        for (const l of r.rulesLines) console.log('   rules:', l);
+        if (r.manualCards.length) console.log('   manual:', r.manualCards.join('; '));
+        if (r.stalled && r.lastLog) console.log('   last:', r.lastLog.slice(-12).join('\n         '));
+      }
+    }
+  }
+  const diffs = a.ds ? String(a.ds).split(',').map(Number) : [a.a, a.b];
+  const summary = { format: a.format, games: results.length };
+  for (const d of new Set(diffs)) summary['d' + d] = results.filter(r => r.winnerDiff === d).length;
+  Object.assign(summary, {
+    unfinished: results.filter(r => !r.over).length, stalled: results.filter(r => r.stalled).length,
+    crashed: results.filter(r => r.crashed).length,
+    avgTurns: +(results.reduce((s, r) => s + r.turns, 0) / Math.max(1, results.length)).toFixed(1),
+    withErrors: results.filter(r => r.errors.length).length,
+    nudges: results.reduce((s, r) => s + (r.nudges || 0), 0),
+    liveFetches: globalThis.__liveFetches(),
+  });
+  if (a.json) console.log(JSON.stringify({ summary, results }));
+  else console.log('summary', JSON.stringify(summary));
+  process.exit(0);
+}
+
+if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
+module.exports = { playOne, seatsFor };

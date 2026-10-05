@@ -1,0 +1,561 @@
+/* ============================================================
+   00-core.js — foundation: utils, events, RNG, IDs, storage
+   ============================================================ */
+'use strict';
+
+const MTG = (window.MTG = window.MTG || {});
+MTG.version = '1.0.0';
+
+/* ---------- tiny DOM helpers ---------- */
+const $ = (sel, root) => (root || document).querySelector(sel);
+const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+function el(tag, attrs, children) {
+  const n = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    const v = attrs[k];
+    if (v == null || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else if (k === 'dataset') Object.assign(n.dataset, v);
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  if (children != null) {
+    const arr = Array.isArray(children) ? children : [children];
+    for (const c of arr) {
+      if (c == null || c === false) continue;
+      n.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+    }
+  }
+  return n;
+}
+MTG.$ = $; MTG.$$ = $$; MTG.el = el;
+
+/* ---------- misc utils ---------- */
+const U = MTG.util = {
+  clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)),
+  sum: (a) => a.reduce((x, y) => x + y, 0),
+  uniq: (a) => Array.from(new Set(a)),
+  last: (a) => a[a.length - 1],
+  sleep: (ms) => new Promise(r => setTimeout(r, ms)),
+  esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  },
+  titleCase: (s) => String(s).replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1).toLowerCase()),
+  // stable object hash for cache keys
+  hash(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  },
+  // normalize a card name for matching (strip accents, punctuation variance)
+  normName(n) {
+    return String(n || '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/’/g, "'").replace(/—|–/g, '-')
+      .trim().toLowerCase();
+  },
+  // front face of a "A // B" name
+  frontName(n) { return String(n || '').split('//')[0].trim(); },
+  groupBy(arr, fn) {
+    const m = new Map();
+    for (const x of arr) { const k = fn(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
+    return m;
+  },
+  /**
+   * "two" -> 2. Card text spells small numbers out; `xValue` is what to
+   * return for "X", which the oracle wants as the literal 'X' to resolve
+   * later and the combo finder wants as 0.
+   */
+  numWord(w, xValue) {
+    if (w == null) return 1;
+    const s = String(w).toLowerCase().trim();
+    if (/^\d+$/.test(s)) return parseInt(s, 10);
+    if (s === 'x') return xValue === undefined ? 1 : xValue;
+    const map = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
+      six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    return map[s] !== undefined ? map[s] : 1;
+  },
+  debounce(fn, ms) {
+    let t; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); };
+  },
+
+  /* ---- money ----
+     Scryfall quotes a card in three currencies and any of them can be
+     missing, which is not the same as free: a card with no price is a card
+     nobody has listed, and totalling it as zero would quietly understate
+     every deck it is in. */
+  priceOf(card, cur) {
+    const p = card && card.prices;
+    if (!p) return null;
+    const key = cur || MTG.settings.priceCurrency || 'usd';
+    const raw = p[key] != null ? p[key] : (key === 'usd' ? p.usd_foil : null);
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? n : null;
+  },
+  priceSymbol(cur) {
+    return { usd: '$', eur: '\u20ac', tix: '' }[cur || MTG.settings.priceCurrency || 'usd'] || '$';
+  },
+  money(n, cur) {
+    if (n == null) return '\u2014';
+    const sym = MTG.util.priceSymbol(cur);
+    const s = n >= 100 ? n.toFixed(0) : n.toFixed(2);
+    return cur === 'tix' || (!cur && MTG.settings.priceCurrency === 'tix') ? s + ' tix' : sym + s;
+  },
+  /** What a list costs, and how much of it we could not price. */
+  deckPrice(deck, cur) {
+    let total = 0, unpriced = 0, priced = 0;
+    const add = (card, qty) => {
+      const p = MTG.util.priceOf(card, cur);
+      if (p == null) { unpriced += qty; return; }
+      total += p * qty; priced += qty;
+    };
+    for (const e of (deck.main || [])) add(e.card, e.qty);
+    for (const e of (deck.sideboard || [])) add(e.card, e.qty);
+    for (const c of (deck.commanders || [])) add(c, 1);
+    return { total, unpriced, priced };
+  }
+};
+
+/* ---------- deterministic RNG (mulberry32) ----------
+   Seeded so that host + clients can generate identical packs/shuffles. */
+class RNG {
+  constructor(seed) {
+    if (typeof seed === 'string') seed = parseInt(U.hash(seed), 36);
+    this.s = (seed >>> 0) || (Date.now() >>> 0);
+  }
+  next() {
+    this.s = (this.s + 0x6D2B79F5) >>> 0;
+    let t = this.s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  int(n) { return Math.floor(this.next() * n); }
+  range(lo, hi) { return lo + this.int(hi - lo + 1); }
+  pick(arr) { return arr[this.int(arr.length)]; }
+  chance(p) { return this.next() < p; }
+  shuffle(arr) {           // Fisher–Yates, in place
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = this.int(i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  sample(arr, n) {         // n distinct items
+    const copy = arr.slice();
+    this.shuffle(copy);
+    return copy.slice(0, n);
+  }
+  // weighted pick: entries [[item, weight], ...]
+  weighted(entries) {
+    const total = entries.reduce((a, e) => a + e[1], 0);
+    let r = this.next() * total;
+    for (const [item, w] of entries) { r -= w; if (r <= 0) return item; }
+    return entries[entries.length - 1][0];
+  }
+}
+MTG.RNG = RNG;
+
+/* ---------- unique ids ---------- */
+let _idc = 0;
+MTG.uid = (prefix) => `${prefix || 'x'}_${(++_idc).toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
+/* ---------- event bus ---------- */
+class Emitter {
+  constructor() { this._h = new Map(); }
+  on(ev, fn) {
+    if (!this._h.has(ev)) this._h.set(ev, new Set());
+    this._h.get(ev).add(fn);
+    return () => this.off(ev, fn);
+  }
+  once(ev, fn) { const off = this.on(ev, (...a) => { off(); fn(...a); }); return off; }
+  off(ev, fn) { const s = this._h.get(ev); if (s) s.delete(fn); }
+  emit(ev, ...args) {
+    const s = this._h.get(ev);
+    if (s) for (const fn of Array.from(s)) { try { fn(...args); } catch (e) { console.error('[bus]', ev, e); } }
+    const any = this._h.get('*');
+    if (any) for (const fn of Array.from(any)) { try { fn(ev, ...args); } catch (e) { console.error(e); } }
+  }
+}
+MTG.Emitter = Emitter;
+MTG.bus = new Emitter();
+
+/* ---------- localStorage-backed settings ---------- */
+const LS_KEY = 'mtgtable.settings.v1';
+const defaultSettings = {
+  playerName: '',
+  volume: 0.5,
+  muted: false,
+  cardBack: 'classic',
+  autoTapLands: true,
+  autoPassEmptyPriority: true,   // skip priority when you have nothing castable
+  autoPassUntilStackChange: true,
+  alwaysFullControl: false,      // nothing is ever passed for you
+  orderMyTriggers: false,        // choose the order your own triggers go on the stack
+  stops: null,                   // null means "use the defaults below"
+  confirmAttacks: true,
+  showPhaseBar: true,
+  animateDraws: true,
+  artPreferences: {},
+  cardScripts: {},           // cards the player has written out themselves            // oracle_id -> scryfall print id
+  preferredSetForImport: '',
+  peerServer: 'default',
+  theme: 'dark',
+  handSort: 'cmc',
+  deckSort: 'recent',
+  deckFilter: 'all',
+  rulePresets: {},               // formatId -> [{name, rules}] the host saved
+  showCardPrices: false,         // a price on every line of the decklist
+  priceCurrency: 'usd',          // 'usd' | 'eur' | 'tix'
+  chaosPool: null,               // {preset, sets:[code]} for chaos draft
+  compactZones: false,
+  showOracleOnHover: true,
+  stackAutoResolve: false,
+  botSpeed: 600,
+  animSpeed: 1,                  // how long the table dwells on each moment
+  stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
+  splitOpponents: false,         // two or three opponents side by side instead of one at a time
+
+  /* --- accessibility --- */
+  uiScale: 1,            // scales all text and controls
+  cardScale: 1,          // scales card art everywhere
+  highContrast: false,   // stronger borders and brighter text
+  colorblindPips: false, // letters + shapes on every mana symbol
+  alwaysCardText: false, // hover preview includes the card written out
+  reduceMotion: false,   // no transitions or animations
+  dyslexiaFont: false,   // wider typeface, looser spacing
+  focusRings: true,      // obvious keyboard focus
+  bigHitTargets: false,  // roomier buttons and rows
+};
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return Object.assign({}, defaultSettings, raw ? JSON.parse(raw) : {});
+  } catch (e) { return Object.assign({}, defaultSettings); }
+}
+MTG.settings = loadSettings();
+MTG.saveSettings = function () {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* quota */ }
+  MTG.bus.emit('settings:changed', MTG.settings);
+};
+MTG.setSetting = function (k, v) { MTG.settings[k] = v; MTG.saveSettings(); };
+MTG.resetSettings = function () {
+  const keepArt = MTG.settings.artPreferences;
+  const keepName = MTG.settings.playerName;
+  MTG.settings = Object.assign({}, defaultSettings, { artPreferences: keepArt, playerName: keepName });
+  MTG.saveSettings();
+};
+
+/* ---------- apply the display + accessibility settings to the document ----------
+   Everything is driven from data-* attributes and CSS custom properties, so the
+   stylesheet stays the single place that decides what each option looks like. */
+MTG.applyDisplaySettings = function () {
+  const S = MTG.settings;
+  const r = document.documentElement;
+  if (!r) return;
+  r.dataset.theme = S.theme || 'dark';
+  const flag = (name, on) => { if (on) r.setAttribute(name, ''); else r.removeAttribute(name); };
+  flag('data-contrast', S.highContrast);
+  flag('data-cbpips', S.colorblindPips);
+  flag('data-reduce-motion', S.reduceMotion || matchMediaReduced());
+  flag('data-dyslexia', S.dyslexiaFont);
+  flag('data-focus-rings', S.focusRings);
+  flag('data-big-targets', S.bigHitTargets);
+  r.style.setProperty('--ui-scale', String(U.clamp(S.uiScale || 1, 0.75, 1.8)));
+  r.style.setProperty('--card-scale', String(U.clamp(S.cardScale || 1, 0.6, 2)));
+  if (MTG.applyLayoutMode) MTG.applyLayoutMode();   // --app-h depends on the scale
+  if (MTG.audio && MTG.audio.master) MTG.audio.master.gain.value = S.muted ? 0 : S.volume;
+  MTG.bus.emit('display:changed', S);
+};
+function matchMediaReduced() {
+  try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch (e) { return false; }
+}
+
+/* ---------- where the game stops for you ----------
+   Auto-pass hands priority back the moment you could not do anything with
+   it. These are the steps you always want to see anyway, split by whose turn
+   it is — the same idea as stops in Arena or Cockatrice. */
+MTG.STOP_STEPS = [
+  ['upkeep', 'Upkeep'],
+  ['draw', 'Draw'],
+  ['main1', 'Main 1'],
+  ['beginCombat', 'Begin combat'],
+  ['declareAttackers', 'Attackers'],
+  ['declareBlockers', 'Blockers'],
+  ['combatDamage', 'Combat damage'],
+  ['endCombat', 'End of combat'],
+  ['main2', 'Main 2'],
+  ['end', 'End step'],
+];
+MTG.DEFAULT_STOPS = {
+  yours: { main1: true, declareAttackers: true, main2: true },
+  theirs: { declareBlockers: true, end: true },
+};
+/** A stable name for this browser, so a reconnect finds its own seat again. */
+MTG.clientToken = function () {
+  let t = MTG.store.get('clientToken', null);
+  if (!t) { t = MTG.uid('cl') + '-' + Math.random().toString(36).slice(2, 10); MTG.store.set('clientToken', t); }
+  return t;
+};
+
+/** What the engine needs to auto-pass for this player. */
+MTG.autoPassConfig = function () {
+  const S = MTG.settings;
+  return {
+    enabled: S.autoPassEmptyPriority !== false,
+    untilStackChange: S.autoPassUntilStackChange !== false,
+    stops: S.stops || MTG.DEFAULT_STOPS,
+    // Arena's two gameplay switches, under their own names
+    fullControl: !!S.alwaysFullControl,
+    fullControlSticky: !!S.alwaysFullControl,
+    orderTriggers: !!S.orderMyTriggers,
+    // stop only at your stops and when somebody else acts, not wherever you could
+    smart: S.stopWhenAble !== true,
+  };
+};
+
+/* ---------- phone / touch detection ----------
+   Two separate questions: is the screen narrow (layout), and is the pointer a
+   finger (interaction)? A laptop with a touchscreen is coarse but wide; a phone
+   in landscape is touch but short rather than narrow. Both get answered here and
+   published as attributes on <html> so CSS and JS agree on one answer. */
+const mq = (q) => { try { return window.matchMedia ? window.matchMedia(q) : null; } catch (e) { return null; } };
+const NARROW = mq('(max-width: 760px)');
+const SHORT = mq('(max-height: 560px)');
+const COARSE = mq('(pointer: coarse)');
+
+// A phone is a narrow screen, or a touch screen too short to lay out a desktop
+// table on — a handset in landscape is 844x390, wide but only 390 tall.
+MTG.isPhone = () => !!(NARROW && NARROW.matches) ||
+  !!(COARSE && COARSE.matches && SHORT && SHORT.matches);
+MTG.isTouch = () => !!(COARSE && COARSE.matches) || (navigator.maxTouchPoints || 0) > 0;
+MTG.isShort = () => !!(SHORT && SHORT.matches);
+
+MTG.applyLayoutMode = function () {
+  const r = document.documentElement;
+  if (!r) return;
+  const was = r.hasAttribute('data-phone');
+  const set = (name, on) => { if (on) r.setAttribute(name, ''); else r.removeAttribute(name); };
+  set('data-phone', MTG.isPhone());
+  set('data-touch', MTG.isTouch());
+  set('data-short', MTG.isShort());
+  // The real viewport height: 100vh on a phone browser measures the window
+  // without its collapsing address bar, so the app hangs off the bottom.
+  // Divided by the interface scale because body carries `zoom`.
+  const scale = U.clamp(MTG.settings.uiScale || 1, 0.75, 1.8);
+  r.style.setProperty('--app-h', (window.innerHeight / scale) + 'px');
+  if (was !== MTG.isPhone()) MTG.bus.emit('layout:changed', { phone: MTG.isPhone() });
+};
+
+(function watchLayout() {
+  if (typeof window === 'undefined') return;
+  let raf = 0;
+  const onChange = () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => MTG.applyLayoutMode());
+  };
+  for (const m of [NARROW, SHORT, COARSE]) {
+    if (!m) continue;
+    if (m.addEventListener) m.addEventListener('change', onChange);
+    else if (m.addListener) m.addListener(onChange);
+  }
+  window.addEventListener('resize', onChange, { passive: true });
+  window.addEventListener('orientationchange', onChange, { passive: true });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onChange, { passive: true });
+  MTG.applyLayoutMode();
+})();
+
+/* ---------- generic namespaced localStorage store (decks, cubes) ---------- */
+MTG.store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem('mtgtable.' + key); return v == null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  },
+  set(key, val) {
+    try { localStorage.setItem('mtgtable.' + key, JSON.stringify(val)); return true; }
+    catch (e) { console.warn('storage full', e); return false; }
+  },
+  del(key) { try { localStorage.removeItem('mtgtable.' + key); } catch (e) {} },
+  keys(prefix) {
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('mtgtable.' + (prefix || ''))) out.push(k.slice(9));
+    }
+    return out;
+  }
+};
+
+/* ---------- mana symbol parsing / rendering ---------- */
+const MANA = MTG.mana = {
+  COLORS: ['W', 'U', 'B', 'R', 'G'],
+  COLOR_NAMES: { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', C: 'Colorless' },
+  // the basic land that makes each colour, and the way back
+  BASIC_FOR: { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest', C: 'Wastes' },
+  COLOR_OF_BASIC: { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G', Wastes: 'C' },
+
+  // Parse "{2}{W}{U/P}{X}" -> ['2','W','U/P','X']
+  parse(cost) {
+    if (!cost) return [];
+    const out = [];
+    const re = /\{([^}]+)\}/g; let m;
+    while ((m = re.exec(cost))) out.push(m[1]);
+    return out;
+  },
+  // Mana value of a cost string
+  cmc(cost) {
+    let v = 0;
+    for (const s of MANA.parse(cost)) {
+      if (/^\d+$/.test(s)) v += parseInt(s, 10);
+      else if (s === 'X' || s === 'Y' || s === 'Z') v += 0;
+      else if (s === '∞') v += 0;
+      else if (/^\d+\/\w$/.test(s)) v += parseInt(s, 10);    // {2/W}
+      else v += 1;                                            // colored, phyrexian, hybrid, snow
+    }
+    return v;
+  },
+  // render {2}{W}{U} into inline HTML pips
+  html(cost) {
+    if (!cost) return '';
+    return MANA.parse(cost).map(s => {
+      const cls = MANA.pipClasses(s);
+      return `<i class="pip ${cls}" title="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`;
+    }).join('');
+  },
+  pipText(s) {
+    if (/^\d+$/.test(s)) return s;
+    if (s === 'X' || s === 'Y' || s === 'Z') return s;
+    if (s === 'T') return '↻';
+    if (s === 'Q') return '↺';
+    if (s === 'S') return '❄';
+    if (s === 'E') return '◆';
+    if (s.length === 1) return s;
+    // hybrid and Phyrexian read as "W/U" and "W/@PHI@" so both halves stay legible
+    const parts = s.split('/');
+    return parts.map(p => (p === 'P' ? 'Φ' : p)).join('/');
+  },
+  pipClasses(s) {
+    const cs = [];
+    if (/^\d+$/.test(s) || s === 'X' || s === 'Y' || s === 'Z') cs.push('pip-generic');
+    else if (s === 'C') cs.push('pip-c');
+    else if (s === 'T' || s === 'Q') cs.push('pip-tap');
+    else if (s === 'S') cs.push('pip-snow');
+    else if (s === 'E') cs.push('pip-energy');
+    else {
+      const cols = MANA.COLORS.filter(c => s.includes(c));
+      if (cols.length === 1) cs.push('pip-' + cols[0].toLowerCase());
+      // hybrid and two-brid symbols read as gold, the way multicolour does
+      else if (cols.length > 1) cs.push('pip-hybrid', 'pip-' + cols[0].toLowerCase() + cols[1].toLowerCase());
+      else cs.push('pip-generic');
+    }
+    if (s.includes('P')) cs.push('pip-phyrexian');
+    if (s.includes('/') && /\d/.test(s)) cs.push('pip-hybrid');       // {2/W}
+    if (s.includes('/') && s.includes('P')) cs.push('pip-hybrid');     // {W/P}
+    return cs.join(' ');
+  },
+  /** A mana cost as words, for a screen reader: "{2}{G}{G}" -> "2 generic, 2 green". */
+  speak(cost) {
+    if (!cost) return '';
+    const names = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green', C: 'colourless', X: 'X', S: 'snow', P: 'Phyrexian' };
+    const out = [];
+    let generic = 0;
+    for (const sym of MANA.parse(cost)) {
+      if (/^\d+$/.test(sym)) { generic += +sym; continue; }
+      if (sym.includes('/')) { out.push(sym.split('/').map(x => names[x] || x).join(' or ') + ' hybrid'); continue; }
+      out.push(names[sym] || sym);
+    }
+    const counted = {};
+    for (const w of out) counted[w] = (counted[w] || 0) + 1;
+    const parts = [];
+    if (generic) parts.push(generic + ' generic');
+    for (const [w, n] of Object.entries(counted)) parts.push(n > 1 ? `${n} ${w}` : w);
+    return parts.join(', ');
+  },
+
+  // Replace {SYM} in oracle text with pips
+  textHtml(text) {
+    if (!text) return '';
+    let out = U.esc(text);
+    out = out.replace(/\{([^}]+)\}/g, (m, s) => `<i class="pip ${MANA.pipClasses(s)}" title="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`);
+    out = out.replace(/\(([^)]+)\)/g, '<em class="reminder">($1)</em>');
+    return out.replace(/\n/g, '<br>');
+  },
+};
+
+/* ---------- a mana pool ---------- */
+class ManaPool {
+  constructor() { this.clear(); }
+  clear() { this.W = 0; this.U = 0; this.B = 0; this.R = 0; this.G = 0; this.C = 0; }
+  add(color, n) { this[color] = (this[color] || 0) + (n == null ? 1 : n); }
+  total() { return this.W + this.U + this.B + this.R + this.G + this.C; }
+  isEmpty() { return this.total() === 0; }
+  clone() { const p = new ManaPool(); Object.assign(p, this.snapshot()); return p; }
+  snapshot() { return { W: this.W, U: this.U, B: this.B, R: this.R, G: this.G, C: this.C }; }
+  restore(s) { Object.assign(this, s); }
+  toString() {
+    const parts = [];
+    for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) if (this[c]) parts.push(`${this[c]}${c}`);
+    return parts.join(' ') || '—';
+  }
+  /* Greedy but color-aware payment. Returns {ok, spent} without mutating unless commit. */
+  canPay(cost, opts) {
+    const plan = this.planPayment(cost, opts);
+    return !!plan;
+  }
+  planPayment(cost, opts) {
+    opts = opts || {};
+    const syms = MANA.parse(cost);
+    const avail = this.snapshot();
+    const spend = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+    let generic = 0;
+    const flexible = [];   // hybrid/phyrexian symbols resolved after strict ones
+    for (const s of syms) {
+      if (/^\d+$/.test(s)) { generic += parseInt(s, 10); continue; }
+      if (s === 'X') { generic += (opts.x || 0); continue; }
+      if (s === 'Y' || s === 'Z') { generic += (opts[s.toLowerCase()] || 0); continue; }
+      if (s.length === 1 && MANA.COLORS.includes(s)) {
+        if (avail[s] > 0) { avail[s]--; spend[s]++; } else return null;
+        continue;
+      }
+      if (s === 'C') { if (avail.C > 0) { avail.C--; spend.C++; } else return null; continue; }
+      if (s === 'S') { flexible.push(['W', 'U', 'B', 'R', 'G', 'C']); continue; } // snow approximated
+      flexible.push(s.split('/'));
+    }
+    // resolve hybrids: prefer colors we have most of
+    for (const opts2 of flexible) {
+      let paid = false;
+      const numeric = opts2.find(o => /^\d+$/.test(o));
+      const colorOpts = opts2.filter(o => MANA.COLORS.includes(o) || o === 'C');
+      colorOpts.sort((a, b) => avail[b] - avail[a]);
+      for (const c of colorOpts) { if (avail[c] > 0) { avail[c]--; spend[c]++; paid = true; break; } }
+      if (!paid && numeric) { generic += parseInt(numeric, 10); paid = true; }
+      if (!paid && opts2.includes('P')) { paid = true; spend.life = (spend.life || 0) + 2; } // phyrexian: pay life
+      if (!paid) return null;
+    }
+    // pay generic with colorless first, then least-needed colors
+    const order = ['C', 'W', 'U', 'B', 'R', 'G'];
+    for (const c of order) {
+      while (generic > 0 && avail[c] > 0) { avail[c]--; spend[c]++; generic--; }
+    }
+    if (generic > 0) return null;
+    return spend;
+  }
+  pay(cost, opts) {
+    const plan = this.planPayment(cost, opts);
+    if (!plan) return null;
+    for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) this[c] -= (plan[c] || 0);
+    return plan;
+  }
+}
+MTG.ManaPool = ManaPool;
+
+/* ---------- logging ---------- */
+MTG.log = function (...a) { if (MTG.DEBUG) console.log('[mtg]', ...a); };
+MTG.DEBUG = /[?&]debug/.test(location.search);
+
+
