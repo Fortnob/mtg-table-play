@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16968,
+  "needed": 16930,
   "gainedCards": 1772,
-  "linesNeeded": 19350,
-  "linesGained": 2297,
+  "linesNeeded": 19322,
+  "linesGained": 2296,
   "gained": {
    "all": 1772,
    "top2000": 52,
@@ -18,11 +18,11 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 80,
+  "verifyFail": 79,
   "overrides": {
    "drain": 62,
    "count": 42,
-   "group": 26,
+   "group": 27,
    "x": 5,
    "it": 112,
    "opponent": 67,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5909,
-   "lines": 4982,
+   "score": 5905,
+   "lines": 4981,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1043,
-   "lines": 845,
+   "score": 1046,
+   "lines": 848,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 494,
-   "lines": 455,
+   "score": 495,
+   "lines": 456,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -490,8 +490,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 37,
-   "lines": 34,
+   "score": 36,
+   "lines": 33,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -509,8 +509,8 @@
   },
   {
    "what": "attack with a kind of creature",
-   "score": 33,
-   "lines": 24,
+   "score": 34,
+   "lines": 25,
    "cards": [
     "Anim Pakal, Thousandth Moon",
     "Ainok Strike Leader",
@@ -1081,25 +1081,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 24,
-   "lines": 21,
-   "cards": [
-    "Up the Beanstalk",
-    "It That Heralds the End",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Helga, Skittish Seer",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Runadi, Behemoth Caller",
-    "Kalemne, Disciple of Iroas",
-    "Urza Assembles the Titans",
-    "Collected Company"
-   ]
-  },
-  {
    "what": "YouDontLoseManaEffect",
    "score": 24,
    "lines": 6,
@@ -1303,6 +1284,25 @@
    ]
   },
   {
+   "what": "EerieAbility",
+   "score": 23,
+   "lines": 17,
+   "cards": [
+    "Entity Tracker",
+    "Fear of Sleep Paralysis",
+    "Ghostly Dancers",
+    "Victor, Valgavoth's Seneschal",
+    "Balemurk Leech",
+    "Gremlin Tamer",
+    "Optimistic Scavenger",
+    "Scrabbling Skullcrab",
+    "Fear of Infinity",
+    "Skullsnap Nuisance",
+    "Unwilling Vessel",
+    "Cult Healer"
+   ]
+  },
+  {
    "what": "OrTriggeredAbility halves differ",
    "score": 23,
    "lines": 23,
@@ -1313,12 +1313,12 @@
     "Wildfire Devils",
     "Hraesvelgr of the First Brood",
     "Staff of the Death Magus",
-    "Necklace of Girion",
     "Staff of the Sun Magus",
     "Exuberant Fuseling",
     "Mystic Barrier",
     "Crack in Time",
-    "Staff of the Flame Magus"
+    "Staff of the Flame Magus",
+    "Staff of the Wild Magus"
    ]
   },
   {
@@ -1414,25 +1414,6 @@
     "Voracious Dragon",
     "Preyseizer Dragon",
     "Feaster of Fools"
-   ]
-  },
-  {
-   "what": "EerieAbility",
-   "score": 22,
-   "lines": 16,
-   "cards": [
-    "Entity Tracker",
-    "Fear of Sleep Paralysis",
-    "Ghostly Dancers",
-    "Victor, Valgavoth's Seneschal",
-    "Balemurk Leech",
-    "Gremlin Tamer",
-    "Optimistic Scavenger",
-    "Scrabbling Skullcrab",
-    "Fear of Infinity",
-    "Skullsnap Nuisance",
-    "Unwilling Vessel",
-    "Cult Healer"
    ]
   },
   {
@@ -1696,6 +1677,25 @@
    ]
   },
   {
+   "what": "words:mv",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Helga, Skittish Seer",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Delivery Moogle",
+    "Bygone Bishop",
+    "Runadi, Behemoth Caller",
+    "Kalemne, Disciple of Iroas",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Recruitment Officer"
+   ]
+  },
+  {
    "what": "keyword JobSelectAbility",
    "score": 19,
    "lines": 19,
@@ -1788,25 +1788,6 @@
     "Leave // Chance",
     "Conjured Currency",
     "The Neutrinos"
-   ]
-  },
-  {
-   "what": "prevent damage by some permanents",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Obscuring Haze",
-    "Galadhrim Ambush",
-    "Ethereal Haze",
-    "Haze Frog",
-    "Fog of War",
-    "Thwart the Enemy",
-    "Hindervines",
-    "Snag",
-    "Hunter's Ambush",
-    "Inspire Awe",
-    "Tanglesap",
-    "Frontline Strategist"
    ]
   },
   {
@@ -2396,7 +2377,6 @@
     "Cityscape Leveler",
     "Heaped Harvest",
     "Carrot Cake",
-    "Titans' Vanguard",
     "Eldrazi Repurposer",
     "Park Heights Maverick",
     "Drownyard Lurker",
@@ -2404,7 +2384,8 @@
     "Shield Mare",
     "Bartered Cow",
     "Brine Comber // Brinebound Gift",
-    "Esper Sojourners"
+    "Esper Sojourners",
+    "Bant Sojourners"
    ]
   },
   {
@@ -2681,25 +2662,6 @@
     "Tyrannize",
     "Rhystic Syphon",
     "Flay"
-   ]
-  },
-  {
-   "what": "MonarchIsSourceControllerCondition.instance",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Court of Grace",
-    "Court of Ire",
-    "Skyline Despot",
-    "Court of Embereth",
-    "Court of Ardenvale",
-    "Grave Venerations",
-    "Faramir, Steward of Gondor",
-    "Dawnglade Regent",
-    "Court of Bounty",
-    "Starscream, Power Hungry // Starscream, Seeker Leader",
-    "Garrulous Sycophant",
-    "Throne Warden"
    ]
   },
   {
@@ -3576,6 +3538,25 @@
     "Invasion of Kaldheim // Pyre of the World Tree",
     "Oskar, Rubbish Reclaimer",
     "Shipwreck Sifters"
+   ]
+  },
+  {
+   "what": "prevent damage by some permanents",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Galadhrim Ambush",
+    "Ethereal Haze",
+    "Haze Frog",
+    "Fog of War",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush",
+    "Inspire Awe",
+    "Tanglesap",
+    "Frontline Strategist",
+    "Harmless Assault",
+    "Vine Snare"
    ]
   },
   {
@@ -4769,24 +4750,6 @@
     "Flywheel Racer",
     "Lys Alana Dignitary",
     "Pyramid of the Pantheon"
-   ]
-  },
-  {
-   "what": "token ability ZombieDecayedToken",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Crowded Crypt",
-    "Ghoulish Procession",
-    "Poppet Stitcher // Poppet Factory",
-    "Flip the Switch",
-    "Rotten Reunion",
-    "Startle",
-    "Hobbling Zombie",
-    "Falcon Abomination",
-    "Ghoulcaller's Harvest",
-    "No Way Out",
-    "Revenge of the Drowned"
    ]
   },
   {
@@ -7036,6 +6999,20 @@
    ]
   },
   {
+   "what": "subject:faceDown",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "They Came from the Pipes",
+    "Threats Around Every Corner",
+    "Trail of Mystery",
+    "Yarus, Roar of the Old Gods",
+    "Kadena, Slinking Sorcerer",
+    "Cryptic Pursuit",
+    "Cryptid Inspector"
+   ]
+  },
+  {
    "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
    "score": 8,
    "lines": 8,
@@ -7906,20 +7883,6 @@
    ]
   },
   {
-   "what": "subject:faceDown",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "They Came from the Pipes",
-    "Threats Around Every Corner",
-    "Trail of Mystery",
-    "Yarus, Roar of the Old Gods",
-    "Kadena, Slinking Sorcerer",
-    "Cryptic Pursuit",
-    "Cryptid Inspector"
-   ]
-  },
-  {
    "what": "DontLoseByZeroOrLessLifeEffect",
    "score": 7,
    "lines": 7,
@@ -8225,13 +8188,41 @@
     "Illuminate",
     "Word of Blasting"
    ]
+  },
+  {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Cryoshatter",
+    "Relic Putrescence",
+    "Darksteel Garrison",
+    "Kudzu",
+    "Steam Vines",
+    "Spirit Shackle",
+    "Orcish Mine"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Cromat",
+    "Sisters of Stone Death",
+    "Abu Ja'far",
+    "Sentinel",
+    "Alms Beast",
+    "Steadfast Armasaur",
+    "Sworn Defender"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4635,
-   "cards": 3951,
+   "score": 4631,
+   "cards": 3950,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8243,8 +8234,8 @@
   },
   {
    "what": "custom ability",
-   "score": 777,
-   "cards": 624,
+   "score": 774,
+   "cards": 621,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8256,8 +8247,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 264,
-   "cards": 225,
+   "score": 265,
+   "cards": 226,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8554,19 +8545,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 27,
-   "cards": 24,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Tifa, Martial Artist"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 27,
    "cards": 27,
@@ -8590,6 +8568,19 @@
     "Themberchaud",
     "Champion of Rhonas",
     "Sandstorm Crasher"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 26,
+   "cards": 23,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Tifa, Martial Artist"
    ]
   },
   {
@@ -8853,19 +8844,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Gathering Stone",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Necklace of Girion",
-    "Staff of the Sun Magus"
-   ]
-  },
-  {
    "what": "target count 1-2",
    "score": 19,
    "cards": 19,
@@ -8876,19 +8854,6 @@
     "Get Out",
     "Succumb to the Cold",
     "Run for Your Life"
-   ]
-  },
-  {
-   "what": "prevent damage by some permanents",
-   "score": 18,
-   "cards": 15,
-   "names": [
-    "Obscuring Haze",
-    "Galadhrim Ambush",
-    "Ethereal Haze",
-    "Haze Frog",
-    "Fog of War",
-    "Thwart the Enemy"
    ]
   },
   {
@@ -8931,19 +8896,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 17,
-   "cards": 14,
-   "names": [
-    "Up the Beanstalk",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Collected Company"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 17,
    "cards": 14,
@@ -8954,6 +8906,19 @@
     "Heartbeat of Spring",
     "Dictate of Karametra",
     "Lavaleaper"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Gathering Stone",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Exuberant Fuseling"
    ]
   },
   {
@@ -9224,19 +9189,6 @@
    ]
   },
   {
-   "what": "MonarchIsSourceControllerCondition.instance",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Court of Grace",
-    "Court of Ire",
-    "Skyline Despot",
-    "Court of Embereth",
-    "Court of Ardenvale",
-    "Grave Venerations"
-   ]
-  },
-  {
    "what": "FirebendingAbility",
    "score": 14,
    "cards": 5,
@@ -9259,19 +9211,6 @@
     "Fabrication Foundry",
     "Wonderscape Sage",
     "Araumi of the Dead Tide"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Cityscape Leveler",
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Titans' Vanguard",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick"
    ]
   },
   {
@@ -9520,6 +9459,32 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Cityscape Leveler",
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker"
+   ]
+  },
+  {
+   "what": "prevent damage by some permanents",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Galadhrim Ambush",
+    "Ethereal Haze",
+    "Haze Frog",
+    "Fog of War",
+    "Hindervines",
+    "Snag"
+   ]
+  },
+  {
    "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
    "score": 13,
    "cards": 13,
@@ -9748,6 +9713,19 @@
     "Impulsivity",
     "Goblin Dark-Dwellers",
     "Quistis Trepe"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Delivery Moogle",
+    "Bygone Bishop",
+    "Collected Company",
+    "Recruitment Officer"
    ]
   },
   {
@@ -10028,19 +10006,6 @@
     "Ms. Marvel, Kamala Khan",
     "Intervene",
     "Fin Fang Foom"
-   ]
-  },
-  {
-   "what": "token ability ZombieDecayedToken",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Crowded Crypt",
-    "Ghoulish Procession",
-    "Poppet Stitcher // Poppet Factory",
-    "Flip the Switch",
-    "Rotten Reunion",
-    "Startle"
    ]
   },
   {
@@ -12063,6 +12028,32 @@
     "Bonds of Faith",
     "True-Faith Censer",
     "Sharpened Pitchfork"
+   ]
+  },
+  {
+   "what": "blocks a kind of creature",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Snarespinner",
+    "Ezuri's Archers",
+    "Frostweb Spider",
+    "Netcaster Spider",
+    "Skystinger",
+    "High-Rise Sawjack"
+   ]
+  },
+  {
+   "what": "DrewTwoOrMoreCardsCondition.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Galvanize",
+    "Foggy Swamp Hunters",
+    "Messenger Hawk",
+    "Evangel of Synthesis",
+    "Eyekite",
+    "Gnarled Sage"
    ]
   }
  ]

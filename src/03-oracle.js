@@ -62,6 +62,8 @@
     'Cipher',
     // a +1/+1 counter for going after the player with the most life
     'Dethrone',
+    // it can't block, and goes at end of combat after it attacks
+    'Decayed',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -1264,7 +1266,7 @@
     { re: /^Create a token that'?s a copy of equipped creature(, except (?:the token|it) isn'?t legendary)?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', of: 'attached', nonLegendary: !!m[1] }) },
     { re: /^(?:That token|The token) gains haste( until end of turn)?\.?$/i,
-      make: (m) => ({ op: 'grantKeyword', keywords: ['Haste'], scope: 'thatObject', duration: m[1] ? 'eot' : 'permanent' }) },
+      make: (m) => ({ op: 'grantKeyword', keywords: ['Haste'], scope: 'thatToken', duration: m[1] ? 'eot' : 'permanent' }) },
     /* Selvala, Heart of the Wilds */
     { re: /^[Ii]ts controller may draw a card if its power is greater than each other creature'?s power\.?$/,
       make: () => ({ op: 'drawIfBiggest' }) },
@@ -2271,6 +2273,13 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Legion Warboss: "That token gains haste until end of turn and attacks this combat if able."
+    { re: /^That (?:token|creature) gains haste until end of turn and attacks this combat if able\.?$/i,
+      make: () => ({ op: 'sequence', list: [{ op: 'grantKeyword', keywords: ['Haste'], scope: 'thatToken', duration: 'eot' },
+        { op: 'restrict', flag: 'mustAttackEot', scope: 'thatToken' }] }) },
+    // Obscuring Haze: "Prevent all damage that would be dealt this turn by creatures your opponents control."
+    { re: /^Prevent all damage that would be dealt this turn by creatures your opponents control\.?$/i,
+      make: () => ({ op: 'preventDamage', fromOpponentCreatures: true }) },
     // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
     { re: /^(CARDNAME|This creature|Target creature(?: you control)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
       make: (m) => Object.assign({ op: 'restrict', flag: /haste/i.test(m[2]) ? 'exceptByHaste' : 'exceptByFlying' },
@@ -3783,6 +3792,14 @@
     [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
     [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
+    [/^you'?re the monarch$/i, () => ({ kind: 'monarch' })],
+    // Righteous Valkyrie: "you have at least 7 life more than your starting life total"
+    [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
+    // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
+    [/^(?:this creature|CARDNAME) has fewer than (\w+) ([+\-0-9/a-z]+) counters on it$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]) - 1, cmp: 'atMost', counter: m[2].toLowerCase() } : null)],
+    // Jadar: "you control no creatures with decayed"
+    [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
@@ -4324,6 +4341,15 @@
       const extra = [];
       while (j < lines.length && !/^LEVEL\s+\d+/i.test(lines[j])) extra.push(lines[j++]);
       lines.splice(i, j - i, [lines[i], lines[i + 1]].concat(extra.length ? [extra.join(' ')] : []).join(' '));
+    }
+    /* Up the Beanstalk: "When this enchantment enters and whenever you cast
+       a spell with mana value 5 or greater, draw a card." Two triggers that
+       do the same thing: read as two lines. */
+    for (let i = 0; i < lines.length; i++) {
+      const two = lines[i].match(/^(When(?:ever)? [^,"]+?) and (whenever [^,"]+?), ([^"]+)$/);
+      if (!two) continue;
+      lines.splice(i, 1, two[1] + ', ' + two[3], 'W' + two[2].slice(1) + ', ' + two[3]);
+      i++;
     }
     let totalLines = 0, autoLines = 0;
     const spreeModes = [];
@@ -5372,7 +5398,7 @@
       } else if ((m = rest.match(/ with an? ([+\-0-9/a-z]+) counter on (?:it|them)$/i)) ||
           (m = rest.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
         sc.withCounter = m[1]; rest = rest.slice(0, m.index);
-      } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible)$/i))) {
+      } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed)$/i))) {
         if (/^without/i.test(m[1])) sc.withoutKeyword = m[2].toLowerCase(); else sc.keyword = m[2].toLowerCase();
         rest = rest.slice(0, m.index);
       }

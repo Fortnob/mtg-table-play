@@ -5151,6 +5151,8 @@
         o.attacksThisTurn = (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) + 1;
         o.attackedTurn = this.turn;
         if (!this.hasKw(o, 'vigilance')) this._markTapped(o);
+        // decayed (CR 702.147): "when it attacks, sacrifice it at end of combat"
+        if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
         this.combat.attackers.push(o.id);
         this._fire('attacks', o.controller, { attacker: o, source: o });
         this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o,
@@ -5214,6 +5216,8 @@
       if (blocker.tapped || blocker.phasedOut) return false;
       if (ba.abilities.some(x => (x.effects || []).some(e => e.op === 'cantBlock'))) return false;
       if (this._hasFlag(blocker, 'cantBlock')) return false;
+      // decayed: "it can't block"
+      if (this.hasKw(blocker, 'decayed')) return false;
       if ((blocker.effects || []).some(e => e && e.cantBlockId === attacker.id)) return false;
       // "can't block unless ..."
       const unlessB = this._staticOp(blocker, 'restrictUnless');
@@ -6161,6 +6165,10 @@
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        // Court of Grace: "if you're the monarch"
+        case 'monarch': return !!me && !!me.monarch;
+        // Righteous Valkyrie: "at least 7 life more than your starting life total"
+        case 'lifeAboveStart': return !!me && me.life >= ((this.config && this.config.startingLife) || 20) + (cond.n || 0);
         // "if it had no counters on it" as it died
         case 'diedNoCounters': return !!src && !Object.values(src._diedCounters || src.counters || {}).some(v => Number(v) > 0);
         case 'completedDungeon': return !!me && (me.dungeonsCompleted || []).length > 0;
@@ -6597,7 +6605,7 @@
     dealDamageToObject(o, amount, source, isCombat) {
       if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat);
-      if (this._damagePrevented(o, isCombat)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
+      if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
       if (o.preventShield) {
         const soak = Math.min(o.preventShield, amount);
         o.preventShield -= soak; amount -= soak;
@@ -6644,7 +6652,7 @@
       if (!p || amount <= 0) return 0;
       amount = this._damageAmount(amount, source, p.id, combat);
       if (this._protected(p)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
-      if (this._damagePrevented(p, combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
+      if (this._damagePrevented(p, combat, source)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
       if (p.preventShield) {
         const soak = Math.min(p.preventShield, amount);
         p.preventShield -= soak; amount -= soak;
@@ -7639,6 +7647,13 @@
           return;
         }
         if (e2.scope === 'self') { if (src) fn(src); return; }
+        /* "That token gains haste": the token just made, a copy or not —
+           never the permanent that made it */
+        if (e2.scope === 'thatToken') {
+          const x = this._lastCopy || (this._lastAffected && this.obj(this._lastAffected.id));
+          if (x && x.zone === 'battlefield' && x.isToken) fn(x);
+          return;
+        }
         if (e2.scope === 'triggerObject') {
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           if (x && x.zone === 'battlefield') fn(x);
@@ -10473,7 +10488,8 @@
           break;
 
         case 'preventDamage':
-          this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot' });
+          this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
+            fromOpponentCreatures: !!e.fromOpponentCreatures });
           this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'} is prevented this turn${e.to === 'you' ? ` to ${me.name}` : ''}.`);
           break;
 
@@ -11850,7 +11866,7 @@
     }
 
     /** Damage prevention from "prevent all damage this turn" effects. */
-    _damagePrevented(target, isCombat) {
+    _damagePrevented(target, isCombat, source) {
       // "prevent all combat damage that would be dealt to this creature"
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
       // Crystal Barricade: "prevent all noncombat damage that would be dealt to other creatures you control"
@@ -11858,6 +11874,8 @@
       for (const pv of this.prevention) {
         if (pv.combatOnly && !isCombat) continue;
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
+        // Obscuring Haze: "by creatures your opponents control"
+        if (pv.fromOpponentCreatures && !(source && source.controller !== pv.who && (this.characteristics(source) || {}).isCreature)) continue;
         return true;
       }
       return false;

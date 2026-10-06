@@ -1852,6 +1852,109 @@ module.exports = (test) => {
     t.zone(m, 'graveyard');
   });
 
+  test('Up the Beanstalk: a card as it enters and for each big spell', (mk, t) => {
+    t.auto('Up the Beanstalk');
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const u = T.hand('A', 'Up the Beanstalk');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '1G');
+    T.cast('A', u);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before, 'cast one, drew one');
+    T.mana('A', '4GG');
+    T.cast('A', T.hand('A', 'Craw Wurm'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 1, 'took the Wurm in, cast it, drew one');
+  });
+
+  test('Jadar and decayed: a Zombie only when there is none; it cannot block', (mk, t) => {
+    t.auto('Jadar, Ghoulcaller of Nephalia');
+    const T = mk();
+    T.bf('A', 'Jadar, Ghoulcaller of Nephalia');
+    T.nextTurn('B');
+    const z = T.bfOf('A').filter(o => o.name === 'Zombie');
+    t.eq(z.length, 1, 'one Zombie');
+    t.no(T.g.couldBlock(z[0], T.bf('B', 'Grizzly Bears'), 'A'), 'decayed cannot block');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Zombie').length, 1, 'not another while one is there');
+  });
+
+  test('Decayed: sacrificed at end of combat after it attacks', (mk, t) => {
+    const T = mk();
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Hobbling Zombie'));
+    T.resolve();
+    const h = T.bfOf('A').find(o => o.name === 'Hobbling Zombie');
+    T.g.moveObject(h, 'graveyard');
+    T.resolve();
+    const z = T.bfOf('A').find(o => o.name === 'Zombie');
+    t.ok(z, 'a decayed Zombie');
+    z.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: z.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    T.toMain('A', 'main');
+    t.no(T.bfOf('A').includes(z), 'gone');
+  });
+
+  test('Obscuring Haze prevents damage from opposing creatures only', (mk, t) => {
+    t.auto('Obscuring Haze');
+    const T = mk();
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Obscuring Haze'));
+    T.resolve();
+    const theirs = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Grizzly Bears');
+    T.g.dealDamageToPlayer(T.g.player('A'), 2, theirs, true);
+    t.eq(T.life('A'), 20, 'prevented');
+    T.g.dealDamageToPlayer(T.g.player('B'), 2, mine, true);
+    t.eq(T.life('B'), 18, 'not prevented');
+  });
+
+  test('Court of Grace: an Angel instead for the monarch', (mk, t) => {
+    t.auto('Court of Grace');
+    const T = mk();
+    const c = T.bf('A', 'Court of Grace');
+    T.g.setMonarch('A');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.ok(T.bfOf('A').some(o => o.name === 'Angel'), 'an Angel');
+    t.no(T.bfOf('A').some(o => o.name === 'Spirit'), 'not a Spirit');
+  });
+
+  test('Runaway Steam-Kin stops at three counters', (mk, t) => {
+    t.auto('Runaway Steam-Kin');
+    const T = mk();
+    const k = T.bf('A', 'Runaway Steam-Kin');
+    k.counters['+1/+1'] = 3;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(k.counters['+1/+1'], 3);
+  });
+
+  test('Legion Warboss: the Goblin has haste and must attack', (mk, t) => {
+    t.auto('Legion Warboss');
+    const T = mk();
+    T.bf('A', 'Legion Warboss');
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    const g = T.bfOf('A').find(o => o.name === 'Goblin');
+    t.ok(g && T.g.hasKw(g, 'haste'), 'haste');
+    t.ok(g && T.g._hasFlag(g, 'mustAttackEot'), 'attacks if able');
+  });
+
+  test('Righteous Valkyrie: +2/+2 at seven life over the start', (mk, t) => {
+    t.auto('Righteous Valkyrie');
+    const T = mk();
+    T.bf('A', 'Righteous Valkyrie');
+    const b = T.bf('A', 'Grizzly Bears');
+    t.eq(T.g.powerOf(b), 2);
+    T.g.player('A').life = (T.g.config.startingLife || 20) + 7;
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(b), 4);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
