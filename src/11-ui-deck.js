@@ -41,6 +41,8 @@
         source: slim.source,
         // the deck box shows its key card's art without loading the deck
         art: UI.artUrl(UI.keyCard(deck)) || null,
+        // and how much of it the game runs by itself, for the same reason
+        auto: autoMeta(deck),
         createdAt: (i >= 0 && idx[i].createdAt) || deck.createdAt || slim.updatedAt,
         updatedAt: slim.updatedAt,
       };
@@ -82,6 +84,23 @@
       return url;
     },
 
+    /**
+     * How much of a saved deck the game runs by itself, as {n, of}. The
+     * index remembers it; a deck saved before it did, or by an older build
+     * of the engine, is loaded once and counted again.
+     */
+    async ensureAuto(id) {
+      const have = decks.index().find(d => d.id === id);
+      if (have && have.auto && have.auto.v === UI.autoStamp()) return have.auto;
+      const full = await decks.load(id);
+      if (!full) return null;
+      const meta = autoMeta(full);
+      const idx = decks.index();
+      const at = idx.find(d => d.id === id);
+      if (at) { at.auto = meta; decks._writeIndex(idx); }
+      return meta;
+    },
+
     remove(id) {
       MTG.store.del('deck.' + id);
       decks._writeIndex(decks.index().filter(d => d.id !== id));
@@ -95,6 +114,26 @@
         return false;
       }).sort((a, b) => b.updatedAt - a.updatedAt);
     },
+  };
+
+  function autoMeta(deck) {
+    const sum = UI.deckAutomation(deck);
+    return { n: sum.auto, of: sum.total, v: UI.autoStamp() };
+  }
+
+  /**
+   * A deck's automation pill for a list, from the index when it is current
+   * and worked out in the background when it is not. `d` is an index entry.
+   */
+  UI.deckAutoPill = function (d, cls) {
+    const host = el('span', { class: 'auto-slot' });
+    const put = (a) => { host.innerHTML = ''; if (a && a.of) host.appendChild(UI.autoShare(a.n, a.of, { class: cls })); };
+    if (d.auto && d.auto.v === UI.autoStamp()) put(d.auto);
+    else {
+      if (d.auto) put(d.auto);
+      decks.ensureAuto(d.id).then(put).catch(() => {});
+    }
+    return host;
   };
 
   /* ---------------- import dialog ---------------- */
@@ -359,6 +398,7 @@ Sideboard
     function matchesHighlight(card) {
       if (!highlight) return true;
       if (highlight.kind === 'type') return primaryType(card) === highlight.value;
+      if (highlight.kind === 'manual') return !UI.autoInfo(card).auto;
       const a = MTG.oracle.analyze(card);
       if (!a || a.isLand) return false;            // the curve counts nonlands
       return Math.min(8, Math.floor(card.cmc || 0)) === Number(highlight.value);
@@ -376,6 +416,7 @@ Sideboard
     function highlightLabel() {
       if (!highlight) return '';
       if (highlight.kind === 'type') return (TYPE_PLURAL[highlight.value] || highlight.value).toLowerCase();
+      if (highlight.kind === 'manual') return 'cards that need a hand';
       return highlight.value === 8 ? 'cards at 8 mana or more' : `cards at ${highlight.value} mana`;
     }
 
@@ -642,6 +683,7 @@ Sideboard
           nameInput,
           el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation)]),
           sizeMeter(validation),
+          autoLine(),
           el('div', { class: 'deck-head-row' }, [
             el('button', { class: 'btn sm primary grow', text: '+ Add cards', onclick: addCard }),
             el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
@@ -814,10 +856,36 @@ Sideboard
       statsGrid.appendChild(el('div', { class: 'stat-cell type-cell' }, [el('div', { class: 'break-head', text: 'Card types' }), typeList]));
       sBox.appendChild(statsGrid);
 
-      sBox.appendChild(el('div', { class: 'auto-row' }, [
-        el('div', { class: 'small muted', text: `Engine automation: ${Math.round(stats.automation * 100)}% of this deck's text runs itself. The rest you resolve with the table tools.` }),
-        el('div', { class: 'progress', style: { marginTop: '6px' } }, el('div', { style: { width: (stats.automation * 100) + '%' } })),
-      ]));
+      // how much of it the game runs, and which cards are the exceptions
+      const auto = UI.deckAutomation(deck);
+      const autoBox = el('div', { class: 'auto-row' + (auto.manual.length ? ' has-manual' : '') }, [
+        el('div', { class: 'auto-row-head' }, [
+          auto.total ? UI.autoShare(auto.auto, auto.total) : null,
+          el('span', { class: 'small muted grow', text: !auto.total ? 'Nothing in the deck yet.'
+            : auto.manual.length
+              ? 'The game runs these by itself. The cards below have text you carry out with the table tools.'
+              : 'Every card runs itself: nothing in this deck needs a hand.' }),
+          auto.manual.length ? el('button', {
+            type: 'button', class: 'btn xs' + (highlight && highlight.kind === 'manual' ? ' primary' : ''),
+            text: 'Mark them', title: 'Mark the cards that need a hand in the list',
+            onclick: () => setHighlight('manual', true),
+          }) : null,
+        ].filter(Boolean)),
+        el('div', { class: 'progress', style: { marginTop: '8px' } },
+          el('div', { style: { width: (auto.total ? auto.auto / auto.total * 100 : 0) + '%' } })),
+      ]);
+      if (auto.manual.length) {
+        autoBox.appendChild(el('div', { class: 'auto-manual-list' }, auto.manual.map(mm => {
+          const row = el('div', { class: 'auto-manual' }, [
+            UI.autoBadge(mm.card),
+            el('span', { class: 'nm', text: `${mm.qty}× ${mm.card.name}` }),
+            el('span', { class: 'tiny dim why', text: mm.lines[0] || '' }),
+          ]);
+          UI.attachPreview(row, mm.card, 0);
+          return row;
+        })));
+      }
+      sBox.appendChild(autoBox);
       paneOverview.appendChild(sBox);
 
       const gBox = el('section', { class: 'panel' });
@@ -837,6 +905,18 @@ Sideboard
       // debounced inside the panel so editing does not hammer Scryfall
       if (activePane === 'advisor') advisor.refresh(validation);
       else advisor.refreshLocalOnly(validation);
+    }
+
+    /** The deck's automation share under its size: a tap marks the cards that need a hand. */
+    function autoLine() {
+      const auto = UI.deckAutomation(deck);
+      if (!auto.total) return null;
+      const pill = UI.autoShare(auto.auto, auto.total);
+      if (!auto.manual.length) return el('div', { class: 'deck-head-row auto-head' }, pill);
+      return el('div', { class: 'deck-head-row auto-head' }, el('button', {
+        type: 'button', class: 'auto-head-btn', title: 'Mark the cards that need a hand',
+        onclick: () => setHighlight('manual', true),
+      }, pill));
     }
 
     /** How far the deck is towards a legal size, as a bar that fills. */
@@ -878,6 +958,7 @@ Sideboard
     function cardTile(card, isCmd, qty) {
       const slot = applyHighlight(UI.cardSlot(card, { isCommander: isCmd }, { size: 'normal' }), card);
       if (qty > 1) slot.appendChild(el('div', { class: 'badge-row' }, el('span', { class: 'badge', text: '×' + qty })));
+      slot.appendChild(UI.autoBadge(card, { corner: true }));
       slot.style.cursor = 'pointer';
       slot.addEventListener('click', async () => {
         const picked = await UI.pickArt(card);
@@ -907,6 +988,7 @@ Sideboard
       }, [
         qty,
         el('span', { class: 'nm', text: e.card.name }),
+        UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
         MTG.settings.showCardPrices
           ? el('span', { class: 'tiny price', text: U.money(U.priceOf(e.card)) })
@@ -1052,6 +1134,8 @@ Sideboard
     const suggestBox = el('div', { class: 'search-suggest' });
     const legalOnly = el('input', { type: 'checkbox', checked: true, id: 'cs-legal' });
     const inColor = el('input', { type: 'checkbox', checked: !!(opts.colors || []).length, id: 'cs-color' });
+    // a filter on what came back rather than part of the query: automation is ours, not Scryfall's
+    const autoOnly = el('input', { type: 'checkbox', checked: !!MTG.settings.searchAutoOnly, id: 'cs-auto' });
 
     /* Narrowing by what a card is and what it costs is most of searching,
        so those are chips you tap rather than syntax you have to remember.
@@ -1085,6 +1169,8 @@ Sideboard
           (opts.colors || []).length
             ? el('label', { class: 'inline-check', for: 'cs-color' }, [inColor, el('span', { html: 'Inside ' + (opts.colors || []).map(c => `<i class="pip pip-${c.toLowerCase()}">${c}</i>`).join('') })])
             : null,
+          el('label', { class: 'inline-check', for: 'cs-auto', title: 'Hide cards with text the game cannot carry out by itself' },
+            [autoOnly, el('span', { text: 'Only cards the game runs fully' })]),
           el('span', { class: 'grow' }),
           status,
         ].filter(Boolean)),
@@ -1128,15 +1214,30 @@ Sideboard
     }, 260);
     legalOnly.addEventListener('change', () => run());
     inColor.addEventListener('change', () => run());
+    let last = null;
+    autoOnly.addEventListener('change', () => {
+      MTG.setSetting('searchAutoOnly', autoOnly.checked);
+      if (last) draw(last.cards, last.q); else run();
+    });
 
     function draw(cards, q) {
+      last = { cards, q };
       results.innerHTML = '';
+      let hidden = 0;
+      if (autoOnly.checked) {
+        const keep = cards.filter(c => UI.autoInfo(c).auto);
+        hidden = cards.length - keep.length;
+        cards = keep;
+      }
+      const hiddenNote = hidden ? ` · ${hidden} hidden that need a hand` : '';
       if (!cards.length) {
-        status.textContent = 'Nothing matched.';
-        results.appendChild(el('div', { class: 'empty-note', text: `No cards found for “${q}”. Try a Scryfall query, like t:instant c:u mv<=2.` }));
+        status.textContent = 'Nothing matched.' + hiddenNote;
+        results.appendChild(el('div', { class: 'empty-note', text: hidden
+          ? `Everything found for “${q}” needs a hand. Untick “Only cards the game runs fully” to see them.`
+          : `No cards found for “${q}”. Try a Scryfall query, like t:instant c:u mv<=2.` }));
         return;
       }
-      status.textContent = `${cards.length} card${cards.length === 1 ? '' : 's'}`;
+      status.textContent = `${cards.length} card${cards.length === 1 ? '' : 's'}${hiddenNote}`;
       const have = opts.inDeck ? opts.inDeck() : new Map();
       for (const c of cards) {
         const n = have.get(c.id) || 0;
@@ -1148,6 +1249,7 @@ Sideboard
             if (opts.once) m.close(); else redrawCounts();
           },
         });
+        slot.appendChild(UI.autoBadge(c, { corner: true }));
         tile.appendChild(slot);
         tile.appendChild(el('div', { class: 'search-name', text: c.name }));
         tile.appendChild(el('div', { class: 'search-count', dataset: { id: c.id }, text: n ? n + ' in deck' : '' }));
@@ -1294,6 +1396,11 @@ Sideboard
           const full = await MTG.decks.load(d.id);
           busy.close();
           if (!full) return UI.error('That deck could not be loaded.');
+          // cards that need a hand are said before the game, not found during it
+          const go = await UI.checkAutomation(full, {
+            onEdit: (dk) => UI.deckBuilder(dk, { onSave: () => render() }),
+          });
+          if (!go) return;
           m.close();
           onPick(full);
         };
@@ -1309,6 +1416,7 @@ Sideboard
               el('div', { class: 'pick-deck-name', text: d.name }),
               el('div', { class: 'tiny dim', text: `${d.size} cards · ${MTG.formats.get(d.format) ? MTG.formats.get(d.format).name : d.format}${d.commander ? ' · ' + d.commander : ''}` }),
             ]),
+            UI.deckAutoPill(d),
           ]),
           el('button', { class: 'btn xs ghost', text: 'Edit', onclick: async () => {
             const full = await MTG.decks.load(d.id);

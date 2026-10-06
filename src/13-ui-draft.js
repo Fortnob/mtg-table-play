@@ -279,6 +279,7 @@
           slot.setAttribute('aria-pressed', chosen ? 'true' : 'false');
           slot.style.setProperty('--i', String(i));
           slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || '')[0].toUpperCase() }));
+          slot.appendChild(UI.autoBadge(c, { corner: true }));
           if (chosen) slot.appendChild(el('span', { class: 'pick-flag', text: need > 1 ? `Pick ${this.chosen.indexOf(c.id) + 1}` : 'Your pick' }));
           grid.appendChild(slot);
         });
@@ -361,6 +362,7 @@
             tabindex: '0', role: 'button', 'aria-label': UI.describeCard(card),
           }, [
             el('span', { class: 'nm', text: card.name }),
+            UI.autoInfo(card).auto ? null : UI.autoBadge(card),
             el('span', { class: 'cost', html: MTG.mana.html(a.manaCost || card.mana_cost || '') }),
             abilityIds.has(card.id) ? el('span', { class: 'draft-flag', text: '◆', title: 'This card does something during the draft' }) : null,
           ].filter(Boolean));

@@ -543,6 +543,8 @@
           if (q.deckId) {
             deck = await MTG.decks.load(q.deckId);
             if (!deck) { go.disabled = false; return UI.error('That deck could not be loaded.'); }
+            const ok = await UI.checkAutomation(deck, { onEdit: (d) => UI.deckBuilder(d, { onSave: () => renderHome() }) });
+            if (!ok) { go.disabled = false; return; }
           }
           App.quickGame({
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
@@ -855,6 +857,7 @@
           UI.pips(d.identity, 'deck-pips'),
           el('div', { class: 'deck-card-name', text: d.name }),
           el('div', { class: 'deck-sub', text: (d.commander || (d.source === 'draft' ? 'Drafted' : fmtName(d.format))) + ' · ' + timeAgo(d.updatedAt) }),
+          UI.deckAutoPill(d, 'on-art'),
         ]),
       ]),
       el('div', { class: 'deck-foot' }, [
@@ -1280,6 +1283,7 @@
         { label: 'Save', class: 'primary', onClick: () => {
           MTG.setSetting('cardScripts', mine);
           MTG.oracle.clearCache();
+          UI.clearAutoCache();
           UI.ok('Card scripts saved.');
           renderOptions();
         } },
@@ -1416,7 +1420,19 @@
       el('button', {
         class: 'btn primary hero-btn', disabled: !ready.ok,
         html: `${SVG.play}<span>${fmt.kind === 'limited' ? 'Start the draft' : 'Start the game'}</span>`,
-        onclick: () => sess.start(),
+        onclick: async () => {
+          // your own deck's cards that need a hand are said once, before the game
+          const me = sess.seat('me');
+          if (me && me.deck && fmt.kind !== 'limited') {
+            const ok = await UI.checkAutomation(me.deck, {
+              onEdit: (d) => UI.deckBuilder(d, { onSave: (saved) => {
+                me.deck = saved; me.deckValid = MTG.formats.validate(saved, sess.fmt); renderLobby();
+              } }),
+            });
+            if (!ok || App.session !== sess) return;
+          }
+          sess.start();
+        },
       }),
     ]));
 

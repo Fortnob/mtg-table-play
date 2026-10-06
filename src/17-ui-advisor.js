@@ -445,6 +445,26 @@
       ].filter(Boolean)),
     );
 
+    /* what the game runs by itself, and the cards it hands to you */
+    const auto = UI.deckAutomation(deck);
+    if (auto.total) {
+      body.appendChild(el('div', { class: 'panel auto-report' }, [
+        el('h3', null, [el('span', { class: 'grow', text: 'Automation' }), UI.autoShare(auto.auto, auto.total)]),
+        el('div', { class: 'tiny dim', style: { marginBottom: auto.manual.length ? '8px' : 0 }, text: auto.manual.length
+          ? 'These have text the game cannot carry out by itself. When they come up, you resolve that part with the table tools.'
+          : 'The game runs every card in this deck by itself.' }),
+        auto.manual.length ? el('div', { class: 'auto-manual-list' }, auto.manual.map(mm => {
+          const row = el('div', { class: 'auto-manual' }, [
+            UI.autoBadge(mm.card),
+            el('span', { class: 'nm', text: `${mm.qty}× ${mm.card.name}` }),
+            el('span', { class: 'tiny dim why', text: mm.lines[0] || '' }),
+          ]);
+          UI.attachPreview(row, mm.card, 0);
+          return row;
+        })) : null,
+      ].filter(Boolean)));
+    }
+
     const balance = el('div', { class: 'panel' }, [el('h3', { text: 'Balance' }), gapBar(prof.gaps)]);
     body.appendChild(balance);
 

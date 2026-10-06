@@ -338,6 +338,162 @@
     ]);
   };
 
+  /* ---------------- automation ----------------
+     The table is honest about what it runs by itself. Every card in a list,
+     a pack or a search says whether the engine plays all of its text; the
+     few that need a person to carry part of it out say so plainly, before
+     anyone sits down to a game with them. Reading a card is cheap once, but
+     a list redraws on every click, so the answer is kept per card. */
+  const autoMemo = new Map();      // oracle id (or name) -> {auto, coverage, manual}
+  UI.autoInfo = function (card) {
+    if (!card) return null;
+    const key = card.oracle_id || card.name || card.id;
+    const had = autoMemo.get(key);
+    if (had) return had;
+    const a = MTG.oracle.analyze(card) || {};
+    const manual = (a.abilities || [])
+      .filter(x => !x.auto && x.kind !== 'castModifier')
+      .map(x => String(x.text || '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    const info = {
+      auto: a.fullyAutomated !== false,
+      coverage: a.autoCoverage == null ? 1 : a.autoCoverage,
+      manual: manual.length ? manual : (a.fullyAutomated === false
+        ? [a.otherFaceManual ? 'Its other face is resolved by hand.' : 'Part of its text is resolved by hand.'] : []),
+    };
+    autoMemo.set(key, info);
+    return info;
+  };
+  /** An open hand: the mark for text you carry out yourself. */
+  UI.HAND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/>' +
+    '<path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-6-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>';
+
+  /** Forget every answer: card scripts changed, so the engine reads cards differently. */
+  UI.clearAutoCache = function () { autoMemo.clear(); stamp = null; };
+
+  /**
+   * A mark for one card: a quiet tick when the game runs all of it, and a
+   * plain "by hand" when some of it is yours to carry out. `opts.corner`
+   * pins it to the corner of a card picture; `opts.label` spells it out.
+   */
+  UI.autoBadge = function (card, opts) {
+    opts = opts || {};
+    const info = UI.autoInfo(card);
+    if (!info) return null;
+    const tip = info.auto
+      ? 'The game runs all of this card by itself.'
+      : 'Needs a hand: the game cannot carry out all of this card, so part of it is yours to do with the table tools.\n\n'
+        + info.manual.slice(0, 3).map(t => '• ' + (t.length > 140 ? t.slice(0, 139) + '…' : t)).join('\n');
+    return el('span', {
+      class: 'auto-badge ' + (info.auto ? 'ok' : 'manual') + (opts.corner ? ' corner' : '') + (opts.label ? ' labelled' : ''),
+      title: tip, role: 'img', 'aria-label': info.auto ? 'Automated' : 'Needs a hand',
+    }, [
+      info.auto ? el('i', { 'aria-hidden': 'true', text: '✓' }) : el('i', { 'aria-hidden': 'true', html: UI.HAND_ICON }),
+      opts.label ? el('span', { text: info.auto ? 'Automated' : 'By hand' }) : null,
+    ].filter(Boolean));
+  };
+
+  /**
+   * How much of a deck the game runs by itself, counting copies: the main
+   * deck and the commanders, since a sideboard is not in play. `manual`
+   * lists the cards that need a person, with how many of each.
+   */
+  UI.deckAutomation = function (deck) {
+    const out = { auto: 0, total: 0, manual: [] };
+    if (!deck) return out;
+    const rows = (deck.commanders || []).map(c => ({ card: c, qty: 1 })).concat(deck.main || []);
+    const seen = new Map();
+    for (const e of rows) {
+      if (!e || !e.card) continue;
+      const info = UI.autoInfo(e.card);
+      out.total += e.qty;
+      if (info.auto) { out.auto += e.qty; continue; }
+      const key = e.card.oracle_id || e.card.name;
+      const had = seen.get(key);
+      if (had) had.qty += e.qty;
+      else { const m = { card: e.card, qty: e.qty, lines: info.manual }; seen.set(key, m); out.manual.push(m); }
+    }
+    return out;
+  };
+
+  /** "58/60 automated", as a pill: green when the game runs all of it. */
+  UI.autoShare = function (n, of, opts) {
+    opts = opts || {};
+    const all = of > 0 && n >= of;
+    return el('span', {
+      class: 'pill auto-share ' + (all ? 'good' : 'warn') + (opts.class ? ' ' + opts.class : ''),
+      title: all ? 'The game runs every card in this deck by itself.'
+        : `${of - n} card${of - n === 1 ? '' : 's'} in this deck need${of - n === 1 ? 's' : ''} a hand: part of their text is yours to carry out.`,
+      text: `${n}/${of} automated`,
+    });
+  };
+
+  /* Which build of the engine a remembered count belongs to. The engine
+     changes as it learns cards, so a count saved by an older build is
+     worked out again rather than trusted. */
+  let stamp = null;
+  UI.autoStamp = function () {
+    if (stamp) return stamp;
+    let n = 0;
+    try { for (const s of document.scripts) if (!s.src) n += s.textContent.length; } catch (e) {}
+    stamp = n + ':' + (MTG.scripts && MTG.scripts.count ? MTG.scripts.count() : 0) + ':' +
+      Object.keys(MTG.settings.cardScripts || {}).length;
+    return stamp;
+  };
+
+  /**
+   * Before a game: if the deck has cards that need a hand, say which, once.
+   * Resolves true to play, false to stay. `opts.onEdit` opens the deck so
+   * it can be changed; a deck that has been warned about and not changed
+   * is not warned about again.
+   */
+  UI.checkAutomation = function (deck, opts) {
+    opts = opts || {};
+    const sum = UI.deckAutomation(deck);
+    if (!sum.manual.length) return Promise.resolve(true);
+    const sig = (deck.id || deck.name || '') + '|' + sum.manual.map(m => m.card.name).sort().join('|');
+    const warned = MTG.store.get('autoWarned', {}) || {};
+    if (warned[sig]) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let done = false;
+      const settle = (v) => {
+        if (done) return;
+        done = true;
+        // only going ahead counts as having been told; editing or closing asks again next time
+        if (v === true) { warned[sig] = Date.now(); MTG.store.set('autoWarned', warned); }
+        resolve(!!v);
+      };
+      const list = el('div', { class: 'auto-warn-list' }, sum.manual.map(m => {
+        const row = el('div', { class: 'auto-warn-row' }, [
+          el('span', { class: 'qty', text: m.qty + '×' }),
+          el('div', { class: 'grow' }, [
+            el('div', { class: 'auto-warn-name', text: m.card.name }),
+            el('div', { class: 'tiny dim', text: m.lines.slice(0, 2).map(t => t.length > 120 ? t.slice(0, 119) + '…' : t).join(' · ') }),
+          ]),
+        ]);
+        UI.attachPreview(row, m.card, 0);
+        UI.longPress(row, () => UI.cardSheet(m.card));
+        return row;
+      }));
+      const m = UI.modal({
+        title: 'Some cards need a hand', width: '620px', className: 'auto-warn',
+        onOpen: (mm) => mm.head.querySelector('h2').prepend(el('span', { class: 'auto-warn-mark', 'aria-hidden': 'true', html: UI.HAND_ICON })),
+        content: el('div', null, [
+          el('p', { class: 'small muted', style: { marginTop: 0 }, text:
+            `The game runs ${sum.auto} of the ${sum.total} cards in ${deck.name ? '“' + deck.name + '”' : 'this deck'} by itself. `
+            + 'The ones below have text it cannot carry out: when they come up you resolve that part yourself, with the table tools in the game menu.' }),
+          list,
+        ]),
+        buttons: [
+          { label: 'Edit deck', onClick: () => { settle(false); m.close(); if (opts.onEdit) opts.onEdit(deck); } },
+          { label: 'Play anyway', class: 'primary', onClick: () => { settle(true); m.close(); } },
+        ],
+      });
+      m._onClose = () => settle(null);
+    });
+  };
+
   /* ---------------- hover preview ---------------- */
   let previewEl = null;
   function ensurePreview() {
