@@ -204,6 +204,8 @@ const View = obj({
   playable: arr(id), uses: rec(arr(AltUse)), extras: rec(arr(ExtraCost)),
   /* split cards in hand: the halves castable now */
   splitFaces: opt(rec(arr(nat))),
+  /* split cards with fuse castable with both halves now */
+  fusable: opt(arr(id)),
   monarch: maybe(id), initiative: maybe(id), isDay: maybe(bool),
   pendingChoice: maybe((v, p, out) => (v.waiting ? WaitingChoice : Choice)(v, p, out)),
   stack: arr(StackItemView), battlefield: arr(ObjectView), players: arr(PlayerView, { min: 1 }),
@@ -252,6 +254,8 @@ const INTENTS = {
     convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),
     /* a split card's half: 0 left, 1 right */
     face: opt(nat),
+    /* fuse: both halves of a split card with fuse, from hand */
+    fuse: opt(bool),
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
   }),

@@ -5099,6 +5099,12 @@
         continue;
       }
 
+      // Fuse (CR 702.102): both halves of a split card cast together from hand, which the table offers
+      if (!out.isPermanent && /^Fuse$/i.test(line)) {
+        out.abilities.push({ kind: 'castModifier', keyword: 'Fuse', text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       if (!out.isPermanent && /^Affinity for [a-z ]+$/i.test(line)) {
         out.abilities.push({ kind: 'castModifier', text: line, auto: true, effects: [] });
         autoLines++;

@@ -2597,6 +2597,30 @@ module.exports = (test) => {
     t.eq(fi.face || 0, 0, 'a whole card again in the graveyard');
   });
 
+  test('Fuse: Wear // Tear cast with both halves', (mk, t) => {
+    t.auto('Wear // Tear');
+    const T = mk();
+    const ar = T.bf('B', 'Ornithopter'), en = T.bf('B', 'Glorious Anthem');
+    const wt = T.hand('A', 'Wear // Tear');
+    T.mana('A', '1RW');
+    t.ok(T.g.viewFor('A').fusable.includes(wt.id), 'offered fused');
+    t.no(T.g.castSpell('A', T.hand('A', 'Shock').id, { auto: true, fuse: true }), 'only split cards with fuse');
+    t.ok(T.g.castSpell('A', wt.id, { auto: true, fuse: true, targets: [{ kind: 'object', id: ar.id }, { kind: 'object', id: en.id }] }), T.g.lastError);
+    T.resolve();
+    t.zone(ar, 'graveyard'); t.zone(en, 'graveyard');
+    t.eq(T.g.player('A').pool.total(), 0, 'paid both costs');
+  });
+
+  test('Fuse: not affordable, not offered', (mk, t) => {
+    const T = mk();
+    const wt = T.hand('A', 'Wear // Tear');
+    T.bf('B', 'Ornithopter');
+    T.mana('A', '1R');
+    t.no(T.g.viewFor('A').fusable.includes(wt.id));
+    t.no(T.g.castSpell('A', wt.id, { auto: true, fuse: true }), 'not enough mana');
+    t.eq(wt.zone, 'hand');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

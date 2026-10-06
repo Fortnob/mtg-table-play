@@ -202,6 +202,8 @@ declare namespace MTG {
     playable: Id[];
     /** split cards in hand: which halves (0 left, 1 right) can be cast now */
     splitFaces?: Record<Id, number[]>;
+    /** split cards with fuse that can be cast with both halves now */
+    fusable?: Id[];
     uses: Record<Id, AltUse[]>;
     extras: Record<Id, ExtraCost[]>;
     monarch: PlayerId | null;
@@ -378,6 +380,8 @@ declare namespace MTG {
       convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
       /** a split card's half to cast: 0 left, 1 right */
       face?: number;
+      /** cast both halves of a split card with fuse (targets: the left half's, then the right's) */
+      fuse?: boolean;
       /** generic questions answered as the spell is cast (replicate, splice), by purpose */
       choices?: Record<string, ChooseAnswer>;
     }

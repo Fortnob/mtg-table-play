@@ -923,6 +923,11 @@
             });
             if (okHalf) out.push({ kind: 'cast', objId: o.id, face });
           }
+          // fused: both halves castable now, and both costs payable together
+          if (this._fusable(o) && out.filter(x => x.objId === o.id && x.face != null).length === 2) {
+            const both = this._asHalf(o, 0, () => String(this.canCast(playerId, o.id).cost || '')) + String((o.card.card_faces[1] || {}).mana_cost || '');
+            if (this.canPayNow(playerId, both.replace(/\{X\}/g, ''), { forSpell: o })) out.push({ kind: 'cast', objId: o.id, fuse: true });
+          }
           continue;
         }
         const chk = this.canCast(playerId, o.id);
@@ -2470,6 +2475,11 @@
       if (!c || c.layout !== 'split' || !c.card_faces || c.card_faces.length !== 2) return false;
       return !/^Aftermath\b/m.test(String(c.card_faces[1].oracle_text || ''));
     }
+    /** A split card with fuse. */
+    _fusable(o) {
+      return this._splitHalves(o) && ((o.card.keywords || []).includes('Fuse') ||
+        /^Fuse\b/m.test(String((o.card.card_faces[0] || {}).oracle_text || '')));
+    }
     /** Ask something of one half of a split card, and put the card back as it was. */
     _asHalf(o, face, fn) {
       const was = o.face || 0;
@@ -3399,6 +3409,18 @@
       /* A split card (CR 709): cast one half or the other, as `face` says.
          The half is what the spell is while it is on the stack; a cast that
          doesn't happen leaves the card as it was. */
+      /* Fuse: both halves at once, from hand, for both costs; the left
+         half's words first, then the right's (CR 702.102). */
+      if (opts.fuse && !opts._faceSet) {
+        const so = this.obj(objId);
+        if (!so || !this._fusable(so)) return this.fail('Only a split card with fuse can be cast fused.');
+        if (so.zone !== 'hand') return this.fail('A fused split card is cast from your hand.');
+        const was = so.face || 0;
+        so.face = 0; so._chr = null;
+        const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true, face: 0 }));
+        if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
+        return ok;
+      }
       if (opts.face != null && !opts._faceSet) {
         const so = this.obj(objId);
         if (!so) return this.fail('No such card.');
@@ -3455,6 +3477,9 @@
       const addPick = a && a.additionalCost && a.additionalCost.choice
         ? a.additionalCost.choice[opts.additionalChoice || 0] : null;
       let cost = opts.costOverride != null ? opts.costOverride : chk.cost;
+      // fused: the right half's cost as well
+      const fused = !!(opts.fuse && this._fusable(o) && o.zone === 'hand');
+      if (fused && !opts.free) cost = (cost || '') + (((o.card.card_faces[1] || {}).mana_cost) || '');
       /* Flashback and its relatives: a printed cost for casting the card
          from somewhere it would not normally be cast from, and a rule
          about where it goes afterwards. */
@@ -3646,6 +3671,12 @@
         spreeModes: chose.spree, gift: o.giftTo, bargained, castInMain: !!this.isMain && this.activePlayer && this.activePlayer.id === playerId,
         via: via ? via.via : null, viaAfter: via ? via.after : null,
       };
+      // fused: the right half's words after the left's
+      if (fused && item.effects) {
+        item.effects = item.effects.concat(this._cardSpellEffects(MTG.oracle.analyze(o.card, 1)));
+        item.fused = true;
+        this.logEvent('cast', `${p.name} fuses ${o.name}.`);
+      }
       this.stack.push(item);
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
       // Cavern of Souls: "that spell can't be countered"
@@ -13805,6 +13836,9 @@
           for (const x of this.playableNow(playerId)) if (x.kind === 'cast' && x.face != null) (out[x.objId] = out[x.objId] || []).push(x.face);
           return out;
         })(),
+        // split cards with fuse that can be cast with both halves now (the cast intent's `fuse`)
+        fusable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
+          ? this.playableNow(playerId).filter(x => x.fuse).map(x => x.objId) : [],
         /* Why each card in your hand cannot be played just now, so the
            table can say so when you point at one. */
         unplayable: (() => {

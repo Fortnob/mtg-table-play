@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16728,
-  "gainedCards": 1756,
-  "linesNeeded": 19066,
+  "needed": 16718,
+  "gainedCards": 1758,
+  "linesNeeded": 19032,
   "linesGained": 2273,
   "gained": {
-   "all": 1756,
+   "all": 1758,
    "top2000": 52,
    "stdTop": 12
   },
@@ -91,13 +91,12 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 495,
-   "lines": 456,
+   "score": 455,
+   "lines": 422,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
     "Dusk // Dawn",
-    "Wear // Tear",
     "Case of the Locked Hothouse",
     "March of Swirling Mist",
     "Eldritch Immunity",
@@ -105,7 +104,8 @@
     "Alchemist's Talent",
     "Liliana, Death's Majesty",
     "Stuffy Doll",
-    "Fighter Class"
+    "Fighter Class",
+    "Wand of Wonder"
    ]
   },
   {
@@ -8172,8 +8172,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4535,
-   "cards": 3914,
+   "score": 4539,
+   "cards": 3918,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8210,19 +8210,6 @@
    ]
   },
   {
-   "what": "(line not matched to XMage code)",
-   "score": 244,
-   "cards": 232,
-   "names": [
-    "Mizzix's Mastery",
-    "Wear // Tear",
-    "Eldritch Immunity",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Liliana, Death's Majesty"
-   ]
-  },
-  {
    "what": "(cast modifier line)",
    "score": 232,
    "cards": 220,
@@ -8233,6 +8220,19 @@
     "Reforge the Soul",
     "Hagra Mauling // Hagra Broodpit",
     "Kogla and Yidaro"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 229,
+   "cards": 220,
+   "names": [
+    "Mizzix's Mastery",
+    "Eldritch Immunity",
+    "Winds of Abandon",
+    "Alchemist's Talent",
+    "Liliana, Death's Majesty",
+    "Wand of Wonder"
    ]
   },
   {
