@@ -2227,6 +2227,11 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .arrow.tgt, .arrow-glow.tgt, .head.tgt, .arrow.aim, .arrow-glow.aim, .head.aim { stroke: var(--aim); fill: var(--aim); }
 .arrow.atk, .arrow.blk, .arrow.tgt, .arrow.aim { fill: none; }
 .arrow-glow { fill: none !important; }
+/* damage just dealt: a line from what dealt it, there and gone */
+.arrow.zap, .arrow-glow.zap, .head.zap { stroke: #ff6b5c; fill: #ff6b5c; }
+.arrow.zap { fill: none; animation: zap .7s ease-out forwards; }
+.arrow-glow.zap { animation: zap .7s ease-out forwards; }
+@keyframes zap { 0% { opacity: 0; stroke-dasharray: 0 2000; } 25% { opacity: 1; } 100% { opacity: 0; stroke-dasharray: 2000 0; } }
 
 /* ---------- the banner, the panel ---------- */
 .arena-banner { position: absolute; z-index: 60; left: 50%; bottom: calc(var(--hand-peek) + 22px); translate: -50% 12px;
@@ -2639,6 +2644,16 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .log-line.t-step b, .log-line.t-mana b { font-weight: 500; }
 .dpanel .mode-list { max-height: min(56vh, 520px); overflow-y: auto; padding-right: 4px; }
 .over-note { font-size: 13px; color: #9aa4b5; margin-top: 8px; }
+
+/* a replay's controls: one quiet bar along the top of the table */
+.replay-bar { position: absolute; z-index: 67; top: 10px; left: 62px; display: flex; align-items: center; gap: 4px;
+  padding: 4px 6px 4px 12px; border-radius: 999px; background: rgba(12,14,20,.82); border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45); backdrop-filter: blur(8px); max-width: calc(100% - 120px); white-space: nowrap; }
+.replay-bar .rb-tag { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-hi, #f6dc8c); margin-right: 4px; }
+.replay-bar .rb-where { font-size: 12px; color: #c9d1de; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.replay-bar .btn.xs { min-width: 30px; }
+:root[data-phone] .replay-bar { top: auto; bottom: 8px; left: 8px; max-width: calc(100% - 16px); overflow-x: auto; }
+:root[data-phone] .replay-bar .rb-tag, :root[data-phone] .replay-bar .rb-where { display: none; }
 /* ============================================================
    screens.css - everything outside the game table
 
@@ -3038,6 +3053,7 @@ input[type=checkbox].switch:checked::after { left: 20px; background: linear-grad
 .resume-card .btn.ghost { color: #c3cad6; }
 
 .home-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+.home-replay { display: flex; justify-content: flex-end; margin-top: 8px; }
 .home-tile {
   isolation: isolate; min-height: 150px; align-items: flex-end; padding: 20px; gap: 14px; border-radius: var(--r-l);
   background: linear-gradient(160deg, #161b25, #0f1218); border: 1px solid var(--hair); color: #eef1f6;
@@ -30352,6 +30368,298 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 })(window.MTG);
 
 
+/* ===== 09b-sync.js ===== */
+/* ============================================================
+   09b-sync.js - keeping a guest's table up to date, cheaply
+
+   A view of the game is mostly the same as the last one: one land has
+   turned sideways, priority has moved on. And most of a view, by weight,
+   is the card text and image links of every card on the table, which
+   never change at all. So a guest is sent
+
+     - each card's data once, the first time it sees that card, and after
+       that a short key standing in for it;
+     - each view as the difference from the last one it has said it has
+       (an ack), field by field, with lists of things matched up by id;
+     - a whole view now and then anyway, and whenever it asks for one
+       because something did not add up;
+     - the game's events since the last view, which is what its table
+       animates from and what its log is built from.
+
+   The host keeps one Encoder per guest; the guest keeps one Decoder. A
+   message is
+
+     { t: 'sv', g, n, b, p | s, c, e, l }
+
+   g  which game (a new game starts the stream again)
+   n  this view's number, per guest
+   b  the number of the view this is a difference from (absent: whole view)
+   p  the difference;  s  the whole view (with cards as keys)
+   c  card data the guest has not had yet, by key
+   e  events since the last message; l  the log, with whole views only
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const U = MTG.util;
+
+  const FULL_EVERY = 200;         // a whole view at least this often (in messages)
+  const KEEP_BASES = 24;          // how many recent views a guest holds on to
+
+  /* ---------------- card keys ----------------
+     A card's key is a hash of what it says, worked out once per card
+     object. The same printing fetched twice is the same card; the card
+     cache's note of when it fetched it is left out. */
+  const keys = new WeakMap();
+  const noStamp = (k, v) => (k === '_t' ? undefined : v);
+  function cardKey(card) {
+    let k = keys.get(card);
+    if (!k) { k = U.hash(JSON.stringify(card, noStamp)) + (card.id ? String(card.id).slice(0, 4) : ''); keys.set(card, k); }
+    return k;
+  }
+  const CARD_FIELDS = new Set(['card', 'printedCard']);
+
+  /** A copy of `x` with every card swapped for its key; new cards are put in `out`. */
+  function strip(x, known, out) {
+    if (x == null || typeof x !== 'object') return x;
+    if (Array.isArray(x)) return x.map(v => strip(v, known, out));
+    const r = {};
+    for (const k in x) {
+      const v = x[k];
+      if (v === undefined || typeof v === 'function') continue;
+      if (CARD_FIELDS.has(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+        const key = cardKey(v);
+        if (!known.has(key)) { known.add(key); out[key] = v; }
+        r[k] = '~' + key;
+      } else r[k] = strip(v, known, out);
+    }
+    return r;
+  }
+  /** The other way: keys back into cards. Always a fresh copy, so the table may do as it likes with it. */
+  function dress(x, cards) {
+    if (x == null || typeof x !== 'object') return x;
+    if (Array.isArray(x)) return x.map(v => dress(v, cards));
+    const r = {};
+    for (const k in x) {
+      const v = x[k];
+      if (CARD_FIELDS.has(k) && typeof v === 'string' && v[0] === '~') r[k] = cards.get(v.slice(1)) || null;
+      else r[k] = dress(v, cards);
+    }
+    return r;
+  }
+
+  /* ---------------- differences ----------------
+     A patch mirrors the shape of what it changes. A plain object is a set
+     of changes to an object's fields; an array is an instruction:
+       ['=', value]          replace with this
+       ['-']                 take this field away
+       ['#', order, {id: patch}]
+                             a list of things with ids: the new order
+                             (0 if it has not changed), and the changes to
+                             each, new ones as ['=', thing] */
+  const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
+  function equal(a, b) {
+    if (a === b) return true;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (Array.isArray(a)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!equal(a[i], b[i])) return false;
+      return true;
+    }
+    for (const k in a) if (a[k] !== undefined && !equal(a[k], b[k])) return false;
+    for (const k in b) if (b[k] !== undefined && a[k] === undefined) return false;
+    return true;
+  }
+  function keyed(list) {
+    if (!list.length) return null;
+    const m = new Map();
+    for (const x of list) {
+      if (!isObj(x) || (typeof x.id !== 'string' && typeof x.id !== 'number') || m.has(x.id)) return null;
+      m.set(x.id, x);
+    }
+    return m;
+  }
+  function diff(a, b) {
+    if (a === b) return undefined;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const am = keyed(a), bm = am && keyed(b);
+      if (am && bm) {
+        const order = b.map(x => x.id);
+        const sameOrder = a.length === b.length && a.every((x, i) => x.id === order[i]);
+        const ch = {};
+        let any = false;
+        for (const x of b) {
+          const y = am.get(x.id);
+          const d = y ? diff(y, x) : ['=', x];
+          if (d !== undefined) { ch[x.id] = d; any = true; }
+        }
+        if (sameOrder && !any) return undefined;
+        return ['#', sameOrder ? 0 : order, ch];
+      }
+      return equal(a, b) ? undefined : ['=', b];
+    }
+    if (isObj(a) && isObj(b)) {
+      let out;
+      for (const k in b) {
+        if (b[k] === undefined) continue;
+        const d = a[k] === undefined ? ['=', b[k]] : diff(a[k], b[k]);
+        if (d !== undefined) (out || (out = {}))[k] = d;
+      }
+      for (const k in a) if (a[k] !== undefined && b[k] === undefined) (out || (out = {}))[k] = ['-'];
+      return out;
+    }
+    return equal(a, b) ? undefined : ['=', b];
+  }
+  function apply(a, p) {
+    if (p === undefined) return a;
+    if (Array.isArray(p)) {
+      if (p[0] === '=') return p[1];
+      if (p[0] === '#') {
+        const base = new Map((a || []).map(x => [x.id, x]));
+        const order = p[1] || (a || []).map(x => x.id);
+        return order.map(id => {
+          const d = p[2][id];
+          return d === undefined ? base.get(id) : apply(base.get(id), d);
+        });
+      }
+      return a;
+    }
+    const out = Object.assign({}, a || {});
+    for (const k in p) {
+      const d = p[k];
+      if (Array.isArray(d) && d[0] === '-') delete out[k];
+      else out[k] = apply(out[k], d);
+    }
+    return out;
+  }
+
+  /** Everything in a view that is state, rather than news. */
+  function stateOf(view) {
+    const s = Object.assign({}, view);
+    delete s.events; delete s.eventSeq; delete s.log;
+    return s;
+  }
+
+  /* ---------------- the host's side ---------------- */
+  class Encoder {
+    constructor() {
+      this.known = new Set();       // card keys this guest has
+      this.n = 0;
+      this.sent = new Map();        // n -> stripped view, until acknowledged
+      this.acked = null;            // {n, view}
+      this.floor = 0;               // the last whole view sent: no difference is taken from anything older
+      this.sinceFull = 0;
+      this.game = null;
+      this.wantFull = true;
+      this.wantLog = true;
+    }
+    /** Build the message that brings this guest up to `view`. */
+    encode(view) {
+      const g = String(view.game || (view.config ? view.config.seed : ''));
+      if (g !== this.game) { this.game = g; this.wantFull = true; this.wantLog = true; this.sent.clear(); this.acked = null; }
+      const cards = {};
+      const state = strip(stateOf(view), this.known, cards);
+      const events = view.events ? strip(view.events, this.known, cards) : null;
+      const n = ++this.n;
+      const msg = { t: 'sv', g, n };
+      /* The base is the newest view the guest has said it has — unless a
+         whole view has gone out since, which the guest drops everything
+         older for. Until that one is acknowledged it is the base itself:
+         the channel delivers in order, so it is there before this is, and
+         if it somehow is not, the guest asks again. */
+      const base = this.acked && this.acked.n >= this.floor ? this.acked
+        : this.floor && this.sent.has(this.floor) ? { n: this.floor, view: this.sent.get(this.floor) } : null;
+      if (!this.wantFull && base && this.sinceFull < FULL_EVERY) {
+        msg.b = base.n;
+        msg.p = diff(base.view, state) || {};
+        this.sinceFull++;
+      } else {
+        msg.s = state;
+        // the log only when the guest is starting over; otherwise it has it already, from the events
+        if (this.wantLog) msg.l = (view.log || []).slice(-150);
+        this.wantLog = false;
+        this.sinceFull = 0;
+        this.wantFull = false;
+        this.floor = n;
+      }
+      if (Object.keys(cards).length) msg.c = cards;
+      if (events) { msg.e = events; msg.es = view.eventSeq; } else msg.e = null;
+      this.sent.set(n, state);
+      while (this.sent.size > KEEP_BASES * 2) {
+        const k = this.sent.keys().next().value;
+        if (k === this.floor) break;
+        this.sent.delete(k);
+      }
+      return msg;
+    }
+    /** The guest has view `n`: later differences can be taken from it. */
+    ack(n) {
+      if (this.acked && n <= this.acked.n) return;
+      const view = this.sent.get(n);
+      if (!view) return;
+      this.acked = { n, view };
+      for (const k of Array.from(this.sent.keys())) if (k < n) this.sent.delete(k);
+    }
+    /** Something went wrong at the other end: the next message is a whole view. */
+    resync() { this.wantFull = true; this.wantLog = true; }
+  }
+
+  /* ---------------- the guest's side ---------------- */
+  class Decoder {
+    constructor() {
+      this.cards = new Map();
+      this.views = new Map();       // n -> stripped view
+      this.last = 0;
+      this.game = null;
+      this.log = [];
+      this.eventSeq = null;
+    }
+    /**
+     * Read one message. Returns { view, ack } with the whole view rebuilt,
+     * or { resync: true } when this message cannot be read on top of what
+     * is held (and a whole view has to be asked for).
+     */
+    decode(msg) {
+      if (msg.c) for (const k in msg.c) this.cards.set(k, msg.c[k]);
+      if (msg.g !== this.game) {
+        // a new game: nothing held is any use as a base
+        if (!msg.s) { const first = !this.asked; this.asked = true; return { resync: first, skip: true }; }
+        this.game = msg.g; this.views.clear(); this.log = []; this.eventSeq = null;
+      }
+      let state;
+      if (msg.s) { state = msg.s; this.asked = false; }
+      else {
+        /* A difference from a view this side does not have cannot be read.
+           One whole view is asked for, and anything that arrives before it
+           is let go. A gap in the numbering on its own is no reason: a
+           difference is from the view it names, whatever came between. */
+        const base = this.views.get(msg.b);
+        if (!base) { const first = !this.asked; this.asked = true; return { resync: first, skip: true }; }
+        state = apply(base, msg.p);
+      }
+      this.last = msg.n;
+      this.views.set(msg.n, state);
+      // the host never goes back further than the base it has just used
+      const floor = msg.b != null ? msg.b : msg.n;
+      for (const k of Array.from(this.views.keys())) if (k < floor) this.views.delete(k);
+      while (this.views.size > KEEP_BASES) this.views.delete(this.views.keys().next().value);
+      const view = dress(state, this.cards);
+      let events = msg.e ? dress(msg.e, this.cards) : null;
+      // events are a stream: a hole in it means the table should not trust them
+      if (events && events.length && this.eventSeq != null && events[0].seq > this.eventSeq + 1) events = null;
+      if (msg.es != null) this.eventSeq = msg.es;
+      else if (events && events.length) this.eventSeq = events[events.length - 1].seq;
+      view.events = events;
+      if (msg.l) this.log = msg.l.slice();
+      else if (events) for (const e of events) if (e.type === 'log') this.log.push({ turn: e.turn, type: e.kind, text: e.text });
+      if (this.log.length > 300) this.log.splice(0, this.log.length - 200);
+      view.log = this.log.slice(-200);
+      return { view, ack: msg.n };
+    }
+  }
+
+  MTG.sync = { Encoder, Decoder, diff, apply, strip, dress, cardKey, equal, stateOf };
+})(window.MTG);
 /* ===== 15-combos.js ===== */
 /* ============================================================
    15-combos.js - infinite combo detection
@@ -34136,7 +34444,7 @@ Sideboard
       this.svg.setAttribute('class', 'arena-arrows');
       this.svg.setAttribute('aria-hidden', 'true');
       const defs = document.createElementNS(ns, 'defs');
-      for (const cls of ['atk', 'tgt', 'blk', 'aim']) {
+      for (const cls of ['atk', 'tgt', 'blk', 'aim', 'zap']) {
         const mk = document.createElementNS(ns, 'marker');
         mk.setAttribute('id', 'arw-' + cls);
         mk.setAttribute('viewBox', '0 0 10 10');
@@ -35124,7 +35432,7 @@ Sideboard
     primaryInfo() {
       const v = this.view, live = this.live || v;
       if (v.over) return { label: 'Game over', disabled: true, cls: 'idle' };
-      if (v.spectating || !this.me) return { label: 'Watching', disabled: true, cls: 'idle' };
+      if (v.spectating || v.replay || !this.me) return { label: v.replay ? 'Replay' : 'Watching', disabled: true, cls: 'idle' };
       if (v.mulliganPhase) return { label: 'Mulligan', disabled: true, cls: 'idle', sub: 'choose your opening hand' };
       if (this.targeting) {
         const t = this.targeting;
@@ -35924,10 +36232,11 @@ Sideboard
         [`Bots: ${botPaceName(MTG.settings.botSpeed)}  → ${botPaceName(nextBotPace(MTG.settings.botSpeed))}`,
           () => MTG.setSetting('botSpeed', nextBotPace(MTG.settings.botSpeed))],
         [live.fullControl ? 'Full control: on' : 'Full control: off  (Ctrl)', () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
-        ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
+        this.isReplay ? null : ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
+        MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
         '-',
-        ['Save and leave', () => MTG.app.exitToMenu()],
-        this.me && !this.view.over ? ['Concede', concede] : null,
+        this.isReplay ? ['Stop watching', () => MTG.app.leaveGame({ keepSave: true })] : ['Save and leave', () => MTG.app.exitToMenu()],
+        this.me && !this.view.over && !this.isReplay ? ['Concede', concede] : null,
       ].filter(Boolean), { title: 'Game' });
     }
 
@@ -36114,11 +36423,15 @@ Sideboard
    the time it takes to draw one frame. This is the part of the table that
    turns that back into something a person can watch.
 
-   Views are played back as beats. Each one is looked at against the one
-   before it and given as long as it deserves: an opponent's spell is held
-   up in the middle long enough to read, an attack takes a moment, a step
-   going by takes none. If views pile up faster than they can be shown the
-   beats get shorter, so the table is never far behind the game.
+   Views are played back as beats. Each one comes with the game's own
+   events since the last (src/06b-events.js) — what was cast, what moved
+   from where to where, what dealt damage to what — and is given as long
+   as those deserve: an opponent's spell is held up in the middle long
+   enough to read, an attack takes a moment, a step going by takes none.
+   A view without its events (the first one, or after a gap) is worked out
+   the old way, by comparing it with the one before. If views pile up
+   faster than they can be shown the beats get shorter, so the table is
+   never far behind the game.
 
    Cards move by FLIP: where every card was is measured, the table is
    redrawn, and the difference is played backwards. Because each card keeps
@@ -36152,7 +36465,12 @@ Sideboard
           /* A view that changes nothing worth seeing — a step going by, a
              land being tapped for a spell that is about to appear anyway — is
              passed over for the one after it, which carries the same change. */
-          while (this.queue.length && this.view && this._minor(this.view, next)) next = this.queue.shift();
+          while (this.queue.length && this.view && this._minor(this.view, next)) {
+            // what happened in the view passed over still happened
+            const skipped = next;
+            next = this.queue.shift();
+            next.events = skipped.events && next.events ? skipped.events.concat(next.events) : null;
+          }
           await this._present(next);
         }
       } catch (e) {
@@ -36166,6 +36484,7 @@ Sideboard
     _pace() {
       const q = this.queue.length;
       let f = MTG.settings.animSpeed != null ? MTG.settings.animSpeed : 1;
+      if (this.paceScale) f *= this.paceScale;          // a replay played faster or slower
       if (this._motionOff()) f *= 0.5;
       if (q > 8) f *= 0.08;
       else if (q > 4) f *= 0.35;
@@ -36199,6 +36518,7 @@ Sideboard
      * events found here also feed the caption and the history down the left.
      */
     _plan(prev, next) {
+      if (prev && Array.isArray(next.events) && !next.events.some(e => e.type === 'restore')) return this._planEvents(prev, next);
       const me = this.meId;
       const b = { hold: 0, spot: null, events: [], turn: false };
       if (!prev) return b;
@@ -36290,6 +36610,116 @@ Sideboard
       return b;
     },
 
+    /**
+     * The same, from the events themselves. Nothing has to be guessed: a
+     * card that went from a library to a graveyard says so, damage says
+     * where it came from, and a spell going on the stack is a cast even if
+     * it has already resolved by the time this view is shown.
+     */
+    _planEvents(prev, next) {
+      const me = this.meId;
+      const b = { hold: 0, spot: null, events: [], turn: false, fromEvents: true,
+        moves: new Map(), damage: [], life: new Map(), counters: [] };
+      const name = (pid) => { const p = next.players.find(x => x.id === pid) || prev.players.find(x => x.id === pid); return pid === me ? 'You' : (p ? p.name : 'Someone'); };
+      const hold = (ms) => { b.hold = Math.max(b.hold, ms); };
+      const s = (pid) => (pid === me ? '' : 's');
+      const known = (id) => this.objIn(id, next) || this.objIn(id, prev);
+      const cardOf = (e) => e.card || (known(e.objId) || {}).card || null;
+      const cardName = (id) => { const o = known(id); return o && o.card ? o.card.name : null; };
+      const liveStack = new Set((next.stack || []).map(x => x.id));
+      for (const e of next.events) {
+        switch (e.type) {
+          case 'turn': b.turn = true; hold(e.player === me ? 1100 : 900); break;
+          case 'cast': case 'activate': case 'trigger': {
+            const kind = e.type === 'cast' ? 'cast' : e.type === 'trigger' ? 'trigger' : 'ability';
+            const targets = (e.targets || []).map(t => this.targetName(t)).filter(Boolean);
+            const verb = kind === 'cast' ? 'cast' + s(e.controller) : kind === 'trigger' ? '— trigger:' : 'activate' + s(e.controller);
+            b.events.push({ kind, who: e.controller, card: cardOf(e), name: e.name, targets,
+              text: `${name(e.controller)} ${verb} ${e.name}${targets.length ? ' → ' + targets.join(', ') : ''}` });
+            if (e.controller !== me) {
+              // held up in the middle while it is still there to be held up
+              if (liveStack.has(e.stackId)) b.spot = { stackId: e.stackId, objId: kind === 'cast' ? e.objId : null, trigger: kind === 'trigger' };
+              hold(kind === 'cast' ? 1500 : 1000);
+            } else hold(160);
+            break;
+          }
+          case 'resolve': hold(260); break;
+          case 'counter':
+            b.events.push({ kind: 'countered', who: e.controller, card: cardOf(e), name: e.name, text: `${e.name} is countered` });
+            hold(260);
+            break;
+          case 'attack': {
+            const first = e.attackers[0];
+            const c = cardOf({ objId: first.objId });
+            b.events.push({ kind: 'attack', who: e.player, card: c, name: `${e.attackers.length} attacker${e.attackers.length === 1 ? '' : 's'}`,
+              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (c ? c.name : 'a creature') : e.attackers.length + ' creatures'}` });
+            hold(900);
+            break;
+          }
+          case 'block': {
+            const first = e.blocks[0];
+            const c = cardOf({ objId: first.objId });
+            b.events.push({ kind: 'block', who: e.player, card: c, name: `${e.blocks.length} blocker${e.blocks.length === 1 ? '' : 's'}`,
+              text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (c ? c.name : 'a creature') : e.blocks.length + ' creatures'}` });
+            hold(900);
+            break;
+          }
+          case 'leave': {
+            const c = cardOf(e);
+            if (e.isToken && e.to !== 'graveyard') break;
+            const a = c ? MTG.oracle.analyze(c, 0) : null;
+            if (!e.died && e.to === 'graveyard' && a && a.isLand && !a.isCreature) break;
+            const verb = e.died ? 'dies' : e.to === 'graveyard' ? 'is put into a graveyard' : e.to === 'exile' ? 'is exiled'
+              : e.to === 'hand' ? 'returns to hand' : e.to === 'library' ? 'goes into a library' : 'leaves';
+            const nm = c ? c.name : (cardName(e.objId) || 'A permanent');
+            b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, text: `${nm} ${verb}` });
+            hold(420);
+            break;
+          }
+          case 'enter': {
+            if (e.from === 'stack') break;               // it was cast, and said so then
+            const c = cardOf(e);
+            const a = c ? MTG.oracle.analyze(c, 0) : null;
+            const nm = c ? c.name : 'A permanent';
+            if (a && a.isLand) {
+              if (e.controller !== me) { b.events.push({ kind: 'land', who: e.controller, card: c, name: nm, text: `${name(e.controller)} plays ${nm}` }); hold(500); }
+              break;
+            }
+            b.events.push({ kind: 'enter', who: e.controller, card: c, name: nm, text: `${nm} enters the battlefield` });
+            hold(380);
+            break;
+          }
+          case 'token': {
+            const c = cardOf(e);
+            const nm = c ? c.name : 'a token';
+            b.events.push({ kind: 'token', who: e.controller, card: c, name: nm, text: `${name(e.controller)} create${s(e.controller)} ${nm}` });
+            hold(320);
+            break;
+          }
+          case 'zone': b.moves.set(e.objId, e); break;
+          case 'damage': b.damage.push(e); hold(450); break;
+          case 'life': {
+            b.life.set(e.player, (b.life.get(e.player) || 0) + e.delta);
+            hold(Math.abs(b.life.get(e.player)) >= 5 ? 700 : 450);
+            break;
+          }
+          case 'counters': b.counters.push(e); break;
+          case 'lose':
+            b.events.push({ kind: 'lost', who: e.player, text: `${name(e.player)} ${e.player === me ? 'lose' : 'loses'}${e.reason ? ' — ' + e.reason : ''}` });
+            hold(1200);
+            break;
+          default: break;
+        }
+      }
+      // no blocks is news too, if you are the one attacking
+      const attackers = next.battlefield.filter(o => o.attacking);
+      if (attackers.length && prev.step === 'declareAttackers' && next.step !== 'declareAttackers' &&
+          !next.battlefield.some(o => (o.blocking || []).length) && attackers[0].controller === me) {
+        b.events.push({ kind: 'noblock', who: null, text: 'No blocks' }); hold(500);
+      }
+      return b;
+    },
+
     async _present(next) {
       const prev = this.view;
       const beat = this._plan(prev, next);
@@ -36304,7 +36734,10 @@ Sideboard
       this.view = next;
       if (beat.spot) this.spot = beat.spot;
       else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this.spot = null;
+      // where each card that moved really came from and went to, for the flights
+      this._moves = beat.moves || null;
       this.render();
+      this._moves = null;
       this._report(prev, next, beat);
       if (next.priorityPlayer === this.meId && !hadIt && !next.over && !next.mulliganPhase) MTG.sfx('priority');
 
@@ -36320,8 +36753,9 @@ Sideboard
     _report(prev, next, beat) {
       if (!prev) return;
       if (beat.turn) this._turnBanner(next);
-      this._lifeFloats(prev, next);
-      this._boardFloats(prev, next);
+      if (beat.fromEvents) this._eventFloats(prev, next, beat);
+      else this._lifeFloats(prev, next);
+      this._boardFloats(prev, next, beat.fromEvents);
       for (const e of beat.events) this.pushHistory(e);
       this._voice(prev, next, beat);
       // what you did yourself needs no announcing, except where it ended up
@@ -36411,6 +36845,14 @@ Sideboard
       const prevView = before.view;
       const now = this.locate(id, this.view);
       if (!now) return null;
+      const mv = this._moves && this._moves.get(id);
+      if (mv && mv.from) {
+        const who = mv.fromOwner || mv.owner;
+        if (mv.from === 'library') return before.piles.get(who + '/library') || null;
+        if (mv.from === 'graveyard' || mv.from === 'exile') return before.piles.get(who + '/' + mv.from) || null;
+        if (mv.from === 'hand') return before.hands.get(who) || null;
+        if (mv.from === 'command') return null;
+      }
       if (prevView) {
         const was = this.locate(id, prevView);
         if (was && (was.zone === 'graveyard' || was.zone === 'exile')) return before.piles.get(was.player + '/' + was.zone) || null;
@@ -36427,6 +36869,14 @@ Sideboard
     _destFor(id, before) {
       const loc = this.locate(id, this.view);
       const piles = this._pileRects();
+      const mv = this._moves && this._moves.get(id);
+      if (mv && mv.to && !loc) {
+        // somewhere this view does not show: a library, or a hand that is not yours
+        const who = mv.toOwner || mv.owner;
+        if (mv.to === 'library') return { rect: piles.get(who + '/library') || null, zone: 'library' };
+        if (mv.to === 'hand') return { rect: this._handRects().get(who) || null, zone: 'hand' };
+        if (mv.to === 'graveyard' || mv.to === 'exile') return { rect: piles.get(who + '/' + mv.to) || null, zone: mv.to };
+      }
       if (loc && (loc.zone === 'graveyard' || loc.zone === 'exile')) return { rect: piles.get(loc.player + '/' + loc.zone), zone: loc.zone };
       if (loc && loc.zone === 'hand') {
         const hands = this._handRects();
@@ -36701,6 +37151,13 @@ Sideboard
           if (b) this._arrow(src, b, 'tgt');
         }
       }
+      // damage just dealt, for a moment
+      if (this._zaps && this._zaps.length) {
+        const now = performance.now();
+        this._zaps = this._zaps.filter(z => z.until > now);
+        const at = (r) => ({ x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height });
+        for (const z of this._zaps) this._arrow(at(z.from), at(z.to), 'zap');
+      }
       // and the target you are choosing follows the pointer
       const t = this.targeting;
       if (t) {
@@ -36789,6 +37246,68 @@ Sideboard
       }
     },
 
+    /**
+     * Numbers and marks from the events: damage where it landed (with a
+     * line from whatever dealt it, unless it was a creature in combat,
+     * which has its arrow already), life where it changed, counters where
+     * they went.
+     */
+    _eventFloats(prev, next, beat) {
+      for (const d of beat.damage) {
+        if (d.target.kind === 'object') {
+          const n = this.els.get(d.target.id);
+          if (n && n.isConnected) {
+            this.float(n, '-' + d.amount, 'dmg');
+            n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
+            setTimeout(() => n.classList.remove('hit'), 520);
+          }
+        }
+        if (!d.combat) this.zap(d.source, d.target);
+      }
+      for (const [pid, delta] of beat.life) {
+        if (!delta) continue;
+        const orb = this.orbFor(pid);
+        if (!orb) continue;
+        orb.classList.remove('hurt', 'healed'); void orb.offsetWidth;
+        orb.classList.add(delta < 0 ? 'hurt' : 'healed');
+        setTimeout(() => orb.classList.remove('hurt', 'healed'), 800);
+        this.float(orb, (delta > 0 ? '+' : '') + delta, delta < 0 ? 'life-down' : 'life-up', Math.min(1, Math.abs(delta) / 8));
+        if (delta < 0 && pid === this.meId && Math.abs(delta) >= 3) this.flash('hurt');
+      }
+      // counters, added up per permanent and kind so a big swing is one number
+      const sum = new Map();
+      for (const c of beat.counters) {
+        if (!c.objId) continue;
+        const k = c.objId + '|' + c.kind;
+        sum.set(k, (sum.get(k) || 0) + c.delta);
+      }
+      for (const [k, d] of sum) {
+        if (!d) continue;
+        const [id, kind] = k.split('|');
+        const n = this.els.get(id);
+        if (!n || !n.isConnected) continue;
+        if (kind === '+1/+1' || kind === '-1/-1') {
+          const x = kind === '+1/+1' ? d : -d;
+          this.float(n, `${x > 0 ? '+' : ''}${x}/${x > 0 ? '+' : ''}${x}`, x > 0 ? 'buff' : 'dmg');
+        } else if (kind === 'loyalty' || kind === 'defense') this.float(n, (d > 0 ? '+' : '') + d, d > 0 ? 'buff' : 'dmg');
+      }
+    },
+
+    /** A quick line from a source to whatever it dealt damage to. */
+    zap(sourceId, target) {
+      if (this._motionOff() || !sourceId) return;
+      const box = (n) => { if (!n || !n.isConnected) return null; const r = n.getBoundingClientRect(); return r.width ? r : null; };
+      // a spell has usually gone by the time its damage is shown: it comes from where it was held up
+      const from = box(this.els.get(sourceId)) || box(this.spotHost.querySelector('.spot-card')) || box(this.stackCol.lastElementChild);
+      const to = target.kind === 'player' ? box(this.orbFor(target.id)) : box(this.els.get(target.id));
+      if (!from || !to) return;
+      this._zaps = (this._zaps || []).filter(z => z.until > performance.now());
+      this._zaps.push({ from, to, until: performance.now() + 700 });
+      this.renderArrows();
+      clearTimeout(this._zapTimer);
+      this._zapTimer = setTimeout(() => { if (!this._destroyed) this.renderArrows(); }, 720);
+    },
+
     /** Floating numbers where life changed, and a jolt to the portrait. */
     _lifeFloats(prev, next) {
       for (const p of next.players) {
@@ -36805,23 +37324,23 @@ Sideboard
       }
     },
 
-    _boardFloats(prev, next) {
+    _boardFloats(prev, next, fromEvents) {
       const old = new Map(prev.battlefield.map(o => [o.id, o]));
       for (const o of next.battlefield) {
         const was = old.get(o.id);
         if (!was) continue;
         const n = this.els.get(o.id);
         if (!n || !n.isConnected) continue;
-        if ((o.damage || 0) > (was.damage || 0)) {
+        if (!fromEvents && (o.damage || 0) > (was.damage || 0)) {
           this.float(n, '-' + ((o.damage || 0) - (was.damage || 0)), 'dmg');
           n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
           setTimeout(() => n.classList.remove('hit'), 520);
         }
         const c1 = ((was.counters || {})['+1/+1'] || 0) - ((was.counters || {})['-1/-1'] || 0);
         const c2 = ((o.counters || {})['+1/+1'] || 0) - ((o.counters || {})['-1/-1'] || 0);
-        if (c1 !== c2) this.float(n, (c2 > c1 ? '+' : '') + (c2 - c1) + '/' + (c2 > c1 ? '+' : '') + (c2 - c1), c2 > c1 ? 'buff' : 'dmg');
+        if (!fromEvents && c1 !== c2) this.float(n, (c2 > c1 ? '+' : '') + (c2 - c1) + '/' + (c2 > c1 ? '+' : '') + (c2 - c1), c2 > c1 ? 'buff' : 'dmg');
         const l1 = (was.counters || {}).loyalty, l2 = (o.counters || {}).loyalty;
-        if (l1 != null && l2 != null && l1 !== l2) this.float(n, (l2 > l1 ? '+' : '') + (l2 - l1), l2 > l1 ? 'buff' : 'dmg');
+        if (!fromEvents && l1 != null && l2 != null && l1 !== l2) this.float(n, (l2 > l1 ? '+' : '') + (l2 - l1), l2 > l1 ? 'buff' : 'dmg');
         if (o.power != null && was.power != null && (o.power !== was.power || o.toughness !== was.toughness) && c1 === c2) {
           const dp = o.power - was.power, dt = o.toughness - was.toughness;
           if (dp || dt) this.float(n, `${dp >= 0 ? '+' : ''}${dp}/${dt >= 0 ? '+' : ''}${dt}`, dp + dt >= 0 ? 'buff' : 'dmg');
@@ -37544,14 +38063,17 @@ Sideboard
       const buttons = [];
       // the next game is the host's to start; a guest waits for it here or leaves
       const guest = !!(MTG.net && MTG.net.isClient);
-      if (guest) buttons.push({ label: 'Leave the table', cls: 'primary', fn: () => MTG.app.leaveGame() });
+      // somebody watching, or watching a replay, neither won nor lost
+      const watched = !!(v.spectating || v.replay || !this.me);
+      if (v.replay) buttons.push({ label: 'Back to menu', cls: 'primary', fn: () => MTG.app.leaveGame({ keepSave: true }) });
+      else if (guest) buttons.push({ label: 'Leave the table', cls: 'primary', fn: () => MTG.app.leaveGame() });
       else if (m && !m.decided) buttons.push({ label: `Play game ${m.gameNumber + 1}`, cls: 'primary', fn: () => MTG.app.nextGame() });
       else buttons.push({ label: m ? 'New match' : 'Rematch', cls: 'primary', fn: () => MTG.app.rematch() });
-      if (!guest) buttons.unshift({ label: 'Back to menu', fn: () => MTG.app.leaveGame() });
+      if (!guest && !v.replay) buttons.unshift({ label: 'Back to menu', fn: () => MTG.app.leaveGame() });
       buttons.unshift({ label: 'Look at the board', fn: () => { this.decision.classList.add('peek'); setTimeout(() => this.decision.classList.remove('peek'), 4000); } });
       const body = el('div', { class: 'over-body' }, [
-        el('div', { class: 'over-word ' + (won ? 'win' : draw ? 'draw' : 'loss'), text: won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
-        el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
+        el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
+        el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won && !watched ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
         guest ? el('div', { class: 'over-note', text: 'If the host starts another game, it opens here.' }) : null,
         m ? el('div', { class: 'over-match' }, [
           el('div', { class: 'tiny', text: m.label }),
@@ -37769,6 +38291,187 @@ Sideboard
       el('button', { type: 'button', class: 'btn xs', text: '+', onclick: () => set(v + 1) }),
     ]);
   }
+})(window.MTG);
+/* ===== 12d-ui-replay.js ===== */
+/* ============================================================
+   12d-ui-replay.js - watching a game again
+
+   A replay (src/06c-replay.js) is played on an ordinary table: the game is
+   rebuilt from its record one action at a time, and after each one the
+   table is handed a view with the events that action caused, exactly as
+   it would be in a live game. The table does not know the difference —
+   except that nothing on it is anybody's to click.
+
+   The controls are one small bar: back to the start, step back a turn,
+   play or pause, one action on, on to the next turn, how fast, and whose
+   seat to watch from.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const { el } = MTG;
+  const UI = MTG.ui;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const SPEEDS = [0.5, 1, 2, 4, 8];
+
+  class ReplayViewer {
+    constructor(root, rp, opts) {
+      opts = opts || {};
+      this.rp = rp;
+      this.speed = 1;
+      this.playing = false;
+      const meta = rp.data.meta || {};
+      this.viewer = meta.me && rp.game.player(meta.me) ? meta.me : '__watching';
+      this._build(root);
+      rp.on('reset', () => { this._seen = undefined; });
+      if (!opts.paused) this.playing = true;
+    }
+
+    _build(root) {
+      // nothing at a replay is anybody's to do
+      this.table = new UI.Table(root, this.viewer, () => {});
+      this.table.isReplay = true;
+      this.table.paceScale = 1;
+      const b = (label, title, fn, cls) => el('button', { type: 'button', class: 'btn xs ' + (cls || 'ghost'), text: label, title, 'aria-label': title, onclick: fn });
+      this.btnPlay = b('▶', 'Play', () => this.toggle(), 'primary');
+      this.btnSpeed = b('1×', 'Speed', () => this.cycleSpeed());
+      this.btnSeat = b('', 'Whose seat to watch from', () => this.cycleSeat());
+      this.where = el('span', { class: 'rb-where' });
+      this.bar = el('div', { class: 'replay-bar', role: 'toolbar', 'aria-label': 'Replay' }, [
+        el('span', { class: 'rb-tag', text: 'Replay' }),
+        b('⏮', 'Back to the start', () => this.restart()),
+        b('◀◀', 'Back a turn', () => this.seekTurn(Math.max(0, this.rp.game.turn - 1))),
+        this.btnPlay,
+        b('▶|', 'One action on', () => this.stepOnce()),
+        b('▶▶', 'On to the next turn', () => this.seekTurn(this.rp.game.turn + 1)),
+        this.btnSpeed, this.btnSeat, this.where,
+        b('✕', 'Stop watching', () => MTG.app.leaveGame({ keepSave: true })),
+      ]);
+      this.table.arena.appendChild(this.bar);
+      this.renderBar();
+    }
+
+    /** What the table is shown: the game as the chosen seat sees it, with nothing to act on. */
+    _view(events) {
+      const g = this.rp.game;
+      const v = g.viewFor(this.viewer);
+      v.replay = true;
+      v.spectating = this.viewer === '__watching' || !!v.mulliganPhase;
+      v.playable = []; v.uses = {}; v.extras = {};
+      v.canUndo = false; v.holding = false; v.fullControl = false; v.yielding = null;
+      if (v.pendingChoice && v.pendingChoice.playerId === this.viewer) {
+        v.pendingChoice = { type: v.pendingChoice.type, playerId: v.pendingChoice.playerId, waiting: true };
+      }
+      v.events = events === undefined ? g.eventsFor(this.viewer, this._seen) : events;
+      v.eventSeq = g.eventSeq;
+      this._seen = g.eventSeq;
+      return v;
+    }
+
+    /** Show the game as it stands, with whatever happened since the last look. */
+    show(jump) {
+      if (this._stopped) return;
+      if (jump) this.table._noMotionOnce = true;
+      // a jump is a cut, not a hundred things happening at once
+      this.table.update(this._view(jump ? [] : undefined));
+      this.renderBar();
+      if (this.playing) this._run();
+    }
+
+    renderBar() {
+      const rp = this.rp, g = rp.game;
+      this.btnPlay.textContent = this.playing ? '❚❚' : '▶';
+      this.btnPlay.title = this.playing ? 'Pause' : 'Play';
+      this.btnSpeed.textContent = (this.speed < 1 ? '½' : this.speed) + '×';
+      const p = g.player(this.viewer);
+      this.btnSeat.textContent = p ? p.name : 'All seats';
+      this.where.textContent = `Turn ${g.turn} · ${rp.index}/${rp.total}` + (rp.done ? ' · end' : '');
+    }
+
+    toggle() {
+      if (this.rp.done) { this.restart(true); return; }
+      this.playing = !this.playing;
+      this.renderBar();
+      if (this.playing) this._run();
+    }
+    cycleSpeed() {
+      this.speed = SPEEDS[(SPEEDS.indexOf(this.speed) + 1) % SPEEDS.length];
+      this.table.paceScale = 1 / this.speed;
+      this.renderBar();
+    }
+    cycleSeat() {
+      const ids = this.rp.game.players.map(p => p.id).concat(['__watching']);
+      this.viewer = ids[(ids.indexOf(this.viewer) + 1) % ids.length];
+      // a different seat is a different table: hands, and which side is yours
+      const root = this.table.root;
+      this.table.destroy();
+      this.bar.remove();
+      this._seen = undefined;
+      this._build(root);
+      MTG.app.table = this.table;
+      this.show(true);
+    }
+
+    stepOnce() {
+      this.playing = false;
+      if (this.rp.step()) this.show();
+      else this.renderBar();
+    }
+    restart(play) {
+      this.playing = !!play;
+      this.rp.reset();
+      this.show(true);
+    }
+    /** Jump to the start of turn `n`, without playing every action out on the table. */
+    seekTurn(n) {
+      const was = this.playing;
+      this.playing = false;
+      this.rp.seekTurn(n);
+      this.playing = was;
+      this.show(true);
+    }
+
+    /** Wait for the table to finish showing what it has been given. */
+    async _settle() {
+      const t = this.table;
+      for (let i = 0; i < 200 && !this._stopped && (t.queue.length || t._pumping); i++) await sleep(30);
+    }
+
+    async _run() {
+      if (this._running) return;
+      this._running = true;
+      try {
+        while (this.playing && !this._stopped && !this.rp.done) {
+          const before = this.rp.game.stateVersion;
+          this.rp.step();
+          if (this.rp.game.stateVersion !== before) {
+            this.table.update(this._view());
+            this.renderBar();
+            await this._settle();
+            await sleep(90 / this.speed);
+          } else this.renderBar();
+        }
+      } finally { this._running = false; }
+      if (this.rp.done && !this._stopped) this._finished();
+    }
+
+    _finished() {
+      this.playing = false;
+      this.renderBar();
+      const check = this.rp.verify();
+      if (this.rp.errors.length || !check.ok) {
+        console.warn('[replay] playback did not end where the game did', check, this.rp.errors);
+        UI.toast('This replay did not play back exactly as it was recorded.', 'err', 5000);
+      } else this.table.say('End of the replay', 'info', 3000);
+    }
+
+    stop() {
+      this._stopped = true;
+      this.playing = false;
+      if (this.bar) this.bar.remove();
+    }
+  }
+
+  UI.ReplayViewer = ReplayViewer;
 })(window.MTG);
 /* ===== 13-ui-draft.js ===== */
 /* ============================================================
@@ -39282,6 +39985,10 @@ Sideboard
       tile('formats', SVG.play, 'Play', 'Every format, from Commander pods of eight to booster drafts. Fill the seats with friends or bots.', () => showScreen('formats')),
       tile('decks', SVG.deck, 'Decks', 'Import a list from anywhere, build one from scratch, and see what it combos into.', () => showScreen('decks')),
       tile('options', SVG.gear, 'Options', 'Pace, stops, appearance, accessibility and sound.', () => showScreen('options')),
+    ]));
+    page.appendChild(el('div', { class: 'home-replay' }, [
+      el('button', { class: 'btn sm ghost', text: 'Watch a replay…', title: 'Open a replay file saved from the game menu',
+        onclick: () => App.openReplayFile() }),
     ]));
 
     /* -- your decks, as deck boxes -- */
@@ -41096,7 +41803,7 @@ Sideboard
         if (name) existing.name = name;
         if (this.game) {
           const p = this.game.player(existing.id);
-          if (p) { p.connected = true; this.game.logEvent('game', `${existing.name} reconnected.`); }
+          if (p) this.game.setConnected(p.id, true);
           this.pushState();
         }
         this.broadcastLobby();
@@ -41105,7 +41812,13 @@ Sideboard
         return existing;
       }
       if (this.roster.some(r => r.peerId === peerId)) return null;
-      if (this.game) { net.send(peerId, { t: 'error', payload: 'That game is already under way.' }); return null; }
+      if (this.game) {
+        this.watchers = this.watchers || new Map();
+        this.watchers.set(peerId, { name: name || 'Someone' });
+        net.send(peerId, { t: 'error', payload: 'That game is already under way — you are watching.' });
+        this.pushState();
+        return null;
+      }
       if (this.roster.length >= this.fmt.maxPlayers) { net.send(peerId, { t: 'error', payload: 'That table is full.' }); return null; }
       const seat = { id: MTG.uid('rp'), kind: 'remote', name: name || 'Player', peerId, token: token || null, deck: null, deckValid: null };
       this.roster.push(seat);
@@ -41282,6 +41995,8 @@ Sideboard
       try {
         // a new game in the same match gets a fresh shuffle and the next seat
         if (this.match) this.seed = this.match.seed + this.match.games.length + 1;
+        // and so does a rematch: the same seed would deal the same hands again
+        else if (this.game) this.seed = (Date.now() >>> 0) || 1;
         /* Bots normally built their decks back in the lobby, while you were
            still choosing yours. Anything still in flight is waited on here,
            and anything that never started is built now. */
@@ -41322,6 +42037,7 @@ Sideboard
         for (const r of this.roster) if (r.kind === 'bot') this.botRunner.add(r.id, r.difficulty);
 
         this.wireGame(g);
+        this.startRecording(g);
 
         busy.close();
         showScreen('table');
@@ -41352,16 +42068,64 @@ Sideboard
         const v = this.game.viewFor(this.spectating ? '__watching' : 'me');
         v.spectating = this.spectating;
         v.match = match;
+        this.withEvents(v, 'local');
         App.lastView = v;
         App.table.update(v);
       }
-      if (net.isHost) net.sendPerPeer((peerId) => {
+      /* Guests are sent at most one view per thing that happens: one
+         action can change the game a dozen times in a row, and the events
+         carry every step of it anyway. */
+      if (net.isHost && !this._netQueued) {
+        this._netQueued = true;
+        queueMicrotask(() => { this._netQueued = false; this.sendViews(); });
+      }
+    }
+
+    /** What has happened since this viewer's last view, as that viewer may know it. */
+    withEvents(v, key) {
+      // each game has its own stream; a new one starts everybody from its beginning
+      if (this._evGame !== this.game) { this._evGame = this.game; this._evSeen = {}; this._gameNo = (this._gameNo || 0) + 1; }
+      v.game = this.seed + ':' + this._gameNo;
+      const seen = this._evSeen;
+      v.events = this.game.eventsFor(v.you, seen[key]);
+      v.eventSeq = this.game.eventSeq;
+      seen[key] = this.game.eventSeq;
+      return v;
+    }
+
+    /**
+     * Each guest's view, as the difference from the last one it has (see
+     * src/09b-sync.js). A guest without a seat — someone who came to
+     * watch a game already under way — sees what a spectator sees.
+     */
+    sendViews() {
+      if (!this.game || !net.isHost) return;
+      const match = this.matchView();
+      const encs = (this._enc = this._enc || new Map());
+      net.sendPerPeer((peerId) => {
         const r = this.seatByPeer(peerId);
-        if (!r) return null;
-        const v = this.game.viewFor(r.id);
+        const viewer = r ? r.id : (this.watchers && this.watchers.has(peerId) ? '__watching' : null);
+        if (!viewer) return null;
+        let enc = encs.get(peerId);
+        if (!enc) { enc = new MTG.sync.Encoder(); encs.set(peerId, enc); }
+        const v = this.game.viewFor(viewer);
         v.match = match;
-        return { t: 'state', payload: v };
+        if (!r) v.spectating = true;
+        this.withEvents(v, 'peer:' + peerId);
+        return enc.encode(v);
       });
+    }
+
+    /** Keep the game on the record from here on, for "Save replay". */
+    startRecording(g) {
+      if (this.recorder) this.recorder.stop();
+      this.recorder = null;
+      try {
+        this.recorder = MTG.replay.record(g, {
+          me: this.spectating ? null : 'me',
+          names: this.roster.map(r => ({ id: r.id, name: r.name, kind: r.kind })),
+        });
+      } catch (e) { console.warn('[replay] not recording this game', e); }
     }
 
     /* ---- intents ---- */
@@ -41389,6 +42153,8 @@ Sideboard
       sess.botRunner = new MTG.bots.BotRunner(g);
       for (const r of sess.roster) if (r.kind === 'bot') sess.botRunner.add(r.id, r.difficulty);
       sess.wireGame(g);
+      // a resumed game is recorded from where it was picked up
+      sess.startRecording(g);
       App.session = sess;
       showScreen('table');
       if (App.table) App.table.destroy();
@@ -41411,7 +42177,6 @@ Sideboard
         }
         MTG.sfx(n, o);
       });
-      g.on('log', (e) => { if (net.isHost) net.broadcast({ t: 'log', payload: e }); });
       // a trigger going on the stack pulses the permanent it came from, so you
       // can see which card is talking
       g.on('stack:add', (item) => {
@@ -41581,9 +42346,11 @@ Sideboard
       setNetBadge();
       const sess = App.session;
       if (!sess) return;
+      if (sess._enc) sess._enc.delete(peerId);
+      if (sess.watchers) sess.watchers.delete(peerId);
       const r = sess.seatByPeer(peerId);
       if (r) {
-        if (sess.game) { const p = sess.game.player(r.id); if (p) { p.connected = false; sess.game.logEvent('game', `${r.name} disconnected.`); sess.pushState(); } }
+        if (sess.game) { const p = sess.game.player(r.id); if (p) { sess.game.setConnected(p.id, false); sess.pushState(); } }
         else { sess.roster = sess.roster.filter(x => x !== r); sess.broadcastLobby(); renderLobbySoon(); }
       }
     });
@@ -41618,15 +42385,40 @@ Sideboard
       sess.handleIntent(r.id, payload);
     });
     net.on('lobby', (payload) => renderClientLobbyData(payload));
-    net.on('state', (view) => {
+    const showView = (view) => {
       const myId = view.you || findMe(view);
-      if (App.screen !== 'table' || !App.table || App.table.meId !== myId) {
+      const game = view.game || (view.config ? view.config.seed : null);
+      // a new game in the match is a new table: nothing on the old one carries over
+      if (App.screen !== 'table' || !App.table || App.table.meId !== myId || App.table._game !== game) {
         showScreen('table');
         if (App.table) App.table.destroy();
         App.table = new UI.Table(screens.table, myId, (i) => net.intent(i));
+        App.table._game = game;
       }
       App.lastView = view;
       App.table.update(view);
+    };
+    net.on('state', showView);
+    // every connection starts the sync again from a whole view
+    net.on('open', () => { App.syncIn = new MTG.sync.Decoder(); });
+    net.on('message', (from, msg) => {
+      if (!msg) return;
+      if (net.isClient && msg.t === 'sv') {
+        const dec = App.syncIn || (App.syncIn = new MTG.sync.Decoder());
+        const r = dec.decode(msg);
+        if (r.resync) net.send(null, { t: 'resync' });
+        if (!r.view) return;
+        net.send(null, { t: 'ack', n: r.ack });
+        showView(r.view);
+        return;
+      }
+      if (net.isHost && (msg.t === 'ack' || msg.t === 'resync')) {
+        const sess = App.session;
+        const enc = sess && sess._enc && sess._enc.get(from);
+        if (!enc) return;
+        if (msg.t === 'ack') enc.ack(msg.n);
+        else { enc.resync(); sess.sendViews(); }
+      }
     });
     net.on('draft', (view) => {
       if (App.screen !== 'draft' || !App.draftUI) {
@@ -41696,6 +42488,7 @@ Sideboard
 
   App.leaveGame = function (opts) {
     opts = opts || {};
+    if (App.replay) { App.replay.stop(); App.replay = null; }
     if (App.session && App.session.botRunner) App.session.botRunner.stop();
     if (App.session && App.session.draftTimer) clearInterval(App.session.draftTimer);
     if (App.table) { App.table.destroy(); App.table = null; }
@@ -41723,6 +42516,56 @@ Sideboard
     if (!await UI.sideboardStep(sess)) return;
     sess.startGame();
   };
+
+  /* ---- replays ---- */
+  App.canSaveReplay = () => !!(App.session && App.session.recorder && !net.isClient);
+  App.saveReplay = function () {
+    const sess = App.session;
+    if (!sess || !sess.recorder) return UI.error('There is no record of this game.');
+    const data = sess.recorder.toJSON();
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+    const names = (data.meta.players || []).map(p => p.name).join('-vs-').replace(/[^\w-]+/g, '').slice(0, 40) || 'game';
+    downloadText(`mtg-replay-${names}-${stamp}.json`, JSON.stringify(data));
+    UI.ok('Replay saved.');
+  };
+  function downloadText(name, text) {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = el('a', { href: url, download: name, style: { display: 'none' } });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+  }
+  /** Ask for a replay file and watch it. */
+  App.openReplayFile = function () {
+    const input = el('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' } });
+    input.addEventListener('change', async () => {
+      const f = input.files && input.files[0];
+      input.remove();
+      if (!f) return;
+      try { await App.watchReplay(await f.text()); }
+      catch (e) { UI.error(e.message || String(e)); }
+    });
+    document.body.appendChild(input);
+    input.click();
+  };
+  /** Play a replay on the table, with its own controls. `opts.turn` starts it at a turn. */
+  App.watchReplay = async function (json, opts) {
+    opts = opts || {};
+    const busy = UI.busy('Opening the replay', 'Finding the cards…');
+    let rp;
+    try { rp = await MTG.replay.open(json); }
+    finally { busy.close(); }
+    if (App.session || net.online) App.leaveGame({ keepSave: true });
+    showScreen('table');
+    if (App.table) App.table.destroy();
+    const viewer = new UI.ReplayViewer(screens.table, rp, opts);
+    App.replay = viewer;
+    App.table = viewer.table;
+    if (opts.turn) viewer.seekTurn(opts.turn); else viewer.show();
+    return viewer;
+  };
+  // for bug reports: MTG.replay.load(json, {turn: 7}) puts that game on the table at turn 7
+  MTG.replay.load = (json, opts) => App.watchReplay(json, Object.assign({ paused: true }, opts || {}));
 
   App.Session = Session;
   // the pieces the test suite drives directly
