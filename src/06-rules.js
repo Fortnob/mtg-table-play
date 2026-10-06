@@ -4158,6 +4158,22 @@
           this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n });
         }
       }
+      /* Metallic Mimic, Giada, Renata: "each other creature you control
+         (of the chosen type) enters with an additional +1/+1 counter on it
+         (for each Angel you already control)" */
+      for (const s0 of this.battlefield) {
+        if (s0.controller !== o.controller || s0.phasedOut) continue;
+        const ex = this._staticOp(s0, 'entersExtra');
+        if (!ex || (ex.other && s0 === o)) continue;
+        if (!this._cardFitsWords(o, ex.what || 'creature')) continue;
+        if (ex.nontoken && o.isToken) continue;
+        if (ex.chosenType && !(s0.chosenType && this._hasCreatureType(o, s0.chosenType))) continue;
+        let k = 1;
+        if (ex.per) {
+          k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
+        }
+        if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
+      }
       // riot: haste or a +1/+1 counter
       if (a.keywordSet.has('riot')) {
         const p = this.player(o.controller);
@@ -10035,6 +10051,8 @@
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: x.owner });
+          // Parting Gust: "…with a +1/+1 counter on it"
+          if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
           break;
         }
         case 'toHandThat': {

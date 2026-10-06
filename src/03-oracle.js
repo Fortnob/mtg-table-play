@@ -2251,9 +2251,9 @@
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
-    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield under (?:its owner'?s|your) control at the beginning of the next end step\.?$/i,
-      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
-        name: 'Return it at end of turn', effects: [{ op: 'returnThat' }] }) },
+    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield under (?:its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
+        name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[2] ? { counter: m[3].toLowerCase() } : {})] }) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
@@ -6542,6 +6542,18 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      /* Metallic Mimic, Giada, Renata, Oath of Gideon: "Each other creature
+         you control (of the chosen type) enters with an additional +1/+1
+         counter on it (for each Angel you already control)." */
+      { re: /^(Each other|Each|Other) ((?:nontoken |non-[A-Z][a-z]+ )?(?:[A-Z][a-z]+ )?(?:creature|planeswalker|Vehicle|[A-Z][a-z]+)s?) you control( of the chosen type)? enters? with an additional (\+1\/\+1|loyalty) counter on (?:it|them)(?: for each ([A-Za-z]+) you already control)?\.?$/,
+        make: (m) => {
+          let what = m[2].replace(/s$/, '').trim();
+          const nontoken = /^nontoken /.test(what);
+          what = what.replace(/^nontoken /, '');
+          if (/^non-/.test(what)) what = what.replace(/^non-([A-Z][a-z]+) /, 'non$1 ');
+          return Object.assign({ op: 'entersExtra', what: what.toLowerCase(), other: /other/i.test(m[1]), counter: m[4].toLowerCase() },
+            nontoken ? { nontoken: true } : {}, m[3] ? { chosenType: true } : {}, m[5] ? { per: m[5].replace(/s$/, '').toLowerCase() } : {});
+        }, auto: true },
       // "This creature must be blocked if able."
       { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },
       // Champion of Lambholt: "Creatures with power less than this creature's power can't block creatures you control."

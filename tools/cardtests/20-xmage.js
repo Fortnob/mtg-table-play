@@ -2726,6 +2726,44 @@ module.exports = (test) => {
     t.ok(b, 'the Bears could block');
   });
 
+  test('Grumgully and Giada: extra counters as creatures enter', (mk, t) => {
+    t.auto('Grumgully, the Generous'); t.auto('Giada, Font of Hope');
+    const T = mk();
+    T.bf('A', 'Grumgully, the Generous');
+    T.mana('A', '1G');
+    const b = T.hand('A', 'Grizzly Bears');
+    T.cast('A', b);
+    T.resolve();
+    T.mana('A', 'W');
+    const h = T.hand('A', 'Elite Vanguard');
+    T.cast('A', h);
+    T.resolve();
+    t.eq(b.counters['+1/+1'], 1, 'a non-Human');
+    t.no(h.counters['+1/+1'], 'not a Human');
+    const T2 = mk();
+    T2.bf('A', 'Giada, Font of Hope'); T2.bf('A', 'Serra Angel');
+    T2.mana('A', '3WW');
+    const sa = T2.hand('A', 'Serra Angel');
+    T2.cast('A', sa);
+    T2.resolve();
+    t.eq(sa.counters['+1/+1'], 2, 'one for each Angel already there');
+  });
+
+  test('Parting Gust: without the gift it comes back with a counter', (mk, t) => {
+    t.auto('Parting Gust');
+    for (const gift of [null, 'B']) {
+      const T = mk();
+      const b = T.bf('B', 'Grizzly Bears');
+      T.mana('A', 'WW');
+      T.cast('A', T.hand('A', 'Parting Gust'), Object.assign({ targets: [T.tgt(b)] }, gift ? { gift } : {}));
+      T.resolve();
+      t.zone(b, 'exile');
+      T.nextTurn('B');
+      t.zone(b, gift ? 'exile' : 'battlefield', gift ? 'gift: gone' : 'no gift: back');
+      if (!gift) t.eq(b.counters['+1/+1'], 1);
+    }
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

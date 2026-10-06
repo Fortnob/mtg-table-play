@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16670,
-  "gainedCards": 1759,
-  "linesNeeded": 18954,
+  "needed": 16660,
+  "gainedCards": 1760,
+  "linesNeeded": 18941,
   "linesGained": 2273,
   "gained": {
-   "all": 1759,
+   "all": 1760,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5776,
-   "lines": 4924,
+   "score": 5751,
+   "lines": 4920,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -2479,25 +2479,6 @@
     "Deglamer",
     "Covetous Castaway // Ghostly Castigator",
     "Piper's Melody"
-   ]
-  },
-  {
-   "what": "EntersWithCountersControlledEffect",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Dragonstorm Globe",
-    "Renata, Called to the Hunt",
-    "Tromell, Seymour's Butler",
-    "Grumgully, the Generous",
-    "Oona's Blackguard",
-    "Thunderous Velocipede",
-    "Curator Beastie",
-    "Oath of Gideon",
-    "Bramblewood Paragon",
-    "Sage of Fables",
-    "Tayam, Luminous Enigma",
-    "Zameck Guildmage"
    ]
   },
   {
@@ -8140,13 +8121,23 @@
     "Reverent Hoplite",
     "Evangel of Heliod"
    ]
+  },
+  {
+   "what": "EnterUntappedAllEffect",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Horizon Explorer",
+    "Gond Gate",
+    "The Wandering Minstrel"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4534,
-   "cards": 3919,
+   "score": 4510,
+   "cards": 3916,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -10173,19 +10164,6 @@
    ]
   },
   {
-   "what": "EntersWithCountersControlledEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Dragonstorm Globe",
-    "Grumgully, the Generous",
-    "Oona's Blackguard",
-    "Thunderous Velocipede",
-    "Curator Beastie",
-    "Oath of Gideon"
-   ]
-  },
-  {
    "what": "scope:alts",
    "score": 10,
    "cards": 10,
@@ -11956,6 +11934,19 @@
     "Serra Avatar",
     "Soul of Eternity",
     "Ajani, Wise Counselor"
+   ]
+  },
+  {
+   "what": "DevotionCount.G",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Renata, Called to the Hunt",
+    "Karametra's Acolyte",
+    "Aspect of Hydra",
+    "Klothys's Design",
+    "Reverent Hunter",
+    "Skyreaping"
    ]
   },
   {
