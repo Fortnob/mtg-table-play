@@ -367,7 +367,7 @@
     _snapshot() {
       const cards = new Map();
       for (const n of this.arena.querySelectorAll('.cv[data-id]')) {
-        const r = n.getBoundingClientRect();
+        const r = U.rect(n);
         if (r.width) cards.set(n.dataset.id, r);
       }
       return { cards, piles: this._pileRects(), hands: this._handRects(), view: this._lastShown || null };
@@ -377,7 +377,7 @@
     orbFor(pid) {
       let best = null, bw = 0;
       for (const n of this.arena.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(pid))}"]`)) {
-        const w = n.getBoundingClientRect().width;
+        const w = U.rect(n).width;
         if (w > bw) { bw = w; best = n; }
       }
       return best;
@@ -386,7 +386,7 @@
     _pileRects() {
       const m = new Map();
       for (const n of this.arena.querySelectorAll('.pile[data-pile]')) {
-        const r = n.getBoundingClientRect();
+        const r = U.rect(n);
         if (r.width) m.set(n.dataset.pile, r);
       }
       return m;
@@ -394,16 +394,16 @@
     _handRects() {
       const m = new Map();
       for (const [pid, s] of this.seats) if (s.hud && s.hud._hand) {
-        const r = s.hud._hand.getBoundingClientRect();
+        const r = U.rect(s.hud._hand);
         if (r.width || r.height) m.set(pid, r);
       }
       // an opponent whose board is not in view: their nameplate is where their hand is
       for (const [pid, plate] of (this._plates || new Map())) {
         if (m.has(pid) || !plate.isConnected) continue;
-        const pr = plate.getBoundingClientRect();
+        const pr = U.rect(plate);
         if (pr.width) m.set(pid, pr);
       }
-      const r = this.handHost.getBoundingClientRect();
+      const r = U.rect(this.handHost);
       if (r.width) m.set(this.meId, { left: r.left + r.width / 2 - 60, top: r.bottom - 120, width: 120, height: 168 });
       return m;
     },
@@ -461,7 +461,7 @@
       const layer = this.fxLayer;
       const moves = [];
       for (const n of this.arena.querySelectorAll('.cv[data-id]')) {
-        const r = n.getBoundingClientRect();
+        const r = U.rect(n);
         if (!r.width) continue;
         const id = n.dataset.id;
         const was = before.cards.get(id);
@@ -643,7 +643,7 @@
       this._lastShown = this.view;
       const phone = MTG.isPhone();
       // sizes from the resize observer, not read (and the layout forced) afresh every render
-      const vh = this.sizeOf(this.arena).h || window.innerHeight;
+      const vh = this.sizeOf(this.arena).h || U.viewH();
       const scale = U.clamp(MTG.settings.cardScale || 1, 0.6, 2);
       const maxCw = Math.min(phone ? 76 : 128, vh * (phone ? 0.11 : 0.125)) * scale;
       const backScale = 0.78;
@@ -685,9 +685,9 @@
       const v = this.view;
       while (svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
       if (!v) return;
-      const ar = this.arena.getBoundingClientRect();
+      const ar = U.rect(this.arena);
       svg.setAttribute('viewBox', `0 0 ${ar.width} ${ar.height}`);
-      const box = (n) => { if (!n) return null; const r = n.getBoundingClientRect(); return r.width ? { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height } : null; };
+      const box = (n) => { if (!n) return null; const r = U.rect(n); return r.width ? { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height } : null; };
       const cardBox = (id) => box(this.els.get(id) && this.els.get(id).isConnected ? this.els.get(id) : null);
       const orbBox = (pid) => box(this.orbFor(pid));
       const defBox = (id) => cardBox(id) || orbBox(id);
@@ -879,7 +879,7 @@
     /** A quick line from a source to whatever it dealt damage to. */
     zap(sourceId, target) {
       if (this._motionOff() || !sourceId) return;
-      const box = (n) => { if (!n || !n.isConnected) return null; const r = n.getBoundingClientRect(); return r.width ? r : null; };
+      const box = (n) => { if (!n || !n.isConnected) return null; const r = U.rect(n); return r.width ? r : null; };
       // a spell has usually gone by the time its damage is shown: it comes from where it was held up
       const from = box(this.els.get(sourceId)) || box(this.spotHost.querySelector('.spot-card')) || box(this.stackCol.lastElementChild);
       const to = target.kind === 'player' ? box(this.orbFor(target.id)) : box(this.els.get(target.id));
@@ -933,9 +933,9 @@
     /** A number that floats off whatever it happened to. */
     float(node, text, cls, size) {
       if (!node) return;
-      const r = node.getBoundingClientRect();
+      const r = U.rect(node);
       if (!r.width) return;
-      const ar = this.arena.getBoundingClientRect();
+      const ar = U.rect(this.arena);
       const f = el('div', {
         class: 'fx-float ' + (cls || ''), text: String(text),
         style: { left: (r.left - ar.left + r.width / 2) + 'px', top: (r.top - ar.top + r.height * 0.4) + 'px',

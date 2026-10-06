@@ -1455,6 +1455,8 @@
       'These change how the whole app looks and behaves. Nothing here affects the rules.', [
       slider('uiScale', 'Interface size', 0.85, 1.5, 0.05, (v) => Math.round(v * 100) + '%',
         'Scales all text and controls.'),
+      toggle('fitScreen', 'Grow to fit a big screen',
+        'On a large monitor everything grows with it. Turn off to keep the same size on any screen.'),
       slider('cardScale', 'Card size', 0.8, 1.6, 0.05, (v) => Math.round(v * 100) + '%',
         'Makes cards in lists and packs bigger or smaller.'),
       toggle('highContrast', 'High contrast', 'Stronger borders, darker backgrounds and brighter text.'),
@@ -1533,7 +1535,7 @@
       let current = OPT_SECTIONS[0][0];
       for (const [id] of OPT_SECTIONS) {
         const n = inner.querySelector('#opt-sec-' + id);
-        if (n && n.getBoundingClientRect().top < 160) current = id;
+        if (n && U.rect(n).top < 160) current = id;
       }
       for (const a of toc.children) a.classList.toggle('on', a.dataset.sec === current);
     }, 60), { passive: true });

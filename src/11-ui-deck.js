@@ -264,7 +264,7 @@ Sideboard
       : el('div', { class: 'panel deck-right' }, [tabsBar, paneHost]);
     const wrap = el('div', { class: 'deck-layout' + (phone ? ' stacked' : '') },
       phone ? [right] : [left, right]);
-    if (!phone) wrap.style.height = 'min(74vh, 760px)';
+    if (!phone) wrap.style.height = 'min(calc(74 * var(--vh)), 760px)';
 
     // After a draft the builder is a step in a flow, not a document editor:
     // the deck is not in the collection yet, and closing the window has to
@@ -1081,8 +1081,8 @@ Sideboard
     if (!phone) {
       Object.assign(menu.style, {
         position: 'fixed', zIndex: 700, padding: '4px', minWidth: '170px',
-        left: Math.min((ev && ev.clientX) || 20, innerWidth - 200) + 'px',
-        top: Math.min((ev && ev.clientY) || 20, innerHeight - (items.length * 30 + 20)) + 'px',
+        left: Math.min((ev && U.pt(ev).x) || 20, U.viewW() - 200) + 'px',
+        top: Math.min((ev && U.pt(ev).y) || 20, U.viewH() - (items.length * 30 + 20)) + 'px',
         boxShadow: 'var(--shadow)',
       });
     } else if (opts.title) {

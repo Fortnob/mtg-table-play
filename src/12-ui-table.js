@@ -1048,7 +1048,11 @@
       // (a resize clears it; even asking the window its size can force a layout)
       const layout = String(MTG.settings.cardScale || 1);
       if (this._handCw == null || this._handCwFor !== layout) {
-        this._handCw = parseFloat(getComputedStyle(this.arena).getPropertyValue('--hand-w')) || 132;
+        // --hand-w is an expression (clamp of the screen height), which only a laid-out box resolves
+        const probe = el('div', { style: { position: 'absolute', visibility: 'hidden', width: 'var(--hand-w)', height: '0' } });
+        this.arena.appendChild(probe);
+        this._handCw = probe.offsetWidth || 132;
+        probe.remove();
         this._handCwFor = layout;
       }
       const cw = this._handCw;
@@ -1533,7 +1537,7 @@
         }
       });
       this._onAimMove = (e) => {
-        this._pointer = { x: e.clientX, y: e.clientY };
+        this._pointer = U.pt(e);
         if (this.targeting || (this.blockPlan && this.blockPlan.pendingBlocker)) this.renderArrows();
       };
       document.addEventListener('pointermove', this._onAimMove, { passive: true });
@@ -1567,10 +1571,11 @@
       if (!cv || !this._ready()) return;
       const slot = cv.parentElement;
       const id = cv.dataset.id;
-      const start = { x: e.clientX, y: e.clientY };
+      const start = U.pt(e);
       let dragging = false;
       const move = (ev) => {
-        const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+        const at = U.pt(ev);
+        const dx = at.x - start.x, dy = at.y - start.y;
         if (!dragging && Math.hypot(dx, dy) > 10) {
           dragging = true;
           slot.classList.add('dragging');
@@ -1580,7 +1585,7 @@
         if (dragging) {
           slot.style.setProperty('--dx', dx + 'px');
           slot.style.setProperty('--dy', dy + 'px');
-          const over = ev.clientY < this.handHost.getBoundingClientRect().top - 30;
+          const over = at.y < U.rect(this.handHost).top - 30;
           slot.classList.toggle('will-play', over && (this.live.playable || []).includes(id));
         }
       };
@@ -1590,13 +1595,14 @@
         if (!dragging) return;
         this._suppressClick = true;
         setTimeout(() => { this._suppressClick = false; }, 0);
-        const over = ev.clientY < this.handHost.getBoundingClientRect().top - 30;
+        const at = U.pt(ev);
+        const over = at.y < U.rect(this.handHost).top - 30;
         slot.classList.remove('dragging', 'will-play');
         if (over) {
           const o = this.objIn(id);
           if (o) {
             // let the card stay where it was dropped while the play is worked out
-            this._dropAt = { id, x: ev.clientX, y: ev.clientY };
+            this._dropAt = { id, x: at.x, y: at.y };
             this.playFromHand(o);
           }
         }
@@ -1839,7 +1845,7 @@
     /* ---------------- the popover beside a permanent ---------------- */
     popover(anchor, o, uses) {
       this.closePopover();
-      const r = anchor.getBoundingClientRect();
+      const r = U.rect(anchor);
       const pop = el('div', { class: 'arena-pop', role: 'menu' }, [
         el('div', { class: 'pop-title', text: o.card.name }),
         ...uses.map(u => el('button', {
@@ -1853,7 +1859,7 @@
         ].filter(Boolean))),
       ]);
       this.arena.appendChild(pop);
-      const ar = this.arena.getBoundingClientRect();
+      const ar = U.rect(this.arena);
       const pw = pop.offsetWidth, ph = pop.offsetHeight;
       let x = r.right + 10 - ar.left, y = r.top - ar.top + r.height / 2 - ph / 2;
       if (x + pw > ar.width - 10) x = r.left - ar.left - pw - 10;
@@ -1930,8 +1936,8 @@
       if (!tip || !anchor || !anchor.isConnected) return;
       tip.className = 'arena-tip on' + (opts.cls ? ' ' + opts.cls : '');
       tip.innerHTML = html;
-      const ar = this.arena.getBoundingClientRect();
-      const r = anchor.getBoundingClientRect();
+      const ar = U.rect(this.arena);
+      const r = U.rect(anchor);
       const tw = tip.offsetWidth, th = tip.offsetHeight;
       let x = r.left - ar.left + r.width / 2 - tw / 2;
       let y = r.top - ar.top - th - 10;
@@ -1989,8 +1995,8 @@
           MTG.settings.alwaysCardText ? UI.cardTextBlock(o.card, o.face || 0) : null,
         ].filter(Boolean)));
       }
-      const r = node.getBoundingClientRect();
-      const left = r.left + r.width / 2 > window.innerWidth / 2;
+      const r = U.rect(node);
+      const left = r.left + r.width / 2 > U.viewW() / 2;
       p.classList.toggle('left', left);
       p.classList.toggle('right', !left);
       p.classList.add('on');

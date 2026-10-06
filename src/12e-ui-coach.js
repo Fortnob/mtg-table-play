@@ -198,8 +198,8 @@
         if (!a) { this.ring.classList.remove('on'); return; }
         cur.anchor = a;
       }
-      const ar = t.arena.getBoundingClientRect();
-      const r = a.getBoundingClientRect();
+      const ar = U.rect(t.arena);
+      const r = U.rect(a);
       if (!r.width) return;
       const pad = 6;
       Object.assign(this.ring.style, {
@@ -217,7 +217,7 @@
       const A = rel(r);
       const dockEl = t.dock;
       const avoid = [A];
-      if (dockEl && !dockEl.contains(a)) { const d = dockEl.getBoundingClientRect(); if (d.width) avoid.push(rel(d)); }
+      if (dockEl && !dockEl.contains(a)) { const d = U.rect(dockEl); if (d.width) avoid.push(rel(d)); }
       // on a phone the app's own corner buttons sit along the top edge
       const top0 = MTG.isPhone() ? 58 : 10;
       const fit = (x, y) => ({ x: U.clamp(x, 10, ar.width - bw - 10), y: U.clamp(y, top0, ar.height - bh - 10) });

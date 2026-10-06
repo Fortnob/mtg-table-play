@@ -613,9 +613,10 @@
       if (!previewEl) return;
       const pad = 14;
       const w = previewEl.offsetWidth || 300, h = previewEl.offsetHeight || 420;
-      let x = e.clientX + pad, y = e.clientY + pad;
-      if (x + w > innerWidth - 6) x = e.clientX - w - pad;
-      if (y + h > innerHeight - 6) y = Math.max(6, innerHeight - h - 6);
+      const pt = U.pt(e), vw = U.viewW(), vh = U.viewH();
+      let x = pt.x + pad, y = pt.y + pad;
+      if (x + w > vw - 6) x = pt.x - w - pad;
+      if (y + h > vh - 6) y = Math.max(6, vh - h - 6);
       previewEl.style.left = x + 'px';
       previewEl.style.top = y + 'px';
     };
@@ -711,7 +712,7 @@
 
   /** Bulk art chooser: walk a deck and pick art for each distinct card. */
   UI.manageDeckArt = function (deck, onChange) {
-    const listEl = el('div', { style: { maxHeight: '60vh', overflowY: 'auto' } });
+    const listEl = el('div', { style: { maxHeight: 'calc(60 * var(--vh))', overflowY: 'auto' } });
     const m = UI.modal({
       title: 'Card art — ' + deck.name,
       width: '760px',

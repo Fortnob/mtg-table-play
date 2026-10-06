@@ -457,7 +457,7 @@
     },
 
     _at(t, r) {
-      const ar = t.arena.getBoundingClientRect();
+      const ar = MTG.util.rect(t.arena);
       return { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height };
     },
 
@@ -485,7 +485,7 @@
       // and a burst where it resolved
       if (motion) for (const r of info.resolves.slice(0, 3)) {
         const n = card(r.objId) || ghost(r.objId);
-        const box = n ? n.getBoundingClientRect() : (t.stackCol.firstElementChild || t.stackCol).getBoundingClientRect();
+        const box = n ? MTG.util.rect(n) : MTG.util.rect((t.stackCol.firstElementChild || t.stackCol));
         if (!box.width) continue;
         const p = this._at(t, box);
         spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * 1.6) + 'px',
@@ -497,7 +497,7 @@
         if (!n) continue;
         mark(n, 'feel-fizzle', 900);
         if (!motion) continue;
-        const p = this._at(t, n.getBoundingClientRect());
+        const p = this._at(t, MTG.util.rect(n));
         for (let i = 0; i < (phone ? 3 : 6); i++) {
           spawn(t, 'feel-smoke', { left: (p.x + rnd(-0.3, 0.3) * p.w) + 'px', top: (p.y + rnd(-0.2, 0.3) * p.h) + 'px',
             '--feel-dx': rnd(-20, 20) + 'px', '--feel-dy': rnd(-70, -30) + 'px', animationDelay: Math.round(rnd(0, 160)) + 'ms' }, 1100);
@@ -519,7 +519,7 @@
         for (const id of info.deaths.slice(0, phone ? 1 : 3)) {
           const g = ghost(id, true);
           if (!g) continue;
-          const p = this._at(t, g.getBoundingClientRect());
+          const p = this._at(t, MTG.util.rect(g));
           const o = t.objIn(id, prev);
           const cs = colorsOf(o && o.card);
           for (let i = 0; i < shards; i++) {
@@ -543,12 +543,12 @@
         if (h.target.kind !== 'player') mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
         if (!motion || sparks >= (phone ? 2 : 5)) continue;
         sparks++;
-        const tb = tg.getBoundingClientRect();
+        const tb = MTG.util.rect(tg);
         const src = h.source && card(h.source);
         const p = this._at(t, tb);
         let x = p.x, y = p.y;
         if (src) {
-          const s = this._at(t, src.getBoundingClientRect());
+          const s = this._at(t, MTG.util.rect(src));
           const dx = s.x - p.x, dy = s.y - p.y, len = Math.hypot(dx, dy) || 1;
           const reach = Math.min(p.w, p.h) * 0.45;
           x += dx / len * reach; y += dy / len * reach;
@@ -584,7 +584,7 @@
       const had = t.arena.classList.contains('feel-prio');
       if (mine && !had && motion) {
         const b = t.dock.querySelector('.big-btn');
-        const r = b && b.getBoundingClientRect();
+        const r = b && MTG.util.rect(b);
         if (r && r.width) {
           const p = this._at(t, r);
           spawn(t, 'feel-ripple', { left: p.x + 'px', top: p.y + 'px', width: r.width + 'px', height: r.height + 'px' }, 1000);
@@ -638,8 +638,8 @@
         const now = performance.now();
         if (now - lastAt < 45 || host.querySelector('.hslot.dragging')) return;
         lastAt = now;
-        const r = cv.getBoundingClientRect();
-        const x = ((r.left + r.width / 2) / (window.innerWidth || 1)) * 2 - 1;
+        const r = MTG.util.rect(cv);
+        const x = ((r.left + r.width / 2) / (MTG.util.viewW() || 1)) * 2 - 1;
         MTG.sfx('hover', { pan: x * 0.5, pitch: 0.92 + (x + 1) * 0.08 });
       });
       host.addEventListener('pointerleave', () => { last = null; });
@@ -656,7 +656,7 @@
           document.removeEventListener('pointerup', up, true);
           const slot = host.querySelector('.hslot.dragging');
           if (!slot) return;
-          const over = ev.clientY < host.getBoundingClientRect().top - 30;
+          const over = MTG.util.pt(ev).y < MTG.util.rect(host).top - 30;
           if (over && !slot.classList.contains('will-play')) {
             const cv = slot.querySelector('.cv');
             MTG.sfx('reject');

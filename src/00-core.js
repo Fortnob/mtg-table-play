@@ -120,6 +120,25 @@ const U = MTG.util = {
   }
 };
 
+/* ---------- the interface's zoom ----------
+   The whole interface is scaled with `zoom` on <body> (your interface size
+   times a fit to the screen). The browser hands measurements back in screen
+   pixels (getBoundingClientRect, a pointer's clientX, innerWidth) but a
+   length written into a style inside <body> is zoomed again on the way out.
+   These give measurements in the body's own pixels, so whatever is measured
+   can be written straight back into a style. */
+U.zoom = () => MTG._zoom || 1;
+U.rect = (node) => {
+  const r = node.getBoundingClientRect();
+  const z = MTG._zoom || 1;
+  if (z === 1) return r;
+  return { left: r.left / z, top: r.top / z, right: r.right / z, bottom: r.bottom / z,
+    width: r.width / z, height: r.height / z, x: r.x / z, y: r.y / z };
+};
+U.pt = (e) => { const z = MTG._zoom || 1; return { x: (e.clientX || 0) / z, y: (e.clientY || 0) / z }; };
+U.viewW = () => window.innerWidth / (MTG._zoom || 1);
+U.viewH = () => window.innerHeight / (MTG._zoom || 1);
+
 /* ---------- deterministic RNG (mulberry32) ----------
    Seeded so that host + clients can generate identical packs/shuffles. */
 class RNG {
@@ -222,6 +241,7 @@ const defaultSettings = {
 
   /* --- accessibility --- */
   uiScale: 1,            // scales all text and controls
+  fitScreen: true,       // and grows them to fill a big screen
   cardScale: 1,          // scales card art everywhere
   highContrast: false,   // stronger borders and brighter text
   colorblindPips: false, // letters + shapes on every mana symbol
@@ -265,9 +285,8 @@ MTG.applyDisplaySettings = function () {
   flag('data-dyslexia', S.dyslexiaFont);
   flag('data-focus-rings', S.focusRings);
   flag('data-big-targets', S.bigHitTargets);
-  r.style.setProperty('--ui-scale', String(U.clamp(S.uiScale || 1, 0.75, 1.8)));
   r.style.setProperty('--card-scale', String(U.clamp(S.cardScale || 1, 0.6, 2)));
-  if (MTG.applyLayoutMode) MTG.applyLayoutMode();   // --app-h depends on the scale
+  if (MTG.applyLayoutMode) MTG.applyLayoutMode();   // the zoom and --app-h follow the screen
   if (MTG.audio && MTG.audio.master) MTG.audio.master.gain.value = S.muted ? 0 : S.volume;
   MTG.bus.emit('display:changed', S);
 };
@@ -336,6 +355,23 @@ MTG.isPhone = () => !!(NARROW && NARROW.matches) ||
 MTG.isTouch = () => !!(COARSE && COARSE.matches) || (navigator.maxTouchPoints || 0) > 0;
 MTG.isShort = () => !!(SHORT && SHORT.matches);
 
+/* The interface is laid out for a screen about 1440 by 860. A bigger
+   screen gets everything bigger in proportion (height counts most, so an
+   ultrawide is not blown up past what fits top to bottom) rather than the
+   same small table floating in a sea of felt. Smaller screens and phones
+   keep the sizes they were laid out for. */
+const FIT_W = 1440, FIT_H = 860;
+MTG.screenFit = function () {
+  if (MTG.settings.fitScreen === false || MTG.isPhone()) return 1;
+  const f = Math.min(window.innerWidth / FIT_W, window.innerHeight / FIT_H);
+  return U.clamp(f, 1, 2.4);
+};
+/** The zoom on <body>: your interface size times the fit to the screen. */
+MTG.uiZoom = function () {
+  const z = U.clamp(MTG.settings.uiScale || 1, 0.75, 1.8) * MTG.screenFit();
+  return Math.round(z * 100) / 100;
+};
+
 MTG.applyLayoutMode = function () {
   const r = document.documentElement;
   if (!r) return;
@@ -344,10 +380,15 @@ MTG.applyLayoutMode = function () {
   set('data-phone', MTG.isPhone());
   set('data-touch', MTG.isTouch());
   set('data-short', MTG.isShort());
+  // The interface size you chose, times a fit to the screen.
+  const scale = MTG.uiZoom();
+  if (scale !== MTG._zoom) {
+    MTG._zoom = scale;
+    r.style.setProperty('--ui-scale', String(scale));
+  }
   // The real viewport height: 100vh on a phone browser measures the window
   // without its collapsing address bar, so the app hangs off the bottom.
-  // Divided by the interface scale because body carries `zoom`.
-  const scale = U.clamp(MTG.settings.uiScale || 1, 0.75, 1.8);
+  // Divided by the zoom because body carries it.
   r.style.setProperty('--app-h', (window.innerHeight / scale) + 'px');
   if (was !== MTG.isPhone()) MTG.bus.emit('layout:changed', { phone: MTG.isPhone() });
 };
