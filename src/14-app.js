@@ -87,6 +87,9 @@
     return P[k] ? P[k] : null;
   }
 
+  /** A list of ids from the wire, or undefined: strings only, and not too many. */
+  const idList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 60) : undefined);
+
   function botNameFor(deck, formatId, taken) {
     const used = new Set(taken || []);
     const tryName = (n) => {
@@ -3187,6 +3190,8 @@
           free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,
           spree: intent.spree || null, via: intent.via || null,
+          // what pays instead of mana, when the player chose it: creatures to convoke, artifacts to improvise, cards to delve
+          convokeIds: idList(intent.convokeIds), improviseIds: idList(intent.improviseIds), delveIds: idList(intent.delveIds),
           // generic questions answered with the extra costs (replicate, splice); the engine checks them
           choices: intent.choices && typeof intent.choices === 'object' ? intent.choices : null,
           x: Math.max(0, Math.min(99, parseInt(intent.x, 10) || 0)) }); break;

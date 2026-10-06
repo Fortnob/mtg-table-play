@@ -696,13 +696,67 @@
      */
     beginCast(o, a, via) {
       const live = this.live || this.view;
-      const extras = (live.extras || {})[o.id] || [];
+      const all = (live.extras || {})[o.id] || [];
+      // convoke, improvise and delve are not extra costs to toggle: they are what pays, asked about last
+      const PAYS = ['convoke', 'improvise', 'delve'];
+      const extras = all.filter(x => !PAYS.includes(x.kind));
+      const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
       const steps = { o, a, via, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       const hasX = /\{X\}/.test(o.card.mana_cost || (o.card.card_faces && o.card.card_faces[o.face || 0] && o.card.card_faces[o.face || 0].mana_cost) || '');
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
-      const afterX = () => this.castTargets(steps);
+      const afterX = () => (pays.length ? this.askAltPay(steps, pays, afterPay) : afterPay());
+      const afterPay = () => this.castTargets(steps);
       if (extras.length) this.askExtras(steps, extras, afterExtras);
       else afterExtras();
+    },
+
+    /**
+     * Convoke, improvise, delve: which creatures tap, which artifacts tap,
+     * which cards leave your graveyard. Each pays one. Leave it to the game
+     * and it picks the cheapest; pick some and exactly those pay, the rest
+     * coming out of your mana. Two of them on one card share one limit.
+     */
+    askAltPay(steps, pays, next) {
+      const max = Math.max(...pays.map(p => p.max || 0));
+      const sel = new Map(pays.map(p => [p.kind, []]));
+      const total = () => [...sel.values()].reduce((n, l) => n + l.length, 0);
+      const VERB = { convoke: 'tap for convoke', improvise: 'tap for improvise', delve: 'exile for delve' };
+      const key = 'altpay:' + steps.o.id;
+      this.asking = { base: key, get key() { return key + ':' + JSON.stringify([...sel.values()]); }, build: () => {
+        const rows = el('div', { class: 'extras altpay' });
+        for (const p of pays) {
+          rows.appendChild(el('div', { class: 'section-title', text: `${p.label || p.kind} \u2014 ${VERB[p.kind] || 'pay'}, 1 each` }));
+          const list = sel.get(p.kind);
+          for (const id of p.candidates) {
+            const loc = this.locate(id);
+            const card = loc && loc.o ? loc.o.card : null;
+            const on = list.includes(id);
+            const full = !on && total() >= max;
+            const b = el('button', { type: 'button', class: 'mode-opt' + (on ? ' on' : '') + (full ? ' off' : ''), disabled: full,
+              onclick: () => { const at = list.indexOf(id); if (at >= 0) list.splice(at, 1); else if (total() < max) list.push(id); this.render(); } }, [
+              el('span', { class: 'mode-dot', text: on ? '\u2713' : '' }),
+              el('span', { class: 'mode-text', text: card ? card.name : id }),
+            ]);
+            if (card) UI.attachPreview(b, card, 0);
+            rows.appendChild(b);
+          }
+        }
+        const n = total();
+        const name = escapeHtml(steps.o.card.name);
+        return this.panel(`Pay for ${name}`, n
+          ? `${n} of up to ${max} paid this way; the rest comes from your mana.`
+          : `Up to ${max} of its cost can be paid this way. Choose, or let the game pick the cheapest.`, rows, [
+          { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
+          { label: 'Let the game choose', cls: n ? '' : 'primary', fn: () => { this.asking = null; steps.altPay = null; next(); } },
+          { label: 'Use these', cls: n ? 'primary' : '', disabled: !n, fn: () => {
+            this.asking = null;
+            steps.altPay = {};
+            for (const [kind, list] of sel) steps.altPay[kind + 'Ids'] = list.slice();
+            next();
+          } },
+        ], { card: steps.o.card });
+      } };
+      this.render();
     },
 
     /** Roughly how much mana you could make right now: untapped sources and the pool. */
@@ -852,6 +906,7 @@
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
       if (via) extra.via = via;
+      if (steps.altPay) Object.assign(extra, steps.altPay);
       // generic questions answered with the extra costs, in the shape the engine checks them in
       const answered = {};
       for (const [purpose, sel] of Object.entries(picked.choices || {})) {
