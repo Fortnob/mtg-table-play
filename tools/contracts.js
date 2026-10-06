@@ -829,7 +829,8 @@ async function main() {
   for (const v of real) console.log('  ' + format(v));
   for (const v of known) console.log('  ' + format(v));
   if (known.length) console.log(`known problems (not failing): ${known.length}\n  ` + Array.from(new Set(known.map(v => v.known.why))).join('\n  '));
-  console.log(`summary ${JSON.stringify(Object.assign({ games, violations: real.length, known: known.length, selfTestFailures: fails.length }, totals))}`);
+  const offlineMisses = globalThis.__offlineMisses ? globalThis.__offlineMisses() : 0;
+  console.log(`summary ${JSON.stringify(Object.assign({ games, violations: real.length, known: known.length, selfTestFailures: fails.length, offlineMisses }, totals))}`);
   process.exit(real.length || fails.length ? 1 : 0);
 }
 
