@@ -949,6 +949,25 @@ module.exports = (test) => {
     t.eq(bc.counters['+1/+1'], 1);
   });
 
+  test('Prepared: Studious First-Year casts a copy of Rampant Growth once', (mk, t) => {
+    t.auto('Studious First-Year // Rampant Growth');
+    const T = mk();
+    const c = T.hand('A', 'Studious First-Year // Rampant Growth');
+    T.top('A', 'Opt');
+    const forest = T.top('A', 'Forest');
+    T.mana('A', 'G');
+    T.cast('A', c);
+    t.ok(c.prepared, 'enters prepared');
+    T.mana('A', '1G');
+    t.ok(T.g.playableNow('A').some(x => x.objId === c.id && x.via === 'prepared'), 'the copy is on offer');
+    t.ok(T.g.castSpell('A', c.id, { via: 'prepared', auto: true }), 'cast the copy');
+    T.resolve();
+    t.zone(forest, 'battlefield', 'Rampant Growth found the Forest');
+    t.no(c.prepared, 'no longer prepared');
+    t.zone(c, 'battlefield', 'the creature stays');
+    t.no(T.g.altUsesFor('A', c.id).length, 'nothing more on offer');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

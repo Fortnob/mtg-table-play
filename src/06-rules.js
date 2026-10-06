@@ -855,6 +855,14 @@
           if ((a && a.isLand) || this.landBack(o)) out.push({ kind: 'land', objId: o.id });
         }
       }
+      /* a prepared permanent's spell, at the speed of that spell */
+      for (const o of this.battlefield) {
+        if (o.controller !== playerId || !o.prepared) continue;
+        const sp = this._preparedSpell(o);
+        if (!sp || !this.canPayNow(playerId, sp.mana_cost || '', {})) continue;
+        if (!/Instant/.test(sp.type_line || '') && this._sorcerySpeedBlock(playerId)) continue;
+        out.push({ kind: 'cast', objId: o.id, via: 'prepared' });
+      }
       const fromTop = z.library.slice(0, 1).filter(o => this._playFromRule(playerId, o, 'spell'));
       for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop)) {
         /* Cycling and flashback are things you can do with this card that
@@ -2418,6 +2426,11 @@
       const a = o && o.analysis();
       const out = [];
       if (!a || !o) return out;
+      /* Prepared: a copy of the card's spell, cast for that spell's cost */
+      const spell = this._preparedSpell(o);
+      if (spell && o.prepared && o.zone === 'battlefield' && o.controller === playerId) {
+        out.push({ kind: 'cast', via: 'prepared', cost: spell.mana_cost || '', label: 'Cast a copy of ' + spell.name + ' ' + (spell.mana_cost || '') });
+      }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, disturb: 'exile', unearth: 'exile', embalm: 'exile', eternalize: 'exile',
         madness: null };
@@ -3136,8 +3149,42 @@
       return opps.slice().sort((x, y) => weight(x) - weight(y))[0].id;
     }
 
+    /** The spell half of a prepare card, written out as a card of its own. */
+    _preparedSpell(o) {
+      const c = o && (o.printedCard || o.card);
+      if (!c || c.layout !== 'prepare' || !c.card_faces || c.card_faces.length < 2) return null;
+      const f = c.card_faces[1];
+      return { id: c.id + ':prepared', oracle_id: c.oracle_id, name: f.name, mana_cost: f.mana_cost || '', cmc: MANA.cmc(f.mana_cost || ''),
+        type_line: f.type_line, oracle_text: f.oracle_text || '', colors: f.colors || c.colors || [], color_identity: c.color_identity || [],
+        keywords: [], layout: 'normal', rarity: c.rarity, set: c.set, set_name: c.set_name, collector_number: c.collector_number,
+        image_uris: f.image_uris || c.image_uris || null };
+    }
+
+    /** Cast a copy of a prepared permanent's spell; doing so unprepares it. */
+    _castPrepared(playerId, objId, opts) {
+      const o = this.obj(objId);
+      const spell = this._preparedSpell(o);
+      if (!o || !spell || !o.prepared || o.zone !== 'battlefield' || o.controller !== playerId) return this.fail('That is not prepared.');
+      const dup = this._register(new GObj(spell, playerId, 'exile'));
+      dup.isCopy = true;
+      dup.impulseBy = playerId; dup.impulseUntil = this.turn;
+      this.zones[playerId].exile.push(dup);
+      const ok = this.castSpell(playerId, dup.id, Object.assign({}, opts, { via: null }));
+      const st = this.stack.find(x => x.objId === dup.id);
+      if (ok && st) {
+        st.isCopy = true;
+        o.prepared = false;
+        this.logEvent('cast', `${this.player(playerId).name} casts a copy of ${spell.name} from ${o.name}, which is no longer prepared.`);
+        return ok;
+      }
+      this._removeFromZone(dup);
+      dup.zone = null;
+      return ok;
+    }
+
     castSpell(playerId, objId, opts) {
       opts = opts || {};
+      if (opts.via === 'prepared') return this._castPrepared(playerId, objId, opts);
       /* An ability that works from the graveyard is offered among the ways
          to cast a card from there, so choosing it arrives here: it is
          activated, not cast. Targets chosen for the card as a spell are
@@ -6600,6 +6647,8 @@
         const a = o.analysis();
         if (a) {
           if (a.entersTapped || a.abilities.some(x => (x.effects || []).some(e => e.op === 'etbTapped'))) o.tapped = true;
+          // "This creature enters prepared."
+          o.prepared = a.abilities.some(x => (x.effects || []).some(e => e.op === 'etbPrepared'));
           // Thalia, Blind Obedience: tapped, whatever the land itself offers
           const entEv = this._replace({ kind: 'enters', object: o, controller: o.controller });
           o._forcedTapped = !!entEv.tapped;
@@ -8746,6 +8795,12 @@
           applyToScope(e, (o) => { o.noRegenThisTurn = true; });
           break;
         /* "Discard your hand." */
+        case 'becomePrepared':
+          if (src && src.zone === 'battlefield' && !src.prepared) {
+            src.prepared = true;
+            this.logEvent('rules', `${src.name} becomes prepared.`);
+          }
+          break;
         case 'discardHand': {
           for (const c of this.zones[ctx.controller].hand.slice()) { this.moveObject(c, 'graveyard'); this._afterDiscard(ctx.controller, c); }
           this.logEvent('discard', `${me.name} discards their hand.`);
@@ -12930,7 +12985,8 @@
           const out = {};
           const z = this.zones[playerId];
           if (!z) return out;
-          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId))) {
+          const prepared = this.battlefield.filter(o => o.controller === playerId && o.prepared);
+          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), prepared)) {
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }

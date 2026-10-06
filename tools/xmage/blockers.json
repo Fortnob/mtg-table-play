@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17453,
-  "gainedCards": 1800,
-  "linesNeeded": 19992,
+  "needed": 17418,
+  "gainedCards": 1802,
+  "linesNeeded": 19942,
   "linesGained": 2358,
   "gained": {
-   "all": 1800,
+   "all": 1802,
    "top2000": 52,
    "stdTop": 13
   },
@@ -542,25 +542,6 @@
    ]
   },
   {
-   "what": "EntersPreparedAbility",
-   "score": 39,
-   "lines": 39,
-   "cards": [
-    "Studious First-Year // Rampant Growth",
-    "Emeritus of Woe // Demonic Tutor",
-    "Blazing Firesinger // Seething Song",
-    "Emeritus of Ideation // Ancestral Recall",
-    "Emeritus of Abundance // Regrowth",
-    "Sanar, Unfinished Genius // Wild Idea",
-    "Vastlands Scavenger // Bind to Life",
-    "Skycoach Conductor // All Aboard",
-    "Lluwen, Exchange Student // Pest Friend",
-    "Goblin Glasswright // Craft with Pride",
-    "Jadzi, Steward of Fate // Oracle's Gift",
-    "Elite Interceptor // Rejoinder"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 37,
    "lines": 34,
@@ -581,8 +562,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 37,
-   "lines": 34,
+   "score": 36,
+   "lines": 33,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -1357,25 +1338,6 @@
     "Rune of Flight",
     "Akki War Paint",
     "Twisted Embrace"
-   ]
-  },
-  {
-   "what": "BecomePreparedSourceEffect",
-   "score": 24,
-   "lines": 18,
-   "cards": [
-    "Grave Researcher // Reanimate",
-    "Harmonized Trio // Brainstorm",
-    "Emeritus of Ideation // Ancestral Recall",
-    "Emeritus of Abundance // Regrowth",
-    "Eccentric Pestfinder // Turn Stones",
-    "Joined Researchers // Secret Rendezvous",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Lluwen, Exchange Student // Pest Friend",
-    "Tam, Observant Sequencer // Deep Sight",
-    "Yavimaya Bloomsage // Channel",
-    "Lorehold Archivist // Restore Relic",
-    "Abigale, Poet Laureate // Heroic Stanza"
    ]
   },
   {
@@ -2450,6 +2412,24 @@
    ]
   },
   {
+   "what": "BecomePreparedSourceEffect",
+   "score": 17,
+   "lines": 11,
+   "cards": [
+    "Grave Researcher // Reanimate",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Eccentric Pestfinder // Turn Stones",
+    "Joined Researchers // Secret Rendezvous",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Yavimaya Bloomsage // Channel",
+    "Lorehold Archivist // Restore Relic",
+    "Kirol, History Buff // Pack a Punch",
+    "Woodwork Prodigy // Soul Tether",
+    "Stingerquill Voxmancer // Vicious Verse",
+    "Paradox Shaper // Omit Variables"
+   ]
+  },
+  {
    "what": "control for whileControlled",
    "score": 17,
    "lines": 17,
@@ -3215,25 +3195,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "The Council of Four",
-    "Alandra, Sky Dreamer",
-    "Minn, Wily Illusionist",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Krang, the All-Powerful",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Defacing Duskmage // Vandal's Edit",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Otter-Penguin",
-    "Private Eye",
-    "Foggy Swamp Spirit Keeper"
-   ]
-  },
-  {
    "what": "(constructor: assignment)",
    "score": 15,
    "lines": 9,
@@ -3624,6 +3585,25 @@
     "Garruk's Harbinger",
     "Silent Submersible",
     "Storm the Citadel"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "The Council of Four",
+    "Alandra, Sky Dreamer",
+    "Minn, Wily Illusionist",
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Krang, the All-Powerful",
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Otter-Penguin",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper",
+    "Moon Girl and Devil Dinosaur"
    ]
   },
   {
@@ -8288,13 +8268,27 @@
     "Hazezon, Shaper of Sand",
     "Abandoned Sarcophagus"
    ]
+  },
+  {
+   "what": "DevotionCount.G",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Renata, Called to the Hunt",
+    "Karametra's Acolyte",
+    "Aspect of Hydra",
+    "Klothys's Design",
+    "Reverent Hunter",
+    "Skyreaping",
+    "Nylea's Huntmaster"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4743,
-   "cards": 3969,
+   "score": 4745,
+   "cards": 3971,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8319,8 +8313,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 263,
-   "cards": 224,
+   "score": 264,
+   "cards": 225,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8358,8 +8352,8 @@
   },
   {
    "what": "custom condition",
-   "score": 177,
-   "cards": 150,
+   "score": 179,
+   "cards": 152,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -8656,19 +8650,6 @@
    ]
   },
   {
-   "what": "EntersPreparedAbility",
-   "score": 28,
-   "cards": 28,
-   "names": [
-    "Studious First-Year // Rampant Growth",
-    "Blazing Firesinger // Seething Song",
-    "Skycoach Conductor // All Aboard",
-    "Goblin Glasswright // Craft with Pride",
-    "Jadzi, Steward of Fate // Oracle's Gift",
-    "Elite Interceptor // Rejoinder"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 27,
    "cards": 15,
@@ -8927,6 +8908,19 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 21,
+   "cards": 15,
+   "names": [
+    "Sword of Wealth and Power",
+    "Twinferno",
+    "Galvanic Iteration",
+    "Ral, Storm Conduit",
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus"
+   ]
+  },
+  {
    "what": "(verify) condition the card does not print",
    "score": 21,
    "cards": 21,
@@ -8950,19 +8944,6 @@
     "Thirst for Meaning",
     "Thirst for Identity",
     "Reclaim the Wastes"
-   ]
-  },
-  {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 20,
-   "cards": 14,
-   "names": [
-    "Sword of Wealth and Power",
-    "Twinferno",
-    "Galvanic Iteration",
-    "Ral, Storm Conduit",
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus"
    ]
   },
   {
@@ -9057,6 +9038,19 @@
    ]
   },
   {
+   "what": "target count 1-2",
+   "score": 19,
+   "cards": 19,
+   "names": [
+    "Archenemy's Charm",
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Run for Your Life"
+   ]
+  },
+  {
    "what": "modal activated ability",
    "score": 18,
    "cards": 6,
@@ -9093,19 +9087,6 @@
     "Liliana's Standard Bearer",
     "Wyleth, Soul of Steel",
     "Birth of the Imperium"
-   ]
-  },
-  {
-   "what": "target count 1-2",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "Archenemy's Charm",
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Run for Your Life"
    ]
   },
   {
@@ -9184,19 +9165,6 @@
     "Hobbit's Sting",
     "Champion of the Flame",
     "Moon-Vigil Adherents"
-   ]
-  },
-  {
-   "what": "BecomePreparedSourceEffect",
-   "score": 17,
-   "cards": 11,
-   "names": [
-    "Grave Researcher // Reanimate",
-    "Harmonized Trio // Brainstorm",
-    "Joined Researchers // Secret Rendezvous",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Tam, Observant Sequencer // Deep Sight",
-    "Abigale, Poet Laureate // Heroic Stanza"
    ]
   },
   {
@@ -9845,6 +9813,19 @@
     "Knight of Grace",
     "Knight of Malice",
     "Suq'Ata Firewalker"
+   ]
+  },
+  {
+   "what": "BecomePreparedSourceEffect",
+   "score": 13,
+   "cards": 7,
+   "names": [
+    "Grave Researcher // Reanimate",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Joined Researchers // Secret Rendezvous",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Kirol, History Buff // Pack a Punch",
+    "Stingerquill Voxmancer // Vicious Verse"
    ]
   },
   {
@@ -10862,19 +10843,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "Defacing Duskmage // Vandal's Edit",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Otter-Penguin",
-    "Private Eye"
-   ]
-  },
-  {
    "what": "attacks you, or its controller",
    "score": 10,
    "cards": 10,
@@ -11390,6 +11358,19 @@
     "Gleaming Bastion",
     "Hidden Lair",
     "Gathering Place"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Alandra, Sky Dreamer",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Otter-Penguin",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper"
    ]
   },
   {
@@ -12101,6 +12082,19 @@
     "Weapons Vendor",
     "Iron Hills Stalwart",
     "Aura Finesse"
+   ]
+  },
+  {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Eldrazi Confluence",
+    "Rootcast Apprenticeship",
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Maestros Confluence",
+    "Cosmium Confluence"
    ]
   }
  ]

@@ -2182,6 +2182,7 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
         : { op: 'phaseOut', scope: { self: true } }) },
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
+    { re: /^(?:CARDNAME|This creature|It) becomes prepared\.?$/i, make: () => ({ op: 'becomePrepared' }) },
     { re: /^Regenerate each creature you control\.?$/i, make: () => ({ op: 'regenerate', scope: 'yourCreatures' }) },
 
     /* ===== zone movement ===== */
@@ -4906,6 +4907,11 @@
     // only now, with every footnote folded into its line, is the count final
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
+    // a prepare card is its creature and its spell: the copy cast later must run too
+    if (out.fullyAutomated && card.layout === 'prepare' && !faceIndex && card.card_faces && card.card_faces[1]) {
+      const sp = analyze(card, 1);
+      if (!sp || !sp.fullyAutomated) out.fullyAutomated = false;
+    }
     if (!out.isPermanent) {
       const spellEffects = [];
       let allAuto = true;
@@ -5615,7 +5621,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared']);
 
   function parseStatic(line, ctx) {
     const rep = parseReplacement(line);
@@ -5706,6 +5712,9 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      /* Prepared (the prepare cards): while it is, its controller may cast
+         a copy of the card's spell, which unprepares it */
+      { re: /^(?:CARDNAME|This creature) enters prepared\.?$/i, eff: { op: 'etbPrepared' }, auto: true },
       /* "This creature can't be blocked by white creatures", "... by artifact creatures" */
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by ((?:white|blue|black|red|green|artifact|legendary|nonartifact|colorless|multicolored|nonblack|nonwhite)(?: or (?:white|blue|black|red|green))?) creatures\.?$/i,
         make: (m) => {
