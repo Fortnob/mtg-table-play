@@ -209,20 +209,36 @@
       this.ring.classList.add('on');
       const b = this.bubble;
       const bw = b.offsetWidth, bh = b.offsetHeight;
-      // above if it fits, else below, else beside: never over the thing it points at
-      let x = r.left - ar.left + r.width / 2 - bw / 2;
-      let y = r.top - ar.top - bh - 18;
-      let side = 'above';
-      if (y < 10) { y = r.bottom - ar.top + 18; side = 'below'; }
-      if (y + bh > ar.height - 10) {
-        y = U.clamp(r.top - ar.top + r.height / 2 - bh / 2, 10, ar.height - bh - 10);
-        x = r.left - ar.left - bw - 18;
-        side = 'left';
-        if (x < 10) { x = r.right - ar.left + 18; side = 'right'; }
+      /* Never over the thing it points at, and never over the big button —
+         on a phone there is little room and the button is what the next
+         step usually asks you to press. Each side is tried in turn and the
+         first that covers neither wins. */
+      const rel = (q) => ({ l: q.left - ar.left, t: q.top - ar.top, r: q.right - ar.left, b: q.bottom - ar.top });
+      const A = rel(r);
+      const dockEl = t.dock;
+      const avoid = [A];
+      if (dockEl && !dockEl.contains(a)) { const d = dockEl.getBoundingClientRect(); if (d.width) avoid.push(rel(d)); }
+      // on a phone the app's own corner buttons sit along the top edge
+      const top0 = MTG.isPhone() ? 58 : 10;
+      const fit = (x, y) => ({ x: U.clamp(x, 10, ar.width - bw - 10), y: U.clamp(y, top0, ar.height - bh - 10) });
+      const hits = (p) => avoid.some(q => p.x < q.r + 4 && p.x + bw > q.l - 4 && p.y < q.b + 4 && p.y + bh > q.t - 4);
+      const midX = A.l + (A.r - A.l) / 2 - bw / 2, midY = A.t + (A.b - A.t) / 2 - bh / 2;
+      const tries = [
+        ['above', midX, A.t - bh - 18],
+        ['below', midX, A.b + 18],
+        ['left', A.l - bw - 18, midY],
+        ['right', A.r + 18, midY],
+        ['top', ar.width / 2 - bw / 2, top0],
+      ];
+      let pick = null;
+      for (const [side, x, y] of tries) {
+        const p = fit(x, y);
+        if (!hits(p)) { pick = Object.assign(p, { side }); break; }
       }
-      b.style.left = U.clamp(x, 10, ar.width - bw - 10) + 'px';
-      b.style.top = U.clamp(y, 10, ar.height - bh - 10) + 'px';
-      b.dataset.side = side;
+      if (!pick) { const p = fit(tries[0][1], tries[0][2]); pick = Object.assign(p, { side: 'above' }); }
+      b.style.left = pick.x + 'px';
+      b.style.top = pick.y + 'px';
+      b.dataset.side = pick.side;
     }
 
     /**
