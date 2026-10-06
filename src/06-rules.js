@@ -763,23 +763,36 @@
         this._finishCleanup();
         return;
       }
-      if (hand.length > ap.maxHandSize && !ap.isBot) {
+      // Jin-Gitaxias, Core Augur: "each opponent's maximum hand size is reduced by seven"
+      const maxHand = Math.max(0, ap.maxHandSize + this._handSizeMod(ap.id));
+      if (hand.length > maxHand && !ap.isBot) {
         this.pendingChoice = {
           type: 'discardToHandSize', playerId: ap.id,
-          count: hand.length - ap.maxHandSize,
-          prompt: `Discard down to ${ap.maxHandSize} cards.`,
+          count: hand.length - maxHand,
+          prompt: `Discard down to ${maxHand} cards.`,
         };
         this.emit('choice', this.pendingChoice);
         this.touch();
         return;
       }
-      if (hand.length > ap.maxHandSize) {
+      if (hand.length > maxHand) {
         // bots discard their worst cards
-        const toss = hand.slice().sort((a, b) => this._cardValue(a) - this._cardValue(b)).slice(0, hand.length - ap.maxHandSize);
+        const toss = hand.slice().sort((a, b) => this._cardValue(a) - this._cardValue(b)).slice(0, hand.length - maxHand);
         for (const o of toss) this.moveObject(o, 'graveyard');
         this.logEvent('discard', `${ap.name} discards ${toss.length} to hand size.`);
       }
       this._finishCleanup();
+    }
+    /** What the permanents on the table add to or take from a player's maximum hand size. */
+    _handSizeMod(pid) {
+      let d = 0;
+      for (const o of this.battlefield) {
+        if (o.phasedOut) continue;
+        const e = this._staticOp(o, 'handSizeMod');
+        if (!e) continue;
+        if (e.who === 'opponents' ? o.controller !== pid : o.controller === pid) d += Number(e.n) || 0;
+      }
+      return d;
     }
     _finishCleanup() {
       // remove damage and until-end-of-turn effects (CR 514.2)
@@ -6210,6 +6223,14 @@
         case 'earlyTurn': return !!me && (me.turnsTaken || 0) <= (cond.n || 3) && this.activePlayer === me;
         /* Unbreakable Formation's addendum: cast in your main phase */
         case 'castInMain': return !!(ctx && ctx.castInMain);
+        /* Massacre Girl, Known Killer: "if its toughness was less than 1",
+           the creature that died, as it last was */
+        case 'triggerToughnessBelow': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          if (!x) return false;
+          const t = x.zone === 'battlefield' ? this.toughnessOf(x) : (x._lastToughness != null ? x._lastToughness : this.toughnessOf(x));
+          return t < (cond.n || 1);
+        }
         /* Tribute to the World Tree: the creature that set it off */
         case 'triggerPower': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
@@ -7652,6 +7673,7 @@
         // "the number of cards in your hand plus one"
         if (v && typeof v === 'object' && v.plus) { const base = Object.assign({}, v); delete base.plus; return n(base) + v.plus; }
         // "half X, rounded down"; "half their life, rounded up"
+        if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         if (v && typeof v === 'object' && v.halfLife) {
           const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : null;
@@ -8314,6 +8336,12 @@
           break;
         }
         case 'sacrificeSelf': if (src) this.moveObject(src, 'graveyard'); break;
+        // "Sacrifice a creature. If you can't, sacrifice this artifact."
+        case 'sacOrSelf': {
+          const any = this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut && this._matchesCategory(x, e.filter));
+          this._spliceNext([any ? { op: 'sacrificeChoice', n: 1, who: 'you', filter: e.filter, other: false } : { op: 'sacrificeSelf' }]);
+          break;
+        }
         case 'tap':
           if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { this._markTapped(x); this.emit('sfx', 'tap'); } break; }
           if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { this._markTapped(x); this.emit('sfx', 'tap'); } }
@@ -8478,8 +8506,11 @@
             : e.who === 'target' ? firstPlayer()
             : e.who === 'opponents' ? null : me;
           if (e.who === 'target' && !owner) break;
-          if (owner) this._createNamedToken(owner.id, Object.assign({}, e, { n: n(e.n) || 1 }));
-          else for (const p of this.opponentsOf(ctx.controller)) this._createNamedToken(p.id, Object.assign({}, e, { n: n(e.n) || 1 }));
+          // "a Treasure for each creature that died this turn" may be none at all
+          const many = e.n && typeof e.n === 'object' ? n(e.n) : (n(e.n) || 1);
+          if (many <= 0) break;
+          if (owner) this._createNamedToken(owner.id, Object.assign({}, e, { n: many }));
+          else for (const p of this.opponentsOf(ctx.controller)) this._createNamedToken(p.id, Object.assign({}, e, { n: many }));
           break;
         }
         /* --- mass effects --- */
@@ -8513,6 +8544,8 @@
             if (e.minPower != null && this.powerOf(x) < e.minPower) return false;
             if (e.maxPower != null && this.powerOf(x) > e.maxPower) return false;
             if (e.op === 'destroyAll' && this.hasKw(x, 'indestructible')) return false;
+            // Winds of Rath: "creatures that aren't enchanted"
+            if (e.unenchanted && (x.attachments || []).some(id => { const at = this.obj(id); return at && ((at.analysis() || {}).subtypes || []).includes('Aura'); })) return false;
             return true;
           });
           // the ones going together see each other go (CR 603.10a)
@@ -11454,7 +11487,14 @@
           break;
         }
         case 'extraLand': me.maxLands += (e.n || 1); break;
-        case 'extraTurn': this.extraTurnsQueue.push(ctx.controller); this.logEvent('rules', `${me.name} takes an extra turn.`); break;
+        case 'extraTurn': {
+          // "target player takes an extra turn after this one"
+          const who = e.who === 'target' ? firstPlayer() : me;
+          if (!who || who.hasLost) break;
+          this.extraTurnsQueue.push(who.id);
+          this.logEvent('rules', `${who.name} takes an extra turn.`);
+          break;
+        }
         // "You gain hexproof until end of turn."
         case 'hexproofYou': me.hexproofTurn = this.turn; this.logEvent('keyword', `${me.name} gains hexproof until end of turn.`); break;
         /* Gift (CR 702.174): the opponent who was promised it gets it. */
@@ -11813,6 +11853,8 @@
     _damagePrevented(target, isCombat) {
       // "prevent all combat damage that would be dealt to this creature"
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
+      // Crystal Barricade: "prevent all noncombat damage that would be dealt to other creatures you control"
+      if (!isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noNoncombatTaken')) return true;
       for (const pv of this.prevention) {
         if (pv.combatOnly && !isCombat) continue;
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;

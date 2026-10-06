@@ -918,6 +918,9 @@
        not, size, colours, types, keywords, a granted ability, attacking,
        and "where X is the number of …". */
     { re: /^Create .+ creature tokens?\b.*$/i, make: (m) => parseTokenSentence(m[0]) },
+    // Mahadi: "Create a Treasure token for each creature that died this turn."
+    { re: /^Create (?:a|an|one) (tapped )?(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Gold|Shard) token for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[3]); return c ? Object.assign({ op: 'createNamedToken', n: c, token: m[2] }, m[1] ? { tapped: true } : {}) : null; } },
     { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
 
@@ -1320,6 +1323,8 @@
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
     { re: /^You may play (two|three) additional lands(?: on each of your turns| this turn)?\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
     { re: /^Take an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn' }) },
+    // Time Warp: "Target player takes an extra turn after this one."
+    { re: /^Target player takes an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn', who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
     { re: /^Shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
@@ -1623,6 +1628,9 @@
       make: () => ({ op: 'mill', who: 'triggerPlayer', n: 'triggerAmount' }) },
     { re: /^You may have (?:that player|them) lose (one|two|three|\d+) life\.?$/i,
       make: (m) => ({ op: 'may', then: [{ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }] }) },
+    // Decree of Pain: "Draw a card for each creature destroyed this way."
+    { re: /^Draw (a|one|two) cards? for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'you', n: { lastSweep: true, mult: num(m[1]) } }) },
     { re: /^You gain (one|two|three|\d+) life for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { lastSweep: true, mult: num(m[1]) } }) },
     { re: /^You have no maximum hand size for the rest of the game\.?$/i, make: () => ({ op: 'noMaxHandForever' }) },
@@ -1780,6 +1788,11 @@
     { re: /^Evoke—Exile an? ([a-z]+) card from your hand\.?$/i, make: () => ({ op: 'noop' }) },
 
     /* ===== wider sweeps with an exception ===== */
+    // Wave Goodbye: "Return each creature without a +1/+1 counter on it to its owner's hand."
+    { re: /^Return each (creature|nonland permanent) without an? ([+\-0-9/a-z]+) counter on it to its owner'?s hand\.?$/i,
+      make: (m) => ({ op: 'bounceAll', what: m[1].toLowerCase() + 's', withoutCounter: m[2].toLowerCase() }) },
+    // Winds of Rath: "Destroy all creatures that aren't enchanted."
+    { re: /^Destroy all creatures that aren'?t enchanted\.?$/i, make: () => ({ op: 'destroyAll', what: 'creature', unenchanted: true }) },
     { re: /^Destroy each ([a-z]+(?:land)? permanents?|[a-z]+s) without an? ([a-z ]+?) counter on it\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), withoutCounter: m[2].trim() }) },
 
@@ -2611,6 +2624,8 @@
     if ((m = p.match(/^card in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
+    // Mahadi: "for each creature that died this turn"
+    if (/^creature that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     if (/^opponent you have$/i.test(p)) return { opponents: true, mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
@@ -2993,6 +3008,9 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    // Eldrazi Monument: "Sacrifice a creature. If you can't, sacrifice this artifact."
+    { re: /^Sacrifice an? (creature|artifact|land|permanent)\. If you can'?t, sacrifice (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
+      make: (m) => [{ op: 'sacOrSelf', filter: m[1].toLowerCase() }] },
     /* Tezzeret, Cruel Captain: "Untap target artifact or creature. If it's
        an artifact creature, put a +1/+1 counter on it." — the target */
     { re: /^Untap (target (?:artifact or creature|creature|artifact|permanent))\. If it'?s an? (artifact creature|creature|artifact), put a \+1\/\+1 counter on it\.?$/i,
@@ -3012,6 +3030,15 @@
     /* Final Showdown: "Choose a creature you control. It gains indestructible
        until end of turn." Chosen, not targeted: read as the targeted
        sentence would be, then asked as a generic question. */
+    /* Season of Weaving: "Choose an artifact or creature you control.
+       Create a token that's a copy of it." */
+    { re: /^Choose an? (artifact or creature|creature|artifact|nonland permanent|permanent) you control\. Create a token that'?s a copy of it\.?$/i,
+      make: (m) => {
+        const spec = targetSpec('target ' + m[1] + ' you control');
+        if (!spec || spec.unknown) return null;
+        delete spec.upTo;
+        return [{ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', chooseFrom: spec }];
+      } },
     { re: /^Choose an? ((?:[a-z]+ )?(?:creature|artifact|permanent)) you control\. (?:It|That creature) (gains|gets) ([^.]+)\.?$/i,
       make: (m) => {
         const again = parseEffectSentence('Target ' + m[1] + ' you control ' + m[2] + ' ' + m[3] + '.', 1);
@@ -3754,6 +3781,8 @@
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
     [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
+    // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
+    [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
@@ -5535,7 +5564,11 @@
       make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 7, scope, setPt: { t: +m[2] } } : null; } },
     // Leyline of the Guildpact: "Each nonland permanent you control is all colors."
     { re: /^(.+?) (?:is|are) all colors\.?$/i,
-      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 5, scope, setColors: ['W', 'U', 'B', 'R', 'G'] } : null; } },
+      make: (m) => {
+        // "Each nonland permanent you control" is the group, said one at a time
+        const scope = scopeOf(m[1].replace(/^Each (.+?)(permanent|creature|artifact)( you control)$/i, '$1$2s$3'));
+        return scope ? { op: 'continuous', layer: 5, scope, setColors: ['W', 'U', 'B', 'R', 'G'] } : null;
+      } },
     /* Witness Protection: "Enchanted creature loses all abilities and is a
        green and white Citizen creature with base power and toughness 1/1
        named …" (the name is the table's to show, not a rule) */
@@ -5875,6 +5908,9 @@
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamage' }) },
     { re: /^Prevent all combat damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' }) },
+    // Crystal Barricade: "Prevent all noncombat damage that would be dealt to other creatures you control."
+    { re: /^Prevent all noncombat damage that would be dealt to (other creatures you control|creatures you control)\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 6, scope: Object.assign({ who: 'you', what: 'creature' }, /^other/i.test(m[1]) ? { other: true } : {}), flag: 'noNoncombatTaken' }) },
     { re: /^(?:CARDNAME|This creature) gets ([+-])X\/([+-])X, where X is your life total\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, scope: { self: true },
         pt: { p: { life: m[1] === '-' ? -1 : 1 }, t: { life: m[2] === '-' ? -1 : 1 } } }) },
@@ -6217,6 +6253,9 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Jin-Gitaxias, Core Augur: "Each opponent's maximum hand size is reduced by seven."
+      { re: /^(Each opponent'?s|Your) maximum hand size is (reduced|increased) by (one|two|three|four|five|six|seven|\d+)\.?$/i,
+        make: (m) => ({ op: 'handSizeMod', who: /opponent/i.test(m[1]) ? 'opponents' : 'you', n: (/reduced/i.test(m[2]) ? -1 : 1) * num(m[3]) }), auto: true },
       { re: /^You may look at the top card of your library any time\.?$/i,
         eff: { op: 'peekTop' }, auto: true },
       { re: /^(?:CARDNAME|This land) enters tapped\. As it enters, choose a colou?r(?: other than (white|blue|black|red|green))?\.?$/i,

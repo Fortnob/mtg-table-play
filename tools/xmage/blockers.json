@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16995,
-  "gainedCards": 1773,
-  "linesNeeded": 19383,
-  "linesGained": 2301,
+  "needed": 16968,
+  "gainedCards": 1772,
+  "linesNeeded": 19350,
+  "linesGained": 2297,
   "gained": {
-   "all": 1773,
+   "all": 1772,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5934,
-   "lines": 4989,
+   "score": 5909,
+   "lines": 4982,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 376,
-   "lines": 355,
+   "score": 373,
+   "lines": 352,
    "cards": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -451,25 +451,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 40,
-   "lines": 25,
-   "cards": [
-    "Season of Gathering",
-    "Season of Weaving",
-    "Biophagus",
-    "Season of the Burrow",
-    "Crypt Rats",
-    "Season of the Bold",
-    "Guildmages' Forum",
-    "Animal Attendant",
-    "Consume Spirit",
-    "Sphere of the Suns",
-    "Kimoyo Beads",
-    "Drain Life"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 40,
    "lines": 40,
@@ -543,6 +524,25 @@
     "Celeborn the Wise",
     "Jolene, Plundering Pugilist",
     "Talion's Messenger"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 33,
+   "lines": 24,
+   "cards": [
+    "Season of Gathering",
+    "Biophagus",
+    "Season of the Burrow",
+    "Crypt Rats",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant",
+    "Consume Spirit",
+    "Sphere of the Suns",
+    "Kimoyo Beads",
+    "Drain Life",
+    "Murdock's Crusade"
    ]
   },
   {
@@ -1265,25 +1265,6 @@
    ]
   },
   {
-   "what": "hand size other than none",
-   "score": 23,
-   "lines": 17,
-   "cards": [
-    "Twenty-Toed Toad",
-    "Jin-Gitaxias, Core Augur",
-    "The Ten Rings",
-    "Necrodominance",
-    "Doctor Octopus, Master Planner",
-    "Gnat Miser",
-    "Locust Miser",
-    "Cecily, Haunted Mage",
-    "Thought Eater",
-    "Thought Devourer",
-    "Midnight Oil",
-    "Recycle"
-   ]
-  },
-  {
    "what": "DrawCardSourceControllerEffect amount",
    "score": 23,
    "lines": 20,
@@ -1836,25 +1817,6 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
-   ]
-  },
-  {
-   "what": "EnchantedPredicate.instance",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Winds of Rath",
-    "Lord Skitter's Blessing",
-    "Ellivere of the Wild Court",
-    "Estrid, the Masked",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Beastmaster's Magemark",
-    "Necromancer's Magemark",
-    "Guardian's Magemark",
-    "Graceful Takedown",
-    "Fencer's Magemark",
-    "Time Elemental"
    ]
   },
   {
@@ -2741,19 +2703,6 @@
    ]
   },
   {
-   "what": "PreventAllNonCombatDamageToAllEffect",
-   "score": 15,
-   "lines": 6,
-   "cards": [
-    "Crystal Barricade",
-    "The Wanderer",
-    "Blessed Sanctuary",
-    "Drogskol Reinforcements",
-    "Tajic, Legion's Edge",
-    "Mark of Asylum"
-   ]
-  },
-  {
    "what": "ShuffleIntoLibraryTargetEffect",
    "score": 15,
    "lines": 15,
@@ -3362,6 +3311,25 @@
    ]
   },
   {
+   "what": "EnchantedPredicate.instance",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Lord Skitter's Blessing",
+    "Ellivere of the Wild Court",
+    "Estrid, the Masked",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Beastmaster's Magemark",
+    "Necromancer's Magemark",
+    "Guardian's Magemark",
+    "Graceful Takedown",
+    "Fencer's Magemark",
+    "Time Elemental",
+    "Ramses Overdark"
+   ]
+  },
+  {
    "what": "keyword FlyingAbility",
    "score": 14,
    "lines": 14,
@@ -3536,17 +3504,6 @@
     "Vampire's Zeal",
     "Invert the Skies",
     "Strength of Night"
-   ]
-  },
-  {
-   "what": "subject:toughness",
-   "score": 13,
-   "lines": 4,
-   "cards": [
-    "Massacre Girl, Known Killer",
-    "Ulvenwald Observer",
-    "Kheru Bloodsucker",
-    "Sultai Flayer"
    ]
   },
   {
@@ -4062,6 +4019,22 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
+   ]
+  },
+  {
+   "what": "hand size other than none",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Twenty-Toed Toad",
+    "The Ten Rings",
+    "Necrodominance",
+    "Doctor Octopus, Master Planner",
+    "Cecily, Haunted Mage",
+    "Midnight Oil",
+    "Recycle",
+    "Null Profusion",
+    "Inspired Idea"
    ]
   },
   {
@@ -6019,19 +5992,6 @@
     "Soul Shatter",
     "Flare of Malice",
     "Riveteers Charm"
-   ]
-  },
-  {
-   "what": "CreaturesDiedThisTurnCount.instance",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Mahadi, Emporium Master",
-    "Deadly Embrace",
-    "Nevinyrral, Urborg Tyrant",
-    "Canopy Stalker",
-    "Khabál Ghoul",
-    "Scavenging Ghoul"
    ]
   },
   {
@@ -8223,13 +8183,55 @@
     "Thunder Brute",
     "Shrike Harpy"
    ]
+  },
+  {
+   "what": "DoUnlessAnyPlayerPaysEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Rhystic Tutor",
+    "Soul Strings",
+    "Rhystic Circle",
+    "Icy Prison",
+    "Wild Might",
+    "Rhystic Shield",
+    "Nakaya Shade"
+   ]
+  },
+  {
+   "what": "CastNoncreatureSpellThisTurnCondition.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Alicia Masters, Skilled Sculptor",
+    "Mister Fantastic",
+    "The Thing",
+    "Invisible Woman",
+    "Human Torch",
+    "Tapestry of the Ages",
+    "Seeker of Insight"
+   ]
+  },
+  {
+   "what": "DamageTargetControllerEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Ravaging Blaze",
+    "Repulsor Blast",
+    "Heated Argument",
+    "Agonizing Demise",
+    "Searing Barrage",
+    "Illuminate",
+    "Word of Blasting"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4660,
-   "cards": 3958,
+   "score": 4635,
+   "cards": 3951,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8280,8 +8282,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 243,
-   "cards": 231,
+   "score": 241,
+   "cards": 229,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8435,19 +8437,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 34,
-   "cards": 19,
-   "names": [
-    "Season of Gathering",
-    "Season of Weaving",
-    "Biophagus",
-    "Season of the Burrow",
-    "Crypt Rats",
-    "Season of the Bold"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 33,
    "cards": 33,
@@ -8549,6 +8538,19 @@
     "Mutational Advantage",
     "Pack Leader",
     "Loyal Unicorn"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 27,
+   "cards": 18,
+   "names": [
+    "Season of Gathering",
+    "Biophagus",
+    "Season of the Burrow",
+    "Crypt Rats",
+    "Season of the Bold",
+    "Guildmages' Forum"
    ]
   },
   {
@@ -9083,19 +9085,6 @@
    ]
   },
   {
-   "what": "PreventAllNonCombatDamageToAllEffect",
-   "score": 15,
-   "cards": 6,
-   "names": [
-    "Crystal Barricade",
-    "The Wanderer",
-    "Blessed Sanctuary",
-    "Drogskol Reinforcements",
-    "Tajic, Legion's Edge",
-    "Mark of Asylum"
-   ]
-  },
-  {
    "what": "BecomesColorTargetEffect",
    "score": 15,
    "cards": 15,
@@ -9442,19 +9431,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Winds of Rath",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Guardian's Magemark",
-    "Graceful Takedown",
-    "Fencer's Magemark"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 13,
    "cards": 10,
@@ -9478,17 +9454,6 @@
     "Skyway Robber",
     "Phoenix of Ash",
     "Pharika's Spawn"
-   ]
-  },
-  {
-   "what": "subject:toughness",
-   "score": 13,
-   "cards": 4,
-   "names": [
-    "Massacre Girl, Known Killer",
-    "Ulvenwald Observer",
-    "Kheru Bloodsucker",
-    "Sultai Flayer"
    ]
   },
   {
@@ -10038,19 +10003,6 @@
     "Luminarch Ascension",
     "Goblin Spymaster",
     "Predatory Advantage"
-   ]
-  },
-  {
-   "what": "hand size other than none",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Jin-Gitaxias, Core Augur",
-    "Gnat Miser",
-    "Locust Miser",
-    "Thought Eater",
-    "Thought Devourer",
-    "Trusted Advisor"
    ]
   },
   {
@@ -10678,6 +10630,19 @@
    ]
   },
   {
+   "what": "MustBeBlockedByAtLeastOneSourceEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Fear of Being Hunted",
+    "Vinebred Brawler",
+    "Canopy Stalker",
+    "Tangleclaw Werewolf // Fibrous Entangler",
+    "Riveteers Decoy",
+    "Hinterland Hermit // Hinterland Scourge"
+   ]
+  },
+  {
    "what": "DetainTargetEffect",
    "score": 10,
    "cards": 10,
@@ -11235,6 +11200,19 @@
    ]
   },
   {
+   "what": "EnchantedPredicate.instance",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Guardian's Magemark",
+    "Graceful Takedown",
+    "Fencer's Magemark",
+    "Time Elemental"
+   ]
+  },
+  {
    "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
    "score": 9,
    "cards": 9,
@@ -11271,19 +11249,6 @@
     "Ironclaw Orcs",
     "Cyclops Tyrant",
     "Brassclaw Orcs"
-   ]
-  },
-  {
-   "what": "MustBeBlockedByAtLeastOneSourceEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Fear of Being Hunted",
-    "Vinebred Brawler",
-    "Tangleclaw Werewolf // Fibrous Entangler",
-    "Riveteers Decoy",
-    "Hinterland Hermit // Hinterland Scourge",
-    "Gaea's Protector"
    ]
   },
   {
@@ -12059,6 +12024,45 @@
     "Fallaji Archaeologist",
     "Ostrich-Horse",
     "Airlift Chaplain"
+   ]
+  },
+  {
+   "what": "ExchangeControlTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Eyes Everywhere",
+    "Vedalken Plotter",
+    "Avarice Totem",
+    "Trade the Helm",
+    "Visions of Duplicity",
+    "Political Trickery"
+   ]
+  },
+  {
+   "what": "RedirectDamageFromSourceToTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Nomads en-Kor",
+    "Warrior en-Kor",
+    "Outrider en-Kor",
+    "Spirit en-Kor",
+    "Lancers en-Kor",
+    "Karona's Zealot"
+   ]
+  },
+  {
+   "what": "EquippedHasSubtypeCondition",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Butcher's Cleaver",
+    "Gift of Fangs",
+    "Bladed Bracers",
+    "Bonds of Faith",
+    "True-Faith Censer",
+    "Sharpened Pitchfork"
    ]
   }
  ]

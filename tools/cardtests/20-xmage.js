@@ -1729,6 +1729,129 @@ module.exports = (test) => {
     t.eq(T2.life('B'), 16);
   });
 
+  test('Crystal Barricade prevents noncombat damage to your other creatures', (mk, t) => {
+    t.auto('Crystal Barricade');
+    const T = mk();
+    T.bf('B', 'Crystal Barricade');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [T.tgt(bear)] });
+    T.resolve();
+    t.zone(bear, 'battlefield');
+  });
+
+  test('Leyline of the Guildpact: all colours, every basic land type', (mk, t) => {
+    t.auto('Leyline of the Guildpact');
+    const T = mk();
+    T.bf('A', 'Leyline of the Guildpact');
+    const bear = T.bf('A', 'Grizzly Bears'), f = T.bf('A', 'Forest'), theirs = T.bf('B', 'Grizzly Bears');
+    t.eq(bear.analysis().colors.length, 5);
+    t.eq(theirs.analysis().colors.join(), 'G', 'not theirs');
+    t.ok(f.analysis().subtypes.includes('Island'), 'an Island too');
+  });
+
+  test('Massacre Girl, Known Killer: a card when toughness fell below 1', (mk, t) => {
+    t.auto('Massacre Girl, Known Killer');
+    const T = mk();
+    T.bf('A', 'Massacre Girl, Known Killer');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const before = T.zone('A', 'hand').length;
+    const elf = T.bf('B', 'Llanowar Elves'), bear = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(elf, '-1/-1', 1);
+    T.g.checkStateBasedActions();
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 1, 'drew for the Elves');
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 1, 'not for the Bears');
+  });
+
+  test('Season of Weaving: a token copy of a creature you choose', (mk, t) => {
+    t.auto('Season of Weaving');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'UU4');
+    T.answer('choose', { picks: [1] });
+    T.answer('choose', { picks: [bear.id] });
+    T.cast('A', T.hand('A', 'Season of Weaving'));
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Grizzly Bears' && o.isToken).length, 1);
+  });
+
+  test('Time Warp gives the target player the next turn', (mk, t) => {
+    t.auto('Time Warp');
+    const T = mk();
+    T.mana('A', '3UU');
+    T.cast('A', T.hand('A', 'Time Warp'), { targets: [{ kind: 'player', id: 'A' }] });
+    T.resolve();
+    t.eq(T.g.extraTurnsQueue.join(), 'A');
+  });
+
+  test('Jin-Gitaxias, Core Augur: opponents keep no cards at cleanup', (mk, t) => {
+    t.auto('Jin-Gitaxias, Core Augur');
+    const T = mk();
+    T.bf('A', 'Jin-Gitaxias, Core Augur');
+    t.eq(T.g._handSizeMod('B'), -7);
+    t.eq(T.g._handSizeMod('A'), 0, 'not yours');
+  });
+
+  test('Mahadi: a Treasure for each creature that died this turn, or none', (mk, t) => {
+    t.auto('Mahadi, Emporium Master');
+    const T = mk();
+    const m = T.bf('A', 'Mahadi, Emporium Master');
+    T.g._runEffect({ op: 'createNamedToken', token: 'Treasure', n: { diedThisTurn: true, mult: 1 } }, { controller: 'A', obj: m });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 0, 'nothing died');
+    T.g.moveObject(T.bf('B', 'Grizzly Bears'), 'graveyard');
+    T.g.moveObject(T.bf('B', 'Grizzly Bears'), 'graveyard');
+    T.g._runEffect({ op: 'createNamedToken', token: 'Treasure', n: { diedThisTurn: true, mult: 1 } }, { controller: 'A', obj: m });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2);
+  });
+
+  test('Decree of Pain draws for each creature destroyed', (mk, t) => {
+    t.auto('Decree of Pain');
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    T.bf('A', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears'); T.bf('B', 'Llanowar Elves');
+    const d = T.hand('A', 'Decree of Pain');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '6BB');
+    T.cast('A', d);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before - 1 + 3);
+  });
+
+  test('Wave Goodbye spares creatures with +1/+1 counters', (mk, t) => {
+    t.auto('Wave Goodbye');
+    const T = mk();
+    const a = T.bf('B', 'Grizzly Bears'), b = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(b, '+1/+1', 1);
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Wave Goodbye'));
+    T.resolve();
+    t.zone(a, 'hand'); t.zone(b, 'battlefield');
+  });
+
+  test('Winds of Rath spares enchanted creatures', (mk, t) => {
+    t.auto('Winds of Rath');
+    const T = mk();
+    const a = T.bf('B', 'Grizzly Bears'), b = T.bf('B', 'Grizzly Bears');
+    const aura = T.bf('B', 'Rancor');
+    aura.attachedTo = b.id; b.attachments.push(aura.id); T.g.bumpBoard();
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Winds of Rath'));
+    T.resolve();
+    t.zone(a, 'graveyard'); t.zone(b, 'battlefield');
+  });
+
+  test('Eldrazi Monument eats itself with no creature to sacrifice', (mk, t) => {
+    t.auto('Eldrazi Monument');
+    const T = mk();
+    const m = T.bf('A', 'Eldrazi Monument');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.zone(m, 'graveyard');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
