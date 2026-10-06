@@ -208,6 +208,29 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'hand').length, 1, 'B discarded one and drew one');
   });
 
+  test('XMage: Wurmcoil Engine leaves a deathtouch Wurm and a lifelink Wurm', (mk, t) => {
+    const T = mk();
+    const w = T.bf('A', 'Wurmcoil Engine');
+    T.g.moveObject(w, 'graveyard');
+    T.resolve();
+    const wurms = T.bfOf('A').filter(o => o.name !== 'Wurmcoil Engine' && (o.analysis().subtypes || []).includes('Wurm'));
+    t.eq(wurms.length, 2, 'two Wurms');
+    t.ok(wurms.some(o => T.g.hasKw(o, 'deathtouch')) && wurms.some(o => T.g.hasKw(o, 'lifelink')), 'one of each');
+  });
+
+  test('XMage: Galvanic Blast deals 2, or 4 with metalcraft, to the one target', (mk, t) => {
+    generated(t, 'Galvanic Blast');
+    let T = mk();
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Galvanic Blast'), { targets: ['B'] });
+    t.eq(T.life('B'), 18, 'two without metalcraft');
+    T = mk();
+    T.bf('A', 'Sol Ring'); T.bf('A', 'Sol Ring'); T.bf('A', 'Sol Ring');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Galvanic Blast'), { targets: ['B'] });
+    t.eq(T.life('B'), 16, 'four with three artifacts');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

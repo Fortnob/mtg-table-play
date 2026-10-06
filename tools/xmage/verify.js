@@ -24,7 +24,10 @@ function expectedTargets(text) {
     .replace(/\bnew targets?\b/gi, ' ')
     .replace(/\btargets\b(?! (?:of|you|an?|that))/gi, ' ');
   let n = 0;
-  const re = /\b(?:up to (one|two|three|four|five|x) )?(?:(one|two|three|four|five|x) )?(?:other |another )?target\b/gi;
+  // "divided as you choose among one, two, or three targets": up to the last number
+  const div = t.match(/\bamong (?:[a-z, ]*?)\b(one|two|three|four|five|six) targets\b/i);
+  if (div) n += NUMW[div[1].toLowerCase()];
+  const re =/\b(?:up to (one|two|three|four|five|x) )?(?:(one|two|three|four|five|x) )?(?:other |another )?target\b/gi;
   let m;
   while ((m = re.exec(t))) {
     const w = (m[1] || m[2] || '').toLowerCase();
@@ -90,7 +93,7 @@ function checkLine(text, abilities, card, an) {
   const nums = new Set();
   // "two target creatures": that number is the count of targets, checked above
   const body = t.replace(/\{[^}]*\}/g, ' ').replace(/[+-](\d+)\/[+-](\d+)/g, ' $1 $2 ')
-    .replace(/(?:up to )?(?:one|two|three|four|five|\d+) (?:other )?target/gi, ' target');
+    .replace(/\b(?:up to )?(?:one|two|three|four|five|\d+) (?:other )?target\b/gi, ' target');
   for (const m of body.matchAll(/\b(\d+)\b/g)) nums.add(+m[1]);
   for (const m of body.toLowerCase().matchAll(/\b(two|three|four|five|six|seven|eight|nine|ten)\b/g)) nums.add(NUMW[m[1]]);
   const have = new Set([...json.matchAll(/-?\d+/g)].map(m => Math.abs(+m[0])));

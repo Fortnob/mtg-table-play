@@ -77,4 +77,41 @@ def('ability', 'DealsDamageToAPlayerAttachedTriggeredAbility', (o, tc) => {
   return AB.triggered(o, tc, { event: 'equippedCombatDamage', optional: !!b[0], pointer: b[1] ? 'player' : null });
 });
 
+def('effect', 'SearchLibraryGraveyardPutInHandEffect', (o, tc) => {
+  E.checkCalls(o);
+  const b = A(o).all('bool').map(x => x.v);
+  if (b[0]) block('must search both');
+  const d = F.describe(o.args.find(a => kindOf(a) === 'filter'), tc);
+  const named = d.name;
+  d.name = undefined;
+  const words = F.toWords(d);
+  const out = { op: 'tutor', n: 1, filter: words === 'card' && !named ? 'any' : words, to: 'hand', alsoGraveyard: true };
+  if (named) { if (words !== 'card') block('named and more'); out.named = named; }
+  if (b[1]) out.optional = true;
+  return out;
+});
+def('effect', 'LoseAbilityTargetEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (E.durationOf(o, 'EndOfTurn') !== 'eot') block('lose for longer');
+  return Object.assign({ op: 'loseKeyword', keywords: E.keywordsOf(o.args[0], tc), duration: 'eot' }, E.aimObject(o, tc));
+});
+def('effect', 'DamageAllControlledTargetEffect', (o, tc) => {
+  E.checkCalls(o);
+  const v = o.args.find(a => ['int', 'value'].includes(kindOf(a)));
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  const d = F.describe(f || { t: 'ref', path: 'StaticFilters.FILTER_PERMANENT_CREATURE' }, tc);
+  const scope = F.toScope(d);
+  if (scope.who !== 'all') block('controlled damage with its own controller');
+  scope.who = 'target';
+  const a = E.aim(o, tc, 'player');
+  if (!a.targets) block('controlled damage to a player chosen before');
+  return { op: 'damage', n: P.amount(v, tc), scope, targets: a.targets };
+});
+def('effect', 'CantBeBlockedSourceEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (tc.inStatic) block('cant be blocked as a static');
+  if (E.durationOf(o, 'WhileOnBattlefield') !== 'eot') block('cant be blocked for longer');
+  return { op: 'restrict', flag: 'unblockable', scope: 'self' };
+});
+
 module.exports = {};

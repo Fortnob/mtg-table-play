@@ -81,7 +81,7 @@ function classIndex() {
   return idx;
 }
 
-const { unitsOf, align } = require('./align');
+const { unitsOf, align, spans } = require('./align');
 
 /* ---------------- translating a line ---------------- */
 
@@ -182,6 +182,11 @@ function main() {
       const lines = fan.lineInfo || [];
       const units = unitsOf(face.model);
       align(units, lines, face.name, fan.isPermanent);
+      spans(units, lines, face.name);
+      // lines folded into the line above them, by a unit that covers both
+      const coveredBy = new Map();
+      for (const u of units) for (const j of (u.span || [])) coveredBy.set(j, u.line);
+      const covered = {};
       const cardProblems = model.problems.filter(p => !/^anonymous class|^lambda/.test(p));
       const out = {};
       const overrides = {};
@@ -189,6 +194,8 @@ function main() {
       for (let i = 0; i < lines.length; i++) {
         const li = lines[i];
         const mine = units.filter(u => u.line === i);
+        if (coveredBy.has(i)) continue;
+        const group = [...new Set(mine.flatMap(u => u.span || []))];
         // a line the parser read is still translated: it may be one it read wrong
         let abilities = null, why = null;
         if (!mine.length) why = '(line not matched to XMage code)';
@@ -208,8 +215,23 @@ function main() {
           }
         }
         if (abilities) {
-          const v = V.checkLine(li.text, abilities, card, fan);
+          const v = V.checkLine(group.length ? [li.text].concat(group.map(j => lines[j].text)).join(' ') : li.text, abilities, card, fan);
           if (v) { why = '(verify) ' + v; abilities = null; if (!li.auto) { stats.verifyFail++; if (verifyNotes.length < 400) verifyNotes.push(face.name + ': ' + v + ' :: ' + li.text); } }
+        }
+        /* A unit that covers the lines after this one stands for all of
+           them: this line carries it (over the parser's reading, if it had
+           one), and the others are covered by it. */
+        if (group.length && abilities) {
+          for (const ab of abilities) ab.text = li.text;
+          const head = MTG.util.hash(li.text);
+          out[head] = abilities;
+          if (li.auto) { overrides[head] = 'group'; stats.overrides.group = (stats.overrides.group || 0) + 1; }
+          for (const j of group) covered[MTG.util.hash(lines[j].text)] = head;
+          stats.linesGained += group.filter(j => !lines[j].auto).length + (li.auto ? 0 : 1);
+          continue;
+        }
+        if (group.length && !abilities && needed && group.some(j => !lines[j].auto)) {
+          bump(why || '(unknown)', li.text); cardWhy.push(why || '(unknown)'); allFixed = false;
         }
         if (li.auto) {
           /* The parser read this line. Where its reading is one the tests
@@ -239,7 +261,8 @@ function main() {
           if (needed) { bump(why || '(unknown)', li.text); cardWhy.push(why || '(unknown)'); }
         }
       }
-      if (Object.keys(out).length) lib[face.name] = Object.assign({ lines: out }, Object.keys(overrides).length ? { override: overrides } : null);
+      if (Object.keys(out).length) lib[face.name] = Object.assign({ lines: out }, Object.keys(overrides).length ? { override: overrides } : null,
+        Object.keys(covered).length ? { covered } : null);
     }
     if (needed) cardWhyAll(card, r, cardWhy);
     /* What alone stands between this card and being complete: those are

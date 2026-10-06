@@ -193,4 +193,35 @@ function align(all, lines, name, isPermanent) {
   }
 }
 
-module.exports = { unitsOf, align, words, similarity, unitShape, lineShape };
+/**
+ * A unit whose comment also covers the lines after its own ("deals 2
+ * damage to any target." then "Metalcraft - 4 instead"), where those lines
+ * have nothing of their own: the unit is the whole group. Sets u.span to the
+ * extra line indexes.
+ */
+function spans(units, lines, name) {
+  const lw = lines.map(l => words(l.text, name));
+  for (const u of units) {
+    if (u.line < 0 || !u.cmt || u.kind === 'keyword' || u.kind === 'cost') continue;
+    const cw = words(u.cmt, name);
+    const extra = [];
+    for (let j = u.line + 1; j < lines.length; j++) {
+      if (units.some(x => x.line === j)) break;
+      if (lw[j].length < 2 || covered(lw[j], cw) < 0.75) break;
+      extra.push(j);
+    }
+    // and the lines before it, when the unit landed on the rider rather than the line it rides on
+    let first = u.line;
+    for (let j = u.line - 1; j >= 0; j--) {
+      if (units.some(x => x !== u && x.line === j)) break;
+      if (lw[j].length < 2 || covered(lw[j], cw) < 0.75) break;
+      first = j;
+    }
+    for (let j = u.line; j > first; j--) extra.unshift(j);
+    if (first !== u.line && units.filter(x => x.line === u.line).length === 1) u.line = first;
+    else if (first !== u.line) extra.splice(0, u.line - first);
+    if (extra.length) u.span = extra;
+  }
+}
+
+module.exports = { unitsOf, align, spans, words, similarity, unitShape, lineShape };

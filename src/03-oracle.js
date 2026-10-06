@@ -3112,15 +3112,18 @@
   const NEEDS_AIM = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'counters', 'pump', 'grantKeyword', 'regrowth',
     'reanimate', 'gainControl', 'fight', 'bite', 'copySpell', 'counterSpell', 'restrict', 'regenerate']);
   function generatedScriptSound(script) {
-    const ok = (e) => {
+    /* An effect inside one that carries the targets ("if you control three
+       artifacts, 4 damage instead") acts on what that one chose. */
+    const ok = (e, aimed) => {
       if (!e || typeof e !== 'object') return true;
       if (e.op === 'manual') return false;
-      if (NEEDS_AIM.has(e.op) && !(e.targets && e.targets.length) && !e.scope && !e.each && !e.self && !e.toSelf) return false;
-      if (e.op === 'damage' && !(e.targets && e.targets.length) && !e.each && !e.toSelf && !e.toTriggerPlayer && !e.scope) return false;
-      for (const k of ['list', 'then', 'otherwise', 'effects']) if (Array.isArray(e[k]) && !e[k].every(ok)) return false;
-      return !Array.isArray(e.modes) || e.modes.every(m => (m.effects || []).every(ok));
+      const has = aimed || !!(e.targets && e.targets.length);
+      if (NEEDS_AIM.has(e.op) && !has && !e.scope && !e.each && !e.self && !e.toSelf) return false;
+      if (e.op === 'damage' && !has && !e.each && !e.toSelf && !e.toTriggerPlayer && !e.scope) return false;
+      for (const k of ['list', 'then', 'otherwise', 'effects']) if (Array.isArray(e[k]) && !e[k].every(x => ok(x, has))) return false;
+      return !Array.isArray(e.modes) || e.modes.every(m => (m.effects || []).every(x => ok(x, false)));
     };
-    return (script.abilities || []).concat(script.add || []).every(ab => (ab.effects || []).every(ok));
+    return (script.abilities || []).concat(script.add || []).every(ab => (ab.effects || []).every(x => ok(x, false)));
   }
 
   /* The same, for the abilities standing in for one line: and a line that
@@ -4479,8 +4482,23 @@
        the tests showed wrong (Bastion of Remembrance gaining from every
        opponent, Duress aimed at its caster), and the translation wins. */
     if (gen && gen.lines) {
+      const done = new Set();
       for (const li of lineInfo) {
         const key = U.hash(li.text);
+        /* A line the translation folded into the one above it ("deals 4
+           damage instead if ..."): once that line is in, this one has
+           nothing left to do of its own. */
+        const head = gen.covered && gen.covered[key];
+        if (head) {
+          if (!done.has(head)) continue;
+          const mine = li.abilities.concat(li.mana);
+          out.abilities = out.abilities.filter(x => !mine.includes(x));
+          out.manaAbilities = out.manaAbilities.filter(x => !mine.includes(x));
+          if (!li.auto) autoLines += 1 - li.got;
+          li.auto = true;
+          li.generated = true;
+          continue;
+        }
         if (li.auto && !(gen.override && gen.override[key])) continue;
         const shared = gen.lines[key];
         if (!shared || !shared.length || !generatedLineSound(shared, li.text)) continue;
@@ -4499,6 +4517,7 @@
         li.auto = true;
         li.generated = true;
         out.generated = true;
+        done.add(key);
       }
     }
     if (!script && gen && gen.abilities && autoLines < totalLines - 0.001) {

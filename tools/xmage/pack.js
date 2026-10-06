@@ -79,6 +79,11 @@ const FOOTER = `;
       out.override = {};
       for (const hash of row[3]) out.override[hash] = true;
     }
+    // lines folded into the line above them: line -> the line that carries it
+    if (row[4] && row[4].length) {
+      out.covered = {};
+      for (const [hash, head] of row[4]) out.covered[hash] = head;
+    }
     cache.set(key, out);
     return out;
   }
@@ -113,7 +118,8 @@ function write(lib, file, keyFor) {
     const kws = (e.kw || []).map(k => { if (!kwIndex.has(k)) { kwIndex.set(k, kw.length); kw.push(k); } return kwIndex.get(k); });
     const lines = Object.keys(e.lines || {}).sort().map(h => [h, e.lines[h].map(shape)]);
     const over = Object.keys(e.override || {}).sort();
-    cards[key] = over.length ? [whole, kws, lines, over] : [whole, kws, lines];
+    const cov = Object.keys(e.covered || {}).sort().map(h => [h, e.covered[h]]);
+    cards[key] = cov.length ? [whole, kws, lines, over, cov] : over.length ? [whole, kws, lines, over] : [whole, kws, lines];
   }
   const packed = { v: 2, shapes, kw, cards };
   fs.writeFileSync(file, HEADER + JSON.stringify(packed) + FOOTER);

@@ -178,6 +178,10 @@ def('effect', 'DamageTargetEffect', (o, tc) => {
   if (a.pointer === 'permanent') return { op: 'damage', n: amt(o, tc), scope: 'triggerObject' };
   if (a.pointer) block('damage to that ' + a.pointer);
   if (a.chooseFrom || a.again) block('damage to a chosen thing');
+  // "4 damage to it instead": the one target the ability chose, read from what was chosen
+  if (a.scope === 'lastTarget' && tc.ab && tc.ab.targets.length === 1 && tc.ab.targets[0].specs.length === 1) {
+    return { op: 'damage', n: amt(o, tc) };
+  }
   if (a.scope) block('damage to it again');
   return Object.assign({ op: 'damage', n: amt(o, tc) }, a);
 });
@@ -231,18 +235,22 @@ def('effect', 'DrawDiscardControllerEffect', (o, tc) => {
   return { op: 'drawDiscard', n: d, discard: k };
 });
 def('effect', 'CreateTokenEffect', (o, tc) => {
-  checkCalls(o);
+  checkCalls(o, ['withAdditionalTokens']);
   const tok = P.tokenOf(o.args[0], tc);
   const rest = o.args.slice(1);
   const nv = rest.find(a => ['int', 'value'].includes(kindOf(a)));
   const n = nv ? P.amount(nv, tc) : 1;
   const bools = rest.filter(a => kindOf(a) === 'bool').map(a => a.v);
-  return P.createTokenEffect(tok, n, { tapped: !!bools[0], attacking: !!bools[1] });
+  const first = P.createTokenEffect(tok, n, { tapped: !!bools[0], attacking: !!bools[1] });
+  // Wurmcoil Engine: "a 3/3 Wurm with deathtouch and a 3/3 Wurm with lifelink"
+  const more = calls(o, 'withAdditionalTokens').flatMap(c => c.args.map(t => P.createTokenEffect(P.tokenOf(t, tc), n, { tapped: !!bools[0], attacking: !!bools[1] })));
+  return more.length ? [first].concat(more) : first;
 });
 def('effect', 'AddCountersSourceEffect', (o, tc) => {
   checkCalls(o);
   const c = P.counterOf(o.args[0], tc);
-  if (o.args[1] && kindOf(o.args[1]) !== 'null') { if (c.n !== 1) block('counter count twice'); c.n = P.amount(o.args[1], tc); }
+  // createInstance() or createInstance(0), with the count given apart
+  if (o.args[1] && kindOf(o.args[1]) !== 'null') { if (c.n !== 1 && c.n !== 0) block('counter count twice'); c.n = P.amount(o.args[1], tc); }
   if (A(o).bool(0, false)) block('counters on the card');
   return { op: 'counters', kind: c.kind, n: c.n, scope: 'self' };
 });
@@ -250,7 +258,7 @@ def('effect', 'AddCountersTargetEffect', (o, tc) => {
   checkCalls(o);
   const c = P.counterOf(o.args[0], tc);
   const nv = o.args.slice(1).find(a => ['int', 'value'].includes(kindOf(a)));
-  if (nv) { if (c.n !== 1) block('counter count twice'); c.n = P.amount(nv, tc); }
+  if (nv) { if (c.n !== 1 && c.n !== 0) block('counter count twice'); c.n = P.amount(nv, tc); }
   return Object.assign({ op: 'counters', kind: c.kind, n: c.n }, aimObject(o, tc));
 });
 def('effect', 'AddCountersAllEffect', (o, tc) => {
@@ -388,9 +396,13 @@ function searchEffect(o, tc, to) {
   if (ints.length >= 2) { min = ints[0]; max = ints[1]; }
   const f = t.args.find(a => kindOf(a) === 'filter');
   const d = F.describe(f || { t: 'ref', path: 'StaticFilters.FILTER_CARD' }, tc);
+  // "a card named X": any card, by name
+  const named = d.name;
+  if (named) d.name = undefined;
   const out = { op: 'tutor', n: max, filter: F.toWords(d, { allow: ['mv'] }), to };
+  if (named) { if (out.filter !== 'card') block('named and more'); out.named = named; }
   if (d.mv) { if (d.mv.min === d.mv.max) out.mv = d.mv.min; else { if (d.mv.min != null) out.minMv = d.mv.min; if (d.mv.max != null) out.maxMv = d.mv.max; } }
-  if (out.filter === 'card') out.filter = 'any';
+  if (out.filter === 'card' && !named) out.filter = 'any';
   if (to === 'battlefield' && A(o).bool(1, false) === true && A(o).bool(0, false) === true) out.tapped = true;
   if (to === 'battlefield') {
     const bools = A(o).all('bool').map(x => x.v);
@@ -417,9 +429,11 @@ function oneShotOnly(tc, what) { if (tc.inStatic) block(what + ' in a static abi
 def('effect', 'BoostTargetEffect', (o, tc) => {
   checkCalls(o);
   oneShotOnly(tc, 'BoostTargetEffect');
-  if (durationOf(o, 'EndOfTurn') !== 'eot') block('boost for longer');
+  const d = durationOf(o, 'EndOfTurn');
+  // until end of turn, or for as long as it stays on the battlefield
+  if (d !== 'eot' && d !== 'permanent') block('boost for ' + d);
   const { p, t } = ptOf(o, tc);
-  return Object.assign({ op: 'pump', p, t, duration: 'eot' }, aimObject(o, tc));
+  return Object.assign({ op: 'pump', p, t, duration: d }, aimObject(o, tc));
 });
 def('effect', 'BoostSourceEffect', (o, tc) => {
   checkCalls(o);
@@ -527,7 +541,13 @@ def('effect', 'GainAbilityControlledEffect', (o, tc) => gainGroup(o, tc, 'you'))
 def('effect', 'GainAbilityAllEffect', (o, tc) => gainGroup(o, tc, 'all'));
 def('effect', 'GainAbilityAttachedEffect', (o, tc) => {
   checkCalls(o);
-  staticOnly(tc, 'GainAbilityAttachedEffect');
+  if (!tc.inStatic) {
+    // "equipped creature gains first strike until end of turn"
+    const d = durationOf(o, 'WhileOnBattlefield');
+    if (d !== 'eot') block('attached gain for ' + d);
+    const g = granted(o.args[0], tc);
+    return Object.assign(oneShotGrant(g, 'eot'), { scope: 'attached' });
+  }
   if (durationOf(o, 'WhileOnBattlefield') !== 'static') block('attached gain duration');
   const g = granted(o.args[0], tc);
   if (g.keywords && o.args.some(a => kindOf(a) === 'str')) block('attached gain with own text');
@@ -536,6 +556,29 @@ def('effect', 'GainAbilityAttachedEffect', (o, tc) => {
 
 /* ---------------- effects made of other effects ---------------- */
 
+/**
+ * "Deal 2 damage to any target. Metalcraft: 4 instead": both halves of the
+ * condition are about one target, chosen as the spell is cast. The target
+ * goes on the condition itself, and the halves act on what was chosen.
+ */
+function hoistTargets(ifc) {
+  const specs = [];
+  const strip = (list) => (list || []).map(e => {
+    if (!e || !e.targets || !e.targets.length || e.op === 'modal') return e;
+    specs.push(...e.targets);
+    const x = Object.assign({}, e);
+    delete x.targets;
+    return x;
+  });
+  const then = strip(ifc.then), otherwise = strip(ifc.otherwise);
+  const reuse = JSON.stringify([then, otherwise]).includes('"lastTarget"');
+  if (!specs.length) return ifc;
+  if (specs.length > 1 && reuse) block('conditional sharing one of several targets');
+  const out = Object.assign({}, ifc, { targets: specs, then });
+  if (ifc.otherwise) out.otherwise = otherwise;
+  return out;
+}
+
 def('effect', 'ConditionalOneShotEffect', (o, tc) => {
   checkCalls(o);
   const effs = o.args.filter(a => kindOf(a) === 'effect' || kindOf(a) === 'custom');
@@ -543,7 +586,7 @@ def('effect', 'ConditionalOneShotEffect', (o, tc) => {
   if (!cond) block('ConditionalOneShotEffect without a condition');
   const then = effect(effs[0], tc);
   const otherwise = effs[1] ? effect(effs[1], tc) : null;
-  return Object.assign({ op: 'ifCond', cond: tr('condition', cond, tc), then }, otherwise ? { otherwise } : null);
+  return hoistTargets(Object.assign({ op: 'ifCond', cond: tr('condition', cond, tc), then }, otherwise ? { otherwise } : null));
 });
 def('effect', 'ConditionalContinuousEffect', (o, tc) => {
   checkCalls(o);
@@ -558,9 +601,7 @@ def('effect', 'ConditionalContinuousEffect', (o, tc) => {
       // the otherwise part points at the same target as the first: "it" the second time
       const then = effect(effs[0], tc);
       const otherwise = effect(effs[1], tc);
-      // "it" in the second half would point at a target only the first half chose
-      if (JSON.stringify(otherwise).includes('"lastTarget"')) block('conditional whose otherwise reuses the target');
-      return { op: 'ifCond', cond: c, then, otherwise };
+      return hoistTargets({ op: 'ifCond', cond: c, then, otherwise });
     }
     if (effs.length !== 1) block('conditional with ' + effs.length + ' effects');
     return { op: 'ifCond', cond: c, then: effect(effs[0], tc) };
