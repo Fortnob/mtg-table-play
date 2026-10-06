@@ -2780,6 +2780,27 @@ module.exports = (test) => {
     t.no(T2.g.castSpell('A', c2.id, { auto: true, face: 1 }), 'not from hand');
   });
 
+  test('Adventure: Murderous Rider goes on an adventure, then comes back as a creature', (mk, t) => {
+    t.auto('Murderous Rider');
+    const T = mk();
+    const r = T.hand('A', 'Murderous Rider');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1BB');
+    t.eq(JSON.stringify(T.g.viewFor('A').splitFaces[r.id]), '[0,1]', 'both halves offered');
+    t.ok(T.g.castSpell('A', r.id, { auto: true, face: 1, targets: [{ kind: 'object', id: b.id }] }), T.g.lastError);
+    T.resolve();
+    t.zone(b, 'graveyard');
+    t.zone(r, 'exile', 'on an adventure');
+    t.eq(T.life('A'), 18, 'Swift End costs 2 life');
+    T.mana('A', '1BB');
+    t.ok(T.g.playableNow('A').some(x => x.objId === r.id), 'castable from exile');
+    t.ok(T.g.castSpell('A', r.id, { auto: true }), T.g.lastError);
+    T.resolve();
+    t.zone(r, 'battlefield');
+    T.g.moveObject(r, 'exile');
+    t.no(T.g.playableNow('A').some(x => x.objId === r.id), 'not again from a later exile');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

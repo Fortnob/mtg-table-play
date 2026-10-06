@@ -873,7 +873,7 @@
       /* Cards set aside earlier that are now yours to cast: plotted last
          turn, or left in exile by warp. */
       const waiting = (z.exile || []).filter(o =>
-        (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled);
+        (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId);
       if (this.activePlayer && this.activePlayer.id === playerId && this.isMain &&
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
         const elsewhere = z.library.slice(0, 1).concat(z.graveyard)
@@ -931,12 +931,22 @@
           }
           continue;
         }
+        // an adventurer in hand: the adventure too, with its face
+        if (o.zone === 'hand' && this._adventure(o)) {
+          const okAdv = this._asHalf(o, 1, () => {
+            const c2 = this.canCast(playerId, o.id);
+            return c2.ok && this.canPayNow(playerId, String(c2.cost || '').replace(/\{X\}/g, ''), { forSpell: o }) &&
+              this._targetsAvailable(this._spellEffects(o.analysis()), playerId);
+          });
+          if (okAdv) out.push({ kind: 'cast', objId: o.id, face: 1 });
+        }
         const chk = this.canCast(playerId, o.id);
         // the same check castSpell's payment makes, so what is offered can be paid for
         if (!chk.ok || !this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o })) continue;
         // a spell with nothing legal to point at is not a decision
         if (!this._targetsAvailable(this._spellEffects(o.analysis()), playerId)) continue;
-        out.push({ kind: 'cast', objId: o.id });
+        // an adventurer's creature half says which it is, beside the adventure
+        out.push(o.zone === 'hand' && this._adventure(o) ? { kind: 'cast', objId: o.id, face: 0 } : { kind: 'cast', objId: o.id });
       }
       for (const o of this.battlefield) {
         if (o.controller !== playerId) continue;
@@ -1577,6 +1587,13 @@
           item.obj.reboundBy = item.controller;
           item.obj.reboundTurn = this.turn;
           this.logEvent('rules', `${item.name} is exiled with rebound.`);
+        }
+        else if (item.adventure && !item.countered && !item.isCopy) {
+          // "on an adventure": exiled, and its owner may cast the creature from there (CR 715.4)
+          this.moveObject(item.obj, 'exile');
+          item.obj.face = 0; item.obj._chr = null;
+          item.obj.adventureBy = item.obj.owner;
+          this.logEvent('rules', `${item.obj.name} goes on an adventure.`);
         }
         else if (item.viaAfter === 'exile') {
           // flashback and friends exile the card instead (CR 702.33a)
@@ -2412,7 +2429,9 @@
       if ((o.zone === 'graveyard' || o.zone === 'exile') && !leave) {
         if (o.zone === 'graveyard' && this._anyStatic('cageGraveyards'))
           return { ok: false, reason: "A cage stops spells cast from graveyards." };
-        const impulsed = o.zone === 'exile' && o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn;
+        const impulsed = (o.zone === 'exile' && o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) ||
+          // back from an adventure: the creature, for its cost
+          (o.zone === 'exile' && o.adventureBy === playerId && (o.face || 0) === 0);
         if (o.grantedFlashback && o.zone === 'graveyard') return { ok: true, cost: this.castCost(o, opts) };
         /* A card with flashback is cast for its flashback cost, not for
            the cost printed in its corner — so casting it from the
@@ -2476,6 +2495,11 @@
       if (!c || c.layout !== 'split' || !c.card_faces || c.card_faces.length !== 2) return false;
       return !/^Aftermath\b/m.test(String(c.card_faces[1].oracle_text || ''));
     }
+    /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
+    _adventure(o) {
+      const c = o && o.card;
+      return !!(c && c.layout === 'adventure' && c.card_faces && c.card_faces.length === 2);
+    }
     /** A split card whose right half has aftermath. */
     _aftermathHalf(o) {
       const c = o && o.card;
@@ -2497,7 +2521,7 @@
       /* A split card is playable when either half is; the reason given is the
          left half's when neither is. */
       const so = this.obj(objId);
-      if (face == null && so && this._splitHalves(so) && so.zone === 'hand') {
+      if (face == null && so && (this._splitHalves(so) || this._adventure(so)) && so.zone === 'hand') {
         const left = this._asHalf(so, 0, () => this.whyNotPlayable(playerId, objId, 0));
         if (!left) return null;
         const right = this._asHalf(so, 1, () => this.whyNotPlayable(playerId, objId, 1));
@@ -3447,7 +3471,9 @@
         const so = this.obj(objId);
         if (!so) return this.fail('No such card.');
         const f = Number(opts.face);
-        if (!this._splitHalves(so)) { if (f !== 0) return this.fail('That card has only one half to cast.'); }
+        const adv = this._adventure(so);
+        if (adv && f === 1 && so.zone !== 'hand') return this.fail('An adventure is cast from your hand.');
+        if (!this._splitHalves(so) && !adv) { if (f !== 0) return this.fail('That card has only one half to cast.'); }
         else {
           if (f !== 0 && f !== 1) return this.fail('A split card has two halves: face 0 or 1.');
           const was = so.face || 0;
@@ -3677,6 +3703,7 @@
       const fromZone = o.zone;
       this._removeFromZone(o);
       o.zone = 'stack';
+      o.adventureBy = null;
       o.controller = playerId;
       o.chosenX = opts.x || 0;
       // "the amount of mana spent to cast this creature"
@@ -3693,6 +3720,8 @@
         spreeModes: chose.spree, gift: o.giftTo, bargained, castInMain: !!this.isMain && this.activePlayer && this.activePlayer.id === playerId,
         via: via ? via.via : null, viaAfter: via ? via.after : null,
       };
+      // an adventure: exiled as it resolves, and the creature castable from there
+      if (this._adventure(o) && (o.face || 0) === 1) item.adventure = true;
       // fused: the right half's words after the left's
       if (fused && item.effects) {
         item.effects = item.effects.concat(this._cardSpellEffects(MTG.oracle.analyze(o.card, 1)));
@@ -7058,6 +7087,8 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      // out of exile, an adventure is over
+      if (from === 'exile' && toZone !== 'exile') o.adventureBy = null;
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null;
       if (!opts.noReplace) {
@@ -13999,6 +14030,7 @@
           const out = {};
           if (!(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;
           for (const x of this.playableNow(playerId)) if (x.kind === 'cast' && x.face != null) (out[x.objId] = out[x.objId] || []).push(x.face);
+          for (const k of Object.keys(out)) out[k].sort();
           return out;
         })(),
         // split cards with fuse that can be cast with both halves now (the cast intent's `fuse`)
