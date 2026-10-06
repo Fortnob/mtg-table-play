@@ -1832,9 +1832,15 @@
     _castHalf(o, halves) {
       const faces = o.card.card_faces || [];
       const go = (f) => this.beginCast(o, MTG.oracle.analyze(o.card, f), null, f);
-      if (halves.length === 1) return go(halves[0]);
+      const fused = ((this.live || this.view).fusable || []).includes(o.id);
+      if (halves.length === 1 && !fused) return go(halves[0]);
       /** @type {Array<[string, () => void]>} */
       const items = halves.map(f => [`Cast ${faces[f] ? faces[f].name : 'half ' + (f + 1)} ${faces[f] ? faces[f].mana_cost || '' : ''}`, () => go(f)]);
+      // fuse: both halves as one spell, both costs paid, the left half's targets first
+      if (fused && faces.length > 1) {
+        items.push([`Cast both, fused ${faces[0].mana_cost || ''}${faces[1].mana_cost || ''}`,
+          () => this.beginCast(o, MTG.oracle.analyze(o.card, 0), 'fuse')]);
+      }
       const n = this.els.get(o.id);
       const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
       UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });

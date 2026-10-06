@@ -704,7 +704,8 @@
       const steps = { o, a, via, face, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       // the cost being paid: one half of a split card, or the face that is up
       const faces = o.card.card_faces;
-      steps.cost = (face != null && faces && faces[face] ? faces[face].mana_cost
+      steps.cost = (via === 'fuse' && faces && faces[1] ? (faces[0].mana_cost || '') + (faces[1].mana_cost || '')
+        : face != null && faces && faces[face] ? faces[face].mana_cost
         : o.card.mana_cost || (faces && faces[o.face || 0] && faces[o.face || 0].mana_cost)) || '';
       const hasX = /\{X\}/.test(steps.cost);
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
@@ -901,15 +902,20 @@
     castTargets(steps) {
       const { o, a, via, picked } = steps;
       const specs = [];
-      const eff = a.isPermanent ? [] : MTG.oracle.parseEffects(a.oracleTextParsed || a.oracleText || '').effects;
-      for (const e of eff) for (const s of (e.targets || [])) specs.push(s);
+      // fused, both halves' targets are asked for, the left half's first
+      const parts = via === 'fuse' ? [MTG.oracle.analyze(o.card, 0), MTG.oracle.analyze(o.card, 1)].filter(Boolean) : [a];
+      for (const part of parts) {
+        const eff = part.isPermanent ? [] : MTG.oracle.parseEffects(part.oracleTextParsed || part.oracleText || '').effects;
+        for (const e of eff) for (const s of (e.targets || [])) specs.push(s);
+      }
       if (a.isAura && a.auraSpec) specs.push(a.auraSpec);
       if (via === 'bestow') specs.push({ type: 'creature', zone: 'battlefield' });
       if (via === 'mutate') specs.push({ type: 'creature', zone: 'battlefield', controller: 'you', notSubtype: 'human' });
       const extra = { kick: picked.kick || 0, buyback: !!picked.buyback, entwine: !!picked.entwine,
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
-      if (via) extra.via = via;
+      if (via === 'fuse') extra.fuse = true;
+      else if (via) extra.via = via;
       if (steps.face != null) extra.face = steps.face;
       if (steps.altPay) Object.assign(extra, steps.altPay);
       // generic questions answered with the extra costs, in the shape the engine checks them in
