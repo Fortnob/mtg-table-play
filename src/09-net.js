@@ -26,15 +26,73 @@
 
   function peerAvailable() { return typeof window.Peer === 'function'; }
 
+  /* Public STUN servers: enough for most home networks, where each side
+     only needs to learn its own public address. */
+  const STUN = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+  ];
+
+  /**
+   * The ICE servers to use: the STUN servers above plus any TURN relay the
+   * player has entered in Options. A strict network (an office, a school,
+   * some mobile carriers) blocks the direct connection, and only a relay
+   * gets through; there is no free public one to rely on, so none is
+   * built in.
+   */
+  function iceServers() {
+    const mine = (MTG.settings.iceServers || []).filter(s => s && s.urls).map(s => {
+      const out = { urls: String(s.urls).split(/[\s,]+/).filter(Boolean) };
+      if (s.username) out.username = String(s.username);
+      if (s.credential) out.credential = String(s.credential);
+      return out;
+    });
+    return STUN.concat(mine);
+  }
+
   function peerOptions() {
     // PeerJS's public broker. Nothing but signalling passes through it;
     // the game traffic itself is a direct encrypted WebRTC channel.
-    return { debug: MTG.DEBUG ? 2 : 0, config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' },
-      ],
-    } };
+    return { debug: MTG.DEBUG ? 2 : 0, config: { iceServers: iceServers() } };
+  }
+
+  /**
+   * Gather ICE candidates with the current servers and say what came back:
+   * host (this machine), srflx (a public address, from STUN) and relay
+   * (from TURN). No connection is made and nothing is sent to anyone but
+   * the servers themselves. Resolves to {host, srflx, relay, ms, error}.
+   */
+  function testIce(opts) {
+    opts = opts || {};
+    const servers = opts.iceServers || iceServers();
+    const t0 = Date.now();
+    const out = { host: 0, srflx: 0, relay: 0, ms: 0, error: null, turn: servers.some(s => [].concat(s.urls).some(u => /^turns?:/.test(u))) };
+    if (typeof RTCPeerConnection !== 'function') { out.error = 'This browser does not support WebRTC.'; return Promise.resolve(out); }
+    return new Promise((resolve) => {
+      let pc;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        out.ms = Date.now() - t0;
+        try { pc.close(); } catch (e) {}
+        resolve(out);
+      };
+      try { pc = new RTCPeerConnection({ iceServers: servers, iceCandidatePoolSize: 0 }); }
+      catch (e) { out.error = 'Those server details were not accepted: ' + (e && e.message || e); resolve(out); return; }
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) { finish(); return; }
+        const m = / typ (host|srflx|prflx|relay)/.exec(e.candidate.candidate || '');
+        const kind = e.candidate.type || (m && m[1]);
+        if (kind === 'host') out.host++;
+        else if (kind === 'srflx' || kind === 'prflx') out.srflx++;
+        else if (kind === 'relay') out.relay++;
+      };
+      pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') finish(); };
+      pc.createDataChannel('probe');
+      pc.createOffer().then(o => pc.setLocalDescription(o)).catch((e) => { out.error = String(e && e.message || e); finish(); });
+      setTimeout(finish, opts.timeout || 9000);
+    });
   }
 
   /* ============================================================
@@ -54,6 +112,13 @@
       this.lastError = null;
       this._seq = 0;
       this._pingTimer = null;
+      /* How the connections are doing. The host pings each guest and times
+         the answer; a guest learns its own round trip from the next ping. */
+      this.rtt = new Map();       // peerId -> ms (host)
+      this.heard = new Map();     // peerId -> when it last answered (host)
+      this.hostRtt = null;        // ms (client)
+      this.hostHeard = 0;         // when the host last pinged (client)
+      this.rejoining = false;     // a client trying to get back to its table
     }
 
     get isHost() { return this.mode === 'host'; }
@@ -106,6 +171,8 @@
       conn.on('data', (msg) => this._onHostData(conn, msg));
       conn.on('close', () => {
         this.conns.delete(conn.peer);
+        this.rtt.delete(conn.peer);
+        this.heard.delete(conn.peer);
         this.emit('peer:leave', conn.peer);
         MTG.sfx('leave');
       });
@@ -119,7 +186,13 @@
         case 'hello': this.emit('hello', conn.peer, msg.payload); break;
         case 'intent': this.emit('intent', conn.peer, msg.payload); break;
         case 'chat': this.broadcast({ t: 'chat', payload: { from: msg.payload.from, text: msg.payload.text, at: Date.now() } }); this.emit('chat', msg.payload); break;
-        case 'pong': break;
+        case 'pong':
+          if (typeof msg.at === 'number') {
+            this.rtt.set(conn.peer, Math.max(0, Date.now() - msg.at));
+            this.heard.set(conn.peer, Date.now());
+            this.emit('rtt', conn.peer, this.rtt.get(conn.peer));
+          }
+          break;
         default: this.emit('message', conn.peer, msg);
       }
     }
@@ -127,9 +200,9 @@
     /* ---------------- joining ---------------- */
     async join(code, hello) {
       if (!peerAvailable()) throw new Error('Multiplayer library did not load. Solo and bot games still work.');
-      const keep = this._lastJoin, tries = this._rejoinTries;
+      const keep = this._lastJoin, tries = this._rejoinTries, rejoining = this.rejoining;
       this.destroy();
-      this._lastJoin = keep; this._rejoinTries = tries;
+      this._lastJoin = keep; this._rejoinTries = tries; this.rejoining = rejoining;
       this.mode = 'client';
       this.roomCode = String(code || '').trim().toUpperCase();
       if (!this.roomCode) throw new Error('Enter a room code.');
@@ -179,7 +252,8 @@
       if (this.mode !== 'client' || this._closing || !this._lastJoin) return;
       if (this._rejoinTimer) return;
       const tries = (this._rejoinTries = (this._rejoinTries || 0) + 1);
-      if (tries > 8) { this.emit('rejoin:failed'); return; }
+      if (tries > 8) { this.rejoining = false; this.emit('rejoin:failed'); return; }
+      this.rejoining = true;
       const wait = Math.min(1000 * Math.pow(1.6, tries - 1), 12000);
       this.emit('rejoin:trying', { attempt: tries, inMs: wait });
       this._rejoinTimer = setTimeout(async () => {
@@ -188,6 +262,7 @@
         if (!last || this._closing) return;
         try {
           await this.join(last.code, last.hello);
+          this.rejoining = false;
           this.emit('rejoin:ok');
         } catch (e) {
           this._scheduleRejoin();
@@ -208,7 +283,11 @@
         case 'log': this.emit('log', msg.payload); break;
         case 'error': this.emit('error', msg.payload); break;
         case 'kick': this.emit('kicked', msg.payload); this.destroy(); break;
-        case 'ping': this.send(null, { t: 'pong' }); break;
+        case 'ping':
+          this.send(null, { t: 'pong', at: msg.at });
+          this.hostHeard = Date.now();
+          if (typeof msg.rtt === 'number') { this.hostRtt = msg.rtt; this.emit('rtt', 'host', msg.rtt); }
+          break;
         default: this.emit('message', 'host', msg);
       }
     }
@@ -268,10 +347,25 @@
       else this.send(null, { t: 'chat', payload });
     }
 
+    /* Every few seconds, each guest is pinged with the time and told its
+       last round trip, so both ends can show how the connection is. */
     _startPing() {
       clearInterval(this._pingTimer);
       if (!this.isHost) return;
-      this._pingTimer = setInterval(() => this.broadcast({ t: 'ping' }), 20000);
+      const ping = () => {
+        for (const peerId of this.conns.keys()) {
+          const rtt = this.rtt.get(peerId);
+          this.send(peerId, rtt != null ? { t: 'ping', at: Date.now(), rtt } : { t: 'ping', at: Date.now() });
+        }
+      };
+      this._pingTimer = setInterval(ping, 5000);
+      setTimeout(ping, 800);
+    }
+
+    /** How a connection is doing: 'good', 'fair', 'poor', or null when there is no figure yet. */
+    quality(ms) {
+      if (ms == null) return null;
+      return ms < 150 ? 'good' : ms < 400 ? 'fair' : 'poor';
     }
 
     destroy() {
@@ -290,6 +384,11 @@
       this.mode = 'offline';
       this.ready = false;
       this.roomCode = null;
+      this.rtt.clear();
+      this.heard.clear();
+      this.hostRtt = null;
+      this.hostHeard = 0;
+      this.rejoining = false;
       this._closing = false;
     }
   }
@@ -307,6 +406,8 @@
 
   MTG.net = new Net();
   MTG.net.peerAvailable = peerAvailable;
+  MTG.net.iceServers = iceServers;
+  MTG.net.testIce = testIce;
 })(window.MTG);
 
 

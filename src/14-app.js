@@ -267,7 +267,7 @@
     }
     dot.className = 'net-dot' + (net.isHost ? ' host' : net.isClient ? ' on' : '');
     label.textContent = net.isHost ? `hosting ${net.roomCode} · ${net.conns.size + 1}`
-      : net.isClient ? `joined ${net.roomCode}` : 'solo';
+      : net.isClient ? `joined ${net.roomCode}${net.hostRtt != null ? ` · ${net.hostRtt} ms` : ''}` : 'solo';
   }
 
   function pageHeader(title, subtitle, backTo, actions) {
@@ -1157,7 +1157,7 @@
      wide screen they are listed down the side as a contents. */
   const OPT_SECTIONS = [
     ['you', 'You'], ['gameplay', 'Gameplay'], ['pace', 'Pace'], ['stops', 'Stops'],
-    ['appearance', 'Appearance'], ['access', 'Accessibility'], ['sound', 'Sound'], ['data', 'Card data'],
+    ['appearance', 'Appearance'], ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['data', 'Card data'],
   ];
   const BOT_PACE = [[0, 'Instant'], [250, 'Quick'], [600, 'Normal'], [1200, 'Unhurried']];
   const ANIM_PACE = [[0.5, 'Fast'], [1, 'Normal'], [1.6, 'Relaxed']];
@@ -1416,6 +1416,9 @@
             .map(n => el('button', { class: 'chip', text: n.replace('_', ' '), onclick: () => MTG.sfx(n) }))),
       ])),
     ]));
+
+    /* -- online -- */
+    sections.push(onlineGroup(group));
 
     /* -- data -- */
     const cacheInfo = el('div', { class: 'opt-help', text: 'Reading cache…' });
@@ -1825,7 +1828,7 @@
         onclick: () => { sess.sitOut(); renderLobby(); },
       }));
     }
-    if (r.kind === 'remote') status.push(el('span', { class: 'pill good', text: 'connected' }));
+    if (r.kind === 'remote') status.push(rttPill(r.peerId));
     return seatShell(r, key, {
       role: r.kind === 'remote' ? 'Over the network' : 'You · this device',
       deckLine, status, tools, mine: r.kind === 'local',
@@ -2237,7 +2240,7 @@
       el('div', { class: 'lobby-banner-text' }, [
         el('div', { class: 'eyebrow', text: 'Room ' + net.roomCode }),
         el('h1', { class: 'lobby-title', text: 'Joining a table' }),
-        el('div', { class: 'lobby-facts' }, [el('span', { text: 'Connected — waiting for the host' })]),
+        el('div', { class: 'lobby-facts' }, [el('span', { text: 'Connected — waiting for the host' }), rttPill('host')]),
       ]),
     ]);
     App.clientLobbyBox = el('div', { class: 'panel seats-panel' }, el('div', { class: 'empty-note', text: 'Connected. Waiting for the host…' }));
@@ -2262,6 +2265,7 @@
       facts.innerHTML = '';
       for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${fmt.startingLife} life` : null, 'Waiting for the host to start'])
         if (t) facts.appendChild(el('span', { text: t }));
+      facts.appendChild(rttPill('host'));
       if (!banner._art) { banner._art = true; decorArt(banner.firstChild, FORMAT_ART[payload.formatId] || HERO_ART[0]); }
     }
     if (fmt.blurb) box.appendChild(el('p', { class: 'small muted', style: { marginTop: 0 }, text: fmt.blurb }));
@@ -2807,6 +2811,7 @@
         this.withEvents(v, 'local');
         App.lastView = v;
         App.table.update(v);
+        if (net.isHost) App.paintNetChip();
       }
       /* Guests are sent at most one view per thing that happens: one
          action can change the game a dozen times in a row, and the events
@@ -3075,11 +3080,139 @@
     }
   }
 
+  /* ================= connection quality =================
+     How each connection is doing, from the host's pings (src/09-net.js):
+     a round trip in milliseconds, coloured good, fair or poor, and plainly
+     "reconnecting…" while a guest is finding its way back. */
+
+  /** The words and the grade for one connection. `peer` is a peer id, or 'host' for a guest's own link. */
+  function netState(peer) {
+    if (peer === 'host') {
+      if (net.rejoining) return { text: 'reconnecting…', q: 'poor' };
+      const ms = net.hostRtt;
+      return ms == null ? { text: 'connected', q: 'good' } : { text: `${ms} ms`, q: net.quality(ms) };
+    }
+    if (!net.conns.has(peer)) return { text: 'disconnected', q: 'poor' };
+    const ms = net.rtt.get(peer);
+    return ms == null ? { text: 'connected', q: 'good' } : { text: `${ms} ms`, q: net.quality(ms) };
+  }
+  const NET_PILL = { good: 'good', fair: 'warn', poor: 'bad' };
+  /** A pill that keeps itself up to date with one connection. */
+  function rttPill(peer) {
+    const st = netState(peer);
+    return el('span', {
+      class: 'pill net-rtt ' + (NET_PILL[st.q] || ''), dataset: { peer: peer || '' },
+      title: 'Round trip to the host and back. Under 150 ms is good; over 400 ms, actions feel slow.',
+      text: st.text,
+    });
+  }
+  function updateRttPills() {
+    for (const n of document.querySelectorAll('.net-rtt')) {
+      const st = netState(n.dataset.peer);
+      if (n.textContent !== st.text) n.textContent = st.text;
+      n.className = 'pill net-rtt ' + (NET_PILL[st.q] || '');
+    }
+  }
+
+  /**
+   * At the table, a small chip in the corner: a guest sees its link to
+   * the host, the host sees each guest. It is not there in a game with
+   * nobody else on the network.
+   */
+  App.paintNetChip = function () {
+    const t = App.table;
+    if (!t || !t.arena) return;
+    let chip = t.arena.querySelector(':scope > .net-chip');
+    if (!net.online || (net.isHost && !net.conns.size)) { if (chip) chip.remove(); return; }
+    if (!chip) { chip = el('div', { class: 'net-chip', role: 'status', 'aria-live': 'polite' }); t.arena.appendChild(chip); }
+    const rows = [];
+    if (net.isClient) {
+      rows.push(['Host', netState('host')]);
+    } else {
+      const sess = App.session;
+      for (const peer of net.conns.keys()) {
+        const r = sess && sess.seatByPeer(peer);
+        rows.push([r ? r.name : 'Watcher', netState(peer)]);
+      }
+    }
+    const worst = rows.reduce((w, [, st]) => (st.q === 'poor' ? 'poor' : st.q === 'fair' && w !== 'poor' ? 'fair' : w), 'good');
+    const sig = JSON.stringify(rows);
+    if (chip._sig === sig) return;
+    chip._sig = sig;
+    chip.className = 'net-chip q-' + worst + (net.rejoining ? ' rejoining' : '');
+    chip.innerHTML = '';
+    chip.appendChild(el('i', { class: 'net-chip-dot', 'aria-hidden': 'true' }));
+    chip.appendChild(el('span', { text: rows.map(([who, st]) => `${who} ${st.text}`).join(' · ') }));
+    chip.title = 'Connection: round trip in milliseconds. Under 150 ms is good; over 400 ms, actions feel slow.';
+  };
+
+  /**
+   * Options > Online: TURN relays for networks that block a direct
+   * connection, and a test of what this browser can reach.
+   */
+  function onlineGroup(group) {
+    const S = MTG.settings;
+    const have = (S.iceServers || [])[0] || {};
+    const urlIn = el('input', { type: 'text', id: 'opt-turn-url', value: have.urls || '', placeholder: 'turn:relay.example.com:3478', autocomplete: 'off', spellcheck: 'false' });
+    const userIn = el('input', { type: 'text', id: 'opt-turn-user', value: have.username || '', placeholder: 'Username', autocomplete: 'off', spellcheck: 'false' });
+    const passIn = el('input', { type: 'password', id: 'opt-turn-pass', value: have.credential || '', placeholder: 'Password or credential', autocomplete: 'new-password' });
+    const result = el('div', { class: 'opt-help net-test', 'aria-live': 'polite' });
+    const save = () => {
+      const urls = urlIn.value.trim();
+      if (urls && !/^turns?:/i.test(urls.split(/[\s,]+/)[0])) return UI.error('A TURN address starts with turn: or turns:');
+      MTG.setSetting('iceServers', urls ? [{ urls, username: userIn.value.trim(), credential: passIn.value }] : []);
+      UI.ok(urls ? 'Relay saved. It is used from the next room you open or join.' : 'Relay removed.');
+    };
+    const test = async (btn) => {
+      btn.disabled = true;
+      result.className = 'opt-help net-test';
+      result.textContent = 'Asking the servers…';
+      const urls = urlIn.value.trim();
+      const servers = MTG.net.iceServers().filter(s => ![].concat(s.urls).some(u => /^turns?:/.test(u)));
+      if (urls) servers.push(Object.assign({ urls: urls.split(/[\s,]+/).filter(Boolean) },
+        userIn.value.trim() ? { username: userIn.value.trim() } : null, passIn.value ? { credential: passIn.value } : null));
+      const r = await MTG.net.testIce({ iceServers: servers });
+      btn.disabled = false;
+      const parts = [`${r.host} local`, `${r.srflx} public (STUN)`, `${r.relay} relay (TURN)`];
+      let verdict, cls;
+      if (r.error) { verdict = r.error; cls = 'bad'; }
+      else if (r.relay) { verdict = 'The relay answered: even a strict network should be able to connect through it.'; cls = 'good'; }
+      else if (urls) { verdict = 'No relay candidates: the TURN server did not answer. Check the address, the username and the password.'; cls = 'bad'; }
+      else if (r.srflx) { verdict = 'Your public address was found, so most networks can connect directly. Without a relay, a strict network may still block it.'; cls = 'warn'; }
+      else { verdict = 'No public address found: this network may block direct connections. A TURN relay would help.'; cls = 'bad'; }
+      result.className = 'opt-help net-test ' + cls;
+      result.textContent = `Found ${parts.join(', ')} in ${(r.ms / 1000).toFixed(1)} s. ${verdict}`;
+    };
+    const testBtn = el('button', { class: 'btn sm', text: 'Test connection', onclick: () => test(testBtn) });
+    return group('online', 'Online', 'Playing with friends connects your browsers straight to each other. On most home networks the public STUN servers built in are all that takes. A strict network (an office, a school, some mobile networks) blocks that, and then only a TURN relay gets through.', [
+      el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
+        el('div', { class: 'opt-label', text: 'TURN relay' }),
+        el('div', { class: 'opt-help', text: 'If friends cannot join your rooms, or you cannot join theirs, add a relay: a TURN service gives you an address, a username and a password, or you can run your own (coturn). Nothing is built in. The details stay in this browser and go only to the relay itself.' }),
+        el('div', { class: 'turn-fields' }, [
+          el('label', { class: 'field' }, [el('span', { text: 'Address' }), urlIn]),
+          el('label', { class: 'field' }, [el('span', { text: 'Username' }), userIn]),
+          el('label', { class: 'field' }, [el('span', { text: 'Password' }), passIn]),
+        ]),
+        el('div', { class: 'row wrap', style: { marginTop: '10px' } }, [
+          el('button', { class: 'btn sm primary', text: 'Save relay', onclick: save }),
+          testBtn,
+          have.urls ? el('button', { class: 'btn sm ghost', text: 'Remove', onclick: () => {
+            urlIn.value = ''; userIn.value = ''; passIn.value = ''; save(); renderOptions();
+          } }) : null,
+        ].filter(Boolean)),
+        result,
+      ])),
+    ]);
+  }
+
   /* ================= net wiring ================= */
   function wireNet() {
+    // how each connection is doing, kept current wherever it is shown
+    net.on('rtt', () => { updateRttPills(); App.paintNetChip(); if (net.isClient && !net.rejoining) setNetBadge(); });
     net.on('peer:join', () => setNetBadge());
     net.on('peer:leave', (peerId) => {
       setNetBadge();
+      updateRttPills(); App.paintNetChip();
       const sess = App.session;
       if (!sess) return;
       if (sess._enc) sess._enc.delete(peerId);
@@ -3133,6 +3266,7 @@
       }
       App.lastView = view;
       App.table.update(view);
+      App.paintNetChip();
     };
     net.on('state', showView);
     // every connection starts the sync again from a whole view
@@ -3178,11 +3312,13 @@
     net.on('disconnected', () => { setNetBadge(); });
     net.on('rejoin:trying', (info) => {
       setNetBadge('reconnecting');
+      updateRttPills(); App.paintNetChip();
       UI.toast(`Lost the host \u2014 trying again (${info.attempt})…`, 'err', 2600);
     });
-    net.on('rejoin:ok', () => { setNetBadge(); UI.ok('Back at the table.'); });
+    net.on('rejoin:ok', () => { setNetBadge(); updateRttPills(); App.paintNetChip(); UI.ok('Back at the table.'); });
     net.on('rejoin:failed', () => {
       setNetBadge();
+      updateRttPills(); App.paintNetChip();
       UI.error('Could not get back to that table. The host may have closed it.');
     });
     net.on('kicked', (m) => { UI.error('Removed from the table: ' + m); showScreen('home'); });

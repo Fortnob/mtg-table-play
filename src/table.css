@@ -919,3 +919,14 @@
 :root[data-phone] .coach-title { font-size: 16px; }
 :root[data-phone] .coach-text { font-size: 12px; }
 :root[data-reduce-motion] .coach-ring { animation: none; }
+/* how the connection is doing: a chip in the corner of a networked game */
+.net-chip { position: absolute; z-index: 44; left: 64px; top: 14px; display: flex; align-items: center; gap: 7px; max-width: 46%;
+  padding: 5px 11px 5px 9px; border-radius: 99px; font: 600 11px/1.2 var(--font); color: #c9d2e0; font-variant-numeric: tabular-nums;
+  background: rgba(12,14,20,.82); border: 1px solid rgba(255,255,255,.12); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.net-chip-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 8px rgba(82,192,138,.7); }
+.net-chip.q-fair .net-chip-dot { background: var(--warn); box-shadow: 0 0 8px rgba(224,176,85,.7); }
+.net-chip.q-poor .net-chip-dot { background: var(--bad); box-shadow: 0 0 8px rgba(232,103,94,.7); }
+.net-chip.rejoining { color: #ffcf8a; border-color: rgba(224,176,85,.5); }
+.net-chip.rejoining .net-chip-dot { animation: chipBlink 1s ease-in-out infinite; }
+@keyframes chipBlink { 50% { opacity: .25; } }
+:root[data-phone] .net-chip { left: 60px; top: 10px; font-size: 10px; max-width: 40%; }
