@@ -2436,6 +2436,22 @@ module.exports = (test) => {
     t.eq(k.counters['+1/+1'], 1);
   });
 
+  test('Galvanic Iteration copies the next instant or sorcery only', (mk, t) => {
+    t.auto('Galvanic Iteration');
+    const T = mk();
+    T.mana('A', 'UR');
+    T.cast('A', T.hand('A', 'Galvanic Iteration'));
+    T.resolve();
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 16, 'copied');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 14, 'not the second');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

@@ -523,15 +523,17 @@
      at the card or at something chosen before it. */
   function turnTrigger(text) {
     const t = String(text).trim();
-    let body = null;
+    let body = null, once = false;
     let m = t.match(/^(?:Until end of turn|This turn), (whenever [\s\S]+)$/i);
     if (m) body = 'W' + m[1].slice(1);
+    // Galvanic Iteration: "When you next cast an instant or sorcery spell this turn, copy that spell." — once
+    else if ((m = t.match(/^When you next (cast [^,"]+?) this turn, ([\s\S]+)$/i))) { body = 'Whenever you ' + m[1] + ', ' + m[2]; once = true; }
     else if ((m = t.match(/^((?:Whenever|At the beginning of) [^,"]+?) this turn, ([\s\S]+)$/))) body = m[1] + ', ' + m[2];
     if (!body || /\bCARDNAME\b|\bthis (?:creature|spell|card|enchantment|artifact)\b/i.test(body)) return null;
     const head = body.split(',')[0];
     if (/\bthat (?:player|creature|permanent|card)\b|\bchosen\b/i.test(head)) return null;
     body = body.replace(/\.?$/, '.');
-    return emblemText(body) ? { op: 'getEmblem', emblemText: body, thisTurn: true, name: 'Until end of turn' } : null;
+    return emblemText(body) ? Object.assign({ op: 'getEmblem', emblemText: body, thisTurn: true, name: once ? 'Next spell this turn' : 'Until end of turn' }, once ? { once: true } : {}) : null;
   }
 
   /* "Search your library for up to two basic land cards, put them onto the
@@ -3135,6 +3137,15 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* Sword of Wealth and Power: "Create a Treasure token. When you next
+       cast an instant or sorcery spell this turn, copy that spell. …" —
+       what comes first, then the turn's trigger */
+    { re: /^((?:[^.]+\.\s+)+?)(When you next cast [^,"]+? this turn, [\s\S]+)$/i,
+      make: (m) => {
+        const pre = parseSentenceList(splitSentences(m[1].trim()));
+        const e = turnTrigger(m[2]);
+        return pre.auto && e ? [...pre.effects, e] : null;
+      } },
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the
        bottom of your library in a random order." Dig until one fits (or
@@ -3175,7 +3186,7 @@
         return e ? [Object.assign(e, { targets: [{ type: 'player', opponent: true }], onlyTarget: true })] : null;
       } },
     // a triggered ability for the rest of the turn (Jace Reawakened, Bonus Round)
-    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, [\s\S]+$/i,
+    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, [\s\S]+$|^When you next cast [^,"]+? this turn, [\s\S]+$/i,
       make: (m) => { const e = turnTrigger(m[0]); return e ? [e] : null; } },
     /* Final Showdown: "Choose a creature you control. It gains indestructible
        until end of turn." Chosen, not targeted: read as the targeted

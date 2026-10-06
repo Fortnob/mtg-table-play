@@ -7300,6 +7300,8 @@
             triggerData: Object.assign({}, tData),
           });
         }
+        // "When you next cast …": the turn's emblem goes once it has triggered
+        if (o.card && o.card.once && o.zone === 'command') { this._removeFromZone(o); o.zone = null; this.bumpBoard(); }
       };
       for (const o of this._withEmblems(this.battlefield)) {
         if (o.phasedOut) continue;
@@ -8311,6 +8313,7 @@
              damage to that player this turn": that player only. Kept on the
              card, so a saved game keeps them too. */
           if (e.thisTurn) card.untilEot = true;
+          if (e.once) card.once = true;
           if (e.onlyTarget) { const pl = firstPlayer(); card.onlyPlayer = pl ? pl.id : '-'; }
           this.zones[ctx.controller].command.push(em);
           this.logEvent('rules', `${me.name} gets an emblem: "${truncate(text, 90)}"`);

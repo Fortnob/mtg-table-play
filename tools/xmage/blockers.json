@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16794,
+  "needed": 16785,
   "gainedCards": 1759,
-  "linesNeeded": 19147,
+  "linesNeeded": 19134,
   "linesGained": 2277,
   "gained": {
    "all": 1759,
@@ -690,25 +690,6 @@
     "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
     "Emmara Tandris",
     "Bubble Matrix"
-   ]
-  },
-  {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 29,
-   "lines": 23,
-   "cards": [
-    "Sword of Wealth and Power",
-    "Twinferno",
-    "Galvanic Iteration",
-    "Ral, Storm Conduit",
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Teach by Example",
-    "Adaptive Training Post",
-    "Dual Strike",
-    "Cursed Recording",
-    "Rimefire Torque",
-    "Doublecast"
    ]
   },
   {
@@ -3495,25 +3476,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Peema Trailblazer",
-    "Jeong Jeong, the Deserter",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin",
-    "Rangers' Refueler",
-    "Boom Scholar"
-   ]
-  },
-  {
    "what": "WaterbendCost",
    "score": 13,
    "lines": 13,
@@ -4023,6 +3985,24 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Twinferno",
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Dual Strike",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman",
+    "Loki Laufeyson",
+    "Way of the Cryomancer",
+    "Gadwick's First Duel"
+   ]
+  },
+  {
    "what": "scope:alts",
    "score": 12,
    "lines": 12,
@@ -4096,6 +4076,25 @@
     "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
     "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
     "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Riverchurn Monument",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Peema Trailblazer",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin",
+    "Rangers' Refueler",
+    "Boom Scholar",
+    "Marshals' Pathcruiser"
    ]
   },
   {
@@ -8715,19 +8714,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 21,
-   "cards": 15,
-   "names": [
-    "Sword of Wealth and Power",
-    "Twinferno",
-    "Galvanic Iteration",
-    "Ral, Storm Conduit",
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus"
-   ]
-  },
-  {
    "what": "CreateTokenTargetEffect",
    "score": 21,
    "cards": 21,
@@ -10732,6 +10718,19 @@
    ]
   },
   {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Dawnhand Eulogist"
+   ]
+  },
+  {
    "what": "AttachEffect",
    "score": 9,
    "cards": 9,
@@ -11028,19 +11027,6 @@
     "Skanos Dragonheart",
     "Greven, Predator Captain",
     "Manaplasm"
-   ]
-  },
-  {
-   "what": "keyword ExhaustAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Peema Trailblazer",
-    "Jeong Jeong, the Deserter",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible"
    ]
   },
   {
@@ -11437,6 +11423,19 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Twinferno",
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Dual Strike",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner"
+   ]
+  },
+  {
    "what": "UntapSourceEffect",
    "score": 8,
    "cards": 8,
@@ -11499,19 +11498,6 @@
     "Jennifer Walters // The Sensational She-Hulk",
     "Termination Facilitator",
     "Expedited Inheritance"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Blizzard Brawl",
-    "Jet's Brainwashing",
-    "Dawnhand Eulogist",
-    "Torch the Tower"
    ]
   },
   {
@@ -11811,6 +11797,19 @@
     "Possessed Goat",
     "Mild-Mannered Librarian",
     "Touch of Vitae"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Peema Trailblazer",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer"
    ]
   },
   {
