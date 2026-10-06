@@ -2,8 +2,9 @@
    for new ones.
 
    node tools/starters.js                    check every starter deck
-   node tools/starters.js --play 2           ...and play each one against two others
-   node tools/starters.js --generate [--colors WU,UB] [--seeds 1,2,3] [--d 9]
+   node tools/starters.js --play 2 [--format modern]
+                                             ...and play each one against two others of its format
+   node tools/starters.js --generate [--format modern] [--colors WU,UB] [--seeds 1,2,3] [--d 9]
                                              build candidate lists with the bot deck builder
 
    The check reads Scryfall's oracle-cards bulk file (tools/oracle-cards.jsonl.gz,
@@ -25,7 +26,7 @@ const vm = require('vm');
 const { load, SRC } = require('./engine');
 
 function args() {
-  const a = { generate: false, play: 0, colors: null, seeds: '1,2', d: 9, format: 'standard' };
+  const a = { generate: false, play: 0, colors: null, seeds: '1,2', d: 9, format: null };
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
@@ -109,25 +110,30 @@ function check(MTG, starters, byName) {
   return { bad, decks };
 }
 
-async function play(MTG, decks, rounds) {
+/** Each deck against `rounds` others of its own format (or only `format`'s, when given). */
+async function play(MTG, all, rounds, format) {
   const { playOne } = require('./sim');
+  const decks = format ? all.filter(d => d.s.format === format) : all;
   const record = new Map(decks.map(d => [d.s.id, { w: 0, l: 0, turns: 0, games: 0, stalls: 0, manual: new Set() }]));
   let seed = 1;
-  for (let i = 0; i < decks.length; i++) {
-    for (let k = 1; k <= rounds; k++) {
-      const a = decks[i], b = decks[(i + k * 3) % decks.length];
-      if (a === b) continue;
-      const r = await playOne(MTG, {
-        formatId: 'standard', seed: seed++, diffA: 5, diffB: 5, maxTurns: 30, deckA: a.deck, deckB: b.deck,
-      });
-      for (const [d, id] of [[a, 'A'], [b, 'B']]) {
-        const rec = record.get(d.s.id);
-        rec.games++; rec.turns += r.turns;
-        if (r.winner === id) rec.w++; else if (r.winner) rec.l++;
-        if (r.stalled) rec.stalls++;
-        for (const m of r.manualCards) rec.manual.add(m);
+  for (const fmt of new Set(decks.map(d => d.s.format))) {
+    const pool = decks.filter(d => d.s.format === fmt);
+    for (let i = 0; i < pool.length; i++) {
+      for (let k = 1; k <= rounds; k++) {
+        const a = pool[i], b = pool[(i + k * 3) % pool.length];
+        if (a === b) continue;
+        const r = await playOne(MTG, {
+          formatId: fmt, seed: seed++, diffA: 5, diffB: 5, maxTurns: 30, deckA: a.deck, deckB: b.deck,
+        });
+        for (const [d, id] of [[a, 'A'], [b, 'B']]) {
+          const rec = record.get(d.s.id);
+          rec.games++; rec.turns += r.turns;
+          if (r.winner === id) rec.w++; else if (r.winner) rec.l++;
+          if (r.stalled) rec.stalls++;
+          for (const m of r.manualCards) rec.manual.add(m);
+        }
+        console.log(`  ${a.s.name} vs ${b.s.name}: ${r.over ? (r.winner === 'A' ? a.s.name : r.winner === 'B' ? b.s.name : 'draw') : r.stalled ? 'STALLED' : 'turn cap'} in ${r.turns} turns`);
       }
-      console.log(`  ${a.s.name} vs ${b.s.name}: ${r.over ? (r.winner === 'A' ? a.s.name : r.winner === 'B' ? b.s.name : 'draw') : r.stalled ? 'STALLED' : 'turn cap'} in ${r.turns} turns`);
     }
   }
   console.log('\nrecord (wins-losses, average turns):');
@@ -138,14 +144,15 @@ async function play(MTG, decks, rounds) {
 }
 
 async function generate(MTG, a) {
-  const rules = MTG.formats.houseDefaults(a.format);
+  const format = a.format || 'standard';
+  const rules = MTG.formats.houseDefaults(format);
   const cols = a.colors ? String(a.colors).split(',') : PAIRS;
   for (const pair of cols) {
     for (const seed of String(a.seeds).split(',').map(Number)) {
       const colors = pair.split('');
       let deck;
       try {
-        deck = await MTG.bots.buildBotDeck({ formatId: a.format, difficulty: Number(a.d), rules, colors, rng: new MTG.RNG(seed * 7919 + pair.length * 31 + pair.charCodeAt(0)) });
+        deck = await MTG.bots.buildBotDeck({ formatId: format, difficulty: Number(a.d), rules, colors, rng: new MTG.RNG(seed * 7919 + pair.length * 31 + pair.charCodeAt(0)) });
       } catch (e) { console.log(`\n// ${pair} seed ${seed}: ${e.message}`); continue; }
       const { curve, lands } = curveOf(MTG, deck.main);
       const manual = deck.main.filter(e => !MTG.oracle.analyze(e.card).fullyAutomated).map(e => e.card.name);
@@ -168,7 +175,7 @@ async function main() {
   const starters = loadStarters(MTG);
   const byName = bulkByName();
   const { bad, decks } = check(MTG, starters, byName);
-  if (a.play) await play(MTG, decks, a.play);
+  if (a.play) await play(MTG, decks, a.play, a.format);
   process.exit(bad ? 1 : 0);
 }
 

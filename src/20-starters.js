@@ -1,10 +1,12 @@
 /* ============================================================
    20-starters.js - starter decks
-   Ready-made decks for a first game, or a quick one: one for every pair
-   of colours and a few in a single colour, each with a plain plan, a
-   sensible curve and enough lands, and every card one the game runs from
-   start to finish. They were started by the bot deck builder at its top
-   level and then picked through by hand.
+   Ready-made decks for a first game, or a quick one: for Standard, one
+   for every pair of colours and a few in a single colour; for Modern,
+   eight of the format's well-known plans. Each has a plain plan, a
+   sensible curve and enough lands, and every card is one the game runs
+   from start to finish. They were started by the bot deck builder at its
+   top level, or from the format's own lists, and then picked through by
+   hand. The menus show a format's own starters only (forFormat).
 
    A deck is kept as card names and counts and turned into cards when it
    is wanted, through the card cache like any other list, so it follows
@@ -149,6 +151,87 @@
         [2, 'Ambling Stormshell'], [1, 'The Unagi of Kyoshi Island'],
         [2, 'Fractal Mascot'], [2, 'Rampaging Baloths'], [1, 'Koma, World-Eater'],
         [4, 'Willowrush Verge'], [3, 'Thornwood Falls'], [10, 'Forest'], [7, 'Island']],
+    },
+
+    /* ---------------- Modern ----------------
+       The older, deeper pool: shock lands and fetch lands where a deck
+       wants them, and the cards the format is known for. */
+    {
+      id: 'm-burn', name: 'Burn', colors: ['R'], format: 'modern', cover: 'Lightning Bolt',
+      blurb: 'Hasty goblins and a fistful of bolts. Twenty damage, as fast as it will go.',
+      cards: [[4, 'Goblin Guide'], [4, 'Monastery Swiftspear'], [2, 'Ragavan, Nimble Pilferer'], [4, 'Lightning Bolt'],
+        [4, 'Lava Spike'], [4, 'Burst Lightning'],
+        [4, 'Eidolon of the Great Revel'], [4, 'Searing Spear'], [2, 'Viashino Pyromancer'],
+        [4, 'Rift Bolt'], [2, 'Goblin Rabblemaster'], [2, 'Magma Jet'],
+        [20, 'Mountain']],
+    },
+    {
+      id: 'm-affinity', name: 'Affinity', colors: ['U'], format: 'modern', cover: 'Master of Etherium',
+      blurb: 'Free robots, then bigger robots. Empty your hand onto the table by turn three.',
+      cards: [[4, 'Memnite'], [4, 'Ornithopter'], [2, 'Mox Opal'],
+        [4, 'Steel Overseer'], [4, 'Etherium Sculptor'], [3, 'Arcbound Ravager'],
+        [4, 'Master of Etherium'], [4, 'Frogmite'], [4, 'Myr Enforcer'],
+        [3, 'Thought Monitor'], [2, 'Thoughtcast'], [2, 'Somber Hoverguard'],
+        [4, 'Darksteel Citadel'], [2, 'Inkmoth Nexus'], [14, 'Island']],
+    },
+    {
+      id: 'm-elves', name: 'Modern Elves', colors: ['G'], format: 'modern', cover: 'Elvish Archdruid',
+      blurb: 'A turn-one elf, then a dozen more. Make silly amounts of mana and trample over.',
+      cards: [[4, 'Llanowar Elves'], [4, 'Elvish Mystic'], [4, 'Nettle Sentinel'], [2, 'Heritage Druid'],
+        [4, 'Dwynen\'s Elite'], [3, 'Elvish Visionary'], [3, 'Priest of Titania'],
+        [4, 'Elvish Archdruid'], [4, 'Imperious Perfect'], [2, 'Elvish Harbinger'],
+        [2, 'Lys Alana Huntmaster'], [2, 'Masked Admirers'], [2, 'Craterhoof Behemoth'],
+        [1, 'Pendelhaven'], [19, 'Forest']],
+    },
+    {
+      id: 'm-spirits', name: 'Spirit Squadron', colors: ['W', 'U'], format: 'modern', cover: 'Drogskol Captain',
+      blurb: 'Ghostly fliers under two captains, and a counterspell when it matters.',
+      cards: [[4, 'Spectral Sailor'], [4, 'Path to Exile'],
+        [4, 'Supreme Phantom'], [3, 'Selfless Spirit'], [2, 'Rattlechains'], [2, 'Shacklegeist'], [2, 'Mana Leak'],
+        [4, 'Drogskol Captain'], [4, 'Empyrean Eagle'], [2, 'Spectral Procession'], [2, 'Nebelgast Herald'], [2, 'Brazen Borrower'],
+        [3, 'Restoration Angel'], [1, 'Lyra Dawnbringer'],
+        [4, 'Hallowed Fountain'], [4, 'Glacial Fortress'], [2, 'Moorland Haunt'], [5, 'Plains'], [6, 'Island']],
+    },
+    {
+      id: 'm-jund', name: 'Jund', colors: ['B', 'R', 'G'], format: 'modern', cover: 'Tarmogoyf',
+      blurb: 'Kill their best creature, then their next one, and win with whatever is left.',
+      cards: [[4, 'Lightning Bolt'], [2, 'Bloodchief\'s Thirst'],
+        [4, 'Tarmogoyf'], [3, 'Scavenging Ooze'], [2, 'Bloodtithe Harvester'], [3, 'Terminate'], [2, 'Abrupt Decay'],
+        [2, 'Kolaghan\'s Command'], [2, 'Tireless Tracker'], [2, 'Courser of Kruphix'],
+        [4, 'Bloodbraid Elf'], [2, 'Chandra, Torch of Defiance'], [2, 'Ravenous Chupacabra'], [1, 'Thrun, the Last Troll'],
+        [2, 'Thragtusk'],
+        [2, 'Verdant Catacombs'], [2, 'Overgrown Tomb'], [2, 'Blood Crypt'], [1, 'Stomping Ground'], [2, 'Blooming Marsh'],
+        [2, 'Woodland Cemetery'], [2, 'Dragonskull Summit'], [2, 'Rootbound Crag'], [4, 'Forest'], [2, 'Swamp'], [2, 'Mountain']],
+    },
+    {
+      id: 'm-faeries', name: 'Dimir Faeries', colors: ['U', 'B'], format: 'modern', cover: 'Bitterblossom',
+      blurb: 'Little fliers, flash and counterspells. Play on their turn and nibble them to death.',
+      cards: [[3, 'Faerie Seer'], [2, 'Thoughtseize'], [3, 'Bloodchief\'s Thirst'], [2, 'Consider'],
+        [3, 'Bitterblossom'], [3, 'Faerie Mastermind'], [3, 'Ledger Shredder'], [3, 'Orcish Bowmasters'], [3, 'Counterspell'], [2, 'Hypnotic Sprite'],
+        [3, 'Brazen Borrower'], [2, 'Scion of Oona'], [2, 'Hero\'s Downfall'],
+        [2, 'Ninja of the Deep Hours'], [2, 'Sheoldred, the Apocalypse'],
+        [4, 'Watery Grave'], [4, 'Darkslick Shores'], [2, 'Drowned Catacomb'], [2, 'Sunken Hollow'], [5, 'Island'], [5, 'Swamp']],
+    },
+    {
+      id: 'm-tokens', name: 'Boros Legion', colors: ['R', 'W'], format: 'modern', cover: 'Hero of Bladehold',
+      blurb: 'Spirits, goblins and soldiers by the handful, then an anthem to make them count.',
+      cards: [[3, 'Path to Exile'], [3, 'Lightning Bolt'],
+        [3, 'Raise the Alarm'], [3, 'Intangible Virtue'], [2, 'Honor of the Pure'], [3, 'Lightning Helix'],
+        [4, 'Spectral Procession'], [4, 'Hordeling Outburst'], [3, 'Adeline, Resplendent Cathar'], [2, 'Brimaz, King of Oreskos'],
+        [3, 'Hero of Bladehold'], [2, 'Pia and Kiran Nalaar'], [2, 'Battle Screech'],
+        [4, 'Sacred Foundry'], [4, 'Inspiring Vantage'], [2, 'Clifftop Retreat'], [10, 'Plains'], [3, 'Mountain']],
+    },
+    {
+      id: 'm-ramp', name: 'Simic Titans', colors: ['G', 'U'], format: 'modern', cover: 'Primeval Titan',
+      blurb: 'Grow your lands two at a time, then drop something far too big to answer.',
+      cards: [[4, 'Llanowar Elves'],
+        [4, 'Sakura-Tribe Elder'], [4, 'Growth Spiral'], [3, 'Coiling Oracle'], [2, 'Sylvan Caryatid'],
+        [3, 'Wood Elves'],
+        [2, 'Oracle of Mul Daya'], [2, 'Mystic Snake'],
+        [3, 'Thragtusk'], [2, 'Mulldrifter'],
+        [2, 'Primeval Titan'], [2, 'Carnage Tyrant'],
+        [2, 'Simic Sky Swallower'], [1, 'Avenger of Zendikar'],
+        [4, 'Breeding Pool'], [4, 'Hinterland Harbor'], [2, 'Botanical Sanctum'], [2, 'Yavimaya Coast'], [8, 'Forest'], [4, 'Island']],
     },
   ];
 

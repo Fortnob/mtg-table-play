@@ -988,16 +988,23 @@
    */
   function starterShelf() {
     if (!MTG.starters || !MTG.starters.list.length) return null;
+    // a row of boxes for each format, under its name when there is more than one
+    const formats = Array.from(new Set(MTG.starters.list.map(st => st.format)));
+    const rows = [];
+    for (const f of formats) {
+      const mine = MTG.starters.forFormat(f);
+      if (formats.length > 1) rows.push(el('div', { class: 'section-title', style: { margin: '18px 0 12px' }, text: `${fmtName(f)} · ${mine.length}` }));
+      rows.push(el('div', { class: 'deck-cards' }, mine.map(st => UI.starterBox(st, {
+        onCopied: () => renderDecks(),
+        onUse: (deck) => playWithDeck(deck),
+      }))));
+    }
     return el('section', { class: 'starter-shelf', 'aria-labelledby': 'starterTitle' }, [
       el('div', { class: 'cat-head' }, [
         el('h2', { class: 'cat-title', id: 'starterTitle', text: 'Starter decks' }),
-        el('p', { class: 'cat-blurb', text: 'Ready to play: one for every pair of colours, and a few in one. The game runs every card in them by itself. Copy one into your decks to change it.' }),
+        el('p', { class: 'cat-blurb', text: 'Ready to play, in Standard and Modern. The game runs every card in them by itself. Copy one into your decks to change it.' }),
       ]),
-      el('div', { class: 'deck-cards' }, MTG.starters.list.map(st => UI.starterBox(st, {
-        onCopied: () => renderDecks(),
-        onUse: (deck) => playWithDeck(deck),
-      }))),
-    ]);
+    ].concat(rows));
   }
 
   function timeAgo(ts) {
