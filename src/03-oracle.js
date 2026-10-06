@@ -3474,6 +3474,7 @@
     [/^(?:CARDNAME|this spell|it) wasn'?t kicked$/i, () => ({ kind: 'kicked', n: 0, cmp: 'atMost' })],
     [/^(?:CARDNAME|this spell|it) was bought back$/i, () => ({ kind: 'boughtBack' })],
     [/^you have the city'?s blessing$/i, () => ({ kind: 'cityBlessing' })],
+    [/^you'?ve completed a dungeon$/i, () => ({ kind: 'completedDungeon' })],
     [/^you control (\w+) or more lands with different names$/i, (m) => ({ kind: 'landNames', n: num(m[1]) })],
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],

@@ -649,6 +649,16 @@ module.exports = (test) => {
     t.eq((T.player('A').dungeonsCompleted || []).join(), 'Lost Mine of Phandelver');
   });
 
+  test('Gloom Stalker has double strike once a dungeon is completed', (mk, t) => {
+    t.auto('Gloom Stalker');
+    const T = mk();
+    const g = T.bf('A', 'Gloom Stalker');
+    t.no(T.g.hasKw(g, 'double strike'));
+    T.player('A').dungeonsCompleted = ['Lost Mine of Phandelver'];
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(g, 'double strike'));
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

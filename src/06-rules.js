@@ -5870,6 +5870,7 @@
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        case 'completedDungeon': return !!me && (me.dungeonsCompleted || []).length > 0;
         case 'firstCombat': return (this.combatsThisTurn || 1) === 1 && this._combatTurn === this.turn;
         case 'levelRange': {
           if (!src) return false;
@@ -12434,6 +12435,8 @@
           bottomAfterMulligan: p.bottomAfterMulligan, connected: p.connected,
           extraTurns: p.extraTurns, skipNextDraw: p.skipNextDraw, maxHandSize: p.maxHandSize,
           monarch: !!p.monarch, initiative: !!p.initiative,
+          // the dungeon a player is in, and those they have completed
+          dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).slice(),
           ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null,
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
@@ -12828,6 +12831,8 @@
           mulliganBottom: this.bottomCountFor(p),
           commanderDamage: p.commanderDamage, commanderCasts: p.commanderCasts,
           librarySize: this.zones[p.id].library.length,
+          // which dungeon room they are in ({ name, room }), for the table to show
+          dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,
           /* "You may look at the top card of your library any time", or a
              permanent that lets them play it, shows it to that player and
              nobody else; "play with the top card of your library revealed"
