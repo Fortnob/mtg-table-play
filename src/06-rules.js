@@ -22,6 +22,9 @@
      only ever a return value inside one resolution, so it never needs to
      survive a snapshot. */
   const SUSPEND = Symbol('suspend');
+  /* Effects that act on their targets and nothing else, which a trigger's
+     "that creature" (scope triggerObject) is handed to as one. */
+  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf']);
 
   // Plain-English names for the combat restrictions an effect can impose.
   const FLAG_WORDS = {
@@ -7067,6 +7070,14 @@
           if (ctx.kind === 'ability') this._crimeCheck(ctx.controller, targets);
         }
       }
+      /* "Destroy that creature", "exile it": the permanent a trigger is
+         about, read the way a target is by the effects that only read
+         targets. Gone from the battlefield, it is not there to act on. */
+      if (e.scope === 'triggerObject' && TRIGGER_OBJECT_OPS.has(e.op)) {
+        const id = (ctx.triggerData || {}).objectId;
+        const x = id && this.obj(id);
+        targets = x && x.zone === 'battlefield' ? [{ kind: 'object', id }] : [];
+      }
       const firstObj = () => { const t = targets.find(t => t.kind === 'object'); return t && this.obj(t.id); };
       const firstPlayer = () => { const t = targets.find(t => t.kind === 'player'); return t && this.player(t.id); };
       // "whenever an opponent draws a card, they lose 2 life" — "they" is
@@ -10554,6 +10565,9 @@
       if (sc.notType && sc.notType.some(isType)) return false;
       if (sc.alsoType && !sc.alsoType.every(isType)) return false;
       if (sc.subtype && !(oa.subtypes || []).some(t => t.toLowerCase() === sc.subtype)) return false;
+      // "Elves and Goblins you control": any one of several creature types
+      if (sc.subtypes && !sc.subtypes.some(st => (oa.subtypes || []).some(t => t.toLowerCase() === st) ||
+          (oa.keywordSet && oa.keywordSet.has('changeling')))) return false;
       if (sc.notSubtype && (oa.subtypes || []).some(t => t.toLowerCase() === sc.notSubtype)) return false;
       if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||
           (oa.keywordSet && oa.keywordSet.has('changeling'))))) return false;

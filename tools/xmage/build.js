@@ -34,6 +34,8 @@ require('./tr/filters');
 require('./tr/parts');
 require('./tr/effects');
 const AB = require('./tr/abilities');
+const MORE = require('./tr/more');
+const MORE2 = require('./tr/more2');
 const fw = require('./framework');
 const V = require('./verify');
 
@@ -87,6 +89,7 @@ function newTc(card, an, model) {
 function translateUnit(u, tc) {
   if (u.kind === 'keyword') core.block('keyword ' + u.cls);
   if (u.kind === 'cost') core.block('additional cost ' + core.keyOf(u.obj));
+  if (u.kind === 'chapter') return [MORE2.chapter(u.obj, tc)];
   if (u.kind === 'spell') { if (tc.an.isPermanent) core.block('aura targeting'); return [AB.spellAbility(u.obj, tc)]; }
   const out = core.tr('ability', u.obj, tc);
   return [].concat(out);
@@ -120,6 +123,7 @@ function main() {
     gained: { all: 0, top2000: 0, stdTop: 0 }, compare: { same: 0, differ: 0, lines: 0 }, verifyFail: 0 };
   const gainedNames = [];
   const perCard = [];
+  const cardWhyAll = (card, r, why) => { if (r.stdTop || r.top2000) perCard.push({ name: card.name, rank: r.rank, std: r.stdTop, why }); };
   const verifyNotes = [];
   const diffs = [];
   let n = 0;
@@ -139,73 +143,92 @@ function main() {
     let an;
     try { an = MTG.oracle.analyze(MTG.scry.slim(card)); } catch (e) { continue; }
     if (!an) continue;
-    const failed = (an.lineInfo || []).filter(li => !li.auto);
     const needed = !an.fullyAutomated;
     if (needed) stats.needed++;
-    const file = idx.get(flat(card.name));
-    if (card.card_faces && card.card_faces.length > 1) {
-      stats.skippedLayout++;
-      if (needed) { bump('(layout ' + card.layout + ')'); if (r.stdTop || r.top2000) perCard.push({ name: card.name, rank: r.rank, std: r.stdTop, why: ['(layout ' + card.layout + ')'] }); }
-      continue;
-    }
+    const file = idx.get(flat(card.name)) || idx.get(flat(card.name.split(' // ').join(' ')));
     if (!file) { if (needed) bump('(no XMage class)'); continue; }
     stats.withClass++;
     if (!needed && !flag('compare')) continue;
     let model;
     try { model = loadCard(file); } catch (e) { if (needed) bump('(class unreadable)'); continue; }
-    const lines = an.lineInfo || [];
-    const units = unitsOf(model);
-    align(units, lines, card.name, an.isPermanent);
-    const cardProblems = model.problems.filter(p => !/^anonymous class|^lambda/.test(p));
-    const out = {};
+    /* A card with two faces is two sets of lines: each face is read, lined
+       up and written out on its own, under its own name. */
+    const faces = [];
+    const multi = card.card_faces && card.card_faces.length > 1;
+    if (multi) {
+      const F2 = model.faces;
+      const pair = {
+        transform: [F2.LeftHalfCard, F2.RightHalfCard], modal_dfc: [F2.LeftHalfCard, F2.RightHalfCard],
+        split: [F2.LeftHalfCard, F2.RightHalfCard], adventure: [model, F2.SpellCard], prepare: [model, F2.SpellCard],
+      }[card.layout];
+      if (!pair || !pair[0] || !pair[1]) { stats.skippedLayout++; if (needed) { bump('(layout ' + card.layout + ')'); cardWhyAll(card, r, ['(layout ' + card.layout + ')']); } continue; }
+      for (let fi = 0; fi < 2; fi++) {
+        let fan;
+        try { fan = MTG.oracle.analyze(MTG.scry.slim(card), fi); } catch (e) { fan = null; }
+        if (!fan) continue;
+        const fm = pair[fi];
+        faces.push({ name: card.card_faces[fi].name, an: fan, model: { abilities: fm.abilities, spell: fm.spell, problems: model.problems, customDecls: model.customDecls } });
+      }
+    } else faces.push({ name: card.name, an, model });
     const cardWhy = [];
-    let allFixed = true;
-    stats.linesNeeded += failed.length;
-    for (let i = 0; i < lines.length; i++) {
-      const li = lines[i];
-      const mine = units.filter(u => u.line === i);
-      if (li.auto && !flag('compare')) continue;
-      let abilities = null, why = null;
-      if (!mine.length) why = '(line not matched to XMage code)';
-      else if (li.abilities.some(x => x.kind === 'castModifier')) why = '(cast modifier line)';
-      else if (cardProblems.length) why = '(constructor: ' + cardProblems[0] + ')';
-      else {
-        const tc = newTc(card, an, model);
-        try {
-          abilities = [];
-          for (const u of mine) abilities.push(...translateUnit(u, tc));
-        } catch (e) {
-          if (!(e instanceof core.Blocked)) { why = '(translator error) ' + String(e.message || e).slice(0, 60); if (only) console.error(e); }
-          else why = e.what;
-          abilities = null;
+    let allFixed = true, failedCount = 0;
+    for (const face of faces) {
+      const fan = face.an;
+      const failed = (fan.lineInfo || []).filter(li => !li.auto);
+      failedCount += failed.length;
+      const lines = fan.lineInfo || [];
+      const units = unitsOf(face.model);
+      align(units, lines, face.name, fan.isPermanent);
+      const cardProblems = model.problems.filter(p => !/^anonymous class|^lambda/.test(p));
+      const out = {};
+      stats.linesNeeded += failed.length;
+      for (let i = 0; i < lines.length; i++) {
+        const li = lines[i];
+        const mine = units.filter(u => u.line === i);
+        if (li.auto && !flag('compare')) continue;
+        let abilities = null, why = null;
+        if (!mine.length) why = '(line not matched to XMage code)';
+        else if (li.abilities.some(x => x.kind === 'castModifier')) why = '(cast modifier line)';
+        else if (cardProblems.length) why = '(constructor: ' + cardProblems[0] + ')';
+        else {
+          const tc = newTc(card, fan, model);
+          try {
+            abilities = [];
+            for (const u of mine) abilities.push(...translateUnit(u, tc));
+            abilities = MORE.mergeMana(abilities);
+          } catch (e) {
+            if (!(e instanceof core.Blocked)) { why = '(translator error) ' + String(e.message || e).slice(0, 60); if (only) console.error(e); }
+            else why = e.what;
+            abilities = null;
+          }
+        }
+        if (abilities) {
+          const v = V.checkLine(li.text, abilities, card, fan);
+          if (v) { why = '(verify) ' + v; abilities = null; if (!li.auto) { stats.verifyFail++; if (verifyNotes.length < 400) verifyNotes.push(face.name + ': ' + v + ' :: ' + li.text); } }
+        }
+        if (li.auto) {
+          // the parser read this line: compare, to check the translators
+          if (abilities && flag('compare')) {
+            stats.compare.lines++;
+            const d = V.compare(li.abilities.concat(li.mana), abilities);
+            if (d) { stats.compare.differ++; if (diffs.length < 3000) diffs.push({ name: face.name, line: li.text, diff: d }); }
+            else stats.compare.same++;
+          }
+          continue;
+        }
+        if (abilities) {
+          for (const ab of abilities) ab.text = li.text;
+          out[MTG.util.hash(li.text)] = abilities;
+          stats.linesGained++;
+        } else {
+          allFixed = false;
+          if (needed) { bump(why || '(unknown)', li.text); cardWhy.push(why || '(unknown)'); }
         }
       }
-      if (abilities) {
-        const v = V.checkLine(li.text, abilities, card, an);
-        if (v) { why = '(verify) ' + v; abilities = null; if (!li.auto) { stats.verifyFail++; if (verifyNotes.length < 400) verifyNotes.push(card.name + ': ' + v + ' :: ' + li.text); } }
-      }
-      if (li.auto) {
-        // the parser read this line: compare, to check the translators
-        if (abilities && flag('compare')) {
-          stats.compare.lines++;
-          const d = V.compare(li.abilities.concat(li.mana), abilities);
-          if (d) { stats.compare.differ++; if (diffs.length < 3000) diffs.push({ name: card.name, line: li.text, diff: d }); }
-          else stats.compare.same++;
-        }
-        continue;
-      }
-      if (abilities) {
-        for (const ab of abilities) ab.text = li.text;
-        out[MTG.util.hash(li.text)] = abilities;
-        stats.linesGained++;
-      } else {
-        allFixed = false;
-        if (needed) { bump(why || '(unknown)', li.text); cardWhy.push(why || '(unknown)'); }
-      }
+      if (Object.keys(out).length) lib[face.name] = { lines: out };
     }
-    if (Object.keys(out).length) lib[card.name] = { lines: out };
-    if (needed && (r.stdTop || r.top2000)) perCard.push({ name: card.name, rank: r.rank, std: r.stdTop, why: cardWhy });
-    if (needed && allFixed && failed.length) {
+    if (needed) cardWhyAll(card, r, cardWhy);
+    if (needed && allFixed && failedCount) {
       stats.gainedCards++;
       stats.gained.all++;
       if (r.top2000) stats.gained.top2000++;

@@ -113,8 +113,24 @@ function applyCalls(d, v, tc) {
   }
 }
 
+/* The printed names of XMage's enum constants ("ASSEMBLY_WORKER" is
+   "Assembly-Worker", "P1P1" is "+1/+1"), read from the enum sources. */
+const ENUM_NAMES = {};
+function enumNames(file) {
+  if (ENUM_NAMES[file]) return ENUM_NAMES[file];
+  const fs = require('fs');
+  const src = fs.readFileSync(path.join(fw.FW, file), 'utf8');
+  const out = {};
+  for (const m of src.matchAll(/^\s+([A-Z][A-Z0-9_]*)\("([^"]+)"/gm)) out[m[1]] = m[2];
+  ENUM_NAMES[file] = out;
+  return out;
+}
+function subtypeName(c) {
+  const n = enumNames('constants/SubType.java')[c];
+  return (n || c.replace(/_/g, ' ')).toLowerCase();
+}
 function subName(path) {
-  return path.split('.')[1].toLowerCase().replace(/_/g, ' ');
+  return subtypeName(path.split('.')[1]);
 }
 
 /** Fold one predicate into D; `neg` when it sits under Predicates.not. */
@@ -128,7 +144,7 @@ function predicate(d, p, tc, neg) {
     return;
   }
   if (p.t === 'obj' && (m = /^SubType\.(\w+)\.getPredicate$/.exec(p.cls))) {
-    const s = m[1].toLowerCase().replace(/_/g, ' ');
+    const s = subtypeName(m[1]);
     if (neg) d.notSubtypes.push(s); else d.subtypes.push(s);
     return;
   }
@@ -154,7 +170,7 @@ function predicate(d, p, tc, neg) {
     for (const x of items) {
       const k = keyOf(x);
       if ((m = /^CardType\.(\w+)\.getPredicate$/.exec(k))) types.push(m[1].toLowerCase());
-      else if ((m = /^SubType\.(\w+)\.getPredicate$/.exec(k))) subs.push(m[1].toLowerCase().replace(/_/g, ' '));
+      else if ((m = /^SubType\.(\w+)\.getPredicate$/.exec(k))) subs.push(subtypeName(m[1]));
       else if (x.t === 'obj' && x.cls === 'ColorPredicate' && x.args[0] && x.args[0].t === 'ref' && COLORS[x.args[0].path.split('.')[1]]) cols.push(COLORS[x.args[0].path.split('.')[1]]);
       else block('or of ' + k);
     }
@@ -239,7 +255,7 @@ const PREDICATES = {
 function counterName(c) {
   const map = { P1P1: '+1/+1', M1M1: '-1/-1', P0P1: '+0/+1', P1P0: '+1/+0', P2P2: '+2/+2', M0M1: '-0/-1', M1M0: '-1/-0',
     M2M2: '-2/-2', P0P2: '+0/+2', P1P2: '+1/+2' };
-  return map[c] || c.toLowerCase().replace(/_/g, ' ');
+  return map[c] || (enumNames('counters/CounterType.java')[c] || c.replace(/_/g, ' ')).toLowerCase();
 }
 
 /* ---------------- D -> the engine's shapes ---------------- */
@@ -350,8 +366,8 @@ function toScope(d, opts) {
   else sc.what = 'permanent';
   if (also.length) sc.alsoType = also;
   if (d.notTypes.length) sc.notType = d.notTypes.slice();
-  if (d.subtypes.length > 1) block('several subtypes in a scope');
-  if (d.subtypes.length) sc.subtype = d.subtypes[0];
+  if (d.subtypes.length > 1) sc.subtypes = d.subtypes.slice();
+  else if (d.subtypes.length) sc.subtype = d.subtypes[0];
   if (d.notSubtypes.length > 1) block('several non-subtypes');
   if (d.notSubtypes.length) sc.notSubtype = d.notSubtypes[0];
   if (d.colors.length > 1) block('several colours in a scope');
@@ -435,4 +451,4 @@ function toSubject(d) {
 /** A plain description of D, for reading. */
 function words(d) { try { return toWords(d, { allow: Object.keys(d) }); } catch (e) { return d.message || '?'; } }
 
-module.exports = { describe, toSpec, toScope, toWords, toSubject, words, counterName, KW_CLASSES, PERM_TYPES, COLORS, COLOR_WORD, staticFilter };
+module.exports = { subtypeName, describe, toSpec, toScope, toWords, toSubject, words, counterName, KW_CLASSES, PERM_TYPES, COLORS, COLOR_WORD, staticFilter };

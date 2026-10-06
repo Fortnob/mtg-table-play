@@ -231,6 +231,10 @@ function evalCall(ctx, e, line) {
   // super(...) in the card constructor: the card types and the cost
   if (!e.obj && e.name === 'super') { ctx.card.superArgs = args(); return { t: 'lit', v: null }; }
   if (!e.obj && e.name === 'this') { ctx.problem('this() call'); return { t: 'unknown' }; }
+  /* getLeftHalfCard() with no "this.": the card's own method all the same */
+  if (!e.obj && /^(?:getLeftHalfCard|getRightHalfCard|getSpellCard|getSpellAbility|addAbility)$/.test(e.name)) {
+    return callOn(ctx, ctx.thisObj, e.name, args(), line);
+  }
   if (!e.obj) {
     // an unqualified call: a method of the card class (or a static import)
     ctx.problem('local method ' + e.name);

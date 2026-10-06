@@ -91,7 +91,7 @@ function checkLine(text, abilities, card, an) {
   if (may && !optional) return '"may" lost';
   if (!may && optional && !/\bmay\b/i.test(t)) return 'optional where the card is not';
   // conditions
-  const cond = /\bas long as\b|,? if\b|\bunless\b|\bonly if\b|\bonly during\b/i.test(t);
+  const cond = /\bas long as\b|,? if\b|\bunless\b|\bonly if\b|\bonly during\b|\bduring (?:your|each of your) turns?\b|\binstead\b/i.test(t);
   const hasCond = /"cond":|"condition":\{|"condition":\[|"op":"ifCond"|"only":/.test(json);
   if (cond && !hasCond && !/"op":"may(?:Pay)?"/.test(json)) return 'condition lost';
   if (!cond && hasCond && !/\bthreshold|delirium|metalcraft|morbid|raid|revolt|ferocious|hellbent|landfall\b/i.test(t)) return 'condition the card does not print';

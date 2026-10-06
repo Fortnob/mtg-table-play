@@ -120,7 +120,11 @@ def('target', ['TargetCardInYourGraveyard', 'TargetCardInGraveyard'], (o, tc) =>
 function amount(v, tc) {
   if (v == null) block('amount:missing');
   if (v.t === 'lit' && typeof v.v === 'number') return v.v;
-  return tr('value', v, tc);
+  const out = tr('value', v, tc);
+  // a count says how many of each it is worth, as the parser writes it
+  if (out && typeof out === 'object' && out.mult == null &&
+      (out.scope || out.cardsInGraveyard || out.cardsInHand || out.countersOnSelf || out.opponents)) out.mult = 1;
+  return out;
 }
 def('value', 'StaticValue.get', (o) => litOf(o.args[0], 'StaticValue'));
 def('value', ['GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB'], () => 'X');
@@ -429,7 +433,7 @@ function readToken(cls, tc) {
       if (!ref) block('token ' + cls);
       const val = ref.split('.')[1];
       if (e.obj.v === 'cardType') out.types.push(val.toLowerCase());
-      else if (e.obj.v === 'subtype') out.subtypes.push(val.toLowerCase().replace(/_/g, ' '));
+      else if (e.obj.v === 'subtype') out.subtypes.push(F.subtypeName(val));
       else out.supertypes.push(val.toLowerCase());
       continue;
     }

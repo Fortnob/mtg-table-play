@@ -101,16 +101,20 @@ function spellAbility(spell, tc) {
 def('ability', 'SimpleStaticAbility', (o, tc) => {
   const parts = partsOf(o, tc);
   const zone = A(o).enumv('Zone') || 'BATTLEFIELD';
-  if (zone !== 'BATTLEFIELD') block('static ability in ' + zone);
+  /* Everywhere, it is a characteristic-defining ability ("this creature's
+     power is equal to ..."), or something this does not translate. */
+  if (zone !== 'BATTLEFIELD' && zone !== 'ALL') block('static ability in ' + zone);
   if (parts.targets.length || parts.costs.length || parts.modes.length) block('static with targets or costs');
   const first = o.args.find(a => kindOf(a) === 'effect' || kindOf(a) === 'custom');
   tc.inStatic = true;
+  tc.inCda = zone === 'ALL';
   try {
     const effects = [];
     for (const e of [first].concat(parts.effects)) effects.push(...E.effect(e, tc));
     for (const e of effects) if (e.op !== 'continuous') block('static ' + e.op);
+    if (zone === 'ALL' && !effects.every(e => e.cda)) block('static ability in ALL');
     return { kind: 'static', auto: true, effects };
-  } finally { tc.inStatic = false; }
+  } finally { tc.inStatic = false; tc.inCda = false; }
 });
 def('ability', 'EntersBattlefieldTappedAbility', (o) => {
   if (o.args.length || o.calls.length) block('EntersBattlefieldTappedAbility with arguments');
@@ -188,31 +192,32 @@ function triggered(o, tc, ev) {
   return ab;
 }
 
-/** The SetTargetPointer argument of a trigger, which must be NONE (nothing to point at) for now. */
-function noPointer(o) {
+/** What a trigger's SetTargetPointer argument hands its effects: the player, permanent, spell or card that set it off. */
+function pointerArg(o) {
   const p = A(o).enumv('SetTargetPointer');
-  if (p && p !== 'NONE') block('trigger pointing at ' + p);
+  if (!p || p === 'NONE') return null;
+  const m = { PLAYER: 'player', PERMANENT: 'permanent', SPELL: 'spell', CARD: 'card' }[p];
+  if (!m) block('trigger pointing at ' + p);
+  return m;
 }
 
 function boolsAfterEffect(o) { return A(o).all('bool').map(x => x.v); }
 
 def('ability', 'EntersBattlefieldTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'etb', self: true }));
 def('ability', 'EntersBattlefieldOrAttacksSourceTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'etb', self: true, also: 'attacks' }));
-def('ability', 'DiesSourceTriggeredAbility', (o, tc) => { noPointer(o); return triggered(o, tc, { event: 'dies', self: true }); });
-def('ability', 'PutIntoGraveFromBattlefieldSourceTriggeredAbility', (o, tc) => { noPointer(o); return triggered(o, tc, { event: 'dies', self: true }); });
+def('ability', 'DiesSourceTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'dies', self: true, pointer: pointerArg(o) }));
+def('ability', 'PutIntoGraveFromBattlefieldSourceTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'dies', self: true, pointer: pointerArg(o) }));
 def('ability', 'LeavesBattlefieldTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'ltb', self: true }));
 def('ability', 'AttacksTriggeredAbility', (o, tc) => {
-  noPointer(o);
   if (A(o).str(0)) block('attack trigger with its own text');
-  return triggered(o, tc, { event: 'attacks', self: true });
+  return triggered(o, tc, { event: 'attacks', self: true, pointer: pointerArg(o) });
 });
 def('ability', 'BlocksSourceTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'blocks', self: true }));
 def('ability', 'AttacksOrBlocksTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'attacks', self: true, also: 'blocks' }));
 def('ability', 'BecomesTappedSourceTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'becomesTapped', self: true }));
 def('ability', 'DealsCombatDamageToAPlayerTriggeredAbility', (o, tc) => {
   const b = boolsAfterEffect(o);
-  if (b[1]) block('combat damage trigger pointing at the player');
-  return triggered(o, tc, { event: 'combatDamageToPlayer', self: true, optional: !!b[0] });
+  return triggered(o, tc, { event: 'combatDamageToPlayer', self: true, optional: !!b[0], pointer: b[1] ? 'player' : null });
 });
 function stepTrigger(name, events) {
   def('ability', name, (o, tc) => {
@@ -235,12 +240,12 @@ stepTrigger('BeginningOfFirstMainTriggeredAbility', { YOU: 'yourMain1' });
 
 function spellTrigger(name, event) {
   def('ability', name, (o, tc) => {
-    noPointer(o);
+    const pointer = pointerArg(o);
     const zone = A(o).enumv('Zone');
     if (zone && zone !== 'BATTLEFIELD') block(name + ' from ' + zone);
     if (o.args.filter(a => a && a.t === 'ref' && /^Zone\./.test(a.path)).length > 1) block('spell from a zone');
     const f = o.args.find(a => kindOf(a) === 'filter');
-    const ev = { event };
+    const ev = { event, pointer };
     if (f && !(f.t === 'ref' && /^StaticFilters\.FILTER_SPELLS?_A$|^StaticFilters\.FILTER_SPELL$/.test(f.path))) {
       const d = F.describe(f, tc);
       if (d.base !== 'spell') block('cast trigger filter of ' + d.base);
@@ -255,7 +260,7 @@ spellTrigger('SpellCastAllTriggeredAbility', 'anyCastSpell');
 
 function subjectTrigger(name, event, dflt, opts) {
   def('ability', name, (o, tc) => {
-    noPointer(o);
+    const pointer = pointerArg(o);
     const zone = A(o).enumv('Zone');
     if (zone && zone !== 'BATTLEFIELD') block(name + ' from ' + zone);
     const f = o.args.find(a => kindOf(a) === 'filter');
@@ -263,7 +268,7 @@ function subjectTrigger(name, event, dflt, opts) {
     if (opts && opts.you) d.controller = 'you';
     const bools = A(o).all('bool').map(x => x.v);
     if (opts && opts.setPointerArg && bools[opts.setPointerArg]) block('trigger pointing at the permanent');
-    const ev = { event, objFilter: F.toSubject(d), optional: !!bools[0] };
+    const ev = { event, objFilter: F.toSubject(d), optional: !!bools[0], pointer };
     if (opts && opts.selfOk) ev.objFilter.selfOk = true;
     return triggered(o, tc, ev);
   });
@@ -272,21 +277,22 @@ subjectTrigger('EntersBattlefieldControlledTriggeredAbility', 'permEnters', 'Sta
 subjectTrigger('EntersBattlefieldAllTriggeredAbility', 'permEnters', 'StaticFilters.FILTER_PERMANENT_CREATURE');
 def('ability', 'DiesCreatureTriggeredAbility', (o, tc) => {
   /* (effect, optional, another[, setTargetPointer]) or (effect, optional, filter[, setTargetPointer]) */
-  noPointer(o);
+  const pointer = pointerArg(o);
   const zone = A(o).enumv('Zone');
   if (zone && zone !== 'BATTLEFIELD') block('dies trigger from ' + zone);
   const f = o.args.find(a => kindOf(a) === 'filter');
   const bools = A(o).all('bool').map(x => x.v);
   const d = F.describe(f || { t: 'ref', path: 'StaticFilters.FILTER_PERMANENT_CREATURE' }, tc);
-  if (f) { if (bools[1]) block('trigger pointing at the creature'); }
-  else { if (bools[1]) d.another = true; if (bools[2]) block('trigger pointing at the creature'); }
-  return triggered(o, tc, { event: 'permDies', objFilter: F.toSubject(d), optional: !!bools[0] });
+  let card = false;
+  if (f) card = !!bools[1];
+  else { if (bools[1]) d.another = true; card = !!bools[2]; }
+  return triggered(o, tc, { event: 'permDies', objFilter: F.toSubject(d), optional: !!bools[0], pointer: pointer || (card ? 'card' : null) });
 });
 def('ability', 'LandfallAbility', (o, tc) => {
-  noPointer(o);
+  const pointer = pointerArg(o);
   const zone = A(o).enumv('Zone');
   if (zone && zone !== 'BATTLEFIELD') block('landfall from ' + zone);
-  return triggered(o, tc, { event: 'landfall' });
+  return triggered(o, tc, { event: 'landfall', pointer });
 });
 def('ability', 'GainLifeControllerTriggeredAbility', (o, tc) => {
   if (o.args.some(a => a && a.t === 'ref' && /^SetTargetPointer\./.test(a.path) && !/NONE$/.test(a.path))) block('life trigger pointer');
@@ -295,4 +301,4 @@ def('ability', 'GainLifeControllerTriggeredAbility', (o, tc) => {
 def('ability', 'DrawCardControllerTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'youDraw' }));
 def('ability', 'CastSourceTriggeredAbility', (o, tc) => triggered(o, tc, { event: 'castSelf' }));
 
-module.exports = { spellAbility, partsOf, body, modal, KEYWORDS, triggered, activated };
+module.exports = { spellAbility, partsOf, body, modal, KEYWORDS, triggered, activated, pointerArg, MANA_OPS };

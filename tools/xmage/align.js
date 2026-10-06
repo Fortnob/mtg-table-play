@@ -57,6 +57,7 @@ function unitShape(u) {
   if (u.kind === 'spell') return 'spell';
   if (u.kind === 'cost') return 'cost';
   if (u.kind === 'keyword') return 'keyword';
+  if (u.kind === 'chapter') return 'chapter';
   const o = u.obj;
   if (!o || o.t !== 'obj' || o.custom) return 'any';
   const anc = [o.cls].concat(fw.ancestors(o.cls));
@@ -80,6 +81,7 @@ function compatible(u, line, isPermanent) {
   // a permanent's spell ability is an Aura's targeting: the "Enchant" line
   if (us === 'spell') return isPermanent ? ls === 'static' : ls !== 'triggered' && ls !== 'activated';
   if (us === 'cost') return ls === 'static';
+  if (us === 'chapter') return /^[IVX]+(?:\s*,\s*[IVX]+)*\s*[-—]/.test(line.text);
   if (us === 'keyword') return ls !== 'triggered';
   if (us === 'triggered') return ls === 'triggered';
   if (us === 'activated') return ls === 'activated';
@@ -92,6 +94,16 @@ function unitsOf(model) {
   const units = [];
   for (const a of model.abilities) {
     const o = a.obj;
+    /* A Saga's chapters are calls on one object: each is its own unit,
+       lined up with its own "I —" line. */
+    if (o && o.t === 'obj' && o.cls === 'SagaAbility' && !o.custom) {
+      units.push({ kind: 'saga', obj: o, cmt: null, cls: 'SagaAbility', srcLine: a.line });
+      for (const c of o.calls) {
+        if (c.name !== 'addChapterEffect') continue;
+        units.push({ kind: 'chapter', obj: c, cmt: c.cmt, cls: 'SagaAbility.chapter', srcLine: c.line });
+      }
+      continue;
+    }
     const cls = o && o.t === 'obj' ? o.cls : core.keyOf(o);
     const fam = o && o.t === 'obj' && !o.custom ? abilityFamily(o.cls) : 'other';
     units.push({ kind: fam === 'keyword' ? 'keyword' : 'ability', fam, obj: o, cmt: a.cmt || (o && o.cmt) || null, cls, srcLine: a.line });
@@ -122,7 +134,10 @@ function unitsOf(model) {
  * Give each unit a line (u.line, -1 for none). Order-preserving: the best
  * total score over all units, each unit's line no earlier than the last's.
  */
-function align(units, lines, name, isPermanent) {
+function align(all, lines, name, isPermanent) {
+  // the Saga object itself is no line: only its chapters are
+  for (const u of all) if (u.kind === 'saga') u.line = -1;
+  const units = all.filter(u => u.kind !== 'saga');
   const lw = lines.map(l => words(l.text, name));
   const NEG = -1e9;
   // in printed order, which is the order the code was written in

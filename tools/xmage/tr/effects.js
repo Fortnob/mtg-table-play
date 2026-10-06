@@ -42,7 +42,13 @@ function aim(o, tc, want) {
     return { targets: specs };
   }
   const t = ab.targets[idx];
-  if (!t) block('effect with no target');
+  if (!t) {
+    /* No target of its own: an effect on a trigger that points at what set
+       it off ("that player", "that creature", "that spell"). */
+    const p = tc.trigger && tc.trigger.pointer;
+    if (p && idx === 0 && !ab.targets.length) return { pointer: p };
+    block('effect with no target');
+  }
   if (want === 'player' && t.kind !== 'player' && t.kind !== 'any') block('player effect on a ' + t.kind + ' target');
   if (want === 'object' && t.kind === 'player') block('object effect on a player target');
   if (t.notTarget) {
@@ -64,8 +70,13 @@ function aim(o, tc, want) {
 }
 
 /** A player target for an effect: { who: 'target', targets? } */
-function aimPlayer(o, tc) {
+const TRIGGER_PLAYER_OPS = new Set(['draw', 'discard', 'mill', 'loseLife', 'sacrificeChoice']);
+function aimPlayer(o, tc, op) {
   const a = aim(o, tc, 'player');
+  if (a.pointer) {
+    if (a.pointer !== 'player' || !TRIGGER_PLAYER_OPS.has(op)) block('that player, for ' + (op || o.cls));
+    return { who: 'triggerPlayer' };
+  }
   if (a.chooseFrom) block('chosen player');
   if (a.scope) block('player effect on an object');
   const out = { who: 'target' };
@@ -76,6 +87,10 @@ function aimPlayer(o, tc) {
 /** An object target: { targets } or { scope: 'lastTarget' } */
 function aimObject(o, tc) {
   const a = aim(o, tc, 'object');
+  if (a.pointer) {
+    if (a.pointer !== 'permanent') block('that ' + a.pointer);
+    return { scope: 'triggerObject' };
+  }
   if (a.again) block('object effect on a player');
   return a;
 }
@@ -139,13 +154,13 @@ def('effect', 'DrawCardSourceControllerEffect', (o, tc) => { checkCalls(o); retu
 def('effect', 'DrawCardTargetEffect', (o, tc) => {
   checkCalls(o);
   if (A(o).bool(0, false) || A(o).bool(1, false)) block('optional or up-to draw');
-  return Object.assign({ op: 'draw', n: amt(o, tc) }, aimPlayer(o, tc));
+  return Object.assign({ op: 'draw', n: amt(o, tc) }, aimPlayer(o, tc, 'draw'));
 });
 def('effect', 'DrawCardAllEffect', (o, tc) => { checkCalls(o); return { op: 'draw', n: amt(o, tc), who: 'each' }; });
 def('effect', 'GainLifeEffect', (o, tc) => { checkCalls(o); return { op: 'gainLife', n: amt(o, tc), who: 'you' }; });
-def('effect', 'GainLifeTargetEffect', (o, tc) => { checkCalls(o); return Object.assign({ op: 'gainLife', n: amt(o, tc) }, aimPlayer(o, tc)); });
+def('effect', 'GainLifeTargetEffect', (o, tc) => { checkCalls(o); return Object.assign({ op: 'gainLife', n: amt(o, tc) }, aimPlayer(o, tc, 'gainLife')); });
 def('effect', 'LoseLifeSourceControllerEffect', (o, tc) => { checkCalls(o); return { op: 'loseLife', n: amt(o, tc), who: 'you' }; });
-def('effect', 'LoseLifeTargetEffect', (o, tc) => { checkCalls(o); return Object.assign({ op: 'loseLife', n: amt(o, tc) }, aimPlayer(o, tc)); });
+def('effect', 'LoseLifeTargetEffect', (o, tc) => { checkCalls(o); return Object.assign({ op: 'loseLife', n: amt(o, tc) }, aimPlayer(o, tc, 'loseLife')); });
 def('effect', 'LoseLifeOpponentsEffect', (o, tc) => { checkCalls(o); return { op: 'loseLife', n: amt(o, tc), who: 'opponents' }; });
 def('effect', 'LoseLifeTargetControllerEffect', (o, tc) => {
   checkCalls(o);
@@ -157,6 +172,9 @@ def('effect', 'LoseLifeTargetControllerEffect', (o, tc) => {
 def('effect', 'DamageTargetEffect', (o, tc) => {
   checkCalls(o, ['withTargetDescription']);
   const a = aim(o, tc, 'any');
+  if (a.pointer === 'player') return { op: 'damage', n: amt(o, tc), toTriggerPlayer: true };
+  if (a.pointer === 'permanent') return { op: 'damage', n: amt(o, tc), scope: 'triggerObject' };
+  if (a.pointer) block('damage to that ' + a.pointer);
   if (a.chooseFrom || a.again) block('damage to a chosen thing');
   if (a.scope) block('damage to it again');
   return Object.assign({ op: 'damage', n: amt(o, tc) }, a);
@@ -182,10 +200,10 @@ def('effect', 'DamageEverythingEffect', (o, tc) => {
 def('effect', 'ScryEffect', (o, tc) => { checkCalls(o); return { op: 'scry', n: amt(o, tc) }; });
 def('effect', 'SurveilEffect', (o, tc) => { checkCalls(o); return { op: 'surveil', n: amt(o, tc) }; });
 def('effect', 'MillCardsControllerEffect', (o, tc) => { checkCalls(o); return { op: 'mill', n: amt(o, tc), who: 'you' }; });
-def('effect', 'MillCardsTargetEffect', (o, tc) => { checkCalls(o); return Object.assign({ op: 'mill', n: amt(o, tc) }, aimPlayer(o, tc)); });
+def('effect', 'MillCardsTargetEffect', (o, tc) => { checkCalls(o); return Object.assign({ op: 'mill', n: amt(o, tc) }, aimPlayer(o, tc, 'mill')); });
 def('effect', 'DiscardTargetEffect', (o, tc) => {
   checkCalls(o);
-  const out = Object.assign({ op: 'discard', n: amt(o, tc) }, aimPlayer(o, tc));
+  const out = Object.assign({ op: 'discard', n: amt(o, tc) }, aimPlayer(o, tc, 'discard'));
   if (A(o).bool(0, false)) out.random = true;
   return out;
 });
@@ -266,6 +284,7 @@ def('effect', 'UntapTargetEffect', (o, tc) => { checkCalls(o); return Object.ass
 def('effect', 'CounterTargetEffect', (o, tc) => {
   checkCalls(o);
   const a = aim(o, tc, 'object');
+  if (a.pointer === 'spell') return { op: 'counterTriggerSpell' };
   if (!a.targets || a.targets[0].type !== 'spell') block('counter of a non-spell');
   return Object.assign({ op: 'counterSpell' }, a);
 });
@@ -316,7 +335,7 @@ def('effect', 'SacrificeEffect', (o, tc) => {
   const d = F.describe(f, tc);
   const nv = o.args.find(a => ['int', 'value'].includes(kindOf(a)));
   const out = Object.assign({ op: 'sacrificeChoice', n: nv ? P.amount(nv, tc) : 1, filter: F.toWords(Object.assign({}, d, { controller: undefined, another: undefined })) },
-    aimPlayer(o, tc));
+    aimPlayer(o, tc, 'sacrificeChoice'));
   if (d.another) out.other = true;
   return out;
 });
