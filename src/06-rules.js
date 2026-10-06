@@ -6040,6 +6040,7 @@
         case 'selfIs': {
           if (!src) return false;
           if (cond.what === 'monstrous') return !!src.monstrous;
+          if (cond.what === 'nontoken') return !src.isToken;
           const att = (src.attachments || []).map(id => this.obj(id)).filter(Boolean);
           const kinds = att.map(x => O.analyze(x.card, x.face) || {});
           if (cond.what === 'equipped') return kinds.some(k => (k.subtypes || []).includes('Equipment'));
@@ -7728,6 +7729,23 @@
           }
           break;
         }
+        /* "Discard two cards unless you discard an artifact card": one card
+           of that kind, or two of anything */
+        case 'discardUnlessType': {
+          const hand = this.zones[ctx.controller].hand;
+          const pool = hand.filter(c => this._matchesCategory(c, e.type));
+          let one = null;
+          if (pool.length) {
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: `Discard an ${e.type} card? Choose none to discard ${n(e.n)} cards instead.` }, 'dut');
+            if (picked === SUSPEND) return SUSPEND;
+            one = (picked || []).map(id => this.obj(id)).find(o => o && pool.includes(o)) || null;
+          }
+          if (one) { this.moveObject(one, 'graveyard'); this._afterDiscard(ctx.controller, one); this.logEvent('discard', `${me.name} discards ${one.name}.`); }
+          else this._spliceNext([{ op: 'discard', n: e.n, who: 'you' }]);
+          break;
+        }
         case 'gainLife': {
           const cnt = n(e.n);
           if (e.who === 'targetController') {
@@ -9260,6 +9278,12 @@
           let card = source.card;
           if (e.nonLegendary && /\bLegendary\b/.test(String(card.type_line || ''))) {
             const line = String(card.type_line).replace(/\bLegendary\s+/g, '');
+            card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
+          }
+          // "except it's an artifact in addition to its other types"
+          for (const t of (e.addTypes || [])) {
+            if (new RegExp('\\b' + t + '\\b').test(String(card.type_line || ''))) continue;
+            const line = t + ' ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
           }
           for (let i = 0; i < cnt; i++) {
@@ -11326,6 +11350,13 @@
           : this.powerOf(o);
         if (sc.minPower != null && pw < sc.minPower) return false;
         if (sc.maxPower != null && pw > sc.maxPower) return false;
+      }
+      // "with toughness 1 or less", the same way
+      if (sc.maxToughness != null) {
+        const tg = inLayers
+          ? (parseInt(oa.toughness, 10) || 0) + (Number(o.counters['+1/+1']) || 0) - (Number(o.counters['-1/-1']) || 0)
+          : this.toughnessOf(o);
+        if (tg > sc.maxToughness) return false;
       }
       if (!inLayers && sc.keyword && !this.hasKw(o, sc.keyword)) return false;
       if (!inLayers && sc.withoutKeyword && this.hasKw(o, sc.withoutKeyword)) return false;

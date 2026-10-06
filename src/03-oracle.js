@@ -2209,6 +2209,9 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    /* Thirst for Knowledge: "Then discard two cards unless you discard an artifact card." */
+    { re: /^(?:Then )?[Dd]iscard (two|three) cards unless you discard an? ([a-z]+) card\.?$/,
+      make: (m) => ({ op: 'discardUnlessType', n: num(m[1]), type: m[2].toLowerCase() }) },
     // Murderous Rider: "When this creature dies, put it on the bottom of its owner's library."
     { re: /^Put (?:it|CARDNAME|this card) on the bottom of its owner'?s library\.?$/i, make: () => ({ op: 'selfToLibrary', bottom: true }) },
     // Intruder Alarm
@@ -2237,6 +2240,15 @@
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
+    /* Electroduplicate: "...except it has haste and 'At the beginning of the
+       end step, sacrifice this token.'" (it goes at the first end step) */
+    { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except it has haste and "At the beginning of the end step, sacrifice this (?:token|creature)\."\.?$/i,
+      make: (m) => [{ op: 'copyPermanent', n: 1, targets: [targetSpec(m[1])], grant: ['Haste'] },
+        { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }] },
+    /* Molten Duplication, Vaultborn Tyrant: "...except it's an artifact in addition to its other types" */
+    { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
+      make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
+        /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     /* Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." */
@@ -3630,6 +3642,7 @@
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
+    [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],

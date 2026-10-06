@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17097,
+  "needed": 17082,
   "gainedCards": 1776,
-  "linesNeeded": 19520,
+  "linesNeeded": 19505,
   "linesGained": 2308,
   "gained": {
    "all": 1776,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 88,
+  "verifyFail": 80,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6034,
-   "lines": 5011,
+   "score": 6013,
+   "lines": 5008,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -1224,25 +1224,6 @@
     "Heavenly Blademaster",
     "Gloom Ripper",
     "Frantic Firebolt"
-   ]
-  },
-  {
-   "what": "(verify) optional where the card is not",
-   "score": 24,
-   "lines": 15,
-   "cards": [
-    "Thirst for Knowledge",
-    "Thirst for Discovery",
-    "Tezzeret, Betrayer of Flesh",
-    "Cavalier of Thorns",
-    "Winternight Stories",
-    "Thirst for Meaning",
-    "Thirst for Identity",
-    "Invasion of New Phyrexia // Teferi Akosa of Zhalfir",
-    "Arm-Mounted Anchor",
-    "Reclaim the Wastes",
-    "Practical Research",
-    "Nissa Revane"
    ]
   },
   {
@@ -2515,20 +2496,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedAllEffect",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "Tetsuko Umezawa, Fugitive",
-    "Glaring Spotlight",
-    "Jace, Arcane Strategist",
-    "Keeper of Keys",
-    "Leitmotif Composer",
-    "Tezzeret's Gatebreaker",
-    "Tanglewalker"
-   ]
-  },
-  {
    "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
    "score": 16,
    "lines": 7,
@@ -2831,19 +2798,6 @@
    ]
   },
   {
-   "what": "CountersSourceCount.ANY",
-   "score": 15,
-   "lines": 6,
-   "cards": [
-    "Twitching Doll",
-    "Gavel of the Righteous",
-    "Hancock, Ghoulish Mayor",
-    "Qala, Ajani's Pridemate",
-    "Indominus Rex, Alpha",
-    "Savanti Romero, Time's Exile"
-   ]
-  },
-  {
    "what": "AttachTargetToTargetEffect",
    "score": 15,
    "lines": 12,
@@ -2930,20 +2884,6 @@
     "Deglamer",
     "Covetous Castaway // Ghostly Castigator",
     "Piper's Melody"
-   ]
-  },
-  {
-   "what": "(constructor: assignment)",
-   "score": 15,
-   "lines": 9,
-   "cards": [
-    "Electroduplicate",
-    "Banewhip Punisher",
-    "Ammit Eternal",
-    "Knight of Grace",
-    "Knight of Malice",
-    "Suq'Ata Firewalker",
-    "Bull Elephant"
    ]
   },
   {
@@ -5477,14 +5417,6 @@
    ]
   },
   {
-   "what": "DeathBaronPredicate.instance",
-   "score": 10,
-   "lines": 1,
-   "cards": [
-    "Death Baron"
-   ]
-  },
-  {
    "what": "TalionTheKindlyLordPredicate.instance",
    "score": 10,
    "lines": 1,
@@ -7455,6 +7387,19 @@
    ]
   },
   {
+   "what": "(constructor: assignment)",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Banewhip Punisher",
+    "Ammit Eternal",
+    "Knight of Grace",
+    "Knight of Malice",
+    "Suq'Ata Firewalker",
+    "Bull Elephant"
+   ]
+  },
+  {
    "what": "filter:snow",
    "score": 8,
    "lines": 8,
@@ -7994,6 +7939,20 @@
    ]
   },
   {
+   "what": "(verify) optional where the card is not",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Thirst for Discovery",
+    "Cavalier of Thorns",
+    "Arm-Mounted Anchor",
+    "Reclaim the Wastes",
+    "Practical Research",
+    "Nissa Revane",
+    "Steamcore Scholar"
+   ]
+  },
+  {
    "what": "EntersBattlefieldTappedUnlessAbility",
    "score": 7,
    "lines": 7,
@@ -8216,13 +8175,54 @@
     "Curse of the Pierced Heart",
     "Curse of Oblivion"
    ]
+  },
+  {
+   "what": "GainAbilityControlledEffect.withForceQuotes",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Callaphe, Beloved of the Sea",
+    "Mishra, Tamer of Mak Fawa",
+    "Cathedral of Serra",
+    "Adventurers' Guildhouse",
+    "Mountain Stronghold",
+    "Unholy Citadel",
+    "Seafarer's Quay"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToACreatureTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Ohran Viper",
+    "Permeating Mass",
+    "Flayed Nim",
+    "Mephitic Ooze",
+    "Stone-Tongue Basilisk",
+    "Serpentine Basilisk",
+    "Soul Charmer"
+   ]
+  },
+  {
+   "what": "CollectEvidenceCost",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Forensic Researcher",
+    "Tenth District Hero",
+    "Kylox's Voltstrider",
+    "Polygraph Orb",
+    "Hedge Whisperer",
+    "Sample Collector"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4724,
-   "cards": 3965,
+   "score": 4705,
+   "cards": 3964,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8842,19 +8842,6 @@
    ]
   },
   {
-   "what": "(verify) optional where the card is not",
-   "score": 20,
-   "cards": 11,
-   "names": [
-    "Thirst for Knowledge",
-    "Thirst for Discovery",
-    "Winternight Stories",
-    "Thirst for Meaning",
-    "Thirst for Identity",
-    "Reclaim the Wastes"
-   ]
-  },
-  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 19,
    "cards": 10,
@@ -9136,19 +9123,6 @@
     "Voldaren Thrillseeker",
     "Death-Greeter's Champion",
     "Gloomfang Mauler"
-   ]
-  },
-  {
-   "what": "CantBeBlockedAllEffect",
-   "score": 15,
-   "cards": 6,
-   "names": [
-    "Tetsuko Umezawa, Fugitive",
-    "Jace, Arcane Strategist",
-    "Keeper of Keys",
-    "Leitmotif Composer",
-    "Tezzeret's Gatebreaker",
-    "Tanglewalker"
    ]
   },
   {
@@ -9522,17 +9496,6 @@
    ]
   },
   {
-   "what": "CountersSourceCount.ANY",
-   "score": 13,
-   "cards": 4,
-   "names": [
-    "Twitching Doll",
-    "Hancock, Ghoulish Mayor",
-    "Qala, Ajani's Pridemate",
-    "Savanti Romero, Time's Exile"
-   ]
-  },
-  {
    "what": "EnchantedPredicate.instance",
    "score": 13,
    "cards": 10,
@@ -9643,19 +9606,6 @@
     "This Is How It Ends",
     "Turn the Earth",
     "Wand of Vertebrae"
-   ]
-  },
-  {
-   "what": "(constructor: assignment)",
-   "score": 13,
-   "cards": 7,
-   "names": [
-    "Electroduplicate",
-    "Banewhip Punisher",
-    "Ammit Eternal",
-    "Knight of Grace",
-    "Knight of Malice",
-    "Suq'Ata Firewalker"
    ]
   },
   {
@@ -10489,14 +10439,6 @@
    "cards": 1,
    "names": [
     "Dour Port-Mage"
-   ]
-  },
-  {
-   "what": "DeathBaronPredicate.instance",
-   "score": 10,
-   "cards": 1,
-   "names": [
-    "Death Baron"
    ]
   },
   {
@@ -12031,6 +11973,71 @@
     "Interceptor Mechan",
     "Plasma Bolt",
     "Insatiable Skittermaw"
+   ]
+  },
+  {
+   "what": "EnterBattlefieldPayCostOrPutGraveyardEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Lake of the Dead",
+    "Scorched Ruins",
+    "Lotus Vale",
+    "Kjeldoran Outpost",
+    "Soldevi Excavations",
+    "Balduvian Trading Post"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Spider-Woman, Stunning Savior",
+    "Frozen Aether",
+    "Root Maze",
+    "Kismet",
+    "Loxodon Gatekeeper",
+    "Orb of Dreams"
+   ]
+  },
+  {
+   "what": "CorruptedCondition.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "The Seedcore",
+    "Bonepicker Skirge",
+    "Zealot's Conviction",
+    "Sinew Dancer",
+    "Apostle of Invasion",
+    "Incisor Glider"
+   ]
+  },
+  {
+   "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Fungal Fortitude",
+    "Return to Action",
+    "Infuse with Vitality",
+    "Pain 101",
+    "Perigee Beckoner",
+    "Ferocity of the Hunt"
+   ]
+  },
+  {
+   "what": "CastFromHandForFreeEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Maelstrom Archangel",
+    "Epistolary Librarian",
+    "West Coast Expansion",
+    "Gandalf, Party Guest",
+    "Wildfire Eternal",
+    "Surtland Elementalist"
    ]
   }
  ]

@@ -566,6 +566,33 @@
         ] }],
       }],
     },
+    /* --- Standard staples the words alone do not reach --- */
+    "death baron": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'Skeletons you control and other Zombies you control get +1/+1 and have deathtouch.',
+        effects: [
+          { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', subtype: 'skeleton' }, pt: { p: 1, t: 1 } },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', subtype: 'skeleton' }, grant: ['Deathtouch'] },
+          { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', subtype: 'zombie', other: true }, pt: { p: 1, t: 1 } },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', subtype: 'zombie', other: true }, grant: ['Deathtouch'] }] }],
+    },
+    "tetsuko umezawa, fugitive": {
+      abilities: [{ kind: 'static', auto: true,
+        text: "Creatures you control with power or toughness 1 or less can't be blocked.",
+        effects: [
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', maxPower: 1 }, grant: ['Unblockable'] },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', maxToughness: 1 }, grant: ['Unblockable'] }] }],
+    },
+    "twitching doll": {
+      abilities: [
+        { kind: 'mana', auto: true, cost: { mana: '', tap: true, other: [] },
+          text: '{T}: Add one mana of any color. Put a nest counter on this creature.',
+          effects: [{ op: 'addManaAny', amount: 1 }, { op: 'counters', kind: 'nest', n: 1, scope: 'self' }] },
+        { kind: 'activated', auto: true, sorcerySpeed: true,
+          cost: { mana: '', tap: true, untap: false, sacSelf: true, sacrifice: null, discard: null, life: 0, exile: null, removeCounters: null, other: [], raw: '{T}, Sacrifice this creature' },
+          text: '{T}, Sacrifice this creature: Create a 2/2 green Spider creature token with reach for each counter on this creature. Activate only as a sorcery.',
+          effects: [{ op: 'createToken', n: { countersOnSelf: 'nest' }, pt: '2/2', colorWords: ['green'], subtypes: 'Spider', addTypes: [], keywords: ['Reach'] }] }],
+    },
     "braids, arisen nightmare": {
       abilities: [{ kind: 'triggered', event: 'yourEndStep', auto: true,
         text: "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card.",

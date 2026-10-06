@@ -1347,6 +1347,61 @@ module.exports = (test) => {
     t.ok(m && m.effects.every(e => e.op === 'addManaChoice' && e.choices.length === 3), 'two choices of U, B or R');
   });
 
+  test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
+    t.auto('Death Baron');
+    const T = mk();
+    const db = T.bf('A', 'Death Baron');
+    const z = T.bf('A', 'Walking Corpse');
+    t.eq(T.g.powerOf(z), 3); t.ok(T.g.hasKw(z, 'deathtouch'));
+    t.eq(T.g.powerOf(db), 2, 'not itself');
+  });
+
+  test("Tetsuko Umezawa: small creatures can't be blocked", (mk, t) => {
+    t.auto('Tetsuko Umezawa, Fugitive');
+    const T = mk();
+    T.bf('A', 'Tetsuko Umezawa, Fugitive');
+    const elf = T.bf('A', 'Llanowar Elves'), bear = T.bf('A', 'Grizzly Bears');
+    const b = T.bf('B', 'Grizzly Bears');
+    t.no(T.g.couldBlock(b, elf, 'B'), 'the 1/1 slips through');
+    t.ok(T.g.couldBlock(b, bear, 'B'), 'the 2/2 does not');
+  });
+
+  test('Twitching Doll: nest counters, then a Spider for each', (mk, t) => {
+    t.auto('Twitching Doll');
+    const T = mk();
+    const d = T.bf('A', 'Twitching Doll');
+    d.counters.nest = 3;
+    const a = d.analysis();
+    const idx = a.manaAbilities.length + a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    d.summoningSick = false;
+    T.activate('A', d, idx);
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Spider').length, 3);
+  });
+
+  test('Thirst for Knowledge: an artifact card or two cards', (mk, t) => {
+    t.auto('Thirst for Knowledge');
+    const T = mk();
+    const art = T.hand('A', 'Ornithopter');
+    T.hand('A', 'Island');
+    for (let i = 0; i < 3; i++) T.top('A', 'Forest');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Ornithopter').id] }));
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Thirst for Knowledge'));
+    t.zone(art, 'graveyard');
+    t.eq(T.zone('A', 'graveyard').filter(c => c.name !== 'Thirst for Knowledge').length, 1, 'only the artifact');
+  });
+
+  test('Vaultborn Tyrant comes back as an artifact token copy when it dies', (mk, t) => {
+    t.auto('Vaultborn Tyrant');
+    const T = mk();
+    const v = T.bf('A', 'Vaultborn Tyrant');
+    T.g.moveObject(v, 'graveyard');
+    T.resolve();
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Vaultborn Tyrant');
+    t.ok(tok, 'a token copy');
+    t.ok(tok && tok.analysis().isArtifact, 'an artifact');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
