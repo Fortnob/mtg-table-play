@@ -136,6 +136,37 @@ module.exports = (test) => {
     t.no(T.g.canCast('A', em.id).ok, 'and nobody can cast it');
   });
 
+  test('XMage: Bootleggers\' Stash gives lands "{T}: Create a Treasure token."', (mk, t) => {
+    generated(t, "Bootleggers' Stash");
+    const T = mk();
+    T.bf('A', "Bootleggers' Stash");
+    const land = T.bf('A', 'Forest');
+    const a = land.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const idx = list.findIndex(x => x.granted && (x.effects || []).some(e => e.op === 'createNamedToken'));
+    t.ok(idx >= 0, 'the land has the granted ability');
+    T.activate('A', land, idx);
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1);
+    t.ok(land.tapped);
+  });
+
+  test('XMage: Herd Heirloom hands out trample and a card-drawing trigger', (mk, t) => {
+    generated(t, 'Herd Heirloom');
+    const T = mk();
+    const h = T.bf('A', 'Herd Heirloom');
+    const wurm = T.bf('A', 'Craw Wurm');
+    const a = h.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const idx = list.findIndex(x => (x.effects || []).some(e => e.op === 'grantAbility'));
+    t.ok(idx >= 0, 'the granting ability');
+    T.activate('A', h, idx, { targets: [wurm] });
+    t.ok(T.g.hasKw(wurm, 'trample'), 'trample');
+    const before = T.zone('A', 'hand').length;
+    T.g._fire('combatDamageToPlayer', 'A', { source: wurm, amount: 6, player: 'B' });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 1, 'drew from the granted trigger');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

@@ -35,11 +35,13 @@ function expectedTargets(text) {
   return n;
 }
 
+/* An ability handed to something else ("gains 'Whenever ...'") is the
+   quoted part of the line, which these checks leave out on both sides. */
 function walk(x, fn) {
   if (Array.isArray(x)) { x.forEach(y => walk(y, fn)); return; }
   if (!x || typeof x !== 'object') return;
   fn(x);
-  for (const [k, v] of Object.entries(x)) if (k !== 'text' && v && typeof v === 'object') walk(v, fn);
+  for (const [k, v] of Object.entries(x)) if (k !== 'text' && k !== 'grantAbilities' && !(k === 'abilities' && x.op === 'grantAbility') && v && typeof v === 'object') walk(v, fn);
 }
 
 function actualTargets(abilities) {
@@ -79,7 +81,11 @@ function checkLine(text, abilities, card, an) {
       if (want !== got) return `targets ${got}, printed ${want}`;
     }
   }
-  const json = JSON.stringify(abilities, (k, v) => (k === 'text' || k === 'label' || k === 'prompt' ? undefined : v));
+  const json = JSON.stringify(abilities, function (k, v) {
+    if (k === 'text' || k === 'label' || k === 'prompt' || k === 'grantAbilities') return undefined;
+    if (k === 'abilities' && this && this.op === 'grantAbility') return undefined;
+    return v;
+  });
   // numbers printed on the line must be somewhere in the translation
   const nums = new Set();
   const body = t.replace(/\{[^}]*\}/g, ' ').replace(/[+-](\d+)\/[+-](\d+)/g, ' $1 $2 ');

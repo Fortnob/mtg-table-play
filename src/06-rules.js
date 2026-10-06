@@ -5919,7 +5919,7 @@
      */
     _dynamicAnalysis(o, base) {
       if (this._dynBusy) return base;
-      const own = (o.effects || []).filter(e => e && e.grantText);
+      const own = (o.effects || []).filter(e => e && (e.grantText || e.grantAbilities));
       const sources = this._grantSources();
       const stationed = base.stationCreatureAt != null && (Number((o.counters || {}).charge) || 0) >= base.stationCreatureAt;
       const waiting = !!base.impending && (Number((o.counters || {}).time) || 0) > 0;
@@ -5928,14 +5928,17 @@
       this._dynBusy = true;
       let texts, stamps, notCreature = false;
       try {
-        texts = own.map(e => e.grantText);
+        /* A granted ability is its words, or (from a translated card) the
+           ability already written out, carried as JSON. */
+        const said = (e) => e.grantText || ('' + JSON.stringify(e.grantAbilities));
+        texts = own.map(said);
         // when each was handed over, so an effect that takes every ability away can tell what came after it
         stamps = own.map(e => (e.ts != null ? e.ts : (this._tsSeq || 0) + 0.5));
         const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
         for (const entry of sources) {
           const ss = lb && lb.st.get(entry.src.id);
           if (ss && (ss.lost || ss.rulesLost)) continue;          // its source has nothing left to hand out
-          if (this._contApplies(entry, o, base)) { texts.push(entry.ef.grantText); stamps.push(entry.ts); }
+          if (this._contApplies(entry, o, base)) { texts.push(said(entry.ef)); stamps.push(entry.ts); }
         }
         if (base.notCreatureUnless) {
           const want = base.notCreatureUnless;
@@ -5983,7 +5986,7 @@
         const ts = this._tsOf(src);
         for (const ab of a.abilities) for (const ef of (ab.effects || [])) {
           const parts = ef.op === 'sequence' ? (ef.list || []) : [ef];
-          for (const x of parts) if (x.op === 'continuous' && x.grantText) list.push({ ef: x, src, ts, layer: 6 });
+          for (const x of parts) if (x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6 });
         }
       }
       this._grantCache = list;
@@ -7741,7 +7744,9 @@
            quoted ability is the creature's own until the effect ends. */
         case 'grantAbility':
           applyToScope(e, (o) => {
-            o.effects.push({ grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null });
+            /* the ability written out already (a translated card), or its words to read */
+            o.effects.push(e.abilities ? { grantAbilities: e.abilities, until: e.duration === 'eot' ? 'eot' : null }
+              : { grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null });
             o._chr = null;
             this.logEvent('keyword', `${o.name} gains "${truncate(e.ability, 80)}"`);
           });

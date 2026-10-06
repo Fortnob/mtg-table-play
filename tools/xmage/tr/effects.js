@@ -456,29 +456,57 @@ def('effect', ['BoostEquippedEffect', 'BoostEnchantedEffect'], (o, tc) => {
   return { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p, t } };
 });
 
+/**
+ * What a "gains ..." effect hands over: keywords by name, or an ability
+ * written out (a quoted "Whenever this creature ..." or "{T}: ..."),
+ * translated like any other and carried whole.
+ */
+function granted(v, tc) {
+  try { return { keywords: keywordsOf(v, tc) }; }
+  catch (e) {
+    if (!(e instanceof Error) || !e.what || !(v && v.t === 'obj' && !v.custom && v.cls !== 'CompoundAbility')) throw e;
+  }
+  const save = { ab: tc.ab, kind: tc.kind, trigger: tc.trigger, inStatic: tc.inStatic, inCda: tc.inCda };
+  let ab;
+  try {
+    Object.assign(tc, { ab: null, inStatic: false, inCda: false, trigger: null });
+    ab = tr('ability', v, tc);
+  } finally { Object.assign(tc, save); }
+  if (Array.isArray(ab) || (ab.kind !== 'triggered' && ab.kind !== 'activated')) block('granting a ' + (ab.kind || 'kind of') + ' ability');
+  const quoted = String(tc.lineText || '').match(/"([^"]+)"/);
+  if (!quoted) block('granted ability with no words');
+  ab.text = quoted[1];
+  return { abilities: [ab] };
+}
+/** The static shape of a grant: grant keywords, or grantAbilities. */
+const staticGrant = (g) => (g.keywords ? { grant: g.keywords } : { grantAbilities: g.abilities });
+/** The one-shot shape: grantKeyword, or grantAbility with the abilities written out. */
+const oneShotGrant = (g, duration) => (g.keywords ? { op: 'grantKeyword', keywords: g.keywords, duration } : { op: 'grantAbility', abilities: g.abilities, duration });
+
 def('effect', 'GainAbilityTargetEffect', (o, tc) => {
   checkCalls(o);
   oneShotOnly(tc, 'GainAbilityTargetEffect');
   const d = durationOf(o, 'EndOfTurn');
   if (d !== 'eot' && d !== 'permanent') block('gain for ' + d);
-  const out = Object.assign({ op: 'grantKeyword', keywords: keywordsOf(o.args[0], tc), duration: d }, aimObject(o, tc));
-  return out;
+  const g = granted(o.args[0], tc);
+  if (g.abilities && d !== 'eot') block('ability granted for good');
+  return Object.assign(oneShotGrant(g, d), aimObject(o, tc));
 });
 def('effect', 'GainAbilitySourceEffect', (o, tc) => {
   checkCalls(o);
-  const kws = keywordsOf(o.args[0], tc);
+  const g = granted(o.args[0], tc);
   const d = durationOf(o, 'WhileOnBattlefield');
   if (A(o).bool(0, false)) block('ability on the card');
   if (tc.inStatic) {
     if (d !== 'static') block('static gain for ' + d);
-    return { op: 'continuous', layer: 6, scope: { self: true, what: 'permanent' }, grant: kws };
+    return Object.assign({ op: 'continuous', layer: 6, scope: { self: true, what: 'permanent' } }, staticGrant(g));
   }
   if (d !== 'eot') block('gain for ' + d);
-  return { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'self' };
+  return Object.assign(oneShotGrant(g, 'eot'), { scope: 'self' });
 });
 function gainGroup(o, tc, who) {
   checkCalls(o);
-  const kws = keywordsOf(o.args[0], tc);
+  const g = granted(o.args[0], tc);
   const d = durationOf(o, 'WhileOnBattlefield');
   const f = o.args.find(a => kindOf(a) === 'filter');
   if (!f) block(o.cls + ' without a filter');
@@ -488,10 +516,10 @@ function gainGroup(o, tc, who) {
   const scope = F.toScope(desc);
   if (tc.inStatic) {
     if (d !== 'static') block('static gain for ' + d);
-    return { op: 'continuous', layer: 6, scope, grant: kws };
+    return Object.assign({ op: 'continuous', layer: 6, scope }, staticGrant(g));
   }
   if (d !== 'eot') block('gain for ' + d);
-  return { op: 'grantKeyword', keywords: kws, duration: 'eot', scope };
+  return Object.assign(oneShotGrant(g, 'eot'), { scope });
 }
 def('effect', 'GainAbilityControlledEffect', (o, tc) => gainGroup(o, tc, 'you'));
 def('effect', 'GainAbilityAllEffect', (o, tc) => gainGroup(o, tc, 'all'));
@@ -499,9 +527,9 @@ def('effect', 'GainAbilityAttachedEffect', (o, tc) => {
   checkCalls(o);
   staticOnly(tc, 'GainAbilityAttachedEffect');
   if (durationOf(o, 'WhileOnBattlefield') !== 'static') block('attached gain duration');
-  const kws = keywordsOf(o.args[0], tc);
-  if (o.args.some(a => kindOf(a) === 'str')) block('attached gain with own text');
-  return { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws };
+  const g = granted(o.args[0], tc);
+  if (g.keywords && o.args.some(a => kindOf(a) === 'str')) block('attached gain with own text');
+  return Object.assign({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' } }, staticGrant(g));
 });
 
 /* ---------------- effects made of other effects ---------------- */
