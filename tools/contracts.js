@@ -129,7 +129,7 @@ const PlayerView = obj({
   librarySize: nat, topCard: maybe(ObjectView), handSize: nat,
   hand: arr(AnyObject), graveyard: arr(ObjectView), exile: arr(ObjectView), command: arr(ObjectView),
 });
-const LogEntry = obj({ t: num, turn: num, type: str, text: str });
+const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str });
 const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str)) });
 /* An extra cost that is itself a question (replicate, splice) carries it as `choose`. */
 const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
@@ -272,12 +272,18 @@ const NET_TO_HOST = {
   intent: env({ payload: Intent }),
   chat: env({ payload: obj({ from: opt(str), text: str }) }),
   pong: env({}),
+  /* the guest has view n (09b-sync.js), or needs a whole one */
+  ack: env({ n: int }),
+  resync: env({}),
   '~': env({ id: int, i: nat, n: int, d: str }),
 };
 const NET_TO_GUEST = {
   welcome: env({ code: str, yourId: str }),
   lobby: env({ payload: obj({ members: arr(S.plainObj) }) }),
   state: env({ payload: View }),
+  /* a view as a difference (09b-sync.js): game, number, base, patch or whole state, new cards, events, log */
+  sv: env({ g: str, n: int, b: opt(int), p: opt(S.any), s: opt(S.plainObj), c: opt(rec(S.plainObj)),
+    e: opt(maybe(arr(S.plainObj))), es: opt(maybe(num)), l: opt(arr(S.plainObj)) }),
   draft: env({ payload: S.plainObj }),
   draftPeek: env({ payload: S.any }),
   chat: env({ payload: obj({ from: str, text: str, at: num }) }),
@@ -309,6 +315,20 @@ function jsonProblems(v, p, out, seen) {
   if (Array.isArray(v)) v.forEach((x, i) => jsonProblems(x, `${p}[${i}]`, out, seen));
   else for (const k of Object.keys(v)) if (v[k] !== undefined) jsonProblems(v[k], `${p}.${k}`, out, seen);
   seen.delete(v);
+}
+
+/** Where two JSON values first differ, as a path (null when they are the same). */
+function firstDiff(a, b, p) {
+  if (a === b) return null;
+  if (a && b && typeof a === 'object' && typeof b === 'object' && Array.isArray(a) === Array.isArray(b)) {
+    if (Array.isArray(a) && a.length !== b.length) return `${p} (${a.length} entries against ${b.length})`;
+    for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) {
+      const d = firstDiff(a[k], b[k], Array.isArray(a) ? `${p}[${k}]` : `${p}.${k}`);
+      if (d) return d;
+    }
+    return null;
+  }
+  return `${p} (${show(a)} against ${show(b)})`;
 }
 
 /** Every object id a view mentions, and where. */
@@ -627,16 +647,18 @@ function knownFor(v) { return KNOWN.find(k => k.rule === v.rule && k.match.test(
 /* ============================================================
    Watching a game
    ============================================================ */
-/** The real net code, loaded once, for the loopback check. */
+/** The real net code (09-net.js, and 09b-sync.js where there is one), loaded once, for the loopback check. */
 let NetClass = null;
 function loadNet(MTG) {
   if (NetClass !== null) return NetClass;
   NetClass = false;
+  const src = (f) => path.join(__dirname, '..', 'src', f);
   try {
     const before = MTG.net;
-    vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'src', '09-net.js'), 'utf8'), { filename: '09-net.js' });
+    vm.runInThisContext(fs.readFileSync(src('09-net.js'), 'utf8'), { filename: '09-net.js' });
     NetClass = MTG.net.constructor;
     MTG.net = before || MTG.net;
+    if (!MTG.sync && fs.existsSync(src('09b-sync.js'))) vm.runInThisContext(fs.readFileSync(src('09b-sync.js'), 'utf8'), { filename: '09b-sync.js' });
   } catch (e) { NetClass = false; }
   return NetClass;
 }
@@ -656,7 +678,26 @@ function loopback(MTG) {
   guest.on('state', (v) => got.push(v));
   const fromGuest = [];
   host.on('intent', (peer, payload) => fromGuest.push(payload));
-  return { host, guest, got, wire, fromGuest };
+  /* Game views go to guests as 'sv' messages (09b-sync.js): a difference
+     from the last view the guest acknowledged, with each card sent once.
+     Both ends are wired the way 14-app.js wires them. */
+  const enc = MTG.sync ? new MTG.sync.Encoder() : null;
+  const dec = MTG.sync ? new MTG.sync.Decoder() : null;
+  if (enc) {
+    guest.on('message', (from, msg) => {
+      if (!msg || msg.t !== 'sv') return;
+      const r = dec.decode(msg);
+      if (r.resync) guest.send(null, { t: 'resync' });
+      if (!r.view) return;
+      guest.send(null, { t: 'ack', n: r.ack });
+      got.push(r.view);
+    });
+    host.on('message', (from, msg) => {
+      if (msg && msg.t === 'ack') enc.ack(msg.n);
+      else if (msg && msg.t === 'resync') enc.resync();
+    });
+  }
+  return { host, guest, got, wire, fromGuest, enc };
 }
 
 /**
@@ -705,16 +746,28 @@ function watch(g, MTG, opts) {
       note(checkView(v, pid, g).filter(x => !(corrupt && x.rule === 'view.sense')), { viewer: pid });
       /* through the real net code, once per state for the first seat */
       if (net && pid === g.players[0].id) {
-        const before = net.got.length;
-        const msg = { t: 'state', payload: v };
-        net.host.sendPerPeer(() => msg);
-        counts.messages++;
-        note(checkNetMessage(JSON.parse(JSON.stringify(msg)), 'toGuest'), { viewer: pid, via: 'net' });
-        const arrived = net.got[before];
-        if (!arrived) note([{ rule: 'net.loopback', path: 'state', msg: 'a state message sent through 09-net.js never arrived' }], { viewer: pid });
-        else if (JSON.stringify(arrived) !== JSON.stringify(v)) note([{ rule: 'net.loopback', path: 'state', msg: 'a state message arrived changed' }], { viewer: pid });
         net.got.length = 0;
         net.wire.length = 0;
+        const msg = net.enc ? net.enc.encode(v) : { t: 'state', payload: v };
+        net.wire.length = 0;
+        net.host.sendPerPeer(() => msg);
+        counts.messages += net.wire.length;
+        for (const m of net.wire) note(checkNetMessage(m, m.t === 'ack' || m.t === 'resync' ? 'toHost' : 'toGuest'), { viewer: pid, via: 'net' });
+        const arrived = net.got[0];
+        /* what the guest rebuilds has to be what the host sent, card for
+           card; the log and events are carried separately */
+        const bare = (x) => {
+          // a card's _t is when the cache fetched it, which the sync leaves out on purpose
+          const y = JSON.parse(JSON.stringify(x, (k, val) => (k === '_t' ? undefined : val)));
+          delete y.log; delete y.events; delete y.eventSeq;
+          return y;
+        };
+        if (!arrived) note([{ rule: 'net.loopback', path: msg.t, msg: 'a view sent through 09-net.js never arrived (or the guest had to ask again)' }], { viewer: pid });
+        else {
+          const where = firstDiff(bare(JSON.parse(JSON.stringify(v))), bare(arrived), 'view');
+          if (where) note([{ rule: 'net.loopback', path: msg.t, msg: `the view the guest rebuilt is not the view the host sent (first difference: ${where})` }], { viewer: pid });
+          note(checkView(arrived, pid, null).filter(x => x.rule !== 'view.sense' || !corrupt).map(x => Object.assign(x, { path: 'guest ' + x.path })), { viewer: pid, via: 'net' });
+        }
       }
     }
   };
@@ -749,6 +802,7 @@ function watch(g, MTG, opts) {
         }
         /* a guest's intent travels inside a message too */
         if (net) {
+          net.wire.length = 0;
           net.guest.intent(intent);
           const arrived = net.fromGuest.pop();
           counts.messages++;

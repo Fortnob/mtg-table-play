@@ -1,9 +1,9 @@
 {
   // The type check: npx tsc --noEmit (also run by python tools/check.py).
   // It reads src/types.d.ts and checks the files at the boundaries against
-  // it: the table, which turns views into intents; the net layer, which
-  // carries both; and the app, which hands intents to the engine. The rest
-  // of src/ is plain script and is not checked.
+  // it: the table, which turns views into intents; the net layer and its
+  // sync, which carry both; and the app, which hands intents to the
+  // engine. The rest of src/ is plain script and is not checked.
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
@@ -18,9 +18,11 @@
   "files": [
     "src/types.d.ts",
     "src/09-net.js",
+    "src/09b-sync.js",
     "src/12-ui-table.js",
     "src/12b-ui-table-fx.js",
     "src/12c-ui-table-ask.js",
+    "src/12d-ui-replay.js",
     "src/14-app.js"
   ]
 }

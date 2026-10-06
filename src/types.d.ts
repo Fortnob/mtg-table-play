@@ -139,7 +139,8 @@ declare namespace MTG {
     command: ObjectView[];
   }
 
-  interface LogEntry { t: number; turn: number; type: string; text: string }
+  /** t (when) is missing from entries a guest rebuilds from events */
+  interface LogEntry { t?: number; turn: number; type: string; text: string }
 
   /** Another way to use a card: cycle it, cast it face down, from the graveyard... */
   interface AltUse { kind: string; label: string; via?: string; cost?: string | null; [k: string]: any }
@@ -395,6 +396,9 @@ declare namespace MTG {
     | { t: 'intent'; payload: Intent }
     | { t: 'chat'; payload: { from?: string; text: string } }
     | { t: 'pong' }
+    /** the guest has view n of the sync stream (09b-sync.js), or needs a whole view */
+    | { t: 'ack'; n: number }
+    | { t: 'resync' }
   ) & { seq?: number };
 
   /** What the host sends a guest. */
@@ -402,6 +406,7 @@ declare namespace MTG {
     | { t: 'welcome'; code: string; yourId: string }
     | { t: 'lobby'; payload: { members: Array<Record<string, any>>; [k: string]: any } }
     | { t: 'state'; payload: View }
+    | SyncViewMessage
     | { t: 'draft'; payload: Record<string, any> }
     | { t: 'draftPeek'; payload: any }
     | { t: 'chat'; payload: { from: string; text: string; at: number } }
@@ -412,6 +417,29 @@ declare namespace MTG {
   ) & { seq?: number };
 
   type NetMessage = NetToHost | NetToGuest | NetChunk;
+
+  /**
+   * A game view on its way to a guest (09b-sync.js): either the whole view
+   * (s) or a difference (p) from view b, which the guest has acknowledged.
+   * Cards travel once each, in c, and are replaced by keys in s and p.
+   */
+  interface SyncViewMessage {
+    t: 'sv';
+    /** which game */
+    g: string;
+    /** this view's number for this guest */
+    n: number;
+    /** the view this is a difference from */
+    b?: number;
+    p?: any;
+    s?: Record<string, any>;
+    c?: Record<string, Card>;
+    /** events since the last message */
+    e?: Array<Record<string, any>> | null;
+    es?: number | null;
+    /** the log, with whole views only */
+    l?: LogEntry[];
+  }
 
   /* ---------------- the runtime namespace (window.MTG) ---------------- */
 
