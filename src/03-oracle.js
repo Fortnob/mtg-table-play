@@ -802,8 +802,8 @@
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
-    { re: /^Exile (target [a-z0-9 '-]+?|another target [a-z0-9 '-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
-      make: (m) => ({ op: 'exileUntilLeaves', targets: [targetSpec(m[1].replace(/^another /i, ''))] }) },
+    { re: /^Exile (up to one )?(target [a-z0-9 '-]+?|another target [a-z0-9 '-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
+      make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^another /i, '')), m[1] ? { upTo: true } : {})] }) },
     { re: /^Return the exiled cards? to the battlefield under (?:its owner'?s|their owners'?|your) control\.?$/i,
       make: () => ({ op: 'returnExiled' }) },
     { re: /^Return (?:that card|the exiled card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
@@ -2328,6 +2328,9 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Hammer of Nazahn: "attach that Equipment to target creature you control"
+    { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
+      make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },
     /* The Gitrog Monster, Karoo, Quickling, Solitary Confinement: "sacrifice
        it unless you sacrifice a land / return an untapped Plains you control
        to its owner's hand / discard a card" */

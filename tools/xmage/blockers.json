@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16734,
+  "needed": 16728,
   "gainedCards": 1756,
-  "linesNeeded": 19072,
+  "linesNeeded": 19066,
   "linesGained": 2273,
   "gained": {
    "all": 1756,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5787,
-   "lines": 4926,
+   "score": 5783,
+   "lines": 4925,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -1741,25 +1741,6 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
-   ]
-  },
-  {
-   "what": "ExileUntilSourceLeavesEffect",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Touch the Spirit Realm",
-    "Summon: Ixion",
-    "Mardu Siegebreaker",
-    "Aang's Iceberg",
-    "Werefox Bodyguard",
-    "Trapped in the Screen",
-    "Assimilation Aegis",
-    "Trial of a Time Lord",
-    "All-Fates Stalker",
-    "Turncoat Kunoichi",
-    "Sigrid, God-Favored",
-    "Detention Chariot"
    ]
   },
   {
@@ -5321,6 +5302,23 @@
    ]
   },
   {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Summon: Ixion",
+    "Mardu Siegebreaker",
+    "Aang's Iceberg",
+    "Werefox Bodyguard",
+    "Trapped in the Screen",
+    "Assimilation Aegis",
+    "Trial of a Time Lord",
+    "Turncoat Kunoichi",
+    "Detention Chariot",
+    "Driftgloom Coyote"
+   ]
+  },
+  {
    "what": "DoubleCountersTargetEffect",
    "score": 10,
    "lines": 10,
@@ -8174,8 +8172,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4539,
-   "cards": 3915,
+   "score": 4535,
+   "cards": 3914,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -9279,19 +9277,6 @@
     "Cavernous Maw",
     "Angus Mackenzie",
     "Dwarven Sea Clan"
-   ]
-  },
-  {
-   "what": "ExileUntilSourceLeavesEffect",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Touch the Spirit Realm",
-    "Summon: Ixion",
-    "Werefox Bodyguard",
-    "Trapped in the Screen",
-    "All-Fates Stalker",
-    "Sigrid, God-Favored"
    ]
   },
   {
@@ -12013,6 +11998,19 @@
     "Dreadship Reef",
     "Calciform Pools",
     "Saltcrusted Steppe"
+   ]
+  },
+  {
+   "what": "Ability.setWorksFaceDown",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Hooded Hydra",
+    "Gift of Doom",
+    "Vesuvan Shapeshifter",
+    "Jeering Instigator",
+    "Bubble Smuggler",
+    "Crowd-Control Warden"
    ]
   }
  ]

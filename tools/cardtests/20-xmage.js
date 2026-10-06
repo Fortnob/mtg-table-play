@@ -2524,6 +2524,31 @@ module.exports = (test) => {
     t.ok(c.analysis().abilities.some(x => x.kind === 'activated' && /Regenerate/.test(x.text)), 'the granted ability');
   });
 
+  test('Hammer of Nazahn attaches an Equipment as it enters', (mk, t) => {
+    t.auto('Hammer of Nazahn');
+    const T = mk();
+    T.bf('A', 'Hammer of Nazahn');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.mana('A', '1');
+    T.cast('A', T.hand('A', 'Bonesplitter'));
+    T.resolve();
+    const bs = T.bfOf('A').find(o => o.name === 'Bonesplitter');
+    t.ok(bs && bs.attachedTo === b.id, 'on the Bears');
+  });
+
+  test('Touch the Spirit Realm: up to one target, until it leaves', (mk, t) => {
+    t.auto('Touch the Spirit Realm');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2W');
+    const ts = T.hand('A', 'Touch the Spirit Realm');
+    T.cast('A', ts);
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b.id }] }));
+    T.resolve();
+    t.zone(b, 'exile');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

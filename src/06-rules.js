@@ -10475,6 +10475,19 @@
           break;
         }
 
+        // Hammer of Nazahn: "attach that Equipment to target creature you control"
+        case 'attachThat': {
+          const eq = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          const host = firstObj();
+          if (!eq || eq.zone !== 'battlefield' || !host || host.zone !== 'battlefield' || eq === host) break;
+          if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
+          eq.attachedTo = host.id;
+          eq.ts = this._stampNew();
+          host.attachments.push(eq.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
+          break;
+        }
         case 'attachSelf': {
           // "attach this Equipment to it": the creature the trigger is about
           const tid = e.scope === 'triggerObject' && (ctx.triggerData || {}).objectId;
