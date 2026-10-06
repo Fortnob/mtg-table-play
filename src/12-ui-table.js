@@ -875,7 +875,11 @@
       const v = this.view;
       if (p.hasLost) return 'Out of the game' + (p.lossReason ? ' — ' + p.lossReason : '');
       const bits = [];
-      if (p.isBot) bits.push((MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot') + ' bot');
+      if (p.isBot) {
+        const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';
+        const pers = p.botPersonality && MTG.bots && MTG.bots.PERSONALITIES && MTG.bots.PERSONALITIES[p.botPersonality];
+        bits.push(pers ? `${lvl} · ${pers.label}` : lvl + ' bot');
+      }
       if (p.connected === false) bits.push('disconnected');
       const ch = v.pendingChoice;
       if (ch && ch.playerId === p.id) bits.push('deciding…');

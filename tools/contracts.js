@@ -120,7 +120,7 @@ const StackItemView = obj({
 });
 const ManaPool = obj({ W: num, U: num, B: num, R: num, G: num, C: num });
 const PlayerView = obj({
-  id, name: str, seat: opt(maybe(int)), isBot: opt(maybe(bool)), botDifficulty: opt(maybe(num)),
+  id, name: str, seat: opt(maybe(int)), isBot: opt(maybe(bool)), botDifficulty: opt(maybe(num)), botPersonality: opt(maybe(str)),
   life: num, poison: opt(maybe(num)), energy: opt(maybe(num)), experience: opt(maybe(num)),
   pool: ManaPool, landsPlayed: nat, maxLands: num,
   hasLost: opt(maybe(bool)), hasWon: opt(maybe(bool)), lossReason: opt(maybe(str)), connected: opt(maybe(bool)),

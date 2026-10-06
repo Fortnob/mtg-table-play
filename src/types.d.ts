@@ -111,6 +111,8 @@ declare namespace MTG {
     seat?: number;
     isBot?: boolean;
     botDifficulty?: number;
+    /** A bot's style of play: a key of MTG.bots.PERSONALITIES. */
+    botPersonality?: string | null;
     life: number;
     poison?: number;
     energy?: number;

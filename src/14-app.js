@@ -64,6 +64,29 @@
    * "Atraxa" and "Mono-Red Goblins" tells you what you are up against, and
    * is how people talk about decks anyway.
    */
+  /**
+   * Sit a bot down at a game: its level, the style its seat asked for (or
+   * the one its deck was built with), and the style written on its player
+   * so every screen at the table can say how it plays.
+   */
+  function seatBot(g, runner, r) {
+    const bot = runner.add(r.id, { difficulty: r.difficulty, personality: r.personality || undefined });
+    const p = g.player(r.id);
+    if (p && bot) p.botPersonality = bot.personality || null;
+    return bot;
+  }
+  /** The styles a bot can play, for a picker: [key, label] with "any" first. */
+  function personalityOptions() {
+    const P = (MTG.bots && MTG.bots.PERSONALITIES) || {};
+    return [['', 'Any style']].concat(Object.keys(P).map(k => [k, P[k].label]));
+  }
+  /** The style a bot seat will play: the one asked for, else the one its deck was built with. */
+  function seatPersonality(r) {
+    const P = (MTG.bots && MTG.bots.PERSONALITIES) || {};
+    const k = r.personality || (r.deck && r.deck.plan && r.deck.plan.personality) || '';
+    return P[k] ? P[k] : null;
+  }
+
   function botNameFor(deck, formatId, taken) {
     const used = new Set(taken || []);
     const tryName = (n) => {
@@ -1881,10 +1904,22 @@
         renderLobby();
       });
       tools.push(sel);
+      const persSel = el('select', { class: 'seat-diff seat-pers', title: 'How this bot likes to play', 'aria-label': `Style for ${r.name}` },
+        personalityOptions().map(([k, label]) => el('option', { value: k, selected: k === (r.personality || ''), text: label })));
+      persSel.addEventListener('change', () => {
+        r.personality = persSel.value;
+        // a style shapes the deck a bot builds as well as how it plays it
+        sess.buildBotDeck(r);
+        sess.broadcastLobby();
+        renderLobby();
+      });
+      tools.push(persSel);
+      const style = seatPersonality(r);
       tools.push(el('button', { class: 'btn xs ghost danger-ghost', text: 'Remove', 'aria-label': `Remove ${r.name}`,
         onclick: () => { sess.removeSeat(r.id); renderLobby(); } }));
       return seatShell(r, key, {
-        role: `Bot · ${label}`, level: r.difficulty, deckLine, status, tools,
+        role: style ? `Bot · ${label} · ${style.label}` : `Bot · ${label}`, roleTitle: style ? style.blurb : '',
+        level: r.difficulty, deckLine, status, tools,
       });
     }
 
@@ -1926,7 +1961,7 @@
           el('div', { class: 'seat-name', text: r.name + (r.kind === 'local' ? ' (you)' : '') }),
           el('div', { class: 'seat-role' }, [
             o.level ? el('span', { class: 'seat-level', text: String(o.level) }) : null,
-            el('span', { text: o.role }),
+            el('span', { text: o.role, title: o.roleTitle || '' }),
           ].filter(Boolean)),
         ]),
       ]),
@@ -1941,7 +1976,11 @@
     const diffSel = el('select', { 'aria-label': 'Difficulty for the new bot' },
       Object.keys(MTG.bots.DIFFICULTY).map(d => el('option', { value: d, text: `${d} · ${MTG.bots.DIFFICULTY[d].label}`, selected: +d === want })));
     diffSel.addEventListener('change', () => MTG.setSetting('lobbyBotLevel', parseInt(diffSel.value, 10)));
-    const add = () => { sess.addBot(parseInt(diffSel.value, 10)); renderLobby(); };
+    const wantStyle = MTG.settings.lobbyBotStyle || '';
+    const persSel = el('select', { 'aria-label': 'Style for the new bot' },
+      personalityOptions().map(([k, label]) => el('option', { value: k, text: label, selected: k === wantStyle })));
+    persSel.addEventListener('change', () => MTG.setSetting('lobbyBotStyle', persSel.value));
+    const add = () => { sess.addBot(parseInt(diffSel.value, 10), persSel.value); renderLobby(); };
     return el('div', { class: 'seat-card add-seat' }, [
       el('button', { class: 'add-seat-btn', onclick: add }, [
         el('span', { class: 'add-seat-plus', html: SVG.plus, 'aria-hidden': 'true' }),
@@ -1949,6 +1988,7 @@
         el('span', { class: 'tiny dim', text: fmt.kind === 'limited' ? 'It drafts alongside you.' : 'It builds its own deck for this format.' }),
       ]),
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Difficulty' }), diffSel]),
+      el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Style' }), persSel]),
     ]);
   }
 
@@ -2374,7 +2414,7 @@
             el('div', { class: 'seat-name', text: r.name + (me ? ' (you)' : '') }),
             el('div', { class: 'seat-role' }, [
               r.kind === 'bot' ? el('span', { class: 'seat-level', text: String(r.difficulty) }) : null,
-              el('span', { text: r.kind === 'bot' ? `Bot · ${(MTG.bots.DIFFICULTY[r.difficulty] || {}).label || ''}` : (me ? 'You' : 'Player') }),
+              el('span', { text: r.kind === 'bot' ? `Bot · ${(MTG.bots.DIFFICULTY[r.difficulty] || {}).label || ''}${r.style ? ' · ' + r.style : ''}` : (me ? 'You' : 'Player') }),
             ].filter(Boolean)),
           ]),
         ]),
@@ -2510,6 +2550,7 @@
       renderLobbySoon();
       MTG.bots.buildBotDeck({
         formatId: this.formatId, difficulty: seat.difficulty, rules: this.rules,
+        personality: seat.personality || undefined,
         rng: new MTG.RNG(this.seed + seat.id), name: seat.name + "'s deck",
       }).then((deck) => {
         if (seat._build !== token) return;          // superseded by a later build
@@ -2598,10 +2639,11 @@
       });
       this.broadcastLobby();
     }
-    addBot(difficulty) {
+    addBot(difficulty, personality) {
       // a name of its own, so the table reads as people rather than slots
       const name = randomName(this.roster.map(r => r.name).concat([App.myName]));
-      const seat = { id: MTG.uid('bot'), kind: 'bot', name, difficulty: difficulty || 5, deck: null };
+      const seat = { id: MTG.uid('bot'), kind: 'bot', name, difficulty: difficulty || 5,
+        personality: personality || '', deck: null };
       this.roster.push(seat);
       this.buildBotDeck(seat);
       return seat;
@@ -2658,6 +2700,7 @@
             setup: this.setupSummary(),
             members: this.roster.map(r => ({
               id: r.id, name: r.name, kind: r.kind, difficulty: r.difficulty,
+              style: r.kind === 'bot' && seatPersonality(r) ? seatPersonality(r).label : null,
               deckName: r.deck ? r.deck.name : null,
               deckValid: r.deckValid ? r.deckValid.ok : null,
             })),
@@ -2849,7 +2892,7 @@
         for (const r of this.roster) if (r.kind === 'remote' && r.autoPass && g.player(r.id)) g.setAutoPass(r.id, r.autoPass);
         this.game = g;
         this.botRunner = new MTG.bots.BotRunner(g);
-        for (const r of this.roster) if (r.kind === 'bot') this.botRunner.add(r.id, r.difficulty);
+        for (const r of this.roster) if (r.kind === 'bot') seatBot(g, this.botRunner, r);
 
         this.wireGame(g);
         this.startRecording(g);
@@ -2969,7 +3012,7 @@
       g.setAutoPass('me', MTG.autoPassConfig());
       sess.game = g;
       sess.botRunner = new MTG.bots.BotRunner(g);
-      for (const r of sess.roster) if (r.kind === 'bot') sess.botRunner.add(r.id, r.difficulty);
+      for (const r of sess.roster) if (r.kind === 'bot') seatBot(g, sess.botRunner, r);
       sess.wireGame(g);
       // a resumed game is recorded from where it was picked up
       sess.startRecording(g);
