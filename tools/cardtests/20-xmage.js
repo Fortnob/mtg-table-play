@@ -249,6 +249,17 @@ module.exports = (test) => {
     t.zone(cs, 'battlefield');
   });
 
+  test('XMage: Silhana Ledgewalker can only be blocked by fliers', (mk, t) => {
+    generated(t, 'Silhana Ledgewalker');
+    const T = mk();
+    const s = T.bf('A', 'Silhana Ledgewalker');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const bird = T.bf('B', 'Suntail Hawk');
+    s.attacking = 'B';
+    t.no(T.g.canBlock(bear, s, 'B'), 'the bear cannot');
+    t.ok(T.g.canBlock(bird, s, 'B'), 'the hawk can');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

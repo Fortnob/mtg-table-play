@@ -5,11 +5,11 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 18234,
-  "gainedCards": 1840,
+  "gainedCards": 1875,
   "linesNeeded": 21007,
-  "linesGained": 2440,
+  "linesGained": 2485,
   "gained": {
-   "all": 1840,
+   "all": 1875,
    "top2000": 47,
    "stdTop": 13
   },
@@ -334,25 +334,6 @@
     "Once Upon a Time",
     "Disrupting Shoal",
     "Massacre"
-   ]
-  },
-  {
-   "what": "SimpleEvasionAbility",
-   "score": 65,
-   "lines": 65,
-   "cards": [
-    "War's Toll",
-    "Signal Pest",
-    "The Balrog, Durin's Bane",
-    "Deluxe Dragster",
-    "Dauthi Horror",
-    "Ghost of Ramirez DePietro",
-    "Silhana Ledgewalker",
-    "Daxos of Meletis",
-    "Nick Valentine, Private Eye",
-    "Evil Eye of Orms-by-Gore",
-    "Stromkirk Noble",
-    "April O'Neil, Kunoichi Trainee"
    ]
   },
   {
@@ -2365,6 +2346,25 @@
    ]
   },
   {
+   "what": "two types at once",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Imotekh the Stormlord",
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar",
+    "Golem Artisan",
+    "Aethershield Artificer",
+    "Neurok Transmuter",
+    "Baxter Stockman",
+    "Clockwork Steed",
+    "Abuna Acolyte"
+   ]
+  },
+  {
    "what": "CreateTokenAttachSourceEffect",
    "score": 20,
    "lines": 20,
@@ -3486,25 +3486,6 @@
     "Slurrk, All-Ingesting",
     "Cass, Hand of Vengeance",
     "The Ghoul, Gunslinger"
-   ]
-  },
-  {
-   "what": "two types at once",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Imotekh the Stormlord",
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar",
-    "Golem Artisan",
-    "Aethershield Artificer",
-    "Neurok Transmuter",
-    "Baxter Stockman",
-    "Abuna Acolyte",
-    "Auriok Siege Sled"
    ]
   },
   {
@@ -6717,6 +6698,23 @@
    ]
   },
   {
+   "what": "not or",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Swarmyard Massacre",
+    "Whelming Wave",
+    "Signal Pest",
+    "Path of Mettle // Metzali, Tower of Triumph",
+    "Spire Tracer",
+    "Amrou Seekers",
+    "Skirk Shaman",
+    "Angelic Voices",
+    "Elven Riders",
+    "Orchard Spirit"
+   ]
+  },
+  {
    "what": "DealsDamageToAnyTriggeredAbility",
    "score": 10,
    "lines": 4,
@@ -8229,6 +8227,21 @@
    ]
   },
   {
+   "what": "granting a static ability",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Nerd Rage",
+    "Rune of Sustenance",
+    "Rune of Might",
+    "Rune of Mortality",
+    "Rune of Speed",
+    "Giant's Amulet",
+    "Rune of Flight",
+    "Frost Fair Lure Fish"
+   ]
+  },
+  {
    "what": "ConniveSourceEffect",
    "score": 8,
    "lines": 8,
@@ -8493,28 +8506,13 @@
     "Goblin Ski Patrol",
     "Subversive Acolyte"
    ]
-  },
-  {
-   "what": "PhaseOutSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Hostile Hostel // Creeping Inn",
-    "Renegade Silent",
-    "Blink Dog",
-    "Dream Fighter",
-    "Mist Dragon",
-    "Crystal Golem",
-    "Rainbow Efreet",
-    "Teferi's Honor Guard"
-   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4729,
-   "cards": 3958,
+   "score": 4731,
+   "cards": 3960,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8552,8 +8550,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 257,
-   "cards": 218,
+   "score": 258,
+   "cards": 219,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8565,8 +8563,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 232,
-   "cards": 220,
+   "score": 233,
+   "cards": 221,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8691,19 +8689,6 @@
     "Gwenom, Remorseless",
     "Kess, Dissident Mage",
     "Serra Paragon"
-   ]
-  },
-  {
-   "what": "SimpleEvasionAbility",
-   "score": 51,
-   "cards": 51,
-   "names": [
-    "Signal Pest",
-    "Dauthi Horror",
-    "Silhana Ledgewalker",
-    "Nick Valentine, Private Eye",
-    "Evil Eye of Orms-by-Gore",
-    "Stromkirk Noble"
    ]
   },
   {
@@ -9123,6 +9108,19 @@
    ]
   },
   {
+   "what": "BecomesColorTargetEffect",
+   "score": 25,
+   "cards": 25,
+   "names": [
+    "Crimson Wisps",
+    "Cerulean Wisps",
+    "Aphotic Wisps",
+    "Niveous Wisps",
+    "Viridescent Wisps",
+    "Cloudchaser Kestrel"
+   ]
+  },
+  {
    "what": "keyword PartnerWithAbility",
    "score": 25,
    "cards": 25,
@@ -9211,19 +9209,6 @@
     "Ertai Resurrected",
     "Wild Ricochet",
     "Voidslime"
-   ]
-  },
-  {
-   "what": "BecomesColorTargetEffect",
-   "score": 23,
-   "cards": 23,
-   "names": [
-    "Crimson Wisps",
-    "Cerulean Wisps",
-    "Aphotic Wisps",
-    "Niveous Wisps",
-    "Viridescent Wisps",
-    "Cloudchaser Kestrel"
    ]
   },
   {
@@ -9925,6 +9910,19 @@
    ]
   },
   {
+   "what": "two types at once",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Imotekh the Stormlord",
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar"
+   ]
+  },
+  {
    "what": "DoIfCostPaid not optional",
    "score": 15,
    "cards": 15,
@@ -10138,19 +10136,6 @@
     "Valor's Flagship",
     "Yidaro, Wandering Monster",
     "Gempalm Polluter"
-   ]
-  },
-  {
-   "what": "two types at once",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Imotekh the Stormlord",
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar"
    ]
   },
   {
@@ -11927,6 +11912,19 @@
    ]
   },
   {
+   "what": "ConditionalRequirementEffect",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Dragon's Rage Channeler",
+    "Frodo Baggins",
+    "Seton's Desire",
+    "Otarian Juggernaut",
+    "Reckless Cohort",
+    "Marauding Maulhorn"
+   ]
+  },
+  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 9,
    "cards": 9,
@@ -11950,6 +11948,19 @@
     "Aberrant",
     "Tervigon",
     "Termagant Swarm"
+   ]
+  },
+  {
+   "what": "not or",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Swarmyard Massacre",
+    "Whelming Wave",
+    "Signal Pest",
+    "Spire Tracer",
+    "Amrou Seekers",
+    "Skirk Shaman"
    ]
   },
   {
@@ -12327,19 +12338,6 @@
     "Knight of Dusk",
     "Baneblade Scoundrel // Baneclaw Marauder",
     "Godo's Irregulars"
-   ]
-  },
-  {
-   "what": "ConditionalContinuousEffect without a condition",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Sardian Cliffstomper",
-    "Goblin Caves",
-    "Blood Lust",
-    "Gorilla Titan",
-    "Court Homunculus",
-    "Swordsworn Cavalier"
    ]
   }
  ]

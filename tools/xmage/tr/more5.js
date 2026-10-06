@@ -114,4 +114,17 @@ def('effect', 'CantBeBlockedSourceEffect', (o, tc) => {
   return { op: 'restrict', flag: 'unblockable', scope: 'self' };
 });
 
+def('ability', 'SimpleEvasionAbility', (o, tc) => {
+  if (o.calls.length) block('evasion with more');
+  const zone = A(o).enumv('Zone');
+  if (zone && zone !== 'BATTLEFIELD') block('evasion from ' + zone);
+  const e = o.args[0];
+  if (!e || e.t !== 'obj' || e.cls !== 'CantBeBlockedByCreaturesSourceEffect' || e.calls.some(c => !/^(?:setText|withTargetDescription)$/.test(c.name))) block('evasion by ' + keyOf(e));
+  if (E.durationOf(e, 'WhileOnBattlefield') !== 'static') block('evasion for a while');
+  const d = F.describe(e.args.find(a => kindOf(a) === 'filter'), tc);
+  const spec = F.toSpec(d, 'battlefield');
+  delete spec.filter;
+  return { kind: 'static', auto: true, effects: [{ op: 'evasion', notBy: spec }] };
+});
+
 module.exports = {};

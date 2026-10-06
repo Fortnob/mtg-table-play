@@ -4917,6 +4917,9 @@
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
       /* "Creatures with power less than this one's can't block it." */
       if (ev && ev.blockerAtLeastMyPower && this.powerOf(blocker) < this.powerOf(attacker)) return false;
+      /* "can't be blocked by Walls", "except by creatures with flying": the
+         blockers that may not, described the way a target is */
+      if (ev && ev.notBy && MTG.oracle.matchesSpec(ev.notBy, blocker, blocker.analysis(), attacker.controller, this._specCtx())) return false;
       if (this._protectedFrom(attacker, blocker)) return false;
       const menace = A('menace');
       return { menace };
