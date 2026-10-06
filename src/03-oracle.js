@@ -2200,6 +2200,27 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
         : { op: 'phaseOut', scope: { self: true } }) },
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
+    // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
+    { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    /* Noxious Gearhulk: "If a creature is destroyed this way, you gain
+       life equal to its toughness." */
+    { re: /^If (?:a creature|it|that creature|a permanent) (?:is|was) destroyed this way, (.+)$/i,
+      make: (m) => { const inner = parseEffects(m[1].replace(/^(\w)/, (c) => c.toUpperCase())); return inner.auto ? { op: 'ifDestroyed', then: inner.effects } : null; } },
+    { re: /^Create that many (Treasure|Clue|Food|Blood|Gold|Map|Powerstone) tokens\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', n: 'triggerAmount', token: U.titleCase(m[1]) }) },
+    { re: /^Target (player|opponent) creates (a|one|two|three|\d+) (Treasure|Clue|Food|Blood|Gold|Map) tokens?\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', n: num(m[2]), token: U.titleCase(m[3]), who: 'target',
+        targets: [/opponent/i.test(m[1]) ? { type: 'player', opponent: true } : { type: 'player' }] }) },
+    /* Irenicus's Vile Duplication: "…except the token has flying and it isn't legendary" */
+    { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except (?:the token|it) has ([a-z ]+?) and (?:it|the token) isn'?t legendary\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[2]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'copyPermanent', n: 1, targets: [targetSpec(m[1])], grant: kws, nonLegendary: true };
+      } },
+    /* Krosan Verge: "a Forest card and a Plains card", one search each way */
+    { re: /^Search your library for an? ([A-Z][a-z]+) card and an? ([A-Z][a-z]+) card, put them onto the battlefield( tapped)?, then shuffle\.?$/,
+      make: (m) => [m[1], m[2]].map(t => ({ op: 'tutor', n: 1, filter: t.toLowerCase(), to: 'battlefield', tapped: !!m[3] })) },
     /* Rituals that last: "Until end of turn, you don't lose this mana as
        steps and phases end." */
     { re: /^Until end of turn, you don'?t lose (?:this|that|unspent) mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana' }) },
@@ -2351,6 +2372,8 @@
     { re: /^Destroy target permanent if it'?s (white|blue|black|red|green)\.?$/i,
       make: (m) => ({ op: 'destroy', ifColor: COLOR_WORD[m[1].toLowerCase()], targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent' }] }) },
     { re: /^Your opponents can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents' }) },
+    // Ranger-Captain of Eos: only the noncreature ones
+    { re: /^Your opponents can'?t cast noncreature spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents', noncreature: true }) },
 
     /* ===== the general shapes of a one-off group effect =====
        "Permanents you control gain hexproof and indestructible until end of
@@ -3210,7 +3233,8 @@
     const parseOne = (s) => {
       // a sentence the vocabulary knows whole beats any way of cutting it up
       const e = parseEffectSentence(s);
-      if (e) return [e];
+      // a rule may read one sentence as several steps, handed back as a list
+      if (e) return Array.isArray(e) ? e.map(x => Object.assign(x, { text: x.text || s })) : [e];
       const compound = parseCompound(s);
       if (compound) return compound;
       // not read: a manual step, unless a later fold finds it a home
@@ -3860,6 +3884,7 @@
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
     { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },
     { re: /^When(?:ever)? you(?:'re| are) dealt damage,? /i, event: 'playerDealtDamage', extra: { youOnly: true } },
+    { re: /^When(?:ever)? you lose life,? /i, event: 'youLoseLife' },
     { re: /^At the beginning of each player's (?:first|precombat) main phase,? /i, event: 'eachMain1' },
     /* "Whenever this creature deals combat damage to a creature, destroy
        that creature": "that creature" is the one it hit */
@@ -3888,6 +3913,7 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks and isn'?t blocked,? /i, event: 'attacksUnblocked', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks(?:,| )/i, event: 'attacks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) blocks(?:,| )/i, event: 'blocks', self: true },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player or planeswalker,? /i, event: 'combatDamageToPlayer', also: 'combatDamageToPlaneswalker', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
@@ -5748,7 +5774,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax']);
 
   function parseStatic(line, ctx) {
     const rep = parseReplacement(line);
@@ -5839,6 +5865,9 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      // Propaganda's words, as the newer cards print them
+      { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
+        eff: { op: 'attackTax', amount: '{2}' }, auto: true },
       /* "This creature can't attack or block unless you control another
          artifact": a condition the engine checks as attackers and
          blockers are chosen */

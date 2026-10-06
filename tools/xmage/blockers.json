@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17176,
-  "gainedCards": 1783,
-  "linesNeeded": 19624,
-  "linesGained": 2321,
+  "needed": 17155,
+  "gainedCards": 1782,
+  "linesNeeded": 19598,
+  "linesGained": 2318,
   "gained": {
-   "all": 1783,
+   "all": 1782,
    "top2000": 52,
    "stdTop": 13
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6052,
-   "lines": 5017,
+   "score": 6043,
+   "lines": 5014,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -562,8 +562,8 @@
   },
   {
    "what": "attack with a kind of creature",
-   "score": 34,
-   "lines": 25,
+   "score": 33,
+   "lines": 24,
    "cards": [
     "Anim Pakal, Thousandth Moon",
     "Ainok Strike Leader",
@@ -574,9 +574,9 @@
     "Choco, Seeker of Paradise",
     "Prodigy's Prototype",
     "Fangorn, Tree Shepherd",
-    "Poetic Ingenuity",
     "Celeborn the Wise",
-    "Jolene, Plundering Pugilist"
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger"
    ]
   },
   {
@@ -693,25 +693,6 @@
    ]
   },
   {
-   "what": "CreateTokenTargetEffect",
-   "score": 30,
-   "lines": 30,
-   "cards": [
-    "Dowsing Dagger // Lost Vale",
-    "Bloodroot Apothecary",
-    "Hunted Horror",
-    "Verdant Command",
-    "Clackbridge Troll",
-    "Varchild, Betrayer of Kjeldor",
-    "Ashling's Command",
-    "Hunted Bonebrute",
-    "Hungry Lynx",
-    "Emeritus of Truce // Swords to Plowshares",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 30,
    "lines": 30,
@@ -785,6 +766,25 @@
     "Cursed Recording",
     "Rimefire Torque",
     "Doublecast"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Dowsing Dagger // Lost Vale",
+    "Bloodroot Apothecary",
+    "Hunted Horror",
+    "Verdant Command",
+    "Clackbridge Troll",
+    "Varchild, Betrayer of Kjeldor",
+    "Ashling's Command",
+    "Hunted Bonebrute",
+    "Hungry Lynx",
+    "Emeritus of Truce // Swords to Plowshares",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian"
    ]
   },
   {
@@ -2437,23 +2437,6 @@
    ]
   },
   {
-   "what": "CantAttackYouUnlessPayAllEffect",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Windborn Muse",
-    "Norn's Annex",
-    "Summon: Yojimbo",
-    "Baird, Steward of Argive",
-    "Onakke Oathkeeper",
-    "Archon of Absolution",
-    "Sivitri, Dragon Master",
-    "Elephant Grass",
-    "Koskun Falls",
-    "Forbidding Spirit"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 16,
    "lines": 13,
@@ -3457,24 +3440,6 @@
    ]
   },
   {
-   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Grateful Apparition",
-    "Psychic Frog",
-    "Neheb, Dreadhorde Champion",
-    "Bladewing, Deathless Tyrant",
-    "Jaya's Phoenix",
-    "Guildpact Informant",
-    "Dreadhorde Butcher",
-    "Storrev, Devkarin Lich",
-    "Garruk's Harbinger",
-    "Silent Submersible",
-    "Storm the Citadel"
-   ]
-  },
-  {
    "what": "DrawNthCardTriggeredAbility",
    "score": 14,
    "lines": 14,
@@ -4324,22 +4289,6 @@
    ]
   },
   {
-   "what": "LoseLifeTriggeredAbility",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Vilis, Broker of Blood",
-    "Kefka, Court Mage // Kefka, Ruler of Ruin",
-    "Marina Vendrell's Grimoire",
-    "Lich's Mastery",
-    "The Master of Lake-town",
-    "Transcendence",
-    "Vampire Scrivener",
-    "Lich's Tomb",
-    "Oath of Lim-Dûl"
-   ]
-  },
-  {
    "what": "FilterArtifactOrEnchantmentCard",
    "score": 12,
    "lines": 3,
@@ -5000,6 +4949,21 @@
    "cards": [
     "Aven Interrupter",
     "Doc Aurlock, Grizzled Genius"
+   ]
+  },
+  {
+   "what": "CantAttackYouUnlessPayAllEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Norn's Annex",
+    "Summon: Yojimbo",
+    "Baird, Steward of Argive",
+    "Onakke Oathkeeper",
+    "Archon of Absolution",
+    "Sivitri, Dragon Master",
+    "Elephant Grass",
+    "Forbidding Spirit"
    ]
   },
   {
@@ -7213,6 +7177,21 @@
    ]
   },
   {
+   "what": "LoseLifeTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Kefka, Court Mage // Kefka, Ruler of Ruin",
+    "Marina Vendrell's Grimoire",
+    "Lich's Mastery",
+    "The Master of Lake-town",
+    "Transcendence",
+    "Vampire Scrivener",
+    "Lich's Tomb",
+    "Oath of Lim-Dûl"
+   ]
+  },
+  {
    "what": "(verify) condition lost",
    "score": 8,
    "lines": 8,
@@ -7817,17 +7796,6 @@
    ]
   },
   {
-   "what": "CreateTokenCopyTargetEffect.addAdditionalAbilities",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Irenicus's Vile Duplication",
-    "Chandra, Flameshaper",
-    "Kindle the Inner Flame",
-    "Rebuild the City"
-   ]
-  },
-  {
    "what": "VariableManaCost",
    "score": 7,
    "lines": 4,
@@ -8230,13 +8198,41 @@
     "Mangara's Blessing",
     "Sand Golem"
    ]
+  },
+  {
+   "what": "subject:faceDown",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "They Came from the Pipes",
+    "Threats Around Every Corner",
+    "Trail of Mystery",
+    "Yarus, Roar of the Old Gods",
+    "Kadena, Slinking Sorcerer",
+    "Cryptic Pursuit",
+    "Cryptid Inspector"
+   ]
+  },
+  {
+   "what": "DontLoseByZeroOrLessLifeEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Pact Weapon",
+    "Phyrexian Unlife",
+    "Marina Vendrell's Grimoire",
+    "Transcendence",
+    "Lich's Tomb",
+    "Lich",
+    "Soul Echo"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4738,
-   "cards": 3967,
+   "score": 4729,
+   "cards": 3964,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8560,8 +8556,8 @@
   },
   {
    "what": "attack with a kind of creature",
-   "score": 29,
-   "cards": 20,
+   "score": 28,
+   "cards": 19,
    "names": [
     "Anim Pakal, Thousandth Moon",
     "Ainok Strike Leader",
@@ -8739,19 +8735,6 @@
    ]
   },
   {
-   "what": "CreateTokenTargetEffect",
-   "score": 22,
-   "cards": 22,
-   "names": [
-    "Dowsing Dagger // Lost Vale",
-    "Hunted Horror",
-    "Verdant Command",
-    "Ashling's Command",
-    "Hunted Bonebrute",
-    "Hungry Lynx"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 22,
    "cards": 22,
@@ -8840,6 +8823,19 @@
     "Ral, Storm Conduit",
     "Mercurial Spelldancer",
     "Summon: G.F. Cerberus"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 21,
+   "cards": 21,
+   "names": [
+    "Dowsing Dagger // Lost Vale",
+    "Hunted Horror",
+    "Verdant Command",
+    "Ashling's Command",
+    "Hunted Bonebrute",
+    "Hungry Lynx"
    ]
   },
   {
@@ -9296,19 +9292,6 @@
    ]
   },
   {
-   "what": "CantAttackYouUnlessPayAllEffect",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Windborn Muse",
-    "Norn's Annex",
-    "Summon: Yojimbo",
-    "Baird, Steward of Argive",
-    "Onakke Oathkeeper",
-    "Archon of Absolution"
-   ]
-  },
-  {
    "what": "LookLibraryTopCardTargetPlayerEffect",
    "score": 14,
    "cards": 11,
@@ -9657,19 +9640,6 @@
     "Cavernous Maw",
     "Angus Mackenzie",
     "Dwarven Sea Clan"
-   ]
-  },
-  {
-   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Grateful Apparition",
-    "Psychic Frog",
-    "Neheb, Dreadhorde Champion",
-    "Bladewing, Deathless Tyrant",
-    "Jaya's Phoenix",
-    "Guildpact Informant"
    ]
   },
   {
@@ -10673,6 +10643,19 @@
     "Sokka, Bold Boomeranger",
     "Illuminate History",
     "Colossus of the Blood Age"
+   ]
+  },
+  {
+   "what": "CantAttackYouUnlessPayAllEffect",
+   "score": 10,
+   "cards": 7,
+   "names": [
+    "Norn's Annex",
+    "Summon: Yojimbo",
+    "Baird, Steward of Argive",
+    "Onakke Oathkeeper",
+    "Archon of Absolution",
+    "Sivitri, Dragon Master"
    ]
   },
   {
@@ -12041,6 +12024,19 @@
     "Earth Kingdom General",
     "Casey Jones, Back Alley Brute",
     "The Great Goblin"
+   ]
+  },
+  {
+   "what": "DoubleCountersTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Invigorating Surge",
+    "Sazh Katzroy",
+    "Byrke, Long Ear of the Law",
+    "Arcade Cabinet",
+    "Visions of Dominance",
+    "Growth Curve"
    ]
   }
  ]

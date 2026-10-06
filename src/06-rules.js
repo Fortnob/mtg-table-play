@@ -2244,6 +2244,9 @@
       if (!midway && (!this.priorityPlayer || this.priorityPlayer.id !== playerId)) return { ok: false, reason: 'You do not have priority.' };
       const hush = this._castBlocked(playerId);
       if (hush) return { ok: false, reason: hush };
+      // "can't cast noncreature spells this turn"
+      if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
+        return { ok: false, reason: "You can't cast noncreature spells this turn." };
       const instantSpeed = midway || a.isInstant || a.has('flash') || this._flashFor(playerId, o);
       if (!instantSpeed) {
         if (this.activePlayer.id !== playerId) return { ok: false, reason: 'Sorcery speed: only on your turn.' };
@@ -5410,6 +5413,13 @@
           const hit = this.player(as.targetId);
           if (hit && hit.monarch && as.source.controller !== as.targetId) this.setMonarch(as.source.controller, 'combat damage');
           if (hit && hit.initiative && as.source.controller !== as.targetId) this.takeInitiative(as.source.controller, 'combat damage');
+        } else if (as.targetKind === 'object') {
+          // "deals combat damage to a player or planeswalker": the planeswalker half
+          const pw = this.obj(as.targetId);
+          const pa = pw && O.analyze(pw.card, pw.face);
+          if (pa && pa.isPlaneswalker && as.source.attacking === pw.id) {
+            this._fire('combatDamageToPlaneswalker', as.source.controller, { source: as.source, amount: as.amount, player: pw.controller, object: as.source });
+          }
         }
       }
       this.checkStateBasedActions();
@@ -6516,6 +6526,7 @@
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
       this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount });
+      this._fire('youLoseLife', p.id, { player: p.id, amount: lost });
       this._fire('playerDealtDamage', null, { player: p.id, amount, combat: !!combat });
       if (combat && source && source.isCommander) {
         p.commanderDamage[source.id] = (p.commanderDamage[source.id] || 0) + amount;
@@ -6564,6 +6575,7 @@
         this._lastLifeLost = (this._lastLifeLost || 0) + (-delta);
         p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + (-delta);
         this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount: -delta });
+        this._fire('youLoseLife', p.id, { player: p.id, amount: -delta });
       } else p.lifeGainedThisTurn = (p.lifeGainedThisTurn || 0) + delta;
       this.logEvent('life', `${p.name} ${delta > 0 ? 'gains' : 'loses'} ${Math.abs(delta)} life (${p.life}).`);
       this.emit('sfx', delta > 0 ? 'life_gain' : 'life_loss', { player: p.id, size: Math.abs(delta) });
@@ -8293,7 +8305,10 @@
         case 'createNamedToken': {
           // "Its controller creates two Treasure tokens" — An Offer You Can't Refuse
           const owner = e.who === 'targetController' ? (this._lastAffectedController() || me)
+            // "Target player creates a Treasure token."
+            : e.who === 'target' ? firstPlayer()
             : e.who === 'opponents' ? null : me;
+          if (e.who === 'target' && !owner) break;
           if (owner) this._createNamedToken(owner.id, Object.assign({}, e, { n: n(e.n) || 1 }));
           else for (const p of this.opponentsOf(ctx.controller)) this._createNamedToken(p.id, Object.assign({}, e, { n: n(e.n) || 1 }));
           break;
@@ -8902,6 +8917,12 @@
           this.logEvent('rules', `${x.name} becomes a ${t} until end of turn.`);
           break;
         }
+        // "If a creature is destroyed this way, …": the one the destroy acted on is gone
+        case 'ifDestroyed': {
+          const la = this._lastAffected && this.obj(this._lastAffected.id);
+          if (la && la.zone !== 'battlefield') this._spliceNext(e.then || []);
+          break;
+        }
         case 'keepMana':
           me.poolKeepUntil = 'turn';
           me.poolKeepTurn = this.turn;
@@ -9497,7 +9518,9 @@
           break;   // read when a spell is countered or cast
         /* Silence: "Your opponents can't cast spells this turn." */
         case 'silence':
-          for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : this.players)) p.silencedTurn = this.turn;
+          for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : this.players)) {
+            if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
+          }
           this.logEvent('rules', `${me.name}'s opponents can't cast spells this turn.`);
           break;
 

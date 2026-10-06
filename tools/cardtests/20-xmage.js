@@ -1183,6 +1183,72 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(w, 'reach'));
   });
 
+  test('Slip Out the Back: a counter, then the same creature phases out', (mk, t) => {
+    t.auto('Slip Out the Back');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Slip Out the Back'), { targets: [bear] });
+    t.eq(bear.counters['+1/+1'], 1);
+    t.ok(bear.phasedOut);
+  });
+
+  test('Old Gnawbone makes a Treasure for each point of combat damage', (mk, t) => {
+    t.auto('Old Gnawbone');
+    const T = mk();
+    T.bf('A', 'Old Gnawbone');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2);
+  });
+
+  test("Irenicus's Vile Duplication: a flying, nonlegendary copy", (mk, t) => {
+    t.auto("Irenicus's Vile Duplication");
+    const T = mk();
+    const k = T.bf('A', 'Isamaru, Hound of Konda');
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', "Irenicus's Vile Duplication"), { targets: [k] });
+    const tok = T.bfOf('A').find(o => o.isToken);
+    t.ok(tok && T.g.hasKw(tok, 'flying'), 'flying');
+    t.no(tok && (tok.analysis().supertypes || []).includes('Legendary'), 'not legendary');
+    t.zone(k, 'battlefield', 'the original survives the legend rule');
+  });
+
+  test('Krosan Verge finds a Forest and a Plains', (mk, t) => {
+    t.auto('Krosan Verge');
+    const T = mk();
+    const kv = T.bf('A', 'Krosan Verge');
+    const f = T.top('A', 'Forest'), p = T.top('A', 'Plains');
+    T.mana('A', '2');
+    const idx = kv.analysis().manaAbilities.length + kv.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    T.activate('A', kv, idx);
+    const got = T.bfOf('A').filter(o => o.name === 'Forest' || o.name === 'Plains');
+    t.eq(got.map(o => o.name).sort().join(), 'Forest,Plains');
+    t.ok(got.every(o => o.tapped), 'tapped');
+  });
+
+  test('Vilis draws as many cards as life was lost', (mk, t) => {
+    t.auto('Vilis, Broker of Blood');
+    const T = mk();
+    T.bf('A', 'Vilis, Broker of Blood');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.g.changeLife('A', -3);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 3);
+  });
+
+  test('Ranger-Captain of Eos: opponents cannot cast noncreature spells', (mk, t) => {
+    t.auto('Ranger-Captain of Eos');
+    const T = mk();
+    T.player('A').silencedNoncreatureTurn = T.g.turn;
+    const bolt = T.hand('A', 'Lightning Bolt'), bear = T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'RG1');
+    t.ok(/noncreature/.test(T.g.canCast('A', bolt.id).reason || ''), 'no Bolt');
+    t.ok(T.g.canCast('A', bear.id).ok, 'a creature spell is fine');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
