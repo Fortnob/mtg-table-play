@@ -310,6 +310,18 @@ function costText(v, tc) {
       return 'Discard ' + (/^[aeiou]/.test(w) ? 'an ' : 'a ') + w + ' card';
     }
     case 'DiscardHandCost': return 'Discard your hand';
+    case 'DiscardTargetCost': {
+      const t = v.args[0];
+      if (!t || t.t !== 'obj' || t.cls !== 'TargetCardInHand' || A(v).bool(0, false)) block('DiscardTargetCost of ' + keyOf(t));
+      const ints = A(t).all('int').map(x => x.v);
+      if (ints.length > 1 && ints[0] !== ints[1]) block('discard up to');
+      const n = ints.length ? ints[ints.length - 1] : 1;
+      const f = t.args.find(a => kindOf(a) === 'filter');
+      const w = f ? F.toWords(F.describe(f, tc)) : 'card';
+      if (/\s/.test(w) && w !== 'card') block('discard words ' + w);
+      const noun = w === 'card' ? 'card' : w + ' card';
+      return 'Discard ' + (n === 1 ? (/^[aeiou]/.test(noun) ? 'an ' : 'a ') : n + ' ') + noun + (n === 1 ? '' : 's');
+    }
     case 'PayLifeCost': {
       const a = v.args[0];
       if (a && a.t === 'lit') return 'Pay ' + a.v + ' life';

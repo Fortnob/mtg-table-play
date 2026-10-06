@@ -287,4 +287,4 @@ def('effect', 'GetEmblemEffect', (o, tc) => {
   return { op: 'getEmblem', name: tc.name, text: quoted[1], abilities };
 });
 
-module.exports = {};
+module.exports = { animation };

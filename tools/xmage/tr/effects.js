@@ -73,6 +73,7 @@ function aim(o, tc, want) {
 const TRIGGER_PLAYER_OPS = new Set(['draw', 'discard', 'mill', 'loseLife', 'sacrificeChoice']);
 function aimPlayer(o, tc, op) {
   const a = aim(o, tc, 'player');
+  if (a.pointer === 'you') return { who: 'you' };
   if (a.pointer) {
     if (a.pointer !== 'player' || !TRIGGER_PLAYER_OPS.has(op)) block('that player, for ' + (op || o.cls));
     return { who: 'triggerPlayer' };
@@ -173,6 +174,7 @@ def('effect', 'DamageTargetEffect', (o, tc) => {
   checkCalls(o, ['withTargetDescription']);
   const a = aim(o, tc, 'any');
   if (a.pointer === 'player') return { op: 'damage', n: amt(o, tc), toTriggerPlayer: true };
+  if (a.pointer === 'you') return { op: 'damage', n: amt(o, tc), toSelf: true };
   if (a.pointer === 'permanent') return { op: 'damage', n: amt(o, tc), scope: 'triggerObject' };
   if (a.pointer) block('damage to that ' + a.pointer);
   if (a.chooseFrom || a.again) block('damage to a chosen thing');

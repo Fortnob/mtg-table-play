@@ -79,4 +79,4 @@ def('ability', 'BlocksOrBlockedByCreatureSourceTriggeredAbility', (o, tc) => {
   return AB.triggered(o, tc, { event: 'blocks', also: 'becomesBlocked', self: true });
 });
 
-module.exports = {};
+module.exports = { spendOnly };

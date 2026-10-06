@@ -231,7 +231,9 @@ function stepTrigger(name, events) {
     const zone = A(o).enumv('Zone');
     if (zone && zone !== 'BATTLEFIELD') block(name + ' from ' + zone);
     const cond = o.args.find(a => kindOf(a) === 'condition' || (a && a.t === 'ref' && kindOf(a).startsWith('enum:') && !/^(?:TargetController|Zone)$/.test(a.path.split('.')[0])));
-    const ev = { event, optional: A(o).bool(0, false) };
+    /* With no targets of its own, a step trigger's effects are about the
+       player whose step it is ("that player discards a card"). */
+    const ev = { event, optional: A(o).bool(0, false), pointer: who === 'YOU' ? 'you' : 'player' };
     if (cond) ev.condition = tr('condition', cond, tc);
     return triggered(o, tc, ev);
   });

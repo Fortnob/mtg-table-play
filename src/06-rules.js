@@ -491,7 +491,7 @@
           this._cumulativeUpkeep();
           this._tickSuspended(this.activePlayer.id);
           this._rebound(this.activePlayer.id);
-          this._fire('yourUpkeep', this.activePlayer.id); this._fire('eachUpkeep');
+          this._fire('yourUpkeep', this.activePlayer.id); this._fire('eachUpkeep', null, { playerId: this.activePlayer.id });
           this._fire('opponentUpkeep', null, { except: this.activePlayer.id, playerId: this.activePlayer.id }); break;
         case 'draw': this._drawStep(); break;
         case 'main':
@@ -526,7 +526,7 @@
             this._drawCards(king, 1);
             this.logEvent('monarch', `${king.name} draws for being the monarch.`);
           }
-          this._fire('yourEndStep', this.activePlayer.id); this._fire('eachEndStep');
+          this._fire('yourEndStep', this.activePlayer.id); this._fire('eachEndStep', null, { playerId: this.activePlayer.id });
           break;
         }
         case 'cleanup': this._cleanupStep(); return;            // no priority normally
@@ -2015,11 +2015,28 @@
       const mult = v.mult || 1;
       if (v.scope) return this._scopeList(v.scope, pid, src, null, inLayers).length * mult;
       if (v.cardsInHand) return (((this.zones[pid] || {}).hand || []).length) * mult;
-      if (v.cardsInGraveyard) return (((this.zones[pid] || {}).graveyard || []).length) * mult;
+      if (v.cardsInGraveyard) {
+        // "for each creature card in your graveyard": only the cards the words name
+        const gy = ((this.zones[pid] || {}).graveyard || []);
+        return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
+      }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
       if (v.per) return this.countPermanents(pid, v) * mult;
       return 0;
+    }
+
+    /** Domain: how many basic land types are among the lands a player controls. */
+    _domainOf(pid) {
+      const seen = new Set();
+      for (const o of this.battlefield) {
+        if (o.controller !== pid || o.phasedOut) continue;
+        const a = o.analysis();
+        if (!a || !a.isLand) continue;
+        for (const t of (a.subtypes || [])) if (MANA.COLOR_OF_BASIC[t]) seen.add(t);
+      }
+      return seen.size;
     }
 
     /** Is this card the creature type named (changelings are every type)? */
@@ -5896,7 +5913,7 @@
     _contValue(v, o) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
-      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents)) {
+      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
       }
@@ -7217,6 +7234,8 @@
           return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * (v.mult || 1);
         }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
+        // domain: basic land types among lands you control
+        if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
         if (v === 'lastLifeLost') return this._lastLifeLost || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
@@ -7554,6 +7573,34 @@
             this.emit('sfx', 'counter');
           }
           break;
+        /* "You may tap or untap target permanent": whoever controls the
+           effect decides which, as it resolves. */
+        case 'tapOrUntap': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const tap = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap ${x.name}? (No untaps it.)` }, 'tu');
+          if (tap === SUSPEND) return SUSPEND;
+          if (tap) this._markTapped(x); else x.tapped = false;
+          this.emit('sfx', tap ? 'tap' : 'untap');
+          break;
+        }
+        /* Bolster N (CR 701.39): N +1/+1 counters on the creature you
+           control with the least toughness, your choice among a tie. */
+        case 'bolster': {
+          const mine = this.creaturesOf(ctx.controller, 'yourCreatures');
+          if (!mine.length) break;
+          const least = Math.min(...mine.map(o => this.toughnessOf(o)));
+          const pool = mine.filter(o => this.toughnessOf(o) === least);
+          let pick = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}bolster which creature?` }, 'bolster');
+            if (got === SUSPEND) return SUSPEND;
+            pick = (got && got.picks.length && this.obj(got.picks[0])) || pick;
+          }
+          this.addCounters(pick, '+1/+1', n(e.n));
+          break;
+        }
         /* "You get an emblem with '...'": an object in your command zone
            whose abilities were written out when the card was read. */
         case 'getEmblem': {
@@ -10611,6 +10658,8 @@
      */
     _scopeHit(sc, o, oa, pid, src, inLayers) {
       if (sc.other && src && src.id === o.id) return false;
+      // "other creatures you control named Hare Apparent"
+      if (sc.name && o.name !== sc.name) return false;
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
       const isType = (t) => {
@@ -11772,6 +11821,7 @@
       // "this creature or another Elemental": itself always counts
       if (f.selfOk && src && x.id === src.id) return true;
       if (f.other && src && x.id === src.id) return false;
+      if (f.name && x.name !== f.name) return false;
       // "whenever equipped creature attacks": the creature this is attached to
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
       /* "you control" is decided by who controlled it at the time, which

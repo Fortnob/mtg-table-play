@@ -178,6 +178,36 @@ module.exports = (test) => {
     t.zone(bt, 'battlefield', 'indestructible');
   });
 
+  test('XMage: Twiddle taps or untaps, as its caster says', (mk, t) => {
+    generated(t, 'Twiddle');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'U');
+    T.answer('confirm', { yes: true });
+    T.cast('A', T.hand('A', 'Twiddle'), { targets: [b] });
+    t.ok(b.tapped, 'tapped');
+  });
+
+  test('XMage: bolster goes on the creature with the least toughness', (mk, t) => {
+    generated(t, 'Elite Scaleguard');
+    const T = mk();
+    const small = T.bf('A', 'Llanowar Elves');
+    T.bf('A', 'Craw Wurm');
+    T.put('A', 'Elite Scaleguard', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(small.counters['+1/+1'], 2);
+  });
+
+  test('XMage: Bottomless Pit makes the player whose upkeep it is discard', (mk, t) => {
+    generated(t, 'Bottomless Pit');
+    const T = mk();
+    T.bf('A', 'Bottomless Pit');
+    T.hand('B', 'Island');
+    T.hand('A', 'Swamp');
+    T.nextTurn('B');
+    t.eq(T.zone('B', 'hand').length, 1, 'B discarded one and drew one');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

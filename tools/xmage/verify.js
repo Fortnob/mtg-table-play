@@ -88,14 +88,18 @@ function checkLine(text, abilities, card, an) {
   });
   // numbers printed on the line must be somewhere in the translation
   const nums = new Set();
-  const body = t.replace(/\{[^}]*\}/g, ' ').replace(/[+-](\d+)\/[+-](\d+)/g, ' $1 $2 ');
+  // "two target creatures": that number is the count of targets, checked above
+  const body = t.replace(/\{[^}]*\}/g, ' ').replace(/[+-](\d+)\/[+-](\d+)/g, ' $1 $2 ')
+    .replace(/(?:up to )?(?:one|two|three|four|five|\d+) (?:other )?target/gi, ' target');
   for (const m of body.matchAll(/\b(\d+)\b/g)) nums.add(+m[1]);
   for (const m of body.toLowerCase().matchAll(/\b(two|three|four|five|six|seven|eight|nine|ten)\b/g)) nums.add(NUMW[m[1]]);
   const have = new Set([...json.matchAll(/-?\d+/g)].map(m => Math.abs(+m[0])));
   for (const k of nums) if (!have.has(k)) return 'number ' + k + ' missing';
   // "you may"
   const may = /\byou may\b|\bup to\b/i.test(t);
-  const optional = abilities.some(a => a.optional) || /"op":"may(?:Pay)?"|"upTo":true|"optional":true/.test(json);
+  // a choice the effect itself offers counts as the card's "may"
+  const optional = abilities.some(a => a.optional) ||
+    /"op":"(?:may|mayPay|tapOrUntap|permanentFromHand)"|"upTo":true|"optional":true|"play":true/.test(json);
   if (may && !optional) return '"may" lost';
   if (!may && optional && !/\bmay\b/i.test(t)) return 'optional where the card is not';
   // conditions

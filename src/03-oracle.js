@@ -2532,6 +2532,7 @@
     if (spec.token && !obj.isToken) return false;
     if (spec.faceDown && !obj.faceDown) return false;
     if (spec.commander && !obj.isCommander) return false;
+    if (spec.name && obj.name !== spec.name) return false;
     const cols = a.colors || [];
     if (spec.colors && !spec.colors.some(c => cols.includes(c))) return false;
     if (spec.notColors && spec.notColors.some(c => cols.includes(c))) return false;

@@ -250,6 +250,11 @@ const PREDICATES = {
   'FaceDownPredicate.instance': (d, p, neg) => { if (neg) block('not face down'); d.faceDown = true; },
   'HistoricPredicate.instance': (d, p, neg) => { if (neg) block('not historic'); d.historic = true; },
   'CommanderPredicate.instance': (d, p, neg) => { if (neg) block('not a commander'); d.commander = true; },
+  'NamePredicate': (d, p, neg) => {
+    const n = p.args[0] && p.args[0].t === 'lit' ? p.args[0].v : null;
+    if (neg || typeof n !== 'string' || d.name) block('NamePredicate');
+    d.name = n;
+  },
 };
 
 /** XMage's counter constant name -> the name the engine keeps counters by. */
@@ -286,7 +291,7 @@ function toSpec(d, zone) {
   const spec = { type: 'permanent', zone: zone || (d.base === 'card' ? 'graveyard' : d.base === 'spell' ? 'stack' : 'battlefield') };
   const used = ['controller', 'owner', 'another', 'token', 'tapped', 'attacking', 'blocking', 'inCombat', 'legendary', 'nonlegendary',
     'basic', 'nonbasic', 'colorless', 'multicolored', 'monocolored', 'mv', 'power', 'toughness', 'withKeyword', 'withoutKeyword',
-    'withCounter', 'faceDown', 'opponent', 'permanentCard', 'orAbility', 'commander'];
+    'withCounter', 'faceDown', 'opponent', 'permanentCard', 'orAbility', 'commander', 'name'];
   const bad = leftover(d, used);
   if (bad.length) block('filter:' + bad.join(','));
   const { list, also } = typeList(d);
@@ -334,6 +339,7 @@ function toSpec(d, zone) {
   if (d.blocking) spec.blocking = true;
   if (d.inCombat) spec.inCombat = true;
   for (const k of ['legendary', 'nonlegendary', 'basic', 'nonbasic', 'colorless', 'multicolored', 'monocolored', 'faceDown', 'commander']) if (d[k]) spec[k] = true;
+  if (d.name) spec.name = d.name;
   if (d.mv) { if (d.mv.min === d.mv.max && d.mv.min != null) spec.mv = d.mv.min; else { if (d.mv.min != null) spec.minMv = d.mv.min; if (d.mv.max != null) spec.maxMv = d.mv.max; } }
   if (d.power) { if (d.power.min != null) spec.minPower = d.power.min; if (d.power.max != null) spec.maxPower = d.power.max; }
   if (d.toughness) { if (d.toughness.min != null) spec.minToughness = d.toughness.min; if (d.toughness.max != null) spec.maxToughness = d.toughness.max; }
@@ -357,9 +363,10 @@ function toScope(d, opts) {
   opts = opts || {};
   if (d.base !== 'permanent') block('scope of ' + d.base);
   const used = ['controller', 'another', 'token', 'tapped', 'attacking', 'blocking', 'legendary', 'nonlegendary', 'nonbasic',
-    'mv', 'power', 'withKeyword', 'withoutKeyword', 'withCounter', 'anyCounter'];
+    'mv', 'power', 'withKeyword', 'withoutKeyword', 'withCounter', 'anyCounter', 'name'];
   const bad = leftover(d, used);
   if (bad.length) block('scope:' + bad.join(','));
+  if (d.name) { /* set below */ }
   const sc = { who: d.controller === 'you' ? 'you' : d.controller === 'opponent' ? 'opponents' : 'all' };
   const { list, also } = typeList(d);
   if (list.length === 1) sc.what = list[0];
@@ -389,6 +396,7 @@ function toScope(d, opts) {
   if (d.withoutKeyword) sc.withoutKeyword = d.withoutKeyword;
   if (d.withCounter) sc.withCounter = d.withCounter;
   if (d.anyCounter) sc.withAnyCounter = true;
+  if (d.name) sc.name = d.name;
   return sc;
 }
 
@@ -428,7 +436,7 @@ function toWords(d, opts) {
 
 /** A trigger subject, in the shape subjectFilter() writes. */
 function toSubject(d) {
-  const used = ['controller', 'another', 'token', 'power', 'mv', 'withKeyword', 'withCounter', 'attacking',
+  const used = ['controller', 'another', 'token', 'power', 'mv', 'withKeyword', 'withCounter', 'attacking', 'name',
     'legendary', 'basic', 'nonbasic', 'nonlegendary', 'colorless', 'multicolored', 'monocolored'];
   const bad = leftover(d, used);
   if (bad.length) block('subject:' + bad.join(','));
@@ -443,8 +451,9 @@ function toSubject(d) {
   if (d.withKeyword) f.keyword = d.withKeyword;
   if (d.withCounter) f.withCounter = d.withCounter;
   if (d.attacking) f.attacking = true;
+  if (d.name) f.name = d.name;
   const words = toWords(Object.assign({}, d, { token: undefined, another: undefined, controller: undefined, power: undefined,
-    mv: undefined, withKeyword: undefined, withCounter: undefined, attacking: undefined }));
+    mv: undefined, withKeyword: undefined, withCounter: undefined, attacking: undefined, name: undefined }));
   f.words = words;
   return f;
 }
