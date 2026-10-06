@@ -636,14 +636,13 @@
         s.root.dataset.name = p.name;
         if (!s._peekClick) {
           s._peekClick = true;
-          /* Anywhere on it brings it forward, its cards included, unless a
-             card there is being asked for: a target, a blocker, an answer. */
+          /* Anywhere on it brings it forward, its cards included, unless the
+             card clicked is one being asked for right now: a target, an
+             attacker to block, a card to choose. */
           s.root.addEventListener('click', (e) => {
             if (!s.root.classList.contains('peek')) return;
-            const lv = this.live || this.view;
-            const picking = this.targeting || this.blockPlan ||
-              (lv && lv.pendingChoice && lv.pendingChoice.playerId === this.meId);
-            if (picking && e.target.closest && e.target.closest('.cv')) return;
+            const cv = e.target.closest && e.target.closest('.cv');
+            if (cv && cv.matches('.targetable, .candidate, .chosen')) return;
             e.stopPropagation();
             this.setFocus(p.id, true);
           });
