@@ -313,7 +313,6 @@
       if (prev && (!next.pendingChoice || next.pendingChoice.type !== 'sacrifice')) this.sacSel = [];
       if (this.targeting && this.targeting.legal && !(next.pendingChoice && next.pendingChoice.type === 'pickTarget')) this.targeting = null;
 
-      const hadIt = !!(prev && prev.priorityPlayer === this.meId);
       this.view = next;
       if (beat.spot) this.spot = beat.spot;
       else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this.spot = null;
@@ -322,7 +321,6 @@
       this.render();
       this._moves = null;
       this._report(prev, next, beat);
-      if (next.priorityPlayer === this.meId && !hadIt && !next.over && !next.mulliganPhase) MTG.sfx('priority');
 
       const ms = beat.hold * this._pace();
       if (ms > 30) await sleep(ms);
@@ -356,25 +354,12 @@
     },
 
     /**
-     * Sound for somebody who joined a table rather than hosting it. The host
-     * hears the engine itself; a guest only ever receives views, so the
-     * beats are voiced here from what changed.
+     * What a beat sounds like, and the small touches that go with it: the
+     * same for the host and for every guest, because it is worked out from
+     * the same events at the moment they are shown (src/12f-ui-feel.js).
      */
     _voice(prev, next, beat) {
-      if (!(MTG.net && MTG.net.isClient)) return;
-      const pan = (pid) => ({ pan: this.panFor(pid) });
-      if (beat.turn) MTG.sfx(next.activePlayer === this.meId ? 'turn_start' : 'phase');
-      const SOUND = { cast: 'cast', ability: 'trigger', trigger: 'trigger', attack: 'attack', block: 'block',
-        died: 'destroy', land: 'land', token: 'token', countered: 'counter', left: 'exile', lost: 'lose' };
-      for (const e of beat.events) if (SOUND[e.kind]) MTG.sfx(SOUND[e.kind], pan(e.who));
-      for (const p of next.players) {
-        const q = prev.players.find(x => x.id === p.id);
-        if (q && q.life > p.life) MTG.sfx('damage', Object.assign({ size: q.life - p.life }, pan(p.id)));
-        else if (q && q.life < p.life) MTG.sfx('life_gain', pan(p.id));
-      }
-      const me = next.players.find(p => p.id === this.meId), was = prev.players.find(p => p.id === this.meId);
-      if (me && was && me.handSize > was.handSize && next.turn === prev.turn) MTG.sfx('draw');
-      if (!prev.over && next.over) MTG.sfx((next.winners || []).includes(this.meId) ? 'win' : 'lose');
+      if (MTG.feel) MTG.feel.beat(this, prev, next, beat);
     },
 
     /* ---------------- motion ---------------- */
@@ -866,7 +851,6 @@
         orb.classList.add(delta < 0 ? 'hurt' : 'healed');
         setTimeout(() => orb.classList.remove('hurt', 'healed'), 800);
         this.float(orb, (delta > 0 ? '+' : '') + delta, delta < 0 ? 'life-down' : 'life-up', Math.min(1, Math.abs(delta) / 8));
-        if (delta < 0 && pid === this.meId && Math.abs(delta) >= 3) this.flash('hurt');
       }
       // counters, added up per permanent and kind so a big swing is one number
       const sum = new Map();
@@ -914,7 +898,6 @@
         orb.classList.add(d < 0 ? 'hurt' : 'healed');
         setTimeout(() => orb.classList.remove('hurt', 'healed'), 800);
         this.float(orb, (d > 0 ? '+' : '') + d, d < 0 ? 'life-down' : 'life-up', Math.min(1, Math.abs(d) / 8));
-        if (d < 0 && p.id === this.meId && Math.abs(d) >= 3) this.flash('hurt');
       }
     },
 

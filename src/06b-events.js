@@ -18,6 +18,7 @@
    attack, block                                  combat
    draw, shuffle                                  libraries
    turn, step, priority, choice, gameOver, lose   the game going on
+   cue                                            a sound with no other event to carry it
    log                                            a line of the old log
 
    Some of these are said by the engine where they happen (a spell going
@@ -38,6 +39,8 @@
   const RING = 3000;
   const PLAYER_ZONES = ['library', 'hand', 'graveyard', 'exile', 'command'];
   const PUBLIC = new Set(['battlefield', 'graveyard', 'exile', 'stack', 'command']);
+  // engine sounds that are worth a 'cue' event, because no other event says the same thing
+  const CUES = new Set(['crown', 'daynight', 'transform']);
 
   const base = {
     emit: Game.prototype.emit,
@@ -358,6 +361,11 @@
       case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result }); break;
       case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result }); break;
       case 'manual': if (a) this._ev('manual', { player: a.controller || null, text: String(a.text || '') }); break;
+      /* A few moments have a sound but nothing else in the stream to hang
+         it on — the crown changing hands, day becoming night, a card
+         turning over. They are written down as cues, so a guest hears them
+         as well as the host. */
+      case 'sfx': if (CUES.has(a)) this._ev('cue', { name: a, player: b && b.player != null ? b.player : null }); break;
       default: break;
     }
     return base.emit.apply(this, arguments);

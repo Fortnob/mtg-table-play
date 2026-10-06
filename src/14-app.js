@@ -1389,33 +1389,8 @@
       toggle('bigHitTargets', 'Larger click targets', 'Adds padding to buttons and rows.'),
     ]));
 
-    /* -- sound -- */
-    const volOut = el('span', { class: 'opt-value', text: Math.round(S.volume * 100) + '%' });
-    const vol = el('input', {
-      type: 'range', min: '0', max: '1', step: '.05', value: String(S.volume), id: 'opt-volume',
-      'aria-label': 'Volume', 'aria-valuetext': Math.round(S.volume * 100) + '%',
-    });
-    vol.addEventListener('input', () => {
-      const pct = Math.round(parseFloat(vol.value) * 100) + '%';
-      volOut.textContent = pct;
-      vol.setAttribute('aria-valuetext', pct);
-      MTG.audio.setVolume(parseFloat(vol.value));
-    });
-    const mute = el('input', { type: 'checkbox', class: 'switch', role: 'switch', checked: S.muted, id: 'opt-muted' });
-    mute.addEventListener('change', () => MTG.audio.setMuted(mute.checked));
-    sections.push(group('sound', 'Sound', null, [
-      el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
-        el('div', { class: 'opt-label' }, [el('span', { text: 'Volume' }), volOut]), vol,
-      ])),
-      el('label', { class: 'opt-row', for: 'opt-muted' }, [el('div', { class: 'grow' },
-        el('div', { class: 'opt-label', text: 'Mute everything' })), mute]),
-      el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
-        el('div', { class: 'opt-label', text: 'Try the sounds' }),
-        el('div', { class: 'sound-chips' },
-          ['draw', 'play_card', 'land', 'shuffle', 'cast', 'resolve', 'attack', 'damage', 'destroy', 'win']
-            .map(n => el('button', { class: 'chip', text: n.replace('_', ' '), onclick: () => MTG.sfx(n) }))),
-      ])),
-    ]));
+    /* -- sound: the rows are built by the table's sound (src/12f-ui-feel.js) -- */
+    sections.push(group('sound', 'Sound', null, MTG.feel.soundRows()));
 
     /* -- online -- */
     sections.push(onlineGroup(group));
@@ -2908,29 +2883,10 @@
     wireGame(g) {
       g.on('state', () => { this.pushState(); this.saveInProgress(); });
       g.on('error', (m) => { if (this._lastActor === 'me') UI.error(m); });
-      /* Sound carries where it came from and how big it was: a seat's
-         position in the stereo field, and damage scaled into intensity. */
-      g.on('sfx', (n, meta) => {
-        const o = { };
-        if (meta) {
-          if (meta.player != null && App.table) o.pan = App.table.panFor(meta.player);
-          if (meta.size != null) o.intensity = Math.min(1, meta.size / 8);
-        }
-        MTG.sfx(n, o);
-      });
-      // a trigger going on the stack pulses the permanent it came from, so you
-      // can see which card is talking
-      g.on('stack:add', (item) => {
-        if (!App.table || !item) return;
-        if (item.kind === 'ability' && item.objId) App.table.pulse(item.objId);
-      });
-      // a spell resolving lights up briefly before it disappears
-      g.on('stack:resolve', (item) => {
-        if (!App.table || !item || !item.objId) return;
-        App.table.pulse(item.objId);
-      });
+      /* Sound, and the cards that light up when they speak, come from the
+         table as it shows each event (src/12f-ui-feel.js), the same for
+         the host as for a guest. The engine's own 'sfx' is not listened to. */
       g.on('game:over', () => {
-        MTG.sfx(g.winners.includes('me') ? 'win' : 'lose');
         MTG.savedGame.clear();
         this.recordResult(g);
       });
@@ -3333,20 +3289,9 @@
 
   /* ================= misc dialogs ================= */
   function soundMenu(e) {
-    const vol = el('input', { type: 'range', min: '0', max: '1', step: '.05', value: String(MTG.settings.volume) });
-    vol.setAttribute('aria-label', 'Volume');
-    vol.addEventListener('input', () => MTG.audio.setVolume(parseFloat(vol.value)));
-    const mute = el('input', { type: 'checkbox', checked: MTG.settings.muted, style: { width: 'auto' } });
-    mute.addEventListener('change', () => MTG.audio.setMuted(mute.checked));
     UI.modal({
-      title: 'Sound', width: '380px',
-      content: el('div', null, [
-        el('label', { class: 'field' }, [el('span', { text: 'Volume' }), vol]),
-        el('label', { class: 'row small', style: { gap: '6px' } }, [mute, el('span', { text: 'Mute everything' })]),
-        el('div', { class: 'row wrap', style: { marginTop: '10px' } },
-          ['draw', 'play_card', 'land', 'shuffle', 'cast', 'resolve', 'attack', 'block', 'damage', 'destroy', 'life_gain', 'counter', 'pack_open', 'win']
-            .map(n => el('button', { class: 'btn xs', text: n.replace('_', ' '), onclick: () => MTG.sfx(n) }))),
-      ]),
+      title: 'Sound', width: '440px',
+      content: el('div', { class: 'opt-group' }, MTG.feel.soundRows()),
     });
   }
 

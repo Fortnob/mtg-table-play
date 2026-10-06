@@ -850,7 +850,7 @@
         if (ex) answered[purpose] = ex.choose.kind === 'number' ? { number: sel.number || 0 } : { picks: sel.picks.slice() };
       }
       if (Object.keys(answered).length) extra.choices = answered;
-      const go = (targets) => { MTG.sfx('cast'); this._dropAt = null; this.send(Object.assign({ kind: 'cast', objId: o.id, targets }, extra)); };
+      const go = (targets) => { MTG.sfx('ui_play'); this._dropAt = null; this.send(Object.assign({ kind: 'cast', objId: o.id, targets }, extra)); };
       this.render();
       if (!specs.length) return go([]);
       this.startTargeting({

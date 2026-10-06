@@ -1422,7 +1422,7 @@
     attackAll(ch) {
       if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: (ch.defenders[0] || {}).id };
       this.attackPlan.declarations = ch.candidates.map(id => ({ attackerId: id, defenderId: this.attackPlan.defenderId }));
-      MTG.sfx('attack');
+      MTG.sfx('ui_attack');
       this.render();
     }
 
@@ -1655,7 +1655,7 @@
           const list = this.attackPlan.declarations;
           const i = list.findIndex(d => d.attackerId === id);
           if (i >= 0) list.splice(i, 1);
-          else { list.push({ attackerId: id, defenderId: this.attackPlan.defenderId }); MTG.sfx('attack'); }
+          else { list.push({ attackerId: id, defenderId: this.attackPlan.defenderId }); MTG.sfx('ui_attack'); }
           return this.render();
         }
         if (ch.type === 'declareBlockers') {
@@ -1671,7 +1671,7 @@
             if (bp.pendingBlocker && (ch.attackers || []).length === 1) {
               bp.declarations.push({ blockerId: id, attackerIds: [ch.attackers[0]] });
               bp.pendingBlocker = null;
-              MTG.sfx('block');
+              MTG.sfx('ui_block');
             }
             return this.render();
           }
@@ -1680,7 +1680,7 @@
             if (existing) existing.attackerIds = [id];
             else bp.declarations.push({ blockerId: bp.pendingBlocker, attackerIds: [id] });
             bp.pendingBlocker = null;
-            MTG.sfx('block');
+            MTG.sfx('ui_block');
             return this.render();
           }
         }
@@ -1750,7 +1750,7 @@
         if (a.isLand) return UI.toast((this.me && this.me.landsPlayed >= this.me.maxLands) ? 'You have already played a land this turn.' : 'Lands can be played in your main phase with the stack empty.');
         return UI.toast(a.isInstant || a.has('flash') ? 'You cannot pay for that right now.' : 'You cannot cast that right now.');
       }
-      if (a.isLand) { MTG.sfx('land'); return this.send({ kind: 'playLand', objId: o.id }); }
+      if (a.isLand) { MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id }); }
       this.beginCast(o, a);
     }
 
