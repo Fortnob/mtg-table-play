@@ -62,6 +62,8 @@
     'Cipher',
     // a +1/+1 counter for going after the player with the most life
     'Dethrone',
+    // two creatures paired while one player controls both
+    'Soulbond',
     // it can't block, and goes at end of combat after it attacks
     'Decayed',
   ]);
@@ -5798,6 +5800,21 @@
   }
 
   const CONTINUOUS_RULES = [
+    /* Soulbond: "As long as this creature is paired with another creature,
+       each of those creatures gets +4/+4 / both creatures have flying /
+       each of those creatures has '…'" — read as a group's rule, and the
+       group is the pair */
+    { re: /^As long as (?:CARDNAME|this creature) is paired with another creature, (?:each of those creatures|both creatures) (has|have|gets?|get) (.+)$/i,
+      make: (m) => {
+        const verb = /^ha/i.test(m[1]) ? 'have' : 'get';
+        const inner = parseContinuous('Creatures you control ' + verb + ' ' + m[2]);
+        if (!inner || inner.effects.length !== 1) return null;
+        const pair = (e) => Object.assign(e, { scope: { paired: true } });
+        const e = inner.effects[0];
+        if (e.op === 'continuous') return pair(e);
+        if (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous')) { e.list.forEach(pair); return e; }
+        return null;
+      } },
     // Archetype of Imagination: "Creatures your opponents control lose flying and can't have or gain flying."
     { re: /^(Creatures your opponents control|Creatures you control|All creatures|Other creatures) lose ([a-z ]+?) and can'?t have or gain \2\.?$/i,
       make: (m) => {

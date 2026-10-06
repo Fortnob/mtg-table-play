@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16718,
+  "needed": 16698,
   "gainedCards": 1758,
-  "linesNeeded": 19032,
+  "linesNeeded": 18987,
   "linesGained": 2273,
   "gained": {
    "all": 1758,
@@ -788,25 +788,6 @@
    ]
   },
   {
-   "what": "keyword SoulbondAbility",
-   "score": 27,
-   "lines": 24,
-   "cards": [
-    "Deadeye Navigator",
-    "Tandem Lookout",
-    "Mirage Phalanx",
-    "Wingcrafter",
-    "Doom Weaver",
-    "Silverblade Paladin",
-    "Donna Noble",
-    "Thundering Mightmare",
-    "Druid's Familiar",
-    "Wolfir Silverheart",
-    "Imperious Mindbreaker",
-    "Nightshade Peddler"
-   ]
-  },
-  {
    "what": "CaseAbility",
    "score": 27,
    "lines": 18,
@@ -1072,25 +1053,6 @@
     "Leyline Tyrant",
     "Omnath, Locus of Mana",
     "Fangorn, Tree Shepherd"
-   ]
-  },
-  {
-   "what": "GainAbilityPairedEffect",
-   "score": 24,
-   "lines": 21,
-   "cards": [
-    "Deadeye Navigator",
-    "Tandem Lookout",
-    "Mirage Phalanx",
-    "Wingcrafter",
-    "Breathkeeper Seraph",
-    "Doom Weaver",
-    "Silverblade Paladin",
-    "Thundering Mightmare",
-    "Imperious Mindbreaker",
-    "Nightshade Peddler",
-    "Lightning Mauler",
-    "Elgaud Shieldmate"
    ]
   },
   {
@@ -3078,25 +3040,6 @@
    ]
   },
   {
-   "what": "keyword FlyingAbility",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Eradicator Valkyrie",
-    "Breathkeeper Seraph",
-    "Niv-Mizzet, Guildpact",
-    "Niv-Mizzet, Supreme",
-    "Teeka's Dragon",
-    "Dust Elemental",
-    "Mesa Pegasus",
-    "Kjeldoran Skyknight",
-    "Bayou Dragonfly",
-    "Teremko Griffin",
-    "Knight of Sursi",
-    "Kjeldoran Skycaptain"
-   ]
-  },
-  {
    "what": "TapEnchantedEffect",
    "score": 14,
    "lines": 14,
@@ -3603,6 +3546,25 @@
     "Prickly Pair",
     "Lassoed by the Law",
     "Wanted Griffin"
+   ]
+  },
+  {
+   "what": "keyword FlyingAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Eradicator Valkyrie",
+    "Niv-Mizzet, Guildpact",
+    "Niv-Mizzet, Supreme",
+    "Teeka's Dragon",
+    "Dust Elemental",
+    "Mesa Pegasus",
+    "Kjeldoran Skyknight",
+    "Bayou Dragonfly",
+    "Teremko Griffin",
+    "Knight of Sursi",
+    "Kjeldoran Skycaptain",
+    "Nalathni Dragon"
    ]
   },
   {
@@ -7276,6 +7238,17 @@
    ]
   },
   {
+   "what": "GainAbilityPairedEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Deadeye Navigator",
+    "Tandem Lookout",
+    "Mirage Phalanx",
+    "Breathkeeper Seraph"
+   ]
+  },
+  {
    "what": "ReturnToHandFromBattlefieldSourceCost",
    "score": 7,
    "lines": 4,
@@ -8167,6 +8140,16 @@
     "Realms Uncharted",
     "Elemental Teachings"
    ]
+  },
+  {
+   "what": "BecomesClassLevelTriggeredAbility",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Druid Class",
+    "Cool but Rude",
+    "Monk Class"
+   ]
   }
  ],
  "sole": [
@@ -8185,8 +8168,8 @@
   },
   {
    "what": "custom ability",
-   "score": 766,
-   "cards": 616,
+   "score": 767,
+   "cards": 617,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -11912,6 +11895,17 @@
    ]
   },
   {
+   "what": "GainAbilityPairedEffect",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Deadeye Navigator",
+    "Tandem Lookout",
+    "Mirage Phalanx",
+    "Breathkeeper Seraph"
+   ]
+  },
+  {
    "what": "sacrifice trigger for ANY",
    "score": 7,
    "cards": 4,
@@ -11998,19 +11992,6 @@
     "Dreadship Reef",
     "Calciform Pools",
     "Saltcrusted Steppe"
-   ]
-  },
-  {
-   "what": "Ability.setWorksFaceDown",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Hooded Hydra",
-    "Gift of Doom",
-    "Vesuvan Shapeshifter",
-    "Jeering Instigator",
-    "Bubble Smuggler",
-    "Crowd-Control Warden"
    ]
   }
  ]

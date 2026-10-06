@@ -3675,7 +3675,8 @@
       if (fused && item.effects) {
         item.effects = item.effects.concat(this._cardSpellEffects(MTG.oracle.analyze(o.card, 1)));
         item.fused = true;
-        this.logEvent('cast', `${p.name} fuses ${o.name}.`);
+        // the whole card, both names
+        item.name = o.card.name;
       }
       this.stack.push(item);
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
@@ -3739,7 +3740,7 @@
       this.stormCount++;
       this.spellsThisTurn = (this.spellsThisTurn || 0) + 1;   // day/night watches this
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
-      this.logEvent('cast', `${p.name} casts ${o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
+      this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
       this._fire('anyCastSpell', null, { object: o, stackId: item.id, playerId, mv: MANA.cmc(cost || '') });
@@ -6072,6 +6073,11 @@
         if (sc.whileAttached && !(o.attachments || []).length) return false;
         return true;
       }
+      // soulbond: "each of those creatures", this one and the one it is paired with
+      if (sc.paired) {
+        const mate = this._pairOf(src);
+        return !!mate && (o.id === src.id || o.id === mate.id);
+      }
       return this._scopeHit(sc, o, oa, src.controller, src, true);
     }
 
@@ -7209,8 +7215,36 @@
      * Cast, put, created or copied, it is the same arrival, so every road
      * onto the battlefield comes through here.
      */
+    /* Soulbond (CR 702.95): two creatures paired for as long as one
+       player controls both. The pairing is remembered on each; it lapses by
+       itself when either leaves or changes hands. */
+    _pairOf(o) {
+      const p = o && o.pairedWith && this.obj(o.pairedWith);
+      if (!p || p.zone !== 'battlefield' || o.zone !== 'battlefield' || p.controller !== o.controller || p.pairedWith !== o.id) return null;
+      // printed creatures (asked from inside the layers, so not the layered answer)
+      const printed = (x) => !!(O.analyze(x.card, x.face) || {}).isCreature;
+      if (!printed(o) || !printed(p)) return null;
+      return p;
+    }
+    /** The creatures a newly arrived one could pair with: a trigger to ask, when there are any. */
+    _soulbondOnEnter(o) {
+      const a = o.analysis();
+      if (!a || !a.isCreature) return;
+      const unpaired = (x) => x !== o && x.controller === o.controller && !x.phasedOut && (x.analysis() || {}).isCreature && !this._pairOf(x);
+      const bonds = this.battlefield.filter(x => x.controller === o.controller && this.hasKw(x, 'soulbond'));
+      // its own soulbond: any unpaired creature; another's: that one, with this
+      const mine = this.hasKw(o, 'soulbond') && this.battlefield.some(unpaired);
+      const others = bonds.filter(x => x !== o && unpaired(x));
+      if (!mine && !others.length) return;
+      this.pendingTriggers.push({
+        id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+        name: `${o.name} \u2014 soulbond`, auto: true, abilityText: 'Soulbond', optional: false,
+        effects: [{ op: 'soulbondPair', objId: o.id, own: mine }],
+      });
+    }
     _fireEnters(o) {
       const a = o.analysis();
+      this._soulbondOnEnter(o);
       this._fire('etb', o.controller, { object: o, source: o });
       if (a && a.isCreature) {
         this._fire('anyCreatureEtb', o.controller, { object: o });
@@ -9162,6 +9196,24 @@
           const at = Math.max(0, order.findIndex(p => p.id === ctx.controller));
           const turnOrder = order.slice(at).concat(order.slice(0, at));
           this._spliceNext(turnOrder.map(p => Object.assign({}, e.tutor, { who: 'player', pid: p.id })));
+          break;
+        }
+        // Soulbond: pair the creature that arrived with one you choose, or don't
+        case 'soulbondPair': {
+          const o = this.obj(e.objId);
+          if (!o || o.zone !== 'battlefield' || this._pairOf(o)) break;
+          const pool = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut &&
+            (x.analysis() || {}).isCreature && !this._pairOf(x) && (e.own || this.hasKw(x, 'soulbond')));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: o.controller, purpose: 'soulbond', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: 1, sourceId: o.id, sourceName: o.name,
+            prompt: `Pair ${o.name} with another creature (soulbond)?` }, 'pair');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!x || !pool.includes(x)) break;
+          o.pairedWith = x.id; x.pairedWith = o.id;
+          this.bumpBoard();
+          this.logEvent('rules', `${o.name} and ${x.name} are paired.`);
           break;
         }
         // Insurrection: every creature, untapped and yours until end of turn

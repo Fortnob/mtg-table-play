@@ -2621,6 +2621,43 @@ module.exports = (test) => {
     t.eq(wt.zone, 'hand');
   });
 
+  test('Soulbond: Wolfir Silverheart pairs as it enters, and the pair breaks as it leaves', (mk, t) => {
+    t.auto('Wolfir Silverheart');
+    const T = mk();
+    const b = T.bf('A', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [b.id] }));
+    T.mana('A', '4GG');
+    const w = T.hand('A', 'Wolfir Silverheart');
+    T.cast('A', w);
+    T.resolve();
+    t.eq(T.g.powerOf(b), 6); t.eq(T.g.powerOf(w), 8);
+    T.g.moveObject(w, 'graveyard');
+    t.eq(T.g.powerOf(b), 2, 'unpaired');
+  });
+
+  test('Soulbond: a creature entering can pair with an unpaired soulbond creature', (mk, t) => {
+    t.auto('Silverblade Paladin');
+    const T = mk();
+    const s = T.bf('A', 'Silverblade Paladin');
+    T.answer('choose', (ch) => ({ picks: [ch.items[0].id] }));
+    T.mana('A', '1G');
+    const g = T.hand('A', 'Grizzly Bears');
+    T.cast('A', g);
+    T.resolve();
+    t.ok(T.g.hasKw(g, 'double strike') && T.g.hasKw(s, 'double strike'), 'both have double strike');
+    const g2 = T.bf('B', 'Grizzly Bears');
+    t.no(T.g.hasKw(g2, 'double strike'), 'not the opponent');
+  });
+
+  test('Fuse: the stack and the log name the whole card', (mk, t) => {
+    const T = mk();
+    const ar = T.bf('B', 'Ornithopter'), en = T.bf('B', 'Glorious Anthem');
+    T.mana('A', '1RW');
+    T.g.castSpell('A', T.hand('A', 'Wear // Tear').id, { auto: true, fuse: true, targets: [{ kind: 'object', id: ar.id }, { kind: 'object', id: en.id }] });
+    t.eq(T.g.stack[T.g.stack.length - 1].name, 'Wear // Tear');
+    t.ok(T.g.log.some(l => /casts Wear \/\/ Tear \(fused\)/.test(l.text)), 'fused in the log');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
