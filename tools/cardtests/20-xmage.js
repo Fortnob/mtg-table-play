@@ -1053,6 +1053,20 @@ module.exports = (test) => {
     t.eq(bear.shields, 1);
   });
 
+  test('Power-up: cheaper the turn it enters, and only once', (mk, t) => {
+    t.auto('Unliving Legionnaire');
+    const T = mk();
+    const u = T.put('A', 'Unliving Legionnaire', 'battlefield', {});
+    u.entered = T.g.turn;
+    const ab = u.analysis().abilities.find(x => x.kind === 'activated');
+    t.eq(T.g._abilityMana(u, ab), '{2}{B}', 'its own mana cost comes off');
+    T.mana('A', '2B');
+    const idx = u.analysis().manaAbilities.length + u.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').indexOf(ab);
+    T.activate('A', u, idx, { targets: [] });
+    t.eq(u.counters['+1/+1'], 2);
+    t.ok(T.g._activationBlocked(u, ab, 'A'), 'not a second time');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

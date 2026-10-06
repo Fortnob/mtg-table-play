@@ -199,7 +199,7 @@
     /* "Boast — {1}{R}", "Exhaust — {2}{G}", "Renew — {2}{B}, Exile this
        card from your graveyard": a label that says when the ability may be
        used, in front of an ordinary cost. */
-    const lab = String(str).match(/^(Boast|Exhaust|Renew)\s*(?:\u2014|--|-)\s*(.+)$/i);
+    const lab = String(str).match(/^(Boast|Exhaust|Renew|Power-up)\s*(?:\u2014|--|-)\s*(.+)$/i);
     if (lab) { cost.label = lab[1].toLowerCase(); str = lab[2]; }
     const parts = str.split(/,\s*(?![^{]*\})/);
     for (let p of parts) {
@@ -3356,7 +3356,7 @@
   /* Labels that look like ability words but change how the ability works:
      an exhaust ability is used once, a boast only after attacking, a
      channel ability from the hand. They stay on the line. */
-  const NOT_ABILITY_WORDS = new Set(['boast', 'exhaust', 'max speed', 'channel', 'companion', 'forecast', 'renew',
+  const NOT_ABILITY_WORDS = new Set(['boast', 'exhaust', 'power-up', 'max speed', 'channel', 'companion', 'forecast', 'renew',
     'to solve', 'solved', 'visit', 'prize', 'eminence', 'mono eminence', 'bloodrush', 'spree', 'level up']);
   function stripAbilityWord(line) {
     const m = String(line).match(/^([A-Za-z][A-Za-z' ]{2,30}?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);

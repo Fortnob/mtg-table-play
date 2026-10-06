@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31810,
   "skippedLayout": 21,
-  "needed": 17312,
-  "gainedCards": 1802,
-  "linesNeeded": 19811,
+  "needed": 17297,
+  "gainedCards": 1803,
+  "linesNeeded": 19789,
   "linesGained": 2353,
   "gained": {
-   "all": 1802,
+   "all": 1803,
    "top2000": 52,
    "stdTop": 13
   },
@@ -337,25 +337,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 54,
-   "lines": 45,
-   "cards": [
-    "Drakuseth, Maw of Flames",
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut",
-    "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter",
-    "Needle Drop",
-    "Self-Destruct"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 54,
    "lines": 54,
@@ -372,6 +353,25 @@
     "Nightkin Ambusher",
     "Yuan-Ti Malison",
     "Fugitive Droid"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 53,
+   "lines": 44,
+   "cards": [
+    "Drakuseth, Maw of Flames",
+    "Pain for All",
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter",
+    "Needle Drop",
+    "Self-Destruct"
    ]
   },
   {
@@ -558,25 +558,6 @@
     "Lolth, Spider Queen",
     "Descendants' Fury",
     "Olivia, Opulent Outlaw"
-   ]
-  },
-  {
-   "what": "keyword PowerUpAbility",
-   "score": 36,
-   "lines": 36,
-   "cards": [
-    "Human Torch, Johnny Storm",
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Quicksilver, Brash Blur",
-    "Captain Marvel, Earth's Protector",
-    "Loki Laufeyson",
-    "Viv Vision, Teen Synthezoid",
-    "Hulk, Gamma Goliath",
-    "Thanos, the Mad Titan",
-    "Ultron Drone",
-    "She-Hulk, Jade Defender",
-    "Serpent Specialist",
-    "Shang-Chi, Martial Mentor"
    ]
   },
   {
@@ -3376,6 +3357,25 @@
     "Widow's Bite",
     "Atlantis Attacks",
     "Helicarrier Strike"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Quicksilver, Brash Blur",
+    "Captain Marvel, Earth's Protector",
+    "Loki Laufeyson",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Gamma Grotesque",
+    "Brawn, Amadeus Cho",
+    "Iron Fist, Hero for Hire",
+    "Goliath, Mass Manipulator",
+    "White Tiger, Ava Ayala"
    ]
   },
   {
@@ -8265,8 +8265,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4747,
-   "cards": 3973,
+   "score": 4749,
+   "cards": 3975,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8330,8 +8330,8 @@
   },
   {
    "what": "custom condition",
-   "score": 179,
-   "cards": 152,
+   "score": 180,
+   "cards": 153,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -8447,8 +8447,8 @@
   },
   {
    "what": "ConditionalRestrictionEffect",
-   "score": 43,
-   "cards": 43,
+   "score": 44,
+   "cards": 44,
    "names": [
     "Gadrak, the Crown-Scourge",
     "Putrid Imp",
@@ -8599,19 +8599,6 @@
     "The Earth King",
     "Hermes, Overseer of Elpis",
     "Persistent Marshstalker"
-   ]
-  },
-  {
-   "what": "keyword PowerUpAbility",
-   "score": 29,
-   "cards": 29,
-   "names": [
-    "Human Torch, Johnny Storm",
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Captain Marvel, Earth's Protector",
-    "Thanos, the Mad Titan",
-    "Ultron Drone",
-    "She-Hulk, Jade Defender"
    ]
   },
   {
@@ -9843,6 +9830,19 @@
     "Shepherd of Heroes",
     "Emeria Captain",
     "Allied Assault"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Captain Marvel, Earth's Protector",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Gamma Grotesque"
    ]
   },
   {

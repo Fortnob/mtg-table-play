@@ -924,7 +924,7 @@
           if (x.sorcerySpeed && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return false;
-          if (!this.couldPay(playerId, c.mana || '', purse)) return false;
+          if (!this.couldPay(playerId, this._abilityMana(o, x), purse)) return false;
           const specs = (x.targets || []).map(spec => ({ targets: [spec] })).concat(x.effects || []);
           return this._targetsAvailable(specs, playerId);
         };
@@ -4070,7 +4070,7 @@
       if (!payOk) return false;
       const used = ab.cost && ab.cost.label;
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
-      if (used === 'exhaust') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
+      if (used === 'exhaust' || used === 'power-up') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
       if (ab.only && ab.only.once) { o._usedOnce = o._usedOnce || {}; o._usedOnce[ab.text] = o.entered; }
 
       if (ab.kind === 'loyalty') {
@@ -4126,6 +4126,8 @@
         if (used >= most) return 'It has already boasted this turn.';
       }
       if (label === 'exhaust' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That exhaust ability has been used.';
+      // power-up: once, as exhaust is
+      if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That power-up ability has been used.';
       if (ab && ab.only && ab.only.once && o._usedOnce && o._usedOnce[ab.text] === o.entered) return 'That ability can be activated only once.';
       /* A level band hands out its ability only while the creature is at
          that level (CR 711.6). */
@@ -4393,6 +4395,29 @@
       this.logEvent('discard', `${this.player(pid).name} discards ${gone.map(s => s.name).join(', ')}.`);
     }
 
+    /**
+     * The mana an ability costs right now. Power-up: the permanent's own
+     * mana cost comes off it if the permanent entered this turn.
+     */
+    _abilityMana(o, ab) {
+      const c = (ab && ab.cost) || {};
+      let mana = c.mana || '';
+      if (c.label === 'power-up' && o && o.entered === this.turn && mana) {
+        const own = MANA.parse((o.analysis() || {}).manaCost || '');
+        const left = MANA.parse(mana);
+        let generic = 0;
+        const rest = [];
+        for (const sym of left) { if (/^\d+$/.test(sym)) generic += +sym; else rest.push(sym); }
+        for (const sym of own) {
+          if (/^\d+$/.test(sym)) { generic -= +sym; continue; }
+          const i = rest.indexOf(sym);
+          if (i >= 0) rest.splice(i, 1); else generic -= 1;
+        }
+        mana = (generic > 0 ? '{' + generic + '}' : '') + rest.map(x => '{' + x + '}').join('');
+      }
+      return mana;
+    }
+
     _payAbilityCost(playerId, o, ab, opts) {
       const cost = ab.cost || {};
       const thing = this._thingCostBlocked(playerId, cost, o, opts);
@@ -4411,12 +4436,13 @@
       if (lifeFrom && p.life < lifeFrom) return this.fail('Not enough life.');
       // `free` skips payment the same way it does for a spell, which is what
       // relaxed tables and alternative costs rely on
-      if (cost.mana && !opts.free) {
+      const abMana = this._abilityMana(o, ab);
+      if (abMana && !opts.free) {
         /* A permanent that taps as part of the cost cannot also be tapped
            for mana to pay the rest of it (Mind Stone's "{1}, {T}"). */
         const wasTapped = o.tapped;
         if (cost.tap) o.tapped = true;
-        const paid = this.payMana(playerId, cost.mana, Object.assign({}, opts, { forAbility: o }));
+        const paid = this.payMana(playerId, abMana, Object.assign({}, opts, { forAbility: o }));
         if (cost.tap) o.tapped = wasTapped;
         if (!paid) return this.fail(`Not enough mana (${cost.mana}).`);
       }
