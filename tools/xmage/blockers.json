@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17082,
+  "needed": 17073,
   "gainedCards": 1776,
-  "linesNeeded": 19505,
+  "linesNeeded": 19491,
   "linesGained": 2308,
   "gained": {
    "all": 1776,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6013,
-   "lines": 5008,
+   "score": 5992,
+   "lines": 5005,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -148,21 +148,21 @@
   },
   {
    "what": "custom condition",
-   "score": 241,
-   "lines": 202,
+   "score": 230,
+   "lines": 200,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
     "Liberator, Urza's Battlethopter",
     "Defense of the Heart",
-    "Grab the Prize",
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
     "Urabrask // The Great Work",
     "Nasty End",
     "Endless Atlas",
     "Y'shtola, Night's Blessed",
-    "Queen Marchesa"
+    "Queen Marchesa",
+    "The Chain Veil"
    ]
   },
   {
@@ -319,13 +319,12 @@
   },
   {
    "what": "InfoEffect",
-   "score": 59,
-   "lines": 56,
+   "score": 55,
+   "lines": 52,
    "cards": [
     "Vorinclex, Monstrous Raider",
     "Invert Polarity",
     "Nazgûl",
-    "The Kami War // O-Kagachi Made Manifest",
     "Liesa, Shroud of Dusk",
     "Jolted Awake",
     "Fallaji Wayfarer",
@@ -333,7 +332,8 @@
     "Intellect Devourer",
     "Swallowed by Leviathan",
     "The Tabernacle at Pendrell Vale",
-    "Myr Superion"
+    "Myr Superion",
+    "Hogaak, Arisen Necropolis"
    ]
   },
   {
@@ -1721,25 +1721,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 19,
-   "lines": 16,
-   "cards": [
-    "Sword of Hearth and Home",
-    "Sanctum of Eternity",
-    "Aminatou, the Fateshifter",
-    "Slip On the Ring",
-    "Meneldor, Swift Savior",
-    "Coveted Falcon",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Northampton Farm",
-    "Tel-Jilad Stylus",
-    "Leave // Chance",
-    "Conjured Currency"
-   ]
-  },
-  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -1771,20 +1752,6 @@
     "Kargan Intimidator",
     "Three Bowls of Porridge",
     "Sol'Kanar the Tainted"
-   ]
-  },
-  {
-   "what": "modal activated ability",
-   "score": 19,
-   "lines": 7,
-   "cards": [
-    "Koma, Cosmos Serpent",
-    "Insidious Fungus",
-    "Bow of Nylea",
-    "Power Conduit",
-    "Lobelia, Defender of Bag End",
-    "Ransom Note",
-    "Pyramids"
    ]
   },
   {
@@ -1878,6 +1845,25 @@
     "Otherworldly Outburst",
     "Searing Blood",
     "Melira, the Living Cure"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Sword of Hearth and Home",
+    "Sanctum of Eternity",
+    "Aminatou, the Fateshifter",
+    "Slip On the Ring",
+    "Meneldor, Swift Savior",
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency",
+    "The Neutrinos"
    ]
   },
   {
@@ -4171,15 +4157,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .withTextThatCard)",
-   "score": 12,
-   "lines": 3,
-   "cards": [
-    "Charming Prince",
-    "Venser, the Sojourner"
-   ]
-  },
-  {
    "what": "spell from a zone",
    "score": 12,
    "lines": 9,
@@ -4802,21 +4779,6 @@
     "The Scorpion God",
     "Ares, God of War",
     "Yomiji, Who Bars the Way"
-   ]
-  },
-  {
-   "what": "AmassEffect",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Barad-dûr",
-    "Sauron, Lord of the Rings",
-    "Moria Scavenger",
-    "Summons of Saruman",
-    "Assault on Osgiliath",
-    "Gríma Wormtongue",
-    "Invade the City",
-    "Bleeding Edge"
    ]
   },
   {
@@ -5444,6 +5406,20 @@
     "Bard's Company",
     "Scarring Memories",
     "Illusion Spinners"
+   ]
+  },
+  {
+   "what": "AmassEffect",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Barad-dûr",
+    "Sauron, Lord of the Rings",
+    "Summons of Saruman",
+    "Assault on Osgiliath",
+    "Gríma Wormtongue",
+    "Invade the City",
+    "Bleeding Edge"
    ]
   },
   {
@@ -6177,6 +6153,19 @@
     "Sparkshaper Visionary",
     "The Curse of Fenric",
     "Dance of the Skywise"
+   ]
+  },
+  {
+   "what": "modal activated ability",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Koma, Cosmos Serpent",
+    "Bow of Nylea",
+    "Power Conduit",
+    "Lobelia, Defender of Bag End",
+    "Ransom Note",
+    "Pyramids"
    ]
   },
   {
@@ -8216,12 +8205,26 @@
     "Hedge Whisperer",
     "Sample Collector"
    ]
+  },
+  {
+   "what": "EquipmentAttachedCount",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Kemba, Kha Regent",
+    "Goblin Gaveleer",
+    "Catti-brie of Mithral Hall",
+    "Captain America, Liberator",
+    "Winter Soldier, Icy Assassin",
+    "Myr Adapter",
+    "Loxodon Punisher"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4705,
+   "score": 4687,
    "cards": 3964,
    "names": [
     "Ripples of Undeath",
@@ -8286,15 +8289,15 @@
   },
   {
    "what": "custom condition",
-   "score": 180,
-   "cards": 153,
+   "score": 169,
+   "cards": 151,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
     "Liberator, Urza's Battlethopter",
     "Defense of the Heart",
-    "Grab the Prize",
-    "Sting, the Glinting Dagger"
+    "Sting, the Glinting Dagger",
+    "Nasty End"
    ]
   },
   {
@@ -8416,8 +8419,8 @@
   },
   {
    "what": "InfoEffect",
-   "score": 36,
-   "cards": 36,
+   "score": 35,
+   "cards": 35,
    "names": [
     "Invert Polarity",
     "Liesa, Shroud of Dusk",
@@ -8904,19 +8907,6 @@
     "Get Out",
     "Succumb to the Cold",
     "Run for Your Life"
-   ]
-  },
-  {
-   "what": "modal activated ability",
-   "score": 18,
-   "cards": 6,
-   "names": [
-    "Koma, Cosmos Serpent",
-    "Insidious Fungus",
-    "Bow of Nylea",
-    "Power Conduit",
-    "Ransom Note",
-    "Pyramids"
    ]
   },
   {
@@ -10095,15 +10085,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .withTextThatCard)",
-   "score": 11,
-   "cards": 2,
-   "names": [
-    "Charming Prince",
-    "Venser, the Sojourner"
-   ]
-  },
-  {
    "what": "MillHalfLibraryTargetEffect",
    "score": 11,
    "cards": 5,
@@ -10460,19 +10441,6 @@
     "Galadriel, Light of Valinor",
     "Lita, Little Orphan Amphibian",
     "Sizzling Soloist"
-   ]
-  },
-  {
-   "what": "AmassEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Barad-dûr",
-    "Moria Scavenger",
-    "Summons of Saruman",
-    "Assault on Osgiliath",
-    "Gríma Wormtongue",
-    "Invade the City"
    ]
   },
   {
@@ -10888,6 +10856,19 @@
     "Fated Clash",
     "Scarring Memories",
     "Illusion Spinners"
+   ]
+  },
+  {
+   "what": "AmassEffect",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Barad-dûr",
+    "Summons of Saruman",
+    "Assault on Osgiliath",
+    "Gríma Wormtongue",
+    "Invade the City",
+    "Bleeding Edge"
    ]
   },
   {
@@ -11531,6 +11512,18 @@
    ]
   },
   {
+   "what": "modal activated ability",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Koma, Cosmos Serpent",
+    "Bow of Nylea",
+    "Power Conduit",
+    "Ransom Note",
+    "Pyramids"
+   ]
+  },
+  {
    "what": "counter of a non-spell",
    "score": 8,
    "cards": 5,
@@ -12038,6 +12031,19 @@
     "Gandalf, Party Guest",
     "Wildfire Eternal",
     "Surtland Elementalist"
+   ]
+  },
+  {
+   "what": "activated with 2 effects in its constructor",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Primordial Mist",
+    "Back from the Brink",
+    "Skeleton Scavengers",
+    "Nivmagus Elemental",
+    "Murderous Betrayal",
+    "Impelled Giant"
    ]
   }
  ]

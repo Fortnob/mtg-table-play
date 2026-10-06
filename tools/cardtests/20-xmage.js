@@ -1347,6 +1347,72 @@ module.exports = (test) => {
     t.ok(m && m.effects.every(e => e.op === 'addManaChoice' && e.choices.length === 3), 'two choices of U, B or R');
   });
 
+  test("Grab the Prize: 2 damage only if the discarded card wasn't a land", (mk, t) => {
+    t.auto('Grab the Prize');
+    for (const [disc, life] of [['Island', 20], ['Shock', 18]]) {
+      const T = mk();
+      T.hand('A', disc);
+      T.top('A', 'Forest'); T.top('A', 'Forest');
+      T.mana('A', '1R');
+      T.cast('A', T.hand('A', 'Grab the Prize'));
+      t.eq(T.life('B'), life, disc);
+      t.eq(T.zone('A', 'hand').length, 2, 'drew two');
+    }
+  });
+
+  test('Charming Prince flickers another creature you own', (mk, t) => {
+    t.auto('Charming Prince');
+    const T = mk();
+    const g = T.bf('A', 'Grizzly Bears');
+    T.answer('mode', { modes: [2] });
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Charming Prince'));
+    T.resolve();
+    t.eq(g.zone, 'exile');
+    T.toMain('B');
+    t.ok(T.bfOf('A').some(o => o.name === 'Grizzly Bears'), 'back at the end step');
+  });
+
+  test('Insidious Fungus: draw, then put a land from hand tapped', (mk, t) => {
+    t.auto('Insidious Fungus');
+    const T = mk();
+    const f = T.bf('A', 'Insidious Fungus');
+    T.hand('A', 'Forest');
+    T.top('A', 'Island');
+    T.answer('mode', { modes: [2] });
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', '2');
+    const a = f.analysis();
+    T.activate('A', f, a.manaAbilities.length);
+    T.resolve();
+    const lands = T.bfOf('A').filter(o => o.analysis().isLand);
+    t.eq(lands.length, 1, 'a land went in');
+    t.ok(lands[0] && lands[0].tapped, 'tapped');
+  });
+
+  test("Maha: opponents' creatures have base toughness 1", (mk, t) => {
+    t.auto('Maha, Its Feathers Night');
+    const T = mk();
+    const w = T.bf('B', 'Craw Wurm');
+    const m = T.bf('A', 'Maha, Its Feathers Night');
+    t.eq(T.g.toughnessOf(w), 1);
+    t.eq(T.g.powerOf(w), 6, 'power kept');
+    t.ok(T.g.toughnessOf(m) > 1, 'not its own side');
+  });
+
+  test('Witness Protection turns a creature into a vanilla 1/1 Citizen', (mk, t) => {
+    t.auto('Witness Protection');
+    const T = mk();
+    const x = T.bf('B', 'Serra Angel');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Witness Protection'), { targets: [T.tgt(x)] });
+    T.resolve();
+    t.eq(T.g.powerOf(x), 1); t.eq(T.g.toughnessOf(x), 1);
+    t.no(T.g.hasKw(x, 'flying'), 'lost flying');
+    t.eq(x.analysis().subtypes.join(), 'Citizen');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

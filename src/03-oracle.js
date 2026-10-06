@@ -1707,7 +1707,7 @@
 
 
     /* ===== putting a card from hand straight onto the battlefield ===== */
-    { re: /^(?:You may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
+    { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
     /* "Put target creature on the top or bottom of its owner's library":
        the one who resolves it chooses; "its owner puts it on their choice
@@ -2209,6 +2209,16 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Charming Prince: "Exile another target creature you own."
+    { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
+      make: (m) => ({ op: 'exile', targets: [Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].toLowerCase()), { owner: 'you' })] }) },
+    /* Grab the Prize: "If the discarded card wasn't a land card, …" — the
+       card discarded to cast it */
+    { re: /^If the discarded card (was|wasn'?t) an? ([a-z]+) card, (.+)$/i,
+      make: (m) => {
+        const inner = parseEffects(m[3].replace(/^(\w)/, (c) => c.toUpperCase()));
+        return inner.auto ? { op: 'ifDiscarded', type: m[2].toLowerCase(), not: /n'?t/i.test(m[1]), then: inner.effects } : null;
+      } },
     /* Thirst for Knowledge: "Then discard two cards unless you discard an artifact card." */
     { re: /^(?:Then )?[Dd]iscard (two|three) cards unless you discard an? ([a-z]+) card\.?$/,
       make: (m) => ({ op: 'discardUnlessType', n: num(m[1]), type: m[2].toLowerCase() }) },
@@ -5390,6 +5400,21 @@
   }
 
   const CONTINUOUS_RULES = [
+    // Maha: "Creatures your opponents control have base toughness 1."
+    { re: /^(.+?) (?:have|has) base toughness (\d+)\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 7, scope, setPt: { t: +m[2] } } : null; } },
+    // Leyline of the Guildpact: "Each nonland permanent you control is all colors."
+    { re: /^(.+?) (?:is|are) all colors\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 5, scope, setColors: ['W', 'U', 'B', 'R', 'G'] } : null; } },
+    /* Witness Protection: "Enchanted creature loses all abilities and is a
+       green and white Citizen creature with base power and toughness 1/1
+       named …" (the name is the table's to show, not a rule) */
+    { re: /^Enchanted creature loses all abilities and is an? ((?:white|blue|black|red|green)(?: and (?:white|blue|black|red|green))?) ([A-Z][a-z]+) creature with base power and toughness (\d+)\/(\d+)(?: named [^.]+)?\.?$/,
+      make: (m) => {
+        const CW = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+        return { op: 'continuous', layer: 4, scope: { attached: true }, loseAll: true, setTypes: ['Creature'], setCreatureTypes: [m[2]],
+          setColors: m[1].split(' and ').map(c => CW[c]), setPt: { p: +m[3], t: +m[4] } };
+      } },
     { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able)\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);

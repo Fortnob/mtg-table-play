@@ -8946,6 +8946,15 @@
           if (la && la.zone !== 'battlefield') this._spliceNext(e.then || []);
           break;
         }
+        // "If the discarded card wasn't a land card, …"
+        case 'ifDiscarded': {
+          const d = (ctx.discarded || [])[0];
+          const card = d && this.obj(d.id);
+          if (!card) break;
+          const is = this._matchesCategory(card, e.type);
+          if (e.not ? !is : is) this._spliceNext(e.then || []);
+          break;
+        }
         case 'keepMana':
           me.poolKeepUntil = 'turn';
           me.poolKeepTurn = this.turn;
