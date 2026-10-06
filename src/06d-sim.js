@@ -154,7 +154,7 @@
     const limit = maxSteps || 3000;
     for (let i = 0; i < limit; i++) {
       if (g.over || (stop && stop(g))) return i;
-      if (deadline && (i & 3) === 3 && clock() > deadline) return -1;
+      if (deadline && i && clock() > deadline) return -1;
       const v = g.stateVersion;
       act(g, players);
       if (g.stateVersion === v) {

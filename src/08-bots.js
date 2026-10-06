@@ -3514,10 +3514,10 @@
     }
 
     /** The best set of attackers against one defender, by trying to leave each out. */
-    _searchAttack(attackers, blockers, target) {
+    _searchAttack(attackers, blockers, target, passes) {
       let set = attackers.filter(o => this.game.powerOf(o) > 0);
       let best = this._attackValue(set, blockers, target);
-      for (let pass = 0; pass < 4 && set.length; pass++) {
+      for (let pass = 0; pass < (passes || 4) && set.length; pass++) {
         let drop = null, dropVal = best;
         for (const o of set) {
           const without = set.filter(x => x.id !== o.id);
@@ -3548,7 +3548,11 @@
          them. A political bot leans harder on the leader, and spreads its
          attacks rather than hitting the same player turn after turn. */
       let target = null, plan = null;
+      /* In a look ahead's copy of a crowded board the whole-attack search
+         is cut short: a copy is one of dozens, and a rough read is plenty. */
+      const rough = this.game.isScratch && myAttackers.length > 8;
       if (opps.length === 1) target = opps[0];
+      else if (rough) target = legalDef.has((this.mainOpponent() || {}).id) ? this.mainOpponent() : opps[0];
       else if (!this.sharp()) {
         target = opps.filter(p => legalDef.has(p.id))
           .sort((a, b) => blockersOf(a.id).length - blockersOf(b.id).length || this._leaderScore(b) - this._leaderScore(a))[0] || opps[0];
@@ -3609,7 +3613,7 @@
          that is better. A few passes of that beats any amount of
          per-creature rules of thumb. */
       if (this.cfg.attackSearch) {
-        const r = plan && plan.set ? plan : this._searchAttack(myAttackers, theirBlockers, target);
+        const r = plan && plan.set ? plan : this._searchAttack(myAttackers, theirBlockers, target, rough ? 1 : 4);
         let set = r.set;
         const myClock = totalPower > 0 ? Math.ceil(target.life / totalPower) : 99;
         const theirPower = U.sum(g.battlefield.filter(o => o.controller === target.id && this._isCreature(o)).map(o => g.powerOf(o)));
@@ -3983,7 +3987,9 @@
       if (!bots[this.pid] || !cand.apply(f, bots[this.pid])) return null;
       const stopAt = g.turn + ((L && L.horizon) || HORIZON);
       const t0 = now();
-      const steps = MTG.sim.drive(f, bots, (x) => x.turn >= stopAt, ROLLOUT_STEPS, t0 + ROLLOUT_MS);
+      // a copy of a big table gets less time each: there are more of them to a decision than it seems
+      const limit = f.players.filter(p => !p.hasLost).length > 2 ? ROLLOUT_MS * 0.5 : ROLLOUT_MS;
+      const steps = MTG.sim.drive(f, bots, (x) => x.turn >= stopAt, ROLLOUT_STEPS, t0 + limit * (MTG.bots.lookCapScale || 1));
       const ms = now() - t0;
       if (!this._slowest || ms > this._slowest.ms) this._slowest = { ms: Math.round(ms), steps, turn: f.turn, step: f.step };
       return tableScore(f, this.pid, this.evalWeights());

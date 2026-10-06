@@ -1,6 +1,6 @@
 /* Replays must come out the same as the games they record.
 
-   node tools/replaytest.js [--games 25] [--players 2] [--format standard] [--seed 1] [--turns 40]
+   node tools/replaytest.js [--games 25] [--players 2] [--format standard] [--seed 1] [--turns 40] [--localdb]
 
    Each game is a bot-vs-bot sim (tools/sim.js) with a recorder on it from
    the first action. When it is over the recording is written out as JSON,
@@ -19,7 +19,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose') { a.verbose = true; continue; }
+    if (k === 'verbose' || k === 'localdb') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -43,6 +43,8 @@ function snap(g) {
 async function main() {
   const a = args();
   const MTG = load();
+  // --localdb: build the decks from the local card database, as the app does
+  if (a.localdb) await require('./localdb').loadLocalDb(MTG, { kind: 'oracle_cards' });
   let bad = 0, actions = 0, bytes = 0;
   const t0 = Date.now();
   for (let i = 0; i < a.games; i++) {
