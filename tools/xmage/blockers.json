@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16748,
-  "gainedCards": 1759,
-  "linesNeeded": 19093,
-  "linesGained": 2277,
+  "needed": 16734,
+  "gainedCards": 1756,
+  "linesNeeded": 19072,
+  "linesGained": 2273,
   "gained": {
-   "all": 1759,
+   "all": 1756,
    "top2000": 52,
    "stdTop": 12
   },
@@ -2846,24 +2846,6 @@
    ]
   },
   {
-   "what": "variable loyalty",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Ugin, the Spirit Dragon",
-    "Chandra, Awakened Inferno",
-    "Chandra, Hope's Beacon",
-    "Jeska, Thrice Reborn",
-    "Xenagos, the Reveler",
-    "Jace, the Perfected Mind",
-    "Ashiok, Nightmare Weaver",
-    "Huatli, Warrior Poet",
-    "Chandra, Chill of Compliance",
-    "Nissa, Genesis Mage",
-    "Angrath, Minotaur Pirate"
-   ]
-  },
-  {
    "what": "FirebendingAbility",
    "score": 14,
    "lines": 5,
@@ -3153,25 +3135,6 @@
    ]
   },
   {
-   "what": "DealtDamageToCreatureBySourceDies",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Gallifrey Falls // No More",
-    "Red Sun's Zenith",
-    "Demonfire",
-    "Crush the Weak",
-    "Annihilating Fire",
-    "Incendiary Flow",
-    "Frostwielder",
-    "Kumano, Master Yamabushi",
-    "Underworld Fires",
-    "Yamabushi's Storm",
-    "Touch of the Void",
-    "Yamabushi's Flame"
-   ]
-  },
-  {
    "what": "PreventDamageByTargetEffect",
    "score": 14,
    "lines": 14,
@@ -3258,6 +3221,23 @@
     "Psychic Impetus",
     "Acquired Mutation",
     "Incriminating Impetus"
+   ]
+  },
+  {
+   "what": "variable loyalty",
+   "score": 13,
+   "lines": 10,
+   "cards": [
+    "Ugin, the Spirit Dragon",
+    "Chandra, Hope's Beacon",
+    "Jeska, Thrice Reborn",
+    "Xenagos, the Reveler",
+    "Jace, the Perfected Mind",
+    "Ashiok, Nightmare Weaver",
+    "Huatli, Warrior Poet",
+    "Chandra, Chill of Compliance",
+    "Nissa, Genesis Mage",
+    "Angrath, Minotaur Pirate"
    ]
   },
   {
@@ -8179,13 +8159,23 @@
     "Mirri, Weatherlight Duelist",
     "Judoon Enforcers"
    ]
+  },
+  {
+   "what": "SearchLibraryForFourDifferentCardsEffect",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Gifts Ungiven",
+    "Realms Uncharted",
+    "Elemental Teachings"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4538,
-   "cards": 3914,
+   "score": 4539,
+   "cards": 3915,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8223,8 +8213,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 243,
-   "cards": 231,
+   "score": 244,
+   "cards": 232,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -9741,19 +9731,6 @@
     "Nightshade Schemers",
     "Wandering Graybeard",
     "Mudbutton Clanger"
-   ]
-  },
-  {
-   "what": "DealtDamageToCreatureBySourceDies",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Red Sun's Zenith",
-    "Crush the Weak",
-    "Annihilating Fire",
-    "Incendiary Flow",
-    "Frostwielder",
-    "Kumano, Master Yamabushi"
    ]
   },
   {
@@ -12023,6 +12000,19 @@
     "Craig Boone, Novac Guard",
     "Master's Guidance",
     "Tide Skimmer"
+   ]
+  },
+  {
+   "what": "AddManaInAnyCombinationEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Burnt Offering",
+    "Thornvault Forager",
+    "Molten Slagheap",
+    "Dreadship Reef",
+    "Calciform Pools",
+    "Saltcrusted Steppe"
    ]
   }
  ]

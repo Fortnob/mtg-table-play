@@ -875,7 +875,7 @@
     { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'selfFromGraveyard', to: 'battlefield' }) },
     { re: /^Sacrifice (?:CARDNAME|it)\.?$/i, make: () => ({ op: 'sacrificeSelf' }) },
-    { re: /^Regenerate (?:CARDNAME)\.?$/i, make: () => ({ op: 'regenerate', scope: 'self' }) },
+    { re: /^Regenerate (?:CARDNAME|this permanent|this artifact|this land)\.?$/i, make: () => ({ op: 'regenerate', scope: 'self' }) },
 
     // --- pump ---
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
@@ -905,8 +905,8 @@
     { re: /^Mill (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'you' }) },
     { re: /^(?:Then )?[Ll]earn\.?$/, make: () => ({ op: 'learn' }) },
     /* "Tap two target creatures." */
-    { re: /^Tap (two|three|four) target ([a-z][a-z '-]*?)s\.?$/i,
-      make: (m) => ({ op: 'tap', targets: Array.from({ length: num(m[1]) }, () => targetSpec('target ' + m[2])) }) },
+    { re: /^(Tap|Untap) (two|three|four) target ([a-z][a-z '-]*?)s\.?$/i,
+      make: (m) => ({ op: m[1].toLowerCase(), targets: Array.from({ length: num(m[2]) }, () => targetSpec('target ' + m[3])) }) },
     { re: /^(Target player|Each player) shuffles their graveyard into their library\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'graveyardToLibrary', who: 'target', targets: [{ type: 'player' }] }
         : { op: 'graveyardToLibrary', who: 'each' }) },
@@ -2059,6 +2059,9 @@
       make: () => ({ op: 'attachSelf' }) },
     { re: /^If that (?:creature|permanent)(?: or planeswalker)? would die this turn, exile it instead\.?$/i,
       make: () => ({ op: 'exileIfItDies' }) },
+    // Yamabushi's Flame: "If a creature dealt damage this way would die this turn, exile it instead."
+    { re: /^If a (?:creature|permanent)(?: or planeswalker)? dealt damage this way would die this turn, exile it instead\.?$/i,
+      make: () => ({ op: 'exileIfItDies', dealtThisWay: true }) },
     { re: /^(?:You )?[Dd]raw a card at the beginning of the next turn'?s upkeep\.?$/,
       make: () => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, name: 'Draw a card',
         effects: [{ op: 'draw', n: 1, who: 'you' }] }) },

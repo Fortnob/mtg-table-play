@@ -1501,6 +1501,7 @@
       if (!item) { this._resetPriority(); return; }
       this._lastLifeLost = 0;   // "gain life equal to the life lost this way" counts within one resolution
       this._lastDamageDealt = 0;
+      this._dealtThisWay = [];
       this._lastAffected = null;
       this._lastCopy = null;
       this._lastPut = null;
@@ -6746,6 +6747,8 @@
         if (!o._damagedBy || o._damagedBy.turn !== this.turn) o._damagedBy = { turn: this.turn, ids: [] };
         if (!o._damagedBy.ids.includes(source.id)) o._damagedBy.ids.push(source.id);
       }
+      // "a creature dealt damage this way", for the sentence after
+      (this._dealtThisWay = this._dealtThisWay || []).push(o.id);
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       if (source && this.hasKw(source, 'deathtouch')) o.dealtDeathtouch = true;
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!isCombat });
@@ -10500,6 +10503,8 @@
         }
         case 'exileIfItDies': {
           this._exileOnDeath = this._exileOnDeath || new Set();
+          // "If a creature dealt damage this way would die this turn": every one of them
+          if (e.dealtThisWay) { for (const id of (this._dealtThisWay || [])) this._exileOnDeath.add(id); break; }
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
           if (x) this._exileOnDeath.add(x.id);
           break;

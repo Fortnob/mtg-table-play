@@ -2507,6 +2507,23 @@ module.exports = (test) => {
     t.ok(T.g.couldBlock(T.bf('B', 'Craw Wurm'), bear, 'B'), 'the Wurm can');
   });
 
+  test("Yamabushi's Flame exiles the creature it kills", (mk, t) => {
+    t.auto("Yamabushi's Flame");
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', "Yamabushi's Flame"), { targets: [T.tgt(b)] });
+    T.resolve();
+    t.zone(b, 'exile');
+  });
+
+  test('Clot Sliver: Slivers regenerate', (mk, t) => {
+    t.auto('Clot Sliver');
+    const T = mk();
+    const c = T.bf('A', 'Clot Sliver');
+    t.ok(c.analysis().abilities.some(x => x.kind === 'activated' && /Regenerate/.test(x.text)), 'the granted ability');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
