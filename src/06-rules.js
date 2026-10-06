@@ -5020,6 +5020,23 @@
       return true;
     }
 
+    /**
+     * The attackers this creature is required to block if it can: one that
+     * made it ("target creature blocks this creature this turn if able"),
+     * and any lure ("all creatures able to block this creature do so").
+     */
+    _blockDemands(o) {
+      const out = [];
+      for (const aid of ((this.combat && this.combat.attackers) || [])) {
+        const at = this.obj(aid);
+        if (!at || !this.canBlock(o, at)) continue;
+        const named = (o.effects || []).some(e => e && e.mustBlockId === at.id);
+        const lure = this._hasFlag(at, 'lure') || !!this._staticOp(at, 'lure');
+        if (named || lure) out.push(at);
+      }
+      return out;
+    }
+
     canBlock(blocker, attacker) {
       const def = attacker.attacking;
       const defPid = this.player(def) ? def : (this.obj(def) ? this.obj(def).controller : null);
@@ -5192,6 +5209,14 @@
           if (declarations.some(d => d.blockerId === o.id)) continue;
           if (this.combat.attackers.some(aid => { const at = this.obj(aid); return at && this.canBlock(o, at); }))
             return this.fail(`${o.name} blocks this turn if able.`);
+        }
+        // "blocks this creature if able", and lures: must block one of those it is drawn to
+        for (const o of this.battlefield) {
+          if (o.controller !== playerId) continue;
+          const drawn = this._blockDemands(o);
+          if (!drawn.length) continue;
+          if (declarations.some(d => d.blockerId === o.id && d.attackerIds.some(id => drawn.some(x => x.id === id)))) continue;
+          return this.fail(`${o.name} must block ${drawn[0].name} if able.`);
         }
       }
       this.pendingChoice = null;
@@ -10070,6 +10095,14 @@
           break;
         }
 
+        // "Target creature blocks this creature this turn if able."
+        case 'mustBlockThis':
+          if (!src) break;
+          applyToScope(e, (o) => {
+            o.effects.push({ mustBlockId: src.id, until: 'eot' });
+            this.logEvent('rules', `${o.name} blocks ${src.name} this turn if able.`);
+          });
+          break;
         // "Target creature can't block this creature this turn."
         case 'cantBlockThis':
           if (!src) break;

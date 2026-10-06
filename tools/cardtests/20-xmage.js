@@ -968,6 +968,31 @@ module.exports = (test) => {
     t.no(T.g.altUsesFor('A', c.id).length, 'nothing more on offer');
   });
 
+  test('Lure: every creature able to block it must', (mk, t) => {
+    t.auto('Breaker of Armies');
+    const T = mk();
+    const br = T.bf('A', 'Breaker of Armies');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const b1 = T.bf('B', 'Llanowar Elves'), b2 = T.bf('B', 'Runeclaw Bear');
+    T.answer('declareAttackers', () => [{ attackerId: br.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers');
+    T.g.priorityPlayer && T.resolve();
+    T.answer('declareBlockers', () => [{ blockerId: b1.id, attackerIds: [bear.id] }]);
+    let refused = false;
+    try { T.toMain('A', 'combatDamage'); } catch (e) { refused = /must block/.test(e.message + T.g.lastError) || /not accepted/.test(e.message); }
+    t.ok(refused, 'blocking the bear instead is refused');
+  });
+
+  test('Lure: whoever can block it is drawn to it', (mk, t) => {
+    const T = mk();
+    const br = T.bf('A', 'Breaker of Armies');
+    const b1 = T.bf('B', 'Llanowar Elves');
+    t.eq(T.g._blockDemands(b1).length, 0, 'nothing attacking yet');
+    T.answer('declareAttackers', () => [{ attackerId: br.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers');
+    t.eq(T.g._blockDemands(b1).map(x => x.id).join(), br.id, 'drawn to the lure');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

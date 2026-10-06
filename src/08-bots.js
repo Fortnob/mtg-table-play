@@ -3856,6 +3856,13 @@
         const at = ch.attackers.map(x => g.obj(x)).find(x => x && g.canBlock(b, x));
         if (at) out.push({ blockerId: b.id, attackerIds: [at.id] });
       }
+      // drawn to one attacker in particular: a lure, or "blocks this creature if able"
+      for (const id of ch.candidates) {
+        const b = g.obj(id);
+        if (!b || out.some(d => d.blockerId === id) || !g._blockDemands) continue;
+        const drawn = g._blockDemands(b);
+        if (drawn.length) out.push({ blockerId: b.id, attackerIds: [drawn[0].id] });
+      }
       return out;
     }
 

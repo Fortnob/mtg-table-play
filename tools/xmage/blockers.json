@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17418,
+  "needed": 17396,
   "gainedCards": 1802,
-  "linesNeeded": 19942,
+  "linesNeeded": 19911,
   "linesGained": 2358,
   "gained": {
    "all": 1802,
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 376,
-   "lines": 355,
+   "score": 375,
+   "lines": 354,
    "cards": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -1417,25 +1417,6 @@
    ]
   },
   {
-   "what": "keyword AftermathAbility",
-   "score": 23,
-   "lines": 20,
-   "cards": [
-    "Dusk // Dawn",
-    "Insult // Injury",
-    "Consign // Oblivion",
-    "Indulge // Excess",
-    "Road // Ruin",
-    "Driven // Despair",
-    "Rags // Riches",
-    "Reason // Believe",
-    "Struggle // Survive",
-    "Spring // Mind",
-    "Refuse // Cooperate",
-    "Leave // Chance"
-   ]
-  },
-  {
    "what": "AddCountersPlayersEffect",
    "score": 23,
    "lines": 20,
@@ -1547,6 +1528,25 @@
     "Pixie Illusionist",
     "Mystic Compass",
     "Dream Thrush"
+   ]
+  },
+  {
+   "what": "keyword AftermathAbility",
+   "score": 22,
+   "lines": 19,
+   "cards": [
+    "Dusk // Dawn",
+    "Insult // Injury",
+    "Consign // Oblivion",
+    "Indulge // Excess",
+    "Road // Ruin",
+    "Driven // Despair",
+    "Rags // Riches",
+    "Reason // Believe",
+    "Struggle // Survive",
+    "Spring // Mind",
+    "Refuse // Cooperate",
+    "Leave // Chance"
    ]
   },
   {
@@ -3759,25 +3759,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAllSourceEffect",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Breaker of Armies",
-    "Treeshaker Chimera",
-    "Taunting Elf",
-    "Nessian Boar",
-    "Ochran Assassin",
-    "Noble Quarry",
-    "Shinen of Life's Roar",
-    "Prized Unicorn",
-    "Golgari Decoy",
-    "Elvish Bard",
-    "Mortipede",
-    "Nath's Elite"
-   ]
-  },
-  {
    "what": "keyword FlyingAbility",
    "score": 14,
    "lines": 14,
@@ -4346,25 +4327,6 @@
     "Inkling Mascot",
     "Inkshape Demonstrator",
     "Rehearsed Debater"
-   ]
-  },
-  {
-   "what": "MustBeBlockedByTargetSourceEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Turntimber Basilisk",
-    "Impetuous Devils",
-    "Sisters of Stone Death",
-    "Torchling",
-    "Tangle Angler",
-    "Vortex Elemental",
-    "Maraleaf Rider",
-    "Avalanche Tusker",
-    "Matsu-Tribe Decoy",
-    "Burning-Tree Bloodscale",
-    "Giant Ambush Beetle",
-    "Trumpeting Armodon"
    ]
   },
   {
@@ -7611,20 +7573,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAllTargetEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Roar of Challenge",
-    "Armed // Dangerous",
-    "Alluring Scent",
-    "Declare Dominance",
-    "Bloodscent",
-    "Taunting Challenge",
-    "Taunting Arbormage"
-   ]
-  },
-  {
    "what": "keyword StoriedAbility",
    "score": 8,
    "lines": 8,
@@ -8282,13 +8230,55 @@
     "Skyreaping",
     "Nylea's Huntmaster"
    ]
+  },
+  {
+   "what": "MultipliedValue of \"X\"",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Nuclear Fallout",
+    "The Master of Keys",
+    "Thassa's Intervention",
+    "Increasing Confusion",
+    "Stonesplitter Bolt",
+    "Procrastinate",
+    "Vicious Betrayal"
+   ]
+  },
+  {
+   "what": "TapAllTargetPlayerControlsEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Naya Charm",
+    "Kiora Bests the Sea God",
+    "Tempest Caller",
+    "Tectonic Instability",
+    "Dovin, Architect of Law",
+    "Torrent Elemental",
+    "Gulf Squid"
+   ]
+  },
+  {
+   "what": "Ability.setWorksFaceDown",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Hooded Hydra",
+    "Gift of Doom",
+    "Vesuvan Shapeshifter",
+    "Jeering Instigator",
+    "Bubble Smuggler",
+    "Crowd-Control Warden",
+    "Aquamorph Entity"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4745,
-   "cards": 3971,
+   "score": 4746,
+   "cards": 3972,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8326,8 +8316,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 241,
-   "cards": 229,
+   "score": 243,
+   "cards": 231,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -8794,15 +8784,15 @@
   },
   {
    "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 23,
-   "cards": 23,
+   "score": 24,
+   "cards": 24,
    "names": [
     "Vicious Battlerager",
     "Evil Eye of Urborg",
+    "Nessian Boar",
     "Grasping Giant",
     "Elven Warhounds",
-    "Gloom Sower",
-    "Tolarian Entrancer"
+    "Gloom Sower"
    ]
   },
   {
@@ -10542,19 +10532,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAllSourceEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Breaker of Armies",
-    "Treeshaker Chimera",
-    "Taunting Elf",
-    "Ochran Assassin",
-    "Noble Quarry",
-    "Prized Unicorn"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 11,
    "cards": 11,
@@ -10669,6 +10646,19 @@
     "Shieldmage Elder",
     "Resistance Fighter",
     "Fend Off"
+   ]
+  },
+  {
+   "what": "LicidAbility",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Tempting Licid",
+    "Dominating Licid",
+    "Nurturing Licid",
+    "Convulsing Licid",
+    "Corrupting Licid",
+    "Enraging Licid"
    ]
   },
   {
@@ -11090,19 +11080,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByTargetSourceEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Turntimber Basilisk",
-    "Impetuous Devils",
-    "Tangle Angler",
-    "Maraleaf Rider",
-    "Avalanche Tusker",
-    "Matsu-Tribe Decoy"
-   ]
-  },
-  {
    "what": "DetainTargetEffect",
    "score": 10,
    "cards": 10,
@@ -11126,19 +11103,6 @@
     "Kjeldoran Knight",
     "Wall of Shields",
     "Benalish Infantry"
-   ]
-  },
-  {
-   "what": "LicidAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Dominating Licid",
-    "Nurturing Licid",
-    "Convulsing Licid",
-    "Corrupting Licid",
-    "Enraging Licid",
-    "Calming Licid"
    ]
   },
   {
@@ -12095,6 +12059,32 @@
     "Unite the Coalition",
     "Maestros Confluence",
     "Cosmium Confluence"
+   ]
+  },
+  {
+   "what": "UntapSourceEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Thornbite Staff",
+    "Kitsune Ace",
+    "Forsaken City",
+    "Gustcloak Harrier",
+    "Gustcloak Cavalier",
+    "Gustcloak Skirmisher"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Scholar of New Horizons",
+    "Fain, the Broker",
+    "O'aka, Traveling Merchant",
+    "Sanctuary Warden",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain"
    ]
   }
  ]

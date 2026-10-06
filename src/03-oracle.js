@@ -2182,6 +2182,11 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
         : { op: 'phaseOut', scope: { self: true } }) },
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
+    { re: /^(Target creature|Up to one target creature) blocks (?:CARDNAME|this creature) this turn if able\.?$/i,
+      make: (m) => ({ op: 'mustBlockThis', targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
+    { re: /^All creatures able to block (target creature|CARDNAME|this creature) this turn do so\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'restrict', flag: 'lure', targets: [targetSpec('target creature')] }
+        : { op: 'restrict', flag: 'lure', scope: 'self' }) },
     { re: /^(?:CARDNAME|This creature|It) becomes prepared\.?$/i, make: () => ({ op: 'becomePrepared' }) },
     { re: /^Regenerate each creature you control\.?$/i, make: () => ({ op: 'regenerate', scope: 'yourCreatures' }) },
 
@@ -5621,7 +5626,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure']);
 
   function parseStatic(line, ctx) {
     const rep = parseReplacement(line);
@@ -5712,6 +5717,10 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      // a lure: "All creatures able to block this creature do so."
+      { re: /^All creatures able to block (?:CARDNAME|this creature) do so\.?$/i, eff: { op: 'lure' }, auto: true },
+      { re: /^All creatures able to block enchanted creature do so\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { attached: true }, flag: 'lure' }, auto: true },
       /* Prepared (the prepare cards): while it is, its controller may cast
          a copy of the card's spell, which unprepares it */
       { re: /^(?:CARDNAME|This creature) enters prepared\.?$/i, eff: { op: 'etbPrepared' }, auto: true },
