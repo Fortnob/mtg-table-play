@@ -144,7 +144,12 @@ declare namespace MTG {
   /** Another way to use a card: cycle it, cast it face down, from the graveyard... */
   interface AltUse { kind: string; label: string; via?: string; cost?: string | null; [k: string]: any }
   /** An extra cost a spell offers as it is cast: kicker, buyback, spree... */
-  interface ExtraCost { kind: string; label: string; cost?: string | null; modes?: Array<{ i: number; cost?: string; label?: string }>; [k: string]: any }
+  interface ExtraCost {
+    kind: string; label: string; cost?: string | null; modes?: Array<{ i: number; cost?: string; label?: string }>;
+    /** an extra cost that is itself a question (replicate, splice), answered in the cast intent's `choices` */
+    choose?: ChooseSpec;
+    [k: string]: any;
+  }
 
   interface GameConfig {
     formatId: string;
@@ -262,16 +267,56 @@ declare namespace MTG {
   interface PayOrCounterChoice extends ChoiceBase { type: 'payOrCounter'; cost: string; stackId: Id }
   interface RiotChoice extends ChoiceBase { type: 'riot'; objId: Id }
   interface VoteChoice extends ChoiceBase { type: 'vote'; options: string[] }
-  /** The general question (src/06a-choice.js, docs/choices.md). */
+  /** A constraint on what the picks of a 'choose' question add up to. */
+  type ChooseConstraint =
+    | { kind: 'distinct'; key?: string; reason?: string; label?: string }
+    | { kind: 'sum'; key: string; min?: number; max?: number; reason?: string; label?: string }
+    | { kind: 'shareColour'; with?: string[]; reason?: string; label?: string }
+    | { kind: 'mana'; key?: string; base?: string; reason?: string; label?: string };
+
+  /** What a generic question asks, before it is put to anybody. */
+  interface ChooseSpec {
+    purpose?: string | null;
+    kind: 'objects' | 'players' | 'options' | 'number';
+    items?: Array<{ id: Id; name?: string; card?: Card | null; [k: string]: any }> | null;
+    options?: Array<{ label: string; i?: number; cost?: string; card?: Card | null; weight?: number; [k: string]: any }> | null;
+    number?: { min: number; max: number; step: number };
+    min?: number;
+    max?: number;
+    optional?: boolean;
+    constraints?: ChooseConstraint[];
+    [k: string]: any;
+  }
+
+  /** The answer to a generic question: ids or option indexes, a number, or the picks in order. */
+  interface ChooseAnswer { picks?: Array<Id | number>; number?: number; order?: Array<Id | number> }
+
+  /** The general question (src/06a-choice.js, docs/choices.md), as normalize() leaves it. */
   interface ChooseChoice extends ChoiceBase {
     type: 'choose';
     kind: 'objects' | 'players' | 'options' | 'number';
+    /** objects or players to pick from (their ids are the picks) */
+    items?: Array<{ id: Id; name?: string; card?: Card | null; [k: string]: any }> | null;
+    /** options to pick from (their indexes are the picks) */
+    options?: Array<{ label: string; i?: number; cost?: string; card?: Card | null; weight?: number; [k: string]: any }> | null;
+    number?: { min: number; max: number; step: number };
     min?: number;
     max?: number;
-    items?: Array<{ id: Id; name?: string; card?: Card | null; [k: string]: any }> | null;
-    options?: Array<{ i: number; label: string; [k: string]: any }> | null;
-    number?: { min: number; max: number; step: number };
-    [k: string]: any;
+    optional?: boolean;
+    repeat?: boolean;
+    ordered?: boolean;
+    constraints?: ChooseConstraint[];
+    /** a question asked while casting starts the cast again with the answer */
+    then?: { kind: 'cast'; objId: Id; opts: Record<string, any> };
+    zone?: string;
+    reveal?: boolean;
+    panel?: boolean;
+    compact?: boolean;
+    prefer?: 'best' | 'worst' | 'min' | string;
+    harmful?: boolean;
+    default?: number;
+    noneLabel?: string;
+    confirmLabel?: string;
   }
 
   /** Every question the engine can put to a player, by type. */
@@ -284,8 +329,9 @@ declare namespace MTG {
   /** What everybody else sees of somebody's question. */
   interface WaitingChoice { type: ChoiceType; playerId: PlayerId; waiting: true }
 
-  /** The data of a 'choice' intent: an answer, whose fields depend on the question. */
-  interface ChoiceAnswer {
+  /** The data of a 'choice' intent: an answer, whose fields depend on the question
+      (picks, number and order are the answer to a 'choose' question). */
+  interface ChoiceAnswer extends ChooseAnswer {
     yes?: boolean;
     pay?: boolean;
     haste?: boolean;
@@ -296,9 +342,6 @@ declare namespace MTG {
     top?: Id[];
     bottom?: Id[];
     targets?: Target[];
-    /** answers to a 'choose' question */
-    picks?: Array<Id | number>;
-    number?: number;
   }
 
   /* ---------------- intents ---------------- */
@@ -319,6 +362,8 @@ declare namespace MTG {
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number;
+      /** generic questions answered as the spell is cast (replicate, splice), by purpose */
+      choices?: Record<string, ChooseAnswer>;
     }
     | { kind: 'activate'; objId: Id; index: number; targets?: Target[] }
     | { kind: 'mana'; objId: Id; index?: number; choice?: string | null }

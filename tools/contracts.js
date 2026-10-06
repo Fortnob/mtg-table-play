@@ -131,7 +131,9 @@ const PlayerView = obj({
 });
 const LogEntry = obj({ t: num, turn: num, type: str, text: str });
 const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str)) });
-const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))) });
+/* An extra cost that is itself a question (replicate, splice) carries it as `choose`. */
+const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
+  choose: opt((v, p, out) => ChooseSpec(v, p, out)) });
 
 /* ---- questions ---- */
 const ChoiceCard = obj({ id, name: opt(str), card: opt(maybe(Card)) });
@@ -143,6 +145,14 @@ const common = {
 const choice = (fields) => obj(Object.assign({}, common, fields));
 /* a player, or a planeswalker or battle ('object') */
 const Defender = obj({ kind: lit('player', 'object'), id, name: str });
+/* the generic question (src/06a-choice.js, docs/choices.md) */
+const ChooseItem = obj({ id, name: opt(maybe(str)), card: opt(maybe(Card)) });
+const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weight: opt(num) });
+const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
+const ChooseConstraint = obj({ kind: lit('distinct', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
+  with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str) });
+const ChooseAnswer = obj({ picks: opt(arr(either('an id or an option index', S.id, S.int))), number: opt(num),
+  order: opt(arr(either('an id or an option index', S.id, S.int))) }, { closed: true });
 const CHOICES = {
   declareAttackers: choice({ candidates: arr(id), defenders: arr(Defender, { min: 1 }) }),
   declareBlockers: choice({ attackers: arr(id, { min: 1 }), candidates: arr(id) }),
@@ -163,9 +173,22 @@ const CHOICES = {
   riot: choice({ objId: id }),
   vote: choice({ options: arr(str, { min: 1 }) }),
   /* The general question (src/06a-choice.js); its own check() does the rest. */
-  choose: choice({ kind: lit('objects', 'players', 'options', 'number'), min: opt(nat), max: opt(nat) }),
+  choose: choice({
+    kind: lit('objects', 'players', 'options', 'number'), purpose: opt(maybe(str)),
+    items: opt(maybe(arr(ChooseItem))), options: opt(maybe(arr(ChooseOption))), number: opt(ChooseNumber),
+    min: opt(nat), max: opt(nat), optional: opt(bool), repeat: opt(bool), ordered: opt(bool),
+    constraints: opt(arr(ChooseConstraint)),
+    then: opt(maybe(obj({ kind: lit('cast'), objId: id, opts: S.plainObj }))),
+  }),
 };
 const Choice = union('type', CHOICES, 'question');
+/* The spec of a generic question before it is put to anybody (an extra
+   cost's `choose`): the same fields, without a player yet. */
+function ChooseSpec(v, p, out) {
+  obj({ kind: lit('objects', 'players', 'options', 'number'), purpose: opt(maybe(str)),
+    items: opt(maybe(arr(ChooseItem))), options: opt(maybe(arr(ChooseOption))), number: opt(ChooseNumber),
+    constraints: opt(arr(ChooseConstraint)) })(v, p, out);
+}
 /* What everyone else sees of somebody's question: who, and what kind, and nothing more. */
 const WaitingChoice = obj({ type: str, playerId: id, waiting: lit(true) }, { closed: true });
 
@@ -201,7 +224,7 @@ const ANSWERS = {
   arrange: obj({ top: opt(ids) }, { closed: true }),
   orderTriggers: obj({ top: opt(ids), cardIds: opt(ids) }, { closed: true }),
   pickTarget: obj({ targets: opt(arr(Target)) }, { closed: true }),
-  choose: obj({ picks: opt(arr(S.any)), number: opt(num), order: opt(arr(S.any)) }),
+  choose: ChooseAnswer,
 };
 
 /* ---- intents: what the table (or a guest) sends ---- */
@@ -221,6 +244,8 @@ const INTENTS = {
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
+    /* generic questions answered as the spell is cast (replicate, splice), by purpose */
+    choices: opt(maybe(rec(ChooseAnswer))),
   }),
   activate: closed({ objId: id, index: nat, targets: opt(arr(Target)) }),
   mana: closed({ objId: id, index: opt(nat), choice: opt(maybe(str)) }),
@@ -445,10 +470,19 @@ function checkChoice(ch, game, opts) {
     case 'vote': dup(ch.options, '.options'); break;
     case 'choose': {
       const C = globalThis.MTG && globalThis.MTG.choice;
-      if (C && C.normalize) {
+      if (ch.kind === 'options' && !(ch.options || []).length) bad('.options', 'an options question with no options');
+      if ((ch.kind === 'objects' || ch.kind === 'players') && !Array.isArray(ch.items)) bad('.items', `a ${ch.kind} question with no items`);
+      if (ch.kind === 'number' && !ch.number) bad('.number', 'a number question with no range');
+      if (ch.kind === 'number' && ch.number && ch.number.min > ch.number.max) bad('.number', `min ${ch.number.min} is more than max ${ch.number.max}`);
+      dup((ch.items || []).map(x => x && x.id), '.items');
+      if (game && ch.kind === 'players') for (const x of ch.items || []) if (!game.player(x.id)) bad('.items', `${x.id} is nobody at the table`);
+      if (game && ch.kind === 'objects') for (const x of ch.items || []) if (!game.obj(x.id)) bad('.items', `${x.id} is no object in the game`);
+      if (C && C.normalize && ch.kind !== 'number') {
+        /* the engine asks the full form (docs/choices.md), so normalising changes nothing that counts */
         const n = C.normalize(ch);
+        if (n.min !== ch.min || n.max !== ch.max) bad('', `min/max ${ch.min}/${ch.max} are not what normalize() makes of them (${n.min}/${n.max})`);
         if (n.min > n.max) bad('.min', `min ${n.min} is more than max ${n.max}`);
-        if (!ch.optional && n.min > 0 && n.kind !== 'number' && C.candidates(n).length < n.min) bad('', `needs ${n.min} picks from ${C.candidates(n).length}`);
+        if (!ch.optional && n.min > 0 && C.candidates(n).length < n.min) bad('', `needs ${n.min} picks from ${C.candidates(n).length}`);
       }
       break;
     }
@@ -471,8 +505,9 @@ function checkAnswer(ch, data, game) {
   switch (ch.type) {
     case 'pickCard': within(data.cardIds, ch.candidates || offered, 'answer.cardIds', 'one of the cards offered'); break;
     case 'scry': case 'surveil': case 'arrange': case 'orderTriggers': {
-      within(data.top, offered, 'answer.top', 'one of the cards offered');
-      within(data.bottom, offered, 'answer.bottom', 'one of the cards offered');
+      const what = ch.type === 'scry' || ch.type === 'surveil' ? `one of the cards the ${ch.type} showed` : 'one of the cards offered';
+      within(data.top, offered, 'answer.top', what);
+      within(data.bottom, offered, 'answer.bottom', what);
       const both = (data.top || []).filter(x => (data.bottom || []).includes(x));
       if (both.length) bad('answer.sense', 'answer', `${both.join(', ')} put both on top and on the bottom`);
       break;
@@ -504,7 +539,8 @@ function checkAnswer(ch, data, game) {
       const C = globalThis.MTG && globalThis.MTG.choice;
       if (C && C.check) {
         let r;
-        try { r = C.check(C.normalize(ch), data); } catch (e) { r = { ok: false, reason: 'check() threw: ' + e.message }; }
+        const hooks = game && game._chooseHooks ? game._chooseHooks(ch.playerId) : undefined;
+        try { r = C.check(C.normalize(ch), data, hooks); } catch (e) { r = { ok: false, reason: 'check() threw: ' + e.message }; }
         if (r && r.ok === false) bad('answer.sense', 'answer', r.reason || 'refused by MTG.choice.check');
       }
       break;
@@ -571,10 +607,18 @@ const KNOWN = [
     why: 'Scry and surveil put every card kept on top back twice (resolveChoice, case \'scry\': `rest` is the kept cards plus everything still in byId, which includes the kept cards), so the library holds the same object twice and it is later drawn, played and seen in two places at once.' },
   { rule: 'choice.sense', match: /is not among the top \d+ of the library/,
     why: 'Scry and surveil are queued without suspending the effect (src/06-rules.js, effect case \'scry\'), so "Scry 1. Draw a card." draws first: the question shows a card already drawn, and the answer is applied to whatever is on top by then.' },
+  { rule: 'answer.sense', match: /is not one of the cards the (scry|surveil) showed/,
+    why: 'The same stale scry: the bot answers from the top of its library as it is now (src/08-bots.js doChoice, scry), which after the early draw is not what the question showed.' },
+  { rule: 'view.sense', match: /attachedTo \S+ is not on the battlefield/,
+    why: 'playerLoses (src/06-rules.js) takes a losing player\'s permanents off the battlefield list directly, without moveObject: they keep zone "battlefield", and anyone else\'s Aura or Equipment on them stays attached to an object that is gone, so the Aura is never put into the graveyard.' },
   { rule: 'view.privacy', match: /face down, but/,
     why: 'viewFor serialises face-down permanents (manifest, morph, cloak) with their card for every viewer, so a guest can read them off the wire.' },
   { rule: 'answer.sense', match: /is not a permanent that can be sacrificed/,
     why: 'The bot answers a sacrifice question from its own idea of the pool and ignores ch.candidates; the engine then tops the answer up from the candidates itself, so the bot does not get the choice it meant.' },
+  { rule: 'choice.shape', match: /choice\.cost wanted a mana cost or \{ life \}, got undefined/,
+    why: 'Cumulative upkeep paid in life or energy (src/06-rules.js, the upkeep cumulativeUpkeep questions) asks payOrDont with `life` or `energy` and no `cost`; the table reads `cost`, so its button offers to "Pay 0 life".' },
+  { rule: 'view.shape', match: /pendingChoice\.cost wanted a mana cost or \{ life \}, got undefined/,
+    why: 'The same cumulative-upkeep question, as it reaches the player in the view.' },
   { rule: 'intent.shape', match: /intent\.(sacrificeIds|discardIds) is not a field/,
     why: 'Bots pay sacrifice and discard costs up front through activateAbility options the table has no intent field for; a person is asked instead. Harmless for play, but the bot path and the table path differ.' },
 ];
@@ -779,6 +823,12 @@ function selfTest() {
   expect('payOrDont in mana', checkChoice({ type: 'payOrDont', playerId: 'A', cost: '{2}' }), false);
   expect('net state envelope without payload', checkNetMessage({ t: 'state', seq: 1 }, 'toGuest'), true);
   expect('net chunk', checkNetMessage({ t: '~', id: 1, i: 0, n: 2, d: '{' }, 'toGuest'), false);
+  const ask = { type: 'choose', playerId: 'A', kind: 'options', options: [{ label: 'a', i: 0 }, { label: 'b', i: 1 }], min: 1, max: 1, prompt: 'Which?' };
+  expect('choose question', checkChoice(ask), false);
+  expect('choose question with no options', checkChoice(Object.assign({}, ask, { options: [] })), true);
+  expect('choose answer', run(ANSWERS.choose, { picks: [1] }, 'a'), false);
+  expect('choose answer, old shape', run(ANSWERS.choose, { cardIds: ['o1'] }, 'a'), true);
+  expect('cast with generic answers', checkIntent({ kind: 'cast', objId: 'o1', choices: { replicate: { number: 2 }, splice: { picks: ['o4'] } } }), false);
   const o = []; jsonProblems({ a: [undefined], b: NaN, c: new Set() }, 'x', o);
   if (o.length !== 3) fails.push(`jsonProblems found ${o.length} of 3 problems`);
   return fails;
