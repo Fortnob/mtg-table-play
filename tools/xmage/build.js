@@ -122,7 +122,7 @@ function main() {
   const blockers = new Map();   // what -> { score, cards: [], lines }
   const sole = new Map();       // what -> cards it alone blocks
   const stats = { cards: 0, withClass: 0, skippedLayout: 0, needed: 0, gainedCards: 0, linesNeeded: 0, linesGained: 0,
-    gained: { all: 0, top2000: 0, stdTop: 0 }, compare: { same: 0, differ: 0, lines: 0 }, verifyFail: 0 };
+    gained: { all: 0, top2000: 0, stdTop: 0 }, compare: { same: 0, differ: 0, lines: 0 }, verifyFail: 0, overrides: {} };
   const gainedNames = [];
   const perCard = [];
   const cardWhyAll = (card, r, why) => { if (r.stdTop || r.top2000) perCard.push({ name: card.name, rank: r.rank, std: r.stdTop, why }); };
@@ -150,7 +150,6 @@ function main() {
     const file = idx.get(flat(card.name)) || idx.get(flat(card.name.split(' // ').join(' ')));
     if (!file) { if (needed) bump('(no XMage class)'); continue; }
     stats.withClass++;
-    if (!needed && !flag('compare')) continue;
     let model;
     try { model = loadCard(file); } catch (e) { if (needed) bump('(class unreadable)'); continue; }
     /* A card with two faces is two sets of lines: each face is read, lined
@@ -183,11 +182,12 @@ function main() {
       align(units, lines, face.name, fan.isPermanent);
       const cardProblems = model.problems.filter(p => !/^anonymous class|^lambda/.test(p));
       const out = {};
+      const overrides = {};
       stats.linesNeeded += failed.length;
       for (let i = 0; i < lines.length; i++) {
         const li = lines[i];
         const mine = units.filter(u => u.line === i);
-        if (li.auto && !flag('compare')) continue;
+        // a line the parser read is still translated: it may be one it read wrong
         let abilities = null, why = null;
         if (!mine.length) why = '(line not matched to XMage code)';
         else if (li.abilities.some(x => x.kind === 'castModifier')) why = '(cast modifier line)';
@@ -210,7 +210,16 @@ function main() {
           if (v) { why = '(verify) ' + v; abilities = null; if (!li.auto) { stats.verifyFail++; if (verifyNotes.length < 400) verifyNotes.push(face.name + ': ' + v + ' :: ' + li.text); } }
         }
         if (li.auto) {
-          // the parser read this line: compare, to check the translators
+          /* The parser read this line. Where its reading is one the tests
+             showed wrong and the translation is right, the translation is
+             written as an override; otherwise it is only compared. */
+          const over = abilities && V.overrideReason(li.abilities.concat(li.mana), abilities);
+          if (over) {
+            for (const ab of abilities) ab.text = li.text;
+            out[MTG.util.hash(li.text)] = abilities;
+            overrides[MTG.util.hash(li.text)] = over;
+            stats.overrides[over] = (stats.overrides[over] || 0) + 1;
+          }
           if (abilities && flag('compare')) {
             stats.compare.lines++;
             const d = V.compare(li.abilities.concat(li.mana), abilities);
@@ -228,7 +237,7 @@ function main() {
           if (needed) { bump(why || '(unknown)', li.text); cardWhy.push(why || '(unknown)'); }
         }
       }
-      if (Object.keys(out).length) lib[face.name] = { lines: out };
+      if (Object.keys(out).length) lib[face.name] = Object.assign({ lines: out }, Object.keys(overrides).length ? { override: overrides } : null);
     }
     if (needed) cardWhyAll(card, r, cardWhy);
     /* What alone stands between this card and being complete: those are
@@ -254,6 +263,7 @@ function main() {
   const show = +arg('show', 40);
   console.log(`cards ${stats.cards}, with an XMage class ${stats.withClass}, multi-face skipped ${stats.skippedLayout}, not automated by the parser ${stats.needed}`);
   console.log(`lines to make up ${stats.linesNeeded}, translated ${stats.linesGained}, verify refusals ${stats.verifyFail}`);
+  console.log(`overrides of a wrong reading: ${JSON.stringify(stats.overrides)}`);
   console.log(`cards completed: ${stats.gained.all} (top 2000: ${stats.gained.top2000}, standard top 500: ${stats.gained.stdTop})`);
   if (flag('compare')) console.log(`compared with the parser on ${stats.compare.lines} lines: ${stats.compare.same} agree, ${stats.compare.differ} differ`);
   console.log(`\nblockers by weighted lines (score, lines, construct, example cards):`);

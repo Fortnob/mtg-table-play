@@ -6,8 +6,8 @@
   "skippedLayout": 21,
   "needed": 18234,
   "gainedCards": 1226,
-  "linesNeeded": 20932,
-  "linesGained": 1709,
+  "linesNeeded": 21007,
+  "linesGained": 1714,
   "gained": {
    "all": 1226,
    "top2000": 34,
@@ -18,7 +18,12 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 130
+  "verifyFail": 131,
+  "overrides": {
+   "drain": 62,
+   "count": 37,
+   "opponent": 65
+  }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
  "blockers": [

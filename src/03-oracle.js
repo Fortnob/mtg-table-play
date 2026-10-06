@@ -4469,15 +4469,19 @@
     // an emblem carries the abilities written out for it when it was made
     if (!script && card._script && card.layout === 'emblem') script = card._script;
     const readWholeCard = totalLines > 0 && autoLines >= totalLines - 0.001;
-    const gen = !script && !readWholeCard && MTG.cardlib ? MTG.cardlib.generatedFor(MTG.scripts.keyFor(name)) : null;
+    const gen = !script && MTG.cardlib ? MTG.cardlib.generatedFor(MTG.scripts.keyFor(name)) : null;
     /* A generated script written line by line stands in for exactly the
        lines the reading above could not manage, and nothing else: what was
        read stays as it was read. Each replacement goes where the line's own
-       abilities were, so the card keeps its printed order. */
+       abilities were, so the card keeps its printed order. The one
+       exception is a line marked as an override: the reading of it is one
+       the tests showed wrong (Bastion of Remembrance gaining from every
+       opponent, Duress aimed at its caster), and the translation wins. */
     if (gen && gen.lines) {
       for (const li of lineInfo) {
-        if (li.auto) continue;
-        const shared = gen.lines[U.hash(li.text)];
+        const key = U.hash(li.text);
+        if (li.auto && !(gen.override && gen.override[key])) continue;
+        const shared = gen.lines[key];
         if (!shared || !shared.length || !generatedLineSound(shared, li.text)) continue;
         // the table's shapes are shared between cards: this card gets its own
         const rep = JSON.parse(JSON.stringify(shared));

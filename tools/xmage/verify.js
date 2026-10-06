@@ -138,3 +138,37 @@ function compare(parsed, translated) {
 }
 
 module.exports = { checkLine, compare, expectedTargets };
+
+/* ---------------- when the translation should win ----------------
+   Readings of the text the tests showed wrong, and that the translation
+   gets right. A line matching one of these is written as an override. */
+
+function effectsOf(abilities) {
+  const out = [];
+  walk(abilities, (o) => { if (o.op) out.push(o); });
+  return out;
+}
+function specsOf(abilities) {
+  const out = [];
+  walk(abilities, (o) => { if (Array.isArray(o.targets)) out.push(...o.targets); });
+  return out;
+}
+
+function overrideReason(parsed, translated) {
+  const pe = effectsOf(parsed), te = effectsOf(translated);
+  /* "Each opponent loses 1 life and you gain 1 life" read as a drain:
+     with three opponents it gains 3. */
+  if (pe.some(e => e.op === 'drain' && e.who !== 'target') && te.some(e => e.op === 'loseLife' && e.who === 'opponents') &&
+      te.some(e => e.op === 'gainLife' && e.who === 'you' && typeof e.n === 'number')) return 'drain';
+  /* "Target opponent" read as any player: Duress could be cast on yourself. */
+  const ps = specsOf(parsed), ts = specsOf(translated);
+  if (ps.length === ts.length && ps.some((s, i) => s && s.type === 'player' && !s.opponent && ts[i] && ts[i].type === 'player' && ts[i].opponent)) return 'opponent';
+  /* A count the engine cannot do: "cards in your hand", "other Dinosaurs",
+     "attacking Elves" read as permanents of one type, which counts none. */
+  let badPer = false;
+  walk(parsed, (o) => { if (typeof o.per === 'string' && /\s|card/.test(o.per.replace(/^the /, ''))) badPer = true; });
+  if (badPer && !/"per":/.test(JSON.stringify(translated))) return 'count';
+  return null;
+}
+
+module.exports.overrideReason = overrideReason;

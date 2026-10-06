@@ -142,4 +142,41 @@ module.exports = (test) => {
     const pump = a.abilities.find(x => (x.effects || []).some(e => e.op === 'pump'));
     t.eq(pump.effects[0].targets[0].subtypes[0], 'assembly-worker');
   });
+
+  /* Lines the text reading got wrong, where the translation stands in
+     (overrides, chosen because these tests fail without them). */
+  test('XMage override: Bastion of Remembrance gains 1, not 1 per opponent', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C', 'D'] });
+    T.bf('A', 'Bastion of Remembrance');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.eq(T.life('A'), 21);
+    t.eq(T.life('B'), 19); t.eq(T.life('C'), 19); t.eq(T.life('D'), 19);
+  });
+
+  test('XMage override: Duress cannot be aimed at its caster', (mk, t) => {
+    const T = mk();
+    const d = T.hand('A', 'Duress');
+    const spec = T.g._specsOf({ effects: d.analysis().abilities[0].effects })[0];
+    t.eq(JSON.stringify(T.g._legalTargetsFor(spec, 'A').map(x => x.id)), JSON.stringify(['B']));
+  });
+
+  test('XMage override: Psychosis Crawler counts the cards in your hand', (mk, t) => {
+    const T = mk();
+    T.hand('A', 'Island'); T.hand('A', 'Island'); T.hand('A', 'Island');
+    const pc = T.bf('A', 'Psychosis Crawler');
+    t.eq(T.g.powerOf(pc), 3);
+    t.eq(T.g.toughnessOf(pc), 3);
+  });
+
+  test('XMage override: Earthshaker Dreadmaw draws for each other Dinosaur', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Earthshaker Dreadmaw');
+    T.bf('A', 'Ghalta, Primal Hunger');
+    const hand = T.zone('A', 'hand').length;
+    T.put('A', 'Earthshaker Dreadmaw', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand + 2, 'one for each of the two others');
+  });
 };

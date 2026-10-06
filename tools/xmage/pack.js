@@ -74,6 +74,11 @@ const FOOTER = `;
       out.lines = {};
       for (const [hash, list] of row[2]) out.lines[hash] = list.map(i => PACKED.shapes[i]);
     }
+    // lines whose translation replaces even a reading of the text
+    if (row[3] && row[3].length) {
+      out.override = {};
+      for (const hash of row[3]) out.override[hash] = true;
+    }
     cache.set(key, out);
     return out;
   }
@@ -107,7 +112,8 @@ function write(lib, file, keyFor) {
     const whole = (e.abilities || []).map(shape);
     const kws = (e.kw || []).map(k => { if (!kwIndex.has(k)) { kwIndex.set(k, kw.length); kw.push(k); } return kwIndex.get(k); });
     const lines = Object.keys(e.lines || {}).sort().map(h => [h, e.lines[h].map(shape)]);
-    cards[key] = [whole, kws, lines];
+    const over = Object.keys(e.override || {}).sort();
+    cards[key] = over.length ? [whole, kws, lines, over] : [whole, kws, lines];
   }
   const packed = { v: 2, shapes, kw, cards };
   fs.writeFileSync(file, HEADER + JSON.stringify(packed) + FOOTER);
