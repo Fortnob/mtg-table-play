@@ -1099,7 +1099,12 @@
       if (!me || v.spectating) { this.place(this.handHost, []); return; }
       // the opening hand is shown big in the middle until it is kept
       if (v.mulliganPhase && !me.keptHand) { this.place(this.handHost, []); return; }
-      const cards = UI.sortCards(me.hand.filter(o => !o.hidden), MTG.settings.handSort || 'cmc');
+      /* After the hand, the cards in exile you may play right now: an
+         adventurer back from its adventure, an impulse draw, a plotted card.
+         They play from there like any card in hand, and say where they are. */
+      const sortBy = MTG.settings.handSort || 'cmc';
+      const fromExile = (me.exile || []).filter(o => !o.hidden && o.card && (v.playable || []).includes(o.id));
+      const cards = UI.sortCards(me.hand.filter(o => !o.hidden), sortBy).concat(UI.sortCards(fromExile, sortBy));
       const n = cards.length;
       const width = this.sizeOf(this.handHost).w || 800;
       // the card width the stylesheet chose, read once per layout rather than once per render
@@ -1118,13 +1123,15 @@
       const step = n > 1 ? Math.min(cw * 0.82, (room - cw) / (n - 1)) : 0;
       const spread = Math.min(2.6, 18 / Math.max(1, n));
       const kids = cards.map((o, i) => {
-        const w = this.wrapFor('h:' + o.id, 'hslot');
+        const exiled = o.zone === 'exile';
+        const w = this.wrapFor('h:' + o.id, 'hslot' + (exiled ? ' from-exile' : ''));
         const off = i - (n - 1) / 2;
         w.style.setProperty('--x', (off * step).toFixed(1) + 'px');
         w.style.setProperty('--r', (off * spread).toFixed(2) + 'deg');
         w.style.setProperty('--y', (Math.abs(off) * Math.abs(off) * spread * 0.9).toFixed(1) + 'px');
         w.style.zIndex = String(10 + i);
-        this.place(w, [this.cardEl(o)]);
+        if (exiled && !w._tag) w._tag = el('span', { class: 'hslot-tag', text: o.card.layout === 'adventure' ? 'Adventure' : 'From exile' });
+        this.place(w, exiled ? [this.cardEl(o), w._tag] : [this.cardEl(o)]);
         return w;
       });
       this.place(this.handHost, kids);
@@ -1755,6 +1762,9 @@
         return;
       }
       if (loc.zone === 'hand' && loc.player === this.meId) return this.playFromHand(loc.o);
+      if (loc.zone === 'exile' && loc.player === this.meId && (live.playable || []).includes(id)) {
+        return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
+      }
       if (loc.zone === 'command' && loc.player === this.meId) {
         if ((live.playable || []).includes(id)) return this.playFromHand(loc.o);
         return this.showCard(id);
@@ -1829,7 +1839,7 @@
       if (a.isLand) { MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id }); }
       if (this._landBack(o)) return this._spellOrLand(o, a);
       const halves = (live.splitFaces || {})[o.id];
-      if (o.card.layout === 'split' && halves && halves.length) return this._castHalf(o, halves);
+      if ((o.card.layout === 'split' || o.card.layout === 'adventure') && halves && halves.length) return this._castHalf(o, halves);
       this.beginCast(o, a);
     }
 
@@ -2223,6 +2233,9 @@
           else if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
         }
       } else if ((loc.zone === 'graveyard' || loc.zone === 'exile') && mine) {
+        if (loc.zone === 'exile' && (live.playable || []).includes(o.id) && !((live.uses || {})[o.id] || []).length) {
+          items.push([a && a.isLand ? 'Play this land' : 'Cast it', () => this.playFromHand(o)]);
+        }
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
           if (use.kind === 'encore') items.push([use.label, () => this.send({ kind: 'encore', objId: o.id })]);

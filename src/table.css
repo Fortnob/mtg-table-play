@@ -316,6 +316,11 @@
 .me-hud .piles { padding-top: 4px; }
 
 /* ---------- your hand ---------- */
+/* a card in exile you may play, at the end of the hand: tagged with where it is */
+.hslot.from-exile > .cv .cv-body { box-shadow: 0 0 0 2px rgba(190,160,255,.75), 0 10px 22px rgba(0,0,0,.6); }
+.hslot-tag { position: absolute; left: 50%; top: -12px; translate: -50% 0; z-index: 5; pointer-events: none; white-space: nowrap;
+  font: 700 10px/18px var(--font); letter-spacing: .08em; text-transform: uppercase; padding: 0 9px; border-radius: 9px;
+  color: #241a3a; background: linear-gradient(180deg, #e2d2ff, #b89cf2); box-shadow: 0 3px 8px rgba(0,0,0,.55); }
 .hand-fan { position: absolute; z-index: 40; left: 50%; bottom: 0; translate: -50% 0; height: 0;
   width: min(calc(100% - 2 * var(--hud-side)), calc(var(--hand-w) * 9)); min-width: calc(var(--hand-w) * 2.5); }
 .hslot { position: absolute; left: 50%; bottom: calc(var(--hand-h) * -.38); width: var(--hand-w); height: var(--hand-h);
