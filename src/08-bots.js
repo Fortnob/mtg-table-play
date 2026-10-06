@@ -43,10 +43,10 @@
   const HABITS = {
     spellCap:     [1, 2, 2, 99, 99, 99, 99, 99, 99, 99],   // spells cast in a turn, at most
     plan:         [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],          // weighs combinations of spells for the mana
-    attackSearch: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1],          // works out the whole attack, not creature by creature
-    walkers:      [0, 0, 0, 0, 0, 0, 1, 1, 1, 1],          // sends attackers at planeswalkers
+    attackSearch: [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],          // works out the whole attack, not creature by creature
+    walkers:      [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],          // sends attackers at planeswalkers
     chump:        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],          // blocks to survive when the attack is lethal
-    doubleBlock:  [0, 0, 0, 0, 0, 0, 1, 1, 1, 1],          // gangs up on a big attacker
+    doubleBlock:  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1],          // gangs up on a big attacker
     strictMull:   [0, 0, 0, 0, 0, 0, 0, 1, 1, 1],          // sends back a hand that cannot do anything early
     reckless:     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],          // attacks with nearly everything, every turn
     blockSearch:  [0, 0, 0, 0, 0, 0, 0, 1, 1, 1],          // weighs all its blocks together against its life total
@@ -1104,7 +1104,7 @@
     /* And the sharper the bot, the more it leans on pressure: in measured
        games between bots, a fast creature deck at the top level beat the
        same level's midrange decks well over half the time. */
-    w.aggro *= 1 + cfg.deckPower * 1.5;
+    w.aggro *= 1 + cfg.deckPower * 2.5;
     if (pers) for (const k of Object.keys(w)) w[k] *= pers.deck.arch[k] != null ? pers.deck.arch[k] : 1;
     return rng.weighted(Object.entries(w).map(([k, v]) => [k, Math.pow(v / colors.length, 2)]));
   }
@@ -1542,7 +1542,7 @@
      The judgement above decides one thing at a time, and that is where
      it stops: it cannot see that an attack which looks free loses the
      race next turn, or that the creature held back is the one that blocks
-     the lethal swing. So the top of the ladder also plays its options
+     the lethal swing. So from level 4 up a bot also plays its options
      out. Each candidate move — the judgement's own choice first, then the
      alternatives worth a look — is made in a few private copies of the
      game (06d-sim.js), with the cards it cannot see dealt afresh in each,
@@ -1561,14 +1561,26 @@
 
        worlds   copies per candidate move, on a desktop and on a phone
        cands    candidate moves considered at most
-       attack, block, main   which decisions are looked at
+       attack, block, main, instant   which decisions are looked at (instant:
+                the counterspell, the removal on an attacker, the end-of-turn play)
        capMs    the safety limit for one decision, desktop and phone
      ============================================================ */
+  /* Levels 4 and 5 only glance (cast this now, or wait?); 6 and 7 also
+     weigh their attacks and then their blocks, in one imagined future
+     each; 8 to 10 weigh more candidates in more futures, and the top two
+     also think at instant speed. Measured against the same deck, a full
+     look ahead beats the same level's plain judgement about two games in
+     three; past a couple of futures per candidate it stops getting
+     better, which is why the top levels are not much further apart in
+     this respect than they are. */
   const LOOKAHEAD = {
-    7:  { worlds: 2, phone: 1, cands: 3, attack: 1, block: 0, main: 0, capMs: 300, capPhone: 150 },
-    8:  { worlds: 3, phone: 2, cands: 4, attack: 1, block: 1, main: 0, capMs: 400, capPhone: 150 },
-    9:  { worlds: 4, phone: 2, cands: 4, attack: 1, block: 1, main: 1, capMs: 400, capPhone: 150 },
-    10: { worlds: 6, phone: 2, cands: 5, attack: 1, block: 1, main: 1, capMs: 450, capPhone: 160 },
+    4:  { worlds: 1, phone: 1, cands: 2, attack: 0, block: 0, main: 1, capMs: 200, capPhone: 100 },
+    5:  { worlds: 1, phone: 1, cands: 2, attack: 0, block: 0, main: 1, capMs: 200, capPhone: 100 },
+    6:  { worlds: 1, phone: 1, cands: 3, attack: 1, block: 0, main: 1, capMs: 250, capPhone: 120 },
+    7:  { worlds: 1, phone: 1, cands: 3, attack: 1, block: 1, main: 1, capMs: 300, capPhone: 130 },
+    8:  { worlds: 2, phone: 1, cands: 3, attack: 1, block: 1, main: 1, capMs: 350, capPhone: 140 },
+    9:  { worlds: 2, phone: 2, cands: 4, attack: 1, block: 1, main: 1, instant: 1, capMs: 400, capPhone: 150 },
+    10: { worlds: 3, phone: 2, cands: 5, attack: 1, block: 1, main: 1, instant: 1, capMs: 450, capPhone: 150 },
   };
   /* The players in the copies: sound, quick, and never careless — the
      model of the table is a competent one, whatever is really sitting
@@ -1702,7 +1714,7 @@
          copies have none: they are a plain model of the table. */
       const want = (opts && opts.personality) || (tuning && tuning.personality);
       if (PERSONALITIES[want]) this.personality = want;
-      else if (game.isScratch) this.personality = null;
+      else if (game.isScratch || want === 'none') this.personality = null;
       else {
         const p = game.player(playerId);
         const deck = p && p.deck;
@@ -2322,6 +2334,12 @@
 
     _priorityMove(myTurn, move) {
       const g = this.game;
+      // a look ahead at instant speed has already decided: act on it, or let the moment pass
+      if (move && move.pass) return !myTurn && g.step === 'end' && !g.stack.length && this.activateSomething('theirEnd');
+      if (move && move.instant) {
+        const x = move.instant;
+        if (this._castInstant(x, { targets: x.targets, auto: true })) { this._did(x.kind === 'counter' ? 'counter' : 'cast', x.o, x.text || null); return true; }
+      }
       const top = g.stack.length ? g.stack[g.stack.length - 1] : null;
       // something of theirs on the stack: is it worth an answer?
       if (top && top.controller !== this.pid && this.respondToStack(top)) return true;
@@ -2330,6 +2348,10 @@
         const main1 = g.phaseIndex === 1;
         if (this.playLandIfUseful()) return true;
         if (move && move.cast && this.castChoice(move.cast, this.availableMana(true))) return true;
+        if (move && move.activate && g.activateAbility(this.pid, move.activate.o.id, move.activate.index, this._abilityOpts(move.activate))) {
+          this._did('activate', move.activate.o, move.activate.label);
+          return true;
+        }
         if (!(move && move.hold) && this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
         return false;
@@ -2698,7 +2720,8 @@
     /** Cast one option: targets, extra costs, X. Returns true if it went on the stack. */
     castChoice(choice, mana) {
       const g = this.game;
-      const targets = this.chooseTargets(choice.o, choice.a);
+      // a look ahead may have settled the targets already
+      const targets = choice.targets || this.chooseTargets(choice.o, choice.a);
       if (targets === null) return false;            // needs a target and none is worth it
       const opts = { targets, auto: true };
       if (choice.via) opts.via = choice.via;
@@ -3827,7 +3850,12 @@
     }
 
     /** How many candidate moves to weigh: fewer on a phone, where every copy costs more. */
-    _candCap(L) { return MTG.isPhone && MTG.isPhone() ? Math.min(L.cands, L.phoneCands || 3) : L.cands; }
+    _candCap(L) {
+      let c = MTG.isPhone && MTG.isPhone() ? Math.min(L.cands, L.phoneCands || 3) : L.cands;
+      // and a bigger table weighs fewer
+      if (this.game.players.filter(p => !p.hasLost).length > 2) c = Math.min(c, MTG.isPhone && MTG.isPhone() ? 2 : 4);
+      return c;
+    }
 
     /* Cards we have watched go by in the open. One of them back in a hand
        is no secret, so it stays where it is when the hidden cards are
@@ -3849,7 +3877,8 @@
     evalWeights() {
       if (this._weights) return this._weights;
       const p = this.personality && PERSONALITIES[this.personality];
-      this._weights = p && p.eval ? Object.assign({}, EVAL, p.eval) : EVAL;
+      const L = this.cfg.look;
+      this._weights = (p && p.eval) || (L && L.eval) ? Object.assign({}, EVAL, L && L.eval, p && p.eval) : EVAL;
       return this._weights;
     }
 
@@ -3865,8 +3894,12 @@
     async _lookAhead(cands, L) {
       const g = this.game;
       const phone = !!(MTG.isPhone && MTG.isPhone());
-      const worlds = Math.max(1, phone ? L.phone : L.worlds);
-      const cap = phone ? L.capPhone : L.capMs;
+      /* A copy of a four-player game costs three or four times what a
+         duel does, so a bigger table plays fewer of them. */
+      const seats = this.game.players.filter(p => !p.hasLost).length;
+      const worlds = Math.max(1, Math.ceil((phone ? L.phone : L.worlds) / Math.max(1, seats - 1)));
+      // the tools stretch the safety net when they run many games side by side on one machine
+      const cap = (phone ? L.capPhone : L.capMs) * (MTG.bots.lookCapScale || 1);
       const margin = L.margin != null ? L.margin : LOOK_MARGIN;
       const version = g.stateVersion;
       this._noteSeen();
@@ -3875,21 +3908,30 @@
       const sum = cands.map(() => 0), n = cands.map(() => 0), dead = cands.map(() => false);
       const t0 = now();
       let mark = t0, played = 0;
-      for (let w = 0; w < worlds; w++) {
+      /* Every candidate is judged on the same futures. If the safety net
+         stops a round part way, that round is thrown away — unless it is
+         the first, when whatever it reached is all there is. */
+      worlds: for (let w = 0; w < worlds; w++) {
         const seed = (base + Math.imul(w + 1, 0x9E3779B1)) >>> 0;
+        const round = cands.map(() => null);
         for (let i = 0; i < cands.length; i++) {
           if (dead[i]) continue;
+          if (now() - t0 > cap) {
+            if (w === 0) round.forEach((v, k) => { if (v != null) { sum[k] += v; n[k]++; } });
+            break worlds;
+          }
           let v = null;
           try { v = this._playOut(cands[i], seed, L); } catch (e) { console.warn('[bot] look ahead', e); v = null; }
           played++;
           if (v == null) { dead[i] = true; continue; }
-          sum[i] += v; n[i]++;
+          round[i] = v;
           if (now() - mark > SLICE_MS) {
             await breathe();
             mark = now();
             if (g.stateVersion !== version || g.over) return null;
           }
         }
+        round.forEach((v, k) => { if (v != null) { sum[k] += v; n[k]++; } });
         // the safety net: only a device far slower than expected gets here
         const spent = now() - t0;
         if (spent + spent / (w + 1) > cap) break;
@@ -3900,6 +3942,18 @@
       for (let i = 1; i < cands.length; i++) if (n[i] && n[i] >= n[0] && mean[i] > mean[best]) best = i;
       if (best !== 0 && n[0] && mean[best] < mean[0] + margin) best = 0;
       if (!n[0] && !n[best]) best = 0;
+      /* Below the top, the look ahead is not followed to the letter: the
+         move is drawn from the candidates, the better ones likelier, and
+         the lower the level the flatter the odds. Its mistakes are then
+         the mistakes a person makes — a reasonable move, not the best one
+         — rather than nonsense. */
+      if (L.temp > 0) {
+        const ok = mean.map((v, i) => Number.isFinite(v) && n[i] >= n[0]);
+        const top = Math.max(...mean.filter((v, i) => ok[i]));
+        const w = mean.map((v, i) => (ok[i] ? Math.exp((v - top) / L.temp) : 0));
+        let r = this.rand() * U.sum(w);
+        for (let i = 0; i < w.length; i++) { r -= w[i]; if (w[i] > 0 && r <= 0) { best = i; break; } }
+      }
       this.lastLook = { cands: cands.length, worlds, played, ms: Math.round(this._thought), pick: best,
         means: mean.map(v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null)) };
       return best;
@@ -4046,32 +4100,138 @@
      * { cast: option } or { hold: true }, or null to decide as usual.
      */
     async thinkPriority() {
+      const g = this.game;
+      if (g.pendingChoice || !g.activePlayer) return null;
+      if (g.activePlayer.id !== this.pid || !g.isMain || g.stack.length) return this._thinkInstant();
       const L = this._lookCfg('main');
       if (!L) return null;
-      const g = this.game;
-      if (!g.activePlayer || g.activePlayer.id !== this.pid || !g.isMain || g.stack.length || g.pendingChoice) return null;
       // the land goes down first; the look comes after
       if (g.canPlayLand(this.pid) && this.hand().some(o => (o.analysis() || {}).isLand)) return null;
       if ((this.me.spellsCastThisTurn || 0) >= (this.cfg.spellCap || 99)) return null;
       const when = g.phaseIndex === 1 ? 'main1' : 'main2';
       const options = this.castOptions(when).filter(x => x.v > 0);
-      if (!options.length) return null;
-      const mana = this.availableMana(true);
-      const plan = this._bestPlan(options, mana).sort((x, y) => this._castPriority(y, when) - this._castPriority(x, when));
-      const first = plan[0];
-      if (!first) return null;
-      const rest = options.filter(x => x !== first && x.o.id !== first.o.id).sort((x, y) => y.v - x.v);
-      const moves = [{ cast: first }];
-      for (const x of rest) {
-        if (moves.length >= this._candCap(L) - 1) break;
+      // a planeswalker's choice of ability is as big a decision as any spell
+      const walkers = L.walkers === 0 ? [] : this._loyaltyOptions(when);
+      if (!options.length && !walkers.length) return null;
+      const moves = [];
+      if (options.length) {
+        const mana = this.availableMana(true);
+        const plan = this._bestPlan(options, mana).sort((x, y) => this._castPriority(y, when) - this._castPriority(x, when));
+        if (plan[0]) moves.push({ cast: plan[0] });
+      }
+      const cap = this._candCap(L);
+      const room = () => moves.length < cap - 1;
+      // the walkers' best first when there is no spell to lead with; otherwise after the spells
+      if (!moves.length) for (const c of walkers.slice(0, 2)) if (room()) moves.push({ activate: c });
+      for (const x of options.slice().sort((p, q) => q.v - p.v)) {
+        if (!room()) break;
         if (moves.some(m => m.cast && m.cast.o.id === x.o.id)) continue;
         moves.push({ cast: x });
       }
+      for (const c of walkers) if (room() && !moves.some(m => m.activate === c)) moves.push({ activate: c });
+      // the first removal spell, pointed at the second most worrying target instead
+      const kill = moves.find(m => m.cast && rolesOf(m.cast.o.card).has('removal') && !m.cast.a.isPermanent);
+      if (kill && room()) {
+        const alt = this._secondTarget(kill.cast);
+        if (alt) moves.push({ cast: Object.assign({}, kill.cast, { targets: alt }) });
+      }
       moves.push({ hold: true });
+      if (moves.length < 2) return null;
       const pick = await this._lookAhead(moves.map(m => ({
-        apply: (f, fb) => (m.hold ? f.passPriority(this.pid) !== false : this._castIn(f, fb, m.cast)),
+        apply: (f, fb) => (m.hold ? f.passPriority(this.pid) !== false
+          : m.activate ? !!f.activateAbility(this.pid, m.activate.o.id, m.activate.index, this._abilityOpts(m.activate))
+          : this._castIn(f, fb, m.cast)),
       })), L);
       return pick == null ? null : moves[pick];
+    }
+
+    /** Targets for a removal option that point at the second-best thing to kill, or null. */
+    _secondTarget(x) {
+      const g = this.game;
+      const effects = flatEffects(g._cardSpellEffects(x.a));
+      const first = this._bestRemovalTarget(effects);
+      if (!first) return null;
+      const second = this._bestRemovalTarget(effects, (o) => o.id !== first.id);
+      if (!second) return null;
+      return this.chooseTargets(x.o, x.a, { forceObject: second });
+    }
+
+    /**
+     * A look ahead at instant speed, on someone else's turn or in combat:
+     * whether to spend a counterspell on the spell in front of us, a
+     * removal spell on an attacker, or an instant at the end of the turn —
+     * against letting the moment pass. Returns { pass } or { instant },
+     * or null to decide as usual.
+     */
+    async _thinkInstant() {
+      const L = this._lookCfg('instant');
+      if (!L) return null;
+      const g = this.game;
+      const top = g.stack.length ? g.stack[g.stack.length - 1] : null;
+      const opts = this.castOptionsInstant();
+      if (!opts.length) return null;
+      const moves = [{ pass: true }];
+      const cap = this._candCap(L);
+      const add = (x, targets, kind, text) => { if (moves.length < cap) moves.push({ instant: Object.assign({}, x, { targets, kind, text }) }); };
+      if (top) {
+        if (top.controller === this.pid || top.kind !== 'spell') return null;
+        const counters = opts.filter(x => flatEffects(g._cardSpellEffects(x.a)).some(e => e.op === 'counterSpell' || e.op === 'counterUnless'))
+          .sort((x, y) => x.cost - y.cost);
+        if (!counters.length) return null;
+        add(counters[0], [{ kind: 'stack', id: top.id }], 'counter', `counters ${top.name}`);
+      } else {
+        const theirTurn = g.activePlayer.id !== this.pid;
+        const attackers = g.step === 'declareAttackers' && g.combat && g.combat.attackers.length && theirTurn;
+        const endStep = g.step === 'end' && theirTurn;
+        if (!attackers && !endStep) return null;
+        const removal = opts.filter(x => rolesOf(x.o.card).has('removal')).sort((x, y) => x.cost - y.cost);
+        for (const x of removal.slice(0, 2)) {
+          const effects = flatEffects(g._cardSpellEffects(x.a));
+          const filter = attackers ? (o) => g.combat.attackers.includes(o.id) : null;
+          const t = this._bestRemovalTarget(effects, filter);
+          if (!t) continue;
+          const targets = this.chooseTargets(x.o, x.a, { forceObject: t });
+          if (targets) add(x, targets, 'cast', `removes ${t.name}`);
+        }
+        if (endStep || attackers) {
+          for (const x of opts.filter(y => y.a.isCreature).sort((p, q) => this.rating(q.o) - this.rating(p.o)).slice(0, 1)) {
+            const targets = this.chooseTargets(x.o, x.a);
+            if (targets !== null) add(x, targets, 'cast', null);
+          }
+        }
+      }
+      if (moves.length < 2) return null;
+      const pick = await this._lookAhead(moves.map(m => ({
+        apply: (f) => (m.pass ? f.passPriority(this.pid) !== false
+          : !!f.castSpell(this.pid, m.instant.o.id, { targets: m.instant.targets, auto: true })),
+      })), L);
+      if (pick == null || pick === 0) return pick == null ? null : { pass: true };
+      return moves[pick];
+    }
+
+    /** The loyalty abilities that could be used now, best first. */
+    _loyaltyOptions(when) {
+      const g = this.game;
+      const sources = this.manaSources();
+      const out = [];
+      for (const o of g.battlefield) {
+        if (o.controller !== this.pid || o.activatedLoyaltyThisTurn) continue;
+        const a = o.analysis();
+        if (!a || !a.isPlaneswalker) continue;
+        const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+        all.forEach((ab, index) => {
+          if (ab.kind !== 'loyalty' || !ab.auto) return;
+          const c = this._abilityCandidate(o, a, ab, index, when, sources);
+          if (c) out.push(c);
+        });
+      }
+      return out.sort((x, y) => y.v - x.v);
+    }
+    _abilityOpts(c) {
+      const opts = { targets: c.targets, auto: true };
+      if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
+      if (c.discardIds) opts.discardIds = c.discardIds;
+      return opts;
     }
 
     /** Cast, in a copy of the game, the spell an option names here. */
@@ -4082,7 +4242,7 @@
       const chk = f.canCast(this.pid, o.id, x.via || undefined);
       if (!a || !chk.ok) return false;
       const costStr = x.via ? x.costStr : (chk.cost || '');
-      return fb.castChoice({ o, a, v: x.v, cost: x.cost, costStr, via: x.via || null }, fb.availableMana(true));
+      return fb.castChoice({ o, a, v: x.v, cost: x.cost, costStr, via: x.via || null, targets: x.targets || undefined }, fb.availableMana(true));
     }
 
     /* ---- card evaluation ---- */

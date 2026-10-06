@@ -92,6 +92,9 @@ async function main() {
     rows.push({ label: `ffa ${a.ds}`, results, failures, wins });
     console.log(`\n${a.format} free-for-all ${a.ds} (${a.mode}), ${results.length} games`);
     for (const d of ds) console.log(`  d${d}: ${wins[d]} wins (${interval(wins[d], results.length)})`);
+    const aim = require('./botsim').aimSummary(results);
+    if (aim) console.log(`  attacks: ${aim.attacks}, at the leader ${aim.leaderPct}%, at the lowest life ${aim.weakestPct}%, ` +
+      `received by level ${Object.entries(aim.byDiff).map(([k, n]) => `${k} ${(100 * n / aim.attacks).toFixed(0)}%`).join(' ')}`);
   } else {
     for (const pair of String(a.pairs).split(',')) {
       const [lo, hi] = pair.split('-').map(Number);

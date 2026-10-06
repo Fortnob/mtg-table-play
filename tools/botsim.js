@@ -27,6 +27,9 @@
      reported (how many, mean and worst ms, how often the judgement's own
      move was overruled).
 
+   Looking ahead: --lookcap 3 stretches the per-decision safety net by that
+     factor (the default here, since runs share the machine; 1 is a browser).
+
    Contracts:
      --contracts    check every view, question and bot call as it happens
                     (tools/contracts.js); violations are listed at the end.
@@ -38,7 +41,8 @@ const { load } = require('./engine');
 
 function args() {
   const a = { format: 'standard', games: 4, a: 5, b: 5, seed: 1, turns: 40, verbose: false, json: false,
-    deckd: null, playd: null, mirror: false, ds: null, speed: 0, timeout: 240000, trace: null, tuneA: null, tuneB: null, playA: null, playB: null };
+    deckd: null, playd: null, mirror: false, ds: null, speed: 0, timeout: 240000, trace: null, tuneA: null, tuneB: null, playA: null, playB: null,
+    persA: null, persB: null, pers: null };
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
@@ -58,11 +62,11 @@ async function playOne(MTG, o) {
   const t0 = Date.now();
   const decks = o.decks ? o.decks.slice() : [];
   if (o.decks) { /* built by the caller */ } else if (o.mirror) {
-    const one = await MTG.bots.buildBotDeck({ formatId, difficulty: seats[0].deck, rules, rng: new MTG.RNG(seed * 7 + 1), name: 'M' });
+    const one = await MTG.bots.buildBotDeck({ formatId, difficulty: seats[0].deck, rules, rng: new MTG.RNG(seed * 7 + 1), name: 'M', personality: seats[0].personality || undefined });
     for (let i = 0; i < seats.length; i++) decks.push(one);
   } else {
     for (const s of seats) {
-      decks.push(await MTG.bots.buildBotDeck({ formatId, difficulty: s.deck, rules, rng: new MTG.RNG(seed * 7 + 1 + s.deckSeed), name: s.id, tuning: s.tune }));
+      decks.push(await MTG.bots.buildBotDeck({ formatId, difficulty: s.deck, rules, rng: new MTG.RNG(seed * 7 + 1 + s.deckSeed), name: s.id, tuning: s.tune, personality: s.personality || undefined }));
     }
   }
   const buildMs = Date.now() - t0;
@@ -93,6 +97,49 @@ async function playOne(MTG, o) {
     g.on('log', (e) => { try { fs.appendFileSync(file, `${e.turn} ${e.type}: ${e.text}
 `); } catch (err) { /* tracing is best effort */ } });
   }
+  /* Who attacks whom: at a bigger table, how often an attack goes at the
+     player who is furthest ahead, at the one with the least life, and at
+     each seat — the check that nobody is ganged up on for no reason. */
+  const aim = { attacks: 0, atLeader: 0, atWeakest: 0, bySeat: {} };
+  if (seats.length > 2) {
+    const standing = (p) => p.life * 0.5 + 2 * g.battlefield.filter(o => o.controller === p.id && (g.characteristics(o) || {}).isCreature)
+      .reduce((t, o) => t + Math.max(0, g.powerOf(o)), 0) + g.zones[p.id].hand.length * 0.5;
+    const declare = g.declareAttackers.bind(g);
+    g.declareAttackers = function (pid, decl) {
+      const ok = declare(pid, decl);
+      if (ok && decl && decl.length) {
+        const live = g.players.filter(p => !p.hasLost && p.id !== pid);
+        const leader = live.slice().sort((x, y) => standing(y) - standing(x))[0];
+        const weakest = live.slice().sort((x, y) => x.life - y.life)[0];
+        for (const d of decl) {
+          const tgt = g.player(d.defenderId) ? d.defenderId : ((g.obj(d.defenderId) || {}).controller || null);
+          if (!tgt) continue;
+          aim.attacks++;
+          if (leader && tgt === leader.id) aim.atLeader++;
+          if (weakest && tgt === weakest.id) aim.atWeakest++;
+          aim.bySeat[tgt] = (aim.bySeat[tgt] || 0) + 1;
+        }
+      }
+      return ok;
+    };
+  }
+  // what each seat did, for telling personalities apart
+  const acts = {};
+  g.on('bot:action', (e) => {
+    const t = acts[e.playerId] = acts[e.playerId] || { attackers: 0, attacks: 0, blockers: 0, casts: 0, activations: 0, faceBurn: 0 };
+    const n = parseInt(String(e.text || '').replace(/\D+/g, ''), 10) || 0;
+    if (e.kind === 'attack') { t.attacks++; t.attackers += n; }
+    else if (e.kind === 'block') t.blockers += n;
+    else if (e.kind === 'cast') t.casts++;
+    else if (e.kind === 'activate') t.activations++;
+  });
+  g.on('event', (e) => {
+    // burn at a player's face: non-combat damage to a player from a spell of a seat
+    if (e && e.type === 'damage' && !e.combat && e.target && e.target.kind === 'player') {
+      const src = g.obj(e.source);
+      if (src && acts[src.controller]) acts[src.controller].faceBurn += e.amount;
+    }
+  });
   const runner = new MTG.bots.BotRunner(g);
   const look = {};
   for (const s of seats) {
@@ -142,11 +189,29 @@ async function playOne(MTG, o) {
     manualCards: Array.from(manualCards),
     rulesLines: rulesLines.slice(0, 10).map(l => l.text || l.msg),
     decks: decks.map(d => ({ plan: d.plan || null, commanders: (d.commanders || []).map(c => c.name) })),
-    look, personalities: seats.map(s => (runner.bots.get(s.id) || {}).personality || null),
+    look, acts, aim: seats.length > 2 ? aim : undefined, personalities: seats.map(s => (runner.bots.get(s.id) || {}).personality || null),
     stuckAt: stalled ? { step: g.step, choice: g.pendingChoice && g.pendingChoice.type, prio: g.priorityPlayer && g.priorityPlayer.id, lastError: g.lastError } : null,
     fullLog: o.fullLog ? g.log.map(l => l.text || l.msg) : undefined,
     lastLog: verbose ? g.log.slice(-40).map(l => l.text || l.msg) : undefined,
   };
+}
+
+/** Who attacked whom, added up over the games (bigger tables only). */
+function aimSummary(results) {
+  const t = { attacks: 0, atLeader: 0, atWeakest: 0, byDiff: {} };
+  for (const r of results) {
+    if (!r.aim) continue;
+    t.attacks += r.aim.attacks; t.atLeader += r.aim.atLeader; t.atWeakest += r.aim.atWeakest;
+    for (const [pid, n] of Object.entries(r.aim.bySeat)) {
+      const s = (r.seats || []).find(x => x.id === pid);
+      const k = s ? 'd' + s.diff : pid;
+      t.byDiff[k] = (t.byDiff[k] || 0) + n;
+    }
+  }
+  if (!t.attacks) return null;
+  t.leaderPct = +(100 * t.atLeader / t.attacks).toFixed(0);
+  t.weakestPct = +(100 * t.atWeakest / t.attacks).toFixed(0);
+  return t;
 }
 
 /** Look-ahead numbers added up by the seat's difficulty. */
@@ -177,7 +242,10 @@ function seatsFor(a, i) {
   if (a.ds) {
     const ds = String(a.ds).split(',').map(Number);
     const rot = ds.map((_, k) => ds[(k + i) % ds.length]);
-    return rot.map((d, k) => ({ id: 'P' + k, play: a.playd != null ? a.playd : d, deck: a.deckd != null ? a.deckd : d, diff: d, deckSeed: k }));
+    // --pers aggressive,cautious,...: a personality per difficulty in --ds order (one name: every seat)
+    const pers = a.pers ? String(a.pers).split(',') : [];
+    const persOf = (d) => (pers.length === 1 ? pers[0] : pers[ds.indexOf(d)]) || null;
+    return rot.map((d, k) => ({ id: 'P' + k, play: a.playd != null ? a.playd : d, deck: a.deckd != null ? a.deckd : d, diff: d, deckSeed: k, personality: persOf(d) }));
   }
   const swap = i % 2 === 1;
   const da = swap ? a.b : a.a, db = swap ? a.a : a.b;
@@ -186,8 +254,10 @@ function seatsFor(a, i) {
   // play experiments: --playA/--playB override numbers from the ladder for that side's bot
   const pa = a.playA ? JSON.parse(a.playA) : null, pb = a.playB ? JSON.parse(a.playB) : null;
   return [
-    { id: 'A', play: a.playd != null ? a.playd : da, deck: a.deckd != null ? a.deckd : da, diff: da, deckSeed: 0, tune: swap ? tb : ta, playTune: swap ? pb : pa, side: swap ? 'b' : 'a' },
-    { id: 'B', play: a.playd != null ? a.playd : db, deck: a.deckd != null ? a.deckd : db, diff: db, deckSeed: 1, tune: swap ? ta : tb, playTune: swap ? pa : pb, side: swap ? 'a' : 'b' },
+    { id: 'A', play: a.playd != null ? a.playd : da, deck: a.deckd != null ? a.deckd : da, diff: da, deckSeed: 0, tune: swap ? tb : ta, playTune: swap ? pb : pa, side: swap ? 'b' : 'a',
+      personality: (swap ? a.persB : a.persA) || null },
+    { id: 'B', play: a.playd != null ? a.playd : db, deck: a.deckd != null ? a.deckd : db, diff: db, deckSeed: 1, tune: swap ? ta : tb, playTune: swap ? pa : pb, side: swap ? 'a' : 'b',
+      personality: (swap ? a.persA : a.persB) || null },
   ];
 }
 
@@ -196,6 +266,10 @@ async function main() {
   const MTG = load();
   MTG.settings.botSpeed = a.speed || 0;
   if (a.localdb) await require('./localdb').loadLocalDb(MTG, { kind: 'oracle_cards' });
+  /* Many games side by side make every copy slower than it is on a quiet
+     machine; --lookcap stretches the look-ahead safety net to match (3 by
+     default here), so a run measures the bots as they play at home. */
+  MTG.bots.lookCapScale = a.lookcap != null ? a.lookcap : 3;
   const C = a.contracts ? require('./contracts') : null;
   const found = [];
   const results = [];
@@ -245,6 +319,8 @@ async function main() {
   // look-ahead decisions by difficulty: how many a game, how long, how often they changed the move
   const lookBy = lookSummary(results);
   if (Object.keys(lookBy).length) summary.look = lookBy;
+  const aimAll = aimSummary(results);
+  if (aimAll) summary.aim = aimAll;
   if (C) {
     const all = C.merge(found);
     summary.contractViolations = all.filter(v => !v.known).length;
@@ -257,4 +333,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { playOne, seatsFor, lookSummary };
+module.exports = { playOne, seatsFor, lookSummary, aimSummary };
