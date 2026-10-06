@@ -238,7 +238,10 @@ def('condition', 'CardsInControllerGraveyardCondition', (o, tc) => {
   const n = litOf(o.args[0]);
   if (o.args[1]) {
     const d = F.describe(o.args[1], tc);
-    return { kind: 'graveyard', n, what: F.toWords(d) };
+    const w = F.toWords(d);
+    // the engine's graveyard count reads "permanent" as any card, so permanent cards have their own
+    if (w === 'permanent') return { kind: 'graveyardPermanents', n };
+    return { kind: 'graveyard', n, what: w };
   }
   return { kind: 'graveyard', n };
 });
@@ -295,6 +298,8 @@ function costText(v, tc) {
       const d2 = Object.assign({}, d, { another: undefined, controller: undefined });
       const words = F.toWords(d2);
       if (/ or .* /.test(words) && /\s/.test(words.replace(/ or /g, ''))) block('sacrifice words');
+      // "Sacrifice two other creatures": the count, and "other" after it
+      if (another && n > 1) return 'Sacrifice ' + n + ' other ' + words;
       return 'Sacrifice ' + (another ? 'another' : n === 1 ? (/^[aeiou]/.test(words) ? 'an' : 'a') : n) + ' ' + words;
     }
     case 'DiscardCardCost': {

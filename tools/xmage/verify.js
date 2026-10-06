@@ -175,6 +175,12 @@ function overrideReason(parsed, translated) {
       if (SCOPES.has(b.scope) && (a.scope == null || SCOPES.has(a.scope)) && a.scope !== b.scope && !(a.op === 'grantLast' && b.scope === 'lastTarget')) return 'it';
     }
   }
+  /* "+X/+0" read as nothing at all (Hatred) */
+  if (pe.length === te.length && pe.some((e, i) => ['p', 't', 'n'].some(k => (e[k] == null) && te[i][k] === 'X'))) return 'x';
+  /* An intervening "if" the reading dropped: the trigger fired every time
+     (Ghitu Journeymage dealing its damage with no Wizard). */
+  const pt = (parsed || []).filter(a => a.kind === 'triggered'), tt = (translated || []).filter(a => a.kind === 'triggered');
+  if (pt.length === 1 && tt.length === 1 && !pt[0].condition && tt[0].condition) return 'condition';
   /* A count the engine cannot do: "cards in your hand", "other Dinosaurs",
      "attacking Elves" read as permanents of one type, which counts none. */
   let badPer = false;

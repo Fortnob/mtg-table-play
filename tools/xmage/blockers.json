@@ -23,7 +23,9 @@
    "it": 166,
    "drain": 62,
    "count": 35,
-   "opponent": 65
+   "x": 5,
+   "opponent": 65,
+   "condition": 3
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
@@ -2968,25 +2970,6 @@
    ]
   },
   {
-   "what": "(verify) number 3 missing",
-   "score": 19,
-   "lines": 16,
-   "cards": [
-    "Runaway Steam-Kin",
-    "Goblin Traprunner",
-    "Adaptive Training Post",
-    "Invasion of Shandalar // Leyline Surge",
-    "Steward of the Harvest",
-    "Akul the Unrepentant",
-    "Daring Discovery",
-    "Moonshae Pixie // Pixie Dust",
-    "Reinforcements",
-    "Wondrous Revival",
-    "Proclamation of Rebirth",
-    "Panic Attack"
-   ]
-  },
-  {
    "what": "UntapAllEffect",
    "score": 19,
    "lines": 16,
@@ -3212,6 +3195,25 @@
     "Graceful Takedown",
     "Fencer's Magemark",
     "Time Elemental"
+   ]
+  },
+  {
+   "what": "(verify) number 3 missing",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Runaway Steam-Kin",
+    "Goblin Traprunner",
+    "Adaptive Training Post",
+    "Invasion of Shandalar // Leyline Surge",
+    "Steward of the Harvest",
+    "Daring Discovery",
+    "Moonshae Pixie // Pixie Dust",
+    "Reinforcements",
+    "Wondrous Revival",
+    "Proclamation of Rebirth",
+    "Panic Attack",
+    "Sea God's Revenge"
    ]
   },
   {
@@ -10368,19 +10370,6 @@
    ]
   },
   {
-   "what": "(verify) number 3 missing",
-   "score": 15,
-   "cards": 12,
-   "names": [
-    "Runaway Steam-Kin",
-    "Goblin Traprunner",
-    "Invasion of Shandalar // Leyline Surge",
-    "Akul the Unrepentant",
-    "Daring Discovery",
-    "Reinforcements"
-   ]
-  },
-  {
    "what": "TargetActivatedOrTriggeredAbility",
    "score": 15,
    "cards": 12,
@@ -10597,6 +10586,19 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "(verify) number 3 missing",
+   "score": 14,
+   "cards": 11,
+   "names": [
+    "Runaway Steam-Kin",
+    "Goblin Traprunner",
+    "Invasion of Shandalar // Leyline Surge",
+    "Daring Discovery",
+    "Reinforcements",
+    "Wondrous Revival"
    ]
   },
   {
