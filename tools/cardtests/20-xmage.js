@@ -167,6 +167,17 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, before + 1, 'drew from the granted trigger');
   });
 
+  test('XMage: Brash Taunter sends the damage it is dealt to an opponent', (mk, t) => {
+    generated(t, 'Brash Taunter');
+    const T = mk();
+    const bt = T.bf('A', 'Brash Taunter');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bt] });
+    t.eq(T.life('B'), 17);
+    t.zone(bt, 'battlefield', 'indestructible');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

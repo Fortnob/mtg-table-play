@@ -102,7 +102,18 @@ function keyOf(v) {
 /** Translate one value of a family, or refuse with the class that has no translator. */
 function tr(kind, v, tc, extra) {
   if (!v) block(kind + ':missing');
-  if (v.t === 'obj' && v.custom) block('custom ' + (fw.family(customBase(v, tc)) || kind), v.cls);
+  /* A class the card's own file writes is refused, unless one has been
+     translated by hand for it (tr/custom.js), keyed by its name. */
+  if (v.t === 'obj' && v.custom) {
+    const own = REG[kind].get('custom:' + v.cls);
+    if (own) return own(v, tc, extra);
+    block('custom ' + (fw.family(customBase(v, tc)) || kind), v.cls);
+  }
+  if (v.t === 'ref' && tc && tc.model && (tc.model.customDecls || []).some(d => d.name === v.path.split('.')[0])) {
+    const own = REG[kind].get('custom:' + v.path);
+    if (own) return own(v, tc, extra);
+    block('custom ' + kind, v.path);
+  }
   if (v.t === 'obj' && v.anon) block('anonymous ' + v.cls);
   // a bare constant nothing could resolve would be silently ignored by an argument search
   if (v.t === 'obj') for (const a of v.args) {

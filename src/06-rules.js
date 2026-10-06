@@ -6159,6 +6159,8 @@
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       if (source && this.hasKw(source, 'deathtouch')) o.dealtDeathtouch = true;
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!isCombat });
+      // "Whenever this creature is dealt damage" (enrage): the creature's own trigger
+      this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat });
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${o.name}.`);
       this.emit('sfx', 'damage', { player: o.controller, size: amount });
       this.emit('damage', { object: o, amount, source });

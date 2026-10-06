@@ -236,6 +236,16 @@ def('ability', 'CastSecondSpellTriggeredAbility', (o, tc) => {
   return null;
 });
 def('condition', 'YouGainedLifeCondition.getZero', () => ({ kind: 'lifeGained', n: 1 }));
+def('ability', 'DealtDamageToSourceTriggeredAbility', (o, tc) => {
+  const b = A(o).all('bool').map(x => x.v);
+  return AB.triggered(o, tc, { event: 'isDealtDamage', self: true, optional: !!b[0] });
+});
+/* "That much": the amount the trigger was about, which these events carry */
+const AMOUNT_EVENTS = new Set(['isDealtDamage', 'combatDamageToPlayer', 'youGainLife', 'dealsDamage', 'opponentLosesLife']);
+def('value', ['SavedDamageValue.MUCH', 'SavedDamageValue.MANY', 'SavedGainedLifeValue.MUCH', 'SavedGainedLifeValue.MANY'], (o, tc) => {
+  if (!tc.trigger || !AMOUNT_EVENTS.has(tc.trigger.event)) block('that much, outside a trigger that counts');
+  return 'triggerAmount';
+});
 
 /* ---------------- emblems ----------------
    The emblem's own class is read like a card, its abilities translated,
