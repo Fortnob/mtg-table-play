@@ -1858,11 +1858,20 @@
            haste", "it has 'when this becomes the target …'") is left for a
            person rather than quietly dropped */
         if (m[4]) {
-          const ex = m[4].trim();
-          const add = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types$/);
-          if (add) e.addTypes = add[1].split(' ');
-          else if (/^it isn'?t legendary$/i.test(ex)) e.nonLegendary = true;
-          else return null;
+          /* one or more clauses joined by "and": a type added, legendary
+             taken away, or something it has ("it has flying", "it has
+             '…'"), which the copy carries as words of its own */
+          let ex = m[4].trim();
+          while (ex) {
+            let c;
+            if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
+            else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
+            else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
+            else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible)(?=,? and |$)/i)))
+              (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
+            else return null;
+            ex = ex.slice(c[0].length).replace(/^,? and /, '').trim();
+          }
         }
         return e;
       } },

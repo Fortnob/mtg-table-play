@@ -9542,6 +9542,13 @@
             }
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
           }
+          /* "except it has flying", "except it has 'When this creature
+             becomes the target of a spell or ability, sacrifice it'": the
+             copy's words, with that added */
+          if ((e.addText || []).length) {
+            const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
+            card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
+          }
           src.card = card;
           src.face = pick.face || 0;
           src._chr = null;

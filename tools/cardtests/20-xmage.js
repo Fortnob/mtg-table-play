@@ -481,4 +481,24 @@ module.exports = (test) => {
     T.resolve();
     t.ok(bear.tapped);
   });
+
+  test('Phantasmal Image copies with its exceptions, and dies when targeted', (mk, t) => {
+    t.auto('Phantasmal Image');
+    const T = mk();
+    T.bf('B', 'Craw Wurm');
+    const pi = T.put('A', 'Phantasmal Image', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(pi.name, 'Craw Wurm', 'a copy');
+    t.ok(T.g._hasCreatureType(pi, 'Illusion'), 'an Illusion as well');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [pi], resolve: false });
+    T.resolve();
+    t.zone(pi, 'graveyard', 'sacrificed when targeted (2 damage would not kill a 6/4)');
+  });
+
+  test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
+    const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
+      colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
+    t.ok(engine().oracle.analyze(card).abilities[0].effects[0].addText.includes('Haste'));
+  });
 };
