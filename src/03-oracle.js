@@ -2284,6 +2284,26 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Insurrection: "Untap all creatures and gain control of them until end of turn."
+    { re: /^Untap all creatures and gain control of them until end of turn\.?$/i, make: () => ({ op: 'threatenAll' }) },
+    // Temur Battle Rage: "That creature also gains trample until end of turn if you control a creature with power 4 or greater."
+    { re: /^That creature also gains ([a-z ]+?) until end of turn if (.+?)\.?$/i,
+      make: (m) => {
+        const cond = condOf(m[2]);
+        const kws = keywordList(m[1]);
+        if (!cond || !kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'ifCond', cond, then: [{ op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] };
+      } },
+    // The Locust God: "When this dies, return it to its owner's hand at the beginning of the next end step."
+    { re: /^Return (?:CARDNAME|it) to (its owner'?s hand|the battlefield under (?:its owner'?s|your) control) at the beginning of the next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'self', name: /hand/i.test(m[1]) ? 'Return it to hand' : 'Return it to the battlefield',
+        effects: [{ op: 'selfFromGraveyard', to: /hand/i.test(m[1]) ? 'hand' : 'battlefield' }] }) },
+    // Humble Defector: "Target opponent gains control of this creature."
+    { re: /^Target (opponent|player) gains control of (?:this creature|CARDNAME|this artifact|this permanent)\.?$/i,
+      make: (m) => ({ op: 'giveSelf', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Suture Priest: "you may have that player lose 1 life" — the controller of the creature that entered
+    { re: /^Have (?:that player|its controller) lose (one|two|three|\d+) life\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'triggerObjController', n: num(m[1]) }) },
     /* "Counter that spell": the spell already targeted (Stubborn Denial's
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
@@ -3059,6 +3079,9 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    // Astral Cornucopia: "Choose a color. Add one mana of that color for each charge counter on this artifact."
+    { re: /^Choose a colou?r\. Add one mana of that colou?r for each ([a-z]+) counter on (?:this (?:artifact|creature|permanent|land)|CARDNAME)\.?$/i,
+      make: (m) => [{ op: 'addManaX', x: 'counters', counter: m[1].toLowerCase() }] },
     // Eldrazi Monument: "Sacrifice a creature. If you can't, sacrifice this artifact."
     { re: /^Sacrifice an? (creature|artifact|land|permanent)\. If you can'?t, sacrifice (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
       make: (m) => [{ op: 'sacOrSelf', filter: m[1].toLowerCase() }] },
@@ -3843,6 +3866,9 @@
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
     [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
     [/^you'?re the monarch$/i, () => ({ kind: 'monarch' })],
+    // Triskaidekaphile: "if you have exactly thirteen cards in your hand"
+    [/^you have exactly (\w+) cards in your hand$/i, (m) => (typeof num(m[1]) === 'number'
+      ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
     // Righteous Valkyrie: "you have at least 7 life more than your starting life total"
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
     // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
@@ -5836,6 +5862,14 @@
         const ab = { kind: 'mana', auto: true, granted: true, cost, text: m[2], effects: parsed.effects.filter(e => e.op !== 'spendOnly') };
         if (spend) ab.spendOnly = spend.open ? { rider: spend.rider, open: true } : spend;
         return { op: 'continuous', layer: 6, scope, grantMana: [ab] };
+      } },
+    // Dragon's Rage Channeler: "…gets +2/+2, has flying, and attacks each combat if able."
+    { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+), (?:has|have) ([a-z ]+?),? and attacks? each combat if able\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        const kws = keywordList(m[4]);
+        if (!scope || !kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws, flag: 'mustAttackEot' };
       } },
     // "<scope> get +1/+1 and have flying."
     { re: /^(.+?) gets? ([+-][\dX]+)\/([+-][\dX]+)(?: and (?:has|have) ([a-z, '{}0-9]+?))?\.?$/i,

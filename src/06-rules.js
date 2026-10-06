@@ -8048,6 +8048,12 @@
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           else if (e.who === 'targetController') { const o = firstObj(); const p = o && this.player(o.controller); if (p) this.changeLife(p, -cnt); }
+          // Suture Priest: the controller of the creature the trigger is about
+          else if (e.who === 'triggerObjController') {
+            const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            const p = x && this.player(x.controller);
+            if (p) this.changeLife(p, -cnt);
+          }
           else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, -cnt); }
           else this.changeLife(me, -cnt);
           break;
@@ -8951,6 +8957,28 @@
           this._refreshControl();
           // "It gains haste until end of turn" (Act of Treason) is about this creature
           this._noteLastAffected(targets);
+          break;
+        }
+        // Insurrection: every creature, untapped and yours until end of turn
+        case 'threatenAll': {
+          const ts = this._stampNew();
+          const all = this.battlefield.filter(x => !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+          for (const x of all) {
+            x.tapped = false;
+            if (x.controller !== ctx.controller) x.effects.push({ control: ctx.controller, until: 'eot', ts });
+          }
+          this._refreshControl();
+          this._lastGroup = all.map(x => x.id);         // "They gain haste until end of turn."
+          this.logEvent('control', `${me.name} gains control of every creature until end of turn.`);
+          break;
+        }
+        // Humble Defector: "Target opponent gains control of this creature."
+        case 'giveSelf': {
+          const to = firstPlayer();
+          if (!src || src.zone !== 'battlefield' || !to || to.hasLost) break;
+          src.effects.push({ control: to.id, until: null, ts: this._stampNew() });
+          this._refreshControl();
+          this.logEvent('control', `${to.name} gains control of ${src.name}.`);
           break;
         }
         /* Switcheroo: "Exchange control of two target creatures." Both

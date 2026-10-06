@@ -2180,6 +2180,98 @@ module.exports = (test) => {
     t.ok(T.asked.some(q => q.type === 'arrange' && q.look), 'looked');
   });
 
+  test('The Locust God comes back to hand at the next end step', (mk, t) => {
+    t.auto('The Locust God');
+    const T = mk();
+    const g = T.bf('A', 'The Locust God');
+    T.g.moveObject(g, 'graveyard');
+    T.resolve();
+    t.zone(g, 'graveyard', 'not yet');
+    T.nextTurn('B');
+    t.zone(g, 'hand');
+  });
+
+  test('Humble Defector changes hands after drawing', (mk, t) => {
+    t.auto('Humble Defector');
+    const T = mk();
+    const h = T.bf('A', 'Humble Defector');
+    h.summoningSick = false;
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const before = T.zone('A', 'hand').length;
+    T.activate('A', h, 0, { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 2);
+    t.eq(h.controller, 'B');
+  });
+
+  test('Suture Priest: the player whose creature entered loses 1', (mk, t) => {
+    t.auto('Suture Priest');
+    const T = mk();
+    T.bf('B', 'Suture Priest');
+    T.answer('confirm', { yes: true });
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.life('A'), 19);
+    t.eq(T.life('B'), 20);
+  });
+
+  test('Astral Cornucopia: one mana of a colour per charge counter', (mk, t) => {
+    t.auto('Astral Cornucopia');
+    const T = mk();
+    const c = T.bf('A', 'Astral Cornucopia');
+    c.counters.charge = 3;
+    T.g.activateAbility('A', c.id, 0, { auto: true });
+    t.eq(T.g.player('A').pool.total(), 3);
+  });
+
+  test('Triskaidekaphile wins with exactly thirteen cards', (mk, t) => {
+    t.auto('Triskaidekaphile');
+    const T = mk();
+    T.bf('A', 'Triskaidekaphile');
+    T.nextTurn('B');
+    while (T.zone('A', 'hand').length < 13) T.hand('A', 'Island');
+    T.nextTurn('A');
+    t.ok(T.g.over || T.g.player('B').hasLost, 'thirteen at upkeep');
+  });
+
+  test("Dragon's Rage Channeler with delirium: bigger, flying, attacking", (mk, t) => {
+    t.auto("Dragon's Rage Channeler");
+    const T = mk();
+    const d = T.bf('A', "Dragon's Rage Channeler");
+    t.eq(T.g.powerOf(d), 1);
+    for (const n of ['Island', 'Shock', 'Grizzly Bears', 'Divination', 'Ornithopter']) T.grave('A', n);
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(d), 3);
+    t.ok(T.g.hasKw(d, 'flying') && T.g._hasFlag(d, 'mustAttackEot'), 'flying, must attack');
+  });
+
+  test('Insurrection takes every creature for the turn', (mk, t) => {
+    t.auto('Insurrection');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    b.tapped = true;
+    T.mana('A', '5RRR');
+    T.cast('A', T.hand('A', 'Insurrection'));
+    T.resolve();
+    t.eq(b.controller, 'A'); t.no(b.tapped, 'untapped'); t.ok(T.g.hasKw(b, 'haste'), 'haste');
+    T.nextTurn('B');
+    t.eq(b.controller, 'B', 'back at end of turn');
+  });
+
+  test('Temur Battle Rage adds trample with ferocious', (mk, t) => {
+    t.auto('Temur Battle Rage');
+    for (const [n, tr] of [['Craw Wurm', true], ['Grizzly Bears', false]]) {
+      const T = mk();
+      const c = T.bf('A', n);
+      T.mana('A', '1R');
+      T.cast('A', T.hand('A', 'Temur Battle Rage'), { targets: [T.tgt(c)] });
+      T.resolve();
+      t.ok(T.g.hasKw(c, 'double strike'), 'double strike');
+      t.eq(T.g.hasKw(c, 'trample'), tr, n);
+    }
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
