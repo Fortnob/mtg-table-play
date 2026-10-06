@@ -2083,6 +2083,103 @@ module.exports = (test) => {
     t.ok(arts.every(x => x.tapped), 'all three tapped');
   });
 
+  test('Stubborn Denial counters outright with a big creature', (mk, t) => {
+    t.auto('Stubborn Denial');
+    for (const big of [false, true]) {
+      const T = mk();
+      if (big) T.bf('B', 'Craw Wurm');
+      T.mana('A', 'R');
+      const sh = T.hand('A', 'Shock');
+      T.cast('A', sh, { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+      T.g.passPriority('A', true);
+      T.mana('B', 'U'); T.mana('A', '1');
+      T.answer('payOrDont', { pay: true });
+      T.cast('B', T.hand('B', 'Stubborn Denial'), { targets: [T.stackTarget(sh)] });
+      T.resolve();
+      t.eq(T.life('B'), big ? 20 : 18, big ? 'countered anyway' : 'paid for');
+    }
+  });
+
+  test('Boromir counters a spell cast for no mana', (mk, t) => {
+    t.auto('Boromir, Warden of the Tower');
+    for (const free of [true, false]) {
+      const T = mk();
+      T.bf('B', 'Boromir, Warden of the Tower');
+      const sh = T.hand('A', 'Shock');
+      if (!free) T.mana('A', 'R');
+      T.g.castSpell('A', sh.id, { auto: true, free, targets: [{ kind: 'player', id: 'B' }] });
+      T.resolve();
+      t.eq(T.life('B'), free ? 20 : 18, free ? 'free: countered' : 'paid: resolves');
+    }
+  });
+
+  test('Tribute to the World Tree: a card for a big creature, counters otherwise', (mk, t) => {
+    t.auto('Tribute to the World Tree');
+    const T = mk();
+    T.bf('A', 'Tribute to the World Tree');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const w = T.hand('A', 'Craw Wurm');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '4GG');
+    T.cast('A', w);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before, 'drew one');
+    t.no(w.counters['+1/+1'], 'no counters on the Wurm');
+    const e = T.hand('A', 'Llanowar Elves');
+    T.mana('A', 'G');
+    T.cast('A', e);
+    T.resolve();
+    t.eq(e.counters['+1/+1'], 2);
+  });
+
+  test("Imp's Mischief redirects, and costs life equal to that spell's mana value", (mk, t) => {
+    t.auto("Imp's Mischief");
+    const T = mk();
+    T.mana('A', 'R');
+    const sh = T.hand('A', 'Shock');
+    T.cast('A', sh, { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+    T.g.passPriority('A', true);
+    T.mana('B', '1B');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'A' }] }));
+    T.cast('B', T.hand('B', "Imp's Mischief"), { targets: [T.stackTarget(sh)] });
+    T.resolve();
+    t.eq(T.life('A'), 18, 'the Shock came back');
+    t.eq(T.life('B'), 19, 'one life for a one-mana spell');
+  });
+
+  test('Shark Typhoon: a Shark as big as the spell', (mk, t) => {
+    t.auto('Shark Typhoon');
+    const T = mk();
+    T.bf('A', 'Shark Typhoon');
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    T.resolve();
+    const sh = T.bfOf('A').find(o => o.name === 'Shark');
+    t.ok(sh && T.g.powerOf(sh) === 3 && T.g.toughnessOf(sh) === 3, '3/3');
+    t.ok(sh && T.g.hasKw(sh, 'flying'), 'flying');
+  });
+
+  test('Bane of Progress grows for each permanent destroyed', (mk, t) => {
+    t.auto('Bane of Progress');
+    const T = mk();
+    T.bf('B', 'Ornithopter'); T.bf('B', 'Glorious Anthem'); T.bf('A', 'Ornithopter');
+    T.mana('A', '4GG');
+    const b = T.hand('A', 'Bane of Progress');
+    T.cast('A', b);
+    T.resolve();
+    t.eq(b.counters['+1/+1'], 3);
+  });
+
+  test("Mishra's Bauble looks at a player's top card and draws next upkeep", (mk, t) => {
+    t.auto("Mishra's Bauble");
+    const T = mk();
+    const bb = T.bf('A', "Mishra's Bauble");
+    T.activate('A', bb, 0, { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.zone(bb, 'graveyard');
+    t.ok(T.asked.some(q => q.type === 'arrange' && q.look), 'looked');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

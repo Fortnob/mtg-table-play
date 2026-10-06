@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16873,
-  "gainedCards": 1760,
-  "linesNeeded": 19248,
-  "linesGained": 2279,
+  "needed": 16838,
+  "gainedCards": 1758,
+  "linesNeeded": 19206,
+  "linesGained": 2277,
   "gained": {
-   "all": 1760,
+   "all": 1758,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5886,
-   "lines": 4971,
+   "score": 5853,
+   "lines": 4950,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -43,18 +43,18 @@
     "Opposition Agent",
     "Culling Ritual",
     "Tibalt's Trickery",
-    "Tribute to the World Tree",
     "Torment of Hailfire",
     "Incubation Druid",
     "Rite of Flame",
     "Distant Melody",
-    "Sphere of Safety"
+    "Sphere of Safety",
+    "Shared Animosity"
    ]
   },
   {
    "what": "custom ability",
-   "score": 1042,
-   "lines": 847,
+   "score": 1040,
+   "lines": 845,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1782,25 +1782,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Emet-Selch of the Third Seat",
-    "Flaming Tyrannosaurus",
-    "Keeper of Secrets",
-    "Gravebreaker Lamia",
-    "Norman Osborn // Green Goblin",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser"
-   ]
-  },
-  {
    "what": "ExileUntilSourceLeavesEffect",
    "score": 18,
    "lines": 15,
@@ -1877,25 +1858,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Hobgoblin Bandit Lord",
-    "Noise Marine",
-    "Thor, God of Thunder",
-    "Mana Cannons",
-    "Niv-Mizzet, Guildpact",
-    "Anathemancer",
-    "Monstrous Emergence",
-    "Runeflare Trap",
-    "Moonveil Regent",
-    "Voracious Dragon",
-    "Close Encounter",
-    "Lightning Storm"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 18,
    "lines": 18,
@@ -1934,23 +1896,6 @@
    ]
   },
   {
-   "what": "ManaSpentToCastPredicate",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Boromir, Warden of the Tower",
-    "Vexing Bauble",
-    "Lavinia, Azorius Renegade",
-    "The Emperor of Palamecia // The Lord Master of Hell",
-    "Raggadragga, Goreguts Boss",
-    "Prompto Argentum",
-    "Ultros, Obnoxious Octopus",
-    "Blazing Bomb",
-    "Sahagin",
-    "The Prima Vista"
-   ]
-  },
-  {
    "what": "attack with 2 or more",
    "score": 17,
    "lines": 11,
@@ -1966,6 +1911,25 @@
     "Tide Skimmer",
     "Escarpment Fortress",
     "Path of Mettle // Metzali, Tower of Triumph"
+   ]
+  },
+  {
+   "what": "CastFromZonePredicate",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Passionate Archaeologist",
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Rivaz of the Claw",
+    "Emet-Selch of the Third Seat",
+    "Flaming Tyrannosaurus",
+    "Gravebreaker Lamia",
+    "Norman Osborn // Green Goblin",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Patrician Geist"
    ]
   },
   {
@@ -2100,6 +2064,25 @@
    ]
   },
   {
+   "what": "DamageTargetEffect amount",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Hobgoblin Bandit Lord",
+    "Noise Marine",
+    "Mana Cannons",
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Runeflare Trap",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Lightning Storm",
+    "Pyre-Sledge Arsonist"
+   ]
+  },
+  {
    "what": "CompoundCondition",
    "score": 17,
    "lines": 17,
@@ -2212,25 +2195,6 @@
     "Aurification",
     "Contested War Zone",
     "Hixus, Prison Warden"
-   ]
-  },
-  {
-   "what": "words: non-subtype",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Kinnan, Bonder Prodigy",
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Requiem Angel",
-    "Wildborn Preserver",
-    "Call to the Grave",
-    "Sage of the Falls",
-    "Ooze Garden",
-    "Redcap Raiders"
    ]
   },
   {
@@ -2627,6 +2591,25 @@
    ]
   },
   {
+   "what": "words: non-subtype",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Kinnan, Bonder Prodigy",
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Requiem Angel",
+    "Wildborn Preserver",
+    "Call to the Grave",
+    "Sage of the Falls",
+    "Redcap Raiders",
+    "Archdemon of Unx"
+   ]
+  },
+  {
    "what": "AttachTargetToTargetEffect",
    "score": 15,
    "lines": 12,
@@ -2920,24 +2903,6 @@
     "Spider-Verse",
     "Mirror Gallery",
     "Council of Reeds"
-   ]
-  },
-  {
-   "what": "LookLibraryTopCardTargetPlayerEffect",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Mishra's Bauble",
-    "Moonring Island",
-    "Orcish Spy",
-    "Dewdrop Spy",
-    "Draugr Thought-Thief",
-    "Lurking Informant",
-    "Eye Spy",
-    "Visions",
-    "Saheeli's Silverwing",
-    "Rootwater Mystic",
-    "Merfolk Observer"
    ]
   },
   {
@@ -5131,20 +5096,6 @@
    ]
   },
   {
-   "what": "counter of a non-spell",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Stubborn Denial",
-    "Dazzling Denial",
-    "Lofty Denial",
-    "Dispelling Exhale",
-    "We Say Thee Nay!",
-    "Anticognition",
-    "Silumgar's Scorn"
-   ]
-  },
-  {
    "what": "cost reduction shape",
    "score": 10,
    "lines": 7,
@@ -5915,16 +5866,6 @@
     "Teferi's Ageless Insight",
     "Alhammarret's Archive",
     "Bard, King of Dale"
-   ]
-  },
-  {
-   "what": "NumberOfTargetsPredicate",
-   "score": 9,
-   "lines": 3,
-   "cards": [
-    "Hydroelectric Specimen // Hydroelectric Laboratory",
-    "Imp's Mischief",
-    "Spinerock Tyrant"
    ]
   },
   {
@@ -6861,6 +6802,20 @@
     "Ordeal of Purphoros",
     "Biolume Egg // Biolume Serpent",
     "Ordeal of Erebos"
+   ]
+  },
+  {
+   "what": "ManaSpentToCastPredicate",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "The Emperor of Palamecia // The Lord Master of Hell",
+    "Raggadragga, Goreguts Boss",
+    "Prompto Argentum",
+    "Ultros, Obnoxious Octopus",
+    "Blazing Bomb",
+    "Sahagin",
+    "The Prima Vista"
    ]
   },
   {
@@ -8019,6 +7974,20 @@
    ]
   },
   {
+   "what": "LookLibraryTopCardTargetPlayerEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Moonring Island",
+    "Orcish Spy",
+    "Draugr Thought-Thief",
+    "Lurking Informant",
+    "Eye Spy",
+    "Visions",
+    "Saheeli's Silverwing"
+   ]
+  },
+  {
    "what": "SkipNextTurnSourceEffect",
    "score": 7,
    "lines": 7,
@@ -8213,26 +8182,54 @@
     "Gilded Cerodon",
     "Wretched Camel"
    ]
+  },
+  {
+   "what": "CanAttackAsThoughItDidntHaveDefenderSourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Animate Wall",
+    "Nivix Cyclops",
+    "Roving Keep",
+    "Mobile Fort",
+    "Territorial Witchstalker",
+    "Walking Wall",
+    "Wall of Wonder"
+   ]
+  },
+  {
+   "what": "blocked trigger pointing at the blocker",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Slate Street Ruffian",
+    "Alley Grifters",
+    "Thresher Beast",
+    "Robber Fly",
+    "Flint Golem",
+    "Corrupt Official",
+    "Port Inspector"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4617,
-   "cards": 3945,
+   "score": 4589,
+   "cards": 3929,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
     "Thespian's Stage",
     "Culling Ritual",
     "Tibalt's Trickery",
-    "Tribute to the World Tree"
+    "Torment of Hailfire"
    ]
   },
   {
    "what": "custom ability",
-   "score": 770,
-   "cards": 620,
+   "score": 768,
+   "cards": 618,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8425,6 +8422,19 @@
    ]
   },
   {
+   "what": "UnlockThisDoorTriggeredAbility",
+   "score": 33,
+   "cards": 18,
+   "names": [
+    "Walk-In Closet // Forgotten Cellar",
+    "Funeral Room // Awakening Hall",
+    "Mirror Room // Fractured Realm",
+    "Unholy Annex // Ritual Chamber",
+    "Restricted Office // Lecture Hall",
+    "Defiled Crypt // Cadaver Lab"
+   ]
+  },
+  {
    "what": "effect with no target",
    "score": 33,
    "cards": 33,
@@ -8461,19 +8471,6 @@
     "Intervention Pact",
     "Reverse Damage",
     "Circle of Protection: White"
-   ]
-  },
-  {
-   "what": "UnlockThisDoorTriggeredAbility",
-   "score": 32,
-   "cards": 17,
-   "names": [
-    "Walk-In Closet // Forgotten Cellar",
-    "Funeral Room // Awakening Hall",
-    "Mirror Room // Fractured Realm",
-    "Restricted Office // Lecture Hall",
-    "Defiled Crypt // Cadaver Lab",
-    "Bottomless Pool // Locker Room"
    ]
   },
   {
@@ -8659,6 +8656,19 @@
    ]
   },
   {
+   "what": "filter:alts",
+   "score": 23,
+   "cards": 23,
+   "names": [
+    "Agonasaur Rex",
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Thor, God of Thunder",
+    "Excava, the Risen Past"
+   ]
+  },
+  {
    "what": "target count 0",
    "score": 22,
    "cards": 13,
@@ -8695,19 +8705,6 @@
     "Evolutionary Leap",
     "Spinner of Souls",
     "Gamekeeper"
-   ]
-  },
-  {
-   "what": "filter:alts",
-   "score": 22,
-   "cards": 22,
-   "names": [
-    "Agonasaur Rex",
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Banishing Slash"
    ]
   },
   {
@@ -9112,19 +9109,6 @@
    ]
   },
   {
-   "what": "ManaSpentToCastPredicate",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Boromir, Warden of the Tower",
-    "Vexing Bauble",
-    "The Emperor of Palamecia // The Lord Master of Hell",
-    "Prompto Argentum",
-    "Ultros, Obnoxious Octopus",
-    "Blazing Bomb"
-   ]
-  },
-  {
    "what": "owner of a permanent",
    "score": 14,
    "cards": 11,
@@ -9135,19 +9119,6 @@
     "Meneldor, Swift Savior",
     "Reality Scramble",
     "Become Anonymous"
-   ]
-  },
-  {
-   "what": "LookLibraryTopCardTargetPlayerEffect",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Mishra's Bauble",
-    "Moonring Island",
-    "Orcish Spy",
-    "Dewdrop Spy",
-    "Draugr Thought-Thief",
-    "Lurking Informant"
    ]
   },
   {
@@ -9404,19 +9375,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Flaming Tyrannosaurus",
-    "Keeper of Secrets",
-    "Gravebreaker Lamia"
-   ]
-  },
-  {
    "what": "ExileUntilSourceLeavesEffect",
    "score": 13,
    "cards": 10,
@@ -9658,6 +9616,19 @@
     "Dina, Essence Brewer",
     "Ob Nixilis of the Black Oath",
     "Atogatog"
+   ]
+  },
+  {
+   "what": "CastFromZonePredicate",
+   "score": 12,
+   "cards": 9,
+   "names": [
+    "Passionate Archaeologist",
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Flaming Tyrannosaurus",
+    "Gravebreaker Lamia",
+    "Kellan, the Kid"
    ]
   },
   {
@@ -10449,19 +10420,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Requiem Angel",
-    "Wildborn Preserver"
-   ]
-  },
-  {
    "what": "MutatesSourceTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -10625,16 +10583,6 @@
     "Teferi's Ageless Insight",
     "Alhammarret's Archive",
     "Bard, King of Dale"
-   ]
-  },
-  {
-   "what": "NumberOfTargetsPredicate",
-   "score": 9,
-   "cards": 3,
-   "names": [
-    "Hydroelectric Specimen // Hydroelectric Laboratory",
-    "Imp's Mischief",
-    "Spinerock Tyrant"
    ]
   },
   {
@@ -10951,6 +10899,19 @@
     "Daredevil Dragster",
     "The Wretched",
     "Joven's Ferrets"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Requiem Angel",
+    "Wildborn Preserver"
    ]
   },
   {
@@ -11385,18 +11346,6 @@
     "Power Conduit",
     "Ransom Note",
     "Pyramids"
-   ]
-  },
-  {
-   "what": "counter of a non-spell",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Stubborn Denial",
-    "Dazzling Denial",
-    "Lofty Denial",
-    "Anticognition",
-    "Silumgar's Scorn"
    ]
   },
   {
@@ -12051,6 +12000,50 @@
     "Trostani Discordant",
     "The Fall of Lord Konda // Fragment of Konda",
     "Brooding Saurian"
+   ]
+  },
+  {
+   "what": "RemoveUpToAmountCountersEffect",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Glissa Sunslayer",
+    "Rhys, the Evermore",
+    "Render Inert",
+    "Mabel, Bitter Recluse"
+   ]
+  },
+  {
+   "what": "LifeCompareCondition",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Caduceus, Staff of Hermes",
+    "Cryptolith Fragment // Aurora of Emrakul",
+    "Vampire Lacerator",
+    "Razor Pendulum"
+   ]
+  },
+  {
+   "what": "sacrifice trigger for ANY",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Mazirek, Kraul Death Priest",
+    "Fumulus, the Infestation",
+    "Thraximundar",
+    "Mortician Beetle"
+   ]
+  },
+  {
+   "what": "that card",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "The Locust God",
+    "The Scorpion God",
+    "Ares, God of War",
+    "Yomiji, Who Bars the Way"
    ]
   }
  ]

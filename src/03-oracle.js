@@ -397,6 +397,12 @@
       if (!k) return null;
       e.n = k;
       s = s.slice(m[0].length);
+    } else if ((m = s.match(/^, where X is (.+)$/i)) && /^X\/X$/i.test(e.pt || '')) {
+      // Shark Typhoon: "an X/X … token, where X is that spell's mana value"
+      const k = amountOf(m[1]);
+      if (!k) return null;
+      e.ptX = k;
+      s = s.slice(m[0].length);
     }
     if (s.trim()) return null;
     /* A token handed an ability has to be able to use it: the text is
@@ -457,7 +463,7 @@
   function itIsTheTrigger(effects, scope) {
     if (!scope) return;
     let targeted = false;
-    const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); } };
+    const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
@@ -1631,6 +1637,9 @@
     { re: /^You may have (?:that player|them) lose (one|two|three|\d+) life\.?$/i,
       make: (m) => ({ op: 'may', then: [{ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }] }) },
     // Decree of Pain: "Draw a card for each creature destroyed this way."
+    // Bane of Progress: "Put a +1/+1 counter on this creature for each permanent destroyed this way."
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on (?:this creature|CARDNAME) for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { lastSweep: true, mult: 1 }, scope: 'self' }) },
     { re: /^Draw (a|one|two) cards? for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: { lastSweep: true, mult: num(m[1]) } }) },
     { re: /^You gain (one|two|three|\d+) life for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
@@ -1818,6 +1827,8 @@
     { re: /^Look at the top (a|an|one|two|three|four|five|six|seven|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookTop', n: num(m[1]) }) },
     { re: /^Look at the top card of your library\.?$/i, make: () => ({ op: 'lookTop', n: 1 }) },
+    // Mishra's Bauble: "Look at the top card of target player's library."
+    { re: /^Look at the top card of target player'?s library\.?$/i, make: () => ({ op: 'lookTop', n: 1, who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Monstrosity (\d+)\.?$/i, make: (m) => ({ op: 'monstrosity', n: +m[1] }) },
     { re: /^(?:It|CARDNAME|This creature) explores\.?$/i, make: () => ({ op: 'explore', n: 1 }) },
     { re: /^(?:It|CARDNAME|This creature) explores, then it explores again\.?$/i,
@@ -2273,6 +2284,16 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    /* "Counter that spell": the spell already targeted (Stubborn Denial's
+       "instead"), or the one a cast trigger is about (Boromir) */
+    { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    /* Tribute to the World Tree: "…if its power is 3 or greater. Otherwise,
+       put two +1/+1 counters on it." — the other branch of the sentence before */
+    { re: /^Otherwise, (.+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1)));
+        return inner.auto && inner.effects.length ? { op: 'noop', otherwiseOf: inner.effects } : null;
+      } },
     // Uro, Kroxa: "When this enters, sacrifice it unless it escaped."
     { re: /^Sacrifice (?:it|CARDNAME|this creature) unless it escaped\.?$/i, make: () => ({ op: 'sacUnlessEscaped' }) },
     /* Xenagos, God of Revels: "Another target creature you control gains
@@ -2683,7 +2704,7 @@
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
       return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
     // the creature the trigger is about: "that creature's power", "its power"
-    if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's) (power|toughness|mana value)$/i)))
+    if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
@@ -3698,6 +3719,11 @@
          the first one's number, with a question attached. */
       /* A coin flip and what it decides are one thought: the sentences
          after it say what each side means. */
+      // "Otherwise, …": the branch the condition before it didn't take
+      if (e && e.otherwiseOf) {
+        const prev = out[out.length - 1];
+        if (prev && prev.op === 'ifCond' && !(prev.otherwise && prev.otherwise.length)) { prev.otherwise = e.otherwiseOf; continue; }
+      }
       if (e && e.insteadOf) {
         const prev = out.pop();
         if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
@@ -3824,6 +3850,8 @@
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]) - 1, cmp: 'atMost', counter: m[2].toLowerCase() } : null)],
     // Jadar: "you control no creatures with decayed"
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
+    // Boromir, Vexing Bauble: "if no mana was spent to cast it"
+    [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],

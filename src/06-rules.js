@@ -6266,6 +6266,11 @@
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        // Boromir: "if no mana was spent to cast it"
+        case 'triggerNoMana': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          return !!x && (x.manaSpent || 0) === 0;
+        }
         // Court of Grace: "if you're the monarch"
         case 'monarch': return !!me && !!me.monarch;
         // Righteous Valkyrie: "at least 7 life more than your starting life total"
@@ -7803,7 +7808,10 @@
         /* "that creature's power": the permanent the trigger is about, as it
            is now or as it last was */
         if (v && typeof v === 'object' && v.ofTrigger) {
-          const id = (ctx.triggerData || {}).objectId;
+          /* Imp's Mischief: with no trigger, "that spell" is the spell it targets */
+          const st = !(ctx.triggerData || {}).objectId && targets.find(t => t.kind === 'stack');
+          const stItem = st && this.stack.find(x => x.id === st.id);
+          const id = (ctx.triggerData || {}).objectId || (stItem && stItem.objId);
           const o = id && this.obj(id);
           if (!o) return 0;
           const gone = o.zone !== 'battlefield' && o._lastPower != null;
@@ -8216,8 +8224,11 @@
           }
           break;
         }
-        case 'counterSpell':
-          for (const t of targets) {
+        case 'counterSpell': {
+          // "counter that spell" in a cast trigger: the spell it is about
+          const td = ctx.triggerData || {};
+          const which = e.thatSpell && !targets.some(t => t.kind === 'stack') && td.stackId ? [{ kind: 'stack', id: td.stackId }] : targets;
+          for (const t of which) {
             const item = this.stack.find(s => s.id === t.id);
             if (!item) continue;
             const ia = item.obj && item.obj.analysis();
@@ -8240,6 +8251,7 @@
             this.emit('sfx', 'counter');
           }
           break;
+        }
         /* "You may tap or untap target permanent": whoever controls the
            effect decides which, as it resolves. */
         case 'tapOrUntap': {
@@ -8365,11 +8377,14 @@
            them says so in the next sentence, which is its own effect. */
         case 'lookTop': {
           const k = Math.max(1, n(e.n) || 1);
-          const cards = this._topOfLibrary(ctx.controller, k);
+          // Mishra's Bauble: "of target player's library"
+          const whose = e.who === 'target' ? firstPlayer() : me;
+          if (!whose) break;
+          const cards = this._topOfLibrary(whose.id, k);
           if (!cards.length) break;
-          this._looked = cards.map(c => c.id);
+          if (whose === me) this._looked = cards.map(c => c.id);
           const seen = this._ask({ type: 'arrange', playerId: ctx.controller, count: cards.length,
-            cards, look: true, prompt: `Look at the top ${k === 1 ? 'card' : k + ' cards'} of your library.` });
+            cards, look: true, prompt: `Look at the top ${k === 1 ? 'card' : k + ' cards'} of ${whose === me ? 'your' : whose.name + "'s"} library.` });
           if (seen === SUSPEND) return SUSPEND;
           this.logEvent('rules', `${me.name} looks at the top ${k === 1 ? 'card' : k + ' cards'}.`);
           break;
@@ -8624,7 +8639,9 @@
             ? (this._lastAffectedController() || me) : me;
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
-          this._createToken(owner.id, Object.assign({}, e, { n: many }));
+          // "an X/X token, where X is that spell's mana value": the size, worked out now
+          const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) } : {};
+          this._createToken(owner.id, Object.assign({}, e, { n: many }, sized));
           break;
         }
         case 'createNamedToken': {
