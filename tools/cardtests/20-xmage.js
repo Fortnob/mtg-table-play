@@ -754,6 +754,43 @@ module.exports = (test) => {
     t.ok(f.tapped);
   });
 
+  test('Loyal Pegasus cannot attack alone, but can with company', (mk, t) => {
+    t.auto('Loyal Pegasus');
+    const T = mk();
+    const p = T.bf('A', 'Loyal Pegasus');
+    T.answer('declareAttackers', () => [{ attackerId: p.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20, 'stayed home');
+    const T2 = mk();
+    const p2 = T2.bf('A', 'Loyal Pegasus'), bear = T2.bf('A', 'Grizzly Bears');
+    T2.answer('declareAttackers', () => [{ attackerId: p2.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.life('B'), 16, 'both attacked');
+  });
+
+  test('Vivid lands enter tapped with two charge counters', (mk, t) => {
+    t.auto('Vivid Creek');
+    const T = mk();
+    const v = T.put('A', 'Vivid Creek', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(v.tapped);
+    t.eq(v.counters.charge, 2);
+  });
+
+  test('Spin Engine: target creature cannot block it this turn', (mk, t) => {
+    t.auto('Spin Engine');
+    const T = mk();
+    const se = T.bf('A', 'Spin Engine');
+    const wall = T.bf('B', 'Wall of Stone'), bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.activate('A', se, 0, { targets: [wall] });
+    se.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: se.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(T.g.canBlock(wall, se), 'the wall cannot');
+    t.ok(T.g.canBlock(bear, se), 'the bear still can');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

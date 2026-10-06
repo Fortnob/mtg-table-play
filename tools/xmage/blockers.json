@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17777,
-  "gainedCards": 1849,
-  "linesNeeded": 20457,
-  "linesGained": 2446,
+  "needed": 17741,
+  "gainedCards": 1852,
+  "linesNeeded": 20381,
+  "linesGained": 2431,
   "gained": {
-   "all": 1849,
+   "all": 1852,
    "top2000": 51,
    "stdTop": 13
   },
@@ -147,25 +147,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldAbility",
-   "score": 272,
-   "lines": 239,
-   "cards": [
-    "Mockingbird",
-    "Sakashima of a Thousand Faces",
-    "Astral Cornucopia",
-    "Ulamog, the Defiler",
-    "Chameleon, Master of Disguise",
-    "Arixmethes, Slumbering Isle",
-    "Sakashima the Impostor",
-    "Diregraf Colossus",
-    "Imposter Mech",
-    "Nine-Lives Familiar",
-    "Echoing Deeps",
-    "Estrid's Invocation"
-   ]
-  },
-  {
    "what": "custom condition",
    "score": 244,
    "lines": 205,
@@ -182,6 +163,25 @@
     "Endless Atlas",
     "Y'shtola, Night's Blessed",
     "Queen Marchesa"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldAbility",
+   "score": 235,
+   "lines": 205,
+   "cards": [
+    "Mockingbird",
+    "Sakashima of a Thousand Faces",
+    "Ulamog, the Defiler",
+    "Chameleon, Master of Disguise",
+    "Sakashima the Impostor",
+    "Diregraf Colossus",
+    "Imposter Mech",
+    "Nine-Lives Familiar",
+    "Echoing Deeps",
+    "Estrid's Invocation",
+    "Flesh Duplicate",
+    "Golgari Grave-Troll"
    ]
   },
   {
@@ -8284,21 +8284,6 @@
    ]
   },
   {
-   "what": "PreventDamageToSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Opal-Eye, Konda's Yojimbo",
-    "Rasputin Dreamweaver",
-    "Ursine Fylgja",
-    "Rock Hydra",
-    "Ethereal Champion",
-    "Balduvian Hydra",
-    "Ordruun Commando",
-    "Revered Elder"
-   ]
-  },
-  {
    "what": "DrewTwoOrMoreCardsCondition.instance",
    "score": 8,
    "lines": 8,
@@ -8390,13 +8375,24 @@
     "Kindle the Inner Flame",
     "Rebuild the City"
    ]
+  },
+  {
+   "what": "VariableManaCost",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Mirror Entity",
+    "Panoptic Mirror",
+    "Thought Dissector",
+    "Testament of Faith"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4733,
-   "cards": 3962,
+   "score": 4742,
+   "cards": 3968,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8408,8 +8404,8 @@
   },
   {
    "what": "custom ability",
-   "score": 793,
-   "cards": 631,
+   "score": 794,
+   "cards": 632,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8421,8 +8417,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 262,
-   "cards": 223,
+   "score": 263,
+   "cards": 224,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8473,8 +8469,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 174,
-   "cards": 156,
+   "score": 157,
+   "cards": 139,
    "names": [
     "Mockingbird",
     "Chameleon, Master of Disguise",
@@ -9042,6 +9038,19 @@
    ]
   },
   {
+   "what": "mana ability with more",
+   "score": 21,
+   "cards": 15,
+   "names": [
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Gemstone Mine",
+    "Sunken Palace",
+    "Sandstone Needle",
+    "Saprazzan Skerry"
+   ]
+  },
+  {
    "what": "(verify) condition the card does not print",
    "score": 21,
    "cards": 21,
@@ -9466,19 +9475,6 @@
     "Norin, Swift Survivalist",
     "She-Hulk, Wallbreaker",
     "Labyrinth Raptor"
-   ]
-  },
-  {
-   "what": "mana ability with more",
-   "score": 16,
-   "cards": 10,
-   "names": [
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Gemstone Mine",
-    "Sunken Palace",
-    "Magus Lucea Kane",
-    "Rainbow Vale"
    ]
   },
   {
@@ -12064,6 +12060,19 @@
    ]
   },
   {
+   "what": "MustBeBlockedByTargetSourceEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Turntimber Basilisk",
+    "Impetuous Devils",
+    "Tangle Angler",
+    "Maraleaf Rider",
+    "Avalanche Tusker",
+    "Burning-Tree Bloodscale"
+   ]
+  },
+  {
    "what": "MustBeBlockedByAtLeastOneSourceEffect",
    "score": 9,
    "cards": 9,
@@ -12199,18 +12208,6 @@
     "Ever After",
     "Call a Surprise Witness",
     "Terror of Towashi"
-   ]
-  },
-  {
-   "what": "GoadAttachedEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Shiny Impetus",
-    "Bloodthirsty Blade",
-    "Parasitic Impetus",
-    "Coercive Impetus",
-    "Psychic Impetus"
    ]
   }
  ]

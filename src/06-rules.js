@@ -4876,6 +4876,15 @@
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareAttackers' || ch.playerId !== playerId) return this.fail('Not declaring attackers.');
       declarations = declarations || [];
+      /* "can't attack alone" (CR 506.5): a lone attacker that can't stays
+         at home, and nobody attacks */
+      if (declarations.length === 1) {
+        const lone = this.obj(declarations[0].attackerId);
+        if (lone && this._staticOp(lone, 'cantAttackAlone')) {
+          this.logEvent('rules', `${lone.name} can't attack alone.`);
+          declarations = [];
+        }
+      }
       const legalDef = new Set(ch.defenders.map(d => d.id));
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
@@ -4968,6 +4977,7 @@
       if (blocker.tapped || blocker.phasedOut) return false;
       if (ba.abilities.some(x => (x.effects || []).some(e => e.op === 'cantBlock'))) return false;
       if (this._hasFlag(blocker, 'cantBlock')) return false;
+      if ((blocker.effects || []).some(e => e && e.cantBlockId === attacker.id)) return false;
       // the blocker must be controlled by the defending player
       const defPid = defenderId;
       if (blocker.controller !== defPid) return false;
@@ -5078,6 +5088,14 @@
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareBlockers' || ch.playerId !== playerId) return this.fail('Not declaring blockers.');
       declarations = declarations || [];
+      // "can't block alone": the same, for a lone blocker
+      if (declarations.length === 1) {
+        const lone = this.obj(declarations[0].blockerId);
+        if (lone && this._staticOp(lone, 'cantBlockAlone')) {
+          this.logEvent('rules', `${lone.name} can't block alone.`);
+          declarations = [];
+        }
+      }
       // validate
       for (const d of declarations) {
         const b = this.obj(d.blockerId);
@@ -9931,6 +9949,7 @@
         case 'preventNext': {
           const amt = n(e.n);
           if (e.to === 'you') { me.preventShield = (me.preventShield || 0) + amt; break; }
+          if (e.self) { if (src) src.preventShield = (src.preventShield || 0) + amt; break; }
           for (const t of targets) {
             if (t.kind === 'player') { const p = this.player(t.id); if (p) p.preventShield = (p.preventShield || 0) + amt; }
             else { const o = this.obj(t.id); if (o) o.preventShield = (o.preventShield || 0) + amt; }
@@ -9938,6 +9957,14 @@
           break;
         }
 
+        // "Target creature can't block this creature this turn."
+        case 'cantBlockThis':
+          if (!src) break;
+          applyToScope(e, (o) => {
+            o.effects.push({ cantBlockId: src.id, until: 'eot' });
+            this.logEvent('rules', `${o.name} can't block ${src.name} this turn.`);
+          });
+          break;
         case 'restrict':
           applyToScope(e, (o) => {
             o.effects.push(e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller } : { flag: e.flag, until: 'eot' });

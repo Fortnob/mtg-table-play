@@ -2127,9 +2127,13 @@
       make: () => ({ op: 'preventDamage' }) },
     { re: /^Prevent all (combat )?damage that would be dealt to you this turn\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'you' }) },
-    { re: /^Prevent the next (\d+) damage that would be dealt to (any target|target creature|target player|you) this turn\.?$/i,
+    { re: /^Prevent the next (\d+) damage that would be dealt to (any target|target creature|target player|you|CARDNAME|this creature) this turn\.?$/i,
       make: (m) => ({ op: 'preventNext', n: +m[1],
-        targets: /^target|^any/i.test(m[2]) ? [targetSpec(m[2])] : null, to: /^you$/i.test(m[2]) ? 'you' : null }) },
+        targets: /^target|^any/i.test(m[2]) ? [targetSpec(m[2])] : null, to: /^you$/i.test(m[2]) ? 'you' : null,
+        self: /^(?:CARDNAME|this creature)$/i.test(m[2]) || undefined }) },
+    /* "Target creature can't block this creature this turn." */
+    { re: /^(Target creature|Up to one target creature) can'?t block (?:CARDNAME|this creature) this turn\.?$/i,
+      make: (m) => ({ op: 'cantBlockThis', targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
 
     /* ===== combat restrictions ===== */
     { re: /^(Target creature|It|That creature) can'?t block this turn\.?$/i,
@@ -4708,8 +4712,8 @@
     /* --- replacement effects the engine applies when the card enters --- */
     /* "If this was kicked, it enters with two +1/+1 counters on it." The
        counters only arrive if the extra cost was paid. */
-    if (/enters with a ([a-z]+) counter on it for each time it was kicked/i.test(text)) {
-      out.entersWithCounters = { kind: text.match(/enters with a ([a-z]+) counter on it for each time it was kicked/i)[1], n: 'kicked' };
+    if (/enters with an? ([+\-0-9/a-z]+) counter on it for each time it was kicked/i.test(text)) {
+      out.entersWithCounters = { kind: text.match(/enters with an? ([+\-0-9/a-z]+) counter on it for each time it was kicked/i)[1], n: 'kicked' };
     }
     const kickedEtb = text.match(/If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (a|an|one|two|three|four|X|\d+) ([+\-0-9/a-z' ]+?) counters? on (?:it|them)/i);
     if (kickedEtb) out.entersWithCounters = { kind: kickedEtb[2].trim(), n: num(kickedEtb[1]), ifKicked: true };
@@ -4719,7 +4723,7 @@
     if (etbPer) out.entersWithCounters = { kind: etbPer[1].trim(), n: { per: etbPer[2].trim().toLowerCase() } };
     let etbm = text.match(/enters with (a|an|one|two|three|four|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
-    etbm = text.match(/enters with (a|an|one|two|three|\d+) ([a-z ]+?) counters?/i);
+    etbm = text.match(/enters(?: tapped)? with (a|an|one|two|three|\d+) ([a-z ]+?) counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
     const modular = out.keywords.find(k => k.keyword === 'Modular');
     if (modular && modular.arg) out.entersWithCounters = { kind: '+1/+1', n: parseInt(modular.arg, 10) || 0 };
@@ -5521,7 +5525,8 @@
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
-    'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline']);
+    'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
+    'cantAttackAlone', 'cantBlockAlone']);
 
   function parseStatic(line, ctx) {
     const rep = parseReplacement(line);
@@ -5612,14 +5617,21 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      /* "This creature can't attack or block alone." */
+      { re: /^(?:CARDNAME|This creature) can'?t (attack|block|attack or block) alone\.?$/i,
+        make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }
+          : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
       { re: /^CARDNAME attacks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustAttack' }, auto: true },
       { re: /^CARDNAME blocks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustBlock' }, auto: true },
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
-      { re: /^(?:CARDNAME|This creature|This permanent|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
+      { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
-      { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with a [a-z]+ counter on it for each time it was kicked\.?$/i,
+      // the vivid lands: tapped, and with counters the card-level scan found
+      { re: /^(?:CARDNAME|This (?:land|artifact|permanent)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|\d+) [a-z]+ counters? on it\.?$/i,
+        eff: { op: 'etbTapped' }, auto: true },
+      { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each time it was kicked\.?$/i,
         eff: { op: 'noop' }, auto: true },
       { re: /^If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
