@@ -1330,6 +1330,23 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Shivan Dragon').length, 1);
   });
 
+  test('Murderous Rider goes to the bottom of its library when it dies', (mk, t) => {
+    t.auto('Murderous Rider // Swift End');
+    const T = mk();
+    const r = T.bf('A', 'Murderous Rider // Swift End');
+    T.g.moveObject(r, 'graveyard');
+    T.resolve();
+    const lib = T.zone('A', 'library');
+    t.eq(lib[lib.length - 1], r, 'on the bottom');
+  });
+
+  test('Relic of Sauron: two mana in any combination of three colours', (mk, t) => {
+    t.auto('Relic of Sauron');
+    const a = engine().oracle.analyze(card('Relic of Sauron'));
+    const m = a.manaAbilities.find(x => (x.effects || []).length === 2);
+    t.ok(m && m.effects.every(e => e.op === 'addManaChoice' && e.choices.length === 3), 'two choices of U, B or R');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

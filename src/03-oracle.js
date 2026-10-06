@@ -973,6 +973,9 @@
         targets: [{ type: 'creature', controller: 'you' }, { type: 'player' }] }) },
     { re: /^Gain control of target (creature|permanent|artifact)(?: until end of turn)?\.?$/i,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1])] }) },
+    // Archmage's Charm: "...with mana value 1 or less"
+    { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value \d+ or less)\.?$/i,
+      make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
     /* Threaten: "Untap target creature and gain control of it until end of turn." */
     { re: /^Untap (target [a-z' ]+?) and gain control of it until end of turn\.?$/i,
       make: (m) => ({ op: 'gainControl', until: 'eot', untap: true, targets: [targetSpec(m[1])] }) },
@@ -2206,6 +2209,16 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Murderous Rider: "When this creature dies, put it on the bottom of its owner's library."
+    { re: /^Put (?:it|CARDNAME|this card) on the bottom of its owner'?s library\.?$/i, make: () => ({ op: 'selfToLibrary', bottom: true }) },
+    // Intruder Alarm
+    { re: /^Untap all creatures\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature' } }) },
+    // Quantum Misalignment: "...except it isn't legendary"
+    { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except (?:it|the token) isn'?t legendary\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: 1, targets: [targetSpec(m[1])], grant: [], nonLegendary: true }) },
+    /* Relic of Sauron: "Add two mana in any combination of {U}, {B}, and/or {R}." */
+    { re: /^Add (two|three|four) mana in any combination of \{([WUBRGC])\}, \{([WUBRGC])\},? and\/or \{([WUBRGC])\}\.?$/i,
+      make: (m) => Array.from({ length: num(m[1]) }, () => ({ op: 'addManaChoice', choices: [[m[2].toUpperCase()], [m[3].toUpperCase()], [m[4].toUpperCase()]] })) },
     // Staff of Compleation: "Destroy target permanent you own."
     { re: /^Destroy target (permanent|creature|artifact|land) you own\.?$/i,
       make: (m) => ({ op: 'destroy', targets: [Object.assign(targetSpec('target ' + m[1].toLowerCase()), { owner: 'you' })] }) },

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17105,
+  "needed": 17097,
   "gainedCards": 1776,
-  "linesNeeded": 19531,
+  "linesNeeded": 19520,
   "linesGained": 2308,
   "gained": {
    "all": 1776,
@@ -1807,42 +1807,6 @@
    ]
   },
   {
-   "what": "that card",
-   "score": 19,
-   "lines": 10,
-   "cards": [
-    "Murderous Rider // Swift End",
-    "The Locust God",
-    "The Scarab God",
-    "The Scorpion God",
-    "Zask, Skittering Swarmlord",
-    "The Cauldron of Eternity",
-    "Ares, God of War",
-    "Garland, Knight of Cornelia // Chaos, the Endless",
-    "Fell Horseman // Deathly Ride",
-    "Yomiji, Who Bars the Way"
-   ]
-  },
-  {
-   "what": "UntapAllEffect",
-   "score": 19,
-   "lines": 16,
-   "cards": [
-    "Intruder Alarm",
-    "Anzrag, the Quake-Mole",
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "Xolatoyac, the Smiling Flood",
-    "The Thirteenth Doctor",
-    "Éomer, Marshal of Rohan",
-    "Benefactor's Draught",
-    "Lita, Mechanical Engineer",
-    "Awakening",
-    "Veteran Beastrider",
-    "Preston Garvey, Minuteman"
-   ]
-  },
-  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 19,
    "lines": 10,
@@ -2983,6 +2947,25 @@
    ]
   },
   {
+   "what": "UntapAllEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Anzrag, the Quake-Mole",
+    "Betor, Kin to All",
+    "Hexplate Wallbreaker",
+    "Xolatoyac, the Smiling Flood",
+    "The Thirteenth Doctor",
+    "Éomer, Marshal of Rohan",
+    "Benefactor's Draught",
+    "Lita, Mechanical Engineer",
+    "Awakening",
+    "Veteran Beastrider",
+    "Preston Garvey, Minuteman",
+    "Blinkmoth Infusion"
+   ]
+  },
+  {
    "what": "EntersWithCountersControlledEffect",
    "score": 15,
    "lines": 15,
@@ -3311,24 +3294,6 @@
     "Underworld Charger",
     "Voracious Typhon",
     "Loathsome Chimera"
-   ]
-  },
-  {
-   "what": "AddManaInAnyCombinationEffect",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Relic of Sauron",
-    "Burnt Offering",
-    "Hazel of the Rootbloom",
-    "Thornvault Forager",
-    "The Golden Throne",
-    "Molten Slagheap",
-    "Muerra, Trash Tactician",
-    "Dreadship Reef",
-    "Calciform Pools",
-    "Saltcrusted Steppe",
-    "Fungal Reaches"
    ]
   },
   {
@@ -4888,6 +4853,18 @@
    ]
   },
   {
+   "what": "that card",
+   "score": 11,
+   "lines": 5,
+   "cards": [
+    "The Locust God",
+    "The Scarab God",
+    "The Scorpion God",
+    "Ares, God of War",
+    "Yomiji, Who Bars the Way"
+   ]
+  },
+  {
    "what": "AmassEffect",
    "score": 11,
    "lines": 8,
@@ -5538,20 +5515,6 @@
    ]
   },
   {
-   "what": "fixed control",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Archmage's Charm",
-    "Captivating Crew",
-    "Grip of Phyresis",
-    "Enthralling Victor",
-    "Siren of the Fanged Coast",
-    "Infernal Denizen",
-    "Smelt-Ward Ignus"
-   ]
-  },
-  {
    "what": "ConditionalRequirementEffect",
    "score": 10,
    "lines": 7,
@@ -5772,6 +5735,23 @@
     "Fear, Fire, Foes!",
     "Impractical Joke",
     "Flaring Pain"
+   ]
+  },
+  {
+   "what": "AddManaInAnyCombinationEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Burnt Offering",
+    "Hazel of the Rootbloom",
+    "Thornvault Forager",
+    "The Golden Throne",
+    "Molten Slagheap",
+    "Muerra, Trash Tactician",
+    "Dreadship Reef",
+    "Calciform Pools",
+    "Saltcrusted Steppe",
+    "Fungal Reaches"
    ]
   },
   {
@@ -8222,13 +8202,27 @@
     "The Parting of the Ways",
     "The Wedding of River Song"
    ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Curse of Unbinding",
+    "Torment of Scarabs",
+    "Cruel Reality",
+    "Curse of Surveillance",
+    "Curse of Thirst",
+    "Curse of the Pierced Heart",
+    "Curse of Oblivion"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4723,
-   "cards": 3964,
+   "score": 4724,
+   "cards": 3965,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8279,8 +8273,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 241,
-   "cards": 229,
+   "score": 242,
+   "cards": 230,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -9818,32 +9812,6 @@
    ]
   },
   {
-   "what": "that card",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Murderous Rider // Swift End",
-    "The Locust God",
-    "The Scorpion God",
-    "Ares, God of War",
-    "Fell Horseman // Deathly Ride",
-    "Yomiji, Who Bars the Way"
-   ]
-  },
-  {
-   "what": "UntapAllEffect",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Intruder Alarm",
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "The Thirteenth Doctor",
-    "Éomer, Marshal of Rohan",
-    "Benefactor's Draught"
-   ]
-  },
-  {
    "what": "CardsDrawnThisTurnDynamicValue.instance",
    "score": 12,
    "cards": 6,
@@ -10174,19 +10142,6 @@
     "Thought Eater",
     "Thought Devourer",
     "Trusted Advisor"
-   ]
-  },
-  {
-   "what": "AddManaInAnyCombinationEffect",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Relic of Sauron",
-    "Burnt Offering",
-    "Thornvault Forager",
-    "Molten Slagheap",
-    "Dreadship Reef",
-    "Calciform Pools"
    ]
   },
   {
@@ -11658,18 +11613,6 @@
    ]
   },
   {
-   "what": "fixed control",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Archmage's Charm",
-    "Captivating Crew",
-    "Grip of Phyresis",
-    "Enthralling Victor",
-    "Smelt-Ward Ignus"
-   ]
-  },
-  {
    "what": "ConditionalRequirementEffect",
    "score": 8,
    "cards": 5,
@@ -11922,6 +11865,19 @@
    ]
   },
   {
+   "what": "UntapAllEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Betor, Kin to All",
+    "Hexplate Wallbreaker",
+    "The Thirteenth Doctor",
+    "Éomer, Marshal of Rohan",
+    "Benefactor's Draught",
+    "Awakening"
+   ]
+  },
+  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 8,
    "cards": 8,
@@ -12036,6 +11992,45 @@
     "Ashnod's Transmogrant",
     "Workshop Elders",
     "Stone by Sunlight"
+   ]
+  },
+  {
+   "what": "scope:multicolored",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Ravnica at War",
+    "Infinite Guideline Station",
+    "Bant Sureblade",
+    "Naya Hushblade",
+    "Grixis Grimblade",
+    "Esper Stormblade"
+   ]
+  },
+  {
+   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Brought Back",
+    "Samwise the Stouthearted",
+    "Continue?",
+    "Lobelia Sackville-Baggins",
+    "Grim Return",
+    "Salvager of Ruin"
+   ]
+  },
+  {
+   "what": "VoidCondition.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Elegy Acolyte",
+    "Decode Transmissions",
+    "Hymn of the Faller",
+    "Interceptor Mechan",
+    "Plasma Bolt",
+    "Insatiable Skittermaw"
    ]
   }
  ]
