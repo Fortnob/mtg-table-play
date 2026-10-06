@@ -24,6 +24,12 @@
 
   /* ================= boot ================= */
   App.boot = function () {
+    /* Somebody new — no decks, no name, no game played — gets the beginner
+       hints; anyone who has been here before keeps the table as it was. */
+    if (MTG.settings.beginnerHints == null) {
+      const fresh = !MTG.decks.index().length && !MTG.settings.playerName && !MTG.store.get('gamesPlayed', 0);
+      MTG.setSetting('beginnerHints', fresh);
+    }
     App.myName = MTG.settings.playerName || randomName();
     App.myId = 'me';
     MTG.applyDisplaySettings();
@@ -1062,6 +1068,8 @@
 
     /* -- gameplay -- */
     sections.push(group('gameplay', 'Gameplay', null, [
+      toggle('beginnerHints', 'Beginner hints', 'A line under the big button that says what is going on and what you could do, in plain English.',
+        () => { if (App.table) App.table.render(); }),
       toggle('autoTapLands', 'Tap lands for me', 'When you cast something, the engine works out which lands to tap.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
       choice('handSort', 'Sort my hand by', [['cmc', 'Mana value'], ['name', 'Name'], ['type', 'Type'], ['color', 'Colour']]),
@@ -2559,6 +2567,8 @@
         g.start();
         this.pushState();
         this.botRunner.kick();
+        // how many games this browser has sat down to, for what a newcomer is offered
+        if (!this.spectating) MTG.store.set('gamesPlayed', (MTG.store.get('gamesPlayed', 0) || 0) + 1);
       } catch (e) {
         busy.close();
         UI.error(e.message || String(e));

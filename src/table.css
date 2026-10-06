@@ -877,3 +877,21 @@
 .replay-bar .btn.xs { min-width: 30px; }
 :root[data-phone] .replay-bar { top: auto; bottom: 8px; left: 8px; max-width: calc(100% - 16px); overflow-x: auto; }
 :root[data-phone] .replay-bar .rb-tag, :root[data-phone] .replay-bar .rb-where { display: none; }
+
+/* ---------- notes: why a card cannot be played, what a step is for ---------- */
+.arena-tip { position: absolute; z-index: 75; left: 0; top: 0; max-width: 260px; padding: 8px 12px 9px; border-radius: 12px;
+  font: 500 12.5px/1.4 var(--font); color: #e3e8f0; background: rgba(12,14,20,.96); border: 1px solid rgba(212,175,71,.45);
+  box-shadow: 0 10px 28px rgba(0,0,0,.6); pointer-events: none; opacity: 0; translate: 0 4px; transition: opacity .15s, translate .15s; }
+.arena-tip.on { opacity: 1; translate: 0 0; }
+.arena-tip .tip-head { display: block; font: 600 13.5px/1.25 var(--serif); color: var(--gold-hi); margin-bottom: 3px; }
+.arena-tip.why { border-color: rgba(255,170,90,.55); }
+.arena-tip.why .tip-head { color: #ffcf8a; }
+.arena-tip .tip-note { display: block; margin-top: 5px; font-size: 11px; color: #8d97a8; }
+.arena-tip .pip { width: 15px; height: 15px; font-size: 9.5px; vertical-align: -3px; }
+/* the line under the big button, for beginners */
+.dock-hint { display: none; padding: 7px 10px 8px; border-radius: 12px; text-align: center;
+  font: 500 11.5px/1.4 var(--font); color: #c9d2e0; background: rgba(12,14,20,.78); border: 1px solid rgba(255,255,255,.1); }
+.dock-hint.on { display: block; }
+:root[data-phone] .dock-hint { font-size: 10.5px; padding: 5px 7px 6px; line-height: 1.3;
+  display: none; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+:root[data-phone] .dock-hint.on { display: -webkit-box; }

@@ -2136,6 +2136,74 @@
     }
 
     /**
+     * Why a card in this player's hand or command zone cannot be played
+     * right now, in a few plain words, or null if nothing stands in the
+     * way. The table says it when you point at a card; it decides nothing,
+     * and anything it misses is still caught when the card is played.
+     *   code: 'timing' | 'land' | 'priority' | 'mana' | 'targets' | 'rule'
+     *   missing (for 'mana'): the shortfall by colour, plus `generic`
+     */
+    whyNotPlayable(playerId, objId) {
+      const p = this.player(playerId);
+      const o = this.obj(objId);
+      if (!p || !o || p.hasLost || this.over || this.mulliganPhase) return null;
+      const a = o.analysis();
+      if (!a) return null;
+      const yours = !!(this.activePlayer && this.activePlayer.id === playerId);
+      const priority = !!(this.priorityPlayer && this.priorityPlayer.id === playerId);
+      if (a.isLand) {
+        if (!yours) return { code: 'timing', text: 'Lands are played on your own turn.' };
+        if (!this.isMain) return { code: 'timing', text: 'Lands are played in one of your main phases.' };
+        if (!this.stackEmpty) return { code: 'timing', text: 'Lands are played when the stack is empty.' };
+        if (p.landsPlayed >= this.landAllowance(p)) return { code: 'land', text: 'You have already played a land this turn.' };
+        if (!priority) return { code: 'priority', text: 'Waiting for priority.' };
+        return null;
+      }
+      const instantSpeed = a.isInstant || a.has('flash') || this._flashFor(playerId, o);
+      if (!instantSpeed) {
+        const what = a.isCreature ? 'Creatures' : a.isSorcery ? 'Sorceries' : 'Cards like this';
+        if (!yours) return { code: 'timing', text: `${what} are cast on your own turn (or it needs flash).` };
+        if (!this.isMain) return { code: 'timing', text: `${what} are cast in one of your main phases.` };
+        if (!this.stackEmpty) return { code: 'timing', text: `${what} are cast when the stack is empty.` };
+      }
+      if (!priority) return { code: 'priority', text: 'Waiting for priority.' };
+      const chk = this.canCast(playerId, objId);
+      if (!chk.ok) return { code: 'rule', text: chk.reason || 'It cannot be cast right now.' };
+      const purse = this.manaSources(playerId);
+      if (!this.couldPay(playerId, chk.cost, purse)) {
+        return { code: 'mana', text: 'Not enough mana.', missing: this._manaShortfall(chk.cost, purse) };
+      }
+      if (!this._targetsAvailable(this._spellEffects(a), playerId)) return { code: 'targets', text: 'There is nothing it could target right now.' };
+      return null;
+    }
+
+    /**
+     * Roughly what a cost is short of, from these sources: each colour the
+     * sources cannot make enough of, then any mana still missing overall.
+     */
+    _manaShortfall(cost, sources) {
+      const need = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+      let generic = 0;
+      for (const sym of MANA.parse(String(cost || ''))) {
+        if (/^\d+$/.test(sym)) { generic += parseInt(sym, 10); continue; }
+        if (/^[WUBRGC]$/.test(sym)) { need[sym]++; continue; }
+        if (sym === 'X' || sym === 'Y' || sym === 'Z' || sym.indexOf('P') >= 0) continue;
+        generic++;                                          // a hybrid pip: any one mana of either
+      }
+      const out = {};
+      let short = 0, pips = 0;
+      for (const c of ['W', 'U', 'B', 'R', 'G']) {
+        pips += need[c];
+        const can = sources.filter(s => s.indexOf(c) >= 0).length;
+        if (need[c] > can) { out[c] = need[c] - can; short += out[c]; }
+      }
+      pips += need.C;
+      const over = pips + generic - sources.length - short;
+      if (over > 0) out.generic = over;
+      return out;
+    }
+
+    /**
      * Whether an ability that works from the graveyard can be activated
      * right now, in the shape canCast answers in: offered beside flashback,
      * it is asked about the same way.
@@ -11665,6 +11733,18 @@
         yielding: (this.player(playerId) || {}).yieldUntil || null,
         playable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).map(x => x.objId) : [],
+        /* Why each card in your hand cannot be played just now, so the
+           table can say so when you point at one. */
+        unplayable: (() => {
+          const out = {};
+          const z = this.zones[playerId];
+          if (!z || this.over || this.mulliganPhase) return out;
+          for (const o of z.hand.concat(z.command)) {
+            const why = this.whyNotPlayable(playerId, o.id);
+            if (why) out[o.id] = why;
+          }
+          return out;
+        })(),
         /* The other things each of your cards can do — cycled from hand,
            cast from the graveyard — so the menus can offer them. */
         uses: (() => {

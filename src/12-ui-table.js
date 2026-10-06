@@ -51,6 +51,18 @@
     firstStrikeDamage: 'First-strike damage', combatDamage: 'Combat damage', endCombat: 'End of combat',
     end: 'End step', cleanup: 'Cleanup',
   };
+  /* What each step is for, in a sentence, for anyone still learning the turn. */
+  const PHASE_HELP = {
+    upkeep: 'Your permanents have untapped. Anything that happens “at the beginning of your upkeep” happens now.',
+    draw: 'The player whose turn it is draws a card.',
+    main1: 'Play a land (one a turn) and cast creatures, sorceries and anything else.',
+    beginCombat: 'The last moment to act before attackers are chosen.',
+    declareAttackers: 'The player whose turn it is chooses which creatures attack.',
+    declareBlockers: 'The defending player chooses which creatures block which attackers.',
+    combatDamage: 'Creatures deal their damage. Attackers nobody blocked hit the player.',
+    main2: 'A second main phase: cast what you held back during combat.',
+    end: 'End-of-turn abilities happen, then the next player takes their turn.',
+  };
   function stepKey(v) {
     if (!v) return '';
     return v.step === 'main' ? (v.phase === 'precombat' ? 'main1' : 'main2') : v.step;
@@ -197,9 +209,11 @@
       this.svg.appendChild(defs);
 
       this.oppStrip = div('opp-strip', { role: 'tablist', 'aria-label': 'Opponents — choose whose board to look at' });
+      // a short note beside whatever you are pointing at: why a card cannot be played, what a step is
+      this.tipEl = div('arena-tip', { role: 'tooltip', id: 'arenaTip' });
       this.arena.append(this.bg, this.oppStrip, this.board, this.caption, this.stackCol, this.svg, this.spotHost,
         this.meHud, this.handHost, this.dock, this.rail, this.drawer, this.banner,
-        this.decision, this.overlay, this.fxLayer, this.menuBtn);
+        this.decision, this.overlay, this.fxLayer, this.menuBtn, this.tipEl);
       this.root.appendChild(this.arena);
 
       this.preview = el('div', { class: 'arena-preview', 'aria-hidden': 'true' });
@@ -363,6 +377,8 @@
       this._fitAll();
       // a card that has gone cannot still be the one you are reading
       if (this._hoverNode && !this._hoverNode.isConnected) this.hidePreview();
+      // and a note about a card is only as good as the moment it was made in
+      if (this._tipFor && (!this._tipFor.isConnected || this._tipFor.closest('.hslot'))) this.hideTip();
       if (before) this._flip(before, gone);
       for (const g of gone) { g.node.remove(); this.els.delete(g.id); }
       for (const [id, w] of this.wraps) if (!this._usedWraps || !this._usedWraps.has(id)) { w.remove(); this.wraps.delete(id); }
@@ -1091,7 +1107,9 @@
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
         d._row = el('div', { class: 'dock-row' });
-        d.append(d._turn, d._strip, d._main, d._row);
+        // for anyone still learning: what is going on, in a sentence
+        d._hint = el('div', { class: 'dock-hint', 'aria-live': 'polite' });
+        d.append(d._turn, d._strip, d._main, d._hint, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -1107,6 +1125,9 @@
       d._main.querySelector('.bb-label').textContent = act.label;
       d._main.querySelector('.bb-sub').textContent = act.sub || '';
       d._main.title = act.title || '';
+      const hint = MTG.settings.beginnerHints === false ? '' : this.beginnerHint(act);
+      if (d._hint.textContent !== hint) d._hint.textContent = hint;
+      d._hint.classList.toggle('on', !!hint);
 
       d._row.innerHTML = '';
       const small = (text, title, fn, cls) => el('button', { type: 'button', class: 'dock-btn ' + (cls || ''), text, title, onclick: fn });
@@ -1138,12 +1159,20 @@
       STRIP.forEach(([key, label], i) => {
         const side = mineNow ? 'yours' : 'theirs';
         const stop = !!((stops[side] || {})[key]);
+        const stopNote = stoppable.has(key) ? `${stop ? 'The game stops here' : 'Passed through'} on ${mineNow ? 'your' : 'their'} turn. Click to change.` : '';
         const b = el('button', {
           type: 'button', role: 'listitem',
           class: 'ps' + (i === at ? ' now' : i < at ? ' done' : '') + (stop ? ' stop' : ''),
-          title: `${STEP_WORDS[key] || label}${stoppable.has(key) ? ` — ${stop ? 'the game stops here' : 'passed through'} on ${mineNow ? 'your' : 'their'} turn. Click to change.` : ''}`,
+          'aria-label': `${STEP_WORDS[key] || label}. ${PHASE_HELP[key] || ''} ${stopNote}`,
           onclick: () => { if (stoppable.has(key)) this.toggleStop(mineNow ? 'yours' : 'theirs', key); },
         }, [el('i'), el('span', { text: label })]);
+        // what the step is for, in a sentence, while you point at it
+        const tip = () => this.showTip(b, `<b class="tip-head">${escapeHtml(STEP_WORDS[key] || label)}${i === at ? ' · now' : ''}</b>` +
+          `${escapeHtml(PHASE_HELP[key] || '')}${stopNote ? `<span class="tip-note">${escapeHtml(stopNote)}</span>` : ''}`, { cls: 'step' });
+        b.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') tip(); });
+        b.addEventListener('focus', tip);
+        b.addEventListener('pointerleave', () => this.hideTip());
+        b.addEventListener('blur', () => this.hideTip());
         host.appendChild(b);
       });
     }
@@ -1235,6 +1264,60 @@
       if (!myTurn) return { label: 'Pass', cls: 'pass', sub: STEP_WORDS[k] || '',
         secondary: { label: 'Pass turn', title: 'Take no more actions this turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } };
       return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
+    }
+
+    /**
+     * The same moment in plain English, for the line under the big button:
+     * what is happening and what you could do about it. Short, and never a
+     * rule you need to know already. Beginner hints turn it off.
+     */
+    beginnerHint(act) {
+      const v = this.view, live = this.live || v;
+      if (!v || v.over || v.spectating || v.replay || !this.me) return '';
+      if (v.mulliganPhase) return 'Keep a hand with two to five lands. A mulligan shuffles and deals a new hand, one card smaller.';
+      if (this.targeting) return 'Click a glowing card or player to choose it.';
+      const ch = live.pendingChoice;
+      if (ch && ch.playerId === this.meId && !ch.waiting) {
+        if (ch.type === 'declareAttackers') return 'Click your creatures to attack with them. Attackers that aren’t blocked deal their damage to the player.';
+        if (ch.type === 'declareBlockers') return 'Click one of your creatures, then the attacker it should block. Attackers you don’t block hit you.';
+        if (/discard/.test(ch.type)) return 'Click the cards to discard, then confirm.';
+        if (ch.type === 'sacrifice') return 'Click the permanent to sacrifice.';
+        return 'Answer the question on screen to carry on.';
+      }
+      if (ch && ch.waiting) return 'Your opponent is making a choice.';
+      if (live.priorityPlayer !== this.meId) {
+        const pp = v.players.find(p => p.id === live.priorityPlayer);
+        return pp && pp.isBot ? `${pp.name} is deciding what to do.` : 'Waiting for the other player.';
+      }
+      const stack = live.stack || [];
+      if (stack.length) {
+        const top = stack[stack.length - 1];
+        return top.controller === this.meId
+          ? 'Your spell is on the stack. It happens once everyone passes.'
+          : `${top.name} is waiting to happen. Cast an instant to respond, or pass to let it resolve.`;
+      }
+      const k = stepKey(live);
+      const myTurn = live.activePlayer === this.meId;
+      if (myTurn && (k === 'main1' || k === 'main2')) {
+        const me = this.me;
+        const land = me && me.landsPlayed < (me.maxLands || 1) && (live.playable || []).some(id => {
+          const o = me.hand.find(x => x.id === id);
+          const a = o && this.analysis(o);
+          return a && a.isLand;
+        });
+        if (land) return 'Play a land from your hand: you can play one each turn. Glowing cards can be played now.';
+        if ((live.playable || []).length) return k === 'main1'
+          ? 'Glowing cards can be played now. When you are done, go to combat to attack.'
+          : 'Cast anything you held back, then end your turn.';
+        return k === 'main1' && act && /combat/i.test(act.label || '')
+          ? 'Nothing more to play. Go to combat and choose your attackers.'
+          : 'Nothing more to play this turn. End your turn to pass to the next player.';
+      }
+      if (!myTurn) return (live.playable || []).length
+        ? 'It’s their turn. You can cast instants now, or pass.'
+        : 'It’s their turn. Pass to let it carry on.';
+      if (k === 'combatDamage' || k === 'firstStrikeDamage') return 'Combat damage is dealt. Attackers nobody blocked hit the player.';
+      return 'Press the button to move on to the next step.';
     }
 
     /** @this {MTG.TableInstance} */
@@ -1428,6 +1511,7 @@
           dragging = true;
           slot.classList.add('dragging');
           this.hidePreview();
+          this.hideTip();
         }
         if (dragging) {
           slot.style.setProperty('--dx', dx + 'px');
@@ -1599,6 +1683,9 @@
       if (!(live.playable || []).includes(o.id)) {
         const alt = (live.uses || {})[o.id] || [];
         if (alt.length) return this.cardMenu(o.id, null);
+        // the engine's own reason, where it gave one: a tap on a phone is the only way to ask
+        const why = this.whyNot(o.id);
+        if (why) return UI.toast(why.text);
         if (live.priorityPlayer !== this.meId) return UI.toast('Wait for priority to play that.');
         if (a.isLand) return UI.toast((this.me && this.me.landsPlayed >= this.me.maxLands) ? 'You have already played a land this turn.' : 'Lands can be played in your main phase with the stack empty.');
         return UI.toast(a.isInstant || a.has('flash') ? 'You cannot pay for that right now.' : 'You cannot cast that right now.');
@@ -1718,12 +1805,83 @@
 
     hoverCard(node, e) {
       clearTimeout(this._hoverT);
-      if (node.closest('.hslot')) { this.hidePreview(); return; }   // the hand lifts its own cards
+      if (node.closest('.hslot')) {                                   // the hand lifts its own cards
+        this.hidePreview();
+        // and a card that cannot be played says why, once you have rested on it
+        this._hoverT = setTimeout(() => this.handTip(node), 320);
+        return;
+      }
       if (node.closest('.mull-hand')) return;
       this._hoverT = setTimeout(() => this.showPreview(node), node.closest('.stack-col, .spotlight') ? 60 : 220);
     }
     /** @type {(node?: Element) => void} */
-    unhoverCard() { clearTimeout(this._hoverT); this.hidePreview(); }
+    unhoverCard() { clearTimeout(this._hoverT); this.hidePreview(); this.hideTip(); }
+
+    /**
+     * Why a card of yours cannot be played right now, as the engine sees it
+     * ({text, html}), or null if it can be, or if there is nothing to say.
+     * Waiting for priority names who has it; not enough mana shows what is
+     * missing, colour by colour.
+     */
+    whyNot(id) {
+      const live = this.live || this.view;
+      if (!live || live.over || live.mulliganPhase || live.spectating || live.replay || !this.me) return null;
+      if ((live.playable || []).includes(id)) return null;
+      const why = (live.unplayable || {})[id];
+      if (!why) return null;
+      if (why.code === 'priority') {
+        const ch = live.pendingChoice;
+        const who = live.players.find(p => p.id === (ch ? ch.playerId : live.priorityPlayer));
+        const text = ch && ch.playerId !== this.meId
+          ? `Waiting: ${who ? who.name : 'someone'} is making a choice.`
+          : `Waiting for priority: ${who && who.id !== this.meId ? who.name + (who.isBot ? ' is thinking.' : ' has it.') : 'it comes back to you shortly.'}`;
+        return { text, html: escapeHtml(text) };
+      }
+      if (why.code === 'mana' && why.missing) {
+        const m = why.missing;
+        const syms = ['W', 'U', 'B', 'R', 'G'].map(c => (`{${c}}`).repeat(m[c] || 0)).join('') + (m.generic ? `{${m.generic}}` : '');
+        const words = ['W', 'U', 'B', 'R', 'G'].filter(c => m[c]).map(c => `${m[c]} ${MTG.mana.COLOR_NAMES[c].toLowerCase()}`)
+          .concat(m.generic ? [`${m.generic} more of any colour`] : []);
+        if (syms) return { text: `Not enough mana: you need ${words.join(' and ')}.`, html: `Not enough mana. You need ${MTG.mana.html(syms)} more.` };
+      }
+      return { text: why.text, html: escapeHtml(why.text) };
+    }
+
+    /** The reason a card in your hand cannot be played, held up above it. */
+    handTip(node) {
+      if (!node || !node.isConnected || this.targeting || !this._ready()) return;
+      const why = this.whyNot(node.dataset.id);
+      if (!why) return;
+      const html = `<b class="tip-head">Can’t play this yet</b>${why.html}`;
+      this.showTip(node, html, { cls: 'why' });
+      // the card is still rising out of the fan; measure again once it has
+      clearTimeout(this._tipAgain);
+      this._tipAgain = setTimeout(() => { if (this._tipFor === node && node.matches(':hover')) this.showTip(node, html, { cls: 'why' }); }, 260);
+    }
+
+    /** A small note pinned above (or below) a node on the table. */
+    showTip(anchor, html, opts) {
+      opts = opts || {};
+      const tip = this.tipEl;
+      if (!tip || !anchor || !anchor.isConnected) return;
+      tip.className = 'arena-tip on' + (opts.cls ? ' ' + opts.cls : '');
+      tip.innerHTML = html;
+      const ar = this.arena.getBoundingClientRect();
+      const r = anchor.getBoundingClientRect();
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let x = r.left - ar.left + r.width / 2 - tw / 2;
+      let y = r.top - ar.top - th - 10;
+      if (y < 8) { y = r.bottom - ar.top + 10; tip.classList.add('below'); }
+      x = U.clamp(x, 8, ar.width - tw - 8);
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+      anchor.setAttribute('aria-describedby', 'arenaTip');
+      this._tipFor = anchor;
+    }
+    hideTip() {
+      if (this.tipEl) this.tipEl.classList.remove('on');
+      if (this._tipFor) { this._tipFor.removeAttribute('aria-describedby'); this._tipFor = null; }
+    }
     hidePreview() { this.preview.classList.remove('on'); }
 
     /**
