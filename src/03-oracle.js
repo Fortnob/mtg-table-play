@@ -2284,6 +2284,14 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
+    { re: /^Until end of turn, creatures you control have base power and toughness (X|\d+)\/(X|\d+)( and gain all creature types)?\.?$/i,
+      make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2], allTypes: !!m[3] }) },
+    // All Is Dust: "Each player sacrifices all permanents they control that are one or more colors."
+    { re: /^Each player sacrifices all permanents they control that are one or more colou?rs\.?$/i, make: () => ({ op: 'sacrificeColored' }) },
+    // Fell the Mighty: "Destroy all creatures with power greater than target creature's power."
+    { re: /^Destroy all creatures with power greater than target creature'?s power\.?$/i,
+      make: () => ({ op: 'destroyAll', what: 'creature', aboveTargetPower: true, targets: [{ type: 'creature' }] }) },
     // Insurrection: "Untap all creatures and gain control of them until end of turn."
     { re: /^Untap all creatures and gain control of them until end of turn\.?$/i, make: () => ({ op: 'threatenAll' }) },
     // Temur Battle Rage: "That creature also gains trample until end of turn if you control a creature with power 4 or greater."
@@ -2691,6 +2699,8 @@
     if ((m = p.match(/^([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase(), mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
     if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
+    // Thran Power Suit: "for each Aura and Equipment attached to it"
+    if (/^Aura and Equipment attached to (?:it|this creature|CARDNAME)$/.test(p)) return { attachedOf: ['Aura', 'Equipment'], mult: k };
     /* Multani: "for each land you control and each land card in your
        graveyard" — two counts added together */
     if ((m = p.match(/^(.+?) and each (.+)$/i))) {
@@ -3079,6 +3089,12 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* Disciple of Bolas: "Sacrifice another creature. You gain X life and
+       draw X cards, where X is that creature's power." — the sacrifice
+       happens first, so its power is known */
+    { re: /^Sacrifice (another )?creature\. You gain X life and draw X cards, where X is that creature'?s power\.?$/i,
+      make: (m) => [{ op: 'sacThen', filter: 'creature', other: !!m[1], then: [
+        { op: 'gainLife', who: 'you', n: { ofSacrificed: 'power' } }, { op: 'draw', who: 'you', n: { ofSacrificed: 'power' } }] }] },
     // Astral Cornucopia: "Choose a color. Add one mana of that color for each charge counter on this artifact."
     { re: /^Choose a colou?r\. Add one mana of that colou?r for each ([a-z]+) counter on (?:this (?:artifact|creature|permanent|land)|CARDNAME)\.?$/i,
       make: (m) => [{ op: 'addManaX', x: 'counters', counter: m[1].toLowerCase() }] },
@@ -5780,7 +5796,7 @@
         return { op: 'continuous', layer: 6, scope: { attached: true, legendary: true }, grant: kws };
       } },
     /* Ethereal Armor: a count, and a keyword with it */
-    { re: /^(.+?) gets? \+(\d+)\/\+(\d+) for each ([-a-zA-Z0-9+/' ]+?) and (?:has|have) ([a-z, ']+?)\.?$/i,
+    { re: /^(.+?) gets? \+(\d+)\/\+(\d+) for each ([-a-zA-Z0-9+/' ]+?) and (?:has|have) ([a-z, '{}0-9]+?)\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);
         const c = countOf(m[4]);

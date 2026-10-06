@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16825,
+  "needed": 16817,
   "gainedCards": 1759,
-  "linesNeeded": 19189,
+  "linesNeeded": 19176,
   "linesGained": 2277,
   "gained": {
    "all": 1759,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5845,
-   "lines": 4948,
+   "score": 5833,
+   "lines": 4945,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -1227,25 +1227,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 23,
-   "lines": 20,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Kaito, Bane of Nightmares",
-    "Change of Fortune",
-    "Liliana's Standard Bearer",
-    "Blitzball Stadium",
-    "Wyleth, Soul of Steel",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Narset, Jeskai Waymaster"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 23,
    "lines": 14,
@@ -1357,6 +1338,25 @@
     "Evolved Spinoderm",
     "Reluctant Dounguard",
     "Encumbered Reejerey"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 22,
+   "lines": 19,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Kaito, Bane of Nightmares",
+    "Change of Fortune",
+    "Liliana's Standard Bearer",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Narset, Jeskai Waymaster",
+    "Moonshae Pixie // Pixie Dust"
    ]
   },
   {
@@ -1798,25 +1798,6 @@
     "Turncoat Kunoichi",
     "Sigrid, God-Favored",
     "Detention Chariot"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Nighthawk Scavenger",
-    "Kellan, the Fae-Blooded // Birthright Boon",
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Champion of the Flame",
-    "Cid, Timeless Artificer",
-    "Heavenly Blademaster",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "Road Rage",
-    "The Archimandrite",
-    "Desert's Due"
    ]
   },
   {
@@ -2612,6 +2593,25 @@
     "Tyrannize",
     "Rhystic Syphon",
     "Flay"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Nighthawk Scavenger",
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Road Rage",
+    "The Archimandrite",
+    "Desert's Due",
+    "Lost Order of Jarkeld",
+    "Muscle Burst",
+    "Flame Burst"
    ]
   },
   {
@@ -4492,18 +4492,6 @@
     "Vernal Equinox",
     "Cherished Hatchling",
     "Rootwater Shaman"
-   ]
-  },
-  {
-   "what": "AttachedToAttachedPredicate.instance",
-   "score": 11,
-   "lines": 5,
-   "cards": [
-    "Mantle of the Ancients",
-    "Thran Power Suit",
-    "Strong Back",
-    "With Great Power . . .",
-    "Brass Knuckles"
    ]
   },
   {
@@ -7343,17 +7331,6 @@
    ]
   },
   {
-   "what": "VariableManaCost",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Mirror Entity",
-    "Panoptic Mirror",
-    "Thought Dissector",
-    "Testament of Faith"
-   ]
-  },
-  {
    "what": "RemoveUpToAmountCountersEffect",
    "score": 7,
    "lines": 4,
@@ -8198,13 +8175,33 @@
     "Wrenn and Six",
     "Deeproot Historian"
    ]
+  },
+  {
+   "what": "EquipAbility",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Puresteel Paladin",
+    "Astor, Bearer of Blades",
+    "Syr Gwyn, Hero of Ashvale"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.TOUGHNESS_CONTROLLED_CREATURES",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Last March of the Ents",
+    "Huatli, the Sun's Heart",
+    "Glint Weaver"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4585,
-   "cards": 3928,
+   "score": 4580,
+   "cards": 3929,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8268,8 +8265,8 @@
   },
   {
    "what": "custom condition",
-   "score": 169,
-   "cards": 151,
+   "score": 170,
+   "cards": 152,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -8826,19 +8823,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 18,
-   "cards": 15,
-   "names": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Change of Fortune",
-    "Liliana's Standard Bearer",
-    "Wyleth, Soul of Steel",
-    "Birth of the Imperium"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 18,
    "cards": 18,
@@ -8875,6 +8859,19 @@
     "Heartbeat of Spring",
     "Dictate of Karametra",
     "Lavaleaper"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 17,
+   "cards": 14,
+   "names": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Liliana's Standard Bearer",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant"
    ]
   },
   {
@@ -8964,19 +8961,6 @@
     "The Vision",
     "Demonic Pact",
     "Three Bowls of Porridge"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Nighthawk Scavenger",
-    "Kellan, the Fae-Blooded // Birthright Boon",
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Champion of the Flame",
-    "Cid, Timeless Artificer"
    ]
   },
   {
@@ -9154,6 +9138,19 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 14,
+   "cards": 11,
+   "names": [
+    "Nighthawk Scavenger",
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt"
    ]
   },
   {

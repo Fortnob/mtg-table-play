@@ -2160,7 +2160,8 @@
       if (v.attachedOf) {
         return ((src && src.attachments) || []).filter(id => {
           const at = this.obj(id);
-          return at && ((at.card && String(at.card.type_line || '')) || '').includes(v.attachedOf);
+          const line = (at && at.card && String(at.card.type_line || '')) || '';
+          return at && [].concat(v.attachedOf).some(w => line.includes(w));
         }).length * mult;
       }
       return 0;
@@ -8695,6 +8696,8 @@
             if (e.minPower != null && this.powerOf(x) < e.minPower) return false;
             if (e.maxPower != null && this.powerOf(x) > e.maxPower) return false;
             if (e.op === 'destroyAll' && this.hasKw(x, 'indestructible')) return false;
+            // Fell the Mighty: "with power greater than target creature's power"
+            if (e.aboveTargetPower) { const tg = firstObj(); if (!tg || this.powerOf(x) <= this.powerOf(tg)) return false; }
             // Winds of Rath: "creatures that aren't enchanted"
             if (e.unenchanted && (x.attachments || []).some(id => { const at = this.obj(id); return at && ((at.analysis() || {}).subtypes || []).includes('Aura'); })) return false;
             return true;
@@ -8957,6 +8960,27 @@
           this._refreshControl();
           // "It gains haste until end of turn" (Act of Treason) is about this creature
           this._noteLastAffected(targets);
+          break;
+        }
+        // Mirror Entity: "creatures you control have base power and toughness X/X"
+        case 'setBaseAll': {
+          const p = n(e.p), t = n(e.t);
+          for (const x of this.creaturesOf(ctx.controller, 'yourCreatures')) {
+            x.effects.push(Object.assign({ setPt: { p, t }, until: 'eot' }, e.allTypes ? { keywords: ['Changeling'] } : {}));
+          }
+          this.bumpBoard();
+          this.logEvent('rules', `${me.name}'s creatures are ${p}/${p === t ? p : t} until end of turn.`);
+          break;
+        }
+        // All Is Dust: "each player sacrifices all permanents they control that are one or more colors"
+        case 'sacrificeColored': {
+          const gone = this.battlefield.filter(x => !x.phasedOut && ((x.analysis() || {}).colors || []).length > 0);
+          for (const x of gone) if (x.zone === 'battlefield') this.moveObject(x, 'graveyard');
+          for (const p of this.players) {
+            const k = gone.filter(x => x.controller === p.id).length;
+            if (k) this._fire('youSacrifice', p.id, { count: k });
+          }
+          this.logEvent('wipe', `Every coloured permanent is sacrificed (${gone.length}).`);
           break;
         }
         // Insurrection: every creature, untapped and yours until end of turn

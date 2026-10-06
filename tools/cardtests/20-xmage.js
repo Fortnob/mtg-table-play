@@ -2272,6 +2272,66 @@ module.exports = (test) => {
     }
   });
 
+  test('Mirror Entity makes your creatures X/X for the turn', (mk, t) => {
+    t.auto('Mirror Entity');
+    const T = mk();
+    const m = T.bf('A', 'Mirror Entity');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3');
+    T.activate('A', m, 0, { x: 3 });
+    T.resolve();
+    t.eq(T.g.powerOf(b), 3); t.eq(T.g.toughnessOf(m), 3);
+  });
+
+  test('All Is Dust takes every coloured permanent', (mk, t) => {
+    t.auto('All Is Dust');
+    const T = mk();
+    const e = T.bf('B', 'Llanowar Elves'), o = T.bf('A', 'Ornithopter'), f = T.bf('A', 'Forest');
+    T.mana('A', '7');
+    T.cast('A', T.hand('A', 'All Is Dust'));
+    T.resolve();
+    t.zone(e, 'graveyard'); t.zone(o, 'battlefield'); t.zone(f, 'battlefield');
+  });
+
+  test('Fell the Mighty destroys only the creatures bigger than the target', (mk, t) => {
+    t.auto('Fell the Mighty');
+    const T = mk();
+    const e = T.bf('B', 'Llanowar Elves'), w = T.bf('B', 'Craw Wurm'), b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '4W');
+    T.cast('A', T.hand('A', 'Fell the Mighty'), { targets: [T.tgt(b)] });
+    T.resolve();
+    t.zone(e, 'battlefield'); t.zone(w, 'graveyard'); t.zone(b, 'battlefield');
+  });
+
+  test('Disciple of Bolas: life and cards equal to the power sacrificed', (mk, t) => {
+    t.auto('Disciple of Bolas');
+    const T = mk();
+    const w = T.bf('A', 'Craw Wurm');
+    for (let i = 0; i < 8; i++) T.top('A', 'Island');
+    const d = T.hand('A', 'Disciple of Bolas');
+    const before = T.zone('A', 'hand').length;
+    T.answer('choose', (ch) => ({ picks: [w.id] }));
+    T.answer('pickCard', (ch) => ({ cardIds: [w.id] }));
+    T.mana('A', '3B');
+    T.cast('A', d);
+    T.resolve();
+    t.zone(w, 'graveyard');
+    t.eq(T.life('A'), 26);
+    t.eq(T.zone('A', 'hand').length, before - 1 + 6);
+  });
+
+  test('Thran Power Suit counts the Auras and Equipment on its creature', (mk, t) => {
+    t.auto('Thran Power Suit');
+    const T = mk();
+    const b = T.bf('A', 'Grizzly Bears');
+    const s1 = T.bf('A', 'Thran Power Suit');
+    s1.attachedTo = b.id; b.attachments.push(s1.id);
+    const r = T.bf('A', 'Rancor');
+    r.attachedTo = b.id; b.attachments.push(r.id);
+    T.g.bumpBoard();
+    t.eq(T.g.toughnessOf(b), 4, '2 + 2 for the Suit and Rancor');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
