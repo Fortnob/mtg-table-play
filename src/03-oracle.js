@@ -2332,6 +2332,14 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Starfall Invocation: "return a creature card put into your graveyard this way to the battlefield under your control"
+    { re: /^[Rr]eturn an? ([a-z]+) card put into your graveyard this way to the battlefield under your control\.?$/,
+      make: (m) => ({ op: 'returnSwept', filter: m[1].toLowerCase() }) },
+    /* Drakuseth: "CARDNAME deals 4 damage to any target and 3 damage to each
+       of up to two other targets." — one amount for each target, in order */
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to each of up to (two|three) other targets\.?$/i,
+      make: (m) => ({ op: 'damageSplit', amounts: [+m[1]].concat(Array.from({ length: num(m[3]) }, () => +m[2])),
+        targets: [{ type: 'any', filter: 'any target', zone: 'battlefield' }].concat(Array.from({ length: num(m[3]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true }))) }) },
     // Hammer of Nazahn: "attach that Equipment to target creature you control"
     { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },
@@ -6534,6 +6542,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // "This creature must be blocked if able."
+      { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },
       // Champion of Lambholt: "Creatures with power less than this creature's power can't block creatures you control."
       { re: /^Creatures with power less than (?:this creature|CARDNAME)'?s power can'?t block creatures you control\.?$/i,
         eff: { op: 'smallCantBlock' }, auto: true },

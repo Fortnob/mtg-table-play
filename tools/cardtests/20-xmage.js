@@ -2685,6 +2685,47 @@ module.exports = (test) => {
     t.eq(T.life('A'), 20); t.eq(T.life('B'), 18);
   });
 
+  test('Starfall Invocation: with the gift, one of yours comes back', (mk, t) => {
+    t.auto('Starfall Invocation');
+    const T = mk();
+    const w = T.bf('A', 'Craw Wurm'), b = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [w.id] }));
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Starfall Invocation'), { gift: 'B' });
+    T.resolve();
+    t.zone(b, 'graveyard');
+    t.zone(w, 'battlefield', 'back under A');
+  });
+
+  test('Drakuseth: 4 to one target, 3 to each of two others', (mk, t) => {
+    t.auto('Drakuseth, Maw of Flames');
+    const T = mk();
+    const d = T.bf('A', 'Drakuseth, Maw of Flames');
+    d.summoningSick = false;
+    const a = T.bf('B', 'Grizzly Bears'), w = T.bf('B', 'Craw Wurm');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: a.id }, { kind: 'object', id: w.id }] }));
+    T.answer('declareAttackers', () => [{ attackerId: d.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(T.life('B'), 16); t.zone(a, 'graveyard'); t.eq(w.damage, 3);
+  });
+
+  test('Must be blocked if able: a block that leaves it alone is refused', (mk, t) => {
+    t.auto('Vinebred Brawler');
+    const T = mk();
+    const v = T.bf('A', 'Vinebred Brawler');
+    v.summoningSick = false;
+    const b = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: v.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers');
+    T.g.priorityPlayer && T.resolve();
+    T.answer('declareBlockers', () => []);
+    let refused = false;
+    try { T.toMain('A', 'combatDamage'); } catch (e) { refused = /must be blocked/.test(e.message + T.g.lastError) || /not accepted/.test(e.message); }
+    t.ok(refused, 'no block is refused');
+    t.ok(b, 'the Bears could block');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

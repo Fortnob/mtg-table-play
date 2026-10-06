@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16680,
-  "gainedCards": 1758,
-  "linesNeeded": 18969,
+  "needed": 16670,
+  "gainedCards": 1759,
+  "linesNeeded": 18954,
   "linesGained": 2273,
   "gained": {
-   "all": 1758,
+   "all": 1759,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5783,
-   "lines": 4925,
+   "score": 5776,
+   "lines": 4924,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -299,25 +299,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 53,
-   "lines": 44,
-   "cards": [
-    "Drakuseth, Maw of Flames",
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut",
-    "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter",
-    "Needle Drop",
-    "Self-Destruct"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 51,
    "lines": 51,
@@ -391,6 +372,25 @@
     "Pact Weapon",
     "My Precious // Allure of Power",
     "Samurai's Katana"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 43,
+   "lines": 43,
+   "cards": [
+    "Pain for All",
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter",
+    "Needle Drop",
+    "Self-Destruct",
+    "You Look Upon the Tarrasque"
    ]
   },
   {
@@ -1852,25 +1852,6 @@
     "Merieke Ri Berit",
     "Helm of Possession",
     "Master Thief"
-   ]
-  },
-  {
-   "what": "MustBeBlockedByAtLeastOneSourceEffect",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Anzrag, the Quake-Mole",
-    "Nacatl War-Pride",
-    "Maarika, Brutal Gladiator",
-    "Raphael, Ninja Destroyer",
-    "Gorm the Great",
-    "Jurin, Leading the Charge",
-    "Fear of Being Hunted",
-    "Vinebred Brawler",
-    "Madame Vastra",
-    "Canopy Stalker",
-    "Tangleclaw Werewolf // Fibrous Entangler",
-    "Riveteers Decoy"
    ]
   },
   {
@@ -8149,13 +8130,23 @@
     "Cool but Rude",
     "Monk Class"
    ]
+  },
+  {
+   "what": "DevotionCount.W",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Daxos, Blessed by the Sun",
+    "Reverent Hoplite",
+    "Evangel of Heliod"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4539,
-   "cards": 3918,
+   "score": 4534,
+   "cards": 3919,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8296,19 +8287,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 45,
-   "cards": 36,
-   "names": [
-    "Drakuseth, Maw of Flames",
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 43,
    "cards": 31,
@@ -8358,6 +8336,19 @@
     "Sanctum of Tranquil Light",
     "Balamb Garden, SeeD Academy // Balamb Garden, Airborne",
     "Waterbending Scroll"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 35,
+   "cards": 35,
+   "names": [
+    "Pain for All",
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut"
    ]
   },
   {
@@ -10364,19 +10355,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAtLeastOneSourceEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Fear of Being Hunted",
-    "Vinebred Brawler",
-    "Canopy Stalker",
-    "Tangleclaw Werewolf // Fibrous Entangler",
-    "Riveteers Decoy",
-    "Hinterland Hermit // Hinterland Scourge"
-   ]
-  },
-  {
    "what": "DetainTargetEffect",
    "score": 10,
    "cards": 10,
@@ -11743,6 +11721,19 @@
     "Dominator Drone",
     "Dust Stalker",
     "Eldrazi Aggressor"
+   ]
+  },
+  {
+   "what": "DealsDamageToACreatureTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Frostwalk Bastion",
+    "Maarika, Brutal Gladiator",
+    "Overclocked Electromancer",
+    "Spider-Slayer, Hatred Honed",
+    "East-Mark Cavalier",
+    "Vampire Slayer"
    ]
   },
   {

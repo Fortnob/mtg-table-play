@@ -5579,6 +5579,15 @@
           if (this.combat.attackers.some(aid => { const at = this.obj(aid); return at && this.canBlock(o, at); }))
             return this.fail(`${o.name} blocks this turn if able.`);
         }
+        /* "This creature must be blocked if able": by one creature at least,
+           when one could that isn't blocking anything else */
+        for (const aid of this.combat.attackers) {
+          const at = this.obj(aid);
+          if (!at || !this._staticOp(at, 'mustBeBlocked')) continue;
+          if (declarations.some(d => d.attackerIds.includes(aid))) continue;
+          const free = this.battlefield.filter(o => o.controller === playerId && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
+          if (free.length) return this.fail(`${at.name} must be blocked if able.`);
+        }
         // "blocks this creature if able", and lures: must block one of those it is drawn to
         for (const o of this.battlefield) {
           if (o.controller !== playerId) continue;
@@ -8840,6 +8849,8 @@
           });
           // the ones going together see each other go (CR 603.10a)
           this._leavingTogether = victims;
+          // "a creature card put into your graveyard this way"
+          this._lastSwept = victims.map(x => x.id);
           for (const x of victims) {
             if (x.zone !== 'battlefield') continue;
             if (e.op === 'destroyAll' && this._totemArmor(x)) continue;
@@ -9233,6 +9244,31 @@
           this.prevention.push({ to: 'you', who: ctx.controller, sourceId: x.id, once: true, until: 'eot',
             gainLife: !!e.gainLife, reflect: e.reflect ? (src ? src.id : null) || true : null });
           this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal ${me.name} this turn is prevented.`);
+          break;
+        }
+        // Starfall Invocation: one of the cards that sweep put into your graveyard
+        case 'returnSwept': {
+          const pool = (this._lastSwept || []).map(id => this.obj(id))
+            .filter(c => c && c.zone === 'graveyard' && c.owner === ctx.controller && this._cardFitsWords(c, e.filter || 'card'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'returnSwept', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: 1, max: 1, prompt: `Return a ${e.filter || 'card'} card to the battlefield.` }, 'ret');
+          if (got === SUSPEND) return SUSPEND;
+          const c = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (c && pool.includes(c)) { this.moveObject(c, 'battlefield', { controller: ctx.controller }); this.logEvent('reanimate', `${me.name} returns ${c.name}.`); }
+          break;
+        }
+        // Drakuseth: a different amount to each target, each target once
+        case 'damageSplit': {
+          const seen = new Set();
+          targets.forEach((t, i) => {
+            const k = (e.amounts || [])[i];
+            if (!k || seen.has(t.kind + ':' + t.id)) return;
+            seen.add(t.kind + ':' + t.id);
+            if (t.kind === 'player') { const p = this.player(t.id); if (p) this.dealDamageToPlayer(p, k, src); }
+            else { const o = this.obj(t.id); if (o && o.zone === 'battlefield') this.dealDamageToObject(o, k, src); }
+          });
+          this.emit('sfx', 'damage');
           break;
         }
         // Insurrection: every creature, untapped and yours until end of turn
