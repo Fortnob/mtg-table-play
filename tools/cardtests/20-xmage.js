@@ -1563,6 +1563,172 @@ module.exports = (test) => {
     t.ok(/Bird/.test(m.card.type_line) && T.g.hasKw(m, 'flying'), 'a flying Bird');
   });
 
+  test('Painful Quandary: lose 5 life unless a card is discarded', (mk, t) => {
+    t.auto('Painful Quandary');
+    for (const pay of [false, true]) {
+      const T = mk();
+      T.bf('B', 'Painful Quandary');
+      const isl = T.hand('A', 'Island');
+      T.answer('choose', (ch) => ({ picks: pay ? [ch.items[0].id] : [] }));
+      T.mana('A', 'R');
+      T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+      T.resolve();
+      t.eq(T.life('A'), pay ? 20 : 15, pay ? 'discarded' : 'lost 5');
+      t.zone(isl, pay ? 'graveyard' : 'hand');
+    }
+  });
+
+  test('The Water Crystal: opponents mill four more', (mk, t) => {
+    t.auto('The Water Crystal');
+    const T = mk();
+    T.bf('A', 'The Water Crystal');
+    for (let i = 0; i < 8; i++) T.top('B', 'Island');
+    const before = T.zone('B', 'graveyard').length;
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Thought Scour'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').length - before, 6);
+  });
+
+  test("Artist's Talent, level 3: noncombat damage to an opponent plus 2", (mk, t) => {
+    t.auto("Artist's Talent");
+    const T = mk();
+    const at = T.bf('A', "Artist's Talent");
+    at.counters.level = 2; at._chr = null; T.g.bumpBoard();
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 16);
+  });
+
+  test('The Eternity Elevator: one mana per charge counter', (mk, t) => {
+    t.auto('The Eternity Elevator');
+    const T = mk();
+    const e = T.bf('A', 'The Eternity Elevator');
+    e.counters.charge = 3;
+    T.g.activateAbility('A', e.id, 0, { auto: true });
+    t.eq(T.g.player('A').pool.total(), 3);
+  });
+
+  test('Wan Shi Tong: X counters, then half X cards', (mk, t) => {
+    t.auto('Wan Shi Tong, Librarian');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const w = T.hand('A', 'Wan Shi Tong, Librarian');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '3UU');
+    T.cast('A', w, { x: 3 });
+    T.resolve();
+    t.eq(w.counters['+1/+1'], 3);
+    t.eq(T.zone('A', 'hand').length, before, 'drew one (and cast one)');
+  });
+
+  test('Unstoppable Slasher: half their life; back once with stun counters', (mk, t) => {
+    t.auto('Unstoppable Slasher');
+    const T = mk();
+    const u = T.bf('A', 'Unstoppable Slasher');
+    u.summoningSick = false;
+    T.g.player('B').life = 15;
+    T.answer('declareAttackers', () => [{ attackerId: u.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 6, '15 - 2, then half of 13 rounded up');
+    T.g.moveObject(u, 'graveyard');
+    T.resolve();
+    t.zone(u, 'battlefield');
+    t.eq(u.counters.stun, 2);
+    t.ok(u.tapped, 'tapped');
+    T.g.moveObject(u, 'graveyard');
+    T.resolve();
+    t.zone(u, 'graveyard', 'it had counters this time');
+  });
+
+  test('Full Throttle: attackers untap at each combat this turn', (mk, t) => {
+    t.auto('Full Throttle');
+    const T = mk();
+    T.mana('A', '4RR');
+    T.cast('A', T.hand('A', 'Full Throttle'));
+    T.resolve();
+    t.ok(T.zone('A', 'command').some(o => o.card && o.card.untilEot), 'a trigger for the turn');
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'command').length, 0, 'gone at cleanup');
+  });
+
+  test('Song of Totentanz: Rats that cannot block, and haste', (mk, t) => {
+    t.auto('Song of Totentanz');
+    const T = mk();
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Song of Totentanz'), { x: 2 });
+    T.resolve();
+    const rats = T.bfOf('A').filter(o => o.name === 'Rat');
+    t.eq(rats.length, 2);
+    t.ok(rats.every(r => T.g.hasKw(r, 'haste')), 'haste');
+  });
+
+  test('Encroaching Dragonstorm goes back to hand when a Dragon arrives', (mk, t) => {
+    t.auto('Encroaching Dragonstorm');
+    const T = mk();
+    const e = T.bf('A', 'Encroaching Dragonstorm');
+    T.mana('A', '4RR');
+    T.cast('A', T.hand('A', 'Shivan Dragon'));
+    T.resolve();
+    t.zone(e, 'hand');
+  });
+
+  test('Gingerbrute: only hasty creatures can block it', (mk, t) => {
+    t.auto('Gingerbrute');
+    const T = mk();
+    const g = T.bf('A', 'Gingerbrute');
+    T.mana('A', '1');
+    T.activate('A', g, 0);
+    T.resolve();
+    t.no(T.g.couldBlock(T.bf('B', 'Grizzly Bears'), g, 'B'), 'no haste');
+    t.ok(T.g.couldBlock(T.bf('B', 'Raging Goblin'), g, 'B'), 'haste');
+  });
+
+  test('Qarsi Revenant: keyword counters are keywords', (mk, t) => {
+    t.auto('Qarsi Revenant');
+    const T = mk();
+    const q = T.grave('A', 'Qarsi Revenant');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2B');
+    t.ok(T.g.activateAbility('A', q.id, 0, { auto: true, targets: [{ kind: 'object', id: b.id }] }), 'renewed');
+    T.resolve();
+    t.ok(T.g.hasKw(b, 'flying') && T.g.hasKw(b, 'deathtouch') && T.g.hasKw(b, 'lifelink'), 'all three');
+    t.zone(q, 'exile');
+  });
+
+  test('Tezzeret, Cruel Captain: a counter only on an artifact creature', (mk, t) => {
+    for (const [n, want] of [['Ornithopter', 1], ['Grizzly Bears', 0]]) {
+      const T = mk();
+      const tz = T.bf('A', 'Tezzeret, Cruel Captain');
+      tz.counters.loyalty = 4;
+      const x = T.bf('A', n);
+      x.tapped = true;
+      const a = tz.analysis();
+      const idx = a.manaAbilities.length + a.abilities.filter(z => z.kind === 'activated' || z.kind === 'loyalty').findIndex(z => /^0:/.test(z.text));
+      T.activate('A', tz, idx, { targets: [x] });
+      T.resolve();
+      t.no(x.tapped, 'untapped');
+      t.eq(Number(x.counters['+1/+1']) || 0, want, n);
+    }
+  });
+
+  test('Convoke taps creatures and delve exiles cards', (mk, t) => {
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.grave('A', 'Island');
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Treasure Cruise'));
+    T.resolve();
+    t.eq(T.zone('A', 'exile').length, 5, 'five exiled to delve');
+    const T2 = mk();
+    const c = [T2.bf('A', 'Grizzly Bears'), T2.bf('A', 'Grizzly Bears'), T2.bf('A', 'Craw Wurm')];
+    T2.mana('A', 'RR');
+    T2.cast('A', T2.hand('A', 'Stoke the Flames'), { targets: [{ kind: 'player', id: 'B' }] });
+    T2.resolve();
+    t.eq(c.filter(x => x.tapped).length, 2, 'two creatures tapped to convoke');
+    t.eq(T2.life('B'), 16);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

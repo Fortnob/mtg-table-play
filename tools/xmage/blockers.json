@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17035,
-  "gainedCards": 1777,
-  "linesNeeded": 19437,
-  "linesGained": 2308,
+  "needed": 16995,
+  "gainedCards": 1773,
+  "linesNeeded": 19383,
+  "linesGained": 2301,
   "gained": {
-   "all": 1777,
+   "all": 1773,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5974,
-   "lines": 4999,
+   "score": 5934,
+   "lines": 4989,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 495,
-   "lines": 456,
+   "score": 494,
+   "lines": 455,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -451,21 +451,6 @@
    ]
   },
   {
-   "what": "keyword StationLevelAbility",
-   "score": 40,
-   "lines": 10,
-   "cards": [
-    "Exploration Broodship",
-    "The Eternity Elevator",
-    "Adagia, Windswept Bastion",
-    "Uthros Research Craft",
-    "Dawnsire, Sunstar Dreadnought",
-    "Inspirit, Flagship Vessel",
-    "Synthesizer Labship",
-    "Debris Field Crusher"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 40,
    "lines": 25,
@@ -524,8 +509,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 36,
-   "lines": 33,
+   "score": 37,
+   "lines": 34,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -537,8 +522,8 @@
     "Tifa, Martial Artist",
     "Orochi Soul-Reaver",
     "Lolth, Spider Queen",
-    "Descendants' Fury",
-    "Olivia, Opulent Outlaw"
+    "Kastral, the Windcrested",
+    "Descendants' Fury"
    ]
   },
   {
@@ -618,25 +603,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 32,
-   "lines": 23,
-   "cards": [
-    "Gingerbrute",
-    "Azure Beastbinder",
-    "Locke, Treasure Hunter",
-    "Lydia Frye",
-    "Cynical Loner",
-    "Departed Deckhand",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Tatsunari, Toad Rider",
-    "Ant-Man, Elusive Avenger"
-   ]
-  },
-  {
    "what": "keyword ExertAbility",
    "score": 31,
    "lines": 28,
@@ -653,6 +619,20 @@
     "Ahn-Crop Crasher",
     "Glory-Bound Initiate",
     "Ahn-Crop Champion"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 30,
+   "lines": 9,
+   "cards": [
+    "Exploration Broodship",
+    "Adagia, Windswept Bastion",
+    "Uthros Research Craft",
+    "Dawnsire, Sunstar Dreadnought",
+    "Inspirit, Flagship Vessel",
+    "Synthesizer Labship",
+    "Debris Field Crusher"
    ]
   },
   {
@@ -1418,23 +1398,6 @@
    ]
   },
   {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 22,
-   "lines": 13,
-   "cards": [
-    "Artist's Talent",
-    "Fighter Class",
-    "Blacksmith's Talent",
-    "Fortune Teller's Talent",
-    "Sorcerer Class",
-    "Rogue Class",
-    "Ninja Teen",
-    "Bard Class",
-    "Fisher's Talent",
-    "Advanced Reconstruction"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 22,
    "lines": 19,
@@ -1489,25 +1452,6 @@
     "Skullsnap Nuisance",
     "Unwilling Vessel",
     "Cult Healer"
-   ]
-  },
-  {
-   "what": "return to hand from any zone",
-   "score": 22,
-   "lines": 16,
-   "cards": [
-    "Encroaching Dragonstorm",
-    "Angelic Destiny",
-    "Breaching Dragonstorm",
-    "Roiling Dragonstorm",
-    "Nurgle's Rot",
-    "Glitch Interpreter",
-    "Corroding Dragonstorm",
-    "Draconic Destiny",
-    "Corpses of the Lost",
-    "Teeming Dragonstorm",
-    "Trial of Knowledge",
-    "Trial of Ambition"
    ]
   },
   {
@@ -1622,6 +1566,25 @@
     "Wanderwine Farewell",
     "Become Brutes",
     "Appeal to Eirdu"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Azure Beastbinder",
+    "Locke, Treasure Hunter",
+    "Lydia Frye",
+    "Cynical Loner",
+    "Departed Deckhand",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Tatsunari, Toad Rider",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist"
    ]
   },
   {
@@ -1863,22 +1826,6 @@
     "Inspire Awe",
     "Tanglesap",
     "Frontline Strategist"
-   ]
-  },
-  {
-   "what": "LoseHalfLifeTargetEffect",
-   "score": 18,
-   "lines": 9,
-   "cards": [
-    "Unstoppable Slasher",
-    "Quietus Spike",
-    "Shredder, Shadow Master",
-    "Scytheclaw",
-    "Virtus the Veiled",
-    "Havoc Festival",
-    "Ebonblade Reaper",
-    "Alpharael, Stonechosen",
-    "Radioactive Man"
    ]
   },
   {
@@ -2292,19 +2239,6 @@
     "Fugitive of the Judoon",
     "Sphinx's Approach",
     "Urborg Panther"
-   ]
-  },
-  {
-   "what": "HalfValue",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "Wan Shi Tong, Librarian",
-    "The Goose Mother",
-    "Imskir Iron-Eater",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Rakdos the Defiler",
-    "Banshee"
    ]
   },
   {
@@ -2877,6 +2811,25 @@
    ]
   },
   {
+   "what": "custom value",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Vincent Valentine // Galian Beast",
+    "Reaper's Scythe",
+    "Kutzil's Flanker",
+    "Smoldering Egg // Ashmouth Dragon",
+    "Kellan, Daring Traveler // Journey On",
+    "Nyxathid",
+    "Geometric Nexus",
+    "Rose Tyler",
+    "Korvold, Gleeful Glutton",
+    "Thunder Salvo",
+    "Death's Approach",
+    "Master's Councillors"
+   ]
+  },
+  {
    "what": "keyword SunburstAbility",
    "score": 15,
    "lines": 15,
@@ -3349,25 +3302,6 @@
     "Ravenous Gigantotherium",
     "Hail of Arrows",
     "Volcanic Wind"
-   ]
-  },
-  {
-   "what": "custom value",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Vincent Valentine // Galian Beast",
-    "Reaper's Scythe",
-    "Kutzil's Flanker",
-    "Smoldering Egg // Ashmouth Dragon",
-    "Kellan, Daring Traveler // Journey On",
-    "Nyxathid",
-    "Geometric Nexus",
-    "Korvold, Gleeful Glutton",
-    "Thunder Salvo",
-    "Death's Approach",
-    "Master's Councillors",
-    "Necropolis"
    ]
   },
   {
@@ -4115,16 +4049,6 @@
    ]
   },
   {
-   "what": "ReturnSourceFromGraveyardToBattlefieldWithCounterEffect",
-   "score": 12,
-   "lines": 3,
-   "cards": [
-    "Unstoppable Slasher",
-    "Retrofitted Transmogrant",
-    "Winter Soldier, Icy Assassin"
-   ]
-  },
-  {
    "what": "MagecraftAbility",
    "score": 12,
    "lines": 9,
@@ -4227,6 +4151,22 @@
     "Port of Karfell",
     "Cruel Ultimatum",
     "Say Its Name"
+   ]
+  },
+  {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Fighter Class",
+    "Blacksmith's Talent",
+    "Fortune Teller's Talent",
+    "Sorcerer Class",
+    "Rogue Class",
+    "Ninja Teen",
+    "Bard Class",
+    "Fisher's Talent",
+    "Advanced Reconstruction"
    ]
   },
   {
@@ -4811,18 +4751,6 @@
    ]
   },
   {
-   "what": "token ability RatCantBlockToken",
-   "score": 11,
-   "lines": 5,
-   "cards": [
-    "Song of Totentanz",
-    "Tangled Colony",
-    "Twisted Sewer-Witch",
-    "Rat Out",
-    "Ogre Chitterlord"
-   ]
-  },
-  {
    "what": "LoseGameTargetPlayerEffect",
    "score": 11,
    "lines": 5,
@@ -4832,18 +4760,6 @@
     "Phage the Untouchable",
     "Ezio Auditore da Firenze",
     "Hidetsugu Consumes All // Vessel of the All-Consuming"
-   ]
-  },
-  {
-   "what": "RenewAbility",
-   "score": 11,
-   "lines": 5,
-   "cards": [
-    "Qarsi Revenant",
-    "Kheru Goldkeeper",
-    "Sage of the Fang",
-    "Champion of Dusan",
-    "Sagu Pummeler"
    ]
   },
   {
@@ -5282,14 +5198,6 @@
     "Tamiyo, Compleated Sage",
     "Lukka, Bound to Ruin",
     "Nahiri, the Unforgiving"
-   ]
-  },
-  {
-   "what": "delayed FullThrottleTriggeredAbility",
-   "score": 10,
-   "lines": 1,
-   "cards": [
-    "Full Throttle"
    ]
   },
   {
@@ -8217,13 +8125,111 @@
     "Living Lore",
     "Leyline Phantom"
    ]
+  },
+  {
+   "what": "ExileTargetCardCopyAndCastEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Psionic Ritual",
+    "Shiko, Paragon of the Way",
+    "Renegade Bull",
+    "Founding the Third Path",
+    "Demilich",
+    "Flawless Forgery",
+    "Roving Actuator"
+   ]
+  },
+  {
+   "what": "PartnerVariantType.FRIENDS_FOREVER.makeAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Wernog, Rider's Chaplain",
+    "Bjorna, Nightfall Alchemist",
+    "Cecily, Haunted Mage",
+    "Elmar, Ulvenwald Informant",
+    "Sophina, Spearsage Deserter",
+    "Othelm, Sigardian Outcast",
+    "Hargilde, Kindly Runechanter"
+   ]
+  },
+  {
+   "what": "SkipNextTurnSourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Eater of Days",
+    "Magosi, the Waterveil",
+    "Chronatog Totem",
+    "Chronatog",
+    "Wormfang Manta",
+    "Waterspout Elemental",
+    "Unstable Hulk"
+   ]
+  },
+  {
+   "what": "CelebrationCondition.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Raging Battle Mouse",
+    "Ash, Party Crasher",
+    "Pests of Honor",
+    "Armory Mice",
+    "Lady of Laughter",
+    "Gallant Pie-Wielder",
+    "Belligerent of the Ball"
+   ]
+  },
+  {
+   "what": "Ability.withTargetPointerSet",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Oath of Lieges",
+    "Oath of Druids",
+    "Magus of the Abyss",
+    "The Abyss",
+    "Oath of Ghouls",
+    "Oath of Scholars",
+    "Oath of Mages"
+   ]
+  },
+  {
+   "what": "activate more than once a turn",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Fire-Belly Changeling",
+    "Sewer Rats",
+    "Roterothopter",
+    "Vampire Bats",
+    "Phyrexian Battleflies",
+    "Soul Kiss",
+    "Pit Imp"
+   ]
+  },
+  {
+   "what": "TributeNotPaidCondition.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Nessian Wilds Ravager",
+    "Snake of the Golden Grove",
+    "Fanatic of Xenagos",
+    "Nessian Demolok",
+    "Ornitharch",
+    "Thunder Brute",
+    "Shrike Harpy"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4687,
-   "cards": 3964,
+   "score": 4660,
+   "cards": 3958,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8235,8 +8241,8 @@
   },
   {
    "what": "custom ability",
-   "score": 776,
-   "cards": 623,
+   "score": 777,
+   "cards": 624,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8261,8 +8267,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 244,
-   "cards": 232,
+   "score": 243,
+   "cards": 231,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -8481,19 +8487,6 @@
    ]
   },
   {
-   "what": "keyword StationLevelAbility",
-   "score": 32,
-   "cards": 8,
-   "names": [
-    "Exploration Broodship",
-    "The Eternity Elevator",
-    "Adagia, Windswept Bastion",
-    "Uthros Research Craft",
-    "Dawnsire, Sunstar Dreadnought",
-    "Inspirit, Flagship Vessel"
-   ]
-  },
-  {
    "what": "UnlockThisDoorTriggeredAbility",
    "score": 32,
    "cards": 17,
@@ -8559,6 +8552,19 @@
    ]
   },
   {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 27,
+   "cards": 24,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Tifa, Martial Artist"
+   ]
+  },
+  {
    "what": "AddContinuousEffectToGame",
    "score": 27,
    "cards": 27,
@@ -8585,32 +8591,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 26,
-   "cards": 17,
-   "names": [
-    "Gingerbrute",
-    "Cynical Loner",
-    "Tin Street Dodger",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger"
-   ]
-  },
-  {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 26,
-   "cards": 23,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Tifa, Martial Artist"
-   ]
-  },
-  {
    "what": "CreateRoleAttachedTargetEffect",
    "score": 26,
    "cards": 26,
@@ -8624,6 +8604,19 @@
    ]
   },
   {
+   "what": "keyword PartnerWithAbility",
+   "score": 26,
+   "cards": 26,
+   "names": [
+    "Alphinaud Leveilleur",
+    "Pippin, Warden of Isengard",
+    "Brallin, Skyshark Rider",
+    "Toothy, Imaginary Friend",
+    "Merry, Warden of Isengard",
+    "Chakram Retriever"
+   ]
+  },
+  {
    "what": "ChooseACardNameEffect",
    "score": 26,
    "cards": 26,
@@ -8634,19 +8627,6 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
-   ]
-  },
-  {
-   "what": "keyword PartnerWithAbility",
-   "score": 25,
-   "cards": 25,
-   "names": [
-    "Alphinaud Leveilleur",
-    "Pippin, Warden of Isengard",
-    "Brallin, Skyshark Rider",
-    "Toothy, Imaginary Friend",
-    "Merry, Warden of Isengard",
-    "Chakram Retriever"
    ]
   },
   {
@@ -8686,6 +8666,19 @@
     "Grasping Giant",
     "Elven Warhounds",
     "Gloom Sower"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 22,
+   "cards": 7,
+   "names": [
+    "Exploration Broodship",
+    "Adagia, Windswept Bastion",
+    "Uthros Research Craft",
+    "Dawnsire, Sunstar Dreadnought",
+    "Inspirit, Flagship Vessel",
+    "Synthesizer Labship"
    ]
   },
   {
@@ -8819,6 +8812,19 @@
    ]
   },
   {
+   "what": "becomes a creature for custom",
+   "score": 19,
+   "cards": 16,
+   "names": [
+    "Nissa, Who Shakes the World",
+    "Tatyova, Steward of Tides",
+    "Waker of the Wilds",
+    "Iron Man, Futurist Paragon",
+    "Doc Ock, Evil Inventor",
+    "Tendril of the Mycotyrant"
+   ]
+  },
+  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 19,
    "cards": 10,
@@ -8842,19 +8848,6 @@
     "Gremlin Tamer",
     "Optimistic Scavenger",
     "Scrabbling Skullcrab"
-   ]
-  },
-  {
-   "what": "return to hand from any zone",
-   "score": 19,
-   "cards": 13,
-   "names": [
-    "Encroaching Dragonstorm",
-    "Roiling Dragonstorm",
-    "Nurgle's Rot",
-    "Glitch Interpreter",
-    "Corroding Dragonstorm",
-    "Corpses of the Lost"
    ]
   },
   {
@@ -9129,16 +9122,16 @@
    ]
   },
   {
-   "what": "becomes a creature for custom",
+   "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 15,
    "cards": 15,
    "names": [
-    "Tatyova, Steward of Tides",
-    "Waker of the Wilds",
-    "Iron Man, Futurist Paragon",
-    "Doc Ock, Evil Inventor",
-    "Tendril of the Mycotyrant",
-    "Wakeroot Elemental"
+    "Cynical Loner",
+    "Tin Street Dodger",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist"
    ]
   },
   {
@@ -9420,17 +9413,6 @@
     "Astelli Reclaimer",
     "Pull Through the Weft",
     "Wilfred Mott"
-   ]
-  },
-  {
-   "what": "HalfValue",
-   "score": 13,
-   "cards": 4,
-   "names": [
-    "Wan Shi Tong, Librarian",
-    "The Goose Mother",
-    "Rakdos the Defiler",
-    "Banshee"
    ]
   },
   {
@@ -9739,16 +9721,6 @@
    ]
   },
   {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 12,
-   "cards": 3,
-   "names": [
-    "Artist's Talent",
-    "Fortune Teller's Talent",
-    "Ninja Teen"
-   ]
-  },
-  {
    "what": "CardsDrawnThisTurnDynamicValue.instance",
    "score": 12,
    "cards": 6,
@@ -9811,6 +9783,19 @@
     "Impulsivity",
     "Goblin Dark-Dwellers",
     "Quistis Trepe"
+   ]
+  },
+  {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Necrogoyf",
+    "Nighthowler",
+    "Bonehoard",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge"
    ]
   },
   {
@@ -10094,30 +10079,6 @@
    ]
   },
   {
-   "what": "token ability RatCantBlockToken",
-   "score": 11,
-   "cards": 5,
-   "names": [
-    "Song of Totentanz",
-    "Tangled Colony",
-    "Twisted Sewer-Witch",
-    "Rat Out",
-    "Ogre Chitterlord"
-   ]
-  },
-  {
-   "what": "RenewAbility",
-   "score": 11,
-   "cards": 5,
-   "names": [
-    "Qarsi Revenant",
-    "Kheru Goldkeeper",
-    "Sage of the Fang",
-    "Champion of Dusan",
-    "Sagu Pummeler"
-   ]
-  },
-  {
    "what": "token ability ZombieDecayedToken",
    "score": 11,
    "cards": 11,
@@ -10144,19 +10105,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Necrogoyf",
-    "Nighthowler",
-    "Bonehoard",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Invigorating Falls"
-   ]
-  },
-  {
    "what": "words:withKeyword",
    "score": 11,
    "cards": 11,
@@ -10167,6 +10115,19 @@
     "Shield-Wall Sentinel",
     "Hand of the Praetors",
     "Donal, Herald of Wings"
+   ]
+  },
+  {
+   "what": "custom value",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Vincent Valentine // Galian Beast",
+    "Kutzil's Flanker",
+    "Smoldering Egg // Ashmouth Dragon",
+    "Nyxathid",
+    "Rose Tyler",
+    "Thunder Salvo"
    ]
   },
   {
@@ -10391,14 +10352,6 @@
    ]
   },
   {
-   "what": "delayed FullThrottleTriggeredAbility",
-   "score": 10,
-   "cards": 1,
-   "names": [
-    "Full Throttle"
-   ]
-  },
-  {
    "what": "WinGameSourceControllerEffect",
    "score": 10,
    "cards": 7,
@@ -10540,19 +10493,6 @@
     "Sigarda, Heron's Grace",
     "Captain America, Super-Soldier",
     "Blossoming Calm"
-   ]
-  },
-  {
-   "what": "custom value",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Vincent Valentine // Galian Beast",
-    "Kutzil's Flanker",
-    "Smoldering Egg // Ashmouth Dragon",
-    "Nyxathid",
-    "Thunder Salvo",
-    "Death's Approach"
    ]
   },
   {
@@ -12041,6 +11981,84 @@
     "Nivmagus Elemental",
     "Murderous Betrayal",
     "Impelled Giant"
+   ]
+  },
+  {
+   "what": "ConditionalColorlessManaAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Cryptic Trilobite",
+    "James, Wandering Dad // Follow Him",
+    "Automated Artificer",
+    "Lord of the Forsaken",
+    "Cultivator Drone",
+    "Sage of the Unknowable"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Ondu Cleric",
+    "Kabira Evangel",
+    "Halimar Excavator",
+    "Hagra Diabolist",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader"
+   ]
+  },
+  {
+   "what": "attack trigger with its own text",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Conqueror's Galleon // Conqueror's Foothold",
+    "Cultivator of Blades",
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental"
+   ]
+  },
+  {
+   "what": "ActivateOncePerGameActivatedAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "In the Trenches",
+    "Haunted Screen",
+    "Duggan, Private Detective",
+    "Possessed Goat",
+    "Mild-Mannered Librarian",
+    "Touch of Vitae"
+   ]
+  },
+  {
+   "what": "scope:colorless",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Gruesome Slaughter",
+    "Ruination Guide",
+    "Tide Drifter",
+    "Dominator Drone",
+    "Dust Stalker",
+    "Eldrazi Aggressor"
+   ]
+  },
+  {
+   "what": "mill then something else",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Blanchwood Prowler",
+    "Ainok Wayfarer",
+    "Patient Naturalist",
+    "Fallaji Archaeologist",
+    "Ostrich-Horse",
+    "Airlift Chaplain"
    ]
   }
  ]

@@ -487,7 +487,7 @@
     let body = null;
     let m = t.match(/^(?:Until end of turn|This turn), (whenever [\s\S]+)$/i);
     if (m) body = 'W' + m[1].slice(1);
-    else if ((m = t.match(/^(Whenever [^,"]+?) this turn, ([\s\S]+)$/))) body = m[1] + ', ' + m[2];
+    else if ((m = t.match(/^((?:Whenever|At the beginning of) [^,"]+?) this turn, ([\s\S]+)$/))) body = m[1] + ', ' + m[2];
     if (!body || /\bCARDNAME\b|\bthis (?:creature|spell|card|enchantment|artifact)\b/i.test(body)) return null;
     const head = body.split(',')[0];
     if (/\bthat (?:player|creature|permanent|card)\b|\bchosen\b/i.test(head)) return null;
@@ -590,6 +590,9 @@
     // Sanctum Weaver: "Add X mana of any one color, where X is the number of enchantments you control."
     { re: /^Add X mana of any one colou?r, where X is the number of ([-a-zA-Z' ]+? you control)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
+    // The Eternity Elevator: "Add X mana of any one color, where X is the number of charge counters on CARDNAME."
+    { re: /^Add X mana of any one colou?r, where X is the number of ([a-z]+) counters on (?:CARDNAME|this (?:artifact|creature|land|permanent))\.?$/i,
+      make: (m) => ({ op: 'addManaX', x: 'counters', counter: m[1].toLowerCase() }) },
     // Marwyn: "Add an amount of {G} equal to CARDNAME's power."
     { re: /^Add an amount of \{([WUBRGC])\} equal to (?:CARDNAME'?s?|this creature'?s|its) power\.?$/i,
       make: (m) => ({ op: 'addManaX', x: 'power', symbol: m[1].toUpperCase() }) },
@@ -744,7 +747,16 @@
     // --- counters ---
     { re: /^Put (a|one|two|three|\d+|X) \+1\/\+1 counters? on (?:up to one )?((?:another )?target creature|(?:another )?target creature you control|it|this creature|CARDNAME|each creature you control)\.?$/i,
       make: (m) => ({ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: /target/.test(m[2]) ? [targetSpec(m[2])] : null, scope: /each/.test(m[2]) ? 'yourCreatures' : (/it|this|CARDNAME/.test(m[2]) ? 'self' : null) }) },
-    { re: /^Put (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (-1\/-1|\+1\/\+1|[a-z ]+) counters? on ((?:another )?target [a-z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
+    /* Qarsi Revenant: "Put a flying counter, a deathtouch counter, and a
+       lifelink counter on target creature." — one target, several kinds */
+    { re: /^Put ((?:an? (?:[a-z]+|first strike|double strike) counter,? )+and an? (?:[a-z]+|first strike|double strike) counter) on ((?:another )?target [a-z ]+)\.?$/i,
+      make: (m) => {
+        const kinds = [...m[1].matchAll(/an? ((?:first |double )?[a-z]+) counter/gi)].map(x => x[1].toLowerCase());
+        return { op: 'sequence', list: kinds.map((k, i) => (i === 0
+          ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
+          : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
+      } },
+    { re: /^Put (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (-1\/-1|\+1\/\+1|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
 
     // --- removal / zone changes ---
@@ -1453,7 +1465,7 @@
     { re: /^Tap (enchanted|equipped) creature\.?$/i, make: () => ({ op: 'tap', scope: 'attached' }) },
     { re: /^Untap (enchanted|equipped) creature\.?$/i, make: () => ({ op: 'untap', scope: 'attached' }) },
     { re: /^Destroy (enchanted|equipped) creature\.?$/i, make: () => ({ op: 'destroy', scope: 'attached' }) },
-    { re: /^Return (?:this (?:Equipment|Aura|artifact|creature|permanent)|CARDNAME) to (?:its|their) owner'?s hand\.?$/i,
+    { re: /^Return (?:this (?:Equipment|Aura|artifact|creature|permanent|enchantment)|CARDNAME) to (?:its|their) owner'?s hand\.?$/i,
       make: () => ({ op: 'bounce', scope: 'self' }) },
     { re: /^Sacrifice (?:this (?:Equipment|Aura|artifact|creature|permanent|enchantment|land|token))\.?$/i,
       make: () => ({ op: 'sacrificeSelf' }) },
@@ -2246,8 +2258,22 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
+    { re: /^(CARDNAME|This creature|Target creature(?: you control)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
+      make: (m) => Object.assign({ op: 'restrict', flag: /haste/i.test(m[2]) ? 'exceptByHaste' : 'exceptByFlying' },
+        /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : { scope: 'self' }) },
+    // Wan Shi Tong: "Then draw half X cards, rounded down."
+    { re: /^(?:Then )?[Dd]raw half X cards, rounded (down|up)\.?$/i,
+      make: (m) => ({ op: 'draw', n: { half: 'X', up: /up/i.test(m[1]) } }) },
+    // Unstoppable Slasher: "they lose half their life, rounded up"
+    { re: /^(They|That player|Each opponent|Target player|Target opponent) loses? half (?:their|his or her) life, rounded (up|down)\.?$/i,
+      make: (m) => {
+        const who = /^each/i.test(m[1]) ? 'opponents' : /^target/i.test(m[1]) ? 'target' : 'triggerPlayer';
+        return Object.assign({ op: 'loseLife', who, n: { halfLife: who, up: /up/i.test(m[2]) } },
+          who === 'target' ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {});
+      } },
     // one sentence of a longer text: "Whenever a creature dies this turn, …"
-    { re: /^(?:Until end of turn|This turn), whenever .+$|^Whenever [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
+    { re: /^(?:Until end of turn|This turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
     { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
       make: (m) => ({ op: 'exile', targets: [Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].toLowerCase()), { owner: 'you' })] }) },
@@ -2895,6 +2921,8 @@
        is the same creature as "this creature". */
     const s = sentence.trim().replace(/\s+/g, ' ').replace(/^[a-z]/, (c) => c.toUpperCase())
       .replace(/\b([Tt])his token\b/g, '$1his creature')
+      // Wan Shi Tong: "put X +1/+1 counters on him" — a character card means itself
+      .replace(/ counters? on (?:him|her)\b/g, (x) => x.replace(/him|her/, 'CARDNAME'))
       .replace(/^(?:That|The) (?:creature|permanent|land|artifact|enchantment|spell|planeswalker)'s controller\b/, 'Its controller');
     if (!s) return null;
     for (const rule of EFFECT_RULES) {
@@ -2965,6 +2993,11 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* Tezzeret, Cruel Captain: "Untap target artifact or creature. If it's
+       an artifact creature, put a +1/+1 counter on it." — the target */
+    { re: /^Untap (target (?:artifact or creature|creature|artifact|permanent))\. If it'?s an? (artifact creature|creature|artifact), put a \+1\/\+1 counter on it\.?$/i,
+      make: (m) => [{ op: 'untap', targets: [targetSpec(m[1])] },
+        { op: 'ifLastWas', ofTarget: true, filter: m[2].toLowerCase(), then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'lastTarget' }] }] },
     /* Great Train Heist: "Choose target opponent. Whenever a creature you
        control deals combat damage to that player this turn, …" — a turn's
        trigger that watches the one player */
@@ -2974,7 +3007,7 @@
         return e ? [Object.assign(e, { targets: [{ type: 'player', opponent: true }], onlyTarget: true })] : null;
       } },
     // a triggered ability for the rest of the turn (Jace Reawakened, Bonus Round)
-    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^Whenever [^,"]+? this turn, [\s\S]+$/i,
+    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, [\s\S]+$/i,
       make: (m) => { const e = turnTrigger(m[0]); return e ? [e] : null; } },
     /* Final Showdown: "Choose a creature you control. It gains indestructible
        until end of turn." Chosen, not targeted: read as the targeted
@@ -3452,10 +3485,12 @@
       }
 
       // "... unless <someone> pays <cost>."
-      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|this creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i);
+      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|this creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
+        // Painful Quandary: "…unless they discard a card"
+        s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i);
       if (unless) {
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
-        const cost = /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
+        const cost = /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         effects.push({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
             : /that player|target player|they/i.test(unless[2]) ? 'target' : 'spellController',
           cost, then: inner.effects, text: s });
@@ -3698,8 +3733,9 @@
 
   function splitSentences(t) {
     // keep "{1}, {T}:" style intact; split on period followed by space+capital
+    // (or a quotation closed after its period: 'with "This token can't block." Creatures …')
     return String(t || '')
-      .split(/(?<=\.)\s+(?=[A-Z"“])/)
+      .split(/(?<=\.["”]?)\s+(?=[A-Z"“])/)
       .map(s => s.trim())
       .filter(Boolean);
   }
@@ -3718,6 +3754,8 @@
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
     [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
+    // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
+    [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
@@ -4501,7 +4539,7 @@
 
       /* Rite of Harmony: an instant whose words begin "Whenever … this
          turn" is a spell that sets up a trigger, not a trigger itself */
-      if (!out.isPermanent && /^Whenever [^,"]+? this turn, /.test(line)) {
+      if (!out.isPermanent && /^(?:Whenever|At the beginning of) [^,"]+? this turn, /.test(line)) {
         const parsed = parseEffects(line);
         out.abilities.push({ kind: 'spell', text: line, effects: parsed.effects, auto: parsed.auto });
         if (parsed.auto) autoLines++;
@@ -4534,7 +4572,7 @@
         /* "When this creature dies, return it to the battlefield": "it" is
            the creature that died, and nothing else. */
         if (trig.self && (trig.event === 'dies' || trig.also === 'dies')) {
-          body = body.replace(/^return it to (the battlefield|its owner'?s hand)/i, 'Return CARDNAME to $1');
+          body = body.replace(/^((?:if it had [^,]+, )?)return it to (the battlefield|its owner'?s hand)/i, '$1Return CARDNAME to $2');
         }
         // "Whenever this creature attacks, double its power": its own power
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
@@ -5887,14 +5925,20 @@
           tokenWhat: (m[1] || m[2] || '').trim().toLowerCase() || null };
       } },
     /* Fiery Emancipation, Twinflame Tyrant, Torbran, Gratuitous Violence */
-    { re: /^If an? ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
-      make: (m) => {
+    { re: /^If an? ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
+      make: (m0) => {
+        // Artist's Talent: "would deal noncombat damage"
+        const noncombat = !!m0[2];
+        const m = [m0[0], m0[1], m0[3], m0[4]];
         const words = m[1].toLowerCase().replace(/\bsource\b/, '').trim();
         const plus = m[3].match(/plus (\w+)/i);
         return Object.assign({ op: 'replace', id: 'dmg' + m[3].slice(0, 6), event: 'damage', who: 'you',
-          toOpponent: /opponent/i.test(m[2]), sourceWords: words || null },
+          toOpponent: /opponent/i.test(m[2]), sourceWords: words || null }, noncombat ? { noncombat: true } : {},
           plus ? { how: 'add', n: num(plus[1]) } : { how: m[3].toLowerCase() });
       } },
+    // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
+    { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },
     /* Blightsteel Colossus, Nexus of Fate: never stays in a graveyard */
     { re: /^If (?:CARDNAME|this card) would be put into a graveyard from anywhere, reveal (?:CARDNAME|it|this card) and shuffle it into its owner'?s library instead\.?$/i,
       make: () => ({ op: 'shuffleInsteadOfGrave' }) },

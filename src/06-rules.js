@@ -27,6 +27,9 @@
   const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent']);
 
   // Plain-English names for the combat restrictions an effect can impose.
+  // the counters that are keywords (CR 122.1b)
+  const KEYWORD_COUNTERS = ['flying', 'first strike', 'double strike', 'deathtouch', 'decayed', 'exalted', 'haste',
+    'hexproof', 'indestructible', 'lifelink', 'menace', 'reach', 'shadow', 'trample', 'vigilance'];
   const FLAG_WORDS = {
     cantBlock: "can't block this turn",
     cantAttack: "can't attack this turn",
@@ -34,6 +37,8 @@
     mustBlock: 'blocks this turn if able',
     mustAttackEot: 'attacks this turn if able',
     attackDespiteDefender: "can attack this turn as though it didn't have defender",
+    exceptByHaste: "can't be blocked this turn except by creatures with haste",
+    exceptByFlying: "can't be blocked this turn except by creatures with flying",
   };
 
   const PHASES = [
@@ -1104,6 +1109,8 @@
     _manaXValue(e, o, pid) {
       if (e.x === 'power') return o ? Math.max(0, this.powerOf(o)) : 0;
       if (e.x === 'count') return this._scopeList(e.scope || {}, pid, o).length;
+      // "where X is the number of charge counters on this"
+      if (e.x === 'counters') return o ? (Number(o.counters[e.counter]) || 0) : 0;
       if (e.x === 'greatestPower') {
         let best = 0;
         for (const x of this.battlefield) if (x.controller === pid && (x.analysis() || {}).isCreature) best = Math.max(best, this.powerOf(x));
@@ -2202,6 +2209,48 @@
       const generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x))
         .reduce((acc, x) => acc + parseInt(x, 10), 0);
       return U.clamp(cut, 0, generic);
+    }
+
+    /* Convoke, improvise and delve (CR 702.51, 702.126, 702.66) take generic
+       mana off the cost, and what they take off is paid another way: a
+       creature or an artifact tapped, a card exiled from the graveyard.
+       castCost has already counted the discount; this pays it, after the
+       mana, from what is still there to pay with. Affinity and the
+       standing discounts cost nothing. The cheapest things go first. */
+    _payReduction(pid, o) {
+      const a = o.analysis();
+      const cr = (a && a.costReduction) || {};
+      if (!cr.convoke && !cr.improvise && !cr.delve) return;
+      const generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x)).reduce((acc, x) => acc + parseInt(x, 10), 0);
+      const room = Math.max(0, generic + this._costDelta(o, pid));
+      let left = Math.min(this.costReductionFor(o), room);
+      if (cr.affinity) {
+        const f = cr.affinity;
+        const free = this.battlefield.filter(x => {
+          const xa = x.controller === pid && x.analysis();
+          return xa && (/artifact/.test(f) ? xa.isArtifact : /creature/.test(f) ? xa.isCreature
+            : /land/.test(f) ? xa.isLand : /enchantment/.test(f) ? xa.isEnchantment : false);
+        }).length;
+        left -= Math.min(left, free);
+      }
+      const p = this.player(pid);
+      const cheap = (list) => list.sort((x, y) => this._cardValue(x) - this._cardValue(y));
+      if (cr.delve && left > 0) {
+        const gy = cheap(this.zones[pid].graveyard.filter(c => c !== o)).slice(0, left);
+        for (const c of gy) this.moveObject(c, 'exile');
+        if (gy.length) this.logEvent('rules', `${p.name} exiles ${gy.length} card${gy.length === 1 ? '' : 's'} to delve.`);
+        left -= gy.length;
+      }
+      for (const [kw, word, fits] of [['improvise', 'improvise', (xa) => xa.isArtifact], ['convoke', 'convoke', (xa) => xa.isCreature]]) {
+        if (!cr[kw] || left <= 0) continue;
+        const pool = cheap(this.battlefield.filter(x => {
+          const xa = x.controller === pid && !x.tapped && !x.phasedOut && this.characteristics(x);
+          return xa && fits(xa);
+        })).slice(0, left);
+        for (const x of pool) this._markTapped(x);
+        if (pool.length) this.logEvent('rules', `${p.name} taps ${pool.map(x => x.name).join(', ')} to ${word}.`);
+        left -= pool.length;
+      }
     }
 
     /** Is a spell with split second waiting on the stack (CR 702.19)? */
@@ -3358,6 +3407,8 @@
       if (!opts.free || (addPick && addPick.mana)) {
         const paid = this.payMana(playerId, cost, Object.assign({}, opts, { forSpell: o }));
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
+        // convoke, improvise and delve are paid for, not given
+        if (!opts.free && !via && opts.costOverride == null) this._payReduction(playerId, o);
       }
       const payFlags = this._payFlags || {};
       this._payFlags = {};
@@ -5161,6 +5212,9 @@
       const A = (k) => this.hasKw(attacker, k), B = (k) => this.hasKw(blocker, k);
       if (A('unblockable')) return false;
       if (this._hasFlag(blocker, 'blocksFliersOnly') && !this.hasKw(attacker, 'flying')) return false;
+      // Gingerbrute: "can't be blocked this turn except by creatures with haste"
+      if (this._hasFlag(attacker, 'exceptByHaste') && !B('haste')) return false;
+      if (this._hasFlag(attacker, 'exceptByFlying') && !B('flying')) return false;
       if (A('flying') && !(B('flying') || B('reach'))) return false;
       if (A('shadow') && !B('shadow')) return false;
       if (!A('shadow') && B('shadow')) return false;
@@ -6094,6 +6148,8 @@
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        // "if it had no counters on it" as it died
+        case 'diedNoCounters': return !!src && !Object.values(src._diedCounters || src.counters || {}).some(v => Number(v) > 0);
         case 'completedDungeon': return !!me && (me.dungeonsCompleted || []).length > 0;
         case 'selfIs': {
           if (!src) return false;
@@ -6443,6 +6499,11 @@
         if (x.grant) for (const k of x.grant) kw.add(String(k).toLowerCase());
         if (x.lose) for (const k of x.lose) kw.delete(String(k).toLowerCase());
         if (x.grantMana) grantMana.push(...x.grantMana);
+      }
+      /* Keyword counters (CR 122.1b): a flying counter is flying, for as
+         long as it is there (and nothing has taken every ability away). */
+      if (loseTs === -Infinity) {
+        for (const k of KEYWORD_COUNTERS) if (Number(o.counters[k]) > 0) kw.add(k);
       }
 
       // layer 7a, then 7b, each oldest first
@@ -7590,6 +7651,13 @@
         if (v === 'X') return ctx.x || (src && src.chosenX) || 0;
         // "the number of cards in your hand plus one"
         if (v && typeof v === 'object' && v.plus) { const base = Object.assign({}, v); delete base.plus; return n(base) + v.plus; }
+        // "half X, rounded down"; "half their life, rounded up"
+        if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        if (v && typeof v === 'object' && v.halfLife) {
+          const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : null;
+          const life = p ? Math.max(0, p.life) : 0;
+          return v.up ? Math.ceil(life / 2) : Math.floor(life / 2);
+        }
         /* "that creature's power": the permanent the trigger is about, as it
            is now or as it last was */
         if (v && typeof v === 'object' && v.ofTrigger) {
@@ -8368,8 +8436,12 @@
           this._lastMilled = [];
           for (const p of who) {
             if (!p) continue;
-            for (let i = 0; i < cnt; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); this._lastMilled.push(o.id); }
-            this.logEvent('mill', `${p.name} mills ${cnt}.`);
+            // The Water Crystal: "they mill that many cards plus four instead"
+            const evM = cnt > 0 ? this._replace({ kind: 'mill', n: cnt, controller: p.id }) : { n: cnt };
+            if (evM.cancelled) continue;
+            const many = evM.n;
+            for (let i = 0; i < many; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); this._lastMilled.push(o.id); }
+            this.logEvent('mill', `${p.name} mills ${many}.`);
           }
           break;
         }
@@ -9238,6 +9310,20 @@
             : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
             : (firstPlayer() || onStack() || triggerPlayer() || this.opponentsOf(ctx.controller)[0]);
           if (!payer) { this._spliceNext(e.then); break; }
+          /* Painful Quandary: "…unless they discard a card" — a card picked
+             is the price paid; none picked, and it happens */
+          if (e.cost && e.cost.discard) {
+            const hand = this.zones[payer.id].hand.slice();
+            if (!hand.length) { this._spliceNext(e.then); break; }
+            const got = this._choose({ playerId: payer.id, purpose: 'unlessDiscard', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: 0, max: 1,
+              prompt: e.prompt || `Discard a card? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'disc');
+            if (got === SUSPEND) return SUSPEND;
+            const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+            if (x && x.zone === 'hand' && x.owner === payer.id) this._discardNow(payer.id, [x]);
+            else this._spliceNext(e.then);
+            break;
+          }
           const cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');
           if (e.costFromPower && this.powerOf(src) <= 0) { this._spliceNext(e.then); break; }
           const affordable = typeof cost === 'string'
@@ -9334,9 +9420,12 @@
         case 'skipDraw': me.skipNextDraw = true; break;
 
         case 'ifLastWas': {
-          const x = (this._lastExiled && this.obj(this._lastExiled)) ||
+          // "untap target artifact or creature. If it's an artifact creature, …": the target
+          const x = e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
             (this._lastAffected && this.obj(this._lastAffected.id));
-          if (x && this._matchesCategory(x, e.filter)) this._spliceNext(e.then);
+          const fits = x && (e.filter === 'artifact creature'
+            ? this._matchesCategory(x, 'artifact') && this._matchesCategory(x, 'creature') : this._matchesCategory(x, e.filter));
+          if (fits) this._spliceNext(e.then);
           break;
         }
 
@@ -10007,6 +10096,8 @@
           break;
         }
         case 'selfFromGraveyard': {
+          // "return CARDNAME to its owner's hand" said of a permanent: it goes back from the battlefield
+          if (src && src.zone === 'battlefield' && e.to === 'hand') { this.moveObject(src, 'hand'); break; }
           if (!src || src.zone !== 'graveyard') break;
           this.moveObject(src, e.to === 'battlefield' ? 'battlefield' : 'hand',
             e.to === 'battlefield' ? { controller: ctx.controller } : undefined);
