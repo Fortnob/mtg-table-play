@@ -765,7 +765,14 @@
             for (const m of (ex.modes || [])) {
               const on = st.spree.includes(m.i);
               rows.appendChild(el('button', { type: 'button', class: 'mode-opt' + (on ? ' on' : ''),
-                onclick: () => { const at = st.spree.indexOf(m.i); if (at >= 0) st.spree.splice(at, 1); else st.spree.push(m.i); this.render(); } }, [
+                // tiered is spree with one tier: picking another replaces the first
+                onclick: () => {
+                  const at = st.spree.indexOf(m.i);
+                  if (at >= 0) st.spree.splice(at, 1);
+                  else if (ex.one) st.spree = [m.i];
+                  else st.spree.push(m.i);
+                  this.render();
+                } }, [
                 el('span', { class: 'mode-dot', text: on ? '✓' : '' }),
                 el('span', { class: 'mode-text', html: `${MTG.mana.html(m.cost || '')} ${MTG.mana.textHtml(truncate(m.label, 90))}` }),
               ]));
@@ -791,7 +798,9 @@
           }
         }
         const spreeOnly = extras.every(x => x.kind === 'spree');
-        return this.panel(`Cast ${escapeHtml(steps.o.card.name)}`, spreeOnly ? 'Choose the modes you are paying for.' : 'Pay any of these extra costs?', rows, [
+        const tiered = extras.some(x => x.kind === 'spree' && x.one);
+        return this.panel(`Cast ${escapeHtml(steps.o.card.name)}`,
+          tiered ? 'Choose the tier you are paying for.' : spreeOnly ? 'Choose the modes you are paying for.' : 'Pay any of these extra costs?', rows, [
           { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
           { label: 'Continue', cls: 'primary', disabled: spreeOnly && !st.spree.length,
             fn: () => { this.asking = null; if (!st.spree.length && extras.some(x => x.kind === 'spree')) st.spree = [0]; next(); } },
