@@ -8724,6 +8724,8 @@
               const sac = (ctx.sacrificed || [])[0];
               if (!sac || mvOf(c) !== sac.mv + e.mvOfSacrificedPlus) return false;
             }
+            // "an instant card or a card with flash"
+            if (e.instantOrFlash) return !!(ca && (ca.isInstant || (ca.keywordSet && ca.keywordSet.has('flash'))));
             if (want === 'any' || want === '') return true;
             if (want === 'basic land') return !!(ca && ca.isBasicLand);
             if (e.named) return (c.card.name || '').toLowerCase() === String(e.named).toLowerCase();
@@ -8953,7 +8955,7 @@
             for (const c of this.zones[p.id].hand.slice()) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
           }
           live.forEach((p, i) => {
-            const k = e.n === 'mostDiscarded' ? most : e.n === 'sameDiscarded' ? counts[i] : (n(e.n) || 7);
+            const k = e.n === 'mostDiscarded' ? most : e.n === 'sameDiscarded' ? counts[i] : e.n === 'sameMinusOne' ? Math.max(0, counts[i] - 1) : (n(e.n) || 7);
             this._drawCards(p, k);
           });
           this.logEvent('wheel', 'Everyone discards their hand and draws a new one.');
@@ -9363,6 +9365,8 @@
           const want = n(e.n);
           const legal = pool.filter(o => {
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > e.maxMv) return false;
+            // "a creature or land card": words, read the way a search reads them
+            if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
             return this._matchesFilter(o, e.filter);
           });
           let taken = [];
@@ -12567,6 +12571,11 @@
       if (spec.mv != null && mv !== spec.mv) return false;
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;
+      // "target spell that targets a permanent you control"
+      if (spec.targetsYour && !(item.targets || []).some(t => {
+        const x = t.kind === 'object' && this.obj(t.id);
+        return x && x.zone === 'battlefield' && x.controller === controllerId && (spec.targetsYour !== 'creature' || (x.analysis() || {}).isCreature);
+      })) return false;
       /* "target noncreature spell", "an instant or sorcery spell", "a blue
          spell": the same reading a search uses, alternatives and all. */
       const want = String(spec.filter || '').toLowerCase()

@@ -266,8 +266,8 @@
       }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
-      if ((m = p.match(/^Remove (a|an|one|two|three|four|five|\d+|X) (.+?) counters? from/i))) {
-        cost.removeCounters = { n: WORDN(m[1]), kind: m[2] }; continue;
+      if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (.+?) counters? from/i))) {
+        cost.removeCounters = { n: /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
       }
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
@@ -2206,6 +2206,26 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Staff of Compleation: "Destroy target permanent you own."
+    { re: /^Destroy target (permanent|creature|artifact|land) you own\.?$/i,
+      make: (m) => ({ op: 'destroy', targets: [Object.assign(targetSpec('target ' + m[1].toLowerCase()), { owner: 'you' })] }) },
+    // Dark Deal: "…then draws that many cards minus one"
+    { re: /^Each player discards all the cards in their hand, then draws that many cards minus one\.?$/i,
+      make: () => ({ op: 'wheel', n: 'sameMinusOne' }) },
+    /* Waterlogged Teachings: "an instant card or a card with flash" */
+    { re: /^Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle\.?$/i,
+      make: () => ({ op: 'tutor', n: 1, filter: 'any', instantOrFlash: true, to: 'hand' }) },
+    // Rebuff the Wicked: "Counter target spell that targets a permanent you control."
+    { re: /^Counter target spell that targets an? (permanent|creature) you control\.?$/i,
+      make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', targetsYour: m[1].toLowerCase() }] }) },
+    /* Bloodforged Battle-Axe: "create a token that's a copy of this Equipment" */
+    { re: /^Create a token that'?s a copy of (?:this (?:Equipment|artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, self: true, grant: [] }) },
+    // Miirym: "create a token that's a copy of it, except the token isn't legendary"
+    { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
+    // a spell-cast trigger's "copy it": the spell that was cast
+    { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     /* Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." */
     { re: /^(Target (?:legendary )?creature(?: you control)?) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
@@ -2756,6 +2776,8 @@
     if (spec.faceDown && !obj.faceDown) return false;
     if (spec.commander && !obj.isCommander) return false;
     if (spec.name && obj.name !== spec.name) return false;
+    // "target permanent you own"
+    if (spec.owner === 'you' && obj.owner !== me) return false;
     const cols = a.colors || [];
     if (spec.colors && !spec.colors.some(c => cols.includes(c))) return false;
     if (spec.notColors && spec.notColors.some(c => cols.includes(c))) return false;
@@ -2881,6 +2903,11 @@
     { re: /^Look at the top (\w+) cards of your library\. Put (one|two|three) of them into your hand and the (?:rest|other|others) into your graveyard\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: 'graveyard' }] },
     { re: /^[Dd]iscard a card\. If you do, draw a card\.?$/, make: () => [{ op: 'rummage' }] },
+    /* Grisly Salvage: "Reveal the top five cards of your library. You may put
+       a creature or land card from among them into your hand. Put the rest
+       into your graveyard." */
+    { re: /^(?:Reveal|Look at) the top (\w+) cards of your library\. You may put an? ([a-z ]+?) card from among them into your hand\. Put the rest into your graveyard\.?$/i,
+      make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: 1, filter: m[2].trim().toLowerCase(), to: 'hand', rest: 'graveyard' }] },
     /* "Look at the top card of your library. If it's a creature card, you
        may reveal it and put it into your hand." */
     { re: /^(?:Look at|Reveal) the top card of your library\. If it'?s an? ([a-z ]+?) card, (you may )?(?:reveal it and )?put it (into your hand|onto the battlefield)( tapped)?\.(?: Otherwise, (draw a card|you may put (?:it|that card) (?:into your graveyard|on the bottom of your library))\.)?$/i,
@@ -3809,6 +3836,7 @@
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks?(?:,| )', 'i'),
       event: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
+    { re: /^When(?:ever)? a creature you control deals combat damage to an opponent,? /i, event: 'yourCreatureCombatDamage' },
     // Magda: "Whenever a Dwarf you control becomes tapped"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes tapped,? ', 'i'),
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },

@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17133,
-  "gainedCards": 1777,
-  "linesNeeded": 19565,
-  "linesGained": 2310,
+  "needed": 17105,
+  "gainedCards": 1776,
+  "linesNeeded": 19531,
+  "linesGained": 2308,
   "gained": {
-   "all": 1777,
-   "top2000": 53,
+   "all": 1776,
+   "top2000": 52,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6038,
-   "lines": 5012,
+   "score": 6034,
+   "lines": 5011,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1047,
-   "lines": 846,
+   "score": 1043,
+   "lines": 845,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 813,
-   "lines": 813,
+   "score": 812,
+   "lines": 812,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -1138,25 +1138,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 24,
-   "lines": 18,
-   "cards": [
-    "Sword of Hearth and Home",
-    "Staff of Compleation",
-    "Sanctum of Eternity",
-    "Aminatou, the Fateshifter",
-    "Slip On the Ring",
-    "Meneldor, Swift Savior",
-    "Coveted Falcon",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Northampton Farm",
-    "Despotic Scepter",
-    "Tel-Jilad Stylus"
-   ]
-  },
-  {
    "what": "words:mv",
    "score": 24,
    "lines": 21,
@@ -1493,25 +1474,6 @@
    ]
   },
   {
-   "what": "TargetsPermanentPredicate",
-   "score": 22,
-   "lines": 19,
-   "cards": [
-    "Rebuff the Wicked",
-    "Pearl-Ear, Imperial Advisor",
-    "Season of Growth",
-    "Keep Safe",
-    "Turn Aside",
-    "Avoid Fate",
-    "Legolas, Master Archer",
-    "Fugitive Droid",
-    "Confound",
-    "Ms. Marvel, Kamala Khan",
-    "Intervene",
-    "Fin Fang Foom"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 22,
    "lines": 19,
@@ -1778,6 +1740,25 @@
    ]
   },
   {
+   "what": "owner of a permanent",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Sword of Hearth and Home",
+    "Sanctum of Eternity",
+    "Aminatou, the Fateshifter",
+    "Slip On the Ring",
+    "Meneldor, Swift Savior",
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Northampton Farm",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency"
+   ]
+  },
+  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -1952,25 +1933,6 @@
     "Otherworldly Outburst",
     "Searing Blood",
     "Melira, the Living Cure"
-   ]
-  },
-  {
-   "what": "damage affecting the defending player",
-   "score": 18,
-   "lines": 12,
-   "cards": [
-    "Kediss, Emberclaw Familiar",
-    "Coastal Piracy",
-    "Fynn, the Fangbearer",
-    "Angel of Destiny",
-    "Vraska, Golgari Queen",
-    "Strixhaven Stadium",
-    "Marisi, Breaker of the Coil",
-    "Cosima, God of the Voyage // The Omenkeel",
-    "Edward Kenway",
-    "Rogue Class",
-    "Virulent Silencer",
-    "Etrata, Deadly Fugitive"
    ]
   },
   {
@@ -2168,24 +2130,6 @@
     "Omnath, Locus of the Void",
     "Renegade Bull",
     "Greven, Predator Captain"
-   ]
-  },
-  {
-   "what": "PermanentPredicate.instance",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Conduit of Worlds",
-    "Lithoform Engine",
-    "Unbound Flourishing",
-    "Archmage of Echoes",
-    "Squirming Emergence",
-    "Staff of Eden, Vault's Key",
-    "Myojin of Cryptic Dreams",
-    "Astelli Reclaimer",
-    "Pull Through the Weft",
-    "Wilfred Mott",
-    "United Battlefront"
    ]
   },
   {
@@ -2390,6 +2334,23 @@
     "Oriss, Samite Guardian",
     "Azorius Ploy",
     "Soratami Cloud Chariot"
+   ]
+  },
+  {
+   "what": "PermanentPredicate.instance",
+   "score": 16,
+   "lines": 10,
+   "cards": [
+    "Conduit of Worlds",
+    "Lithoform Engine",
+    "Unbound Flourishing",
+    "Squirming Emergence",
+    "Staff of Eden, Vault's Key",
+    "Myojin of Cryptic Dreams",
+    "Astelli Reclaimer",
+    "Pull Through the Weft",
+    "Wilfred Mott",
+    "United Battlefront"
    ]
   },
   {
@@ -2890,25 +2851,6 @@
    ]
   },
   {
-   "what": "RemoveCounterCost",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Tekuthal, Inquiry Dominus",
-    "Scholar of New Horizons",
-    "Fain, the Broker",
-    "O'aka, Traveling Merchant",
-    "Sanctuary Warden",
-    "Hexavus",
-    "Soul Diviner",
-    "Xavier Sal, Infested Captain",
-    "Tayam, Luminous Enigma",
-    "Overseer of Vault 76",
-    "The Filigree Sylex",
-    "Chisei, Heart of Oceans"
-   ]
-  },
-  {
    "what": "TargetPlayerGainControlSourceEffect",
    "score": 15,
    "lines": 9,
@@ -3279,6 +3221,42 @@
    ]
   },
   {
+   "what": "damage affecting the defending player",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Kediss, Emberclaw Familiar",
+    "Fynn, the Fangbearer",
+    "Angel of Destiny",
+    "Vraska, Golgari Queen",
+    "Strixhaven Stadium",
+    "Marisi, Breaker of the Coil",
+    "Cosima, God of the Voyage // The Omenkeel",
+    "Edward Kenway",
+    "Rogue Class",
+    "Virulent Silencer",
+    "Etrata, Deadly Fugitive"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Tekuthal, Inquiry Dominus",
+    "Scholar of New Horizons",
+    "Fain, the Broker",
+    "O'aka, Traveling Merchant",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain",
+    "Tayam, Luminous Enigma",
+    "Overseer of Vault 76",
+    "Chisei, Heart of Oceans"
+   ]
+  },
+  {
    "what": "DamagePlayersEffect amount",
    "score": 14,
    "lines": 2,
@@ -3400,6 +3378,25 @@
     "Private Eye",
     "Foggy Swamp Spirit Keeper",
     "Moon Girl and Devil Dinosaur"
+   ]
+  },
+  {
+   "what": "TargetsPermanentPredicate",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Pearl-Ear, Imperial Advisor",
+    "Season of Growth",
+    "Avoid Fate",
+    "Legolas, Master Archer",
+    "Fugitive Droid",
+    "Confound",
+    "Ms. Marvel, Kamala Khan",
+    "Intervene",
+    "Fin Fang Foom",
+    "Colleen Wing, Street Samurai",
+    "Vigilant Martyr",
+    "Mockingbird, Ace Agent"
    ]
   },
   {
@@ -5059,24 +5056,6 @@
    ]
   },
   {
-   "what": "CreateTokenCopySourceEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Skyclave Relic",
-    "Gruff Triplets",
-    "Scouring Swarm",
-    "Skitterbeam Battalion",
-    "Compy Swarm",
-    "Phoenix Fleet Airship",
-    "Improvised Arsenal",
-    "Joo Dee, One of Many",
-    "Chronozoa",
-    "Council of Reeds",
-    "Mirror-Sigil Sergeant"
-   ]
-  },
-  {
    "what": "PutSourceCountersOnTargetEffect",
    "score": 11,
    "lines": 11,
@@ -5465,31 +5444,6 @@
    ]
   },
   {
-   "what": "or of AbilityPredicate",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Waterlogged Teachings // Inundated Archive",
-    "Minsc & Boo, Timeless Heroes",
-    "Henrika Domnathi // Henrika, Infernal Seer",
-    "Sonic the Hedgehog",
-    "Mystical Teachings",
-    "Mwonvuli Beast Tracker",
-    "Tsagan, Raider Warlord"
-   ]
-  },
-  {
-   "what": "CreateTokenCopyTargetEffect.setIsntLegendary",
-   "score": 10,
-   "lines": 4,
-   "cards": [
-    "Miirym, Sentinel Wyrm",
-    "Quantum Misalignment",
-    "Ember Island Production",
-    "Multiversal Recruitment"
-   ]
-  },
-  {
    "what": "counter of a non-spell",
    "score": 10,
    "lines": 7,
@@ -5699,6 +5653,23 @@
     "Eldrazi Aggressor",
     "Reaver Drone",
     "Skitterskin"
+   ]
+  },
+  {
+   "what": "CreateTokenCopySourceEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Skyclave Relic",
+    "Gruff Triplets",
+    "Scouring Swarm",
+    "Skitterbeam Battalion",
+    "Compy Swarm",
+    "Phoenix Fleet Airship",
+    "Joo Dee, One of Many",
+    "Chronozoa",
+    "Council of Reeds",
+    "Mirror-Sigil Sergeant"
    ]
   },
   {
@@ -6294,19 +6265,6 @@
     "Sparkshaper Visionary",
     "The Curse of Fenric",
     "Dance of the Skywise"
-   ]
-  },
-  {
-   "what": "CopyTargetStackObjectEffect.withText",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Echoes of Eternity",
-    "Chandra, Hope's Beacon",
-    "Lucky Clover",
-    "Chancellor of Tales",
-    "Thurid, Mare of Destiny",
-    "Gorion, Wise Mentor"
    ]
   },
   {
@@ -6964,18 +6922,6 @@
     "The Fall of Lord Konda // Fragment of Konda",
     "Alicia Masters, Skilled Sculptor",
     "Brooding Saurian"
-   ]
-  },
-  {
-   "what": "pick filter creature or land",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Grisly Salvage",
-    "Seismic Sense",
-    "Follow the Lumarets",
-    "Vivien's Talent",
-    "Scout the Borders"
    ]
   },
   {
@@ -8220,12 +8166,68 @@
     "Blademane Baku",
     "Mercadian Lift"
    ]
+  },
+  {
+   "what": "gain for static",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Kaya the Inexorable",
+    "Flame-Wreathed Phoenix",
+    "Mist Dragon",
+    "Iron-Heart Chimera",
+    "Tin-Wing Chimera",
+    "Lead-Belly Chimera",
+    "Brass-Talon Chimera"
+   ]
+  },
+  {
+   "what": "AttacksWhileSaddledTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Calamity, Galloping Inferno",
+    "Fortune, Loyal Steed",
+    "Bounding Felidar",
+    "Lagorin, Soul of Alacria",
+    "Autarch Mammoth",
+    "Giant Beaver",
+    "Rambling Possum"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Furnace Reins",
+    "Rankle and Torbran",
+    "Deeproot Wayfinder",
+    "Attentive Skywarden",
+    "Invasion of Kamigawa // Rooftop Saboteurs",
+    "Bilbo, Unexpected Adventurer",
+    "Aetherblade Agent // Gitaxian Mindstinger"
+   ]
+  },
+  {
+   "what": "TimeTravelEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "The Tenth Doctor",
+    "Time Beetle",
+    "Wibbly-wobbly, Timey-wimey",
+    "Rotating Fireplace",
+    "All of History, All at Once",
+    "The Parting of the Ways",
+    "The Wedding of River Song"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4726,
+   "score": 4723,
    "cards": 3964,
    "names": [
     "Ripples of Undeath",
@@ -8238,8 +8240,8 @@
   },
   {
    "what": "custom ability",
-   "score": 780,
-   "cards": 624,
+   "score": 776,
+   "cards": 623,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8859,32 +8861,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 19,
-   "cards": 13,
-   "names": [
-    "Sword of Hearth and Home",
-    "Staff of Compleation",
-    "Sanctum of Eternity",
-    "Slip On the Ring",
-    "Meneldor, Swift Savior",
-    "Reality Scramble"
-   ]
-  },
-  {
-   "what": "TargetsPermanentPredicate",
-   "score": 19,
-   "cards": 16,
-   "names": [
-    "Rebuff the Wicked",
-    "Season of Growth",
-    "Keep Safe",
-    "Turn Aside",
-    "Avoid Fate",
-    "Confound"
-   ]
-  },
-  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 19,
    "cards": 10,
@@ -9247,19 +9223,6 @@
    ]
   },
   {
-   "what": "PermanentPredicate.instance",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Conduit of Worlds",
-    "Lithoform Engine",
-    "Archmage of Echoes",
-    "Squirming Emergence",
-    "Astelli Reclaimer",
-    "Pull Through the Weft"
-   ]
-  },
-  {
    "what": "words:power",
    "score": 14,
    "cards": 8,
@@ -9283,6 +9246,19 @@
     "Prompto Argentum",
     "Ultros, Obnoxious Octopus",
     "Blazing Bomb"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 14,
+   "cards": 11,
+   "names": [
+    "Sword of Hearth and Home",
+    "Sanctum of Eternity",
+    "Slip On the Ring",
+    "Meneldor, Swift Savior",
+    "Reality Scramble",
+    "Become Anonymous"
    ]
   },
   {
@@ -9499,6 +9475,19 @@
     "Jeskai Runemark",
     "Sultai Runemark",
     "Battle Brawler"
+   ]
+  },
+  {
+   "what": "PermanentPredicate.instance",
+   "score": 13,
+   "cards": 7,
+   "names": [
+    "Conduit of Worlds",
+    "Lithoform Engine",
+    "Squirming Emergence",
+    "Astelli Reclaimer",
+    "Pull Through the Weft",
+    "Wilfred Mott"
    ]
   },
   {
@@ -9803,19 +9792,6 @@
     "TARDIS",
     "Crackling Spellslinger",
     "Dark Apostle"
-   ]
-  },
-  {
-   "what": "damage affecting the defending player",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Kediss, Emberclaw Familiar",
-    "Coastal Piracy",
-    "Fynn, the Fangbearer",
-    "Vraska, Golgari Queen",
-    "Edward Kenway",
-    "Virulent Silencer"
    ]
   },
   {
@@ -10235,6 +10211,19 @@
    ]
   },
   {
+   "what": "TargetsPermanentPredicate",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Season of Growth",
+    "Avoid Fate",
+    "Confound",
+    "Ms. Marvel, Kamala Khan",
+    "Intervene",
+    "Fin Fang Foom"
+   ]
+  },
+  {
    "what": "token ability RatCantBlockToken",
    "score": 11,
    "cards": 5,
@@ -10524,17 +10513,6 @@
    "cards": 1,
    "names": [
     "Full Throttle"
-   ]
-  },
-  {
-   "what": "CreateTokenCopyTargetEffect.setIsntLegendary",
-   "score": 10,
-   "cards": 4,
-   "names": [
-    "Miirym, Sentinel Wyrm",
-    "Quantum Misalignment",
-    "Ember Island Production",
-    "Multiversal Recruitment"
    ]
   },
   {
@@ -10977,6 +10955,19 @@
    ]
   },
   {
+   "what": "ManaValueEqualToCountersSourceCountPredicate",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Blast Zone",
+    "Ratchet Bomb",
+    "Necroplasm",
+    "The Filigree Sylex",
+    "Powder Keg",
+    "Wave of Terror"
+   ]
+  },
+  {
    "what": "TargetPermanentOrPlayer",
    "score": 9,
    "cards": 6,
@@ -11114,19 +11105,6 @@
     "Otter-Penguin",
     "Private Eye",
     "Foggy Swamp Spirit Keeper"
-   ]
-  },
-  {
-   "what": "CreateTokenCopySourceEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Skyclave Relic",
-    "Gruff Triplets",
-    "Scouring Swarm",
-    "Skitterbeam Battalion",
-    "Compy Swarm",
-    "Improvised Arsenal"
    ]
   },
   {
@@ -11632,6 +11610,18 @@
    ]
   },
   {
+   "what": "damage affecting the defending player",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Kediss, Emberclaw Familiar",
+    "Fynn, the Fangbearer",
+    "Vraska, Golgari Queen",
+    "Edward Kenway",
+    "Virulent Silencer"
+   ]
+  },
+  {
    "what": "GoadAttachedEffect",
    "score": 8,
    "cards": 5,
@@ -11641,18 +11631,6 @@
     "Parasitic Impetus",
     "Coercive Impetus",
     "Psychic Impetus"
-   ]
-  },
-  {
-   "what": "CopyTargetStackObjectEffect.withText",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Echoes of Eternity",
-    "Lucky Clover",
-    "Chancellor of Tales",
-    "Thurid, Mare of Destiny",
-    "Gorion, Wise Mentor"
    ]
   },
   {
@@ -11677,18 +11655,6 @@
     "Defiler of Instinct",
     "Defiler of Faith",
     "Defiler of Flesh"
-   ]
-  },
-  {
-   "what": "ManaValueEqualToCountersSourceCountPredicate",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Blast Zone",
-    "Ratchet Bomb",
-    "Necroplasm",
-    "Powder Keg",
-    "Wave of Terror"
    ]
   },
   {
@@ -11823,6 +11789,19 @@
     "G'raha Tia, Scion Reborn",
     "Krile Baldesion",
     "Baron Strucker, HYDRA Overlord"
+   ]
+  },
+  {
+   "what": "CreateTokenCopySourceEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Skyclave Relic",
+    "Gruff Triplets",
+    "Scouring Swarm",
+    "Skitterbeam Battalion",
+    "Compy Swarm",
+    "Joo Dee, One of Many"
    ]
   },
   {
@@ -12031,6 +12010,32 @@
     "Infinite Hourglass",
     "Balduvian Warlord",
     "General Jarkeld"
+   ]
+  },
+  {
+   "what": "granting a static ability",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Nerd Rage",
+    "Rune of Sustenance",
+    "Rune of Might",
+    "Rune of Mortality",
+    "Rune of Speed",
+    "Giant's Amulet"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Peacewalker Colossus",
+    "Tough Cookie",
+    "Memnarch",
+    "Ashnod's Transmogrant",
+    "Workshop Elders",
+    "Stone by Sunlight"
    ]
   }
  ]

@@ -1296,6 +1296,40 @@ module.exports = (test) => {
     t.eq(T.life('B'), 17);
   });
 
+  test('Grisly Salvage: a creature or land into hand, the rest into the graveyard', (mk, t) => {
+    t.auto('Grisly Salvage');
+    const T = mk();
+    const cards = ['Opt', 'Shock', 'Grizzly Bears', 'Lightning Bolt', 'Counterspell'].map(n => T.top('A', n));
+    T.mana('A', 'BG');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Grizzly Bears').id] }));
+    T.cast('A', T.hand('A', 'Grisly Salvage'));
+    t.zone(cards[2], 'hand', 'the bear');
+    t.ok(cards.filter((c, i) => i !== 2).every(c => c.zone === 'graveyard'), 'the rest to the graveyard');
+  });
+
+  test('Rebuff the Wicked only counters a spell aimed at your permanent', (mk, t) => {
+    t.auto('Rebuff the Wicked');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const b1 = T.hand('A', 'Shock'), b2 = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'RR');
+    T.cast('A', b1, { targets: [bear], resolve: false });
+    T.cast('A', b2, { targets: ['B'], resolve: false });
+    const spec = T.g._specsOf({ effects: card('Rebuff the Wicked') && engine().oracle.analyze(card('Rebuff the Wicked')).abilities[0].effects })[0];
+    const legal = T.g._legalTargetsFor(spec, 'A').map(x => x.id);
+    t.ok(legal.includes(T.stackItem(b1).id), 'the Shock at my bear');
+    t.no(legal.includes(T.stackItem(b2).id), 'not the Bolt at a player');
+  });
+
+  test('Miirym copies another Dragon that enters, not legendary', (mk, t) => {
+    t.auto('Miirym, Sentinel Wyrm');
+    const T = mk();
+    T.bf('A', 'Miirym, Sentinel Wyrm');
+    T.put('A', 'Shivan Dragon', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Shivan Dragon').length, 1);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
