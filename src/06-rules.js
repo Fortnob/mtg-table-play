@@ -2244,13 +2244,14 @@
     /* Convoke, improvise and delve (CR 702.51, 702.126, 702.66) take generic
        mana off the cost, and what they take off is paid another way: a
        creature or an artifact tapped, a card exiled from the graveyard.
-       castCost has already counted the discount; this pays it, after the
-       mana, from what is still there to pay with. Affinity and the
-       standing discounts cost nothing. The cheapest things go first. */
-    _payReduction(pid, o) {
+       castCost has already counted the discount; what is left here is
+       paying it. Affinity and the standing discounts cost nothing. */
+
+    /** How much of the discount convoke, improvise and delve are paying, and which of them the card has. */
+    _reductionRoom(pid, o) {
       const a = o.analysis();
       const cr = (a && a.costReduction) || {};
-      if (!cr.convoke && !cr.improvise && !cr.delve) return;
+      if (!cr.convoke && !cr.improvise && !cr.delve) return null;
       const generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x)).reduce((acc, x) => acc + parseInt(x, 10), 0);
       const room = Math.max(0, generic + this._costDelta(o, pid));
       let left = Math.min(this.costReductionFor(o), room);
@@ -2263,22 +2264,95 @@
         }).length;
         left -= Math.min(left, free);
       }
+      return { cr, left };
+    }
+    /** What could pay for one of them: cards in the graveyard for delve, untapped artifacts or creatures. */
+    _reductionCandidates(pid, o, kind) {
+      if (kind === 'delve') return ((this.zones[pid] || {}).graveyard || []).filter(c => c !== o);
+      return this.battlefield.filter(x => {
+        if (x.controller !== pid || x.tapped || x.phasedOut) return false;
+        if (kind === 'improvise') return !!(x.analysis() || {}).isArtifact || ((this.characteristics(x) || {}).addTypes || []).includes('Artifact');
+        return !!(this.characteristics(x) || {}).isCreature;
+      });
+    }
+    /** The table's offer for a card in hand: what could pay, and how much at most. */
+    _reductionExtras(pid, o) {
+      const r = this._reductionRoom(pid, o);
+      if (!r || r.left <= 0) return [];
+      const out = [];
+      for (const [kind, label] of [['delve', 'Delve'], ['improvise', 'Improvise'], ['convoke', 'Convoke']]) {
+        if (!r.cr[kind]) continue;
+        const cands = this._reductionCandidates(pid, o, kind);
+        if (!cands.length) continue;
+        out.push({ kind, label, cost: '', candidates: cands.map(x => x.id), max: Math.min(r.left, cands.length) });
+      }
+      return out;
+    }
+    /**
+     * The player's own choice of what pays (castSpell's convokeIds,
+     * improviseIds, delveIds), checked before any mana is spent. Null when
+     * nothing was chosen: then the cheapest things are picked for them.
+     * Choosing fewer than the most means paying the rest in mana.
+     */
+    _reductionPlan(pid, o, opts) {
+      const given = opts && (opts.convokeIds || opts.improviseIds || opts.delveIds);
+      if (!given) return null;
+      const r = this._reductionRoom(pid, o);
+      const plan = { tap: [], exile: [], used: 0, unused: 0, words: [] };
+      const seen = new Set();
+      for (const [kind, key] of [['delve', 'delveIds'], ['improvise', 'improviseIds'], ['convoke', 'convokeIds']]) {
+        const ids = opts[key];
+        if (ids == null) continue;
+        if (!Array.isArray(ids)) return { error: `${key} must be a list.` };
+        if (!ids.length) continue;
+        if (!r || !r.cr[kind]) return { error: `${o.name} doesn't have ${kind}.` };
+        const ok = new Set(this._reductionCandidates(pid, o, kind).map(x => x.id));
+        for (const id of ids) {
+          if (seen.has(id)) return { error: 'The same thing cannot pay twice.' };
+          seen.add(id);
+          const x = this.obj(id);
+          if (!x || !ok.has(id)) {
+            return { error: kind === 'delve' ? `${x ? x.name : 'That card'} isn't a card in your graveyard to exile for delve.`
+              : `${x ? x.name : 'That'} isn't an untapped ${kind === 'convoke' ? 'creature' : 'artifact'} you control to tap for ${kind}.` };
+          }
+          (kind === 'delve' ? plan.exile : plan.tap).push(x);
+        }
+        plan.words.push([kind, ids.length]);
+      }
+      plan.used = plan.tap.length + plan.exile.length;
+      const can = r ? r.left : 0;
+      if (plan.used > can) return { error: `That pays for ${plan.used}, but only ${can} of ${o.name}'s cost can be paid that way.` };
+      plan.unused = can - plan.used;
+      return plan;
+    }
+    /** Pay with a checked plan, or (with none) with the cheapest things there are. */
+    _payReduction(pid, o, plan) {
       const p = this.player(pid);
+      if (plan) {
+        if (plan.exile.length) {
+          for (const c of plan.exile) this.moveObject(c, 'exile');
+          this.logEvent('rules', `${p.name} exiles ${plan.exile.length} card${plan.exile.length === 1 ? '' : 's'} to delve.`);
+        }
+        const taps = plan.tap.filter(x => x.zone === 'battlefield' && !x.tapped);
+        for (const x of taps) this._markTapped(x);
+        if (taps.length) this.logEvent('rules', `${p.name} taps ${taps.map(x => x.name).join(', ')} to pay for ${o.name}.`);
+        return;
+      }
+      const r = this._reductionRoom(pid, o);
+      if (!r) return;
+      let left = r.left;
       const cheap = (list) => list.sort((x, y) => this._cardValue(x) - this._cardValue(y));
-      if (cr.delve && left > 0) {
-        const gy = cheap(this.zones[pid].graveyard.filter(c => c !== o)).slice(0, left);
+      if (r.cr.delve && left > 0) {
+        const gy = cheap(this._reductionCandidates(pid, o, 'delve')).slice(0, left);
         for (const c of gy) this.moveObject(c, 'exile');
         if (gy.length) this.logEvent('rules', `${p.name} exiles ${gy.length} card${gy.length === 1 ? '' : 's'} to delve.`);
         left -= gy.length;
       }
-      for (const [kw, word, fits] of [['improvise', 'improvise', (xa) => xa.isArtifact], ['convoke', 'convoke', (xa) => xa.isCreature]]) {
-        if (!cr[kw] || left <= 0) continue;
-        const pool = cheap(this.battlefield.filter(x => {
-          const xa = x.controller === pid && !x.tapped && !x.phasedOut && this.characteristics(x);
-          return xa && fits(xa);
-        })).slice(0, left);
+      for (const kw of ['improvise', 'convoke']) {
+        if (!r.cr[kw] || left <= 0) continue;
+        const pool = cheap(this._reductionCandidates(pid, o, kw)).slice(0, left);
         for (const x of pool) this._markTapped(x);
-        if (pool.length) this.logEvent('rules', `${p.name} taps ${pool.map(x => x.name).join(', ')} to ${word}.`);
+        if (pool.length) this.logEvent('rules', `${p.name} taps ${pool.map(x => x.name).join(', ')} to ${kw}.`);
         left -= pool.length;
       }
     }
@@ -3434,11 +3508,21 @@
          even for a spell cast without paying its mana cost. */
       if (addPick && addPick.mana) cost = opts.free ? addPick.mana : (cost || '') + addPick.mana;
       this._payFlags = {};
+      /* Convoke, improvise and delve are paid for, not given: with what the
+         player chose (checked before any mana goes), or the cheapest there
+         is. Whatever they chose not to use is paid in mana. */
+      const reduces = !opts.free && !via && opts.costOverride == null;
+      const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
+      if (plan && plan.error) return this.fail(plan.error);
+      if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
       if (!opts.free || (addPick && addPick.mana)) {
+        // what taps for convoke is not there to tap for mana
+        const held = plan ? plan.tap.filter(x => !x.tapped) : [];
+        for (const x of held) x.tapped = true;
         const paid = this.payMana(playerId, cost, Object.assign({}, opts, { forSpell: o }));
+        for (const x of held) x.tapped = false;
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
-        // convoke, improvise and delve are paid for, not given
-        if (!opts.free && !via && opts.costOverride == null) this._payReduction(playerId, o);
+        if (reduces) this._payReduction(playerId, o, plan);
       }
       const payFlags = this._payFlags || {};
       this._payFlags = {};
@@ -13503,7 +13587,8 @@
           const z = this.zones[playerId];
           if (!z) return out;
           for (const o of z.hand.concat(z.command)) {
-            const ex = this.extraCostsFor(o.id);
+            // convoke, improvise and delve: what could pay, for the table to offer
+            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o));
             if (ex.length) out[o.id] = ex;
           }
           return out;

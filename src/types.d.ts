@@ -153,6 +153,10 @@ declare namespace MTG {
     kind: string; label: string; cost?: string | null; modes?: Array<{ i: number; cost?: string; label?: string }>;
     /** an extra cost that is itself a question (replicate, splice), answered in the cast intent's `choices` */
     choose?: ChooseSpec;
+    /** convoke, improvise, delve: the objects that could pay (one generic mana each), answered with the cast intent's convokeIds, improviseIds or delveIds */
+    candidates?: Id[];
+    /** the most of the cost they can pay between them */
+    max?: number;
     [k: string]: any;
   }
 
@@ -368,6 +372,8 @@ declare namespace MTG {
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number;
+      /** what pays for convoke, improvise and delve (left out, the engine picks the cheapest) */
+      convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
       /** generic questions answered as the spell is cast (replicate, splice), by purpose */
       choices?: Record<string, ChooseAnswer>;
     }

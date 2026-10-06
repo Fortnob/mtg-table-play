@@ -2032,6 +2032,57 @@ module.exports = (test) => {
     t.eq(w.counters['+1/+1'], 2);
   });
 
+  test('Convoke: the creatures the player chose tap; others are refused', (mk, t) => {
+    const T = mk();
+    const [a, b, c] = [T.bf('A', 'Grizzly Bears'), T.bf('A', 'Grizzly Bears'), T.bf('A', 'Craw Wurm')];
+    const theirs = T.bf('B', 'Grizzly Bears');
+    const stoke = T.hand('A', 'Stoke the Flames');
+    const ex = T.g.viewFor('A').extras[stoke.id].find(x => x.kind === 'convoke');
+    t.ok(ex && ex.candidates.includes(c.id) && ex.max === 2, 'offered, at most 2');
+    T.mana('A', 'RR');
+    t.no(T.g.castSpell('A', stoke.id, { auto: true, targets: [{ kind: 'player', id: 'B' }], convokeIds: [theirs.id, a.id] }), 'not their creature');
+    t.no(T.g.castSpell('A', stoke.id, { auto: true, targets: [{ kind: 'player', id: 'B' }], convokeIds: [a.id, b.id, c.id] }), 'not three');
+    t.ok(T.g.castSpell('A', stoke.id, { auto: true, targets: [{ kind: 'player', id: 'B' }], convokeIds: [b.id, c.id] }), T.g.lastError);
+    t.ok(b.tapped && c.tapped && !a.tapped, 'the two chosen');
+    t.eq(T.g.player('A').pool.total(), 0, 'and the mana');
+  });
+
+  test('Convoke: choosing fewer means paying more mana', (mk, t) => {
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'RR');
+    const stoke = T.hand('A', 'Stoke the Flames');
+    t.no(T.g.castSpell('A', stoke.id, { auto: true, targets: [{ kind: 'player', id: 'B' }], convokeIds: [a.id] }), 'one short');
+    t.no(a.tapped, 'nothing tapped on the way out');
+    T.mana('A', '1');
+    t.ok(T.g.castSpell('A', stoke.id, { auto: true, targets: [{ kind: 'player', id: 'B' }], convokeIds: [a.id] }), T.g.lastError);
+  });
+
+  test('Delve: the cards the player chose are exiled', (mk, t) => {
+    const T = mk();
+    const gy = [];
+    for (let i = 0; i < 7; i++) gy.push(T.grave('A', i < 3 ? 'Shock' : 'Island'));
+    const cruise = T.hand('A', 'Treasure Cruise');
+    const ex = T.g.viewFor('A').extras[cruise.id].find(x => x.kind === 'delve');
+    t.ok(ex && ex.candidates.length === 7 && ex.max === 7, 'offered');
+    T.mana('A', 'U');
+    t.no(T.g.castSpell('A', cruise.id, { auto: true, delveIds: [T.hand('A', 'Island').id] }), 'not from hand');
+    t.ok(T.g.castSpell('A', cruise.id, { auto: true, delveIds: gy.map(c => c.id) }), T.g.lastError);
+    t.ok(gy.every(c => c.zone === 'exile'), 'all seven');
+  });
+
+  test('Improvise: the artifacts the player chose tap', (mk, t) => {
+    const T = mk();
+    const arts = [T.bf('A', 'Ornithopter'), T.bf('A', 'Ornithopter'), T.bf('A', 'Ornithopter')];
+    const re = T.hand('A', 'Reverse Engineer');
+    T.mana('A', 'UU');
+    t.no(T.g.castSpell('A', re.id, { auto: true, improviseIds: [T.bf('A', 'Grizzly Bears').id] }), 'not a creature');
+    t.no(T.g.castSpell('A', re.id, { auto: true, improviseIds: [arts[0].id, arts[0].id] }), 'not twice');
+    t.ok(T.g.castSpell('A', re.id, { auto: true, improviseIds: arts.map(x => x.id) }), T.g.lastError);
+    t.ok(arts.every(x => x.tapped), 'all three tapped');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

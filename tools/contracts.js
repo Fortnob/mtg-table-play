@@ -133,7 +133,9 @@ const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str 
 const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str)) });
 /* An extra cost that is itself a question (replicate, splice) carries it as `choose`. */
 const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
-  choose: opt((v, p, out) => ChooseSpec(v, p, out)) });
+  choose: opt((v, p, out) => ChooseSpec(v, p, out)),
+  /* convoke, improvise, delve: what could pay, and how much of the cost at most */
+  candidates: opt(arr(id)), max: opt(nat) });
 
 /* ---- questions ---- */
 const ChoiceCard = obj({ id, name: opt(str), card: opt(maybe(Card)) });
@@ -244,6 +246,8 @@ const INTENTS = {
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
+    /* what pays for convoke, improvise and delve; left out, the engine picks */
+    convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
   }),
