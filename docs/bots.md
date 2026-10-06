@@ -108,6 +108,32 @@ While a bot is thinking it holds the table as it does while pausing; if the
 game moves under it (an undo, a concession) it drops the thought and looks
 again.
 
+### What it costs
+
+Per decision, on a desktop (one Node process, Ryzen-class machine): level 10
+about 75 ms on average and 350 ms at worst in a duel, level 6 about 25 ms;
+one imagined future costs about 9 ms. With the phone settings on the same
+machine level 10 averages 45 ms (worst 140 ms), so a phone two to three times
+slower stays near its 150 ms limit, which trims the rare long think. A
+four-player game costs three to five times as much per future; the bots weigh
+fewer of them there, and a very crowded late board (seventy-odd permanents)
+can still take most of a second for one decision.
+
+### How the levels differ
+
+| level | looks ahead at | futures per candidate | candidates |
+|---|---|---|---|
+| 1-5 | nothing (their own judgement; 5 adds whole-attack arithmetic) | - | - |
+| 6 | spells, attacks | 1 | 3 |
+| 7 | spells, attacks, blocks | 1 | 3 |
+| 8 | the same | 2 | 3 |
+| 9 | the same, and instant-speed plays | 2 | 4 |
+| 10 | the same | 3 | 5 |
+
+Measured with the same deck on both sides, a full look ahead wins about 63-70%
+of games against the same level's plain judgement; past two or three futures
+per candidate it stops getting better.
+
 ## Events
 
 Every move a bot makes is announced as `game.emit('bot:action', { playerId,
