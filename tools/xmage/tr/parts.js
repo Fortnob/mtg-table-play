@@ -154,6 +154,15 @@ def('value', ['SourcePermanentPowerValue.NOT_NEGATIVE', 'SourcePermanentPowerVal
 def('value', ['SourcePermanentToughnessValue.instance', 'SourcePermanentToughnessValue.NOT_NEGATIVE'], () => ({ ofSelf: 'toughness' }));
 def('value', ['TargetPermanentPowerCount.instance', 'TargetPermanentPowerCount.ALLOW_NEGATIVE', 'TargetPermanentPowerCount.NOT_NEGATIVE'], () => ({ ofTarget: 'power' }));
 def('value', ['OpponentsCount.instance'], () => ({ opponents: true }));
+def('value', 'SignInversionDynamicValue', (o, tc) => {
+  const base = amount(o.args[0], tc);
+  if (typeof base === 'number') return -base;
+  if (base && typeof base === 'object' && (base.scope || base.cardsInGraveyard || base.cardsInHand || base.countersOnSelf || base.opponents)) {
+    return Object.assign({}, base, { mult: -(base.mult || 1) });
+  }
+  block('SignInversionDynamicValue of ' + JSON.stringify(base));
+  return null;
+});
 def('value', 'MultipliedValue', (o, tc) => {
   const base = amount(o.args[0], tc);
   const k = litOf(o.args[1]);

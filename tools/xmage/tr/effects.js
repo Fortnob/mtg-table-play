@@ -517,11 +517,25 @@ def('effect', 'ConditionalOneShotEffect', (o, tc) => {
 });
 def('effect', 'ConditionalContinuousEffect', (o, tc) => {
   checkCalls(o);
-  staticOnly(tc, 'ConditionalContinuousEffect');
   const effs = o.args.filter(a => kindOf(a) === 'effect' || kindOf(a) === 'custom');
-  if (effs.length !== 1) block('conditional with an otherwise');
   const cond = o.args.find(a => kindOf(a) === 'condition' || (a && a.t === 'ref' && kindOf(a).startsWith('enum:')));
   if (!cond) block('ConditionalContinuousEffect without a condition');
+  /* Resolving ("if you control a Dragon, it gets +2/+2 instead"): an
+     effect that happens, or another one, depending on the condition now. */
+  if (!tc.inStatic) {
+    const c = tr('condition', cond, tc);
+    if (effs.length === 2) {
+      // the otherwise part points at the same target as the first: "it" the second time
+      const then = effect(effs[0], tc);
+      const otherwise = effect(effs[1], tc);
+      // "it" in the second half would point at a target only the first half chose
+      if (JSON.stringify(otherwise).includes('"lastTarget"')) block('conditional whose otherwise reuses the target');
+      return { op: 'ifCond', cond: c, then, otherwise };
+    }
+    if (effs.length !== 1) block('conditional with ' + effs.length + ' effects');
+    return { op: 'ifCond', cond: c, then: effect(effs[0], tc) };
+  }
+  if (effs.length !== 1) block('conditional with an otherwise');
   const inner = effect(effs[0], tc);
   const c = tr('condition', cond, tc);
   return inner.map(e => {

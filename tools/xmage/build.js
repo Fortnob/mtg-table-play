@@ -194,6 +194,7 @@ function main() {
         else if (cardProblems.length) why = '(constructor: ' + cardProblems[0] + ')';
         else {
           const tc = newTc(card, fan, model);
+          tc.lineText = li.text;
           try {
             abilities = [];
             for (const u of mine) abilities.push(...translateUnit(u, tc));

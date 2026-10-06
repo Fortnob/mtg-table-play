@@ -232,7 +232,7 @@ function evalCall(ctx, e, line) {
   if (!e.obj && e.name === 'super') { ctx.card.superArgs = args(); return { t: 'lit', v: null }; }
   if (!e.obj && e.name === 'this') { ctx.problem('this() call'); return { t: 'unknown' }; }
   /* getLeftHalfCard() with no "this.": the card's own method all the same */
-  if (!e.obj && /^(?:getLeftHalfCard|getRightHalfCard|getSpellCard|getSpellAbility|addAbility)$/.test(e.name)) {
+  if (!e.obj && /^(?:getLeftHalfCard|getRightHalfCard|getSpellCard|getSpellAbility|addAbility|getAbilities)$/.test(e.name)) {
     return callOn(ctx, ctx.thisObj, e.name, args(), line);
   }
   if (!e.obj) {
@@ -283,11 +283,17 @@ function callOn(ctx, target, name, a, line) {
         holder.abilities.push({ obj: a[0], line, cmt: ctx.cmt, extra: a.slice(1) });
         return { t: 'lit', v: null };
       }
+      // an emblem's constructor: getAbilities().add(ability)
+      case 'getAbilities': return { t: 'abilities', holder };
       default:
         holder.calls.push(rec);
         if (/^(?:getSubtype|getSuperType|getColor|getCardType)$/.test(name)) return { t: 'cardProp', name, holder };
         return { t: 'lit', v: null };
     }
+  }
+  if (target.t === 'abilities' && name === 'add') {
+    target.holder.abilities.push({ obj: a[0], line, cmt: ctx.cmt, extra: [] });
+    return { t: 'lit', v: true };
   }
   if (target.t === 'cardField' || target.t === 'cardProp') {
     card.calls.push(Object.assign({ field: target.name }, rec));

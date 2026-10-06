@@ -192,4 +192,44 @@ def('effect', 'UntapAllControllerEffect', (o, tc) => {
   return { op: 'untapAll', scope: F.toScope(d) };
 });
 
+/* ---------------- emblems ----------------
+   The emblem's own class is read like a card, its abilities translated,
+   and the emblem made with them. Its words are the quoted text of the
+   printed line. Only triggered abilities, for now: a standing rule on an
+   emblem would have to reach the layers from the command zone. */
+const emblemCache = new Map();
+def('effect', 'GetEmblemEffect', (o, tc) => {
+  E.checkCalls(o);
+  const em = o.args[0];
+  if (!em || em.t !== 'obj' || em.args.length || em.custom) block('emblem ' + keyOf(em));
+  const quoted = String(tc.lineText || '').match(/emblem with "([^"]+)"/);
+  if (!quoted) block('emblem text');
+  const { modelOf } = require('../model');
+  const fw = require('../framework');
+  let model = emblemCache.get(em.cls);
+  if (!model) {
+    const src = fw.sourceOf(em.cls);
+    if (!src) block('emblem class ' + em.cls);
+    model = modelOf(src, em.cls + '.java');
+    emblemCache.set(em.cls, model);
+  }
+  if (model.problems.length) block('emblem constructor: ' + model.problems[0]);
+  if (!model.abilities.length) block('emblem with no abilities');
+  const save = { ab: tc.ab, kind: tc.kind, trigger: tc.trigger };
+  const abilities = [];
+  try {
+    for (const a of model.abilities) {
+      // what an emblem does from the command zone, the engine runs like a permanent's
+      const obj = Object.assign({}, a.obj, { args: a.obj.args.map(x => (x && x.t === 'ref' && x.path === 'Zone.COMMAND' ? { t: 'ref', path: 'Zone.BATTLEFIELD' } : x)) });
+      tc.ab = null;
+      const ab = tr('ability', obj, tc);
+      if (ab.kind !== 'triggered') block('emblem with a ' + ab.kind + ' ability');
+      ab.text = quoted[1];
+      abilities.push(ab);
+    }
+  } finally { Object.assign(tc, save); }
+  const name = (A(model.superArgs ? { args: model.superArgs } : { args: [] }).str(0) || '').replace(/^Emblem\s*/, '') || tc.name;
+  return { op: 'getEmblem', name: tc.name, text: quoted[1], abilities };
+});
+
 module.exports = {};

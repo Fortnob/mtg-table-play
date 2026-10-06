@@ -117,6 +117,25 @@ module.exports = (test) => {
     t.ok(vault.analysis().isLand, 'still a land');
   });
 
+  test('XMage: Chandra\'s emblem deals 5 damage whenever you cast a spell', (mk, t) => {
+    generated(t, 'Chandra, Torch of Defiance');
+    const T = mk();
+    const ch = T.bf('A', 'Chandra, Torch of Defiance', { counters: { loyalty: 7 } });
+    const a = ch.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const idx = list.findIndex(x => (x.effects || []).some(e => e.op === 'getEmblem'));
+    t.ok(idx >= 0, 'the emblem ability');
+    T.activate('A', ch, idx);
+    const em = T.zone('A', 'command').find(o => o.card.layout === 'emblem');
+    t.ok(em, 'an emblem in the command zone');
+    T.toMain('A');
+    T.mana('A', 'R');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 20 - 3 - 5);
+    t.no(T.g.canCast('A', em.id).ok, 'and nobody can cast it');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

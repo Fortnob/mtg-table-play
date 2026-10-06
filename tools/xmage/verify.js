@@ -59,6 +59,8 @@ function hasModal(abilities) {
 
 /** Returns null when the line and its translation agree, or what is wrong. */
 function checkLine(text, abilities, card, an) {
+  // an emblem's quoted words are what its abilities do, so they count here
+  if (JSON.stringify(abilities).includes('"op":"getEmblem"')) text = String(text).replace(/"/g, '');
   const t = plain(text);
   // what kind of ability this is
   const isTrig = /^(?:When|Whenever|At)\b/.test(t.trim());

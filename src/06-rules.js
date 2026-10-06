@@ -2109,6 +2109,7 @@
       const a = o.analysis();
       if (!a) return { ok: false, reason: 'Unknown card.' };
       if (a.isLand) return { ok: false, reason: 'Lands are played, not cast.' };
+      if (o.card && o.card.layout === 'emblem') return { ok: false, reason: 'An emblem is not a card.' };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
       const leave = (o.zone === 'library' || o.zone === 'graveyard') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
       if (o.zone === 'library' && !leave && opts !== 'resolution') return { ok: false, reason: 'Not castable from library.' };
@@ -6615,6 +6616,21 @@
     }
 
     /** Fire and clear any delayed triggers waiting on this event. */
+    /* ---------- emblems (CR 114) ----------
+       An emblem lives in its owner's command zone and does nothing but
+       what its words say: so far, triggered abilities. It is never a card
+       and never a spell. */
+    _emblems() {
+      const out = [];
+      for (const p of this.players) for (const o of ((this.zones[p.id] || {}).command || [])) if (o.card && o.card.layout === 'emblem') out.push(o);
+      return out;
+    }
+    /** A list of permanents with the emblems after them, for whatever watches for triggers. */
+    _withEmblems(list) {
+      const em = this._emblems();
+      return em.length ? list.concat(em) : list;
+    }
+
     _fireDelayed(event, activePlayerId) {
       if (!this.delayedTriggers.length) return;
       const keep = [];
@@ -6674,7 +6690,7 @@
           });
         }
       };
-      for (const o of this.battlefield) {
+      for (const o of this._withEmblems(this.battlefield)) {
         if (o.phasedOut) continue;
         const a = o.analysis();
         if (!a) continue;
@@ -7528,6 +7544,22 @@
             this.emit('sfx', 'counter');
           }
           break;
+        /* "You get an emblem with '...'": an object in your command zone
+           whose abilities were written out when the card was read. */
+        case 'getEmblem': {
+          const text = String(e.text || '');
+          const card = {
+            id: 'emblem:' + U.hash((e.name || '') + '|' + text), name: 'Emblem — ' + (e.name || 'Emblem'), layout: 'emblem',
+            type_line: 'Emblem', oracle_text: text, mana_cost: '', cmc: 0, colors: [], color_identity: [], keywords: [],
+            rarity: 'common', set: 'emb', set_name: 'Emblem', collector_number: '0', image_uris: null, _script: { abilities: e.abilities || [] },
+          };
+          const em = this._register(new GObj(card, ctx.controller, 'command'));
+          em.controller = ctx.controller;
+          this.zones[ctx.controller].command.push(em);
+          this.logEvent('rules', `${me.name} gets an emblem: "${truncate(text, 90)}"`);
+          this.bumpBoard();
+          break;
+        }
         case 'becomeMonarch': this.setMonarch(e.who === 'opponent'
           ? (this.opponentsOf(ctx.controller)[0] || me).id : ctx.controller, 'a card'); break;
         case 'takeInitiative': this.takeInitiative(ctx.controller, 'a card'); break;

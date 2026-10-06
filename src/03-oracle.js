@@ -4466,6 +4466,8 @@
        difference. A hand-written one is deliberate and always wins; a
        generated one only steps in where reading the text fell short. */
     let script = MTG.scripts && MTG.scripts.scriptFor(name);
+    // an emblem carries the abilities written out for it when it was made
+    if (!script && card._script && card.layout === 'emblem') script = card._script;
     const readWholeCard = totalLines > 0 && autoLines >= totalLines - 0.001;
     const gen = !script && !readWholeCard && MTG.cardlib ? MTG.cardlib.generatedFor(MTG.scripts.keyFor(name)) : null;
     /* A generated script written line by line stands in for exactly the
