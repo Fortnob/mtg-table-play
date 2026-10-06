@@ -459,7 +459,7 @@
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
-      .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap'] : []);
+      .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
   }
 
@@ -860,6 +860,9 @@
     /* "Destroy it." after a trigger about a permanent: that permanent */
     { re: /^Destroy (?:it|that land|that permanent|that artifact)\.?$/i,
       make: () => ({ op: 'destroy', scope: 'lastTarget' }) },
+    /* "Create a token that's a copy of that creature": the one the trigger is about */
+    { re: /^Create a token that'?s a copy of (?:it|that creature|that artifact|that permanent)\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [] }) },
     /* "You get an emblem with 'Creatures you control get +2/+2 and have
        flying.'" — one or more abilities in quotation marks */
     { re: /^You get an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
@@ -2838,6 +2841,16 @@
     { re: /^Look at the top (\w+) cards of your library\. Put (one|two|three) of them into your hand and the (?:rest|other|others) into your graveyard\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: 'graveyard' }] },
     { re: /^[Dd]iscard a card\. If you do, draw a card\.?$/, make: () => [{ op: 'rummage' }] },
+    /* "Look at the top card of your library. If it's a creature card, you
+       may reveal it and put it into your hand." */
+    { re: /^(?:Look at|Reveal) the top card of your library\. If it'?s an? ([a-z ]+?) card, (you may )?(?:reveal it and )?put it (into your hand|onto the battlefield)( tapped)?\.(?: Otherwise, (draw a card|you may put (?:it|that card) (?:into your graveyard|on the bottom of your library))\.)?$/i,
+      make: (m) => {
+        const otherwise = !m[5] ? null : /^draw/i.test(m[5]) ? [{ op: 'draw', n: 1, who: 'you' }]
+          : [{ op: 'mayMoveLooked', to: /graveyard/i.test(m[5]) ? 'graveyard' : 'bottom' }];
+        return [{ op: 'lookAt', n: 1, keep: 0 },
+          Object.assign({ op: 'takeFromLooked', n: 1, filter: m[1].trim().toLowerCase(), to: /hand/i.test(m[3]) ? 'hand' : 'battlefield', rest: 'keep' },
+            m[2] ? {} : { mustTake: true }, m[4] ? { tapped: true } : {}, otherwise ? { otherwise } : {})];
+      } },
     /* Midnight Tilling: "Mill four cards, then you may return a permanent
        card from among them to your hand." */
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
@@ -4942,7 +4955,7 @@
     for (const ab of out.abilities) {
       if (!ab.auto) continue;
       const js = JSON.stringify(ab.effects || []);
-      if (!/"op":"(?:destroy|exile)","scope":"lastTarget"/.test(js) || /"targets":\[\{/.test(js)) continue;
+      if (!/"op":"(?:destroy|exile|copyPermanent)",(?:"n":1,)?"scope":"lastTarget"/.test(js) || /"targets":\[\{/.test(js)) continue;
       ab.auto = false;
       autoLines--;
     }

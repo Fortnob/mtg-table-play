@@ -1142,6 +1142,35 @@ module.exports = (test) => {
     t.ok(engine().oracle.analyze(card).fullyAutomated);
   });
 
+  test('Flameshadow Conjuring copies the creature that entered', (mk, t) => {
+    t.auto('Flameshadow Conjuring');
+    const T = mk();
+    T.bf('A', 'Flameshadow Conjuring');
+    T.mana('A', 'R');
+    T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    T.resolve();
+    const toks = T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 1);
+    t.eq(toks[0] && toks[0].name, 'Grizzly Bears');
+    t.ok(toks[0] && T.g.hasKw(toks[0], 'haste'), 'with haste');
+  });
+
+  test('Nylea, Keen-Eyed: a creature on top goes to hand, otherwise maybe the graveyard', (mk, t) => {
+    t.auto('Nylea, Keen-Eyed');
+    const T = mk();
+    const ny = T.bf('A', 'Nylea, Keen-Eyed');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.mana('A', '2G');
+    const idx = ny.analysis().manaAbilities.length + ny.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    T.activate('A', ny, idx);
+    t.zone(bear, 'hand', 'a creature: into the hand');
+    const land = T.top('A', 'Forest');
+    T.answer('confirm', { yes: true });
+    T.mana('A', '2G');
+    T.activate('A', ny, idx);
+    t.zone(land, 'graveyard', 'not a creature: into the graveyard, as chosen');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17196,
-  "gainedCards": 1794,
-  "linesNeeded": 19656,
-  "linesGained": 2338,
+  "needed": 17186,
+  "gainedCards": 1789,
+  "linesNeeded": 19641,
+  "linesGained": 2333,
   "gained": {
-   "all": 1794,
+   "all": 1789,
    "top2000": 52,
    "stdTop": 13
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6066,
-   "lines": 5028,
+   "score": 6058,
+   "lines": 5020,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -3842,23 +3842,6 @@
    ]
   },
   {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Ondu Spiritdancer",
-    "Pantlaza, Sun-Favored",
-    "Nykthos Paragon",
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
-   ]
-  },
-  {
    "what": "subject:toughness",
    "score": 13,
    "lines": 4,
@@ -6470,6 +6453,22 @@
    ]
   },
   {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Pantlaza, Sun-Favored",
+    "Nykthos Paragon",
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
+   ]
+  },
+  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 9,
    "lines": 9,
@@ -8237,8 +8236,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4746,
-   "cards": 3972,
+   "score": 4743,
+   "cards": 3969,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8367,8 +8366,8 @@
   },
   {
    "what": "AlternativeCostSourceAbility",
-   "score": 58,
-   "cards": 55,
+   "score": 59,
+   "cards": 56,
    "names": [
     "Sephara, Sky's Blade",
     "Daze",
@@ -9423,6 +9422,19 @@
    ]
   },
   {
+   "what": "BecomePreparedSourceEffect",
+   "score": 14,
+   "cards": 8,
+   "names": [
+    "Grave Researcher // Reanimate",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Joined Researchers // Secret Rendezvous",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Lorehold Archivist // Restore Relic",
+    "Kirol, History Buff // Pack a Punch"
+   ]
+  },
+  {
    "what": "control for whileControlled",
    "score": 14,
    "cards": 14,
@@ -9714,19 +9726,6 @@
    ]
   },
   {
-   "what": "BecomePreparedSourceEffect",
-   "score": 13,
-   "cards": 7,
-   "names": [
-    "Grave Researcher // Reanimate",
-    "Emeritus of Ideation // Ancestral Recall",
-    "Joined Researchers // Secret Rendezvous",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Kirol, History Buff // Pack a Punch",
-    "Stingerquill Voxmancer // Vicious Verse"
-   ]
-  },
-  {
    "what": "keyword SunburstAbility",
    "score": 13,
    "cards": 13,
@@ -9903,19 +9902,6 @@
     "Ishgard, the Holy See // Faith & Grief",
     "Runaway Trash-Bot",
     "Master Skald"
-   ]
-  },
-  {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Ondu Spiritdancer",
-    "Pantlaza, Sun-Favored",
-    "Nykthos Paragon",
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion"
    ]
   },
   {
@@ -11875,6 +11861,19 @@
     "Arachnus Web",
     "Skizzik",
     "Lightning Shrieker"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Pantlaza, Sun-Favored",
+    "Nykthos Paragon",
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Baron Strucker, HYDRA Overlord"
    ]
   },
   {

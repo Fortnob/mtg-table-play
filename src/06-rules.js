@@ -24,7 +24,7 @@
   const SUSPEND = Symbol('suspend');
   /* Effects that act on their targets and nothing else, which a trigger's
      "that creature" (scope triggerObject) is handed to as one. */
-  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf']);
+  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent']);
 
   // Plain-English names for the combat restrictions an effect can impose.
   const FLAG_WORDS = {
@@ -9345,14 +9345,15 @@
           if (legal.length) {
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: Math.min(want, legal.length),
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              optional: true, prompt: e.prompt || `Choose up to ${want}.` });
+              // "If it's a land card, put it into your hand": not a choice
+              optional: !e.mustTake, prompt: e.prompt || `Choose up to ${want}.` });
             if (picked === SUSPEND) return SUSPEND;
             taken = (picked || []).slice(0, want).map(id => this.obj(id)).filter(Boolean);
           }
           const z = this.zones[ctx.controller];
           for (const o of taken) {
             this._removeFromZone(o);
-            if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller }); }
+            if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller }); if (e.tapped) o.tapped = true; }
             else if (e.to === 'top') { o.zone = 'library'; z.library.unshift(o); }
             else if (e.to === 'exile' || e.to === 'graveyard') {
               o.zone = 'library';
@@ -9365,6 +9366,8 @@
           const rest = pool.filter(o => !taken.includes(o) && o.zone === 'library');
           /* "Put one into your hand, one on the bottom, and exile one": the
              rest wait for the next sentence to say where they go. */
+          // "Otherwise, draw a card": what happens when nothing was taken
+          if (!taken.length && e.otherwise) this._spliceNext(e.otherwise);
           if (e.rest === 'keep') { this._looked = rest.map(o => o.id); this.logEvent('look', `${me.name} takes ${taken.length}.`); break; }
           if (e.rest === 'graveyard') { for (const o of rest) this.moveObject(o, 'graveyard'); }
           else if (rest.length) {
@@ -9376,6 +9379,20 @@
           break;
         }
 
+        /* "Otherwise, you may put it into your graveyard / on the bottom of
+           your library": the card looked at and left on top */
+        case 'mayMoveLooked': {
+          const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
+          if (!pool.length) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+            prompt: `Put ${pool[0].name} ${e.to === 'graveyard' ? 'into your graveyard' : 'on the bottom of your library'}?` }, 'mml');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes) for (const o of pool) {
+            if (e.to === 'graveyard') this.moveObject(o, 'graveyard');
+            else { this._removeFromZone(o); o.zone = 'library'; this.zones[o.owner].library.push(o); }
+          }
+          break;
+        }
         case 'putBackLooked': {
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
           if (!pool.length) break;
