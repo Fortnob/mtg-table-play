@@ -52,6 +52,8 @@ async function playOne(MTG, o) {
   console.warn = (...x) => { errors.push(x.map(String).join(' ')); if (verbose) origWarn(...x); };
   const runner = new MTG.bots.BotRunner(g);
   for (const id of seats) runner.add(id, diffOf(id));
+  // a caller that wants to watch the game from the first action (tools/replaytest.js)
+  if (o.onGame) o.onGame(g);
   g.start();
   runner.kick();
 

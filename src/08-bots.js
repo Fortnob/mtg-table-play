@@ -1342,7 +1342,15 @@
       const ms = (MTG.settings.botSpeed == null) ? this.thinkMs : MTG.settings.botSpeed;
       return U.sleep(U.clamp(ms, 0, 4000));
     }
-    rand() { return this.game.rng.next(); }
+    /* A bot's dice are its own. Drawing on the game's generator would move
+       every later shuffle along with each thing the bot considered, and a
+       game could then only be played back by thinking exactly the same
+       thoughts again. Seeded from the game and the seat, so a bot still
+       plays the same game from the same seed. */
+    rand() {
+      if (!this._rng) this._rng = new MTG.RNG(((this.game.config.seed >>> 0) ^ parseInt(U.hash(String(this.pid)), 36)) >>> 0 || 1);
+      return this._rng.next();
+    }
     /** True when this decision is made well; false is a misjudgement. */
     sharp() { return this.rand() < this.cfg.skill; }
     /** True when the bot makes one of its level's believable mistakes. */

@@ -208,6 +208,11 @@
       this.delayedTriggers = [];       // "at the beginning of the next end step, ..." 
       this.replayLog = [];
       this.lastAction = null;
+      /* Object and stack ids are counted per game, not per page, so the
+         same game played twice from the same seed names everything the
+         same way — which is what lets a replay be checked against it. */
+      this._objSeq = 0;
+      this._uidSeq = 0;
     }
 
     /* ---------- setup ---------- */
@@ -220,7 +225,9 @@
     player(id) { return this.players.find(p => p.id === id); }
     obj(id) { return this.objects.get(id); }
 
-    _register(o) { this.objects.set(o.id, o); this._own(o); return o; }
+    _register(o) { o.id = 'o' + (++this._objSeq); this.objects.set(o.id, o); this._own(o); return o; }
+    /** A stack, trigger or delayed-trigger id, unique within this game. */
+    _uid(prefix) { return (prefix || 'x') + '_' + (++this._uidSeq).toString(36); }
     /* An object knows which game it is in, so that what it is right now can
        depend on the rest of the board. Kept out of sight of anything that
        copies or serialises it. */
@@ -1652,10 +1659,10 @@
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
         const a = item.obj.analysis();
         if (a && a.isPermanent) dup.isToken = true;
-        copy = Object.assign({}, item, { id: MTG.uid('st'), isCopy: true, obj: dup, objId: dup.id, controller,
+        copy = Object.assign({}, item, { id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id, controller,
           targets: (item.targets || []).slice() });
       } else {
-        copy = Object.assign({}, item, { id: MTG.uid('st'), isCopy: true, controller,
+        copy = Object.assign({}, item, { id: this._uid('st'), isCopy: true, controller,
           targets: (item.targets || []).slice(), name: String(item.name || 'Ability').replace(/( \(copy\))?$/, ' (copy)') });
       }
       delete copy.resolvedTargets;
@@ -1785,7 +1792,7 @@
       const defender = back.attacking;
       this.moveObject(back, 'hand');
       this.combat.attackers = this.combat.attackers.filter(id => id !== back.id);
-      const item = { id: MTG.uid('st'), kind: 'ability', obj: ninja, objId: ninja.id, controller: pid,
+      const item = { id: this._uid('st'), kind: 'ability', obj: ninja, objId: ninja.id, controller: pid,
         name: ninja.name + ' \u2014 ninjutsu', abilityText: 'Put this card onto the battlefield tapped and attacking.',
         effects: [{ op: 'ninjaIn', defender }], auto: true, targets: [] };
       this.stack.push(item);
@@ -2646,7 +2653,7 @@
       (ca ? ca.abilities : []).forEach((ab, i) => {
         if (ab.kind !== 'triggered' || ab.event !== 'cycleSelf') return;
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
           controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
           effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
           triggerData: { event: 'cycleSelf', objectId: o.id },
@@ -2690,7 +2697,7 @@
         this._afterDiscard(playerId, o);
       }
       const item = {
-        id: MTG.uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
         controller: playerId, name: `${o.name} \u2014 channel`,
         targets: (opts.targets || []).map(normTarget),
         effects: a.channel.effects, auto: true, abilityText: 'Channel',
@@ -3015,7 +3022,7 @@
       o.chosenX = opts.x || 0;
 
       const item = {
-        id: MTG.uid('st'), kind: 'spell', obj: o, objId: o.id,
+        id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
         controller: playerId, name: o.name, cost,
         targets: (opts.targets || []).map(normTarget), x: opts.x || 0,
         effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects : this._cardSpellEffects(a)) : null,
@@ -3079,7 +3086,7 @@
         const dup = this._register(new GObj(o.card, playerId, 'stack'));
         dup.isCopy = true; dup.chosenX = o.chosenX;
         this.stack.push(Object.assign({}, item, {
-          id: MTG.uid('st'), isCopy: true, obj: dup, objId: dup.id,
+          id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id,
           targets: (item.targets || []).slice(),
         }));
         this.logEvent('copy', `Casualty copies ${o.name}.`);
@@ -3097,7 +3104,7 @@
         a.abilities.forEach((ab, i) => {
           if (ab.kind !== 'triggered' || ab.event !== 'castSelf') return;
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: playerId, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
             triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
@@ -3245,7 +3252,7 @@
       if (!copies) return;
       for (let i = 0; i < copies; i++) {
         this.stack.push(Object.assign({}, item, {
-          id: MTG.uid('st'), isCopy: true, name: item.name + ' (storm copy)',
+          id: this._uid('st'), isCopy: true, name: item.name + ' (storm copy)',
         }));
       }
       this.logEvent('keyword', `Storm puts ${copies} more ${copies === 1 ? 'copy' : 'copies'} of ${item.name} on the stack.`);
@@ -3481,7 +3488,7 @@
       const fab = this._kwArg(o, 'fabricate');
       if (fab) {
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
           name: `${o.name} \u2014 fabricate ${fab}`, auto: true, abilityText: 'Fabricate ' + fab,
           effects: [{ op: 'modal', count: 1, modes: [
             { label: `Put ${fab} +1/+1 counter${fab === 1 ? '' : 's'} on it`,
@@ -3562,7 +3569,7 @@
       const persist = a.keywordSet.has('persist') && hadMinus === 0;
       if (undying || persist) {
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
           name: `${o.name} \u2014 ${undying ? 'undying' : 'persist'}`,
           auto: true, abilityText: undying ? 'Undying' : 'Persist',
           effects: [{ op: 'returnFromGrave', counter: undying ? '+1/+1' : '-1/-1', objId: o.id }],
@@ -3573,7 +3580,7 @@
       const after = this._kwArg(o, 'afterlife');
       if (after) {
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
           name: `${o.name} \u2014 afterlife ${after}`, auto: true, abilityText: 'Afterlife ' + after,
           effects: [{ op: 'createToken', n: after, pt: '1/1', subtypes: 'Spirit',
             colorWords: ['white', 'black'], keywords: ['Flying'] }],
@@ -3657,7 +3664,7 @@
       }
 
       const item = {
-        id: MTG.uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
         controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 60)}`,
         targets: (opts.targets || []).map(normTarget),
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab),
@@ -4193,7 +4200,7 @@
           if (c.isCommander) for (const t of ((c.analysis() || {}).subtypes || [])) cmdTypes.add(t);
         const a = item.obj && item.obj.analysis();
         if (a && a.isCreature && (a.subtypes || []).some(t => cmdTypes.has(t))) {
-          this.pendingTriggers.push({ id: MTG.uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
             name: 'Path of Ancestry \u2014 scry 1', effects: [{ op: 'scry', n: 1 }], auto: true, abilityText: 'Scry 1' });
         }
       }
@@ -5441,6 +5448,7 @@
       }
       const a = o.analysis();
       if (a && source && this._protectedFrom(o, source)) return;
+      this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
@@ -5474,6 +5482,7 @@
         this.logEvent('damage', `${soak} damage to ${p.name} is prevented.`);
         if (amount <= 0) return;
       }
+      this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
       if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount); return amount; }
       /* Damage to a player is life lost: the same replacements apply
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
@@ -5740,7 +5749,7 @@
           }
           this._fire('permDies', null, { object: o, objController: lastCtrl });
           if (comesBack) {
-            this.pendingTriggers.push({ id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: lastCtrl,
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: lastCtrl,
               name: `${o.name} \u2014 return it to the battlefield`, auto: true, abilityText: 'Return it to the battlefield',
               effects: [{ op: 'returnSelfFromGrave', tapped: comesBack.returnOnDeath === 'tapped' }] });
           }
@@ -5776,7 +5785,7 @@
         (ga ? ga.abilities : []).forEach((ab, i) => {
           if (ab.kind !== 'triggered' || ab.event !== 'selfToGraveyard') return;
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: o.owner, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
             triggerData: { event: 'selfToGraveyard', objectId: o.id },
@@ -5865,7 +5874,7 @@
         for (const c of (ab.chapters || [])) {
           if (c <= before || c > after) continue;
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab),
           });
@@ -5904,7 +5913,7 @@
      */
     scheduleDelayed(spec) {
       this.delayedTriggers.push(Object.assign({
-        id: MTG.uid('dt'), once: true, createdTurn: this.turn,
+        id: this._uid('dt'), once: true, createdTurn: this.turn,
       }, spec));
     }
 
@@ -5921,7 +5930,7 @@
         if (!mine) { keep.push(d); continue; }
         const obj = d.objId ? this.obj(d.objId) : null;
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj, objId: d.objId || null, abilityIndex: -1,
+          id: this._uid('tr'), kind: 'ability', obj, objId: d.objId || null, abilityIndex: -1,
           controller: d.controller, name: d.name || 'Delayed trigger',
           effects: d.effects || [], auto: true, abilityText: d.name || '', delayed: true,
         });
@@ -5961,7 +5970,7 @@
         const times = 1 + this._extraTriggers(o, event, data);
         for (let k = 0; k < times; k++) {
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
             triggerData: Object.assign({}, tData),
@@ -9684,7 +9693,7 @@
       o.zone = 'stack';
       o.controller = playerId;
       const item = {
-        id: MTG.uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
+        id: this._uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
         targets: [], x: 0, effects: a.isPermanent ? null : this._cardSpellEffects(a),
         auto: a.autoCoverage >= 0.999, fromZone, via: 'free',
       };
@@ -10876,6 +10885,16 @@
       return true;
     }
 
+    /** A seat's connection coming and going is part of the game's record. */
+    setConnected(playerId, on) {
+      const p = this.player(playerId);
+      if (!p || p.connected === !!on) return false;
+      p.connected = !!on;
+      this.logEvent('game', `${p.name} ${on ? 'reconnected' : 'disconnected'}.`);
+      this.touch();
+      return true;
+    }
+
     /* ---------- misc ---------- */
     opponentsOf(pid) { return this.players.filter(p => p.id !== pid && !p.hasLost); }
     describeTarget(t) {
@@ -10982,6 +11001,7 @@
         } : null,
         stateVersion: this.stateVersion, isDay: this.isDay === undefined ? null : this.isDay,
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
+        objSeq: this._objSeq, uidSeq: this._uidSeq,
       };
     }
 
@@ -10998,6 +11018,12 @@
         this._own(o);
       }
       if (objCounter < snap.objs.length) objCounter = snap.objs.length + 1;
+      /* The counters carry on from where they were, so nothing made after
+         an undo is given the id of something that has since gone. An older
+         save has none, and counts on from the highest id it holds. */
+      const highest = snap.objs.reduce((m, d) => Math.max(m, parseInt(String(d.id).slice(1), 10) || 0), 0);
+      this._objSeq = Math.max(snap.objSeq || 0, highest, this._objSeq || 0);
+      this._uidSeq = Math.max(snap.uidSeq || 0, this._uidSeq || 0);
       const byId = (id) => this.objects.get(id);
       this.players = snap.players.map(d => {
         const p = new Player({ id: d.id, name: d.name, isBot: d.isBot, botDifficulty: d.botDifficulty }, this);
@@ -11044,6 +11070,8 @@
       if (snap.isDay !== null && snap.isDay !== undefined) this.isDay = snap.isDay;
       this.holdFor = snap.holdFor || null;
       this.spellsThisTurn = snap.spellsThisTurn || 0;
+      // the event stream carries on from the game as it now is
+      this._evRebase();
       this.emit('state', this.stateVersion);
       return true;
     }
