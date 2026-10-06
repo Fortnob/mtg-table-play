@@ -271,12 +271,45 @@
         else if (e.key.toLowerCase() === 'l') this.toggleDrawer();
       };
       document.addEventListener('keydown', this._onKey);
-      this._onResize = U.debounce(() => { if (this.view) this.render(); }, 80);
+      const rerender = U.debounce(() => { if (this.view) this.render(); }, 80);
+      this._onResize = () => { this._handCw = null; rerender(); };
+      /* Sizes that only change when the layout does (the hand's width, each
+         seat's field, the arena) are measured once and kept, and an observer
+         says when they change. Reading them fresh in the middle of every
+         render made the browser lay the page out again two or three times
+         a render, which is most of what a render cost on a phone. */
+      this._sizes = new WeakMap();
+      this._ro = window.ResizeObserver ? new ResizeObserver((entries) => {
+        let changed = false;
+        for (const e of entries) {
+          const n = e.target, was = this._sizes.get(n);
+          const now = { w: n.clientWidth, h: n.clientHeight };
+          if (!was || was.w !== now.w || was.h !== now.h) { this._sizes.set(n, now); changed = true; }
+        }
+        if (changed && !this._destroyed) this._onResize();
+      }) : null;
       window.addEventListener('resize', this._onResize);
+    }
+
+    /**
+     * A node's size as last laid out: measured the first time it is asked
+     * for, then kept up to date by the resize observer rather than read
+     * (and the layout forced) on every render.
+     */
+    sizeOf(n) {
+      if (!this._ro) return { w: n.clientWidth, h: n.clientHeight };
+      let s = this._sizes.get(n);
+      if (!s) {
+        s = { w: n.clientWidth, h: n.clientHeight };
+        this._ro.observe(n);
+        if (s.w || s.h) this._sizes.set(n, s);
+      }
+      return s;
     }
 
     /** @this {MTG.TableInstance} */
     destroy() {
+      if (this._ro) this._ro.disconnect();
       document.removeEventListener('keydown', this._onKey);
       window.removeEventListener('resize', this._onResize);
       document.removeEventListener('pointermove', this._onAimMove);
@@ -819,11 +852,16 @@
         hud.append(hud._piles, hud._orb, hud._who, hud._hand, hud._cmd, hud._flags);
       }
       this.paintOrb(hud._orb, p);
-      hud._who.innerHTML = '';
-      hud._who.append(
-        el('div', { class: 'hud-name', text: p.name }),
-        el('div', { class: 'hud-sub', text: this.seatSub(p) }),
-      );
+      // rebuilt only when what it says has changed: most renders change nothing here
+      const sub = this.seatSub(p);
+      if (hud._who._sig !== p.name + '|' + sub) {
+        hud._who._sig = p.name + '|' + sub;
+        hud._who.innerHTML = '';
+        hud._who.append(
+          el('div', { class: 'hud-name', text: p.name }),
+          el('div', { class: 'hud-sub', text: sub }),
+        );
+      }
       // their hand: the backs, one per card, so a card leaving it is seen to leave
       const backs = (p.hand || []).map(o => this.cardEl(Object.assign({ hidden: true }, o)));
       this.place(hud._hand, backs);
@@ -981,9 +1019,12 @@
         ]));
       }
       this.paintOrb(h._orb, me);
-      h._who.innerHTML = '';
-      h._who.append(el('div', { class: 'hud-name', text: me.name }),
-        el('div', { class: 'hud-sub', text: `${me.handSize} in hand` }));
+      if (h._who._sig !== me.name + '|' + me.handSize) {
+        h._who._sig = me.name + '|' + me.handSize;
+        h._who.innerHTML = '';
+        h._who.append(el('div', { class: 'hud-name', text: me.name }),
+          el('div', { class: 'hud-sub', text: `${me.handSize} in hand` }));
+      }
       this.paintFlags(h._flags, me);
       this.renderPiles(h._piles, me, true);
       this.renderCommand(h._cmd, me, true);
@@ -998,8 +1039,15 @@
       if (v.mulliganPhase && !me.keptHand) { this.place(this.handHost, []); return; }
       const cards = UI.sortCards(me.hand.filter(o => !o.hidden), MTG.settings.handSort || 'cmc');
       const n = cards.length;
-      const width = this.handHost.clientWidth || 800;
-      const cw = parseFloat(getComputedStyle(this.arena).getPropertyValue('--hand-w')) || 132;
+      const width = this.sizeOf(this.handHost).w || 800;
+      // the card width the stylesheet chose, read once per layout rather than once per render
+      // (a resize clears it; even asking the window its size can force a layout)
+      const layout = String(MTG.settings.cardScale || 1);
+      if (this._handCw == null || this._handCwFor !== layout) {
+        this._handCw = parseFloat(getComputedStyle(this.arena).getPropertyValue('--hand-w')) || 132;
+        this._handCwFor = layout;
+      }
+      const cw = this._handCw;
       const room = Math.max(cw, width - 40);
       const step = n > 1 ? Math.min(cw * 0.82, (room - cw) / (n - 1)) : 0;
       const spread = Math.min(2.6, 18 / Math.max(1, n));
@@ -1121,11 +1169,15 @@
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
-      d._turn.innerHTML = '';
-      d._turn.append(
-        el('span', { class: 'dt-who' + (mine ? ' mine' : ''), text: mine ? 'Your turn' : `${possessive(ap ? ap.name : '—')} turn` }),
-        el('span', { class: 'dt-n', text: 'Turn ' + (v.turn || 1) }),
-      );
+      const turnSig = (ap ? ap.name : '') + '|' + mine + '|' + v.turn;
+      if (d._turn._sig !== turnSig) {
+        d._turn._sig = turnSig;
+        d._turn.innerHTML = '';
+        d._turn.append(
+          el('span', { class: 'dt-who' + (mine ? ' mine' : ''), text: mine ? 'Your turn' : `${possessive(ap ? ap.name : '—')} turn` }),
+          el('span', { class: 'dt-n', text: 'Turn ' + (v.turn || 1) }),
+        );
+      }
       this.renderStrip(d._strip);
       const act = this.primaryInfo();
       d._main.className = 'big-btn ' + (act.cls || '');

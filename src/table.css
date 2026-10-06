@@ -930,3 +930,22 @@
 .net-chip.rejoining .net-chip-dot { animation: chipBlink 1s ease-in-out infinite; }
 @keyframes chipBlink { 50% { opacity: .25; } }
 :root[data-phone] .net-chip { left: 60px; top: 10px; font-size: 10px; max-width: 40%; }
+
+/* ---------- a phone: the same table, cheaper to draw ----------
+   Glows that pulse are repainted on every frame, and a phone has eight or
+   ten of them on the go at once; blurs behind panels cost a full repaint
+   of whatever is under them. On a phone the marks stay but stand still,
+   the shadows are single and short, and nothing blurs. */
+:root[data-phone] .cv-body { box-shadow: 0 1px 3px rgba(0,0,0,.7); transition: rotate .3s cubic-bezier(.3,.7,.3,1), filter .3s; }
+:root[data-phone] .cv.playable .cv-body,
+:root[data-phone] .hslot > .cv.playable .cv-body { animation: none; box-shadow: 0 0 0 2px var(--play), 0 0 8px 2px rgba(99,211,255,.55); }
+:root[data-phone] .cv.targetable .cv-body { animation: none; box-shadow: 0 0 0 2px var(--aim), 0 0 8px 2px rgba(255,201,77,.6); }
+:root[data-phone] .life-orb.targetable .orb-ring { animation: none; }
+:root[data-phone] .big-btn.go { animation: none; }
+:root[data-phone] .cv-shine, :root[data-phone] .arena-sigil { display: none; }
+:root[data-phone] .arena::after { box-shadow: inset 0 0 70px 16px rgba(0,0,0,.7); }
+:root[data-phone] .arena-banner, :root[data-phone] .decision-host.full::before,
+:root[data-phone] .arena-tip, :root[data-phone] .stack-cap { backdrop-filter: none; }
+:root[data-phone] .arrow-glow { filter: none; opacity: .18; }
+/* a seat's field is laid out on its own: what moves in it does not reflow the table */
+:root[data-phone] .seat-field { contain: layout style; }

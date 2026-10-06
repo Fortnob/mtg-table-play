@@ -1318,3 +1318,8 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .net-test.warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
 .net-test.bad { color: var(--bad); border-color: var(--bad-line); background: var(--bad-bg); }
 .net-rtt { font-variant-numeric: tabular-nums; }
+
+/* long lists of cards: only what is on screen is laid out and painted */
+.search-grid > .search-card { content-visibility: auto; contain-intrinsic-size: auto 240px; }
+.deck-pane .card-grid > .card-slot { content-visibility: auto; contain-intrinsic-size: auto var(--card-h); }
+:root[data-phone] .deck-list .deck-entry, :root[data-phone] .starter-list .deck-entry { content-visibility: auto; contain-intrinsic-size: auto 38px; }

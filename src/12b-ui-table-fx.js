@@ -496,6 +496,15 @@
           }
         }
       }
+      /* A board wipe or a new turn can move dozens of cards at once. Only so
+         many fly at a time, the far journeys and arrivals first; the rest
+         simply are where they are, which on a phone is the difference
+         between a smooth beat and a dropped second. */
+      const cap = MTG.isPhone() ? 10 : 28;
+      if (moves.length > cap) {
+        moves.sort((x, y) => (y.far ? 2 : 0) + (y.fade ? 1 : 0) - (x.far ? 2 : 0) - (x.fade ? 1 : 0));
+        moves.length = cap;
+      }
       for (const m of moves) {
         const holder = m.n.closest('.unit, .hslot, .stack-item, .spot-card, .cmd-slot') || m.n;
         holder.classList.add('moving');
@@ -510,7 +519,7 @@
       /* A card that has gone is flown out as a copy of itself, because the
          real one is about to be taken off the page. One that died comes
          apart on the way. */
-      if (gone.length > 14) return;
+      if (gone.length > (MTG.isPhone() ? 8 : 14)) return;
       for (const g of gone) {
         const was = before.cards.get(g.id);
         if (!was) continue;
@@ -643,14 +652,16 @@
     _fitAll() {
       this._lastShown = this.view;
       const phone = MTG.isPhone();
-      const vh = this.arena.clientHeight || window.innerHeight;
-      const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-scale')) || 1;
+      // sizes from the resize observer, not read (and the layout forced) afresh every render
+      const vh = this.sizeOf(this.arena).h || window.innerHeight;
+      const scale = U.clamp(MTG.settings.cardScale || 1, 0.6, 2);
       const maxCw = Math.min(phone ? 76 : 128, vh * (phone ? 0.11 : 0.125)) * scale;
       const backScale = 0.78;
       for (const [, s] of this.seats) {
         if (!s.counts || !s.field.isConnected) continue;
-        const W = s.field.clientWidth - 16;
-        const H = s.field.clientHeight - 8;
+        const box = this.sizeOf(s.field);
+        const W = box.w - 16;
+        const H = box.h - 8;
         if (W <= 0 || H <= 0) continue;
         const gap = 0.1;
         const sum = (list) => list.reduce((a, x) => a + x, 0) + Math.max(0, list.length - 1) * gap;
