@@ -75,7 +75,7 @@ The app currently names a bot after its deck ("Boros Aggro", "Krenko"); using
 
 ## Looking ahead
 
-From level 4 up, a bot plays its candidate moves out before making one: the
+From level 6 up, a bot plays its candidate moves out before making one: the
 spell to cast in a main phase (or to wait), the attack, the blocks. Each
 candidate is made in a few private copies of the game, with the cards the bot
 cannot see (other hands, every library's order) dealt afresh in each, and each

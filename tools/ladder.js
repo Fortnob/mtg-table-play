@@ -46,7 +46,9 @@ function runChunk(argv) {
        would hold the whole run up; a worker that overstays is killed and
        reported with the arguments that reproduce it. */
     const games = +(argv[argv.indexOf('--games') + 1] || 10);
-    const timer = setTimeout(() => { err = 'timed out (hung?): node tools/botsim.js ' + argv.join(' '); p.kill(); }, 60000 + games * 30000);
+    // a four-player game with bots that look ahead takes a minute or two on a busy machine
+    const each = argv.includes('--ds') || argv.includes('commander') ? 150000 : 30000;
+    const timer = setTimeout(() => { err = 'timed out (hung?): node tools/botsim.js ' + argv.join(' '); p.kill(); }, 60000 + games * each);
     p.on('close', () => {
       clearTimeout(timer);
       const line = out.split('\n').reverse().find(l => l.startsWith('{"summary"'));

@@ -97,29 +97,29 @@
   const PERSONALITIES = {
     aggressive: {
       label: 'Aggressive', blurb: 'Attacks at every chance, races, and points its burn at your face.',
-      deck: { arch: { aggro: 3, midrange: 0.7, control: 0 }, colours: { R: 1.7, W: 1.3, B: 1.0, G: 0.9, U: 0.5 },
+      deck: { arch: { aggro: 1.8, midrange: 0.8, control: 0 }, colours: { R: 1.7, W: 1.3, B: 1.0, G: 0.9, U: 0.5 },
         themeChance: -0.1, themes: { tokens: 1.3, counters: 1.2, spells: 1.1 },
         fit: (c) => (c.creature && c.mv <= 3 && (parseInt(c.a.power, 10) || 0) >= c.mv ? 0.25 : 0) +
           (c.a.has('haste') ? 0.2 : 0) + (c.roles.has('burn') ? 0.2 : 0) },
       play: { attack: 0.8, block: -0.3, hold: -0.25, face: 1 },
-      eval: { oppLife: 1.3, life: 0.85 },
+      eval: { oppLife: 1.6, life: 0.75 },
       epithets: ['the Reckless', 'Firebrand', 'Swiftblade', 'the Bold', 'Redfang', 'Skullsplitter'],
       avatar: { want: 'fast', cards: ['Goblin Guide', 'Monastery Swiftspear', 'Lightning Bolt'] },
     },
     cautious: {
       label: 'Cautious', blurb: 'Keeps blockers home, saves its removal for what matters, and wins the long game.',
-      deck: { arch: { aggro: 0.4, midrange: 2, control: 0 }, colours: { W: 1.2, U: 1.5, B: 1.2, G: 1.0, R: 0.6 },
+      deck: { arch: { aggro: 0.7, midrange: 1.6, control: 0 }, colours: { W: 1.2, U: 1.5, B: 1.2, G: 1.0, R: 0.6 },
         themeChance: 0, themes: { lifegain: 1.3, flyers: 1.2 },
         fit: (c) => (c.roles.has('removal') ? 0.25 : 0) + (c.roles.has('draw') ? 0.15 : 0) +
           (c.creature && (parseInt(c.a.toughness, 10) || 0) >= 4 && c.mv <= 4 ? 0.15 : 0) },
-      play: { attack: -0.6, block: 0.4, hold: 0.25, face: -0.5 },
-      eval: { life: 1.25, oppLife: 0.85, hand: 1.15 },
+      play: { attack: -0.35, block: 0.35, hold: 0.2, face: -0.5 },
+      eval: { life: 1.5, oppLife: 0.75, hand: 1.2 },
       epithets: ['the Patient', 'the Watchful', 'Wallwarden', 'the Wary', 'Stillwater', 'Shieldbearer'],
       avatar: { want: 'answer', cards: ['Wall of Omens', 'Counterspell', 'Swords to Plowshares'] },
     },
     value: {
       label: 'Engine builder', blurb: 'Builds around a plan and puts its engines together piece by piece.',
-      deck: { arch: { aggro: 0.7, midrange: 2, control: 0 }, colours: { U: 1.2, G: 1.3, B: 1.2, W: 1.0, R: 0.9 },
+      deck: { arch: { aggro: 0.8, midrange: 1.5, control: 0 }, colours: { U: 1.2, G: 1.3, B: 1.2, W: 1.0, R: 0.9 },
         themeChance: 0.45, themes: { artifacts: 1.4, sacrifice: 1.4, graveyard: 1.3, counters: 1.2, tokens: 1.2 },
         planFit: 1.6,
         fit: (c) => (!c.creature && c.a.isPermanent && c.r >= 3.5 ? 0.2 : 0) + (c.roles.has('draw') ? 0.1 : 0) },
@@ -130,18 +130,18 @@
     },
     chaotic: {
       label: 'Chaotic', blurb: 'Big creatures and splashy spells; never quite does what you expect.',
-      deck: { arch: { aggro: 0.8, midrange: 2, control: 0 }, colours: { R: 1.3, G: 1.5, B: 1.0, U: 0.9, W: 0.8 },
+      deck: { arch: { aggro: 0.8, midrange: 1.5, control: 0 }, colours: { R: 1.3, G: 1.5, B: 1.0, U: 0.9, W: 0.8 },
         themeChance: 0, themes: { flyers: 1.2, tokens: 1.1 },
         fit: (c) => (c.creature && c.mv >= 5 ? 0.35 : 0) + (/\{X\}/.test(c.card.mana_cost || '') ? 0.25 : 0) +
           (c.creature && (parseInt(c.a.power, 10) || 0) >= 5 ? 0.2 : 0) },
-      play: { attack: 0.3, splash: 1, chaos: 0.12 },
+      play: { attack: 0.3, splash: 1, chaos: 0.1 },
       eval: { board: 1.15 },
       epithets: ['the Wild', 'Stormcaller', 'the Gambler', 'Bigdreams', 'the Unbound', 'Thunderfoot'],
       avatar: { want: 'big', cards: ['Craterhoof Behemoth', 'Ghalta, Primal Hunger', 'Etali, Primal Storm'] },
     },
     political: {
       label: 'Political', blurb: 'At a bigger table, goes after whoever is winning and spreads its threats around.',
-      deck: { arch: { aggro: 0.8, midrange: 2, control: 0 }, colours: { W: 1.2, U: 1.1, B: 1.3, R: 1.0, G: 1.0 },
+      deck: { arch: { aggro: 0.9, midrange: 1.3, control: 0 }, colours: { W: 1.2, U: 1.1, B: 1.3, R: 1.0, G: 1.0 },
         themeChance: 0, themes: {},
         fit: (c) => (c.roles.has('removal') ? 0.15 : 0) + (c.roles.has('wipe') ? 0.15 : 0) },
       play: { leader: 1, spread: 1, hold: 0.1 },
@@ -152,6 +152,9 @@
   };
   const FIRST_NAMES = ['Mara', 'Tobin', 'Ilsa', 'Corvin', 'Neve', 'Bram', 'Odessa', 'Kael', 'Yara', 'Fenn', 'Lio', 'Sabra',
     'Dunstan', 'Wren', 'Isolde', 'Ash', 'Petra', 'Hollis', 'Juno', 'Ravi', 'Saoirse', 'Tamsin', 'Oren', 'Vesna'];
+
+  /** How much a personality's tastes count in the deck a bot builds: fully at the bottom, a fifth at the top. */
+  function persDeckWeight(cfg) { return 1 - (cfg.deckPower || 0) * 0.8; }
 
   /** A personality that suits a deck already built: an aggro list is usually played aggressively. */
   function personalityFor(deck, rng) {
@@ -1105,7 +1108,10 @@
        games between bots, a fast creature deck at the top level beat the
        same level's midrange decks well over half the time. */
     w.aggro *= 1 + cfg.deckPower * 2.5;
-    if (pers) for (const k of Object.keys(w)) w[k] *= pers.deck.arch[k] != null ? pers.deck.arch[k] : 1;
+    /* A personality's taste in archetype is strongest at the kitchen
+       table; the stronger the bot, the more it builds what wins and the
+       less what it likes, so a chaotic level 10 is still a level 10. */
+    if (pers) for (const k of Object.keys(w)) w[k] *= Math.pow(pers.deck.arch[k] != null ? Math.max(0.05, pers.deck.arch[k]) : 1, persDeckWeight(cfg));
     return rng.weighted(Object.entries(w).map(([k, v]) => [k, Math.pow(v / colors.length, 2)]));
   }
 
@@ -1280,7 +1286,7 @@
     }
     for (const c of cands) {
       c.fit = c.r + archFit(c, arch) + planFit(c, plan) * (0.5 + cfg.skill * 0.5) * (pers && pers.deck.planFit || 1);
-      if (pers) c.fit += pers.deck.fit(c);
+      if (pers) c.fit += pers.deck.fit(c) * persDeckWeight(cfg);
     }
     /* Two colours are not two equal halves. A deck that wants {G}{G}{G}
        and {B}{B} at once spends half its games holding cards it cannot
@@ -1390,7 +1396,7 @@
     const pers = PERSONALITIES[opts.personality] || null;
     for (const c of cands) {
       c.fit = c.r + planFit(c, plan) * (0.6 + cfg.skill * 0.6) * (pers && pers.deck.planFit || 1) + (c.roles.has('wipe') ? -0.4 : 0);
-      if (pers) c.fit += pers.deck.fit(c);
+      if (pers) c.fit += pers.deck.fit(c) * persDeckWeight(cfg);
       c.s = shapeScore(c, cfg, rng);
     }
     progress('Assembling the deck');
@@ -1542,7 +1548,7 @@
      The judgement above decides one thing at a time, and that is where
      it stops: it cannot see that an attack which looks free loses the
      race next turn, or that the creature held back is the one that blocks
-     the lethal swing. So from level 4 up a bot also plays its options
+     the lethal swing. So from level 6 up a bot also plays its options
      out. Each candidate move — the judgement's own choice first, then the
      alternatives worth a look — is made in a few private copies of the
      game (06d-sim.js), with the cards it cannot see dealt afresh in each,
@@ -1565,17 +1571,14 @@
                 the counterspell, the removal on an attacker, the end-of-turn play)
        capMs    the safety limit for one decision, desktop and phone
      ============================================================ */
-  /* Levels 4 and 5 only glance (cast this now, or wait?); 6 and 7 also
-     weigh their attacks and then their blocks, in one imagined future
-     each; 8 to 10 weigh more candidates in more futures, and the top two
+  /* Level 6 weighs its spells and its attacks in one imagined future
+     each, level 7 its blocks too; 8 to 10 weigh more candidates in more futures, and the top two
      also think at instant speed. Measured against the same deck, a full
      look ahead beats the same level's plain judgement about two games in
      three; past a couple of futures per candidate it stops getting
      better, which is why the top levels are not much further apart in
      this respect than they are. */
   const LOOKAHEAD = {
-    4:  { worlds: 1, phone: 1, cands: 2, attack: 0, block: 0, main: 1, capMs: 200, capPhone: 100 },
-    5:  { worlds: 1, phone: 1, cands: 2, attack: 0, block: 0, main: 1, capMs: 200, capPhone: 100 },
     6:  { worlds: 1, phone: 1, cands: 3, attack: 1, block: 0, main: 1, capMs: 250, capPhone: 120 },
     7:  { worlds: 1, phone: 1, cands: 3, attack: 1, block: 1, main: 1, capMs: 300, capPhone: 130 },
     8:  { worlds: 2, phone: 1, cands: 3, attack: 1, block: 1, main: 1, capMs: 350, capPhone: 140 },
@@ -1733,8 +1736,16 @@
       this._turnMemo = { key: null };
     }
     get me() { return this.game.player(this.pid); }
-    /** How far this bot's personality leans one way at the table (0 for none). */
-    lean(k) { return (this.pers && this.pers.play[k]) || 0; }
+    /**
+     * How far this bot's personality leans one way at the table (0 for
+     * none). The sharper the bot, the less a taste costs it: a strong
+     * cautious bot still attacks when the attack is plainly right. Whom
+     * to pick on at a bigger table is a matter of taste at every level.
+     */
+    lean(k) {
+      const v = (this.pers && this.pers.play[k]) || 0;
+      return k === 'leader' || k === 'spread' ? v : v * (1 - 0.4 * (this.cfg.skill || 0));
+    }
 
     /** Called whenever the game state changes; decides if it is our move. */
     /** One decision, if there is one to make. Returns true if it acted. */
@@ -3937,7 +3948,10 @@
         if (spent + spent / (w + 1) > cap) break;
       }
       this._thought = now() - t0;
-      const mean = sum.map((s, i) => (n[i] ? s / n[i] : -Infinity));
+      /* A personality tips close calls its own way — an aggressive bot
+         towards the bigger attack, a cautious one towards the extra
+         blocker — never far enough to turn a clear call round. */
+      const mean = sum.map((s, i) => (n[i] ? s / n[i] + (cands[i].lean || 0) : -Infinity));
       let best = 0;
       for (let i = 1; i < cands.length; i++) if (n[i] && n[i] >= n[0] && mean[i] > mean[best]) best = i;
       if (best !== 0 && n[0] && mean[best] < mean[0] + margin) best = 0;
@@ -3992,7 +4006,8 @@
       try { first = this.chooseAttacks(ch); } catch (e) { return null; }
       const plans = this._attackCandidates(ch, first, this._candCap(L));
       if (plans.length < 2) return first;
-      const pick = await this._lookAhead(plans.map(plan => ({ apply: (f) => f.declareAttackers(this.pid, plan) })), L);
+      const lean = this.lean('attack') * 0.25;
+      const pick = await this._lookAhead(plans.map(plan => ({ apply: (f) => f.declareAttackers(this.pid, plan), lean: lean * (plan.length - first.length) })), L);
       return pick == null ? null : plans[pick];
     }
 
@@ -4048,7 +4063,8 @@
       try { first = this.chooseBlocks(ch); } catch (e) { return null; }
       const plans = this._blockCandidates(ch, first, this._candCap(L));
       if (plans.length < 2) return first;
-      const pick = await this._lookAhead(plans.map(plan => ({ apply: (f) => f.declareBlockers(this.pid, plan) })), L);
+      const lean = this.lean('block') * 0.25;
+      const pick = await this._lookAhead(plans.map(plan => ({ apply: (f) => f.declareBlockers(this.pid, plan), lean: lean * (plan.length - first.length) })), L);
       return pick == null ? null : plans[pick];
     }
 

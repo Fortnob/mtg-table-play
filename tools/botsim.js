@@ -27,7 +27,7 @@
      reported (how many, mean and worst ms, how often the judgement's own
      move was overruled).
 
-   Looking ahead: --lookcap 3 stretches the per-decision safety net by that
+   Looking ahead: --phone thinks as on a phone; --lookcap 3 stretches the per-decision safety net by that
      factor (the default here, since runs share the machine; 1 is a browser).
 
    Contracts:
@@ -46,7 +46,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose' || k === 'json' || k === 'mirror' || k === 'contracts' || k === 'localdb') { a[k] = true; continue; }
+    if (k === 'verbose' || k === 'json' || k === 'mirror' || k === 'contracts' || k === 'localdb' || k === 'phone') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -270,6 +270,8 @@ async function main() {
      machine; --lookcap stretches the look-ahead safety net to match (3 by
      default here), so a run measures the bots as they play at home. */
   MTG.bots.lookCapScale = a.lookcap != null ? a.lookcap : 3;
+  // --phone: the bots think as they would on a phone (fewer copies and candidates)
+  if (a.phone) MTG.isPhone = () => true;
   const C = a.contracts ? require('./contracts') : null;
   const found = [];
   const results = [];
