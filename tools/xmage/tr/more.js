@@ -191,7 +191,7 @@ def('ability', 'AttacksWithCreaturesTriggeredAbility', (o, tc) => {
 });
 def('ability', 'DiesAttachedTriggeredAbility', (o, tc) => {
   const desc = A(o).str(0);
-  if (!/^(?:equipped|enchanted) creature$/.test(desc || '')) block('dies attached to ' + desc);
+  if (!/^(?:equipped|enchanted)(?: creature)?$/.test(desc || '')) block('dies attached to ' + desc);
   const bools = A(o).all('bool').map(x => x.v);
   return AB.triggered(o, tc, { event: 'equippedDies', optional: !!bools[0], pointer: AB.pointerArg(o) });
 });

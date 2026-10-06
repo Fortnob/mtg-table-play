@@ -187,7 +187,26 @@ function evalExpr(ctx, e, line) {
       return { t: 'array', items: [], type: e.type.name };
     }
     case 'array': return { t: 'array', items: e.items.map(x => evalExpr(ctx, x, line)) };
-    case 'lambda': ctx.problem('lambda'); return { t: 'lambda' };
+    case 'lambda': {
+      /* ability -> { ability.addEffect(...); ability.addTarget(...); }: the
+         way a Saga chapter is sometimes written. The body is run against a
+         fresh object that records what was done to it. */
+      if (e.block && Array.isArray(e.body) && e.params.length === 1) {
+        const obj = { t: 'obj', cls: 'LambdaAbility', args: [], calls: [], line, cmt: ctx.cmt, id: ++ctx.objCount };
+        const had = ctx.vars.has(e.params[0]) ? ctx.vars.get(e.params[0]) : undefined;
+        ctx.vars.set(e.params[0], obj);
+        const saveLine = ctx.line, saveCmt = ctx.cmt;
+        for (const st of e.body) {
+          if (st.k !== 'expr' && st.k !== 'var' && st.k !== 'block' && st.k !== 'empty') { ctx.problem('lambda statement ' + st.k); continue; }
+          runStatement(ctx, st, false);
+        }
+        ctx.line = saveLine; ctx.cmt = saveCmt;
+        if (had === undefined) ctx.vars.delete(e.params[0]); else ctx.vars.set(e.params[0], had);
+        return { t: 'lambdaAbility', obj };
+      }
+      ctx.problem('lambda');
+      return { t: 'lambda' };
+    }
     case 'mref': return { t: 'mref', path: (refPath(e.obj) || '?') + '::' + e.name };
     case 'bin': {
       const l = evalExpr(ctx, e.l, line), r = evalExpr(ctx, e.r, line);

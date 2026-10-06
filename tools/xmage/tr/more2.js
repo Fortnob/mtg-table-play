@@ -29,6 +29,13 @@ function chapter(call, tc) {
     else if (a.t === 'obj' && a.cls === 'Effects') effects.push(...a.args);
     else if (k === 'target') targets.push(a);
     else if (k === 'bool') { if (a.v) block('optional chapter'); }
+    else if (a.t === 'lambdaAbility') {
+      for (const c of a.obj.calls) {
+        if (c.name === 'addEffect') effects.push(c.args[0]);
+        else if (c.name === 'addTarget') targets.push(c.args[0]);
+        else if (!/^(?:withFlavorWord|addHint|setAbilityWord)$/.test(c.name)) block('chapter lambda .' + c.name);
+      }
+    }
     else block('chapter argument ' + k);
   }
   if (!effects.length) block('chapter with no effect');

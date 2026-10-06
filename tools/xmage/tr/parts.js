@@ -470,7 +470,7 @@ function readToken(cls, tc) {
       out[e.l.v] = r.args[0].v;
       continue;
     }
-    if (e.k === 'call' && !e.obj && e.name === 'addAbility') {
+    if (e.k === 'call' && (!e.obj || e.obj.k === 'this') && e.name === 'addAbility') {
       const a = e.args[0];
       const name = a && a.k === 'call' && a.name === 'getInstance' && a.obj && a.obj.k === 'name' ? a.obj.v : null;
       const kw = name && F.KW_CLASSES[name];

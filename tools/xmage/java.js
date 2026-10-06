@@ -630,8 +630,15 @@ class Parser {
     this.expect('->');
     if (this.is('{')) {
       const s = this.p;
-      this.skipGroup();
-      return { k: 'lambda', params, block: true, from: s, to: this.p };
+      // read the body like any other block; if it cannot be read, skip it
+      try {
+        const body = this.block();
+        return { k: 'lambda', params, block: true, body, from: s, to: this.p };
+      } catch (err) {
+        this.p = s;
+        this.skipGroup();
+        return { k: 'lambda', params, block: true, from: s, to: this.p };
+      }
     }
     return { k: 'lambda', params, body: this.expr() };
   }

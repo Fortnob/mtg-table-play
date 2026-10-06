@@ -57,4 +57,24 @@ def('ability', 'ConditionalColoredManaAbility', (o, tc) => {
   return { kind: 'mana', cost, effects: [{ op: 'addMana', symbols: mana.symbols }], auto: true, spendOnly: M4.spendOnly(builder, tc) };
 });
 
+def('ability', 'CardsLeaveGraveyardTriggeredAbility', (o, tc) => {
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  const d = F.describe(f || { t: 'ref', path: 'StaticFilters.FILTER_CARD_CARDS' }, tc);
+  if (d.base !== 'card') block('leaving the graveyard: ' + d.base);
+  const words = F.toWords(Object.assign({}, d, { owner: undefined }));
+  // one trigger for the lot, from your own graveyard
+  const ev = { event: 'leftGraveyard', objFilter: { words: words === 'card' ? 'card' : words, who: 'you', batch: true } };
+  if (A(o).bool(0, false)) ev.condition = { kind: 'yourTurn' };
+  return AB.triggered(o, tc, ev);
+});
+def('ability', 'DealsDamageToAPlayerAttachedTriggeredAbility', (o, tc) => {
+  const desc = A(o).str(0);
+  if (!/^(?:equipped|enchanted)(?: creature)?$/.test(desc || '')) block('damage by ' + desc);
+  const b = A(o).all('bool').map(x => x.v);
+  const onlyCombat = b.length > 2 ? b[2] : true;
+  if (!onlyCombat) block('any damage by the equipped creature');
+  if (A(o).enumv('TargetController') && A(o).enumv('TargetController') !== 'ANY') block('damage to a kind of player');
+  return AB.triggered(o, tc, { event: 'equippedCombatDamage', optional: !!b[0], pointer: b[1] ? 'player' : null });
+});
+
 module.exports = {};
