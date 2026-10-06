@@ -3291,7 +3291,7 @@
   function soundMenu(e) {
     UI.modal({
       title: 'Sound', width: '440px',
-      content: el('div', { class: 'opt-group' }, MTG.feel.soundRows()),
+      content: el('div', { class: 'opt-group' }, MTG.feel.soundRows('snd-')),
     });
   }
 

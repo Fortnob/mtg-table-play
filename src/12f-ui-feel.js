@@ -186,7 +186,7 @@
             if (e.died) {
               const o = t.objIn(e.objId, prev);
               const w = clamp(((o && o.power) || 0) / 8, 0, 1);
-              gather('die', () => add('die', { pan: p, intensity: w, count: 1 }, 7, 'leave', 110), c => {
+              gather('die', () => add('die', { pan: p, intensity: w, count: 1 }, 8, 'leave', 110), c => {
                 c.opt.count++;
                 c.opt.intensity = Math.max(c.opt.intensity, w);
                 // three at once is a board wipe, and sounds like one
@@ -277,7 +277,8 @@
             gather('shuffle', () => add('shuffle', { pan: e.player === me ? null : pan(e.player) }, 3, 'shuffle', 120), () => {});
             break;
           case 'lose':
-            if (e.player !== me) add('eliminated', { pan: pan(e.player) }, 8, 'lose', 200);
+            // somebody out while the game goes on; the last one out is said by the end of the game
+            if (e.player !== me && !evs.some(x => x.type === 'gameOver')) add('eliminated', { pan: pan(e.player) }, 8, 'lose', 200);
             break;
           case 'gameOver': {
             const won = (e.winners || []).includes(me);
@@ -348,8 +349,8 @@
       const end = cues.reduce((m, c) => Math.max(m, c.at), 0) + (cues.length ? 110 : 0);
       const ch = next.pendingChoice;
       const asked = ch && ch.playerId === me && !ch.waiting;
-      const wasAsked = prev.pendingChoice && prev.pendingChoice.playerId === me &&
-        prev.pendingChoice.type === (ch && ch.type);
+      // one question leading into the next (a mode, then its target) is one moment
+      const wasAsked = !!(prev.pendingChoice && prev.pendingChoice.playerId === me);
       if (asked && !wasAsked) { cues.push({ name: 'choice', opt: {}, at: end, pri: 5, why: 'choice' }); return; }
       /* The ping is for a chance to answer somebody else: their spell
          waiting on the stack, or a stop in their turn. Priority coming back
@@ -368,11 +369,17 @@
       let list = cues.map((c, i) => Object.assign(c, { i }));
       // when the table is behind, only what matters most
       const max = pace < 0.15 ? 2 : pace < 0.5 ? 3 : 7;
-      if (list.length > max) list = list.slice().sort((a, b) => b.pri - a.pri || a.i - b.i).slice(0, max).sort((a, b) => a.i - b.i);
+      if (list.length > max) {
+        // the most important first, and one of each kind before a second of any
+        const seen = new Set();
+        const rank = list.slice().sort((a, b) => b.pri - a.pri || a.i - b.i);
+        const firsts = rank.filter(c => !seen.has(c.name) && seen.add(c.name));
+        list = firsts.concat(rank.filter(c => !firsts.includes(c))).slice(0, max).sort((a, b) => a.i - b.i);
+      }
       const shown = (beat.hold || 0) * pace;
       const budget = pace >= 0.5 ? clamp(shown * 0.9, 260, 700) : clamp(shown * 0.9, 0, 300);
-      const first = Math.min(...list.map(c => c.at));
-      const span = Math.max(...list.map(c => c.at)) - first;
+      // a beat starts at nought; a first sound held back for a card's flight keeps its wait
+      const span = Math.max(...list.map(c => c.at));
       const k = span > budget ? budget / span : 1;
       /* Beats played back quickly, one after another, would pile their
          sounds on top of each other: when the last moment has been busy,
@@ -381,7 +388,7 @@
       const recent = this._recent = (this._recent || []).filter(x => x > now - 400);
       const played = [];
       for (const c of list) {
-        const at = Math.round((c.at - first) * k);
+        const at = Math.round(c.at * k);
         const when = now + at;
         const busy = recent.filter(x => x > when - 300).length;
         if ((busy >= 9 && c.pri < 8) || (busy >= 5 && c.pri < 6)) continue;
@@ -407,7 +414,7 @@
       }
       t.fxLayer.appendChild(n);
       this._live++;
-      setTimeout(() => { n.remove(); this._live--; }, ms);
+      this._after(ms, () => { n.remove(); this._live--; });
       return n;
     },
 
@@ -415,12 +422,38 @@
     _mark(n, cls, ms, vars) {
       if (!n || !n.isConnected) return;
       if (vars) for (const k in vars) n.style.setProperty(k, vars[k]);
-      n.classList.remove(cls); void n.offsetWidth; n.classList.add(cls);
+      // starting it again only costs a reflow when it is already running
+      if (n.classList.contains(cls)) { n.classList.remove(cls); void n.offsetWidth; }
+      n.classList.add(cls);
       clearTimeout(n['_feel_' + cls]);
-      n['_feel_' + cls] = setTimeout(() => {
+      n['_feel_' + cls] = this._after(ms, () => {
         n.classList.remove(cls);
         if (vars) for (const k in vars) n.style.removeProperty(k);
-      }, ms);
+      });
+    },
+
+    /** Tidy up after an effect, unless the table is being held still to be looked at. */
+    _after(ms, fn) {
+      return setTimeout(() => { if (this._frozen) this._frozen.push(fn); else fn(); }, ms);
+    },
+
+    /**
+     * Hold every effect where it is, for a screenshot or a closer look:
+     * animations pause and nothing is tidied away until it is let go.
+     * MTG.feel.freeze(true) ... MTG.feel.freeze(false).
+     */
+    freeze(on) {
+      if (on) {
+        this._frozen = this._frozen || [];
+        this._paused = document.getAnimations().filter(a => a.playState === 'running');
+        for (const a of this._paused) a.pause();
+        return;
+      }
+      const later = this._frozen || [];
+      this._frozen = null;
+      for (const a of this._paused || []) { try { a.play(); } catch (e) { /* gone */ } }
+      this._paused = null;
+      for (const fn of later) fn();
     },
 
     _at(t, r) {
@@ -435,13 +468,19 @@
       const ghost = (id, dying) => t.fxLayer.querySelector(`.cv-ghost${dying ? '.dying' : ''}[data-id="${CSS.escape(String(id))}"]`);
       const glow = (cs) => ({ '--feel-c1': LIGHT[cs[0] || 'C'], '--feel-c2': LIGHT[cs[1] || cs[0] || 'C'] });
 
+      /* Everything is measured first and changed after, so the page is laid
+         out once for all of it rather than once per effect. */
+      const writes = [];
+      const mark = (...a) => writes.push(() => this._mark(...a));
+      const spawn = (...a) => writes.push(() => this._spawn(...a));
+
       // whatever spoke lights up for a moment, so you can see which card it was
-      for (const id of new Set(info.pulses)) t.pulse(id);
+      for (const id of new Set(info.pulses)) writes.push(() => t.pulse(id));
 
       // a spell on its way to the stack, glowing in its own colours
       for (const c of info.casts) {
         const n = card(c.objId) || t.arena.querySelector(`.ability-chip[data-stack="${CSS.escape(String(c.stackId))}"]`);
-        if (n) this._mark(n, motion ? 'feel-cast' : 'feel-cast-still', 1100, glow(c.colors));
+        if (n) mark(n, motion ? 'feel-cast' : 'feel-cast-still', 1100, glow(c.colors));
       }
       // and a burst where it resolved
       if (motion) for (const r of info.resolves.slice(0, 3)) {
@@ -449,18 +488,18 @@
         const box = n ? n.getBoundingClientRect() : (t.stackCol.firstElementChild || t.stackCol).getBoundingClientRect();
         if (!box.width) continue;
         const p = this._at(t, box);
-        this._spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * 1.6) + 'px',
+        spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * 1.6) + 'px',
           '--feel-c1': LIGHT[r.colors[0] || 'C'], '--feel-c2': LIGHT[r.colors[1] || r.colors[0] || 'C'] }, 700);
       }
       // a countered spell goes grey, shrinks, and smokes
       for (const c of info.counters) {
         const n = card(c.objId) || t.arena.querySelector(`.stack-item .ability-chip[data-stack="${CSS.escape(String(c.stackId))}"]`) || ghost(c.objId);
         if (!n) continue;
-        this._mark(n, 'feel-fizzle', 900);
+        mark(n, 'feel-fizzle', 900);
         if (!motion) continue;
         const p = this._at(t, n.getBoundingClientRect());
         for (let i = 0; i < (phone ? 3 : 6); i++) {
-          this._spawn(t, 'feel-smoke', { left: (p.x + rnd(-0.3, 0.3) * p.w) + 'px', top: (p.y + rnd(-0.2, 0.3) * p.h) + 'px',
+          spawn(t, 'feel-smoke', { left: (p.x + rnd(-0.3, 0.3) * p.w) + 'px', top: (p.y + rnd(-0.2, 0.3) * p.h) + 'px',
             '--feel-dx': rnd(-20, 20) + 'px', '--feel-dy': rnd(-70, -30) + 'px', animationDelay: Math.round(rnd(0, 160)) + 'ms' }, 1100);
         }
       }
@@ -470,8 +509,8 @@
         const n = card(e.objId);
         if (!n) continue;
         const cls = e.kind === 'land' ? 'feel-settle' : e.kind === 'creature' ? 'feel-slam' : e.kind === 'token' ? 'feel-pop' : 'feel-settle';
-        if (!motion) { this._mark(n, 'feel-arrive-still', 600); continue; }
-        this._mark(n, cls, 1100 + (e.delay || 0), { '--feel-delay': (e.delay || 0) + 'ms', '--feel-w': String(e.weight || 0) });
+        if (!motion) { mark(n, 'feel-arrive-still', 600); continue; }
+        mark(n, cls, 1100 + (e.delay || 0), { '--feel-delay': (e.delay || 0) + 'ms', '--feel-w': String(e.weight || 0) });
       }
 
       // deaths come apart: a few shards off the card as it falls
@@ -485,7 +524,7 @@
           const cs = colorsOf(o && o.card);
           for (let i = 0; i < shards; i++) {
             const a = rnd(0, Math.PI * 2), d = rnd(30, 90);
-            this._spawn(t, 'feel-shard', {
+            spawn(t, 'feel-shard', {
               left: (p.x + rnd(-0.4, 0.4) * p.w) + 'px', top: (p.y + rnd(-0.4, 0.4) * p.h) + 'px',
               '--feel-dx': Math.round(Math.cos(a) * d) + 'px', '--feel-dy': Math.round(Math.sin(a) * d * 0.6 + 50) + 'px',
               '--feel-r': Math.round(rnd(-200, 200)) + 'deg', '--feel-c1': LIGHT[cs[i % Math.max(1, cs.length)] || 'R'],
@@ -501,7 +540,7 @@
         const tg = h.target.kind === 'player' ? t.orbFor(h.target.id) : card(h.target.id);
         if (!tg) continue;
         const amp = clamp(1.5 + h.amount * 1.1, 2, 10);
-        if (h.target.kind !== 'player') this._mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
+        if (h.target.kind !== 'player') mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
         if (!motion || sparks >= (phone ? 2 : 5)) continue;
         sparks++;
         const tb = tg.getBoundingClientRect();
@@ -514,44 +553,45 @@
           const reach = Math.min(p.w, p.h) * 0.45;
           x += dx / len * reach; y += dy / len * reach;
         }
-        this._spawn(t, 'feel-spark' + (h.combat ? '' : ' burn'), { left: x + 'px', top: y + 'px',
+        spawn(t, 'feel-spark' + (h.combat ? '' : ' burn'), { left: x + 'px', top: y + 'px',
           '--feel-s': Math.round(clamp(26 + h.amount * 9, 30, 110)) + 'px', '--feel-r': Math.round(rnd(0, 90)) + 'deg' }, 600);
       }
       // and when it is you being hurt, the edges of the table go red for a moment
       if (info.myDamage > 0) {
         const a = clamp(0.28 + info.myDamage * 0.07, 0.28, 0.85);
-        this._spawn(t, 'feel-vignette' + (motion ? '' : ' still'), { '--feel-a': a.toFixed(2) }, motion ? 900 : 500);
+        spawn(t, 'feel-vignette' + (motion ? '' : ' still'), { '--feel-a': a.toFixed(2) }, motion ? 900 : 500);
       }
 
       // counters going on or off: a small tick on the card
       for (const m of info.marks.slice(0, 6)) {
         const n = card(m.objId);
-        if (n) this._mark(n, m.delta > 0 ? 'feel-plus' : 'feel-minus', 700);
+        if (n) mark(n, m.delta > 0 ? 'feel-plus' : 'feel-minus', 700);
       }
 
       // life totals count their way to the new number
       for (const [pid, l] of info.life) {
         if (!l.delta) continue;
-        this._countLife(t, pid, l.life - l.delta, l.life, motion);
+        writes.push(() => this._countLife(t, pid, l.life - l.delta, l.life, motion));
       }
 
       // your turn: a warm light comes up on your side of the table
-      if (info.turnMine && t.myWrap) this._mark(t.myWrap, motion ? 'feel-turn' : 'feel-turn-still', 1700);
+      if (info.turnMine && t.myWrap) mark(t.myWrap, motion ? 'feel-turn' : 'feel-turn-still', 1700);
 
       // and when the table is waiting on you, the big button breathes
       const ch = next.pendingChoice;
       const mine = !next.over && !next.mulliganPhase && !!t.me &&
         ((ch && ch.playerId === me && !ch.waiting) || (!ch && next.priorityPlayer === me));
       const had = t.arena.classList.contains('feel-prio');
-      t.arena.classList.toggle('feel-prio', mine);
       if (mine && !had && motion) {
         const b = t.dock.querySelector('.big-btn');
         const r = b && b.getBoundingClientRect();
         if (r && r.width) {
           const p = this._at(t, r);
-          this._spawn(t, 'feel-ripple', { left: p.x + 'px', top: p.y + 'px', width: r.width + 'px', height: r.height + 'px' }, 1000);
+          spawn(t, 'feel-ripple', { left: p.x + 'px', top: p.y + 'px', width: r.width + 'px', height: r.height + 'px' }, 1000);
         }
       }
+      if (mine !== had) writes.push(() => t.arena.classList.toggle('feel-prio', mine));
+      for (const w of writes) w();
     },
 
     /** Count a life total from one number to the next, rather than jumping. */
@@ -636,7 +676,9 @@
      * interface, game and room volumes, the room on or off, and every sound
      * in the palette to try.
      */
-    soundRows() {
+    soundRows(prefix) {
+      // the in-game menu can be open over the options page, so its ids are its own
+      prefix = prefix || 'opt-';
       const S = MTG.settings;
       const A = MTG.audio;
       const val = (k, d) => (S[k] == null ? d : S[k]);
@@ -644,7 +686,7 @@
       const slider = (key, label, help, dflt, set) => {
         const v = val(key, dflt);
         const out = el('span', { class: 'opt-value', text: pct(v) });
-        const input = el('input', { type: 'range', min: '0', max: '1', step: '.05', value: String(v), id: 'opt-' + key,
+        const input = el('input', { type: 'range', min: '0', max: '1', step: '.05', value: String(v), id: prefix + key,
           'aria-label': label, 'aria-valuetext': pct(v) });
         input.addEventListener('input', () => {
           const x = parseFloat(input.value);
@@ -690,10 +732,10 @@
       } });
       return [
         slider('volume', 'Master volume', null, 0.5, (x) => A.setVolume(x)),
-        toggle('opt-muted', 'Mute everything', null, !!S.muted, (on) => A.setMuted(on)),
+        toggle(prefix + 'muted', 'Mute everything', null, !!S.muted, (on) => A.setMuted(on)),
         slider('volGame', 'Game', 'Cards, spells, combat and life.', 1, (x) => A.setLevel('volGame', x)),
         slider('volUi', 'Interface', 'Clicks, hovers, and the ping when it is your move.', 0.7, (x) => A.setLevel('volUi', x)),
-        toggle('opt-ambience', 'Table ambience', 'A quiet, slowly changing room under the game.', val('ambience', true), (on) => A.setAmbience(on)),
+        toggle(prefix + 'ambience', 'Table ambience', 'A quiet, slowly changing room under the game.', val('ambience', true), (on) => A.setAmbience(on)),
         slider('volAmb', 'Ambience', null, 0.35, (x) => A.setLevel('volAmb', x)),
         el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'Sound test' }),
