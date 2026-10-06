@@ -18,6 +18,15 @@
                     the path where a runner can trip over a bot that is
                     still thinking, so it is worth a run now and then.
 
+   Card data:
+     --localdb      build decks from the local card database (tools/
+                    oracle-cards.jsonl.gz, as the app does) instead of the
+                    Scryfall cache: no misses, every colour pair.
+
+   Looking ahead: each seat's look-ahead decisions are counted, timed and
+     reported (how many, mean and worst ms, how often the judgement's own
+     move was overruled).
+
    Contracts:
      --contracts    check every view, question and bot call as it happens
                     (tools/contracts.js); violations are listed at the end.
@@ -33,7 +42,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose' || k === 'json' || k === 'mirror' || k === 'contracts') { a[k] = true; continue; }
+    if (k === 'verbose' || k === 'json' || k === 'mirror' || k === 'contracts' || k === 'localdb') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -85,7 +94,20 @@ async function playOne(MTG, o) {
 `); } catch (err) { /* tracing is best effort */ } });
   }
   const runner = new MTG.bots.BotRunner(g);
-  for (const s of seats) runner.add(s.id, s.play, s.playTune || undefined);
+  const look = {};
+  for (const s of seats) {
+    const bot = runner.add(s.id, s.play, s.playTune || undefined, s.personality ? { personality: s.personality } : undefined);
+    // every look ahead, timed and counted
+    const st = look[s.id] = { n: 0, ms: 0, max: 0, overruled: 0, played: 0 };
+    const inner = bot._lookAhead.bind(bot);
+    bot._lookAhead = async (...x) => {
+      const r = await inner(...x);
+      const l = bot.lastLook;
+      if (l && r != null) { st.n++; st.ms += l.ms; st.max = Math.max(st.max, l.ms); st.played += l.played; if (r !== 0) st.overruled++; }
+      if (bot._slowest) st.slowest = bot._slowest;
+      return r;
+    };
+  }
   // a caller that wants to watch the game (tools/contracts.js) gets it before it starts
   if (o.onGame) o.onGame(g);
   g.start();
@@ -120,10 +142,34 @@ async function playOne(MTG, o) {
     manualCards: Array.from(manualCards),
     rulesLines: rulesLines.slice(0, 10).map(l => l.text || l.msg),
     decks: decks.map(d => ({ plan: d.plan || null, commanders: (d.commanders || []).map(c => c.name) })),
+    look, personalities: seats.map(s => (runner.bots.get(s.id) || {}).personality || null),
     stuckAt: stalled ? { step: g.step, choice: g.pendingChoice && g.pendingChoice.type, prio: g.priorityPlayer && g.priorityPlayer.id, lastError: g.lastError } : null,
     fullLog: o.fullLog ? g.log.map(l => l.text || l.msg) : undefined,
     lastLog: verbose ? g.log.slice(-40).map(l => l.text || l.msg) : undefined,
   };
+}
+
+/** Look-ahead numbers added up by the seat's difficulty. */
+function lookSummary(results) {
+  const by = {};
+  for (const r of results) {
+    for (const s of (r.seats || [])) {
+      const l = r.look && r.look[s.id];
+      if (!l || !l.n) continue;
+      const k = 'd' + s.play;
+      const t = by[k] = by[k] || { decisions: 0, ms: 0, max: 0, overruled: 0, played: 0, games: 0 };
+      if (l.slowest && (!t.slowest || l.slowest.ms > t.slowest.ms)) t.slowest = Object.assign({ seed: r.seed }, l.slowest);
+      t.decisions += l.n; t.ms += l.ms; t.max = Math.max(t.max, l.max); t.overruled += l.overruled; t.played += l.played; t.games++;
+    }
+  }
+  for (const t of Object.values(by)) {
+    t.perGame = +(t.decisions / Math.max(1, t.games)).toFixed(1);
+    t.meanMs = +(t.ms / Math.max(1, t.decisions)).toFixed(1);
+    t.rolloutMs = +(t.ms / Math.max(1, t.played)).toFixed(2);
+    t.overruledPct = +(100 * t.overruled / Math.max(1, t.decisions)).toFixed(0);
+    delete t.ms;
+  }
+  return by;
 }
 
 /** The seats for game i, rotated so the play/draw washes out. */
@@ -149,6 +195,7 @@ async function main() {
   const a = args();
   const MTG = load();
   MTG.settings.botSpeed = a.speed || 0;
+  if (a.localdb) await require('./localdb').loadLocalDb(MTG, { kind: 'oracle_cards' });
   const C = a.contracts ? require('./contracts') : null;
   const found = [];
   const results = [];
@@ -195,6 +242,9 @@ async function main() {
     liveFetches: globalThis.__liveFetches(),
     offlineMisses: globalThis.__offlineMisses ? globalThis.__offlineMisses() : 0,
   });
+  // look-ahead decisions by difficulty: how many a game, how long, how often they changed the move
+  const lookBy = lookSummary(results);
+  if (Object.keys(lookBy).length) summary.look = lookBy;
   if (C) {
     const all = C.merge(found);
     summary.contractViolations = all.filter(v => !v.known).length;
@@ -207,4 +257,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { playOne, seatsFor };
+module.exports = { playOne, seatsFor, lookSummary };

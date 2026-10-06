@@ -58,9 +58,143 @@
     if (!cfgCache.has(lv)) {
       const out = Object.assign({}, DIFFICULTY[lv]);
       for (const k of Object.keys(HABITS)) out[k] = HABITS[k][lv - 1];
+      out.look = LOOKAHEAD[lv] || null;
       cfgCache.set(lv, out);
     }
     return cfgCache.get(lv);
+  }
+
+  /* ============================================================
+     Personalities
+     Difficulty is how well a bot plays; personality is how it likes to
+     play, and the two are separate dials. A personality leans on the
+     deck it builds (the archetype, colours and theme it reaches for), on
+     its habits at the table (how readily it attacks, blocks, holds an
+     answer or burns a face), on how it judges a position when it looks
+     ahead, and, at a bigger table, on whom it picks on. The leans are
+     small next to the gaps between levels, so a Cautious level 9 is still
+     a level 9.
+
+       label, blurb   for a lobby picker
+       deck           archetype and colour weights, how readily it builds
+                      around a theme, which themes it likes, what it likes
+                      in a card (fit)
+       play           leans, each 0 when absent:
+                        attack  + attacks more readily, - holds back
+                        block   + blocks more readily
+                        hold    + saves removal for a real threat
+                        face    + points burn at players
+                        leader  + goes after whoever is winning (bigger tables)
+                        spread  + spreads its attacks around (bigger tables)
+                        splash  + casts its biggest spell first
+       eval           weights on the look-ahead judge (see EVAL)
+       epithets       how its name ends ("Mara the Reckless")
+       avatar         what kind of card in its deck is its face, and a few
+                      cards to fall back on
+     The lobby asks for a seat as { difficulty, personality }; leave the
+     personality out and the bot picks one that suits the deck it built.
+     ============================================================ */
+  const PERSONALITIES = {
+    aggressive: {
+      label: 'Aggressive', blurb: 'Attacks at every chance, races, and points its burn at your face.',
+      deck: { arch: { aggro: 3, midrange: 0.7, control: 0 }, colours: { R: 1.7, W: 1.3, B: 1.0, G: 0.9, U: 0.5 },
+        themeChance: -0.1, themes: { tokens: 1.3, counters: 1.2, spells: 1.1 },
+        fit: (c) => (c.creature && c.mv <= 3 && (parseInt(c.a.power, 10) || 0) >= c.mv ? 0.25 : 0) +
+          (c.a.has('haste') ? 0.2 : 0) + (c.roles.has('burn') ? 0.2 : 0) },
+      play: { attack: 0.8, block: -0.3, hold: -0.25, face: 1 },
+      eval: { oppLife: 1.3, life: 0.85 },
+      epithets: ['the Reckless', 'Firebrand', 'Swiftblade', 'the Bold', 'Redfang', 'Skullsplitter'],
+      avatar: { want: 'fast', cards: ['Goblin Guide', 'Monastery Swiftspear', 'Lightning Bolt'] },
+    },
+    cautious: {
+      label: 'Cautious', blurb: 'Keeps blockers home, saves its removal for what matters, and wins the long game.',
+      deck: { arch: { aggro: 0.4, midrange: 2, control: 0 }, colours: { W: 1.2, U: 1.5, B: 1.2, G: 1.0, R: 0.6 },
+        themeChance: 0, themes: { lifegain: 1.3, flyers: 1.2 },
+        fit: (c) => (c.roles.has('removal') ? 0.25 : 0) + (c.roles.has('draw') ? 0.15 : 0) +
+          (c.creature && (parseInt(c.a.toughness, 10) || 0) >= 4 && c.mv <= 4 ? 0.15 : 0) },
+      play: { attack: -0.6, block: 0.4, hold: 0.25, face: -0.5 },
+      eval: { life: 1.25, oppLife: 0.85, hand: 1.15 },
+      epithets: ['the Patient', 'the Watchful', 'Wallwarden', 'the Wary', 'Stillwater', 'Shieldbearer'],
+      avatar: { want: 'answer', cards: ['Wall of Omens', 'Counterspell', 'Swords to Plowshares'] },
+    },
+    value: {
+      label: 'Engine builder', blurb: 'Builds around a plan and puts its engines together piece by piece.',
+      deck: { arch: { aggro: 0.7, midrange: 2, control: 0 }, colours: { U: 1.2, G: 1.3, B: 1.2, W: 1.0, R: 0.9 },
+        themeChance: 0.45, themes: { artifacts: 1.4, sacrifice: 1.4, graveyard: 1.3, counters: 1.2, tokens: 1.2 },
+        planFit: 1.6,
+        fit: (c) => (!c.creature && c.a.isPermanent && c.r >= 3.5 ? 0.2 : 0) + (c.roles.has('draw') ? 0.1 : 0) },
+      play: { engine: 1, hold: 0.1 },
+      eval: { board: 1.1, hand: 1.2 },
+      epithets: ['the Collector', 'Cogwright', 'the Tinkerer', 'Gearwise', 'the Planner', 'Loremaster'],
+      avatar: { want: 'engine', cards: ['Sol Ring', 'Rhystic Study', 'Skullclamp'] },
+    },
+    chaotic: {
+      label: 'Chaotic', blurb: 'Big creatures and splashy spells; never quite does what you expect.',
+      deck: { arch: { aggro: 0.8, midrange: 2, control: 0 }, colours: { R: 1.3, G: 1.5, B: 1.0, U: 0.9, W: 0.8 },
+        themeChance: 0, themes: { flyers: 1.2, tokens: 1.1 },
+        fit: (c) => (c.creature && c.mv >= 5 ? 0.35 : 0) + (/\{X\}/.test(c.card.mana_cost || '') ? 0.25 : 0) +
+          (c.creature && (parseInt(c.a.power, 10) || 0) >= 5 ? 0.2 : 0) },
+      play: { attack: 0.3, splash: 1, chaos: 0.12 },
+      eval: { board: 1.15 },
+      epithets: ['the Wild', 'Stormcaller', 'the Gambler', 'Bigdreams', 'the Unbound', 'Thunderfoot'],
+      avatar: { want: 'big', cards: ['Craterhoof Behemoth', 'Ghalta, Primal Hunger', 'Etali, Primal Storm'] },
+    },
+    political: {
+      label: 'Political', blurb: 'At a bigger table, goes after whoever is winning and spreads its threats around.',
+      deck: { arch: { aggro: 0.8, midrange: 2, control: 0 }, colours: { W: 1.2, U: 1.1, B: 1.3, R: 1.0, G: 1.0 },
+        themeChance: 0, themes: {},
+        fit: (c) => (c.roles.has('removal') ? 0.15 : 0) + (c.roles.has('wipe') ? 0.15 : 0) },
+      play: { leader: 1, spread: 1, hold: 0.1 },
+      eval: { leader: 0.95 },
+      epithets: ['the Diplomat', 'Silvertongue', 'the Kingmaker', 'the Broker', 'Oathkeeper', 'the Envoy'],
+      avatar: { want: 'leader', cards: ['Kwain, Itinerant Meddler', 'Marchesa, the Black Rose', 'Queen Marchesa'] },
+    },
+  };
+  const FIRST_NAMES = ['Mara', 'Tobin', 'Ilsa', 'Corvin', 'Neve', 'Bram', 'Odessa', 'Kael', 'Yara', 'Fenn', 'Lio', 'Sabra',
+    'Dunstan', 'Wren', 'Isolde', 'Ash', 'Petra', 'Hollis', 'Juno', 'Ravi', 'Saoirse', 'Tamsin', 'Oren', 'Vesna'];
+
+  /** A personality that suits a deck already built: an aggro list is usually played aggressively. */
+  function personalityFor(deck, rng) {
+    const plan = (deck && deck.plan) || {};
+    const w = { aggressive: 1, cautious: 1, value: 1, chaotic: 1, political: 0.3 };
+    if (plan.archetype === 'aggro') Object.assign(w, { aggressive: 6, chaotic: 1, value: 0.6, cautious: 0.3 });
+    else if (plan.archetype === 'control') Object.assign(w, { cautious: 4, value: 1.5, aggressive: 0.2 });
+    else if (plan.archetype === 'commander') Object.assign(w, { political: 2.5, value: 2, chaotic: 1.5, cautious: 1, aggressive: 1 });
+    else Object.assign(w, { cautious: 2, value: 2, chaotic: 1.5, aggressive: 1 });
+    if (plan.theme) w.value += 2;
+    return rng.weighted(Object.entries(w));
+  }
+
+  /** "Mara the Reckless": a name in the personality's style, not already at the table. */
+  function nameFor(personality, rng, taken) {
+    const p = PERSONALITIES[personality] || PERSONALITIES.value;
+    const used = new Set(taken || []);
+    for (let i = 0; i < 40; i++) {
+      const n = rng.pick(FIRST_NAMES) + ' ' + rng.pick(p.epithets);
+      if (!used.has(n)) return n;
+    }
+    return rng.pick(FIRST_NAMES) + ' ' + rng.pick(p.epithets) + ' ' + (2 + rng.int(8));
+  }
+
+  /**
+   * The card a bot shows as its face: the most on-brand card in its own
+   * deck (its commander first, if it has one), or a card from the
+   * personality's own short list when the deck has nothing that fits.
+   * Returns { card } with a card from the deck, or { name } to look up.
+   */
+  function avatarFor(personality, deck) {
+    const p = PERSONALITIES[personality] || PERSONALITIES.value;
+    const cmds = (deck && deck.commanders) || [];
+    if (cmds.length) return { card: cmds[0] };
+    const cards = ((deck && deck.main) || []).map(e => e.card).filter(c => c && !/Land/.test(c.type_line || ''));
+    const pw = (c) => parseInt(c.power, 10) || 0;
+    let pick = null;
+    const by = (score) => cards.slice().sort((x, y) => score(y) - score(x))[0] || null;
+    if (p.avatar.want === 'fast') pick = by(c => (/Creature/.test(c.type_line) ? pw(c) - (c.cmc || 0) * 0.6 + (/Haste/i.test(c.oracle_text || '') ? 1 : 0) : -9));
+    else if (p.avatar.want === 'answer') pick = by(c => (rolesOf(c).has('removal') ? 2 : 0) + (rolesOf(c).has('draw') ? 1 : 0) + rateCard(c, { prior: 0 }) * 0.3);
+    else if (p.avatar.want === 'big') pick = by(c => (/Creature/.test(c.type_line) ? pw(c) + (c.cmc || 0) : -9));
+    else pick = by(c => rateCard(c, { prior: 0 }) + (/Legendary|Planeswalker/.test(c.type_line || '') ? 1 : 0));
+    return pick ? { card: pick } : { name: p.avatar.cards[0] };
   }
 
   const BASIC_FOR = MTG.mana.BASIC_FOR;
@@ -941,17 +1075,24 @@
   }
 
   /** Pick colours for a constructed deck, and how many of them. */
-  function chooseColours(cfg, rng) {
+  function chooseColours(cfg, rng, pers) {
     const C = MTG.mana.COLORS;
     /* One colour plays most smoothly, and the better bots know it; two
        colours is the norm at a kitchen table, and a third only comes with
        the mana to support it. */
     const mono = 0.25 + cfg.deckPower * 0.4;
     const n = rng.weighted([[1, mono], [2, 1 - mono], [3, cfg.manabase >= 4 ? 0.03 : 0]]);
-    return rng.sample(C, n);
+    if (!pers) return rng.sample(C, n);
+    // a personality has favourite colours: drawn one at a time, by its weights
+    const out = [];
+    while (out.length < n) {
+      const left = C.filter(c => !out.includes(c));
+      out.push(rng.weighted(left.map(c => [c, pers.deck.colours[c] || 1])));
+    }
+    return out;
   }
 
-  function chooseArchetype(colors, cfg, rng) {
+  function chooseArchetype(colors, cfg, rng, pers) {
     const w = { aggro: 0, midrange: 0, control: 0 };
     for (const c of colors) for (const k of Object.keys(w)) w[k] += (COLOUR_LEAN[c] || {})[k] || 1;
     /* Control is a deck that wins by making no mistakes, and measured
@@ -964,6 +1105,7 @@
        games between bots, a fast creature deck at the top level beat the
        same level's midrange decks well over half the time. */
     w.aggro *= 1 + cfg.deckPower * 1.5;
+    if (pers) for (const k of Object.keys(w)) w[k] *= pers.deck.arch[k] != null ? pers.deck.arch[k] : 1;
     return rng.weighted(Object.entries(w).map(([k, v]) => [k, Math.pow(v / colors.length, 2)]));
   }
 
@@ -972,7 +1114,7 @@
    * at the playable cards, counts the ones that belong, and only says yes
    * when there are enough of them — and enough good ones — to fill a deck.
    */
-  function findPlan(cands, rng, cfg, fixedTribe) {
+  function findPlan(cands, rng, cfg, fixedTribe, pers) {
     const options = [];
     const tribes = new Map();
     for (const c of cands) {
@@ -993,7 +1135,8 @@
     for (const th of THEMES) {
       const en = cands.filter(c => themeHit(th, c.a, c.card, 'en')).length;
       const pay = cands.filter(c => themeHit(th, c.a, c.card, 'pay')).length;
-      if (en >= 10 && pay >= 4) options.push({ kind: 'theme', id: th.id, name: th.name, weight: Math.min(en, 30) + pay * 2, theme: th });
+      const lean = pers ? (pers.deck.themes[th.id] || 1) : 1;
+      if (en >= 10 && pay >= 4) options.push({ kind: 'theme', id: th.id, name: th.name, weight: (Math.min(en, 30) + pay * 2) * lean, theme: th });
     }
     if (!options.length) return null;
     options.sort((x, y) => y.weight - x.weight);
@@ -1051,17 +1194,22 @@
     const cfg = diffCfg(opts.difficulty);
     const rng = opts.rng || new MTG.RNG(Date.now());
     const progress = opts.onProgress || (() => {});
+    // a personality asked for leans on the build; none asked for, and one is chosen to suit the deck
+    const persKey = opts.personality && PERSONALITIES[opts.personality] ? opts.personality : null;
 
     if (fmt.kind === 'limited') {
       // limited bots build from the pool they drafted
       const basics = await MTG.draft.getBasics();
-      return MTG.draft.autoBuildLimited(opts.pool || [], {
+      const built = await MTG.draft.autoBuildLimited(opts.pool || [], {
         deckSize: fmt.deckMin || 40, basicCards: basics, formatId, name: opts.name,
       });
+      if (built) built.plan = Object.assign({ archetype: 'limited' }, built.plan || {}, { personality: persKey || personalityFor(built, rng) });
+      return built;
     }
     const deck = fmt.commander
       ? await buildCommanderDeck(fmt, cfg, rng, opts, progress)
       : await buildSixtyDeck(fmt, cfg, rng, opts, progress);
+    deck.plan.personality = persKey || personalityFor(deck, rng);
     deck.id = MTG.uid('deck');
     deck.format = formatId;
     deck.botDifficulty = opts.difficulty;
@@ -1100,7 +1248,8 @@
     if (opts.tuning && opts.tuning.cfg) cfg = Object.assign({}, cfg, opts.tuning.cfg);
     const legalKey = fmt.scryKey || 'standard';
     const deckSize = fmt.deckMin || 60;
-    const colors = opts.colors || (opts.tuning && opts.tuning.ncol ? rng.sample(MTG.mana.COLORS, opts.tuning.ncol) : chooseColours(cfg, rng));
+    const pers = PERSONALITIES[opts.personality] || null;
+    const colors = opts.colors || (opts.tuning && opts.tuning.ncol ? rng.sample(MTG.mana.COLORS, opts.tuning.ncol) : chooseColours(cfg, rng, pers));
     const base = `legal:${legalKey} -is:digital lang:en ${idToken(colors)}`;
     progress('Gathering cards');
     const [creatures, spellsPool, landPool] = await Promise.all([
@@ -1118,10 +1267,10 @@
     /* A plan: an archetype the colours suit, and sometimes a tribe or a
        theme to hang it on — more often at the levels that can make the
        most of one. */
-    let arch = opts.archetype || (opts.tuning && opts.tuning.archetype) || chooseArchetype(colors, cfg, rng);
+    let arch = opts.archetype || (opts.tuning && opts.tuning.archetype) || chooseArchetype(colors, cfg, rng, pers);
     let plan = null;
-    if (rng.chance(0.25 + cfg.skill * 0.35)) {
-      plan = findPlan(cands, rng, cfg);
+    if (rng.chance(U.clamp(0.25 + cfg.skill * 0.35 + (pers ? pers.deck.themeChance : 0), 0, 0.95))) {
+      plan = findPlan(cands, rng, cfg, null, pers);
       if (plan) {
         progress('Finding ' + plan.name.toLowerCase());
         const more = await searchPool(`${base} ${planQuery(plan)} -t:land`, 175);
@@ -1129,7 +1278,10 @@
         if (arch === 'control') arch = 'midrange';
       }
     }
-    for (const c of cands) c.fit = c.r + archFit(c, arch) + planFit(c, plan) * (0.5 + cfg.skill * 0.5);
+    for (const c of cands) {
+      c.fit = c.r + archFit(c, arch) + planFit(c, plan) * (0.5 + cfg.skill * 0.5) * (pers && pers.deck.planFit || 1);
+      if (pers) c.fit += pers.deck.fit(c);
+    }
     /* Two colours are not two equal halves. A deck that wants {G}{G}{G}
        and {B}{B} at once spends half its games holding cards it cannot
        cast, so one colour leads and the other is kept to single pips. */
@@ -1235,8 +1387,10 @@
     const ctx = { prior: 0.9, multiplayer: true, commander: true };
     const cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
     if (cands.length < 30) throw new Error('Could not reach Scryfall to build a bot deck.');
+    const pers = PERSONALITIES[opts.personality] || null;
     for (const c of cands) {
-      c.fit = c.r + planFit(c, plan) * (0.6 + cfg.skill * 0.6) + (c.roles.has('wipe') ? -0.4 : 0);
+      c.fit = c.r + planFit(c, plan) * (0.6 + cfg.skill * 0.6) * (pers && pers.deck.planFit || 1) + (c.roles.has('wipe') ? -0.4 : 0);
+      if (pers) c.fit += pers.deck.fit(c);
       c.s = shapeScore(c, cfg, rng);
     }
     progress('Assembling the deck');
@@ -1383,14 +1537,180 @@
     },
   };
 
+  /* ============================================================
+     Part 4 - looking ahead
+     The judgement above decides one thing at a time, and that is where
+     it stops: it cannot see that an attack which looks free loses the
+     race next turn, or that the creature held back is the one that blocks
+     the lethal swing. So the top of the ladder also plays its options
+     out. Each candidate move — the judgement's own choice first, then the
+     alternatives worth a look — is made in a few private copies of the
+     game (06d-sim.js), with the cards it cannot see dealt afresh in each,
+     and every copy is played on by plain bots to the start of the turn
+     after next. Whichever move leaves it best placed on average is the
+     move it makes; the judgement's own choice wins a tie.
+
+     Every copy is seeded from the bot's own dice, and each level plays a
+     fixed number of them, so the same game makes the same decisions
+     every time it is played and a replay matches its game. The time
+     limit is a safety net a normal decision never reaches; a device slow
+     enough to reach it decides on the copies it managed, which is the one
+     way the same seed can play differently on two machines. A phone plays
+     fewer copies to begin with (and so may play differently from a
+     desktop, but always the same as itself).
+
+       worlds   copies per candidate move, on a desktop and on a phone
+       cands    candidate moves considered at most
+       attack, block, main   which decisions are looked at
+       capMs    the safety limit for one decision, desktop and phone
+     ============================================================ */
+  const LOOKAHEAD = {
+    7:  { worlds: 2, phone: 1, cands: 3, attack: 1, block: 0, main: 0, capMs: 300, capPhone: 150 },
+    8:  { worlds: 3, phone: 2, cands: 4, attack: 1, block: 1, main: 0, capMs: 400, capPhone: 150 },
+    9:  { worlds: 4, phone: 2, cands: 4, attack: 1, block: 1, main: 1, capMs: 400, capPhone: 150 },
+    10: { worlds: 6, phone: 2, cands: 5, attack: 1, block: 1, main: 1, capMs: 450, capPhone: 160 },
+  };
+  /* The players in the copies: sound, quick, and never careless — the
+     model of the table is a competent one, whatever is really sitting
+     there. They do not look ahead themselves. */
+  const ROLLOUT_LEVEL = 8;
+  const ROLLOUT_TUNING = { blunder: 0, skill: 1, modelBlocks: 0, look: null };
+  // how many turn starts a copy is played through, and how far it may run
+  const HORIZON = 2;
+  const ROLLOUT_STEPS = 2500;
+  // the longest one copy may take, in ms: a safety net for a copy that loops
+  const ROLLOUT_MS = 250;
+  // how much better than the judgement's own move another has to look
+  const LOOK_MARGIN = 0.3;
+  // a slice of thinking between breaths for the page, in ms
+  const SLICE_MS = 12;
+
+  const now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+  /* A breath for the page: the quickest way back to the event loop there
+     is, so a long think never freezes the table. */
+  const breathe = (function () {
+    if (typeof setImmediate === 'function') return () => new Promise(r => setImmediate(r));
+    if (typeof MessageChannel === 'function') {
+      const ch = new MessageChannel();
+      const waiting = [];
+      ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
+      return () => new Promise(r => { waiting.push(r); ch.port2.postMessage(0); });
+    }
+    return () => new Promise(r => setTimeout(r, 0));
+  })();
+
+  const RATE_MEMO = new WeakMap();
+  function quickRating(card) {
+    if (!card) return 2;
+    let r = RATE_MEMO.get(card);
+    if (r === undefined) { r = rateCard(card, { prior: 0 }); RATE_MEMO.set(card, r); }
+    return r;
+  }
+
+  /* How a position is judged at the end of a look ahead, in the same units
+     as the card judge — mana, roughly. Each player's standing is their
+     board, their lands, their hand and their life; life is worth more the
+     less of it there is and the harder it is being hit. A personality can
+     lean on these (see PERSONALITIES). */
+  const EVAL = { life: 1, oppLife: 1, board: 1, hand: 1, lands: 1, leader: 0.6 };
+
+  function standingOf(g, p, s, incoming, w) {
+    if (p.hasLost) return -40;
+    const lifeScale = 2 + incoming * 1.3;
+    const life = p.life <= 0 ? -40 : 0.22 * Math.min(p.life, 40) + 8 * (1 - Math.exp(-p.life / lifeScale));
+    let v = s.board * w.board + s.landWorth * w.lands + s.hand * w.hand + life * w.life;
+    v -= (p.poison || 0) * 0.9;
+    const lib = (g.zones[p.id] || {}).library;
+    if (lib && lib.length < 4) v -= (4 - lib.length) * 2.5;
+    return v;
+  }
+
+  /**
+   * How good this position is for `pid`: their standing less their
+   * opponents'. With more than two players the opponents count as a
+   * blend of the strongest and the average, so one player's ruin is not
+   * everything and nobody is singled out for being who they are.
+   */
+  function tableScore(g, pid, w) {
+    w = w || EVAL;
+    const me = g.player(pid);
+    if (!me || me.hasLost) return -500;
+    if (g.over) return (g.winners || []).some(x => (typeof x === 'string' ? x : x && x.id) === pid) ? 500 : -500;
+    const st = new Map();
+    for (const p of g.players) st.set(p.id, { board: 0, power: 0, lands: 0, hand: 0, landWorth: 0 });
+    for (const o of g.battlefield) {
+      const s = st.get(o.controller);
+      if (!s || o.phasedOut) continue;
+      const c = g.characteristics(o);
+      if (!c) continue;
+      if (c.isLand && !c.isCreature) { s.lands++; continue; }
+      const r = quickRating(o.card);
+      if (c.isCreature) {
+        const pw = Math.max(0, g.powerOf(o)), t = Math.max(0, g.toughnessOf(o));
+        let v = 0.6 + pw * 0.9 + t * 0.4;
+        if (g.hasKw(o, 'flying')) v += 0.2 + pw * 0.25;
+        if (g.hasKw(o, 'trample')) v += pw * 0.1;
+        if (g.hasKw(o, 'deathtouch')) v += 0.8;
+        if (g.hasKw(o, 'lifelink')) v += pw * 0.25;
+        if (g.hasKw(o, 'double strike')) v += pw * 0.8;
+        else if (g.hasKw(o, 'first strike')) v += 0.2 + pw * 0.15;
+        if (g.hasKw(o, 'menace')) v += pw * 0.2;
+        if (g.hasKw(o, 'indestructible')) v += 1.2;
+        if (g.hasKw(o, 'hexproof')) v += 0.5;
+        if (g.hasKw(o, 'defender')) v -= pw * 0.6;
+        v += Math.max(0, r - 3) * 0.3;
+        s.board += v;
+        s.power += pw * (g.hasKw(o, 'double strike') ? 2 : 1) * (g.hasKw(o, 'flying') ? 1.2 : 1);
+      } else if (c.isPlaneswalker) {
+        s.board += 2 + (Number(o.counters.loyalty) || 0) * 0.5 + Math.max(0, r - 3) * 0.5;
+      } else if (o.isToken) s.board += 0.5;
+      else s.board += Math.max(0.3, r - 2) * 0.8;
+      if (o.isCommander) s.board += 1.5;
+    }
+    for (const p of g.players) {
+      const s = st.get(p.id);
+      s.landWorth = Math.min(s.lands, 7) + Math.max(0, s.lands - 7) * 0.25;
+      for (const o of (g.zones[p.id] || {}).hand || []) {
+        const a = o.analysis();
+        s.hand += a && a.isLand ? (s.lands < 5 ? 0.9 : 0.4) : 1.5;
+      }
+    }
+    const opps = g.players.filter(p => p.id !== pid);
+    const incomingTo = (p) => {
+      const foes = g.players.filter(x => x.id !== p.id && !x.hasLost).map(x => st.get(x.id).power).sort((a, b) => b - a);
+      return (foes[0] || 0) + U.sum(foes.slice(1)) * 0.25;
+    };
+    const mine = standingOf(g, me, st.get(pid), incomingTo(me), w);
+    if (!opps.length) return mine;
+    const theirW = Object.assign({}, w, { life: w.oppLife });
+    const theirs = opps.map(p => standingOf(g, p, st.get(p.id), incomingTo(p), theirW));
+    if (theirs.length === 1) return mine - theirs[0];
+    const top = Math.max(...theirs), mean = U.sum(theirs) / theirs.length;
+    return mine - (top * w.leader + mean * (1 - w.leader));
+  }
+
   class BotPlayer {
     /* `tuning` overrides numbers from the ladder for this one bot; the
        tools in tools/ use it to measure what each number is worth. */
-    constructor(game, playerId, difficulty, tuning) {
+    constructor(game, playerId, difficulty, tuning, opts) {
       this.game = game;
       this.pid = playerId;
       this.d = U.clamp(Math.round(difficulty || 5), 1, 10);
       this.cfg = tuning ? Object.assign({}, diffCfg(this.d), tuning) : diffCfg(this.d);
+      /* Its personality: the one asked for, else the one its deck was built
+         with, else one that suits the deck. The bots in a look ahead's
+         copies have none: they are a plain model of the table. */
+      const want = (opts && opts.personality) || (tuning && tuning.personality);
+      if (PERSONALITIES[want]) this.personality = want;
+      else if (game.isScratch) this.personality = null;
+      else {
+        const p = game.player(playerId);
+        const deck = p && p.deck;
+        const planned = deck && deck.plan && deck.plan.personality;
+        this.personality = PERSONALITIES[planned] ? planned
+          : personalityFor(deck, new MTG.RNG(((game.config.seed >>> 0) ^ parseInt(U.hash('p:' + playerId), 36)) >>> 0 || 3));
+      }
+      this.pers = PERSONALITIES[this.personality] || null;
       this.thinkMs = U.clamp(1100 - this.d * 60, 250, 1200);
       this.busy = false;
       /* What the bot did last, for anything that wants to show it:
@@ -1401,6 +1721,8 @@
       this._turnMemo = { key: null };
     }
     get me() { return this.game.player(this.pid); }
+    /** How far this bot's personality leans one way at the table (0 for none). */
+    lean(k) { return (this.pers && this.pers.play[k]) || 0; }
 
     /** Called whenever the game state changes; decides if it is our move. */
     /** One decision, if there is one to make. Returns true if it acted. */
@@ -1418,14 +1740,27 @@
       const moved = () => g.stateVersion !== was;
       try {
         if (g.mulliganPhase && !me.keptHand) { await this.pause(); this.doMulligan(); return moved(); }
-        if (g.pendingChoice && g.pendingChoice.playerId === this.pid) { await this.pause(); this.doChoice(g.pendingChoice); return moved(); }
+        if (g.pendingChoice && g.pendingChoice.playerId === this.pid) {
+          const ch = g.pendingChoice;
+          this._thought = 0;
+          // a look ahead, at the levels that make one; it replaces some of the pause
+          const plan = await this.thinkChoice(ch);
+          if (g.stateVersion !== was || g.pendingChoice !== ch) return moved();
+          await this.pause();
+          this.doChoice(ch, plan);
+          return moved();
+        }
         if (g.priorityPlayer && g.priorityPlayer.id === this.pid) {
           /* Thinking is theatre: it is there so a person can follow what
              happened, and nothing happened when a bot passes. So the bot
              decides first and pauses only if it actually did something —
              which turns a table of three bots from a slideshow of nobody
              doing anything into a game that moves. */
-          if (this.doPriority()) await this.pause();
+          this._thought = 0;
+          const move = await this.thinkPriority();
+          // the table moved while it thought (an undo, a concession): think again next time
+          if (g.stateVersion !== was) return moved();
+          if (this.doPriority(move)) await this.pause();
           return moved();
         }
       } finally { this.busy = false; }
@@ -1433,7 +1768,8 @@
     }
     pause() {
       const ms = (MTG.settings.botSpeed == null) ? this.thinkMs : MTG.settings.botSpeed;
-      return U.sleep(U.clamp(ms, 0, 4000));
+      // time already spent looking ahead was time the table spent waiting
+      return U.sleep(U.clamp(ms - (this._thought || 0), 0, 4000));
     }
     /* A bot's dice are its own. Drawing on the game's generator would move
        every later shuffle along with each thing the bot considered, and a
@@ -1490,26 +1826,46 @@
       return g.battlefield.filter(o => o.controller === (pid || this.pid) && (o.analysis() || {}).isLand).length;
     }
     hand() { return this.game.zones[this.pid].hand; }
-    /** How far ahead a player is: board, walkers and life, roughly. */
+    /** How far ahead a player is: board, walkers, cards, mana and life, roughly. */
     _leaderScore(p) {
       const g = this.game;
-      let v = p.life * 0.15;
+      let v = Math.max(0, p.life) * 0.15;
+      let lands = 0;
       for (const o of g.battlefield) {
         if (o.controller !== p.id) continue;
-        if (this._isCreature(o)) v += g.powerOf(o) * 0.6;
-        else if ((o.analysis() || {}).isPlaneswalker) v += 3;
+        if (this._isCreature(o)) v += g.powerOf(o) * 0.6 + 0.4;
+        else {
+          const a = o.analysis() || {};
+          if (a.isPlaneswalker) v += 3;
+          else if (a.isLand) lands++;
+          else v += 0.5;
+        }
       }
+      v += Math.min(lands, 8) * 0.25 + ((g.zones[p.id] || {}).hand || []).length * 0.3 - (p.poison || 0) * 0.3;
       return v;
     }
 
-    /** The opponent who matters most right now: the one closest to killing us, or the weakest. */
+    /**
+     * The opponent who matters most right now. With one there is no
+     * question. At a bigger table it is a blend of who is furthest ahead
+     * and who can hurt us most — never simply whoever is weakest, which
+     * is how a table ends up piling on one player for no good reason. A
+     * political bot cares most about who is winning.
+     */
     mainOpponent() {
       const opps = this.opponents();
       if (!opps.length) return null;
       if (opps.length === 1) return opps[0];
       const g = this.game;
-      const power = (pid) => U.sum(g.battlefield.filter(o => o.controller === pid && this._isCreature(o)).map(o => g.powerOf(o)));
-      return opps.slice().sort((a, b) => (power(b.id) - b.life * 0.3) - (power(a.id) - a.life * 0.3))[0];
+      if (this._mainOpp && this._mainOpp.v === g.stateVersion) return this._mainOpp.p;
+      const lead = 0.7 + this.lean('leader') * 0.6;
+      const danger = (p) => {
+        const power = U.sum(g.battlefield.filter(o => o.controller === p.id && this._isCreature(o)).map(o => g.powerOf(o)));
+        return this._leaderScore(p) * lead + power * 0.5 * (power >= this.me.life ? 2 : 1);
+      };
+      const p = opps.map(x => ({ x, v: danger(x) })).sort((a, b) => b.v - a.v)[0].x;
+      this._mainOpp = { v: g.stateVersion, p };
+      return p;
     }
 
     /* ---- mulligans ---- */
@@ -1571,7 +1927,8 @@
       return r && r.effects ? r.effects[r.index] : null;
     }
 
-    doChoice(ch) {
+    /** Answer the question on the table. `plan`, when given, is an answer already worked out (a look ahead's). */
+    doChoice(ch, plan) {
       const g = this.game;
       switch (ch.type) {
         case 'declareAttackers': {
@@ -1580,8 +1937,9 @@
              bot that has already had its turn to speak. So the compelled
              attackers are added before sending it, and if it is still
              refused the fallbacks get simpler until one goes through. */
-          let plan = [];
-          try { plan = this.chooseAttacks(ch); } catch (e) { console.warn('[bot] attack plan', e); plan = []; }
+          if (!plan) {
+            try { plan = this.chooseAttacks(ch); } catch (e) { console.warn('[bot] attack plan', e); plan = []; }
+          }
           if (plan.length) this._did('attack', null, `attacks with ${plan.length}`);
           if (g.declareAttackers(this.pid, plan)) return true;
           const compelled = ch.candidates.map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
@@ -1594,8 +1952,9 @@
           return g.declareAttackers(this.pid, []);
         }
         case 'declareBlockers': {
-          let plan = [];
-          try { plan = this.chooseBlocks(ch); } catch (e) { console.warn('[bot] block plan', e); plan = []; }
+          if (!plan) {
+            try { plan = this.chooseBlocks(ch); } catch (e) { console.warn('[bot] block plan', e); plan = []; }
+          }
           if (plan.length) this._did('block', null, `blocks with ${plan.length}`);
           if (g.declareBlockers(this.pid, plan)) return true;
           // the only plan the rules can insist on is "the ones that must block, do"
@@ -1949,19 +2308,19 @@
        Priority: lands, spells, abilities, then pass
        ============================================================ */
 
-    /** Returns true when it actually did something rather than passing. */
-    doPriority() {
+    /** Returns true when it actually did something rather than passing. `move` is a look ahead's verdict, if there was one. */
+    doPriority(move) {
       const g = this.game;
       const myTurn = g.activePlayer.id === this.pid;
       let acted = false;
-      try { acted = this._priorityMove(myTurn); }
+      try { acted = this._priorityMove(myTurn, move); }
       catch (e) { console.warn('[bot] move', e); acted = false; }
       if (acted) return true;
       g.passPriority(this.pid);
       return false;
     }
 
-    _priorityMove(myTurn) {
+    _priorityMove(myTurn, move) {
       const g = this.game;
       const top = g.stack.length ? g.stack[g.stack.length - 1] : null;
       // something of theirs on the stack: is it worth an answer?
@@ -1970,7 +2329,8 @@
       if (myTurn && g.isMain) {
         const main1 = g.phaseIndex === 1;
         if (this.playLandIfUseful()) return true;
-        if (this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
+        if (move && move.cast && this.castChoice(move.cast, this.availableMana(true))) return true;
+        if (!(move && move.hold) && this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
         return false;
       }
@@ -2230,11 +2590,13 @@
            — a burn deck that sits on its Lightning Bolts waiting for a
            creature to kill loses to one that points them at the player. */
         const waitable = !this.underPressure() && !(opp && this._racing(opp));
-        if (waitable && tv < 4.5 && this.rand() < this.cfg.holdRemoval) return null;
+        if (waitable && tv < 4.5 && this.rand() < U.clamp(this.cfg.holdRemoval + this.lean('hold'), 0, 1)) return null;
         v = 1.5 + tv * 0.55;
       } else if (roles.has('burn') && !a.isPermanent && opp) {
         // face damage is a clock when we are ahead, a waste when we are not
-        v = this._racing(opp) && this.sharp() ? 1.5 + reach * 0.4 : 0.8;
+        // a bloodthirsty bot calls it a clock a little sooner
+        const clock = this._racing(opp) || (this.lean('face') > 0 && opp.life <= 12);
+        v = clock && this.sharp() ? 1.5 + reach * 0.4 : 0.8;
       }
       if (a.isAura && !a.isCreature) {
         const tg = this.chooseTargets(o, a);
@@ -2279,6 +2641,8 @@
         for (const x of options.sort((p, q) => q.v - p.v)) if (!order.includes(x)) order.push(x);
       } else {
         options.sort((x, y) => (y.v + y.cost * 0.15) - (x.v + x.cost * 0.15));
+        // a showman casts the biggest thing it can, now and then
+        if (this.lean('splash') > 0 && this.rand() < 0.5) options.sort((x, y) => y.cost - x.cost);
         const k = Math.min(options.length, 1 + Math.floor((1 - this.cfg.skill) * 3));
         const first = options[Math.floor(this.rand() * k)];
         order = [first].concat(options.filter(x => x !== first));
@@ -2301,6 +2665,9 @@
       if (x.a.isEquipment || x.a.isAura) p -= 1;
       if (x.a.manaAbilities && x.a.manaAbilities.length) p += 2.5;       // ramp first: it pays for the rest
       if (roles.has('draw')) p += 1;                                       // see the new card before spending the rest
+      // an engine builder gets its engines down first: they pay off every turn after
+      if (this.lean('engine') && x.a.isPermanent && !x.a.isCreature && !x.a.isLand) p += 1.5 * this.lean('engine');
+      if (this.lean('splash')) p += x.cost * 0.3 * this.lean('splash');
       return p + x.cost * 0.1;
     }
 
@@ -2577,7 +2944,7 @@
       cands.sort((x, y) => y.v - x.v);
       for (const c of cands) {
         this._turnMemo.tried.add(c.o.id + ':' + c.index);
-        if (c.v <= 0.3) break;
+        if (c.v <= 0.3 - this.lean('engine') * 0.2) break;
         const opts = { targets: c.targets, auto: true };
         if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
         if (c.discardIds) opts.discardIds = c.discardIds;
@@ -2779,7 +3146,7 @@
           if (oppT[0] && dmg >= oppT[0].life) return { kind: 'player', id: oppT[0].id };
           const killable = theirs.filter(o => this._wouldDie(o, effect));
           if (oppT[0] && (!killable.length || (this.sharp() && !this.underPressure() && this._racing(oppT[0]) &&
-              Math.max(...killable.map(o => this.threatValue(o))) < 5))) {
+              Math.max(...killable.map(o => this.threatValue(o))) < 5 + this.lean('face') * 2))) {
             return { kind: 'player', id: oppT[0].id };
           }
         }
@@ -2789,7 +3156,7 @@
             const killable = theirs.filter(o => this._wouldDie(o, effect));
             if (killable.length) pool = killable;
           }
-          pool = pool.slice().sort((x, y) => this.threatValue(y) - this.threatValue(x));
+          pool = pool.slice().sort((x, y) => this._aimValue(y) - this._aimValue(x));
           // the believable mistake: the removal spell goes at the wrong creature
           if (this.slips() && pool.length > 1) return { kind: 'object', id: pool[pool.length - 1].id };
           if (this.d <= 3 && !this.sharp()) return { kind: 'object', id: pool[Math.floor(this.rand() * pool.length)].id };
@@ -2865,11 +3232,31 @@
           const list = g._legalTargetsFor(spec, this.pid).filter(t => t.kind === 'object')
             .map(t => g.obj(t.id)).filter(o => o && o.controller !== this.pid && (!filter || filter(o)) && this._wouldDie(o, e));
           if (!list.length) continue;
-          list.sort((x, y) => this.threatValue(y) - this.threatValue(x));
+          list.sort((x, y) => this._aimValue(y) - this._aimValue(x));
           return list[0];
         }
       }
       return null;
+    }
+
+    /**
+     * How much an opponent's permanent deserves our removal. At a bigger
+     * table the same creature matters more in the hands of the player who
+     * is winning; a political bot weighs that harder still.
+     */
+    _aimValue(o) {
+      const v = this.threatValue(o);
+      const opps = this.opponents();
+      if (opps.length < 2) return v;
+      const g = this.game;
+      if (!this._aimMemo || this._aimMemo.v !== g.stateVersion) {
+        const scores = new Map(opps.map(p => [p.id, Math.max(0.1, this._leaderScore(p))]));
+        this._aimMemo = { v: g.stateVersion, scores, top: Math.max(...scores.values()) };
+      }
+      const m = this._aimMemo;
+      const s = m.scores.get(o.controller);
+      if (s == null) return v;
+      return v * (0.8 + (0.4 + this.lean('leader') * 0.4) * (s / m.top));
     }
 
     bestEnemyThreat() {
@@ -3034,7 +3421,7 @@
         .filter(o => o.controller !== this.pid && this._isCreature(o))
         .map(o => g.powerOf(o)));
       const exposed = (this.opponents().length > 1 ? allTheirPower * 0.6 : theirPower) - wall * 0.5 - this.me.life;
-      if (exposed >= 0) value -= 3 + Math.min(8, exposed);
+      if (exposed >= 0) value -= (3 + Math.min(8, exposed)) * (1 - this.lean('attack') * 0.25);
       return value;
     }
 
@@ -3120,18 +3507,26 @@
 
       /* Who to attack. One opponent is easy. At a bigger table a sharp bot
          goes where the damage does most — the player it can finish, or the
-         one whose board is weakest — and a weaker one goes after whoever
-         has the least life. */
+         one running away with the game — and a weaker one goes where the
+         damage gets through, the player with the fewest blockers up.
+         Nobody is picked on for having the least life: a table where
+         every bot swings at the weakest player is a table ganging up on
+         them. A political bot leans harder on the leader, and spreads its
+         attacks rather than hitting the same player turn after turn. */
       let target = null, plan = null;
-      if (opps.length === 1 || !this.sharp()) {
-        target = opps.slice().sort((a, b) => a.life - b.life)[0];
+      if (opps.length === 1) target = opps[0];
+      else if (!this.sharp()) {
+        target = opps.filter(p => legalDef.has(p.id))
+          .sort((a, b) => blockersOf(a.id).length - blockersOf(b.id).length || this._leaderScore(b) - this._leaderScore(a))[0] || opps[0];
       } else {
         let bestV = -Infinity;
+        const lead = 0.3 + this.lean('leader') * 0.5;
         for (const p of opps) {
           if (!legalDef.has(p.id)) continue;
           const r = this._searchAttack(myAttackers, blockersOf(p.id), p);
           // the player running away with the game is the one to slow down
-          const v = r.value + (p.life <= 10 ? 2 : 0) + this._leaderScore(p) * 0.3;
+          let v = r.value + this._leaderScore(p) * lead;
+          if (this._lastAttacked === p.id) v -= this.lean('spread') * 1.5;
           if (v > bestV) { bestV = v; target = p; plan = r; }
         }
         if (!target) target = opps[0];
@@ -3159,7 +3554,15 @@
           }
         }
         for (const o of compelled) if (!out.some(d => d.attackerId === o.id)) out.push({ attackerId: o.id, defenderId });
+        if (out.length) this._lastAttacked = defenderId;
         return out;
+      };
+      /* A chaotic bot now and then throws in a creature it had no need to:
+         it is part of the charm, and part of why it is hard to read. */
+      const wild = (list) => {
+        if (!(this.lean('chaos') > 0) || this.rand() >= this.lean('chaos')) return list;
+        const extra = myAttackers.filter(o => g.powerOf(o) > 0 && !list.includes(o));
+        return extra.length ? list.concat([extra[Math.floor(this.rand() * extra.length)]]) : list;
       };
 
       const totalPower = U.sum(myAttackers.map(o => g.powerOf(o)));
@@ -3180,7 +3583,7 @@
         /* A shade below zero is still worth doing when we are the ones
            ahead: trades that look level on the board are not level on the
            clock. Behind, they are exactly as bad as they look. */
-        const floor = (myClock <= theirClock || theirClock <= 2) ? -1.2 : 0;
+        const floor = ((myClock <= theirClock || theirClock <= 2) ? -1.2 : 0) - this.lean('attack') * 0.8;
         if (r.value <= floor) set = [];
         // below the very top, the read is not perfect
         if (!this.sharp()) {
@@ -3188,7 +3591,7 @@
           if (stayed.length && this.rand() < 0.5) set = set.concat(stayed[Math.floor(this.rand() * stayed.length)]);
           else if (set.length && this.rand() < 0.3) set = set.slice(0, -1);
         }
-        return finish(set, !!this.cfg.walkers);
+        return finish(wild(set), !!this.cfg.walkers);
       }
 
       /* The lower levels attack by feel: anything that will not obviously
@@ -3211,7 +3614,7 @@
           const t = this._trade(o, b);
           return Math.min(acc, (t.attackerDies ? -2 : 0) + (t.blockerDies ? 1.5 : 0));
         }, 2);
-        let want = worst >= 0 || g.hasKw(o, 'vigilance') || !relevant.length;
+        let want = worst >= -this.lean('attack') * 0.7 || g.hasKw(o, 'vigilance') || !relevant.length;
         if (!want && unblocked > 0) { want = true; unblocked--; }
         if (!want && myClock <= theirClock && this.sharp()) want = true;
         if (!want && target.life <= power * 2) want = true;
@@ -3219,7 +3622,7 @@
         if (this.slips()) want = !want;
         if (want) out.push(o);
       }
-      return finish(out, false);
+      return finish(wild(out), false);
     }
 
     chooseBlocks(ch) {
@@ -3370,7 +3773,7 @@
         } else if (!mustChump && !this.sharp() && this.rand() < 0.25) {
           if (best && this.rand() < 0.5) best = null;
         }
-        if (!best || !(bestScore > 0.3 || mustChump)) continue;
+        if (!best || !(bestScore > 0.3 - this.lean('block') * 0.5 || mustChump)) continue;
         const team = [best.id];
         /* Two blockers can eat something neither of them could handle
            alone — worth it while the creatures it loses are worth less
@@ -3410,6 +3813,276 @@
         if (at) out.push({ blockerId: b.id, attackerIds: [at.id] });
       }
       return out;
+    }
+
+    /* ============================================================
+       Looking ahead (Part 4)
+       ============================================================ */
+
+    /** The look ahead settings for this kind of decision, or null when this bot does not look. */
+    _lookCfg(kind) {
+      const L = this.cfg.look;
+      if (!L || !L[kind] || this.game.isScratch || !MTG.sim) return null;
+      return L;
+    }
+
+    /** How many candidate moves to weigh: fewer on a phone, where every copy costs more. */
+    _candCap(L) { return MTG.isPhone && MTG.isPhone() ? Math.min(L.cands, L.phoneCands || 3) : L.cands; }
+
+    /* Cards we have watched go by in the open. One of them back in a hand
+       is no secret, so it stays where it is when the hidden cards are
+       dealt again. */
+    _noteSeen() {
+      const g = this.game;
+      if (!this._seen) this._seen = new Set();
+      const seen = this._seen;
+      for (const o of g.battlefield) if (!o.faceDown) seen.add(o.id);
+      for (const it of g.stack) if (it.obj && !it.obj.faceDown) seen.add(it.obj.id);
+      for (const pid in g.zones) {
+        const z = g.zones[pid];
+        for (const o of z.graveyard) seen.add(o.id);
+        for (const o of z.exile) if (!o.faceDown) seen.add(o.id);
+      }
+    }
+
+    /** How this bot judges a position: the plain weights, leaned on by its personality. */
+    evalWeights() {
+      if (this._weights) return this._weights;
+      const p = this.personality && PERSONALITIES[this.personality];
+      this._weights = p && p.eval ? Object.assign({}, EVAL, p.eval) : EVAL;
+      return this._weights;
+    }
+
+    /**
+     * Play each candidate out in a few imagined futures and return the
+     * index of the best on average, or null if the table moved while it
+     * was thinking. Candidate 0 is the judgement's own choice, and another
+     * has to beat it by a margin: a look this short is noisy, and a
+     * coin-flip difference is no reason to overrule a sound read.
+     * Each candidate is `{ apply(copy, ourBotInCopy) }` and returns false
+     * if the move cannot be made there.
+     */
+    async _lookAhead(cands, L) {
+      const g = this.game;
+      const phone = !!(MTG.isPhone && MTG.isPhone());
+      const worlds = Math.max(1, phone ? L.phone : L.worlds);
+      const cap = phone ? L.capPhone : L.capMs;
+      const margin = L.margin != null ? L.margin : LOOK_MARGIN;
+      const version = g.stateVersion;
+      this._noteSeen();
+      // one roll of the bot's dice seeds every copy, so the whole think is repeatable
+      const base = Math.floor(this.rand() * 4294967296) >>> 0;
+      const sum = cands.map(() => 0), n = cands.map(() => 0), dead = cands.map(() => false);
+      const t0 = now();
+      let mark = t0, played = 0;
+      for (let w = 0; w < worlds; w++) {
+        const seed = (base + Math.imul(w + 1, 0x9E3779B1)) >>> 0;
+        for (let i = 0; i < cands.length; i++) {
+          if (dead[i]) continue;
+          let v = null;
+          try { v = this._playOut(cands[i], seed, L); } catch (e) { console.warn('[bot] look ahead', e); v = null; }
+          played++;
+          if (v == null) { dead[i] = true; continue; }
+          sum[i] += v; n[i]++;
+          if (now() - mark > SLICE_MS) {
+            await breathe();
+            mark = now();
+            if (g.stateVersion !== version || g.over) return null;
+          }
+        }
+        // the safety net: only a device far slower than expected gets here
+        const spent = now() - t0;
+        if (spent + spent / (w + 1) > cap) break;
+      }
+      this._thought = now() - t0;
+      const mean = sum.map((s, i) => (n[i] ? s / n[i] : -Infinity));
+      let best = 0;
+      for (let i = 1; i < cands.length; i++) if (n[i] && n[i] >= n[0] && mean[i] > mean[best]) best = i;
+      if (best !== 0 && n[0] && mean[best] < mean[0] + margin) best = 0;
+      if (!n[0] && !n[best]) best = 0;
+      this.lastLook = { cands: cands.length, worlds, played, ms: Math.round(this._thought), pick: best,
+        means: mean.map(v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null)) };
+      return best;
+    }
+
+    /** One candidate in one imagined future: make the move, play on, judge where it leaves us. */
+    _playOut(cand, seed, L) {
+      const g = this.game;
+      const f = MTG.sim.fork(g, seed);
+      MTG.sim.determinise(f, this.pid, new MTG.RNG(((seed ^ 0x5BD1E995) >>> 0) || 7), this._seen);
+      const bots = {};
+      for (const p of f.players) if (!p.hasLost) bots[p.id] = new BotPlayer(f, p.id, ROLLOUT_LEVEL, ROLLOUT_TUNING);
+      if (!bots[this.pid] || !cand.apply(f, bots[this.pid])) return null;
+      const stopAt = g.turn + ((L && L.horizon) || HORIZON);
+      const t0 = now();
+      const steps = MTG.sim.drive(f, bots, (x) => x.turn >= stopAt, ROLLOUT_STEPS, t0 + ROLLOUT_MS);
+      const ms = now() - t0;
+      if (!this._slowest || ms > this._slowest.ms) this._slowest = { ms: Math.round(ms), steps, turn: f.turn, step: f.step };
+      return tableScore(f, this.pid, this.evalWeights());
+    }
+
+    /** A look ahead at a question (attacks, blocks); null means "decide as usual". */
+    async thinkChoice(ch) {
+      if (ch.type === 'declareAttackers') {
+        const L = this._lookCfg('attack');
+        if (L) return this._thinkAttack(ch, L);
+      } else if (ch.type === 'declareBlockers') {
+        const L = this._lookCfg('block');
+        if (L) return this._thinkBlock(ch, L);
+      }
+      return null;
+    }
+
+    async _thinkAttack(ch, L) {
+      let first;
+      try { first = this.chooseAttacks(ch); } catch (e) { return null; }
+      const plans = this._attackCandidates(ch, first, this._candCap(L));
+      if (plans.length < 2) return first;
+      const pick = await this._lookAhead(plans.map(plan => ({ apply: (f) => f.declareAttackers(this.pid, plan) })), L);
+      return pick == null ? null : plans[pick];
+    }
+
+    /**
+     * Attacks worth comparing with the judgement's own: holding back,
+     * sending everything, the same swing with one creature more or less,
+     * and at a bigger table the best swing at each other player.
+     */
+    _attackCandidates(ch, first, max) {
+      const g = this.game;
+      const legal = new Set(ch.defenders.map(d => d.id));
+      const key = (plan) => plan.map(d => d.attackerId + '>' + d.defenderId).sort().join(',');
+      const out = [first];
+      const seen = new Set([key(first)]);
+      const add = (plan) => {
+        if (out.length >= max) return;
+        const k = key(plan);
+        if (seen.has(k)) return;
+        seen.add(k); out.push(plan);
+      };
+      const mine = ch.candidates.map(id => g.obj(id)).filter(o => o && g.canAttack(o));
+      const able = mine.filter(o => g.powerOf(o) > 0);
+      const compelled = mine.filter(o => g.mustAttack(o));
+      const opp = this.mainOpponent();
+      const main = first.length ? first[0].defenderId : (opp && legal.has(opp.id) ? opp.id : ch.defenders[0].id);
+      const make = (list, def) => {
+        const plan = list.map(o => ({ attackerId: o.id, defenderId: o.mustAttackPlayer && legal.has(o.mustAttackPlayer) ? o.mustAttackPlayer : def }));
+        for (const o of compelled) if (!plan.some(d => d.attackerId === o.id)) plan.push({ attackerId: o.id, defenderId: def });
+        return plan;
+      };
+      const inFirst = new Set(first.map(d => d.attackerId));
+      const sent = able.filter(o => inFirst.has(o.id)).sort((x, y) => this.threatValue(y) - this.threatValue(x));
+      const home = able.filter(o => !inFirst.has(o.id)).sort((x, y) => g.powerOf(y) - g.powerOf(x));
+      add(make([], main));
+      // at a bigger table, the best swing at each of the others
+      if (this.opponents().length > 1) {
+        for (const p of this.opponents()) {
+          if (p.id === main || !legal.has(p.id)) continue;
+          const blockers = g.battlefield.filter(o => o.controller === p.id && !o.tapped && this._isCreature(o));
+          const r = this._searchAttack(able, blockers, p);
+          if (r.set.length) add(make(r.set, p.id));
+        }
+      }
+      add(make(able, main));
+      if (sent.length > 1) add(first.filter(d => d.attackerId !== sent[0].id));
+      if (home.length) add(first.concat([{ attackerId: home[0].id, defenderId: main }]));
+      if (sent.length > 2) add(first.filter(d => d.attackerId !== sent[sent.length - 1].id));
+      return out;
+    }
+
+    async _thinkBlock(ch, L) {
+      let first;
+      try { first = this.chooseBlocks(ch); } catch (e) { return null; }
+      const plans = this._blockCandidates(ch, first, this._candCap(L));
+      if (plans.length < 2) return first;
+      const pick = await this._lookAhead(plans.map(plan => ({ apply: (f) => f.declareBlockers(this.pid, plan) })), L);
+      return pick == null ? null : plans[pick];
+    }
+
+    /**
+     * Blocks worth comparing with the judgement's own: no blocks, the
+     * same blocks without the chumps, and one more body in front of the
+     * biggest attacker left unblocked.
+     */
+    _blockCandidates(ch, first, max) {
+      const g = this.game;
+      const key = (plan) => plan.map(d => d.blockerId + '>' + d.attackerIds.join('+')).sort().join(',');
+      const out = [first];
+      const seen = new Set([key(first)]);
+      const add = (plan) => {
+        if (out.length >= max) return;
+        const k = key(plan);
+        if (seen.has(k)) return;
+        seen.add(k); out.push(plan);
+      };
+      const must = this._mustBlockPlan(ch);
+      add(must);
+      // no chump blocks: only the blocks that kill something or survive
+      const kept = first.filter(d => {
+        const b = g.obj(d.blockerId), a = g.obj(d.attackerIds[0]);
+        if (!a || !b) return true;
+        const t = this._trade(a, b);
+        return !t.blockerDies || t.attackerDies || first.filter(x => x.attackerIds[0] === a.id).length > 1;
+      });
+      add(kept);
+      // the plain first read, if the refined one differs
+      try { add(this._heuristicBlocks(ch)); } catch (e) { /* the refined plan stands */ }
+      // one more blocker in front of the biggest attacker nobody is blocking
+      const used = new Set(first.map(d => d.blockerId));
+      const blocked = new Set(first.map(d => d.attackerIds[0]));
+      const free = ch.candidates.map(id => g.obj(id)).filter(o => o && !used.has(o.id));
+      const open = ch.attackers.map(id => g.obj(id)).filter(a => a && !blocked.has(a.id) && a.attacking === this.pid)
+        .sort((x, y) => g.powerOf(y) - g.powerOf(x));
+      for (const a of open) {
+        const b = free.filter(x => g.canBlock(x, a) && !g.hasKw(a, 'menace')).sort((x, y) => this._worth(x) - this._worth(y))[0];
+        if (b) { add(first.concat([{ blockerId: b.id, attackerIds: [a.id] }])); break; }
+      }
+      return out;
+    }
+
+    /**
+     * A look ahead at what to cast, in a main phase of our own: the
+     * judgement's first spell, the next best few, or nothing more for now
+     * (in the first main phase that means casting after combat). Returns
+     * { cast: option } or { hold: true }, or null to decide as usual.
+     */
+    async thinkPriority() {
+      const L = this._lookCfg('main');
+      if (!L) return null;
+      const g = this.game;
+      if (!g.activePlayer || g.activePlayer.id !== this.pid || !g.isMain || g.stack.length || g.pendingChoice) return null;
+      // the land goes down first; the look comes after
+      if (g.canPlayLand(this.pid) && this.hand().some(o => (o.analysis() || {}).isLand)) return null;
+      if ((this.me.spellsCastThisTurn || 0) >= (this.cfg.spellCap || 99)) return null;
+      const when = g.phaseIndex === 1 ? 'main1' : 'main2';
+      const options = this.castOptions(when).filter(x => x.v > 0);
+      if (!options.length) return null;
+      const mana = this.availableMana(true);
+      const plan = this._bestPlan(options, mana).sort((x, y) => this._castPriority(y, when) - this._castPriority(x, when));
+      const first = plan[0];
+      if (!first) return null;
+      const rest = options.filter(x => x !== first && x.o.id !== first.o.id).sort((x, y) => y.v - x.v);
+      const moves = [{ cast: first }];
+      for (const x of rest) {
+        if (moves.length >= this._candCap(L) - 1) break;
+        if (moves.some(m => m.cast && m.cast.o.id === x.o.id)) continue;
+        moves.push({ cast: x });
+      }
+      moves.push({ hold: true });
+      const pick = await this._lookAhead(moves.map(m => ({
+        apply: (f, fb) => (m.hold ? f.passPriority(this.pid) !== false : this._castIn(f, fb, m.cast)),
+      })), L);
+      return pick == null ? null : moves[pick];
+    }
+
+    /** Cast, in a copy of the game, the spell an option names here. */
+    _castIn(f, fb, x) {
+      const o = f.obj(x.o.id);
+      if (!o) return false;
+      const a = o.analysis();
+      const chk = f.canCast(this.pid, o.id, x.via || undefined);
+      if (!a || !chk.ok) return false;
+      const costStr = x.via ? x.costStr : (chk.cost || '');
+      return fb.castChoice({ o, a, v: x.v, cost: x.cost, costStr, via: x.via || null }, fb.availableMana(true));
     }
 
     /* ---- card evaluation ---- */
@@ -3469,8 +4142,15 @@
       game.on('choice', this._onState);
       game.on('priority', this._onState);
     }
-    add(playerId, difficulty, tuning) {
-      const bot = new BotPlayer(this.game, playerId, difficulty, tuning);
+    /**
+     * Seat a bot. `difficulty` is a level, or a seat config
+     * { difficulty, personality }; `opts.personality` names one of
+     * PERSONALITIES. Left out, the bot plays the personality its deck was
+     * built with, or one that suits the deck.
+     */
+    add(playerId, difficulty, tuning, opts) {
+      if (difficulty && typeof difficulty === 'object') { opts = Object.assign({}, difficulty, opts); difficulty = difficulty.difficulty; }
+      const bot = new BotPlayer(this.game, playerId, difficulty, tuning, opts);
       this.bots.set(playerId, bot);
       return bot;
     }
@@ -3571,6 +4251,10 @@
 
   MTG.bots = {
     buildBotDeck, findPartner, BotPlayer, BotRunner, DIFFICULTY, diffCfg,
+    // who the bots are: personalities for a lobby picker, names and faces to go with them
+    PERSONALITIES, personalityFor, nameFor, avatarFor,
+    // how far ahead each level looks, and how a look ahead judges a position
+    LOOKAHEAD, tableScore,
     // the card judge, for the draft, the deck builder and the tools in tools/
     rateCard, rolesOf, botCanPlay, judge: { effectWorth, abilityWorth, bodyWorth, freeColours, pipsOf },
     /* A generic question answered for a player on the spot (a bot casting

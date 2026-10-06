@@ -114,6 +114,15 @@ async function main() {
     console.log(`| ${r.label} | ${res.length} | ${w} | ${rate} | ${turns} | ${res.filter(x => x.stalled).length} | ${res.filter(x => x.crashed).length} | ` +
       `${res.reduce((s, x) => s + (x.nudges || 0), 0)} | ${res.filter(x => (x.errors || []).length).length} |`);
   }
+  // how the seats that look ahead spent their time
+  const { lookSummary } = require('./botsim');
+  for (const r of rows) {
+    const by = lookSummary(r.results);
+    for (const [d, t] of Object.entries(by)) {
+      console.log(`look ${r.label} ${d}: ${t.perGame} a game, ${t.meanMs} ms mean, ${t.max} ms worst, ` +
+        `${t.rolloutMs} ms a copy, ${t.overruledPct}% overruled`);
+    }
+  }
   const problems = [];
   for (const r of rows) {
     for (const f of r.failures) problems.push(`${r.label}: worker failed: ${f}`);
