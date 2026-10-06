@@ -2182,6 +2182,9 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
         : { op: 'phaseOut', scope: { self: true } }) },
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
+    /* "Target land becomes the basic land type of your choice until end of turn." */
+    { re: /^(Target land|This land|CARDNAME) becomes the basic land type of your choice until end of turn\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'becomeBasicType', targets: [targetSpec('target land')] } : { op: 'becomeBasicType', scope: 'self' }) },
     { re: /^(Target creature|Up to one target creature) blocks (?:CARDNAME|this creature) this turn if able\.?$/i,
       make: (m) => ({ op: 'mustBlockThis', targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
     { re: /^All creatures able to block (target creature|CARDNAME|this creature) this turn do so\.?$/i,
@@ -4805,6 +4808,13 @@
        creatures you control." The number is worked out as it arrives. */
     const etbPer = text.match(/enters(?: the battlefield)? with X ([+\-0-9/a-z' ]+?) counters? on (?:it|them),? where X is the number of ([-a-z' ]+?) you control/i);
     if (etbPer) out.entersWithCounters = { kind: etbPer[1].trim(), n: { per: etbPer[2].trim().toLowerCase() } };
+    /* "This creature enters with a +1/+1 counter on it if you attacked this
+       turn": the counters, if that holds as it enters */
+    const etbIf = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with (a|an|one|two|three|four|\d+) ([+\-0-9/a-z]+) counters? on it if ([^.]+)\./i);
+    if (etbIf && !out.entersWithCounters) {
+      const c = condOf(etbIf[3]);
+      if (c) out.entersWithCounters = { kind: etbIf[2].trim(), n: num(etbIf[1]), cond: c };
+    }
     let etbm = text.match(/enters with (a|an|one|two|three|four|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
     etbm = text.match(/enters(?: tapped)? with (a|an|one|two|three|\d+) ([a-z ]+?) counters?/i);
@@ -5719,6 +5729,13 @@
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
       // a lure: "All creatures able to block this creature do so."
       { re: /^All creatures able to block (?:CARDNAME|this creature) do so\.?$/i, eff: { op: 'lure' }, auto: true },
+      /* "Enchanted creature gets +2/+0 and can't block." */
+      { re: /^Enchanted creature gets ([+-]\d+)\/([+-]\d+) and (can'?t block|attacks each combat if able|can'?t be blocked)\.?$/i,
+        make: (m) => ({ op: 'sequence', list: [
+          { op: 'continuous', layer: 7, scope: { attached: true }, pt: { p: pmNum(m[1]), t: pmNum(m[2]) } },
+          /can'?t block/i.test(m[3]) ? { op: 'continuous', layer: 6, scope: { attached: true }, flag: 'cantBlock' }
+            : /attacks/i.test(m[3]) ? { op: 'continuous', layer: 6, scope: { attached: true }, flag: 'mustAttackEot' }
+            : { op: 'continuous', layer: 6, scope: { attached: true }, grant: ['Unblockable'] }] }), auto: true },
       { re: /^All creatures able to block enchanted creature do so\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { attached: true }, flag: 'lure' }, auto: true },
       /* Prepared (the prepare cards): while it is, its controller may cast
@@ -5751,6 +5768,9 @@
          so counts as read rather than as a line nobody could parse. */
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
+      // with a condition the card-level scan could read
+      { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,
+        make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
       // the vivid lands: tapped, and with counters the card-level scan found
       { re: /^(?:CARDNAME|This (?:land|artifact|permanent)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'etbTapped' }, auto: true },

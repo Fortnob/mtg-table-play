@@ -993,6 +993,44 @@ module.exports = (test) => {
     t.eq(T.g._blockDemands(b1).map(x => x.id).join(), br.id, 'drawn to the lure');
   });
 
+  test('Dream Thrush makes a land the basic type of your choice', (mk, t) => {
+    t.auto('Dream Thrush');
+    const T = mk();
+    const l = T.bf('B', 'Forest');
+    const d = T.bf('A', 'Dream Thrush');
+    d.summoningSick = false;
+    T.answer('choose', { picks: [1] });
+    T.activate('A', d, 0, { targets: [l] });
+    t.eq(l.analysis().subtypes.join(), 'Island');
+  });
+
+  test('War-Name Aspirant: a +1/+1 counter only if you attacked this turn', (mk, t) => {
+    t.auto('War-Name Aspirant');
+    const T = mk();
+    const w1 = T.put('A', 'War-Name Aspirant', 'battlefield', { etb: true });
+    T.resolve();
+    t.no(w1.counters['+1/+1'], 'no attack yet');
+    T.g.turnHistory = Object.assign({}, T.g.turnHistory, { attacked: true });
+    const w2 = T.put('A', 'War-Name Aspirant', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(w2.counters['+1/+1'], 1);
+  });
+
+  test('Auras: +X/+0 and cannot block; +X/+0 and cannot be blocked', (mk, t) => {
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), other = T.bf('B', 'Grizzly Bears');
+    const cd = T.bf('A', 'Cast into Darkness');
+    cd.attachedTo = other.id; other.attachments = [cd.id]; cd.ts = T.g._stampNew();
+    const at = T.bf('A', 'Aether Tunnel');
+    at.attachedTo = bear.id; bear.attachments = [at.id]; at.ts = T.g._stampNew();
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(other), 0, '-2/-0');
+    t.ok(T.g._hasFlag(other, 'cantBlock'), 'cannot block');
+    t.eq(T.g.powerOf(bear), 3);
+    const blocker = T.bf('B', 'Llanowar Elves');
+    t.no(T.g.couldBlock(blocker, bear, 'B'), 'cannot be blocked');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

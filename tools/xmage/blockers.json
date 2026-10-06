@@ -2,12 +2,12 @@
  "generated": "2026-10-06",
  "stats": {
   "cards": 32661,
-  "withClass": 31834,
+  "withClass": 31810,
   "skippedLayout": 21,
-  "needed": 17396,
+  "needed": 17340,
   "gainedCards": 1802,
-  "linesNeeded": 19911,
-  "linesGained": 2358,
+  "linesNeeded": 19843,
+  "linesGained": 2353,
   "gained": {
    "all": 1802,
    "top2000": 52,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 88,
+  "verifyFail": 87,
   "overrides": {
    "it": 122,
    "drain": 62,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6074,
-   "lines": 5036,
+   "score": 6072,
+   "lines": 5034,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 235,
-   "lines": 205,
+   "score": 198,
+   "lines": 168,
    "cards": [
     "Mockingbird",
     "Sakashima of a Thousand Faces",
@@ -1512,25 +1512,6 @@
    ]
   },
   {
-   "what": "BecomesBasicLandTargetEffect",
-   "score": 23,
-   "lines": 23,
-   "cards": [
-    "Shimmering Mirage",
-    "Zombie Trailblazer",
-    "Tidal Warrior",
-    "Streambed Aquitects",
-    "Jinx",
-    "Tideshaper Mystic",
-    "Navigator's Compass",
-    "Unstable Frontier",
-    "Reef Shaman",
-    "Pixie Illusionist",
-    "Mystic Compass",
-    "Dream Thrush"
-   ]
-  },
-  {
    "what": "keyword AftermathAbility",
    "score": 22,
    "lines": 19,
@@ -2303,24 +2284,6 @@
    ]
   },
   {
-   "what": "PermanentPredicate.instance",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Conduit of Worlds",
-    "Lithoform Engine",
-    "Unbound Flourishing",
-    "Archmage of Echoes",
-    "Squirming Emergence",
-    "Staff of Eden, Vault's Key",
-    "Myojin of Cryptic Dreams",
-    "Astelli Reclaimer",
-    "Pull Through the Weft",
-    "Wilfred Mott",
-    "United Battlefront"
-   ]
-  },
-  {
    "what": "ManaSpentToCastPredicate",
    "score": 17,
    "lines": 11,
@@ -2560,6 +2523,23 @@
     "Oriss, Samite Guardian",
     "Azorius Ploy",
     "Soratami Cloud Chariot"
+   ]
+  },
+  {
+   "what": "PermanentPredicate.instance",
+   "score": 16,
+   "lines": 10,
+   "cards": [
+    "Conduit of Worlds",
+    "Lithoform Engine",
+    "Unbound Flourishing",
+    "Archmage of Echoes",
+    "Squirming Emergence",
+    "Staff of Eden, Vault's Key",
+    "Astelli Reclaimer",
+    "Pull Through the Weft",
+    "Wilfred Mott",
+    "United Battlefront"
    ]
   },
   {
@@ -2985,6 +2965,25 @@
     "Grotag Bug-Catcher",
     "Ravager's Mace",
     "Cascade Seer"
+   ]
+  },
+  {
+   "what": "BecomesBasicLandTargetEffect",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Zombie Trailblazer",
+    "Tidal Warrior",
+    "Streambed Aquitects",
+    "Navigator's Compass",
+    "Unstable Frontier",
+    "Pixie Illusionist",
+    "Gaea's Liege",
+    "Thelonite Monk",
+    "Grixis Illusionist",
+    "Graceful Antelope",
+    "Kukemssa Serpent",
+    "Floodchaser"
    ]
   },
   {
@@ -6665,22 +6664,6 @@
    ]
   },
   {
-   "what": "(verify) targets 3, printed 0",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Inferno Titan",
-    "Myojin of Roaring Blades",
-    "Magic Missile",
-    "Mogg Mob",
-    "Arc Lightning",
-    "Flames of the Firebrand",
-    "Ral, Caller of Storms",
-    "Gandalf, Spark Starter",
-    "Gang of Devils"
-   ]
-  },
-  {
    "what": "CastFromHandSourcePermanentCondition.instance",
    "score": 9,
    "lines": 9,
@@ -6982,22 +6965,6 @@
     "Mounted Archers",
     "Coastline Chimera",
     "Luminous Guardian"
-   ]
-  },
-  {
-   "what": "AttacksIfAbleAttachedEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Fealty to the Realm",
-    "Furor of the Bitten",
-    "Mogis's Warhound",
-    "Impending Doom",
-    "Tormentor's Trident",
-    "Nettling Curse",
-    "Guise of Fire",
-    "Uncontrollable Anger",
-    "Infectious Bloodlust"
    ]
   },
   {
@@ -7375,6 +7342,21 @@
     "Sandman's Quicksand",
     "Earth Surge",
     "Adipose Offspring"
+   ]
+  },
+  {
+   "what": "(verify) targets 3, printed 0",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Inferno Titan",
+    "Magic Missile",
+    "Mogg Mob",
+    "Arc Lightning",
+    "Flames of the Firebrand",
+    "Ral, Caller of Storms",
+    "Gandalf, Spark Starter",
+    "Gang of Devils"
    ]
   },
   {
@@ -8272,6 +8254,20 @@
     "Crowd-Control Warden",
     "Aquamorph Entity"
    ]
+  },
+  {
+   "what": "AttackingCreatureCount",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Jazal Goldmane",
+    "Mishra, Claimed by Gix",
+    "Veteran's Armaments",
+    "Rubblebelt Raiders",
+    "Strength in Numbers",
+    "Tears of Rage",
+    "Cleaving Skyrider"
+   ]
   }
  ],
  "sole": [
@@ -8355,8 +8351,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 157,
-   "cards": 139,
+   "score": 127,
+   "cards": 109,
    "names": [
     "Mockingbird",
     "Chameleon, Master of Disguise",
@@ -8934,19 +8930,6 @@
     "Thirst for Meaning",
     "Thirst for Identity",
     "Reclaim the Wastes"
-   ]
-  },
-  {
-   "what": "BecomesBasicLandTargetEffect",
-   "score": 20,
-   "cards": 20,
-   "names": [
-    "Shimmering Mirage",
-    "Zombie Trailblazer",
-    "Tidal Warrior",
-    "Jinx",
-    "Tideshaper Mystic",
-    "Navigator's Compass"
    ]
   },
   {
@@ -9868,6 +9851,19 @@
     "Shepherd of Heroes",
     "Emeria Captain",
     "Allied Assault"
+   ]
+  },
+  {
+   "what": "BecomesBasicLandTargetEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Zombie Trailblazer",
+    "Tidal Warrior",
+    "Navigator's Compass",
+    "Unstable Frontier",
+    "Pixie Illusionist",
+    "Thelonite Monk"
    ]
   },
   {

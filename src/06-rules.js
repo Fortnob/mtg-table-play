@@ -3866,7 +3866,8 @@
          permanent is never without one, and a person is asked to confirm. */
       if (this._staticOp(o, 'chooseTypeOnEnter')) this._chooseTypeFor(o);
       if (this._staticOp(o, 'chooseColorOnEnter')) this._chooseColorFor(o);
-      if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked)) {
+      if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
+          !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
         const raw = a.entersWithCounters.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
@@ -8820,6 +8821,20 @@
           applyToScope(e, (o) => { o.noRegenThisTurn = true; });
           break;
         /* "Discard your hand." */
+        case 'becomeBasicType': {
+          const x = e.scope === 'self' ? src : firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const types = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
+          const got = this._choose({ playerId: ctx.controller, purpose: 'basicLandType', kind: 'options', min: 1, max: 1,
+            options: types.map((t, i) => ({ i, label: t })), prompt: `${x.name} becomes which basic land type until end of turn?` });
+          if (got === SUSPEND) return SUSPEND;
+          const t = types[(got && got.picks && got.picks[0]) || 0];
+          x.effects.push({ setSubtypes: [t], until: 'eot' });
+          x._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${x.name} becomes a ${t} until end of turn.`);
+          break;
+        }
         case 'becomePrepared':
           if (src && src.zone === 'battlefield' && !src.prepared) {
             src.prepared = true;
