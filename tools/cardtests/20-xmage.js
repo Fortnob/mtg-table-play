@@ -791,6 +791,59 @@ module.exports = (test) => {
     t.ok(T.g.canBlock(bear, se), 'the bear still can');
   });
 
+  test('Stormrider Rig attaches itself to a creature that enters', (mk, t) => {
+    t.auto('Stormrider Rig');
+    const T = mk();
+    const rig = T.bf('A', 'Stormrider Rig');
+    const bear = T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(rig.attachedTo, bear.id);
+    t.eq(T.g.powerOf(bear), 3);
+  });
+
+  test('Inspiring Refrain exiles itself with time counters, suspended', (mk, t) => {
+    t.auto('Inspiring Refrain');
+    const T = mk();
+    T.top('A', 'Island'); T.top('A', 'Island');
+    const ir = T.hand('A', 'Inspiring Refrain');
+    T.mana('A', '4UU');
+    T.cast('A', ir);
+    t.zone(ir, 'exile');
+    t.eq(ir.counters.time, 3);
+    t.eq(ir.suspendedBy, 'A');
+  });
+
+  test('Dethrone: a counter for attacking the player with the most life', (mk, t) => {
+    t.auto('Marchesa, the Black Rose');
+    const T = mk();
+    const m = T.bf('A', 'Marchesa, the Black Rose');
+    T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(m.counters['+1/+1'], 1);
+  });
+
+  test('Steal Enchantment takes control of the enchantment it is on', (mk, t) => {
+    t.auto('Steal Enchantment');
+    const T = mk();
+    const target = T.bf('B', 'Glorious Anthem');
+    T.mana('A', 'UU');
+    T.cast('A', T.hand('A', 'Steal Enchantment'), { targets: [target] });
+    t.eq(target.controller, 'A');
+  });
+
+  test('Raging Gorilla gets +2/-2 when it blocks', (mk, t) => {
+    t.auto('Raging Gorilla');
+    const T = mk();
+    const g = T.bf('B', 'Raging Gorilla');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: g.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'endCombat');
+    // +2/-2: a 4/1 that kills the bear and dies to it
+    t.zone(bear, 'graveyard');
+    t.zone(g, 'graveyard');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

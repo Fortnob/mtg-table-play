@@ -3661,6 +3661,16 @@
           for (const x of attackers) if (x !== o) x.effects.push({ p: bc, t: 0, until: 'eot' });
           this.logEvent('keyword', `${o.name}'s battle cry pumps the rest of the team.`);
         }
+        /* dethrone (CR 702.105): attacking the player with the most life,
+           or tied for it, puts a +1/+1 counter on it */
+        if (a.keywordSet.has('dethrone')) {
+          const def = this.player(o.attacking);
+          const most = Math.max(...this.players.filter(p => !p.hasLost).map(p => p.life));
+          if (def && def.life >= most) {
+            this.addCounters(o, '+1/+1', 1);
+            this.logEvent('keyword', `${o.name} gets a +1/+1 counter from dethrone.`);
+          }
+        }
         // melee: +1/+1 per opponent you attacked
         if (a.keywordSet.has('melee') && defenders.size) {
           o.effects.push({ p: defenders.size, t: defenders.size, until: 'eot' });
@@ -9662,7 +9672,10 @@
         }
 
         case 'attachSelf': {
-          const host = firstObj();
+          // "attach this Equipment to it": the creature the trigger is about
+          const tid = e.scope === 'triggerObject' && (ctx.triggerData || {}).objectId;
+          const host = tid ? this.obj(tid) : firstObj();
+          if (host && host.zone !== 'battlefield') break;
           if (!src || !host) break;
           if (src.attachedTo) {
             const old = this.obj(src.attachedTo);
@@ -9676,6 +9689,14 @@
           break;
         }
 
+        case 'suspendSelf': {
+          if (!src || src.zone !== 'stack') break;
+          this.moveObject(src, 'exile');
+          src.counters.time = n(e.n) || 1;
+          src.suspendedBy = ctx.controller;
+          this.logEvent('rules', `${src.name} is exiled with ${src.counters.time} time counters on it.`);
+          break;
+        }
         case 'exileIfItDies': {
           this._exileOnDeath = this._exileOnDeath || new Set();
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));

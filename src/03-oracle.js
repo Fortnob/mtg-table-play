@@ -60,6 +60,8 @@
     'Hideaway',
     // a spell that encodes itself on a creature and is cast again from there
     'Cipher',
+    // a +1/+1 counter for going after the player with the most life
+    'Dethrone',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -139,7 +141,7 @@
 
   const KEYWORD_PATTERNS = [
     // simple flags, matched as whole comma-separated clauses
-    /^(Increment|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist)$/i,
+    /^(Increment|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway)\s+\d+$/i,
     // parameterised keywords with a cost
@@ -432,6 +434,16 @@
     // triggered and activated abilities: the engine adds either to the permanent's own
     return !!(probe && probe.fullyAutomated && probe.abilities.length &&
       probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated'));
+  }
+
+  /** Point a target-less trigger's "it" at what the trigger is about. */
+  function itIsTheTrigger(effects, scope) {
+    if (!scope) return;
+    let targeted = false;
+    const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); } };
+    walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
+    if (targeted) return;
+    walk(effects, (e) => { if (e.scope === 'lastTarget' && ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict'].includes(e.op)) e.scope = scope; });
   }
 
   /* An emblem's words the table can run: triggered abilities, and standing
@@ -1897,6 +1909,13 @@
     { re: /^That player discards that card\.?$/i, make: () => ({ op: 'discardChosen' }) },
     { re: /^Exile that card\.?$/i, make: () => ({ op: 'exileChosen' }) },
     { re: /^Attach it to target creature you control\.?$/i, make: () => ({ op: 'attachSelf' }) },
+    /* "Whenever a creature you control enters, you may attach this
+       Equipment to it." */
+    { re: /^Attach (?:this Equipment|CARDNAME) to (?:it|that creature)\.?$/i, make: () => ({ op: 'attachSelf', scope: 'triggerObject' }) },
+    /* Inspiring Refrain: "Exile it with three time counters on it" — the
+       spell suspended as it resolves */
+    { re: /^Exile (?:CARDNAME|this spell|it) with (two|three|four|five|\d+) time counters on it\.?$/i,
+      make: (m) => ({ op: 'suspendSelf', n: num(m[1]) }) },
     { re: /^Attach (?:CARDNAME|it) to (target creature you control|target creature)\.?$/i,
       make: () => ({ op: 'attachSelf' }) },
     { re: /^If that (?:creature|permanent)(?: or planeswalker)? would die this turn, exile it instead\.?$/i,
@@ -3737,6 +3756,8 @@
       event: 'dies', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks or blocks(?:,| )/i,
       event: 'attacks', self: true, also: 'blocks' },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) blocks or becomes blocked,? /i,
+      event: 'blocks', self: true, also: 'becomesBlocked' },
 
     /* --- what the other side of the table is doing --- */
     { re: /^When(?:ever)? an opponent draws a card(?:,| )/i, event: 'opponentDraw' },
@@ -4228,6 +4249,10 @@
         const parsed = parseEffects(optional ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
         if (saddledOnly) condition = condition ? [].concat(condition, { kind: 'saddled' }) : { kind: 'saddled' };
         if (whileCond) condition = condition ? [].concat(condition, whileCond) : whileCond;
+        /* "Whenever this creature attacks, it gets +2/+0": with nothing
+           targeted, "it" is the creature the trigger is about, this one or
+           the one that set it off, not a target that was never chosen */
+        itIsTheTrigger(parsed.effects, trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
@@ -5617,6 +5642,9 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      /* Control Magic: "You control enchanted creature." (layer 2) */
+      { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
+        make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },
       /* "This creature can't attack or block alone." */
       { re: /^(?:CARDNAME|This creature) can'?t (attack|block|attack or block) alone\.?$/i,
         make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }

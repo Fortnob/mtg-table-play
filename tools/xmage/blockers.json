@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17741,
-  "gainedCards": 1852,
-  "linesNeeded": 20381,
+  "needed": 17705,
+  "gainedCards": 1854,
+  "linesNeeded": 20309,
   "linesGained": 2431,
   "gained": {
-   "all": 1852,
+   "all": 1854,
    "top2000": 51,
    "stdTop": 13
   },
@@ -20,9 +20,9 @@
   },
   "verifyFail": 89,
   "overrides": {
-   "it": 183,
+   "it": 120,
    "drain": 62,
-   "count": 40,
+   "count": 42,
    "group": 26,
    "x": 5,
    "opponent": 67,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6078,
-   "lines": 5040,
+   "score": 6077,
+   "lines": 5039,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -597,25 +597,6 @@
     "Will of the Temur",
     "Moxite Refinery",
     "Szat's Will"
-   ]
-  },
-  {
-   "what": "AttachEffect",
-   "score": 37,
-   "lines": 25,
-   "cards": [
-    "The Aetherspark",
-    "Hero's Blade",
-    "Thornbite Staff",
-    "Shielded by Faith",
-    "Sword of the Squeak",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Doc Ock's Tentacles",
-    "Brilliant Wings",
-    "Cloak and Dagger",
-    "Diviner's Wand",
-    "Ancestral Katana"
    ]
   },
   {
@@ -1893,6 +1874,25 @@
    ]
   },
   {
+   "what": "AttachEffect",
+   "score": 21,
+   "lines": 12,
+   "cards": [
+    "The Aetherspark",
+    "Shielded by Faith",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Brilliant Wings",
+    "Ancestral Katana",
+    "Hylderblade",
+    "Bound by Moonsilver",
+    "Detainment Spell",
+    "Bespoke Battlegarb",
+    "Concealed Weapon",
+    "Stasis Cell"
+   ]
+  },
+  {
    "what": "target count 1-2",
    "score": 21,
    "lines": 21,
@@ -2041,25 +2041,6 @@
     "Baxter Stockman",
     "Clockwork Steed",
     "Abuna Acolyte"
-   ]
-  },
-  {
-   "what": "CreateTokenAttachSourceEffect",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Field-Tested Frying Pan",
-    "Citizen's Crowbar",
-    "Foot Chopper",
-    "Kyoshi Battle Fan",
-    "Ancestral Blade",
-    "Dwarven Hammer",
-    "Giant's Amulet",
-    "Dwarven Shortsword",
-    "Barbed Spike",
-    "Headsplitter",
-    "Midnight Angel Armor",
-    "Elven Bow"
    ]
   },
   {
@@ -4470,25 +4451,6 @@
    ]
   },
   {
-   "what": "ControlEnchantedEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Steal Enchantment",
-    "Confiscate",
-    "In Bolas's Clutches",
-    "Lay Claim",
-    "Steal Artifact",
-    "Annex",
-    "Tractor Beam",
-    "Take Possession",
-    "Volition Reins",
-    "Dream Leash",
-    "Conquer",
-    "Carry Away"
-   ]
-  },
-  {
    "what": "PreventDamageAndRemoveCountersEffect",
    "score": 13,
    "lines": 13,
@@ -4767,22 +4729,6 @@
     "Vampire Scrivener",
     "Lich's Tomb",
     "Oath of Lim-Dûl"
-   ]
-  },
-  {
-   "what": "keyword DethroneAbility",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Scourge of the Throne",
-    "Treasonous Ogre",
-    "Marchesa, the Black Rose",
-    "Park Heights Maverick",
-    "Marchesa's Infiltrator",
-    "Marchesa's Smuggler",
-    "Grenzo's Cutthroat",
-    "Marchesa's Emissary",
-    "Enraged Revolutionary"
    ]
   },
   {
@@ -5882,24 +5828,6 @@
     "Plumes of Peace",
     "Paladin of Prahv",
     "Steeling Stance"
-   ]
-  },
-  {
-   "what": "BlocksOrBlockedSourceTriggeredAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Karn, Silver Golem",
-    "Goblin Cadets",
-    "Raging Gorilla",
-    "Chub Toad",
-    "Escaped Null",
-    "Jukai Trainee",
-    "Goblin Elite Infantry",
-    "Brushwagg",
-    "Dromosaur",
-    "Slinking Giant",
-    "Spitting Slug"
    ]
   },
   {
@@ -8386,13 +8314,57 @@
     "Thought Dissector",
     "Testament of Faith"
    ]
+  },
+  {
+   "what": "RemoveUpToAmountCountersEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Glissa Sunslayer",
+    "Rhys, the Evermore",
+    "Render Inert",
+    "Mabel, Bitter Recluse"
+   ]
+  },
+  {
+   "what": "LifeCompareCondition",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Caduceus, Staff of Hermes",
+    "Cryptolith Fragment // Aurora of Emrakul",
+    "Vampire Lacerator",
+    "Razor Pendulum"
+   ]
+  },
+  {
+   "what": "RegenerateAllEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Golgari Charm",
+    "Wrap in Vigor",
+    "Wail of the Nim",
+    "Loxodon Hierarch"
+   ]
+  },
+  {
+   "what": "BecomesClassLevelTriggeredAbility",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Druid Class",
+    "Artificer Class",
+    "Cool but Rude",
+    "Monk Class"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4742,
-   "cards": 3968,
+   "score": 4743,
+   "cards": 3969,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8430,8 +8402,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 250,
-   "cards": 238,
+   "score": 253,
+   "cards": 241,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -9064,19 +9036,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 20,
-   "cards": 17,
-   "names": [
-    "Hero's Blade",
-    "Shielded by Faith",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Doc Ock's Tentacles",
-    "Brilliant Wings"
-   ]
-  },
-  {
    "what": "delayed CopyNextSpellDelayedTriggeredAbility",
    "score": 20,
    "cards": 14,
@@ -9282,19 +9241,6 @@
     "Warkite Marauder",
     "Sensational Spider-Man",
     "Coastline Marauders"
-   ]
-  },
-  {
-   "what": "CreateTokenAttachSourceEffect",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "Field-Tested Frying Pan",
-    "Citizen's Crowbar",
-    "Foot Chopper",
-    "Kyoshi Battle Fan",
-    "Ancestral Blade",
-    "Dwarven Hammer"
    ]
   },
   {
@@ -10037,6 +9983,19 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Cityscape Leveler",
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Titans' Vanguard",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick"
+   ]
+  },
+  {
    "what": "(constructor: assignment)",
    "score": 13,
    "cards": 7,
@@ -10304,19 +10263,6 @@
     "Gluttonous Slime",
     "Preyseizer Dragon",
     "Feaster of Fools"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Cityscape Leveler",
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Titans' Vanguard",
-    "Eldrazi Repurposer",
-    "Drownyard Lurker"
    ]
   },
   {
@@ -11389,19 +11335,6 @@
    ]
   },
   {
-   "what": "BlocksOrBlockedSourceTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Goblin Cadets",
-    "Raging Gorilla",
-    "Chub Toad",
-    "Escaped Null",
-    "Jukai Trainee",
-    "Goblin Elite Infantry"
-   ]
-  },
-  {
    "what": "DetainTargetEffect",
    "score": 10,
    "cards": 10,
@@ -11670,6 +11603,19 @@
    ]
   },
   {
+   "what": "UntapSourceEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Thornbite Staff",
+    "Kitsune Ace",
+    "Forsaken City",
+    "Deep-Slumber Titan",
+    "Gustcloak Harrier",
+    "Gustcloak Cavalier"
+   ]
+  },
+  {
    "what": "PutSourceCountersOnTargetEffect",
    "score": 9,
    "cards": 9,
@@ -11706,6 +11652,19 @@
     "Paladin Danse, Steel Maverick",
     "Doctor Doom",
     "Beyond the Quiet"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Shielded by Faith",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Brilliant Wings",
+    "Ancestral Katana",
+    "Hylderblade"
    ]
   },
   {
@@ -12208,6 +12167,18 @@
     "Ever After",
     "Call a Surprise Witness",
     "Terror of Towashi"
+   ]
+  },
+  {
+   "what": "GoadAttachedEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Shiny Impetus",
+    "Bloodthirsty Blade",
+    "Parasitic Impetus",
+    "Coercive Impetus",
+    "Psychic Impetus"
    ]
   }
  ]
