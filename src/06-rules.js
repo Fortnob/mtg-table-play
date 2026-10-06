@@ -142,6 +142,7 @@
       this.seat = cfg.seat || 0;
       this.isBot = !!cfg.isBot;
       this.botDifficulty = cfg.botDifficulty || 5;
+      this.botPersonality = cfg.botPersonality || null;
       this.avatarColor = cfg.avatarColor || null;
       this.game = game;
       this.life = game.config.startingLife;
@@ -12207,6 +12208,7 @@
         objs,
         players: this.players.map(p => ({
           id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,
+          botPersonality: p.botPersonality || null,
           avatarColor: p.avatarColor, life: p.life, poison: p.poison, energy: p.energy,
           preventShield: p.preventShield || 0,
           experience: p.experience, pool: p.pool.snapshot(), landsPlayed: p.landsPlayed,
@@ -12596,6 +12598,7 @@
         battlefield: this.battlefield.map(o => ser(o, false)),
         players: this.players.map(p => ({
           id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,
+          botPersonality: p.botPersonality || null,
           life: p.life, poison: p.poison, energy: p.energy, experience: p.experience,
           pool: p.pool.snapshot(), landsPlayed: p.landsPlayed, maxLands: this.landAllowance(p),
           hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, connected: p.connected,
