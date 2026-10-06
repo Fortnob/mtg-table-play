@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31810,
   "skippedLayout": 21,
-  "needed": 17297,
+  "needed": 17261,
   "gainedCards": 1803,
-  "linesNeeded": 19789,
-  "linesGained": 2353,
+  "linesNeeded": 19745,
+  "linesGained": 2349,
   "gained": {
    "all": 1803,
    "top2000": 52,
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 375,
-   "lines": 354,
+   "score": 376,
+   "lines": 355,
    "cards": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -918,25 +918,6 @@
     "The Elder Dragon War",
     "Sokka, Bold Boomeranger",
     "Illuminate History"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 27,
-   "lines": 27,
-   "cards": [
-    "Aetherworks Marvel",
-    "Gonti's Aether Heart",
-    "Unstable Amulet",
-    "Roil Cartographer",
-    "Aetherflux Conduit",
-    "Bespoke Battlewagon",
-    "Aethersquall Ancient",
-    "Stone Idol Generator",
-    "Era of Innovation",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Architect of the Untamed"
    ]
   },
   {
@@ -2011,6 +1992,25 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Bespoke Battlewagon",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Aethergeode Miner",
+    "Electrostatic Pummeler",
+    "Riddle Gate Gargoyle",
+    "Consulate Surveillance",
+    "Aethersphere Harvester",
+    "Cyclops Superconductor"
+   ]
+  },
+  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -2279,25 +2279,6 @@
     "Lifetap",
     "Thoughtleech",
     "Freyalise's Winds"
-   ]
-  },
-  {
-   "what": "activated with 2 effects in its constructor",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Kozilek, the Great Distortion",
-    "Primordial Mist",
-    "The Capitoline Triad",
-    "Phyrexian Devourer",
-    "Kithkin Armor",
-    "Back from the Brink",
-    "Sphinx of the Chimes",
-    "Void Maw",
-    "Skeleton Scavengers",
-    "Nivmagus Elemental",
-    "Murderous Betrayal",
-    "Impelled Giant"
    ]
   },
   {
@@ -2697,6 +2678,25 @@
     "Near-Death Experience",
     "Battle of Wits",
     "Barren Glory"
+   ]
+  },
+  {
+   "what": "activated with 2 effects in its constructor",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Kozilek, the Great Distortion",
+    "Primordial Mist",
+    "The Capitoline Triad",
+    "Phyrexian Devourer",
+    "Kithkin Armor",
+    "Back from the Brink",
+    "Void Maw",
+    "Skeleton Scavengers",
+    "Nivmagus Elemental",
+    "Murderous Betrayal",
+    "Impelled Giant",
+    "Keldon Battlewagon"
    ]
   },
   {
@@ -4253,25 +4253,6 @@
    ]
   },
   {
-   "what": "keyword BloodrushAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Wasteland Viper",
-    "Rubblehulk",
-    "Ghor-Clan Rampager",
-    "Skarrg Goliath",
-    "Pyrewild Shaman",
-    "Rubblebelt Maaka",
-    "Wrecking Ogre",
-    "Skinbrand Goblin",
-    "Zhur-Taa Swine",
-    "Scorchwalker",
-    "Slaughterhorn",
-    "Viashino Shanktail"
-   ]
-  },
-  {
    "what": "token statement MercenaryToken",
    "score": 13,
    "lines": 13,
@@ -5288,24 +5269,6 @@
    ]
   },
   {
-   "what": "UntapSourceEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Thornbite Staff",
-    "Hydro-Man, Fluid Felon",
-    "Kitsune Ace",
-    "Foreboding Statue // Forsaken Thresher",
-    "Forsaken City",
-    "Gustcloak Harrier",
-    "Gustcloak Cavalier",
-    "Gustcloak Skirmisher",
-    "Gustcloak Runner",
-    "Gustcloak Sentinel",
-    "Psychic Overload"
-   ]
-  },
-  {
    "what": "PutSourceCountersOnTargetEffect",
    "score": 11,
    "lines": 11,
@@ -5465,24 +5428,6 @@
     "Sevinne, the Chronoclasm",
     "Dawn Elemental",
     "Trained Pronghorn"
-   ]
-  },
-  {
-   "what": "keyword ReinforceAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Brighthearth Banneret",
-    "Wren's Run Hydra",
-    "Hunting Triad",
-    "Break Ties",
-    "Fowl Strike",
-    "Rustic Clachan",
-    "Bannerhide Krushok",
-    "Mosquito Guard",
-    "Burrenton Bombardier",
-    "Earthbrawn",
-    "Swell of Courage"
    ]
   },
   {
@@ -5934,6 +5879,23 @@
    ]
   },
   {
+   "what": "UntapSourceEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Thornbite Staff",
+    "Hydro-Man, Fluid Felon",
+    "Kitsune Ace",
+    "Foreboding Statue // Forsaken Thresher",
+    "Forsaken City",
+    "Gustcloak Harrier",
+    "Gustcloak Cavalier",
+    "Gustcloak Skirmisher",
+    "Gustcloak Runner",
+    "Gustcloak Sentinel"
+   ]
+  },
+  {
    "what": "ConditionalAnyColorManaAbility shape",
    "score": 10,
    "lines": 10,
@@ -6286,23 +6248,6 @@
     "Tattered Ratter",
     "Beastmaster's Magemark",
     "Berserk Murlodont"
-   ]
-  },
-  {
-   "what": "ReturnSourceFromGraveyardToBattlefieldEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Slimefoot and Squee",
-    "Sandman, Shifting Scoundrel",
-    "Sekki, Seasons' Guide",
-    "Haunted Dead",
-    "Advanced Stitchwing",
-    "Geralf's Masterpiece",
-    "Stitchwing Skaab",
-    "Ghoulsteed",
-    "Chronosavant",
-    "Reborn Hero"
    ]
   },
   {
@@ -8260,13 +8205,55 @@
     "Tears of Rage",
     "Cleaving Skyrider"
    ]
+  },
+  {
+   "what": "EntersBattlefieldTappedUnlessAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Argoth, Sanctum of Nature",
+    "Country Roads",
+    "Horned Loch-Whale // Lagoon Breach",
+    "Rocky Roads",
+    "Reef Roads",
+    "Wild Roads",
+    "Foul Roads"
+   ]
+  },
+  {
+   "what": "ShrinesYouControlCount.WHERE_X",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sanctum of Stone Fangs",
+    "Honden of Infinite Rage",
+    "Sanctum of Calm Waters",
+    "Go-Shintai of Ancient Wars",
+    "Go-Shintai of Lost Wisdom",
+    "Southern Air Temple",
+    "Northern Air Temple"
+   ]
+  },
+  {
+   "what": "LoseAllAbilitiesAttachedEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Unable to Scream",
+    "Observed Stasis",
+    "Fresh Start",
+    "Flood the Engine",
+    "Enchanted River's Grasp",
+    "Ray of Frost",
+    "Infinite Coursework"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4749,
-   "cards": 3975,
+   "score": 4751,
+   "cards": 3977,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8317,8 +8304,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 240,
-   "cards": 228,
+   "score": 241,
+   "cards": 229,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8654,6 +8641,19 @@
    ]
   },
   {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 26,
+   "cards": 23,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Tifa, Martial Artist"
+   ]
+  },
+  {
    "what": "CreateRoleAttachedTargetEffect",
    "score": 26,
    "cards": 26,
@@ -8677,32 +8677,6 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
-   ]
-  },
-  {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 25,
-   "cards": 22,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Tifa, Martial Artist"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 25,
-   "cards": 25,
-   "names": [
-    "Aetherworks Marvel",
-    "Gonti's Aether Heart",
-    "Unstable Amulet",
-    "Roil Cartographer",
-    "Bespoke Battlewagon",
-    "Aethersquall Ancient"
    ]
   },
   {
@@ -9117,6 +9091,19 @@
     "Rabid Attack",
     "Out Cold",
     "Sea Hag // Aquatic Ingress"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Unstable Amulet",
+    "Bespoke Battlewagon",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Aethergeode Miner",
+    "Electrostatic Pummeler"
    ]
   },
   {
@@ -10181,19 +10168,6 @@
    ]
   },
   {
-   "what": "keyword BloodrushAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Wasteland Viper",
-    "Rubblehulk",
-    "Ghor-Clan Rampager",
-    "Skarrg Goliath",
-    "Rubblebelt Maaka",
-    "Wrecking Ogre"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 12,
    "cards": 12,
@@ -10543,19 +10517,6 @@
     "Felling Blow",
     "Domri's Ambush",
     "Huatli, Dinosaur Knight"
-   ]
-  },
-  {
-   "what": "keyword ReinforceAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Brighthearth Banneret",
-    "Wren's Run Hydra",
-    "Hunting Triad",
-    "Break Ties",
-    "Fowl Strike",
-    "Rustic Clachan"
    ]
   },
   {
@@ -11456,19 +11417,6 @@
    ]
   },
   {
-   "what": "activated with 2 effects in its constructor",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Primordial Mist",
-    "Back from the Brink",
-    "Sphinx of the Chimes",
-    "Skeleton Scavengers",
-    "Nivmagus Elemental",
-    "Murderous Betrayal"
-   ]
-  },
-  {
    "what": "OpponentsTurnCondition.instance",
    "score": 9,
    "cards": 9,
@@ -11596,19 +11544,6 @@
     "Bomat Courier",
     "Safe Haven",
     "Parallax Tide"
-   ]
-  },
-  {
-   "what": "ReturnSourceFromGraveyardToBattlefieldEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Slimefoot and Squee",
-    "Sandman, Shifting Scoundrel",
-    "Haunted Dead",
-    "Advanced Stitchwing",
-    "Geralf's Masterpiece",
-    "Stitchwing Skaab"
    ]
   },
   {
@@ -12073,6 +12008,58 @@
     "Toph, Greatest Earthbender",
     "Earth Rumble",
     "Earthshape"
+   ]
+  },
+  {
+   "what": "DealtDamageAnyTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Repercussion",
+    "Rite of Passage",
+    "Ill-Tempered Loner // Howlpack Avenger",
+    "Jennifer Walters // The Sensational She-Hulk",
+    "Termination Facilitator",
+    "Expedited Inheritance"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Jet's Brainwashing",
+    "Dawnhand Eulogist",
+    "Torch the Tower"
+   ]
+  },
+  {
+   "what": "(verify) targets 3, printed 0",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Inferno Titan",
+    "Magic Missile",
+    "Mogg Mob",
+    "Arc Lightning",
+    "Flames of the Firebrand",
+    "Ral, Caller of Storms"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Flayer of Loyalties",
+    "Restless Vinestalk",
+    "Glamer Gifter",
+    "Wings of Velis Vel",
+    "Atomic Microsizer",
+    "Sorceress Queen"
    ]
   }
  ]

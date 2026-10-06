@@ -206,11 +206,17 @@
       p = p.trim();
       if (!p) continue;
       p = p.replace(/^Pay\s+(?=\{)/i, '');       // "Pay {2}" is just {2}
+      // "Pay eight {E}": energy, counted in words
+      const en = p.match(/^Pay (one|two|three|four|five|six|seven|eight|nine|ten|\d+) \{E\}$/i);
+      if (en) { cost.energy = (cost.energy || 0) + num(en[1]); continue; }
       if (/^(\{[^}]+\})+$/.test(p)) {
         const syms = MANA.parse(p);
         const manaSyms = syms.filter(s => s !== 'T' && s !== 'Q' && s !== 'E');
         if (syms.includes('T')) cost.tap = true;
         if (syms.includes('Q')) cost.untap = true;
+        // "Pay {E}{E}": energy, not mana, and not free either
+        const energy = syms.filter(s => s === 'E').length;
+        if (energy) cost.energy = (cost.energy || 0) + energy;
         if (manaSyms.length) cost.mana += manaSyms.map(s => '{' + s + '}').join('');
         continue;
       }
@@ -225,7 +231,7 @@
           another: /another/i.test(m[1]) || !!m[2] };
         continue;
       }
-      if ((m = p.match(/^Discard (a|an|your hand|\d+|X) ?(.*)$/i))) { cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' }; continue; }
+      if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) { cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' }; continue; }
       if ((m = p.match(/^Pay (\d+) life$/i))) { cost.life = +m[1]; continue; }
       if ((m = p.match(/^Exile (.+)$/i))) {
         /* The exile costs the table can pay by itself: the card doing the
@@ -4144,7 +4150,17 @@
 
       /* Channel (Boseiju and its kin): an ability used from the hand by
          discarding the card, cheaper for each legend you control. */
-      const chan = line.match(/^Channel\s*(?:\u2014|--|-)\s*([^:]+):\s*([\s\S]+)$/i) ||
+      /* Reinforce N (CR 702.77): discard it for N +1/+1 counters on a
+         creature, an ability from the hand like channel */
+      const reinf = line.match(/^Reinforce (one|two|three|four|five|X|\d+)\s*(?:\u2014|--|-)\s*((?:\{[^}]+\})+)/i);
+      if (reinf && !/X/i.test(reinf[1])) {
+        out.channel = { cost: reinf[2], effects: [{ op: 'counters', kind: '+1/+1', n: num(reinf[1]), targets: [targetSpec('target creature')] }] };
+        out.abilities.push({ kind: 'castModifier', keyword: 'Channel', arg: reinf[2], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
+      // bloodrush is channel by another name: discard it to pump an attacker
+      const chan = line.match(/^(?:Channel|Bloodrush)\s*(?:\u2014|--|-)\s*([^:]+):\s*([\s\S]+)$/i) ||
         line.match(/^((?:\{[^}]+\})*,?\s*Discard (?:this card|CARDNAME)):\s*([\s\S]+)$/i);
       if (chan) {
         const cost = parseCost(chan[1]);

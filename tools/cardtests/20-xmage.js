@@ -1067,6 +1067,38 @@ module.exports = (test) => {
     t.ok(T.g._activationBlocked(u, ab, 'A'), 'not a second time');
   });
 
+  test('Bloodrush and reinforce: abilities from the hand, paid by discarding', (mk, t) => {
+    t.auto('Rubblebelt Maaka'); t.auto('Burrenton Bombardier');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const rm = T.hand('A', 'Rubblebelt Maaka');
+    T.mana('A', 'R');
+    bear.attacking = 'B';
+    t.ok(T.g.cycleCard('A', rm.id, { auto: true, channel: true, targets: [{ kind: 'object', id: bear.id }] }), 'bloodrushed: ' + T.g.lastError);
+    T.resolve();
+    t.zone(rm, 'graveyard');
+    t.eq(T.g.powerOf(bear), 5);
+    const bb = T.hand('A', 'Burrenton Bombardier');
+    T.mana('A', '2W');
+    t.ok(T.g.cycleCard('A', bb.id, { auto: true, channel: true, targets: [{ kind: 'object', id: bear.id }] }), 'reinforced');
+    T.resolve();
+    t.eq(bear.counters['+1/+1'], 2);
+  });
+
+  test('Energy costs are paid in energy, not skipped (Bristling Hydra)', (mk, t) => {
+    const T = mk();
+    const h = T.bf('A', 'Bristling Hydra');
+    T.player('A').energy = 2;
+    const idx = h.analysis().manaAbilities.length + h.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.cost && x.cost.energy);
+    let refused = false;
+    try { T.activate('A', h, idx); } catch (e) { refused = true; }
+    t.ok(refused, 'two energy is not enough');
+    T.player('A').energy = 3;
+    T.activate('A', h, idx);
+    t.eq(T.player('A').energy, 0, 'three paid');
+    t.eq(h.counters['+1/+1'], 1);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

@@ -921,6 +921,7 @@
           if (c.tap && o.tapped) return false;
           if (c.untap && !o.tapped) return false;
           if (c.life && p.life <= c.life) return false;
+          if (c.energy && (p.energy || 0) < c.energy) return false;
           if (x.sorcerySpeed && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return false;
@@ -4223,6 +4224,7 @@
         if (this._exileCostPool(pid, cost.exile, self).length < need) return 'Not enough cards in your graveyard.';
       }
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
+      if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
         const back = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
           !(cost.returnOwn.untapped && x.tapped));
@@ -4254,6 +4256,11 @@
       opts = opts || {};
       // "Return this creature to its owner's hand" as the price
       if (cost.returnSelf && self && self.zone === 'battlefield') this.moveObject(self, 'hand');
+      // "Pay {E}{E}"
+      if (cost.energy) {
+        const pe = this.player(pid);
+        if (pe) { pe.energy = Math.max(0, (pe.energy || 0) - cost.energy); this.logEvent('counters', `${pe.name} pays ${cost.energy} energy (${pe.energy} left).`); }
+      }
       const p = this.player(pid);
       const auto = !!(p && p.isBot) || !!opts.autoCost;
       const ask = (choice) => this.queueChoice(Object.assign({
