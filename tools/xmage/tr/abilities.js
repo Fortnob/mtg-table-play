@@ -20,12 +20,16 @@ const KEYWORDS = {
 };
 for (const [cls, name] of Object.entries(KEYWORDS)) {
   if (!name) continue;
-  def('keyword', cls, (o) => { if (o.args.length || o.calls.length) block(cls + ' with arguments'); return name; });
+  def('keyword', cls, (o) => {
+    // MenaceAbility(false): the same keyword, printed without its reminder text
+    if (o.calls.length || o.args.some(a => !(a && a.t === 'lit' && typeof a.v === 'boolean'))) block(cls + ' with arguments');
+    return name;
+  });
 }
 
 /* ---------------- the pieces every ability shares ---------------- */
 
-const TRIGGER_COSMETIC = new Set(['setTriggerPhrase', 'withFlavorWord', 'setAbilityWord', 'addHint', 'withRuleTextReplacement',
+const TRIGGER_COSMETIC = new Set(['setTriggerPhrase', 'withFlavorWord', 'setAbilityWord', 'addHint', 'withRuleTextReplacement', 'withFirstModeFlavorWord',
   'setAbilityWordValue', 'withHint', 'addWatcher']);
 
 /** Read the calls on an ability object into its parts. */

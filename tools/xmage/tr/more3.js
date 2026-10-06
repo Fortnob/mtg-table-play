@@ -192,6 +192,51 @@ def('effect', 'UntapAllControllerEffect', (o, tc) => {
   return { op: 'untapAll', scope: F.toScope(d) };
 });
 
+/* ---------------- a batch of small ones ---------------- */
+
+def('value', 'IntPlusDynamicValue', (o, tc) => {
+  const base = litOf(o.args[0]);
+  const v = P.amount(o.args[1], tc);
+  if (typeof v === 'number') return base + v;
+  if (!v || typeof v !== 'object' || v.plus) block('IntPlusDynamicValue of ' + JSON.stringify(v));
+  return Object.assign({}, v, { plus: base });
+});
+def('effect', 'CantBlockAllEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (E.durationOf(o, 'EndOfTurn') !== 'eot') block('cant block for longer');
+  const d = F.describe(o.args.find(a => kindOf(a) === 'filter'), tc);
+  return { op: 'restrict', flag: 'cantBlock', scope: F.toScope(d) };
+});
+def('ability', 'BlocksCreatureTriggeredAbility', (o, tc) => {
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  if (f && !(f.t === 'ref' && /FILTER_PERMANENT_CREATURE$/.test(f.path))) block('blocks a kind of creature');
+  return AB.triggered(o, tc, { event: 'blocks', self: true });
+});
+def('ability', 'DealsDamageToOpponentTriggeredAbility', (o, tc) => {
+  const b = A(o).all('bool').map(x => x.v);
+  // combat damage to a player is always to an opponent: only that one is the same trigger
+  if (!b[1]) block('damage to an opponent, not only combat');
+  return AB.triggered(o, tc, { event: 'combatDamageToPlayer', self: true, optional: !!b[0], pointer: b[2] ? 'player' : null });
+});
+def('effect', 'PreventDamageToTargetEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (E.durationOf(o, 'EndOfTurn') !== 'eot') block('prevent for longer');
+  const n = A(o).int(0);
+  if (n == null || o.args.some(a => kindOf(a) === 'bool' && a.v)) block('prevent all, or only combat');
+  return Object.assign({ op: 'preventNext', n }, E.aim(o, tc, 'any'));
+});
+def('ability', 'CastSecondSpellTriggeredAbility', (o, tc) => {
+  const who = A(o).enumv('TargetController') || 'YOU';
+  if (AB.pointerArg(o)) block('second spell pointing at it');
+  if (who === 'YOU') return AB.triggered(o, tc, { event: 'youCastSpell', optional: A(o).bool(0, false),
+    condition: [{ kind: 'spellsCast', n: 2 }, { kind: 'spellsCast', n: 2, cmp: 'atMost' }] });
+  if (who === 'OPPONENT') return AB.triggered(o, tc, { event: 'opponentSecondSpell', optional: A(o).bool(0, false) });
+  if (who === 'ANY') return AB.triggered(o, tc, { event: 'anySecondSpell', optional: A(o).bool(0, false) });
+  block('second spell of ' + who);
+  return null;
+});
+def('condition', 'YouGainedLifeCondition.getZero', () => ({ kind: 'lifeGained', n: 1 }));
+
 /* ---------------- emblems ----------------
    The emblem's own class is read like a card, its abilities translated,
    and the emblem made with them. Its words are the quoted text of the

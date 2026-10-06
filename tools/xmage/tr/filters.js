@@ -249,6 +249,7 @@ const PREDICATES = {
   },
   'FaceDownPredicate.instance': (d, p, neg) => { if (neg) block('not face down'); d.faceDown = true; },
   'HistoricPredicate.instance': (d, p, neg) => { if (neg) block('not historic'); d.historic = true; },
+  'CommanderPredicate.instance': (d, p, neg) => { if (neg) block('not a commander'); d.commander = true; },
 };
 
 /** XMage's counter constant name -> the name the engine keeps counters by. */
@@ -285,7 +286,7 @@ function toSpec(d, zone) {
   const spec = { type: 'permanent', zone: zone || (d.base === 'card' ? 'graveyard' : d.base === 'spell' ? 'stack' : 'battlefield') };
   const used = ['controller', 'owner', 'another', 'token', 'tapped', 'attacking', 'blocking', 'inCombat', 'legendary', 'nonlegendary',
     'basic', 'nonbasic', 'colorless', 'multicolored', 'monocolored', 'mv', 'power', 'toughness', 'withKeyword', 'withoutKeyword',
-    'withCounter', 'faceDown', 'opponent', 'permanentCard', 'orAbility'];
+    'withCounter', 'faceDown', 'opponent', 'permanentCard', 'orAbility', 'commander'];
   const bad = leftover(d, used);
   if (bad.length) block('filter:' + bad.join(','));
   const { list, also } = typeList(d);
@@ -332,7 +333,7 @@ function toSpec(d, zone) {
   if (d.attacking) spec.attacking = true;
   if (d.blocking) spec.blocking = true;
   if (d.inCombat) spec.inCombat = true;
-  for (const k of ['legendary', 'nonlegendary', 'basic', 'nonbasic', 'colorless', 'multicolored', 'monocolored', 'faceDown']) if (d[k]) spec[k] = true;
+  for (const k of ['legendary', 'nonlegendary', 'basic', 'nonbasic', 'colorless', 'multicolored', 'monocolored', 'faceDown', 'commander']) if (d[k]) spec[k] = true;
   if (d.mv) { if (d.mv.min === d.mv.max && d.mv.min != null) spec.mv = d.mv.min; else { if (d.mv.min != null) spec.minMv = d.mv.min; if (d.mv.max != null) spec.maxMv = d.mv.max; } }
   if (d.power) { if (d.power.min != null) spec.minPower = d.power.min; if (d.power.max != null) spec.maxPower = d.power.max; }
   if (d.toughness) { if (d.toughness.min != null) spec.minToughness = d.toughness.min; if (d.toughness.max != null) spec.maxToughness = d.toughness.max; }

@@ -96,7 +96,7 @@ function checkLine(text, abilities, card, an) {
   const cond = /\bas long as\b|,? if\b|\bunless\b|\bonly if\b|\bonly during\b|\bduring (?:your|each of your) turns?\b|\binstead\b/i.test(t);
   const hasCond = /"cond":|"condition":\{|"condition":\[|"op":"ifCond"|"only":/.test(json);
   if (cond && !hasCond && !/"op":"may(?:Pay)?"/.test(json)) return 'condition lost';
-  if (!cond && hasCond && !/\bthreshold|delirium|metalcraft|morbid|raid|revolt|ferocious|hellbent|landfall\b/i.test(t)) return 'condition the card does not print';
+  if (!cond && hasCond && !/\bthreshold|delirium|metalcraft|morbid|raid|revolt|ferocious|hellbent|landfall\b|\bsecond spell\b/i.test(t)) return 'condition the card does not print';
   // durations
   const eot = /until end of turn|this turn/i.test(t);
   if (/"duration":"eot"|"until":"eot"/.test(json) && !eot) return 'until end of turn the card does not print';
