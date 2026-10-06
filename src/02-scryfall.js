@@ -605,6 +605,26 @@
       return pool;
     }
 
+    /**
+     * A set's special printings: extended art, borderless, showcase and full
+     * art, the treatments a Collector Booster is made of. Bucketed by rarity
+     * like setPool. A set from before collector boosters has none, and that
+     * is an empty pool rather than an error.
+     */
+    async setVariants(code) {
+      const key = 'variants:' + String(code).toLowerCase();
+      const hit = await this.db.get(STORES.meta, key);
+      if (hit && Date.now() - hit._t < CACHE_TTL) {
+        const m = await this.db.getMany(STORES.cards, hit.ids);
+        const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
+        if (arr.length === hit.ids.length) return this._bucket(arr);
+      }
+      const cards = await this.search(`set:${code} (is:extendedart or is:borderless or is:showcase or is:fullart) -is:digital lang:en`,
+        { unique: 'prints', order: 'set', max: 800 }).catch(() => []);
+      await this.db.put(STORES.meta, key, { ids: cards.map(c => c.id), _t: Date.now() });
+      return this._bucket(cards);
+    }
+
     _bucket(cards) {
       const b = {
         all: cards, playable: [], common: [], uncommon: [], rare: [], mythic: [],

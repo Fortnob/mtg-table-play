@@ -41,6 +41,30 @@
     ],
   };
 
+  /* Collector Booster, 15 cards (Throne of Eldraine onwards, in outline:
+     every set varies the details). Mostly foil, a foil rare, and rares and
+     uncommons in the set's special treatments: extended art, borderless,
+     showcase. Older sets had none; there the same mix comes in ordinary
+     printings. */
+  const COLLECTOR_BOOSTER = {
+    id: 'collector', size: 15,
+    slots: [
+      { n: 5, pick: 'common', foil: true },
+      { n: 3, pick: 'uncommon', foil: true },
+      { n: 1, pick: 'land', foil: true },
+      { n: 2, pick: 'variantUncommon' },
+      { n: 1, pick: 'variantUncommon', foil: true },
+      { n: 1, pick: 'rareMythic', foil: true },
+      { n: 1, pick: 'variantRare' },
+      { n: 1, pick: 'variantRare', foil: true },
+    ],
+  };
+  // A Commander draft pack, and its collector counterpart: twenty cards either way.
+  const CMDR_PACK = { id: 'cmdr', size: 20, slots: [{ n: 14, pick: 'common' }, { n: 4, pick: 'uncommon' }, { n: 2, pick: 'rareMythic' }] };
+  const CMDR_COLLECTOR = { id: 'cmdrCollector', size: 20, slots: [
+    { n: 10, pick: 'common', foil: true }, { n: 4, pick: 'uncommon', foil: true }, { n: 2, pick: 'variantUncommon' },
+    { n: 2, pick: 'rareMythic', foil: true }, { n: 2, pick: 'variantRare' }] };
+
   // Rarity mix of the Play Booster wildcard slots.
   const WILDCARD_MIX = [['common', 0.583], ['uncommon', 0.350], ['rare', 0.053], ['mythic', 0.014]];
   /* Real packs keep a basic land in one slot. A basic is not a pick — it is
@@ -182,7 +206,22 @@
           case 'wildcard': {
             const r = rng.weighted(WILDCARD_MIX);
             card = takeFrom(pool[r]) || fallbackChain(['common', 'uncommon', 'rare', 'mythic']);
-            if (card && slot.foil) card = Object.assign({}, card, { _foil: true });
+            break;
+          }
+          case 'variantRare': {
+            // a special printing of a rare or mythic, or the plain one when the set has none
+            const v = opts.variants;
+            card = v && (v.rare.length || v.mythic.length)
+              ? (rng.chance(0.2) && v.mythic.length ? takeFrom(v.mythic) : takeFrom(v.rare) || takeFrom(v.mythic))
+              : null;
+            if (!card) card = rng.chance(0.125) && pool.mythic.length ? takeFrom(pool.mythic) || takeFrom(pool.rare) : takeFrom(pool.rare) || takeFrom(pool.mythic);
+            if (!card) card = fallbackChain(['uncommon', 'common']);
+            break;
+          }
+          case 'variantUncommon': {
+            const v = opts.variants;
+            card = v && (v.uncommon.length || v.common.length) ? takeFrom(v.uncommon) || takeFrom(v.common) : null;
+            if (!card) card = fallbackChain(['uncommon', 'common']);
             break;
           }
           case 'commonOrList':
@@ -203,6 +242,7 @@
           }
           default: card = takeFrom(playable);
         }
+        if (card && slot.foil) card = Object.assign({}, card, { _foil: true });
         if (card) out.push(card);
       }
     }
@@ -433,6 +473,11 @@
       };
 
       const poolCache = new Map();
+      const variantCache = new Map();
+      const variantsFor = async (code) => {
+        if (!variantCache.has(code)) variantCache.set(code, await MTG.scry.setVariants(code).catch(() => null));
+        return variantCache.get(code);
+      };
       const broken = new Set();
       const usable = (p) => p && p.all && p.all.length >= 20;
       const getPool = async (code) => {
@@ -486,17 +531,33 @@
           const setInfo = got.setInfo, pool = got.pool;
           setsUsed.add(setInfo.code.toUpperCase());
           if (pool.loose) looseSets.add(setInfo.code.toUpperCase());
+          const collector = !!this.cfg.collector;
           const spec = this.cfg.formatId === 'cmdrdraft'
-            ? { id: 'cmdr', size: 20, slots: [{ n: 14, pick: 'common' }, { n: 4, pick: 'uncommon' }, { n: 2, pick: 'rareMythic' }] }
-            : boosterSpecFor(setInfo);
-          let pack = makeBooster(pool, this.rng, spec);
+            ? (collector ? CMDR_COLLECTOR : CMDR_PACK)
+            : collector ? COLLECTOR_BOOSTER : boosterSpecFor(setInfo);
+          const variants = collector ? await variantsFor(setInfo.code) : null;
+          let pack = makeBooster(pool, this.rng, spec, { variants });
           if (this.cfg.formatId === 'cmdrdraft') pack = await this._ensureLegends(pack, pool, setInfo);
-          pack = this._sizePack(pack, pool, target);
+          // a pack is its booster's real size; only a host who asked for another size gets one
+          if (!this.cfg.packSizeAuto) pack = this._sizePack(pack, pool, target);
           packs.push(pack);
           done++;
           if (onProgress) onProgress(done, totalPacks, setInfo.code.toUpperCase());
         }
         this.roundPacks.push(packs);
+      }
+      /* Every pack at the table holds the same number of cards, or a seat
+         runs dry before the rest. Packs of one set already do; a chaos draft
+         mixing 14-card Play Boosters and 15-card Draft Boosters cuts the
+         bigger ones down rather than padding the smaller ones with cards a
+         real pack would not have. */
+      if (this.cfg.packSizeAuto) {
+        const all = this.roundPacks.flat();
+        const size = Math.max(1, Math.min(...all.map(p => p.length)));
+        for (const round of this.roundPacks) {
+          for (let i = 0; i < round.length; i++) round[i] = this._sizePack(round[i], null, size);
+        }
+        this.cfg.packSize = size;
       }
       this.setsUsed = Array.from(setsUsed);
       this.looseSets = Array.from(looseSets);
@@ -513,9 +574,12 @@
     _sizePack(pack, pool, target) {
       const out = pack.slice();
       if (out.length > target) {
-        // drop land-slot cards first, then from the back
+        // drop land-slot cards first, then commons, then from the back
         for (let i = out.length - 1; i >= 0 && out.length > target; i--) {
           if (out[i] && out[i]._landSlot) out.splice(i, 1);
+        }
+        for (let i = out.length - 1; i >= 0 && out.length > target; i--) {
+          if (out[i] && out[i].rarity === 'common' && !out[i]._foil) out.splice(i, 1);
         }
         out.length = Math.min(out.length, target);
       }
@@ -1129,7 +1193,7 @@
     recipes: CUBE_RECIPES, buildRecipe,
     DRAFT_ABILITIES, draftAbilityOf, LAND_SLOT_MIX,
     Draft, makeBooster, makeCubePack, boosterSpecFor,
-    PLAY_BOOSTER, DRAFT_BOOSTER, WILDCARD_MIX,
+    PLAY_BOOSTER, DRAFT_BOOSTER, COLLECTOR_BOOSTER, WILDCARD_MIX,
     cubes, autoBuildLimited, getBasics,
   };
 })(window.MTG);

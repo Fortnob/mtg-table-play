@@ -962,9 +962,17 @@
     return r != null ? r : 1;
   };
   /* A pack is read rarest first, left to right, the way you look for the
-     rare when you open one: mythics, rares, uncommons, commons, and the
-     basic land at the very end. */
-  const rarestFirst = (c) => (/\bBasic\b/.test(c.type_line || '') ? -1 : (RARITY_RANK[c.rarity] != null ? RARITY_RANK[c.rarity] : 1));
+     rare when you open one: mythics, rares, uncommons, commons. Lands come
+     after all of them whatever their rarity (rarest land first), and a basic
+     at the very end. */
+  const rarestFirst = (c) => {
+    // the front face says what it is: a spell with a land on its back is a spell, a pathway is a land
+    const tl = (c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || '';
+    const r = RARITY_RANK[c.rarity] != null ? RARITY_RANK[c.rarity] : 1;
+    if (/\bBasic\b/.test(tl)) return -20;
+    if (/\bLand\b/.test(tl)) return -10 + r;
+    return r;
+  };
   UI.packOrder = function (cards) {
     return cards.slice().sort((a, b) =>
       rarestFirst(b) - rarestFirst(a) ||

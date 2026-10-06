@@ -1112,6 +1112,16 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 }
 .pack-grid.choosing .pick-card:not(.chosen) .card-img { filter: brightness(.7) saturate(.85); }
 .pack-grid.choosing .pick-card:not(.chosen):hover .card-img { filter: none; }
+/* a foil card catches the light: a slow sheen across it */
+.pick-card.foil .card-img { position: relative; }
+.pick-card.foil::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: 4.8% / 3.5%;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,120,200,.22) 35%, rgba(120,220,255,.24) 45%, rgba(255,240,140,.22) 55%, transparent 70%);
+  background-size: 250% 250%; mix-blend-mode: color-dodge; animation: foilSheen 4.5s ease-in-out infinite; }
+@keyframes foilSheen { 0% { background-position: 100% 100%; } 50% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
+:root[data-reduce-motion] .pick-card.foil::after { animation: none; background-position: 50% 50%; }
+.pick-card.foil::after { transition: transform var(--med) var(--ease); }
+.pick-card.foil:hover::after { transform: translateY(-10px) scale(1.03); }
+.pick-card.foil.chosen::after { transform: translateY(-12px) scale(1.04); }
 .pick-card.r-mythic .card-img { box-shadow: 0 10px 22px rgba(0,0,0,.6), 0 0 18px rgba(224,138,74,.25); }
 .pick-flag {
   position: absolute; left: 50%; top: -24px; translate: -50% 0; z-index: 4; white-space: nowrap; pointer-events: none;

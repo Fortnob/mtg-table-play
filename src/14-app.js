@@ -622,6 +622,10 @@
         /* A draft needs something to draft from: a set for boosters, a cube
            for a cube, and nothing at all for chaos, which picks its own. */
         const style = fmtNow && fmtNow.draft ? fmtNow.draft.style : '';
+        if (style && style !== 'cube') {
+          panel.appendChild(field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
+            q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster')));
+        }
         if (style === 'booster' || style === 'commander') {
           const setSel = el('select', { 'aria-label': 'Set to draft' }, [el('option', { value: '', text: 'The newest set' })]);
           MTG.scry.draftableSets().then((sets) => {
@@ -657,6 +661,7 @@
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
+            collector: !!q.collector,
           });
         },
       });
@@ -1684,6 +1689,7 @@
         sess.cube = cube;
         sess.packSize = cube.packSize || 15;
       }
+      if (opts.collector && style !== 'cube') sess.setRule('collector', true);
       const count = U.clamp(opts.opponents || 1, 1, Math.min(7, (sess.fmt.maxPlayers || 8) - 1));
       for (let i = 0; i < count; i++) sess.addBot(opts.difficulty || 5);
       const ready = sess.readyToStart();
@@ -2815,6 +2821,9 @@
           seats: this.roster.length,
           packs: this.packs,
           packSize: this.packSize,
+          // left at the format's number, each pack is its booster's real size
+          packSizeAuto: this.packSize === MTG.formats.houseDefaults(this.formatId).packSize,
+          collector: !!this.rules.collector,
           picksPerTurn: this.fmt.draft.picksPerTurn,
           setCodes: this.fmt.draft.style === 'chaos' ? (this.chaosPoolSets() || []) : [this.setCode],
           cube: this.cube,

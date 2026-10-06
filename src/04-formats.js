@@ -411,6 +411,8 @@
       hint: 'How many boosters each seat opens.' },
     { key: 'packSize', label: 'Cards per pack', type: 'int', min: 3, max: 45, when: (f) => !!f.draft,
       hint: 'Picks per booster.' },
+    { key: 'collector', label: 'Collector boosters', type: 'bool', when: (f) => !!f.draft && f.draft.style !== 'cube',
+      hint: 'Fifteen cards, mostly foil, with extra rares and special printings, in place of the usual packs.' },
     { key: 'basicsFree', label: 'Free basic lands', type: 'bool', when: (f) => !!f.draft,
       hint: 'Off means you play only what you drafted.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,
@@ -426,6 +428,7 @@
     if (key === 'singleton') return !!fmt.singleton;
     if (key === 'colorIdentity') return !!fmt.colorIdentity;
     if (key === 'basicsFree') return !!fmt.basicsFree;
+    if (key === 'collector') return false;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;

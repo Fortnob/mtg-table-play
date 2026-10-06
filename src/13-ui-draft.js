@@ -332,7 +332,7 @@
         order.forEach((c, i) => {
           const chosen = this.chosen.includes(c.id);
           const slot = UI.cardSlot(c, {}, {
-            class: 'pick-card' + (chosen ? ' chosen' : '') + ' r-' + (c.rarity || 'common'),
+            class: 'pick-card' + (chosen ? ' chosen' : '') + ' r-' + (c.rarity || 'common') + (c._foil ? ' foil' : ''),
             onClick: () => { this._toggle(c); MTG.sfx('click'); this.render(); },
             onDblClick: () => this._confirmCard(c),
             // Enter picks the card up, Space sends the pick; the slot's own
