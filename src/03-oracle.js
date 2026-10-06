@@ -426,8 +426,9 @@
   function grantableText(text) {
     const probe = analyze({ id: 'granted:' + U.hash(text), name: 'Granted', type_line: 'Creature',
       oracle_text: text, keywords: [], layout: 'token' });
+    // triggered and activated abilities: the engine adds either to the permanent's own
     return !!(probe && probe.fullyAutomated && probe.abilities.length &&
-      probe.abilities.every(ab => ab.kind === 'triggered'));
+      probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated'));
   }
 
   /* "Search your library for up to two basic land cards, put them onto the

@@ -6010,7 +6010,8 @@
             return;
           }
           const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Creature', oracle_text: t, keywords: [], layout: 'token' });
-          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
+          // words: triggered abilities, and activated ones ("has '{T}: Draw a card'")
+          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
         });
         out.abilities = base.abilities.concat(extra);
       }

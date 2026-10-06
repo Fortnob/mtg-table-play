@@ -137,7 +137,7 @@ module.exports = (test) => {
   });
 
   test('XMage: Bootleggers\' Stash gives lands "{T}: Create a Treasure token."', (mk, t) => {
-    generated(t, "Bootleggers' Stash");
+    t.auto("Bootleggers' Stash");   // the words are read as well now; either way it must work
     const T = mk();
     T.bf('A', "Bootleggers' Stash");
     const land = T.bf('A', 'Forest');
@@ -494,6 +494,23 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Shock'), { targets: [pi], resolve: false });
     T.resolve();
     t.zone(pi, 'graveyard', 'sacrificed when targeted (2 damage would not kill a 6/4)');
+  });
+
+  test('Splinter Twin hands over an activated ability in quotation marks', (mk, t) => {
+    t.auto('Splinter Twin');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const tw = T.bf('A', 'Splinter Twin');
+    tw.attachedTo = bear.id;
+    bear.attachments = [tw.id];
+    tw.ts = T.g._stampNew();
+    T.g.bumpBoard();
+    const acts = bear.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts.length, 1, 'the bear has the ability');
+    T.activate('A', bear, 0);
+    const tokens = T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
+    t.eq(tokens.length, 1, 'a copy of the bear');
+    t.ok(bear.tapped, 'tapped to do it');
   });
 
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {

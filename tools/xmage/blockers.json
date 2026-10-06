@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 18185,
-  "gainedCards": 1980,
-  "linesNeeded": 20952,
-  "linesGained": 2610,
+  "needed": 18081,
+  "gainedCards": 1898,
+  "linesNeeded": 20838,
+  "linesGained": 2522,
   "gained": {
-   "all": 1980,
+   "all": 1898,
    "top2000": 52,
    "stdTop": 15
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6117,
-   "lines": 5076,
+   "score": 6115,
+   "lines": 5074,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 528,
-   "lines": 489,
+   "score": 527,
+   "lines": 488,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -338,8 +338,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 55,
-   "lines": 46,
+   "score": 54,
+   "lines": 45,
    "cards": [
     "Drakuseth, Maw of Flames",
     "Pain for All",
@@ -3262,25 +3262,6 @@
    ]
   },
   {
-   "what": "UntapSourceEffect",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Thornbite Staff",
-    "Hydro-Man, Fluid Felon",
-    "Gauntlets of Light",
-    "Kitsune Ace",
-    "Foreboding Statue // Forsaken Thresher",
-    "Ringing Strike Mastery",
-    "Forsaken City",
-    "Singing Bell Strike",
-    "Immobilizing Ink",
-    "Deep-Slumber Titan",
-    "Gustcloak Harrier",
-    "Gustcloak Cavalier"
-   ]
-  },
-  {
    "what": "DamageEverythingEffect with a filter",
    "score": 16,
    "lines": 16,
@@ -3856,24 +3837,6 @@
     "Militia Bugler",
     "Mayael the Anima",
     "Squad Rallier"
-   ]
-  },
-  {
-   "what": "RegenerateTargetEffect",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Swarmyard",
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Accursed Duneyard",
-    "Crypt Sliver",
-    "Mad Auntie",
-    "Poultice Sliver",
-    "Sporeback Troll",
-    "Regenerate",
-    "Gaze of the Gorgon",
-    "Baron Sengir"
    ]
   },
   {
@@ -4578,25 +4541,6 @@
    ]
   },
   {
-   "what": "RegenerateSourceEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Zombie Master",
-    "Clot Sliver",
-    "Sedge Sliver",
-    "Skeletal Grimace",
-    "Trollhide",
-    "Molting Snakeskin",
-    "Consecrated by Blood",
-    "Savage Silhouette",
-    "Resuscitate",
-    "Run Wild",
-    "Gobhobbler Rats",
-    "Villainous Ogre"
-   ]
-  },
-  {
    "what": "PutCounterOnPermanentTriggeredAbility",
    "score": 13,
    "lines": 13,
@@ -4689,25 +4633,6 @@
     "Grave Defiler",
     "Enlistment Officer",
     "Lair Delve"
-   ]
-  },
-  {
-   "what": "GainAbilityWithAttachmentEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Toralf, God of Fury // Toralf's Hammer",
-    "The Dominion Bracelet",
-    "Citizen's Crowbar",
-    "Surestrike Trident",
-    "Trusty Boomerang",
-    "Deconstruction Hammer",
-    "Blinding Powder",
-    "Heartseeker",
-    "Ninja's Kunai",
-    "Blazing Torch",
-    "Leonin Bola",
-    "Shuriken"
    ]
   },
   {
@@ -5077,6 +5002,22 @@
    ]
   },
   {
+   "what": "RegenerateTargetEffect",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Swarmyard",
+    "Dawn Charm",
+    "Ezuri, Renegade Leader",
+    "Accursed Duneyard",
+    "Mad Auntie",
+    "Sporeback Troll",
+    "Regenerate",
+    "Gaze of the Gorgon",
+    "Baron Sengir"
+   ]
+  },
+  {
    "what": "CreaturesCantGetOrHaveAbilityEffect",
    "score": 12,
    "lines": 6,
@@ -5263,6 +5204,25 @@
     "Ghalta the Immovable",
     "The Kingpin of Crime",
     "Belligerent Brontodon"
+   ]
+  },
+  {
+   "what": "UntapSourceEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Thornbite Staff",
+    "Hydro-Man, Fluid Felon",
+    "Kitsune Ace",
+    "Foreboding Statue // Forsaken Thresher",
+    "Forsaken City",
+    "Deep-Slumber Titan",
+    "Gustcloak Harrier",
+    "Gustcloak Cavalier",
+    "Gustcloak Skirmisher",
+    "Gustcloak Runner",
+    "Gustcloak Sentinel",
+    "Psychic Overload"
    ]
   },
   {
@@ -8140,6 +8100,21 @@
    ]
   },
   {
+   "what": "GainAbilityWithAttachmentEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Toralf, God of Fury // Toralf's Hammer",
+    "The Dominion Bracelet",
+    "Surestrike Trident",
+    "Blinding Powder",
+    "Heartseeker",
+    "Leonin Bola",
+    "Shuriken",
+    "Razor Boomerang"
+   ]
+  },
+  {
    "what": "VoidCondition.instance",
    "score": 8,
    "lines": 8,
@@ -8284,21 +8259,6 @@
     "Munda, Ambush Leader",
     "Tajuru Archer",
     "Bala Ged Thief"
-   ]
-  },
-  {
-   "what": "GainAbilityControlledEffect.withForceQuotes",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Callaphe, Beloved of the Sea",
-    "Mishra, Tamer of Mak Fawa",
-    "Scuttling Sliver",
-    "Cathedral of Serra",
-    "Adventurers' Guildhouse",
-    "Mountain Stronghold",
-    "Unholy Citadel",
-    "Seafarer's Quay"
    ]
   },
   {
@@ -8464,13 +8424,43 @@
     "Tidal Influence",
     "Rock Jockey"
    ]
+  },
+  {
+   "what": "CantAttackBlockAttachedEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Faith's Fetters",
+    "Realmbreaker's Grasp",
+    "Heliod's Punishment",
+    "Bound in Gold",
+    "Intercessor's Arrest",
+    "Hold for Ransom",
+    "Revoke Privileges",
+    "Serra Bestiary"
+   ]
+  },
+  {
+   "what": "SearchLibraryAndExileTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Jester's Cap",
+    "Bitter Ordeal",
+    "Extract",
+    "Sadistic Sacrament",
+    "Earwig Squad",
+    "Rootwater Thief",
+    "Denying Wind",
+    "Supreme Inquisitor"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4763,
-   "cards": 3989,
+   "score": 4761,
+   "cards": 3987,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8495,8 +8485,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 261,
-   "cards": 249,
+   "score": 260,
+   "cards": 248,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -9441,6 +9431,19 @@
    ]
   },
   {
+   "what": "CreateTokenAttachSourceEffect",
+   "score": 18,
+   "cards": 18,
+   "names": [
+    "Field-Tested Frying Pan",
+    "Citizen's Crowbar",
+    "Foot Chopper",
+    "Kyoshi Battle Fan",
+    "Ancestral Blade",
+    "Dwarven Hammer"
+   ]
+  },
+  {
    "what": "DamageTargetControllerEffect",
    "score": 18,
    "cards": 18,
@@ -9529,19 +9532,6 @@
     "Uncharted Voyage",
     "Riverwalk Technique",
     "Vanish from Sight"
-   ]
-  },
-  {
-   "what": "CreateTokenAttachSourceEffect",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Field-Tested Frying Pan",
-    "Foot Chopper",
-    "Kyoshi Battle Fan",
-    "Ancestral Blade",
-    "Dwarven Hammer",
-    "Dwarven Shortsword"
    ]
   },
   {
@@ -10388,19 +10378,6 @@
    ]
   },
   {
-   "what": "RegenerateTargetEffect",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Swarmyard",
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Accursed Duneyard",
-    "Crypt Sliver",
-    "Mad Auntie"
-   ]
-  },
-  {
    "what": "CreaturesCantGetOrHaveAbilityEffect",
    "score": 12,
    "cards": 6,
@@ -10551,19 +10528,6 @@
     "Impulsivity",
     "Goblin Dark-Dwellers",
     "Quistis Trepe"
-   ]
-  },
-  {
-   "what": "RegenerateSourceEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Zombie Master",
-    "Clot Sliver",
-    "Skeletal Grimace",
-    "Trollhide",
-    "Molting Snakeskin",
-    "Consecrated by Blood"
    ]
   },
   {
@@ -11127,19 +11091,6 @@
    ]
   },
   {
-   "what": "UntapSourceEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Kitsune Ace",
-    "Ringing Strike Mastery",
-    "Forsaken City",
-    "Singing Bell Strike",
-    "Immobilizing Ink",
-    "Deep-Slumber Titan"
-   ]
-  },
-  {
    "what": "PreventDamageByTargetEffect",
    "score": 11,
    "cards": 11,
@@ -11202,6 +11153,19 @@
     "Kindred Summons",
     "Haunting Voyage",
     "Kindred Charge"
+   ]
+  },
+  {
+   "what": "RegenerateTargetEffect",
+   "score": 10,
+   "cards": 7,
+   "names": [
+    "Swarmyard",
+    "Dawn Charm",
+    "Ezuri, Renegade Leader",
+    "Accursed Duneyard",
+    "Mad Auntie",
+    "Regenerate"
    ]
   },
   {
@@ -11594,19 +11558,6 @@
     "Voldaren Ambusher",
     "Arrogant Outlaw",
     "Lion Vulture"
-   ]
-  },
-  {
-   "what": "GainAbilityWithAttachmentEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "The Dominion Bracelet",
-    "Surestrike Trident",
-    "Trusty Boomerang",
-    "Deconstruction Hammer",
-    "Blinding Powder",
-    "Heartseeker"
    ]
   },
   {
@@ -12291,6 +12242,45 @@
     "Riveteers Decoy",
     "Hinterland Hermit // Hinterland Scourge",
     "Gaea's Protector"
+   ]
+  },
+  {
+   "what": "ExileFromZoneTargetEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Perfect Intimidation",
+    "Skullcap Snail",
+    "Ruthless Negotiation",
+    "Kyoki, Sanity's Eclipse",
+    "Unscrupulous Agent",
+    "Aim for the Head"
+   ]
+  },
+  {
+   "what": "discard several, or reveal some",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Blackmail",
+    "Acquisitions Expert",
+    "Thieving Sprite",
+    "Mire's Toll",
+    "Cabal Interrogator",
+    "Disciple of Phenax"
+   ]
+  },
+  {
+   "what": "AssignNoCombatDamageSourceEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Goblin Vandal",
+    "Laccolith Whelp",
+    "Ophidian",
+    "Dwarven Vigilantes",
+    "Farrel's Zealot",
+    "Laccolith Titan"
    ]
   }
  ]
