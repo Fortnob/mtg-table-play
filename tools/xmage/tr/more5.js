@@ -63,7 +63,7 @@ def('ability', 'CardsLeaveGraveyardTriggeredAbility', (o, tc) => {
   if (d.base !== 'card') block('leaving the graveyard: ' + d.base);
   const words = F.toWords(Object.assign({}, d, { owner: undefined }));
   // one trigger for the lot, from your own graveyard
-  const ev = { event: 'leftGraveyard', objFilter: { words: words === 'card' ? 'card' : words, who: 'you', batch: true } };
+  const ev = { event: 'leftGraveyard', optional: false, objFilter: { words: words === 'card' ? 'card' : words, who: 'you', batch: true } };
   if (A(o).bool(0, false)) ev.condition = { kind: 'yourTurn' };
   return AB.triggered(o, tc, ev);
 });

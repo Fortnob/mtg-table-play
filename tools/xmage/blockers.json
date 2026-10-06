@@ -5,12 +5,12 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 18234,
-  "gainedCards": 1814,
+  "gainedCards": 1840,
   "linesNeeded": 21007,
-  "linesGained": 2408,
+  "linesGained": 2440,
   "gained": {
-   "all": 1814,
-   "top2000": 46,
+   "all": 1840,
+   "top2000": 47,
    "stdTop": 13
   },
   "compare": {
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 102,
+  "verifyFail": 70,
   "overrides": {
    "it": 169,
    "drain": 62,
@@ -466,25 +466,6 @@
     "Thryx, the Sudden Storm",
     "Shadow in the Warp",
     "Warden of Evos Isle"
-   ]
-  },
-  {
-   "what": "(verify) condition lost",
-   "score": 47,
-   "lines": 44,
-   "cards": [
-    "Ob Nixilis, the Fallen",
-    "Blowfly Infestation",
-    "Jin-Gitaxias // The Great Synthesis",
-    "Tower Winder",
-    "Skyfisher Spider",
-    "Tale of Momo",
-    "Grakmaw, Skyclave Ravager",
-    "Depala, Pilot Exemplar",
-    "Hope-Ender Coatl",
-    "The First Doctor",
-    "Raven Clan War-Axe",
-    "Sandman's Quicksand"
    ]
   },
   {
@@ -1426,25 +1407,6 @@
    ]
   },
   {
-   "what": "(verify) optional where the card is not",
-   "score": 25,
-   "lines": 16,
-   "cards": [
-    "Thirst for Knowledge",
-    "Thirst for Discovery",
-    "Tezzeret, Betrayer of Flesh",
-    "Kheru Goldkeeper",
-    "Cavalier of Thorns",
-    "Winternight Stories",
-    "Thran Vigil",
-    "Thirst for Meaning",
-    "Thirst for Identity",
-    "Invasion of New Phyrexia // Teferi Akosa of Zhalfir",
-    "Arm-Mounted Anchor",
-    "Practical Research"
-   ]
-  },
-  {
    "what": "Ability.setMayActivate",
    "score": 25,
    "lines": 25,
@@ -1987,6 +1949,25 @@
    ]
   },
   {
+   "what": "(verify) optional where the card is not",
+   "score": 22,
+   "lines": 13,
+   "cards": [
+    "Thirst for Knowledge",
+    "Thirst for Discovery",
+    "Tezzeret, Betrayer of Flesh",
+    "Cavalier of Thorns",
+    "Winternight Stories",
+    "Thirst for Meaning",
+    "Thirst for Identity",
+    "Invasion of New Phyrexia // Teferi Akosa of Zhalfir",
+    "Arm-Mounted Anchor",
+    "Practical Research",
+    "Nissa Revane",
+    "Alpharael, Dreaming Acolyte"
+   ]
+  },
+  {
    "what": "keyword DevourAbility",
    "score": 22,
    "lines": 22,
@@ -2192,6 +2173,25 @@
     "Gift of the Deity",
     "Scourge of the Nobilis",
     "Favorable Destiny"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Invigorating Hot Spring",
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Nimbleclaw Adept",
+    "Akul the Unrepentant",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Thunderhead Gunner",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "The Chief Warg"
    ]
   },
   {
@@ -4389,25 +4389,6 @@
     "Dirge of Dread",
     "Howler's Heavy",
     "Primal Boost"
-   ]
-  },
-  {
-   "what": "(verify) condition the card does not print",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Invigorating Hot Spring",
-    "Pugnacious Hammerskull",
-    "Nimbleclaw Adept",
-    "Akul the Unrepentant",
-    "Thunderhead Gunner",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg",
-    "Graverobber Spider",
-    "Fires of Victory",
-    "Burning Sun Cavalry"
    ]
   },
   {
@@ -8082,6 +8063,21 @@
    ]
   },
   {
+   "what": "(verify) condition lost",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Blowfly Infestation",
+    "Jin-Gitaxias // The Great Synthesis",
+    "Grakmaw, Skyclave Ravager",
+    "Depala, Pilot Exemplar",
+    "Hope-Ender Coatl",
+    "Sandman's Quicksand",
+    "Earth Surge",
+    "Adipose Offspring"
+   ]
+  },
+  {
    "what": "words:withKeyword",
    "score": 8,
    "lines": 8,
@@ -8516,8 +8512,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4728,
-   "cards": 3957,
+   "score": 4729,
+   "cards": 3958,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8568,8 +8564,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 231,
-   "cards": 219,
+   "score": 232,
+   "cards": 220,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8759,19 +8755,6 @@
     "Thrumming Stone",
     "Imoti, Celebrant of Bounty",
     "Zhulodok, Void Gorger"
-   ]
-  },
-  {
-   "what": "(verify) condition lost",
-   "score": 38,
-   "cards": 35,
-   "names": [
-    "Ob Nixilis, the Fallen",
-    "Blowfly Infestation",
-    "Tower Winder",
-    "Skyfisher Spider",
-    "Hope-Ender Coatl",
-    "Raven Clan War-Axe"
    ]
   },
   {
@@ -9306,6 +9289,19 @@
    ]
   },
   {
+   "what": "(verify) condition the card does not print",
+   "score": 21,
+   "cards": 21,
+   "names": [
+    "Invigorating Hot Spring",
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Nimbleclaw Adept",
+    "Akul the Unrepentant",
+    "Butterbur, Bree Innkeeper"
+   ]
+  },
+  {
    "what": "VentureIntoTheDungeonEffect",
    "score": 21,
    "cards": 21,
@@ -9342,19 +9338,6 @@
     "Akki Battle Squad",
     "Thundering Raiju",
     "Araña, Heart of the Spider"
-   ]
-  },
-  {
-   "what": "(verify) optional where the card is not",
-   "score": 20,
-   "cards": 11,
-   "names": [
-    "Thirst for Knowledge",
-    "Thirst for Discovery",
-    "Winternight Stories",
-    "Thran Vigil",
-    "Thirst for Meaning",
-    "Thirst for Identity"
    ]
   },
   {
@@ -9537,6 +9520,19 @@
     "Liliana's Standard Bearer",
     "Wyleth, Soul of Steel",
     "Birth of the Imperium"
+   ]
+  },
+  {
+   "what": "(verify) optional where the card is not",
+   "score": 18,
+   "cards": 9,
+   "names": [
+    "Thirst for Knowledge",
+    "Thirst for Discovery",
+    "Winternight Stories",
+    "Thirst for Meaning",
+    "Thirst for Identity",
+    "Practical Research"
    ]
   },
   {
@@ -10141,19 +10137,6 @@
     "Valor's Flagship",
     "Yidaro, Wandering Monster",
     "Gempalm Polluter"
-   ]
-  },
-  {
-   "what": "(verify) condition the card does not print",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Invigorating Hot Spring",
-    "Pugnacious Hammerskull",
-    "Nimbleclaw Adept",
-    "Akul the Unrepentant",
-    "Thunderhead Gunner",
-    "Oak Street Innkeeper"
    ]
   },
   {
@@ -11060,6 +11043,18 @@
    ]
   },
   {
+   "what": "RenewAbility",
+   "score": 11,
+   "cards": 5,
+   "names": [
+    "Qarsi Revenant",
+    "Kheru Goldkeeper",
+    "Sage of the Fang",
+    "Champion of Dusan",
+    "Sagu Pummeler"
+   ]
+  },
+  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 11,
    "cards": 11,
@@ -11475,17 +11470,6 @@
     "Teval, the Balanced Scale",
     "Port of Karfell",
     "Cruel Ultimatum"
-   ]
-  },
-  {
-   "what": "RenewAbility",
-   "score": 10,
-   "cards": 4,
-   "names": [
-    "Qarsi Revenant",
-    "Sage of the Fang",
-    "Champion of Dusan",
-    "Sagu Pummeler"
    ]
   },
   {
@@ -12342,6 +12326,19 @@
     "Knight of Dusk",
     "Baneblade Scoundrel // Baneclaw Marauder",
     "Godo's Irregulars"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousEffect without a condition",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Sardian Cliffstomper",
+    "Goblin Caves",
+    "Blood Lust",
+    "Gorilla Titan",
+    "Court Homunculus",
+    "Swordsworn Cavalier"
    ]
   }
  ]
