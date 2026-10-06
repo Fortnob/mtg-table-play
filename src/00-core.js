@@ -238,6 +238,7 @@ const defaultSettings = {
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
   splitOpponents: false,         // two or three opponents side by side instead of one at a time
+  peekOpponents: true,           // on a wide screen, the boards either side of the one in view, smaller
 
   /* --- accessibility --- */
   uiScale: 1,            // scales all text and controls

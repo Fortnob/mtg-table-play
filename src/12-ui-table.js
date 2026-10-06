@@ -595,6 +595,23 @@
       this.arena.classList.toggle('split', split);
       this.renderOppStrip(multi ? others : []);
       let shown = !multi || split ? others : others.filter(p => p.id === this.focusSeat);
+      /* With room to spare, the boards either side of the one in view peek
+         in from the edges, smaller: you see what the rest of the table has
+         without leaving the board you are looking at, and a card there can
+         still be read or aimed at. Click one to bring it forward. */
+      const peek = multi && !split && !watching && !MTG.isPhone() && MTG.settings.peekOpponents !== false &&
+        (this.sizeOf(this.arena).w || 0) >= 1150;
+      const peekSide = new Map();
+      if (peek) {
+        const i = Math.max(0, others.findIndex(p => p.id === this.focusSeat));
+        const n = others.length;
+        const left = others[(i - 1 + n) % n], right = others[(i + 1) % n];
+        // two opponents: the other one sits on whichever side it does round the table
+        if (n === 2) peekSide.set((i === 0 ? right : left).id, i === 0 ? 'right' : 'left');
+        else { peekSide.set(left.id, 'left'); peekSide.set(right.id, 'right'); }
+        const at = (side) => others.find(p => peekSide.get(p.id) === side);
+        shown = [at('left'), others[i], at('right')].filter(Boolean);
+      }
       let below = null;
       if (watching && multi && !split) {
         // nobody is sitting here, so the near side shows the next seat round
@@ -612,6 +629,25 @@
         s.root.classList.toggle('active-turn', v.activePlayer === p.id);
         s.root.classList.toggle('dead', !!p.hasLost);
         s.root.classList.toggle('focused', multi && !split && this.focusSeat === p.id);
+        const side = peekSide.get(p.id) || null;
+        s.root.classList.toggle('peek', !!side);
+        s.root.classList.toggle('peek-left', side === 'left');
+        s.root.classList.toggle('peek-right', side === 'right');
+        s.root.dataset.name = p.name;
+        if (!s._peekClick) {
+          s._peekClick = true;
+          /* Anywhere on it brings it forward, its cards included, unless a
+             card there is being asked for: a target, a blocker, an answer. */
+          s.root.addEventListener('click', (e) => {
+            if (!s.root.classList.contains('peek')) return;
+            const lv = this.live || this.view;
+            const picking = this.targeting || this.blockPlan ||
+              (lv && lv.pendingChoice && lv.pendingChoice.playerId === this.meId);
+            if (picking && e.target.closest && e.target.closest('.cv')) return;
+            e.stopPropagation();
+            this.setFocus(p.id, true);
+          });
+        }
         this.renderOppHud(p, s);
         this.renderField(p, s, false);
         kids.push(s.root);

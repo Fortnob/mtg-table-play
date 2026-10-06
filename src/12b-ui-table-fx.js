@@ -661,6 +661,8 @@
         const atts = Math.max(0, ...this.view.battlefield.filter(o => o.controller === s.root.dataset.seat).map(o => this._attachSpread(o)));
         const tall = CARD_RATIO * (1 + backScale) + 0.32 + atts * 0.2;
         let cw = Math.min(W / widest, H / tall, maxCw);
+        // a board peeking in from the side is smaller, and cut off at the edge rather than shrunk to fit
+        if (s.root.classList.contains('peek')) cw = Math.min(H / tall, maxCw) * 0.6;
         cw = Math.max(phone ? 26 : 34, cw);
         const want = cw.toFixed(1) + 'px';
         if (s.field.style.getPropertyValue('--cw') !== want) s.field.style.setProperty('--cw', want);
