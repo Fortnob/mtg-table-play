@@ -392,7 +392,7 @@
   function quickPrefs() {
     const S = MTG.settings;
     const q = Object.assign({ formatId: 'standard', opponents: 1, difficulty: 5, colors: [], deckId: '',
-      lastByKind: {}, setCode: '', cubeId: 'modern' }, S.quickGame || {});
+      lastByKind: {}, setCode: '', cubeId: 'modern', chaosPool: null }, S.quickGame || {});
     if (!QUICK_FORMATS.some(f => f[0] === q.formatId)) q.formatId = 'standard';
     q.lastByKind = q.lastByKind || {};
     return q;
@@ -632,7 +632,7 @@
           cubeSel.addEventListener('change', () => { q.cubeId = cubeSel.value; saveQuick(q); });
           panel.appendChild(field('Cube', cubeSel));
         } else if (style === 'chaos') {
-          panel.appendChild(el('p', { class: 'quick-blurb small muted', text: 'Every pack comes from a different random set.' }));
+          panel.appendChild(field('Sets', chaosSetsSelect(q.chaosPool, (pool) => { q.chaosPool = pool; saveQuick(q); draw(); })));
         }
       }
 
@@ -653,7 +653,7 @@
           App.quickGame({
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
-            setCode: q.setCode || '', cubeId: q.cubeId || 'modern',
+            setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
           });
         },
       });
@@ -1660,6 +1660,8 @@
         if (!code) { const sets = await MTG.scry.draftableSets(); code = sets.length ? sets[0].code : ''; }
         if (!code) throw new Error('No set could be found to draft. Check the connection, or download the card database in Options.');
         sess.setCode = code;
+      } else if (style === 'chaos') {
+        sess.chaosPool = opts.chaosPool && opts.chaosPool.sets && opts.chaosPool.sets.length >= 2 ? opts.chaosPool : null;
       } else if (style === 'cube') {
         const recipe = MTG.draft.recipes.find(r => r.id === opts.cubeId) || MTG.draft.recipes.find(r => r.id === 'modern') || MTG.draft.recipes[0];
         // a cube built before is reused rather than gathered again
@@ -2030,24 +2032,57 @@
 
   /* ---------------- chaos draft pool ---------------- */
 
-  /** What the lobby shows for a chaos draft, plus the way in to change it. */
+  /** What the lobby shows for a chaos draft: which sets the packs come from. */
   function chaosPoolRow(sess) {
-    const pool = sess.chaosPool;
-    const n = pool && pool.sets ? pool.sets.length : 0;
-    const label = !n
-      ? 'Every draftable set'
-      : `${pool.name || 'Custom pool'} — ${n} set${n === 1 ? '' : 's'}`;
+    const sel = chaosSetsSelect(sess.chaosPool, (pool) => {
+      sess.chaosPool = pool;
+      sess.broadcastLobby();
+      renderLobby();
+    });
     return el('div', null, [
-      el('div', { class: 'setup-choice' }, [
-        el('div', { class: 'grow' }, [
-          el('div', { class: 'tiny dim', text: 'Packs come from' }),
-          el('div', { class: 'setup-value', text: label }),
-        ]),
-        el('button', { class: 'btn sm', text: 'Choose the pool', onclick: () => chaosPoolPicker(sess) }),
-      ]),
+      el('label', { class: 'field' }, [el('span', { text: 'Sets' }), sel]),
       el('p', { class: 'small muted', style: { margin: '8px 0 0' },
-        text: 'Every pack in the draft is rolled from this pool, so a wider pool means a stranger draft.' }),
+        text: 'Every pack in the draft is rolled from these sets, so a wider pool means a stranger draft.' }),
     ]);
+  }
+
+  /**
+   * The Sets dropdown for a chaos draft: every set (the default), the pools
+   * people ask for by name, or a hand-picked pile of sets. `onPick` gets
+   * null for every set, or { name, preset, sets: [code] }.
+   */
+  function chaosSetsSelect(current, onPick) {
+    const n = current && current.sets ? current.sets.length : 0;
+    const custom = n && !current.preset;
+    const sel = el('select', { 'aria-label': 'Sets to draft from' }, [
+      el('option', { value: '', text: 'All sets', selected: !n }),
+      custom ? el('option', { value: 'custom', text: `${current.name || 'Your pick'} \u00b7 ${n} sets`, selected: true }) : null,
+      el('option', { value: 'pick', text: 'Choose sets\u2026' }),
+    ].filter(Boolean));
+    const pickAt = sel.querySelector('option[value="pick"]');
+    let pools = [];
+    MTG.scry.setPools().then((list) => {
+      pools = list.filter(p => p.id !== 'all' && p.id !== 'vintage');   // both are "all sets"
+      for (const pl of pools) {
+        sel.insertBefore(el('option', { value: 'preset:' + pl.id, text: `${pl.name} \u00b7 ${pl.sets.length} sets`,
+          selected: !!(current && current.preset === pl.id) }), pickAt);
+      }
+    }).catch(() => {});
+    let was = sel.value;
+    sel.addEventListener('change', () => {
+      const v = sel.value;
+      if (v === 'custom') { was = v; return; }
+      if (v === 'pick') {
+        sel.value = was;    // stays as it was unless a pool is chosen
+        chaosPoolPicker(current, (pool) => onPick(pool));
+        return;
+      }
+      was = v;
+      if (!v) { onPick(null); return; }
+      const pl = pools.find(x => 'preset:' + x.id === v);
+      if (pl) onPick({ name: pl.name, preset: pl.id, sets: pl.sets.map(st => st.code) });
+    });
+    return sel;
   }
 
   /**
@@ -2055,9 +2090,10 @@
    * ask for by name; underneath is the whole list, because the point of a
    * chaos draft is often one particular pile of sets.
    */
-  async function chaosPoolPicker(sess) {
-    const chosen = new Set((sess.chaosPool && sess.chaosPool.sets) || []);
-    let presetName = (sess.chaosPool && sess.chaosPool.name) || null;
+  async function chaosPoolPicker(current, onUse) {
+    const chosen = new Set((current && current.sets) || []);
+    let presetName = (current && current.name) || null;
+    let presetId = (current && current.preset) || null;
 
     const presetRow = el('div', { class: 'pool-presets' });
     const list = el('div', { class: 'pool-list' }, el('div', { class: 'empty-note', text: 'Loading the set list…' }));
@@ -2072,7 +2108,7 @@
     ]);
 
     const m = UI.modal({
-      title: 'Chaos draft pool',
+      title: 'Sets for a chaos draft',
       width: '820px',
       content: el('div', { class: 'pool-picker' }, [
         el('p', { class: 'small muted', style: { marginTop: 0 },
@@ -2080,19 +2116,16 @@
         presetRow,
         el('div', { class: 'row wrap pool-tools' }, [
           el('span', { class: 'grow' }, search), typeSel, count,
-          el('button', { class: 'btn xs ghost', text: 'Clear', onclick: () => { chosen.clear(); presetName = null; draw(); } }),
+          el('button', { class: 'btn xs ghost', text: 'Clear', onclick: () => { chosen.clear(); presetName = null; presetId = null; draw(); } }),
         ]),
         list,
       ]),
       buttons: [
         { label: 'Cancel', onClick: () => m.close() },
         {
-          label: 'Use this pool', class: 'primary', onClick: () => {
-            sess.chaosPool = chosen.size ? { name: presetName, sets: [...chosen] } : null;
-            MTG.setSetting('chaosPool', sess.chaosPool);
-            sess.broadcastLobby();
+          label: 'Use these sets', class: 'primary', onClick: () => {
             m.close();
-            renderLobby();
+            onUse(chosen.size ? { name: presetName, preset: presetId, sets: [...chosen] } : null);
             UI.ok(chosen.size ? `${chosen.size} sets in the pool.` : 'Every set is in the pool.');
           },
         },
@@ -2113,6 +2146,7 @@
       chosen.clear();
       for (const st of p.sets) chosen.add(st.code);
       presetName = p.name;
+      presetId = p.id === 'all' || p.id === 'vintage' ? null : p.id;
       draw();
     }
 
@@ -2142,7 +2176,7 @@
         const on = chosen.has(st.code);
         const row = el('button', { class: 'pool-row' + (on ? ' on' : ''), onclick: () => {
           if (chosen.has(st.code)) chosen.delete(st.code); else chosen.add(st.code);
-          presetName = null;
+          presetName = null; presetId = null;
           draw();
         } }, [
           el('span', { class: 'pool-tick', text: on ? '✓' : '' }),
