@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16930,
-  "gainedCards": 1772,
-  "linesNeeded": 19322,
-  "linesGained": 2296,
+  "needed": 16873,
+  "gainedCards": 1760,
+  "linesNeeded": 19248,
+  "linesGained": 2279,
   "gained": {
-   "all": 1772,
+   "all": 1760,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5905,
-   "lines": 4981,
+   "score": 5886,
+   "lines": 4971,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1046,
-   "lines": 848,
+   "score": 1042,
+   "lines": 847,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 373,
-   "lines": 352,
+   "score": 358,
+   "lines": 337,
    "cards": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -1132,25 +1132,6 @@
    ]
   },
   {
-   "what": "AdditiveDynamicValue",
-   "score": 24,
-   "lines": 18,
-   "cards": [
-    "Multani, Yavimaya's Avatar",
-    "Nighthawk Scavenger",
-    "Kellan, the Fae-Blooded // Birthright Boon",
-    "Ancestral Anger",
-    "Desmond Miles",
-    "Hobbit's Sting",
-    "Champion of the Flame",
-    "Moon-Vigil Adherents",
-    "Cid, Timeless Artificer",
-    "Heavenly Blademaster",
-    "Gloom Ripper",
-    "Frantic Firebolt"
-   ]
-  },
-  {
    "what": "RevealCardsFromLibraryUntilEffect",
    "score": 24,
    "lines": 18,
@@ -1836,6 +1817,25 @@
     "Turncoat Kunoichi",
     "Sigrid, God-Favored",
     "Detention Chariot"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Nighthawk Scavenger",
+    "Kellan, the Fae-Blooded // Birthright Boon",
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Champion of the Flame",
+    "Cid, Timeless Artificer",
+    "Heavenly Blademaster",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Road Rage",
+    "The Archimandrite",
+    "Desert's Due"
    ]
   },
   {
@@ -3016,24 +3016,6 @@
    ]
   },
   {
-   "what": "EscapesWithAbility",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Woe Strider",
-    "Chainweb Aracnir",
-    "Ox of Agonas",
-    "Charred Graverobber",
-    "Skyway Robber",
-    "Phoenix of Ash",
-    "Pharika's Spawn",
-    "Underworld Rage-Hound",
-    "Underworld Charger",
-    "Voracious Typhon",
-    "Loathsome Chimera"
-   ]
-  },
-  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 14,
    "lines": 5,
@@ -3435,20 +3417,6 @@
     "Psychic Impetus",
     "Acquired Mutation",
     "Incriminating Impetus"
-   ]
-  },
-  {
-   "what": "AttachedToAttachedPredicate.instance",
-   "score": 13,
-   "lines": 7,
-   "cards": [
-    "Mantle of the Ancients",
-    "Thran Power Suit",
-    "Strong Back",
-    "With Great Power . . .",
-    "Brass Knuckles",
-    "Golem-Skin Gauntlets",
-    "Auramancer's Guise"
    ]
   },
   {
@@ -4593,6 +4561,18 @@
     "Vernal Equinox",
     "Cherished Hatchling",
     "Rootwater Shaman"
+   ]
+  },
+  {
+   "what": "AttachedToAttachedPredicate.instance",
+   "score": 11,
+   "lines": 5,
+   "cards": [
+    "Mantle of the Ancients",
+    "Thran Power Suit",
+    "Strong Back",
+    "With Great Power . . .",
+    "Brass Knuckles"
    ]
   },
   {
@@ -5997,19 +5977,6 @@
    ]
   },
   {
-   "what": "AuraAttachedCount",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Kor Spiritdancer",
-    "Uril, the Miststalker",
-    "Graceblade Artisan",
-    "Gatherer of Graces",
-    "Evershrike",
-    "Rabid Wombat"
-   ]
-  },
-  {
    "what": "ExchangeControlTargetEffect",
    "score": 9,
    "lines": 9,
@@ -6682,18 +6649,6 @@
    "lines": 2,
    "cards": [
     "Sage's Reverie"
-   ]
-  },
-  {
-   "what": "CreaturesCantGetOrHaveAbilityEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Archetype of Imagination",
-    "Archetype of Aggression",
-    "Archetype of Endurance",
-    "Archetype of Courage",
-    "Archetype of Finality"
    ]
   },
   {
@@ -8022,20 +7977,6 @@
    ]
   },
   {
-   "what": "EquipmentAttachedCount",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Kemba, Kha Regent",
-    "Goblin Gaveleer",
-    "Catti-brie of Mithral Hall",
-    "Captain America, Liberator",
-    "Winter Soldier, Icy Assassin",
-    "Myr Adapter",
-    "Loxodon Punisher"
-   ]
-  },
-  {
    "what": "DealsCombatDamageTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -8216,13 +8157,69 @@
     "Steadfast Armasaur",
     "Sworn Defender"
    ]
+  },
+  {
+   "what": "keyword RecoverAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Garza's Assassin",
+    "Grim Harvest",
+    "Icefall",
+    "Controvert",
+    "Resize",
+    "Sun's Bounty",
+    "Krovikan Rot"
+   ]
+  },
+  {
+   "what": "dies attached to enchanted land",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Genju of the Realm",
+    "Corrupted Zendikon",
+    "Nissa's Zendikon",
+    "Wind Zendikon",
+    "Guardian Zendikon",
+    "Vastwood Zendikon",
+    "Crusher Zendikon"
+   ]
+  },
+  {
+   "what": "BecomesTargetAttachedTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Crystallization",
+    "Fractured Loyalty",
+    "Ice Cage",
+    "Illusionary Armor",
+    "Spinal Graft",
+    "Sleeping Potion",
+    "Spectral Prison"
+   ]
+  },
+  {
+   "what": "DesertControlledOrGraveyardCondition.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Desert's Hold",
+    "Wall of Forgotten Pharaohs",
+    "Sand Strangler",
+    "Solitary Camel",
+    "Sidewinder Naga",
+    "Gilded Cerodon",
+    "Wretched Camel"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4631,
-   "cards": 3950,
+   "score": 4617,
+   "cards": 3945,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8234,8 +8231,8 @@
   },
   {
    "what": "custom ability",
-   "score": 774,
-   "cards": 621,
+   "score": 770,
+   "cards": 620,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8273,8 +8270,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 241,
-   "cards": 229,
+   "score": 232,
+   "cards": 220,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8662,6 +8659,19 @@
    ]
   },
   {
+   "what": "target count 0",
+   "score": 22,
+   "cards": 13,
+   "names": [
+    "Priest of Forgotten Gods",
+    "Singularity Rupture",
+    "Court of Cunning",
+    "Stonespeaker Crystal",
+    "Tinybones Joins Up",
+    "Wheel and Deal"
+   ]
+  },
+  {
    "what": "keyword StationLevelAbility",
    "score": 22,
    "cards": 7,
@@ -8711,32 +8721,6 @@
     "Akki Battle Squad",
     "Thundering Raiju",
     "Araña, Heart of the Spider"
-   ]
-  },
-  {
-   "what": "target count 0",
-   "score": 21,
-   "cards": 12,
-   "names": [
-    "Priest of Forgotten Gods",
-    "Singularity Rupture",
-    "Court of Cunning",
-    "Stonespeaker Crystal",
-    "Tinybones Joins Up",
-    "Wheel and Deal"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 21,
-   "cards": 15,
-   "names": [
-    "Multani, Yavimaya's Avatar",
-    "Nighthawk Scavenger",
-    "Kellan, the Fae-Blooded // Birthright Boon",
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Champion of the Flame"
    ]
   },
   {
@@ -8995,6 +8979,19 @@
     "The Vision",
     "Demonic Pact",
     "Three Bowls of Porridge"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Nighthawk Scavenger",
+    "Kellan, the Fae-Blooded // Birthright Boon",
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Champion of the Flame",
+    "Cid, Timeless Artificer"
    ]
   },
   {
@@ -9380,19 +9377,6 @@
     "Raised by Giants",
     "Kudo, King Among Bears",
     "Tanazir Quandrix"
-   ]
-  },
-  {
-   "what": "EscapesWithAbility",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Woe Strider",
-    "Chainweb Aracnir",
-    "Ox of Agonas",
-    "Skyway Robber",
-    "Phoenix of Ash",
-    "Pharika's Spawn"
    ]
   },
   {
@@ -10113,6 +10097,19 @@
    ]
   },
   {
+   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Sand Scout",
+    "Lazav, Dimir Mastermind",
+    "Yuma, Proud Protector",
+    "Compost",
+    "Slogurk, the Overslime",
+    "Planar Void"
+   ]
+  },
+  {
    "what": "BlightCost",
    "score": 11,
    "cards": 11,
@@ -10462,19 +10459,6 @@
     "Ruthless Winnower",
     "Requiem Angel",
     "Wildborn Preserver"
-   ]
-  },
-  {
-   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Sand Scout",
-    "Lazav, Dimir Mastermind",
-    "Compost",
-    "Slogurk, the Overslime",
-    "Planar Void",
-    "Skola Grovedancer"
    ]
   },
   {
@@ -10996,6 +10980,19 @@
    ]
   },
   {
+   "what": "activated with 2 effects in its constructor",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Primordial Mist",
+    "The Capitoline Triad",
+    "Back from the Brink",
+    "Skeleton Scavengers",
+    "Nivmagus Elemental",
+    "Murderous Betrayal"
+   ]
+  },
+  {
    "what": "OpponentsTurnCondition.instance",
    "score": 9,
    "cards": 9,
@@ -11427,18 +11424,6 @@
    ]
   },
   {
-   "what": "CreaturesCantGetOrHaveAbilityEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Archetype of Imagination",
-    "Archetype of Aggression",
-    "Archetype of Endurance",
-    "Archetype of Courage",
-    "Archetype of Finality"
-   ]
-  },
-  {
    "what": "SourceDealsDamageToThisTriggeredAbility",
    "score": 8,
    "cards": 5,
@@ -11448,18 +11433,6 @@
     "Belltower Sphinx",
     "Nested Ghoul",
     "Crag Saurian"
-   ]
-  },
-  {
-   "what": "AuraAttachedCount",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Kor Spiritdancer",
-    "Uril, the Miststalker",
-    "Graceblade Artisan",
-    "Gatherer of Graces",
-    "Rabid Wombat"
    ]
   },
   {
@@ -11901,19 +11874,6 @@
    ]
   },
   {
-   "what": "activated with 2 effects in its constructor",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Primordial Mist",
-    "Back from the Brink",
-    "Skeleton Scavengers",
-    "Nivmagus Elemental",
-    "Murderous Betrayal",
-    "Impelled Giant"
-   ]
-  },
-  {
    "what": "ConditionalColorlessManaAbility",
    "score": 8,
    "cards": 8,
@@ -12054,6 +12014,43 @@
     "Evangel of Synthesis",
     "Eyekite",
     "Gnarled Sage"
+   ]
+  },
+  {
+   "what": "ExileOpponentsCardFromExileToGraveyardCost",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Void Attendant",
+    "Ruin Processor",
+    "Wasteland Strangler",
+    "Ulamog's Reclaimer",
+    "Mind Raker",
+    "Oracle of Dust"
+   ]
+  },
+  {
+   "what": "DraftFromSpellbookEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Key to the Archive",
+    "Emmara, Voice of the Conclave",
+    "Cursebound Witch",
+    "Slimefoot, Thallid Transplant",
+    "Boseiju Pathlighter",
+    "Tireless Angler"
+   ]
+  },
+  {
+   "what": "GainControlAllOwnedEffect",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Homeward Path",
+    "Trostani Discordant",
+    "The Fall of Lord Konda // Fragment of Konda",
+    "Brooding Saurian"
    ]
   }
  ]

@@ -1955,6 +1955,83 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(b), 4);
   });
 
+  test("Xenagos: another creature doubles its power and gains haste", (mk, t) => {
+    t.auto('Xenagos, God of Revels');
+    const T = mk();
+    T.bf('A', 'Xenagos, God of Revels');
+    const w = T.bf('A', 'Craw Wurm');
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    t.eq(T.g.powerOf(w), 12);
+    t.ok(T.g.hasKw(w, 'haste'), 'haste');
+  });
+
+  test("Multani and Kor Spiritdancer count what the words say", (mk, t) => {
+    t.auto("Multani, Yavimaya's Avatar"); t.auto('Kor Spiritdancer');
+    const T = mk();
+    const m = T.bf('A', "Multani, Yavimaya's Avatar");
+    T.bf('A', 'Forest'); T.bf('A', 'Forest'); T.grave('A', 'Island');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(m), 3, 'two lands and one in the graveyard');
+    const k = T.bf('A', 'Kor Spiritdancer');
+    const r = T.bf('A', 'Rancor');
+    r.attachedTo = k.id; k.attachments.push(r.id); T.g.bumpBoard();
+    t.eq(T.g.toughnessOf(k), 4, '0/2 and +2/+2 for one Aura');
+  });
+
+  test('Fathom Mage draws for each counter', (mk, t) => {
+    t.auto('Fathom Mage');
+    const T = mk();
+    const f = T.bf('A', 'Fathom Mage');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const before = T.zone('A', 'hand').length;
+    T.answer('confirm', { yes: true });
+    T.g.addCounters(f, '+1/+1', 2);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 2);
+  });
+
+  test("Defense Grid taxes spells cast on someone else's turn", (mk, t) => {
+    t.auto('Defense Grid');
+    const T = mk();
+    T.bf('A', 'Defense Grid');
+    t.eq(T.g.castCost(T.hand('A', 'Shock')), '{R}', 'on your own turn');
+    t.eq(T.g.castCost(T.hand('B', 'Shock')), '{3}{R}', 'on the other turn');
+  });
+
+  test("Archetype of Imagination: opponents' creatures can't have flying", (mk, t) => {
+    t.auto('Archetype of Imagination');
+    const T = mk();
+    T.bf('A', 'Archetype of Imagination');
+    const s = T.bf('B', 'Serra Angel');
+    t.no(T.g.hasKw(s, 'flying'));
+    s.effects.push({ keywords: ['Flying'], until: 'eot' });
+    T.g.bumpBoard();
+    t.no(T.g.hasKw(s, 'flying'), 'nor gain it later');
+  });
+
+  test('Uro is sacrificed unless it escaped; Woe Strider escapes with counters', (mk, t) => {
+    t.auto("Uro, Titan of Nature's Wrath"); t.auto('Woe Strider');
+    const T = mk();
+    T.mana('A', '1GU');
+    T.cast('A', T.hand('A', "Uro, Titan of Nature's Wrath"));
+    T.resolve();
+    const u = T.zone('A', 'graveyard').find(o => /^Uro/.test(o.name));
+    t.ok(u, 'sacrificed');
+    for (let i = 0; i < 5; i++) T.grave('A', 'Island');
+    T.mana('A', 'GGUU');
+    t.ok(T.g.castSpell('A', u.id, { auto: true, via: 'escape' }), 'escaped');
+    T.resolve();
+    t.zone(u, 'battlefield', 'stays');
+    const T2 = mk();
+    const w = T2.grave('A', 'Woe Strider');
+    for (let i = 0; i < 4; i++) T2.grave('A', 'Island');
+    T2.mana('A', '3BB');
+    t.ok(T2.g.castSpell('A', w.id, { auto: true, via: 'escape' }), 'Woe Strider escapes');
+    T2.resolve();
+    t.eq(w.counters['+1/+1'], 2);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

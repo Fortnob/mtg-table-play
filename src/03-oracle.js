@@ -2273,6 +2273,17 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Uro, Kroxa: "When this enters, sacrifice it unless it escaped."
+    { re: /^Sacrifice (?:it|CARDNAME|this creature) unless it escaped\.?$/i, make: () => ({ op: 'sacUnlessEscaped' }) },
+    /* Xenagos, God of Revels: "Another target creature you control gains
+       haste and gets +X/+X until end of turn, where X is that creature's power." */
+    { re: /^((?:Another )?target creature(?: you control)?)(?: gains ([a-z ]+?) and)? gets \+X\/\+X until end of turn, where X is (?:its|that creature'?s) power\.?$/i,
+      make: (m) => {
+        const kws = m[2] ? keywordList(m[2]) : [];
+        if (m[2] && (!kws.length || !kws.every(kwKnown))) return null;
+        const pump = { op: 'pump', p: { ofTarget: 'power' }, t: { ofTarget: 'power' }, duration: 'eot', targets: [targetSpec(m[1])] };
+        return kws.length ? { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] } : pump;
+      } },
     // Legion Warboss: "That token gains haste until end of turn and attacks this combat if able."
     { re: /^That (?:token|creature) gains haste until end of turn and attacks this combat if able\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'grantKeyword', keywords: ['Haste'], scope: 'thatToken', duration: 'eot' },
@@ -2635,6 +2646,16 @@
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creature that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // "for each land card in your graveyard"
+    if ((m = p.match(/^([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase(), mult: k };
+    // Kor Spiritdancer: "for each Aura attached to it"
+    if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
+    /* Multani: "for each land you control and each land card in your
+       graveyard" — two counts added together */
+    if ((m = p.match(/^(.+?) and each (.+)$/i))) {
+      const a = countOf(m[1]), b = countOf(m[2]);
+      if (a && b) return { sum: [a, b], mult: k };
+    }
     if (/^opponent you have$/i.test(p)) return { opponents: true, mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
@@ -3291,7 +3312,10 @@
      the chosen type cost {1} less to cast": a standing change to the price
      of other spells, which the engine adds up as each spell is cast. */
   function parseCostMod(line) {
-    const s = String(line).trim().replace(/\.$/, '');
+    let s = String(line).trim().replace(/\.$/, '');
+    // Defense Grid: "…cost {3} more to cast except during its controller's turn"
+    const offTurn = / except during its controller'?s turn$/i.test(s);
+    s = s.replace(/ except during its controller'?s turn$/i, '');
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+)\} (more|less) to cast$/i);
     if (!m) return null;
     const words = (m[1] + ' ' + (m[4] || '')).replace(/,/g, ' ').trim().toLowerCase()
@@ -3302,7 +3326,7 @@
     if (/historic/.test(words)) return null;
     const who = /opponent/i.test(m[2] || '') ? 'opponents' : /you cast/i.test(m[2] || '') ? 'you' : 'all';
     const amount = (+m[5]) * (/less/i.test(m[6]) ? -1 : 1);
-    return { op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount };
+    return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {});
   }
 
   /* "This spell costs {1} less to cast for each artifact you control",
@@ -4182,6 +4206,10 @@
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes saddled(?: for the first time each turn)?(?:,| )/i, event: 'becomesSaddled', self: true },
     { re: /^When(?:ever)? (?:one or more \+1\/\+1 counters are put on|you put one or more \+1\/\+1 counters on) (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
       extra: { counterKind: '+1/+1' } },
+    /* Fathom Mage: "Whenever a +1/+1 counter is put on this creature" —
+       once for each counter */
+    { re: /^When(?:ever)? an? \+1\/\+1 counter is put on (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
+      extra: { counterKind: '+1/+1', perAmount: true } },
     { re: /^When(?:ever)? you put one or more \+1\/\+1 counters on (?:a|another) creature you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },
@@ -5585,6 +5613,13 @@
   }
 
   const CONTINUOUS_RULES = [
+    // Archetype of Imagination: "Creatures your opponents control lose flying and can't have or gain flying."
+    { re: /^(Creatures your opponents control|Creatures you control|All creatures|Other creatures) lose ([a-z ]+?) and can'?t have or gain \2\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(/^All creatures$/i.test(m[1]) ? 'creatures' : m[1]);
+        const k = m[2].toLowerCase();
+        return scope && kwKnown(k) ? { op: 'continuous', layer: 6, scope, lose: [k[0].toUpperCase() + k.slice(1)], cantHave: [k] } : null;
+      } },
     // Maha: "Creatures your opponents control have base toughness 1."
     { re: /^(.+?) (?:have|has) base toughness (\d+)\.?$/i,
       make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 7, scope, setPt: { t: +m[2] } } : null; } },
@@ -6279,6 +6314,9 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Woe Strider: "This creature escapes with two +1/+1 counters on it."
+      { re: /^(?:CARDNAME|This creature) escapes with (a|an|one|two|three|four|five|\d+) ([+\-0-9/a-z]+) counters? on it\.?$/i,
+        make: (m) => ({ op: 'escapesWith', n: num(m[1]), kind: m[2].toLowerCase() }), auto: true },
       // Jin-Gitaxias, Core Augur: "Each opponent's maximum hand size is reduced by seven."
       { re: /^(Each opponent'?s|Your) maximum hand size is (reduced|increased) by (one|two|three|four|five|six|seven|\d+)\.?$/i,
         make: (m) => ({ op: 'handSizeMod', who: /opponent/i.test(m[1]) ? 'opponents' : 'you', n: (/reduced/i.test(m[2]) ? -1 : 1) * num(m[3]) }), auto: true },

@@ -1613,6 +1613,12 @@
           o.effects.push({ keywords: ['Haste'], until: null });
           o.blitzedTurn = this.turn;
           this.logEvent('rules', `${item.name} blitzes in.`);
+        } else if (item.via === 'escape') {
+          // "This creature escapes with two +1/+1 counters on it."
+          const ec = this._staticOp(o, 'escapesWith');
+          if (ec && o.zone === 'battlefield') this.addCounters(o, ec.kind, Number(ec.n) || 1);
+          // "unless it escaped": this time on the battlefield, by its timestamp
+          o.escapedTs = o.ts;
         } else if (item.via === 'warp') {
           /* Warp: it is here for the turn, then it goes and waits in
              exile until you can afford it properly. */
@@ -2112,6 +2118,8 @@
             const words = e.op === 'costMod' ? e.words : String(e.filter || '').trim();
             if (words && words !== 'spell' && !this._cardFitsWords(o, words)) continue;
             if (e.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
+            // Defense Grid: only on a turn that isn't the caster's
+            if (e.offTurn && this.activePlayer && this.activePlayer.id === pid) continue;
             d += Number(e.amount) || 0;
           }
         }
@@ -2146,6 +2154,15 @@
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
       if (v.per) return this.countPermanents(pid, v) * mult;
+      // "each land you control and each land card in your graveyard"
+      if (v.sum) return v.sum.reduce((acc, x) => acc + this._countValue(x, pid, src, inLayers), 0) * mult;
+      // "for each Aura attached to it"
+      if (v.attachedOf) {
+        return ((src && src.attachments) || []).filter(id => {
+          const at = this.obj(id);
+          return at && ((at.card && String(at.card.type_line || '')) || '').includes(v.attachedOf);
+        }).length * mult;
+      }
       return 0;
     }
 
@@ -6354,7 +6371,7 @@
     _contValue(v, o) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
-      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain)) {
+      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
       }
@@ -6497,6 +6514,7 @@
       const six = [], defining = [], setting = [], modifying = [];
       let switches = 0;
       const grantMana = [];
+      const cantHave = new Set();      // "can't have or gain flying", whatever the timestamps
 
       const statics = this._continuous();
       for (let i = 0; i < statics.length; i++) {
@@ -6505,6 +6523,7 @@
         if (!(ef.grant || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
         if (!this._contReaches(entry, o, a, lb)) continue;
         if (ef.grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant: ef.grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
+        if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
         if (ef.pt) modifying.push(ef.pt);
         if (ef.switchPt) switches++;
@@ -6534,6 +6553,7 @@
       if (loseTs === -Infinity) {
         for (const k of KEYWORD_COUNTERS) if (Number(o.counters[k]) > 0) kw.add(k);
       }
+      for (const k of cantHave) kw.delete(k);
 
       // layer 7a, then 7b, each oldest first
       const setTo = (x) => {
@@ -7176,7 +7196,8 @@
           if (o._onceTurn[i] === this.turn) return;
           o._onceTurn[i] = this.turn;
         }
-        const times = 1 + this._extraTriggers(o, event, data);
+        // "whenever a +1/+1 counter is put on this": once for each counter
+        const times = (1 + this._extraTriggers(o, event, data)) * (ab.perAmount ? Math.max(1, Number(data.amount) || 1) : 1);
         for (let k = 0; k < times; k++) {
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
@@ -7749,6 +7770,7 @@
           return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * (v.mult || 1);
         }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
+        if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
@@ -8351,6 +8373,13 @@
           break;
         }
         case 'sacrificeSelf': if (src) this.moveObject(src, 'graveyard'); break;
+        // Uro: "sacrifice it unless it escaped"
+        case 'sacUnlessEscaped':
+          if (src && src.zone === 'battlefield' && !(src.escapedTs != null && src.escapedTs === src.ts)) {
+            this.moveObject(src, 'graveyard');
+            this._fire('youSacrifice', ctx.controller, { count: 1 });
+          }
+          break;
         // "Sacrifice a creature. If you can't, sacrifice this artifact."
         case 'sacOrSelf': {
           const any = this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut && this._matchesCategory(x, e.filter));
