@@ -23,6 +23,8 @@ function expectedTargets(text) {
     .replace(/\bchoose new targets\b/gi, ' ')
     .replace(/\bnew targets?\b/gi, ' ')
     .replace(/\btargets\b(?! (?:of|you|an?|that))/gi, ' ');
+  // "any number of target spells": as many as the table holds, not counted here
+  if (/\bany number of (?:other )?target/i.test(t)) return null;
   let n = 0;
   // "divided as you choose among one, two, or three targets": up to the last number
   // ... or "among one or two target creatures": the last number, for the one word "target"
@@ -101,7 +103,7 @@ function checkLine(text, abilities, card, an) {
   const have = new Set([...json.matchAll(/-?\d+/g)].map(m => Math.abs(+m[0])));
   for (const k of nums) if (!have.has(k)) return 'number ' + k + ' missing';
   // "you may"
-  const may = /\byou may\b|\bup to\b|\bamong one\b/i.test(t);
+  const may = /\byou may\b|\bup to\b|\bamong one\b|\bany number of\b/i.test(t);
   // a choice the effect itself offers counts as the card's "may"
   const optional = abilities.some(a => a.optional) ||
     /"op":"(?:may|mayPay|tapOrUntap|permanentFromHand)"|"upTo":true|"optional":true|"play":true/.test(json);

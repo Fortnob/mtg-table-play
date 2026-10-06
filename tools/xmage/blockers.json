@@ -5,12 +5,12 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 18234,
-  "gainedCards": 1904,
+  "gainedCards": 1917,
   "linesNeeded": 21007,
-  "linesGained": 2519,
+  "linesGained": 2541,
   "gained": {
-   "all": 1904,
-   "top2000": 49,
+   "all": 1917,
+   "top2000": 51,
    "stdTop": 15
   },
   "compare": {
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 94,
+  "verifyFail": 89,
   "overrides": {
    "it": 169,
    "drain": 62,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6075,
-   "lines": 5043,
+   "score": 6105,
+   "lines": 5064,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -201,25 +201,6 @@
     "Serra's Emissary",
     "Temple of the Dragon Queen",
     "Sea Gate"
-   ]
-  },
-  {
-   "what": "target count 0",
-   "score": 120,
-   "lines": 87,
-   "cards": [
-    "Mindbreak Trap",
-    "Clever Concealment",
-    "Eerie Interlude",
-    "Twinflame",
-    "Priest of Forgotten Gods",
-    "Mantle of the Ancients",
-    "Call the Coppercoats",
-    "Deepglow Skate",
-    "Guardian of Faith",
-    "Perpetual Timepiece",
-    "Singularity Rupture",
-    "Brago, King Eternal"
    ]
   },
   {
@@ -508,6 +489,25 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 43,
+   "lines": 43,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Scroll of Isildur",
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "The Huntsman's Redemption",
+    "Invigorated Rampage",
+    "Quickbeam, Upstart Ent",
+    "Setessan Tactics",
+    "Ajani's Presence",
+    "Rabid Attack"
+   ]
+  },
+  {
    "what": "Ability.setCostAdjuster",
    "score": 42,
    "lines": 42,
@@ -714,25 +714,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 34,
-   "lines": 34,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Scroll of Isildur",
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "The Huntsman's Redemption",
-    "Invigorated Rampage",
-    "Quickbeam, Upstart Ent",
-    "Out Cold",
-    "Vivien, Arkbow Ranger",
-    "Sea Hag // Aquatic Ingress"
-   ]
-  },
-  {
    "what": "MillThenPutInHandEffect",
    "score": 33,
    "lines": 30,
@@ -805,6 +786,25 @@
     "Circle of Protection: Green",
     "Rune of Protection: White",
     "Circle of Protection: Blue"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 32,
+   "lines": 20,
+   "cards": [
+    "Priest of Forgotten Gods",
+    "Call the Coppercoats",
+    "Singularity Rupture",
+    "Court of Cunning",
+    "Stonespeaker Crystal",
+    "Riverchurn Monument",
+    "Communal Brewing",
+    "Tinybones Joins Up",
+    "Wheel and Deal",
+    "Jace, Memory Adept",
+    "Officious Interrogation",
+    "Ral Zarek, Guest Lecturer"
    ]
   },
   {
@@ -1169,25 +1169,6 @@
    ]
   },
   {
-   "what": "BecomesColorTargetEffect",
-   "score": 27,
-   "lines": 27,
-   "cards": [
-    "Crimson Wisps",
-    "Cerulean Wisps",
-    "Tam, Mindful First-Year",
-    "Aphotic Wisps",
-    "Niveous Wisps",
-    "Viridescent Wisps",
-    "Cloudchaser Kestrel",
-    "Touch of Darkness",
-    "Heaven's Gate",
-    "Scuttling Sentinel",
-    "Tidal Visionary",
-    "Vodalian Mystic"
-   ]
-  },
-  {
    "what": "ReturnFromExileForSourceEffect",
    "score": 27,
    "lines": 27,
@@ -1408,6 +1389,25 @@
    ]
   },
   {
+   "what": "PhaseOutTargetEffect",
+   "score": 24,
+   "lines": 12,
+   "cards": [
+    "Clever Concealment",
+    "Talon Gates of Madara",
+    "Slip Out the Back",
+    "Guardian of Faith",
+    "Teferi, Master of Time",
+    "Haystack",
+    "Vronos, Masked Inquisitor",
+    "Gallifrey Falls // No More",
+    "The Phasing of Zhalfir",
+    "Teferi's Veil",
+    "Reality Ripple",
+    "Vodalian Illusionist"
+   ]
+  },
+  {
    "what": "PlayFromTopOfLibraryEffect",
    "score": 24,
    "lines": 9,
@@ -1459,6 +1459,25 @@
     "Arna Kennerüd, Skycaptain",
     "Iron Man, Armored Avenger",
     "One with the Kami"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 24,
+   "lines": 18,
+   "cards": [
+    "Sword of Hearth and Home",
+    "Staff of Compleation",
+    "Sanctum of Eternity",
+    "Aminatou, the Fateshifter",
+    "Slip On the Ring",
+    "Meneldor, Swift Savior",
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Northampton Farm",
+    "Despotic Scepter",
+    "Tel-Jilad Stylus"
    ]
   },
   {
@@ -1646,25 +1665,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 23,
-   "lines": 17,
-   "cards": [
-    "Sword of Hearth and Home",
-    "Staff of Compleation",
-    "Sanctum of Eternity",
-    "Aminatou, the Fateshifter",
-    "Slip On the Ring",
-    "Meneldor, Swift Savior",
-    "Coveted Falcon",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Northampton Farm",
-    "Despotic Scepter",
-    "Tel-Jilad Stylus"
-   ]
-  },
-  {
    "what": "AddCountersPlayersEffect",
    "score": 23,
    "lines": 20,
@@ -1757,6 +1757,25 @@
     "Time Lord Regeneration",
     "Recross the Paths",
     "Ajani, Valiant Protector"
+   ]
+  },
+  {
+   "what": "BecomesColorTargetEffect",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Crimson Wisps",
+    "Cerulean Wisps",
+    "Tam, Mindful First-Year",
+    "Aphotic Wisps",
+    "Niveous Wisps",
+    "Viridescent Wisps",
+    "Cloudchaser Kestrel",
+    "Sway of Illusion",
+    "Scuttling Sentinel",
+    "Tidal Visionary",
+    "Vodalian Mystic",
+    "Sisay's Ingenuity"
    ]
   },
   {
@@ -2007,6 +2026,25 @@
    ]
   },
   {
+   "what": "filter:alts",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Thor, God of Thunder",
+    "Excava, the Risen Past",
+    "Banishing Slash",
+    "Scrounge for Eternity",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction",
+    "Cloudspire Skycycle"
+   ]
+  },
+  {
    "what": "BecomesTappedAttachedTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -2117,25 +2155,6 @@
     "Madame Vastra",
     "Abattoir Ghoul",
     "Vampiric Sliver"
-   ]
-  },
-  {
-   "what": "filter:alts",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Thor, God of Thunder",
-    "Excava, the Risen Past",
-    "Banishing Slash",
-    "Scrounge for Eternity",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe"
    ]
   },
   {
@@ -2945,6 +2964,25 @@
    ]
   },
   {
+   "what": "AddCardTypeTargetEffect",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Mech Hangar",
+    "Depthshaker Titan",
+    "Peacewalker Colossus",
+    "Chandra, Spark Hunter",
+    "Tough Cookie",
+    "Memnarch",
+    "Guidelight Matrix",
+    "Kolodin, Triumph Caster",
+    "Ashnod's Transmogrant",
+    "Tezzeret, Agent of Bolas",
+    "Workshop Elders",
+    "Stone by Sunlight"
+   ]
+  },
+  {
    "what": "AddCardTypeSourceEffect",
    "score": 17,
    "lines": 17,
@@ -3375,25 +3413,6 @@
    ]
   },
   {
-   "what": "AddCardTypeTargetEffect",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Mech Hangar",
-    "Peacewalker Colossus",
-    "Chandra, Spark Hunter",
-    "Tough Cookie",
-    "Memnarch",
-    "Guidelight Matrix",
-    "Kolodin, Triumph Caster",
-    "Ashnod's Transmogrant",
-    "Tezzeret, Agent of Bolas",
-    "Workshop Elders",
-    "Stone by Sunlight",
-    "Tezzeret the Schemer"
-   ]
-  },
-  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 16,
    "lines": 16,
@@ -3505,22 +3524,6 @@
     "Bloodborn Scoundrels",
     "Lava-Field Overlord",
     "Fan Favorite"
-   ]
-  },
-  {
-   "what": "PhaseOutTargetEffect",
-   "score": 15,
-   "lines": 9,
-   "cards": [
-    "Talon Gates of Madara",
-    "Slip Out the Back",
-    "Teferi, Master of Time",
-    "Haystack",
-    "Vronos, Masked Inquisitor",
-    "The Phasing of Zhalfir",
-    "Teferi's Veil",
-    "Reality Ripple",
-    "Vodalian Illusionist"
    ]
   },
   {
@@ -3728,6 +3731,25 @@
     "Drogskol Reinforcements",
     "Tajic, Legion's Edge",
     "Mark of Asylum"
+   ]
+  },
+  {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Perpetual Timepiece",
+    "The Bath Song",
+    "Ominous Cemetery",
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae",
+    "Cathartic Parting",
+    "Unravel the Aether",
+    "Tamiyo Meets the Story Circle",
+    "Deglamer",
+    "Covetous Castaway // Ghostly Castigator",
+    "Piper's Melody"
    ]
   },
   {
@@ -4431,6 +4453,25 @@
    ]
   },
   {
+   "what": "PreventDamageByTargetEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Gideon of the Trials",
+    "Boros Fury-Shield",
+    "Energy Arc",
+    "Horn of Deafening",
+    "Azorius Ploy",
+    "Shieldmage Elder",
+    "Resistance Fighter",
+    "Fend Off",
+    "Lady Evangela",
+    "Songstitcher",
+    "Safeguard",
+    "Kry Shield"
+   ]
+  },
+  {
    "what": "several colours in a scope",
    "score": 14,
    "lines": 14,
@@ -5082,25 +5123,6 @@
     "Inkling Mascot",
     "Inkshape Demonstrator",
     "Rehearsed Debater"
-   ]
-  },
-  {
-   "what": "PreventDamageByTargetEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Gideon of the Trials",
-    "Boros Fury-Shield",
-    "Horn of Deafening",
-    "Azorius Ploy",
-    "Shieldmage Elder",
-    "Resistance Fighter",
-    "Fend Off",
-    "Lady Evangela",
-    "Songstitcher",
-    "Safeguard",
-    "Kry Shield",
-    "Subdue"
    ]
   },
   {
@@ -5841,6 +5863,21 @@
    ]
   },
   {
+   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Eerie Interlude",
+    "Morningtide's Light",
+    "Guardian of Ghirapur",
+    "Skyskipper Duo",
+    "Ennis, Debate Moderator",
+    "Blizzard Strix",
+    "Roll-Roll-Roll-Roll",
+    "Wiccan, Rising Magician"
+   ]
+  },
+  {
    "what": "CastAsThoughItHadFlashAllEffect",
    "score": 11,
    "lines": 8,
@@ -6058,6 +6095,24 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessTargetEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Flayer of Loyalties",
+    "Restless Vinestalk",
+    "Rowan, Scholar of Sparks // Will, Scholar of Frost",
+    "Will Kenrith",
+    "Glamer Gifter",
+    "Wings of Velis Vel",
+    "The Bears of Littjara",
+    "Atomic Microsizer",
+    "Sorceress Queen",
+    "Serendib Sorcerer",
+    "Gnottvold Hermit // Chrome Host Hulk"
+   ]
+  },
+  {
    "what": "ProtectionAbility",
    "score": 11,
    "lines": 11,
@@ -6199,24 +6254,6 @@
     "Sevinne, the Chronoclasm",
     "Dawn Elemental",
     "Trained Pronghorn"
-   ]
-  },
-  {
-   "what": "ShuffleIntoLibraryTargetEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Ominous Cemetery",
-    "This Is How It Ends",
-    "Turn the Earth",
-    "Wand of Vertebrae",
-    "Cathartic Parting",
-    "Unravel the Aether",
-    "Tamiyo Meets the Story Circle",
-    "Deglamer",
-    "Covetous Castaway // Ghostly Castigator",
-    "Put Away",
-    "Living Library"
    ]
   },
   {
@@ -6783,23 +6820,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessTargetEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Flayer of Loyalties",
-    "Restless Vinestalk",
-    "Rowan, Scholar of Sparks // Will, Scholar of Frost",
-    "Will Kenrith",
-    "Glamer Gifter",
-    "Wings of Velis Vel",
-    "Atomic Microsizer",
-    "Sorceress Queen",
-    "Serendib Sorcerer",
-    "Gnottvold Hermit // Chrome Host Hulk"
-   ]
-  },
-  {
    "what": "TargetSpellOrPermanent",
    "score": 10,
    "lines": 10,
@@ -7219,6 +7239,19 @@
     "Canopy Stalker",
     "Khabál Ghoul",
     "Scavenging Ghoul"
+   ]
+  },
+  {
+   "what": "becomes a creature and loses something",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Vraska, Betrayal's Sting",
+    "Lizard, Connors's Curse",
+    "Awakening of Vitu-Ghazi",
+    "Sparkshaper Visionary",
+    "The Curse of Fenric",
+    "Dance of the Skywise"
    ]
   },
   {
@@ -7908,18 +7941,6 @@
    ]
   },
   {
-   "what": "becomes a creature and loses something",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Vraska, Betrayal's Sting",
-    "Lizard, Connors's Curse",
-    "Awakening of Vitu-Ghazi",
-    "The Curse of Fenric",
-    "Dance of the Skywise"
-   ]
-  },
-  {
    "what": "pick filter creature or land",
    "score": 8,
    "lines": 5,
@@ -8482,28 +8503,13 @@
     "Goblin Ski Patrol",
     "Subversive Acolyte"
    ]
-  },
-  {
-   "what": "ConditionalOneShotEffect without a condition",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Coalition Victory",
-    "Omnivorous Flytrap",
-    "Lyzolda, the Blood Witch",
-    "Sift Through Sands",
-    "Dream Thief",
-    "Shape of the Wiitigo",
-    "Bring Low",
-    "Wiitigo"
-   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4737,
-   "cards": 3966,
+   "score": 4751,
+   "cards": 3977,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8554,8 +8560,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 233,
-   "cards": 221,
+   "score": 235,
+   "cards": 223,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8589,19 +8595,6 @@
     "Defense of the Heart",
     "Grab the Prize",
     "Sting, the Glinting Dagger"
-   ]
-  },
-  {
-   "what": "target count 0",
-   "score": 71,
-   "cards": 47,
-   "names": [
-    "Mindbreak Trap",
-    "Clever Concealment",
-    "Eerie Interlude",
-    "Priest of Forgotten Gods",
-    "Deepglow Skate",
-    "Guardian of Faith"
    ]
   },
   {
@@ -8645,8 +8638,8 @@
   },
   {
    "what": "AlternativeCostSourceAbility",
-   "score": 57,
-   "cards": 54,
+   "score": 58,
+   "cards": 55,
    "names": [
     "Sephara, Sky's Blade",
     "Daze",
@@ -8969,6 +8962,19 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 27,
+   "cards": 27,
+   "names": [
+    "Ms. Bumbleflower",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "The Huntsman's Redemption",
+    "Invigorated Rampage",
+    "Quickbeam, Upstart Ent"
+   ]
+  },
+  {
    "what": "keyword ExertAbility",
    "score": 26,
    "cards": 23,
@@ -9008,19 +9014,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 26,
-   "cards": 26,
-   "names": [
-    "Ms. Bumbleflower",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "The Huntsman's Redemption",
-    "Invigorated Rampage",
-    "Quickbeam, Upstart Ent"
-   ]
-  },
-  {
    "what": "PayEnergyCost",
    "score": 26,
    "cards": 26,
@@ -9057,19 +9050,6 @@
     "Keeper of Fables",
     "Feline Sovereign",
     "Tifa, Martial Artist"
-   ]
-  },
-  {
-   "what": "BecomesColorTargetEffect",
-   "score": 25,
-   "cards": 25,
-   "names": [
-    "Crimson Wisps",
-    "Cerulean Wisps",
-    "Aphotic Wisps",
-    "Niveous Wisps",
-    "Viridescent Wisps",
-    "Cloudchaser Kestrel"
    ]
   },
   {
@@ -9227,6 +9207,19 @@
    ]
   },
   {
+   "what": "target count 0",
+   "score": 21,
+   "cards": 12,
+   "names": [
+    "Priest of Forgotten Gods",
+    "Singularity Rupture",
+    "Court of Cunning",
+    "Stonespeaker Crystal",
+    "Tinybones Joins Up",
+    "Wheel and Deal"
+   ]
+  },
+  {
    "what": "(verify) optional where the card is not",
    "score": 21,
    "cards": 12,
@@ -9250,6 +9243,19 @@
     "Evolutionary Leap",
     "Spinner of Souls",
     "Gamekeeper"
+   ]
+  },
+  {
+   "what": "BecomesColorTargetEffect",
+   "score": 21,
+   "cards": 21,
+   "names": [
+    "Crimson Wisps",
+    "Cerulean Wisps",
+    "Aphotic Wisps",
+    "Niveous Wisps",
+    "Viridescent Wisps",
+    "Cloudchaser Kestrel"
    ]
   },
   {
@@ -9666,6 +9672,19 @@
     "Vraska's Final Mercy",
     "Theorist's Proxy",
     "Rewrite Regrets"
+   ]
+  },
+  {
+   "what": "PhaseOutTargetEffect",
+   "score": 16,
+   "cards": 7,
+   "names": [
+    "Clever Concealment",
+    "Slip Out the Back",
+    "Guardian of Faith",
+    "Haystack",
+    "Teferi's Veil",
+    "Reality Ripple"
    ]
   },
   {
@@ -10327,6 +10346,19 @@
     "Fabrication Foundry",
     "Wonderscape Sage",
     "Araumi of the Dead Tide"
+   ]
+  },
+  {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Perpetual Timepiece",
+    "The Bath Song",
+    "Ominous Cemetery",
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae"
    ]
   },
   {
@@ -11264,6 +11296,19 @@
    ]
   },
   {
+   "what": "PreventDamageByTargetEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Boros Fury-Shield",
+    "Energy Arc",
+    "Horn of Deafening",
+    "Shieldmage Elder",
+    "Resistance Fighter",
+    "Fend Off"
+   ]
+  },
+  {
    "what": "LoseAbilitySourceEffect",
    "score": 11,
    "cards": 11,
@@ -11734,19 +11779,6 @@
    ]
   },
   {
-   "what": "PreventDamageByTargetEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Boros Fury-Shield",
-    "Horn of Deafening",
-    "Shieldmage Elder",
-    "Resistance Fighter",
-    "Fend Off",
-    "Lady Evangela"
-   ]
-  },
-  {
    "what": "DetainTargetEffect",
    "score": 10,
    "cards": 10,
@@ -11810,6 +11842,19 @@
     "Ripples of Potential",
     "Contagion Engine",
     "Roalesk, Apex Hybrid"
+   ]
+  },
+  {
+   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Eerie Interlude",
+    "Guardian of Ghirapur",
+    "Skyskipper Duo",
+    "Blizzard Strix",
+    "Roll-Roll-Roll-Roll",
+    "Wiccan, Rising Magician"
    ]
   },
   {
@@ -12122,19 +12167,6 @@
    ]
   },
   {
-   "what": "ShuffleIntoLibraryTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Ominous Cemetery",
-    "This Is How It Ends",
-    "Turn the Earth",
-    "Wand of Vertebrae",
-    "Cathartic Parting",
-    "Unravel the Aether"
-   ]
-  },
-  {
    "what": "ScryTriggeredAbility",
    "score": 9,
    "cards": 9,
@@ -12301,32 +12333,6 @@
     "Advanced Stitchwing",
     "Geralf's Masterpiece",
     "Stitchwing Skaab"
-   ]
-  },
-  {
-   "what": "keyword ForecastAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Skyscribing",
-    "Pride of the Clouds",
-    "Spirit en-Dal",
-    "Sky Hussar",
-    "Piercing Rays",
-    "Proclamation of Rebirth"
-   ]
-  },
-  {
-   "what": "BoostSourceEffect p/t",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Wight of Precinct Six",
-    "Shantotto, Tactician Magician",
-    "Carrion Grub",
-    "Skanos Dragonheart",
-    "Greven, Predator Captain",
-    "Manaplasm"
    ]
   }
  ]

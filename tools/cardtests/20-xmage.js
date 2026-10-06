@@ -351,4 +351,28 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, hand + 2, 'one for each of the two others');
   });
+
+  test('XMage: Mindbreak Trap exiles any number of target spells', (mk, t) => {
+    generated(t, 'Mindbreak Trap');
+    const T = mk();
+    const b1 = T.hand('A', 'Lightning Bolt'), b2 = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'RR2UU');
+    T.cast('A', b1, { targets: ['B'], resolve: false });
+    T.cast('A', b2, { targets: ['B'], resolve: false });
+    T.cast('A', T.hand('A', 'Mindbreak Trap'), { targets: [b1, b2].map(b => ({ kind: 'stack', id: T.stackItem(b).id })) });
+    t.zone(b1, 'exile');
+    t.zone(b2, 'exile');
+    t.eq(T.life('B'), 20, 'neither bolt resolved');
+  });
+
+  test('XMage: Disrupt Decorum goads every creature you do not control', (mk, t) => {
+    generated(t, 'Disrupt Decorum');
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2RR');
+    T.cast('A', T.hand('A', 'Disrupt Decorum'));
+    t.eq(theirs.goadedBy, 'A');
+    t.no(mine.goadedBy, 'not my own');
+  });
 };

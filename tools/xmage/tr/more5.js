@@ -168,4 +168,11 @@ def('effect', 'DistributeCountersEffect', (o, tc) => {
   return { op: 'countersDivided', kind: F.counterName(c), n: t.amount, targets: t.specs };
 });
 
+def('effect', 'GoadAllEffect', (o, tc) => {
+  E.checkCalls(o);
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  if (!f || o.args.length !== 1) block('GoadAllEffect shape');
+  return { op: 'goad', scope: F.toScope(F.describe(f, tc)) };
+});
+
 module.exports = {};

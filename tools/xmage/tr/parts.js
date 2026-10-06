@@ -13,7 +13,9 @@ const { parseJava } = require('../java');
    thing chosen, the way the parser writes "two target creatures". */
 
 function countOf(o, defMin, defMax) {
-  const ints = A(o).all('int').map(x => x.v);
+  // Integer.MAX_VALUE: "any number of target spells"
+  const ints = o.args.filter(a => kindOf(a) === 'int' || (a && a.t === 'ref' && a.path === 'Integer.MAX_VALUE'))
+    .map(a => (a.t === 'ref' ? Infinity : a.v));
   let min = defMin, max = defMax;
   if (ints.length === 1) { min = max = ints[0]; }
   else if (ints.length >= 2) { min = ints[0]; max = ints[1]; }
@@ -29,12 +31,17 @@ function makeTarget(o, tc, d, zone, kind) {
     else if (c.name === 'setRequired') continue;
     else block('Target.' + c.name);
   }
-  if (max > 10 || max < 1) block('target count ' + max);
+  /* "Any number of target ...": as many as there could be, each optional.
+     Ten is more than a table ever offers. */
+  let anyNumber = false;
+  if (max === Infinity) { if (min !== 0) block('at least some of any number'); anyNumber = true; }
+  const realMax = anyNumber ? 10 : max;
+  if (realMax > 10 || realMax < 1) block('target count ' + max);
   if (min !== 0 && min !== max) block('target count ' + min + '-' + max);
   const spec = d ? F.toSpec(d, zone) : null;
   const specs = [];
-  for (let i = 0; i < max; i++) specs.push(Object.assign({}, spec, min === 0 ? { upTo: true } : null));
-  return { specs, kind, notTarget, min, max, d };
+  for (let i = 0; i < realMax; i++) specs.push(Object.assign({}, spec, min === 0 ? { upTo: true } : null));
+  return { specs, kind, notTarget, min, max: realMax, d, anyNumber };
 }
 
 const filterArg = (o) => o.args.find(a => kindOf(a) === 'filter');

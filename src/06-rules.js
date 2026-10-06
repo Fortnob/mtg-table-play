@@ -7515,6 +7515,17 @@
           }
           this._noteLastAffected(targets);
           for (const t of targets) {
+            /* "Exile any number of target spells": off the stack and into
+               exile, which is not countering it */
+            if (t.kind === 'stack') {
+              const item = this.stack.find(st => st.id === t.id);
+              if (item && item.kind === 'spell' && item.obj && !item.isCopy) {
+                this.moveObject(item.obj, 'exile');
+                this._lastExiled = item.obj.id;
+                this.logEvent('exile', `${item.name} is exiled.`);
+              }
+              continue;
+            }
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
             if (o) { this.moveObject(o, 'exile'); this._lastExiled = o.id; }
