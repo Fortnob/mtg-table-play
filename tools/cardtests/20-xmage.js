@@ -869,6 +869,53 @@ module.exports = (test) => {
     t.ok(engine().oracle.analyze(card).fullyAutomated);
   });
 
+  test('Stinkweed Imp destroys a creature it deals combat damage to', (mk, t) => {
+    t.auto('Stinkweed Imp');
+    const T = mk();
+    const imp = T.bf('B', 'Stinkweed Imp');
+    const wurm = T.bf('A', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: imp.id, attackerIds: [wurm.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(wurm, 'graveyard', 'the wurm it hit is destroyed');
+  });
+
+  test('Cursed Land deals damage in its enchanted land controller\'s upkeep', (mk, t) => {
+    t.auto('Cursed Land');
+    const T = mk();
+    const land = T.bf('B', 'Forest');
+    const cl = T.bf('A', 'Cursed Land');
+    cl.attachedTo = land.id; land.attachments = [cl.id];
+    T.g._fire('eachUpkeep', null, { playerId: 'A' });
+    T.resolve();
+    t.eq(T.life('B'), 20, 'not in A\'s upkeep');
+    T.g._fire('eachUpkeep', null, { playerId: 'B' });
+    T.resolve();
+    t.eq(T.life('B'), 19, 'in B\'s upkeep');
+  });
+
+  test('Megrim punishes an opponent who discards', (mk, t) => {
+    t.auto('Megrim');
+    const T = mk();
+    T.bf('A', 'Megrim');
+    const c = T.hand('B', 'Island');
+    T.g.moveObject(c, 'graveyard');
+    T.g._afterDiscard('B', c);
+    T.resolve();
+    t.eq(T.life('B'), 18);
+    const d = T.hand('A', 'Island');
+    T.g.moveObject(d, 'graveyard');
+    T.g._afterDiscard('A', d);
+    T.resolve();
+    t.eq(T.life('A'), 20, 'not for its own controller');
+  });
+
+  test('Trapjaw Tyrant style: "whenever this creature is dealt damage"', (mk, t) => {
+    t.auto('Trapjaw Tyrant');
+    const card = engine().oracle.analyze(require('../harness').card('Trapjaw Tyrant'));
+    t.ok(card.abilities.some(x => x.event === 'isDealtDamage' && x.self));
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

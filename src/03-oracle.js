@@ -443,7 +443,9 @@
     const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
-    walk(effects, (e) => { if (e.scope === 'lastTarget' && ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict'].includes(e.op)) e.scope = scope; });
+    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
+      .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap'] : []);
+    walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
   }
 
   /* An emblem's words the table can run: triggered abilities, and standing
@@ -3775,6 +3777,30 @@
     { re: /^When(?:ever)? an opponent casts their first ([a-zA-Z ]*?)spell each turn(?:,| )/i, event: 'opponentFirstSpell',
       filt: (m) => spellFilter(m[1]), extra: { firstOfKind: true } },
     { re: /^When(?:ever)? a player casts their second spell each turn(?:,| )/i, event: 'anySecondSpell' },
+    { re: /^When(?:ever)? you cast your second spell each turn(?:,| )/i, event: 'anySecondSpell', extra: { castByYou: true } },
+    /* curses and auras on someone else's creature: that player's upkeep */
+    { re: /^At the beginning of the upkeep of enchanted (?:creature|permanent|artifact|land|planeswalker)'s controller,? /i,
+      event: 'eachUpkeep', extra: { enchantedController: true } },
+    { re: /^At the beginning of enchanted player's upkeep,? /i, event: 'eachUpkeep', extra: { enchantedPlayer: true } },
+    { re: /^At the beginning of each player's end step,? /i, event: 'eachEndStep' },
+    { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat )?damage,? /i, event: 'isDealtDamage', self: true,
+      extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
+    { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
+    /* "Whenever this creature deals combat damage to a creature, destroy
+       that creature": "that creature" is the one it hit */
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to a creature,? /i, event: 'dealsDamageToCreature', self: true,
+      aboutObject: true, extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes monstrous,? /i, event: 'becomesMonstrous', self: true },
+    { re: /^When(?:ever)? you scry or surveil,? /i, event: 'youScry', also: 'youSurveil' },
+    { re: /^When(?:ever)? you scry,? /i, event: 'youScry' },
+    { re: /^When(?:ever)? you surveil,? /i, event: 'youSurveil' },
+    { re: /^When(?:ever)? an opponent discards a card,? /i, event: 'opponentDiscards' },
+    /* battalion, by its words: "Whenever this creature and at least two other creatures attack" */
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) and at least (one|two|three|four) other creatures attack,? /i,
+      event: 'attacks', self: true, extraOf: (m) => ({ minAttackers: num(m[1]) + 1 }) },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is put into your graveyard from the battlefield,? /i, event: 'dies', self: true },
+    { re: /^When(?:ever)? a creature you control becomes blocked,? /i, event: 'becomesBlocked', filt: () => ({ who: 'you', words: 'creature' }) },
     { re: /^When(?:ever)? an opponent casts their second spell each turn(?:,| )/i, event: 'opponentSecondSpell' },
     { re: /^At the beginning of your next end step(?:,| )/i, event: 'yourEndStep' },
     { re: /^At the beginning of the next end step(?:,| )/i, event: 'eachEndStep' },
@@ -4259,7 +4285,7 @@
         /* "Whenever this creature attacks, it gets +2/+0": with nothing
            targeted, "it" is the creature the trigger is about, this one or
            the one that set it off, not a target that was never chosen */
-        itIsTheTrigger(parsed.effects, trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
+        itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
@@ -4843,6 +4869,8 @@
     for (const ab of out.abilities) {
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
       if (ab.kind === 'triggered' && !ab.self) continue;
+      // a creature's own trigger about another creature: the one it dealt damage to, the one it exploited
+      if (ab.kind === 'triggered' && (ab.event === 'dealsDamageToCreature' || ab.event === 'exploits')) continue;
       ab.auto = false;
       autoLines--;
     }

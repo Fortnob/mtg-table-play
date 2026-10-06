@@ -566,6 +566,8 @@
             }
           }
           if (this.phase.id === 'precombat') this._fire('yourMain1', this.activePlayer.id);
+          // "at the beginning of your second main phase"
+          if (this.phase.id === 'postcombat') this._fire('yourMain2', this.activePlayer.id);
           break;
         case 'beginCombat':
           // "if it's the first combat phase of the turn"
@@ -2794,6 +2796,7 @@
       o.discardedTurn = this.turn;          // mayhem asks
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
+      this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });
     }
 
     /**
@@ -6320,6 +6323,8 @@
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       if (source && this.hasKw(source, 'deathtouch')) o.dealtDeathtouch = true;
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!isCombat });
+      // "whenever this creature deals damage to a creature": the creature it hit is what the trigger is about
+      if (source && source.zone === 'battlefield' && a && a.isCreature) this._fire('dealsDamageToCreature', source.controller, { source, object: o, amount, combat: !!isCombat });
       // "Whenever this creature is dealt damage" (enrage): the creature's own trigger
       this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat });
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${o.name}.`);
@@ -6891,6 +6896,14 @@
           if (ab.toOpponent && data.player === o.controller) continue;
           // "whenever this deals damage to a player": not to a creature
           if (ab.toPlayer && !data.player) continue;
+          if (ab.combatOnly && !data.combat) continue;
+          // "whenever you cast your second spell each turn"
+          if (ab.castByYou && data.playerId !== o.controller) continue;
+          // "the upkeep of enchanted creature's controller", "enchanted player's upkeep"
+          if (ab.enchantedController) { const host = o.attachedTo && this.obj(o.attachedTo); if (!host || data.playerId !== host.controller) continue; }
+          if (ab.enchantedPlayer && data.playerId !== o.attachedTo) continue;
+          // battalion: this and at least so many others attacking
+          if (ab.minAttackers && ((this.combat && this.combat.attackers) || []).length < ab.minAttackers) continue;
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
@@ -11819,6 +11832,7 @@
           const rest = kept.concat(Array.from(byId.values()));
           for (let i = rest.length - 1; i >= 0; i--) { rest[i].zone = 'library'; z.library.unshift(rest[i]); }
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
+          this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId });
           break;
         }
         case 'sacrifice': {
@@ -11837,6 +11851,11 @@
           }
           const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
           this._sacrificeNow(playerId, pick, item);
+          // "When this creature exploits a creature"
+          if (ch.purpose === 'exploit' && pick.length) {
+            const ex = this.obj(ch.sourceId);
+            if (ex) this._fire('exploits', ex.controller, { source: ex, object: pick[0] });
+          }
           break;
         }
         case 'riot': {
