@@ -263,6 +263,9 @@
 .cv-prepared { position: absolute; left: 50%; top: 4%; translate: -50% 0; z-index: 3; pointer-events: none; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .095)/1.5 var(--font); letter-spacing: .06em; text-transform: uppercase; padding: 0 .6em; border-radius: 99px;
   color: #12202e; background: linear-gradient(180deg, #a7e3ff, #6cc6f0); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.cv-paired { position: absolute; left: 50%; bottom: 22%; translate: -50% 0; z-index: 3; pointer-events: auto; white-space: nowrap;
+  font: 700 calc(var(--w, 90px) * .09)/1.5 var(--font); letter-spacing: .04em; padding: 0 .6em; border-radius: 99px;
+  color: #2a1a3a; background: linear-gradient(180deg, #e9c8ff, #c79af0); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .hud-flags .flag.crown, .hud-flags .flag.init { color: var(--gold-hi); border-color: rgba(212,175,71,.5); }
 .hud-flags .flag.dungeon { color: #d8c3ff; border-color: rgba(170,140,240,.45); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-flags .flag.bad, .hud-flags .flag.cmd { color: #ffb0a6; border-color: rgba(255,107,92,.45); }

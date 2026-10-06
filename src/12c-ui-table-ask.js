@@ -286,7 +286,9 @@
     chooseBoardIds(s) {
       const v = this.live || this.view;
       if (s.kind !== 'objects' || s.panel) return new Set();
-      return new Set((s.items || []).filter(x => x.zone !== 'hand' && (v.battlefield || []).some(o => o.id === x.id)).map(x => x.id));
+      // a permanent, or a spell on the stack (Circle of Protection's source can be either): both are clicked where they are
+      return new Set((s.items || []).filter(x => x.zone !== 'hand' &&
+        ((v.battlefield || []).some(o => o.id === x.id) || (v.stack || []).some(st => st.objId === x.id))).map(x => x.id));
     },
     /** Send the answer: the generic shape, or the shape an older question has always taken. */
     chooseSend(ch, answer) {

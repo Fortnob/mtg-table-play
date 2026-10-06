@@ -503,7 +503,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -532,6 +532,11 @@
           text: (plus || minus) ? (num > 1 ? `${k} ×${num}` : k) : `${num} ${k}` }));
       }
       if (chips.length) n.appendChild(el('div', { class: 'cv-mark cv-chips' }, chips));
+      if (o.pairedWith) {
+        const mate = this.objIn(o.pairedWith);
+        n.appendChild(el('div', { class: 'cv-mark cv-paired', text: '⚭ Paired',
+          title: mate && mate.card ? `Paired with ${mate.card.name} (soulbond)` : 'Paired (soulbond)' }));
+      }
       if (o.prepared) {
         const sp = preparedFace(o);
         n.appendChild(el('div', { class: 'cv-mark cv-prepared', text: 'Prepared',
