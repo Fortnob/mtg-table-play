@@ -158,6 +158,18 @@ def judge_tsc(code, out):
     return False, f'{len(errs)} type errors' + (': ' + errs[0].strip()[:200] if errs else '')
 
 
+def judge_starters(code, out):
+    m = re.search(r'(\d+) starter decks, (\d+) with problems', out)
+    if not m:
+        return judge_exit(code, out)
+    detail = f'{m.group(1)} decks, {m.group(2)} with problems'
+    if m.group(2) != '0':
+        bad = [l.strip() for l in out.splitlines() if l.strip() and not l.strip().startswith('ok')]
+        if bad:
+            detail += ' - ' + bad[0][:200]
+    return code == 0 and m.group(2) == '0', detail
+
+
 def tsc_cmd():
     bin_ = ROOT / 'node_modules' / 'typescript' / 'bin' / 'tsc'
     if not bin_.exists():
@@ -174,6 +186,8 @@ def steps(quick):
         Step('syntax', node('-e', SYNTAX_JS, ROOT / 'index.html'), judge_exit, 120),
         Step('cardtest', node(TOOLS / 'cardtest.js'), judge_cardtest, 600, needs_bulk=True),
         Step('smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', smoke_to), judge_smoke, 3600, needs_bulk=True),
+        # the ready-made decks must stay legal and run in full as coverage moves
+        Step('starters', node(TOOLS / 'starters.js'), judge_starters, 600, needs_bulk=True),
         Step('sim standard', sim('standard', n_std), judge_sim, 1200),
         Step('sim pauper', sim('pauper', n_pau), judge_sim, 1200),
         Step('sim commander 4p', sim('commander', n_cmd, 4), judge_sim, 1800),
