@@ -2,14 +2,14 @@
  "generated": "2026-10-06",
  "stats": {
   "cards": 32661,
-  "withClass": 31810,
+  "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17187,
-  "gainedCards": 1792,
-  "linesNeeded": 19639,
-  "linesGained": 2333,
+  "needed": 17196,
+  "gainedCards": 1794,
+  "linesNeeded": 19656,
+  "linesGained": 2338,
   "gained": {
-   "all": 1792,
+   "all": 1794,
    "top2000": 52,
    "stdTop": 13
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 87,
+  "verifyFail": 88,
   "overrides": {
    "it": 122,
    "drain": 62,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6070,
-   "lines": 5032,
+   "score": 6066,
+   "lines": 5028,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 198,
-   "lines": 168,
+   "score": 222,
+   "lines": 192,
    "cards": [
     "Mockingbird",
     "Sakashima of a Thousand Faces",
@@ -375,25 +375,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 46,
-   "lines": 46,
-   "cards": [
-    "Gadrak, the Crown-Scourge",
-    "Bilbo's Ring",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Yuan-Ti Malison",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "Barrage of Boulders"
-   ]
-  },
-  {
    "what": "UnlockThisDoorTriggeredAbility",
    "score": 43,
    "lines": 28,
@@ -520,6 +501,25 @@
     "Sphere of the Suns",
     "Kimoyo Beads",
     "Drain Life"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 40,
+   "lines": 40,
+   "cards": [
+    "Bilbo's Ring",
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Yuan-Ti Malison",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "Barrage of Boulders",
+    "June, Bounty Hunter"
    ]
   },
   {
@@ -1721,25 +1721,6 @@
    ]
   },
   {
-   "what": "CantAttackBlockUnlessConditionSourceEffect",
-   "score": 20,
-   "lines": 14,
-   "cards": [
-    "Wayward Swordtooth",
-    "Topiary Stomper",
-    "Sab-Sunen, Luxa Embodied",
-    "The Ancient One",
-    "Ketramose, the New Dawn",
-    "Relic Golem",
-    "Lupine Prototype",
-    "Hazoret, Godseeker",
-    "Technodrome",
-    "Bast, Panther Goddess",
-    "The Lion-Turtle",
-    "Hazoret the Fervent"
-   ]
-  },
-  {
    "what": "custom cost",
    "score": 20,
    "lines": 20,
@@ -2190,6 +2171,24 @@
    ]
   },
   {
+   "what": "PermanentPredicate.instance",
+   "score": 17,
+   "lines": 11,
+   "cards": [
+    "Conduit of Worlds",
+    "Lithoform Engine",
+    "Unbound Flourishing",
+    "Archmage of Echoes",
+    "Squirming Emergence",
+    "Staff of Eden, Vault's Key",
+    "Myojin of Cryptic Dreams",
+    "Astelli Reclaimer",
+    "Pull Through the Weft",
+    "Wilfred Mott",
+    "United Battlefront"
+   ]
+  },
+  {
    "what": "ManaSpentToCastPredicate",
    "score": 17,
    "lines": 11,
@@ -2410,23 +2409,6 @@
     "Oriss, Samite Guardian",
     "Azorius Ploy",
     "Soratami Cloud Chariot"
-   ]
-  },
-  {
-   "what": "PermanentPredicate.instance",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Conduit of Worlds",
-    "Lithoform Engine",
-    "Unbound Flourishing",
-    "Archmage of Echoes",
-    "Squirming Emergence",
-    "Staff of Eden, Vault's Key",
-    "Astelli Reclaimer",
-    "Pull Through the Weft",
-    "Wilfred Mott",
-    "United Battlefront"
    ]
   },
   {
@@ -6551,6 +6533,22 @@
    ]
   },
   {
+   "what": "(verify) targets 3, printed 0",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Inferno Titan",
+    "Myojin of Roaring Blades",
+    "Magic Missile",
+    "Mogg Mob",
+    "Arc Lightning",
+    "Flames of the Firebrand",
+    "Ral, Caller of Storms",
+    "Gandalf, Spark Starter",
+    "Gang of Devils"
+   ]
+  },
+  {
    "what": "CastFromHandSourcePermanentCondition.instance",
    "score": 9,
    "lines": 9,
@@ -6756,6 +6754,22 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Brutal Cathar // Moonrage Brute"
+   ]
+  },
+  {
+   "what": "CantAttackBlockUnlessConditionSourceEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Sab-Sunen, Luxa Embodied",
+    "The Ancient One",
+    "Ketramose, the New Dawn",
+    "Relic Golem",
+    "Lupine Prototype",
+    "Hazoret, Godseeker",
+    "The Lion-Turtle",
+    "Tiger-Dillo",
+    "Blind-Spot Giant"
    ]
   },
   {
@@ -7213,21 +7227,6 @@
     "Sandman's Quicksand",
     "Earth Surge",
     "Adipose Offspring"
-   ]
-  },
-  {
-   "what": "(verify) targets 3, printed 0",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Inferno Titan",
-    "Magic Missile",
-    "Mogg Mob",
-    "Arc Lightning",
-    "Flames of the Firebrand",
-    "Ral, Caller of Storms",
-    "Gandalf, Spark Starter",
-    "Gang of Devils"
    ]
   },
   {
@@ -8238,8 +8237,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4751,
-   "cards": 3977,
+   "score": 4746,
+   "cards": 3972,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8316,8 +8315,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 127,
-   "cards": 109,
+   "score": 145,
+   "cards": 127,
    "names": [
     "Mockingbird",
     "Chameleon, Master of Disguise",
@@ -8445,19 +8444,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 36,
-   "cards": 36,
-   "names": [
-    "Gadrak, the Crown-Scourge",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 35,
    "cards": 35,
@@ -8559,6 +8545,19 @@
     "Will of the Mardu",
     "Aetheric Amplifier",
     "Inscription of Abundance"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 30,
+   "cards": 30,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Yuan-Ti Malison"
    ]
   },
   {
@@ -9025,19 +9024,6 @@
     "Tale's End",
     "Green Slime",
     "Louisoix's Sacrifice"
-   ]
-  },
-  {
-   "what": "CantAttackBlockUnlessConditionSourceEffect",
-   "score": 17,
-   "cards": 11,
-   "names": [
-    "Wayward Swordtooth",
-    "Topiary Stomper",
-    "Relic Golem",
-    "Lupine Prototype",
-    "Hazoret, Godseeker",
-    "Technodrome"
    ]
   },
   {
@@ -12045,6 +12031,19 @@
     "Moldgraf Monstrosity",
     "Viconia, Drow Apostate",
     "Ghoulraiser"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Generous Patron",
+    "Nest of Scarabs",
+    "Hapatra, Vizier of Poisons",
+    "Earth Kingdom General",
+    "Casey Jones, Back Alley Brute",
+    "The Great Goblin"
    ]
   }
  ]

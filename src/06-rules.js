@@ -498,6 +498,8 @@
       for (const p of this.players) {
         /* …unless something said the mana keeps until combat is over. */
         if (p.poolKeepUntil === 'combat' && this.phase && this.phase.id === 'combat') continue;
+        // "until end of turn, you don't lose this mana" (the pool is kept whole until the turn ends)
+        if (p.poolKeepUntil === 'turn' && p.poolKeepTurn === this.turn) continue;
         if (!p.pool.isEmpty()) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
         p.pool.clear();
         p.restricted = [];
@@ -4910,6 +4912,9 @@
       if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender')) return false;
       if (a.abilities.some(x => (x.effects || []).some(e => e.op === 'cantAttack'))) return false;
       if (this._hasFlag(o, 'cantAttack')) return false;
+      // "can't attack unless ..."
+      const unless = this._staticOp(o, 'restrictUnless');
+      if (unless && unless.attack && !this._condMet(unless.cond, { controller: o.controller, obj: o })) return false;
       /* "can't attack unless defending player controls an Island" — the old
          way of saying a creature only goes to war on the right terrain. */
       const needs = this._staticOp(o, 'attackRequires');
@@ -5098,6 +5103,9 @@
       if (ba.abilities.some(x => (x.effects || []).some(e => e.op === 'cantBlock'))) return false;
       if (this._hasFlag(blocker, 'cantBlock')) return false;
       if ((blocker.effects || []).some(e => e && e.cantBlockId === attacker.id)) return false;
+      // "can't block unless ..."
+      const unlessB = this._staticOp(blocker, 'restrictUnless');
+      if (unlessB && unlessB.block && !this._condMet(unlessB.cond, { controller: blocker.controller, obj: blocker })) return false;
       // the blocker must be controlled by the defending player
       const defPid = defenderId;
       if (blocker.controller !== defPid) return false;
@@ -8894,6 +8902,11 @@
           this.logEvent('rules', `${x.name} becomes a ${t} until end of turn.`);
           break;
         }
+        case 'keepMana':
+          me.poolKeepUntil = 'turn';
+          me.poolKeepTurn = this.turn;
+          this.logEvent('mana', `${me.name} keeps their mana until the end of the turn.`);
+          break;
         case 'becomePrepared':
           if (src && src.zone === 'battlefield' && !src.prepared) {
             src.prepared = true;

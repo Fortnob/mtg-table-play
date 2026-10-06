@@ -1125,6 +1125,23 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(imp), 2);
   });
 
+  test("Wayward Swordtooth can't attack or block without the city's blessing", (mk, t) => {
+    t.auto('Wayward Swordtooth');
+    const T = mk();
+    const w = T.bf('A', 'Wayward Swordtooth');
+    w.summoningSick = false;
+    t.no(T.g.canAttack(w), 'no blessing: cannot attack');
+    T.player('A').cityBlessing = true;
+    t.ok(T.g.canAttack(w), 'with it, can');
+  });
+
+  test('Rituals that keep their mana until end of turn', (mk, t) => {
+    const T = mk();
+    const card = { id: 'probe-keep-mana', name: 'Probe Keep Mana', type_line: 'Sorcery', mana_cost: '', cmc: 0, colors: [], layout: 'normal',
+      oracle_text: "Add {G}{G}. Until end of turn, you don't lose this mana as steps and phases end." };
+    t.ok(engine().oracle.analyze(card).fullyAutomated);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

@@ -2197,6 +2197,9 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
         : { op: 'phaseOut', scope: { self: true } }) },
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
+    /* Rituals that last: "Until end of turn, you don't lose this mana as
+       steps and phases end." */
+    { re: /^Until end of turn, you don'?t lose (?:this|that|unspent) mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana' }) },
     /* "Target land becomes the basic land type of your choice until end of turn." */
     { re: /^(Target land|This land|CARDNAME) becomes the basic land type of your choice until end of turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'becomeBasicType', targets: [targetSpec('target land')] } : { op: 'becomeBasicType', scope: 'self' }) },
@@ -5273,6 +5276,13 @@
         return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) } },
           restrictionPart(Object.assign({}, scope), m[4])] };
       } },
+    // "This creature can't be blocked as long as you've drawn two or more cards this turn."
+    { re: /^(.+?) can'?t be blocked as long as (.+?)\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        const cond = condOf(m[2]);
+        return scope && cond ? { op: 'continuous', layer: 6, scope, cond, grant: ['Unblockable'] } : null;
+      } },
     { re: /^(.+?) can attack as though (?:it|they) didn'?t have defender\.?$/i,
       make: (m) => { const scope = scopeOf(m[1]); return scope ? restrictionPart(scope, 'can attack as though it didn\'t have defender') : null; } },
     { re: /^(.+?) (?:has|have) ([a-z ,]+?) and can attack as though (?:it|they) didn'?t have defender\.?$/i,
@@ -5718,7 +5728,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless']);
 
   function parseStatic(line, ctx) {
     const rep = parseReplacement(line);
@@ -5809,6 +5819,16 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      /* "This creature can't attack or block unless you control another
+         artifact": a condition the engine checks as attackers and
+         blockers are chosen */
+      { re: /^(?:CARDNAME|This creature) can'?t (attack|block|attack or block) unless (.+?)\.?$/i,
+        make: (m) => {
+          if (/^defending player/i.test(m[2])) return null;      // the old landwalk-like rule below reads those
+          const cond = condOf(m[2]);
+          return cond ? { op: 'restrictUnless', attack: /attack/i.test(m[1]), block: /block/i.test(m[1]), cond } : null;
+        },
+        auto: true },
       // a lure: "All creatures able to block this creature do so."
       { re: /^All creatures able to block (?:CARDNAME|this creature) do so\.?$/i, eff: { op: 'lure' }, auto: true },
       /* "Enchanted creature gets +2/+0 and can't block." */
@@ -5965,6 +5985,8 @@
       const m = line.match(r.re);
       if (!m) continue;
       const eff = r.make ? r.make(m) : r.eff;
+      // a rule that matched the words but could not read them: try the next one
+      if (!eff) continue;
       /* "Equip {2}" is an activated ability with a target, not a footnote:
          pay the cost at sorcery speed and the Equipment moves. */
       if (eff.op === 'equip' || eff.op === 'fortify' || eff.op === 'reconfigure') {
