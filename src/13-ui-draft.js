@@ -378,7 +378,7 @@
       const keepTop = this.poolWrap.querySelector('.pool-cols') ? this.poolWrap.querySelector('.pool-cols').scrollTop : 0;
       this.poolWrap.innerHTML = '';
       const pool = v.pool || [];
-      const COLS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Gold'], ['C', 'Colourless'], ['L', 'Lands']];
+      const COLS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolor'], ['C', 'Colourless'], ['L', 'Lands']];
       const bucket = (c) => {
         if (/\bLand\b/.test(c.type_line || '')) return 'L';
         const ci = c.colors && c.colors.length ? c.colors : (c.color_identity || []);
