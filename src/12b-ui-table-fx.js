@@ -499,6 +499,7 @@
         ], { duration: m.pop ? 380 : m.far ? 560 : 340, easing: EASE });
         const done = () => holder.classList.remove('moving');
         a.finished.then(done, done);
+        setTimeout(done, 900);
       }
 
       /* A card that has gone is flown out as a copy of itself, because the
@@ -526,6 +527,10 @@
           : [{ transform: 'none', opacity: 1 }, { transform: 'scale(.6)', opacity: 0 }];
         const a = ghost.animate(frames, { duration: dying ? 760 : 520, easing: EASE, delay: dying ? 60 : 0 });
         a.finished.then(() => ghost.remove(), () => ghost.remove());
+        /* A tab that is not drawing never finishes an animation, and a copy
+           waiting on one would stay on the table for good; a timer is the
+           backstop. */
+        setTimeout(() => ghost.remove(), 1600);
       }
     },
 
