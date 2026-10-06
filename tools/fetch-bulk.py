@@ -48,7 +48,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--force', action='store_true', help='download even if a recent copy is present')
     ap.add_argument('--max-age', type=float, default=7, help='days a copy stays fresh (default 7)')
+    ap.add_argument('--type', choices=['oracle', 'default'], default='oracle',
+                    help='oracle: one printing per card (the default); default: every printing, '
+                         'as default-cards.jsonl.gz, which tools/searchtest.js uses for draft sets')
     a = ap.parse_args()
+    global INDEX, OUT
+    if a.type == 'default':
+        INDEX = INDEX.replace('oracle-cards', 'default-cards')
+        OUT = OUT.with_name('default-cards.jsonl.gz')
 
     if OUT.exists() and not a.force:
         age = (time.time() - OUT.stat().st_mtime) / 86400
@@ -61,14 +68,14 @@ def main():
     url = meta.get('jsonl_download_uri')
     tmp = tempfile.mkdtemp(prefix='mtg-bulk-')
     try:
-        part = os.path.join(tmp, 'oracle-cards.jsonl.gz')
+        part = os.path.join(tmp, OUT.name)
         if url:
             print(f'downloading {url} ({(meta.get("compressed_size") or 0) / 1e6:.1f} MB)')
             download(url, part)
         else:
             url = meta['download_uri']
             print(f'downloading {url} (JSON array; converting to one card per line)')
-            raw = os.path.join(tmp, 'oracle-cards.json' + ('.gz' if url.endswith('.gz') else ''))
+            raw = os.path.join(tmp, OUT.name.replace('.jsonl.gz', '.json') + ('.gz' if url.endswith('.gz') else ''))
             download(url, raw)
             array_to_jsonl(raw, part)
         n = count_lines(part)

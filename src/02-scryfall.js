@@ -133,7 +133,18 @@
       this.db = new IDB();
       this.q = new Queue(120, 550);         // ~8 requests/sec, under 2/sec for searches
       this.offline = false;
-      this.stats = { hits: 0, misses: 0, requests: 0, errors: 0 };
+      this.stats = { hits: 0, misses: 0, requests: 0, errors: 0, local: 0 };
+    }
+
+    /* --- the card database (02a-carddb.js) ---
+       When Scryfall's bulk data has been downloaded, lookups and searches
+       are answered from it and the network is not asked at all. Anything
+       it cannot answer goes to Scryfall as before. */
+    async _localDb(opts) {
+      const db = MTG.cardDb;
+      if (!db || (opts && opts.live)) return null;
+      if (db.has() || await db.ready()) return db;
+      return null;
     }
 
     /* --- low level fetch ---
@@ -256,6 +267,9 @@
 
     async byId(id) {
       if (!id) return null;
+      const local = await this._localDb();
+      const own = local && local.idx.byIdCard(id);
+      if (own) { this.stats.local++; return own; }
       const hit = await this.db.get(STORES.cards, id);
       if (hit) { this.stats.hits++; return hit; }
       this.stats.misses++;
@@ -269,6 +283,9 @@
       opts = opts || {};
       const key = U.normName(name);
       if (!opts.force) {
+        const local = await this._localDb(opts);
+        const own = local && local.idx.byNameCard(name);
+        if (own) { this.stats.local++; return own; }
         const id = await this.db.get(STORES.names, key);
         if (id) { const c = await this.db.get(STORES.cards, id); if (c) { this.stats.hits++; return c; } }
       }
@@ -291,10 +308,18 @@
       const result = new Array(identifiers.length).fill(null);
       const needIdx = [];
 
-      // 1. serve what we can from cache
+      // 1. serve what we can from the card database and the cache
+      const local = await this._localDb();
       for (let i = 0; i < identifiers.length; i++) {
         const ident = identifiers[i];
         let c = null;
+        if (local) {
+          const L = local.idx;
+          c = ident.id ? L.byIdCard(ident.id)
+            : ident.set && ident.collector_number ? L.bySetNumber(ident.set, ident.collector_number)
+            : ident.name ? L.byNameCard(ident.name, ident.set) : null;
+          if (c) { result[i] = c; this.stats.local++; continue; }
+        }
         if (ident.id) c = await this.db.get(STORES.cards, ident.id);
         else if (ident.set && ident.collector_number) {
           const k = 'cn:' + String(ident.set).toLowerCase() + ':' + String(ident.collector_number).toLowerCase();
@@ -370,6 +395,20 @@
     async search(query, opts) {
       opts = opts || {};
       const max = opts.max || 175;
+      const local = await this._localDb(opts);
+      if (local && local.answers(query, opts)) {
+        try { const cards = local.search(query, opts); this.stats.local++; return cards; }
+        catch (e) { if (!(e instanceof local.Unsupported)) throw e; /* beyond the local engine: Scryfall it is */ }
+      }
+      try { return await this._liveSearch(query, opts, max); }
+      catch (e) {
+        // offline with a database that could not answer exactly: its best is better than nothing
+        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return cards; } catch (e2) {} }
+        throw e;
+      }
+    }
+
+    async _liveSearch(query, opts, max) {
       const params = new URLSearchParams({ q: query });
       if (opts.unique) params.set('unique', opts.unique);
       if (opts.order) params.set('order', opts.order);
@@ -406,6 +445,8 @@
 
     async autocomplete(q) {
       if (!q || q.length < 2) return [];
+      const local = await this._localDb();
+      if (local) return local.idx.autocomplete(q, 20);
       try {
         const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q));
         return (d && d.data) || [];
@@ -413,6 +454,13 @@
     }
 
     async random(query) {
+      const local = await this._localDb();
+      if (local && local.answers(query || '', {})) {
+        try {
+          const ids = local.idx.query(query || '-t:basic', {});
+          if (ids.length) return local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
+        } catch (e) { /* Scryfall can */ }
+      }
       const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
       return c ? (await this._store([c]))[0] : null;
     }
@@ -427,7 +475,10 @@
       opts = opts || {};
       const oracle = card.oracle_id;
       const key = 'prints:' + (oracle || U.normName(card.name));
-      if (!opts.force) {
+      // the card database lists them straight off, with nothing to keep
+      const local = await this._localDb();
+      const fromDb = !!(local && local.idx.hasPrintings);
+      if (!opts.force && !fromDb) {
         const hit = await this.db.get(STORES.prints, key);
         if (hit && Date.now() - hit._t < CACHE_TTL) {
           const m = await this.db.getMany(STORES.cards, hit.ids);
@@ -449,7 +500,7 @@
         if (paper.length) cards = paper;
       }
       if (!cards.length) cards = [card];
-      await this.db.put(STORES.prints, key, { ids: cards.map(c => c.id), _t: Date.now() });
+      if (!fromDb) await this.db.put(STORES.prints, key, { ids: cards.map(c => c.id), _t: Date.now() });
       return cards;
     }
 
@@ -459,7 +510,15 @@
       opts = opts || {};
       const hit = await this.db.get(STORES.meta, 'setlist');
       if (hit && !opts.force && Date.now() - hit._t < SET_TTL) return hit.sets;
-      const d = await this._fetch('/sets');
+      let d;
+      try { d = await this._fetch('/sets'); }
+      catch (e) {
+        // offline: an old list will do, and failing that the card database knows its sets
+        if (hit) return hit.sets;
+        const local = await this._localDb();
+        if (local && local.idx.hasPrintings) return local.idx.setList();
+        throw e;
+      }
       const sets = (d && d.data ? d.data : []).map(s => ({
         code: s.code, name: s.name, set_type: s.set_type, released_at: s.released_at,
         card_count: s.card_count, digital: s.digital, icon_svg_uri: s.icon_svg_uri,
@@ -565,6 +624,40 @@
     /* ================= images ================= */
 
     imageUrl(card, size, faceIndex) {
+      const url = this._imageUrl(card, size, faceIndex);
+      // judged by the table-sized picture: when that one cannot load, neither will the others
+      const probe = !size || size === 'normal' ? url : this._imageUrl(card, 'normal', faceIndex);
+      // (only a request for that size tries it; the others just take the answer)
+      return url && this.imageUsable(probe || url, probe === url ? 'normal' : null) ? url : '';
+    }
+
+    /* --- pictures that will not come ---
+       Offline, a card picture is an empty frame. Each table-sized picture is
+       tried once in the background (the same request the table makes, so it
+       costs nothing extra); one that fails is answered with '' from then on,
+       which every screen already reads as "write the card out instead", and
+       'scryfall:images' tells whatever is showing it to look again. */
+    imageUsable(url, size) {
+      if (!url || typeof Image === 'undefined') return !!url;
+      const st = this._img || (this._img = { bad: new Set(), tried: new Set() });
+      if (st.bad.has(url)) return false;
+      if (size === 'normal' && !st.tried.has(url)) {
+        st.tried.add(url);
+        const probe = new Image();
+        probe.decoding = 'async';
+        probe.onerror = () => {
+          st.bad.add(url);
+          // a picture that failed while the connection was down may well load later
+          setTimeout(() => { st.bad.delete(url); st.tried.delete(url); }, 1000 * 60 * 5);
+          if (!this._imgTell) this._imgTell = U.debounce(() => MTG.bus.emit('scryfall:images'), 200);
+          this._imgTell();
+        };
+        probe.src = url;
+      }
+      return true;
+    }
+
+    _imageUrl(card, size, faceIndex) {
       size = size || 'normal';
       if (!card) return '';
       const f = card.card_faces && card.card_faces[faceIndex || 0];

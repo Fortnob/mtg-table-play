@@ -83,10 +83,16 @@
   function tokenArtUrl(card) {
     if (!TOKEN_ART.map) TOKEN_ART.map = MTG.store.get(TOKEN_ART.key, {}) || {};
     const k = tokenKey(card);
-    if (Object.prototype.hasOwnProperty.call(TOKEN_ART.map, k)) return TOKEN_ART.map[k] || null;
+    if (Object.prototype.hasOwnProperty.call(TOKEN_ART.map, k)) {
+      // a picture that cannot load (offline, most likely) leaves the token its frame
+      const url = TOKEN_ART.map[k];
+      return url && (!MTG.scry.imageUsable || MTG.scry.imageUsable(url, 'normal')) ? url : null;
+    }
     if (!TOKEN_ART.pending.has(k) && MTG.scry && MTG.scry.search) fetchTokenArt(card, k);
     return null;
   }
+  // pictures that failed to load: whatever is on the table looks again, and writes those cards out
+  if (MTG.bus) MTG.bus.on('scryfall:images', () => { for (const fn of TOKEN_ART.listeners) fn(); });
   async function fetchTokenArt(card, k) {
     TOKEN_ART.pending.add(k);
     const name = String(card.name || '').replace(/"/g, '');

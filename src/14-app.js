@@ -36,6 +36,7 @@
     buildShell();
     showScreen('home');
     wireNet();
+    offerCardDb();
     // a friendly nudge if the card API is unreachable
     MTG.bus.on('scryfall:offline', U.debounce(() => {
       UI.toast('Scryfall is unreachable right now — cached cards still work.', 'err', 5000);
@@ -978,6 +979,180 @@
     else if (net && net.isClient) net.intent({ kind: 'autoPass', cfg });
   }
 
+  /* ---- the card database (02a-carddb.js) ----
+     Scryfall's bulk card data, saved in the browser so bots, drafts and
+     searches need no network. Offered once on a first visit, and kept
+     in Options under Card data. */
+  const CARD_DB_SIZE = { default_cards: 79e6, oracle_cards: 25e6 };   // until Scryfall says exactly
+  const megabytes = (b) => (b >= 1e7 ? Math.round(b / 1e6) : (b / 1e6).toFixed(1)) + ' MB';
+  const shortDate = (iso) => {
+    try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch (e) { return String(iso || '').slice(0, 10); }
+  };
+  function cardDbJobText(job) {
+    if (!job) return '';
+    switch (job.phase) {
+      case 'download':
+        return job.total ? `Downloading: ${megabytes(job.got)} of ${megabytes(job.total)}` +
+          (job.resumed ? ', carrying on from where it stopped' : '') + (job.retry ? ' (the connection dropped; trying again)' : '')
+          : 'Asking Scryfall for the file…';
+      case 'unpack': return `Unpacking: ${(job.cards || 0).toLocaleString()} cards so far`;
+      case 'store': return 'Saving it in this browser…';
+      case 'done': return 'Done.';
+      case 'cancelled': return 'Stopped. What has downloaded so far is kept, and the next download carries on from there.';
+      case 'error': return 'The download did not finish: ' + job.error;
+    }
+    return '';
+  }
+  // the download is most of the wait, the unpacking most of the rest
+  function cardDbJobShare(job) {
+    if (!job) return 0;
+    const f = job.total ? Math.min(1, job.got / job.total) : 0;
+    return job.phase === 'download' ? f * 0.7 : job.phase === 'unpack' ? 0.7 + f * 0.27 : job.phase === 'store' ? 0.98 : 1;
+  }
+  function startCardDb(kind) {
+    const run = MTG.cardDb.download(kind);
+    cardDbProgress();
+    run.then((ok) => {
+      const st = MTG.cardDb.status();
+      if (ok) UI.ok(`The card database is ready: ${st.cards.toLocaleString()} cards.`);
+      else if (st.job && st.job.phase === 'error') UI.error(cardDbJobText(st.job));
+    });
+  }
+  /** The download's progress in a window that can be hidden while it carries on. */
+  function cardDbProgress() {
+    const bar = el('div', { class: 'progress' }, el('div', { style: { width: '0%' } }));
+    const text = el('p', { class: 'small muted', 'aria-live': 'polite', style: { margin: '0 0 10px' } });
+    const m = UI.modal({
+      title: 'Downloading the card database',
+      content: el('div', null, [text, bar,
+        el('p', { class: 'tiny dim', style: { margin: '12px 0 0' }, text: 'Carry on using the app if you like; Options, under Card data, shows how far it has got.' })]),
+      buttons: [
+        { label: 'Stop', onClick: () => { MTG.cardDb.cancel(); m.close(); } },
+        { label: 'Hide', class: 'primary', onClick: () => m.close() },
+      ],
+    });
+    const paint = (job) => {
+      if (!job) return;
+      text.textContent = cardDbJobText(job);
+      bar.firstChild.style.width = Math.round(cardDbJobShare(job) * 100) + '%';
+      if (/done|error|cancelled/.test(job.phase)) { off(); setTimeout(() => m.close(), job.phase === 'done' ? 700 : 0); }
+    };
+    const off = MTG.bus.on('carddb:progress', paint);
+    m._onClose = () => off();
+    paint(MTG.cardDb.job);
+  }
+  /** The Card data row: what is stored, and the buttons to fetch, update or remove it. */
+  function cardDbRow() {
+    const host = el('div', { class: 'opt-row stacked' });
+    const DB = MTG.cardDb;
+    let pending = null;
+    const draw = () => {
+      if (!host.isConnected && host.parentNode) return;
+      const st = DB.status();
+      const job = st.job && /download|unpack|store/.test(st.job.phase) ? st.job : null;
+      const kids = [el('div', { class: 'opt-label', text: 'Card database' })];
+      const buttons = [];
+      if (job) {
+        kids.push(el('div', { class: 'opt-help', text: cardDbJobText(job) }));
+        kids.push(el('div', { class: 'progress', style: { marginTop: '8px', maxWidth: '58ch' } },
+          el('div', { style: { width: Math.round(cardDbJobShare(job) * 100) + '%' } })));
+        buttons.push(el('button', { class: 'btn sm', text: 'Stop the download', onclick: () => DB.cancel() }));
+      } else if (st.present) {
+        const info = st.info || {};
+        const kind = DB.KINDS[info.kind] || DB.KINDS.default_cards;
+        kids.push(el('div', { class: 'opt-help', text:
+          `${kind.name}: ${st.cards.toLocaleString()} cards` + (info.kind === 'oracle_cards' ? '' : ` in ${st.prints.toLocaleString()} printings`) +
+          ` · Scryfall's data of ${shortDate(info.updated_at)}` + (info.stored ? ` · about ${megabytes(info.stored)} stored` : '') + '.' }));
+        kids.push(el('div', { class: 'opt-help', text: info.kind === 'oracle_cards'
+          ? 'Bots, the deck builder and card lookups use it and need no network. Drafts and the art picker still ask Scryfall.'
+          : 'Bots, drafts, the deck builder and card lookups use it and need no network. Card pictures still come from Scryfall.' }));
+        const newer = st.latest && st.latest.updated_at > (info.updated_at || '') ? st.latest : null;
+        if (newer) kids.push(el('div', { class: 'opt-help', text: `Scryfall has a newer copy, from ${shortDate(newer.updated_at)} (${megabytes(newer.size)}).` }));
+        buttons.push(newer
+          ? el('button', { class: 'btn sm primary', text: 'Update', onclick: () => startCardDb(info.kind) })
+          : el('button', { class: 'btn sm', text: 'Check for a newer copy', onclick: async (e) => {
+            e.target.disabled = true;
+            const n = await DB.checkUpdate();
+            if (!n) UI.ok(DB.latest ? 'The card database is up to date.' : 'Could not reach Scryfall to check.');
+            draw();
+          } }));
+        buttons.push(el('button', { class: 'btn sm danger', text: 'Delete the card database', onclick: async () => {
+          if (!await UI.confirm('Delete the card database from this browser? Cards will be fetched from Scryfall as they are needed again, as before.')) return;
+          await DB.remove(); UI.ok('Card database deleted.');
+        } }));
+      } else {
+        kids.push(el('div', { class: 'opt-help', text: 'Scryfall’s card data, saved in this browser. Bots build their decks in moments instead of waiting on dozens of searches, the deck builder searches instantly, and games work without a connection. One download; card pictures still come from Scryfall.' }));
+        const last = st.job;
+        if (last && last.phase === 'error') kids.push(el('div', { class: 'opt-help', text: cardDbJobText(last) }));
+        if (pending) kids.push(el('div', { class: 'opt-help', text: `A download stopped part way (${megabytes(pending.got)} so far); downloading again carries on from there.` }));
+        buttons.push(el('button', { class: 'btn sm primary', text: `Download the card database (${megabytes(CARD_DB_SIZE.default_cards)})`,
+          title: DB.KINDS.default_cards.blurb, onclick: () => startCardDb('default_cards') }));
+        buttons.push(el('button', { class: 'btn sm', text: `One printing per card (${megabytes(CARD_DB_SIZE.oracle_cards)})`,
+          title: DB.KINDS.oracle_cards.blurb, onclick: () => startCardDb('oracle_cards') }));
+      }
+      kids.push(el('div', { class: 'row wrap', style: { marginTop: '10px' } }, buttons));
+      host.innerHTML = '';
+      host.appendChild(el('div', { class: 'grow' }, kids));
+    };
+    const redraw = () => { if (!host.isConnected) { offA(); offB(); return; } draw(); };
+    const offA = MTG.bus.on('carddb:progress', U.debounce(redraw, 150));
+    const offB = MTG.bus.on('carddb:changed', redraw);
+    draw();
+    // what is stored loads in the background; ask Scryfall once a session whether there is newer
+    DB.ready().then((has) => {
+      if (has && !DB.latest && navigator.onLine !== false) DB.checkUpdate().then(redraw);
+      else if (!has) DB.pending().then((p) => { pending = p; redraw(); });
+      redraw();
+    });
+    // Scryfall's own figures for the two downloads, when it can be asked
+    DB.bulkInfo('default_cards').then((i) => { CARD_DB_SIZE.default_cards = i.size || CARD_DB_SIZE.default_cards; return DB.bulkInfo('oracle_cards'); })
+      .then((i) => { CARD_DB_SIZE.oracle_cards = i.size || CARD_DB_SIZE.oracle_cards; if (!DB.has()) redraw(); }).catch(() => {});
+    return host;
+  }
+  /**
+   * The first visit: offer the database once, and only download it on a yes.
+   * Later visits look for a newer copy now and then, and mention it when the
+   * one here has fallen well behind (a new set, most likely).
+   */
+  async function offerCardDb() {
+    const DB = MTG.cardDb;
+    if (!DB) return;
+    const has = await DB.ready();
+    if (has) {
+      const last = MTG.store.get('cardDb.checked', 0) || 0;
+      if (Date.now() - last < 1000 * 60 * 60 * 24 || navigator.onLine === false) return;
+      MTG.store.set('cardDb.checked', Date.now());
+      const newer = await DB.checkUpdate();
+      if (newer && Date.parse(newer.updated_at) - Date.parse(DB.info.updated_at || 0) > 1000 * 60 * 60 * 24 * 14)
+        UI.toast('A newer card database is available: Options, Card data.', 'ok', 6000);
+      return;
+    }
+    // nor to a browser being driven by a test, which is nobody's first visit
+    if (MTG.store.get('cardDb.offered', false) || DB.job || navigator.webdriver) return;
+    await U.sleep(2500);
+    // not on top of something else; there is always next time
+    if (App.screen !== 'home' || document.querySelector('.modal-back') || DB.job) return;
+    MTG.store.set('cardDb.offered', true);
+    const yes = await new Promise((res) => {
+      let done = false;
+      const settle = (v) => { if (!done) { done = true; res(v); } };
+      const m = UI.modal({
+        title: 'Download the card database?',
+        content: el('div', null, [
+          el('p', { style: { margin: '0 0 10px' }, text: 'MTG Table asks Scryfall for each card as it needs it. With Scryfall’s card database saved in this browser instead, the bots build their decks in moments, searching is instant, and games work offline.' }),
+          el('p', { class: 'small muted', style: { margin: 0 }, text: `It is one download of about ${megabytes(CARD_DB_SIZE.default_cards)}. You can do this later, or delete it again, from Options under Card data.` }),
+        ]),
+        buttons: [
+          { label: 'Not now', onClick: () => { settle(false); m.close(); } },
+          { label: 'Download', class: 'primary', onClick: () => { settle(true); m.close(); } },
+        ],
+      });
+      m._onClose = () => settle(false);
+    });
+    if (yes) startCardDb('default_cards');
+  }
+
   /* The sections of the options screen, in the order they are read. On a
      wide screen they are listed down the side as a contents. */
   const OPT_SECTIONS = [
@@ -1245,13 +1420,15 @@
     /* -- data -- */
     const cacheInfo = el('div', { class: 'opt-help', text: 'Reading cache…' });
     MTG.scry.cacheStats().then(st => {
-      cacheInfo.textContent = `${st.cards} cards cached · ${st.hits} cache hits · ${st.requests} Scryfall requests this session.`;
+      cacheInfo.textContent = `${st.cards} cards cached · ${st.hits} cache hits · ${st.requests} Scryfall requests this session` +
+        (MTG.scry.stats.local ? ` · ${MTG.scry.stats.local} answered by the card database.` : '.');
     }).catch(() => { cacheInfo.textContent = 'Cache unavailable.'; });
     const scriptCount = el('div', { class: 'opt-help', id: 'scriptCount' });
     const mine = Object.keys(MTG.settings.cardScripts || {}).length;
     scriptCount.textContent = `${MTG.scripts.count()} cards are written out by hand in the engine` +
       (mine ? `, and ${mine} more by you.` : '.');
     sections.push(group('data', 'Card data', null, [
+      cardDbRow(),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Cache' }), cacheInfo,
         el('div', { class: 'row wrap', style: { marginTop: '10px' } }, [

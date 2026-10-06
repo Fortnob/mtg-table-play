@@ -15,7 +15,7 @@ const CACHE = process.env.MTG_CACHE_DIR ? path.resolve(process.env.MTG_CACHE_DIR
 fs.mkdirSync(CACHE, { recursive: true });
 
 const ENGINE_MODULES = [
-  '00-core.js', '01-audio.js', '02-scryfall.js', '18-scripts.js', '19-cardlib.js', '03-oracle.js',
+  '00-core.js', '01-audio.js', '02-scryfall.js', '02a-carddb.js', '18-scripts.js', '19-cardlib.js', '03-oracle.js',
   '04-formats.js', '05-decklist.js', '06-rules.js', '06a-choice.js', '06b-events.js', '06c-replay.js', '07-draft.js', '08-bots.js', '15-combos.js', '16-advisor.js',
 ];
 
@@ -106,10 +106,11 @@ function installShims() {
 function load(opts) {
   opts = opts || {};
   installShims();
-  const code = ENGINE_MODULES.map(m => `/* ===== ${m} ===== */\n` + fs.readFileSync(path.join(SRC, m), 'utf8')).join('\n');
+  // opts.modules loads a subset (the search test needs only the card data)
+  const code = (opts.modules || ENGINE_MODULES).map(m => `/* ===== ${m} ===== */\n` + fs.readFileSync(path.join(SRC, m), 'utf8')).join('\n');
   vm.runInThisContext(code, { filename: 'engine.js' });
   const MTG = globalThis.MTG;
-  MTG.settings.botSpeed = 0;
+  if (MTG.settings) MTG.settings.botSpeed = 0;
   // the request queue spaces live calls out; cached ones need no gap
   // (the fetch shim does that spacing itself, for live requests only)
   if (MTG.scry && MTG.scry.q) { MTG.scry.q.gap = 0; MTG.scry.q.slowGap = 0; }

@@ -2,6 +2,7 @@
  "00-core.js",
  "01-audio.js",
  "02-scryfall.js",
+ "02a-carddb.js",
  "18-scripts.js",
  "19-cardlib.js",
  "03-oracle.js",
