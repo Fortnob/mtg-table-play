@@ -247,7 +247,7 @@ const INTENTS = {
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
   }),
-  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)) }),
+  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)) }),
   mana: closed({ objId: id, index: opt(nat), choice: opt(maybe(str)) }),
   declareAttackers: closed({ declarations: arr(Declaration) }),
   declareBlockers: closed({ declarations: arr(Block) }),
@@ -623,10 +623,7 @@ function strip(opts) {
    Known problems: reported, counted, not failed on. Each names the
    rule and a pattern for the message, and says why it is still here.
    ============================================================ */
-const KNOWN = [
-  { rule: 'intent.shape', match: /intent\.(sacrificeIds|discardIds) is not a field/,
-    why: 'Bots pay sacrifice and discard costs up front through activateAbility options the table has no intent field for; a person is asked instead. Harmless for play, but the bot path and the table path differ.' },
-];
+const KNOWN = [];
 function knownFor(v) { return KNOWN.find(k => k.rule === v.rule && k.match.test(`${v.path} ${v.msg}`)) || null; }
 
 /* ============================================================
