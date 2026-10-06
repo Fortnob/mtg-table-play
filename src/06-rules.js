@@ -6019,6 +6019,26 @@
       switch (cond.kind) {
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         case 'completedDungeon': return !!me && (me.dungeonsCompleted || []).length > 0;
+        case 'selfIs': {
+          if (!src) return false;
+          if (cond.what === 'monstrous') return !!src.monstrous;
+          const att = (src.attachments || []).map(id => this.obj(id)).filter(Boolean);
+          const kinds = att.map(x => O.analyze(x.card, x.face) || {});
+          if (cond.what === 'equipped') return kinds.some(k => (k.subtypes || []).includes('Equipment'));
+          if (cond.what === 'enchanted') return kinds.some(k => (k.subtypes || []).includes('Aura'));
+          return false;
+        }
+        case 'attachedIs': {
+          // the permanent this is attached to, as printed (asked while the layers are worked out)
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          if (!host || host.zone !== 'battlefield') return false;
+          if (cond.attacking) return !!host.attacking;
+          const ha = O.analyze(host.card, host.face) || {};
+          if (cond.color) return (ha.colors || []).includes(cond.color);
+          if (cond.what === 'legendary') return (ha.supertypes || []).includes('Legendary');
+          if (cond.what === 'equipment') return (ha.subtypes || []).includes('Equipment');
+          return (ha.types || []).some(t => t.toLowerCase() === cond.what);
+        }
         case 'firstCombat': return (this.combatsThisTurn || 1) === 1 && this._combatTurn === this.turn;
         case 'levelRange': {
           if (!src) return false;

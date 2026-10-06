@@ -3531,6 +3531,13 @@
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact) is untapped$/i, () => ({ kind: 'selfUntapped' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact) is tapped$/i, () => ({ kind: 'selfTapped' })],
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
+    // what the permanent itself is: monstrous, equipped, enchanted, and its counters
+    [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
+    [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
+    // an Aura's condition on what it enchants, by its printed colour or type
+    [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
+    [/^enchanted (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
+    [/^(?:equipped|enchanted) creature is attacking$/i, () => ({ kind: 'attachedIs', attacking: true })],
     [/^it'?s your turn$/i, () => ({ kind: 'yourTurn' })],
     [/^it'?s the first combat phase of the turn$/i, () => ({ kind: 'firstCombat' })],
     [/^it'?s not your turn$/i, () => ({ kind: 'notYourTurn' })],
@@ -5246,7 +5253,36 @@
   }
 
   const BASIC_TYPES = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
+  /* a restriction that rides along with a bonus: "can't block", "can't be
+     blocked", "attacks each combat if able", "can attack as though it
+     didn't have defender" */
+  function restrictionPart(scope, words) {
+    const w = String(words).toLowerCase().replace(/’/g, "'");
+    if (/^can'?t block$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'cantBlock' };
+    if (/^can'?t be blocked$/.test(w)) return { op: 'continuous', layer: 6, scope, grant: ['Unblockable'] };
+    if (/^attacks each combat if able$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'mustAttackEot' };
+    if (/^can attack as though (?:it|they) didn'?t have defender$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'attackDespiteDefender' };
+    return null;
+  }
+
   const CONTINUOUS_RULES = [
+    { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able)\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) } },
+          restrictionPart(Object.assign({}, scope), m[4])] };
+      } },
+    { re: /^(.+?) can attack as though (?:it|they) didn'?t have defender\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? restrictionPart(scope, 'can attack as though it didn\'t have defender') : null; } },
+    { re: /^(.+?) (?:has|have) ([a-z ,]+?) and can attack as though (?:it|they) didn'?t have defender\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        const kws = keywordList(m[2]);
+        if (!scope || !kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope, grant: kws },
+          restrictionPart(Object.assign({}, scope), 'can attack as though it didn\'t have defender')] };
+      } },
     /* Spreading Seas, Magus of the Moon: a land whose land type is set
        loses the old ones, and what its own words gave it (CR 305.7). */
     { re: /^(Enchanted land|Nonbasic lands|Lands you control|Lands your opponents control|All lands) (?:is|are) (?:an? )?(Plains|Island|Swamp|Mountain|Forest)s?\.?$/i,
@@ -5648,6 +5684,27 @@
       if (!m) continue;
       const eff = r.make(m);
       if (eff) return { kind: 'static', text: line, auto: true, effects: [eff] };
+    }
+    /* "As long as enchanted creature is white, it gets +1/+1 and has
+       lifelink": any standing rule this can read, with the condition on
+       it. "It" is what the condition is about. */
+    const al = line.match(/^As long as (.+?), (.+)$/i);
+    if (al) {
+      const cond = condOf(al[1]);
+      if (!cond) return null;
+      const subject = /\b(?:enchanted (?:creature|permanent))\b/i.test(al[1]) ? 'Enchanted creature'
+        : /\bequipped creature\b/i.test(al[1]) ? 'Equipped creature' : 'CARDNAME';
+      const body = al[2].replace(/^(?:it|this creature)\b/i, subject).replace(/^(\w)/, (c) => c.toUpperCase());
+      if (/^As long as/i.test(body)) return null;
+      const inner = parseContinuous(body);
+      if (!inner) return null;
+      const add = (e) => (e.cond ? Object.assign(e, { cond: [].concat(e.cond, cond) }) : Object.assign(e, { cond }));
+      for (const e of inner.effects) {
+        if (e.op === 'continuous') add(e);
+        else if (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous')) e.list.forEach(add);
+        else return null;
+      }
+      return { kind: 'static', text: line, auto: true, effects: inner.effects };
     }
     return null;
   }

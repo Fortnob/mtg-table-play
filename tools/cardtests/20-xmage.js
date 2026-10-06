@@ -1099,6 +1099,32 @@ module.exports = (test) => {
     t.eq(h.counters['+1/+1'], 1);
   });
 
+  test('As long as: Shield of the Oversoul cares what colour its creature is', (mk, t) => {
+    t.auto('Shield of the Oversoul');
+    const T = mk();
+    const green = T.bf('A', 'Grizzly Bears'), white = T.bf('A', 'Savannah Lions');
+    const s1 = T.bf('A', 'Shield of the Oversoul');
+    s1.attachedTo = green.id; green.attachments = [s1.id]; s1.ts = T.g._stampNew();
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(green, 'indestructible'), 'green: indestructible');
+    t.no(T.g.hasKw(green, 'flying'), 'not flying');
+    t.eq(T.g.powerOf(green), 3);
+    s1.attachedTo = white.id; green.attachments = []; white.attachments = [s1.id];
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(white, 'flying'), 'white: flying');
+  });
+
+  test('As long as: Putrid Imp at threshold gets +1/+1 and cannot block', (mk, t) => {
+    t.auto('Putrid Imp');
+    const T = mk();
+    const imp = T.bf('A', 'Putrid Imp');
+    t.no(T.g._hasFlag(imp, 'cantBlock'));
+    for (let i = 0; i < 7; i++) T.grave('A', 'Island');
+    T.g.bumpBoard();
+    t.ok(T.g._hasFlag(imp, 'cantBlock'));
+    t.eq(T.g.powerOf(imp), 2);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
