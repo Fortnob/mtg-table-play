@@ -2373,6 +2373,44 @@ module.exports = (test) => {
     t.eq(T.g.canCast('A', T.hand('A', 'Craw Wurm').id).cost, '{4}{G}{G}', 'not a Wurm');
   });
 
+  test('The Regalia digs to a land; the rest go to the bottom', (mk, t) => {
+    t.auto('The Regalia');
+    const T = mk();
+    const r = T.bf('A', 'The Regalia');
+    const lib = T.zone('A', 'library');
+    T.top('A', 'Forest'); T.top('A', 'Shock'); T.top('A', 'Grizzly Bears');
+    const ab = r.analysis().abilities.find(x => x.kind === 'triggered');
+    T.g._runEffect(ab.effects[0], { controller: 'A', obj: r });
+    const f = T.bfOf('A').find(o => o.name === 'Forest');
+    t.ok(f && f.tapped, 'the Forest, tapped');
+    t.eq(lib.slice(-2).map(c => c.name).sort().join(), 'Grizzly Bears,Shock', 'the others at the bottom');
+  });
+
+  test('Consuming Aberration mills each opponent down to a land', (mk, t) => {
+    t.auto('Consuming Aberration');
+    const T = mk();
+    T.top('B', 'Forest'); T.top('B', 'Shock'); T.top('B', 'Grizzly Bears');
+    T.bf('A', 'Consuming Aberration');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').map(c => c.name).sort().join(), 'Forest,Grizzly Bears,Shock');
+  });
+
+  test('Hermit Druid: a basic land to hand, the rest to the graveyard', (mk, t) => {
+    t.auto('Hermit Druid');
+    const T = mk();
+    const h = T.bf('A', 'Hermit Druid');
+    h.summoningSick = false;
+    T.top('A', 'Forest'); T.top('A', 'Shock'); T.top('A', 'Grizzly Bears');
+    T.mana('A', 'G');
+    const a = h.analysis();
+    T.activate('A', h, a.manaAbilities.length);
+    T.resolve();
+    t.ok(T.zone('A', 'hand').some(c => c.name === 'Forest'), 'Forest in hand');
+    t.eq(T.zone('A', 'graveyard').map(c => c.name).sort().join(), 'Grizzly Bears,Shock');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

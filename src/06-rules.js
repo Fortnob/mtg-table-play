@@ -8989,6 +8989,36 @@
           this.logEvent('wipe', `Every coloured permanent is sacrificed (${gone.length}).`);
           break;
         }
+        /* "Reveal cards from the top of your library until you reveal a
+           creature card": that one goes where the words say, the rest to the
+           bottom in a random order or to the graveyard. */
+        case 'revealUntil': {
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
+          for (const p of who) {
+            const lib = this.zones[p.id].library;
+            const i = lib.findIndex(c => this._cardFitsWords(c, e.filter || 'card'));
+            const shown = (i >= 0 ? lib.slice(0, i + 1) : lib.slice());
+            const found = i >= 0 ? lib[i] : null;
+            if (shown.length) this.logEvent('rules', `${p.name} reveals ${shown.map(c => c.name).join(', ')}.`);
+            const rest = shown.filter(c => c !== found);
+            if (found) {
+              if (e.dest === 'hand') this.moveObject(found, 'hand');
+              else if (e.dest === 'graveyard') this.moveObject(found, 'graveyard');
+              else {
+                this.moveObject(found, 'battlefield', { controller: ctx.controller });
+                if (e.tapped && found.zone === 'battlefield') found.tapped = true;
+                this._lastPut = found.id;
+              }
+            }
+            if (e.rest === 'graveyard') for (const c of rest) this.moveObject(c, 'graveyard');
+            else if (rest.length) {
+              for (const c of rest) lib.splice(lib.indexOf(c), 1);
+              this.rng.shuffle(rest);
+              lib.push(...rest);
+            }
+          }
+          break;
+        }
         // Insurrection: every creature, untapped and yours until end of turn
         case 'threatenAll': {
           const ts = this._stampNew();

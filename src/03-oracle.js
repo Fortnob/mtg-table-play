@@ -2292,6 +2292,12 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    /* Consuming Aberration, Balustrade Spy: "each opponent reveals cards
+       from the top of their library until they reveal a land card, then
+       puts those cards into their graveyard" */
+    { re: /^(Each opponent|Target player|Target opponent) reveals cards from the top of their library until they reveal an? ([a-z ]+?) card, then puts? (?:those cards|all cards revealed this way) into their graveyard\.?$/i,
+      make: (m) => Object.assign({ op: 'revealUntil', who: /^each/i.test(m[1]) ? 'opponents' : 'target', filter: m[2].toLowerCase(), dest: 'graveyard', rest: 'graveyard' },
+        /^target/i.test(m[1]) ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {}) },
     // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
     { re: /^Until end of turn, creatures you control have base power and toughness (X|\d+)\/(X|\d+)( and gain all creature types)?\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2], allTypes: !!m[3] }) },
@@ -3099,6 +3105,12 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* "Reveal cards from the top of your library until you reveal a
+       creature card. Put that card into your hand and the rest on the
+       bottom of your library in a random order." Dig until one fits. */
+    { re: /^Reveal cards from the top of your library until you reveal an? ([A-Za-z ]+?) card\. Put (?:that card|it) (into your hand|onto the battlefield(?: tapped)?(?: under your control)?) and (?:the rest|all other cards revealed this way) (on the bottom of your library in a random order|into your graveyard)\.?$/i,
+      make: (m) => [{ op: 'revealUntil', who: 'you', filter: m[1].toLowerCase(), dest: /hand/i.test(m[2]) ? 'hand' : 'battlefield',
+        tapped: /tapped/i.test(m[2]), rest: /graveyard/i.test(m[3]) ? 'graveyard' : 'bottom' }] },
     /* Disciple of Bolas: "Sacrifice another creature. You gain X life and
        draw X cards, where X is that creature's power." — the sacrifice
        happens first, so its power is known */
