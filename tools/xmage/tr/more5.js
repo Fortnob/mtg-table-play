@@ -142,4 +142,30 @@ def('target', 'TargetCardInASingleGraveyard', (o, tc) => {
   return tr('target', Object.assign({}, o, { cls: 'TargetCardInGraveyard' }), tc);
 });
 
+/* Amount targets: "N counters among one, two or three target creatures" */
+def('target', ['TargetCreaturePermanentAmount', 'TargetPermanentAmount'], (o, tc) => {
+  const ints = A(o).all('int').map(x => x.v);
+  if (!ints.length || o.args.some(a => kindOf(a) === 'value')) block('amount from a count');
+  const amount = ints[0];
+  let min = ints.length > 1 ? ints[1] : (amount > 3 ? 0 : 1), max = ints.length > 2 ? ints[2] : amount;
+  if (o.cls === 'TargetPermanentAmount' && ints.length === 2) max = amount;
+  if (max > 6 || o.calls.length) block('amount among many');
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  const d = F.describe(f || { t: 'ref', path: o.cls === 'TargetPermanentAmount' ? 'StaticFilters.FILTER_PERMANENT' : 'StaticFilters.FILTER_PERMANENT_CREATURE' }, tc);
+  if (o.cls === 'TargetCreaturePermanentAmount' && !d.types.includes('creature') && !d.allTypes.includes('creature')) d.types = ['creature'];
+  const spec = F.toSpec(d, 'battlefield');
+  const specs = [];
+  for (let i = 0; i < max; i++) specs.push(Object.assign({}, spec, i >= Math.max(1, min) ? { upTo: true } : null));
+  return { specs, kind: 'object', notTarget: false, min, max, amount, d };
+});
+def('effect', 'DistributeCountersEffect', (o, tc) => {
+  E.checkCalls(o);
+  const c = o.args[0] && o.args[0].t === 'ref' ? o.args[0].path.split('.')[1] : 'P1P1';
+  const ab = tc.ab;
+  const t = ab && ab.targets[0];
+  if (!t || t.amount == null || ab.targets.length !== 1 || ab.used.has(0)) block('distribution without its target');
+  ab.used.add(0);
+  return { op: 'countersDivided', kind: F.counterName(c), n: t.amount, targets: t.specs };
+});
+
 module.exports = {};

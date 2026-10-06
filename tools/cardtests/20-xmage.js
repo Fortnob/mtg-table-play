@@ -260,6 +260,19 @@ module.exports = (test) => {
     t.ok(T.g.canBlock(bird, s, 'B'), 'the hawk can');
   });
 
+  test('XMage: Ajani, Mentor of Heroes spreads three counters over its targets', (mk, t) => {
+    generated(t, 'Ajani, Mentor of Heroes');
+    const T = mk();
+    const aj = T.bf('A', 'Ajani, Mentor of Heroes', { counters: { loyalty: 4 } });
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves');
+    const ab = aj.analysis();
+    const list = ab.manaAbilities.concat(ab.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const idx = list.findIndex(x => (x.effects || []).some(e => e.op === 'countersDivided'));
+    T.activate('A', aj, idx, { targets: [a, b] });
+    t.eq((a.counters['+1/+1'] || 0) + (b.counters['+1/+1'] || 0), 3, 'three in all');
+    t.ok(a.counters['+1/+1'] >= 1 && b.counters['+1/+1'] >= 1, 'each got some');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

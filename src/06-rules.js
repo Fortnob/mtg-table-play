@@ -9102,6 +9102,20 @@
           break;
         }
 
+        /* "Distribute two +1/+1 counters among one or two target creatures",
+           spread as evenly as the numbers allow, the way divided damage is. */
+        case 'countersDivided': {
+          const total = n(e.n);
+          const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
+          if (!objs.length || total <= 0) break;
+          const each = Math.floor(total / objs.length);
+          let spare = total - each * objs.length;
+          for (const o of objs) {
+            const k = each + (spare-- > 0 ? 1 : 0);
+            if (k > 0) this.addCounters(o, e.kind || '+1/+1', k);
+          }
+          break;
+        }
         case 'damageDivided': {
           const total = n(e.n);
           if (!targets.length || total <= 0) break;

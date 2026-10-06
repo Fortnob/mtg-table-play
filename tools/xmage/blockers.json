@@ -5,20 +5,20 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 18234,
-  "gainedCards": 1895,
+  "gainedCards": 1904,
   "linesNeeded": 21007,
-  "linesGained": 2509,
+  "linesGained": 2519,
   "gained": {
-   "all": 1895,
-   "top2000": 48,
-   "stdTop": 14
+   "all": 1904,
+   "top2000": 49,
+   "stdTop": 15
   },
   "compare": {
    "same": 0,
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 77,
+  "verifyFail": 94,
   "overrides": {
    "it": 169,
    "drain": 62,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6074,
-   "lines": 5042,
+   "score": 6075,
+   "lines": 5043,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -353,25 +353,6 @@
     "Swallowed by Leviathan",
     "The Tabernacle at Pendrell Vale",
     "Myr Superion"
-   ]
-  },
-  {
-   "what": "TargetCreaturePermanentAmount",
-   "score": 57,
-   "lines": 48,
-   "cards": [
-    "The Earth Crystal",
-    "Court of Garenbrig",
-    "Vorinclex // The Grand Evolution",
-    "Lathiel, the Bounteous Dawn",
-    "Abzan Charm",
-    "Ajani, Sleeper Agent",
-    "Elusive Otter // Grove's Bounty",
-    "Verdurous Gearhulk",
-    "Ajani, Mentor of Heroes",
-    "Broodlord",
-    "Quirion Beastcaller",
-    "Biogenic Upgrade"
    ]
   },
   {
@@ -733,6 +714,25 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 34,
+   "lines": 34,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Scroll of Isildur",
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "The Huntsman's Redemption",
+    "Invigorated Rampage",
+    "Quickbeam, Upstart Ent",
+    "Out Cold",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress"
+   ]
+  },
+  {
    "what": "MillThenPutInHandEffect",
    "score": 33,
    "lines": 30,
@@ -805,25 +805,6 @@
     "Circle of Protection: Green",
     "Rune of Protection: White",
     "Circle of Protection: Blue"
-   ]
-  },
-  {
-   "what": "second use of a later target",
-   "score": 32,
-   "lines": 32,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Scroll of Isildur",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "The Huntsman's Redemption",
-    "Invigorated Rampage",
-    "Quickbeam, Upstart Ent",
-    "Out Cold",
-    "Sea Hag // Aquatic Ingress",
-    "Abandon Reason",
-    "Involuntary Cooldown"
    ]
   },
   {
@@ -2139,6 +2120,25 @@
    ]
   },
   {
+   "what": "filter:alts",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Thor, God of Thunder",
+    "Excava, the Risen Past",
+    "Banishing Slash",
+    "Scrounge for Eternity",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction",
+    "Cloudspire Skycycle",
+    "Hellish Sideswipe"
+   ]
+  },
+  {
    "what": "CantAttackBlockUnlessConditionSourceEffect",
    "score": 20,
    "lines": 14,
@@ -2267,25 +2267,6 @@
     "Baxter Stockman",
     "Clockwork Steed",
     "Abuna Acolyte"
-   ]
-  },
-  {
-   "what": "filter:alts",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Thor, God of Thunder",
-    "Excava, the Risen Past",
-    "Banishing Slash",
-    "Scrounge for Eternity",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction",
-    "Hellish Sideswipe",
-    "Back on Track"
    ]
   },
   {
@@ -3916,6 +3897,25 @@
    ]
   },
   {
+   "what": "(verify) number 2 missing",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Ajani, Mentor of Heroes",
+    "Armament Dragon",
+    "Defend the Celestus",
+    "Goblin Gathering",
+    "Dancing Sword",
+    "Jade Seedstones // Jadeheart Attendant",
+    "Angry Mob",
+    "Flameshot",
+    "Aerial Volley",
+    "Forked Lightning",
+    "Fire at Will",
+    "Wurmskin Forger"
+   ]
+  },
+  {
    "what": "TapEnchantedEffect",
    "score": 15,
    "lines": 15,
@@ -4219,6 +4219,25 @@
     "Thantis, the Warweaver",
     "Blood Reckoning",
     "Slumbering Dragon"
+   ]
+  },
+  {
+   "what": "amount from a count",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Lathiel, the Bounteous Dawn",
+    "Ureni, the Song Unending",
+    "Elusive Otter // Grove's Bounty",
+    "Broodlord",
+    "Quirion Beastcaller",
+    "Ghired's Belligerence",
+    "Impact Resonance",
+    "Monstrous Onslaught",
+    "Undercity Upheaval",
+    "Ravenous Gigantotherium",
+    "Hail of Arrows",
+    "Volcanic Wind"
    ]
   },
   {
@@ -8465,41 +8484,26 @@
    ]
   },
   {
-   "what": "PhaseOutSourceEffect",
+   "what": "ConditionalOneShotEffect without a condition",
    "score": 8,
    "lines": 8,
    "cards": [
-    "Hostile Hostel // Creeping Inn",
-    "Renegade Silent",
-    "Blink Dog",
-    "Dream Fighter",
-    "Mist Dragon",
-    "Crystal Golem",
-    "Rainbow Efreet",
-    "Teferi's Honor Guard"
-   ]
-  },
-  {
-   "what": "filter:snow",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Rime Tender",
-    "Sculptor of Winter",
-    "Jorn, God of Winter // Kaldring, the Rimestaff",
-    "Avalanche Caller",
-    "Balduvian Frostwaker",
-    "Arcum's Weathervane",
-    "Balduvian Conjurer",
-    "Ohran Yeti"
+    "Coalition Victory",
+    "Omnivorous Flytrap",
+    "Lyzolda, the Blood Witch",
+    "Sift Through Sands",
+    "Dream Thief",
+    "Shape of the Wiitigo",
+    "Bring Low",
+    "Wiitigo"
    ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4736,
-   "cards": 3965,
+   "score": 4737,
+   "cards": 3966,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8676,19 +8680,6 @@
     "Gwenom, Remorseless",
     "Kess, Dissident Mage",
     "Serra Paragon"
-   ]
-  },
-  {
-   "what": "TargetCreaturePermanentAmount",
-   "score": 47,
-   "cards": 38,
-   "names": [
-    "The Earth Crystal",
-    "Court of Garenbrig",
-    "Lathiel, the Bounteous Dawn",
-    "Abzan Charm",
-    "Elusive Otter // Grove's Bounty",
-    "Verdurous Gearhulk"
    ]
   },
   {
@@ -9223,6 +9214,19 @@
    ]
   },
   {
+   "what": "ModifiedPredicate.instance",
+   "score": 21,
+   "cards": 18,
+   "names": [
+    "Kodama of the West Tree",
+    "Goro-Goro, Disciple of Ryusei",
+    "Red XIII, Proud Warrior",
+    "Akki Battle Squad",
+    "Thundering Raiju",
+    "Araña, Heart of the Spider"
+   ]
+  },
+  {
    "what": "(verify) optional where the card is not",
    "score": 21,
    "cards": 12,
@@ -9288,19 +9292,6 @@
    ]
   },
   {
-   "what": "ModifiedPredicate.instance",
-   "score": 20,
-   "cards": 17,
-   "names": [
-    "Kodama of the West Tree",
-    "Goro-Goro, Disciple of Ryusei",
-    "Red XIII, Proud Warrior",
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Araña, Heart of the Spider"
-   ]
-  },
-  {
    "what": "delayed CopyNextSpellDelayedTriggeredAbility",
    "score": 20,
    "cards": 14,
@@ -9324,6 +9315,19 @@
     "Repository Skaab",
     "Profaner of the Dead",
     "Rot-Tide Gargantua"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 20,
+   "cards": 20,
+   "names": [
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "Banishing Slash",
+    "Scrounge for Eternity"
    ]
   },
   {
@@ -9441,19 +9445,6 @@
     "Soul-Shackled Zombie",
     "Pulsemage Advocate",
     "Spurnmage Advocate"
-   ]
-  },
-  {
-   "what": "filter:alts",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Banishing Slash",
-    "Scrounge for Eternity"
    ]
   },
   {
@@ -10404,6 +10395,19 @@
    ]
   },
   {
+   "what": "(verify) number 2 missing",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Armament Dragon",
+    "Defend the Celestus",
+    "Goblin Gathering",
+    "Dancing Sword",
+    "Angry Mob",
+    "Flameshot"
+   ]
+  },
+  {
    "what": "keyword AssistAbility",
    "score": 13,
    "cards": 13,
@@ -10632,6 +10636,19 @@
     "Trollhide",
     "Molting Snakeskin",
     "Consecrated by Blood"
+   ]
+  },
+  {
+   "what": "amount from a count",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Lathiel, the Bounteous Dawn",
+    "Ureni, the Song Unending",
+    "Elusive Otter // Grove's Bounty",
+    "Quirion Beastcaller",
+    "Ghired's Belligerence",
+    "Impact Resonance"
    ]
   },
   {
@@ -12310,19 +12327,6 @@
     "Skanos Dragonheart",
     "Greven, Predator Captain",
     "Manaplasm"
-   ]
-  },
-  {
-   "what": "DealtDamageAttachedTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Hot Soup",
-    "Druid's Call",
-    "Sleep Magic",
-    "Ragged Veins",
-    "Spiteful Shadows",
-    "Binding Agony"
    ]
   }
  ]
