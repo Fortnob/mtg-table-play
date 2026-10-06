@@ -1456,7 +1456,7 @@
       make: (m) => ({ op: 'sortRevealed', filter: m[1].trim().toLowerCase(), keep: 'hand', rest: 'graveyard' }) },
 
 
-    { re: /^(Target creature(?: you control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
+    { re: /^(Target (?:attacking |blocking |attacking or blocking )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
         { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
           targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
@@ -2005,6 +2005,33 @@
     { re: /^(?:Then )?[Vv]enture into the dungeon\.?$/, make: () => ({ op: 'venture' }) },
     { re: /^(?:Then )?[Vv]enture into Undercity\.?$/, make: () => ({ op: 'venture', undercity: true }) },
     { re: /^Each player loses (\d+|X) life\.?$/i, make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'each' }) },
+    /* Stifle, Disallow: abilities on the stack as targets */
+    { re: /^Counter target (activated or triggered|activated|triggered) ability(?: you don'?t control)?\.?$/i,
+      make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
+        /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, /don'?t control/i.test(m[0]) ? { controller: 'opponent' } : {})] }) },
+    { re: /^Counter target spell, activated ability, or triggered ability\.?$/i,
+      make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true }] }) },
+    { re: /^Its controller (mills|draws) (a|one|two|three|four|five|\d+) cards?\.?$/i,
+      make: (m) => ({ op: /mills/i.test(m[1]) ? 'mill' : 'draw', n: num(m[2]), who: 'targetController' }) },
+    { re: /^(Each player|Shuffle your) (?:shuffles their )?hand and graveyard into (?:their|your) library, then (?:draws?) (seven|five|four|three|\d+) cards\.?$/i,
+      make: (m) => ({ op: 'twister', who: /^each/i.test(m[1]) ? 'each' : 'you', n: num(m[2]) }) },
+    { re: /^Discard all the cards in your hand, then draw that many cards\.?$/i, make: () => ({ op: 'wheel', who: 'you', n: 'sameDiscarded' }) },
+    { re: /^Target creature can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }) },
+    /* "Target creature becomes black until end of turn." */
+    { re: /^(Target creature|Target permanent|This creature|CARDNAME) becomes (white|blue|black|red|green|colorless)( until end of turn)?\.?$/i,
+      make: (m) => {
+        const col = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: null }[m[2].toLowerCase()];
+        const tgt = /^target/i.test(m[1]);
+        return { op: 'becomes', duration: m[3] ? 'eot' : 'permanent', eff: { setColors: col ? [col] : [] },
+          targets: tgt ? [targetSpec(m[1])] : null, scope: tgt ? null : 'self' };
+      } },
+    { re: /^(?:You may )?[Rr]eturn another (creature|permanent|land|artifact|enchantment) you control to its owner'?s hand\.?$/,
+      make: (m) => ({ op: 'returnOwn', filter: m[1].toLowerCase(), n: 1, other: true }) },
+    { re: /^(?:This creature|CARDNAME) can attack this turn as though it didn'?t have defender\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'attackDespiteDefender', scope: 'self' }) },
+    /* "Add three mana in any combination of {R} and/or {G}": three times one or the other */
+    { re: /^Add (two|three|four|five) mana in any combination of \{([WUBRGC])\} and\/or \{([WUBRGC])\}\.?$/i,
+      make: (m) => Array.from({ length: num(m[1]) }, () => ({ op: 'addManaChoice', choices: [[m[2].toUpperCase()], [m[3].toUpperCase()]] })) },
     /* "until your next turn": gone as the controller's next turn begins */
     { re: /^(Target creature|It|That creature) can'?t (attack|block|attack or block) until your next turn\.?$/i,
       make: (m) => ({ op: 'restrict', flag: m[2] === 'block' ? 'cantBlock' : m[2] === 'attack' ? 'cantAttack' : 'cantAttackOrBlock',

@@ -33,6 +33,7 @@
     cantAttackOrBlock: "can't attack or block this turn",
     mustBlock: 'blocks this turn if able',
     mustAttackEot: 'attacks this turn if able',
+    attackDespiteDefender: "can attack this turn as though it didn't have defender",
   };
 
   const PHASES = [
@@ -4802,7 +4803,8 @@
       if (!a || !(c && c.isCreature)) return false;
       if (o.tapped || o.phasedOut) return false;
       if (o.summoningSick && !this.hasKw(o, 'haste')) return false;
-      if (this.hasKw(o, 'defender')) return false;
+      // "can attack this turn as though it didn't have defender"
+      if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender')) return false;
       if (a.abilities.some(x => (x.effects || []).some(e => e.op === 'cantAttack'))) return false;
       if (this._hasFlag(o, 'cantAttack')) return false;
       /* "can't attack unless defending player controls an Island" — the old
@@ -7702,8 +7704,9 @@
             const ia = item.obj && item.obj.analysis();
             // Pyroblast: "if it's blue" is checked as it resolves
             if (e.ifColor && !((ia && ia.colors) || []).includes(e.ifColor)) { this.logEvent('counter', `${item.name} is not the right colour.`); continue; }
-            const proof = (ia && (ia.abilities || []).some(ab =>
-              (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item);
+            // an ability on the stack is countered whatever its source says about spells (Stifle)
+            const proof = item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
+              (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item));
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             item.countered = true;
             if (e.exileIt) item.exileIfCountered = true;
@@ -8042,6 +8045,8 @@
           const cnt = n(e.n);
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
+            // "Counter target spell. Its controller mills two cards."
+            : e.who === 'targetController' ? [this._lastAffectedController()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           // "…from among the milled cards": what this mill put there
           this._lastMilled = [];
@@ -8657,10 +8662,29 @@
           if (can > 0) this.queueChoice({ type: 'discard', playerId: ctx.controller, count: can, prompt: `Discard ${can}.` });
           break;
         }
+        /* Timetwister: hand and graveyard shuffled into the library, then
+           a new hand of N, for each player or for you alone */
+        case 'twister': {
+          const live = e.who === 'you' ? [me] : this.players.filter(p => !p.hasLost);
+          for (const p of live) {
+            const z = this.zones[p.id];
+            for (const o of z.hand.concat(z.graveyard)) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+            this.rng.shuffle(z.library);
+          }
+          this.emit('sfx', 'shuffle');
+          for (const p of live) this._drawCards(p, n(e.n) || 7);
+          this.logEvent('wheel', `${live.length > 1 ? 'Everyone shuffles' : me.name + ' shuffles'} hand and graveyard away and draws ${n(e.n) || 7}.`);
+          break;
+        }
+        // "Target creature can't be regenerated this turn."
+        case 'noRegen':
+          applyToScope(e, (o) => { o.noRegenThisTurn = true; });
+          break;
         case 'wheel': {
           /* Everybody discards, and only then does anybody draw — and
              Windfall's "the greatest number discarded" is counted first. */
-          const live = this.players.filter(p => !p.hasLost);
+          // "Discard all the cards in your hand, then draw that many cards": you alone
+          const live = e.who === 'you' ? [me] : this.players.filter(p => !p.hasLost);
           const counts = live.map(p => this.zones[p.id].hand.length);
           const most = counts.length ? Math.max(...counts) : 0;
           for (const p of live) {
@@ -8722,7 +8746,7 @@
             break;
           }
           const list = this.battlefield.filter(o => o.controller === ctx.controller &&
-            this._matchesCategory(o, e.filter || 'permanent'));
+            !(e.other && o === src) && this._matchesCategory(o, e.filter || 'permanent'));
           if (!list.length) break;
           const want = Math.min(n(e.n) || 1, list.length);
           const what = e.filter || 'permanent';

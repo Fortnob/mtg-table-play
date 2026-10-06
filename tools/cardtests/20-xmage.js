@@ -659,6 +659,56 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(g, 'double strike'));
   });
 
+  test('Stifle counters a triggered ability on the stack', (mk, t) => {
+    t.auto('Stifle');
+    const T = mk();
+    T.top('A', 'Island');
+    const h0 = T.zone('A', 'hand').length;
+    T.put('A', 'Elvish Visionary', 'battlefield', { etb: true });
+    T.g._putTriggersOnStack();
+    t.eq(T.g.stack.length, 1, 'the draw trigger waits on the stack');
+    const trig = T.g.stack[0];
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Stifle'), { targets: [{ kind: 'stack', id: trig.id }] });
+    t.eq(T.zone('A', 'hand').length, h0, 'no card drawn');
+  });
+
+  test('Timetwister: hands and graveyards back in, seven new cards', (mk, t) => {
+    t.auto('Timetwister');
+    const T = mk();
+    for (let i = 0; i < 10; i++) { T.top('A', 'Island'); T.top('B', 'Forest'); }
+    const g = T.grave('B', 'Shock');
+    T.hand('B', 'Opt');
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Timetwister'));
+    t.eq(T.zone('A', 'hand').length, 7);
+    t.eq(T.zone('B', 'hand').length, 7);
+    t.ok(g.zone === 'library' || g.zone === 'hand', 'the graveyard went back in');
+  });
+
+  test('Thought Collapse: its controller mills three', (mk, t) => {
+    t.auto('Thought Collapse');
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R1UU');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.cast('A', T.hand('A', 'Thought Collapse'), { targets: [{ kind: 'stack', id: T.stackItem(bolt).id }] });
+    t.zone(bolt, 'graveyard');
+    t.eq(T.life('B'), 20);
+    t.eq(T.zone('A', 'graveyard').length, 5, 'Bolt, Collapse and three milled');
+  });
+
+  test('Cerulean Wisps turns a creature blue', (mk, t) => {
+    t.auto('Cerulean Wisps');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.top('A', 'Island');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Cerulean Wisps'), { targets: [bear] });
+    t.eq((bear.analysis().colors || []).join(), 'U');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
