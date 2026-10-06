@@ -2788,6 +2788,13 @@
       const again = parseEffectSentence(s.replace(/^You (\w)/, (x, c) => c.toUpperCase()), 1);
       if (again) return again;
     }
+    /* "Until end of turn, this land becomes a 3/4 Elemental creature with
+       reach" is "This land becomes ... until end of turn" said the other
+       way round. */
+    if (!depth && /^Until end of turn, /i.test(s) && !/until end of turn/i.test(s.slice(18))) {
+      const again = parseEffectSentence(s.replace(/^Until end of turn, /i, '').replace(/\.?$/, ' until end of turn.'), 1);
+      if (again) return again;
+    }
     /* "If the gift was promised, permanents you control also gain
        indestructible": "also" says how the sentence relates to the one
        before it, not what it does. */

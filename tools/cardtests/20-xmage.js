@@ -1171,6 +1171,18 @@ module.exports = (test) => {
     t.zone(land, 'graveyard', 'not a creature: into the graveyard, as chosen');
   });
 
+  test('"Until end of turn, this land becomes ..." reads like "... until end of turn"', (mk, t) => {
+    t.auto('Stirring Wildwood');
+    const T = mk();
+    const w = T.bf('A', 'Stirring Wildwood');
+    T.mana('A', '1GW');
+    const idx = w.analysis().manaAbilities.length + w.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    T.activate('A', w, idx);
+    t.ok(w.analysis().isCreature, 'a creature now');
+    t.eq(T.g.powerOf(w), 3);
+    t.ok(T.g.hasKw(w, 'reach'));
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

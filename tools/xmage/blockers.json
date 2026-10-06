@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17186,
-  "gainedCards": 1789,
-  "linesNeeded": 19641,
-  "linesGained": 2333,
+  "needed": 17176,
+  "gainedCards": 1783,
+  "linesNeeded": 19624,
+  "linesGained": 2321,
   "gained": {
-   "all": 1789,
+   "all": 1783,
    "top2000": 52,
    "stdTop": 13
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6058,
-   "lines": 5020,
+   "score": 6052,
+   "lines": 5017,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 496,
-   "lines": 457,
+   "score": 495,
+   "lines": 456,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -4324,19 +4324,6 @@
    ]
   },
   {
-   "what": "CreaturesCantGetOrHaveAbilityEffect",
-   "score": 12,
-   "lines": 6,
-   "cards": [
-    "Arcane Lighthouse",
-    "Archetype of Imagination",
-    "Archetype of Aggression",
-    "Archetype of Endurance",
-    "Archetype of Courage",
-    "Archetype of Finality"
-   ]
-  },
-  {
    "what": "LoseLifeTriggeredAbility",
    "score": 12,
    "lines": 9,
@@ -7092,6 +7079,18 @@
    ]
   },
   {
+   "what": "CreaturesCantGetOrHaveAbilityEffect",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Archetype of Imagination",
+    "Archetype of Aggression",
+    "Archetype of Endurance",
+    "Archetype of Courage",
+    "Archetype of Finality"
+   ]
+  },
+  {
    "what": "SourceDealsDamageToThisTriggeredAbility",
    "score": 8,
    "lines": 5,
@@ -8236,8 +8235,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4743,
-   "cards": 3969,
+   "score": 4738,
+   "cards": 3967,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8275,8 +8274,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 243,
-   "cards": 231,
+   "score": 242,
+   "cards": 230,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -9853,19 +9852,6 @@
     "TARDIS",
     "Crackling Spellslinger",
     "Dark Apostle"
-   ]
-  },
-  {
-   "what": "CreaturesCantGetOrHaveAbilityEffect",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Arcane Lighthouse",
-    "Archetype of Imagination",
-    "Archetype of Aggression",
-    "Archetype of Endurance",
-    "Archetype of Courage",
-    "Archetype of Finality"
    ]
   },
   {
@@ -11776,6 +11762,18 @@
     "Seton's Desire",
     "Reckless Cohort",
     "Marauding Maulhorn"
+   ]
+  },
+  {
+   "what": "CreaturesCantGetOrHaveAbilityEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Archetype of Imagination",
+    "Archetype of Aggression",
+    "Archetype of Endurance",
+    "Archetype of Courage",
+    "Archetype of Finality"
    ]
   },
   {
