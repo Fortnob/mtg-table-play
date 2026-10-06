@@ -486,6 +486,37 @@
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
+  /* Reveal until (Hermit Druid, The Regalia, Balustrade Spy, Polymorph):
+     whose library, what is looked for and how many, where the found card or
+     cards go, and where the rest go. Anything else is not read. */
+  function revealUntilOf(text) {
+    let t = String(text).trim().replace(/\s*X can'?t be 0\.?$/i, '');
+    const who0 = t.match(/^(Its controller|That creature'?s controller|That player|Defending player|Target player|Target opponent|Each opponent|Reveal)/i);
+    if (!who0) return null;
+    const w = who0[1].toLowerCase();
+    const who = w === 'reveal' ? 'you' : /each opponent/.test(w) ? 'opponents' : /^target/.test(w) ? 'target'
+      : /controller/.test(w) ? 'targetController' : 'triggerPlayer';
+    const m = t.match(/until (?:you|they) reveal (an?|one|two|three|four|five|X) ([a-z ,]+?) cards?(?:, where X is (.+?))?(,|\.) ([\s\S]+)$/i);
+    if (!m) return null;
+    const e = { op: 'revealUntil', who, filter: m[2].replace(/,? or /g, ' or ').trim().toLowerCase() };
+    if (/^X$/i.test(m[1])) { if (m[3]) { const k = amountOf(m[3]); if (!k) return null; e.n = k; } else e.n = 'X'; }
+    else e.n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
+    if (who === 'target') e.targets = [{ type: 'player', opponent: /opponent/.test(w) }];
+    let rest = m[5].trim();
+    // "then puts those cards into their graveyard": everything revealed
+    if (m[4] === ',' && /^then puts? (?:those cards|all cards revealed this way) into (?:their|your) graveyard\.?$/i.test(rest)) {
+      return Object.assign(e, { dest: 'graveyard', rest: 'graveyard' });
+    }
+    if (m[4] !== '.') return null;
+    const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
+    if (!put) return null;
+    e.dest = /hand/i.test(put[1]) ? 'hand' : 'battlefield';
+    e.tapped = /tapped/i.test(put[1]);
+    if (/their control/i.test(put[1]) || (w !== 'reveal' && !/your control/i.test(put[1]))) e.toOwner = true;
+    e.rest = put[2] ? (/graveyard/i.test(put[2]) ? 'graveyard' : 'bottom') : 'shuffle';
+    return e;
+  }
+
   /* "Until end of turn, whenever you cast a spell, copy it", "Whenever a
      creature dies this turn, …": a triggered ability that lasts the turn,
      kept as an emblem that goes at cleanup. Nothing in it may point back
@@ -2295,9 +2326,8 @@
     /* Consuming Aberration, Balustrade Spy: "each opponent reveals cards
        from the top of their library until they reveal a land card, then
        puts those cards into their graveyard" */
-    { re: /^(Each opponent|Target player|Target opponent) reveals cards from the top of their library until they reveal an? ([a-z ]+?) card, then puts? (?:those cards|all cards revealed this way) into their graveyard\.?$/i,
-      make: (m) => Object.assign({ op: 'revealUntil', who: /^each/i.test(m[1]) ? 'opponents' : 'target', filter: m[2].toLowerCase(), dest: 'graveyard', rest: 'graveyard' },
-        /^target/i.test(m[1]) ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {}) },
+    { re: /^(?:Each opponent|Target player|Target opponent|That player|Defending player) reveals cards from the top of their library until they reveal .+$/i,
+      make: (m) => revealUntilOf(m[0]) },
     // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
     { re: /^Until end of turn, creatures you control have base power and toughness (X|\d+)\/(X|\d+)( and gain all creature types)?\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2], allTypes: !!m[3] }) },
@@ -3107,10 +3137,18 @@
   const COMBO_RULES = [
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the
-       bottom of your library in a random order." Dig until one fits. */
-    { re: /^Reveal cards from the top of your library until you reveal an? ([A-Za-z ]+?) card\. Put (?:that card|it) (into your hand|onto the battlefield(?: tapped)?(?: under your control)?) and (?:the rest|all other cards revealed this way) (on the bottom of your library in a random order|into your graveyard)\.?$/i,
-      make: (m) => [{ op: 'revealUntil', who: 'you', filter: m[1].toLowerCase(), dest: /hand/i.test(m[2]) ? 'hand' : 'battlefield',
-        tapped: /tapped/i.test(m[2]), rest: /graveyard/i.test(m[3]) ? 'graveyard' : 'bottom' }] },
+       bottom of your library in a random order." Dig until one fits (or
+       two, or X); "Its controller reveals …" after a Polymorph. */
+    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|The player puts|That player puts)[^.]+)?\.?)(?:\s+([\s\S]+))?$/,
+      make: (m) => {
+        const e = revealUntilOf(m[2]);
+        if (!e) return null;
+        // what comes before (Polymorph's "Destroy target creature.") and after (Skyserpent Seeker's counter)
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        const post = m[3] && m[3].trim() ? parseSentenceList(splitSentences(m[3].trim())) : { effects: [], auto: true };
+        if (!pre.auto || !post.auto) return null;
+        return [...pre.effects, e, ...post.effects];
+      } },
     /* Disciple of Bolas: "Sacrifice another creature. You gain X life and
        draw X cards, where X is that creature's power." — the sacrifice
        happens first, so its power is known */

@@ -8993,24 +8993,34 @@
            creature card": that one goes where the words say, the rest to the
            bottom in a random order or to the graveyard. */
         case 'revealUntil': {
-          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
+          const tgtOwner = () => { const x = firstObj(); return x ? this.player(x.owner) : this._lastAffectedController(); };
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            : e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            : e.who === 'targetController' ? [tgtOwner()].filter(Boolean)
+            : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean) : [me];
+          const want = Math.max(1, n(e.n == null ? 1 : e.n) || 0);
           for (const p of who) {
             const lib = this.zones[p.id].library;
-            const i = lib.findIndex(c => this._cardFitsWords(c, e.filter || 'card'));
-            const shown = (i >= 0 ? lib.slice(0, i + 1) : lib.slice());
-            const found = i >= 0 ? lib[i] : null;
+            const found = [];
+            let last = -1;
+            for (let i = 0; i < lib.length && found.length < want; i++) {
+              if (this._cardFitsWords(lib[i], e.filter || 'card')) { found.push(lib[i]); last = i; }
+            }
+            const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
             if (shown.length) this.logEvent('rules', `${p.name} reveals ${shown.map(c => c.name).join(', ')}.`);
-            const rest = shown.filter(c => c !== found);
-            if (found) {
-              if (e.dest === 'hand') this.moveObject(found, 'hand');
-              else if (e.dest === 'graveyard') this.moveObject(found, 'graveyard');
+            const rest = shown.filter(c => !found.includes(c));
+            for (const c of found) {
+              if (e.dest === 'hand') this.moveObject(c, 'hand');
+              else if (e.dest === 'graveyard') this.moveObject(c, 'graveyard');
               else {
-                this.moveObject(found, 'battlefield', { controller: ctx.controller });
-                if (e.tapped && found.zone === 'battlefield') found.tapped = true;
-                this._lastPut = found.id;
+                // Polymorph: its controller's card, onto the battlefield under that player's control
+                this.moveObject(c, 'battlefield', { controller: e.toOwner ? p.id : ctx.controller });
+                if (e.tapped && c.zone === 'battlefield') c.tapped = true;
+                this._lastPut = c.id;
               }
             }
             if (e.rest === 'graveyard') for (const c of rest) this.moveObject(c, 'graveyard');
+            else if (e.rest === 'shuffle') { this.rng.shuffle(lib); this.emit('sfx', 'shuffle'); }
             else if (rest.length) {
               for (const c of rest) lib.splice(lib.indexOf(c), 1);
               this.rng.shuffle(rest);

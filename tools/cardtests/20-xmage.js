@@ -2411,6 +2411,31 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'graveyard').map(c => c.name).sort().join(), 'Grizzly Bears,Shock');
   });
 
+  test("Polymorph: the creature's controller digs up its replacement", (mk, t) => {
+    t.auto('Polymorph');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    T.top('B', 'Craw Wurm'); T.top('B', 'Forest');
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Polymorph'), { targets: [T.tgt(b)] });
+    T.resolve();
+    t.zone(b, 'graveyard');
+    t.ok(T.bfOf('B').some(o => o.name === 'Craw Wurm'), 'the Wurm, for B');
+  });
+
+  test('Skyserpent Seeker: two lands, then the counter', (mk, t) => {
+    t.auto('Skyserpent Seeker');
+    const T = mk();
+    const k = T.bf('A', 'Skyserpent Seeker');
+    T.top('A', 'Forest'); T.top('A', 'Shock'); T.top('A', 'Island');
+    T.mana('A', '4');
+    const a = k.analysis();
+    T.activate('A', k, a.manaAbilities.length + a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Exhaust/.test(x.text)));
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => (o.analysis() || {}).isLand).length, 2, 'two lands');
+    t.eq(k.counters['+1/+1'], 1);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

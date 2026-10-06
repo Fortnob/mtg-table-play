@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16800,
+  "needed": 16794,
   "gainedCards": 1759,
-  "linesNeeded": 19154,
+  "linesNeeded": 19147,
   "linesGained": 2277,
   "gained": {
    "all": 1759,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5804,
-   "lines": 4937,
+   "score": 5799,
+   "lines": 4932,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -3111,25 +3111,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Skyserpent Seeker",
-    "Peema Trailblazer",
-    "Jeong Jeong, the Deserter",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin",
-    "Rangers' Refueler"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 14,
    "lines": 14,
@@ -3511,6 +3492,25 @@
     "White Scarab",
     "Blue Scarab",
     "Green Scarab"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Riverchurn Monument",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Peema Trailblazer",
+    "Jeong Jeong, the Deserter",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin",
+    "Rangers' Refueler",
+    "Boom Scholar"
    ]
   },
   {
@@ -8196,8 +8196,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4553,
-   "cards": 3923,
+   "score": 4548,
+   "cards": 3918,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8944,6 +8944,19 @@
     "The Vision",
     "Demonic Pact",
     "Three Bowls of Porridge"
+   ]
+  },
+  {
+   "what": "Ability.setRuleAtTheTop",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Open the Way",
+    "Malicious Affliction",
+    "Ertai's Scorn",
+    "Even the Score",
+    "Brush Off",
+    "Take for a Ride"
    ]
   },
   {
@@ -9756,19 +9769,6 @@
    ]
   },
   {
-   "what": "Ability.setRuleAtTheTop",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Malicious Affliction",
-    "Ertai's Scorn",
-    "Even the Score",
-    "Brush Off",
-    "Take for a Ride",
-    "Stormwing Entity"
-   ]
-  },
-  {
    "what": "ReparteeAbility",
    "score": 12,
    "cards": 12,
@@ -10364,19 +10364,6 @@
     "Insatiable Hemophage",
     "Archipelagore",
     "Illuna, Apex of Wishes"
-   ]
-  },
-  {
-   "what": "keyword ExhaustAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Skyserpent Seeker",
-    "Peema Trailblazer",
-    "Jeong Jeong, the Deserter",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider"
    ]
   },
   {
@@ -11041,6 +11028,19 @@
     "Skanos Dragonheart",
     "Greven, Predator Captain",
     "Manaplasm"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Peema Trailblazer",
+    "Jeong Jeong, the Deserter",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible"
    ]
   },
   {
