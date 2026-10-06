@@ -79,6 +79,8 @@ declare namespace MTG {
     blockOrder?: Id[];
     effects?: Array<{ p?: number; t?: number; until?: string | null; keywords?: string[]; [k: string]: any }>;
     isCommander: boolean;
+    /** prepared: it can cast a copy of its card's spell */
+    prepared?: boolean;
     note?: string | null;
     /** the turn it entered */
     entered?: number | null;

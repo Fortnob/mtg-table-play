@@ -110,7 +110,7 @@ const ObjectView = obj({
   attachedTo: maybe(id), attachments: opt(arr(id)), isToken: opt(maybe(bool)),
   attacking: maybe(id), blocking: opt(arr(id)), blockedBy: opt(arr(id)), blockOrder: opt(arr(id)),
   effects: opt(arr(S.plainObj)), isCommander: bool, note: opt(maybe(str)), entered: opt(maybe(num)),
-  power: maybe(num), toughness: maybe(num), keywords: arr(str),
+  prepared: opt(bool), power: maybe(num), toughness: maybe(num), keywords: arr(str),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({

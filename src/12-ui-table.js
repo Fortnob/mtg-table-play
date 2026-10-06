@@ -28,6 +28,11 @@
 'use strict';
 (function (MTG) {
   const { el, util: U } = MTG;
+  /** The spell printed on a prepare card, as its own face (or null). */
+  const preparedFace = (o) => {
+    const c = o && o.card;
+    return c && c.layout === 'prepare' && c.card_faces && c.card_faces[1] ? c.card_faces[1] : null;
+  };
   const UI = MTG.ui;
 
   /* The table only ever sees a snapshot, so a target spec asking about
@@ -498,7 +503,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -527,6 +532,11 @@
           text: (plus || minus) ? (num > 1 ? `${k} ×${num}` : k) : `${num} ${k}` }));
       }
       if (chips.length) n.appendChild(el('div', { class: 'cv-mark cv-chips' }, chips));
+      if (o.prepared) {
+        const sp = preparedFace(o);
+        n.appendChild(el('div', { class: 'cv-mark cv-prepared', text: 'Prepared',
+          title: sp ? `Can cast a copy of ${sp.name} ${sp.mana_cost || ''}` : 'Prepared' }));
+      }
     }
 
     /** A slot that holds one card in place: keyed so it survives redraws. */
@@ -1777,6 +1787,14 @@
         if (!o.tapped) a.manaAbilities.forEach((ab, i) => {
           uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab), mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: i }) });
         });
+        // prepared: a copy of the spell printed with it, cast from here
+        for (const use of ((live.uses || {})[o.id] || [])) {
+          if (use.kind !== 'cast' || use.via !== 'prepared') continue;
+          const sp = preparedFace(o);
+          uses.unshift({ label: use.label, cost: use.cost || '',
+            text: sp ? `Cast a copy of ${sp.name}: ${sp.oracle_text || ''}` : use.label,
+            fn: () => this.castPrepared(o) });
+        }
       }
       if (!uses.length) return this.showCard(o.id);
       /* A plain land is one tap and nothing else to ask about. */
@@ -1806,6 +1824,13 @@
       if (a.isLand) { MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id }); }
       if (this._landBack(o)) return this._spellOrLand(o, a);
       this.beginCast(o, a);
+    }
+
+    /** Cast a copy of a prepared permanent's spell: targets and X are the spell's. @this {MTG.TableInstance} */
+    castPrepared(o) {
+      const sp = MTG.oracle.analyze(o.card, 1);
+      if (!sp) return UI.toast('Nothing to cast.');
+      this.beginCast(o, sp, 'prepared');
     }
 
     /** A modal double-faced card with a land on its back: the land side, if one can go down now. */
@@ -2178,6 +2203,9 @@
           const idx = a.manaAbilities.length + acts.indexOf(ab);
           items.push([truncate(MTG.oracle.abilityLabel(ab), 52), () => this.activate(o, a, idx, ab)]);
         });
+        for (const use of ((live.uses || {})[o.id] || [])) {
+          if (use.kind === 'cast' && use.via === 'prepared') items.unshift([use.label, () => this.castPrepared(o)]);
+        }
       }
       items.push(['Look at this card', () => this.showCard(o.id)]);
       if (mine) {
