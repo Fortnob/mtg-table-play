@@ -786,6 +786,10 @@
     { re: /^Surveil (\d+)\.?$/i, make: (m) => ({ op: 'surveil', n: +m[1] }) },
     { re: /^Mill (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'you' }) },
     { re: /^Each opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'opponents' }) },
+    /* "You may put a creature card from among the milled cards into your
+       hand": one of what the mill just put in the graveyard */
+    { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
+      make: (m) => ({ op: 'takeFromMilled', n: 1, filter: m[2].trim() || 'any', optional: !!m[1] }) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
 
     // --- tokens ---
@@ -2650,6 +2654,11 @@
     { re: /^Look at the top (\w+) cards of your library\. Put (one|two|three) of them into your hand and the (?:rest|other|others) into your graveyard\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: 'graveyard' }] },
     { re: /^[Dd]iscard a card\. If you do, draw a card\.?$/, make: () => [{ op: 'rummage' }] },
+    /* Midnight Tilling: "Mill four cards, then you may return a permanent
+       card from among them to your hand." */
+    { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
+      make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
+        { op: 'takeFromMilled', n: 1, filter: m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any', optional: !!m[2] }] },
     /* Dig Through Time, Stock Up */
     { re: /^Look at the top (\w+) cards of your library\. Put (two|three) of them into your hand and the rest on the bottom of your library in (?:any|a random) order\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: 'bottom' }] },

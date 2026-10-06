@@ -234,4 +234,17 @@ def('ability', 'AttacksAloneSourceTriggeredAbility', (o, tc) => {
   return AB.triggered(o, tc, { event: 'attacksAlone', self: true, optional: false, pointer: 'player' });
 });
 
+/* "Mill four cards. You may put a creature card from among them into
+   your hand." */
+def('effect', 'MillThenPutInHandEffect', (o, tc) => {
+  E.checkCalls(o, ['withTextOptions']);
+  const v = o.args[0], f = o.args[1];
+  if (!v || !['int', 'value'].includes(kindOf(v)) || kindOf(f) !== 'filter') block('MillThenPutInHandEffect shape');
+  if (o.args.length > 3 || (o.args[2] && kindOf(o.args[2]) !== 'bool')) block('mill then something else');
+  let filter = F.toWords(F.describe(f, tc));
+  if (filter === 'card') filter = 'any';
+  const optional = o.args[2] ? !!o.args[2].v : true;
+  return [{ op: 'mill', n: P.amount(v, tc), who: 'you' }, { op: 'takeFromMilled', n: 1, filter, optional }];
+});
+
 module.exports = {};

@@ -7881,10 +7881,30 @@
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
+          // "…from among the milled cards": what this mill put there
+          this._lastMilled = [];
           for (const p of who) {
             if (!p) continue;
-            for (let i = 0; i < cnt; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); }
+            for (let i = 0; i < cnt; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); this._lastMilled.push(o.id); }
             this.logEvent('mill', `${p.name} mills ${cnt}.`);
+          }
+          break;
+        }
+        /* "Mill four cards. You may put a creature card from among the
+           milled cards into your hand." */
+        case 'takeFromMilled': {
+          const pool = (this._lastMilled || []).map(id => this.obj(id))
+            .filter(o => o && o.zone === 'graveyard' && o.owner === ctx.controller &&
+              (!e.filter || e.filter === 'any' || this._cardFitsWords(o, e.filter)));
+          if (!pool.length) break;
+          const want = Math.min(n(e.n) || 1, pool.length);
+          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: want,
+            cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
+            optional: e.optional !== false, prompt: e.prompt || `Choose ${want === 1 ? 'a card' : want + ' cards'} to put into your hand.` });
+          if (picked === SUSPEND) return SUSPEND;
+          for (const id of (picked || []).slice(0, want)) {
+            const o = this.obj(id);
+            if (o && pool.includes(o)) { this.moveObject(o, 'hand'); this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`); }
           }
           break;
         }

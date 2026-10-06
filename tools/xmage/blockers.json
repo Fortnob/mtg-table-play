@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 18202,
-  "gainedCards": 1930,
-  "linesNeeded": 20974,
-  "linesGained": 2556,
+  "needed": 18193,
+  "gainedCards": 1937,
+  "linesNeeded": 20960,
+  "linesGained": 2563,
   "gained": {
-   "all": 1930,
+   "all": 1937,
    "top2000": 51,
    "stdTop": 15
   },
@@ -692,25 +692,6 @@
     "Poetic Ingenuity",
     "Celeborn the Wise",
     "Jolene, Plundering Pugilist"
-   ]
-  },
-  {
-   "what": "MillThenPutInHandEffect",
-   "score": 33,
-   "lines": 30,
-   "cards": [
-    "Six",
-    "Wrenn and Realmbreaker",
-    "Barrowgoyf",
-    "Terra, Magical Adept // Esper Terra",
-    "Ballad of the Black Flag",
-    "Dredger's Insight",
-    "Picklock Prankster // Free the Fae",
-    "Midnight Tilling",
-    "Bristlebud Farmer",
-    "Szarekh, the Silent King",
-    "Blanchwood Prowler",
-    "Ainok Wayfarer"
    ]
   },
   {
@@ -8485,6 +8466,21 @@
     "Rainbow Efreet",
     "Teferi's Honor Guard"
    ]
+  },
+  {
+   "what": "filter:snow",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Rime Tender",
+    "Sculptor of Winter",
+    "Jorn, God of Winter // Kaldring, the Rimestaff",
+    "Avalanche Caller",
+    "Balduvian Frostwaker",
+    "Arcum's Weathervane",
+    "Balduvian Conjurer",
+    "Ohran Yeti"
+   ]
   }
  ],
  "sole": [
@@ -9045,19 +9041,6 @@
     "Hypnotic Specter",
     "Atemsis, All-Seeing",
     "Thieving Otter"
-   ]
-  },
-  {
-   "what": "MillThenPutInHandEffect",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Barrowgoyf",
-    "Dredger's Insight",
-    "Picklock Prankster // Free the Fae",
-    "Midnight Tilling",
-    "Bristlebud Farmer",
-    "Szarekh, the Silent King"
    ]
   },
   {
@@ -12315,6 +12298,19 @@
     "Sun-Crowned Hunters",
     "Stensia Banquet",
     "Goblin Lyre"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Goblin Javelineer",
+    "Battle-Scarred Goblin",
+    "Arc Spitter",
+    "Knight of Dusk",
+    "Baneblade Scoundrel // Baneclaw Marauder",
+    "Godo's Irregulars"
    ]
   }
  ]

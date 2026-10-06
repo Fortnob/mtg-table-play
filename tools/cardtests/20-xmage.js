@@ -415,4 +415,28 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.no(T.player('B').poison, 'blocked: no poison');
   });
+
+  test('Midnight Tilling mills four and returns a permanent card from among them', (mk, t) => {
+    t.auto('Midnight Tilling');
+    const T = mk();
+    const bolt = T.top('A', 'Lightning Bolt');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.top('A', 'Opt'); T.top('A', 'Shock');
+    const old = T.grave('A', 'Llanowar Elves');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Midnight Tilling'));
+    t.zone(bear, 'hand', 'the permanent card came back');
+    t.zone(bolt, 'graveyard', 'the instant stayed');
+    t.zone(old, 'graveyard', 'not one milled earlier');
+  });
+
+  test("XMage: Dredger's Insight mills and picks an artifact, creature or land", (mk, t) => {
+    generated(t, "Dredger's Insight");
+    const T = mk();
+    T.top('A', 'Opt'); T.top('A', 'Shock'); T.top('A', 'Lightning Bolt');
+    const forest = T.top('A', 'Forest');
+    T.put('A', "Dredger's Insight", 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(forest, 'hand');
+  });
 };
