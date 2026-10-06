@@ -181,7 +181,7 @@
       this.svg.setAttribute('class', 'arena-arrows');
       this.svg.setAttribute('aria-hidden', 'true');
       const defs = document.createElementNS(ns, 'defs');
-      for (const cls of ['atk', 'tgt', 'blk', 'aim']) {
+      for (const cls of ['atk', 'tgt', 'blk', 'aim', 'zap']) {
         const mk = document.createElementNS(ns, 'marker');
         mk.setAttribute('id', 'arw-' + cls);
         mk.setAttribute('viewBox', '0 0 10 10');
@@ -1169,7 +1169,7 @@
     primaryInfo() {
       const v = this.view, live = this.live || v;
       if (v.over) return { label: 'Game over', disabled: true, cls: 'idle' };
-      if (v.spectating || !this.me) return { label: 'Watching', disabled: true, cls: 'idle' };
+      if (v.spectating || v.replay || !this.me) return { label: v.replay ? 'Replay' : 'Watching', disabled: true, cls: 'idle' };
       if (v.mulliganPhase) return { label: 'Mulligan', disabled: true, cls: 'idle', sub: 'choose your opening hand' };
       if (this.targeting) {
         const t = this.targeting;
@@ -1969,10 +1969,11 @@
         [`Bots: ${botPaceName(MTG.settings.botSpeed)}  → ${botPaceName(nextBotPace(MTG.settings.botSpeed))}`,
           () => MTG.setSetting('botSpeed', nextBotPace(MTG.settings.botSpeed))],
         [live.fullControl ? 'Full control: on' : 'Full control: off  (Ctrl)', () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
-        ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
+        this.isReplay ? null : ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
+        MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
         '-',
-        ['Save and leave', () => MTG.app.exitToMenu()],
-        this.me && !this.view.over ? ['Concede', concede] : null,
+        this.isReplay ? ['Stop watching', () => MTG.app.leaveGame({ keepSave: true })] : ['Save and leave', () => MTG.app.exitToMenu()],
+        this.me && !this.view.over && !this.isReplay ? ['Concede', concede] : null,
       ].filter(Boolean), { title: 'Game' });
     }
 

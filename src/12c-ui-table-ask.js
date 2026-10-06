@@ -662,14 +662,17 @@
       const buttons = [];
       // the next game is the host's to start; a guest waits for it here or leaves
       const guest = !!(MTG.net && MTG.net.isClient);
-      if (guest) buttons.push({ label: 'Leave the table', cls: 'primary', fn: () => MTG.app.leaveGame() });
+      // somebody watching, or watching a replay, neither won nor lost
+      const watched = !!(v.spectating || v.replay || !this.me);
+      if (v.replay) buttons.push({ label: 'Back to menu', cls: 'primary', fn: () => MTG.app.leaveGame({ keepSave: true }) });
+      else if (guest) buttons.push({ label: 'Leave the table', cls: 'primary', fn: () => MTG.app.leaveGame() });
       else if (m && !m.decided) buttons.push({ label: `Play game ${m.gameNumber + 1}`, cls: 'primary', fn: () => MTG.app.nextGame() });
       else buttons.push({ label: m ? 'New match' : 'Rematch', cls: 'primary', fn: () => MTG.app.rematch() });
-      if (!guest) buttons.unshift({ label: 'Back to menu', fn: () => MTG.app.leaveGame() });
+      if (!guest && !v.replay) buttons.unshift({ label: 'Back to menu', fn: () => MTG.app.leaveGame() });
       buttons.unshift({ label: 'Look at the board', fn: () => { this.decision.classList.add('peek'); setTimeout(() => this.decision.classList.remove('peek'), 4000); } });
       const body = el('div', { class: 'over-body' }, [
-        el('div', { class: 'over-word ' + (won ? 'win' : draw ? 'draw' : 'loss'), text: won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
-        el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
+        el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
+        el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won && !watched ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
         guest ? el('div', { class: 'over-note', text: 'If the host starts another game, it opens here.' }) : null,
         m ? el('div', { class: 'over-match' }, [
           el('div', { class: 'tiny', text: m.label }),

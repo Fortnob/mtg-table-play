@@ -397,6 +397,7 @@ input[type=checkbox].switch:checked::after { left: 20px; background: linear-grad
 .resume-card .btn.ghost { color: #c3cad6; }
 
 .home-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+.home-replay { display: flex; justify-content: flex-end; margin-top: 8px; }
 .home-tile {
   isolation: isolate; min-height: 150px; align-items: flex-end; padding: 20px; gap: 14px; border-radius: var(--r-l);
   background: linear-gradient(160deg, #161b25, #0f1218); border: 1px solid var(--hair); color: #eef1f6;

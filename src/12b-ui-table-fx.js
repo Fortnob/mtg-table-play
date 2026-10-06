@@ -6,11 +6,15 @@
    the time it takes to draw one frame. This is the part of the table that
    turns that back into something a person can watch.
 
-   Views are played back as beats. Each one is looked at against the one
-   before it and given as long as it deserves: an opponent's spell is held
-   up in the middle long enough to read, an attack takes a moment, a step
-   going by takes none. If views pile up faster than they can be shown the
-   beats get shorter, so the table is never far behind the game.
+   Views are played back as beats. Each one comes with the game's own
+   events since the last (src/06b-events.js) — what was cast, what moved
+   from where to where, what dealt damage to what — and is given as long
+   as those deserve: an opponent's spell is held up in the middle long
+   enough to read, an attack takes a moment, a step going by takes none.
+   A view without its events (the first one, or after a gap) is worked out
+   the old way, by comparing it with the one before. If views pile up
+   faster than they can be shown the beats get shorter, so the table is
+   never far behind the game.
 
    Cards move by FLIP: where every card was is measured, the table is
    redrawn, and the difference is played backwards. Because each card keeps
@@ -44,7 +48,12 @@
           /* A view that changes nothing worth seeing — a step going by, a
              land being tapped for a spell that is about to appear anyway — is
              passed over for the one after it, which carries the same change. */
-          while (this.queue.length && this.view && this._minor(this.view, next)) next = this.queue.shift();
+          while (this.queue.length && this.view && this._minor(this.view, next)) {
+            // what happened in the view passed over still happened
+            const skipped = next;
+            next = this.queue.shift();
+            next.events = skipped.events && next.events ? skipped.events.concat(next.events) : null;
+          }
           await this._present(next);
         }
       } catch (e) {
@@ -58,6 +67,7 @@
     _pace() {
       const q = this.queue.length;
       let f = MTG.settings.animSpeed != null ? MTG.settings.animSpeed : 1;
+      if (this.paceScale) f *= this.paceScale;          // a replay played faster or slower
       if (this._motionOff()) f *= 0.5;
       if (q > 8) f *= 0.08;
       else if (q > 4) f *= 0.35;
@@ -91,6 +101,7 @@
      * events found here also feed the caption and the history down the left.
      */
     _plan(prev, next) {
+      if (prev && Array.isArray(next.events) && !next.events.some(e => e.type === 'restore')) return this._planEvents(prev, next);
       const me = this.meId;
       const b = { hold: 0, spot: null, events: [], turn: false };
       if (!prev) return b;
@@ -182,6 +193,116 @@
       return b;
     },
 
+    /**
+     * The same, from the events themselves. Nothing has to be guessed: a
+     * card that went from a library to a graveyard says so, damage says
+     * where it came from, and a spell going on the stack is a cast even if
+     * it has already resolved by the time this view is shown.
+     */
+    _planEvents(prev, next) {
+      const me = this.meId;
+      const b = { hold: 0, spot: null, events: [], turn: false, fromEvents: true,
+        moves: new Map(), damage: [], life: new Map(), counters: [] };
+      const name = (pid) => { const p = next.players.find(x => x.id === pid) || prev.players.find(x => x.id === pid); return pid === me ? 'You' : (p ? p.name : 'Someone'); };
+      const hold = (ms) => { b.hold = Math.max(b.hold, ms); };
+      const s = (pid) => (pid === me ? '' : 's');
+      const known = (id) => this.objIn(id, next) || this.objIn(id, prev);
+      const cardOf = (e) => e.card || (known(e.objId) || {}).card || null;
+      const cardName = (id) => { const o = known(id); return o && o.card ? o.card.name : null; };
+      const liveStack = new Set((next.stack || []).map(x => x.id));
+      for (const e of next.events) {
+        switch (e.type) {
+          case 'turn': b.turn = true; hold(e.player === me ? 1100 : 900); break;
+          case 'cast': case 'activate': case 'trigger': {
+            const kind = e.type === 'cast' ? 'cast' : e.type === 'trigger' ? 'trigger' : 'ability';
+            const targets = (e.targets || []).map(t => this.targetName(t)).filter(Boolean);
+            const verb = kind === 'cast' ? 'cast' + s(e.controller) : kind === 'trigger' ? '— trigger:' : 'activate' + s(e.controller);
+            b.events.push({ kind, who: e.controller, card: cardOf(e), name: e.name, targets,
+              text: `${name(e.controller)} ${verb} ${e.name}${targets.length ? ' → ' + targets.join(', ') : ''}` });
+            if (e.controller !== me) {
+              // held up in the middle while it is still there to be held up
+              if (liveStack.has(e.stackId)) b.spot = { stackId: e.stackId, objId: kind === 'cast' ? e.objId : null, trigger: kind === 'trigger' };
+              hold(kind === 'cast' ? 1500 : 1000);
+            } else hold(160);
+            break;
+          }
+          case 'resolve': hold(260); break;
+          case 'counter':
+            b.events.push({ kind: 'countered', who: e.controller, card: cardOf(e), name: e.name, text: `${e.name} is countered` });
+            hold(260);
+            break;
+          case 'attack': {
+            const first = e.attackers[0];
+            const c = cardOf({ objId: first.objId });
+            b.events.push({ kind: 'attack', who: e.player, card: c, name: `${e.attackers.length} attacker${e.attackers.length === 1 ? '' : 's'}`,
+              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (c ? c.name : 'a creature') : e.attackers.length + ' creatures'}` });
+            hold(900);
+            break;
+          }
+          case 'block': {
+            const first = e.blocks[0];
+            const c = cardOf({ objId: first.objId });
+            b.events.push({ kind: 'block', who: e.player, card: c, name: `${e.blocks.length} blocker${e.blocks.length === 1 ? '' : 's'}`,
+              text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (c ? c.name : 'a creature') : e.blocks.length + ' creatures'}` });
+            hold(900);
+            break;
+          }
+          case 'leave': {
+            const c = cardOf(e);
+            if (e.isToken && e.to !== 'graveyard') break;
+            const a = c ? MTG.oracle.analyze(c, 0) : null;
+            if (!e.died && e.to === 'graveyard' && a && a.isLand && !a.isCreature) break;
+            const verb = e.died ? 'dies' : e.to === 'graveyard' ? 'is put into a graveyard' : e.to === 'exile' ? 'is exiled'
+              : e.to === 'hand' ? 'returns to hand' : e.to === 'library' ? 'goes into a library' : 'leaves';
+            const nm = c ? c.name : (cardName(e.objId) || 'A permanent');
+            b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, text: `${nm} ${verb}` });
+            hold(420);
+            break;
+          }
+          case 'enter': {
+            if (e.from === 'stack') break;               // it was cast, and said so then
+            const c = cardOf(e);
+            const a = c ? MTG.oracle.analyze(c, 0) : null;
+            const nm = c ? c.name : 'A permanent';
+            if (a && a.isLand) {
+              if (e.controller !== me) { b.events.push({ kind: 'land', who: e.controller, card: c, name: nm, text: `${name(e.controller)} plays ${nm}` }); hold(500); }
+              break;
+            }
+            b.events.push({ kind: 'enter', who: e.controller, card: c, name: nm, text: `${nm} enters the battlefield` });
+            hold(380);
+            break;
+          }
+          case 'token': {
+            const c = cardOf(e);
+            const nm = c ? c.name : 'a token';
+            b.events.push({ kind: 'token', who: e.controller, card: c, name: nm, text: `${name(e.controller)} create${s(e.controller)} ${nm}` });
+            hold(320);
+            break;
+          }
+          case 'zone': b.moves.set(e.objId, e); break;
+          case 'damage': b.damage.push(e); hold(450); break;
+          case 'life': {
+            b.life.set(e.player, (b.life.get(e.player) || 0) + e.delta);
+            hold(Math.abs(b.life.get(e.player)) >= 5 ? 700 : 450);
+            break;
+          }
+          case 'counters': b.counters.push(e); break;
+          case 'lose':
+            b.events.push({ kind: 'lost', who: e.player, text: `${name(e.player)} ${e.player === me ? 'lose' : 'loses'}${e.reason ? ' — ' + e.reason : ''}` });
+            hold(1200);
+            break;
+          default: break;
+        }
+      }
+      // no blocks is news too, if you are the one attacking
+      const attackers = next.battlefield.filter(o => o.attacking);
+      if (attackers.length && prev.step === 'declareAttackers' && next.step !== 'declareAttackers' &&
+          !next.battlefield.some(o => (o.blocking || []).length) && attackers[0].controller === me) {
+        b.events.push({ kind: 'noblock', who: null, text: 'No blocks' }); hold(500);
+      }
+      return b;
+    },
+
     async _present(next) {
       const prev = this.view;
       const beat = this._plan(prev, next);
@@ -196,7 +317,10 @@
       this.view = next;
       if (beat.spot) this.spot = beat.spot;
       else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this.spot = null;
+      // where each card that moved really came from and went to, for the flights
+      this._moves = beat.moves || null;
       this.render();
+      this._moves = null;
       this._report(prev, next, beat);
       if (next.priorityPlayer === this.meId && !hadIt && !next.over && !next.mulliganPhase) MTG.sfx('priority');
 
@@ -212,8 +336,9 @@
     _report(prev, next, beat) {
       if (!prev) return;
       if (beat.turn) this._turnBanner(next);
-      this._lifeFloats(prev, next);
-      this._boardFloats(prev, next);
+      if (beat.fromEvents) this._eventFloats(prev, next, beat);
+      else this._lifeFloats(prev, next);
+      this._boardFloats(prev, next, beat.fromEvents);
       for (const e of beat.events) this.pushHistory(e);
       this._voice(prev, next, beat);
       // what you did yourself needs no announcing, except where it ended up
@@ -303,6 +428,14 @@
       const prevView = before.view;
       const now = this.locate(id, this.view);
       if (!now) return null;
+      const mv = this._moves && this._moves.get(id);
+      if (mv && mv.from) {
+        const who = mv.fromOwner || mv.owner;
+        if (mv.from === 'library') return before.piles.get(who + '/library') || null;
+        if (mv.from === 'graveyard' || mv.from === 'exile') return before.piles.get(who + '/' + mv.from) || null;
+        if (mv.from === 'hand') return before.hands.get(who) || null;
+        if (mv.from === 'command') return null;
+      }
       if (prevView) {
         const was = this.locate(id, prevView);
         if (was && (was.zone === 'graveyard' || was.zone === 'exile')) return before.piles.get(was.player + '/' + was.zone) || null;
@@ -319,6 +452,14 @@
     _destFor(id, before) {
       const loc = this.locate(id, this.view);
       const piles = this._pileRects();
+      const mv = this._moves && this._moves.get(id);
+      if (mv && mv.to && !loc) {
+        // somewhere this view does not show: a library, or a hand that is not yours
+        const who = mv.toOwner || mv.owner;
+        if (mv.to === 'library') return { rect: piles.get(who + '/library') || null, zone: 'library' };
+        if (mv.to === 'hand') return { rect: this._handRects().get(who) || null, zone: 'hand' };
+        if (mv.to === 'graveyard' || mv.to === 'exile') return { rect: piles.get(who + '/' + mv.to) || null, zone: mv.to };
+      }
       if (loc && (loc.zone === 'graveyard' || loc.zone === 'exile')) return { rect: piles.get(loc.player + '/' + loc.zone), zone: loc.zone };
       if (loc && loc.zone === 'hand') {
         const hands = this._handRects();
@@ -593,6 +734,13 @@
           if (b) this._arrow(src, b, 'tgt');
         }
       }
+      // damage just dealt, for a moment
+      if (this._zaps && this._zaps.length) {
+        const now = performance.now();
+        this._zaps = this._zaps.filter(z => z.until > now);
+        const at = (r) => ({ x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height });
+        for (const z of this._zaps) this._arrow(at(z.from), at(z.to), 'zap');
+      }
       // and the target you are choosing follows the pointer
       const t = this.targeting;
       if (t) {
@@ -681,6 +829,68 @@
       }
     },
 
+    /**
+     * Numbers and marks from the events: damage where it landed (with a
+     * line from whatever dealt it, unless it was a creature in combat,
+     * which has its arrow already), life where it changed, counters where
+     * they went.
+     */
+    _eventFloats(prev, next, beat) {
+      for (const d of beat.damage) {
+        if (d.target.kind === 'object') {
+          const n = this.els.get(d.target.id);
+          if (n && n.isConnected) {
+            this.float(n, '-' + d.amount, 'dmg');
+            n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
+            setTimeout(() => n.classList.remove('hit'), 520);
+          }
+        }
+        if (!d.combat) this.zap(d.source, d.target);
+      }
+      for (const [pid, delta] of beat.life) {
+        if (!delta) continue;
+        const orb = this.orbFor(pid);
+        if (!orb) continue;
+        orb.classList.remove('hurt', 'healed'); void orb.offsetWidth;
+        orb.classList.add(delta < 0 ? 'hurt' : 'healed');
+        setTimeout(() => orb.classList.remove('hurt', 'healed'), 800);
+        this.float(orb, (delta > 0 ? '+' : '') + delta, delta < 0 ? 'life-down' : 'life-up', Math.min(1, Math.abs(delta) / 8));
+        if (delta < 0 && pid === this.meId && Math.abs(delta) >= 3) this.flash('hurt');
+      }
+      // counters, added up per permanent and kind so a big swing is one number
+      const sum = new Map();
+      for (const c of beat.counters) {
+        if (!c.objId) continue;
+        const k = c.objId + '|' + c.kind;
+        sum.set(k, (sum.get(k) || 0) + c.delta);
+      }
+      for (const [k, d] of sum) {
+        if (!d) continue;
+        const [id, kind] = k.split('|');
+        const n = this.els.get(id);
+        if (!n || !n.isConnected) continue;
+        if (kind === '+1/+1' || kind === '-1/-1') {
+          const x = kind === '+1/+1' ? d : -d;
+          this.float(n, `${x > 0 ? '+' : ''}${x}/${x > 0 ? '+' : ''}${x}`, x > 0 ? 'buff' : 'dmg');
+        } else if (kind === 'loyalty' || kind === 'defense') this.float(n, (d > 0 ? '+' : '') + d, d > 0 ? 'buff' : 'dmg');
+      }
+    },
+
+    /** A quick line from a source to whatever it dealt damage to. */
+    zap(sourceId, target) {
+      if (this._motionOff() || !sourceId) return;
+      const box = (n) => { if (!n || !n.isConnected) return null; const r = n.getBoundingClientRect(); return r.width ? r : null; };
+      // a spell has usually gone by the time its damage is shown: it comes from where it was held up
+      const from = box(this.els.get(sourceId)) || box(this.spotHost.querySelector('.spot-card')) || box(this.stackCol.lastElementChild);
+      const to = target.kind === 'player' ? box(this.orbFor(target.id)) : box(this.els.get(target.id));
+      if (!from || !to) return;
+      this._zaps = (this._zaps || []).filter(z => z.until > performance.now());
+      this._zaps.push({ from, to, until: performance.now() + 700 });
+      this.renderArrows();
+      clearTimeout(this._zapTimer);
+      this._zapTimer = setTimeout(() => { if (!this._destroyed) this.renderArrows(); }, 720);
+    },
+
     /** Floating numbers where life changed, and a jolt to the portrait. */
     _lifeFloats(prev, next) {
       for (const p of next.players) {
@@ -697,23 +907,23 @@
       }
     },
 
-    _boardFloats(prev, next) {
+    _boardFloats(prev, next, fromEvents) {
       const old = new Map(prev.battlefield.map(o => [o.id, o]));
       for (const o of next.battlefield) {
         const was = old.get(o.id);
         if (!was) continue;
         const n = this.els.get(o.id);
         if (!n || !n.isConnected) continue;
-        if ((o.damage || 0) > (was.damage || 0)) {
+        if (!fromEvents && (o.damage || 0) > (was.damage || 0)) {
           this.float(n, '-' + ((o.damage || 0) - (was.damage || 0)), 'dmg');
           n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
           setTimeout(() => n.classList.remove('hit'), 520);
         }
         const c1 = ((was.counters || {})['+1/+1'] || 0) - ((was.counters || {})['-1/-1'] || 0);
         const c2 = ((o.counters || {})['+1/+1'] || 0) - ((o.counters || {})['-1/-1'] || 0);
-        if (c1 !== c2) this.float(n, (c2 > c1 ? '+' : '') + (c2 - c1) + '/' + (c2 > c1 ? '+' : '') + (c2 - c1), c2 > c1 ? 'buff' : 'dmg');
+        if (!fromEvents && c1 !== c2) this.float(n, (c2 > c1 ? '+' : '') + (c2 - c1) + '/' + (c2 > c1 ? '+' : '') + (c2 - c1), c2 > c1 ? 'buff' : 'dmg');
         const l1 = (was.counters || {}).loyalty, l2 = (o.counters || {}).loyalty;
-        if (l1 != null && l2 != null && l1 !== l2) this.float(n, (l2 > l1 ? '+' : '') + (l2 - l1), l2 > l1 ? 'buff' : 'dmg');
+        if (!fromEvents && l1 != null && l2 != null && l1 !== l2) this.float(n, (l2 > l1 ? '+' : '') + (l2 - l1), l2 > l1 ? 'buff' : 'dmg');
         if (o.power != null && was.power != null && (o.power !== was.power || o.toughness !== was.toughness) && c1 === c2) {
           const dp = o.power - was.power, dt = o.toughness - was.toughness;
           if (dp || dt) this.float(n, `${dp >= 0 ? '+' : ''}${dp}/${dt >= 0 ? '+' : ''}${dt}`, dp + dt >= 0 ? 'buff' : 'dmg');

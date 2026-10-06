@@ -435,6 +435,10 @@
       tile('decks', SVG.deck, 'Decks', 'Import a list from anywhere, build one from scratch, and see what it combos into.', () => showScreen('decks')),
       tile('options', SVG.gear, 'Options', 'Pace, stops, appearance, accessibility and sound.', () => showScreen('options')),
     ]));
+    page.appendChild(el('div', { class: 'home-replay' }, [
+      el('button', { class: 'btn sm ghost', text: 'Watch a replay…', title: 'Open a replay file saved from the game menu',
+        onclick: () => App.openReplayFile() }),
+    ]));
 
     /* -- your decks, as deck boxes -- */
     const idx = MTG.decks.index();
@@ -2248,7 +2252,7 @@
         if (name) existing.name = name;
         if (this.game) {
           const p = this.game.player(existing.id);
-          if (p) { p.connected = true; this.game.logEvent('game', `${existing.name} reconnected.`); }
+          if (p) this.game.setConnected(p.id, true);
           this.pushState();
         }
         this.broadcastLobby();
@@ -2257,7 +2261,13 @@
         return existing;
       }
       if (this.roster.some(r => r.peerId === peerId)) return null;
-      if (this.game) { net.send(peerId, { t: 'error', payload: 'That game is already under way.' }); return null; }
+      if (this.game) {
+        this.watchers = this.watchers || new Map();
+        this.watchers.set(peerId, { name: name || 'Someone' });
+        net.send(peerId, { t: 'error', payload: 'That game is already under way — you are watching.' });
+        this.pushState();
+        return null;
+      }
       if (this.roster.length >= this.fmt.maxPlayers) { net.send(peerId, { t: 'error', payload: 'That table is full.' }); return null; }
       const seat = { id: MTG.uid('rp'), kind: 'remote', name: name || 'Player', peerId, token: token || null, deck: null, deckValid: null };
       this.roster.push(seat);
@@ -2434,6 +2444,8 @@
       try {
         // a new game in the same match gets a fresh shuffle and the next seat
         if (this.match) this.seed = this.match.seed + this.match.games.length + 1;
+        // and so does a rematch: the same seed would deal the same hands again
+        else if (this.game) this.seed = (Date.now() >>> 0) || 1;
         /* Bots normally built their decks back in the lobby, while you were
            still choosing yours. Anything still in flight is waited on here,
            and anything that never started is built now. */
@@ -2474,6 +2486,7 @@
         for (const r of this.roster) if (r.kind === 'bot') this.botRunner.add(r.id, r.difficulty);
 
         this.wireGame(g);
+        this.startRecording(g);
 
         busy.close();
         showScreen('table');
@@ -2504,16 +2517,64 @@
         const v = this.game.viewFor(this.spectating ? '__watching' : 'me');
         v.spectating = this.spectating;
         v.match = match;
+        this.withEvents(v, 'local');
         App.lastView = v;
         App.table.update(v);
       }
-      if (net.isHost) net.sendPerPeer((peerId) => {
+      /* Guests are sent at most one view per thing that happens: one
+         action can change the game a dozen times in a row, and the events
+         carry every step of it anyway. */
+      if (net.isHost && !this._netQueued) {
+        this._netQueued = true;
+        queueMicrotask(() => { this._netQueued = false; this.sendViews(); });
+      }
+    }
+
+    /** What has happened since this viewer's last view, as that viewer may know it. */
+    withEvents(v, key) {
+      // each game has its own stream; a new one starts everybody from its beginning
+      if (this._evGame !== this.game) { this._evGame = this.game; this._evSeen = {}; this._gameNo = (this._gameNo || 0) + 1; }
+      v.game = this.seed + ':' + this._gameNo;
+      const seen = this._evSeen;
+      v.events = this.game.eventsFor(v.you, seen[key]);
+      v.eventSeq = this.game.eventSeq;
+      seen[key] = this.game.eventSeq;
+      return v;
+    }
+
+    /**
+     * Each guest's view, as the difference from the last one it has (see
+     * src/09b-sync.js). A guest without a seat — someone who came to
+     * watch a game already under way — sees what a spectator sees.
+     */
+    sendViews() {
+      if (!this.game || !net.isHost) return;
+      const match = this.matchView();
+      const encs = (this._enc = this._enc || new Map());
+      net.sendPerPeer((peerId) => {
         const r = this.seatByPeer(peerId);
-        if (!r) return null;
-        const v = this.game.viewFor(r.id);
+        const viewer = r ? r.id : (this.watchers && this.watchers.has(peerId) ? '__watching' : null);
+        if (!viewer) return null;
+        let enc = encs.get(peerId);
+        if (!enc) { enc = new MTG.sync.Encoder(); encs.set(peerId, enc); }
+        const v = this.game.viewFor(viewer);
         v.match = match;
-        return { t: 'state', payload: v };
+        if (!r) v.spectating = true;
+        this.withEvents(v, 'peer:' + peerId);
+        return enc.encode(v);
       });
+    }
+
+    /** Keep the game on the record from here on, for "Save replay". */
+    startRecording(g) {
+      if (this.recorder) this.recorder.stop();
+      this.recorder = null;
+      try {
+        this.recorder = MTG.replay.record(g, {
+          me: this.spectating ? null : 'me',
+          names: this.roster.map(r => ({ id: r.id, name: r.name, kind: r.kind })),
+        });
+      } catch (e) { console.warn('[replay] not recording this game', e); }
     }
 
     /* ---- intents ---- */
@@ -2541,6 +2602,8 @@
       sess.botRunner = new MTG.bots.BotRunner(g);
       for (const r of sess.roster) if (r.kind === 'bot') sess.botRunner.add(r.id, r.difficulty);
       sess.wireGame(g);
+      // a resumed game is recorded from where it was picked up
+      sess.startRecording(g);
       App.session = sess;
       showScreen('table');
       if (App.table) App.table.destroy();
@@ -2563,7 +2626,6 @@
         }
         MTG.sfx(n, o);
       });
-      g.on('log', (e) => { if (net.isHost) net.broadcast({ t: 'log', payload: e }); });
       // a trigger going on the stack pulses the permanent it came from, so you
       // can see which card is talking
       g.on('stack:add', (item) => {
@@ -2733,9 +2795,11 @@
       setNetBadge();
       const sess = App.session;
       if (!sess) return;
+      if (sess._enc) sess._enc.delete(peerId);
+      if (sess.watchers) sess.watchers.delete(peerId);
       const r = sess.seatByPeer(peerId);
       if (r) {
-        if (sess.game) { const p = sess.game.player(r.id); if (p) { p.connected = false; sess.game.logEvent('game', `${r.name} disconnected.`); sess.pushState(); } }
+        if (sess.game) { const p = sess.game.player(r.id); if (p) { sess.game.setConnected(p.id, false); sess.pushState(); } }
         else { sess.roster = sess.roster.filter(x => x !== r); sess.broadcastLobby(); renderLobbySoon(); }
       }
     });
@@ -2770,15 +2834,40 @@
       sess.handleIntent(r.id, payload);
     });
     net.on('lobby', (payload) => renderClientLobbyData(payload));
-    net.on('state', (view) => {
+    const showView = (view) => {
       const myId = view.you || findMe(view);
-      if (App.screen !== 'table' || !App.table || App.table.meId !== myId) {
+      const game = view.game || (view.config ? view.config.seed : null);
+      // a new game in the match is a new table: nothing on the old one carries over
+      if (App.screen !== 'table' || !App.table || App.table.meId !== myId || App.table._game !== game) {
         showScreen('table');
         if (App.table) App.table.destroy();
         App.table = new UI.Table(screens.table, myId, (i) => net.intent(i));
+        App.table._game = game;
       }
       App.lastView = view;
       App.table.update(view);
+    };
+    net.on('state', showView);
+    // every connection starts the sync again from a whole view
+    net.on('open', () => { App.syncIn = new MTG.sync.Decoder(); });
+    net.on('message', (from, msg) => {
+      if (!msg) return;
+      if (net.isClient && msg.t === 'sv') {
+        const dec = App.syncIn || (App.syncIn = new MTG.sync.Decoder());
+        const r = dec.decode(msg);
+        if (r.resync) net.send(null, { t: 'resync' });
+        if (!r.view) return;
+        net.send(null, { t: 'ack', n: r.ack });
+        showView(r.view);
+        return;
+      }
+      if (net.isHost && (msg.t === 'ack' || msg.t === 'resync')) {
+        const sess = App.session;
+        const enc = sess && sess._enc && sess._enc.get(from);
+        if (!enc) return;
+        if (msg.t === 'ack') enc.ack(msg.n);
+        else { enc.resync(); sess.sendViews(); }
+      }
     });
     net.on('draft', (view) => {
       if (App.screen !== 'draft' || !App.draftUI) {
@@ -2848,6 +2937,7 @@
 
   App.leaveGame = function (opts) {
     opts = opts || {};
+    if (App.replay) { App.replay.stop(); App.replay = null; }
     if (App.session && App.session.botRunner) App.session.botRunner.stop();
     if (App.session && App.session.draftTimer) clearInterval(App.session.draftTimer);
     if (App.table) { App.table.destroy(); App.table = null; }
@@ -2875,6 +2965,56 @@
     if (!await UI.sideboardStep(sess)) return;
     sess.startGame();
   };
+
+  /* ---- replays ---- */
+  App.canSaveReplay = () => !!(App.session && App.session.recorder && !net.isClient);
+  App.saveReplay = function () {
+    const sess = App.session;
+    if (!sess || !sess.recorder) return UI.error('There is no record of this game.');
+    const data = sess.recorder.toJSON();
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+    const names = (data.meta.players || []).map(p => p.name).join('-vs-').replace(/[^\w-]+/g, '').slice(0, 40) || 'game';
+    downloadText(`mtg-replay-${names}-${stamp}.json`, JSON.stringify(data));
+    UI.ok('Replay saved.');
+  };
+  function downloadText(name, text) {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = el('a', { href: url, download: name, style: { display: 'none' } });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+  }
+  /** Ask for a replay file and watch it. */
+  App.openReplayFile = function () {
+    const input = el('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' } });
+    input.addEventListener('change', async () => {
+      const f = input.files && input.files[0];
+      input.remove();
+      if (!f) return;
+      try { await App.watchReplay(await f.text()); }
+      catch (e) { UI.error(e.message || String(e)); }
+    });
+    document.body.appendChild(input);
+    input.click();
+  };
+  /** Play a replay on the table, with its own controls. `opts.turn` starts it at a turn. */
+  App.watchReplay = async function (json, opts) {
+    opts = opts || {};
+    const busy = UI.busy('Opening the replay', 'Finding the cards…');
+    let rp;
+    try { rp = await MTG.replay.open(json); }
+    finally { busy.close(); }
+    if (App.session || net.online) App.leaveGame({ keepSave: true });
+    showScreen('table');
+    if (App.table) App.table.destroy();
+    const viewer = new UI.ReplayViewer(screens.table, rp, opts);
+    App.replay = viewer;
+    App.table = viewer.table;
+    if (opts.turn) viewer.seekTurn(opts.turn); else viewer.show();
+    return viewer;
+  };
+  // for bug reports: MTG.replay.load(json, {turn: 7}) puts that game on the table at turn 7
+  MTG.replay.load = (json, opts) => App.watchReplay(json, Object.assign({ paused: true }, opts || {}));
 
   App.Session = Session;
   // the pieces the test suite drives directly

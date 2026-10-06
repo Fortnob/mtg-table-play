@@ -14,6 +14,7 @@
  "07-draft.js",
  "08-bots.js",
  "09-net.js",
+ "09b-sync.js",
  "15-combos.js",
  "16-advisor.js",
  "10-ui-core.js",
@@ -21,6 +22,7 @@
  "12-ui-table.js",
  "12b-ui-table-fx.js",
  "12c-ui-table-ask.js",
+ "12d-ui-replay.js",
  "13-ui-draft.js",
  "17-ui-advisor.js",
  "14-app.js"

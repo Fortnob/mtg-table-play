@@ -450,6 +450,11 @@
 .arrow.tgt, .arrow-glow.tgt, .head.tgt, .arrow.aim, .arrow-glow.aim, .head.aim { stroke: var(--aim); fill: var(--aim); }
 .arrow.atk, .arrow.blk, .arrow.tgt, .arrow.aim { fill: none; }
 .arrow-glow { fill: none !important; }
+/* damage just dealt: a line from what dealt it, there and gone */
+.arrow.zap, .arrow-glow.zap, .head.zap { stroke: #ff6b5c; fill: #ff6b5c; }
+.arrow.zap { fill: none; animation: zap .7s ease-out forwards; }
+.arrow-glow.zap { animation: zap .7s ease-out forwards; }
+@keyframes zap { 0% { opacity: 0; stroke-dasharray: 0 2000; } 25% { opacity: 1; } 100% { opacity: 0; stroke-dasharray: 2000 0; } }
 
 /* ---------- the banner, the panel ---------- */
 .arena-banner { position: absolute; z-index: 60; left: 50%; bottom: calc(var(--hand-peek) + 22px); translate: -50% 12px;
@@ -862,3 +867,13 @@
 .log-line.t-step b, .log-line.t-mana b { font-weight: 500; }
 .dpanel .mode-list { max-height: min(56vh, 520px); overflow-y: auto; padding-right: 4px; }
 .over-note { font-size: 13px; color: #9aa4b5; margin-top: 8px; }
+
+/* a replay's controls: one quiet bar along the top of the table */
+.replay-bar { position: absolute; z-index: 67; top: 10px; left: 62px; display: flex; align-items: center; gap: 4px;
+  padding: 4px 6px 4px 12px; border-radius: 999px; background: rgba(12,14,20,.82); border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45); backdrop-filter: blur(8px); max-width: calc(100% - 120px); white-space: nowrap; }
+.replay-bar .rb-tag { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-hi, #f6dc8c); margin-right: 4px; }
+.replay-bar .rb-where { font-size: 12px; color: #c9d1de; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.replay-bar .btn.xs { min-width: 30px; }
+:root[data-phone] .replay-bar { top: auto; bottom: 8px; left: 8px; max-width: calc(100% - 16px); overflow-x: auto; }
+:root[data-phone] .replay-bar .rb-tag, :root[data-phone] .replay-bar .rb-where { display: none; }
