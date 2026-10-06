@@ -511,10 +511,17 @@
 
       // your deck: one of yours, or a fresh one in the colours you pick
       const mine = MTG.decks.forFormat(q.formatId);
-      if (q.deckId && !mine.some(d => d.id === q.deckId)) q.deckId = '';
+      // the starter decks sit between "build me one" and your own
+      const starters = MTG.starters ? MTG.starters.forFormat(q.formatId) : [];
+      const isStarter = (v) => String(v || '').startsWith('starter:');
+      if (q.deckId && !mine.some(d => d.id === q.deckId) &&
+          !(isStarter(q.deckId) && starters.some(s => 'starter:' + s.id === q.deckId))) q.deckId = '';
       const deckSel = el('select', { 'aria-label': 'Your deck' }, [
         el('option', { value: '', text: 'Build me a fresh deck' }),
-        ...mine.map(d => el('option', { value: d.id, text: d.name, selected: d.id === q.deckId })),
+        starters.length ? el('optgroup', { label: 'Starter decks' }, starters.map(s =>
+          el('option', { value: 'starter:' + s.id, text: s.name, selected: 'starter:' + s.id === q.deckId }))) : null,
+        mine.length ? el('optgroup', { label: 'Your decks' }, mine.map(d =>
+          el('option', { value: d.id, text: d.name, selected: d.id === q.deckId }))) : null,
       ]);
       deckSel.addEventListener('change', () => { q.deckId = deckSel.value; saveQuick(q); draw(); });
       const colours = el('div', { class: 'colour-picks', role: 'group', 'aria-label': 'Your colours, up to two' },
@@ -531,7 +538,7 @@
           },
         })));
       panel.appendChild(el('div', { class: 'quick-pair' }, [
-        mine.length ? field('Your deck', deckSel) : null,
+        mine.length || starters.length ? field('Your deck', deckSel) : null,
         q.deckId ? null : field(q.colors.length ? 'Your colours' : 'Your colours · any', colours),
       ].filter(Boolean)));
 
@@ -540,7 +547,10 @@
         onclick: async () => {
           go.disabled = true;
           let deck = null;
-          if (q.deckId) {
+          if (isStarter(q.deckId)) {
+            try { deck = await MTG.starters.build(q.deckId.slice(8)); }
+            catch (e) { go.disabled = false; return UI.error(e.message || String(e)); }
+          } else if (q.deckId) {
             deck = await MTG.decks.load(q.deckId);
             if (!deck) { go.disabled = false; return UI.error('That deck could not be loaded.'); }
             const ok = await UI.checkAutomation(deck, { onEdit: (d) => UI.deckBuilder(d, { onSave: () => renderHome() }) });
@@ -752,6 +762,8 @@
       ]);
       decorArt(empty.firstChild, TILE_ART.decks);
       inner.appendChild(empty);
+      const shelf = starterShelf();
+      if (shelf) inner.appendChild(shelf);
       s.appendChild(el('div', { class: 'menu-wrap' }, inner));
       return;
     }
@@ -800,6 +812,8 @@
 
     const host = el('div');
     inner.appendChild(host);
+    const shelf = starterShelf();
+    if (shelf) inner.appendChild(shelf);
     s.appendChild(el('div', { class: 'menu-wrap' }, inner));
     draw();
 
@@ -883,6 +897,35 @@
     me.deck = full;
     me.deckValid = MTG.formats.validate(full, App.session.fmt);
     renderLobby();
+  }
+
+  /** A deck you have in hand (a starter, say) taken to a new table of its format. */
+  function playWithDeck(deck) {
+    App.formatId = deck.format;
+    startLobby('host');
+    const me = App.session && App.session.seat('me');
+    if (!me) return;
+    me.deck = deck;
+    me.deckValid = MTG.formats.validate(deck, App.session.fmt);
+    renderLobby();
+  }
+
+  /**
+   * The starter decks, as a shelf of deck boxes under your own: ready to
+   * play, or to copy into your decks and change.
+   */
+  function starterShelf() {
+    if (!MTG.starters || !MTG.starters.list.length) return null;
+    return el('section', { class: 'starter-shelf', 'aria-labelledby': 'starterTitle' }, [
+      el('div', { class: 'cat-head' }, [
+        el('h2', { class: 'cat-title', id: 'starterTitle', text: 'Starter decks' }),
+        el('p', { class: 'cat-blurb', text: 'Ready to play: one for every pair of colours, and a few in one. The game runs every card in them by itself. Copy one into your decks to change it.' }),
+      ]),
+      el('div', { class: 'deck-cards' }, MTG.starters.list.map(st => UI.starterBox(st, {
+        onCopied: () => renderDecks(),
+        onUse: (deck) => playWithDeck(deck),
+      }))),
+    ]);
   }
 
   function timeAgo(ts) {

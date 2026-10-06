@@ -1371,6 +1371,131 @@ Sideboard
     });
   };
 
+  /* ---------------- starter decks ----------------
+     Ready-made decks (src/20-starters.js), shown the way your own decks
+     are: a box with the cover's art, the colours, and what the deck does
+     in a sentence. */
+
+  /** The cover cards of the starters, in one request, by name. */
+  let starterCovers = null;
+  function starterCover(s) {
+    if (!starterCovers) {
+      const names = MTG.starters.list.map(x => x.cover);
+      starterCovers = UI.featuredCards(names).then((cards) => {
+        const m = new Map();
+        names.forEach((n, i) => { if (cards[i]) m.set(n, cards[i]); });
+        return m;
+      });
+    }
+    return starterCovers.then(m => m.get(s.cover) || null);
+  }
+  UI.starterCover = starterCover;
+
+  /**
+   * One starter as a deck box. `opts.onUse(deck)` adds a Play button;
+   * `opts.onCopied()` is told when it has gone into your decks.
+   */
+  UI.starterBox = function (s, opts) {
+    opts = opts || {};
+    const art = el('div', { class: 'deck-art', 'aria-hidden': 'true' });
+    starterCover(s).then((c) => { if (c) UI.setArt(art, c); }).catch(() => {});
+    const auto = el('span', { class: 'auto-slot' });
+    // the starters are checked to be wholly automated; the pill says so once the cards are in
+    MTG.starters.build(s.id).then((d) => {
+      const a = UI.deckAutomation(d);
+      auto.appendChild(UI.autoShare(a.auto, a.total, { class: 'on-art' }));
+    }).catch(() => {});
+    const copy = async () => {
+      try {
+        const d = await MTG.starters.copy(s.id);
+        MTG.decks.save(d);
+        UI.ok(`“${d.name}” is in your decks now. Change it as much as you like.`);
+        if (opts.onCopied) opts.onCopied(d);
+      } catch (e) { UI.error(e.message || String(e)); }
+    };
+    const use = async () => {
+      try { const d = await MTG.starters.build(s.id); if (opts.onUse) opts.onUse(d); }
+      catch (e) { UI.error(e.message || String(e)); }
+    };
+    return el('article', { class: 'deck-card starter-card', dataset: { starter: s.id } }, [
+      el('button', { class: 'deck-open', 'aria-label': 'Look at ' + s.name, onclick: () => UI.starterPreview(s.id, opts) }, [
+        art,
+        el('div', { class: 'deck-face' }, [
+          UI.pips(s.colors, 'deck-pips'),
+          el('div', { class: 'deck-card-name', text: s.name }),
+          el('div', { class: 'deck-sub starter-blurb', text: s.blurb }),
+          auto,
+        ]),
+      ]),
+      el('div', { class: 'deck-foot' }, [
+        el('span', { class: 'pill', text: 'Starter' }),
+        el('span', { class: 'grow' }),
+        el('button', { class: 'btn xs ghost', text: 'Copy to my decks', title: 'Put a copy in your decks, to play or change', onclick: copy }),
+        opts.onUse ? el('button', { class: 'btn xs primary', text: opts.useLabel || 'Play', onclick: use }) : null,
+      ].filter(Boolean)),
+    ]);
+  };
+
+  /** A starter's list, by card type, with the same ways out as its box. */
+  UI.starterPreview = async function (id, opts) {
+    opts = opts || {};
+    const s = MTG.starters.get(id);
+    if (!s) return;
+    const busy = UI.busy('Starter deck', 'Finding the cards…');
+    let deck;
+    try { deck = await MTG.starters.build(id); }
+    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    const list = el('div', { class: 'starter-list' });
+    const groups = U.groupBy(deck.main, e => primaryType(e.card));
+    for (const g of TYPE_ORDER) {
+      const rows = groups.get(g);
+      if (!rows || !rows.length) continue;
+      const col = el('div', { class: 'starter-group' }, [
+        el('div', { class: 'section-title', text: `${TYPE_PLURAL[g] || g} · ${U.sum(rows.map(e => e.qty))}` }),
+      ]);
+      for (const e of UI.sortCards(rows, 'cmc')) {
+        const a = MTG.oracle.analyze(e.card);
+        const row = el('div', { class: 'deck-entry strip' }, [
+          el('span', { class: 'qty', text: e.qty + '×' }),
+          el('span', { class: 'nm', text: e.card.name }),
+          UI.autoBadge(e.card),
+          el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
+        ]);
+        UI.setArt(row, e.card);
+        UI.attachPreview(row, e.card, 0);
+        UI.longPress(row, () => UI.cardSheet(e.card));
+        col.appendChild(row);
+      }
+      list.appendChild(col);
+    }
+    const cover = deck.main.map(e => e.card).find(c => c.name === s.cover) || UI.keyCard(deck);
+    const auto = UI.deckAutomation(deck);
+    const buttons = [{ label: 'Copy to my decks', onClick: async () => {
+      const d = await MTG.starters.copy(id);
+      MTG.decks.save(d);
+      UI.ok(`“${d.name}” is in your decks now.`);
+      m.close();
+      if (opts.onCopied) opts.onCopied(d);
+    } }];
+    if (opts.onUse) buttons.push({ label: opts.useLabel || 'Play', class: 'primary', onClick: () => { m.close(); opts.onUse(deck); } });
+    else buttons.push({ label: 'Close', class: 'primary', onClick: () => m.close() });
+    const m = UI.modal({
+      title: s.name, width: '880px', art: cover, className: 'starter-modal',
+      content: el('div', null, [
+        el('div', { class: 'row wrap starter-head' }, [
+          UI.pips(s.colors),
+          el('span', { class: 'pill', text: (MTG.formats.get(s.format) || {}).name || s.format }),
+          UI.autoShare(auto.auto, auto.total),
+          el('span', { class: 'small muted grow', text: s.blurb }),
+        ]),
+        list,
+      ]),
+      buttons,
+    });
+    return m;
+  };
+
   /* ---------------- deck picker ---------------- */
   UI.pickDeck = function (formatId, onPick) {
     const list = el('div', { class: 'pick-deck-list' });
@@ -1386,9 +1511,41 @@ Sideboard
     function render() {
       list.innerHTML = '';
       const found = MTG.decks.forFormat(formatId);
+      const starters = MTG.starters ? MTG.starters.forFormat(formatId) : [];
+      let details = null;
       if (!found.length) {
-        list.appendChild(el('div', { class: 'empty-note', text: 'No saved decks for this format yet. Import a decklist to get started.' }));
-        return;
+        list.appendChild(el('div', { class: 'empty-note', text: starters.length
+          ? 'No saved decks for this format yet. Pick a starter deck below, or import a list.'
+          : 'No saved decks for this format yet. Import a decklist to get started.' }));
+      }
+      // ready-made decks, every card run by the game, after your own
+      if (starters.length) {
+        const box = el('div', { class: 'pick-starters' }, starters.map(s => {
+          const art = el('div', { class: 'pick-deck-art', 'aria-hidden': 'true' });
+          UI.starterCover(s).then((c) => { if (c) UI.setArt(art, c); }).catch(() => {});
+          const use = async () => {
+            const busy = UI.busy('Loading deck', 'Finding the cards…');
+            try { const d = await MTG.starters.build(s.id); busy.close(); m.close(); onPick(d); }
+            catch (e) { busy.close(); UI.error(e.message || String(e)); }
+          };
+          return el('div', { class: 'pick-deck starter' }, [
+            art,
+            el('button', { type: 'button', class: 'pick-deck-main', onclick: use, 'aria-label': 'Use ' + s.name }, [
+              UI.pips(s.colors),
+              el('div', { class: 'grow' }, [
+                el('div', { class: 'pick-deck-name', text: s.name }),
+                el('div', { class: 'tiny dim', text: s.blurb }),
+              ]),
+            ]),
+            el('button', { class: 'btn xs ghost', text: 'Look', onclick: () => UI.starterPreview(s.id, { onUse: (d) => { m.close(); onPick(d); }, useLabel: 'Use this deck', onCopied: () => render() }) }),
+            el('button', { class: 'btn sm primary', text: 'Use', onclick: use }),
+          ]);
+        }));
+        details = el('details', { class: 'pick-starter-group', open: !found.length }, [
+          el('summary', { class: 'section-title', text: `Starter decks · ${starters.length}` }),
+          el('p', { class: 'tiny dim', style: { margin: '0 0 8px' }, text: 'Ready to play, and every card in them is run by the game.' }),
+          box,
+        ]);
       }
       for (const d of found) {
         const use = async () => {
@@ -1429,6 +1586,8 @@ Sideboard
         ]);
         list.appendChild(row);
       }
+      // the starters come after your own decks
+      if (details) list.appendChild(details);
     }
     render();
     return m;
