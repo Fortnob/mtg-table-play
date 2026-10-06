@@ -94,12 +94,13 @@
     analysis() {
       // face down, it is a 2/2 with no text — and that is what it is to
       // every rule that asks (CR 708.2)
-      if (this.faceDown) return O.faceDownAnalysis();
-      const base = O.analyze(this.card, this.face);
+      const base = this.faceDown ? O.faceDownAnalysis() : O.analyze(this.card, this.face);
       /* On the battlefield a permanent can be more than its printed text:
-         an ability handed to it in quotation marks, or a god that is not a
-         creature while your devotion is short. The game works that out. */
-      if (base && this.zone === 'battlefield' && this.game) return this.game._dynamicAnalysis(this, base);
+         an ability handed to it in quotation marks, a god that is not a
+         creature while your devotion is short, a land Blood Moon has made a
+         Mountain, a creature Humility has taken everything from. The game
+         works that out, layer by layer (CR 613). */
+      if (base && this.zone === 'battlefield' && this.game) return this.game._layeredAnalysis(this, base);
       return base;
     }
     /** What this card really is, whichever side is showing. */
@@ -113,6 +114,16 @@
     const k = String(w || '').trim().toLowerCase();
     return words[k] != null ? words[k] : (parseInt(k, 10) || 0);
   };
+
+  /* Subtypes that go with a card type other than creature (CR 205.3):
+     when a permanent stops being a land, it stops being a Forest. */
+  const LAND_TYPES = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Desert', 'Gate', 'Lair', 'Locus',
+    'Mine', 'Power-Plant', 'Tower', "Urza's", 'Cave', 'Sphere', 'Town', 'Planet']);
+  const ARTIFACT_TYPES = new Set(['Equipment', 'Vehicle', 'Food', 'Treasure', 'Clue', 'Blood', 'Gold', 'Powerstone',
+    'Fortification', 'Contraption', 'Map', 'Incubator', 'Attraction', 'Bobblehead', 'Junk', 'Lander', 'Spacecraft', 'Infinity', 'Stone']);
+  const ENCHANTMENT_TYPES = new Set(['Aura', 'Saga', 'Class', 'Shrine', 'Curse', 'Cartouche', 'Rune', 'Room',
+    'Background', 'Case', 'Role', 'Shard']);
+  const EMPTY_SET = new Set();
 
   /* ============================================================
      Player
@@ -705,9 +716,13 @@
           this.bumpBoard();
         }
         o.effects = o.effects.filter(e => e.until !== 'eot');
-        // a copy that lasts until end of turn is itself again
+        /* A copy that lasts until end of turn is what it was again: itself,
+           or a Clone that was already a copy before Mirrorweave (CR 707). */
         if (o.copyUntilTurn != null && o.printedCard) {
-          o.card = o.printedCard; o.printedCard = null; o.copyOf = null; o.copyUntilTurn = null; o._chr = null;
+          const back = o.copyBefore;
+          if (back && back.card && back.card !== o.printedCard) { o.card = back.card; o.face = back.face || 0; o.copyOf = back.copyOf || back.card; }
+          else { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
+          o.copyUntilTurn = null; o.copyBefore = null; o._chr = null;
           this.bumpBoard();
         }
         o.removedFromCombat = false;
@@ -858,11 +873,14 @@
       const c = this.characteristics(o);
       const tapFor = (effects) => ({ kind: 'mana', auto: true, synthetic: true,
         cost: { mana: '', tap: true, other: [] }, effects });
-      let list = (c && c.setMana)
+      // a land that has lost all its abilities has lost the ones its land types give it too
+      const lost = !!(c && c.abilitiesLost);
+      let list = (c && c.setMana && !lost)
         ? c.setMana.map(sym => tapFor([{ op: 'addMana', symbols: [sym] }]))
         : a.manaAbilities.slice();
-      if (c && a.isLand && !c.setMana && (c.addSubtypes || []).length) {
-        const have = new Set(a.subtypes || []);
+      // land types it was given, beyond the ones it printed
+      if (c && a.isLand && !lost && !c.setMana && (c.addSubtypes || []).length) {
+        const have = new Set();
         for (const st of c.addSubtypes) {
           const sym = MANA.COLOR_OF_BASIC[st];
           if (!sym || have.has(st)) continue;
@@ -2511,6 +2529,7 @@
         copy.effects.push({ keywords: ['Haste'], until: null });
         copy.mustAttackPlayer = foe.id;
         copy.sacAtEndOfTurn = this.turn;
+        copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(copy);
         this.bumpBoard();
         this._onEnter(copy);
@@ -3703,6 +3722,7 @@
           copy.isToken = true; copy.zone = 'battlefield';
           copy.entered = this.turn; copy.summoningSick = true; copy.face = o.face || 0;
           if (small) copy.effects.push({ setPt: { p: 1, t: 1 }, until: null });
+          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
           this.battlefield.push(copy);
           this.bumpBoard();
           this._fireEnters(copy);
@@ -4272,7 +4292,7 @@
       if (!o) return this.fail('No such permanent.');
       if (o.controller !== playerId) return this.fail('Not yours.');
       const c = this.characteristics(o);
-      if (c && c.setMana) {
+      if (c && c.setMana && !c.abilitiesLost) {
         // its type line has been rewritten, so it makes that mana instead
         if (o.tapped) return this.fail(`${o.name} is already tapped.`);
         this._markTapped(o);
@@ -5237,24 +5257,115 @@
 
     /* ---------- continuous effects (CR 613) ----------
        Every static ability that changes what other permanents are goes into
-       one list, sorted by layer and then by how long it has been there, and
-       every question about a permanent's characteristics is answered by
-       walking that list rather than by hunting through the battlefield at the
-       point of asking. That is what makes an anthem, an equipment bonus and a
-       creature that sets its own power all agree with each other. */
+       one list, and every question about a permanent's characteristics is
+       answered by applying that list in layer order, rather than by hunting
+       through the battlefield at the point of asking. That is what makes an
+       anthem, an equipment bonus and a creature that sets its own power all
+       agree with each other.
 
-    /** The continuous effects currently on the battlefield, in layer order. */
+       The layers (CR 613.1): 1 copy, 2 control, 3 text, 4 type, 5 colour,
+       6 abilities, 7 power and toughness (7a defining, 7b setting, 7c
+       modifying, counters included, 7d switching). Within a layer the older
+       effect goes first (613.7), unless one depends on another (613.8).
+
+       Copy effects (layer 1) are applied by changing the card a permanent
+       is (`o.card`, with `o.printedCard` kept), so everything downstream
+       reads copiable values. Control (layer 2) is worked out eagerly, by
+       _refreshControl, because `o.controller` is read everywhere. Layers 4
+       to 6 are worked out for the whole battlefield at once, and only when
+       something on it changes what permanents are (a type, a colour, or
+       every ability); the rest of the time a permanent is what its card
+       says. Abilities granted and taken (6) and power and toughness (7) are
+       worked out per permanent, on demand, and remembered until the board
+       changes. */
+
+    /** A new timestamp (CR 613.7): a permanent arriving, an Aura or Equipment attached. */
+    _stampNew() {
+      this._flushStamps();
+      return (this._tsSeq = (this._tsSeq || 0) + 1);
+    }
+    /**
+     * Effects a resolution leaves on a permanent ("gets +3/+3 until end of
+     * turn") are given their timestamps here, in the order they sit on the
+     * battlefield, at points the game always passes through in the same
+     * order (a permanent arriving, state-based actions). Until then they
+     * count as the newest thing there is.
+     */
+    _flushStamps() {
+      for (const o of this.battlefield) {
+        const fx = o.effects;
+        if (!fx || !fx.length) continue;
+        for (const e of fx) if (e && e.ts == null) e.ts = (this._tsSeq = (this._tsSeq || 0) + 1);
+      }
+    }
+    /** A permanent's timestamp. One put down by hand is as old as the game. */
+    _tsOf(o) { return o && o.ts != null ? o.ts : 0; }
+    /** An effect's timestamp, provisional (newer than everything) if it has none yet. */
+    _effTs(e, i) { return e.ts != null ? e.ts : (this._tsSeq || 0) + 0.5 + (i || 0) / 1024; }
+
+    /**
+     * Layer 2 (CR 613.1b): who controls each permanent, with every
+     * control-changing effect applied oldest first, so the newest wins. A
+     * permanent remembers who controlled it before any of them (`ctlBase`),
+     * and goes back to that player when the last of them ends: the Threaten
+     * wears off, the Control Magic leaves. Worked out at the points a
+     * control effect can begin or end, and before state-based actions.
+     */
+    _refreshControl() {
+      let changed = false;
+      const statics = this._continuous().filter(x => x.ef.control);
+      for (const o of this.battlefield) {
+        let best = null, bestTs = -Infinity;
+        for (const x of statics) {
+          if (!this._contApplies(x, o, null)) continue;
+          if (x.ts > bestTs) { best = x.ef.control === 'you' ? x.src.controller : x.ef.control; bestTs = x.ts; }
+        }
+        (o.effects || []).forEach((e, i) => {
+          if (!e || e.control == null) return;
+          const ts = this._effTs(e, i);
+          if (ts > bestTs) { best = e.control; bestTs = ts; }
+        });
+        const who = best != null && this.player(best) && !this.player(best).hasLost ? best : null;
+        let to = null;
+        if (who != null) {
+          if (o.ctlBase == null) o.ctlBase = o.controller;
+          to = who;
+        } else if (o.ctlBase != null) {
+          to = this.player(o.ctlBase) && !this.player(o.ctlBase).hasLost ? o.ctlBase : o.owner;
+          o.ctlBase = null;
+        }
+        if (to != null && to !== o.controller) {
+          const from = o.controller;
+          o.controller = to;
+          /* A new controller has not had it since the turn began (CR
+             302.6), and it leaves combat (CR 506.4). */
+          o.summoningSick = true;
+          if (o.attacking) { o.attacking = null; this.combat.attackers = (this.combat.attackers || []).filter(id => id !== o.id); }
+          o.blocking = [];
+          o._chr = null;
+          changed = true;
+          if (who == null && from != null) this.logEvent('control', `${o.name} goes back to ${(this.player(to) || {}).name || to}.`);
+        }
+      }
+      if (changed) this.bumpBoard();
+      return changed;
+    }
+
+    /** The continuous effects currently on the battlefield, oldest first. */
     _continuous() {
       if (this._contCache && this._contEpoch === this._boardKey) return this._contCache;
       const list = [];
       for (const src of this.battlefield) {
         if (src.phasedOut) continue;
-        const a = src.analysis();
+        // what the permanent printed and was handed, before the layers: an
+        // effect that takes its abilities away is reckoned with below
+        const a = this._baseAnalysis(src);
         if (!a) continue;
-        const ts = (src.entered == null ? 0 : src.entered) * 1000 + (src.seq || 0);
-        for (const ab of a.abilities) {
+        const ts = this._tsOf(src);
+        a.abilities.forEach((ab, ai) => {
           // a sentence that says two standing things at once arrives as a
-          // sequence, and both halves are standing rules
+          // sequence, and both halves are standing rules, from one ability
+          const group = src.id + '#' + ai;
           const effs = [];
           for (const ef of (ab.effects || [])) {
             if (ef.op === 'sequence' && Array.isArray(ef.list)) effs.push(...ef.list);
@@ -5262,16 +5373,16 @@
           }
           for (const ef of effs) {
             if (ef.op === 'continuous' && ef.fromGraveyard) continue;
-            if (ef.op === 'continuous') { list.push({ ef, src, ts, layer: ef.layer || 6 }); continue; }
+            if (ef.op === 'continuous') { list.push({ ef, src, ts, group, layer: ef.layer || 6 }); continue; }
             // the older, narrower shapes say the same thing
             if (ef.op === 'anthem') {
-              list.push({ layer: 7, ts, src, ef: { pt: { p: ef.p, t: ef.t },
+              list.push({ layer: 7, ts, src, group, ef: { pt: { p: ef.p, t: ef.t },
                 scope: { who: 'you', what: 'creature', other: ef.scope === 'otherYourCreatures' } } });
             } else if (ef.op === 'equipBonus' || ef.op === 'auraBonus') {
-              list.push({ layer: 7, ts, src, ef: { pt: { p: ef.p, t: ef.t }, scope: { attached: true } } });
+              list.push({ layer: 7, ts, src, group, ef: { pt: { p: ef.p, t: ef.t }, scope: { attached: true } } });
             }
           }
-        }
+        });
       }
       /* A few cards work from the graveyard (Anger): their standing rules
          count while they lie there. */
@@ -5279,18 +5390,20 @@
         for (const src of ((this.zones[p.id] || {}).graveyard || [])) {
           const a = src.analysis();
           if (!a) continue;
-          for (const ab of a.abilities) for (const ef of (ab.effects || [])) {
-            if (ef.op === 'continuous' && ef.fromGraveyard) list.push({ ef, src, ts: 0, layer: ef.layer || 6 });
-          }
+          a.abilities.forEach((ab, ai) => {
+            for (const ef of (ab.effects || [])) {
+              if (ef.op === 'continuous' && ef.fromGraveyard) list.push({ ef, src, ts: 0, group: src.id + '#' + ai, layer: ef.layer || 6 });
+            }
+          });
         }
       }
-      list.sort((x, y) => x.layer - y.layer || x.ts - y.ts);
+      list.sort((x, y) => x.ts - y.ts);
       this._contCache = list;
       this._contEpoch = this._boardKey;
       return list;
     }
 
-    /** Does one continuous effect reach this permanent? */
+    /** Does one continuous effect reach this permanent? `oa` is what the permanent is at that layer. */
     _contApplies(entry, o, oa) {
       const sc = entry.ef.scope || {};
       const src = entry.src;
@@ -5303,6 +5416,274 @@
         return true;
       }
       return this._scopeHit(sc, o, oa, src.controller, src, true);
+    }
+
+    /**
+     * Does an effect from a static ability reach this permanent, all things
+     * considered? An effect that began to apply in an earlier layer goes on
+     * applying to the same permanents (CR 613.6), even if its source has
+     * since lost the ability; one that had not begun does not exist once
+     * its source has lost its abilities (Humility on a lord).
+     */
+    _contReaches(entry, o, oa, lb) {
+      if (lb && lb.special) {
+        const locked = lb.groupSets.get(entry.group);
+        if (locked) return locked.has(o.id);
+        const ss = lb.st.get(entry.src.id);
+        if (ss && (ss.lost || ss.rulesLost)) return false;
+      }
+      return this._contApplies(entry, o, oa);
+    }
+
+    /* The parts of a continuous effect that belong to layers 4 and 5, and
+       the part of 6 that takes every ability away. Any of these anywhere,
+       and the whole battlefield is worked out layer by layer. */
+    _changesWhatItIs(e) {
+      return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes ||
+        e.addChosenType || e.setColors || e.addColors || e.loseAll));
+    }
+
+    /** What a permanent printed, and was handed in quotation marks, before the layers. */
+    _baseAnalysis(o) {
+      const base = o.faceDown ? O.faceDownAnalysis() : O.analyze(o.card, o.face);
+      if (!base || o.zone !== 'battlefield') return base;
+      return this._dynamicAnalysis(o, base);
+    }
+
+    /** What a permanent on the battlefield is, after layers 1 to 6. */
+    _layeredAnalysis(o, base) {
+      const dyn = this._dynamicAnalysis(o, base);
+      if (this._layerBusy) return dyn;
+      const lb = this._layerBoard(o);
+      if (!lb || !lb.special) return dyn;
+      const s = lb.st.get(o.id);
+      if (!s || !s.changed) return dyn;
+      if (s.a && s.aBase === dyn) return s.a;
+      s.a = this._buildLayered(dyn, s);
+      s.aBase = dyn;
+      return s.a;
+    }
+
+    /**
+     * Layers 4 to 6 for the whole battlefield, worked out once per board.
+     * `special` is false when nothing on the battlefield changes what
+     * anything is (the usual case), and then there is nothing else to say.
+     */
+    _layerBoard(o) {
+      const key = this._boardKey;
+      const lb = this._lb;
+      if (lb && this._lbKey === key) {
+        if (!o) return lb;
+        const loc = lb.local.get(o.id);
+        if (loc === undefined || loc === this._localEpoch(o)) return lb;
+      }
+      if (this._layerBusy) return null;
+      this._layerBusy = true;
+      let out;
+      try { out = this._computeLayers(); } finally { this._layerBusy = false; }
+      this._lb = out;
+      this._lbKey = key;
+      this._lbGen = (this._lbGen || 0) + 1;
+      return out;
+    }
+
+    /** Living metal (CR 702.164): a Vehicle that is a creature on its controller's turn. */
+    _livingMetalNow(o) {
+      return !o.faceDown && !!this.activePlayer && this.activePlayer.id === o.controller &&
+        !!((O.analyze(o.card, o.face) || {}).keywordSet || EMPTY_SET).has('living metal');
+    }
+
+    _computeLayers() {
+      const local = new Map();
+      const statics = this._continuous();
+      let special = statics.some(x => this._changesWhatItIs(x.ef));
+      for (const o of this.battlefield) {
+        local.set(o.id, this._localEpoch(o));
+        if (special) continue;
+        for (const e of (o.effects || [])) if (this._changesWhatItIs(e)) { special = true; break; }
+        if (!special && this._livingMetalNow(o)) special = true;
+      }
+      if (!special) return { special: false, local };
+
+      /* Where each permanent stands as the layers are applied. */
+      const st = new Map();
+      for (const o of this.battlefield) {
+        if (o.phasedOut) continue;
+        const base = this._baseAnalysis(o);
+        if (!base) continue;
+        st.set(o.id, { o, base, types: (base.types || []).slice(), subtypes: (base.subtypes || []).slice(),
+          supertypes: (base.supertypes || []).slice(), colors: (base.colors || []).slice(),
+          lost: false, loseTs: 0, rulesLost: false, landSet: false, changed: false });
+      }
+      /* Every part of every effect that changes what something is, with
+         the layer it belongs to. A static ability's part reaches whatever
+         its words say; an effect a resolution left on a permanent reaches
+         that permanent. */
+      const parts = [];
+      const split = (ef, base) => {
+        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType) parts.push(Object.assign({ layer: 4 }, base));
+        if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
+        if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
+      };
+      for (const x of statics) {
+        if (this._changesWhatItIs(x.ef)) split(x.ef, { ef: x.ef, src: x.src, ts: x.ts, group: x.group, entry: x });
+      }
+      for (const o of this.battlefield) {
+        if (!st.has(o.id)) continue;
+        (o.effects || []).forEach((e, i) => {
+          if (this._changesWhatItIs(e)) split(e, { ef: e, on: o, ts: this._effTs(e, i), group: null });
+        });
+        if (this._livingMetalNow(o)) parts.push({ layer: 4, ef: { addTypes: ['Creature'] }, on: o, ts: this._tsOf(o), group: null });
+      }
+      parts.sort((x, y) => x.ts - y.ts);
+      const groupSets = new Map();
+      for (const layer of [4, 5, 6]) {
+        const here = parts.filter(p => p.layer === layer);
+        if (!here.length) continue;
+        for (const p of (here.length > 1 ? this._dependencyOrder(here, st, groupSets) : here)) this._applyPart(p, st, groupSets, false);
+      }
+      return { special: true, local, st, groupSets };
+    }
+
+    /**
+     * The permanents one part reaches, given where everything stands, and
+     * whether it exists at all: a static ability's effect is gone once its
+     * source has lost its abilities, unless it had already begun to apply.
+     */
+    _partReach(p, st, groupSets) {
+      if (p.on) return { exists: true, ids: st.has(p.on.id) ? [p.on.id] : [] };
+      const locked = p.group && groupSets.get(p.group);
+      if (locked) return { exists: true, ids: Array.from(locked) };
+      const ss = st.get(p.src.id);
+      if (ss && (ss.lost || ss.rulesLost)) return { exists: false, ids: [] };
+      const ids = [];
+      for (const [id, s] of st) {
+        if (this._contApplies(p.entry, s.o, this._stateView(s))) ids.push(id);
+      }
+      return { exists: true, ids };
+    }
+
+    /** A permanent part-way through the layers, in the shape the scope words read. */
+    _stateView(s) {
+      return { types: s.types, subtypes: s.subtypes, supertypes: s.supertypes, colors: s.colors,
+        keywordSet: s.lost || s.rulesLost ? EMPTY_SET : (s.base.keywordSet || EMPTY_SET),
+        power: s.base.power, toughness: s.base.toughness, name: s.base.name, mv: s.base.mv };
+    }
+
+    /** Apply one part of an effect in its layer. A dry run (for dependencies) remembers nothing. */
+    _applyPart(p, st, groupSets, dry) {
+      const r = this._partReach(p, st, groupSets);
+      if (!r.exists) return;
+      if (!dry && p.group && !groupSets.has(p.group)) groupSets.set(p.group, new Set(r.ids));
+      const e = p.ef;
+      for (const id of r.ids) {
+        const s = st.get(id);
+        if (!s) continue;
+        s.changed = true;
+        if (p.layer === 4) {
+          if (e.setTypes) { s.types = e.setTypes.slice(); this._trimSubtypes(s); }
+          if (e.addTypes) for (const t of e.addTypes) if (!s.types.includes(t)) s.types.push(t);
+          if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
+          if (e.addSubtypes) for (const t of e.addSubtypes) if (!s.subtypes.includes(t)) s.subtypes.push(t);
+          if (e.addChosenType && p.src && p.src.chosenType && !s.subtypes.includes(p.src.chosenType)) s.subtypes.push(p.src.chosenType);
+          if (e.setSubtypes) {
+            /* Setting a land's type (Blood Moon) takes away its old land
+               types and every ability its own words gave it (CR 305.7). */
+            s.subtypes = s.subtypes.filter(t => !LAND_TYPES.has(t)).concat(e.setSubtypes);
+            s.landSet = true;
+            s.rulesLost = true;
+          }
+        } else if (p.layer === 5) {
+          if (e.setColors) s.colors = e.setColors.slice();
+          if (e.addColors) for (const c of e.addColors) if (!s.colors.includes(c)) s.colors.push(c);
+        } else if (p.layer === 6 && e.loseAll) {
+          s.lost = true;
+          s.loseTs = Math.max(s.loseTs, p.ts);
+        }
+      }
+    }
+
+    /**
+     * The order effects in one layer apply (CR 613.8): an effect waits for
+     * every effect that would change whether it exists, or what it applies
+     * to. Blood Moon goes before Urborg, because Blood Moon takes Urborg's
+     * ability away; Opalescence goes after whatever makes more things
+     * enchantments. Otherwise, and in a loop, the older goes first.
+     */
+    _dependencyOrder(list, st, groupSets) {
+      const deps = new Map();
+      for (const x of list) {
+        if (x.on) continue;                       // a resolved effect's reach is fixed
+        const before = this._partReach(x, st, groupSets);
+        const key0 = before.exists + ':' + before.ids.join(',');
+        for (const y of list) {
+          if (y === x) continue;
+          if (!!x.ef.cda !== !!y.ef.cda) continue; // CR 613.8a(3)
+          const copy = new Map();
+          for (const [id, s] of st) copy.set(id, Object.assign({}, s, { types: s.types.slice(), subtypes: s.subtypes.slice(), colors: s.colors.slice() }));
+          this._applyPart(y, copy, groupSets, true);
+          const after = this._partReach(x, copy, groupSets);
+          if (after.exists + ':' + after.ids.join(',') !== key0) {
+            if (!deps.has(x)) deps.set(x, new Set());
+            deps.get(x).add(y);
+          }
+        }
+      }
+      const out = [], left = list.slice();
+      while (left.length) {
+        let pick = left.find(x => !Array.from(deps.get(x) || []).some(y => left.includes(y)));
+        if (!pick) pick = left[0];
+        out.push(pick);
+        left.splice(left.indexOf(pick), 1);
+      }
+      return out;
+    }
+
+    /** Subtypes that only belong with a card type go when the type goes (CR 205.3d). */
+    _trimSubtypes(s) {
+      const has = (t) => s.types.includes(t);
+      s.subtypes = s.subtypes.filter(t => {
+        if (LAND_TYPES.has(t)) return has('Land');
+        if (ARTIFACT_TYPES.has(t)) return has('Artifact');
+        if (ENCHANTMENT_TYPES.has(t)) return has('Enchantment');
+        return has('Creature') || has('Kindred');
+      });
+    }
+    _isCreatureType(t) { return !LAND_TYPES.has(t) && !ARTIFACT_TYPES.has(t) && !ENCHANTMENT_TYPES.has(t); }
+
+    /** The printed analysis, with what layers 4 to 6 made of it. */
+    _buildLayered(base, s) {
+      const out = Object.assign({}, base);
+      const has = (t) => s.types.includes(t);
+      out.types = s.types.slice();
+      out.subtypes = s.subtypes.slice();
+      out.supertypes = s.supertypes.slice();
+      out.colors = s.colors.slice();
+      out.isCreature = has('Creature');
+      out.isLand = has('Land');
+      out.isArtifact = has('Artifact');
+      out.isEnchantment = has('Enchantment');
+      out.isPlaneswalker = has('Planeswalker');
+      out.isBattle = has('Battle');
+      out.isLegendary = out.supertypes.includes('Legendary');
+      out.isBasicLand = out.isLand && out.supertypes.includes('Basic');
+      out.isAura = out.subtypes.includes('Aura');
+      out.isEquipment = out.subtypes.includes('Equipment');
+      out.isVehicle = out.subtypes.includes('Vehicle');
+      out.isSaga = out.subtypes.includes('Saga');
+      out.typeLine = out.supertypes.concat(out.types).join(' ') + (out.subtypes.length ? ' — ' + out.subtypes.join(' ') : '');
+      if (s.lost || s.rulesLost) {
+        /* Everything it printed is gone. What was handed to it after the
+           effect that took its abilities is still there (CR 613.7). */
+        const keep = (ab) => !!ab.granted && (!s.lost || (ab.grantTs || 0) > s.loseTs);
+        out.abilities = (base.abilities || []).filter(keep);
+        out.manaAbilities = (base.manaAbilities || []).filter(keep);
+        out.keywords = [];
+        out.keywordSet = new Set();
+        out.has = (kw) => out.keywordSet.has(String(kw).toLowerCase());
+        out.abilitiesLost = true;
+      }
+      return out;
     }
 
     /**
@@ -5499,10 +5880,17 @@
       const proto = !!(o.prototyped && base.prototype);
       if (!own.length && !sources.length && !base.notCreatureUnless && !stationed && !waiting && !proto) return base;
       this._dynBusy = true;
-      let texts, notCreature = false;
+      let texts, stamps, notCreature = false;
       try {
         texts = own.map(e => e.grantText);
-        for (const entry of sources) if (this._contApplies(entry, o, base)) texts.push(entry.ef.grantText);
+        // when each was handed over, so an effect that takes every ability away can tell what came after it
+        stamps = own.map(e => (e.ts != null ? e.ts : (this._tsSeq || 0) + 0.5));
+        const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
+        for (const entry of sources) {
+          const ss = lb && lb.st.get(entry.src.id);
+          if (ss && (ss.lost || ss.rulesLost)) continue;          // its source has nothing left to hand out
+          if (this._contApplies(entry, o, base)) { texts.push(entry.ef.grantText); stamps.push(entry.ts); }
+        }
         if (base.notCreatureUnless) {
           const want = base.notCreatureUnless;
           notCreature = this._devotionTo(o.controller, want.colors) < want.n;
@@ -5510,7 +5898,7 @@
         if (waiting) notCreature = true;
       } finally { this._dynBusy = false; }
       if (!texts.length && !notCreature && !stationed && !proto) return base;
-      const key = base.name + '|' + (notCreature ? 1 : 0) + (stationed ? 's' : '') + (proto ? 'p' : '') + '|' + texts.join('\u0001');
+      const key = base.name + '|' + (notCreature ? 1 : 0) + (stationed ? 's' : '') + (proto ? 'p' : '') + '|' + texts.join('\u0001') + '|' + stamps.join(',');
       if (o._dynKey === key && o._dynBase === base) return o._dyn;
       const out = Object.assign({}, base);
       if (notCreature) {
@@ -5529,10 +5917,10 @@
       }
       if (texts.length) {
         const extra = [];
-        for (const t of texts) {
+        texts.forEach((t, i) => {
           const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Creature', oracle_text: t, keywords: [], layout: 'token' });
-          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered') extra.push(Object.assign({}, ab, { granted: true }));
-        }
+          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
+        });
         out.abilities = base.abilities.concat(extra);
       }
       o._dyn = out; o._dynKey = key; o._dynBase = base;
@@ -5546,7 +5934,7 @@
         if (src.phasedOut) continue;
         const a = O.analyze(src.card, src.face);
         if (!a || src.faceDown) continue;
-        const ts = (src.entered == null ? 0 : src.entered) * 1000 + (src.seq || 0);
+        const ts = this._tsOf(src);
         for (const ab of a.abilities) for (const ef of (ab.effects || [])) {
           const parts = ef.op === 'sequence' ? (ef.list || []) : [ef];
           for (const x of parts) if (x.op === 'continuous' && x.grantText) list.push({ ef: x, src, ts, layer: 6 });
@@ -5572,77 +5960,109 @@
      * What this permanent is right now: its power and toughness after every
      * layer, and every keyword it has printed or been given. Computed in one
      * place so nothing can disagree with anything else.
+     *
+     * Layers 1 to 5, and what layer 6 takes away wholesale, are already in
+     * its analysis (_layeredAnalysis). Here are the rest of layer 6 (abilities
+     * granted and lost, oldest first, and nothing granted before an effect
+     * that took every ability away) and layer 7: 7a power and toughness a
+     * card defines for itself, 7b effects that set it, 7c effects that
+     * modify it and its +1/+1 and -1/-1 counters, 7d effects that switch it.
      */
     characteristics(o) {
       if (!o) return null;
       const a = o.analysis();
       if (!a) return null;
-      if (o._chr && o._chrEpoch === this._boardKey && o._chrLocal === this._localEpoch(o)) return o._chr;
+      const lb = o.zone === 'battlefield' && !this._layerBusy ? this._layerBoard(o) : null;
+      if (o._chr && o._chrEpoch === this._boardKey && o._chrLocal === this._localEpoch(o) && o._chrGen === this._lbGen) return o._chr;
+      const s = lb && lb.special ? lb.st.get(o.id) : null;
+      const loseTs = s && s.lost ? s.loseTs : -Infinity;
 
       const kw = new Set(a.keywordSet || []);
       const flags = new Set();
-      let setP = null, setT = null, tPlus = 0;
-      let setSubtypes = null, setMana = null;
       let p = parseInt(a.power, 10); if (isNaN(p)) p = 0;
       let t = parseInt(a.toughness, 10); if (isNaN(t)) t = 0;
-      let addP = 0, addT = 0;
-      const addTypes = [], addSubtypes = [], grantMana = [];
+      const six = [], defining = [], setting = [], modifying = [];
+      let switches = 0;
+      const grantMana = [];
 
-      for (const entry of this._continuous()) {
-        if (!this._contApplies(entry, o, a)) continue;
+      const statics = this._continuous();
+      for (let i = 0; i < statics.length; i++) {
+        const entry = statics[i];
         const ef = entry.ef;
-        /* "Each land is a Swamp in addition to its other land types";
-           "Lands you control have '{T}: Add one mana of any color.'" */
-        if (ef.addTypes) addTypes.push(...ef.addTypes);
-        if (ef.addSubtypes) addSubtypes.push(...ef.addSubtypes);
-        if (ef.addChosenType && entry.src.chosenType) addSubtypes.push(entry.src.chosenType);
-        if (ef.grantMana) grantMana.push(...ef.grantMana);
-        if (ef.grant) for (const k of ef.grant) kw.add(String(k).toLowerCase());
-        if (ef.lose) for (const k of ef.lose) kw.delete(String(k).toLowerCase());
-        if (ef.flag) flags.add(ef.flag);
-        if (ef.setSubtypes) { setSubtypes = ef.setSubtypes.slice(); }
-        if (ef.setMana) { setMana = ef.setMana.slice(); }
-        if (ef.setPt) {                                   // layer 7a/7b
-          setP = this._contValue(ef.setPt.p, o);
-          setT = ef.setPt.keepToughness ? t : this._contValue(ef.setPt.t, o);
-          tPlus = ef.setPt.tPlus || 0;
-        }
-        if (ef.pt) { addP += this._contValue(ef.pt.p, o); addT += this._contValue(ef.pt.t, o); }
+        if (!(ef.grant || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
+        if (!this._contReaches(entry, o, a, lb)) continue;
+        if (ef.grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant: ef.grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
+        if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
+        if (ef.pt) modifying.push(ef.pt);
+        if (ef.switchPt) switches++;
+      }
+      (o.effects || []).forEach((e, i) => {
+        if (!e) return;
+        const ts = this._effTs(e, i);
+        if (e.keywords || e.loseKeywords || e.flag) six.push({ ts, grant: e.keywords, lose: e.loseKeywords, flag: e.flag });
+        if (e.setPt) setting.push({ ts, set: e.setPt });
+        if (e.p || e.t) modifying.push({ p: e.p, t: e.t });
+        if (e.switchPt) switches++;
+      });
+
+      // layer 6, oldest first
+      if (six.length > 1) six.sort((x, y) => x.ts - y.ts);
+      for (const x of six) {
+        /* A rule laid on it from outside (Pacifism's "can't attack or
+           block") is not an ability of its own, and survives Humility. */
+        if (x.flag) flags.add(x.flag);
+        if (x.ts < loseTs) continue;
+        if (x.grant) for (const k of x.grant) kw.add(String(k).toLowerCase());
+        if (x.lose) for (const k of x.lose) kw.delete(String(k).toLowerCase());
+        if (x.grantMana) grantMana.push(...x.grantMana);
       }
 
-      if (setP != null) { p = setP; t = setT + tPlus; }
-      p += addP; t += addT;
-
-      // layer 6 and 7c from effects sitting on the object itself (pumps, grants)
-      /* Living metal (CR 702.164): on its controller's turn the Vehicle is
-         an artifact creature, with no crewing needed. */
-      if (kw.has('living metal') && this.activePlayer && this.activePlayer.id === o.controller) {
-        addTypes.push('Creature');
+      // layer 7a, then 7b, each oldest first
+      const setTo = (x) => {
+        const sp = x.set;
+        if (sp.mv) { p = t = Number(a.mv) || 0; return; }      // "equal to its mana value" (Opalescence)
+        const np = sp.p == null ? p : this._contValue(sp.p, o);
+        const nt = sp.keepToughness || sp.t == null ? t : this._contValue(sp.t, o);
+        p = np; t = nt + (sp.tPlus || 0);
+      };
+      if (defining.length) { defining.sort((x, y) => x.ts - y.ts); defining.forEach(setTo); }
+      if (setting.length) { setting.sort((x, y) => x.ts - y.ts); setting.forEach(setTo); }
+      // layer 7c: effects that modify, and counters
+      for (const m of modifying) {
+        if (m.p) p += this._contValue(m.p, o);
+        if (m.t) t += this._contValue(m.t, o);
       }
-      for (const e of (o.effects || [])) {
-        if (e.keywords) for (const k of e.keywords) kw.add(String(k).toLowerCase());
-        if (e.loseKeywords) for (const k of e.loseKeywords) kw.delete(String(k).toLowerCase());
-        if (e.flag) flags.add(e.flag);
-        if (e.addTypes) addTypes.push(...e.addTypes);
-        if (e.addSubtypes) addSubtypes.push(...e.addSubtypes);
-        if (e.setPt) { p = e.setPt.p; t = e.setPt.t; }      // a land becoming a creature
-        if (e.p) p += this._contValue(e.p, o);
-        if (e.t) t += this._contValue(e.t, o);
-      }
-
-      // layer 7d: counters
       const plus = Number(o.counters['+1/+1']) || 0, minus = Number(o.counters['-1/-1']) || 0;
       p += plus - minus; t += plus - minus;
+      // layer 7d: switching, an odd number of times
+      if (switches % 2) { const x = p; p = t; t = x; }
+
+      /* Land types the layers gave it, and whether they replaced its own
+         (Blood Moon): the mana abilities that come with them (CR 305.6). */
+      let setMana = null, setSubtypes = null;
+      const addSubtypes = [];
+      if (s && s.changed && a.isLand) {
+        const basics = (a.subtypes || []).filter(x => MANA.COLOR_OF_BASIC[x]);
+        if (s.landSet) { setSubtypes = basics; setMana = basics.map(x => MANA.COLOR_OF_BASIC[x]); }
+        else {
+          const printed = new Set((s.base.subtypes || []));
+          for (const x of basics) if (!printed.has(x)) addSubtypes.push(x);
+        }
+      }
 
       const res = { power: Number.isFinite(p) ? p : 0, toughness: Number.isFinite(t) ? t : 0,
-        keywords: kw, flags, addTypes, addSubtypes, setSubtypes, setMana, grantMana,
+        keywords: kw, flags, addSubtypes, setSubtypes, setMana, grantMana,
+        // card types the layers gave it beyond its own (an animated land is a creature)
+        addTypes: s && s.changed ? (a.types || []).filter(x => !(s.base.types || []).includes(x)) : [],
+        abilitiesLost: !!(s && s.lost),
         // bestowed and attached, it is an Aura rather than a creature
-        isCreature: (!!a.isCreature || addTypes.includes('Creature')) && !(o.bestowed && o.attachedTo) };
+        isCreature: !!a.isCreature && !(o.bestowed && o.attachedTo) };
       // worked out while a granted ability was being looked up, it is only half the answer
-      if (this._dynBusy) return res;
+      if (this._dynBusy || this._layerBusy) return res;
       o._chr = res;
       o._chrEpoch = this._boardKey;
       o._chrLocal = this._localEpoch(o);
+      o._chrGen = this._lbGen;
       return res;
     }
 
@@ -5650,7 +6070,7 @@
     _localEpoch(o) {
       let k = (o.effects || []).length * 31;
       for (const key in o.counters) k += (Number(o.counters[key]) || 0) * 7 + key.length;
-      return k + (o.attachments || []).length * 3 + (o.face || 0);
+      return k + (o.attachments || []).length * 3 + (o.face || 0) * 5 + (o.faceDown ? 2 : 0);
     }
 
     /** Something changed on the battlefield: recompute rather than remember. */
@@ -5918,6 +6338,8 @@
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
+        o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
         if (vanishes) this.emit('object:gone', o);
       }
@@ -5941,6 +6363,7 @@
         o.entered = this.turn;
         o.summoningSick = true;
         o.damage = 0;
+        o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(o);
         const a = o.analysis();
         if (a) {
@@ -7564,14 +7987,34 @@
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const x = this.obj(t.id);
-            if (!x) continue;
-            const prev = x.controller;
-            x.controller = ctx.controller;
+            if (!x || x.zone !== 'battlefield') continue;
+            /* A control effect in layer 2, as new as anything on the table:
+               Threaten's ends with the turn, Dominate's lasts. */
+            x.effects.push({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() });
             if (e.untap) x.tapped = false;
-            // Threaten: it goes back as the turn ends
-            if (e.until === 'eot') x.effects.push({ untilControl: true, until: 'eot', prevController: prev });
             this.logEvent('control', `${me.name} gains control of ${x.name}.`);
           }
+          this._refreshControl();
+          // "It gains haste until end of turn" (Act of Treason) is about this creature
+          this._noteLastAffected(targets);
+          break;
+        }
+        /* Switcheroo: "Exchange control of two target creatures." Both
+           change hands at once, or neither does (CR 701.12b). */
+        case 'exchangeControl': {
+          const pair = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && x.zone === 'battlefield');
+          if (pair.length !== 2 || pair[0].controller === pair[1].controller) {
+            this.logEvent('control', 'Nothing changes hands.');
+            break;
+          }
+          const [x, y] = pair;
+          const ts = this._stampNew();
+          const until = e.until === 'eot' ? 'eot' : null;
+          const cx = x.controller, cy = y.controller;
+          x.effects.push({ control: cy, until, ts });
+          y.effects.push({ control: cx, until, ts });
+          this._refreshControl();
+          this.logEvent('control', `${x.name} and ${y.name} change hands.`);
           break;
         }
         case 'untapHaste': {
@@ -8160,6 +8603,7 @@
             copy.summoningSick = true;
             copy.face = source.face || 0;
             if (e.grant && e.grant.length) copy.effects.push({ keywords: e.grant, until: null });
+            copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
             this.battlefield.push(copy);
             this.bumpBoard();
             this._onEnter(copy);
@@ -8759,6 +9203,7 @@
             if (old) old.attachments = old.attachments.filter(x => x !== src.id);
           }
           src.attachedTo = host.id;
+          src.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
           host.attachments.push(src.id);
           this.bumpBoard();
           this.logEvent('rules', `${src.name} is attached to ${host.name}.`);
@@ -9479,6 +9924,7 @@
           const t = this._register(new GObj(card, ctx.controller, 'battlefield'));
           t.isToken = true; t.zone = 'battlefield'; t.entered = this.turn;
           if (e.tapped) t.tapped = true;
+          t.ts = this._stampNew();      // its timestamp (CR 613.7d)
           this.battlefield.push(t);
           this.bumpBoard();
           this._fireEnters(t);
@@ -9533,6 +9979,7 @@
           if (!body || body.zone !== 'battlefield') break;
           if (src.attachedTo) { const old = this.obj(src.attachedTo); if (old) old.attachments = (old.attachments || []).filter(id => id !== src.id); }
           src.attachedTo = body.id;
+          src.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
           body.attachments = (body.attachments || []).concat(src.id);
           this.bumpBoard();
           break;
@@ -9958,6 +10405,42 @@
           this.bumpBoard();
           break;
         }
+        /* "Until end of turn, target creature loses all abilities and becomes
+           a blue Frog with base power and toughness 1/1"; "switch target
+           creature's power and toughness"; "target land becomes a 3/3
+           creature that's still a land". One effect, each part in its own
+           layer, on each permanent named as it resolves (CR 611.2c). */
+        case 'becomes': {
+          const until = e.duration === 'permanent' ? null : 'eot';
+          const eff = e.eff || {};
+          applyToScope(e, (o) => {
+            if (!o || o.zone !== 'battlefield') return;
+            o.effects.push(Object.assign(JSON.parse(JSON.stringify(eff)), { until }));
+            o._chr = null;
+          });
+          this.bumpBoard();
+          break;
+        }
+        /* Mirrorweave: "Each other creature becomes a copy of target
+           nonlegendary creature until end of turn." A copy effect (layer 1):
+           what each was is kept, and comes back as the turn ends. */
+        case 'becomeCopyAll': {
+          const model = firstObj();
+          if (!model || model.zone !== 'battlefield') break;
+          const card = model.card, face = model.face || 0;
+          const others = this.battlefield.filter(o => o !== model && !o.phasedOut && (o.analysis() || {}).isCreature);
+          for (const o of others) {
+            if (o.copyUntilTurn == null) o.copyBefore = { card: o.card, face: o.face || 0, copyOf: o.copyOf || null };
+            o.printedCard = o.printedCard || o.card;
+            o.card = card; o.face = face; o.copyOf = card;
+            o.copyUntilTurn = e.duration === 'permanent' ? null : this.turn;
+            if (e.duration === 'permanent') o.copyBefore = null;
+            o._chr = null;
+          }
+          this.bumpBoard();
+          this.logEvent('rules', `${others.length} creature${others.length === 1 ? '' : 's'} become${others.length === 1 ? 's' : ''} a copy of ${model.name}${e.duration === 'permanent' ? '' : ' until end of turn'}.`);
+          break;
+        }
         case 'extraLand': me.maxLands += (e.n || 1); break;
         case 'extraTurn': this.extraTurnsQueue.push(ctx.controller); this.logEvent('rules', `${me.name} takes an extra turn.`); break;
         // "You gain hexproof until end of turn."
@@ -10370,6 +10853,7 @@
           const def = (e.attackingId && this.player(e.attackingId)) || this.opponentsOf(controller)[0];
           if (def) { o.attacking = def.id; this.combat.attackers.push(o.id); }
         }
+        o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(o);
         /* "…create a token. It gains haste." — the token is what the next
            sentence is talking about. */
@@ -10436,6 +10920,7 @@
         o.isToken = true; o.zone = 'battlefield'; o.entered = this.turn;
         if (e.tapped) o.tapped = true;
         if (e.withCounters) o.counters['+1/+1'] = e.withCounters;
+        o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(o);
         this.bumpBoard();
         this._lastToken = o.id;
@@ -10451,6 +10936,12 @@
       this._checkAscend();
       while (repeat && guard++ < 20) {
         repeat = false;
+        /* Effects a resolution left behind take their place in time, and
+           whoever controls what is settled (layer 2) before anything is
+           checked: a Control Magic that went to the graveyard last pass
+           has let go of its creature. */
+        this._flushStamps();
+        this._refreshControl();
 
         // players
         for (const p of this.players) {
@@ -10537,13 +11028,31 @@
             repeat = true;
             continue;
           }
-          // auras attached to nothing
-          if (a.isAura && o.zone === 'battlefield' && !o.attachedTo) {
+          /* An Aura attached to nothing, to something that has left the
+             battlefield, or to something it can no longer enchant goes to
+             the graveyard (CR 704.5m). Equipment or a Fortification in the
+             same state just comes off and stays (704.5n). */
+          if (o.attachedTo) {
+            const host = this.obj(o.attachedTo);
+            const gone = !host || host.zone !== 'battlefield';
+            const illegal = !gone && !host.phasedOut && !this._attachLegal(o, a, host);
+            if (gone || illegal) {
+              if (host) host.attachments = (host.attachments || []).filter(x => x !== o.id);
+              o.lastAttachedTo = o.attachedTo;
+              o.attachedTo = null;
+              repeat = true;
+              if (a.isAura && !o.bestowed) {
+                this.logEvent('sba', `${o.name} is put into the graveyard (${gone ? 'what it enchanted is gone' : 'it can\'t enchant ' + host.name}).`);
+                this.moveObject(o, 'graveyard');
+                continue;
+              }
+              if (illegal) this.logEvent('sba', `${o.name} becomes unattached from ${host.name}.`);
+            }
+          }
+          if (a.isAura && !o.bestowed && o.zone === 'battlefield' && !o.attachedTo) {
             this.logEvent('sba', `${o.name} is put into the graveyard (attached to nothing).`);
             this.moveObject(o, 'graveyard'); repeat = true; continue;
           }
-          // equipment attached to a gone creature
-          if (o.attachedTo && !this.obj(o.attachedTo)) { o.attachedTo = null; repeat = true; }
         }
 
         this._leavingTogether = null;
@@ -10574,6 +11083,35 @@
         this.emit('game:over', this.winners);
       }
       this.touch();
+    }
+
+    /**
+     * May this Aura, Equipment or Fortification stay on that permanent? An
+     * Aura has to be able to enchant it ("Enchant creature" and a host that
+     * is no longer a creature), Equipment has to be on a creature, and
+     * nothing stays on a permanent with protection from it (CR 303.4d,
+     * 301.5c, 702.16c). A restriction this cannot read is taken as met.
+     */
+    _attachLegal(o, a, host) {
+      if (host === o) return false;
+      const ha = host.analysis();
+      if (!ha) return false;
+      if (a.isAura) {
+        const en = this._staticOp(o, 'enchant') || ((O.analyze(o.card, o.face) || {}).abilities || [])
+          .map(ab => (ab.effects || []).find(e => e && e.op === 'enchant')).find(Boolean);
+        const filter = String((en && en.filter) || '').toLowerCase().trim();
+        const alts = filter.split(/\s*,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim()).filter(Boolean);
+        const simple = /^(creature|land|artifact|enchantment|planeswalker|permanent|battle)$/;
+        if (alts.length && alts.every(x => simple.test(x))) {
+          const ok = alts.some(x => x === 'permanent' ? true : (ha.types || []).some(t => t.toLowerCase() === x));
+          if (!ok) return false;
+        }
+      } else if (a.isEquipment && !o.bestowed) {
+        if (!ha.isCreature) return false;
+      } else if ((a.subtypes || []).includes('Fortification')) {
+        if (!ha.isLand) return false;
+      }
+      return !this._protectedFrom(host, o);
     }
 
     playerLoses(p, reason) {
@@ -11403,6 +11941,9 @@
           graveCastBy: o.graveCastBy || null, graveCastTurn: o.graveCastTurn == null ? null : o.graveCastTurn,
           // cipher: what is encoded on a creature, and what a card is encoded on
           encoded: o.encoded ? o.encoded.slice() : null, encodedOn: o.encodedOn || null,
+          // its timestamp, who controlled it before a control effect, what a copy for the turn covered up
+          ts: o.ts == null ? null : o.ts, ctlBase: o.ctlBase == null ? null : o.ctlBase,
+          copyBefore: o.copyBefore || null,
         });
       }
       return {
@@ -11458,7 +11999,7 @@
         } : null,
         stateVersion: this.stateVersion, isDay: this.isDay === undefined ? null : this.isDay,
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
-        objSeq: this._objSeq, uidSeq: this._uidSeq,
+        objSeq: this._objSeq, uidSeq: this._uidSeq, tsSeq: this._tsSeq || 0,
       };
     }
 
@@ -11481,6 +12022,8 @@
       const highest = snap.objs.reduce((m, d) => Math.max(m, parseInt(String(d.id).slice(1), 10) || 0), 0);
       this._objSeq = Math.max(snap.objSeq || 0, highest, this._objSeq || 0);
       this._uidSeq = Math.max(snap.uidSeq || 0, this._uidSeq || 0);
+      this._tsSeq = snap.tsSeq || 0;
+      this._lb = null; this._contCache = null;
       const byId = (id) => this.objects.get(id);
       this.players = snap.players.map(d => {
         const p = new Player({ id: d.id, name: d.name, isBot: d.isBot, botDifficulty: d.botDifficulty }, this);

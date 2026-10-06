@@ -138,6 +138,8 @@ class Table {
       } else {
         o.zone = 'battlefield'; o.controller = pid;
         o.entered = g.turn - 1; o.summoningSick = !!opts.sick;
+        // in the order the test puts things down, for the layers (CR 613.7)
+        if (g._stampNew) o.ts = g._stampNew();
         const a = o.analysis();
         if (a && a.isPlaneswalker) o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
         g.battlefield.push(o);

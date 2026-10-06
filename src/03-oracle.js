@@ -885,6 +885,28 @@
       make: (m) => ({ op: 'gainControl', until: 'eot', untap: true, targets: [targetSpec(m[1])] }) },
     { re: /^Gain control of (target [a-z' ]+?) until end of turn\. Untap (?:it|that creature)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: 'eot', untap: true, targets: [targetSpec(m[1])] }) },
+    /* What a creature is, for the rest of the turn: Turn to Frog, Ovinize,
+       Animate Land, Merfolk Trickster's "It loses all abilities until end of
+       turn". Each part in its layer (becomesEff). */
+    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
+      make: (m) => {
+        if (!/until end of turn/i.test(m[0])) return null;
+        const eff = becomesEff(m[2]);
+        if (!eff || !(eff.loseAll || eff.setPt || eff.setCreatureTypes || eff.addTypes || eff.setTypes)) return null;
+        return becomesSubject(m[1], eff, 'eot');
+      } },
+    /* Twisted Image: power and toughness switched (layer 7d) */
+    { re: /^Switch (target creature|CARDNAME|this creature|it)'s power and toughness until end of turn\.?$/i,
+      make: (m) => becomesSubject(m[1], { switchPt: true }, 'eot') },
+    /* Switcheroo: both change hands at once (CR 701.12b) */
+    { re: /^Exchange control of two target (creatures|artifacts|lands|permanents|enchantments)\.?$/i,
+      make: (m) => {
+        const one = m[1].replace(/s$/, '');
+        return { op: 'exchangeControl', targets: [targetSpec('target ' + one), targetSpec('another target ' + one)] };
+      } },
+    /* Mirrorweave: a copy effect on every other creature, for the turn */
+    { re: /^Each other creature becomes a copy of (target [a-z ]+?) until end of turn\.?$/i,
+      make: (m) => ({ op: 'becomeCopyAll', duration: 'eot', targets: [targetSpec(m[1])] }) },
     { re: /^Untap target creature\. It gains haste until end of turn\.?$/i,
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
@@ -4782,8 +4804,138 @@
     return out.concat(rest.split(/,\s*|\s+and\s+/).map(x => x.trim()).filter(x => x && !/^and$/i.test(x)).map(U.titleCase));
   }
 
+  /* ---------------- what a permanent becomes (CR 613) ----------------
+     "Loses all abilities", "becomes a blue Frog with base power and
+     toughness 1/1", "is a Treefolk with base power and toughness 0/4",
+     "becomes a 3/3 creature that's still a land", "has base power and
+     toughness 1/1": the same few phrases, for a while (Turn to Frog) or for
+     good (Lignify, Humility). Each part goes in its own layer: card and
+     creature types in 4, colour in 5, abilities in 6, power and toughness
+     in 7b. Returns the parts, or null for anything else. */
+  function becomesEff(body) {
+    const COLORS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+    const eff = {};
+    const text = String(body || '').trim().replace(/\.$/, '');
+    // "…and has indestructible, and it loses all other abilities, card types, and creature types"
+    const parts = text.split(/,? and (?:it )?(?=(?:loses?|becomes?|has|have|is|are|gains?) )/i);
+    let m;
+    const typed = (colorWords, words, pt) => {
+      const cols = String(colorWords || '').trim().split(/\s+/).filter(Boolean);
+      if (cols.length) {
+        if (cols.some(c => c !== 'colorless' && !COLORS[c])) return false;
+        eff.setColors = cols.includes('colorless') ? [] : cols.map(c => COLORS[c]);
+      }
+      const ws = String(words || '').trim().split(/\s+/).filter(Boolean);
+      const cardTypes = [], creatureTypes = [];
+      for (const w of ws) {
+        if (/^(?:artifact|enchantment|land|creature)$/i.test(w)) cardTypes.push(w[0].toUpperCase() + w.slice(1).toLowerCase());
+        else if (/^[A-Z][a-z'-]+$/.test(w)) creatureTypes.push(w);
+        else return false;
+      }
+      if (cardTypes.length) eff.addTypes = cardTypes;
+      if (creatureTypes.length) eff.setCreatureTypes = creatureTypes;
+      if (pt) eff.setPt = { p: +pt[0], t: +pt[1] };
+      return true;
+    };
+    for (const part of parts) {
+      const p = part.trim();
+      if (/^loses? all (?:other )?abilities$/i.test(p)) { eff.loseAll = true; continue; }
+      // Darksteel Mutation: its card types and creature types are the ones it was just given
+      if (/^loses? all other abilities, card types, and creature types$/i.test(p)) { eff.loseAll = true; eff.onlyTheseTypes = true; continue; }
+      if ((m = p.match(/^(?:has|have) base power and toughness (\d+)\/(\d+)$/i))) { eff.setPt = { p: +m[1], t: +m[2] }; continue; }
+      if ((m = p.match(/^(?:has|have|gains?) ([a-z, ]+)$/i))) {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        eff.keywords = (eff.keywords || []).concat(kws);
+        continue;
+      }
+      if ((m = p.match(/^(?:becomes?|is|are) (\d+)\/(\d+)$/i))) { eff.setPt = { p: +m[1], t: +m[2] }; continue; }
+      // "becomes a 3/3 creature that's still a land", "becomes a 2/2 red Elemental creature"
+      if ((m = p.match(/^(?:becomes?|is|are) an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless) )*)((?:[A-Za-z'-]+ )*?)creatures?(?: that'?s still an? (?:land|artifact|enchantment))?$/))) {
+        if (!typed(m[3], (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
+        continue;
+      }
+      // "becomes a blue Frog with base power and toughness 1/1", "is an Insect artifact creature with base power and toughness 0/1"
+      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)$/))) {
+        if (!typed(m[1], m[2], [m[3], m[4]])) return null;
+        continue;
+      }
+      return null;
+    }
+    if (eff.onlyTheseTypes) {
+      eff.setTypes = (eff.addTypes || []).slice();
+      delete eff.addTypes;
+      delete eff.onlyTheseTypes;
+    }
+    return Object.keys(eff).length ? eff : null;
+  }
+
+  /** "Target creature", "it", "this creature", "creatures your opponents control": what a one-off reaches. */
+  function becomesSubject(subj, eff, duration) {
+    const s = String(subj).trim();
+    const out = { op: 'becomes', duration, eff };
+    if (/^(?:another )?target /i.test(s)) out.targets = [targetSpec(s)];
+    else if (/^(?:it|that creature|that land|that permanent)$/i.test(s)) out.scope = 'lastTarget';
+    else if (/^(?:CARDNAME|this creature|this land|this artifact|this permanent)$/i.test(s)) out.scope = 'self';
+    else {
+      const sc = scopeOf(s.replace(/^each /i, 'all '));
+      if (!sc || sc.self || sc.attached) return null;
+      out.scope = sc;
+    }
+    return out;
+  }
+
   const BASIC_TYPES = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
   const CONTINUOUS_RULES = [
+    /* Spreading Seas, Magus of the Moon: a land whose land type is set
+       loses the old ones, and what its own words gave it (CR 305.7). */
+    { re: /^(Enchanted land|Nonbasic lands|Lands you control|Lands your opponents control|All lands) (?:is|are) (?:an? )?(Plains|Island|Swamp|Mountain|Forest)s?\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        const t = U.titleCase(m[2]);
+        return { op: 'continuous', layer: 4, scope, setSubtypes: [t], setMana: [MANA.COLOR_OF_BASIC[t]] };
+      } },
+    /* Opalescence, March of the Machines, Enchanted Evening: one kind of
+       permanent is another kind as well (layer 4), perhaps with its power
+       and toughness its mana value (7b). */
+    { re: /^(.+?) (?:is|are) (?:an? )?((?:artifact |enchantment )?)(creatures?|artifacts?|enchantments?|lands?) in addition to (?:its|their) other types(?: and (?:has|have) base power and (?:base )?toughness each equal to (?:its|their) mana value)?\.?$/i,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached) return null;
+        const t = m[3].replace(/s$/i, '');
+        const ef = { op: 'continuous', layer: 4, scope, addTypes: [t[0].toUpperCase() + t.slice(1).toLowerCase()] };
+        if (/mana value/i.test(m[0])) ef.setPt = { mv: true };
+        return ef;
+      } },
+    { re: /^(.+?) (?:is|are) (?:an? )?(?:artifact )?creatures? with (?:base )?power and toughness each equal to (?:its|their) mana value\.?$/i,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached) return null;
+        return { op: 'continuous', layer: 4, scope, addTypes: ['Creature'], setPt: { mv: true } };
+      } },
+    /* Imprisoned in the Moon */
+    { re: /^(Enchanted (?:permanent|creature|land)) is an? colorless land with "\{T\}: Add \{C\}\.?" and loses all other card types and abilities\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        const ab = { kind: 'mana', auto: true, granted: true, cost: parseCost('{T}'), text: '{T}: Add {C}.', effects: [{ op: 'addMana', symbols: ['C'] }] };
+        return { op: 'continuous', layer: 4, scope, setTypes: ['Land'], setColors: [], loseAll: true, grantMana: [ab] };
+      } },
+    /* Humility, Godhead of Awe, Lignify, Darksteel Mutation: what something
+       is for as long as the static ability lasts (becomesEff). */
+    { re: /^(.+?) ((?:loses?|lose|is|are|has|have) .+)$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope || scope.self) return null;
+        const eff = becomesEff(m[2]);
+        if (!eff || !(eff.loseAll || eff.setPt || eff.setCreatureTypes || eff.setTypes)) return null;
+        const ef = Object.assign({ op: 'continuous', layer: eff.setTypes || eff.addTypes || eff.setCreatureTypes ? 4 : eff.setColors ? 5 : eff.loseAll ? 6 : 7, scope }, eff);
+        // a static ability grants what a resolved effect would call keywords
+        if (ef.keywords) { ef.grant = ef.keywords; delete ef.keywords; }
+        return ef;
+      } },
+
     { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and loses ([a-z ,]+?)\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);
