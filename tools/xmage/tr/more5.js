@@ -127,4 +127,19 @@ def('ability', 'SimpleEvasionAbility', (o, tc) => {
   return { kind: 'static', auto: true, effects: [{ op: 'evasion', notBy: spec }] };
 });
 
+def('effect', 'CopyTargetStackObjectEffect', (o, tc) => {
+  E.checkCalls(o);
+  const b = A(o).all('bool').map(x => x.v);
+  if (b[0] || o.args.some(a => kindOf(a) === 'int' || (a && a.t === 'obj'))) block('copy with changes');
+  const a = E.aimObject(o, tc);
+  if (!a.targets || a.targets[0].type !== 'spell') block('copy of something other than a spell');
+  return Object.assign({ op: 'copySpell' }, a);
+});
+def('target', 'TargetCardInASingleGraveyard', (o, tc) => {
+  const ints = A(o).all('int').map(x => x.v);
+  // one card is from one graveyard however it is read
+  if (ints[1] !== 1) block('several cards from one graveyard');
+  return tr('target', Object.assign({}, o, { cls: 'TargetCardInGraveyard' }), tc);
+});
+
 module.exports = {};

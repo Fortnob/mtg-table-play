@@ -172,9 +172,29 @@ function predicate(d, p, tc, neg) {
       if ((m = /^CardType\.(\w+)\.getPredicate$/.exec(k))) types.push(m[1].toLowerCase());
       else if ((m = /^SubType\.(\w+)\.getPredicate$/.exec(k))) subs.push(subtypeName(m[1]));
       else if (x.t === 'obj' && x.cls === 'ColorPredicate' && x.args[0] && x.args[0].t === 'ref' && COLORS[x.args[0].path.split('.')[1]]) cols.push(COLORS[x.args[0].path.split('.')[1]]);
+      else if (x.t === 'obj' && x.cls === 'Predicates.and') {
+        // one alternative that is several things at once: "basic land"
+        const sub = blank(d.base);
+        for (const y of x.args) predicate(sub, y, tc, false);
+        (d._andAlts = d._andAlts || []).push(sub);
+      }
       else block('or of ' + k);
     }
-    if ([types, subs, cols].filter(a => a.length).length !== 1) block('mixed or');
+    if (d._andAlts) {
+      const ands = d._andAlts;
+      delete d._andAlts;
+      if (d.alts) block('two lists of alternatives');
+      d.alts = ands.concat(types.map(t => Object.assign(blank(d.base), { types: [t] })), subs.map(x => Object.assign(blank(d.base), { subtypes: [x] })),
+        cols.map(c => Object.assign(blank(d.base), { colors: [c] })));
+      return;
+    }
+    if ([types, subs, cols].filter(a => a.length).length !== 1) {
+      /* "an artifact or Equipment", "a basic land or Gate": alternatives of
+         different kinds, which only words can carry */
+      if (d.alts) block('two lists of alternatives');
+      d.alts = [].concat(types.map(t => ({ types: [t] })), subs.map(x => ({ subtypes: [x] })), cols.map(c => ({ colors: [c] })));
+      return;
+    }
     if (types.length) {
       // an "or" that narrows a list of types already there
       if (d.types.length) { const both = d.types.filter(t => types.includes(t)); if (!both.length) block('or of types'); d.types = both; }
@@ -403,6 +423,23 @@ function toScope(d, opts) {
 /** Words for _cardFitsWords: alternatives joined by "or", each a list of words that must all fit. */
 function toWords(d, opts) {
   opts = opts || {};
+  /* Alternatives of different kinds: each in words, joined by "or", each
+     carrying whatever the rest of the filter says. */
+  if (d.alts && d.alts.length) {
+    const rest = Object.assign({}, d, { alts: undefined });
+    return d.alts.map(alt => {
+      const one = Object.assign({}, rest, {
+        types: rest.types.concat(alt.types || []), allTypes: rest.allTypes.concat(alt.allTypes || []),
+        subtypes: rest.subtypes.concat(alt.subtypes || []), colors: rest.colors.concat(alt.colors || []),
+        notTypes: rest.notTypes.concat(alt.notTypes || []), notSubtypes: rest.notSubtypes.concat(alt.notSubtypes || []),
+        notColors: rest.notColors.concat(alt.notColors || []),
+      });
+      for (const k of ['legendary', 'basic', 'nonbasic', 'snow', 'nonlegendary', 'token']) if (alt[k] != null) one[k] = alt[k];
+      const w = toWords(one, opts);
+      if (/ or /.test(w)) block('alternatives within alternatives');
+      return w;
+    }).join(' or ');
+  }
   const used = ['legendary', 'basic', 'nonbasic', 'nonlegendary', 'token', 'colorless', 'multicolored', 'monocolored', 'permanentCard', 'snow']
     .concat(opts.allow || []);
   const bad = leftover(d, used);
@@ -436,7 +473,7 @@ function toWords(d, opts) {
 
 /** A trigger subject, in the shape subjectFilter() writes. */
 function toSubject(d) {
-  const used = ['controller', 'another', 'token', 'power', 'mv', 'withKeyword', 'withCounter', 'attacking', 'name',
+  const used = ['controller', 'another', 'token', 'power', 'mv', 'withKeyword', 'withCounter', 'attacking', 'name', 'alts',
     'legendary', 'basic', 'nonbasic', 'nonlegendary', 'colorless', 'multicolored', 'monocolored'];
   const bad = leftover(d, used);
   if (bad.length) block('subject:' + bad.join(','));

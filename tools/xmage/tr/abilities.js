@@ -46,6 +46,7 @@ function partsOf(o, tc, allowed) {
     else if (c.name === 'withTriggerCondition') out.conds.push(c.args[0]);
     else if (c.name === 'setTriggersLimitEachTurn') { if (litOf(c.args[0]) !== 1) block('trigger limit'); out.once = true; }
     else if (c.name === 'setTiming') { const t = keyOf(c.args[0]); if (t !== 'TimingRule.SORCERY') block(t); out.timing = 'sorcery'; }
+    else if (c.name === 'setMayActivate' && c.args[0] && keyOf(c.args[0]) === 'TargetController.ANY') out.anyPlayer = true;
     else if (c.name === 'setTargetAdjuster' && c.args[0] && c.args[0].t === 'obj' && c.args[0].cls === 'ThatPlayerControlsTargetAdjuster' && !c.args[0].args.length) out.thatPlayer = true;
     else if (TRIGGER_COSMETIC.has(c.name)) continue;
     else if (allowed && allowed.includes(c.name)) continue;
@@ -157,6 +158,8 @@ function activated(o, tc, opts) {
   const effects = body(effs[0], parts, tc);
   const isMana = effects.length && effects.every(e => MANA_OPS.has(e.op));
   const ab = { kind: isMana ? 'mana' : 'activated', cost, effects, auto: true, sorcerySpeed: !!(opts && opts.sorcery) || parts.timing === 'sorcery' };
+  // "Any player may activate this ability."
+  if (parts.anyPlayer) ab.anyPlayer = true;
   if (zone === 'GRAVEYARD') ab.fromGraveyard = true;
   if (opts && opts.once) ab.only = Object.assign({}, ab.only, { once: true });
   if (opts && opts.cond) ab.only = Object.assign({}, ab.only, { cond: opts.cond });

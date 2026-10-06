@@ -410,7 +410,7 @@ function searchEffect(o, tc, to) {
     if (bools[2]) out.optional = true;
   }
   if (max > 1 || min === 0) out.upTo = true;
-  if (max > 1) block('search for several');
+  // "up to two basic land cards": several, each chosen as the search goes
   return out;
 }
 

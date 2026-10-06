@@ -103,7 +103,16 @@ def('ability', 'DynamicManaAbility', (o, tc) => {
   const m = o.args.find(a => a && a.t === 'obj' && (a.cls === 'Mana' || /^Mana\./.test(a.cls)));
   const vals = o.args.filter(a => kindOf(a) === 'value');
   if (!m || vals.length !== 1) block('DynamicManaAbility shape');
-  if (o.args.some(a => kindOf(a) === 'bool' && a.v)) block('one choice of colour');
+  const oneChoice = o.args.some(a => kindOf(a) === 'bool' && a.v);
+  /* "Add X mana of any one color": counted, in one colour chosen once */
+  if (m.cls === 'Mana.AnyMana' && litOf(m.args[0]) === 1 && oneChoice) {
+    const per = P.amount(vals[0], tc);
+    const costs0 = o.args.filter(a => ['cost', 'manaCost'].includes(kindOf(a)));
+    const parts0 = AB.partsOf(o, tc);
+    const cost0 = P.costOf((costs0.length ? costs0 : [{ t: 'obj', cls: 'TapSourceCost', args: [], calls: [] }]).concat(parts0.costs), tc);
+    return { kind: 'mana', cost: cost0, effects: [{ op: 'addManaAny', amount: per, sameColor: true }], auto: true };
+  }
+  if (oneChoice) block('one choice of colour');
   const one = { 'Mana.WhiteMana': 'W', 'Mana.BlueMana': 'U', 'Mana.BlackMana': 'B', 'Mana.RedMana': 'R', 'Mana.GreenMana': 'G', 'Mana.ColorlessMana': 'C' }[m.cls];
   if (!one || litOf(m.args[0]) !== 1) block('DynamicManaAbility of ' + m.cls);
   const per = P.amount(vals[0], tc);
