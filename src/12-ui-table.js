@@ -1851,6 +1851,12 @@
       UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
     }
 
+    /** An alternative cast: a use that names a face (aftermath's other half) is cast as that face. @this {MTG.TableInstance} */
+    castUse(o, a, use) {
+      if (use.face != null) return this.beginCast(o, MTG.oracle.analyze(o.card, use.face) || a, use.via, use.face);
+      return this.beginCast(o, a, use.via);
+    }
+
     /** Cast a copy of a prepared permanent's spell: targets and X are the spell's. @this {MTG.TableInstance} */
     castPrepared(o) {
       const sp = MTG.oracle.analyze(o.card, 1);
@@ -2214,11 +2220,11 @@
           else if (use.kind === 'suspend') items.push([use.label, () => this.send({ kind: 'suspend', objId: o.id })]);
           else if (use.kind === 'transmute') items.push([use.label, () => this.send({ kind: 'transmute', objId: o.id })]);
           else if (use.kind === 'cast' && use.via === 'morph') items.push([use.label, () => this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })]);
-          else if (use.kind === 'cast') items.push([use.label, () => this.beginCast(o, a, use.via)]);
+          else if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
         }
       } else if ((loc.zone === 'graveyard' || loc.zone === 'exile') && mine) {
         for (const use of ((live.uses || {})[o.id] || [])) {
-          if (use.kind === 'cast') items.push([use.label, () => this.beginCast(o, a, use.via)]);
+          if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
           if (use.kind === 'encore') items.push([use.label, () => this.send({ kind: 'encore', objId: o.id })]);
         }
       } else if (loc.zone === 'battlefield' && mine && a) {
