@@ -1,0 +1,54 @@
+name: check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'Run the full check (every card in the smoke run, more games)'
+        type: boolean
+        default: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install TypeScript
+        run: npm ci
+
+      # Scryfall's bulk card file: every test that plays single cards reads it.
+      # Kept for a week; fetch-bulk.py only downloads when the copy is older.
+      - name: Week number
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: tools/oracle-cards.jsonl.gz
+          key: oracle-cards-${{ steps.week.outputs.week }}
+      - name: Fetch the bulk card file
+        run: python tools/fetch-bulk.py
+
+      # The bots build their decks from Scryfall searches. The responses are
+      # cached between runs, so a run only asks Scryfall for what is new
+      # (at two requests a second, as Scryfall asks).
+      - uses: actions/cache@v4
+        with:
+          path: tools/.cache
+          key: scryfall-${{ github.run_id }}
+          restore-keys: scryfall-
+
+      - name: Check
+        run: python tools/check.py --online ${{ (github.event_name == 'workflow_dispatch' && inputs.full) && ' ' || '--quick' }}
