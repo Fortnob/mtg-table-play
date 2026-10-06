@@ -1901,7 +1901,7 @@
     { re: /^If (?:CARDNAME|this card) is in your opening hand, you may begin the game with it on the battlefield\.?$/i,
       make: () => ({ op: 'leyline' }) },
     { re: /^Play with the top card of your library revealed\.?$/i,
-      make: () => ({ op: 'peekTop' }) },
+      make: () => ({ op: 'peekTop', revealed: true }) },
     { re: /^Players can'?t gain life\.?$/i,
       make: () => ({ op: 'noLifeGain', who: 'all' }) },
     { re: /^Your opponents can'?t gain life\.?$/i,

@@ -124,6 +124,10 @@
   const ENCHANTMENT_TYPES = new Set(['Aura', 'Saga', 'Class', 'Shrine', 'Curse', 'Cartouche', 'Rune', 'Room',
     'Background', 'Case', 'Role', 'Shard']);
   const EMPTY_SET = new Set();
+  /* What a face-down card looks like to anybody not allowed to look (CR 708.2). */
+  const FACE_DOWN_VIEW = Object.freeze({ id: '__facedown__', name: 'Face-down card', type_line: 'Creature',
+    oracle_text: '', mana_cost: '', cmc: 0, colors: [], color_identity: [], keywords: [], layout: 'normal',
+    power: '2', toughness: '2' });
 
   /* ============================================================
      Player
@@ -590,7 +594,7 @@
              different currency. */
           const owed = e.life * n;
           this.queueChoice({
-            type: 'payOrDont', playerId: ap.id, objId: o.id, life: owed,
+            type: 'payOrDont', playerId: ap.id, objId: o.id, life: owed, cost: { life: owed },
             purpose: 'cumulativeUpkeep',
             prompt: `Pay ${owed} life for ${o.name}? If you don't, it is sacrificed.`,
           });
@@ -600,7 +604,7 @@
           /* Some of them are paid in energy rather than mana. */
           const owed = e.energy * n;
           this.queueChoice({
-            type: 'payOrDont', playerId: ap.id, objId: o.id, energy: owed,
+            type: 'payOrDont', playerId: ap.id, objId: o.id, energy: owed, cost: { energy: owed },
             purpose: 'cumulativeUpkeep',
             prompt: `Pay ${owed} energy for ${o.name}? If you don't, it is sacrificed.`,
           });
@@ -786,7 +790,7 @@
            are not "cast it for its mana cost", and a table that never
            offers them may as well not have printed them. */
         for (const use of this.altUsesFor(playerId, o.id)) {
-          if (!this.couldPay(playerId, use.cost, purse)) continue;
+          if (!this.canPayNow(playerId, use.cost, { forSpell: o })) continue;
           if (use.kind === 'cycle') {
             out.push({ kind: 'cycle', objId: o.id });
           } else if (use.kind === 'plot') {
@@ -803,7 +807,8 @@
           }
         }
         const chk = this.canCast(playerId, o.id);
-        if (!chk.ok || !this.couldPay(playerId, chk.cost, purse)) continue;
+        // the same check castSpell's payment makes, so what is offered can be paid for
+        if (!chk.ok || !this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o })) continue;
         // a spell with nothing legal to point at is not a decision
         if (!this._targetsAvailable(this._spellEffects(o.analysis()), playerId)) continue;
         out.push({ kind: 'cast', objId: o.id });
@@ -816,7 +821,7 @@
           const real = o.trueAnalysis ? o.trueAnalysis() : null;
           const up = real && (real.abilities || []).find(x => x.kind === 'castModifier' &&
             /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
-          if (up && this.couldPay(playerId, up.arg, purse)) out.push({ kind: 'unmorph', objId: o.id });
+          if (up && this.canPayNow(playerId, up.arg)) out.push({ kind: 'unmorph', objId: o.id });
         }
         const a = o.analysis();
         if (!a) continue;
@@ -2188,7 +2193,8 @@
       const chk = this.canCast(playerId, objId);
       if (!chk.ok) return { code: 'rule', text: chk.reason || 'It cannot be cast right now.' };
       const purse = this.manaSources(playerId);
-      if (!this.couldPay(playerId, chk.cost, purse)) {
+      // the same check playableNow and castSpell's payment make
+      if (!this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o })) {
         return { code: 'mana', text: 'Not enough mana.', missing: this._manaShortfall(chk.cost, purse) };
       }
       if (!this._targetsAvailable(this._spellEffects(a), playerId)) return { code: 'targets', text: 'There is nothing it could target right now.' };
@@ -3478,10 +3484,12 @@
       if (!a || !a.keywordSet.has('storm')) return;
       const copies = Math.max(0, this.stormCount - 1);
       if (!copies) return;
+      /* Each copy is its own object (CR 707.10), not the card: the card
+         goes to the graveyard when the spell itself resolves, and a copy
+         that resolves first must not take it along. */
       for (let i = 0; i < copies; i++) {
-        this.stack.push(Object.assign({}, item, {
-          id: this._uid('st'), isCopy: true, name: item.name + ' (storm copy)',
-        }));
+        const copy = this._copyOnStack(item, item.controller);
+        copy.name = item.name + ' (storm copy)';
       }
       this.logEvent('keyword', `Storm puts ${copies} more ${copies === 1 ? 'copy' : 'copies'} of ${item.name} on the stack.`);
     }
@@ -4340,6 +4348,37 @@
       }
     }
 
+    /**
+     * Could payMana pay this right now, the way it would pay it: the pool
+     * first, then the same auto-tap plan, with nothing tapped. What the
+     * table offers as playable is what castSpell will then pay for.
+     */
+    canPayNow(playerId, cost, opts) {
+      opts = Object.assign({ auto: true }, opts || {});
+      const p = this.player(playerId);
+      if (!p) return false;
+      if (!cost || !MANA.parse(cost).length) return true;
+      const wasFor = this._payingFor;
+      this._payingFor = opts.forSpell || null;
+      const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
+      try {
+        const need = opts.x ? cost.replace(/\{X\}/g, '{' + opts.x + '}') : cost;
+        if (p.pool.canPay(need, opts)) return true;
+        if (opts.fromPool) return false;
+        return !!this._planAutoTap(playerId, this._autoTapSources(playerId), need, opts);
+      } finally {
+        this._returnLent(p, lent);
+        this._payingFor = wasFor;
+      }
+    }
+
+    /** The untapped permanents auto-tap may draw on. */
+    _autoTapSources(playerId) {
+      return this.battlefield.filter(o =>
+        o.controller === playerId && !o.tapped && !o.phasedOut &&
+        this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste')));
+    }
+
     _payManaInner(p, playerId, cost, opts) {
       const need = opts.x ? cost.replace(/\{X\}/g, '{' + opts.x + '}') : cost;
 
@@ -4347,9 +4386,7 @@
       if (opts.fromPool) return false;
 
       // auto-tap: find a set of untapped mana sources that covers the cost
-      const sources = this.battlefield.filter(o =>
-        o.controller === playerId && !o.tapped && !o.phasedOut &&
-        this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste')));
+      const sources = this._autoTapSources(playerId);
       if (opts.tapIds && opts.tapIds.length) {
         for (const id of opts.tapIds) {
           const s = this.obj(id);
@@ -7676,16 +7713,21 @@
            a view built for anybody else carries the question without its
            contents. */
         case 'scry': case 'surveil': {
+          /* The resolution waits for the answer (CR 608.2c): in "Scry 1.
+             Draw a card." the draw comes after the card has been placed,
+             not before. Coming back with the answer, it is already done. */
+          const r = this.resolving;
+          if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + ':' + e.op)) break;
           const want = n(e.n);
           const cards = this._topOfLibrary(ctx.controller, want);
           if (!cards.length) {
             this.logEvent(e.op, `${me.name} has no cards to ${e.op}.`);
             break;
           }
-          this.queueChoice({
-            type: e.op, playerId: ctx.controller, count: cards.length, cards,
-            prompt: (e.op === 'scry' ? 'Scry ' : 'Surveil ') + want + '.',
-          });
+          const q = { type: e.op, playerId: ctx.controller, count: cards.length, cards,
+            prompt: (e.op === 'scry' ? 'Scry ' : 'Surveil ') + want + '.' };
+          if (r) { if (this._ask(q, e.op) === SUSPEND) return SUSPEND; break; }
+          this.queueChoice(q);
           break;
         }
         case 'mill': {
@@ -11129,11 +11171,35 @@
         concede: 'concedes', timeout: 'left the game',
       };
       this.logEvent('game', `${p.name} loses the game (${words[reason] || reason}).`);
-      // their permanents and cards leave
-      for (const o of this.battlefield.slice()) if (o.controller === p.id || o.owner === p.id) {
-        const i = this.battlefield.indexOf(o); if (i >= 0) this.battlefield.splice(i, 1);
+      /* Leaving the game (CR 800.4a): everything they own leaves with them,
+         quietly, since leaving the game is no zone change anything can
+         see; control effects that gave them anything end; and whatever
+         they still control after that is exiled. What they owned is put
+         with their own cards, out of play, so no list holds an object
+         that thinks it is somewhere else, and nothing stays attached to
+         something that is gone. */
+      const leave = (o) => {
+        this._removeFromZone(o);
+        o.zone = 'exile';
+        o.tapped = false; o.damage = 0; o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];
+        o.faceDown = false; o.controller = o.owner; o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null;
+        if (o.printedCard) { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
+        this.zones[o.owner].exile.push(o);
+      };
+      for (const o of this.battlefield.slice()) if (o.owner === p.id) leave(o);
+      for (const it of this.stack.slice()) {
+        if (it.kind === 'spell' && it.obj && !it.isCopy && it.obj.owner === p.id) leave(it.obj);
+      }
+      for (const o of this.battlefield) {
+        if ((o.effects || []).some(e => e && e.control === p.id)) o.effects = o.effects.filter(e => !e || e.control !== p.id);
+      }
+      this._refreshControl();
+      for (const o of this.battlefield.slice()) if (o.controller === p.id) this.moveObject(o, 'exile');
+      for (const it of this.stack.filter(s => s.controller === p.id)) {
+        if (it.kind === 'spell' && it.obj && !it.isCopy && it.obj.zone === 'stack') this.moveObject(it.obj, 'exile');
       }
       this.stack = this.stack.filter(s => s.controller !== p.id);
+      this.bumpBoard();
       /* A question put to somebody who has left the game will never be
          answered, and the table would sit there waiting for it forever.
          Their queued questions go with them, and one already on the table
@@ -11249,10 +11315,17 @@
           const z = this.zones[playerId];
           const bottom = (data && data.bottom) || [];
           const top = (data && data.top) || [];
-          const looked = z.library.splice(0, ch.count);
+          /* The cards the question showed, wherever they are in the library
+             now; each is placed exactly once. */
+          const shown = (ch.cards || []).map(c => z.library.find(o => o.id === c.id)).filter(Boolean);
+          const looked = shown.length || !ch.cards ? shown : [];
+          if (!ch.cards) looked.push(...z.library.slice(0, ch.count));
+          for (const o of looked) { const i = z.library.indexOf(o); if (i >= 0) z.library.splice(i, 1); }
           const byId = new Map(looked.map(o => [o.id, o]));
-          for (const id of bottom) { const o = byId.get(id); if (o) { byId.delete(id); if (ch.type === 'surveil') this.moveObject(o, 'graveyard'); else { o.zone = 'library'; z.library.push(o); } } }
-          const rest = top.map(id => byId.get(id)).filter(Boolean).concat(Array.from(byId.values()));
+          for (const id of bottom) { const o = byId.get(id); if (o) { byId.delete(id); if (ch.type === 'surveil') { z.library.unshift(o); this.moveObject(o, 'graveyard'); } else { o.zone = 'library'; z.library.push(o); } } }
+          const kept = [];
+          for (const id of top) { const o = byId.get(id); if (o) { byId.delete(id); kept.push(o); } }
+          const rest = kept.concat(Array.from(byId.values()));
           for (let i = rest.length - 1; i >= 0; i--) { rest[i].zone = 'library'; z.library.unshift(rest[i]); }
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
           break;
@@ -12245,9 +12318,26 @@
 
     /* ---------- serialisation for multiplayer ---------- */
     /** A redacted view: hidden zones are replaced with counts for other players. */
+    /** May `viewer` see the top card of `ownerId`'s library right now? */
+    _topCardShown(ownerId, viewer) {
+      for (const o of this.battlefield) {
+        if (o.controller !== ownerId || o.phasedOut) continue;
+        const e = this._staticOp(o, 'peekTop');
+        if (e && (e.revealed || viewer === ownerId)) return true;
+      }
+      if (viewer !== ownerId) return false;
+      const top = this.zones[ownerId].library[0];
+      return !!top && !!(this._playFromRule(ownerId, top, 'land') || this._playFromRule(ownerId, top, 'spell') || this._playFromRule(ownerId, top, 'any'));
+    }
+
     viewFor(playerId) {
+      /* A face-down card is its controller's to see (CR 708.5), and in
+         exile its owner's; anybody else is sent a blank 2/2 in its place,
+         so the card cannot be read off the wire. */
+      const secret = (o) => o.faceDown && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId;
       const ser = (o, hidden) => hidden ? { id: o.id, hidden: true, owner: o.owner, zone: o.zone } : {
-        id: o.id, cardId: o.card.id, card: o.card, owner: o.owner, controller: o.controller,
+        id: o.id, cardId: secret(o) ? FACE_DOWN_VIEW.id : o.card.id, card: secret(o) ? FACE_DOWN_VIEW : o.card,
+        owner: o.owner, controller: o.controller,
         zone: o.zone, tapped: o.tapped, faceDown: o.faceDown, face: o.face,
         /* copied, not shared: a view is a snapshot, and the table compares
            the last one against this one to see what changed */
@@ -12323,7 +12413,8 @@
         pendingChoice: this.pendingChoice && this.pendingChoice.playerId === playerId ? this.pendingChoice : (this.pendingChoice ? { type: this.pendingChoice.type, playerId: this.pendingChoice.playerId, waiting: true } : null),
         stack: this.stack.map(s => ({
           id: s.id, kind: s.kind, name: s.name, controller: s.controller,
-          cardId: s.obj ? s.obj.card.id : null, card: s.obj ? s.obj.card : null,
+          cardId: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW.id : s.obj.card.id) : null,
+          card: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW : s.obj.card) : null,
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
         })),
         battlefield: this.battlefield.map(o => ser(o, false)),
@@ -12336,11 +12427,11 @@
           mulliganBottom: this.bottomCountFor(p),
           commanderDamage: p.commanderDamage, commanderCasts: p.commanderCasts,
           librarySize: this.zones[p.id].library.length,
-          /* "You may look at the top card of your library any time" — so
-             it is sent to that player and nobody else, and the table shows
-             it face up on their own library. */
-          topCard: (p.id === playerId && this._anyStaticOf(p.id, 'peekTop') &&
-            this.zones[p.id].library.length) ? ser(this.zones[p.id].library[0]) : null,
+          /* "You may look at the top card of your library any time", or a
+             permanent that lets them play it, shows it to that player and
+             nobody else; "play with the top card of your library revealed"
+             shows it to everybody. The table shows it face up on the library. */
+          topCard: this.zones[p.id].library.length && this._topCardShown(p.id, playerId) ? ser(this.zones[p.id].library[0]) : null,
           handSize: this.zones[p.id].hand.length,
           hand: p.id === playerId ? this.zones[p.id].hand.map(o => ser(o)) : this.zones[p.id].hand.map(o => ser(o, true)),
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),

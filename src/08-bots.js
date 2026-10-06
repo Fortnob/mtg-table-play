@@ -1608,7 +1608,9 @@
           return g.resolveChoice(this.pid, { cardIds: ids });
         }
         case 'scry': case 'surveil': {
-          const lib = g.zones[this.pid].library.slice(0, ch.count);
+          // the cards the question showed, not whatever is on top by now
+          const lib = (ch.cards || []).map(c => g.obj(c.id)).filter(Boolean);
+          if (!ch.cards) lib.push(...g.zones[this.pid].library.slice(0, ch.count));
           const top = [], bottom = [];
           for (const o of lib) (this.wantToDraw(o, top.length) ? top : bottom).push(o.id);
           // the best of what stays goes first
@@ -1616,17 +1618,19 @@
           return g.resolveChoice(this.pid, { top, bottom });
         }
         case 'sacrifice': {
-          // give up the least valuable permanents that match
+          // give up the least valuable of what the question allows
+          const allowed = ch.candidates ? new Set(ch.candidates) : null;
           const pool = g.battlefield.filter(o => {
             if (o.controller !== this.pid) return false;
+            if (allowed) return allowed.has(o.id);
             const a = o.analysis();
             if (!a) return false;
             const c = g.characteristics(o) || a;
             if (ch.filter === 'creature') return c.isCreature;
-            if (ch.filter === 'artifact') return c.isArtifact;
-            if (ch.filter === 'enchantment') return c.isEnchantment;
-            if (ch.filter === 'land') return c.isLand;
-            if (ch.filter === 'nonland') return !c.isLand;
+            if (ch.filter === 'artifact') return a.isArtifact;
+            if (ch.filter === 'enchantment') return a.isEnchantment;
+            if (ch.filter === 'land') return a.isLand;
+            if (ch.filter === 'nonland') return !a.isLand;
             return true;
           }).sort((a, b) => this.permanentValue(a) - this.permanentValue(b));
           // an optional sacrifice (exploit and friends) is only made when there is fodder

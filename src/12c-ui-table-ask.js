@@ -203,7 +203,9 @@
           return () => this.panel(...head('Pay?'), null, [
             { label: 'Don’t pay', fn: () => send({ pay: false }) },
             mana ? { html: 'Pay ' + MTG.mana.html(ch.cost), cls: 'primary', fn: () => send({ pay: true }) }
-              : { label: `Pay ${(ch.cost || {}).life || 0} life`, cls: 'primary', fn: () => send({ pay: true }) },
+              : (ch.cost || {}).energy != null
+                ? { label: `Pay ${ch.cost.energy} energy`, cls: 'primary', fn: () => send({ pay: true }) }
+                : { label: `Pay ${(ch.cost || {}).life || 0} life`, cls: 'primary', fn: () => send({ pay: true }) },
           ], { card });
         }
         case 'payOrCounter':

@@ -146,7 +146,7 @@
         /* without this the top card it lets you play is never shown, so a
            land offered as playable from there cannot be clicked */
         { kind: 'static', auto: true, text: 'Play with the top card of your library revealed.',
-          effects: [{ op: 'peekTop' }] },
+          effects: [{ op: 'peekTop', revealed: true }] },
         { kind: 'static', auto: true, text: 'You may play lands from the top of your library.',
           effects: [{ op: 'playFromTop', what: 'land' }] },
         { kind: 'triggered', event: 'landfall', auto: true,

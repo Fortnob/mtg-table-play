@@ -168,7 +168,7 @@ const CHOICES = {
   mode: choice({ count: int, options: arr(obj({ i: int, label: str }), { min: 1 }), repeatable: opt(bool) }),
   confirm: choice({}),
   /* The table shows a mana cost (a string) or { life }. */
-  payOrDont: choice({ cost: either('a mana cost or { life }', str, obj({ life: num })) }),
+  payOrDont: choice({ cost: either('a mana cost, { life } or { energy }', str, obj({ life: num }), obj({ energy: num })) }),
   payOrCounter: choice({ cost: str, stackId: id }),
   riot: choice({ objId: id }),
   vote: choice({ options: arr(str, { min: 1 }) }),
@@ -376,18 +376,19 @@ function checkView(view, viewer, game) {
     /* hidden information */
     if (p.id !== viewer) {
       for (const o of p.hand || []) if (!o.hidden) bad('view.privacy', `${p.id}.hand ${o.id}`, `${viewer}'s view shows a card in ${p.id}'s hand (${(o.card || {}).name})`);
-      if (p.topCard) bad('view.privacy', `${p.id}.topCard`, `${viewer}'s view shows the top of ${p.id}'s library`);
+      // unless it is played revealed ("play with the top card of your library revealed")
+      if (p.topCard && !(game && game._topCardShown && game._topCardShown(p.id, viewer))) bad('view.privacy', `${p.id}.topCard`, `${viewer}'s view shows the top of ${p.id}'s library`);
     }
   }
   /* A face-down card is a secret from everyone but the one who controls
      it (morph, manifest, cards exiled face down). */
   for (const [oid, seen] of all) for (const { o, where } of seen) {
-    if (o.faceDown && o.card && o.controller !== viewer && o.owner !== viewer)
+    if (o.faceDown && o.card && o.card.id !== '__facedown__' && o.controller !== viewer && o.owner !== viewer)
       bad('view.privacy', `${where} ${oid}`, `face down, but ${viewer}'s view carries the card (${o.card.name})`);
   }
   for (const s of view.stack || []) {
     const src = s.objId && game && game.obj ? game.obj(s.objId) : null;
-    if (src && src.faceDown && s.card && src.controller !== viewer)
+    if (src && src.faceDown && s.card && s.card.id !== '__facedown__' && src.controller !== viewer)
       bad('view.privacy', `stack ${s.id}`, `a face-down spell, but ${viewer}'s view carries the card (${s.card.name})`);
   }
   /* playable: things this player could do now, so they must be things they can see */
@@ -623,22 +624,6 @@ function strip(opts) {
    rule and a pattern for the message, and says why it is still here.
    ============================================================ */
 const KNOWN = [
-  { rule: 'engine.zones', match: /is in (\w+)\.library and \1\.library \(just after: .* (scries|surveils) \d+\.\)/,
-    why: 'Scry and surveil put every card kept on top back twice (resolveChoice, case \'scry\': `rest` is the kept cards plus everything still in byId, which includes the kept cards), so the library holds the same object twice and it is later drawn, played and seen in two places at once.' },
-  { rule: 'choice.sense', match: /is not among the top \d+ of the library/,
-    why: 'Scry and surveil are queued without suspending the effect (src/06-rules.js, effect case \'scry\'), so "Scry 1. Draw a card." draws first: the question shows a card already drawn, and the answer is applied to whatever is on top by then.' },
-  { rule: 'answer.sense', match: /is not one of the cards the (scry|surveil) showed/,
-    why: 'The same stale scry: the bot answers from the top of its library as it is now (src/08-bots.js doChoice, scry), which after the early draw is not what the question showed.' },
-  { rule: 'view.sense', match: /attachedTo \S+ is not on the battlefield/,
-    why: 'playerLoses (src/06-rules.js) takes a losing player\'s permanents off the battlefield list directly, without moveObject: they keep zone "battlefield", and anyone else\'s Aura or Equipment on them stays attached to an object that is gone, so the Aura is never put into the graveyard.' },
-  { rule: 'view.privacy', match: /face down, but/,
-    why: 'viewFor serialises face-down permanents (manifest, morph, cloak) with their card for every viewer, so a guest can read them off the wire.' },
-  { rule: 'answer.sense', match: /is not a permanent that can be sacrificed/,
-    why: 'The bot answers a sacrifice question from its own idea of the pool and ignores ch.candidates; the engine then tops the answer up from the candidates itself, so the bot does not get the choice it meant.' },
-  { rule: 'choice.shape', match: /choice\.cost wanted a mana cost or \{ life \}, got undefined/,
-    why: 'Cumulative upkeep paid in life or energy (src/06-rules.js, the upkeep cumulativeUpkeep questions) asks payOrDont with `life` or `energy` and no `cost`; the table reads `cost`, so its button offers to "Pay 0 life".' },
-  { rule: 'view.shape', match: /pendingChoice\.cost wanted a mana cost or \{ life \}, got undefined/,
-    why: 'The same cumulative-upkeep question, as it reaches the player in the view.' },
   { rule: 'intent.shape', match: /intent\.(sacrificeIds|discardIds) is not a field/,
     why: 'Bots pay sacrifice and discard costs up front through activateAbility options the table has no intent field for; a person is asked instead. Harmless for play, but the bot path and the table path differ.' },
 ];
@@ -875,6 +860,7 @@ function selfTest() {
   expect('pickCard answer from outside', checkAnswer(Object.assign({}, pick, { count: 1 }), { cardIds: ['o9'] }), true);
   expect('payOrDont in life with no cost', checkChoice({ type: 'payOrDont', playerId: 'A', life: 2, prompt: 'Pay 2 life?' }), true);
   expect('payOrDont in mana', checkChoice({ type: 'payOrDont', playerId: 'A', cost: '{2}' }), false);
+  expect('payOrDont in energy', checkChoice({ type: 'payOrDont', playerId: 'A', cost: { energy: 2 }, energy: 2 }), false);
   expect('net state envelope without payload', checkNetMessage({ t: 'state', seq: 1 }, 'toGuest'), true);
   expect('net chunk', checkNetMessage({ t: '~', id: 1, i: 0, n: 2, d: '{' }, 'toGuest'), false);
   const ask = { type: 'choose', playerId: 'A', kind: 'options', options: [{ label: 'a', i: 0 }, { label: 'b', i: 1 }], min: 1, max: 1, prompt: 'Which?' };

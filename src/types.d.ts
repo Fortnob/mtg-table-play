@@ -264,7 +264,7 @@ declare namespace MTG {
   }
   interface ConfirmChoice extends ChoiceBase { type: 'confirm'; life?: number }
   /** The table shows a mana cost (a string) or { life }. */
-  interface PayOrDontChoice extends ChoiceBase { type: 'payOrDont'; cost: string | { life: number }; life?: number; energy?: number }
+  interface PayOrDontChoice extends ChoiceBase { type: 'payOrDont'; cost: string | { life: number } | { energy: number }; life?: number; energy?: number }
   interface PayOrCounterChoice extends ChoiceBase { type: 'payOrCounter'; cost: string; stackId: Id }
   interface RiotChoice extends ChoiceBase { type: 'riot'; objId: Id }
   interface VoteChoice extends ChoiceBase { type: 'vote'; options: string[] }
