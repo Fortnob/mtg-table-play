@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17705,
-  "gainedCards": 1854,
-  "linesNeeded": 20309,
-  "linesGained": 2431,
+  "needed": 17667,
+  "gainedCards": 1844,
+  "linesNeeded": 20249,
+  "linesGained": 2411,
   "gained": {
-   "all": 1854,
-   "top2000": 51,
+   "all": 1844,
+   "top2000": 53,
    "stdTop": 13
   },
   "compare": {
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 89,
+  "verifyFail": 88,
   "overrides": {
    "it": 120,
    "drain": 62,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6077,
-   "lines": 5039,
+   "score": 6076,
+   "lines": 5038,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -186,8 +186,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 156,
-   "lines": 111,
+   "score": 155,
+   "lines": 110,
    "cards": [
     "Cloud Key",
     "Banner of Kinship",
@@ -489,6 +489,25 @@
    ]
   },
   {
+   "what": "effect with no target",
+   "score": 42,
+   "lines": 42,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Engulfing Slagwurm",
+    "Katara's Reversal",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Djeru's Resolve",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice",
+    "Fire Giant's Fury",
+    "Act of Heroism"
+   ]
+  },
+  {
    "what": "keyword StationLevelAbility",
    "score": 41,
    "lines": 11,
@@ -502,25 +521,6 @@
     "Entropic Battlecruiser",
     "Synthesizer Labship",
     "Debris Field Crusher"
-   ]
-  },
-  {
-   "what": "effect with no target",
-   "score": 41,
-   "lines": 41,
-   "cards": [
-    "Engulfing Slagwurm",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Kessig Forgemaster // Flameheart Werewolf"
    ]
   },
   {
@@ -540,25 +540,6 @@
     "Sphere of the Suns",
     "Kimoyo Beads",
     "Drain Life"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 39,
-   "lines": 30,
-   "cards": [
-    "Gingerbrute",
-    "Azure Beastbinder",
-    "Locke, Treasure Hunter",
-    "Lydia Frye",
-    "Cynical Loner",
-    "Departed Deckhand",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Tatsunari, Toad Rider",
-    "Ant-Man, Elusive Avenger"
    ]
   },
   {
@@ -729,6 +710,25 @@
     "Jace, Memory Adept",
     "Officious Interrogation",
     "Ral Zarek, Guest Lecturer"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 32,
+   "lines": 23,
+   "cards": [
+    "Gingerbrute",
+    "Azure Beastbinder",
+    "Locke, Treasure Hunter",
+    "Lydia Frye",
+    "Cynical Loner",
+    "Departed Deckhand",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Tatsunari, Toad Rider",
+    "Ant-Man, Elusive Avenger"
    ]
   },
   {
@@ -1123,25 +1123,6 @@
    ]
   },
   {
-   "what": "(verify) optional where the card is not",
-   "score": 25,
-   "lines": 16,
-   "cards": [
-    "Thirst for Knowledge",
-    "Thirst for Discovery",
-    "Tezzeret, Betrayer of Flesh",
-    "Cavalier of Thorns",
-    "Winternight Stories",
-    "Thirst for Meaning",
-    "Thirst for Identity",
-    "Invasion of New Phyrexia // Teferi Akosa of Zhalfir",
-    "Arm-Mounted Anchor",
-    "Reclaim the Wastes",
-    "Behold the Beyond",
-    "Practical Research"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 25,
    "lines": 19,
@@ -1215,25 +1196,6 @@
     "Dorothea, Vengeful Victim // Dorothea's Retribution",
     "Chaplain of Alms // Chapel Shieldgeist",
     "Kindly Ancestor // Ancestor's Embrace"
-   ]
-  },
-  {
-   "what": "PhaseOutTargetEffect",
-   "score": 24,
-   "lines": 12,
-   "cards": [
-    "Clever Concealment",
-    "Talon Gates of Madara",
-    "Slip Out the Back",
-    "Guardian of Faith",
-    "Teferi, Master of Time",
-    "Haystack",
-    "Vronos, Masked Inquisitor",
-    "Gallifrey Falls // No More",
-    "The Phasing of Zhalfir",
-    "Teferi's Veil",
-    "Reality Ripple",
-    "Vodalian Illusionist"
    ]
   },
   {
@@ -1396,6 +1358,25 @@
     "Heavenly Blademaster",
     "Gloom Ripper",
     "Frantic Firebolt"
+   ]
+  },
+  {
+   "what": "(verify) optional where the card is not",
+   "score": 24,
+   "lines": 15,
+   "cards": [
+    "Thirst for Knowledge",
+    "Thirst for Discovery",
+    "Tezzeret, Betrayer of Flesh",
+    "Cavalier of Thorns",
+    "Winternight Stories",
+    "Thirst for Meaning",
+    "Thirst for Identity",
+    "Invasion of New Phyrexia // Teferi Akosa of Zhalfir",
+    "Arm-Mounted Anchor",
+    "Reclaim the Wastes",
+    "Practical Research",
+    "Nissa Revane"
    ]
   },
   {
@@ -2022,25 +2003,6 @@
     "Silumgar Sorcerer",
     "Stitched Assistant",
     "Vulturous Aven"
-   ]
-  },
-  {
-   "what": "two types at once",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Imotekh the Stormlord",
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar",
-    "Golem Artisan",
-    "Aethershield Artificer",
-    "Neurok Transmuter",
-    "Baxter Stockman",
-    "Clockwork Steed",
-    "Abuna Acolyte"
    ]
   },
   {
@@ -3101,6 +3063,25 @@
     "Slurrk, All-Ingesting",
     "Cass, Hand of Vengeance",
     "The Ghoul, Gunslinger"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Imotekh the Stormlord",
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar",
+    "Golem Artisan",
+    "Aethershield Artificer",
+    "Neurok Transmuter",
+    "Baxter Stockman",
+    "Abuna Acolyte",
+    "Auriok Siege Sled"
    ]
   },
   {
@@ -4375,25 +4356,6 @@
    ]
   },
   {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Wall of Frost",
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Ojutai, Soul of Winter",
-    "Skyline Cascade",
-    "Ajani Vengeant",
-    "Fogwalker",
-    "Cleric of Chill Depths",
-    "Sudden Storm",
-    "Mana Skimmer",
-    "Stensia Innkeeper",
-    "Labyrinth Minotaur"
-   ]
-  },
-  {
    "what": "limited ability with a condition",
    "score": 13,
    "lines": 13,
@@ -5069,6 +5031,25 @@
     "Auriok Glaivemaster",
     "Patriot, Young Avenger",
     "Armed Assailant"
+   ]
+  },
+  {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Wall of Frost",
+    "Kefnet's Monument",
+    "Lorthos, the Tidemaker",
+    "Ojutai, Soul of Winter",
+    "Skyline Cascade",
+    "Fogwalker",
+    "Cleric of Chill Depths",
+    "Sudden Storm",
+    "Mana Skimmer",
+    "Stensia Innkeeper",
+    "Labyrinth Minotaur",
+    "Samite Alchemist"
    ]
   },
   {
@@ -6900,22 +6881,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Eldrazi Confluence",
-    "Rootcast Apprenticeship",
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Brokers Confluence",
-    "Maestros Confluence",
-    "Cosmium Confluence",
-    "Riveteers Confluence",
-    "Obscura Confluence"
-   ]
-  },
-  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 9,
    "lines": 9,
@@ -7646,6 +7611,21 @@
    ]
   },
   {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Eldrazi Confluence",
+    "Rootcast Apprenticeship",
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Maestros Confluence",
+    "Cosmium Confluence",
+    "Riveteers Confluence",
+    "Obscura Confluence"
+   ]
+  },
+  {
    "what": "(verify) condition lost",
    "score": 8,
    "lines": 8,
@@ -7688,21 +7668,6 @@
     "Domesticated Hydra",
     "Nemesis of Mortals",
     "Vitality Hunter"
-   ]
-  },
-  {
-   "what": "AttackingCreatureCount",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Jazal Goldmane",
-    "Mishra, Claimed by Gix",
-    "Smellerbee, Rebel Fighter",
-    "Veteran's Armaments",
-    "Rubblebelt Raiders",
-    "Strength in Numbers",
-    "Tears of Rage",
-    "Cleaving Skyrider"
    ]
   },
   {
@@ -8032,21 +7997,6 @@
    ]
   },
   {
-   "what": "PhaseOutSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Hostile Hostel // Creeping Inn",
-    "Renegade Silent",
-    "Blink Dog",
-    "Dream Fighter",
-    "Mist Dragon",
-    "Crystal Golem",
-    "Rainbow Efreet",
-    "Teferi's Honor Guard"
-   ]
-  },
-  {
    "what": "filter:snow",
    "score": 8,
    "lines": 8,
@@ -8338,17 +8288,6 @@
    ]
   },
   {
-   "what": "RegenerateAllEffect",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Golgari Charm",
-    "Wrap in Vigor",
-    "Wail of the Nim",
-    "Loxodon Hierarch"
-   ]
-  },
-  {
    "what": "BecomesClassLevelTriggeredAbility",
    "score": 7,
    "lines": 4,
@@ -8358,13 +8297,54 @@
     "Cool but Rude",
     "Monk Class"
    ]
+  },
+  {
+   "what": "CantLoseGameSourceControllerEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Platinum Angel",
+    "Herald of Eternal Dawn",
+    "Cloudsteel Kirin",
+    "Darksteel Angel"
+   ]
+  },
+  {
+   "what": "token ability GnomeSoldierStarStarToken",
+   "score": 7,
+   "lines": 1,
+   "cards": [
+    "Thousand Moons Smithy // Barracks of the Thousand"
+   ]
+  },
+  {
+   "what": "tap words creature or artifact",
+   "score": 7,
+   "lines": 1,
+   "cards": [
+    "Thousand Moons Smithy // Barracks of the Thousand"
+   ]
+  },
+  {
+   "what": "choose one of them",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Party Thrasher",
+    "Chandra, Flameshaper",
+    "Heroes' Hangout",
+    "Jaya, Fiery Negotiator",
+    "Magmatic Channeler",
+    "Mishra's Research Desk",
+    "Strongbox Raider"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4743,
-   "cards": 3969,
+   "score": 4742,
+   "cards": 3968,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8415,8 +8395,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 238,
-   "cards": 226,
+   "score": 239,
+   "cards": 227,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8467,8 +8447,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 66,
-   "cards": 36,
+   "score": 65,
+   "cards": 35,
    "names": [
     "Cloud Key",
     "Banner of Kinship",
@@ -8687,19 +8667,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 31,
-   "cards": 22,
-   "names": [
-    "Gingerbrute",
-    "Tin Street Dodger",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 30,
    "cards": 27,
@@ -8817,6 +8784,19 @@
    ]
   },
   {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 25,
+   "cards": 16,
+   "names": [
+    "Gingerbrute",
+    "Tin Street Dodger",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist"
+   ]
+  },
+  {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
    "score": 25,
    "cards": 22,
@@ -8895,6 +8875,19 @@
    ]
   },
   {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 23,
+   "cards": 23,
+   "names": [
+    "Vicious Battlerager",
+    "Evil Eye of Urborg",
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Gloom Sower",
+    "Tolarian Entrancer"
+   ]
+  },
+  {
    "what": "GainClassAbilitySourceEffect",
    "score": 22,
    "cards": 4,
@@ -8958,19 +8951,6 @@
    ]
   },
   {
-   "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 22,
-   "cards": 22,
-   "names": [
-    "Vicious Battlerager",
-    "Evil Eye of Urborg",
-    "Grasping Giant",
-    "Elven Warhounds",
-    "Gloom Sower",
-    "Tolarian Entrancer"
-   ]
-  },
-  {
    "what": "ModifiedPredicate.instance",
    "score": 21,
    "cards": 18,
@@ -8997,19 +8977,6 @@
    ]
   },
   {
-   "what": "(verify) optional where the card is not",
-   "score": 21,
-   "cards": 12,
-   "names": [
-    "Thirst for Knowledge",
-    "Thirst for Discovery",
-    "Winternight Stories",
-    "Thirst for Meaning",
-    "Thirst for Identity",
-    "Reclaim the Wastes"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 21,
    "cards": 15,
@@ -9033,6 +9000,19 @@
     "Nimbleclaw Adept",
     "Akul the Unrepentant",
     "Butterbur, Bree Innkeeper"
+   ]
+  },
+  {
+   "what": "(verify) optional where the card is not",
+   "score": 20,
+   "cards": 11,
+   "names": [
+    "Thirst for Knowledge",
+    "Thirst for Discovery",
+    "Winternight Stories",
+    "Thirst for Meaning",
+    "Thirst for Identity",
+    "Reclaim the Wastes"
    ]
   },
   {
@@ -9361,19 +9341,6 @@
    ]
   },
   {
-   "what": "PhaseOutTargetEffect",
-   "score": 16,
-   "cards": 7,
-   "names": [
-    "Clever Concealment",
-    "Slip Out the Back",
-    "Guardian of Faith",
-    "Haystack",
-    "Teferi's Veil",
-    "Reality Ripple"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 16,
    "cards": 4,
@@ -9541,19 +9508,6 @@
    ]
   },
   {
-   "what": "two types at once",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Imotekh the Stormlord",
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar"
-   ]
-  },
-  {
    "what": "becomes a creature for custom",
    "score": 15,
    "cards": 15,
@@ -9718,6 +9672,19 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Cityscape Leveler",
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Titans' Vanguard",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick"
+   ]
+  },
+  {
    "what": "control for whileControlled",
    "score": 14,
    "cards": 14,
@@ -9741,6 +9708,19 @@
     "Voyager Glidecar",
     "Earthrumbler",
     "Gastal Thrillroller"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Imotekh the Stormlord",
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar"
    ]
   },
   {
@@ -9983,19 +9963,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Cityscape Leveler",
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Titans' Vanguard",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick"
-   ]
-  },
-  {
    "what": "(constructor: assignment)",
    "score": 13,
    "cards": 7,
@@ -10032,19 +9999,6 @@
     "Essence Anchor",
     "Defenders of Humanity",
     "Lake-town Toymaker"
-   ]
-  },
-  {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Wall of Frost",
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Ojutai, Soul of Winter",
-    "Skyline Cascade",
-    "Ajani Vengeant"
    ]
   },
   {
@@ -10367,6 +10321,19 @@
     "Sylvan Messenger",
     "Elder Pine of Jukai",
     "Enshrined Memories"
+   ]
+  },
+  {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Wall of Frost",
+    "Kefnet's Monument",
+    "Lorthos, the Tidemaker",
+    "Ojutai, Soul of Winter",
+    "Skyline Cascade",
+    "Fogwalker"
    ]
   },
   {
@@ -11590,19 +11557,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Eldrazi Confluence",
-    "Rootcast Apprenticeship",
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Brokers Confluence",
-    "Maestros Confluence"
-   ]
-  },
-  {
    "what": "UntapSourceEffect",
    "score": 9,
    "cards": 9,
@@ -12071,6 +12025,19 @@
    ]
   },
   {
+   "what": "PreventAllDamageToSourceByPermanentsEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Wall of Vapor",
+    "Armored Transport",
+    "Uncle Istvan",
+    "Desert Nomads",
+    "Wall of Putrid Flesh",
+    "Argothian Pixies"
+   ]
+  },
+  {
    "what": "AssignNoCombatDamageSourceEffect",
    "score": 9,
    "cards": 9,
@@ -12179,6 +12146,18 @@
     "Parasitic Impetus",
     "Coercive Impetus",
     "Psychic Impetus"
+   ]
+  },
+  {
+   "what": "CopyTargetStackObjectEffect.withText",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Echoes of Eternity",
+    "Lucky Clover",
+    "Chancellor of Tales",
+    "Thurid, Mare of Destiny",
+    "Gorion, Wise Mentor"
    ]
   }
  ]

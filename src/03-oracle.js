@@ -2169,8 +2169,15 @@
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     { re: /^Goad each creature (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
-    { re: /^(?:Target creature|It|That creature|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
-      make: () => ({ op: 'noUntap', scope: 'lastTarget' }) },
+    { re: /^(Target creature|Target permanent|Target land|Target artifact|It|That creature|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'noUntap', targets: [targetSpec(m[1])] }
+        : { op: 'noUntap', scope: /^this/i.test(m[1]) ? 'self' : 'lastTarget' }) },
+    /* "Target creature phases out." */
+    { re: /^(Target (?:creature|permanent|nonland permanent|artifact|creature you control|permanent you control)|This creature|CARDNAME) phases out\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
+        : { op: 'phaseOut', scope: { self: true } }) },
+    { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
+    { re: /^Regenerate each creature you control\.?$/i, make: () => ({ op: 'regenerate', scope: 'yourCreatures' }) },
 
     /* ===== zone movement ===== */
     { re: /^Put (target [a-z0-9 '-]+?) on (?:the )?(top|bottom) of (?:its|their) owner'?s library\.?$/i,
@@ -5642,6 +5649,19 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      /* "This creature can't be blocked by white creatures", "... by artifact creatures" */
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked by ((?:white|blue|black|red|green|artifact|legendary|nonartifact|colorless|multicolored|nonblack|nonwhite)(?: or (?:white|blue|black|red|green))?) creatures\.?$/i,
+        make: (m) => {
+          const w = m[1].toLowerCase();
+          // a card type is the creature's as well ("artifact creatures"), not an alternative to it
+          const spec = w === 'artifact' ? { type: 'creature', zone: 'battlefield', cardTypes: ['artifact'] }
+            : w === 'nonartifact' ? { type: 'creature', zone: 'battlefield', notType: ['artifact'] }
+            : w === 'legendary' ? { type: 'creature', zone: 'battlefield', legendary: true }
+            : targetSpec('target ' + w + ' creature');
+          if (spec.unknown || spec.anyOf) return null;
+          delete spec.filter;
+          return { op: 'evasion', notBy: spec };
+        }, auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
         make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },

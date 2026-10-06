@@ -8714,6 +8714,12 @@
         case 'noRegen':
           applyToScope(e, (o) => { o.noRegenThisTurn = true; });
           break;
+        /* "Discard your hand." */
+        case 'discardHand': {
+          for (const c of this.zones[ctx.controller].hand.slice()) { this.moveObject(c, 'graveyard'); this._afterDiscard(ctx.controller, c); }
+          this.logEvent('discard', `${me.name} discards their hand.`);
+          break;
+        }
         case 'wheel': {
           /* Everybody discards, and only then does anybody draw — and
              Windfall's "the greatest number discarded" is counted first. */
@@ -10731,7 +10737,8 @@
         }
         /* "All permanents you control phase out" */
         case 'phaseOut': {
-          const list = e.scope && typeof e.scope === 'object' ? this._scopeList(e.scope, ctx.controller, src)
+          const list = e.scope && e.scope.self ? [src].filter(x => x && x.zone === 'battlefield')
+            : e.scope && typeof e.scope === 'object' ? this._scopeList(e.scope, ctx.controller, src)
             : targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           for (const o of list) {
             o.phasedOut = true; o.phasedOutBy = o.controller; o.phasedTurn = this.turn;

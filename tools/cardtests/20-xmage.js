@@ -844,8 +844,33 @@ module.exports = (test) => {
     t.zone(g, 'graveyard');
   });
 
+  test('XMage: Clever Concealment phases out any number of your permanents', (mk, t) => {
+    generated(t, 'Clever Concealment');
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves');
+    T.mana('A', '2WW');
+    T.cast('A', T.hand('A', 'Clever Concealment'), { targets: [a, b] });
+    t.ok(a.phasedOut && b.phasedOut, 'both phased out');
+  });
+
+  test('Vine Mare cannot be blocked by black creatures', (mk, t) => {
+    t.auto('Vine Mare');
+    const T = mk();
+    const m = T.bf('A', 'Vine Mare');
+    const black = T.bf('B', 'Vampire Nighthawk'), green = T.bf('B', 'Grizzly Bears');
+    t.no(T.g.couldBlock(black, m, 'B'), 'not the black one');
+    t.ok(T.g.couldBlock(green, m, 'B'), 'the green one can');
+  });
+
+  test('Discard your hand (Wheel-less): every card goes', (mk, t) => {
+    const T = mk();
+    T.hand('A', 'Island'); T.hand('A', 'Opt');
+    const card = { id: 'probe-discard-hand', name: 'Probe Discard', type_line: 'Sorcery', mana_cost: '', cmc: 0, colors: [], layout: 'normal', oracle_text: 'Discard your hand.' };
+    t.ok(engine().oracle.analyze(card).fullyAutomated);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
-    const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
+    const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
     t.ok(engine().oracle.analyze(card).abilities[0].effects[0].addText.includes('Haste'));
   });

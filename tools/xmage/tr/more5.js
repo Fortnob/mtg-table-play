@@ -301,4 +301,12 @@ def('effect', 'PutOnTopOrBottomLibraryTargetEffect', (o, tc) => {
   return Object.assign({ op: 'topOrBottom', ownerChooses: true }, a);
 });
 
+def('effect', 'PhaseOutTargetEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (o.args.some(a => kindOf(a) !== 'str' && kindOf(a) !== 'bool')) block('phase out with more');
+  const a = E.aimObject(o, tc);
+  if (!a.targets) block('phase out something already chosen');
+  return Object.assign({ op: 'phaseOut' }, a);
+});
+
 module.exports = {};
