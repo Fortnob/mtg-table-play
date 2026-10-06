@@ -7825,6 +7825,11 @@
           break;
         }
         case 'tapAll': {
+          if (e.scope && typeof e.scope === 'object') {
+            for (const x of this._scopeList(e.scope, ctx.controller, src)) this._markTapped(x);
+            this.emit('sfx', 'tap');
+            break;
+          }
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller).map(p => p.id) : [ctx.controller];
           for (const x of this.battlefield) {
             if (!who.includes(x.controller)) continue;
