@@ -5116,6 +5116,13 @@
         continue;
       }
 
+      /* Aftermath (CR 702.127): this half is cast only from the graveyard,
+         then exiled, which the table offers there */
+      if (!out.isPermanent && /^Aftermath$/i.test(line)) {
+        out.abilities.push({ kind: 'castModifier', keyword: 'Aftermath', text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       // Fuse (CR 702.102): both halves of a split card cast together from hand, which the table offers
       if (!out.isPermanent && /^Fuse$/i.test(line)) {
         out.abilities.push({ kind: 'castModifier', keyword: 'Fuse', text: line, auto: true, effects: [] });

@@ -909,7 +909,8 @@
           } else if (use.kind === 'transmute') {
             if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'transmute', objId: o.id });
           } else if (use.kind === 'cast') {
-            const timing = this.canCast(playerId, o.id, use.via);
+            // aftermath: asked as the half it casts
+            const timing = use.face != null ? this._asHalf(o, use.face, () => this.canCast(playerId, o.id, use.via)) : this.canCast(playerId, o.id, use.via);
             if (timing.ok) out.push({ kind: 'cast', objId: o.id, via: use.via });
           }
         }
@@ -2475,6 +2476,11 @@
       if (!c || c.layout !== 'split' || !c.card_faces || c.card_faces.length !== 2) return false;
       return !/^Aftermath\b/m.test(String(c.card_faces[1].oracle_text || ''));
     }
+    /** A split card whose right half has aftermath. */
+    _aftermathHalf(o) {
+      const c = o && o.card;
+      return !!(c && c.layout === 'split' && c.card_faces && c.card_faces[1] && /^Aftermath\b/m.test(String(c.card_faces[1].oracle_text || '')));
+    }
     /** A split card with fuse. */
     _fusable(o) {
       return this._splitHalves(o) && ((o.card.keywords || []).includes('Fuse') ||
@@ -2650,6 +2656,12 @@
       const spell = this._preparedSpell(o);
       if (spell && o.prepared && o.zone === 'battlefield' && o.controller === playerId) {
         out.push({ kind: 'cast', via: 'prepared', cost: spell.mana_cost || '', label: 'Cast a copy of ' + spell.name + ' ' + (spell.mana_cost || '') });
+      }
+      /* Aftermath: the right half of a split card in your graveyard, for its
+         own cost, exiled after (CR 702.127) */
+      if (o.zone === 'graveyard' && o.owner === playerId && this._aftermathHalf(o)) {
+        const f1 = o.card.card_faces[1];
+        out.push({ kind: 'cast', via: 'aftermath', cost: f1.mana_cost || '', after: 'exile', face: 1, label: 'Aftermath: ' + f1.name + ' ' + (f1.mana_cost || '') });
       }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, disturb: 'exile', unearth: 'exile', embalm: 'exile', eternalize: 'exile',
@@ -3418,6 +3430,16 @@
         const was = so.face || 0;
         so.face = 0; so._chr = null;
         const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true, face: 0 }));
+        if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
+        return ok;
+      }
+      // Aftermath: the right half, from the graveyard
+      if (opts.via === 'aftermath' && !opts._faceSet) {
+        const so = this.obj(objId);
+        if (!so || !this._aftermathHalf(so)) return this.fail('That card has no aftermath half.');
+        const was = so.face || 0;
+        so.face = 1; so._chr = null;
+        const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true }));
         if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
         return ok;
       }

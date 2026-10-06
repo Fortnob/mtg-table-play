@@ -2764,6 +2764,22 @@ module.exports = (test) => {
     }
   });
 
+  test('Aftermath: Ribbons from the graveyard, then exiled', (mk, t) => {
+    t.auto('Cut // Ribbons');
+    const T = mk();
+    const c = T.grave('A', 'Cut // Ribbons');
+    t.ok(T.g.altUsesFor('A', c.id).some(u => u.via === 'aftermath' && u.cost === '{X}{B}{B}'), 'offered from the graveyard');
+    T.mana('A', '2BB');
+    t.ok(T.g.castSpell('A', c.id, { auto: true, via: 'aftermath', x: 2 }), T.g.lastError);
+    T.resolve();
+    t.eq(T.life('B'), 18);
+    t.zone(c, 'exile');
+    const T2 = mk();
+    const c2 = T2.hand('A', 'Cut // Ribbons');
+    T2.mana('A', 'BB');
+    t.no(T2.g.castSpell('A', c2.id, { auto: true, face: 1 }), 'not from hand');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16660,
-  "gainedCards": 1760,
-  "linesNeeded": 18941,
+  "needed": 16650,
+  "gainedCards": 1766,
+  "linesNeeded": 18914,
   "linesGained": 2273,
   "gained": {
-   "all": 1760,
+   "all": 1766,
    "top2000": 52,
    "stdTop": 12
   },
@@ -91,12 +91,11 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 455,
-   "lines": 422,
+   "score": 437,
+   "lines": 407,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
-    "Dusk // Dawn",
     "Case of the Locked Hothouse",
     "March of Swirling Mist",
     "Eldritch Immunity",
@@ -105,7 +104,8 @@
     "Liliana, Death's Majesty",
     "Stuffy Doll",
     "Fighter Class",
-    "Wand of Wonder"
+    "Wand of Wonder",
+    "Fangs of Kalonia"
    ]
   },
   {
@@ -1186,25 +1186,6 @@
     "Crack in Time",
     "Staff of the Flame Magus",
     "Staff of the Wild Magus"
-   ]
-  },
-  {
-   "what": "keyword AftermathAbility",
-   "score": 22,
-   "lines": 19,
-   "cards": [
-    "Dusk // Dawn",
-    "Insult // Injury",
-    "Consign // Oblivion",
-    "Indulge // Excess",
-    "Road // Ruin",
-    "Driven // Despair",
-    "Rags // Riches",
-    "Reason // Believe",
-    "Struggle // Survive",
-    "Spring // Mind",
-    "Refuse // Cooperate",
-    "Leave // Chance"
    ]
   },
   {
@@ -4814,6 +4795,20 @@
    ]
   },
   {
+   "what": "keyword AftermathAbility",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Dusk // Dawn",
+    "Insult // Injury",
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Prepare // Fight",
+    "Reduce // Rubble"
+   ]
+  },
+  {
    "what": "AttacksIfAbleAllEffect",
    "score": 10,
    "lines": 7,
@@ -8136,8 +8131,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4510,
-   "cards": 3916,
+   "score": 4512,
+   "cards": 3918,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8188,8 +8183,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 229,
-   "cards": 220,
+   "score": 222,
+   "cards": 213,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -10190,6 +10185,19 @@
    ]
   },
   {
+   "what": "TargetSpellOrPermanent",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Commit // Memory",
+    "Eight-and-a-Half-Tails",
+    "Moonlace",
+    "Blind Seer",
+    "Thoughtlace",
+    "Illusion // Reality"
+   ]
+  },
+  {
    "what": "ExpendTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -10376,6 +10384,19 @@
     "Ripples of Potential",
     "Contagion Engine",
     "Roalesk, Apex Hybrid"
+   ]
+  },
+  {
+   "what": "keyword AftermathAbility",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Dusk // Dawn",
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Prepare // Fight",
+    "Reduce // Rubble"
    ]
   },
   {
@@ -10802,19 +10823,6 @@
    ]
   },
   {
-   "what": "TargetSpellOrPermanent",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Eight-and-a-Half-Tails",
-    "Moonlace",
-    "Blind Seer",
-    "Thoughtlace",
-    "Illusion // Reality",
-    "Deathlace"
-   ]
-  },
-  {
    "what": "BecomesBlockedAllTriggeredAbility",
    "score": 9,
    "cards": 9,
@@ -10903,19 +10911,6 @@
     "Skanos Dragonheart",
     "Greven, Predator Captain",
     "Manaplasm"
-   ]
-  },
-  {
-   "what": "keyword AftermathAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Consign // Oblivion",
-    "Road // Ruin",
-    "Driven // Despair",
-    "Struggle // Survive",
-    "Spring // Mind",
-    "Claim // Fame"
    ]
   },
   {
