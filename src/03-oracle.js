@@ -2540,6 +2540,8 @@
     if (spec.multicolored && cols.length < 2) return false;
     if (spec.monocolored && cols.length !== 1) return false;
     if (spec.controller === 'you' && obj.controller !== me) return false;
+    // one particular player's ("that player controls"), settled as the effect resolves
+    if (spec.controllerId && obj.controller !== spec.controllerId) return false;
     if (spec.controller === 'opponent' && obj.controller === me) return false;
     if (spec.maxMv != null && (obj.card.cmc || 0) > spec.maxMv) return false;
     if (spec.minMv != null && (obj.card.cmc || 0) < spec.minMv) return false;

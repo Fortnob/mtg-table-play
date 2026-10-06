@@ -5,11 +5,11 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 18234,
-  "gainedCards": 1796,
+  "gainedCards": 1814,
   "linesNeeded": 21007,
-  "linesGained": 2388,
+  "linesGained": 2408,
   "gained": {
-   "all": 1796,
+   "all": 1814,
    "top2000": 46,
    "stdTop": 13
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6067,
-   "lines": 5035,
+   "score": 6069,
+   "lines": 5037,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -128,8 +128,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 341,
-   "lines": 299,
+   "score": 310,
+   "lines": 268,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -166,8 +166,8 @@
   },
   {
    "what": "custom condition",
-   "score": 239,
-   "lines": 203,
+   "score": 240,
+   "lines": 204,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -5198,6 +5198,25 @@
    ]
   },
   {
+   "what": "MustBeBlockedByTargetSourceEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Turntimber Basilisk",
+    "Impetuous Devils",
+    "Sisters of Stone Death",
+    "Torchling",
+    "Tangle Angler",
+    "Vortex Elemental",
+    "Maraleaf Rider",
+    "Avalanche Tusker",
+    "Matsu-Tribe Decoy",
+    "Burning-Tree Bloodscale",
+    "Giant Ambush Beetle",
+    "Trumpeting Armodon"
+   ]
+  },
+  {
    "what": "becomes a creature and nothing else",
    "score": 13,
    "lines": 13,
@@ -6420,24 +6439,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByTargetSourceEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Turntimber Basilisk",
-    "Sisters of Stone Death",
-    "Torchling",
-    "Tangle Angler",
-    "Vortex Elemental",
-    "Maraleaf Rider",
-    "Matsu-Tribe Decoy",
-    "Burning-Tree Bloodscale",
-    "Giant Ambush Beetle",
-    "Trumpeting Armodon",
-    "Rampant Elephant"
-   ]
-  },
-  {
    "what": "ExileFromZoneTargetEffect",
    "score": 11,
    "lines": 11,
@@ -7656,6 +7657,22 @@
    ]
   },
   {
+   "what": "MonstrousCondition.instance",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Colossus of Akros",
+    "Fleecemane Lion",
+    "Hundred-Handed One",
+    "Domesticated Hydra",
+    "Skittering Crustacean",
+    "Sinuous Vermin",
+    "Chillerpillar",
+    "Polis Crusher",
+    "Swarmborn Giant"
+   ]
+  },
+  {
    "what": "ConniveTargetEffect",
    "score": 9,
    "lines": 9,
@@ -8334,21 +8351,6 @@
    ]
   },
   {
-   "what": "MonstrousCondition.instance",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Colossus of Akros",
-    "Fleecemane Lion",
-    "Hundred-Handed One",
-    "Domesticated Hydra",
-    "Skittering Crustacean",
-    "Sinuous Vermin",
-    "Chillerpillar",
-    "Swarmborn Giant"
-   ]
-  },
-  {
    "what": "comparison EQUAL_TO",
    "score": 8,
    "lines": 8,
@@ -8514,8 +8516,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4725,
-   "cards": 3954,
+   "score": 4728,
+   "cards": 3957,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8539,19 +8541,6 @@
    ]
   },
   {
-   "what": "Ability.setTargetAdjuster",
-   "score": 286,
-   "cards": 247,
-   "names": [
-    "Curse of the Swine",
-    "The Mycosynth Gardens",
-    "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Pest Infestation",
-    "Grasp of Fate",
-    "Crackle with Power"
-   ]
-  },
-  {
    "what": "(line not matched to XMage code)",
    "score": 261,
    "cards": 249,
@@ -8562,6 +8551,19 @@
     "Winds of Abandon",
     "Alchemist's Talent",
     "Liliana, Death's Majesty"
+   ]
+  },
+  {
+   "what": "Ability.setTargetAdjuster",
+   "score": 257,
+   "cards": 218,
+   "names": [
+    "Curse of the Swine",
+    "The Mycosynth Gardens",
+    "Agadeem's Awakening // Agadeem, the Undercrypt",
+    "Pest Infestation",
+    "Grasp of Fate",
+    "Crackle with Power"
    ]
   },
   {
@@ -8592,8 +8594,8 @@
   },
   {
    "what": "custom condition",
-   "score": 171,
-   "cards": 147,
+   "score": 172,
+   "cards": 148,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -11953,6 +11955,19 @@
    ]
   },
   {
+   "what": "keyword RavenousAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Jacked Rabbit",
+    "Sporocyst",
+    "Tyrant Guard",
+    "Aberrant",
+    "Tervigon",
+    "Termagant Swarm"
+   ]
+  },
+  {
    "what": "AddCountersPlayersEffect",
    "score": 9,
    "cards": 9,
@@ -12327,19 +12342,6 @@
     "Knight of Dusk",
     "Baneblade Scoundrel // Baneclaw Marauder",
     "Godo's Irregulars"
-   ]
-  },
-  {
-   "what": "ConditionalContinuousEffect without a condition",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Sardian Cliffstomper",
-    "Goblin Caves",
-    "Blood Lust",
-    "Gorilla Titan",
-    "Court Homunculus",
-    "Swordsworn Cavalier"
    ]
   }
  ]

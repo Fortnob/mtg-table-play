@@ -46,6 +46,7 @@ function partsOf(o, tc, allowed) {
     else if (c.name === 'withTriggerCondition') out.conds.push(c.args[0]);
     else if (c.name === 'setTriggersLimitEachTurn') { if (litOf(c.args[0]) !== 1) block('trigger limit'); out.once = true; }
     else if (c.name === 'setTiming') { const t = keyOf(c.args[0]); if (t !== 'TimingRule.SORCERY') block(t); out.timing = 'sorcery'; }
+    else if (c.name === 'setTargetAdjuster' && c.args[0] && c.args[0].t === 'obj' && c.args[0].cls === 'ThatPlayerControlsTargetAdjuster' && !c.args[0].args.length) out.thatPlayer = true;
     else if (TRIGGER_COSMETIC.has(c.name)) continue;
     else if (allowed && allowed.includes(c.name)) continue;
     else block('Ability.' + c.name);
@@ -57,6 +58,18 @@ function partsOf(o, tc, allowed) {
 function body(firstEffect, parts, tc) {
   const save = tc.ab;
   const targets = parts.targets.map(t => tr('target', t, tc));
+  /* ThatPlayerControlsTargetAdjuster: each target is something the player
+     the trigger is about controls. */
+  if (parts.thatPlayer) {
+    if (!tc.trigger || tc.trigger.pointer !== 'player') block('that player, with no player');
+    for (const t of targets) {
+      if (t.kind !== 'object' || t.notTarget) block('that player controls, of a ' + t.kind);
+      t.specs = t.specs.map(s => {
+        if (s.zone !== 'battlefield' || (s.controller && s.controller !== 'opponent')) block('that player controls, and more');
+        return Object.assign({}, s, { controller: 'triggerPlayer' });
+      });
+    }
+  }
   tc.ab = { targets, used: new Set() };
   try {
     const list = [];

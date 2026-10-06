@@ -7098,7 +7098,13 @@
          until the spell resolves, so nothing could have been chosen for it
          when the spell was cast. */
       if (e.targets && e.targets.length && !targets.length && !sliced) {
-        const options = e.targets.map(spec => this._legalTargetsFor(spec, ctx.controller, src ? src.id : null));
+        /* "Destroy target artifact that player controls": the player the
+           trigger is about, whoever that turns out to be. */
+        const td = ctx.triggerData || {};
+        const tp = ctx.chosenPlayer || td.drawer || td.player || td.deadController || td.playerId || '-';
+        const aimed = e.targets.map(spec => (spec && spec.controller === 'triggerPlayer'
+          ? Object.assign({}, spec, { controller: undefined, controllerId: tp }) : spec));
+        const options = aimed.map(spec => this._legalTargetsFor(spec, ctx.controller, src ? src.id : null));
         // nothing legal to point at: the effect simply does not happen
         if (options.every(list => list.length)) {
           const picked = this._ask({
@@ -11902,6 +11908,7 @@
         for (const p of this.players) {
           if (spec.controller === 'you' && p.id !== controllerId) continue;
           if (spec.controller === 'opponent' && p.id === controllerId) continue;
+          if (spec.controllerId && p.id !== spec.controllerId) continue;
           pool.push(...((this.zones[p.id] || {})[zone] || []));
         }
       }

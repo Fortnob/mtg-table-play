@@ -231,6 +231,24 @@ module.exports = (test) => {
     t.eq(T.life('B'), 16, 'four with three artifacts');
   });
 
+  test('XMage: Mistblade Shinobi bounces a creature the damaged player controls', (mk, t) => {
+    generated(t, 'Mistblade Shinobi');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const ninja = T.bf('A', 'Mistblade Shinobi');
+    const bs = T.bf('B', 'Grizzly Bears');
+    const cs = T.bf('C', 'Grizzly Bears');
+    T.answer('pickTarget', (ch) => {
+      const ids = ch.options[0].map(o => o.id);
+      t.ok(ids.includes(bs.id) && !ids.includes(cs.id), 'only the damaged player\'s creatures');
+      return { targets: [{ kind: 'object', id: bs.id }] };
+    });
+    T.answer('confirm', { yes: true });
+    T.g._fire('combatDamageToPlayer', 'A', { source: ninja, amount: 1, player: 'B' });
+    T.resolve();
+    t.zone(bs, 'hand');
+    t.zone(cs, 'battlefield');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));
