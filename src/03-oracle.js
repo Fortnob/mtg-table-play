@@ -840,8 +840,11 @@
         return kws.length ? { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastGroup' }] } : pump;
       } },
     /* Melt Terrain, Ionize: "… deals 2 damage to that land's controller" */
-    { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|spell)|It) deals (\d+|X) damage to that (?:spell|land|artifact|creature|permanent|enchantment|planeswalker)'s controller\.?$/i,
+    { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|spell|Aura|Equipment)|It) deals (\d+|X) damage to that (?:spell|land|artifact|creature|permanent|enchantment|planeswalker)'s controller\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toAffectedController: true }) },
+    /* "Destroy it." after a trigger about a permanent: that permanent */
+    { re: /^Destroy (?:it|that land|that permanent|that artifact)\.?$/i,
+      make: () => ({ op: 'destroy', scope: 'lastTarget' }) },
     /* "You get an emblem with 'Creatures you control get +2/+2 and have
        flying.'" — one or more abilities in quotation marks */
     { re: /^You get an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
@@ -3787,6 +3790,23 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat )?damage,? /i, event: 'isDealtDamage', self: true,
       extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
     { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
+    /* an Aura or Equipment watching the creature it is on */
+    { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked),? /i,
+      event: 'becomesTapped', aboutObject: true,
+      extraOf: (m) => {
+        const w = m[1].toLowerCase();
+        return { event: w === 'becomes tapped' ? 'becomesTapped' : w === 'is dealt damage' ? 'isDealtDamage'
+          : w === 'becomes blocked' ? 'becomesBlocked' : 'dealsDamage', ofEnchanted: true, combatOnly: w === 'deals combat damage' || undefined };
+      } },
+    { re: /^When(?:ever)? a creature dealt damage by (?:this creature|~|CARDNAME) this turn dies,? /i, event: 'permDies',
+      filt: () => ({ words: 'creature' }), extra: { damagedByMe: true } },
+    { re: /^When(?:ever)? a player cycles a card,? /i, event: 'anyCycle' },
+    { re: /^When(?:ever)? a player discards a card,? /i, event: 'anyDiscard' },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
+    { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
+    { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },
+    { re: /^When(?:ever)? you(?:'re| are) dealt damage,? /i, event: 'playerDealtDamage', extra: { youOnly: true } },
+    { re: /^At the beginning of each player's (?:first|precombat) main phase,? /i, event: 'eachMain1' },
     /* "Whenever this creature deals combat damage to a creature, destroy
        that creature": "that creature" is the one it hit */
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to a creature,? /i, event: 'dealsDamageToCreature', self: true,
@@ -4866,6 +4886,15 @@
     /* "Put a +1/+1 counter on that creature" reads as the creature the
        trigger is about; anywhere else there is no such creature, and the
        line goes back to a person. */
+    /* "Destroy it." with nothing targeted and no permanent the trigger is
+       about: nothing for "it" to be, so the line goes back to a person */
+    for (const ab of out.abilities) {
+      if (!ab.auto) continue;
+      const js = JSON.stringify(ab.effects || []);
+      if (!/"op":"(?:destroy|exile)","scope":"lastTarget"/.test(js) || /"targets":\[\{/.test(js)) continue;
+      ab.auto = false;
+      autoLines--;
+    }
     for (const ab of out.abilities) {
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
       if (ab.kind === 'triggered' && !ab.self) continue;

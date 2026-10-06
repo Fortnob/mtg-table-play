@@ -916,6 +916,39 @@ module.exports = (test) => {
     t.ok(card.abilities.some(x => x.event === 'isDealtDamage' && x.self));
   });
 
+  test("Umezawa's Jitte gets charge counters when its creature deals combat damage", (mk, t) => {
+    t.auto("Umezawa's Jitte");
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const j = T.bf('A', "Umezawa's Jitte");
+    j.attachedTo = bear.id; bear.attachments = [j.id];
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(j.counters.charge, 2);
+  });
+
+  test("Blight destroys the land it enchants when it becomes tapped, whoever controls it", (mk, t) => {
+    t.auto('Blight');
+    const T = mk();
+    const land = T.bf('B', 'Forest');
+    const bl = T.bf('A', 'Blight');
+    bl.attachedTo = land.id; land.attachments = [bl.id];
+    T.g._markTapped(land);
+    T.resolve();
+    t.zone(land, 'graveyard');
+  });
+
+  test('Blood Cultist grows when a creature it damaged dies', (mk, t) => {
+    t.auto('Blood Cultist');
+    const T = mk();
+    const bc = T.bf('A', 'Blood Cultist');
+    bc.summoningSick = false;
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.activate('A', bc, 0, { targets: [elf] });
+    t.zone(elf, 'graveyard');
+    t.eq(bc.counters['+1/+1'], 1);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17504,
-  "gainedCards": 1802,
-  "linesNeeded": 20055,
-  "linesGained": 2362,
+  "needed": 17453,
+  "gainedCards": 1800,
+  "linesNeeded": 19992,
+  "linesGained": 2358,
   "gained": {
-   "all": 1802,
+   "all": 1800,
    "top2000": 52,
    "stdTop": 13
   },
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1067,
-   "lines": 854,
+   "score": 1065,
+   "lines": 852,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1759,25 +1759,6 @@
    ]
   },
   {
-   "what": "BecomesTappedAttachedTriggeredAbility",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Hawkeye's Bow",
-    "Betrayal",
-    "Cryoshatter",
-    "Relic Putrescence",
-    "Contaminated Ground",
-    "Darksteel Garrison",
-    "Spreading Algae",
-    "Blight",
-    "Seizures",
-    "Psychic Venom",
-    "Brink of Disaster",
-    "Corrupted Roots"
-   ]
-  },
-  {
    "what": "TargetStackObject",
    "score": 21,
    "lines": 18,
@@ -1888,25 +1869,6 @@
     "Glory of Warfare",
     "Wargling",
     "The Chief Warg"
-   ]
-  },
-  {
-   "what": "DealtDamageAndDiedTriggeredAbility",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Predator Ooze",
-    "Markov Enforcer",
-    "Zurgo Helmsmasher",
-    "Rot Wolf",
-    "Blood Cultist",
-    "Sengir Vampire",
-    "Wight",
-    "Dread Slaver",
-    "Vampiric Dragon",
-    "Madame Vastra",
-    "Abattoir Ghoul",
-    "Vampiric Sliver"
    ]
   },
   {
@@ -5014,25 +4976,6 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
-   ]
-  },
-  {
-   "what": "DealtDamageAttachedTriggeredAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Hot Soup",
-    "Druid's Call",
-    "Sporogenic Infection",
-    "Cracked Skull",
-    "Sleep Magic",
-    "Soul Link",
-    "Ragged Veins",
-    "Spiteful Shadows",
-    "Binding Agony",
-    "Frozen Solid",
-    "Mire Blight",
-    "Mortal Wound"
    ]
   },
   {
@@ -8303,6 +8246,48 @@
     "Way of the Deathbringer",
     "Way of the Wildspeaker"
    ]
+  },
+  {
+   "what": "RegenerateSourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Zombie Master",
+    "Clot Sliver",
+    "Sedge Sliver",
+    "Run Wild",
+    "Gobhobbler Rats",
+    "Villainous Ogre",
+    "Tribal Golem"
+   ]
+  },
+  {
+   "what": "TargetController.ACTIVE.getControllerPredicate",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Persistent Constrictor",
+    "Unstable Glyphbridge // Sandswirl Wanderglyph",
+    "Topplegeist",
+    "Kitt Kanto, Mayhem Diva",
+    "Mana Cache",
+    "Tooth Collector",
+    "Urborg Stalker"
+   ]
+  },
+  {
+   "what": "PlayFromGraveyardControllerEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Wrenn and Realmbreaker",
+    "Titania, Nature's Force",
+    "Haakon, Stromgald Scourge",
+    "Zask, Skittering Swarmlord",
+    "Liliana, Untouched by Death",
+    "Hazezon, Shaper of Sand",
+    "Abandoned Sarcophagus"
+   ]
   }
  ],
  "sole": [
@@ -8321,8 +8306,8 @@
   },
   {
    "what": "custom ability",
-   "score": 790,
-   "cards": 628,
+   "score": 788,
+   "cards": 626,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -9072,19 +9057,6 @@
    ]
   },
   {
-   "what": "BecomesTappedAttachedTriggeredAbility",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Hawkeye's Bow",
-    "Betrayal",
-    "Cryoshatter",
-    "Relic Putrescence",
-    "Contaminated Ground",
-    "Darksteel Garrison"
-   ]
-  },
-  {
    "what": "modal activated ability",
    "score": 18,
    "cards": 6,
@@ -9327,19 +9299,6 @@
     "Twinblade Geist // Twinblade Invocation",
     "Lantern Bearer // Lanterns' Lift",
     "Chaplain of Alms // Chapel Shieldgeist"
-   ]
-  },
-  {
-   "what": "DealtDamageAndDiedTriggeredAbility",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Predator Ooze",
-    "Markov Enforcer",
-    "Rot Wolf",
-    "Blood Cultist",
-    "Sengir Vampire",
-    "Wight"
    ]
   },
   {
@@ -10376,6 +10335,19 @@
    ]
   },
   {
+   "what": "RegenerateTargetEffect",
+   "score": 11,
+   "cards": 8,
+   "names": [
+    "Swarmyard",
+    "Dawn Charm",
+    "Ezuri, Renegade Leader",
+    "Accursed Duneyard",
+    "Mad Auntie",
+    "Regenerate"
+   ]
+  },
+  {
    "what": "BeginningOfPostcombatMainTriggeredAbility",
    "score": 11,
    "cards": 8,
@@ -10693,6 +10665,19 @@
    ]
   },
   {
+   "what": "BecomesColorSourceEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Wild Mongrel",
+    "Spiritmonger",
+    "Repentant Vampire",
+    "Wayward Angel",
+    "Kavu Chameleon",
+    "Rainbow Crow"
+   ]
+  },
+  {
    "what": "PreventDamageByTargetEffect",
    "score": 11,
    "cards": 11,
@@ -10742,19 +10727,6 @@
     "Kindred Summons",
     "Haunting Voyage",
     "Kindred Charge"
-   ]
-  },
-  {
-   "what": "RegenerateTargetEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Swarmyard",
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Accursed Duneyard",
-    "Mad Auntie",
-    "Regenerate"
    ]
   },
   {
@@ -11150,19 +11122,6 @@
    ]
   },
   {
-   "what": "BecomesColorSourceEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Wild Mongrel",
-    "Spiritmonger",
-    "Wayward Angel",
-    "Kavu Chameleon",
-    "Rainbow Crow",
-    "Possessed Aven"
-   ]
-  },
-  {
    "what": "MustBeBlockedByTargetSourceEffect",
    "score": 10,
    "cards": 10,
@@ -11199,6 +11158,19 @@
     "Kjeldoran Knight",
     "Wall of Shields",
     "Benalish Infantry"
+   ]
+  },
+  {
+   "what": "LicidAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Dominating Licid",
+    "Nurturing Licid",
+    "Convulsing Licid",
+    "Corrupting Licid",
+    "Enraging Licid",
+    "Calming Licid"
    ]
   },
   {
@@ -11746,19 +11718,6 @@
    ]
   },
   {
-   "what": "DealtDamageAttachedTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Hot Soup",
-    "Druid's Call",
-    "Sleep Magic",
-    "Ragged Veins",
-    "Spiteful Shadows",
-    "Binding Agony"
-   ]
-  },
-  {
    "what": "keyword AftermathAbility",
    "score": 9,
    "cards": 9,
@@ -11873,19 +11832,6 @@
     "Desert Nomads",
     "Wall of Putrid Flesh",
     "Argothian Pixies"
-   ]
-  },
-  {
-   "what": "LicidAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Dominating Licid",
-    "Nurturing Licid",
-    "Convulsing Licid",
-    "Corrupting Licid",
-    "Enraging Licid",
-    "Calming Licid"
    ]
   },
   {
@@ -12116,6 +12062,45 @@
    "names": [
     "Dracogenesis",
     "Omnipresence"
+   ]
+  },
+  {
+   "what": "keyword GraftAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Llanowar Reborn",
+    "Plaxcaster Frogling",
+    "Vigean Graftmage",
+    "Novijen Sages",
+    "Helium Squirter",
+    "Simic Initiate"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Pyrohemia",
+    "Pestilence",
+    "Biovisionary",
+    "Arachnus Web",
+    "Skizzik",
+    "Lightning Shrieker"
+   ]
+  },
+  {
+   "what": "AttachTargetToTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Brass Squire",
+    "Magnetic Theft",
+    "Raubahn, Bull of Ala Mhigo",
+    "Weapons Vendor",
+    "Iron Hills Stalwart",
+    "Aura Finesse"
    ]
   }
  ]

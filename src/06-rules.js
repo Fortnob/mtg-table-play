@@ -566,6 +566,7 @@
             }
           }
           if (this.phase.id === 'precombat') this._fire('yourMain1', this.activePlayer.id);
+          if (this.phase.id === 'precombat') this._fire('eachMain1', null, { playerId: this.activePlayer.id });
           // "at the beginning of your second main phase"
           if (this.phase.id === 'postcombat') this._fire('yourMain2', this.activePlayer.id);
           break;
@@ -2797,6 +2798,7 @@
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
       this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });
+      this._fire('anyDiscard', null, { object: o, playerId });
     }
 
     /**
@@ -2845,6 +2847,7 @@
       this.moveObject(o, 'graveyard');
       this.logEvent('cycle', `${this.player(playerId).name} cycles ${o.name}.`);
       this._fire('youCycle', playerId, { object: o, source: o });
+      this._fire('anyCycle', null, { object: o, playerId });
       // cycling is discarding, for "whenever you discard a card"
       this._afterDiscard(playerId, o);
       /* "When you cycle this card": its own trigger, from the graveyard */
@@ -6320,6 +6323,11 @@
       else o.damage += amount;
       // "target creature that was dealt damage this turn", until the cleanup step
       o.damagedThisTurn = true;
+      // "a creature dealt damage by this creature this turn": who hit it, and when
+      if (source) {
+        if (!o._damagedBy || o._damagedBy.turn !== this.turn) o._damagedBy = { turn: this.turn, ids: [] };
+        if (!o._damagedBy.ids.includes(source.id)) o._damagedBy.ids.push(source.id);
+      }
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       if (source && this.hasKw(source, 'deathtouch')) o.dealtDeathtouch = true;
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!isCombat });
@@ -6368,6 +6376,7 @@
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
       this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount });
+      this._fire('playerDealtDamage', null, { player: p.id, amount, combat: !!combat });
       if (combat && source && source.isCommander) {
         p.commanderDamage[source.id] = (p.commanderDamage[source.id] || 0) + amount;
         this.logEvent('commander', `${p.name} has taken ${p.commanderDamage[source.id]} commander damage from ${source.name}.`);
@@ -6916,7 +6925,16 @@
               (!ab.objFilter || this._objFits(x, ab.objFilter, o)));
             if (earlier.length) continue;
           }
-          if (controllerId && !ab.self && o.controller !== controllerId) continue;
+          // an Aura or Equipment watching the creature it is on, whoever controls that creature
+          if (ab.ofEnchanted && !(data.object && o.attachedTo === data.object.id)) continue;
+          // "a creature dealt damage by this creature this turn dies"
+          if (ab.damagedByMe && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
+            data.object._damagedBy.ids.includes(o.id))) continue;
+          // "each opponent's end step", "combat on each opponent's turn"
+          if (ab.notYourTurn && ((data.playerId || (this.activePlayer || {}).id) === o.controller)) continue;
+          // "whenever you're dealt damage"
+          if (ab.youOnly && data.player !== o.controller) continue;
+          if (controllerId && !ab.self && !ab.ofEnchanted && o.controller !== controllerId) continue;
           if (data.except && o.id === data.except) continue;
           if (data.except && o.controller === data.except) continue;
           // an intervening "if" clause is checked before the trigger is even
