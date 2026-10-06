@@ -190,6 +190,11 @@ function overrideReason(parsed, translated) {
       if (SCOPES.has(b.scope) && (a.scope == null || SCOPES.has(a.scope)) && a.scope !== b.scope && !(a.op === 'grantLast' && b.scope === 'lastTarget')) return 'it';
     }
   }
+  /* A creature type misread from its plural ("Allies" as "allie", which
+     no creature is): the lord pumped nothing. */
+  const subOf = (list) => { const out = []; walk(list, (o) => { if (o.scope && typeof o.scope === 'object' && o.scope.subtype) out.push(o.scope.subtype); }); return out; };
+  const psub = subOf(parsed), tsub = subOf(translated);
+  if (psub.length && psub.length === tsub.length && psub.some((x, i) => x !== tsub[i])) return 'subtype';
   /* "+X/+0" read as nothing at all (Hatred) */
   if (pe.length === te.length && pe.some((e, i) => ['p', 't', 'n'].some(k => (e[k] == null) && te[i][k] === 'X'))) return 'x';
   /* An intervening "if" the reading dropped: the trigger fired every time

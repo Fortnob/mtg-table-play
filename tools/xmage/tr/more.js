@@ -48,7 +48,8 @@ def('effect', 'AddManaOfAnyColorEffect', (o) => {
   E.checkCalls(o);
   const n = A(o).int(0);
   if (A(o).bool(0, false) || o.args.some(a => kindOf(a) === 'value')) block('AddManaOfAnyColorEffect flags');
-  return { op: 'addManaAny', amount: n == null ? 1 : n };
+  // "three mana of any one color": one colour, chosen once
+  return Object.assign({ op: 'addManaAny', amount: n == null ? 1 : n }, n > 1 ? { sameColor: true } : null);
 });
 
 const TAP = () => ({ t: 'obj', cls: 'TapSourceCost', args: [], calls: [] });
