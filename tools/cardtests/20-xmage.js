@@ -260,17 +260,14 @@ module.exports = (test) => {
     t.ok(T.g.canBlock(bird, s, 'B'), 'the hawk can');
   });
 
-  test('XMage: Ajani, Mentor of Heroes spreads three counters over its targets', (mk, t) => {
-    generated(t, 'Ajani, Mentor of Heroes');
+  test('XMage: Splendid Agony spreads two -1/-1 counters over its targets', (mk, t) => {
+    generated(t, 'Splendid Agony');
     const T = mk();
-    const aj = T.bf('A', 'Ajani, Mentor of Heroes', { counters: { loyalty: 4 } });
-    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves');
-    const ab = aj.analysis();
-    const list = ab.manaAbilities.concat(ab.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
-    const idx = list.findIndex(x => (x.effects || []).some(e => e.op === 'countersDivided'));
-    T.activate('A', aj, idx, { targets: [a, b] });
-    t.eq((a.counters['+1/+1'] || 0) + (b.counters['+1/+1'] || 0), 3, 'three in all');
-    t.ok(a.counters['+1/+1'] >= 1 && b.counters['+1/+1'] >= 1, 'each got some');
+    const a = T.bf('B', 'Craw Wurm'), b = T.bf('B', 'Craw Wurm');
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Splendid Agony'), { targets: [a, b] });
+    t.eq(a.counters['-1/-1'], 1);
+    t.eq(b.counters['-1/-1'], 1);
   });
 
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {

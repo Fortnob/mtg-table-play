@@ -96,7 +96,11 @@ function modal(firstEffect, parts, tc) {
   const min = parts.minModes != null ? parts.minModes : 1;
   const max = parts.maxModes != null ? parts.maxModes : 1;
   if (min < 0 || max < min) block('mode count');
-  const out = { op: 'modal', count: Math.max(min, 1), repeatable: false, modes: modes.map((m, i) => ({ label: 'Mode ' + (i + 1), effects: m.effects, auto: true })) };
+  /* The labels are the printed bullets, as the parser writes them: they
+     are what a player picks from. */
+  const bullets = String(tc.lineText || '').split(/\s*\u2022\s*/).slice(1).map(x => x.trim().replace(/\.$/, ''));
+  const label = (i) => (bullets.length === modes.length ? bullets[i] : 'Mode ' + (i + 1));
+  const out = { op: 'modal', count: Math.max(min, 1), repeatable: false, modes: modes.map((m, i) => ({ label: label(i), effects: m.effects, auto: true })) };
   if (max > Math.max(min, 1)) out.max = max;
   if (min === 0) block('up to modes');
   return out;
