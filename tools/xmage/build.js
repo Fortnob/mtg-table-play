@@ -37,6 +37,7 @@ const AB = require('./tr/abilities');
 const MORE = require('./tr/more');
 const MORE2 = require('./tr/more2');
 require('./tr/more3');
+require('./tr/more4');
 const fw = require('./framework');
 const V = require('./verify');
 

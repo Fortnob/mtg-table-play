@@ -79,7 +79,8 @@ function compatible(u, line, isPermanent) {
   const ls = lineShape(line.text);
   if (us === 'any') return true;
   // a permanent's spell ability is an Aura's targeting: the "Enchant" line
-  if (us === 'spell') return isPermanent ? ls === 'static' : ls !== 'triggered' && ls !== 'activated';
+  // (an instant's "at the beginning of each combat this turn" is still the spell)
+  if (us === 'spell') return isPermanent ? ls === 'static' : ls !== 'activated';
   if (us === 'cost') return ls === 'static';
   if (us === 'chapter') return /^[IVX]+(?:\s*,\s*[IVX]+)*\s*[-—]/.test(line.text);
   if (us === 'keyword') return ls !== 'triggered';
@@ -106,7 +107,8 @@ function unitsOf(model) {
     }
     const cls = o && o.t === 'obj' ? o.cls : core.keyOf(o);
     const fam = o && o.t === 'obj' && !o.custom ? abilityFamily(o.cls) : 'other';
-    units.push({ kind: fam === 'keyword' ? 'keyword' : 'ability', fam, obj: o, cmt: a.cmt || (o && o.cmt) || null, cls, srcLine: a.line });
+    // the comment above where the ability was made, not above where it was added
+    units.push({ kind: fam === 'keyword' ? 'keyword' : 'ability', fam, obj: o, cmt: (o && o.cmt) || a.cmt || null, cls, srcLine: (o && o.line) || a.line });
   }
   if (model.spell) {
     const sp = model.spell;
