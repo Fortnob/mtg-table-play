@@ -608,6 +608,47 @@ module.exports = (test) => {
     t.no(T.g.hasKw(el, 'trample'));
   });
 
+  test('Dungeon Map ventures into a dungeon, room by room', (mk, t) => {
+    t.auto('Dungeon Map');
+    const T = mk();
+    const map = T.bf('A', 'Dungeon Map');
+    const acts = map.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts.length, 1);
+    T.answer('choose', { picks: [0] });
+    T.mana('A', '3');
+    T.activate('A', map, 1);
+    t.eq(T.player('A').dungeon.name, 'Lost Mine of Phandelver');
+    t.eq(T.player('A').dungeon.room, 'Cave Entrance');
+    map.tapped = false;
+    T.answer('choose', { picks: [0] });
+    T.mana('A', '3');
+    T.activate('A', map, 1);
+    t.eq(T.player('A').dungeon.room, 'Goblin Lair');
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Goblin'), 'the room made its Goblin');
+  });
+
+  test('Taking the initiative ventures into Undercity', (mk, t) => {
+    const T = mk();
+    const forest = T.top('A', 'Forest');
+    T.top('A', 'Opt');
+    T.g.takeInitiative('A', 'a test');
+    T.resolve();
+    t.ok(T.player('A').initiative, 'has the initiative');
+    t.eq(T.player('A').dungeon && T.player('A').dungeon.name, 'Undercity');
+    t.zone(forest, 'hand', 'Secret Entrance found a basic land');
+  });
+
+  test('The last room completes the dungeon', (mk, t) => {
+    const T = mk();
+    T.player('A').dungeon = { name: 'Lost Mine of Phandelver', room: 'Dark Pool' };
+    T.top('A', 'Island');
+    const map = T.bf('A', 'Dungeon Map');
+    T.mana('A', '3');
+    T.activate('A', map, 1);
+    t.no(T.player('A').dungeon, 'out of the dungeon');
+    t.eq((T.player('A').dungeonsCompleted || []).join(), 'Lost Mine of Phandelver');
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

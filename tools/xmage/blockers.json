@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17953,
-  "gainedCards": 1879,
-  "linesNeeded": 20667,
-  "linesGained": 2481,
+  "needed": 17917,
+  "gainedCards": 1865,
+  "linesNeeded": 20615,
+  "linesGained": 2464,
   "gained": {
-   "all": 1879,
+   "all": 1865,
    "top2000": 51,
    "stdTop": 14
   },
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 513,
-   "lines": 474,
+   "score": 512,
+   "lines": 473,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 378,
-   "lines": 357,
+   "score": 377,
+   "lines": 356,
    "cards": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -581,25 +581,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 38,
-   "lines": 35,
-   "cards": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Alela, Cunning Conqueror",
-    "Tidus, Yuna's Guardian",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen",
-    "Descendants' Fury",
-    "Olivia, Opulent Outlaw"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 37,
    "lines": 34,
@@ -635,6 +616,25 @@
     "Cloak and Dagger",
     "Diviner's Wand",
     "Ancestral Katana"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 37,
+   "lines": 34,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Alela, Cunning Conqueror",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Descendants' Fury",
+    "Olivia, Opulent Outlaw"
    ]
   },
   {
@@ -786,25 +786,6 @@
     "Ahn-Crop Crasher",
     "Glory-Bound Initiate",
     "Ahn-Crop Champion"
-   ]
-  },
-  {
-   "what": "VentureIntoTheDungeonEffect",
-   "score": 31,
-   "lines": 31,
-   "cards": [
-    "Acererak the Archlich",
-    "Nadaar, Selfless Paladin",
-    "Radiant Solar",
-    "Thorough Investigation",
-    "Yuan-Ti Malison",
-    "Dungeon Map",
-    "Triumphant Adventurer",
-    "Fly",
-    "Bar the Gate",
-    "Barrowin of Clan Undurr",
-    "Fates' Reversal",
-    "Eccentric Apprentice"
    ]
   },
   {
@@ -1123,25 +1104,6 @@
    ]
   },
   {
-   "what": "mana ability with more",
-   "score": 26,
-   "lines": 20,
-   "cards": [
-    "Primal Amulet // Primal Wellspring",
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Gemstone Mine",
-    "Sunken Palace",
-    "Cryptolith Fragment // Aurora of Emrakul",
-    "Sandstone Needle",
-    "Saprazzan Skerry",
-    "Altar of the Pantheon",
-    "Hickory Woodlot",
-    "Peat Bog",
-    "Magus Lucea Kane"
-   ]
-  },
-  {
    "what": "DynamicManaAbility shape",
    "score": 26,
    "lines": 26,
@@ -1234,6 +1196,25 @@
     "Reclaim the Wastes",
     "Behold the Beyond",
     "Practical Research"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 25,
+   "lines": 19,
+   "cards": [
+    "Primal Amulet // Primal Wellspring",
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Gemstone Mine",
+    "Sunken Palace",
+    "Sandstone Needle",
+    "Saprazzan Skerry",
+    "Altar of the Pantheon",
+    "Hickory Woodlot",
+    "Peat Bog",
+    "Magus Lucea Kane",
+    "Remote Farm"
    ]
   },
   {
@@ -4588,25 +4569,6 @@
    ]
   },
   {
-   "what": "boost for nextTurn",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Jace, the Perfected Mind",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "Liliana, the Last Hope",
-    "Sorin, Solemn Visitor",
-    "All-Seeing Arbiter",
-    "Dovin Baan",
-    "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
-    "Behold the Unspeakable // Vision of the Unspeakable",
-    "Mu Yanling, Sky Dancer",
-    "Garruk, Veiled Butcher",
-    "Mouth of the Storm",
-    "Mu Yanling, Celestial Wind"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 13,
    "lines": 13,
@@ -5320,6 +5282,25 @@
     "Oracle of Bones",
     "Omnispell Adept",
     "Twinning Glass"
+   ]
+  },
+  {
+   "what": "boost for nextTurn",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Jace, the Perfected Mind",
+    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
+    "Liliana, the Last Hope",
+    "Sorin, Solemn Visitor",
+    "All-Seeing Arbiter",
+    "Dovin Baan",
+    "Behold the Unspeakable // Vision of the Unspeakable",
+    "Mu Yanling, Sky Dancer",
+    "Garruk, Veiled Butcher",
+    "Mouth of the Storm",
+    "Mu Yanling, Celestial Wind",
+    "Wasp, Shrinking Savior"
    ]
   },
   {
@@ -8435,13 +8416,28 @@
     "Ordruun Commando",
     "Revered Elder"
    ]
+  },
+  {
+   "what": "DrewTwoOrMoreCardsCondition.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Galvanize",
+    "Foggy Swamp Hunters",
+    "Messenger Hawk",
+    "Evangel of Synthesis",
+    "Eyekite",
+    "Gnarled Sage",
+    "Spinehorn Minotaur",
+    "Trench Stalker"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4743,
-   "cards": 3969,
+   "score": 4745,
+   "cards": 3971,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8622,8 +8618,8 @@
   },
   {
    "what": "ConditionalRestrictionEffect",
-   "score": 42,
-   "cards": 42,
+   "score": 43,
+   "cards": 43,
    "names": [
     "Gadrak, the Crown-Scourge",
     "Putrid Imp",
@@ -9136,19 +9132,6 @@
     "Nimbleclaw Adept",
     "Akul the Unrepentant",
     "Butterbur, Bree Innkeeper"
-   ]
-  },
-  {
-   "what": "VentureIntoTheDungeonEffect",
-   "score": 21,
-   "cards": 21,
-   "names": [
-    "Thorough Investigation",
-    "Dungeon Map",
-    "Triumphant Adventurer",
-    "Fly",
-    "Bar the Gate",
-    "Fates' Reversal"
    ]
   },
   {
@@ -11425,6 +11408,19 @@
    ]
   },
   {
+   "what": "conditional with an otherwise",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Hunter's Blowgun",
+    "Precipitous Drop",
+    "Relic Axe",
+    "Mind Carver",
+    "Sea Legs",
+    "Tahngarth's Rage"
+   ]
+  },
+  {
    "what": "OpusAbility",
    "score": 10,
    "cards": 10,
@@ -11940,19 +11936,6 @@
    ]
   },
   {
-   "what": "conditional with an otherwise",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Hunter's Blowgun",
-    "Relic Axe",
-    "Mind Carver",
-    "Sea Legs",
-    "Tahngarth's Rage",
-    "Serra's Boon"
-   ]
-  },
-  {
    "what": "BecomesCreatureAttachedEffect",
    "score": 9,
    "cards": 9,
@@ -12261,6 +12244,18 @@
     "Curse of Disturbance",
     "Curse of Bounty",
     "Curse of Vitality"
+   ]
+  },
+  {
+   "what": "RemoveFromCombatTargetEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Reconnaissance",
+    "Labyrinth of Skophos",
+    "Thaumatic Compass // Spires of Orazca",
+    "Hollowhenge Spirit",
+    "Disharmony"
    ]
   }
  ]

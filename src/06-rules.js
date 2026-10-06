@@ -127,6 +127,66 @@
   const ENCHANTMENT_TYPES = new Set(['Aura', 'Saga', 'Class', 'Shrine', 'Curse', 'Cartouche', 'Rune', 'Room',
     'Background', 'Case', 'Role', 'Shard']);
   const EMPTY_SET = new Set();
+
+  /* The dungeons (CR 309), room by room as their cards print them: each
+     room's ability, and the rooms it leads to. Undercity is entered only
+     by venturing into Undercity (the initiative). */
+  const DUNGEON_TEXT = {
+    'Lost Mine of Phandelver': [
+      'Cave Entrance \u2014 Scry 1. (Leads to: Goblin Lair, Mine Tunnels)',
+      'Goblin Lair \u2014 Create a 1/1 red Goblin creature token. (Leads to: Storeroom, Dark Pool)',
+      'Mine Tunnels \u2014 Create a Treasure token. (Leads to: Dark Pool, Fungi Cavern)',
+      'Storeroom \u2014 Put a +1/+1 counter on target creature. (Leads to: Temple of Dumathoin)',
+      'Dark Pool \u2014 Each opponent loses 1 life and you gain 1 life. (Leads to: Temple of Dumathoin)',
+      'Fungi Cavern \u2014 Target creature gets -4/-0 until your next turn. (Leads to: Temple of Dumathoin)',
+      'Temple of Dumathoin \u2014 Draw a card.'],
+    'Dungeon of the Mad Mage': [
+      'Yawning Portal \u2014 You gain 1 life. (Leads to: Dungeon Level)',
+      'Dungeon Level \u2014 Scry 1. (Leads to: Goblin Bazaar, Twisted Caverns)',
+      'Goblin Bazaar \u2014 Create a Treasure token. (Leads to: Lost Level)',
+      "Twisted Caverns \u2014 Target creature can't attack until your next turn. (Leads to: Lost Level)",
+      "Lost Level \u2014 Scry 2. (Leads to: Runestone Caverns, Muiral's Graveyard)",
+      'Runestone Caverns \u2014 Exile the top two cards of your library. You may play them. (Leads to: Deep Mines)',
+      "Muiral's Graveyard \u2014 Create two 1/1 black Skeleton creature tokens. (Leads to: Deep Mines)",
+      "Deep Mines \u2014 Scry 3. (Leads to: Mad Wizard's Lair)",
+      "Mad Wizard's Lair \u2014 Draw three cards and reveal them. You may cast one of them without paying its mana cost."],
+    'Tomb of Annihilation': [
+      'Trapped Entry \u2014 Each player loses 1 life. (Leads to: Veils of Fear, Oubliette)',
+      'Veils of Fear \u2014 Each player loses 2 life unless they discard a card. (Leads to: Sandfall Cell)',
+      'Sandfall Cell \u2014 Each player loses 2 life unless they sacrifice a creature, artifact, or land of their choice. (Leads to: Cradle of the Death God)',
+      'Oubliette \u2014 Discard a card and sacrifice a creature, an artifact, and a land. (Leads to: Cradle of the Death God)',
+      'Cradle of the Death God \u2014 Create The Atropal, a legendary 4/4 black God Horror creature token with deathtouch.'],
+    'Undercity': [
+      'Secret Entrance \u2014 Search your library for a basic land card, reveal it, put it into your hand, then shuffle. (Leads to: Forge, Lost Well)',
+      'Forge \u2014 Put two +1/+1 counters on target creature. (Leads to: Trap!, Arena)',
+      'Lost Well \u2014 Scry 2. (Leads to: Arena, Stash)',
+      'Trap! \u2014 Target player loses 5 life. (Leads to: Archives)',
+      'Arena \u2014 Goad target creature. (Leads to: Archives, Catacombs)',
+      'Stash \u2014 Create a Treasure token. (Leads to: Catacombs)',
+      'Archives \u2014 Draw a card. (Leads to: Throne of the Dead Three)',
+      'Catacombs \u2014 Create a 4/1 black Skeleton creature token with menace. (Leads to: Throne of the Dead Three)',
+      'Throne of the Dead Three \u2014 Reveal the top ten cards of your library. Put a creature card from among them onto the battlefield with three +1/+1 counters on it. It gains hexproof until your next turn. Then shuffle.'],
+  };
+  /* Rooms whose words the text reader does not take in, written out in the
+     engine's terms. The rest are read from their words as they are entered. */
+  const CREATURE_TARGET = { type: 'creature', filter: 'creature', zone: 'battlefield' };
+  const ROOM_EFFECTS = {
+    'Fungi Cavern': [{ op: 'pump', p: -4, t: 0, duration: 'nextTurn', targets: [CREATURE_TARGET] }],
+    'Twisted Caverns': [{ op: 'restrict', flag: 'cantAttack', duration: 'nextTurn', targets: [CREATURE_TARGET] }],
+    'Runestone Caverns': [{ op: 'impulse', n: 2, play: true, duration: 'exiled' }],
+    'Trapped Entry': [{ op: 'loseLife', n: 1, who: 'each' }],
+    'Oubliette': [{ op: 'discard', n: 1, who: 'you' }, { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature' },
+      { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'artifact' }, { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'land' }],
+    'Cradle of the Death God': [{ op: 'createToken', n: 1, pt: '4/4', colorWords: ['black'], subtypes: 'God Horror', addTypes: [],
+      keywords: ['Deathtouch'], legendary: true, name: 'The Atropal' }],
+  };
+  const DUNGEONS = {};
+  for (const [name, lines] of Object.entries(DUNGEON_TEXT)) {
+    DUNGEONS[name] = lines.map(l => {
+      const m = l.match(/^(.+?) \u2014 (.+?)(?: \(Leads to: (.+)\))?$/);
+      return { name: m[1], text: m[2], leads: m[3] ? m[3].split(', ') : [] };
+    });
+  }
   /* What a face-down card looks like to anybody not allowed to look (CR 708.2). */
   const FACE_DOWN_VIEW = Object.freeze({ id: '__facedown__', name: 'Face-down card', type_line: 'Creature',
     oracle_text: '', mana_cost: '', cmc: 0, colors: [], color_identity: [], keywords: [], layout: 'normal',
@@ -493,6 +553,8 @@
           this._tickSuspended(this.activePlayer.id);
           this._rebound(this.activePlayer.id);
           this._fire('yourUpkeep', this.activePlayer.id); this._fire('eachUpkeep', null, { playerId: this.activePlayer.id });
+          // the initiative: "at the beginning of your upkeep, venture into Undercity"
+          if (this.activePlayer.initiative) this._initiativeVenture(this.activePlayer.id);
           this._fire('opponentUpkeep', null, { except: this.activePlayer.id, playerId: this.activePlayer.id }); break;
         case 'draw': this._drawStep(); break;
         case 'main':
@@ -7459,6 +7521,7 @@
         case 'loseLife': {
           const cnt = n(e.n);
           if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
+          else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           else if (e.who === 'targetController') { const o = firstObj(); const p = o && this.player(o.controller); if (p) this.changeLife(p, -cnt); }
           else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, -cnt); }
@@ -7704,6 +7767,55 @@
         case 'becomeMonarch': this.setMonarch(e.who === 'opponent'
           ? (this.opponentsOf(ctx.controller)[0] || me).id : ctx.controller, 'a card'); break;
         case 'takeInitiative': this.takeInitiative(ctx.controller, 'a card'); break;
+        /* Venture into the dungeon (CR 701.46): into the first room of a
+           dungeon of your choice, or on to the next room of the one you are
+           in; the room's ability then triggers. */
+        case 'venture': {
+          let d = me.dungeon;
+          let room;
+          if (!d) {
+            const names = e.undercity ? ['Undercity'] : Object.keys(DUNGEONS).filter(x => x !== 'Undercity');
+            let name = names[0];
+            if (names.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'dungeon', kind: 'options', min: 1, max: 1,
+                options: names.map((x, i) => ({ i, label: x })), prompt: 'Venture into which dungeon?' });
+              if (got === SUSPEND) return SUSPEND;
+              name = names[(got && got.picks && got.picks[0]) || 0] || names[0];
+            }
+            d = me.dungeon = { name, room: DUNGEONS[name][0].name };
+            room = DUNGEONS[name][0];
+          } else {
+            const rooms = DUNGEONS[d.name] || [];
+            const here = rooms.find(r => r.name === d.room);
+            const next = ((here && here.leads) || []).map(x => rooms.find(r => r.name === x)).filter(Boolean);
+            if (!next.length) break;
+            room = next[0];
+            if (next.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'dungeonRoom', kind: 'options', min: 1, max: 1,
+                options: next.map((r, i) => ({ i, label: r.name + ' \u2014 ' + r.text })), prompt: 'Which room next?' });
+              if (got === SUSPEND) return SUSPEND;
+              room = next[(got && got.picks && got.picks[0]) || 0] || next[0];
+            }
+            d.room = room.name;
+          }
+          this.logEvent('rules', `${me.name} ventures into ${d.name}: ${room.name}.`);
+          const parsed = ROOM_EFFECTS[room.name] ? { auto: true, effects: JSON.parse(JSON.stringify(ROOM_EFFECTS[room.name])) }
+            : O.parseEffects(room.text);
+          const effects = ((parsed && parsed.effects) || [{ op: 'manual', text: room.text }]).slice();
+          // the last room: once its ability is done, the dungeon is completed (CR 309.7)
+          if (!room.leads.length) effects.push({ op: 'completeDungeon' });
+          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: ctx.controller,
+            name: d.name + ' \u2014 ' + room.name, effects, auto: !!(parsed && parsed.auto), abilityText: room.text });
+          this.touch();
+          break;
+        }
+        case 'completeDungeon':
+          if (me.dungeon) {
+            me.dungeonsCompleted = (me.dungeonsCompleted || []).concat(me.dungeon.name);
+            this.logEvent('rules', `${me.name} completes ${me.dungeon.name}.`);
+            me.dungeon = null;
+          }
+          break;
         case 'energy': {
           const k = n(e.n) || 1;
           me.energy = (me.energy || 0) + k;
@@ -7866,7 +7978,9 @@
           this.emit('sfx', 'untap_all');
           break;
         case 'pump': {
-          const apply = (o) => o.effects.push({ p: n(e.p), t: n(e.t), until: e.duration === 'eot' ? 'eot' : null });
+          // "until your next turn": gone as that player's next turn begins
+          const apply = (o) => o.effects.push(e.duration === 'nextTurn' ? { p: n(e.p), t: n(e.t), until: null, untilTurnOf: ctx.controller }
+            : { p: n(e.p), t: n(e.t), until: e.duration === 'eot' ? 'eot' : null });
           if (e.scope === 'allCreatures') {
             for (const o of this.battlefield) { const oa = o.analysis(); if (oa && oa.isCreature) apply(o); }
           } else applyToScope(e, apply);
@@ -9779,7 +9893,7 @@
 
         case 'restrict':
           applyToScope(e, (o) => {
-            o.effects.push({ flag: e.flag, until: 'eot' });
+            o.effects.push(e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller } : { flag: e.flag, until: 'eot' });
             this.logEvent('rules', `${o.name}: ${FLAG_WORDS[e.flag] || e.flag}.`);
           });
           break;
@@ -9839,7 +9953,8 @@
 
         case 'impulse': {
           const cnt = n(e.n) || 1;
-          const until = e.duration === 'eot' ? this.turn : this.turn + 1;
+          // "You may play them": for as long as they stay exiled
+          const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this.turn + 1;
           const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           this._lastExiledList = [];
           for (let i = 0; i < cnt; i++) {
@@ -12450,6 +12565,12 @@
       return true;
     }
 
+    /** The initiative's own triggered ability: venture into Undercity. */
+    _initiativeVenture(playerId) {
+      this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+        name: 'The Initiative', effects: [{ op: 'venture', undercity: true }], auto: true, abilityText: 'Venture into Undercity.' });
+    }
+
     /** CR 723: the initiative, which also ventures into Undercity. */
     takeInitiative(playerId, how) {
       const p = this.player(playerId);
@@ -12458,6 +12579,8 @@
       for (const x of this.players) x.initiative = false;
       p.initiative = true;
       this.logEvent('initiative', `${p.name} ${had ? 'keeps' : 'takes'} the initiative${how ? ' (' + how + ')' : ''}.`);
+      // "Whenever you take the initiative ... venture into Undercity."
+      this._initiativeVenture(playerId);
       this.emit('sfx', 'crown');
       this.touch();
       return true;

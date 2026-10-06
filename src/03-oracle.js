@@ -2002,7 +2002,16 @@
     { re: /^(?:CARDNAME|This creature) can block only creatures with flying\.?$/i,
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true }, flag: 'blocksFliersOnly' }) },
     { re: /^This ability triggers only once each turn\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^Venture into the dungeon\.?$/i, make: () => ({ op: 'manual', text: 'Venture into the dungeon.' }) },
+    { re: /^(?:Then )?[Vv]enture into the dungeon\.?$/, make: () => ({ op: 'venture' }) },
+    { re: /^(?:Then )?[Vv]enture into Undercity\.?$/, make: () => ({ op: 'venture', undercity: true }) },
+    { re: /^Each player loses (\d+|X) life\.?$/i, make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'each' }) },
+    /* "until your next turn": gone as the controller's next turn begins */
+    { re: /^(Target creature|It|That creature) can'?t (attack|block|attack or block) until your next turn\.?$/i,
+      make: (m) => ({ op: 'restrict', flag: m[2] === 'block' ? 'cantBlock' : m[2] === 'attack' ? 'cantAttack' : 'cantAttackOrBlock',
+        duration: 'nextTurn', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
+    { re: /^(Target creature|It|That creature) gets ([+-]\d+)\/([+-]\d+) until your next turn\.?$/i,
+      make: (m) => ({ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'nextTurn',
+        targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
 
     /* ===== copies ===== */
     { re: /^Create a token that'?s a copy of (another target [a-z0-9 '-]+?|target [a-z0-9 '-]+?|CARDNAME|this creature)(?:, except it (?:has|gains) ([a-z, ']+))?\.?$/i,
