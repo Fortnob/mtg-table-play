@@ -478,6 +478,23 @@
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
+  /* "Until end of turn, whenever you cast a spell, copy it", "Whenever a
+     creature dies this turn, …": a triggered ability that lasts the turn,
+     kept as an emblem that goes at cleanup. Nothing in it may point back
+     at the card or at something chosen before it. */
+  function turnTrigger(text) {
+    const t = String(text).trim();
+    let body = null;
+    let m = t.match(/^(?:Until end of turn|This turn), (whenever [\s\S]+)$/i);
+    if (m) body = 'W' + m[1].slice(1);
+    else if ((m = t.match(/^(Whenever [^,"]+?) this turn, ([\s\S]+)$/))) body = m[1] + ', ' + m[2];
+    if (!body || /\bCARDNAME\b|\bthis (?:creature|spell|card|enchantment|artifact)\b/i.test(body)) return null;
+    const head = body.split(',')[0];
+    if (/\bthat (?:player|creature|permanent|card)\b|\bchosen\b/i.test(head)) return null;
+    body = body.replace(/\.?$/, '.');
+    return emblemText(body) ? { op: 'getEmblem', emblemText: body, thisTurn: true, name: 'Until end of turn' } : null;
+  }
+
   /* "Search your library for up to two basic land cards, put them onto the
      battlefield tapped, then shuffle." A search comes in a dozen phrasings:
      who searches, how many, of what, and where they go. This reads the
@@ -879,6 +896,9 @@
        hand": one of what the mill just put in the graveyard */
     { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: 1, filter: m[2].trim() || 'any', optional: !!m[1] }) },
+    // Smuggler's Surprise: "You may put up to two creature and/or land cards from among the milled cards into your hand."
+    { re: /^(?:Then )?(you may )?(?:put|return) up to (two|three|four) ([a-z, \/]*?)cards from among (?:the milled cards|the cards milled this way|them) (?:into|to) your hand\.?$/i,
+      make: (m) => ({ op: 'takeFromMilled', n: num(m[2]), filter: m[3].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true }) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
 
     // --- tokens ---
@@ -1628,6 +1648,9 @@
     /* more combat */
     { re: /^After this (?:main )?phase, there is an additional combat phase( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1] }) },
+    // Great Train Heist: "If it's your combat phase, there is an additional combat phase after this phase."
+    { re: /^If it'?s your combat phase, there is an additional combat phase after this phase\.?$/i,
+      make: () => ({ op: 'extraCombat', count: 1, inCombat: true }) },
     { re: /^After this (?:main )?phase, there are (two|three) additional combat phases( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: num(m[1]), withMain: !!m[2] }) },
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
@@ -1709,6 +1732,13 @@
     /* ===== putting a card from hand straight onto the battlefield ===== */
     { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
+    // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
+    { re: /^(?:[Yy]ou may )?[Pp]ut up to (two|three|four) ([-a-z, ]*?)cards from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}) },
+    /* Lively Dirge: "Return up to two creature cards with total mana value 4
+       or less from your graveyard to the battlefield." Chosen, not targeted. */
+    { re: /^Return up to (two|three|four) ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'reanimateChosen', n: num(m[1]), what: m[2].toLowerCase(), totalMv: +m[3] }) },
     /* "Put target creature on the top or bottom of its owner's library":
        the one who resolves it chooses; "its owner puts it on their choice
        of the top or bottom" is the owner's choice */
@@ -1970,8 +2000,15 @@
     /* Clones: "You may have CARDNAME enter the battlefield as a copy of
        any creature on the battlefield." */
     { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
-      make: (m) => {
+      make: (m0) => {
+        /* Mockingbird: "…with mana value less than or equal to the amount
+           of mana spent to cast this creature" */
+        const spentRe = / with mana value less than or equal to the amount of mana spent to cast (?:this creature|CARDNAME)/i;
+        const upToSpent = spentRe.test(m0[0]);
+        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
+        if (!m) return null;
         const e = { op: 'etbAsCopy', what: m[2].trim().toLowerCase() };
+        if (upToSpent) e.upToSpent = true;
         if (!/^(?:(?:nonland |nonlegendary )?(?:creature|artifact|enchantment|land|equipment|permanent|planeswalker)(?: or (?:creature|artifact|enchantment|planeswalker))?)$/.test(e.what)) return null;
         if (m[1]) e.tapped = true;
         if (m[3]) e.yours = true;
@@ -2209,6 +2246,8 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // one sentence of a longer text: "Whenever a creature dies this turn, …"
+    { re: /^(?:Until end of turn|This turn), whenever .+$|^Whenever [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
     { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
       make: (m) => ({ op: 'exile', targets: [Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].toLowerCase()), { owner: 'you' })] }) },
@@ -2926,6 +2965,28 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* Great Train Heist: "Choose target opponent. Whenever a creature you
+       control deals combat damage to that player this turn, …" — a turn's
+       trigger that watches the one player */
+    { re: /^Choose target opponent\. (Whenever [^,"]+?) to that player this turn, ([^"]+)$/i,
+      make: (m) => {
+        const e = turnTrigger(m[1] + ' to an opponent this turn, ' + m[2]);
+        return e ? [Object.assign(e, { targets: [{ type: 'player', opponent: true }], onlyTarget: true })] : null;
+      } },
+    // a triggered ability for the rest of the turn (Jace Reawakened, Bonus Round)
+    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^Whenever [^,"]+? this turn, [\s\S]+$/i,
+      make: (m) => { const e = turnTrigger(m[0]); return e ? [e] : null; } },
+    /* Final Showdown: "Choose a creature you control. It gains indestructible
+       until end of turn." Chosen, not targeted: read as the targeted
+       sentence would be, then asked as a generic question. */
+    { re: /^Choose an? ((?:[a-z]+ )?(?:creature|artifact|permanent)) you control\. (?:It|That creature) (gains|gets) ([^.]+)\.?$/i,
+      make: (m) => {
+        const again = parseEffectSentence('Target ' + m[1] + ' you control ' + m[2] + ' ' + m[3] + '.', 1);
+        if (!again || !(again.op === 'pump' || again.op === 'grantKeyword') || (again.targets || []).length !== 1 || again.scope) return null;
+        again.chooseFrom = again.targets[0];
+        delete again.targets;
+        return [again];
+      } },
     /* Emry, Conduit of Worlds: a card from the graveyard, castable this turn */
     { re: /^Choose target ([a-z ]+?) card in your graveyard\. (?:You may cast that card this turn|If you haven'?t cast a spell this turn, you may cast that card)\.?$/i,
       make: (m) => [{ op: 'mayCastFromGraveyard', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard', controller: 'you' })] }] },
@@ -3604,7 +3665,11 @@
     const cleaned = stripReminder(text);
     for (const rule of COMBO_RULES) {
       const m = cleaned.match(rule.re);
-      if (m) { const list = rule.make(m); for (const e of list) e.text = cleaned; return { effects: list, auto: true }; }
+      if (!m) continue;
+      const list = rule.make(m);
+      if (!list) continue;
+      for (const e of list) e.text = cleaned;
+      return { effects: list, auto: true };
     }
     const modal = parseModal(cleaned);
     if (modal) return modal;
@@ -4379,6 +4444,24 @@
         continue;
       }
 
+      /* Tiered (CR 702.183): "• Cure — {0} — …" lines, a mode each with a
+         price of its own, and exactly one of them bought. Spree's
+         machinery with a limit of one. */
+      const tierHead = !out.isPermanent && line.match(/^Tiered\s*\n([\s\S]+)$/);
+      if (tierHead) {
+        const rows = tierHead[1].split(/\n/).map(r => r.trim()).filter(Boolean)
+          .map(r => r.match(/^\u2022\s*([^\u2014]+?)\s*\u2014\s*((?:\{[^}]+\})+)\s*\u2014\s*([\s\S]+)$/));
+        if (rows.length && rows.every(Boolean)) {
+          for (const r of rows) {
+            const parsed = parseEffects(r[3].trim());
+            spreeModes.push({ cost: r[2], label: r[1] + ' \u2014 ' + r[3].trim().replace(/\.$/, ''),
+              effects: parsed.effects, auto: parsed.auto });
+          }
+          out.tiered = true;
+          if (spreeModes.every(m => m.auto)) autoLines++;
+          continue;
+        }
+      }
       /* Spree (CR 702.171): each "+ {cost} — effect" line is a mode with a
          price of its own, and you buy at least one as you cast the spell. */
       const spree = line.match(/^\+\s*((?:\{[^}]+\})+)\s*(?:\u2014|--|-)\s*([\s\S]+)$/);
@@ -4416,6 +4499,14 @@
         if (st0 && st0.auto) { out.abilities.push(st0); autoLines++; continue; }
       }
 
+      /* Rite of Harmony: an instant whose words begin "Whenever … this
+         turn" is a spell that sets up a trigger, not a trigger itself */
+      if (!out.isPermanent && /^Whenever [^,"]+? this turn, /.test(line)) {
+        const parsed = parseEffects(line);
+        out.abilities.push({ kind: 'spell', text: line, effects: parsed.effects, auto: parsed.auto });
+        if (parsed.auto) autoLines++;
+        continue;
+      }
       // Triggered ability
       let trig = null, objFilter;
       /* "Whenever this Vehicle attacks", "Whenever this Mount attacks
@@ -4806,6 +4897,7 @@
        paid for as it resolves. */
     if (spreeModes.length) {
       out.spreeModes = spreeModes.map((m, i) => ({ i, cost: m.cost, label: m.label }));
+      if (out.tiered) out.spreeOne = true;
       out.abilities.push({
         kind: 'spell', text: spreeModes.map(m => '+ ' + m.cost + ' \u2014 ' + m.label).join('\n'),
         auto: spreeModes.every(m => m.auto),
@@ -5756,6 +5848,12 @@
   const REPLACEMENT_RULES = [
     { re: /^If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead\.?$/i,
       make: () => ({ op: 'replace', id: 'tokDouble', event: 'createToken', who: 'you', how: 'double' }) },
+    /* Innkeeper's Talent, Vorinclex: whoever puts the counters, on any
+       permanent or player */
+    { re: /^If you would put one or more counters on a permanent or player, put twice that many of each of those kinds of counters on that permanent or player instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntDoubleYou', event: 'counters', who: 'putter', players: true, how: 'double' }) },
+    { re: /^If an opponent would put one or more counters on a permanent or player, they put half that many of each of those kinds of counters on that permanent or player instead, rounded down\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntHalfOpp', event: 'counters', who: 'opponentPutter', players: true, how: 'half' }) },
     { re: /^If an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntDouble', event: 'counters', who: 'you', how: 'double' }) },
     { re: /^If (?:a card|a card or token|one or more cards?) would be put into (a|your|an opponent'?s) graveyard from anywhere, (?:exile (?:it|them|that card) instead|instead exile (?:it|them))( with an? ([a-z]+) counter on (?:it|them))?\.?$/i,
@@ -5867,7 +5965,7 @@
 
   /* Ops that make sense as a permanent's standing rule rather than a one-off. */
   const STATIC_OPS = new Set(['continuous', 'replace', 'taxSpells', 'extraLand',
-    'chooseTypeOnEnter', 'chooseColorOnEnter', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
+    'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
     'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'peekTop', 'optionalUntap',
     'blocksExtra',
@@ -5909,6 +6007,19 @@
         eff: { op: 'chooseTypeOnEnter' }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a colou?r\.?$/i,
         eff: { op: 'chooseColorOnEnter' }, auto: true },
+      /* The Sieges: "As this enchantment enters, choose Khans or Dragons.
+         • Khans — … • Dragons — …" The permanent has only the abilities of
+         the one chosen, so each is read as a card of its own. */
+      { re: /^As (?:CARDNAME|this (?:enchantment|artifact|creature|permanent)) enters(?: the battlefield)?,? choose ([A-Z][a-z]+) or ([A-Z][a-z]+)\.\s*\n\s*\u2022\s*\1\s*\u2014\s*([\s\S]+?)\n\s*\u2022\s*\2\s*\u2014\s*([\s\S]+?)\s*$/,
+        make: (m) => {
+          const modes = [{ name: m[1], text: m[3].trim() }, { name: m[2], text: m[4].trim() }];
+          for (const md of modes) {
+            const probe = analyze({ id: 'modeprobe:' + U.hash(md.text), name: 'Mode', type_line: (ctx && ctx.typeLine) || 'Enchantment',
+              oracle_text: md.text, keywords: [] });
+            if (!probe || !probe.fullyAutomated) return null;
+          }
+          return { op: 'chooseModeOnEnter', modes };
+        }, auto: true },
       { re: /^(?:CARDNAME|This creature) is the chosen type in addition to its other types\.?$/i,
         eff: { op: 'continuous', layer: 4, scope: { self: true }, addChosenType: true }, auto: true },
       { re: /^Whenever enchanted (land|Forest|Island|Swamp|Mountain|Plains) is tapped for mana, its controller adds an additional (\{[^}]+\}(?:\{[^}]+\})*|one mana of the chosen color|one mana of any type that land produced|one mana of any color)\.?$/i,
@@ -6088,6 +6199,12 @@
         make: (m) => ({ op: 'triggerDouble', cause: 'die', what: m[1].toLowerCase() }), auto: true },
       { re: /^If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'attack' }, auto: true },
+      // Delney: "If a triggered ability of a creature you control with power 2 or less triggers, …"
+      { re: /^If a triggered ability of a creature you control with power (\d+) or less triggers, that ability triggers an additional time\.?$/i,
+        make: (m) => ({ op: 'triggerDouble', cause: 'source', what: 'creature', maxPower: +m[1] }), auto: true },
+      // Delney: "Creatures you control with power 2 or less can't be blocked by creatures with power 3 or greater."
+      { re: /^Creatures you control with power (\d+) or less can'?t be blocked by creatures with power (\d+) or greater\.?$/i,
+        make: (m) => ({ op: 'groupEvasion', maxPower: +m[1], maxBlockerPower: +m[2] - 1 }), auto: true },
       { re: /^If a triggered ability of an? ((?:another )?[A-Za-z]+(?: (?:or (?:another )?)?[A-Za-z]+)*) you control triggers, that ability triggers an additional time\.?$/i,
         make: (m) => {
           const w = m[1].trim();

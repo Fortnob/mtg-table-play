@@ -1413,6 +1413,156 @@ module.exports = (test) => {
     t.eq(x.analysis().subtypes.join(), 'Citizen');
   });
 
+  test('Final Showdown: one creature of yours survives the sweep', (mk, t) => {
+    t.auto('Final Showdown');
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '4WWW');
+    T.cast('A', T.hand('A', 'Final Showdown'), { spree: [1, 2] });
+    T.resolve();
+    t.zone(mine, 'battlefield');
+    t.zone(theirs, 'graveyard');
+  });
+
+  test('Rite of Harmony: a trigger for the rest of the turn, gone at cleanup', (mk, t) => {
+    t.auto('Rite of Harmony');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.mana('A', '2GW');
+    T.cast('A', T.hand('A', 'Rite of Harmony'));
+    T.resolve();
+    const bear = T.hand('A', 'Grizzly Bears');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '1G');
+    T.cast('A', bear);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before, 'drew for the creature');
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'command').length, 0, 'over at end of turn');
+  });
+
+  test('Great Train Heist: Treasure for damage to the chosen player; an extra combat', (mk, t) => {
+    t.auto('Great Train Heist');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.summoningSick = false;
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Great Train Heist'), { spree: [2] });
+    T.resolve();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    const tr = T.bfOf('A').filter(o => o.name === 'Treasure');
+    t.eq(tr.length, 1); t.ok(tr[0] && tr[0].tapped, 'tapped');
+
+    const T2 = mk();
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    b2.summoningSick = false;
+    T2.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    T2.toMain('A', 'declareBlockers');
+    T2.mana('A', '2RR');
+    T2.cast('A', T2.hand('A', 'Great Train Heist'), { spree: [0] });
+    T2.resolve();
+    t.no(b2.tapped, 'untapped');
+    T2.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    T2.toMain('B');
+    t.eq(T2.life('B'), 16, 'hit twice');
+  });
+
+  test("Smuggler's Surprise: two from the milled cards; two creatures from hand", (mk, t) => {
+    t.auto("Smuggler's Surprise");
+    const T = mk();
+    for (const n of ['Grizzly Bears', 'Forest', 'Shock', 'Llanowar Elves']) T.top('A', n);
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.slice(0, ch.count).map(c => c.id) }));
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', "Smuggler's Surprise"), { spree: [0] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 2, 'two of them');
+    t.ok(T.zone('A', 'hand').every(c => c.name !== 'Shock'), 'not the instant');
+
+    const T2 = mk();
+    T2.hand('A', 'Grizzly Bears'); T2.hand('A', 'Craw Wurm');
+    T2.answer('pickCard', (ch) => ({ cardIds: ch.cards.map(c => c.id) }));
+    T2.mana('A', 'G4G');
+    T2.cast('A', T2.hand('A', "Smuggler's Surprise"), { spree: [1] });
+    T2.resolve();
+    t.eq(T2.bfOf('A').length, 2, 'both onto the battlefield');
+  });
+
+  test('Lively Dirge: up to two creatures, total mana value 4 or less', (mk, t) => {
+    t.auto('Lively Dirge');
+    const T = mk();
+    const a = T.grave('A', 'Grizzly Bears'), b = T.grave('A', 'Llanowar Elves'), c = T.grave('A', 'Craw Wurm');
+    T.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T.mana('A', '1B2');
+    T.cast('A', T.hand('A', 'Lively Dirge'), { spree: [1] });
+    T.resolve();
+    t.zone(a, 'battlefield'); t.zone(b, 'battlefield'); t.zone(c, 'graveyard');
+  });
+
+  test('Frostcliff Siege: the mode chosen is the one it has', (mk, t) => {
+    t.auto('Frostcliff Siege');
+    const T = mk();
+    T.answer('mode', { modes: [1] });
+    T.mana('A', '1GUR');
+    T.cast('A', T.hand('A', 'Frostcliff Siege'));
+    T.resolve();
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.eq(T.g.powerOf(bear), 3);
+    t.ok(T.g.hasKw(bear, 'trample') && T.g.hasKw(bear, 'haste'), 'Temur');
+  });
+
+  test('Restoration Magic: tiered, one mode bought', (mk, t) => {
+    t.auto('Restoration Magic');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '4WW');
+    T.cast('A', T.hand('A', 'Restoration Magic'), { spree: [2, 1] });
+    T.resolve();
+    t.eq(T.life('A'), 26, 'Curaga only');
+    t.ok(T.g.hasKw(bear, 'indestructible'));
+  });
+
+  test("Innkeeper's Talent doubles the counters you put", (mk, t) => {
+    t.auto("Innkeeper's Talent");
+    const T = mk();
+    const it = T.bf('A', "Innkeeper's Talent");
+    it.counters.level = 2; it._chr = null; T.g.bumpBoard();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Battlegrowth'), { targets: [T.tgt(bear)] });
+    T.resolve();
+    t.eq(bear.counters['+1/+1'], 2);
+  });
+
+  test('Delney: small creatures slip past big blockers, and trigger twice', (mk, t) => {
+    t.auto('Delney, Streetwise Lookout');
+    const T = mk();
+    T.bf('A', 'Delney, Streetwise Lookout');
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.no(T.g.couldBlock(T.bf('B', 'Craw Wurm'), bear, 'B'), 'the Wurm cannot');
+    t.ok(T.g.couldBlock(T.bf('B', 'Llanowar Elves'), bear, 'B'), 'the Elves can');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const vis = T.hand('A', 'Elvish Visionary');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '1G');
+    T.cast('A', vis);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, before + 1, 'two cards for one Visionary');
+  });
+
+  test('Mockingbird copies something no bigger than the mana spent, as a flying Bird', (mk, t) => {
+    t.auto('Mockingbird');
+    const T = mk();
+    T.bf('B', 'Serra Angel'); T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Mockingbird'), { x: 2 });
+    T.resolve();
+    const m = T.bfOf('A')[0];
+    t.eq(m.name, 'Grizzly Bears');
+    t.ok(/Bird/.test(m.card.type_line) && T.g.hasKw(m, 'flying'), 'a flying Bird');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

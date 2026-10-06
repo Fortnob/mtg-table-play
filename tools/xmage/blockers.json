@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17073,
-  "gainedCards": 1776,
-  "linesNeeded": 19491,
+  "needed": 17035,
+  "gainedCards": 1777,
+  "linesNeeded": 19437,
   "linesGained": 2308,
   "gained": {
-   "all": 1776,
+   "all": 1777,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5992,
-   "lines": 5005,
+   "score": 5974,
+   "lines": 4999,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -167,10 +167,9 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 222,
-   "lines": 192,
+   "score": 212,
+   "lines": 191,
    "cards": [
-    "Mockingbird",
     "Sakashima of a Thousand Faces",
     "Ulamog, the Defiler",
     "Chameleon, Master of Disguise",
@@ -181,26 +180,27 @@
     "Echoing Deeps",
     "Estrid's Invocation",
     "Flesh Duplicate",
-    "Golgari Grave-Troll"
+    "Golgari Grave-Troll",
+    "Prime Speaker Zegana"
    ]
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 155,
-   "lines": 110,
+   "score": 132,
+   "lines": 105,
    "cards": [
     "Cloud Key",
     "Banner of Kinship",
-    "Windcrag Siege",
-    "Frostcliff Siege",
     "Talion, the Kindly Lord",
     "Multiversal Passage",
-    "Outpost Siege",
     "Mirrodin Besieged",
     "Manor Gate",
     "Serra's Emissary",
     "Temple of the Dragon Queen",
-    "Sea Gate"
+    "Sea Gate",
+    "Black Dragon Gate",
+    "Struggle for Project Purity",
+    "Citadel Gate"
    ]
   },
   {
@@ -220,25 +220,6 @@
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Tarrian's Journal // The Tomb of Aclazotz",
     "Locke, Treasure Hunter"
-   ]
-  },
-  {
-   "what": "Ability.withFirstModeCost",
-   "score": 82,
-   "lines": 22,
-   "cards": [
-    "Restoration Magic",
-    "Great Train Heist",
-    "Smuggler's Surprise",
-    "Lively Dirge",
-    "Final Showdown",
-    "Fire Magic",
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Thunder Magic",
-    "Dance of the Tumbleweeds"
    ]
   },
   {
@@ -318,25 +299,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 55,
-   "lines": 52,
-   "cards": [
-    "Vorinclex, Monstrous Raider",
-    "Invert Polarity",
-    "Nazgûl",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Fallaji Wayfarer",
-    "Aether Spike",
-    "Intellect Devourer",
-    "Swallowed by Leviathan",
-    "The Tabernacle at Pendrell Vale",
-    "Myr Superion",
-    "Hogaak, Arisen Necropolis"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .add)",
    "score": 53,
    "lines": 44,
@@ -353,6 +315,25 @@
     "Dune Chanter",
     "Needle Drop",
     "Self-Destruct"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 51,
+   "lines": 51,
+   "cards": [
+    "Invert Polarity",
+    "Nazgûl",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Intellect Devourer",
+    "Swallowed by Leviathan",
+    "The Tabernacle at Pendrell Vale",
+    "Myr Superion",
+    "Hogaak, Arisen Necropolis",
+    "Seven Dwarves"
    ]
   },
   {
@@ -596,24 +577,6 @@
     "Out Cold",
     "Harness by Force",
     "Vivien, Arkbow Ranger"
-   ]
-  },
-  {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 32,
-   "lines": 14,
-   "cards": [
-    "Innkeeper's Talent",
-    "Artist's Talent",
-    "Fighter Class",
-    "Blacksmith's Talent",
-    "Fortune Teller's Talent",
-    "Sorcerer Class",
-    "Rogue Class",
-    "Ninja Teen",
-    "Bard Class",
-    "Fisher's Talent",
-    "Advanced Reconstruction"
    ]
   },
   {
@@ -1455,6 +1418,23 @@
    ]
   },
   {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 22,
+   "lines": 13,
+   "cards": [
+    "Artist's Talent",
+    "Fighter Class",
+    "Blacksmith's Talent",
+    "Fortune Teller's Talent",
+    "Sorcerer Class",
+    "Rogue Class",
+    "Ninja Teen",
+    "Bard Class",
+    "Fisher's Talent",
+    "Advanced Reconstruction"
+   ]
+  },
+  {
    "what": "Ability.setRuleAtTheTop",
    "score": 22,
    "lines": 19,
@@ -2285,20 +2265,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesAllEffect",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "Delney, Streetwise Lookout",
-    "Shifting Sliver",
-    "Graaz, Unstoppable Juggernaut",
-    "Midnight Pathlighter",
-    "Wall Crawl",
-    "Jasmine Boreal of the Seven",
-    "Dread Charge"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 16,
    "lines": 4,
@@ -2873,25 +2839,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Anzrag, the Quake-Mole",
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "Xolatoyac, the Smiling Flood",
-    "The Thirteenth Doctor",
-    "Éomer, Marshal of Rohan",
-    "Benefactor's Draught",
-    "Lita, Mechanical Engineer",
-    "Awakening",
-    "Veteran Beastrider",
-    "Preston Garvey, Minuteman",
-    "Blinkmoth Infusion"
-   ]
-  },
-  {
    "what": "EntersWithCountersControlledEffect",
    "score": 15,
    "lines": 15,
@@ -3345,6 +3292,25 @@
     "Huatli, Poet of Unity // Roar of the Fifth People",
     "Orochi Merge-Keeper",
     "Lotus Ring"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Anzrag, the Quake-Mole",
+    "Betor, Kin to All",
+    "Hexplate Wallbreaker",
+    "Xolatoyac, the Smiling Flood",
+    "The Thirteenth Doctor",
+    "Éomer, Marshal of Rohan",
+    "Lita, Mechanical Engineer",
+    "Awakening",
+    "Veteran Beastrider",
+    "Preston Garvey, Minuteman",
+    "Blinkmoth Infusion",
+    "Deepway Navigator"
    ]
   },
   {
@@ -3847,6 +3813,24 @@
     "Grave Defiler",
     "Enlistment Officer",
     "Lair Delve"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "Rustler Rampage",
+    "One Last Job",
+    "Ice Magic",
+    "Jailbreak Scheme",
+    "Caught in the Crossfire",
+    "Unfortunate Accident"
    ]
   },
   {
@@ -8219,6 +8203,20 @@
     "Myr Adapter",
     "Loxodon Punisher"
    ]
+  },
+  {
+   "what": "DealsCombatDamageTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Dropkick Bomber",
+    "Ceremonial Knife",
+    "Drinker of Sorrow",
+    "Quintessential Katana",
+    "Aisha of Sparks and Smoke",
+    "Living Lore",
+    "Leyline Phantom"
+   ]
   }
  ],
  "sole": [
@@ -8263,8 +8261,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 242,
-   "cards": 230,
+   "score": 244,
+   "cards": 232,
    "names": [
     "Mizzix's Mastery",
     "Wear // Tear",
@@ -8276,8 +8274,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 242,
-   "cards": 230,
+   "score": 243,
+   "cards": 231,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8302,15 +8300,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 145,
-   "cards": 127,
+   "score": 135,
+   "cards": 126,
    "names": [
-    "Mockingbird",
     "Chameleon, Master of Disguise",
     "Sakashima the Impostor",
     "Diregraf Colossus",
     "Imposter Mech",
-    "Echoing Deeps"
+    "Echoing Deeps",
+    "Estrid's Invocation"
    ]
   },
   {
@@ -8324,32 +8322,6 @@
     "Run Away Together",
     "Rampaging Yao Guai",
     "V.A.T.S."
-   ]
-  },
-  {
-   "what": "AsEntersBattlefieldAbility",
-   "score": 66,
-   "cards": 36,
-   "names": [
-    "Cloud Key",
-    "Banner of Kinship",
-    "Windcrag Siege",
-    "Frostcliff Siege",
-    "Outpost Siege",
-    "Mirrodin Besieged"
-   ]
-  },
-  {
-   "what": "Ability.withFirstModeCost",
-   "score": 60,
-   "cards": 18,
-   "names": [
-    "Restoration Magic",
-    "Great Train Heist",
-    "Smuggler's Surprise",
-    "Lively Dirge",
-    "Final Showdown",
-    "Fire Magic"
    ]
   },
   {
@@ -8402,6 +8374,19 @@
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy"
+   ]
+  },
+  {
+   "what": "AsEntersBattlefieldAbility",
+   "score": 43,
+   "cards": 31,
+   "names": [
+    "Cloud Key",
+    "Banner of Kinship",
+    "Mirrodin Besieged",
+    "Manor Gate",
+    "Temple of the Dragon Queen",
+    "Sea Gate"
    ]
   },
   {
@@ -8701,17 +8686,6 @@
     "Grasping Giant",
     "Elven Warhounds",
     "Gloom Sower"
-   ]
-  },
-  {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 22,
-   "cards": 4,
-   "names": [
-    "Innkeeper's Talent",
-    "Artist's Talent",
-    "Fortune Teller's Talent",
-    "Ninja Teen"
    ]
   },
   {
@@ -9599,6 +9573,19 @@
    ]
   },
   {
+   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Rakdos Joins Up",
+    "Evil Reawakened",
+    "Admiral Brass, Unsinkable",
+    "Coalstoke Gearhulk",
+    "From the Catacombs",
+    "Zoraline, Cosmos Caller"
+   ]
+  },
+  {
    "what": "keyword SunburstAbility",
    "score": 13,
    "cards": 13,
@@ -9752,6 +9739,16 @@
    ]
   },
   {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 12,
+   "cards": 3,
+   "names": [
+    "Artist's Talent",
+    "Fortune Teller's Talent",
+    "Ninja Teen"
+   ]
+  },
+  {
    "what": "CardsDrawnThisTurnDynamicValue.instance",
    "score": 12,
    "cards": 6,
@@ -9827,19 +9824,6 @@
     "Quirion Beastcaller",
     "Ghired's Belligerence",
     "Impact Resonance"
-   ]
-  },
-  {
-   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Rakdos Joins Up",
-    "Evil Reawakened",
-    "Admiral Brass, Unsinkable",
-    "Coalstoke Gearhulk",
-    "From the Catacombs",
-    "Zoraline, Cosmos Caller"
    ]
   },
   {
@@ -10225,6 +10209,19 @@
    ]
   },
   {
+   "what": "Ability.withFirstModeCost",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "Rustler Rampage"
+   ]
+  },
+  {
    "what": "token statement MutagenToken",
    "score": 11,
    "cards": 11,
@@ -10517,6 +10514,19 @@
     "Thunderous Velocipede",
     "Curator Beastie",
     "Oath of Gideon"
+   ]
+  },
+  {
+   "what": "scope:alts",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Iron Spider, Stark Upgrade",
+    "Eidolon of Countless Battles",
+    "Magmaquake",
+    "Paladin Danse, Steel Maverick",
+    "Doctor Doom",
+    "Beyond the Quiet"
    ]
   },
   {
@@ -11009,19 +11019,6 @@
     "Night Revelers",
     "Beasts of Bogardan",
     "Wu Admiral"
-   ]
-  },
-  {
-   "what": "scope:alts",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Iron Spider, Stark Upgrade",
-    "Eidolon of Countless Battles",
-    "Magmaquake",
-    "Paladin Danse, Steel Maverick",
-    "Doctor Doom",
-    "Beyond the Quiet"
    ]
   },
   {
@@ -11808,8 +11805,8 @@
     "Hexplate Wallbreaker",
     "The Thirteenth Doctor",
     "Éomer, Marshal of Rohan",
-    "Benefactor's Draught",
-    "Awakening"
+    "Awakening",
+    "Veteran Beastrider"
    ]
   },
   {

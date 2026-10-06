@@ -781,6 +781,14 @@
       this.prevention = [];
       this._exileOnDeath = null;
       for (const p of this.players) p.preventShield = 0;
+      // the turn's own triggered abilities end with it
+      for (const p of this.players) {
+        for (const em of ((this.zones[p.id] || {}).command || []).filter(x => x.card && x.card.untilEot)) {
+          this._removeFromZone(em);
+          em.zone = null;
+          this.bumpBoard();
+        }
+      }
       for (const o of this.battlefield) {
         o.damage = 0;
         o.damagedThisTurn = false;
@@ -1635,7 +1643,9 @@
     _clonePool(src, e, controller) {
       const what = e.what && e.what !== 'creature' ? e.what : 'creature';
       return this.battlefield.filter(o => o !== src && !o.phasedOut && this._cardFitsWords(o, what) &&
-        (!e.yours || o.controller === controller));
+        (!e.yours || o.controller === controller) &&
+        // Mockingbird: no more mana value than the mana spent to cast it
+        (!e.upToSpent || ((o.card && o.card.cmc) || 0) <= (src.manaSpent || 0)));
     }
     /**
      * A clone spell controlled by a person stops as it resolves to ask what
@@ -2953,8 +2963,9 @@
       }
       /* Spree: the modes are the extra costs, and at least one is bought. */
       if (a.spreeModes && a.spreeModes.length) {
-        out.push({ kind: 'spree', cost: '', modes: a.spreeModes.slice(),
-          label: 'Spree (choose one or more)' });
+        out.push(a.spreeOne
+          ? { kind: 'spree', cost: '', modes: a.spreeModes.slice(), one: true, label: 'Tiered (choose one)' }
+          : { kind: 'spree', cost: '', modes: a.spreeModes.slice(), label: 'Spree (choose one or more)' });
       }
       /* Replicate and splice are generic questions (docs/choices.md). The
          table may answer them alongside the other extra costs, sending the
@@ -3313,6 +3324,8 @@
              chosen the first one is. */
           let picked = (opts.spree || []).map(Number).filter(i => ex.modes[i]);
           if (!picked.length) picked = [0];
+          // tiered: one mode and one only
+          if (ex.one) picked = picked.slice(0, 1);
           for (const i of picked) cost += ex.modes[i].cost;
           chose.spree = picked;
         } else if (ex.kind === 'casualty' && opts.casualty) {
@@ -3395,6 +3408,8 @@
       o.zone = 'stack';
       o.controller = playerId;
       o.chosenX = opts.x || 0;
+      // "the amount of mana spent to cast this creature"
+      o.manaSpent = opts.free ? 0 : MANA.cmc(String(cost || '').replace(/\{X\}/g, '')) + (opts.x || 0) * ((String(cost || '').match(/\{X\}/g) || []).length);
 
       const item = {
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
@@ -3872,6 +3887,7 @@
          permanent is never without one, and a person is asked to confirm. */
       if (this._staticOp(o, 'chooseTypeOnEnter')) this._chooseTypeFor(o);
       if (this._staticOp(o, 'chooseColorOnEnter')) this._chooseColorFor(o);
+      if (this._staticOp(o, 'chooseModeOnEnter')) this._chooseEnterMode(o);
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
@@ -3971,6 +3987,35 @@
         this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseType', objId: o.id,
           types: types.slice(0, 12), options, prompt: `${o.name}: choose a creature type.` });
       }
+    }
+
+    /* The Sieges: "As this enchantment enters, choose Khans or Dragons."
+       The permanent has the chosen mode's abilities and not the other's,
+       so it becomes, for as long as it stays, a card with only those words
+       (the printed card comes back as it leaves, as a copy's does). */
+    _chooseEnterMode(o) {
+      const rule = this._staticOp(o, 'chooseModeOnEnter');
+      if (!rule) return;
+      const p = this.player(o.controller);
+      this._setEnterMode(o, 0, rule);
+      if (p && !p.isBot) {
+        this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'enterMode', objId: o.id,
+          modes: rule.modes, options: rule.modes.map((md, i) => ({ i, label: md.name + ' \u2014 ' + md.text })),
+          prompt: `${o.name}: choose ${rule.modes.map(md => md.name).join(' or ')}.` });
+      }
+    }
+    _setEnterMode(o, idx, rule) {
+      const printed = o.printedCard || o.card;
+      rule = rule || (o.enterModes ? { modes: o.enterModes } : null);
+      const md = rule && rule.modes[idx];
+      if (!md) return;
+      o.enterModes = rule.modes;
+      o.printedCard = printed;
+      o.card = Object.assign({}, printed, { id: printed.id + ':mode:' + idx, oracle_text: md.text, card_faces: null });
+      o.chosenMode = md.name;
+      o._chr = null;
+      this.bumpBoard();
+      this.logEvent('rules', `${o.name}: ${md.name} is chosen.`);
     }
 
     _chooseColorFor(o) {
@@ -5142,6 +5187,13 @@
       const ev = this._staticOp(attacker, 'evasion');
       if (ev && ev.minBlockerPower != null && this.powerOf(blocker) < ev.minBlockerPower) return false;
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
+      /* Delney: "creatures you control with power 2 or less can't be
+         blocked by creatures with power 3 or greater" */
+      for (const s of this.battlefield) {
+        if (s.controller !== attacker.controller || s.phasedOut) continue;
+        const g = this._staticOp(s, 'groupEvasion');
+        if (g && this.powerOf(attacker) <= g.maxPower && this.powerOf(blocker) > g.maxBlockerPower) return false;
+      }
       /* "Creatures with power less than this one's can't block it." */
       if (ev && ev.blockerAtLeastMyPower && this.powerOf(blocker) < this.powerOf(attacker)) return false;
       /* "can't be blocked by Walls", "except by creatures with flying": the
@@ -5521,6 +5573,11 @@
     _replaceMatches(ef, src, ev) {
       if (ef.event !== ev.kind) return false;
       const who = ef.who || 'you';
+      // counters on a player only for what says "or player"
+      if (ev.kind === 'counters' && ev.player && !ef.players) return false;
+      // "if you would put one or more counters…": whoever puts them, on whatever
+      if (who === 'putter') { if ((ev.putter || ev.controller) !== src.controller) return false; }
+      else if (who === 'opponentPutter') { if ((ev.putter || ev.controller) === src.controller) return false; }
       if (who === 'you' && ev.controller !== src.controller) return false;
       if (who === 'opponents' && ev.controller === src.controller) return false;
       if (ef.what && ev.object) {
@@ -5564,6 +5621,7 @@
     _applyReplacement(ef, src, ev) {
       switch (ef.how) {
         case 'double': ev.n = (ev.n || 0) * 2; break;
+        case 'half': ev.n = Math.floor((ev.n || 0) / 2); if (!ev.n) ev.cancelled = true; break;
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
@@ -6512,7 +6570,7 @@
         if (amount <= 0) return;
       }
       this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
-      if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount); return amount; }
+      if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount, source.controller); return amount; }
       /* Damage to a player is life lost: the same replacements apply
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
       const lossEv = this._replace({ kind: 'loseLife', n: amount, controller: p.id });
@@ -6594,7 +6652,13 @@
       return false;
     }
 
-    addPoison(p, n) {
+    addPoison(p, n, by) {
+      // poison counters someone puts (an effect, infect damage) can be replaced
+      if (by && n > 0) {
+        const ev = this._replace({ kind: 'counters', player: p, n, counter: 'poison', controller: p.id, putter: by });
+        if (ev.cancelled) return;
+        n = ev.n;
+      }
       p.poison += n;
       this.logEvent('poison', `${p.name} gets ${n} poison counter${n === 1 ? '' : 's'} (${p.poison}).`);
     }
@@ -6602,7 +6666,8 @@
       n = Math.trunc(Number(n)) || 0;
       if (!n) return;
       if (n > 0 && !(opts && opts.noReplace)) {
-        const ev = this._replace({ kind: 'counters', object: o, n, counter: kind, controller: o.controller });
+        const ev = this._replace({ kind: 'counters', object: o, n, counter: kind, controller: o.controller,
+          putter: this._putBy || o.controller });
         if (ev.cancelled) return;
         if (ev.cancelled) return;
         n = ev.n;
@@ -7058,6 +7123,7 @@
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
           if (ab.toOpponent && data.player === o.controller) continue;
+          if (o.card && o.card.onlyPlayer && data.player && data.player !== o.card.onlyPlayer) continue;
           // "whenever this deals damage to a player": not to a creature
           if (ab.toPlayer && !data.player) continue;
           if (ab.combatOnly && !data.combat) continue;
@@ -7230,13 +7296,15 @@
           continue;
         }
         let out;
-        try { out = this._runEffect(e, r.ctx); }
+        // who is doing it, for "if you would put one or more counters…"
+        try { this._putBy = r.ctx.controller; out = this._runEffect(e, r.ctx); }
         catch (err) {
           console.warn('[effect]', e, err);
           r.manual.push({ op: 'manual', text: e.text || JSON.stringify(e) });
           r.index++;
           continue;
         }
+        finally { this._putBy = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
         r.index++;
       }
@@ -8003,6 +8071,11 @@
           const em = this._register(new GObj(card, ctx.controller, 'command'));
           em.controller = ctx.controller;
           em.ts = this._stampNew();
+          /* "until end of turn, whenever …": gone at cleanup; "…deals combat
+             damage to that player this turn": that player only. Kept on the
+             card, so a saved game keeps them too. */
+          if (e.thisTurn) card.untilEot = true;
+          if (e.onlyTarget) { const pl = firstPlayer(); card.onlyPlayer = pl ? pl.id : '-'; }
           this.zones[ctx.controller].command.push(em);
           this.logEvent('rules', `${me.name} gets an emblem: "${truncate(text, 90)}"`);
           this.bumpBoard();
@@ -8061,7 +8134,10 @@
           }
           break;
         case 'energy': {
-          const k = n(e.n) || 1;
+          let k = n(e.n) || 1;
+          const evE = this._replace({ kind: 'counters', player: me, n: k, counter: 'energy', controller: me.id, putter: ctx.controller });
+          if (evE.cancelled) break;
+          k = evE.n;
           me.energy = (me.energy || 0) + k;
           this.logEvent('counters', `${me.name} gets ${k} energy (${me.energy}).`);
           break;
@@ -8881,6 +8957,28 @@
           }
           break;
         }
+        /* Lively Dirge: "up to two creature cards with total mana value 4 or
+           less" — chosen as it resolves; whatever would go over is left */
+        case 'reanimateChosen': {
+          const pool = this.zones[ctx.controller].graveyard.filter(c => this._matchesCategory(c, e.what) &&
+            (e.totalMv == null || ((c.card && c.card.cmc) || 0) <= e.totalMv));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: 0, max: Math.min(n(e.n) || 1, pool.length),
+            prompt: `Return up to ${n(e.n)} ${e.what} cards` + (e.totalMv != null ? ` with total mana value ${e.totalMv} or less` : '') + ' to the battlefield.' }, 'pick');
+          if (got === SUSPEND) return SUSPEND;
+          let total = 0;
+          for (const id of (got && got.picks) || []) {
+            const x = this.obj(id);
+            if (!x || !pool.includes(x) || x.zone !== 'graveyard') continue;
+            const mv = (x.card && x.card.cmc) || 0;
+            if (e.totalMv != null && total + mv > e.totalMv) continue;
+            total += mv;
+            this.moveObject(x, 'battlefield', { controller: ctx.controller });
+            this.logEvent('reanimate', `${me.name} returns ${x.name} to the battlefield.`);
+          }
+          break;
+        }
         case 'returnFromGrave': {
           const x = this.obj(e.objId);
           if (x && x.zone === 'graveyard') {
@@ -9646,7 +9744,7 @@
           for (const p of who) {
             const pool = this.zones[p.id].hand.filter(o => this._matchesCategory(o, e.filter === 'any' ? '' : e.filter));
             if (!pool.length) continue;
-            const many = e.any ? pool.length : 1;
+            const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
             const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: true,
               cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
               prompt: many > 1 ? 'Put any number of these cards from your hand onto the battlefield.' : 'Put a card from your hand onto the battlefield.' }, 'p' + p.id);
@@ -9799,6 +9897,8 @@
         /* Relentless Assault, Aurelia, Full Throttle: more combat this turn,
            after the phase we are in */
         case 'extraCombat': {
+          // "if it's your combat phase, …"
+          if (e.inCombat && !(this.phase && this.phase.id === 'combat' && this.activePlayer.id === ctx.controller)) break;
           const phases = [];
           for (let i = 0; i < (e.count || 1); i++) phases.push(2);
           if (e.withMain) phases.push(3);
@@ -9865,7 +9965,7 @@
             // "defending player gets a poison counter": whoever the trigger was about
             : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
             : [firstPlayer()].filter(Boolean);
-          for (const p of who) this.addPoison(p, n(e.n) || 1);
+          for (const p of who) this.addPoison(p, n(e.n) || 1, ctx.controller);
           break;
         }
         // Sea Gate Restoration: for the rest of the game
@@ -11497,7 +11597,9 @@
         else if (e.cause === 'any' && e.sourceChosenType && o !== src && src.chosenType &&
           this.characteristics(o).isCreature && this._hasCreatureType(o, src.chosenType)) extra++;
         // Harmonic Prodigy: a trigger of the right kind of permanent
-        else if (e.cause === 'source' && !(e.other && o === src) && this._cardFitsWords(o, e.what || 'permanent')) extra++;
+        else if (e.cause === 'source' && !(e.other && o === src) && this._cardFitsWords(o, e.what || 'permanent') &&
+          // Delney: "of a creature you control with power 2 or less"
+          !(e.maxPower != null && !(this.characteristics(o).isCreature && this.powerOf(o) <= e.maxPower))) extra++;
         // Isshin: a creature attacking
         else if (e.cause === 'attack' && ['attacks', 'permAttacks', 'youAttack'].includes(event)) extra++;
       }
@@ -12307,6 +12409,13 @@
             if (!this.pendingChoice) this._nextChoice();
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
+          }
+          // "As this enters, choose Khans or Dragons"
+          if (ch.purpose === 'enterMode') {
+            const o = this.obj(ch.objId);
+            const idx = ((data && data.modes) || [])[0];
+            if (o && idx != null && o.zone === 'battlefield') this._setEnterMode(o, idx);
+            break;
           }
           if (ch.purpose !== 'chooseType' && ch.purpose !== 'chooseColor') break;
           const o = this.obj(ch.objId);
