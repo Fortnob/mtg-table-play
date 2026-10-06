@@ -2658,6 +2658,33 @@ module.exports = (test) => {
     t.ok(T.g.log.some(l => /casts Wear \/\/ Tear \(fused\)/.test(l.text)), 'fused in the log');
   });
 
+  test('Circle of Protection: Red stops the chosen red source once', (mk, t) => {
+    t.auto('Circle of Protection: Red');
+    const T = mk();
+    const cop = T.bf('A', 'Circle of Protection: Red');
+    const gob = T.bf('B', 'Raging Goblin');
+    T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1');
+    T.activate('A', cop, 0);
+    T.resolve();
+    T.g.dealDamageToPlayer(T.g.player('A'), 1, gob, true);
+    t.eq(T.life('A'), 20, 'prevented');
+    T.g.dealDamageToPlayer(T.g.player('A'), 1, gob, true);
+    t.eq(T.life('A'), 19, 'only the next time');
+  });
+
+  test('Deflecting Palm sends the prevented damage back', (mk, t) => {
+    t.auto('Deflecting Palm');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [bear.id] }));
+    T.mana('A', 'RW');
+    T.cast('A', T.hand('A', 'Deflecting Palm'));
+    T.resolve();
+    T.g.dealDamageToPlayer(T.g.player('A'), 2, bear, true);
+    t.eq(T.life('A'), 20); t.eq(T.life('B'), 18);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

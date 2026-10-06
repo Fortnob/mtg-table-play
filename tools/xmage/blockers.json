@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16698,
+  "needed": 16680,
   "gainedCards": 1758,
-  "linesNeeded": 18987,
+  "linesNeeded": 18969,
   "linesGained": 2273,
   "gained": {
    "all": 1758,
@@ -562,25 +562,6 @@
     "Out Cold",
     "Harness by Force",
     "Vivien, Arkbow Ranger"
-   ]
-  },
-  {
-   "what": "PreventNextDamageFromChosenSourceEffect",
-   "score": 32,
-   "lines": 29,
-   "cards": [
-    "Deflecting Palm",
-    "New Way Forward",
-    "Righteous Aura",
-    "Intervention Pact",
-    "Reverse Damage",
-    "Circle of Protection: White",
-    "Story Circle",
-    "Circle of Protection: Red",
-    "Circle of Protection: Black",
-    "Circle of Protection: Green",
-    "Rune of Protection: White",
-    "Circle of Protection: Blue"
    ]
   },
   {
@@ -4731,6 +4712,24 @@
    ]
   },
   {
+   "what": "PreventNextDamageFromChosenSourceEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "New Way Forward",
+    "Story Circle",
+    "Circle of Protection: Artifacts",
+    "Rune of Protection: Artifacts",
+    "Rune of Protection: Lands",
+    "Circle of Protection: Shadow",
+    "Greater Realm of Preservation",
+    "Bone Mask",
+    "Prismatic Circle",
+    "Pilgrim of Virtue",
+    "Pilgrim of Justice"
+   ]
+  },
+  {
    "what": "keyword TributeAbility",
    "score": 11,
    "lines": 11,
@@ -8388,19 +8387,6 @@
    ]
   },
   {
-   "what": "PreventNextDamageFromChosenSourceEffect",
-   "score": 32,
-   "cards": 29,
-   "names": [
-    "Deflecting Palm",
-    "New Way Forward",
-    "Righteous Aura",
-    "Intervention Pact",
-    "Reverse Damage",
-    "Circle of Protection: White"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 32,
    "cards": 32,
@@ -10005,6 +9991,19 @@
     "Lightning Crafter",
     "Boggart Mob",
     "Unstoppable Ash"
+   ]
+  },
+  {
+   "what": "PreventNextDamageFromChosenSourceEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "New Way Forward",
+    "Story Circle",
+    "Circle of Protection: Artifacts",
+    "Rune of Protection: Artifacts",
+    "Rune of Protection: Lands",
+    "Circle of Protection: Shadow"
    ]
   },
   {

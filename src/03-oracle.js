@@ -3170,6 +3170,13 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* Circle of Protection, Pentagram of the Ages, Deflecting Palm: "The
+       next time a (red) source of your choice would deal damage to you this
+       turn, prevent that damage." — and what follows from it */
+    { re: /^The next time an? (?:(white|blue|black|red|green) )?source of your choice would deal damage to you this turn, prevent that damage\.(?: (You gain life equal to the damage prevented this way|If damage is prevented this way, (?:CARDNAME|this spell) deals that much damage to that source'?s controller)\.)?$/i,
+      make: (m) => [Object.assign({ op: 'preventSourceOnce' },
+        m[1] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] } : {},
+        m[2] && /gain life/i.test(m[2]) ? { gainLife: true } : {}, m[2] && /deals that much/i.test(m[2]) ? { reflect: true } : {})] },
     /* Sword of Wealth and Power: "Create a Treasure token. When you next
        cast an instant or sorcery spell this turn, copy that spell. …" —
        what comes first, then the turn's trigger */

@@ -1459,6 +1459,16 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Circle of Protection: the opponent's source most likely to hurt us
+       this turn — an attacker, a spell on the stack, then their biggest creature */
+    preventSource(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(o => o && o.controller !== this.pid);
+      if (!pool.length) return null;
+      const score = (o) => (o.zone === 'stack' ? 50 : 0) + (o.attacking ? 20 : 0) + ((g.characteristics(o) || {}).isCreature ? g.powerOf(o) : 0);
+      pool.sort((a, b) => score(b) - score(a));
+      return { picks: [pool[0].id] };
+    },
     /* "Sacrifice it unless you sacrifice a land / return a Plains / discard
        a card": pay with the least of them when the permanent is worth more. */
     unlessSacrifice(s) {

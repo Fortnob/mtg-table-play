@@ -6862,7 +6862,7 @@
       if (!p || amount <= 0) return 0;
       amount = this._damageAmount(amount, source, p.id, combat);
       if (this._protected(p)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
-      if (this._damagePrevented(p, combat, source)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
+      if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
       if (p.preventShield) {
         const soak = Math.min(p.preventShield, amount);
         p.preventShield -= soak; amount -= soak;
@@ -9214,6 +9214,25 @@
           o.pairedWith = x.id; x.pairedWith = o.id;
           this.bumpBoard();
           this.logEvent('rules', `${o.name} and ${x.name} are paired.`);
+          break;
+        }
+        /* Circle of Protection: "The next time a red source of your choice
+           would deal damage to you this turn, prevent that damage." A
+           source is chosen now: a permanent, or a spell on the stack. */
+        case 'preventSourceOnce': {
+          const fits = (x) => !e.color || ((x.analysis() || {}).colors || []).includes(e.color);
+          const pool = this.battlefield.filter(x => !x.phasedOut && fits(x))
+            .concat(this.stack.filter(it => it.kind === 'spell' && it.obj).map(it => it.obj).filter(fits));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'preventSource', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 1, max: 1, sourceId: src ? src.id : null, sourceName: ctx.name || null,
+            prompt: `Choose a ${e.color ? ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[e.color] + ' ' : ''}source: the next damage it would deal you this turn is prevented.` }, 'src');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!x) break;
+          this.prevention.push({ to: 'you', who: ctx.controller, sourceId: x.id, once: true, until: 'eot',
+            gainLife: !!e.gainLife, reflect: e.reflect ? (src ? src.id : null) || true : null });
+          this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal ${me.name} this turn is prevented.`);
           break;
         }
         // Insurrection: every creature, untapped and yours until end of turn
@@ -12297,7 +12316,7 @@
     }
 
     /** Damage prevention from "prevent all damage this turn" effects. */
-    _damagePrevented(target, isCombat, source) {
+    _damagePrevented(target, isCombat, source, amount) {
       // Frenzied Baloth: "Combat damage can't be prevented."
       if (isCombat && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noCombatPrevention'))) return false;
       // "prevent all combat damage that would be dealt to this creature"
@@ -12309,6 +12328,22 @@
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
         // Obscuring Haze: "by creatures your opponents control"
         if (pv.fromOpponentCreatures && !(source && source.controller !== pv.who && (this.characteristics(source) || {}).isCreature)) continue;
+        /* Circle of Protection: "the next time a red source of your choice
+           would deal damage to you this turn": that source, once */
+        if (pv.sourceId && !(source && source.id === pv.sourceId)) continue;
+        if (pv.once) {
+          this.prevention.splice(this.prevention.indexOf(pv), 1);
+          const k = Number(amount) || 0;
+          const me = this.player(pv.who);
+          // "You gain life equal to the damage prevented this way."
+          if (pv.gainLife && me && k > 0) this.changeLife(me, k);
+          // Deflecting Palm: "…deals that much damage to that source's controller"
+          if (pv.reflect && k > 0) {
+            const foe = this.player(source.controller);
+            const from = this.obj(pv.reflect) || source;
+            if (foe) this.dealDamageToPlayer(foe, k, from, false);
+          }
+        }
         return true;
       }
       return false;
