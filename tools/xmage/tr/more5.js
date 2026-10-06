@@ -292,4 +292,13 @@ def('ability', 'BecomesTargetAnyTriggeredAbility', (o, tc) => {
   return AB.triggered(o, tc, { event: 'becomesTarget', objFilter: F.toSubject(d), optional: !!(opt && opt.v), pointer, extra: by });
 });
 
+/* "Its owner puts it on their choice of the top or bottom of their library" */
+def('effect', 'PutOnTopOrBottomLibraryTargetEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (o.args.some(a => kindOf(a) === 'int' && a.v !== 1)) block('into the library some way down');
+  const a = E.aimObject(o, tc);
+  if (!a.targets) block('top or bottom of something already chosen');
+  return Object.assign({ op: 'topOrBottom', ownerChooses: true }, a);
+});
+
 module.exports = {};

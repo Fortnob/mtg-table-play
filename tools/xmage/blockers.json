@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17842,
-  "gainedCards": 1863,
-  "linesNeeded": 20529,
-  "linesGained": 2460,
+  "needed": 17777,
+  "gainedCards": 1849,
+  "linesNeeded": 20457,
+  "linesGained": 2446,
   "gained": {
-   "all": 1863,
+   "all": 1849,
    "top2000": 51,
-   "stdTop": 14
+   "stdTop": 13
   },
   "compare": {
    "same": 0,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6080,
-   "lines": 5042,
+   "score": 6078,
+   "lines": 5040,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 377,
-   "lines": 356,
+   "score": 376,
+   "lines": 355,
    "cards": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -204,25 +204,6 @@
    ]
   },
   {
-   "what": "Ability.withFirstModeCost",
-   "score": 83,
-   "lines": 23,
-   "cards": [
-    "Restoration Magic",
-    "Great Train Heist",
-    "Smuggler's Surprise",
-    "Lively Dirge",
-    "Final Showdown",
-    "Fire Magic",
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Thunder Magic",
-    "Dance of the Tumbleweeds"
-   ]
-  },
-  {
    "what": "Ability.setIdentifier",
    "score": 83,
    "lines": 56,
@@ -239,6 +220,25 @@
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Tarrian's Journal // The Tomb of Aclazotz",
     "Locke, Treasure Hunter"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 82,
+   "lines": 22,
+   "cards": [
+    "Restoration Magic",
+    "Great Train Heist",
+    "Smuggler's Surprise",
+    "Lively Dirge",
+    "Final Showdown",
+    "Fire Magic",
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Thunder Magic",
+    "Dance of the Tumbleweeds"
    ]
   },
   {
@@ -673,25 +673,6 @@
     "Poetic Ingenuity",
     "Celeborn the Wise",
     "Jolene, Plundering Pugilist"
-   ]
-  },
-  {
-   "what": "put from hand tapped, or for another player",
-   "score": 33,
-   "lines": 18,
-   "cards": [
-    "Horizon of Progress",
-    "Terrain Generator",
-    "Anticausal Vestige",
-    "Arboreal Grazer",
-    "Braids, Conjurer Adept",
-    "Scaretiller",
-    "Lessons from Life",
-    "Zimone, Quandrix Prodigy",
-    "Mind into Matter",
-    "Kinscaer Sentry",
-    "Embrace the Paradox",
-    "Elvish Pioneer"
    ]
   },
   {
@@ -1494,25 +1475,6 @@
    ]
   },
   {
-   "what": "PutOnTopOrBottomLibraryTargetEffect",
-   "score": 24,
-   "lines": 24,
-   "cards": [
-    "Subtlety",
-    "Horned Loch-Whale // Lagoon Breach",
-    "Lost Days",
-    "Temporal Cleansing",
-    "Wan Shi Tong, All-Knowing",
-    "Dire Downdraft",
-    "Plan for All Outcomes",
-    "Deem Inferior",
-    "Uncharted Voyage",
-    "Riverwalk Technique",
-    "Vanish from Sight",
-    "Trip Up"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 24,
    "lines": 24,
@@ -1681,25 +1643,6 @@
     "Mystic Barrier",
     "Crack in Time",
     "Staff of the Flame Magus"
-   ]
-  },
-  {
-   "what": "several cards from one graveyard",
-   "score": 23,
-   "lines": 23,
-   "cards": [
-    "Unlicensed Hearse",
-    "Shred Memory",
-    "Feral Deathgorger // Dusk Sight",
-    "Spellweaver Helix",
-    "Kaya, Orzhov Usurper",
-    "Soul-Shackled Zombie",
-    "Pestilent Cauldron // Restorative Burst",
-    "Pulsemage Advocate",
-    "Spurnmage Advocate",
-    "Ebony Charm",
-    "Digsite Conservator",
-    "Scarab Feast"
    ]
   },
   {
@@ -3073,22 +3016,17 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
+   "what": "put from hand tapped, or for another player",
    "score": 16,
-   "lines": 16,
+   "lines": 7,
    "cards": [
-    "The Council of Four",
-    "Alandra, Sky Dreamer",
-    "Minn, Wily Illusionist",
-    "On the Trail",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Krang, the All-Powerful",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Defacing Duskmage // Vandal's Edit",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Otter-Penguin",
-    "Private Eye"
+    "Anticausal Vestige",
+    "Braids, Conjurer Adept",
+    "Mind into Matter",
+    "Kinscaer Sentry",
+    "Preeminent Captain",
+    "Shadowfax, Lord of Horses",
+    "Wumpus Aberration"
    ]
   },
   {
@@ -3220,25 +3158,6 @@
     "Punishing Punch",
     "Devouring Tendrils",
     "Hunter's Edge"
-   ]
-  },
-  {
-   "what": "DoIfCostPaid not optional",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Stormshriek Feral // Flush Out",
-    "Charitable Levy",
-    "Yuna's Decision",
-    "Mistbreath Elder",
-    "Promise of Aclazotz // Foul Rebirth",
-    "Family's Favor",
-    "Marit Lage's Slumber",
-    "Gearbane Orangutan",
-    "Garruk Relentless // Garruk, the Veil-Cursed",
-    "Dreadfeast Demon",
-    "Mystery Key",
-    "Clockwork Hydra"
    ]
   },
   {
@@ -3468,6 +3387,25 @@
    ]
   },
   {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "The Council of Four",
+    "Alandra, Sky Dreamer",
+    "Minn, Wily Illusionist",
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Krang, the All-Powerful",
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Defacing Duskmage // Vandal's Edit",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Otter-Penguin",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper"
+   ]
+  },
+  {
    "what": "(constructor: assignment)",
    "score": 15,
    "lines": 9,
@@ -3520,25 +3458,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldTappedUnlessAbility",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Turbulent Fen",
-    "Turbulent Springs",
-    "Turbulent Moor",
-    "Argoth, Sanctum of Nature",
-    "Turbulent Wilderness",
-    "Turbulent Steppe",
-    "Country Roads",
-    "Horned Loch-Whale // Lagoon Breach",
-    "Rocky Roads",
-    "Reef Roads",
-    "Turbulent Shore",
-    "Turbulent Wetlands"
-   ]
-  },
-  {
    "what": "keyword SunburstAbility",
    "score": 15,
    "lines": 15,
@@ -3558,6 +3477,25 @@
    ]
   },
   {
+   "what": "token statement MutagenToken",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "The Ooze",
+    "Michelangelo, Weirdness to 11",
+    "Mutagen Man, Living Ooze",
+    "Raphael, the Muscle",
+    "Michelangelo, Mutant BFF",
+    "April O'Neil, Human Element",
+    "Roadkill Rodney",
+    "Mona Lisa, Ever Adaptable",
+    "Ooze Spill",
+    "Genghis Frog",
+    "Ray Fillet, Man Ray",
+    "Crustacean Commando"
+   ]
+  },
+  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 15,
    "lines": 15,
@@ -3574,6 +3512,25 @@
     "Clockwork Beast",
     "Clockwork Avian",
     "Clockwork Swarm"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid not optional",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Stormshriek Feral // Flush Out",
+    "Charitable Levy",
+    "Yuna's Decision",
+    "Mistbreath Elder",
+    "Promise of Aclazotz // Foul Rebirth",
+    "Family's Favor",
+    "Marit Lage's Slumber",
+    "Gearbane Orangutan",
+    "Garruk Relentless // Garruk, the Veil-Cursed",
+    "Dreadfeast Demon",
+    "Mystery Key",
+    "Clockwork Hydra"
    ]
   },
   {
@@ -3953,25 +3910,6 @@
     "Sita Varma, Masked Racer",
     "Greasewrench Goblin",
     "Rangers' Refueler"
-   ]
-  },
-  {
-   "what": "token statement MutagenToken",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "The Ooze",
-    "Michelangelo, Weirdness to 11",
-    "Mutagen Man, Living Ooze",
-    "Raphael, the Muscle",
-    "Michelangelo, Mutant BFF",
-    "April O'Neil, Human Element",
-    "Roadkill Rodney",
-    "Mona Lisa, Ever Adaptable",
-    "Ooze Spill",
-    "Genghis Frog",
-    "Ray Fillet, Man Ray",
-    "Crustacean Commando"
    ]
   },
   {
@@ -5677,6 +5615,24 @@
    ]
   },
   {
+   "what": "token ability ZombieDecayedToken",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Crowded Crypt",
+    "Ghoulish Procession",
+    "Poppet Stitcher // Poppet Factory",
+    "Flip the Switch",
+    "Rotten Reunion",
+    "Startle",
+    "Hobbling Zombie",
+    "Falcon Abomination",
+    "Ghoulcaller's Harvest",
+    "No Way Out",
+    "Revenge of the Drowned"
+   ]
+  },
+  {
    "what": "BeginningOfEndStepTriggeredAbility for NEXT",
    "score": 11,
    "lines": 11,
@@ -6339,23 +6295,6 @@
     "Eldrazi Aggressor",
     "Reaver Drone",
     "Skitterskin"
-   ]
-  },
-  {
-   "what": "token ability ZombieDecayedToken",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Crowded Crypt",
-    "Ghoulish Procession",
-    "Poppet Stitcher // Poppet Factory",
-    "Flip the Switch",
-    "Rotten Reunion",
-    "Startle",
-    "Hobbling Zombie",
-    "Falcon Abomination",
-    "Ghoulcaller's Harvest",
-    "No Way Out"
    ]
   },
   {
@@ -7737,6 +7676,21 @@
    ]
   },
   {
+   "what": "filter:historic",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Samwise Gamgee",
+    "Elena, Turk Recruit",
+    "What Must Be Done",
+    "Lost to Legend",
+    "Tegan Jovanka",
+    "Guardians of Koilos",
+    "Sentinel of the Pearl Trident",
+    "Rona, Disciple of Gix"
+   ]
+  },
+  {
    "what": "CantAttackYouAllEffect",
    "score": 8,
    "lines": 8,
@@ -8195,6 +8149,21 @@
    ]
   },
   {
+   "what": "several cards from one graveyard",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Spellweaver Helix",
+    "Kaya, Orzhov Usurper",
+    "Soul-Shackled Zombie",
+    "Pestilent Cauldron // Restorative Burst",
+    "Pulsemage Advocate",
+    "Spurnmage Advocate",
+    "Serene Remembrance",
+    "Push // Pull"
+   ]
+  },
+  {
    "what": "mill then something else",
    "score": 8,
    "lines": 8,
@@ -8410,13 +8379,24 @@
     "Territorial Dispute",
     "Bog Elemental"
    ]
+  },
+  {
+   "what": "CreateTokenCopyTargetEffect.addAdditionalAbilities",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Irenicus's Vile Duplication",
+    "Chandra, Flameshaper",
+    "Kindle the Inner Flame",
+    "Rebuild the City"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4736,
-   "cards": 3965,
+   "score": 4733,
+   "cards": 3962,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8428,8 +8408,8 @@
   },
   {
    "what": "custom ability",
-   "score": 792,
-   "cards": 630,
+   "score": 793,
+   "cards": 631,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8467,8 +8447,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 235,
-   "cards": 223,
+   "score": 238,
+   "cards": 226,
    "names": [
     "Excalibur, Sword of Eden",
     "Light Up the Stage",
@@ -8710,19 +8690,6 @@
     "Intervention Pact",
     "Reverse Damage",
     "Circle of Protection: White"
-   ]
-  },
-  {
-   "what": "put from hand tapped, or for another player",
-   "score": 32,
-   "cards": 17,
-   "names": [
-    "Horizon of Progress",
-    "Terrain Generator",
-    "Anticausal Vestige",
-    "Arboreal Grazer",
-    "Braids, Conjurer Adept",
-    "Scaretiller"
    ]
   },
   {
@@ -9231,19 +9198,6 @@
    ]
   },
   {
-   "what": "several cards from one graveyard",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Unlicensed Hearse",
-    "Shred Memory",
-    "Feral Deathgorger // Dusk Sight",
-    "Soul-Shackled Zombie",
-    "Pulsemage Advocate",
-    "Spurnmage Advocate"
-   ]
-  },
-  {
    "what": "BecomesTappedAttachedTriggeredAbility",
    "score": 19,
    "cards": 19,
@@ -9426,19 +9380,6 @@
    ]
   },
   {
-   "what": "PutOnTopOrBottomLibraryTargetEffect",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Subtlety",
-    "Lost Days",
-    "Temporal Cleansing",
-    "Uncharted Voyage",
-    "Riverwalk Technique",
-    "Vanish from Sight"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 17,
    "cards": 17,
@@ -9499,6 +9440,19 @@
     "The Vision",
     "Demonic Pact",
     "Three Bowls of Porridge"
+   ]
+  },
+  {
+   "what": "put from hand tapped, or for another player",
+   "score": 16,
+   "cards": 7,
+   "names": [
+    "Anticausal Vestige",
+    "Braids, Conjurer Adept",
+    "Mind into Matter",
+    "Kinscaer Sentry",
+    "Preeminent Captain",
+    "Shadowfax, Lord of Horses"
    ]
   },
   {
@@ -9655,19 +9609,6 @@
     "Grand Architect",
     "Cryptek",
     "Pia Nalaar"
-   ]
-  },
-  {
-   "what": "DoIfCostPaid not optional",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Stormshriek Feral // Flush Out",
-    "Charitable Levy",
-    "Yuna's Decision",
-    "Mistbreath Elder",
-    "Promise of Aclazotz // Foul Rebirth",
-    "Family's Favor"
    ]
   },
   {
@@ -9884,6 +9825,19 @@
     "Stalwart Pathlighter",
     "Duel for Dominance",
     "Contortionist Troupe"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid not optional",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Stormshriek Feral // Flush Out",
+    "Charitable Levy",
+    "Yuna's Decision",
+    "Mistbreath Elder",
+    "Promise of Aclazotz // Foul Rebirth",
+    "Family's Favor"
    ]
   },
   {
@@ -10722,6 +10676,19 @@
    ]
   },
   {
+   "what": "token ability ZombieDecayedToken",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Crowded Crypt",
+    "Ghoulish Procession",
+    "Poppet Stitcher // Poppet Factory",
+    "Flip the Switch",
+    "Rotten Reunion",
+    "Startle"
+   ]
+  },
+  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 11,
    "cards": 11,
@@ -10732,19 +10699,6 @@
     "Starseer Mentor",
     "Thornplate Intimidator",
     "Tomb Blade"
-   ]
-  },
-  {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "On the Trail",
-    "Defacing Duskmage // Vandal's Edit",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Otter-Penguin"
    ]
   },
   {
@@ -10836,6 +10790,19 @@
     "Colfenor, the Last Yew",
     "Basri's Lieutenant",
     "Slurrk, All-Ingesting"
+   ]
+  },
+  {
+   "what": "token statement MutagenToken",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Michelangelo, Weirdness to 11",
+    "April O'Neil, Human Element",
+    "Roadkill Rodney",
+    "Mona Lisa, Ever Adaptable",
+    "Ooze Spill",
+    "Genghis Frog"
    ]
   },
   {
@@ -11127,16 +11094,16 @@
    ]
   },
   {
-   "what": "token ability ZombieDecayedToken",
+   "what": "DrawNthCardTriggeredAbility",
    "score": 10,
    "cards": 10,
    "names": [
-    "Crowded Crypt",
-    "Ghoulish Procession",
-    "Poppet Stitcher // Poppet Factory",
-    "Flip the Switch",
-    "Rotten Reunion",
-    "Startle"
+    "Alandra, Sky Dreamer",
+    "Defacing Duskmage // Vandal's Edit",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Otter-Penguin",
+    "Private Eye"
    ]
   },
   {
@@ -11254,19 +11221,6 @@
     "Ruthless Winnower",
     "Requiem Angel",
     "Wildborn Preserver"
-   ]
-  },
-  {
-   "what": "token statement MutagenToken",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Michelangelo, Weirdness to 11",
-    "April O'Neil, Human Element",
-    "Roadkill Rodney",
-    "Mona Lisa, Ever Adaptable",
-    "Ooze Spill",
-    "Genghis Frog"
    ]
   },
   {
@@ -11759,19 +11713,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldTappedUnlessAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Turbulent Fen",
-    "Turbulent Springs",
-    "Turbulent Moor",
-    "Argoth, Sanctum of Nature",
-    "Turbulent Wilderness",
-    "Turbulent Steppe"
-   ]
-  },
-  {
    "what": "fight targets",
    "score": 9,
    "cards": 9,
@@ -11964,6 +11905,19 @@
     "Give No Ground",
     "Anurid Swarmsnapper",
     "Foriysian Totem"
+   ]
+  },
+  {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Journey to Nowhere",
+    "Connecting the Dots",
+    "Parallax Wave",
+    "Bomat Courier",
+    "Safe Haven",
+    "Parallax Tide"
    ]
   },
   {
@@ -12233,6 +12187,30 @@
     "Faerie Artisans",
     "Prison Term",
     "Illusory Gains"
+   ]
+  },
+  {
+   "what": "AddCreatureTypeAdditionEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Portal to Phyrexia",
+    "Rise from the Grave",
+    "Ever After",
+    "Call a Surprise Witness",
+    "Terror of Towashi"
+   ]
+  },
+  {
+   "what": "GoadAttachedEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Shiny Impetus",
+    "Bloodthirsty Blade",
+    "Parasitic Impetus",
+    "Coercive Impetus",
+    "Psychic Impetus"
    ]
   }
  ]

@@ -1424,10 +1424,25 @@
     { re: /^Each player exiles their graveyard\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
     { re: /^Target player exiles (a|one|two|\d+) cards? from their graveyard\.?$/i,
       make: (m) => ({ op: 'exileFromGraveyard', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
-    { re: /^Exile (?:target|a) card from a graveyard\.?$/i,
-      make: () => ({ op: 'exileFromGraveyard', n: 1, who: 'any' }) },
-    { re: /^Exile (target [a-z ]+? card) from (?:a|your|target player'?s) graveyard\.?$/i,
-      make: (m) => ({ op: 'exileFromGraveyard', n: 1, who: 'any', filter: m[1].replace(/^target /, '').replace(/ card$/, '') }) },
+    /* "Exile target card from a graveyard": the card is chosen as a
+       target, from whichever graveyard, as the spell or ability is put on
+       the stack */
+    { re: /^Exile (up to one )?target ((?:[a-z]+ )*?)card from (a|your|an opponent's) graveyard\.?$/i,
+      make: (m) => {
+        const spec = m[2].trim() ? targetSpec('target ' + m[2].trim(), 'graveyard') : { type: 'permanent', filter: 'card', zone: 'graveyard' };
+        if (spec.unknown) return null;
+        if (/your/i.test(m[3])) spec.controller = 'you';
+        if (/opponent/i.test(m[3])) spec.controller = 'opponent';
+        if (m[1]) spec.upTo = true;
+        return { op: 'exile', targets: [spec] };
+      } },
+    { re: /^Exile a card from a graveyard\.?$/i,
+      make: () => ({ op: 'exile', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard' }] }) },
+    /* "Exile up to two target cards from a single graveyard": whichever
+       graveyard the first one is in, the others must share */
+    { re: /^Exile up to (two|three|four|five) target cards from a single graveyard\.?$/i,
+      make: (m) => ({ op: 'exile', sameGraveyard: true,
+        targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'card', zone: 'graveyard', upTo: true })) }) },
 
     /* ===== keyword actions that make a thing ===== */
     { re: /^Investigate\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue' }) },
@@ -1650,8 +1665,15 @@
 
 
     /* ===== putting a card from hand straight onto the battlefield ===== */
-    { re: /^(?:You may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield\.?$/i,
-      make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }) },
+    { re: /^(?:You may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
+    /* "Put target creature on the top or bottom of its owner's library":
+       the one who resolves it chooses; "its owner puts it on their choice
+       of the top or bottom" is the owner's choice */
+    { re: /^Put (target [a-z ]+?) on (?:the )?top or bottom of its owner'?s library\.?$/i,
+      make: (m) => ({ op: 'topOrBottom', targets: [targetSpec(m[1])] }) },
+    { re: /^(Target [a-z ]+?)'s owner puts it on (?:their choice of )?the top or bottom of their library\.?$/i,
+      make: (m) => ({ op: 'topOrBottom', ownerChooses: true, targets: [targetSpec(m[1])] }) },
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each' }) },
     { re: /^That creature gains ([a-z, ']+?)\.?$/i,
@@ -3455,6 +3477,8 @@
     [/^it'?s not your turn$/i, () => ({ kind: 'notYourTurn' })],
     // counting the board
     [/^you control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) })],
+    // the Turbulent lands: "unless your opponents control eight or more lands"
+    [/^your opponents control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), who: 'opponents' })],
     [/^you control (?:an?|one or more) ([a-z]+?)s?$/i, (m) => ({ kind: 'control', what: m[1], n: 1 })],
     [/^you control (\w+) or fewer ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), cmp: 'atMost' })],
     [/^you control no ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[1], n: 0, cmp: 'atMost' })],

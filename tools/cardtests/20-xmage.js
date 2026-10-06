@@ -709,6 +709,51 @@ module.exports = (test) => {
     t.eq((bear.analysis().colors || []).join(), 'U');
   });
 
+  test('Cremate exiles the targeted card only, not one from every graveyard', (mk, t) => {
+    t.auto('Cremate');
+    const T = mk();
+    const a1 = T.grave('A', 'Island');
+    const b1 = T.grave('B', 'Forest'), b2 = T.grave('B', 'Grizzly Bears');
+    T.top('A', 'Island');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Cremate'), { targets: [b2] });
+    t.zone(b2, 'exile');
+    t.zone(b1, 'graveyard', 'the other card stays');
+    t.zone(a1, 'graveyard', 'and so does mine');
+  });
+
+  test('Decompose takes cards from one graveyard only', (mk, t) => {
+    t.auto('Decompose');
+    const T = mk();
+    const b1 = T.grave('B', 'Forest'), b2 = T.grave('B', 'Grizzly Bears');
+    const a1 = T.grave('A', 'Island');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Decompose'), { targets: [b1, b2, a1] });
+    t.zone(b1, 'exile'); t.zone(b2, 'exile');
+    t.zone(a1, 'graveyard', 'not from a second graveyard');
+  });
+
+  test('Misleading Motes: the owner puts the creature on top or bottom', (mk, t) => {
+    t.auto('Misleading Motes');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.top('B', 'Forest'); T.top('B', 'Forest');
+    T.answer('choose', { picks: [1] });
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Misleading Motes'), { targets: [bear] });
+    const lib = T.zone('B', 'library');
+    t.eq(lib[lib.length - 1], bear, 'at the bottom, as chosen');
+    t.eq(T.asked.find(c => c.type === 'choose').playerId, 'B', 'the owner chose');
+  });
+
+  test('Turbulent lands enter tapped unless opponents control eight lands', (mk, t) => {
+    t.auto('Turbulent Fen');
+    const T = mk();
+    const f = T.put('A', 'Turbulent Fen', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(f.tapped);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

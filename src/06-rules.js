@@ -7641,6 +7641,12 @@
             break;
           }
           this._noteLastAffected(targets);
+          /* "from a single graveyard": the cards that share the first one's
+             owner; any from another graveyard stay where they are */
+          if (e.sameGraveyard) {
+            const first = targets.map(t => t.kind === 'object' && this.obj(t.id)).find(Boolean);
+            if (first) targets = targets.filter(t => { const o = t.kind === 'object' && this.obj(t.id); return !o || o.owner === first.owner; });
+          }
           for (const t of targets) {
             /* "Exile any number of target spells": off the stack and into
                exile, which is not countering it */
@@ -9335,9 +9341,25 @@
               const o = this.obj(id);
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id });
+              if (e.tapped) o.tapped = true;
               this._lastPut = o.id;
             }
           }
+          break;
+        }
+        /* "on the top or bottom of its owner's library": whoever chooses
+           says which */
+        case 'topOrBottom': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const chooser = e.ownerChooses ? x.owner : ctx.controller;
+          const got = this._choose({ playerId: chooser, purpose: 'topOrBottom', kind: 'options', min: 1, max: 1,
+            options: [{ i: 0, label: 'Top of the library' }, { i: 1, label: 'Bottom of the library' }],
+            prompt: `Put ${x.name} on the top or the bottom of its owner's library?` });
+          if (got === SUSPEND) return SUSPEND;
+          const bottom = !!(got && got.picks && got.picks[0] === 1);
+          this.moveObject(x, 'library', bottom ? { toBottom: true } : {});
+          this.logEvent('zone', `${x.name} goes to the ${bottom ? 'bottom' : 'top'} of its owner's library.`);
           break;
         }
 
