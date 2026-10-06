@@ -2332,6 +2332,47 @@ module.exports = (test) => {
     t.eq(T.g.toughnessOf(b), 4, '2 + 2 for the Suit and Rancor');
   });
 
+  test("Alesha only brings back what her power allows", (mk, t) => {
+    t.auto('Alesha, Who Laughs at Fate');
+    const T = mk();
+    const al = T.bf('A', 'Alesha, Who Laughs at Fate');
+    const small = T.grave('A', 'Grizzly Bears'), big = T.grave('A', 'Craw Wurm');
+    const ab = al.analysis().abilities.find(x => x.kind === 'triggered' && /end step/.test(x.text));
+    const spec = ab.effects[0].targets[0];
+    const ids = T.g._legalTargetsFor(spec, 'A', al.id).map(x => x.id);
+    t.ok(ids.includes(small.id) && !ids.includes(big.id), 'the Bears, not the Wurm');
+  });
+
+  test('Warden of the Grove: endure as many as its counters', (mk, t) => {
+    t.auto('Warden of the Grove');
+    const T = mk();
+    const w = T.bf('A', 'Warden of the Grove');
+    w.counters['+1/+1'] = 2; w.counters.stun = 1;
+    T.answer('mode', { modes: [0] });
+    T.mana('A', '1G');
+    const b = T.hand('A', 'Grizzly Bears');
+    T.cast('A', b);
+    T.resolve();
+    t.eq(b.counters['+1/+1'], 3, 'three counters on the Warden');
+  });
+
+  test("Frenzied Baloth: combat damage can't be prevented", (mk, t) => {
+    t.auto('Frenzied Baloth');
+    const T = mk();
+    const b = T.bf('A', 'Frenzied Baloth');
+    T.g.prevention.push({ combatOnly: true, who: 'B', until: 'eot' });
+    T.g.dealDamageToPlayer(T.g.player('B'), 3, b, true);
+    t.eq(T.life('B'), 17);
+  });
+
+  test('Dracogenesis: Dragons for nothing', (mk, t) => {
+    t.auto('Dracogenesis');
+    const T = mk();
+    T.bf('A', 'Dracogenesis');
+    t.eq(T.g.canCast('A', T.hand('A', 'Shivan Dragon').id).cost, '');
+    t.eq(T.g.canCast('A', T.hand('A', 'Craw Wurm').id).cost, '{4}{G}{G}', 'not a Wurm');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

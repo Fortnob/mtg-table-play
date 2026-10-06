@@ -2435,6 +2435,9 @@
         return { ok: true, cost: '', lifeInstead: mv };
       }
       if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: '' };
+      // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
+      if (!opts && this.battlefield.some(s => s.controller === playerId && !s.phasedOut &&
+        (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: '' };
       return { ok: true, cost: this.castCost(o, opts) };
     }
 
@@ -3512,7 +3515,8 @@
       /* Convoke, improvise and delve are paid for, not given: with what the
          player chose (checked before any mana goes), or the cheapest there
          is. Whatever they chose not to use is paid in mana. */
-      const reduces = !opts.free && !via && opts.costOverride == null;
+      // (only when the cost is the one with the discount in it: not Omniscience's nothing)
+      const reduces = !opts.free && !via && opts.costOverride == null && chk.cost === this.castCost(o, opts);
       const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
       if (plan && plan.error) return this.fail(plan.error);
       if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
@@ -7837,6 +7841,8 @@
         if (v && typeof v === 'object' && v.countersOnSelf) {
           // after it has died, the counters it had as it went (Hangarback Walker)
           const pile = src && (src.zone !== 'battlefield' && src._diedCounters ? src._diedCounters : src.counters);
+          // "the number of counters on this creature": all of them
+          if (v.countersOnSelf === '*') return Object.values(pile || {}).reduce((acc, k) => acc + (Number(k) || 0), 0) * (v.mult || 1);
           return ((pile && Number(pile[v.countersOnSelf])) || 0) * (v.mult || 1);
         }
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
@@ -12049,6 +12055,8 @@
 
     /** Damage prevention from "prevent all damage this turn" effects. */
     _damagePrevented(target, isCombat, source) {
+      // Frenzied Baloth: "Combat damage can't be prevented."
+      if (isCombat && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noCombatPrevention'))) return false;
       // "prevent all combat damage that would be dealt to this creature"
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
       // Crystal Barricade: "prevent all noncombat damage that would be dealt to other creatures you control"
@@ -12975,6 +12983,11 @@
      */
     _legalTargetsFor(spec, controllerId, sourceId) {
       spec = spec || {};
+      // Alesha: "with mana value less than or equal to CARDNAME's power", as it is now
+      if (spec.maxMvSourcePower) {
+        const s0 = sourceId && this.obj(sourceId);
+        return this._legalTargetsFor(Object.assign({}, spec, { maxMvSourcePower: false, maxMv: s0 ? Math.max(0, this.powerOf(s0)) : 0 }), controllerId, sourceId);
+      }
       // "another target creature" is never the creature asking (CR 115.5)
       if (spec.another && sourceId) {
         return this._legalTargetsFor(Object.assign({}, spec, { another: false }), controllerId).filter(t => t.id !== sourceId);

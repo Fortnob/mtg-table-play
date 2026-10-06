@@ -1210,6 +1210,14 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'suspect', targets: [targetSpec(m[1])] } : { op: 'suspect', scope: 'lastTarget' }) },
     { re: /^(?:CARDNAME|This creature|It) endures (one|two|three|four|five|\d+|X)\.?$/i,
       make: (m) => ({ op: 'endure', n: num(m[1]), scope: /^It$/i.test(m[0].split(' ')[0]) ? 'triggerObject' : 'self' }) },
+    // Warden of the Grove: "it endures X, where X is the number of counters on this creature"
+    { re: /^(CARDNAME|This creature|It) endures X, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k ? { op: 'endure', n: k, scope: /^It$/i.test(m[1]) ? 'triggerObject' : 'self' } : null; } },
+    /* Alesha, Who Laughs at Fate: "Return target creature card with mana
+       value less than or equal to CARDNAME's power from your graveyard to
+       the battlefield." */
+    { re: /^Return target ([a-z ]*?creature) card with mana value less than or equal to (?:CARDNAME|this creature)'?s power from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard', controller: 'you', maxMvSourcePower: true })] }) },
     /* Liquimetal Torque and friends: one more card type for the turn */
     { re: /^(target [a-z ]+?) becomes an? (artifact|enchantment|creature|land) in addition to its other types until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'addTypes', types: [U.titleCase(m[2])], duration: 'eot', targets: [t] } : null; } },
@@ -2739,6 +2747,8 @@
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
     if (/^the number of cards in your graveyard$/i.test(p)) return done({ cardsInGraveyard: 'you', mult: 1 });
+    // "the number of counters on this creature": every kind
+    if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
       return done({ countersOnSelf: m[1].toLowerCase(), mult: 1 });
     if ((m = p.match(/^the greatest power among (creatures you control|creatures your opponents control|creatures)$/i))) {
@@ -6261,6 +6271,9 @@
         make: (m) => Object.assign({ op: 'etbAsCopy', what: 'creature', eot: true }, m[1] ? { haste: true } : {}), auto: true },
       { re: /^Creatures you control can boast twice during each of your turns rather than once\.?$/i, eff: { op: 'boastTwice' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
+      // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
+      { re: /^You may cast ([A-Z][a-z]+|creature|artifact|enchantment|instant|sorcery) spells without paying their mana costs\.?$/,
+        make: (m) => ({ op: 'freeSpells', filter: m[1].toLowerCase() }), auto: true },
       { re: /^Your opponents can'?t cast spells from anywhere other than their hands\.?$/i, eff: { op: 'onlyFromHand' }, auto: true },
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME) cost an additional (\d+) life to cast\.?$/i,
         make: (m) => ({ op: 'targetLifeTax', life: +m[1] }), auto: true },
@@ -6392,6 +6405,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Frenzied Baloth: "Combat damage can't be prevented."
+      { re: /^Combat damage can'?t be prevented\.?$/i, eff: { op: 'noCombatPrevention' }, auto: true },
       // Woe Strider: "This creature escapes with two +1/+1 counters on it."
       { re: /^(?:CARDNAME|This creature) escapes with (a|an|one|two|three|four|five|\d+) ([+\-0-9/a-z]+) counters? on it\.?$/i,
         make: (m) => ({ op: 'escapesWith', n: num(m[1]), kind: m[2].toLowerCase() }), auto: true },

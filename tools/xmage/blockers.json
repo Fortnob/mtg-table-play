@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16817,
+  "needed": 16813,
   "gainedCards": 1759,
-  "linesNeeded": 19176,
+  "linesNeeded": 19171,
   "linesGained": 2277,
   "gained": {
    "all": 1759,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5833,
-   "lines": 4945,
+   "score": 5818,
+   "lines": 4942,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -4580,18 +4580,6 @@
    ]
   },
   {
-   "what": "CastFromHandWithoutPayingManaCostEffect",
-   "score": 11,
-   "lines": 5,
-   "cards": [
-    "Dracogenesis",
-    "Tamiyo, Field Researcher",
-    "Chandra, Flame's Catalyst",
-    "Fires of Invention",
-    "Omnipresence"
-   ]
-  },
-  {
    "what": "LoseGameTargetPlayerEffect",
    "score": 11,
    "lines": 5,
@@ -5085,14 +5073,6 @@
    "lines": 1,
    "cards": [
     "Talion, the Kindly Lord"
-   ]
-  },
-  {
-   "what": "AleshaWhoLaughsAtFatePredicate.instance",
-   "score": 10,
-   "lines": 1,
-   "cards": [
-    "Alesha, Who Laughs at Fate"
    ]
   },
   {
@@ -8195,13 +8175,33 @@
     "Huatli, the Sun's Heart",
     "Glint Weaver"
    ]
+  },
+  {
+   "what": "CreaturesAttackingYouCount.instance",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Arachnogenesis",
+    "Sentry Bot",
+    "Blessed Reversal"
+   ]
+  },
+  {
+   "what": "AttacksEachCombatStaticAbility",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Alexios, Deimos of Kosmos",
+    "Xantcha, Sleeper Agent",
+    "Zurgo Helmsmasher"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4580,
-   "cards": 3929,
+   "score": 4566,
+   "cards": 3927,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8771,6 +8771,19 @@
    ]
   },
   {
+   "what": "EerieAbility",
+   "score": 20,
+   "cards": 14,
+   "names": [
+    "Entity Tracker",
+    "Victor, Valgavoth's Seneschal",
+    "Balemurk Leech",
+    "Gremlin Tamer",
+    "Optimistic Scavenger",
+    "Scrabbling Skullcrab"
+   ]
+  },
+  {
    "what": "becomes a creature for custom",
    "score": 19,
    "cards": 16,
@@ -8794,19 +8807,6 @@
     "Captain Howler, Sea Scourge",
     "Marauding Mako",
     "Scrounging Skyray"
-   ]
-  },
-  {
-   "what": "EerieAbility",
-   "score": 19,
-   "cards": 13,
-   "names": [
-    "Entity Tracker",
-    "Victor, Valgavoth's Seneschal",
-    "Balemurk Leech",
-    "Gremlin Tamer",
-    "Optimistic Scavenger",
-    "Scrabbling Skullcrab"
    ]
   },
   {
@@ -10217,14 +10217,6 @@
    ]
   },
   {
-   "what": "AleshaWhoLaughsAtFatePredicate.instance",
-   "score": 10,
-   "cards": 1,
-   "names": [
-    "Alesha, Who Laughs at Fate"
-   ]
-  },
-  {
    "what": "AllianceAbility",
    "score": 10,
    "cards": 7,
@@ -11371,15 +11363,6 @@
    ]
   },
   {
-   "what": "CastFromHandWithoutPayingManaCostEffect",
-   "score": 8,
-   "cards": 2,
-   "names": [
-    "Dracogenesis",
-    "Omnipresence"
-   ]
-  },
-  {
    "what": "keyword GraftAbility",
    "score": 8,
    "cards": 8,
@@ -12032,6 +12015,32 @@
     "Orcish Siegemaster",
     "Essence Harvest",
     "Peema Aether-Seer"
+   ]
+  },
+  {
+   "what": "attack with 2 or more",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Chivalric Alliance",
+    "Military Intelligence",
+    "Eiganjo Dynastorian // Replenish",
+    "Craig Boone, Novac Guard",
+    "Master's Guidance",
+    "Tide Skimmer"
+   ]
+  },
+  {
+   "what": "AddManaInAnyCombinationEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Burnt Offering",
+    "Thornvault Forager",
+    "Molten Slagheap",
+    "Dreadship Reef",
+    "Calciform Pools",
+    "Saltcrusted Steppe"
    ]
   }
  ]
