@@ -8,6 +8,7 @@
  "04-formats.js",
  "05-decklist.js",
  "06-rules.js",
+ "06a-choice.js",
  "06b-events.js",
  "06c-replay.js",
  "07-draft.js",

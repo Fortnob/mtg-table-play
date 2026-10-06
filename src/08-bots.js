@@ -313,6 +313,11 @@
       case 'modal': {
         const vals = (e.modes || []).map(m => U.sum((m.effects || []).map(x => effectWorth(x, d))))
           .sort((a, b) => b - a);
+        // paw prints: the best mode for its price, as often as the budget allows
+        if (e.pawprint) {
+          const per = (e.modes || []).map(m => U.sum((m.effects || []).map(x => effectWorth(x, d))) / Math.max(1, m.weight || 1));
+          return Math.max(0, ...per) * nval(e.pawprint, 1);
+        }
         const k = e.spree ? 1 : Math.max(1, Math.min(nval(e.count, 1), vals.length));
         return U.sum(vals.slice(0, k)) + (vals.length > k ? 0.4 : 0);
       }
@@ -1290,6 +1295,94 @@
     return out;
   }
 
+  /* What a bot makes of the generic questions it knows by name. Each is
+     called on the bot with the question and the engine's checks, and may
+     return null to fall back to scoring candidate by candidate. */
+  const CHOOSE_PURPOSES = {
+    /* Replicate: every copy is the spell again, so as many as can be paid
+       for — unless the spell is one we would not want twice. */
+    replicate(s) {
+      return { number: s.number.max };
+    },
+    /* Splice: the spliced card's words for its splice cost, and the card
+       stays in hand; worth it whenever those words help. */
+    splice(s, hooks) {
+      const g = this.game;
+      const C = MTG.choice;
+      const ranked = (s.items || []).map(it => {
+        const o = g.obj(it.id);
+        const a = o && o.analysis();
+        return { id: it.id, v: a ? U.sum(flatEffects(g._cardSpellEffects(a)).map(e => effectWorth(e, 0))) : 0 };
+      }).sort((x, y) => y.v - x.v);
+      const picks = [];
+      for (const r of ranked) if (r.v > 0.3 && C.canAdd(s, picks, r.id, hooks)) picks.push(r.id);
+      return { picks };
+    },
+    /* Conspire: two creatures tapped for a second spell. The two that
+       matter least, and only when the spell is worth having twice and the
+       creatures are not needed to attack or block. */
+    conspire(s) {
+      const g = this.game;
+      const spell = s.sourceId ? g.obj(s.sourceId) : null;
+      const worth = spell ? this.rating(spell) : 2;
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
+        .sort((x, y) => this.permanentValue(x) - this.permanentValue(y));
+      if (pool.length < 2) return { picks: [] };
+      const cost = this.permanentValue(pool[0]) + this.permanentValue(pool[1]);
+      const combatSoon = g.activePlayer.id === this.pid && g.phaseIndex <= 1;
+      if (worth < 2 || (combatSoon && cost > worth * 1.5)) return { picks: [] };
+      return { picks: [pool[0].id, pool[1].id] };
+    },
+    /* Cipher: on the creature most likely to keep getting through. */
+    cipher(s) {
+      const g = this.game;
+      const scored = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).map(o => {
+        let v = g.toughnessOf(o) * 0.3 + g.powerOf(o) * 0.2;
+        for (const k of ['flying', 'menace', 'trample', 'shadow', 'fear', 'intimidate', 'horsemanship', 'skulk']) if (g.hasKw(o, k)) v += 2;
+        if (g.hasKw(o, 'hexproof') || g.hasKw(o, 'indestructible')) v += 1;
+        if (g.hasKw(o, 'defender')) v -= 5;
+        return { id: o.id, v };
+      }).sort((x, y) => y.v - x.v);
+      return scored.length && scored[0].v > -2 ? { picks: [scored[0].id] } : { picks: [] };
+    },
+    /* "Choose an opponent": the one that matters most when what follows
+       hurts them, and the one least likely to beat us when it is a gift. */
+    chooseOpponent(s) {
+      const g = this.game;
+      const r = g.resolving;
+      const rest = r && r.effects ? r.effects.slice(r.index + 1) : [];
+      const hurts = flatEffects(rest).some(e => isHarmful(e));
+      const offered = (s.items || []).map(x => g.player(x.id)).filter(Boolean);
+      const foe = this.mainOpponent();
+      if (hurts && foe && offered.includes(foe)) return { picks: [foe.id] };
+      const meek = offered.slice().sort((a, b) => this._leaderScore(a) - this._leaderScore(b))[0];
+      return meek ? { picks: [meek.id] } : null;
+    },
+    /* Modes priced in paw prints: the most value the budget buys, a mode
+       as often as it is worth it (a small knapsack, since budgets are five). */
+    pawprint(s) {
+      const e = this._resolvingEffect();
+      const modes = e && e.op === 'modal' ? (e.modes || []) : [];
+      const cap = ((s.constraints || []).find(c => c.kind === 'sum') || {}).max || s.max;
+      const opts = (s.options || []).map((o, k) => ({ k, w: Math.max(1, o.weight || 1),
+        v: this._modeWorth((modes[o.i != null ? o.i : k] || {}).effects || O.parseEffects(o.label || '').effects) }));
+      const best = [{ v: 0, picks: [] }];
+      for (let b = 1; b <= cap; b++) {
+        best[b] = best[b - 1];
+        for (const o of opts) {
+          if (o.w > b || o.v <= 0) continue;
+          const prev = best[b - o.w];
+          if (prev.v + o.v > best[b].v) best[b] = { v: prev.v + o.v, picks: prev.picks.concat([o.k]) };
+        }
+      }
+      const got = best[cap];
+      if (got.picks.length) return { picks: got.picks };
+      // nothing helps: the cheapest mode, since one has to be chosen
+      const cheap = opts.slice().sort((x, y) => x.w - y.w || y.v - x.v)[0];
+      return cheap ? { picks: [cheap.k] } : null;
+    },
+  };
+
   class BotPlayer {
     /* `tuning` overrides numbers from the ladder for this one bot; the
        tools in tools/ use it to measure what each number is worth. */
@@ -1608,8 +1701,78 @@
           return g.resolveChoice(this.pid, { pay: can && (worth || this.d <= 3) });
         }
         case 'orderTriggers': return g.resolveChoice(this.pid, {});
+        /* The generic question: whatever it is for, a scored answer that
+           keeps to its rules; and if that is refused, the first legal one,
+           so a bot never leaves the table waiting. */
+        case 'choose': {
+          let ans = null;
+          try { ans = this.chooseGeneric(ch); } catch (e) { console.warn('[bot] choose', e); }
+          if (ans && g.resolveChoice(this.pid, ans)) return true;
+          return g.resolveChoice(this.pid, MTG.choice.solve(ch, { hooks: this._chooseHooks() }) || { picks: [] });
+        }
         default: return g.resolveChoice(this.pid, {});
       }
+    }
+
+    /* ---- the generic question (docs/choices.md) ---- */
+    _chooseHooks() {
+      const g = this.game;
+      return { canPay: (cost) => g.couldPay(this.pid, cost, this.manaSources()) };
+    }
+
+    /**
+     * Answer any generic question. A purpose the bot knows about gets its
+     * own judgement; anything else is scored candidate by candidate — what
+     * a card is worth, whose it is, whether being chosen is good or bad for
+     * it — and the best legal answer is taken.
+     */
+    chooseGeneric(ch) {
+      const C = MTG.choice;
+      const s = ch.constraints ? ch : C.normalize(ch);
+      const hooks = this._chooseHooks();
+      const own = CHOOSE_PURPOSES[s.purpose];
+      if (own) {
+        const a = own.call(this, s, hooks);
+        if (a && C.check(s, a, hooks).ok) return a;
+      }
+      if (s.kind === 'number') return C.solve(s, { most: s.prefer !== 'min' });
+      const scored = C.candidates(s).map(p => ({ p, v: this._chooseScore(s, p) + this.rand() * (1 - this.cfg.skill) * 0.5 }))
+        .sort((x, y) => y.v - x.v);
+      // take what is worth taking while it fits, then make up the numbers with the least bad
+      const picks = [];
+      for (const x of scored) {
+        if (x.v <= 0 && picks.length >= s.min) break;
+        if (C.canAdd(s, picks, x.p, hooks)) picks.push(x.p);
+        if (s.repeat) while (x.v > 0 && C.canAdd(s, picks, x.p, hooks)) picks.push(x.p);
+      }
+      if (C.check(s, { picks }, hooks).ok) return { picks };
+      return C.solve(s, { order: scored.map(x => x.p), hooks, most: picks.length > s.min });
+    }
+
+    /** How much we want this candidate picked: positive is good for us. */
+    _chooseScore(s, pick) {
+      const g = this.game;
+      let v = 0;
+      if (s.kind === 'options') {
+        const opt = (s.options || [])[pick] || {};
+        if (opt.card) v = rateCard(opt.card, { prior: 0 });
+        else v = this._modeWorth(O.parseEffects(opt.label || '').effects);
+        v = v / Math.max(1, opt.weight || 1);
+      } else if (s.kind === 'players') {
+        const p = g.player(pick);
+        const foe = this.mainOpponent();
+        v = pick === this.pid ? 1 : (foe && foe.id === pick ? -1.5 : -1);
+        if (p && p.life <= 5 && pick !== this.pid) v -= 0.5;
+        if (s.harmful) v = -v;
+      } else {
+        const o = g.obj(pick);
+        const item = (s.items || []).find(x => x.id === pick) || {};
+        const mine = o ? (o.controller === this.pid || (o.zone !== 'battlefield' && o.owner === this.pid)) : item.controller === this.pid;
+        const worth = !o ? (item.card ? rateCard(item.card, { prior: 0 }) : 1)
+          : o.zone === 'battlefield' ? this.permanentValue(o) : o.zone === 'library' && mine ? this.drawValue(o) : this.rating(o);
+        v = s.harmful ? (mine ? -worth : worth) : (mine ? worth : -worth * 0.5);
+      }
+      return s.prefer === 'worst' ? -v : v;
     }
 
     /** "You may …": say yes when what follows is good for us. */
@@ -3406,6 +3569,12 @@
     buildBotDeck, findPartner, BotPlayer, BotRunner, DIFFICULTY, diffCfg,
     // the card judge, for the draft, the deck builder and the tools in tools/
     rateCard, rolesOf, botCanPlay, judge: { effectWorth, abilityWorth, bodyWorth, freeColours, pipsOf },
+    /* A generic question answered for a player on the spot (a bot casting
+       a spell), with that player's own judgement. */
+    answerChoose(game, playerId, spec) {
+      const p = game.player(playerId);
+      return new BotPlayer(game, playerId, (p && p.botDifficulty) || 5).chooseGeneric(spec);
+    },
   };
 })(window.MTG);
 

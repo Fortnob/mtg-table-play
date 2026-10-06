@@ -4842,7 +4842,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 /* ============================================================
    02-scryfall.js - Scryfall API client + IndexedDB card/art cache
    Public data, fetched live, cached locally so repeat games are instant.
-   Respects Scryfall's rate-limit guidance (<=10 req/s, we use ~8).
+   Respects Scryfall's rate limits: 10 requests a second in general, and
+   2 a second for search, named, random and collection lookups.
    ============================================================ */
 'use strict';
 (function (MTG) {
@@ -4950,12 +4951,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   /* ---------------- request queue with rate limiting ---------------- */
   class Queue {
-    constructor(minGap) { this.gap = minGap; this.last = 0; this.chain = Promise.resolve(); this.pending = 0; }
-    run(fn) {
+    /* `slowGap` is for the endpoints Scryfall holds to two a second; a 429
+       from those locks the whole client out for thirty seconds. */
+    constructor(minGap, slowGap) { this.gap = minGap; this.slowGap = slowGap || minGap; this.last = 0; this.chain = Promise.resolve(); this.pending = 0; }
+    run(fn, slow) {
       this.pending++;
       MTG.bus.emit('scryfall:pending', this.pending);
       const p = this.chain.then(async () => {
-        const wait = this.gap - (Date.now() - this.last);
+        const wait = (slow ? this.slowGap : this.gap) - (Date.now() - this.last);
         if (wait > 0) await U.sleep(wait);
         this.last = Date.now();
         try { return await fn(); } finally { this.pending--; MTG.bus.emit('scryfall:pending', this.pending); }
@@ -4969,7 +4972,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   class Scryfall {
     constructor() {
       this.db = new IDB();
-      this.q = new Queue(120);              // ~8 requests/sec
+      this.q = new Queue(120, 550);         // ~8 requests/sec, under 2/sec for searches
       this.offline = false;
       this.stats = { hits: 0, misses: 0, requests: 0, errors: 0 };
     }
@@ -4983,7 +4986,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     async _fetch(path, opts) {
       opts = opts || {};
       this.stats.requests++;
-      return this.q.run(() => this._doFetch(path, opts));
+      return this.q.run(() => this._doFetch(path, opts), /\/cards\/(search|named|random|collection)/.test(path));
     }
 
     async _doFetch(path, opts) {
@@ -5630,6 +5633,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     },
     "courser of kruphix": {
       abilities: [
+        /* without this the top card it lets you play is never shown, so a
+           land offered as playable from there cannot be clicked */
+        { kind: 'static', auto: true, text: 'Play with the top card of your library revealed.',
+          effects: [{ op: 'peekTop' }] },
         { kind: 'static', auto: true, text: 'You may play lands from the top of your library.',
           effects: [{ op: 'playFromTop', what: 'land' }] },
         { kind: 'triggered', event: 'landfall', auto: true,
@@ -6201,6 +6208,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'Dredge',
     // hidden under the land as it enters, played for free later
     'Hideaway',
+    // a spell that encodes itself on a creature and is cast again from there
+    'Cipher',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -6254,7 +6263,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // nothing can answer it
     'Split second',
     // cast again from exile at your next upkeep
-    'Rebound']);
+    'Rebound',
+    /* asked as the spell is cast, as generic questions (docs/choices.md):
+       how many copies, which cards' words to add, which creatures to tap */
+    'Replicate', 'Splice', 'Conspire']);
 
   const CAST_KEYWORDS = new Set(['Flash', 'Split second', 'Convoke', 'Improvise', 'Delve', 'Affinity',
     'Kicker', 'Multikicker', 'Entwine', 'Escalate', 'Overload', 'Buyback', 'Flashback',
@@ -6263,7 +6275,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'Cleave', 'Blitz', 'Dash', 'Embalm', 'Eternalize', 'Unearth', 'Adventure', 'Suspend',
     'Cycling', 'Transmute', 'Morph', 'Megamorph', 'Disguise', 'Prototype', 'Impending',
     'Offering', 'Splice', 'Spree', 'Gift', 'Plot', 'Freerunning', 'Warp',
-    'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu']);
+    'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu',
+    'Replicate', 'Conspire']);
 
   /* Keyword names are title-cased before they are looked up, which turns
      "Split second" into "Split Second". Compare in lower case so a keyword
@@ -8034,7 +8047,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
     /* ===== the last of the frequent shapes ===== */
     { re: /^(?:Target (?:opponent|player)) reveals their hand\.?$/i, make: () => ({ op: 'revealHand' }) },
-    { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'noop' }) },
+    // a generic question about players; "that player" afterwards is the one chosen
+    { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'chooseOpponent' }) },
+    // "You and that player each draw three cards": you, and the opponent chosen
+    { re: /^You and that player each draw (\w+) cards?\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerPlayer' }] }) },
     { re: /^Name a (?:nonland )?card\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Choose a creature type\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^You may pay ((?:\{[^}]+\})+) rather than pay (?:CARDNAME|this spell)'?s mana cost\.?$/i,
@@ -8718,6 +8735,26 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (may) {
       const inner = parseEffectSentence(U.titleCase(may[1].charAt(0)) + may[1].slice(1), 1);
       if (inner && inner.op !== 'manual') return { op: 'may', then: [inner], text: s };
+    }
+    /* "Put a +1/+1 counter on a creature you control": the creature is
+       chosen as this happens, not targeted. Read as the targeted sentence
+       would be, the target becomes a generic question (docs/choices.md):
+       the same kind of thing, picked without targeting it. Only for what
+       helps whatever is picked, so choosing and targeting differ in
+       nothing but the word. */
+    const pick = !depth && !/\b(?:target|each|all|another|other)\b/i.test(s) &&
+      s.match(/^(.*?\b)an? ((?:[a-z]+ )?(?:creature|artifact|enchantment|land|planeswalker|permanent)) (you control)\b(.*)$/i);
+    if (pick) {
+      const again = parseEffectSentence(pick[1] + 'target ' + pick[2] + ' ' + pick[3] + pick[4], 1);
+      const helps = again && ((again.op === 'counters' && /^\+/.test(String(again.kind || ''))) ||
+        again.op === 'pump' || again.op === 'grantKeyword' || again.op === 'untap');
+      if (helps && (again.targets || []).length === 1 && !again.scope) {
+        const spec = again.targets[0];
+        delete again.targets;
+        again.chooseFrom = spec;
+        again.text = s;
+        return again;
+      }
     }
     return null;
   }
@@ -9883,6 +9920,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
     let totalLines = 0, autoLines = 0;
     const spreeModes = [];
+    // "Choose up to five {P} worth of modes": the budget, and the priced modes under it
+    let pawBudget = 0;
+    const pawModes = [];
 
     for (const line of lines) {
       totalLines++;
@@ -10057,6 +10097,24 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const parsed = parseEffects(spree[2].trim());
         spreeModes.push({ cost: spree[1], label: spree[2].trim().replace(/\.$/, ''),
           effects: parsed.effects, auto: parsed.auto });
+        if (parsed.auto) autoLines++;
+        continue;
+      }
+
+      /* "Choose up to five {P} worth of modes. You may choose the same mode
+         more than once." Each "{P}{P} — …" line under it is a mode priced in
+         paw prints; which ones, and how often, is a generic question asked
+         as the spell resolves (docs/choices.md). */
+      const pawHead = !out.isPermanent && line.match(/^Choose up to (\w+) \{P\} worth of modes\.(?:\s*You may choose the same mode more than once\.)?$/i);
+      if (pawHead) {
+        pawBudget = WORDN(pawHead[1]);
+        autoLines++;
+        continue;
+      }
+      const paw = pawBudget && line.match(/^((?:\{P\})+)\s*(?:—|--|-)\s*([\s\S]+)$/);
+      if (paw) {
+        const parsed = parseEffects(paw[2].trim());
+        pawModes.push({ weight: paw[1].length / 3, label: paw[2].trim().replace(/\.$/, ''), effects: parsed.effects, auto: parsed.auto });
         if (parsed.auto) autoLines++;
         continue;
       }
@@ -10452,6 +10510,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         auto: spreeModes.every(m => m.auto),
         effects: [{ op: 'modal', spree: true, count: spreeModes.length,
           modes: spreeModes.map(m => ({ label: m.label, effects: m.effects, auto: m.auto })) }],
+      });
+    }
+
+    if (pawModes.length) {
+      out.abilities.push({
+        kind: 'spell', text: pawModes.map(m => '{P}'.repeat(m.weight) + ' — ' + m.label).join('\n'),
+        auto: pawModes.every(m => m.auto),
+        effects: [{ op: 'modal', pawprint: pawBudget, count: pawBudget, repeatable: true,
+          modes: pawModes.map(m => ({ label: m.label, weight: m.weight, effects: m.effects, auto: m.auto })) }],
       });
     }
 
@@ -12655,6 +12722,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this.delayedTriggers = [];       // "at the beginning of the next end step, ..." 
       this.replayLog = [];
       this.lastAction = null;
+      /* Object and stack ids are counted per game, not per page, so the
+         same game played twice from the same seed names everything the
+         same way — which is what lets a replay be checked against it. */
+      this._objSeq = 0;
+      this._uidSeq = 0;
     }
 
     /* ---------- setup ---------- */
@@ -12667,7 +12739,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     player(id) { return this.players.find(p => p.id === id); }
     obj(id) { return this.objects.get(id); }
 
-    _register(o) { this.objects.set(o.id, o); this._own(o); return o; }
+    _register(o) { o.id = 'o' + (++this._objSeq); this.objects.set(o.id, o); this._own(o); return o; }
+    /** A stack, trigger or delayed-trigger id, unique within this game. */
+    _uid(prefix) { return (prefix || 'x') + '_' + (++this._uidSeq).toString(36); }
     /* An object knows which game it is in, so that what it is right now can
        depend on the rest of the board. Kept out of sight of anything that
        copies or serialises it. */
@@ -13857,6 +13931,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (item.kind === 'spell' && item.obj) {
         const a = item.obj.analysis();
         if (item.obj._wentToLibrary) { item.obj._wentToLibrary = false; }
+        // a copy of a spell is not a card: off the stack, it is gone (CR 707.10a)
+        else if (item.isCopy && item.obj.isCopy && item.obj.zone === 'stack' && (!a || !a.isPermanent)) item.obj.zone = null;
         else if (item.obj.zone !== 'stack' && !item.isCopy) { /* it already went somewhere as it resolved */ }
         else if (a && a.keywordSet && a.keywordSet.has('rebound') && item.fromZone === 'hand' && !item.countered && !item.isCopy) {
           this.moveObject(item.obj, 'exile');
@@ -13957,8 +14033,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
       // instant / sorcery: run its effects, then finish once they are done
       this.logEvent('resolve', `${item.name} resolves.`);
-      this._runEffects(item.effects || (a ? this._cardSpellEffects(a) : []), item,
-        () => this._afterResolve(item), 'afterResolve');
+      let effects = item.effects || (a ? this._cardSpellEffects(a) : []);
+      // cipher: the last thing the card does is offer to encode itself (CR 702.99a)
+      if (a && a.keywordSet && a.keywordSet.has('cipher') && !item.isCopy) effects = effects.concat([{ op: 'cipher' }]);
+      this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
     _afterResolveNoGrave(item) { this.checkStateBasedActions(); this._resetPriority(); }
 
@@ -14099,10 +14177,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
         const a = item.obj.analysis();
         if (a && a.isPermanent) dup.isToken = true;
-        copy = Object.assign({}, item, { id: MTG.uid('st'), isCopy: true, obj: dup, objId: dup.id, controller,
+        copy = Object.assign({}, item, { id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id, controller,
           targets: (item.targets || []).slice() });
       } else {
-        copy = Object.assign({}, item, { id: MTG.uid('st'), isCopy: true, controller,
+        copy = Object.assign({}, item, { id: this._uid('st'), isCopy: true, controller,
           targets: (item.targets || []).slice(), name: String(item.name || 'Ability').replace(/( \(copy\))?$/, ' (copy)') });
       }
       delete copy.resolvedTargets;
@@ -14232,7 +14310,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const defender = back.attacking;
       this.moveObject(back, 'hand');
       this.combat.attackers = this.combat.attackers.filter(id => id !== back.id);
-      const item = { id: MTG.uid('st'), kind: 'ability', obj: ninja, objId: ninja.id, controller: pid,
+      const item = { id: this._uid('st'), kind: 'ability', obj: ninja, objId: ninja.id, controller: pid,
         name: ninja.name + ' \u2014 ninjutsu', abilityText: 'Put this card onto the battlefield tapped and attacking.',
         effects: [{ op: 'ninjaIn', defender }], auto: true, targets: [] };
       this.stack.push(item);
@@ -15093,7 +15171,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       (ca ? ca.abilities : []).forEach((ab, i) => {
         if (ab.kind !== 'triggered' || ab.event !== 'cycleSelf') return;
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
           controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
           effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
           triggerData: { event: 'cycleSelf', objectId: o.id },
@@ -15137,7 +15215,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         this._afterDiscard(playerId, o);
       }
       const item = {
-        id: MTG.uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
         controller: playerId, name: `${o.name} \u2014 channel`,
         targets: (opts.targets || []).map(normTarget),
         effects: a.channel.effects, auto: true, abilityText: 'Channel',
@@ -15174,6 +15252,25 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (a.spreeModes && a.spreeModes.length) {
         out.push({ kind: 'spree', cost: '', modes: a.spreeModes.slice(),
           label: 'Spree (choose one or more)' });
+      }
+      /* Replicate and splice are generic questions (docs/choices.md). The
+         table may answer them alongside the other extra costs, sending the
+         answers with the cast; a cast that arrives without them asks. */
+      const rep = this._replicateCost(a);
+      if (rep) {
+        out.push({ kind: 'replicate', cost: rep, label: 'Replicate ' + rep,
+          choose: { purpose: 'replicate', kind: 'number', number: { min: 0, max: 20 }, cost: rep,
+            prompt: `How many copies, at ${rep} each?` } });
+      }
+      if (o.zone === 'hand') {
+        const sp = this._spliceable(o.owner, o);
+        if (sp.length) {
+          const items = this._chooseItems(sp.map(x => x.obj));
+          items.forEach((it, i) => { it.cost = sp[i].cost; });
+          out.push({ kind: 'splice', cost: '', label: 'Splice onto Arcane',
+            choose: { purpose: 'splice', kind: 'objects', zone: 'hand', reveal: true, items, min: 0, max: items.length,
+              constraints: [{ kind: 'mana', key: 'cost', label: 'mana' }], prompt: 'Splice onto Arcane' } });
+        }
       }
       return out;
     }
@@ -15231,7 +15328,92 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
       }
+      /* Replicate, splice onto Arcane and conspire are generic questions:
+         asked one after another, each knowing what the last one added. */
+      if (!o.isCopy) {
+        for (const kind of ['replicate', 'splice', 'conspire']) {
+          const spec = this._castQuestion(kind, playerId, o, a, opts, chk);
+          if (spec && this._castChoose(playerId, o, opts, spec) === 'asked') return 'asked';
+        }
+      }
       return null;
+    }
+
+    /** "Replicate {1}{U}": the price of one more copy, or null. */
+    _replicateCost(a) {
+      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^replicate$/i.test(x.keyword || '') && x.arg);
+      return ab && /^(?:\{[^}]+\})+$/.test(ab.arg.trim()) ? ab.arg.trim() : null;
+    }
+    /**
+     * The cards in hand that could be spliced onto this spell (CR 702.47):
+     * it has to be Arcane, and each card's splice cost has to be mana.
+     */
+    _spliceable(playerId, o) {
+      const a = o && o.analysis();
+      if (!a || !(a.subtypes || []).some(t => /^arcane$/i.test(t))) return [];
+      const out = [];
+      for (const c of ((this.zones[playerId] || {}).hand || [])) {
+        if (c === o) continue;
+        const ca = c.analysis();
+        const ab = ca && (ca.abilities || []).find(x => x.kind === 'castModifier' && /^splice$/i.test(x.keyword || ''));
+        const m = ab && String(ab.arg || '').match(/^onto Arcane\s*((?:\{[^}]+\})+)$/i);
+        if (m) out.push({ obj: c, cost: m[1] });
+      }
+      return out;
+    }
+    /** What has been added to the price of this cast by the generic questions answered so far. */
+    _castAdded(playerId, o, a, opts) {
+      const got = opts.choices || {};
+      let more = '';
+      const rep = this._replicateCost(a);
+      if (rep && got.replicate && got.replicate.number) more += rep.repeat(got.replicate.number);
+      if (got.splice) for (const x of this._spliceable(playerId, o)) if ((got.splice.picks || []).includes(x.obj.id)) more += x.cost;
+      return more;
+    }
+    /** One of the generic questions casting can raise, or null when it does not arise. */
+    _castQuestion(kind, playerId, o, a, opts, chk) {
+      const base = (opts.free ? '' : String(chk.cost || '').replace(/\{X\}/g, opts.x ? '{' + opts.x + '}' : '')) +
+        (kind === 'replicate' ? '' : this._castAdded(playerId, o, a, opts));
+      const purse = this.manaSources(playerId);
+      if (kind === 'replicate') {
+        const rep = this._replicateCost(a);
+        if (!rep) return null;
+        let most = 0;
+        while (most < 20 && this.couldPay(playerId, base + rep.repeat(most + 1), purse)) most++;
+        if (!most) return null;
+        return { purpose: 'replicate', kind: 'number', number: { min: 0, max: most },
+          prompt: `Replicate ${o.name}? Pay ${rep} for each copy.`, cost: rep };
+      }
+      if (kind === 'splice') {
+        const list = this._spliceable(playerId, o).filter(x => this.couldPay(playerId, base + x.cost, purse));
+        if (!list.length) return null;
+        const items = this._chooseItems(list.map(x => x.obj));
+        items.forEach((it, i) => { it.cost = list[i].cost; });
+        return { purpose: 'splice', kind: 'objects', items, min: 0, max: items.length, zone: 'hand', reveal: true,
+          constraints: [{ kind: 'mana', key: 'cost', base, label: 'mana' }],
+          prompt: `Splice onto ${o.name}? Each card you choose is revealed and its splice cost paid.` };
+      }
+      if (kind === 'conspire') {
+        if (!(a && a.keywordSet && a.keywordSet.has('conspire'))) return null;
+        const colours = (o.card && o.card.colors) || [];
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && !x.tapped &&
+          (this.characteristics(x) || {}).isCreature && ((this.characteristics(x) || {}).colors || x.card.colors || []).some(c => colours.includes(c)));
+        if (pool.length < 2) return null;
+        return { purpose: 'conspire', kind: 'objects', items: this._chooseItems(pool), min: 2, max: 2, optional: true, zone: 'battlefield',
+          constraints: [{ kind: 'shareColour', with: colours, reason: `Each creature has to share a colour with ${o.name}.` }],
+          prompt: `Conspire? Tap two untapped creatures that share a colour with ${o.name} to copy it.` };
+      }
+      return null;
+    }
+    /** A copy of an effect list whose targets are chosen as it resolves, not taken from the spell it rides on. */
+    _ownTargets(list) {
+      const mark = (e) => {
+        if (!e || typeof e !== 'object') return e;
+        if (e.targets && e.targets.length) e.askTargets = true;
+        for (const k of ['list', 'then', 'otherwise']) if (Array.isArray(e[k])) e[k].forEach(mark);
+        return e;
+      };
+      return JSON.parse(JSON.stringify(list || [])).map(mark);
     }
     /** Which of a choice of additional costs this player could pay right now. */
     _payableChoices(playerId, o, choices, baseCost, opts) {
@@ -15406,6 +15588,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           chose.casualty = pool[0];
         }
       }
+      /* What the generic questions bought (CR 702.56, 702.47, 702.78):
+         copies by replicate, other cards' words by splice, and a copy by
+         conspire, whose price is two creatures tapped. */
+      const bought = opts.choices || {};
+      const repCost = this._replicateCost(a);
+      const replicated = repCost && bought.replicate ? Math.max(0, Math.min(20, bought.replicate.number || 0)) : 0;
+      if (replicated) cost += repCost.repeat(replicated);
+      const spliced = bought.splice && !o.isCopy ? this._spliceable(playerId, o).filter(x => (bought.splice.picks || []).includes(x.obj.id)) : [];
+      for (const x of spliced) cost += x.cost;
+      let conspired = bought.conspire && !o.isCopy ? (bought.conspire.picks || []).map(id => this.obj(id))
+        .filter(x => x && x.zone === 'battlefield' && x.controller === playerId && !x.tapped) : [];
+      if (conspired.length !== 2) conspired = [];
 
       /* A mana price chosen as the additional cost is paid with the rest,
          even for a spell cast without paying its mana cost. */
@@ -15427,6 +15621,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         this.moveObject(chose.casualty, 'graveyard');
         this.logEvent('sacrifice', `${chose.casualty.name} is sacrificed for casualty.`);
         this._fire('youSacrifice', playerId, { count: 1 });
+      }
+      if (conspired.length) {
+        for (const x of conspired) this._markTapped(x);
+        this.logEvent('rules', `${p.name} taps ${conspired.map(x => x.name).join(' and ')} to conspire.`);
       }
       o._offspring = !!chose.offspring;
       o._squad = chose.squad || 0;
@@ -15462,7 +15660,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       o.chosenX = opts.x || 0;
 
       const item = {
-        id: MTG.uid('st'), kind: 'spell', obj: o, objId: o.id,
+        id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
         controller: playerId, name: o.name, cost,
         targets: (opts.targets || []).map(normTarget), x: opts.x || 0,
         effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects : this._cardSpellEffects(a)) : null,
@@ -15526,7 +15724,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const dup = this._register(new GObj(o.card, playerId, 'stack'));
         dup.isCopy = true; dup.chosenX = o.chosenX;
         this.stack.push(Object.assign({}, item, {
-          id: MTG.uid('st'), isCopy: true, obj: dup, objId: dup.id,
+          id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id,
           targets: (item.targets || []).slice(),
         }));
         this.logEvent('copy', `Casualty copies ${o.name}.`);
@@ -15544,13 +15742,30 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         a.abilities.forEach((ab, i) => {
           if (ab.kind !== 'triggered' || ab.event !== 'castSelf') return;
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: playerId, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
             triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
           });
         });
       }
+      /* Spliced cards stay in the hand; only their words travel, and what
+         those words point at is chosen as the spell resolves. */
+      if (spliced.length && item.effects) {
+        for (const x of spliced) item.effects = item.effects.concat(this._ownTargets(this._cardSpellEffects(x.obj.analysis())));
+        item.spliced = spliced.map(x => x.obj.name);
+        this.logEvent('rules', `${p.name} reveals ${item.spliced.join(', ')} and splices ${spliced.length === 1 ? 'it' : 'them'} onto ${o.name}.`);
+      }
+      /* Replicate and conspire are "when you cast this spell, copy it"
+         triggers, and the copies may be pointed somewhere new. */
+      const copyTrigger = (times, what) => this.pendingTriggers.push({
+        id: this._uid ? this._uid('tr') : MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+        controller: playerId, name: `${o.name} — ${what}`, auto: true,
+        effects: [{ op: 'copyThatSpell', n: times }], abilityText: `Copy ${o.name}${times > 1 ? ` ${times} times` : ''} (${what}).`,
+        triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
+      });
+      if (replicated) copyTrigger(replicated, 'replicate');
+      if (conspired.length) copyTrigger(1, 'conspire');
 
       // ward on anything this spell targets (CR 702.21)
       this._applyWard(item);
@@ -15692,10 +15907,28 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!copies) return;
       for (let i = 0; i < copies; i++) {
         this.stack.push(Object.assign({}, item, {
-          id: MTG.uid('st'), isCopy: true, name: item.name + ' (storm copy)',
+          id: this._uid('st'), isCopy: true, name: item.name + ' (storm copy)',
         }));
       }
       this.logEvent('keyword', `Storm puts ${copies} more ${copies === 1 ? 'copy' : 'copies'} of ${item.name} on the stack.`);
+    }
+
+    /**
+     * A creature with a card encoded on it has dealt combat damage to a
+     * player: for each such card, its controller may cast a copy of it
+     * (CR 702.99a). The encoding lasts as long as the creature stays.
+     */
+    _cipherHits(src) {
+      for (const id of (src.encoded || [])) {
+        const card = this.obj(id);
+        if (!card || card.zone !== 'exile' || card.encodedOn !== src.id) continue;
+        this.pendingTriggers.push({
+          id: this._uid ? this._uid('tr') : MTG.uid('tr'), kind: 'ability', obj: src, objId: src.id, abilityIndex: -1,
+          controller: src.controller, name: `${src.name} — cipher (${card.name})`, auto: true, optional: true,
+          effects: [{ op: 'castEncoded', cardId: card.id }], abilityText: `Cast a copy of ${card.name} without paying its mana cost`,
+          triggerData: { event: 'cipher', objectId: src.id },
+        });
+      }
     }
 
     /** Cascade: exile until a cheaper nonland card, then cast it free (CR 702.85). */
@@ -15928,7 +16161,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const fab = this._kwArg(o, 'fabricate');
       if (fab) {
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
           name: `${o.name} \u2014 fabricate ${fab}`, auto: true, abilityText: 'Fabricate ' + fab,
           effects: [{ op: 'modal', count: 1, modes: [
             { label: `Put ${fab} +1/+1 counter${fab === 1 ? '' : 's'} on it`,
@@ -16009,7 +16242,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const persist = a.keywordSet.has('persist') && hadMinus === 0;
       if (undying || persist) {
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
           name: `${o.name} \u2014 ${undying ? 'undying' : 'persist'}`,
           auto: true, abilityText: undying ? 'Undying' : 'Persist',
           effects: [{ op: 'returnFromGrave', counter: undying ? '+1/+1' : '-1/-1', objId: o.id }],
@@ -16020,7 +16253,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const after = this._kwArg(o, 'afterlife');
       if (after) {
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
           name: `${o.name} \u2014 afterlife ${after}`, auto: true, abilityText: 'Afterlife ' + after,
           effects: [{ op: 'createToken', n: after, pt: '1/1', subtypes: 'Spirit',
             colorWords: ['white', 'black'], keywords: ['Flying'] }],
@@ -16104,7 +16337,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
 
       const item = {
-        id: MTG.uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
         controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 60)}`,
         targets: (opts.targets || []).map(normTarget),
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab),
@@ -16640,7 +16873,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (c.isCommander) for (const t of ((c.analysis() || {}).subtypes || [])) cmdTypes.add(t);
         const a = item.obj && item.obj.analysis();
         if (a && a.isCreature && (a.subtypes || []).some(t => cmdTypes.has(t))) {
-          this.pendingTriggers.push({ id: MTG.uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
             name: 'Path of Ancestry \u2014 scry 1', effects: [{ op: 'scry', n: 1 }], auto: true, abilityText: 'Scry 1' });
         }
       }
@@ -17280,6 +17513,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             this.logEvent('rules', `${as.source.name} carries the Ring: each opponent loses 3 life.`);
           }
           this._fire('combatDamageToPlayer', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId });
+          this._cipherHits(as.source);
           this._fire('yourCreatureCombatDamage', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId, object: as.source });
           this._fire('permCombatDamage', null, { object: as.source, objController: as.source.controller,
             amount: as.amount, player: as.targetId });
@@ -17888,6 +18122,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
       const a = o.analysis();
       if (a && source && this._protectedFrom(o, source)) return;
+      this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
@@ -17921,6 +18156,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         this.logEvent('damage', `${soak} damage to ${p.name} is prevented.`);
         if (amount <= 0) return;
       }
+      this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
       if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount); return amount; }
       /* Damage to a player is life lost: the same replacements apply
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
@@ -18128,6 +18364,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
         if (vanishes) this.emit('object:gone', o);
       }
 
@@ -18187,7 +18424,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           }
           this._fire('permDies', null, { object: o, objController: lastCtrl });
           if (comesBack) {
-            this.pendingTriggers.push({ id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: lastCtrl,
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: lastCtrl,
               name: `${o.name} \u2014 return it to the battlefield`, auto: true, abilityText: 'Return it to the battlefield',
               effects: [{ op: 'returnSelfFromGrave', tapped: comesBack.returnOnDeath === 'tapped' }] });
           }
@@ -18223,7 +18460,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         (ga ? ga.abilities : []).forEach((ab, i) => {
           if (ab.kind !== 'triggered' || ab.event !== 'selfToGraveyard') return;
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: o.owner, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
             triggerData: { event: 'selfToGraveyard', objectId: o.id },
@@ -18312,7 +18549,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         for (const c of (ab.chapters || [])) {
           if (c <= before || c > after) continue;
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab),
           });
@@ -18351,7 +18588,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      */
     scheduleDelayed(spec) {
       this.delayedTriggers.push(Object.assign({
-        id: MTG.uid('dt'), once: true, createdTurn: this.turn,
+        id: this._uid('dt'), once: true, createdTurn: this.turn,
       }, spec));
     }
 
@@ -18368,7 +18605,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (!mine) { keep.push(d); continue; }
         const obj = d.objId ? this.obj(d.objId) : null;
         this.pendingTriggers.push({
-          id: MTG.uid('tr'), kind: 'ability', obj, objId: d.objId || null, abilityIndex: -1,
+          id: this._uid('tr'), kind: 'ability', obj, objId: d.objId || null, abilityIndex: -1,
           controller: d.controller, name: d.name || 'Delayed trigger',
           effects: d.effects || [], auto: true, abilityText: d.name || '', delayed: true,
         });
@@ -18408,7 +18645,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const times = 1 + this._extraTriggers(o, event, data);
         for (let k = 0; k < times; k++) {
           this.pendingTriggers.push({
-            id: MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
             triggerData: Object.assign({}, tData),
@@ -18639,6 +18876,102 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       return SUSPEND;
     }
 
+    /* ---------- the generic question (docs/choices.md) ----------
+       Anything the rules need to ask that is not one of the fixed shapes is
+       asked as a `choose`: what it is chosen from, how many, and what the
+       picks must add up to. The table and the bots read the question itself,
+       so a new rule can ask a new question without anything else changing. */
+
+    /**
+     * Ask a generic question from inside an effect. Returns the checked
+     * answer — { picks, number, order } — or SUSPEND while it waits, or null
+     * when nothing could be chosen, in which case nobody is asked.
+     */
+    _choose(spec, sub) {
+      const C = MTG.choice;
+      const s = C.normalize(spec);
+      for (const k of ['sourceName', 'sourceId', 'sourceCard']) if (s[k] == null) delete s[k];
+      const r = this.resolving;
+      if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + (sub ? ':' + sub : ''))) return this._ask(s, sub);
+      const hooks = this._chooseHooks(s.playerId);
+      if (!C.solve(s, { hooks })) return null;
+      // nothing to decide: one number, or every one of the things on offer
+      if (s.kind === 'number' && s.number.min === s.number.max) return { picks: [], number: s.number.min, order: null };
+      const all = C.candidates(s);
+      if (s.kind !== 'number' && !s.optional && !s.repeat && !s.ordered && s.min === all.length && s.max === all.length) {
+        const got = C.check(s, { picks: all }, hooks);
+        if (got.ok) return { picks: got.picks, number: null, order: null };
+      }
+      if (!r) return this._decideChoose(s.playerId, s);
+      return this._ask(s, sub);
+    }
+
+    /** What only the engine can say about an answer: whether it can be paid for, and whether it is still there. */
+    _chooseHooks(playerId) {
+      return {
+        canPay: (cost) => this.couldPay(playerId, cost, this.manaSources(playerId)),
+        alive: (id) => typeof id !== 'string' || !!this.player(id) || (!!this.obj(id) && !!this.obj(id).zone),
+      };
+    }
+
+    /** Objects as a generic question offers them: what the table shows and what constraints read. */
+    _chooseItems(objs) {
+      return (objs || []).filter(Boolean).map(o => {
+        const c = this.characteristics(o) || o.analysis() || {};
+        const creature = !!c.isCreature;
+        return {
+          id: o.id, name: o.name, zone: o.zone, controller: o.controller, owner: o.owner, card: o.card || null,
+          power: creature ? this.powerOf(o) : null, toughness: creature ? this.toughnessOf(o) : null,
+          mv: (o.card && o.card.cmc) || 0, colors: (c.colors || (o.card && o.card.colors) || []).slice(), tapped: !!o.tapped,
+        };
+      });
+    }
+    _choosePlayers(players) {
+      return (players || []).filter(p => p && !p.hasLost).map(p => ({ id: p.id, name: p.name, life: p.life }));
+    }
+
+    /**
+     * Answer a generic question on somebody's behalf, on the spot: a bot
+     * casting a spell, or a question that came up when nobody could be
+     * waited for. The bots' judgement is used when it is there; otherwise
+     * the first legal answer.
+     */
+    _decideChoose(playerId, s) {
+      const C = MTG.choice;
+      const hooks = this._chooseHooks(playerId);
+      let ans = null;
+      try { if (MTG.bots && MTG.bots.answerChoose) ans = MTG.bots.answerChoose(this, playerId, s); } catch (e) { console.warn('[choose]', e); }
+      let got = ans ? C.check(s, ans, hooks) : null;
+      if (!got || !got.ok) got = C.check(s, C.solve(s, { hooks }) || { picks: [] }, hooks);
+      return got.ok ? { picks: got.picks, number: got.number, order: got.order } : { picks: [], number: null, order: null };
+    }
+
+    /**
+     * A generic question asked while a spell is being cast (CR 601.2b–c):
+     * how many times to replicate it, what to splice onto it. The answer may
+     * have come with the cast already; otherwise a bot decides on the spot
+     * and a person is asked, and the cast starts again once they answer.
+     * Returns the answer, null when there is nothing to choose, or 'asked'.
+     */
+    _castChoose(playerId, o, opts, spec) {
+      const C = MTG.choice;
+      const s = C.normalize(Object.assign({ playerId, sourceId: o.id, sourceName: o.name, sourceCard: o.card }, spec));
+      const hooks = this._chooseHooks(playerId);
+      opts.choices = Object.assign({}, opts.choices);
+      const have = opts.choices[s.purpose];
+      if (have) {
+        const got = C.check(s, have, hooks);
+        if (got.ok) return (opts.choices[s.purpose] = { picks: got.picks, number: got.number, order: got.order });
+      }
+      if (!C.solve(s, { hooks })) { delete opts.choices[s.purpose]; return null; }
+      const p = this.player(playerId);
+      if ((p && p.isBot) || opts.autoCost) return (opts.choices[s.purpose] = this._decideChoose(playerId, s));
+      const keep = JSON.parse(JSON.stringify(Object.assign({}, opts)));
+      delete keep.choices[s.purpose];
+      this.queueChoice(Object.assign(s, { then: { kind: 'cast', objId: o.id, opts: keep } }));
+      return 'asked';
+    }
+
     /**
      * Has this part of the current effect already happened? An effect that
      * stops to ask a question runs again from the top when the answer
@@ -18666,7 +18999,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (e.targets && e.targets.length && (ctx.targets || []).length) {
         const flat = [];
         for (const x of (ctx.effects || [])) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
-        const aimed = flat.filter(x => x.targets && x.targets.length);
+        const aimed = flat.filter(x => x.targets && x.targets.length && !x.askTargets);
         const total = aimed.reduce((k, x) => k + x.targets.length, 0);
         if (aimed.length > 1 && total === ctx.targets.length && aimed.includes(e)) {
           let off = 0;
@@ -18675,6 +19008,24 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           targets = mine.filter(t => targets.some(r => r.kind === t.kind && r.id === t.id));
           sliced = true;
         }
+      }
+      /* Words that joined the spell from elsewhere — a spliced card, a mode
+         chosen more than once — choose their own targets as they resolve. */
+      if (e.askTargets) { targets = []; sliced = false; }
+      /* "Put a +1/+1 counter on a creature you control": chosen as it
+         happens, not targeted. A generic question, and the pick is what the
+         effect then acts on; with nothing to choose, nothing happens. */
+      if (e.chooseFrom && !(e.targets && e.targets.length)) {
+        const spec = e.chooseFrom;
+        const pool = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
+          MTG.oracle.matchesSpec(spec, o, o.analysis(), ctx.controller, this._specCtx()));
+        const got = this._choose({ playerId: ctx.controller, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems(pool), min: 1, max: 1,
+          prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(spec.filter || '') ? 'an' : 'a'} ${spec.filter || 'permanent'}.` }, 'pick');
+        if (got === SUSPEND) return SUSPEND;
+        if (!got || !got.picks.length) return null;
+        targets = got.picks.map(id => ({ kind: 'object', id }));
+        this._noteLastAffected(targets);          // "it" in the next sentence is the one chosen
       }
       /* An effect that wants a target and has not been given one asks for it
          now. This is what a chosen mode needs: "choose one — destroy target
@@ -18703,7 +19054,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // whoever set the trigger off, which the trigger recorded for us
       const triggerPlayer = () => {
         const d = ctx.triggerData || {};
-        return this.player(d.drawer || d.player || d.deadController || d.playerId) || null;
+        // "choose an opponent. That player …": the one chosen, when there was a choice
+        return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId) || null;
       };
       /* Most effects name what they act on the same three ways: the thing
          they were cast from, whatever the last effect picked, or their own
@@ -19518,6 +19870,63 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
         }
 
+        /* Cipher (CR 702.99): "Then you may exile this spell card encoded
+           on a creature you control." Which creature is a generic question,
+           with "none" as an answer. */
+        case 'cipher': {
+          const card = ctx.obj;
+          if (!card || card.zone !== 'stack' || card.isCopy) break;
+          const mine = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+          if (!mine.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'cipher', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(mine), min: 0, max: 1,
+            prompt: `Encode ${card.name} on a creature you control? Each time it deals combat damage to a player, you may cast a copy.` });
+          if (got === SUSPEND) return SUSPEND;
+          const host = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!host || host.zone !== 'battlefield') break;
+          this.moveObject(card, 'exile');
+          card.encodedOn = host.id;
+          host.encoded = (host.encoded || []).concat(card.id);
+          this.logEvent('rules', `${me.name} encodes ${card.name} on ${host.name}.`);
+          break;
+        }
+        /* "Choose an opponent." Not a target: a generic question about
+           players, and "that player" afterwards is the one chosen. */
+        case 'chooseOpponent': {
+          const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
+            items: this._choosePlayers(opps), min: 1, max: 1, prompt: 'Choose an opponent.' });
+          if (got === SUSPEND) return SUSPEND;
+          const pick = got && got.picks.length ? this.player(got.picks[0]) : null;
+          if (pick) {
+            ctx.chosenPlayer = pick.id;
+            this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
+          }
+          break;
+        }
+        /* The encoded card's copy, cast for nothing as the cipher trigger
+           resolves. The copy is cast — it counts for everything that
+           watches spells being cast — but it is not a card, and when it
+           leaves the stack it is gone. */
+        case 'castEncoded': {
+          const card = this.obj(e.cardId);
+          const host = src;
+          if (!card || card.zone !== 'exile' || !host || card.encodedOn !== host.id) break;
+          const dup = this._register(new GObj(card.card, ctx.controller, 'exile'));
+          dup.isCopy = true;
+          this.zones[ctx.controller].exile.push(dup);
+          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+          const st = this.stack.find(x => x.objId === dup.id);
+          if (ok && st) {
+            st.isCopy = true;
+            this.logEvent('copy', `${me.name} casts a copy of ${card.name} (cipher).`);
+          } else {
+            this._removeFromZone(dup);
+            dup.zone = null;
+          }
+          break;
+        }
+
         /* "…copy that spell." — the one whose casting set this off. */
         case 'copyThatSpell': {
           const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
@@ -20083,6 +20492,26 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             for (const i of bought) { const m = modes[i]; if (m) run.push(...(m.effects || [])); }
             this._spliceNext(run);
             this.logEvent('rules', `${me.name} chooses: ${bought.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
+            break;
+          }
+          /* "Choose up to five {P} worth of modes. You may choose the same
+             mode more than once." Each mode has a price in paw prints, and
+             the picks may add up to the budget and no more (CR 700.2i). */
+          if (e.pawprint) {
+            const budget = Math.max(1, n(e.pawprint) || 1);
+            const got = this._choose({ playerId: ctx.controller, purpose: 'pawprint', kind: 'options', repeat: true,
+              min: 1, max: budget,
+              options: modes.map((m, i) => ({ i, label: truncate(m.label || m.text || ('Mode ' + (i + 1)), 90),
+                weight: m.weight || 1, cost: '{P}'.repeat(m.weight || 1) })),
+              constraints: [{ kind: 'sum', key: 'weight', max: budget, label: 'paw prints' }],
+              prompt: `Choose up to ${budget} {P} worth of modes. A mode may be chosen more than once.` });
+            if (got === SUSPEND) return SUSPEND;
+            // in the order the card prints them, a repeated mode once for each time (CR 700.2c)
+            const picks = ((got && got.picks) || [0]).slice().sort((x, y) => x - y);
+            const run = [];
+            for (const i of picks) { const m = modes[i]; if (m) run.push(...this._ownTargets(m.effects || [])); }
+            this._spliceNext(run);
+            this.logEvent('rules', `${me.name} chooses: ${picks.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
             break;
           }
           let want = Math.min(n(e.count) || 1, modes.length);
@@ -22131,7 +22560,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       o.zone = 'stack';
       o.controller = playerId;
       const item = {
-        id: MTG.uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
+        id: this._uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
         targets: [], x: 0, effects: a.isPermanent ? null : this._cardSpellEffects(a),
         auto: a.autoCoverage >= 0.999, fromZone, via: 'free',
       };
@@ -22662,7 +23091,40 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     resolveChoice(playerId, data) {
       const ch = this.pendingChoice;
       if (!ch || ch.playerId !== playerId) return this.fail('No choice pending for you.');
+      /* The older shapes that are simple enough to be generic questions
+         (MTG.choice.fromLegacy) take a generic answer too: the picks are
+         turned back into what each has always been given. */
+      if (data && Array.isArray(data.picks) && MTG.choice.LEGACY.has(ch.type)) data = MTG.choice.legacyData(ch, data) || data;
       switch (ch.type) {
+        /* The generic question: the answer is checked against what was
+           asked, and an illegal one is refused with the reason. */
+        case 'choose': {
+          const C = MTG.choice;
+          const hooks = this._chooseHooks(playerId);
+          let got = C.check(ch, data, hooks);
+          if (!got.ok) {
+            /* Neither a question that has nothing legal left to choose
+               (what was offered has gone since it was asked) nor a bot that
+               got it wrong may hold the table up. */
+            const any = C.solve(ch, { hooks });
+            const p = this.player(playerId);
+            if (!any) got = { ok: true, picks: [], number: ch.kind === 'number' ? ch.number.min : null, order: null };
+            else if (p && p.isBot) got = C.check(ch, any, hooks);
+            if (!got.ok) return this.fail(got.reason);
+          }
+          data = { picks: got.picks, number: got.number, order: got.order };
+          // asked while casting: the cast starts again with the answer
+          if (ch.then && ch.then.kind === 'cast') {
+            const again = Object.assign({}, ch.then.opts);
+            again.choices = Object.assign({}, again.choices, { [ch.purpose]: data });
+            this.pendingChoice = null;
+            this.castSpell(playerId, ch.then.objId, again);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
+          break;
+        }
         case 'vote': return this.castVote(playerId, (data && data.choice) || ch.options[0]);
         case 'discard': case 'discardToHandSize': {
           const ids = (data && data.cardIds) || [];
@@ -23253,6 +23715,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'pickCard': return (data.cardIds || (data.cardId ? [data.cardId] : []));
         case 'pickTarget': return (data.targets || []);
         case 'arrange': return { top: (data.top || []) };
+        case 'choose': return { picks: (data.picks || []).slice(), number: data.number != null ? data.number : null, order: data.order || null };
         default: return data;
       }
     }
@@ -23323,6 +23786,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       return true;
     }
 
+    /** A seat's connection coming and going is part of the game's record. */
+    setConnected(playerId, on) {
+      const p = this.player(playerId);
+      if (!p || p.connected === !!on) return false;
+      p.connected = !!on;
+      this.logEvent('game', `${p.name} ${on ? 'reconnected' : 'disconnected'}.`);
+      this.touch();
+      return true;
+    }
+
     /* ---------- misc ---------- */
     opponentsOf(pid) { return this.players.filter(p => p.id !== pid && !p.hasLost); }
     describeTarget(t) {
@@ -23374,6 +23847,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           copyUntilTurn: o.copyUntilTurn == null ? null : o.copyUntilTurn,
           freeCastBy: o.freeCastBy || null, freeCastTurn: o.freeCastTurn == null ? null : o.freeCastTurn,
           graveCastBy: o.graveCastBy || null, graveCastTurn: o.graveCastTurn == null ? null : o.graveCastTurn,
+          // cipher: what is encoded on a creature, and what a card is encoded on
+          encoded: o.encoded ? o.encoded.slice() : null, encodedOn: o.encodedOn || null,
         });
       }
       return {
@@ -23429,6 +23904,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         } : null,
         stateVersion: this.stateVersion, isDay: this.isDay === undefined ? null : this.isDay,
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
+        objSeq: this._objSeq, uidSeq: this._uidSeq,
       };
     }
 
@@ -23445,6 +23921,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         this._own(o);
       }
       if (objCounter < snap.objs.length) objCounter = snap.objs.length + 1;
+      /* The counters carry on from where they were, so nothing made after
+         an undo is given the id of something that has since gone. An older
+         save has none, and counts on from the highest id it holds. */
+      const highest = snap.objs.reduce((m, d) => Math.max(m, parseInt(String(d.id).slice(1), 10) || 0), 0);
+      this._objSeq = Math.max(snap.objSeq || 0, highest, this._objSeq || 0);
+      this._uidSeq = Math.max(snap.uidSeq || 0, this._uidSeq || 0);
       const byId = (id) => this.objects.get(id);
       this.players = snap.players.map(d => {
         const p = new Player({ id: d.id, name: d.name, isBot: d.isBot, botDifficulty: d.botDifficulty }, this);
@@ -23491,6 +23973,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (snap.isDay !== null && snap.isDay !== undefined) this.isDay = snap.isDay;
       this.holdFor = snap.holdFor || null;
       this.spellsThisTurn = snap.spellsThisTurn || 0;
+      // the event stream carries on from the game as it now is
+      this._evRebase();
       this.emit('state', this.stateVersion);
       return true;
     }
@@ -23770,6 +24254,1055 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 })(window.MTG);
 
 
+/* ===== 06a-choice.js ===== */
+/* ============================================================
+   06a-choice.js - one way to ask any question
+
+   Most of what the engine asks mid-game used to come in a fixed shape of
+   its own — "discard", "scry", "pick a card", "choose a mode" — and each
+   shape needed a screen of its own and an answer of its own from the
+   bots. A rule that wanted to ask anything new had to wait for both.
+
+   A `choose` question says instead what it is choosing from, how many,
+   and what the picks have to add up to, and anything that can read this
+   module can ask it, show it and answer it: the engine checks answers
+   with check(), the table shows live feedback with progress(), and a bot
+   that has no better idea finds a legal answer with solve(). The full
+   description is in docs/choices.md.
+
+   Everything here is plain data in and plain data out, so a question can
+   cross the network, sit in an undo snapshot, and be read the same way
+   by the host, a guest and a bot.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const KINDS = ['objects', 'players', 'options', 'number'];
+
+  /** A question with every default filled in. Never changes what it is given. */
+  function normalize(spec) {
+    const s = Object.assign({}, spec || {});
+    s.type = 'choose';
+    if (!KINDS.includes(s.kind)) s.kind = s.number ? 'number' : s.options ? 'options' : 'objects';
+    s.constraints = (s.constraints || []).filter(Boolean);
+    if (s.kind === 'number') {
+      const n = s.number || {};
+      const min = Math.floor(+n.min || 0);
+      s.number = { min, max: Math.max(min, Math.floor(n.max != null ? +n.max : min)), step: Math.max(1, Math.floor(+n.step || 1)) };
+      return s;
+    }
+    if (s.kind === 'options') {
+      s.options = (s.options || []).map((o, i) => (typeof o === 'string' ? { label: o } : Object.assign({}, o)))
+        .map((o, i) => Object.assign(o, { i: o.i != null ? o.i : i }));
+      s.items = null;
+    } else {
+      s.items = (s.items || []).filter(x => x && x.id != null);
+      s.options = null;
+    }
+    const pool = size(s);
+    s.repeat = !!(s.repeat && s.kind === 'options');
+    s.ordered = !!s.ordered;
+    s.optional = !!s.optional;
+    let max = s.max != null ? Math.floor(+s.max) : (s.min != null ? Math.floor(+s.min) : 1);
+    if (!s.repeat) max = Math.min(max, pool);
+    max = Math.max(0, max);
+    let min = s.min != null ? Math.floor(+s.min) : max;
+    min = Math.max(0, Math.min(min, max));
+    s.min = min; s.max = max;
+    return s;
+  }
+
+  function size(s) { return s.kind === 'options' ? (s.options || []).length : (s.items || []).length; }
+
+  /** What can be picked: object or player ids, or option indexes. */
+  function candidates(s) {
+    if (s.kind === 'options') return (s.options || []).map((o, i) => i);
+    if (s.kind === 'number') return [];
+    return (s.items || []).map(x => x.id);
+  }
+
+  /** The thing each pick stands for, so constraints can read its numbers. */
+  function entryFor(s, pick) {
+    if (s.kind === 'options') return (s.options || [])[pick] || null;
+    return (s.items || []).find(x => x.id === pick) || null;
+  }
+
+  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : (parseFloat(v) || 0));
+  const colourSet = (e) => new Set((e && (e.colors || e.colours)) || []);
+
+  /**
+   * Whether the picks so far break a constraint. `final` also checks the
+   * floors — a total that has to reach something — which a selection
+   * still being made is allowed to be short of.
+   */
+  function constraintProblem(s, entries, final, hooks) {
+    for (const c of s.constraints) {
+      const label = c.label || c.key || '';
+      switch (c.kind) {
+        case 'distinct': {
+          const key = c.key || 'name';
+          const seen = new Set();
+          for (const e of entries) {
+            const v = e ? e[key] : undefined;
+            if (v == null) continue;
+            if (seen.has(v)) return c.reason || (key === 'name' ? 'They must all have different names.' : `No two can share a ${label}.`);
+            seen.add(v);
+          }
+          break;
+        }
+        case 'sum': {
+          const total = entries.reduce((k, e) => k + num(e && e[c.key]), 0);
+          if (c.max != null && total > c.max) return c.reason || `That is ${total} ${label}; the most is ${c.max}.`;
+          if (final && c.min != null && entries.length && total < c.min) return c.reason || `That is ${total} ${label}; it needs ${c.min}.`;
+          break;
+        }
+        case 'shareColour': {
+          if (c.with) {
+            const want = new Set(c.with);
+            for (const e of entries) {
+              if (![...colourSet(e)].some(x => want.has(x))) return c.reason || `${(e && e.name) || 'That'} does not share a colour.`;
+            }
+          } else if (entries.length > 1) {
+            let common = colourSet(entries[0]);
+            for (const e of entries.slice(1)) common = new Set([...common].filter(x => colourSet(e).has(x)));
+            if (!common.size) return c.reason || 'They must share a colour.';
+          }
+          break;
+        }
+        case 'mana': {
+          /* The total cost of what was picked, on top of anything already
+             owed, has to be payable. Only the engine can say for certain;
+             without a way to ask, this is taken on trust. */
+          if (!hooks || !hooks.canPay) break;
+          const cost = (c.base || '') + entries.map(e => (e && e[c.key || 'cost']) || '').join('');
+          if (cost && !hooks.canPay(cost)) return c.reason || 'You cannot pay for all of that.';
+          break;
+        }
+        default: break;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check an answer against its question. Returns the answer cleaned up —
+   * `{ ok: true, picks, number, order }` — or `{ ok: false, reason }`.
+   * `hooks` lets the engine add what only it knows: `canPay(cost)`, and
+   * `alive(id)` for whether an object is still where it was.
+   */
+  function check(spec, answer, hooks) {
+    const s = spec && spec.kind && spec.constraints ? spec : normalize(spec);
+    const a = answer || {};
+    if (s.kind === 'number') {
+      const n = Math.floor(num(a.number != null ? a.number : (Array.isArray(a.picks) ? a.picks[0] : NaN)));
+      if (!isFinite(n) || (a.number == null && !Array.isArray(a.picks))) return { ok: false, reason: 'Choose a number.' };
+      const nb = s.number;
+      if (n < nb.min || n > nb.max) return { ok: false, reason: `Choose a number from ${nb.min} to ${nb.max}.` };
+      if ((n - nb.min) % nb.step) return { ok: false, reason: `It has to go up in steps of ${nb.step}.` };
+      return { ok: true, picks: [], number: n, order: null };
+    }
+    let picks = Array.isArray(a.order) && s.ordered ? a.order : a.picks;
+    if (!Array.isArray(picks)) return { ok: false, reason: 'Nothing was chosen.' };
+    if (s.kind === 'options') picks = picks.map(p => (typeof p === 'string' && /^\d+$/.test(p) ? +p : p));
+    const legal = new Set(candidates(s));
+    for (const p of picks) if (!legal.has(p)) return { ok: false, reason: 'That is not one of the choices.' };
+    if (!s.repeat && new Set(picks).size !== picks.length) return { ok: false, reason: 'The same thing was chosen twice.' };
+    if (hooks && hooks.alive) for (const p of picks) if (!hooks.alive(p)) return { ok: false, reason: 'One of those is no longer there.' };
+    const n = picks.length;
+    if (!(n === 0 && s.optional)) {
+      if (n < s.min) return { ok: false, reason: s.min === s.max ? `Choose ${s.min}.` : `Choose at least ${s.min}.` };
+      if (n > s.max) return { ok: false, reason: `Choose no more than ${s.max}.` };
+      const why = constraintProblem(s, picks.map(p => entryFor(s, p)), true, hooks);
+      if (why) return { ok: false, reason: why };
+    }
+    return { ok: true, picks: picks.slice(), number: null, order: s.ordered ? picks.slice() : null };
+  }
+
+  /** Whether one more of this could join the picks without breaking a ceiling. */
+  function canAdd(spec, picks, pick, hooks) {
+    const s = spec;
+    if (picks.length >= s.max) return false;
+    if (!s.repeat && picks.includes(pick)) return false;
+    const next = picks.concat([pick]);
+    return !constraintProblem(s, next.map(p => entryFor(s, p)), false, hooks);
+  }
+
+  /**
+   * How a selection in progress stands, for the table to show: whether it
+   * could be sent as it is, why not, and a line of plain words about it.
+   */
+  function progress(spec, picks, number) {
+    const s = spec;
+    if (s.kind === 'number') {
+      const r = check(s, { number });
+      return { ok: r.ok, reason: r.reason || '', text: `from ${s.number.min} to ${s.number.max}` };
+    }
+    picks = picks || [];
+    const r = check(s, { picks });
+    const bits = [];
+    const n = picks.length;
+    if (s.min === s.max) bits.push(`${n} of ${s.max} chosen${s.optional && s.min && !n ? ', or none' : ''}`);
+    else if (!s.min) bits.push(`${n} chosen (up to ${s.max})`);
+    else bits.push(`${n} chosen (${s.min}–${s.max})`);
+    for (const c of s.constraints) {
+      if (c.kind === 'sum') {
+        const total = picks.reduce((k, p) => k + num((entryFor(s, p) || {})[c.key]), 0);
+        const lim = c.max != null && c.min != null ? `${c.min}–${c.max}` : c.max != null ? `at most ${c.max}` : `at least ${c.min}`;
+        bits.push(`${c.label || c.key} ${total} (${lim})`);
+      }
+      if (c.kind === 'mana') {
+        const cost = picks.map(p => (entryFor(s, p) || {})[c.key || 'cost'] || '').join('');
+        if (cost) bits.push('costs ' + cost + ' more');
+      }
+    }
+    return { ok: r.ok, reason: r.ok ? '' : r.reason, text: bits.join(' · ') };
+  }
+
+  /**
+   * Find a legal answer. `order` is the candidates in the order they are
+   * wanted (best first); `most` takes as many as will fit, otherwise the
+   * fewest that make a legal answer. Returns null when there is none —
+   * which the engine takes to mean the question need not be asked.
+   */
+  function solve(spec, opts) {
+    opts = opts || {};
+    const s = spec && spec.kind && spec.constraints ? spec : normalize(spec);
+    if (s.kind === 'number') {
+      const want = opts.number != null ? opts.number : (opts.most ? s.number.max : s.number.min);
+      let n = Math.max(s.number.min, Math.min(s.number.max, Math.floor(num(want))));
+      n -= (n - s.number.min) % s.number.step;
+      return { picks: [], number: n };
+    }
+    const all = candidates(s);
+    const order = (opts.order || []).filter(p => all.includes(p)).concat(all.filter(p => !(opts.order || []).includes(p)));
+    const hooks = opts.hooks || null;
+    let steps = 0;
+    const LIMIT = 4000;
+    const ok = (picks) => check(s, { picks }, hooks).ok;
+    const most = !!opts.most;
+    const rec = (start, picks) => {
+      if (++steps > LIMIT) return null;
+      if (!most && picks.length >= s.min && ok(picks)) return picks;
+      if (picks.length < s.max) {
+        for (let j = start; j < order.length; j++) {
+          const p = order[j];
+          if (!canAdd(s, picks, p, hooks)) continue;
+          const r = rec(s.repeat ? j : j + 1, picks.concat([p]));
+          if (r) return r;
+          if (steps > LIMIT) break;
+        }
+      }
+      return most && picks.length >= s.min && ok(picks) ? picks : null;
+    };
+    const found = (s.min === 0 && !most && !opts.order) ? [] : rec(0, []);
+    if (found) return { picks: found, number: null, order: s.ordered ? found.slice() : null };
+    if (s.optional || s.min === 0) return { picks: [], number: null, order: null };
+    return null;
+  }
+
+  /* ---------- the older question shapes, said the new way ----------
+     A handful of the fixed types are simple enough to be one of these
+     questions with a different answer shape. The table shows them with
+     the one renderer, and the engine takes the new answer for them as
+     well as the old one. */
+  const LEGACY = new Set(['confirm', 'vote', 'mode', 'pickCard']);
+
+  function fromLegacy(ch) {
+    if (!ch || !LEGACY.has(ch.type)) return null;
+    const base = { playerId: ch.playerId, purpose: ch.purpose || ch.type, prompt: ch.prompt || '', legacy: ch.type,
+      sourceName: ch.sourceName || null, sourceId: ch.sourceId || ch.objId || null, sourceCard: ch.sourceCard || null };
+    if (ch.type === 'confirm') {
+      return normalize(Object.assign(base, { kind: 'options', compact: true, min: 1, max: 1,
+        options: [{ label: ch.noLabel || 'No' }, { label: ch.yesLabel || 'Yes', primary: true }] }));
+    }
+    if (ch.type === 'vote') {
+      return normalize(Object.assign(base, { kind: 'options', compact: true, min: 1, max: 1,
+        options: (ch.options || []).map(o => ({ label: String(o) })) }));
+    }
+    if (ch.type === 'mode') {
+      const count = Math.max(1, ch.count || 1);
+      return normalize(Object.assign(base, { kind: 'options', min: count, max: count, repeat: !!ch.repeatable,
+        options: (ch.options || []).map((o, k) => ({ label: o.label, i: o.i != null ? o.i : k })) }));
+    }
+    // pickCard: a face-up row of particular cards
+    const cards = ch.cards || [];
+    const want = Math.min(Math.max(1, ch.count || 1), cards.length);
+    return normalize(Object.assign(base, { kind: 'objects', min: ch.optional ? 0 : want, max: want, panel: true,
+      items: cards.map(c => ({ id: c.id, name: c.name || (c.card && c.card.name) || '', card: c.card || null })) }));
+  }
+
+  /** The old answer for an older question answered the new way. */
+  function legacyData(ch, answer) {
+    const picks = (answer && answer.picks) || [];
+    switch (ch.type) {
+      case 'confirm': return { yes: picks[0] === 1 };
+      case 'vote': return { choice: (ch.options || [])[picks[0] != null ? picks[0] : 0] };
+      case 'mode': return { modes: picks.map(k => { const o = (ch.options || [])[k]; return o ? (o.i != null ? o.i : k) : k; }) };
+      case 'pickCard': return { cardIds: picks.slice() };
+      default: return null;
+    }
+  }
+
+  MTG.choice = { KINDS, normalize, candidates, entryFor, check, canAdd, progress, solve, fromLegacy, legacyData, LEGACY };
+})(window.MTG);
+/* ===== 06b-events.js ===== */
+/* ============================================================
+   06b-events.js - what happened, as data
+
+   The engine changes the game in a great many places, and for a long
+   time the only record of it was the log: a line of English for a person
+   to read. Everything else that wanted to know what had happened — the
+   table's animations, a guest's sound, the history down the side — had to
+   work it out again by comparing one picture of the game with the next.
+
+   This is the record as data instead. Every game keeps a numbered stream
+   of typed events:
+
+     { seq, turn, type, ...what happened }
+
+   cast, activate, trigger, resolve, counter      the stack
+   zone, enter, leave, token, control             things moving
+   damage, life, counters, tap, untap             things changing
+   attack, block                                  combat
+   draw, shuffle                                  libraries
+   turn, step, priority, choice, gameOver, lose   the game going on
+   log                                            a line of the old log
+
+   Some of these are said by the engine where they happen (a spell going
+   on the stack, damage being dealt). The rest are noticed: before each
+   event is written down and whenever the game settles, the engine looks
+   at where every object is, what is tapped, what counters are on what and
+   every life total, and writes down what is different. A card that moved
+   by any of the hundred routes a card can move is caught that way, with
+   where it came from and where it went.
+
+   The stream is kept in a ring, and handed out per player through
+   eventsFor(), which hides exactly what that player is not allowed to
+   know: a card going somewhere hidden travels as an id and nothing more.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const Game = MTG.rules.Game;
+  const RING = 3000;
+  const PLAYER_ZONES = ['library', 'hand', 'graveyard', 'exile', 'command'];
+  const PUBLIC = new Set(['battlefield', 'graveyard', 'exile', 'stack', 'command']);
+
+  const base = {
+    emit: Game.prototype.emit,
+    logEvent: Game.prototype.logEvent,
+    touch: Game.prototype.touch,
+    start: Game.prototype.start,
+  };
+
+  /** Targets as plain data, whatever shape the stack keeps them in. */
+  const plainTargets = (ts) => (ts || []).map(t => (typeof t === 'string' ? { kind: 'object', id: t }
+    : t ? { kind: t.kind || 'object', id: t.id } : null)).filter(Boolean);
+
+  const countersKey = (c) => {
+    let s = '';
+    for (const k in c) if (c[k]) s += k + '=' + c[k] + ';';
+    return s;
+  };
+
+  // the zones a card can be seen in by everybody, face up
+  const EVERYONE = new Set(['battlefield', 'graveyard', 'exile', 'command']);
+  const zoneOwner = (w) => { const i = w.indexOf('|'); return i >= 0 && i < w.length - 1 ? w.slice(i + 1) : null; };
+  const blockKey = (o) => (o.blocking && o.blocking.length ? o.blocking.join(',') : '');
+
+  /* A spell is taken off the stack a moment before it lands wherever it is
+     going, a card being searched for is out of its library while it is
+     looked at, and a token that has left the battlefield is filed nowhere.
+     In those moments an object is in no list at all; it is wherever it
+     last said it was. */
+  const whereOf = (o, where) => where.get(o.id) || (!o.zone ? 'gone'
+    : o.zone === 'battlefield' || o.zone === 'stack' ? o.zone + '|' : o.zone + '|' + o.owner);
+
+  /** What is worth remembering about an object, to notice when it changes. */
+  function shadowOf(o, w, was) {
+    const zone = w === 'gone' ? 'gone' : w.slice(0, w.indexOf('|'));
+    const field = zone === 'battlefield';
+    let creature = was ? was.creature : false;
+    if (field && (!was || was.zone !== 'battlefield')) {
+      try { const a = o.analysis(); creature = !!(a && a.isCreature); } catch (e) { creature = false; }
+    }
+    const key = countersKey(o.counters || {});
+    return {
+      w, zone, tapped: field && !!o.tapped, controller: o.controller,
+      counters: key, c: was && was.counters === key ? was.c : Object.assign({}, o.counters || {}),
+      attacking: field ? (o.attacking || null) : null, blocking: field ? blockKey(o) : '',
+      creature, faceDown: !!o.faceDown, isToken: !!o.isToken,
+    };
+  }
+  /** Nothing about it has changed since the last look. */
+  function same(was, o, w) {
+    if (was.w !== w || was.controller !== o.controller || was.faceDown !== !!o.faceDown) return false;
+    if (was.zone === 'battlefield') {
+      if (was.tapped !== !!o.tapped || was.attacking !== (o.attacking || null) || was.blocking !== blockKey(o)) return false;
+    }
+    return was.counters === countersKey(o.counters || {});
+  }
+
+  Object.assign(Game.prototype, {
+
+    /* ---------------- writing it down ---------------- */
+
+    /** Write an event down, after anything that changed on the way to it. */
+    _ev(type, data) {
+      if (!this.events) this._evInit();
+      this._evSettle();
+      return this._evPush(type, data);
+    },
+
+    _evInit() {
+      this.events = [];
+      this.eventSeq = this.eventSeq || 0;
+    },
+
+    _evPush(type, data) {
+      if (!this.events) this._evInit();
+      const e = Object.assign({ seq: ++this.eventSeq, turn: this.turn, type }, data || {});
+      this.events.push(e);
+      if (this.events.length > RING) this.events.splice(0, this.events.length - RING + 500);
+      base.emit.call(this, 'event', e);
+      return e;
+    },
+
+    /** Called from the damage routines, once the damage is really going to be dealt. */
+    _evDamage(source, target, amount, combat) {
+      if (!(amount > 0)) return;
+      this._ev('damage', {
+        source: source ? source.id : null, sourceName: source ? source.name : null,
+        target, amount, combat: !!combat,
+      });
+    },
+
+    /** Where everything is, by object id: zone, and whose zone ('hand|p1'). */
+    _evWhere() {
+      const where = new Map();
+      for (const o of this.battlefield) where.set(o.id, 'battlefield|');
+      for (const it of this.stack) if (it.kind === 'spell' && it.obj && !where.has(it.obj.id)) where.set(it.obj.id, 'stack|');
+      for (const pid in this.zones) {
+        const z = this.zones[pid];
+        for (const k of PLAYER_ZONES) {
+          const list = z[k];
+          if (!list || !list.length) continue;
+          const tag = k + '|' + pid;
+          for (const o of list) where.set(o.id, tag);
+        }
+      }
+      return where;
+    },
+
+    /** Take the game as it stands as the starting point, without saying anything about it. */
+    _evBaseline() {
+      if (!this.events) this._evInit();
+      if (this.rng) this._evWatchShuffles();
+      const sh = { objs: new Map(), players: new Map(), countered: new Set(), choice: this.pendingChoice || null };
+      const where = this._evWhere();
+      for (const o of this.objects.values()) sh.objs.set(o.id, shadowOf(o, whereOf(o, where), null));
+      for (const p of this.players) sh.players.set(p.id, { life: p.life, poison: p.poison || 0 });
+      for (const it of this.stack) if (it.countered) sh.countered.add(it.id);
+      this._evShadow = sh;
+    },
+
+    /**
+     * Notice what has changed since the last look, and write it down. This
+     * runs before every event the engine says itself, so the stream stays
+     * in the order things happened.
+     */
+    _evSettle() {
+      if (this._evSettling) return;
+      const sh = this._evShadow;
+      if (!sh) { if (this.started || this.objects.size) this._evBaseline(); return; }
+      this._evSettling = true;
+      const out = [];
+      try {
+        const where = this._evWhere();
+        const attacks = [], blocks = [];
+        for (const o of this.objects.values()) {
+          const w = whereOf(o, where);
+          const was = sh.objs.get(o.id);
+          if (was && same(was, o, w)) continue;
+          const now = shadowOf(o, w, was);
+          sh.objs.set(o.id, now);
+          const owner = o.owner, controller = o.controller;
+          if (!was) {
+            // something new: a token, a copy, a card that came from outside the game
+            if (now.zone === 'battlefield') {
+              out.push([o.isToken ? 'token' : 'enter', { objId: o.id, from: null, owner, controller, card: o.card,
+                faceDown: !!o.faceDown, tapped: !!o.tapped, isToken: !!o.isToken, isCopy: !!o.isCopy }]);
+              for (const k of Object.keys(now.c)) if (now.c[k]) out.push(['counters', { objId: o.id, kind: k, delta: now.c[k], total: now.c[k] }]);
+            } else if (now.zone !== 'gone' && now.zone !== 'stack') {
+              out.push(['zone', { objId: o.id, from: null, to: now.zone, owner, controller, toOwner: zoneOwner(w), card: o.card, faceDown: !!o.faceDown }]);
+            }
+            continue;
+          }
+          if (was.w !== now.w) {
+            /* A token that leaves the battlefield is never filed anywhere,
+               but it did go somewhere first: the zone it was sent to. */
+            const to = now.zone === 'gone' ? (o.zone && o.zone !== was.zone ? o.zone : 'gone') : now.zone;
+            if (was.zone === 'battlefield' && now.zone !== 'battlefield') {
+              out.push(['leave', { objId: o.id, to, owner, controller: was.controller, card: o.card,
+                faceDown: was.faceDown, isToken: was.isToken, died: to === 'graveyard' && was.creature }]);
+            }
+            out.push(['zone', { objId: o.id, from: was.zone, to, owner, controller,
+              fromOwner: zoneOwner(was.w), toOwner: zoneOwner(w), card: o.card, faceDown: !!o.faceDown,
+              gone: now.zone === 'gone' || undefined }]);
+            if (now.zone === 'battlefield') {
+              out.push(['enter', { objId: o.id, from: was.zone, owner, controller, card: o.card,
+                faceDown: !!o.faceDown, tapped: !!o.tapped, isToken: !!o.isToken }]);
+            }
+          }
+          const field = now.zone === 'battlefield';
+          if (field && was.zone === 'battlefield') {
+            if (was.tapped !== now.tapped) out.push([now.tapped ? 'tap' : 'untap', { objId: o.id, controller }]);
+            if (was.controller !== now.controller) out.push(['control', { objId: o.id, from: was.controller, to: now.controller }]);
+          }
+          if (field && now.attacking && now.attacking !== was.attacking) attacks.push({ objId: o.id, defender: now.attacking });
+          if (field && now.blocking && now.blocking !== was.blocking) blocks.push({ objId: o.id, attackers: (o.blocking || []).slice() });
+          /* Counters are worth saying wherever they can be seen: on the
+             battlefield, and on a suspended card in exile. A card leaving
+             the battlefield loses its counters, which is not news; one
+             arriving with some ("enters with three +1/+1 counters") is. */
+          if (was.counters !== now.counters && EVERYONE.has(now.zone) && (now.zone === was.zone || field)) {
+            const before = now.zone === was.zone ? was.c : {};
+            const kinds = new Set(Object.keys(before).concat(Object.keys(now.c)));
+            for (const k of kinds) {
+              const d = (now.c[k] || 0) - (before[k] || 0);
+              if (d) out.push(['counters', { objId: o.id, kind: k, delta: d, total: now.c[k] || 0 }]);
+            }
+          }
+        }
+        if (attacks.length) out.push(['attack', { player: (this.obj(attacks[0].objId) || {}).controller || null, attackers: attacks }]);
+        if (blocks.length) out.push(['block', { player: (this.obj(blocks[0].objId) || {}).controller || null, blocks }]);
+        for (const p of this.players) {
+          const was = sh.players.get(p.id);
+          const poison = p.poison || 0;
+          if (was && was.life === p.life && was.poison === poison) continue;
+          if (was && was.life !== p.life) out.push(['life', { player: p.id, delta: p.life - was.life, life: p.life }]);
+          if (was && was.poison !== poison) out.push(['counters', { player: p.id, kind: 'poison', delta: poison - was.poison, total: poison }]);
+          sh.players.set(p.id, { life: p.life, poison });
+        }
+        for (const it of this.stack) {
+          if (!it.countered || sh.countered.has(it.id)) continue;
+          sh.countered.add(it.id);
+          out.push(['counter', { stackId: it.id, objId: it.objId || null, controller: it.controller, name: it.name }]);
+        }
+        if (this.pendingChoice !== sh.choice) {
+          sh.choice = this.pendingChoice || null;
+          const ch = sh.choice;
+          if (ch) out.push(['choice', { player: ch.playerId, kind: ch.type }]);
+        }
+      } finally { this._evSettling = false; }
+      for (const [type, data] of out) this._evPush(type, data);
+    },
+
+    /** After an undo or a load the whole game has jumped: start looking again from here. */
+    _evRebase() {
+      this._evBaseline();
+      this._evPush('restore', {});
+    },
+
+    /* ---------------- handing it out ---------------- */
+
+    /**
+     * The events after `since` as one player may know them, or null when
+     * some of them have already fallen out of the ring (the caller then
+     * works from the pictures alone). Pass no `since` to get nothing and
+     * just learn where the stream is up to.
+     */
+    eventsFor(viewer, since) {
+      if (!this.events) this._evInit();
+      this._evSettle();
+      const list = this.events;
+      if (since == null || since >= this.eventSeq) return [];
+      if (!list.length || list[0].seq > since + 1) return null;
+      const out = [];
+      // the ring is in order, so the start can be found rather than searched for
+      let i = list.length - (this.eventSeq - since);
+      if (i < 0) i = 0;
+      for (; i < list.length; i++) {
+        const r = redact(list[i], viewer);
+        if (r) out.push(r);
+      }
+      return out;
+    },
+  });
+
+  /* ---------------- who may know what ----------------
+     The rules of a hidden zone, applied to one event and one viewer:
+     a card in a hand is its owner's to see, a library is nobody's, a
+     face-down card is its controller's (in exile, its owner's), and
+     everything else on the table is everybody's. */
+  function sees(viewer, zone, e) {
+    if (e.faceDown) {
+      const who = (zone === 'battlefield' || zone === 'stack') ? e.controller : e.owner;
+      return viewer === who;
+    }
+    if (zone === 'hand') return viewer === (e.toOwner || e.owner);
+    if (zone === 'library') return false;
+    return true;
+  }
+
+  function redact(e, viewer) {
+    switch (e.type) {
+      case 'zone': {
+        if (sees(viewer, e.to === 'gone' ? 'battlefield' : e.to, e)) return e;
+        const r = Object.assign({}, e, { hidden: true });
+        delete r.card;
+        return r;
+      }
+      case 'enter': case 'token': case 'leave':
+        if (!e.faceDown || sees(viewer, 'battlefield', e)) return e;
+        return Object.assign({}, e, { card: null, hidden: true });
+      case 'cast':
+        if (!e.faceDown || viewer === e.controller) return e;
+        return Object.assign({}, e, { card: null, name: 'A face-down spell', hidden: true });
+      case 'trigger': case 'activate':
+        if (!e.faceDown || viewer === e.controller) return e;
+        return Object.assign({}, e, { card: null, hidden: true });
+      default:
+        return e;
+    }
+  }
+
+  /* ---------------- where the engine already speaks ----------------
+     The engine has always announced some things to whoever was listening
+     — a spell going on the stack, a turn beginning. Those announcements
+     are where the typed events for them are written. */
+  Game.prototype.emit = function (ev, a, b) {
+    switch (ev) {
+      case 'stack:add': {
+        const it = a;
+        if (!it) break;
+        const trigger = it.kind !== 'spell' && String(it.id).startsWith('tr');
+        const o = it.obj || null;
+        this._ev(it.kind === 'spell' ? 'cast' : trigger ? 'trigger' : 'activate', {
+          stackId: it.id, objId: it.objId || null, controller: it.controller, name: it.name,
+          card: o ? o.card : null, faceDown: !!(o && o.faceDown && it.kind === 'spell'),
+          targets: plainTargets(it.targets), copy: !!it.isCopy || undefined,
+          text: it.kind !== 'spell' ? (it.abilityText || null) : undefined,
+        });
+        break;
+      }
+      case 'stack:resolve':
+        if (a) this._ev('resolve', { stackId: a.id, objId: a.objId || null, controller: a.controller, name: a.name, kind: a.kind, countered: !!a.countered || undefined });
+        break;
+      case 'turn:begin': this._ev('turn', { player: a ? a.id : null, n: this.turn }); break;
+      case 'step:begin': this._ev('step', { phase: a, step: b, player: this.activePlayer ? this.activePlayer.id : null }); break;
+      case 'priority': {
+        const pid = a ? a.id : null;
+        const last = this.events && this.events[this.events.length - 1];
+        // a priority pass that changed nothing is not worth a second line
+        if (!(last && last.type === 'priority' && last.player === pid && last.depth === this.stack.length)) {
+          this._ev('priority', { player: pid, depth: this.stack.length });
+        }
+        break;
+      }
+      case 'draw': if (a && a.player) this._ev('draw', { player: a.player.id, count: a.n }); break;
+      case 'game:over': this._ev('gameOver', { winners: (a || []).slice() }); break;
+      case 'player:lost': if (a) this._ev('lose', { player: a.id, reason: a.lossReason || '' }); break;
+      case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result }); break;
+      case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result }); break;
+      case 'manual': if (a) this._ev('manual', { player: a.controller || null, text: String(a.text || '') }); break;
+      default: break;
+    }
+    return base.emit.apply(this, arguments);
+  };
+
+  /* The log is one of the things written into the stream: a guest's log is
+     built from these, so there is one record and not two. */
+  Game.prototype.logEvent = function (type, text) {
+    base.logEvent.call(this, type, text);
+    this._ev('log', { kind: type, text: String(text) });
+  };
+
+  Game.prototype.touch = function () {
+    this._evSettle();
+    return base.touch.apply(this, arguments);
+  };
+
+  Game.prototype.start = function () {
+    if (!this.started) this._evBaseline();
+    return base.start.apply(this, arguments);
+  };
+
+  /* A library being shuffled is said by the generator that shuffles it, so
+     that none of the dozen places that shuffle a library can forget to. */
+  const baseShuffle = MTG.RNG.prototype.shuffle;
+  Game.prototype._evWatchShuffles = function () {
+    if (this.rng._watched) return;
+    const game = this;
+    this.rng._watched = true;
+    this.rng.shuffle = function (arr) {
+      const r = baseShuffle.call(this, arr);
+      for (const pid in game.zones) {
+        if (game.zones[pid].library === arr) { if (game.started) game._ev('shuffle', { player: pid }); break; }
+      }
+      return r;
+    };
+  };
+  const baseAddPlayer = Game.prototype.addPlayer;
+  Game.prototype.addPlayer = function () {
+    this._evWatchShuffles();
+    return baseAddPlayer.apply(this, arguments);
+  };
+
+  /* ---------------- plain words ----------------
+     One line for an event, for captions and the history. `name(pid)` gives
+     a player's name as the reader should see it ("You" for `me`), and
+     `card(id)` the name of an object if it is known. */
+  function describe(e, me, name, card) {
+    name = name || ((x) => x || 'Someone');
+    card = card || (() => null);
+    const s = (pid) => (pid === me ? '' : 's');
+    const cn = (id, fb) => (e.card && e.card.name) || card(id) || fb || 'a card';
+    switch (e.type) {
+      case 'cast': return `${name(e.controller)} cast${s(e.controller)} ${e.name}`;
+      case 'activate': return `${name(e.controller)} activate${s(e.controller)} ${e.name}`;
+      case 'trigger': return `${name(e.controller)} — trigger: ${e.name}`;
+      case 'resolve': return `${e.name} resolves`;
+      case 'counter': return `${e.name} is countered`;
+      case 'damage': return `${e.sourceName || 'Something'} deals ${e.amount} to ${e.target.kind === 'player' ? name(e.target.id) : card(e.target.id) || 'a permanent'}`;
+      case 'life': return `${name(e.player)} ${e.delta > 0 ? 'gain' : 'lose'}${s(e.player)} ${Math.abs(e.delta)} life`;
+      case 'draw': return `${name(e.player)} draw${s(e.player)} ${e.count === 1 ? 'a card' : e.count + ' cards'}`;
+      case 'shuffle': return `${name(e.player)} shuffle${s(e.player)}`;
+      case 'token': return `${name(e.controller)} create${s(e.controller)} ${cn(e.objId, 'a token')}`;
+      case 'enter': return `${cn(e.objId)} enters the battlefield`;
+      case 'leave': return `${cn(e.objId)} ${e.died ? 'dies' : e.to === 'exile' ? 'is exiled' : e.to === 'hand' ? 'returns to hand'
+        : e.to === 'library' ? 'goes into a library' : e.to === 'graveyard' ? 'is put into a graveyard' : 'leaves'}`;
+      case 'attack': return `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? cn(e.attackers[0].objId, 'a creature') : e.attackers.length + ' creatures'}`;
+      case 'block': return `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? cn(e.blocks[0].objId, 'a creature') : e.blocks.length + ' creatures'}`;
+      case 'gameOver': return (e.winners || []).length ? `${e.winners.map(name).join(', ')} win${e.winners.length === 1 ? s(e.winners[0]) : ''}` : 'The game is a draw';
+      case 'lose': return `${name(e.player)} lose${s(e.player)}${e.reason ? ' — ' + e.reason : ''}`;
+      case 'log': return e.text;
+      default: return '';
+    }
+  }
+
+  MTG.events = { redact, sees, describe, PUBLIC, RING };
+})(window.MTG);
+/* ===== 06c-replay.js ===== */
+/* ============================================================
+   06c-replay.js - games on the record
+
+   The engine is a deterministic machine: the same seed, the same decks and
+   the same actions in the same order give the same game, card for card.
+   So a whole game can be kept as very little — how it was set up, and
+   every action anybody took — and played again later, to watch, or to
+   walk a bug report up to the turn where it went wrong.
+
+   Recording happens at the engine's own door. People act through the
+   table, bots call the engine directly, and both end up calling the same
+   handful of Game methods, so those are what is wrapped: the outermost
+   call of each is written down with its arguments, as data. Calls the
+   engine makes to itself while handling one are not, because playing the
+   outer one back makes them again.
+
+   A replay file is JSON:
+
+     { kind: 'mtg-table-replay', v: 1, config, settings, setup, decks,
+       cards: [...], actions: [[method, ...args], ...], final }
+
+   `setup` is the game as it stood when recording began (a snapshot with
+   everything left at its default taken out), `cards` the card objects it
+   refers to — a printing from Scryfall by its id alone, anything made up
+   at the table (a token) in full — and `final` a fingerprint of how it
+   ended, to tell whether a playback came out the same.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const U = MTG.util;
+  const { Game, GObj, Player } = MTG.rules;
+
+  /** Everything that changes a game from outside it. */
+  const MUTATORS = [
+    'start', 'mulligan', 'keepHand', 'setAutoPass', 'setFullControl', 'setYield', 'setHoldPriority',
+    'passPriority', 'playLand', 'encoreCard', 'plotCard', 'suspendCard', 'transmuteCard', 'turnFaceUp',
+    'cycleCard', 'castSpell', 'activateAbility', 'tapForMana', 'payMana', 'declareAttackers',
+    'declareBlockers', 'changeLife', 'addPoison', 'addCounters', 'moveObject', 'drawCards',
+    'checkStateBasedActions', 'playerLoses', 'concede', 'resolveChoice', 'manual', 'setConnected',
+    'logEvent', 'setMonarch', 'takeInitiative', 'setDayNight', 'castVote', 'pushUndo', 'dropUndo', 'undo',
+  ];
+  // the settings the engine reads, which belong to the game rather than the person watching it
+  const SETTINGS = ['autoTapLands', 'commanderToZone'];
+
+  const SCRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+  /* ---------------- arguments as data ----------------
+     Almost everything passed to the engine is already plain data — ids,
+     numbers, choices. The odd call hands over an object or a player
+     itself, and those are written as their ids. */
+  function enc(v) {
+    if (v == null || typeof v !== 'object') return typeof v === 'function' ? null : v;
+    if (v instanceof GObj) return { $o: v.id };
+    if (v instanceof Player) return { $p: v.id };
+    if (Array.isArray(v)) return v.map(enc);
+    const out = {};
+    for (const k in v) { const x = v[k]; if (typeof x !== 'function' && x !== undefined) out[k] = enc(x); }
+    return out;
+  }
+  function dec(v, g) {
+    if (v == null || typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map(x => dec(x, g));
+    if (v.$o && Object.keys(v).length === 1) return g.obj(v.$o) || null;
+    if (v.$p && Object.keys(v).length === 1) return g.player(v.$p) || null;
+    const out = {};
+    for (const k in v) out[k] = dec(v[k], g);
+    return out;
+  }
+
+  /* ---------------- cards ----------------
+     A card from Scryfall is written as its id and looked up again on the
+     way back in; a card the table made up is written whole. */
+  function cardTable() {
+    const list = [], index = new Map();
+    return {
+      list,
+      ref(card) {
+        if (!card) return null;
+        if (index.has(card)) return index.get(card);
+        const plain = SCRY_ID.test(String(card.id || '')) && !card._isToken;
+        const i = list.length;
+        list.push(plain ? { s: card.id } : { c: card });
+        index.set(card, i);
+        return i;
+      },
+    };
+  }
+
+  /** The default value of every field of a snapshot, for a game with this config. */
+  function defaults(config) {
+    const g = new Game(Object.assign({}, config, { seed: 1 }));
+    g.addPlayer({ id: '__p', name: '' });
+    g._register(new GObj({ name: '' }, '__p', 'library'));
+    const snap = g.snapshot();
+    return { obj: snap.objs[0], player: snap.players[0] };
+  }
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ALWAYS_OBJ = new Set(['id', 'card', 'owner', 'zone']);
+  const ALWAYS_PLAYER = new Set(['id', 'name']);
+
+  /** A snapshot with the cards taken out to the table and the defaults left off. */
+  function packSetup(snap, cards) {
+    const d = defaults(snap.config);
+    const out = Object.assign({}, snap);
+    out.log = [];
+    out.objs = snap.objs.map(o => {
+      const r = {};
+      for (const k in o) {
+        if (k === 'card' || k === 'printedCard' || k === 'copyOf') { if (o[k]) r[k] = cards.ref(o[k]); continue; }
+        if (ALWAYS_OBJ.has(k) || !same(o[k], d.obj[k])) r[k] = o[k];
+      }
+      return r;
+    });
+    out.players = snap.players.map(p => {
+      const r = {};
+      for (const k in p) if (ALWAYS_PLAYER.has(k) || !same(p[k], d.player[k])) r[k] = p[k];
+      return r;
+    });
+    return out;
+  }
+  function unpackSetup(setup, cards) {
+    const d = defaults(setup.config);
+    const snap = Object.assign({}, setup);
+    snap.objs = setup.objs.map(o => {
+      const r = JSON.parse(JSON.stringify(d.obj));
+      for (const k in o) r[k] = o[k];
+      for (const k of ['card', 'printedCard', 'copyOf']) if (typeof o[k] === 'number') r[k] = cards[o[k]];
+      return r;
+    });
+    snap.players = setup.players.map(p => Object.assign(JSON.parse(JSON.stringify(d.player)), p));
+    return snap;
+  }
+
+  /** How a game stands, as one short string: every seat's view of it, log times aside. */
+  function fingerprint(g) {
+    const ids = g.players.map(p => p.id).concat(['__watching']);
+    const views = ids.map(id => {
+      const v = g.viewFor(id);
+      v.log = (v.log || []).map(l => l.type + ':' + l.text);
+      return v;
+    });
+    /* A printing is the same printing however it was fetched: the card
+       cache stamps each one with when it arrived, which is not the game. */
+    const text = JSON.stringify(views, (k, x) => ((k === 'card' || k === 'printedCard' || k === 'copyOf') && x && typeof x === 'object' ? (x.id || x.name || '?') : x));
+    return { v: g.stateVersion, turn: g.turn, over: !!g.over, hash: U.hash(text) };
+  }
+
+  /* ---------------- recording ---------------- */
+  class Recorder {
+    constructor(g, meta) {
+      this.g = g;
+      this.meta = meta || {};
+      this.depth = 0;
+      this.on = true;
+      this.actions = [];
+      this.cards = cardTable();
+      this.setup = packSetup(g.snapshot(), this.cards);
+      this.settings = {};
+      for (const k of SETTINGS) this.settings[k] = MTG.settings ? MTG.settings[k] : undefined;
+      this.decks = {};
+      for (const p of g.players) {
+        if (p.sideboard && p.sideboard.length) this.decks[p.id] = { sideboard: p.sideboard.map(e => [this.cards.ref(e.card), e.qty]) };
+      }
+      this.started = Date.now();
+      this._wrap();
+    }
+    _wrap() {
+      const rec = this, g = this.g;
+      for (const m of MUTATORS) {
+        const orig = Game.prototype[m];
+        if (typeof orig !== 'function') continue;
+        g[m] = function () {
+          if (rec.depth === 0 && rec.on) rec._note(m, Array.from(arguments));
+          rec.depth++;
+          try { return orig.apply(this, arguments); } finally { rec.depth--; }
+        };
+      }
+    }
+    _note(m, args) {
+      let a;
+      if (m === 'dropUndo') a = [(this.g._undo || []).indexOf(args[0])];
+      else a = enc(args);
+      while (a.length && a[a.length - 1] == null) a.pop();
+      this.actions.push([m].concat(a));
+    }
+    stop() {
+      this.on = false;
+      for (const m of MUTATORS) if (Object.prototype.hasOwnProperty.call(this.g, m)) delete this.g[m];
+    }
+    /** The replay as plain data, ready for JSON. */
+    toJSON() {
+      const g = this.g;
+      return {
+        kind: 'mtg-table-replay', v: 1,
+        createdAt: new Date(this.started).toISOString(),
+        meta: Object.assign({
+          players: g.players.map(p => ({ id: p.id, name: p.name, isBot: !!p.isBot })),
+          formatId: g.config.formatId, turns: g.turn, winners: (g.winners || []).slice(),
+        }, this.meta),
+        config: JSON.parse(JSON.stringify(g.config)),
+        settings: Object.assign({}, this.settings),
+        setup: this.setup,
+        decks: this.decks,
+        cards: this.cards.list.map(c => (c.s ? c.s : c.c)),
+        actions: this.actions.slice(),
+        final: fingerprint(g),
+      };
+    }
+  }
+
+  /* ---------------- playing back ---------------- */
+
+  /**
+   * Turn the card table back into cards. Scryfall printings are looked up
+   * through the card cache (and the network, if they are not in it);
+   * `lookup` can supply them instead.
+   */
+  async function resolveCards(data, lookup) {
+    const out = new Array(data.cards.length).fill(null);
+    const want = [];
+    data.cards.forEach((c, i) => {
+      if (typeof c !== 'string') { out[i] = c; return; }
+      const got = lookup ? lookup(c) : null;
+      if (got) out[i] = got; else want.push(i);
+    });
+    if (want.length) {
+      if (!MTG.scry || !MTG.scry.collection) throw new Error('Card data is needed to play this replay.');
+      const { cards } = await MTG.scry.collection(want.map(i => ({ id: data.cards[i] })));
+      want.forEach((i, k) => { out[i] = cards[k] || null; });
+      const missing = want.filter(i => !out[i]).length;
+      if (missing) throw new Error(`${missing} card${missing === 1 ? '' : 's'} in this replay could not be found.`);
+    }
+    return out;
+  }
+
+  class Replay extends MTG.Emitter {
+    /** @param data   a replay, as saved
+        @param cards  the card table, resolved (resolveCards) */
+    constructor(data, cards) {
+      super();
+      if (!data || data.kind !== 'mtg-table-replay') throw new Error('That is not a replay file.');
+      this.data = data;
+      this.cards = cards;
+      this.total = data.actions.length;
+      this.reset();
+    }
+    /** Back to the moment recording began. */
+    reset() {
+      const data = this.data;
+      const g = new Game(JSON.parse(JSON.stringify(data.config)));
+      g.restore(unpackSetup(data.setup, this.cards));
+      // a restore counts as a change of its own; this one is the same moment, not a new one
+      g.stateVersion = data.setup.stateVersion || 0;
+      for (const [pid, d] of Object.entries(data.decks || {})) {
+        const p = g.player(pid);
+        if (p && d.sideboard) p.sideboard = d.sideboard.map(([i, qty]) => ({ card: this.cards[i], qty }));
+      }
+      this.game = g;
+      this.index = 0;
+      this.errors = [];
+      this.emit('reset', g);
+      return g;
+    }
+    get done() { return this.index >= this.total; }
+    /** Apply the next action. False once there are none left. */
+    step() {
+      if (this.done) return false;
+      const [m, ...args] = this.data.actions[this.index++];
+      const g = this.game;
+      const keep = {};
+      const S = MTG.settings || {};
+      for (const k of SETTINGS) { keep[k] = S[k]; if (k in (this.data.settings || {})) S[k] = this.data.settings[k]; }
+      try {
+        if (m === 'dropUndo') g.dropUndo((g._undo || [])[args[0]]);
+        else if (typeof g[m] === 'function' && MUTATORS.includes(m)) g[m].apply(g, dec(args, g));
+        else this.errors.push({ at: this.index - 1, error: 'unknown action ' + m });
+      } catch (e) {
+        this.errors.push({ at: this.index - 1, error: String(e && e.message || e) });
+      } finally {
+        for (const k of SETTINGS) S[k] = keep[k];
+      }
+      this.emit('step', this.index);
+      return true;
+    }
+    /** Play on until `stop(game)` says so, or the end. */
+    runUntil(stop) {
+      while (!this.done && !(stop && stop(this.game))) this.step();
+      return this.game;
+    }
+    /** The game as it stood when turn `n` began (or as late as the replay goes). */
+    seekTurn(n) {
+      if (this.game.turn >= n) this.reset();
+      return this.runUntil(g => g.turn >= n);
+    }
+    /** Did playing it back end where the recording did? */
+    verify() {
+      const f = this.data.final;
+      if (!f) return { ok: true, unknown: true };
+      const now = fingerprint(this.game);
+      return { ok: now.hash === f.hash && now.v === f.v, now, then: f };
+    }
+  }
+
+  /** Start recording a game. Call before game.start() for a whole game. */
+  function record(game, meta) { return new Recorder(game, meta); }
+
+  /** Read a replay file (text or parsed) and get it ready to play. */
+  async function open(json, opts) {
+    opts = opts || {};
+    const data = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!data || data.kind !== 'mtg-table-replay') throw new Error('That is not a replay file.');
+    if (data.v !== 1) throw new Error('That replay was made by a newer version of the table.');
+    const cards = await resolveCards(data, opts.lookup);
+    return new Replay(data, cards);
+  }
+
+  MTG.replay = Object.assign(MTG.replay || {}, {
+    record, open, Replay, Recorder, resolveCards, fingerprint, MUTATORS, SETTINGS,
+    _pack: { packSetup, unpackSetup, enc, dec },
+  });
+})(window.MTG);
 /* ===== 07-draft.js ===== */
 /* ============================================================
    07-draft.js - boosters, cubes and the draft table
@@ -25224,6 +26757,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       case 'modal': {
         const vals = (e.modes || []).map(m => U.sum((m.effects || []).map(x => effectWorth(x, d))))
           .sort((a, b) => b - a);
+        // paw prints: the best mode for its price, as often as the budget allows
+        if (e.pawprint) {
+          const per = (e.modes || []).map(m => U.sum((m.effects || []).map(x => effectWorth(x, d))) / Math.max(1, m.weight || 1));
+          return Math.max(0, ...per) * nval(e.pawprint, 1);
+        }
         const k = e.spree ? 1 : Math.max(1, Math.min(nval(e.count, 1), vals.length));
         return U.sum(vals.slice(0, k)) + (vals.length > k ? 0.4 : 0);
       }
@@ -26201,6 +27739,94 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return out;
   }
 
+  /* What a bot makes of the generic questions it knows by name. Each is
+     called on the bot with the question and the engine's checks, and may
+     return null to fall back to scoring candidate by candidate. */
+  const CHOOSE_PURPOSES = {
+    /* Replicate: every copy is the spell again, so as many as can be paid
+       for — unless the spell is one we would not want twice. */
+    replicate(s) {
+      return { number: s.number.max };
+    },
+    /* Splice: the spliced card's words for its splice cost, and the card
+       stays in hand; worth it whenever those words help. */
+    splice(s, hooks) {
+      const g = this.game;
+      const C = MTG.choice;
+      const ranked = (s.items || []).map(it => {
+        const o = g.obj(it.id);
+        const a = o && o.analysis();
+        return { id: it.id, v: a ? U.sum(flatEffects(g._cardSpellEffects(a)).map(e => effectWorth(e, 0))) : 0 };
+      }).sort((x, y) => y.v - x.v);
+      const picks = [];
+      for (const r of ranked) if (r.v > 0.3 && C.canAdd(s, picks, r.id, hooks)) picks.push(r.id);
+      return { picks };
+    },
+    /* Conspire: two creatures tapped for a second spell. The two that
+       matter least, and only when the spell is worth having twice and the
+       creatures are not needed to attack or block. */
+    conspire(s) {
+      const g = this.game;
+      const spell = s.sourceId ? g.obj(s.sourceId) : null;
+      const worth = spell ? this.rating(spell) : 2;
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
+        .sort((x, y) => this.permanentValue(x) - this.permanentValue(y));
+      if (pool.length < 2) return { picks: [] };
+      const cost = this.permanentValue(pool[0]) + this.permanentValue(pool[1]);
+      const combatSoon = g.activePlayer.id === this.pid && g.phaseIndex <= 1;
+      if (worth < 2 || (combatSoon && cost > worth * 1.5)) return { picks: [] };
+      return { picks: [pool[0].id, pool[1].id] };
+    },
+    /* Cipher: on the creature most likely to keep getting through. */
+    cipher(s) {
+      const g = this.game;
+      const scored = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).map(o => {
+        let v = g.toughnessOf(o) * 0.3 + g.powerOf(o) * 0.2;
+        for (const k of ['flying', 'menace', 'trample', 'shadow', 'fear', 'intimidate', 'horsemanship', 'skulk']) if (g.hasKw(o, k)) v += 2;
+        if (g.hasKw(o, 'hexproof') || g.hasKw(o, 'indestructible')) v += 1;
+        if (g.hasKw(o, 'defender')) v -= 5;
+        return { id: o.id, v };
+      }).sort((x, y) => y.v - x.v);
+      return scored.length && scored[0].v > -2 ? { picks: [scored[0].id] } : { picks: [] };
+    },
+    /* "Choose an opponent": the one that matters most when what follows
+       hurts them, and the one least likely to beat us when it is a gift. */
+    chooseOpponent(s) {
+      const g = this.game;
+      const r = g.resolving;
+      const rest = r && r.effects ? r.effects.slice(r.index + 1) : [];
+      const hurts = flatEffects(rest).some(e => isHarmful(e));
+      const offered = (s.items || []).map(x => g.player(x.id)).filter(Boolean);
+      const foe = this.mainOpponent();
+      if (hurts && foe && offered.includes(foe)) return { picks: [foe.id] };
+      const meek = offered.slice().sort((a, b) => this._leaderScore(a) - this._leaderScore(b))[0];
+      return meek ? { picks: [meek.id] } : null;
+    },
+    /* Modes priced in paw prints: the most value the budget buys, a mode
+       as often as it is worth it (a small knapsack, since budgets are five). */
+    pawprint(s) {
+      const e = this._resolvingEffect();
+      const modes = e && e.op === 'modal' ? (e.modes || []) : [];
+      const cap = ((s.constraints || []).find(c => c.kind === 'sum') || {}).max || s.max;
+      const opts = (s.options || []).map((o, k) => ({ k, w: Math.max(1, o.weight || 1),
+        v: this._modeWorth((modes[o.i != null ? o.i : k] || {}).effects || O.parseEffects(o.label || '').effects) }));
+      const best = [{ v: 0, picks: [] }];
+      for (let b = 1; b <= cap; b++) {
+        best[b] = best[b - 1];
+        for (const o of opts) {
+          if (o.w > b || o.v <= 0) continue;
+          const prev = best[b - o.w];
+          if (prev.v + o.v > best[b].v) best[b] = { v: prev.v + o.v, picks: prev.picks.concat([o.k]) };
+        }
+      }
+      const got = best[cap];
+      if (got.picks.length) return { picks: got.picks };
+      // nothing helps: the cheapest mode, since one has to be chosen
+      const cheap = opts.slice().sort((x, y) => x.w - y.w || y.v - x.v)[0];
+      return cheap ? { picks: [cheap.k] } : null;
+    },
+  };
+
   class BotPlayer {
     /* `tuning` overrides numbers from the ladder for this one bot; the
        tools in tools/ use it to measure what each number is worth. */
@@ -26253,7 +27879,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const ms = (MTG.settings.botSpeed == null) ? this.thinkMs : MTG.settings.botSpeed;
       return U.sleep(U.clamp(ms, 0, 4000));
     }
-    rand() { return this.game.rng.next(); }
+    /* A bot's dice are its own. Drawing on the game's generator would move
+       every later shuffle along with each thing the bot considered, and a
+       game could then only be played back by thinking exactly the same
+       thoughts again. Seeded from the game and the seat, so a bot still
+       plays the same game from the same seed. */
+    rand() {
+      if (!this._rng) this._rng = new MTG.RNG(((this.game.config.seed >>> 0) ^ parseInt(U.hash(String(this.pid)), 36)) >>> 0 || 1);
+      return this._rng.next();
+    }
     /** True when this decision is made well; false is a misjudgement. */
     sharp() { return this.rand() < this.cfg.skill; }
     /** True when the bot makes one of its level's believable mistakes. */
@@ -26511,8 +28145,78 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           return g.resolveChoice(this.pid, { pay: can && (worth || this.d <= 3) });
         }
         case 'orderTriggers': return g.resolveChoice(this.pid, {});
+        /* The generic question: whatever it is for, a scored answer that
+           keeps to its rules; and if that is refused, the first legal one,
+           so a bot never leaves the table waiting. */
+        case 'choose': {
+          let ans = null;
+          try { ans = this.chooseGeneric(ch); } catch (e) { console.warn('[bot] choose', e); }
+          if (ans && g.resolveChoice(this.pid, ans)) return true;
+          return g.resolveChoice(this.pid, MTG.choice.solve(ch, { hooks: this._chooseHooks() }) || { picks: [] });
+        }
         default: return g.resolveChoice(this.pid, {});
       }
+    }
+
+    /* ---- the generic question (docs/choices.md) ---- */
+    _chooseHooks() {
+      const g = this.game;
+      return { canPay: (cost) => g.couldPay(this.pid, cost, this.manaSources()) };
+    }
+
+    /**
+     * Answer any generic question. A purpose the bot knows about gets its
+     * own judgement; anything else is scored candidate by candidate — what
+     * a card is worth, whose it is, whether being chosen is good or bad for
+     * it — and the best legal answer is taken.
+     */
+    chooseGeneric(ch) {
+      const C = MTG.choice;
+      const s = ch.constraints ? ch : C.normalize(ch);
+      const hooks = this._chooseHooks();
+      const own = CHOOSE_PURPOSES[s.purpose];
+      if (own) {
+        const a = own.call(this, s, hooks);
+        if (a && C.check(s, a, hooks).ok) return a;
+      }
+      if (s.kind === 'number') return C.solve(s, { most: s.prefer !== 'min' });
+      const scored = C.candidates(s).map(p => ({ p, v: this._chooseScore(s, p) + this.rand() * (1 - this.cfg.skill) * 0.5 }))
+        .sort((x, y) => y.v - x.v);
+      // take what is worth taking while it fits, then make up the numbers with the least bad
+      const picks = [];
+      for (const x of scored) {
+        if (x.v <= 0 && picks.length >= s.min) break;
+        if (C.canAdd(s, picks, x.p, hooks)) picks.push(x.p);
+        if (s.repeat) while (x.v > 0 && C.canAdd(s, picks, x.p, hooks)) picks.push(x.p);
+      }
+      if (C.check(s, { picks }, hooks).ok) return { picks };
+      return C.solve(s, { order: scored.map(x => x.p), hooks, most: picks.length > s.min });
+    }
+
+    /** How much we want this candidate picked: positive is good for us. */
+    _chooseScore(s, pick) {
+      const g = this.game;
+      let v = 0;
+      if (s.kind === 'options') {
+        const opt = (s.options || [])[pick] || {};
+        if (opt.card) v = rateCard(opt.card, { prior: 0 });
+        else v = this._modeWorth(O.parseEffects(opt.label || '').effects);
+        v = v / Math.max(1, opt.weight || 1);
+      } else if (s.kind === 'players') {
+        const p = g.player(pick);
+        const foe = this.mainOpponent();
+        v = pick === this.pid ? 1 : (foe && foe.id === pick ? -1.5 : -1);
+        if (p && p.life <= 5 && pick !== this.pid) v -= 0.5;
+        if (s.harmful) v = -v;
+      } else {
+        const o = g.obj(pick);
+        const item = (s.items || []).find(x => x.id === pick) || {};
+        const mine = o ? (o.controller === this.pid || (o.zone !== 'battlefield' && o.owner === this.pid)) : item.controller === this.pid;
+        const worth = !o ? (item.card ? rateCard(item.card, { prior: 0 }) : 1)
+          : o.zone === 'battlefield' ? this.permanentValue(o) : o.zone === 'library' && mine ? this.drawValue(o) : this.rating(o);
+        v = s.harmful ? (mine ? -worth : worth) : (mine ? worth : -worth * 0.5);
+      }
+      return s.prefer === 'worst' ? -v : v;
     }
 
     /** "You may …": say yes when what follows is good for us. */
@@ -28309,6 +30013,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     buildBotDeck, findPartner, BotPlayer, BotRunner, DIFFICULTY, diffCfg,
     // the card judge, for the draft, the deck builder and the tools in tools/
     rateCard, rolesOf, botCanPlay, judge: { effectWorth, abilityWorth, bodyWorth, freeColours, pipsOf },
+    /* A generic question answered for a player on the spot (a bot casting
+       a spell), with that player's own judgement. */
+    answerChoose(game, playerId, spec) {
+      const p = game.player(playerId);
+      return new BotPlayer(game, playerId, (p && p.botDifficulty) || 5).chooseGeneric(spec);
+    },
   };
 })(window.MTG);
 
@@ -28385,7 +30095,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this.selfId = 'host';
       const id = ROOM_PREFIX + this.roomCode;
 
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: any) => void} */ resolve, reject) => {
         let settled = false;
         try { this.peer = new window.Peer(id, peerOptions()); }
         catch (e) { return reject(new Error('Could not start the multiplayer layer: ' + (e && e.message || e))); }
@@ -28449,7 +30159,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this.roomCode = String(code || '').trim().toUpperCase();
       if (!this.roomCode) throw new Error('Enter a room code.');
 
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: any) => void} */ resolve, reject) => {
         let settled = false;
         try { this.peer = new window.Peer(null, peerOptions()); }
         catch (e) { return reject(new Error('Could not start the multiplayer layer: ' + (e && e.message || e))); }
@@ -32341,7 +34051,11 @@ Sideboard
   }
 
   class Table {
-    /** @param send  function(intent) -> void  (host applies locally, client sends over net) */
+    /**
+     * @param {HTMLElement} root
+     * @param {string} meId
+     * @param {(intent: MTG.Intent) => void} send  host applies locally, client sends over net
+     */
     constructor(root, meId, send) {
       this.root = root;
       this.meId = meId;
@@ -32370,6 +34084,7 @@ Sideboard
     _build() {
       this.root.innerHTML = '';
       this.root.classList.add('table-screen', 'arena-screen');
+      /** @type {(cls: string, attrs?: Record<string, any> | null, ...ignored: any[]) => HTMLElement} */
       const div = (cls, attrs) => el('div', Object.assign({ class: cls }, attrs || {}));
 
       this.arena = div('arena');
@@ -32478,6 +34193,7 @@ Sideboard
       window.addEventListener('resize', this._onResize);
     }
 
+    /** @this {MTG.TableInstance} */
     destroy() {
       document.removeEventListener('keydown', this._onKey);
       window.removeEventListener('resize', this._onResize);
@@ -32495,6 +34211,7 @@ Sideboard
     /* ---------------- data in ----------------
        A view is queued rather than drawn: the pump plays them back in order,
        holding each one for as long as what happened in it deserves. */
+    /** @this {MTG.TableInstance} */
     update(view) {
       /* A guest told the host how it likes to be passed for when it joined
          the lobby, before there was a game to tell. The first view is the
@@ -32546,6 +34263,7 @@ Sideboard
     analysis(o) { return o && o.card ? MTG.oracle.analyze(o.card, o.face || 0) : null; }
 
     /* ---------------- render ---------------- */
+    /** @this {MTG.TableInstance} */
     render() {
       const v = this.view;
       if (!v || this._destroyed) return;
@@ -32623,6 +34341,7 @@ Sideboard
     }
 
     /** Bring a card element up to date with the object it shows. */
+    /** @this {MTG.TableInstance} */
     paintCard(n, o) {
       const hidden = !!(o.hidden || o.faceDown || !o.card);
       const face = n.firstChild.firstChild;
@@ -32823,6 +34542,7 @@ Sideboard
     }
 
     /** The row of nameplates across the top when there is more than one opponent. */
+    /** @this {MTG.TableInstance} */
     renderOppStrip(others) {
       const host = this.oppStrip;
       const v = this.view;
@@ -33381,6 +35101,7 @@ Sideboard
      * the one place the table tells you what will happen next, so the label
      * is never "OK": it names the step it moves you to or the thing it
      * confirms.
+     * @this {MTG.TableInstance}
      */
     primaryInfo() {
       const v = this.view, live = this.live || v;
@@ -33452,6 +35173,7 @@ Sideboard
       return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
     }
 
+    /** @this {MTG.TableInstance} */
     primaryAction() {
       const v = this.view, live = this.live || v;
       if (!v || v.over || v.mulliganPhase) return;
@@ -33497,6 +35219,7 @@ Sideboard
     }
 
     /* ---- the marks that say what you can do with each card ---- */
+    /** @this {MTG.TableInstance} */
     markInteractive() {
       const v = this.view, live = this.live || v;
       const ready = this._ready();
@@ -33542,6 +35265,7 @@ Sideboard
     }
 
     /* ---------------- input ---------------- */
+    /** @this {MTG.TableInstance} */
     _wireInput() {
       const a = this.arena;
       a.addEventListener('click', (e) => {
@@ -33666,6 +35390,7 @@ Sideboard
       document.addEventListener('pointerup', up);
     }
 
+    /** @this {MTG.TableInstance} */
     onOrbClick(pid, e) {
       if (this.targeting) {
         const p = this.view.players.find(x => x.id === pid);
@@ -33681,6 +35406,7 @@ Sideboard
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
     }
 
+    /** @this {MTG.TableInstance} */
     onCardClick(id, e, node) {
       const loc = this.locate(id);
       if (!loc) return;
@@ -33793,6 +35519,7 @@ Sideboard
       this.popover(node, o, uses);
     }
 
+    /** @this {MTG.TableInstance} */
     playFromHand(o) {
       const a = this.analysis(o);
       if (!a) return;
@@ -33842,6 +35569,7 @@ Sideboard
       const a = this.analysis(o);
       return MTG.oracle.matchesSpec(spec, o, a, this.meId, VIEW_SPEC_CTX);
     }
+    /** @this {MTG.TableInstance} */
     cancelTargeting() { this.targeting = null; this.hideAim(); }
 
     targetName(t) {
@@ -33923,6 +35651,7 @@ Sideboard
       if (node.closest('.mull-hand')) return;
       this._hoverT = setTimeout(() => this.showPreview(node), node.closest('.stack-col, .spotlight') ? 60 : 220);
     }
+    /** @type {(node?: Element) => void} */
     unhoverCard() { clearTimeout(this._hoverT); this.hidePreview(); }
     hidePreview() { this.preview.classList.remove('on'); }
 
@@ -34046,6 +35775,7 @@ Sideboard
      * do to it by hand. The second half is a toolbox for the rare card the
      * rules engine does not carry out itself, so it sits behind a heading
      * rather than among the real choices.
+     * @this {MTG.TableInstance}
      */
     cardMenu(id, e) {
       const loc = this.locate(id);
@@ -34151,11 +35881,13 @@ Sideboard
     }
 
     /* ---------------- the game menu ---------------- */
+    /** @this {MTG.TableInstance} */
     gameMenu(e) {
       const concede = async () => { if (await UI.confirm('Concede this game?')) this.send({ kind: 'concede' }); };
       const sorts = [['cmc', 'mana value'], ['type', 'type'], ['color', 'colour'], ['name', 'name']];
       const cur = MTG.settings.handSort || 'cmc';
       const nextSort = sorts[(sorts.findIndex(s => s[0] === cur) + 1) % sorts.length];
+      /** @type {Partial<MTG.View>} */
       const live = this.live || this.view || {};
       UI.contextMenu(e, [
         ['Game log  (L)', () => this.toggleDrawer(true, 'log')],
@@ -34282,6 +36014,7 @@ Sideboard
       return MTG.mana.textHtml ? h.replace(/\{[^}]+\}/g, (m) => MTG.mana.html(m)) : h;
     }
 
+    /** @this {MTG.TableInstance} */
     addChat(msg) {
       this.chat.push(msg);
       if (this.drawerOpen && this.drawerTab === 'chat') { this._drawerSig = null; this.renderDrawer(); }
@@ -36845,6 +38578,7 @@ Sideboard
   const UI = MTG.ui;
   const net = MTG.net;
 
+  /** @type {Record<string, any>} the app's state and the screens' entry points, added to below */
   const App = MTG.app = {
     screen: 'menu',
     formatId: 'commander',
@@ -38593,6 +40327,7 @@ Sideboard
    */
   /* The rules come in three kinds, and only the first is something most
      tables change: the rest are folded away until they are wanted. */
+  /** @type {Array<[string, string, string[]]>} id, title, the rule keys it gathers */
   const RULE_GROUPS = [
     ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage']],
     ['decks', 'Deck building', ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'sideboardMax', 'colorIdentity']],
@@ -39054,6 +40789,7 @@ Sideboard
     /** Come back to the table. */
     takeSeat() {
       if (!this.spectating) return;
+      /** @type {Record<string, any>} */
       const was = this._satOut || {};
       this.roster.unshift({
         id: 'me', kind: 'local', name: was.name || App.myName,

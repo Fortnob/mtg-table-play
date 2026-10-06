@@ -91,6 +91,8 @@ function defaultAnswer(g, ch) {
     case 'riot': return g.resolveChoice(pid, { haste: false });
     case 'vote': return g.resolveChoice(pid, { choice: (ch.options || [])[0] });
     case 'orderTriggers': return g.resolveChoice(pid, { top: [] });
+    // the generic question: the first legal answer, the fewest picks or the smallest number
+    case 'choose': return g.resolveChoice(pid, engine().choice.solve(ch) || { picks: [] });
     default: return g.resolveChoice(pid, {});
   }
 }

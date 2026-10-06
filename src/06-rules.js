@@ -1417,6 +1417,8 @@
       if (item.kind === 'spell' && item.obj) {
         const a = item.obj.analysis();
         if (item.obj._wentToLibrary) { item.obj._wentToLibrary = false; }
+        // a copy of a spell is not a card: off the stack, it is gone (CR 707.10a)
+        else if (item.isCopy && item.obj.isCopy && item.obj.zone === 'stack' && (!a || !a.isPermanent)) item.obj.zone = null;
         else if (item.obj.zone !== 'stack' && !item.isCopy) { /* it already went somewhere as it resolved */ }
         else if (a && a.keywordSet && a.keywordSet.has('rebound') && item.fromZone === 'hand' && !item.countered && !item.isCopy) {
           this.moveObject(item.obj, 'exile');
@@ -1517,8 +1519,10 @@
       }
       // instant / sorcery: run its effects, then finish once they are done
       this.logEvent('resolve', `${item.name} resolves.`);
-      this._runEffects(item.effects || (a ? this._cardSpellEffects(a) : []), item,
-        () => this._afterResolve(item), 'afterResolve');
+      let effects = item.effects || (a ? this._cardSpellEffects(a) : []);
+      // cipher: the last thing the card does is offer to encode itself (CR 702.99a)
+      if (a && a.keywordSet && a.keywordSet.has('cipher') && !item.isCopy) effects = effects.concat([{ op: 'cipher' }]);
+      this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
     _afterResolveNoGrave(item) { this.checkStateBasedActions(); this._resetPriority(); }
 
@@ -2735,6 +2739,25 @@
         out.push({ kind: 'spree', cost: '', modes: a.spreeModes.slice(),
           label: 'Spree (choose one or more)' });
       }
+      /* Replicate and splice are generic questions (docs/choices.md). The
+         table may answer them alongside the other extra costs, sending the
+         answers with the cast; a cast that arrives without them asks. */
+      const rep = this._replicateCost(a);
+      if (rep) {
+        out.push({ kind: 'replicate', cost: rep, label: 'Replicate ' + rep,
+          choose: { purpose: 'replicate', kind: 'number', number: { min: 0, max: 20 }, cost: rep,
+            prompt: `How many copies, at ${rep} each?` } });
+      }
+      if (o.zone === 'hand') {
+        const sp = this._spliceable(o.owner, o);
+        if (sp.length) {
+          const items = this._chooseItems(sp.map(x => x.obj));
+          items.forEach((it, i) => { it.cost = sp[i].cost; });
+          out.push({ kind: 'splice', cost: '', label: 'Splice onto Arcane',
+            choose: { purpose: 'splice', kind: 'objects', zone: 'hand', reveal: true, items, min: 0, max: items.length,
+              constraints: [{ kind: 'mana', key: 'cost', label: 'mana' }], prompt: 'Splice onto Arcane' } });
+        }
+      }
       return out;
     }
 
@@ -2791,7 +2814,92 @@
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
       }
+      /* Replicate, splice onto Arcane and conspire are generic questions:
+         asked one after another, each knowing what the last one added. */
+      if (!o.isCopy) {
+        for (const kind of ['replicate', 'splice', 'conspire']) {
+          const spec = this._castQuestion(kind, playerId, o, a, opts, chk);
+          if (spec && this._castChoose(playerId, o, opts, spec) === 'asked') return 'asked';
+        }
+      }
       return null;
+    }
+
+    /** "Replicate {1}{U}": the price of one more copy, or null. */
+    _replicateCost(a) {
+      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^replicate$/i.test(x.keyword || '') && x.arg);
+      return ab && /^(?:\{[^}]+\})+$/.test(ab.arg.trim()) ? ab.arg.trim() : null;
+    }
+    /**
+     * The cards in hand that could be spliced onto this spell (CR 702.47):
+     * it has to be Arcane, and each card's splice cost has to be mana.
+     */
+    _spliceable(playerId, o) {
+      const a = o && o.analysis();
+      if (!a || !(a.subtypes || []).some(t => /^arcane$/i.test(t))) return [];
+      const out = [];
+      for (const c of ((this.zones[playerId] || {}).hand || [])) {
+        if (c === o) continue;
+        const ca = c.analysis();
+        const ab = ca && (ca.abilities || []).find(x => x.kind === 'castModifier' && /^splice$/i.test(x.keyword || ''));
+        const m = ab && String(ab.arg || '').match(/^onto Arcane\s*((?:\{[^}]+\})+)$/i);
+        if (m) out.push({ obj: c, cost: m[1] });
+      }
+      return out;
+    }
+    /** What has been added to the price of this cast by the generic questions answered so far. */
+    _castAdded(playerId, o, a, opts) {
+      const got = opts.choices || {};
+      let more = '';
+      const rep = this._replicateCost(a);
+      if (rep && got.replicate && got.replicate.number) more += rep.repeat(got.replicate.number);
+      if (got.splice) for (const x of this._spliceable(playerId, o)) if ((got.splice.picks || []).includes(x.obj.id)) more += x.cost;
+      return more;
+    }
+    /** One of the generic questions casting can raise, or null when it does not arise. */
+    _castQuestion(kind, playerId, o, a, opts, chk) {
+      const base = (opts.free ? '' : String(chk.cost || '').replace(/\{X\}/g, opts.x ? '{' + opts.x + '}' : '')) +
+        (kind === 'replicate' ? '' : this._castAdded(playerId, o, a, opts));
+      const purse = this.manaSources(playerId);
+      if (kind === 'replicate') {
+        const rep = this._replicateCost(a);
+        if (!rep) return null;
+        let most = 0;
+        while (most < 20 && this.couldPay(playerId, base + rep.repeat(most + 1), purse)) most++;
+        if (!most) return null;
+        return { purpose: 'replicate', kind: 'number', number: { min: 0, max: most },
+          prompt: `Replicate ${o.name}? Pay ${rep} for each copy.`, cost: rep };
+      }
+      if (kind === 'splice') {
+        const list = this._spliceable(playerId, o).filter(x => this.couldPay(playerId, base + x.cost, purse));
+        if (!list.length) return null;
+        const items = this._chooseItems(list.map(x => x.obj));
+        items.forEach((it, i) => { it.cost = list[i].cost; });
+        return { purpose: 'splice', kind: 'objects', items, min: 0, max: items.length, zone: 'hand', reveal: true,
+          constraints: [{ kind: 'mana', key: 'cost', base, label: 'mana' }],
+          prompt: `Splice onto ${o.name}? Each card you choose is revealed and its splice cost paid.` };
+      }
+      if (kind === 'conspire') {
+        if (!(a && a.keywordSet && a.keywordSet.has('conspire'))) return null;
+        const colours = (o.card && o.card.colors) || [];
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && !x.tapped &&
+          (this.characteristics(x) || {}).isCreature && ((this.characteristics(x) || {}).colors || x.card.colors || []).some(c => colours.includes(c)));
+        if (pool.length < 2) return null;
+        return { purpose: 'conspire', kind: 'objects', items: this._chooseItems(pool), min: 2, max: 2, optional: true, zone: 'battlefield',
+          constraints: [{ kind: 'shareColour', with: colours, reason: `Each creature has to share a colour with ${o.name}.` }],
+          prompt: `Conspire? Tap two untapped creatures that share a colour with ${o.name} to copy it.` };
+      }
+      return null;
+    }
+    /** A copy of an effect list whose targets are chosen as it resolves, not taken from the spell it rides on. */
+    _ownTargets(list) {
+      const mark = (e) => {
+        if (!e || typeof e !== 'object') return e;
+        if (e.targets && e.targets.length) e.askTargets = true;
+        for (const k of ['list', 'then', 'otherwise']) if (Array.isArray(e[k])) e[k].forEach(mark);
+        return e;
+      };
+      return JSON.parse(JSON.stringify(list || [])).map(mark);
     }
     /** Which of a choice of additional costs this player could pay right now. */
     _payableChoices(playerId, o, choices, baseCost, opts) {
@@ -2966,6 +3074,18 @@
           chose.casualty = pool[0];
         }
       }
+      /* What the generic questions bought (CR 702.56, 702.47, 702.78):
+         copies by replicate, other cards' words by splice, and a copy by
+         conspire, whose price is two creatures tapped. */
+      const bought = opts.choices || {};
+      const repCost = this._replicateCost(a);
+      const replicated = repCost && bought.replicate ? Math.max(0, Math.min(20, bought.replicate.number || 0)) : 0;
+      if (replicated) cost += repCost.repeat(replicated);
+      const spliced = bought.splice && !o.isCopy ? this._spliceable(playerId, o).filter(x => (bought.splice.picks || []).includes(x.obj.id)) : [];
+      for (const x of spliced) cost += x.cost;
+      let conspired = bought.conspire && !o.isCopy ? (bought.conspire.picks || []).map(id => this.obj(id))
+        .filter(x => x && x.zone === 'battlefield' && x.controller === playerId && !x.tapped) : [];
+      if (conspired.length !== 2) conspired = [];
 
       /* A mana price chosen as the additional cost is paid with the rest,
          even for a spell cast without paying its mana cost. */
@@ -2987,6 +3107,10 @@
         this.moveObject(chose.casualty, 'graveyard');
         this.logEvent('sacrifice', `${chose.casualty.name} is sacrificed for casualty.`);
         this._fire('youSacrifice', playerId, { count: 1 });
+      }
+      if (conspired.length) {
+        for (const x of conspired) this._markTapped(x);
+        this.logEvent('rules', `${p.name} taps ${conspired.map(x => x.name).join(' and ')} to conspire.`);
       }
       o._offspring = !!chose.offspring;
       o._squad = chose.squad || 0;
@@ -3111,6 +3235,23 @@
           });
         });
       }
+      /* Spliced cards stay in the hand; only their words travel, and what
+         those words point at is chosen as the spell resolves. */
+      if (spliced.length && item.effects) {
+        for (const x of spliced) item.effects = item.effects.concat(this._ownTargets(this._cardSpellEffects(x.obj.analysis())));
+        item.spliced = spliced.map(x => x.obj.name);
+        this.logEvent('rules', `${p.name} reveals ${item.spliced.join(', ')} and splices ${spliced.length === 1 ? 'it' : 'them'} onto ${o.name}.`);
+      }
+      /* Replicate and conspire are "when you cast this spell, copy it"
+         triggers, and the copies may be pointed somewhere new. */
+      const copyTrigger = (times, what) => this.pendingTriggers.push({
+        id: this._uid ? this._uid('tr') : MTG.uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+        controller: playerId, name: `${o.name} — ${what}`, auto: true,
+        effects: [{ op: 'copyThatSpell', n: times }], abilityText: `Copy ${o.name}${times > 1 ? ` ${times} times` : ''} (${what}).`,
+        triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
+      });
+      if (replicated) copyTrigger(replicated, 'replicate');
+      if (conspired.length) copyTrigger(1, 'conspire');
 
       // ward on anything this spell targets (CR 702.21)
       this._applyWard(item);
@@ -3256,6 +3397,24 @@
         }));
       }
       this.logEvent('keyword', `Storm puts ${copies} more ${copies === 1 ? 'copy' : 'copies'} of ${item.name} on the stack.`);
+    }
+
+    /**
+     * A creature with a card encoded on it has dealt combat damage to a
+     * player: for each such card, its controller may cast a copy of it
+     * (CR 702.99a). The encoding lasts as long as the creature stays.
+     */
+    _cipherHits(src) {
+      for (const id of (src.encoded || [])) {
+        const card = this.obj(id);
+        if (!card || card.zone !== 'exile' || card.encodedOn !== src.id) continue;
+        this.pendingTriggers.push({
+          id: this._uid ? this._uid('tr') : MTG.uid('tr'), kind: 'ability', obj: src, objId: src.id, abilityIndex: -1,
+          controller: src.controller, name: `${src.name} — cipher (${card.name})`, auto: true, optional: true,
+          effects: [{ op: 'castEncoded', cardId: card.id }], abilityText: `Cast a copy of ${card.name} without paying its mana cost`,
+          triggerData: { event: 'cipher', objectId: src.id },
+        });
+      }
     }
 
     /** Cascade: exile until a cheaper nonland card, then cast it free (CR 702.85). */
@@ -4840,6 +4999,7 @@
             this.logEvent('rules', `${as.source.name} carries the Ring: each opponent loses 3 life.`);
           }
           this._fire('combatDamageToPlayer', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId });
+          this._cipherHits(as.source);
           this._fire('yourCreatureCombatDamage', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId, object: as.source });
           this._fire('permCombatDamage', null, { object: as.source, objController: as.source.controller,
             amount: as.amount, player: as.targetId });
@@ -5690,6 +5850,7 @@
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
         if (vanishes) this.emit('object:gone', o);
       }
 
@@ -6201,6 +6362,102 @@
       return SUSPEND;
     }
 
+    /* ---------- the generic question (docs/choices.md) ----------
+       Anything the rules need to ask that is not one of the fixed shapes is
+       asked as a `choose`: what it is chosen from, how many, and what the
+       picks must add up to. The table and the bots read the question itself,
+       so a new rule can ask a new question without anything else changing. */
+
+    /**
+     * Ask a generic question from inside an effect. Returns the checked
+     * answer — { picks, number, order } — or SUSPEND while it waits, or null
+     * when nothing could be chosen, in which case nobody is asked.
+     */
+    _choose(spec, sub) {
+      const C = MTG.choice;
+      const s = C.normalize(spec);
+      for (const k of ['sourceName', 'sourceId', 'sourceCard']) if (s[k] == null) delete s[k];
+      const r = this.resolving;
+      if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + (sub ? ':' + sub : ''))) return this._ask(s, sub);
+      const hooks = this._chooseHooks(s.playerId);
+      if (!C.solve(s, { hooks })) return null;
+      // nothing to decide: one number, or every one of the things on offer
+      if (s.kind === 'number' && s.number.min === s.number.max) return { picks: [], number: s.number.min, order: null };
+      const all = C.candidates(s);
+      if (s.kind !== 'number' && !s.optional && !s.repeat && !s.ordered && s.min === all.length && s.max === all.length) {
+        const got = C.check(s, { picks: all }, hooks);
+        if (got.ok) return { picks: got.picks, number: null, order: null };
+      }
+      if (!r) return this._decideChoose(s.playerId, s);
+      return this._ask(s, sub);
+    }
+
+    /** What only the engine can say about an answer: whether it can be paid for, and whether it is still there. */
+    _chooseHooks(playerId) {
+      return {
+        canPay: (cost) => this.couldPay(playerId, cost, this.manaSources(playerId)),
+        alive: (id) => typeof id !== 'string' || !!this.player(id) || (!!this.obj(id) && !!this.obj(id).zone),
+      };
+    }
+
+    /** Objects as a generic question offers them: what the table shows and what constraints read. */
+    _chooseItems(objs) {
+      return (objs || []).filter(Boolean).map(o => {
+        const c = this.characteristics(o) || o.analysis() || {};
+        const creature = !!c.isCreature;
+        return {
+          id: o.id, name: o.name, zone: o.zone, controller: o.controller, owner: o.owner, card: o.card || null,
+          power: creature ? this.powerOf(o) : null, toughness: creature ? this.toughnessOf(o) : null,
+          mv: (o.card && o.card.cmc) || 0, colors: (c.colors || (o.card && o.card.colors) || []).slice(), tapped: !!o.tapped,
+        };
+      });
+    }
+    _choosePlayers(players) {
+      return (players || []).filter(p => p && !p.hasLost).map(p => ({ id: p.id, name: p.name, life: p.life }));
+    }
+
+    /**
+     * Answer a generic question on somebody's behalf, on the spot: a bot
+     * casting a spell, or a question that came up when nobody could be
+     * waited for. The bots' judgement is used when it is there; otherwise
+     * the first legal answer.
+     */
+    _decideChoose(playerId, s) {
+      const C = MTG.choice;
+      const hooks = this._chooseHooks(playerId);
+      let ans = null;
+      try { if (MTG.bots && MTG.bots.answerChoose) ans = MTG.bots.answerChoose(this, playerId, s); } catch (e) { console.warn('[choose]', e); }
+      let got = ans ? C.check(s, ans, hooks) : null;
+      if (!got || !got.ok) got = C.check(s, C.solve(s, { hooks }) || { picks: [] }, hooks);
+      return got.ok ? { picks: got.picks, number: got.number, order: got.order } : { picks: [], number: null, order: null };
+    }
+
+    /**
+     * A generic question asked while a spell is being cast (CR 601.2b–c):
+     * how many times to replicate it, what to splice onto it. The answer may
+     * have come with the cast already; otherwise a bot decides on the spot
+     * and a person is asked, and the cast starts again once they answer.
+     * Returns the answer, null when there is nothing to choose, or 'asked'.
+     */
+    _castChoose(playerId, o, opts, spec) {
+      const C = MTG.choice;
+      const s = C.normalize(Object.assign({ playerId, sourceId: o.id, sourceName: o.name, sourceCard: o.card }, spec));
+      const hooks = this._chooseHooks(playerId);
+      opts.choices = Object.assign({}, opts.choices);
+      const have = opts.choices[s.purpose];
+      if (have) {
+        const got = C.check(s, have, hooks);
+        if (got.ok) return (opts.choices[s.purpose] = { picks: got.picks, number: got.number, order: got.order });
+      }
+      if (!C.solve(s, { hooks })) { delete opts.choices[s.purpose]; return null; }
+      const p = this.player(playerId);
+      if ((p && p.isBot) || opts.autoCost) return (opts.choices[s.purpose] = this._decideChoose(playerId, s));
+      const keep = JSON.parse(JSON.stringify(Object.assign({}, opts)));
+      delete keep.choices[s.purpose];
+      this.queueChoice(Object.assign(s, { then: { kind: 'cast', objId: o.id, opts: keep } }));
+      return 'asked';
+    }
+
     /**
      * Has this part of the current effect already happened? An effect that
      * stops to ask a question runs again from the top when the answer
@@ -6228,7 +6485,7 @@
       if (e.targets && e.targets.length && (ctx.targets || []).length) {
         const flat = [];
         for (const x of (ctx.effects || [])) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
-        const aimed = flat.filter(x => x.targets && x.targets.length);
+        const aimed = flat.filter(x => x.targets && x.targets.length && !x.askTargets);
         const total = aimed.reduce((k, x) => k + x.targets.length, 0);
         if (aimed.length > 1 && total === ctx.targets.length && aimed.includes(e)) {
           let off = 0;
@@ -6237,6 +6494,24 @@
           targets = mine.filter(t => targets.some(r => r.kind === t.kind && r.id === t.id));
           sliced = true;
         }
+      }
+      /* Words that joined the spell from elsewhere — a spliced card, a mode
+         chosen more than once — choose their own targets as they resolve. */
+      if (e.askTargets) { targets = []; sliced = false; }
+      /* "Put a +1/+1 counter on a creature you control": chosen as it
+         happens, not targeted. A generic question, and the pick is what the
+         effect then acts on; with nothing to choose, nothing happens. */
+      if (e.chooseFrom && !(e.targets && e.targets.length)) {
+        const spec = e.chooseFrom;
+        const pool = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
+          MTG.oracle.matchesSpec(spec, o, o.analysis(), ctx.controller, this._specCtx()));
+        const got = this._choose({ playerId: ctx.controller, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems(pool), min: 1, max: 1,
+          prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(spec.filter || '') ? 'an' : 'a'} ${spec.filter || 'permanent'}.` }, 'pick');
+        if (got === SUSPEND) return SUSPEND;
+        if (!got || !got.picks.length) return null;
+        targets = got.picks.map(id => ({ kind: 'object', id }));
+        this._noteLastAffected(targets);          // "it" in the next sentence is the one chosen
       }
       /* An effect that wants a target and has not been given one asks for it
          now. This is what a chosen mode needs: "choose one — destroy target
@@ -6265,7 +6540,8 @@
       // whoever set the trigger off, which the trigger recorded for us
       const triggerPlayer = () => {
         const d = ctx.triggerData || {};
-        return this.player(d.drawer || d.player || d.deadController || d.playerId) || null;
+        // "choose an opponent. That player …": the one chosen, when there was a choice
+        return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId) || null;
       };
       /* Most effects name what they act on the same three ways: the thing
          they were cast from, whatever the last effect picked, or their own
@@ -7080,6 +7356,63 @@
           break;
         }
 
+        /* Cipher (CR 702.99): "Then you may exile this spell card encoded
+           on a creature you control." Which creature is a generic question,
+           with "none" as an answer. */
+        case 'cipher': {
+          const card = ctx.obj;
+          if (!card || card.zone !== 'stack' || card.isCopy) break;
+          const mine = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+          if (!mine.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'cipher', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(mine), min: 0, max: 1,
+            prompt: `Encode ${card.name} on a creature you control? Each time it deals combat damage to a player, you may cast a copy.` });
+          if (got === SUSPEND) return SUSPEND;
+          const host = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!host || host.zone !== 'battlefield') break;
+          this.moveObject(card, 'exile');
+          card.encodedOn = host.id;
+          host.encoded = (host.encoded || []).concat(card.id);
+          this.logEvent('rules', `${me.name} encodes ${card.name} on ${host.name}.`);
+          break;
+        }
+        /* "Choose an opponent." Not a target: a generic question about
+           players, and "that player" afterwards is the one chosen. */
+        case 'chooseOpponent': {
+          const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
+            items: this._choosePlayers(opps), min: 1, max: 1, prompt: 'Choose an opponent.' });
+          if (got === SUSPEND) return SUSPEND;
+          const pick = got && got.picks.length ? this.player(got.picks[0]) : null;
+          if (pick) {
+            ctx.chosenPlayer = pick.id;
+            this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
+          }
+          break;
+        }
+        /* The encoded card's copy, cast for nothing as the cipher trigger
+           resolves. The copy is cast — it counts for everything that
+           watches spells being cast — but it is not a card, and when it
+           leaves the stack it is gone. */
+        case 'castEncoded': {
+          const card = this.obj(e.cardId);
+          const host = src;
+          if (!card || card.zone !== 'exile' || !host || card.encodedOn !== host.id) break;
+          const dup = this._register(new GObj(card.card, ctx.controller, 'exile'));
+          dup.isCopy = true;
+          this.zones[ctx.controller].exile.push(dup);
+          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+          const st = this.stack.find(x => x.objId === dup.id);
+          if (ok && st) {
+            st.isCopy = true;
+            this.logEvent('copy', `${me.name} casts a copy of ${card.name} (cipher).`);
+          } else {
+            this._removeFromZone(dup);
+            dup.zone = null;
+          }
+          break;
+        }
+
         /* "…copy that spell." — the one whose casting set this off. */
         case 'copyThatSpell': {
           const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
@@ -7645,6 +7978,26 @@
             for (const i of bought) { const m = modes[i]; if (m) run.push(...(m.effects || [])); }
             this._spliceNext(run);
             this.logEvent('rules', `${me.name} chooses: ${bought.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
+            break;
+          }
+          /* "Choose up to five {P} worth of modes. You may choose the same
+             mode more than once." Each mode has a price in paw prints, and
+             the picks may add up to the budget and no more (CR 700.2i). */
+          if (e.pawprint) {
+            const budget = Math.max(1, n(e.pawprint) || 1);
+            const got = this._choose({ playerId: ctx.controller, purpose: 'pawprint', kind: 'options', repeat: true,
+              min: 1, max: budget,
+              options: modes.map((m, i) => ({ i, label: truncate(m.label || m.text || ('Mode ' + (i + 1)), 90),
+                weight: m.weight || 1, cost: '{P}'.repeat(m.weight || 1) })),
+              constraints: [{ kind: 'sum', key: 'weight', max: budget, label: 'paw prints' }],
+              prompt: `Choose up to ${budget} {P} worth of modes. A mode may be chosen more than once.` });
+            if (got === SUSPEND) return SUSPEND;
+            // in the order the card prints them, a repeated mode once for each time (CR 700.2c)
+            const picks = ((got && got.picks) || [0]).slice().sort((x, y) => x - y);
+            const run = [];
+            for (const i of picks) { const m = modes[i]; if (m) run.push(...this._ownTargets(m.effects || [])); }
+            this._spliceNext(run);
+            this.logEvent('rules', `${me.name} chooses: ${picks.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
             break;
           }
           let want = Math.min(n(e.count) || 1, modes.length);
@@ -10224,7 +10577,40 @@
     resolveChoice(playerId, data) {
       const ch = this.pendingChoice;
       if (!ch || ch.playerId !== playerId) return this.fail('No choice pending for you.');
+      /* The older shapes that are simple enough to be generic questions
+         (MTG.choice.fromLegacy) take a generic answer too: the picks are
+         turned back into what each has always been given. */
+      if (data && Array.isArray(data.picks) && MTG.choice.LEGACY.has(ch.type)) data = MTG.choice.legacyData(ch, data) || data;
       switch (ch.type) {
+        /* The generic question: the answer is checked against what was
+           asked, and an illegal one is refused with the reason. */
+        case 'choose': {
+          const C = MTG.choice;
+          const hooks = this._chooseHooks(playerId);
+          let got = C.check(ch, data, hooks);
+          if (!got.ok) {
+            /* Neither a question that has nothing legal left to choose
+               (what was offered has gone since it was asked) nor a bot that
+               got it wrong may hold the table up. */
+            const any = C.solve(ch, { hooks });
+            const p = this.player(playerId);
+            if (!any) got = { ok: true, picks: [], number: ch.kind === 'number' ? ch.number.min : null, order: null };
+            else if (p && p.isBot) got = C.check(ch, any, hooks);
+            if (!got.ok) return this.fail(got.reason);
+          }
+          data = { picks: got.picks, number: got.number, order: got.order };
+          // asked while casting: the cast starts again with the answer
+          if (ch.then && ch.then.kind === 'cast') {
+            const again = Object.assign({}, ch.then.opts);
+            again.choices = Object.assign({}, again.choices, { [ch.purpose]: data });
+            this.pendingChoice = null;
+            this.castSpell(playerId, ch.then.objId, again);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
+          break;
+        }
         case 'vote': return this.castVote(playerId, (data && data.choice) || ch.options[0]);
         case 'discard': case 'discardToHandSize': {
           const ids = (data && data.cardIds) || [];
@@ -10815,6 +11201,7 @@
         case 'pickCard': return (data.cardIds || (data.cardId ? [data.cardId] : []));
         case 'pickTarget': return (data.targets || []);
         case 'arrange': return { top: (data.top || []) };
+        case 'choose': return { picks: (data.picks || []).slice(), number: data.number != null ? data.number : null, order: data.order || null };
         default: return data;
       }
     }
@@ -10946,6 +11333,8 @@
           copyUntilTurn: o.copyUntilTurn == null ? null : o.copyUntilTurn,
           freeCastBy: o.freeCastBy || null, freeCastTurn: o.freeCastTurn == null ? null : o.freeCastTurn,
           graveCastBy: o.graveCastBy || null, graveCastTurn: o.graveCastTurn == null ? null : o.graveCastTurn,
+          // cipher: what is encoded on a creature, and what a card is encoded on
+          encoded: o.encoded ? o.encoded.slice() : null, encodedOn: o.encodedOn || null,
         });
       }
       return {

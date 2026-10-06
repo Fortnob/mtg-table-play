@@ -58,6 +58,8 @@
     'Dredge',
     // hidden under the land as it enters, played for free later
     'Hideaway',
+    // a spell that encodes itself on a creature and is cast again from there
+    'Cipher',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -111,7 +113,10 @@
     // nothing can answer it
     'Split second',
     // cast again from exile at your next upkeep
-    'Rebound']);
+    'Rebound',
+    /* asked as the spell is cast, as generic questions (docs/choices.md):
+       how many copies, which cards' words to add, which creatures to tap */
+    'Replicate', 'Splice', 'Conspire']);
 
   const CAST_KEYWORDS = new Set(['Flash', 'Split second', 'Convoke', 'Improvise', 'Delve', 'Affinity',
     'Kicker', 'Multikicker', 'Entwine', 'Escalate', 'Overload', 'Buyback', 'Flashback',
@@ -120,7 +125,8 @@
     'Cleave', 'Blitz', 'Dash', 'Embalm', 'Eternalize', 'Unearth', 'Adventure', 'Suspend',
     'Cycling', 'Transmute', 'Morph', 'Megamorph', 'Disguise', 'Prototype', 'Impending',
     'Offering', 'Splice', 'Spree', 'Gift', 'Plot', 'Freerunning', 'Warp',
-    'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu']);
+    'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu',
+    'Replicate', 'Conspire']);
 
   /* Keyword names are title-cased before they are looked up, which turns
      "Split second" into "Split Second". Compare in lower case so a keyword
@@ -1891,7 +1897,11 @@
 
     /* ===== the last of the frequent shapes ===== */
     { re: /^(?:Target (?:opponent|player)) reveals their hand\.?$/i, make: () => ({ op: 'revealHand' }) },
-    { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'noop' }) },
+    // a generic question about players; "that player" afterwards is the one chosen
+    { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'chooseOpponent' }) },
+    // "You and that player each draw three cards": you, and the opponent chosen
+    { re: /^You and that player each draw (\w+) cards?\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerPlayer' }] }) },
     { re: /^Name a (?:nonland )?card\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Choose a creature type\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^You may pay ((?:\{[^}]+\})+) rather than pay (?:CARDNAME|this spell)'?s mana cost\.?$/i,
@@ -2575,6 +2585,26 @@
     if (may) {
       const inner = parseEffectSentence(U.titleCase(may[1].charAt(0)) + may[1].slice(1), 1);
       if (inner && inner.op !== 'manual') return { op: 'may', then: [inner], text: s };
+    }
+    /* "Put a +1/+1 counter on a creature you control": the creature is
+       chosen as this happens, not targeted. Read as the targeted sentence
+       would be, the target becomes a generic question (docs/choices.md):
+       the same kind of thing, picked without targeting it. Only for what
+       helps whatever is picked, so choosing and targeting differ in
+       nothing but the word. */
+    const pick = !depth && !/\b(?:target|each|all|another|other)\b/i.test(s) &&
+      s.match(/^(.*?\b)an? ((?:[a-z]+ )?(?:creature|artifact|enchantment|land|planeswalker|permanent)) (you control)\b(.*)$/i);
+    if (pick) {
+      const again = parseEffectSentence(pick[1] + 'target ' + pick[2] + ' ' + pick[3] + pick[4], 1);
+      const helps = again && ((again.op === 'counters' && /^\+/.test(String(again.kind || ''))) ||
+        again.op === 'pump' || again.op === 'grantKeyword' || again.op === 'untap');
+      if (helps && (again.targets || []).length === 1 && !again.scope) {
+        const spec = again.targets[0];
+        delete again.targets;
+        again.chooseFrom = spec;
+        again.text = s;
+        return again;
+      }
     }
     return null;
   }
@@ -3740,6 +3770,9 @@
     }
     let totalLines = 0, autoLines = 0;
     const spreeModes = [];
+    // "Choose up to five {P} worth of modes": the budget, and the priced modes under it
+    let pawBudget = 0;
+    const pawModes = [];
 
     for (const line of lines) {
       totalLines++;
@@ -3914,6 +3947,24 @@
         const parsed = parseEffects(spree[2].trim());
         spreeModes.push({ cost: spree[1], label: spree[2].trim().replace(/\.$/, ''),
           effects: parsed.effects, auto: parsed.auto });
+        if (parsed.auto) autoLines++;
+        continue;
+      }
+
+      /* "Choose up to five {P} worth of modes. You may choose the same mode
+         more than once." Each "{P}{P} — …" line under it is a mode priced in
+         paw prints; which ones, and how often, is a generic question asked
+         as the spell resolves (docs/choices.md). */
+      const pawHead = !out.isPermanent && line.match(/^Choose up to (\w+) \{P\} worth of modes\.(?:\s*You may choose the same mode more than once\.)?$/i);
+      if (pawHead) {
+        pawBudget = WORDN(pawHead[1]);
+        autoLines++;
+        continue;
+      }
+      const paw = pawBudget && line.match(/^((?:\{P\})+)\s*(?:—|--|-)\s*([\s\S]+)$/);
+      if (paw) {
+        const parsed = parseEffects(paw[2].trim());
+        pawModes.push({ weight: paw[1].length / 3, label: paw[2].trim().replace(/\.$/, ''), effects: parsed.effects, auto: parsed.auto });
         if (parsed.auto) autoLines++;
         continue;
       }
@@ -4309,6 +4360,15 @@
         auto: spreeModes.every(m => m.auto),
         effects: [{ op: 'modal', spree: true, count: spreeModes.length,
           modes: spreeModes.map(m => ({ label: m.label, effects: m.effects, auto: m.auto })) }],
+      });
+    }
+
+    if (pawModes.length) {
+      out.abilities.push({
+        kind: 'spell', text: pawModes.map(m => '{P}'.repeat(m.weight) + ' — ' + m.label).join('\n'),
+        auto: pawModes.every(m => m.auto),
+        effects: [{ op: 'modal', pawprint: pawBudget, count: pawBudget, repeatable: true,
+          modes: pawModes.map(m => ({ label: m.label, weight: m.weight, effects: m.effects, auto: m.auto })) }],
       });
     }
 
