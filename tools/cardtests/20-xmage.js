@@ -118,7 +118,7 @@ module.exports = (test) => {
   });
 
   test('XMage: Chandra\'s emblem deals 5 damage whenever you cast a spell', (mk, t) => {
-    generated(t, 'Chandra, Torch of Defiance');
+    t.auto('Chandra, Torch of Defiance');   // read from the words too now
     const T = mk();
     const ch = T.bf('A', 'Chandra, Torch of Defiance', { counters: { loyalty: 7 } });
     const a = ch.analysis();
@@ -511,6 +511,101 @@ module.exports = (test) => {
     const tokens = T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
     t.eq(tokens.length, 1, 'a copy of the bear');
     t.ok(bear.tapped, 'tapped to do it');
+  });
+
+  test("Elspeth, Sun's Champion's emblem pumps creatures from the command zone", (mk, t) => {
+    t.auto("Elspeth, Sun's Champion");
+    const T = mk();
+    const el = T.bf('A', "Elspeth, Sun's Champion", { counters: { loyalty: 7 } });
+    const bear = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    const a = el.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', el, list.findIndex(x => x.cost && x.cost.loyalty === -7));
+    t.eq(T.g.powerOf(bear), 4);
+    t.ok(T.g.hasKw(bear, 'flying'), 'and flying');
+    t.eq(T.g.powerOf(theirs), 2, 'not on the other side');
+    const later = T.bf('A', 'Llanowar Elves');
+    t.eq(T.g.powerOf(later), 3, 'and creatures that come later');
+  });
+
+  test('Learn: a Lesson from outside the game (Professor of Symbology)', (mk, t) => {
+    t.auto('Professor of Symbology');
+    const T = mk();
+    T.player('A').sideboard = [{ card: card('Environmental Sciences'), qty: 1 }];
+    T.answer('choose', { picks: [0] });
+    T.put('A', 'Professor of Symbology', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(T.zone('A', 'hand').some(o => o.name === 'Environmental Sciences'), 'the Lesson is in hand');
+    t.eq(T.player('A').sideboard[0].qty, 0, 'and no longer outside the game');
+  });
+
+  test('Learn: or discard a card to draw a card', (mk, t) => {
+    const T = mk();
+    const isl = T.hand('A', 'Island');
+    T.top('A', 'Forest');
+    T.answer('choose', (ch) => ({ picks: [ch.options.length - 1] }));
+    T.answer('discard', { ids: [isl.id] });
+    T.put('A', 'Professor of Symbology', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(isl, 'graveyard');
+    t.ok(T.zone('A', 'hand').some(o => o.name === 'Forest'), 'drew');
+  });
+
+  test("Melt Terrain deals damage to the destroyed land's controller", (mk, t) => {
+    t.auto('Melt Terrain');
+    const T = mk();
+    const land = T.bf('B', 'Forest');
+    T.mana('A', '2RR');
+    T.cast('A', T.hand('A', 'Melt Terrain'), { targets: [land] });
+    t.zone(land, 'graveyard');
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Ogre Siegebreaker destroys only a creature dealt damage this turn', (mk, t) => {
+    t.auto('Ogre Siegebreaker');
+    const T = mk();
+    const og = T.bf('A', 'Ogre Siegebreaker');
+    const wurm = T.bf('B', 'Craw Wurm');
+    const spec = T.g._specsOf({ effects: og.analysis().abilities.find(x => x.kind === 'activated').effects })[0];
+    t.no(T.g._legalTargetsFor(spec, 'A').some(x => x.id === wurm.id), 'not before it is hurt');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [wurm] });
+    t.ok(T.g._legalTargetsFor(spec, 'A').some(x => x.id === wurm.id), 'once it has been dealt damage');
+    T.mana('A', '2BR');
+    T.activate('A', og, 0, { targets: [wurm] });
+    t.zone(wurm, 'graveyard');
+  });
+
+  test('Cutthroat Maneuver: two creatures each get +1/+1 and lifelink', (mk, t) => {
+    t.auto('Cutthroat Maneuver');
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves'), c = T.bf('A', 'Birds of Paradise');
+    T.mana('A', '3B');
+    T.cast('A', T.hand('A', 'Cutthroat Maneuver'), { targets: [a, b] });
+    t.eq(T.g.powerOf(a), 3); t.eq(T.g.powerOf(b), 2);
+    t.ok(T.g.hasKw(a, 'lifelink') && T.g.hasKw(b, 'lifelink'), 'both gain lifelink');
+    t.no(T.g.hasKw(c, 'lifelink'), 'not a third');
+  });
+
+  test('Clear the Mind shuffles a graveyard into its library', (mk, t) => {
+    t.auto('Clear the Mind');
+    const T = mk();
+    const g = T.grave('B', 'Island');
+    T.top('A', 'Forest');
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Clear the Mind'), { targets: ['B'] });
+    t.zone(g, 'library');
+  });
+
+  test('Vintara Elephant loses trample until end of turn', (mk, t) => {
+    t.auto('Vintara Elephant');
+    const T = mk();
+    const el = T.bf('A', 'Vintara Elephant');
+    t.ok(T.g.hasKw(el, 'trample'));
+    T.mana('A', '3');
+    T.activate('A', el, 0);
+    t.no(T.g.hasKw(el, 'trample'));
   });
 
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {

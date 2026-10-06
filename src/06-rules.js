@@ -715,6 +715,7 @@
       for (const p of this.players) p.preventShield = 0;
       for (const o of this.battlefield) {
         o.damage = 0;
+        o.damagedThisTurn = false;
         o.shields = 0;
         o.preventShield = 0;
         // "gain control of target creature until end of turn" ends here
@@ -5475,6 +5476,20 @@
           }
         });
       }
+      /* An emblem's standing rules ("Creatures you control get +2/+2 and
+         have flying") count from the command zone, for as long as the game
+         lasts, timestamped as the emblem was made. */
+      for (const src of this._emblems()) {
+        const a = src.analysis();
+        if (!a) continue;
+        const ts = this._tsOf(src);
+        a.abilities.forEach((ab, ai) => {
+          for (const ef of (ab.effects || [])) {
+            const parts = ef.op === 'sequence' && Array.isArray(ef.list) ? ef.list : [ef];
+            for (const x of parts) if (x.op === 'continuous') list.push({ ef: x, src, ts, group: src.id + '#' + ai, layer: x.layer || 6 });
+          }
+        });
+      }
       /* A few cards work from the graveyard (Anger): their standing rules
          count while they lie there. */
       for (const p of this.players) {
@@ -6207,6 +6222,8 @@
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
       if (source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) this.addCounters(o, '-1/-1', amount);
       else o.damage += amount;
+      // "target creature that was dealt damage this turn", until the cleanup step
+      o.damagedThisTurn = true;
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       if (source && this.hasKw(source, 'deathtouch')) o.dealtDeathtouch = true;
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!isCombat });
@@ -7457,6 +7474,16 @@
           if (e.fromTarget) { const t0 = targets.find(t => t.kind === 'object'); dsrc = (t0 && this.obj(t0.id)) || src; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          /* "Destroy target land. It deals 2 damage to that land's
+             controller": whoever controlled what the effect before acted
+             on, or the permanent the trigger is about */
+          if (e.toAffectedController) {
+            const td = (ctx.triggerData || {}).object;
+            const p = this._lastAffectedController() || (td && this.player(td.controller));
+            if (p) this.dealDamageToPlayer(p, cnt, dsrc);
+            this.emit('sfx', 'damage');
+            break;
+          }
           if (e.each) {
             if (/creature/.test(e.each)) for (const o of this.battlefield.slice()) {
               const a = o.analysis();
@@ -7658,14 +7685,17 @@
         /* "You get an emblem with '...'": an object in your command zone
            whose abilities were written out when the card was read. */
         case 'getEmblem': {
-          const text = String(e.text || '');
+          const text = String(e.emblemText || e.text || '');
           const card = {
             id: 'emblem:' + U.hash((e.name || '') + '|' + text), name: 'Emblem — ' + (e.name || 'Emblem'), layout: 'emblem',
             type_line: 'Emblem', oracle_text: text, mana_cost: '', cmc: 0, colors: [], color_identity: [], keywords: [],
-            rarity: 'common', set: 'emb', set_name: 'Emblem', collector_number: '0', image_uris: null, _script: { abilities: e.abilities || [] },
+            rarity: 'common', set: 'emb', set_name: 'Emblem', collector_number: '0', image_uris: null,
           };
+          // abilities written out for it (a translated card), or else its words, read like any card's
+          if (e.abilities) card._script = { abilities: e.abilities };
           const em = this._register(new GObj(card, ctx.controller, 'command'));
           em.controller = ctx.controller;
+          em.ts = this._stampNew();
           this.zones[ctx.controller].command.push(em);
           this.logEvent('rules', `${me.name} gets an emblem: "${truncate(text, 90)}"`);
           this.bumpBoard();
@@ -9051,13 +9081,18 @@
         }
 
         case 'graveyardToLibrary': {
-          const z = this.zones[ctx.controller];
-          const gy = z.graveyard.slice();
-          for (const o of gy) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
-          if (e.withSelf && src) { this._removeFromZone(src); src.zone = 'library'; z.library.push(src); }
-          this.rng.shuffle(z.library);
+          // "Target player shuffles their graveyard into their library", or each player does
+          const whose = e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
+          for (const p of whose) {
+            const z = this.zones[p.id];
+            const gy = z.graveyard.slice();
+            for (const o of gy) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+            if (e.withSelf && src && p === me) { this._removeFromZone(src); src.zone = 'library'; z.library.push(src); }
+            this.rng.shuffle(z.library);
+            this.logEvent('zone', `${p.name} shuffles ${gy.length} card(s) back in.`);
+          }
           this.emit('sfx', 'shuffle');
-          this.logEvent('zone', `${me.name} shuffles ${gy.length} card(s) back in.`);
           break;
         }
 
@@ -10172,6 +10207,26 @@
           this._afterDiscard(ctx.controller, c);
           this.logEvent('discard', `${me.name} discards ${c.name}.`);
           this._drawCards(me, 1);
+          break;
+        }
+        /* Learn (CR 701.48): a Lesson from outside the game into your hand,
+           or discard a card to draw one, or neither. */
+        case 'learn': {
+          const lessons = (me.sideboard || []).filter(x => x.qty > 0 && x.card && /\bLesson\b/.test(x.card.type_line || ''));
+          const options = lessons.map((x, i) => ({ i, label: 'Put ' + x.card.name + ' into your hand', lesson: i }));
+          if (this.zones[ctx.controller].hand.length) options.push({ i: options.length, label: 'Discard a card, then draw a card', rummage: true });
+          if (!options.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'learn', kind: 'options', optional: true, min: 0, max: 1,
+            options, prompt: 'Learn: a Lesson from outside the game, or discard a card to draw a card.' });
+          if (got === SUSPEND) return SUSPEND;
+          const pick = got && got.picks && got.picks.length ? options[got.picks[0]] : null;
+          if (!pick) break;
+          if (pick.rummage) { this._spliceNext([{ op: 'rummage' }]); break; }
+          const entry = lessons[pick.lesson];
+          entry.qty--;
+          const card = this._register(new GObj(entry.card, ctx.controller, 'hand'));
+          this.zones[ctx.controller].hand.push(card);
+          this.logEvent('rules', `${me.name} learns: ${entry.card.name} from outside the game.`);
           break;
         }
         /* A land token: its land types give it its mana */

@@ -116,7 +116,10 @@
     'Rebound',
     /* asked as the spell is cast, as generic questions (docs/choices.md):
        how many copies, which cards' words to add, which creatures to tap */
-    'Replicate', 'Splice', 'Conspire']);
+    'Replicate', 'Splice', 'Conspire',
+    /* another player may pay part of it (CR 702.132): an offer, and with
+       nobody making it the spell is cast as printed */
+    'Assist']);
 
   const CAST_KEYWORDS = new Set(['Flash', 'Split second', 'Convoke', 'Improvise', 'Delve', 'Affinity',
     'Kicker', 'Multikicker', 'Entwine', 'Escalate', 'Overload', 'Buyback', 'Flashback',
@@ -126,7 +129,7 @@
     'Cycling', 'Transmute', 'Morph', 'Megamorph', 'Disguise', 'Prototype', 'Impending',
     'Offering', 'Splice', 'Spree', 'Gift', 'Plot', 'Freerunning', 'Warp',
     'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu',
-    'Replicate', 'Conspire']);
+    'Replicate', 'Conspire', 'Assist']);
 
   /* Keyword names are title-cased before they are looked up, which turns
      "Split second" into "Split Second". Compare in lower case so a keyword
@@ -136,7 +139,7 @@
 
   const KEYWORD_PATTERNS = [
     // simple flags, matched as whole comma-separated clauses
-    /^(Increment|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree)$/i,
+    /^(Increment|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist)$/i,
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway)\s+\d+$/i,
     // parameterised keywords with a cost
@@ -429,6 +432,17 @@
     // triggered and activated abilities: the engine adds either to the permanent's own
     return !!(probe && probe.fullyAutomated && probe.abilities.length &&
       probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated'));
+  }
+
+  /* An emblem's words the table can run: triggered abilities, and standing
+     rules that change what permanents are (the engine counts those from the
+     command zone). */
+  function emblemText(text) {
+    const probe = analyze({ id: 'emblemprobe:' + U.hash(text), name: 'Emblem', type_line: 'Emblem',
+      oracle_text: text, keywords: [], layout: 'emblem' });
+    return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
+      (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' ||
+        (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
   /* "Search your library for up to two basic land cards, put them onto the
@@ -786,6 +800,41 @@
     { re: /^Scry (\d+)\.?$/i, make: (m) => ({ op: 'scry', n: +m[1] }) },
     { re: /^Surveil (\d+)\.?$/i, make: (m) => ({ op: 'surveil', n: +m[1] }) },
     { re: /^Mill (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'you' }) },
+    { re: /^(?:Then )?[Ll]earn\.?$/, make: () => ({ op: 'learn' }) },
+    /* "Tap two target creatures." */
+    { re: /^Tap (two|three|four) target ([a-z][a-z '-]*?)s\.?$/i,
+      make: (m) => ({ op: 'tap', targets: Array.from({ length: num(m[1]) }, () => targetSpec('target ' + m[2])) }) },
+    { re: /^(Target player|Each player) shuffles their graveyard into their library\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'graveyardToLibrary', who: 'target', targets: [{ type: 'player' }] }
+        : { op: 'graveyardToLibrary', who: 'each' }) },
+    /* "This creature loses flying until end of turn." */
+    { re: /^(target creature|CARDNAME|this creature) loses ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[2]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        const tgt = /^target/i.test(m[1]);
+        return { op: 'loseKeyword', keywords: kws, duration: 'eot', targets: tgt ? [targetSpec(m[1])] : null, scope: tgt ? null : 'self' };
+      } },
+    /* "Up to two target creatures each get +1/+1 and gain lifelink until
+       end of turn": one pump for the lot, then the same ones gain it */
+    { re: /^(Up to )?(two|three|four) target ([a-z][a-z '-]*?)s each get ([+-]\d+)\/([+-]\d+)(?: and gain ([a-z ,]+?))? until end of turn\.?$/i,
+      make: (m) => {
+        const kws = m[6] ? keywordList(m[6]) : [];
+        if (m[6] && (!kws.length || !kws.every(kwKnown))) return null;
+        const pump = { op: 'pump', p: pmNum(m[4]), t: pmNum(m[5]), duration: 'eot',
+          targets: Array.from({ length: num(m[2]) }, () => Object.assign(targetSpec('target ' + m[3]), m[1] ? { upTo: true } : {})) };
+        return kws.length ? { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastGroup' }] } : pump;
+      } },
+    /* Melt Terrain, Ionize: "… deals 2 damage to that land's controller" */
+    { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|spell)|It) deals (\d+|X) damage to that (?:spell|land|artifact|creature|permanent|enchantment|planeswalker)'s controller\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), toAffectedController: true }) },
+    /* "You get an emblem with 'Creatures you control get +2/+2 and have
+       flying.'" — one or more abilities in quotation marks */
+    { re: /^You get an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
+      make: (m) => {
+        const text = [...m[1].matchAll(/"([^"]+)"/g)].map(x => x[1].trim()).join('\n');
+        return emblemText(text) ? { op: 'getEmblem', emblemText: text } : null;
+      } },
     { re: /^Each opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'opponents' }) },
     /* "You may put a creature card from among the milled cards into your
        hand": one of what the mill just put in the graveyard */
@@ -2385,9 +2434,13 @@
     'one', 'two', 'three', 'up', 'to']);
 
   function targetSpec(phrase, zone) {
+    // "target creature that was dealt damage this turn"
+    const damaged = /\s+that was dealt damage this turn$/i.test(String(phrase));
+    if (damaged) phrase = String(phrase).replace(/\s+that was dealt damage this turn$/i, '');
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
+    if (damaged) spec.damagedThisTurn = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
     if (/^(?:another|other) target /i.test(String(phrase).trim()) || /^any other target$/.test(p)) spec.another = true;
@@ -2564,6 +2617,7 @@
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
+    if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.maxPower != null && pow() > spec.maxPower) return false;
     if (spec.minPower != null && pow() < spec.minPower) return false;
     if (spec.maxToughness != null && tou() > spec.maxToughness) return false;
@@ -3140,7 +3194,7 @@
       if (e.op === 'manual') return false;
       const has = aimed || !!(e.targets && e.targets.length);
       if (NEEDS_AIM.has(e.op) && !has && !e.scope && !e.each && !e.self && !e.toSelf) return false;
-      if (e.op === 'damage' && !has && !e.each && !e.toSelf && !e.toTriggerPlayer && !e.scope) return false;
+      if (e.op === 'damage' && !has && !e.each && !e.toSelf && !e.toTriggerPlayer && !e.toAffectedController && !e.scope) return false;
       for (const k of ['list', 'then', 'otherwise', 'effects']) if (Array.isArray(e[k]) && !e[k].every(x => ok(x, has))) return false;
       return !Array.isArray(e.modes) || e.modes.every(m => (m.effects || []).every(x => ok(x, false)));
     };
