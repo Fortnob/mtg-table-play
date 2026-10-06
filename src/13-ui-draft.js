@@ -489,6 +489,7 @@
     deck.name = `${fmt.name} \u2014 ${stamp}`;
 
     UI.deckBuilder(deck, {
+      drafted: true,
       finish: { label: 'Play with this deck', onClick: (d) => { if (onDone) onDone(d); } },
     });
   };

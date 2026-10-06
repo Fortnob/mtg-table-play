@@ -231,6 +231,11 @@ Sideboard
       commanders: (deck.commanders || []).slice(),
     });
     let validation = opts.validation || MTG.formats.validate(deck, deck.format);
+    /* A deck built from a draft is built from what was drafted: cards move
+       between the deck and the pool (the sideboard), basic lands are free,
+       and nothing else comes in, so there is no search and no suggestions. */
+    const drafted = !!opts.drafted;
+    const isBasic = (card) => MTG.formats.isBasicLand(card);
 
     const left = el('div', { class: 'panel deck-list' });
     const paneOverview = el('div', { class: 'deck-pane' });
@@ -243,9 +248,10 @@ Sideboard
     // On a phone there is no room for a list beside the panes, so the list
     // becomes a tab of its own and the builder is one full-screen stack.
     const phone = MTG.isPhone();
-    const tabDefs = phone
+    const tabDefs = (phone
       ? [['list', 'Deck'], ['overview', 'Overview'], ['advisor', 'Suggestions'], ['cards', 'Cards']]
-      : [['overview', 'Overview'], ['advisor', 'Suggestions & combos'], ['cards', 'Cards']];
+      : [['overview', 'Overview'], ['advisor', 'Suggestions & combos'], ['cards', 'Cards']])
+      .filter(([id]) => !(drafted && id === 'advisor'));
     if (phone) { panes.list = left; activePane = 'list'; }
     for (const [id, label] of tabDefs) {
       const t = el('button', {
@@ -342,12 +348,34 @@ Sideboard
     }
 
     function changeQty(entry, delta) {
+      // basics are free, except a basic that was drafted, which crosses like any other card
+      if (drafted && (!isBasic(entry.card) || deck.sideboard.includes(entry))) return moveDrafted(entry, delta);
       entry.qty += delta;
       if (entry.qty <= 0) {
         const i = deck.main.indexOf(entry);
         if (i >= 0) deck.main.splice(i, 1);
         else { const j = deck.sideboard.indexOf(entry); if (j >= 0) deck.sideboard.splice(j, 1); }
       }
+      render();
+    }
+
+    /**
+     * A drafted card changes sides rather than appearing or vanishing: one
+     * more in the deck is one fewer in the pool, and the other way round.
+     * `delta` is from the deck's side: +1 brings a copy in, -1 sends one out.
+     */
+    function moveDrafted(entry, delta) {
+      const from = delta > 0 ? deck.sideboard : deck.main;
+      const to = from === deck.main ? deck.sideboard : deck.main;
+      const src = from.find(x => x.card.id === entry.card.id);
+      if (!src) {
+        UI.toast(delta > 0 ? `That was your only ${entry.card.name}.` : 'Nothing to move.');
+        return;
+      }
+      src.qty--;
+      if (src.qty <= 0) from.splice(from.indexOf(src), 1);
+      const there = to.find(x => x.card.id === entry.card.id);
+      if (there) there.qty++; else to.push({ card: entry.card, qty: 1 });
       render();
     }
 
@@ -678,19 +706,23 @@ Sideboard
       const fmtSel = el('select', { 'aria-label': 'Format' }, MTG.formats.list().map(f =>
         el('option', { value: f.id, text: f.name, selected: f.id === deck.format })));
       fmtSel.addEventListener('change', () => { deck.format = fmtSel.value; render(); });
+      if (drafted) fmtSel.disabled = true;
       left.append(
         el('div', { class: 'deck-head' }, [
           nameInput,
           el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation)]),
           sizeMeter(validation),
           autoLine(),
-          el('div', { class: 'deck-head-row' }, [
+          el('div', { class: 'deck-head-row' }, drafted ? [
+            el('span', { class: 'tiny dim grow', text: 'Built from what you drafted. Click a card to move it between the deck and your pool.' }),
+            el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
+          ] : [
             el('button', { class: 'btn sm primary grow', text: '+ Add cards', onclick: addCard }),
             el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
           ]),
         ]));
 
-      if (!deck.main.length && !deck.commanders.length) left.appendChild(startHere());
+      if (!drafted && !deck.main.length && !deck.commanders.length) left.appendChild(startHere());
 
       if (highlight) {
         left.appendChild(el('div', { class: 'hl-bar' }, [
@@ -731,7 +763,7 @@ Sideboard
         for (const e of UI.sortCards(list, 'cmc')) left.appendChild(entryRow(e));
       }
       if (deck.sideboard && deck.sideboard.length) {
-        left.appendChild(el('div', { class: 'section-title', text: `Sideboard · ${U.sum(deck.sideboard.map(e => e.qty))}` }));
+        left.appendChild(el('div', { class: 'section-title', text: `${drafted ? 'Your pool' : 'Sideboard'} · ${U.sum(deck.sideboard.map(e => e.qty))}` }));
         for (const e of UI.sortCards(deck.sideboard, 'cmc')) left.appendChild(entryRow(e));
       }
       left.scrollTop = listTop;
@@ -903,7 +935,8 @@ Sideboard
 
       // the advisor re-profiles locally on every edit; its network pass is
       // debounced inside the panel so editing does not hammer Scryfall
-      if (activePane === 'advisor') advisor.refresh(validation);
+      if (drafted) { /* no suggestions for a drafted deck */ }
+      else if (activePane === 'advisor') advisor.refresh(validation);
       else advisor.refreshLocalOnly(validation);
     }
 
@@ -974,17 +1007,21 @@ Sideboard
      */
     function entryRow(e, isCmd) {
       const a = MTG.oracle.analyze(e.card);
+      const inPool = drafted && deck.sideboard.includes(e);
       const qty = el('button', {
         type: 'button', class: 'qty' + (isCmd ? '' : ' bump'),
         text: isCmd ? '\u2605' : e.qty + '\u00d7',
-        title: isCmd ? 'Your commander' : `Add another ${e.card.name}`,
-        'aria-label': isCmd ? 'Your commander' : `Add another ${e.card.name}`,
+        title: isCmd ? 'Your commander' : inPool ? `Put ${e.card.name} in the deck` : `Add another ${e.card.name}`,
+        'aria-label': isCmd ? 'Your commander' : inPool ? `Put ${e.card.name} in the deck` : `Add another ${e.card.name}`,
       });
       // each line is a strip of the card's own art, the way a deck list
       // reads in a card game: you find a card by its picture as much as its name
       const row = applyHighlight(el('div', {
         class: 'deck-entry strip' + (isCmd ? ' is-cmd' : ''),
-        title: isCmd ? e.card.name : `${e.card.name} \u2014 click to take one out, click the number to add one`,
+        title: isCmd ? e.card.name
+          : inPool ? `${e.card.name} \u2014 click to put one in the deck`
+          : drafted && !isBasic(e.card) ? `${e.card.name} \u2014 click to put one back in your pool`
+          : `${e.card.name} \u2014 click to take one out, click the number to add one`,
       }, [
         qty,
         el('span', { class: 'nm', text: e.card.name }),
@@ -998,12 +1035,15 @@ Sideboard
       UI.attachPreview(row, e.card, 0);
       if (!isCmd) {
         qty.addEventListener('click', (ev) => { ev.stopPropagation(); changeQty(e, 1); MTG.sfx('click'); });
-        row.addEventListener('click', () => { changeQty(e, -1); MTG.sfx('click'); });
+        // a card in the pool comes into the deck; one in the deck goes back to the pool
+        row.addEventListener('click', () => { changeQty(e, inPool ? 1 : -1); MTG.sfx('click'); });
       }
       row.addEventListener('contextmenu', (ev) => {
         ev.preventDefault();
         const menu = [];
-        if (!isCmd) {
+        if (inPool) {
+          menu.push(['Put one in the deck', () => changeQty(e, 1)]);
+        } else if (!isCmd) {
           menu.push(['+1', () => changeQty(e, 1)]);
           menu.push(['-1', () => changeQty(e, -1)]);
           if (MTG.formats.canBeCommander(e.card, MTG.formats.get(deck.format)) && MTG.formats.get(deck.format).commander)
