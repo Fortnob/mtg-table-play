@@ -461,6 +461,10 @@
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
+    // "Untap it." in a trigger about another permanent: that one, not this
+    if (scope === 'triggerObject') walk(effects, (e) => {
+      if (e.scope === 'self' && ops.includes(e.op) && /\b(?:it|that (?:creature|permanent|land))\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = scope;
+    });
   }
 
   /* An emblem's words the table can run: triggered abilities, and standing
@@ -1410,8 +1414,8 @@
       make: () => ({ op: 'loseLife', who: 'you', n: { ofLast: 'mv' } }) },
 
     /* ===== blink, in the longer phrasings ===== */
-    { re: /^Exile (target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
-      make: (m) => ({ op: 'blink', targets: [targetSpec(m[1])] }) },
+    { re: /^Exile (up to one )?((?:other |another )?target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
+      make: (m) => ({ op: 'blink', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
     { re: /^Exile (another target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1].replace(/^another /i, ''))] }) },
     { re: /^Destroy (another target [a-z0-9 '-]+?)\.?$/i,
@@ -2202,6 +2206,12 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    /* Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." */
+    { re: /^(Target (?:legendary )?creature(?: you control)?) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
+    /* Endurance: "puts all the cards from their graveyard on the bottom of their library in a random order" */
+    { re: /^(Up to one target player|Target player) puts all the cards from their graveyard on the bottom of their library in a random order\.?$/i,
+      make: (m) => ({ op: 'graveyardToLibrary', who: 'target', bottom: true, targets: [Object.assign({ type: 'player' }, /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
     /* Noxious Gearhulk: "If a creature is destroyed this way, you gain
        life equal to its toughness." */
     { re: /^If (?:a creature|it|that creature|a permanent) (?:is|was) destroyed this way, (.+)$/i,
@@ -3590,6 +3600,8 @@
     [/^it'?s not your turn$/i, () => ({ kind: 'notYourTurn' })],
     // counting the board
     [/^you control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) })],
+    // Valakut: "if you control at least five other Mountains" (the one that entered among them)
+    [/^you control at least (\w+) other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2].toLowerCase(), n: num(m[1]) + 1 })],
     // the Turbulent lands: "unless your opponents control eight or more lands"
     [/^your opponents control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), who: 'opponents' })],
     [/^you control (?:an?|one or more) ([a-z]+?)s?$/i, (m) => ({ kind: 'control', what: m[1], n: 1 })],
@@ -3776,6 +3788,9 @@
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
     /* --- the general shapes, watching for a kind of thing --- */
+    // Amulet of Vigor: "Whenever a permanent you control enters tapped"
+    { re: /^When(?:ever)? a permanent you control enters tapped,? /i, event: 'permEnters',
+      filt: () => ({ who: 'you', words: 'permanent' }), extra: { enteredTapped: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
@@ -3794,6 +3809,9 @@
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks?(?:,| )', 'i'),
       event: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
+    // Magda: "Whenever a Dwarf you control becomes tapped"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes tapped,? ', 'i'),
+      event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' blocks?(?:,| )', 'i'),
       event: 'permBlocks', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
@@ -3879,6 +3897,9 @@
     { re: /^When(?:ever)? a creature dealt damage by (?:this creature|~|CARDNAME) this turn dies,? /i, event: 'permDies',
       filt: () => ({ words: 'creature' }), extra: { damagedByMe: true } },
     { re: /^When(?:ever)? a player cycles a card,? /i, event: 'anyCycle' },
+    // Waste Not: "Whenever an opponent discards a creature card"
+    { re: /^When(?:ever)? an opponent discards an? (creature|land|noncreature, nonland|artifact|instant or sorcery) card,? /i,
+      event: 'opponentDiscards', extraOf: (m) => ({ discardWords: m[1].toLowerCase().replace(/,\s*/g, ' ') }) },
     { re: /^When(?:ever)? a player discards a card,? /i, event: 'anyDiscard' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
@@ -5865,6 +5886,11 @@
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^CARDNAME can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
+      /* Shalai: "You, planeswalkers you control, and other creatures you control have hexproof." */
+      { re: /^You, planeswalkers you control, and other creatures you control have hexproof\.?$/i,
+        make: () => ({ op: 'sequence', list: [{ op: 'playerHexproof' },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'planeswalker' }, grant: ['Hexproof'] },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', other: true }, grant: ['Hexproof'] }] }), auto: true },
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },

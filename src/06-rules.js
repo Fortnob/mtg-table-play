@@ -7060,6 +7060,9 @@
           // "whenever this deals damage to a player": not to a creature
           if (ab.toPlayer && !data.player) continue;
           if (ab.combatOnly && !data.combat) continue;
+          // "discards a creature card", "a permanent ... enters tapped"
+          if (ab.discardWords && !(data.object && this._cardFitsWords(data.object, ab.discardWords))) continue;
+          if (ab.enteredTapped && !(data.object && data.object.tapped)) continue;
           // "whenever you cast your second spell each turn"
           if (ab.castByYou && data.playerId !== o.controller) continue;
           // "the upkeep of enchanted creature's controller", "enchanted player's upkeep"
@@ -9502,9 +9505,11 @@
           for (const p of whose) {
             const z = this.zones[p.id];
             const gy = z.graveyard.slice();
-            for (const o of gy) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+            // "on the bottom of their library in a random order": not shuffled into it
+            const moved = e.bottom ? this.rng.shuffle(gy.slice()) : gy;
+            for (const o of moved) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
             if (e.withSelf && src && p === me) { this._removeFromZone(src); src.zone = 'library'; z.library.push(src); }
-            this.rng.shuffle(z.library);
+            if (!e.bottom) this.rng.shuffle(z.library);
             this.logEvent('zone', `${p.name} shuffles ${gy.length} card(s) back in.`);
           }
           this.emit('sfx', 'shuffle');

@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 17155,
-  "gainedCards": 1782,
-  "linesNeeded": 19598,
-  "linesGained": 2318,
+  "needed": 17133,
+  "gainedCards": 1777,
+  "linesNeeded": 19565,
+  "linesGained": 2310,
   "gained": {
-   "all": 1782,
-   "top2000": 52,
-   "stdTop": 13
+   "all": 1777,
+   "top2000": 53,
+   "stdTop": 12
   },
   "compare": {
    "same": 0,
@@ -20,13 +20,13 @@
   },
   "verifyFail": 88,
   "overrides": {
-   "it": 122,
    "drain": 62,
    "count": 42,
    "group": 26,
    "x": 5,
+   "it": 112,
    "opponent": 67,
-   "condition": 23,
+   "condition": 24,
    "subtype": 9
   }
  },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6043,
-   "lines": 5014,
+   "score": 6038,
+   "lines": 5012,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1065,
-   "lines": 852,
+   "score": 1047,
+   "lines": 846,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -2206,25 +2206,6 @@
    ]
   },
   {
-   "what": "BecomesTappedTriggeredAbility",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Magda, Brazen Outlaw",
-    "Quest for Renewal",
-    "Tezzeret, Betrayer of Flesh",
-    "Gideon's Avenger",
-    "Champions of the Shoal",
-    "Judge of Currents",
-    "Mine Layer",
-    "Palliation Accord",
-    "Roots of Life",
-    "Lifetap",
-    "Thoughtleech",
-    "Freyalise's Winds"
-   ]
-  },
-  {
    "what": "attack with 2 or more",
    "score": 17,
    "lines": 11,
@@ -2434,25 +2415,6 @@
     "Teval's Judgment",
     "Vindictive Lich",
     "Survivor's Med Kit"
-   ]
-  },
-  {
-   "what": "GainAbilityControllerEffect",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Shalai, Voice of Plenty",
-    "Surge of Salvation",
-    "Solitary Confinement",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier",
-    "Gor Muldrak, Amphinologist",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker",
-    "True Believer"
    ]
   },
   {
@@ -3314,24 +3276,6 @@
     "Saheeli's Silverwing",
     "Rootwater Mystic",
     "Merfolk Observer"
-   ]
-  },
-  {
-   "what": "AddCardSubTypeTargetEffect",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Tyrite Sanctum",
-    "Clavileño, First of the Blessed",
-    "Jenova, Ancient Calamity",
-    "Enter the Avatar State",
-    "Archangel Elspeth",
-    "Olivia Voldaren",
-    "Vronos, Masked Inquisitor",
-    "Loki's Scepter",
-    "Beorn the Fierce",
-    "Vault 87: Forced Evolution",
-    "Jump Scare"
    ]
   },
   {
@@ -4458,6 +4402,25 @@
     "Focus Fire",
     "Collision Course",
     "Battle of Frost and Fire"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Surge of Salvation",
+    "Solitary Confinement",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Sigarda, Heron's Grace",
+    "Captain America, Super-Soldier",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker",
+    "True Believer",
+    "Ivory Mask"
    ]
   },
   {
@@ -5872,6 +5835,23 @@
     "You Meet in a Tavern",
     "Nissa, Genesis Mage",
     "Ayesha Tanaka, Armorer"
+   ]
+  },
+  {
+   "what": "AddCardSubTypeTargetEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Clavileño, First of the Blessed",
+    "Jenova, Ancient Calamity",
+    "Enter the Avatar State",
+    "Archangel Elspeth",
+    "Olivia Voldaren",
+    "Vronos, Masked Inquisitor",
+    "Loki's Scepter",
+    "Beorn the Fierce",
+    "Vault 87: Forced Evolution",
+    "Jump Scare"
    ]
   },
   {
@@ -8226,12 +8206,26 @@
     "Lich",
     "Soul Echo"
    ]
+  },
+  {
+   "what": "RemoveVariableCountersSourceCost",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Hourglass of the Lost",
+    "The Astonishing Ant-Man",
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Geistflame Reservoir",
+    "Brain in a Jar",
+    "Blademane Baku",
+    "Mercadian Lift"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4729,
+   "score": 4726,
    "cards": 3964,
    "names": [
     "Ripples of Undeath",
@@ -8244,8 +8238,8 @@
   },
   {
    "what": "custom ability",
-   "score": 789,
-   "cards": 627,
+   "score": 780,
+   "cards": 624,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8335,8 +8329,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 65,
-   "cards": 35,
+   "score": 66,
+   "cards": 36,
    "names": [
     "Cloud Key",
     "Banner of Kinship",
@@ -9302,19 +9296,6 @@
     "Dewdrop Spy",
     "Draugr Thought-Thief",
     "Lurking Informant"
-   ]
-  },
-  {
-   "what": "GainAbilityControllerEffect",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Shalai, Voice of Plenty",
-    "Surge of Salvation",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier"
    ]
   },
   {
@@ -10538,19 +10519,6 @@
    ]
   },
   {
-   "what": "BecomesTappedTriggeredAbility",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Magda, Brazen Outlaw",
-    "Gideon's Avenger",
-    "Judge of Currents",
-    "Palliation Accord",
-    "Lifetap",
-    "Thoughtleech"
-   ]
-  },
-  {
    "what": "delayed FullThrottleTriggeredAbility",
    "score": 10,
    "cards": 1,
@@ -10706,6 +10674,19 @@
     "Thunderous Velocipede",
     "Curator Beastie",
     "Oath of Gideon"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Surge of Salvation",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Sigarda, Heron's Grace",
+    "Captain America, Super-Soldier",
+    "Blossoming Calm"
    ]
   },
   {
@@ -10970,19 +10951,6 @@
     "Blizzard Strix",
     "Roll-Roll-Roll-Roll",
     "Wiccan, Rising Magician"
-   ]
-  },
-  {
-   "what": "AddCardSubTypeTargetEffect",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Tyrite Sanctum",
-    "Clavileño, First of the Blessed",
-    "Enter the Avatar State",
-    "Loki's Scepter",
-    "Beorn the Fierce",
-    "Jump Scare"
    ]
   },
   {
@@ -12037,6 +12005,32 @@
     "Arcade Cabinet",
     "Visions of Dominance",
     "Growth Curve"
+   ]
+  },
+  {
+   "what": "TargetCardInTargetPlayersGraveyard",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Quandrix Command",
+    "Loaming Shaman",
+    "Rite of Renewal",
+    "Memory's Journey",
+    "Witness the Future",
+    "Stream of Consciousness"
+   ]
+  },
+  {
+   "what": "IsStepCondition",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Desert",
+    "Armageddon Clock",
+    "Tolaria",
+    "Infinite Hourglass",
+    "Balduvian Warlord",
+    "General Jarkeld"
    ]
   }
  ]

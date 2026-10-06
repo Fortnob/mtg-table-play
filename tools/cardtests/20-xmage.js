@@ -1249,6 +1249,53 @@ module.exports = (test) => {
     t.ok(T.g.canCast('A', bear.id).ok, 'a creature spell is fine');
   });
 
+  test('Amulet of Vigor untaps a permanent that enters tapped', (mk, t) => {
+    t.auto('Amulet of Vigor');
+    const T = mk();
+    T.bf('A', 'Amulet of Vigor');
+    const l = T.put('A', 'Guildless Commons', 'battlefield', { etb: true });
+    T.resolve();
+    t.no(l.tapped, 'untapped again');
+  });
+
+  test('Waste Not: a Zombie for a creature card, a card for a spell', (mk, t) => {
+    t.auto('Waste Not');
+    const T = mk();
+    T.bf('A', 'Waste Not');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const c = T.hand('B', 'Grizzly Bears');
+    T.g.moveObject(c, 'graveyard'); T.g._afterDiscard('B', c);
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Zombie').length, 1, 'a Zombie');
+    const h = T.zone('A', 'hand').length;
+    const d = T.hand('B', 'Shock');
+    T.g.moveObject(d, 'graveyard'); T.g._afterDiscard('B', d);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 1, 'a card for the Shock');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Zombie').length, 1, 'and no second Zombie');
+  });
+
+  test('Magda makes a Treasure when a Dwarf becomes tapped', (mk, t) => {
+    t.auto('Magda, Brazen Outlaw');
+    const T = mk();
+    T.bf('A', 'Magda, Brazen Outlaw');
+    const d = T.bf('A', 'Dwarven Trader');
+    T.g._markTapped(d);
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1);
+  });
+
+  test('Valakut deals 3 when a Mountain enters with five others', (mk, t) => {
+    t.auto('Valakut, the Molten Pinnacle');
+    const T = mk();
+    T.bf('A', 'Valakut, the Molten Pinnacle');
+    for (let i = 0; i < 5; i++) T.bf('A', 'Mountain');
+    T.put('A', 'Mountain', 'battlefield', { etb: true });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 17);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
