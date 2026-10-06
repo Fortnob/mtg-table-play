@@ -19,6 +19,15 @@
       firstPlayerDraws: false,
       blurb: 'Rotating constructed. 60-card minimum, up to 4 copies of a card, 15-card sideboard.',
     },
+    modern: {
+      id: 'modern', name: 'Modern', scryKey: 'modern', kind: 'constructed',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 20, startingHand: 7, maxCopies: 4,
+      deckMin: 60, deckMax: null, exactSize: false, sideboardMax: 15,
+      singleton: false, commander: false, commanderDamage: null,
+      firstPlayerDraws: false,
+      blurb: 'Non-rotating constructed: every card from Eighth Edition onwards. 60-card minimum, up to 4 copies, 15-card sideboard.',
+    },
     pauper: {
       id: 'pauper', name: 'Pauper', scryKey: 'pauper', kind: 'constructed',
       minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
@@ -79,7 +88,7 @@
     },
   };
 
-  const FORMAT_ORDER = ['commander', 'standard', 'pauper', 'cmdrdraft', 'booster', 'picktwo', 'chaos', 'cube'];
+  const FORMAT_ORDER = ['commander', 'standard', 'modern', 'pauper', 'cmdrdraft', 'booster', 'picktwo', 'chaos', 'cube'];
 
   /* -------- helpers -------- */
 

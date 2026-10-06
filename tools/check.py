@@ -189,6 +189,7 @@ def steps(quick):
         # the ready-made decks must stay legal and run in full as coverage moves
         Step('starters', node(TOOLS / 'starters.js'), judge_starters, 600, needs_bulk=True),
         Step('sim standard', sim('standard', n_std), judge_sim, 1200),
+        Step('sim modern', sim('modern', n_pau), judge_sim, 1200),
         Step('sim pauper', sim('pauper', n_pau), judge_sim, 1200),
         Step('sim commander 4p', sim('commander', n_cmd, 4), judge_sim, 1800),
         Step('botsim paced', node(TOOLS / 'botsim.js', '--format', 'standard', '--games', 1 if quick else 4, '--speed', 300, '--contracts'), judge_sim, 1200),

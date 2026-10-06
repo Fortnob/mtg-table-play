@@ -298,7 +298,8 @@
     'Atraxa, Grand Unifier', 'The Ur-Dragon', 'Elesh Norn, Mother of Machines', 'Wrenn and Six',
     'Nicol Bolas, Dragon-God'];
   const FORMAT_ART = {
-    standard: 'Sheoldred, the Apocalypse', pauper: 'Lightning Bolt', commander: "Atraxa, Praetors' Voice",
+    standard: 'Sheoldred, the Apocalypse', modern: 'Ragavan, Nimble Pilferer', pauper: 'Lightning Bolt',
+    commander: "Atraxa, Praetors' Voice",
     booster: 'Cogwork Librarian', picktwo: 'Fact or Fiction', chaos: 'Possibility Storm',
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
   };
@@ -355,11 +356,22 @@
   }
 
   /* The quick game remembers what you played last. */
-  const QUICK_FORMATS = [['standard', 'Standard'], ['pauper', 'Pauper'], ['commander', 'Commander']];
+  /* Two kinds of game, and the formats inside each: bring a deck, or make
+     one at the table. Each kind remembers the format you last played in it. */
+  const QUICK_KINDS = [
+    { id: 'constructed', label: 'Constructed', blurb: 'Bring a deck',
+      formats: [['standard', 'Standard'], ['modern', 'Modern'], ['pauper', 'Pauper'], ['commander', 'Commander']] },
+    { id: 'limited', label: 'Limited', blurb: 'Draft at the table',
+      formats: [['booster', 'Booster'], ['picktwo', 'Pick-Two'], ['chaos', 'Chaos'], ['cube', 'Cube'], ['cmdrdraft', 'Commander']] },
+  ];
+  const QUICK_FORMATS = [].concat(...QUICK_KINDS.map(k => k.formats));
+  const quickKindOf = (formatId) => (QUICK_KINDS.find(k => k.formats.some(f => f[0] === formatId)) || QUICK_KINDS[0]);
   function quickPrefs() {
     const S = MTG.settings;
-    const q = Object.assign({ formatId: 'standard', opponents: 1, difficulty: 5, colors: [], deckId: '' }, S.quickGame || {});
+    const q = Object.assign({ formatId: 'standard', opponents: 1, difficulty: 5, colors: [], deckId: '',
+      lastByKind: {}, setCode: '', cubeId: 'modern' }, S.quickGame || {});
     if (!QUICK_FORMATS.some(f => f[0] === q.formatId)) q.formatId = 'standard';
+    q.lastByKind = q.lastByKind || {};
     return q;
   }
   function saveQuick(q) { MTG.setSetting('quickGame', q); }
@@ -504,13 +516,28 @@
       const fmt = MTG.formats.get(q.formatId);
       panel.appendChild(el('div', { class: 'quick-head' }, [
         el('h2', { id: 'quickTitle', text: 'Quick game' }),
-        el('span', { class: 'quick-sub', text: 'Straight to the table. A deck is built for you.' }),
+        el('span', { class: 'quick-sub', text: quickKindOf(q.formatId).id === 'limited'
+          ? 'Straight to the first pack. The other seats are bots.'
+          : 'Straight to the table. A deck is built for you.' }),
       ]));
 
       // the format
-      panel.appendChild(field('Format', segmented(QUICK_FORMATS.map(([id, label]) => [id, label]), q.formatId, (v) => {
-        q.formatId = v; q.deckId = ''; saveQuick(q); draw();
-      }, 'Format')));
+      const kind = quickKindOf(q.formatId);
+      panel.appendChild(field('Game', segmented(QUICK_KINDS.map(k => [k.id, k.label]), kind.id, (v) => {
+        const next = QUICK_KINDS.find(k => k.id === v);
+        if (!next || next.id === kind.id) return;
+        q.lastByKind[kind.id] = q.formatId;
+        q.formatId = q.lastByKind[next.id] || next.formats[0][0];
+        q.deckId = ''; saveQuick(q); draw();
+      }, 'Kind of game')));
+      const fmtRow = segmented(kind.formats.map(([id, label]) => [id, label]), q.formatId, (v) => {
+        q.formatId = v; q.lastByKind[kind.id] = v; q.deckId = ''; saveQuick(q); draw();
+      }, 'Format');
+      fmtRow.classList.add('seg-wrap');
+      const fmtNow = MTG.formats.get ? MTG.formats.get(q.formatId) : null;
+      panel.appendChild(field('Format', fmtRow));
+      if (fmtNow && fmtNow.blurb) panel.appendChild(el('p', { class: 'quick-blurb small muted', text: fmtNow.blurb }));
+      const limited = kind.id === 'limited';
 
       // how many, and how good
       const opp = segmented(Array.from({ length: maxOpp() }, (x, i) => [i + 1, String(i + 1)]), q.opponents, (v) => {
@@ -560,10 +587,31 @@
             saveQuick(q); draw();
           },
         })));
-      panel.appendChild(el('div', { class: 'quick-pair' }, [
-        mine.length || starters.length ? field('Your deck', deckSel) : null,
-        q.deckId ? null : field(q.colors.length ? 'Your colours' : 'Your colours · any', colours),
-      ].filter(Boolean)));
+      if (!limited) {
+        panel.appendChild(el('div', { class: 'quick-pair' }, [
+          mine.length || starters.length ? field('Your deck', deckSel) : null,
+          q.deckId ? null : field(q.colors.length ? 'Your colours' : 'Your colours · any', colours),
+        ].filter(Boolean)));
+      } else {
+        /* A draft needs something to draft from: a set for boosters, a cube
+           for a cube, and nothing at all for chaos, which picks its own. */
+        const style = fmtNow && fmtNow.draft ? fmtNow.draft.style : '';
+        if (style === 'booster' || style === 'commander') {
+          const setSel = el('select', { 'aria-label': 'Set to draft' }, [el('option', { value: '', text: 'The newest set' })]);
+          MTG.scry.draftableSets().then((sets) => {
+            for (const st of sets.slice(0, 60)) setSel.appendChild(el('option', { value: st.code, text: st.name, selected: st.code === q.setCode }));
+          }).catch(() => {});
+          setSel.addEventListener('change', () => { q.setCode = setSel.value; saveQuick(q); });
+          panel.appendChild(field('Set', setSel));
+        } else if (style === 'cube') {
+          const cubeSel = el('select', { 'aria-label': 'Cube to draft' }, MTG.draft.recipes.map(r =>
+            el('option', { value: r.id, text: r.name, selected: r.id === q.cubeId })));
+          cubeSel.addEventListener('change', () => { q.cubeId = cubeSel.value; saveQuick(q); });
+          panel.appendChild(field('Cube', cubeSel));
+        } else if (style === 'chaos') {
+          panel.appendChild(el('p', { class: 'quick-blurb small muted', text: 'Every pack comes from a different random set.' }));
+        }
+      }
 
       const go = el('button', {
         class: 'btn primary hero-btn', html: `${SVG.play}<span>Play</span>`,
@@ -582,6 +630,7 @@
           App.quickGame({
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
+            setCode: q.setCode || '', cubeId: q.cubeId || 'modern',
           });
         },
       });
@@ -1540,6 +1589,7 @@
     const sess = App.session = new Session(App.formatId);
     sess.addLocalHost(App.myName);
     const me = sess.seat('me');
+    if (sess.fmt.kind === 'limited') return quickDraft(sess, opts);
     const busy = UI.busy('Quick game', 'Shuffling up a deck for you…');
     try {
       const deck = opts.deck || await MTG.bots.buildBotDeck({
@@ -1562,6 +1612,51 @@
       startLobby();
     }
   };
+
+  /**
+   * A quick draft: the seats filled with bots, something to draft from
+   * chosen for you (the newest set, or a cube built from one of the shipped
+   * recipes), and straight to the first pack. Everyone builds from what
+   * they took, the bots included, the same as a draft set up by hand.
+   */
+  async function quickDraft(sess, opts) {
+    const busy = UI.busy('Quick draft', 'Setting up the draft\u2026');
+    try {
+      const style = sess.fmt.draft.style;
+      if (style === 'booster' || style === 'commander') {
+        let code = opts.setCode || '';
+        if (!code) { const sets = await MTG.scry.draftableSets(); code = sets.length ? sets[0].code : ''; }
+        if (!code) throw new Error('No set could be found to draft. Check the connection, or download the card database in Options.');
+        sess.setCode = code;
+      } else if (style === 'cube') {
+        const recipe = MTG.draft.recipes.find(r => r.id === opts.cubeId) || MTG.draft.recipes.find(r => r.id === 'modern') || MTG.draft.recipes[0];
+        // a cube built before is reused rather than gathered again
+        const had = MTG.draft.cubes.list().find(c => c.recipe === recipe.id);
+        let cube = had ? await MTG.draft.cubes.load(had.id) : null;
+        if (!cube || (cube.cards || []).length < 30) {
+          const cards = await MTG.draft.buildRecipe(recipe, {
+            onProgress: (a, b, label) => busy.set(a / b, `${recipe.name}: ${label} \u2014 ${a}/${b} cards`),
+          });
+          if (cards.length < 30) throw new Error('Could not gather enough cards to build that cube.');
+          const saved = MTG.draft.cubes.save({ id: had ? had.id : MTG.uid('cube'), name: recipe.name, recipe: recipe.id,
+            cards, packSize: recipe.packSize, packs: 3 });
+          cube = Object.assign({}, saved, { cards });
+        }
+        sess.cube = cube;
+        sess.packSize = cube.packSize || 15;
+      }
+      const count = U.clamp(opts.opponents || 1, 1, Math.min(7, (sess.fmt.maxPlayers || 8) - 1));
+      for (let i = 0; i < count; i++) sess.addBot(opts.difficulty || 5);
+      const ready = sess.readyToStart();
+      if (!ready.ok) throw new Error(ready.reason);
+      busy.close();
+      await sess.start();
+    } catch (e) {
+      busy.close();
+      UI.error(e.message || String(e));
+      startLobby();
+    }
+  }
 
   /**
    * A guided first game: a starter deck the game runs in full, one gentle

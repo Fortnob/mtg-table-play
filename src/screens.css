@@ -202,6 +202,10 @@ select option { background: #151922; color: var(--ink); }
 }
 :root[data-theme="light"] .seg-btn.on { color: #fffaf0; background: linear-gradient(180deg, #b5901f, #94700f); }
 .seg.seg-count .seg-btn { min-width: 38px; padding-left: 10px; padding-right: 10px; }
+/* a row of formats wraps rather than hiding the last few off the edge */
+.seg.seg-wrap { display: flex; flex-wrap: wrap; overflow: visible; }
+.seg.seg-wrap .seg-btn { flex: 1 1 auto; }
+.quick-blurb { margin: -4px 0 12px; line-height: 1.45; max-width: 46ch; }
 
 /* a switch for anything that is on or off */
 input[type=checkbox].switch {
