@@ -331,7 +331,8 @@
         const o = it.obj || null;
         this._ev(it.kind === 'spell' ? 'cast' : trigger ? 'trigger' : 'activate', {
           stackId: it.id, objId: it.objId || null, controller: it.controller, name: it.name,
-          card: o ? o.card : null, faceDown: !!(o && o.faceDown && it.kind === 'spell'),
+          // a face-down spell, or an ability of a face-down permanent, is its controller's to read
+          card: o ? o.card : null, faceDown: !!(o && o.faceDown),
           targets: plainTargets(it.targets), copy: !!it.isCopy || undefined,
           text: it.kind !== 'spell' ? (it.abilityText || null) : undefined,
         });
