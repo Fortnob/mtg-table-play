@@ -93,6 +93,30 @@ module.exports = (test) => {
     t.ok(choice.cost.tap, 'and a tap');
   });
 
+  test('XMage: Inquisition of Kozilek only offers nonland cards of mana value 3 or less', (mk, t) => {
+    generated(t, 'Inquisition of Kozilek');
+    const T = mk();
+    const small = T.hand('B', 'Lightning Bolt');
+    T.hand('B', 'Craw Wurm'); T.hand('B', 'Island');
+    T.mana('A', 'B');
+    T.answer('pickCard', (ch) => { t.eq(ch.cards.length, 1, 'only the Bolt is offered'); return { cardIds: [small.id] }; });
+    T.cast('A', T.hand('A', 'Inquisition of Kozilek'), { targets: ['B'] });
+    t.zone(small, 'graveyard');
+    t.eq(T.zone('B', 'hand').length, 2);
+  });
+
+  test('XMage: Mutavault becomes a 2/2 creature until end of turn', (mk, t) => {
+    generated(t, 'Mutavault');
+    const T = mk();
+    const vault = T.bf('A', 'Mutavault');
+    T.mana('A', '1');
+    // mana abilities are counted first
+    T.activate('A', vault, vault.analysis().manaAbilities.length);
+    t.ok(T.g.characteristics(vault).isCreature, 'a creature now');
+    t.eq(T.g.powerOf(vault), 2);
+    t.ok(vault.analysis().isLand, 'still a land');
+  });
+
   test('XMage: Mishra\'s Factory pumps an Assembly-Worker, and only that', (mk, t) => {
     generated(t, "Mishra's Factory");
     const a = engine().oracle.analyze(card("Mishra's Factory"));

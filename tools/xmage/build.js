@@ -36,6 +36,7 @@ require('./tr/effects');
 const AB = require('./tr/abilities');
 const MORE = require('./tr/more');
 const MORE2 = require('./tr/more2');
+require('./tr/more3');
 const fw = require('./framework');
 const V = require('./verify');
 
@@ -119,6 +120,7 @@ function main() {
 
   const lib = {};               // name -> { lines: { hash: [abilities] } }
   const blockers = new Map();   // what -> { score, cards: [], lines }
+  const sole = new Map();       // what -> cards it alone blocks
   const stats = { cards: 0, withClass: 0, skippedLayout: 0, needed: 0, gainedCards: 0, linesNeeded: 0, linesGained: 0,
     gained: { all: 0, top2000: 0, stdTop: 0 }, compare: { same: 0, differ: 0, lines: 0 }, verifyFail: 0 };
   const gainedNames = [];
@@ -228,6 +230,15 @@ function main() {
       if (Object.keys(out).length) lib[face.name] = { lines: out };
     }
     if (needed) cardWhyAll(card, r, cardWhy);
+    /* What alone stands between this card and being complete: those are
+       the constructs that finish cards, not just lines. */
+    if (needed && cardWhy.length && new Set(cardWhy).size === 1) {
+      const what = cardWhy[0];
+      if (!sole.has(what)) sole.set(what, { what, score: 0, cards: 0, names: [] });
+      const x = sole.get(what);
+      x.score += w; x.cards++;
+      if (x.names.length < 6) x.names.push(card.name);
+    }
     if (needed && allFixed && failedCount) {
       stats.gainedCards++;
       stats.gained.all++;
@@ -246,10 +257,17 @@ function main() {
   if (flag('compare')) console.log(`compared with the parser on ${stats.compare.lines} lines: ${stats.compare.same} agree, ${stats.compare.differ} differ`);
   console.log(`\nblockers by weighted lines (score, lines, construct, example cards):`);
   for (const b of ranked.slice(0, show)) console.log(`  ${String(b.score).padStart(6)} ${String(b.lines).padStart(5)}  ${b.what}   [${b.cards.slice(0, 4).join('; ')}]`);
+  const soleRanked = [...sole.values()].sort((a, b) => b.score - a.score);
+  if (flag('sole')) {
+    console.log(`
+constructs that alone block a card (score, cards, construct):`);
+    for (const b of soleRanked.slice(0, show)) console.log(`  ${String(b.score).padStart(6)} ${String(b.cards).padStart(5)}  ${b.what}   [${b.names.slice(0, 3).join('; ')}]`);
+  }
   fs.writeFileSync(path.join(__dirname, 'blockers.json'), JSON.stringify({
     generated: new Date().toISOString().slice(0, 10), stats,
     weights: 'per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500',
     blockers: ranked.slice(0, 500),
+    sole: soleRanked.slice(0, 300),
   }, null, 1));
   const outDir = path.join(ROOT, 'tools', 'out');
   fs.mkdirSync(outDir, { recursive: true });

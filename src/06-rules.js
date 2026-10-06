@@ -7675,6 +7675,13 @@
           break;
         }
         case 'untapAll':
+          /* "Untap all Birds and Frogs you control": a group described the
+             way a static ability describes one */
+          if (e.scope && typeof e.scope === 'object') {
+            for (const o of this._scopeList(e.scope, ctx.controller, src)) o.tapped = false;
+            this.emit('sfx', 'untap_all');
+            break;
+          }
           for (const o of this.battlefield) {
             if (o.controller !== ctx.controller) continue;
             const a = o.analysis();
@@ -10153,6 +10160,8 @@
           const hand = this.zones[victim.id].hand.filter(o => {
             const a = o.analysis();
             if (!a) return false;
+            // Inquisition of Kozilek: "with mana value 3 or less"
+            if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > e.maxMv) return false;
             return want.every((w) => {
               switch (w) {
                 case 'card': case 'any': return true;
