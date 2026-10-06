@@ -3013,7 +3013,12 @@
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;
         case 'encore': g.encoreCard(actorId, intent.objId, { auto: true }); break;
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
-        case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: true }); break;
+        /* A cost paid with cards (sacrifice this, discard that) can be chosen up
+           front, the way a bot does it; the engine still checks each pick
+           against what the cost allows, and asks for anything left over. */
+        case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: true,
+          sacrificeIds: Array.isArray(intent.sacrificeIds) ? intent.sacrificeIds.slice(0, 20).map(String) : undefined,
+          discardIds: Array.isArray(intent.discardIds) ? intent.discardIds.slice(0, 20).map(String) : undefined }); break;
         case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0, intent.choice); break;
         case 'declareAttackers': g.declareAttackers(actorId, intent.declarations || []); break;
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
