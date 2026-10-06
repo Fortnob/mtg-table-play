@@ -980,6 +980,14 @@
         p.energy ? ['', `⚡ ${p.energy}`, 'Energy'] : null,
         p.experience ? ['', `★ ${p.experience}`, 'Experience counters'] : null,
       ].filter(Boolean);
+      // a dungeon: which room they are in, and how many they have finished
+      const done = typeof p.dungeonsCompleted === 'number' ? p.dungeonsCompleted : (p.dungeonsCompleted || []).length;
+      if (p.dungeon) {
+        flags.push(['dungeon', `⛫ ${p.dungeon.room}`,
+          `In ${p.dungeon.name}, at ${p.dungeon.room}` + (done ? ` · ${done} dungeon${done === 1 ? '' : 's'} completed` : '')]);
+      } else if (done) {
+        flags.push(['dungeon', `⛫ ${done} done`, `${done} dungeon${done === 1 ? '' : 's'} completed`]);
+      }
       const cmdDmg = Object.entries(p.commanderDamage || {}).filter(([, n]) => n > 0);
       for (const [cid, n] of cmdDmg) {
         const o = this.objIn(cid);

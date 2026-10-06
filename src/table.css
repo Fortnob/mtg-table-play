@@ -261,6 +261,7 @@
 .hud-flags .flag { font: 600 11px/1.6 var(--font); padding: 0 8px; border-radius: 99px; white-space: nowrap;
   background: rgba(20,24,32,.9); border: 1px solid rgba(255,255,255,.14); color: #dfe5ef; }
 .hud-flags .flag.crown, .hud-flags .flag.init { color: var(--gold-hi); border-color: rgba(212,175,71,.5); }
+.hud-flags .flag.dungeon { color: #d8c3ff; border-color: rgba(170,140,240,.45); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-flags .flag.bad, .hud-flags .flag.cmd { color: #ffb0a6; border-color: rgba(255,107,92,.45); }
 .hud-flags .flag.pool .pip { width: 16px; height: 16px; font-size: 10px; }
 .ohand { display: flex; align-items: center; padding-left: 24px; position: relative; min-width: 30px; height: 56px; }
