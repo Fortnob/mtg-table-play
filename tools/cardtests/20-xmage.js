@@ -375,4 +375,44 @@ module.exports = (test) => {
     t.eq(theirs.goadedBy, 'A');
     t.no(mine.goadedBy, 'not my own');
   });
+
+  test('XMage: Battlegrace Angel gives lifelink to a creature attacking alone', (mk, t) => {
+    generated(t, 'Battlegrace Angel');
+    const T = mk();
+    T.bf('A', 'Battlegrace Angel');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 17, 'exalted: 3 damage');
+    t.eq(T.life('A'), 23, 'lifelink');
+  });
+
+  test('Attacking alone: not with two attackers (Battlegrace Angel)', (mk, t) => {
+    const T = mk();
+    const angel = T.bf('A', 'Battlegrace Angel');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: angel.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 14, '2 + 4, no exalted');
+    t.eq(T.life('A'), 20, 'no lifelink for either');
+  });
+
+  test('XMage: Swamp Mosquito poisons the defending player when unblocked', (mk, t) => {
+    generated(t, 'Swamp Mosquito');
+    const T = mk();
+    const m = T.bf('A', 'Swamp Mosquito');
+    T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.player('B').poison, 1);
+  });
+
+  test('Attacks and is not blocked: nothing when blocked (Swamp Mosquito)', (mk, t) => {
+    const T = mk();
+    const m = T.bf('A', 'Swamp Mosquito');
+    const bird = T.bf('B', 'Birds of Paradise');
+    T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bird.id, attackerIds: [m.id] }]);
+    T.toMain('A', 'endCombat');
+    t.no(T.player('B').poison, 'blocked: no poison');
+  });
 };

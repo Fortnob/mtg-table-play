@@ -70,7 +70,7 @@ function aim(o, tc, want) {
 }
 
 /** A player target for an effect: { who: 'target', targets? } */
-const TRIGGER_PLAYER_OPS = new Set(['draw', 'discard', 'mill', 'loseLife', 'sacrificeChoice']);
+const TRIGGER_PLAYER_OPS = new Set(['draw', 'discard', 'mill', 'loseLife', 'sacrificeChoice', 'poison']);
 function aimPlayer(o, tc, op) {
   const a = aim(o, tc, 'player');
   if (a.pointer === 'you') return { who: 'you' };

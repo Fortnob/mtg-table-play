@@ -175,4 +175,63 @@ def('effect', 'GoadAllEffect', (o, tc) => {
   return { op: 'goad', scope: F.toScope(F.describe(f, tc)) };
 });
 
+/* "Creature spells you cast cost {1} less to cast", "Noncreature spells
+   cost {1} more to cast": a standing change to what spells cost. */
+function spellWords(f, tc) {
+  const d = F.describe(f, tc);
+  const w = F.toWords(d);
+  return w === 'card' || w === 'spell' ? '' : w.replace(/ card/g, '');
+}
+def('effect', 'SpellsCostReductionControllerEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (!tc.inStatic) block('cost reduction outside a static');
+  const f = o.args[0], k = o.args[1];
+  if (o.args.length !== 2 || kindOf(f) !== 'filter' || kindOf(k) !== 'int') block('cost reduction shape');
+  return { op: 'taxSpells', amount: -k.v, filter: spellWords(f, tc), who: 'you' };
+});
+def('effect', 'SpellsCostReductionAllEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (!tc.inStatic) block('cost reduction outside a static');
+  const f = o.args[0], k = o.args[1];
+  if (o.args.length !== 2 || kindOf(f) !== 'filter' || kindOf(k) !== 'int') block('cost reduction shape');
+  return { op: 'taxSpells', amount: -k.v, filter: spellWords(f, tc), who: 'all' };
+});
+def('effect', 'SpellsCostIncreasingAllEffect', (o, tc) => {
+  E.checkCalls(o);
+  if (!tc.inStatic) block('cost increase outside a static');
+  const [k, f, who] = o.args;
+  if (o.args.length !== 3 || kindOf(k) !== 'int' || kindOf(f) !== 'filter' || !who || who.t !== 'ref') block('cost increase shape');
+  const w = { 'TargetController.ANY': 'all', 'TargetController.OPPONENT': 'opponents', 'TargetController.YOU': 'you' }[who.path];
+  if (!w) block('cost increase for ' + who.path);
+  return { op: 'taxSpells', amount: k.v, filter: spellWords(f, tc), who: w };
+});
+
+/* "Whenever this creature attacks and isn't blocked": the defending player
+   is the one it points at. */
+def('ability', 'AttacksAndIsNotBlockedTriggeredAbility', (o, tc) =>
+  AB.triggered(o, tc, { event: 'attacksUnblocked', self: true, optional: A(o).bool(0, false), pointer: AB.pointerArg(o) }));
+
+def('effect', 'AddPoisonCounterTargetEffect', (o, tc) => {
+  E.checkCalls(o);
+  const k = o.args[0];
+  if (o.args.length !== 1 || kindOf(k) !== 'int') block('poison counters counted');
+  return Object.assign({ op: 'poison', n: k.v }, E.aimPlayer(o, tc, 'poison'));
+});
+
+/* "Whenever a creature you control attacks alone": the attacker is the
+   permanent it points at when it says so. */
+def('ability', 'AttacksAloneControlledTriggeredAbility', (o, tc) => {
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  const d = F.describe(f || { t: 'ref', path: 'StaticFilters.FILTER_CONTROLLED_A_CREATURE' }, tc);
+  const bools = A(o).all('bool').map(x => x.v);
+  // (setTargetPointer, optional), or (optional) alone
+  const pointer = bools.length >= 2 ? bools[0] : false;
+  const optional = bools.length >= 2 ? bools[1] : !!bools[0];
+  return AB.triggered(o, tc, { event: 'attacksAlone', objFilter: F.toSubject(d), optional, pointer: pointer ? 'permanent' : null });
+});
+def('ability', 'AttacksAloneSourceTriggeredAbility', (o, tc) => {
+  if (o.args.length !== 1) block('attacks alone with more');
+  return AB.triggered(o, tc, { event: 'attacksAlone', self: true, optional: false, pointer: 'player' });
+});
+
 module.exports = {};

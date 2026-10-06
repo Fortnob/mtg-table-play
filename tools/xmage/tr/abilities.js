@@ -133,7 +133,7 @@ def('ability', 'SimpleStaticAbility', (o, tc) => {
   try {
     const effects = [];
     for (const e of [first].concat(parts.effects)) effects.push(...E.effect(e, tc));
-    for (const e of effects) if (e.op !== 'continuous' && e.op !== 'noMaxHandSize') block('static ' + e.op);
+    for (const e of effects) if (!['continuous', 'noMaxHandSize', 'taxSpells'].includes(e.op)) block('static ' + e.op);
     if (zone === 'ALL' && !effects.every(e => e.cda)) block('static ability in ALL');
     return { kind: 'static', auto: true, effects };
   } finally { tc.inStatic = false; tc.inCda = false; }

@@ -3647,6 +3647,13 @@
       }
       this._fire('youAttack', pid, { attackers });
       this._fire('yourCreatureAttacks', pid, { attackers });
+      /* "Whenever a creature you control attacks alone" (exalted's cousins):
+         the only creature declared as an attacker this combat */
+      if (attackers.length === 1 && attackers[0]) {
+        const at = attackers[0], d = at.attacking;
+        this._fire('attacksAlone', null, { object: at, objController: at.controller, attacker: at, source: at,
+          player: this.player(d) ? d : (this.obj(d) || {}).controller });
+      }
     }
 
     /** Afflict fires when a creature becomes blocked (CR 702.131). */
@@ -5056,6 +5063,15 @@
     }
 
     _finishBlockers() {
+      /* "Whenever this creature attacks and isn't blocked": once blockers
+         are declared, each attacker nobody blocked (CR 509.1h). */
+      for (const aid of this.combat.attackers) {
+        const at = this.obj(aid);
+        if (!at || at.zone !== 'battlefield' || at.blockedBy.length) continue;
+        const d = at.attacking;
+        this._fire('attacksUnblocked', at.controller, { source: at, object: at, attacker: at,
+          player: this.player(d) ? d : (this.obj(d) || {}).controller });
+      }
       this.checkStateBasedActions();
       this._givePriority(this.activeIndex);
     }
@@ -9297,7 +9313,10 @@
         case 'shuffleInsteadOfGrave':
           break;   // standing rules, read where they matter
         case 'poison': {
-          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : [firstPlayer()].filter(Boolean);
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            // "defending player gets a poison counter": whoever the trigger was about
+            : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
+            : [firstPlayer()].filter(Boolean);
           for (const p of who) this.addPoison(p, n(e.n) || 1);
           break;
         }

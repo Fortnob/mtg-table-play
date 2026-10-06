@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 18234,
-  "gainedCards": 1917,
-  "linesNeeded": 21007,
-  "linesGained": 2541,
+  "needed": 18202,
+  "gainedCards": 1930,
+  "linesNeeded": 20974,
+  "linesGained": 2556,
   "gained": {
-   "all": 1917,
+   "all": 1930,
    "top2000": 51,
    "stdTop": 15
   },
@@ -20,12 +20,12 @@
   },
   "verifyFail": 89,
   "overrides": {
-   "it": 169,
+   "it": 183,
    "drain": 62,
    "count": 40,
    "group": 26,
    "x": 5,
-   "opponent": 66,
+   "opponent": 67,
    "subtype": 9,
    "condition": 3
   }
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 6105,
-   "lines": 5064,
+   "score": 6112,
+   "lines": 5071,
    "cards": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 814,
-   "lines": 814,
+   "score": 813,
+   "lines": 813,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -394,25 +394,6 @@
    ]
   },
   {
-   "what": "SpellsCostReductionControllerEffect",
-   "score": 49,
-   "lines": 43,
-   "cards": [
-    "Goreclaw, Terror of Qal Sisma",
-    "Morophon, the Boundless",
-    "It That Heralds the End",
-    "Conduit of Ruin",
-    "Ancient Cellarspawn",
-    "Doc Aurlock, Grizzled Genius",
-    "The Ur-Dragon",
-    "Emet-Selch of the Third Seat",
-    "Eluge, the Shoreless Sea",
-    "Thryx, the Sudden Storm",
-    "Shadow in the Warp",
-    "Warden of Evos Isle"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 46,
    "lines": 37,
@@ -658,8 +639,8 @@
   },
   {
    "what": "AttachEffect",
-   "score": 36,
-   "lines": 24,
+   "score": 37,
+   "lines": 25,
    "cards": [
     "The Aetherspark",
     "Hero's Blade",
@@ -672,7 +653,7 @@
     "Brilliant Wings",
     "Cloak and Dagger",
     "Diviner's Wand",
-    "Obsidian Battle-Axe"
+    "Ancestral Katana"
    ]
   },
   {
@@ -808,25 +789,6 @@
    ]
   },
   {
-   "what": "AttacksAloneControlledTriggeredAbility",
-   "score": 32,
-   "lines": 32,
-   "cards": [
-    "Squall, SeeD Mercenary",
-    "Ironsoul Enforcer",
-    "Raiyuu, Storm's Edge",
-    "Selfless Samurai",
-    "Derelict Attic // Widow's Walk",
-    "Finest Hour",
-    "Spider-Man Noir",
-    "Heiko Yamazaki, the General",
-    "Team Avatar",
-    "Angelic Exaltation",
-    "Altar of the Goyf",
-    "Seifer Almasy"
-   ]
-  },
-  {
    "what": "keyword ExertAbility",
    "score": 31,
    "lines": 28,
@@ -862,25 +824,6 @@
     "Barrowin of Clan Undurr",
     "Fates' Reversal",
     "Eccentric Apprentice"
-   ]
-  },
-  {
-   "what": "AttacksAndIsNotBlockedTriggeredAbility",
-   "score": 31,
-   "lines": 31,
-   "cards": [
-    "Guiltfeeder",
-    "Cybermat",
-    "Thalakos Deceiver",
-    "Wildfire Eternal",
-    "Eternal of Harsh Truths",
-    "Swamp Mosquito",
-    "Elusive Tormentor // Insidious Mist",
-    "Suq'Ata Assassin",
-    "Kukemssa Pirates",
-    "Dauthi Mindripper",
-    "Bone Dancer",
-    "Goblin Vandal"
    ]
   },
   {
@@ -1500,6 +1443,25 @@
    ]
   },
   {
+   "what": "words:mv",
+   "score": 24,
+   "lines": 21,
+   "cards": [
+    "Up the Beanstalk",
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Helga, Skittish Seer",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Delivery Moogle",
+    "Bygone Bishop",
+    "Runadi, Behemoth Caller",
+    "Kalemne, Disciple of Iroas",
+    "Urza Assembles the Titans",
+    "Collected Company"
+   ]
+  },
+  {
    "what": "YouDontLoseManaEffect",
    "score": 24,
    "lines": 6,
@@ -2007,6 +1969,25 @@
    ]
   },
   {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "The Tarrasque",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Genestealer Patriarch",
+    "Decimator Beetle",
+    "Spring Splasher"
+   ]
+  },
+  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -2177,25 +2158,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 20,
-   "lines": 17,
-   "cards": [
-    "Up the Beanstalk",
-    "Kozilek's Unsealing",
-    "Helga, Skittish Seer",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Runadi, Behemoth Caller",
-    "Kalemne, Disciple of Iroas",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Recruitment Officer",
-    "Gandalf, Westward Voyager"
-   ]
-  },
-  {
    "what": "that card",
    "score": 20,
    "lines": 11,
@@ -2211,24 +2173,6 @@
     "Garland, Knight of Cornelia // Chaos, the Endless",
     "Fell Horseman // Deathly Ride",
     "Yomiji, Who Bars the Way"
-   ]
-  },
-  {
-   "what": "SpellsCostIncreasingAllEffect",
-   "score": 20,
-   "lines": 11,
-   "cards": [
-    "Aven Interrupter",
-    "Tax Collector",
-    "Anointed Peacekeeper",
-    "Alabaster Leech",
-    "High Seas",
-    "Irini Sengir",
-    "Sapphire Leech",
-    "Ruby Leech",
-    "Andradite Leech",
-    "Derelor",
-    "Jade Leech"
    ]
   },
   {
@@ -2525,25 +2469,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Genestealer Patriarch",
-    "Decimator Beetle",
-    "Spring Splasher"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -2662,6 +2587,25 @@
     "Graceful Takedown",
     "Fencer's Magemark",
     "Time Elemental"
+   ]
+  },
+  {
+   "what": "CastFromZonePredicate",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Passionate Archaeologist",
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Rivaz of the Claw",
+    "Emet-Selch of the Third Seat",
+    "Flaming Tyrannosaurus",
+    "Keeper of Secrets",
+    "Gravebreaker Lamia",
+    "Norman Osborn // Green Goblin",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser"
    ]
   },
   {
@@ -3995,6 +3939,21 @@
    ]
   },
   {
+   "what": "words:power",
+   "score": 14,
+   "lines": 8,
+   "cards": [
+    "Goreclaw, Terror of Qal Sisma",
+    "Gwenna, Eyes of Gaea",
+    "Monstrous Vortex",
+    "Sarkhan's Unsealing",
+    "Living Phone",
+    "Militia Bugler",
+    "Mayael the Anima",
+    "Squad Rallier"
+   ]
+  },
+  {
    "what": "RegenerateTargetEffect",
    "score": 14,
    "lines": 11,
@@ -4166,24 +4125,6 @@
     "Garruk's Harbinger",
     "Silent Submersible",
     "Storm the Citadel"
-   ]
-  },
-  {
-   "what": "CastFromZonePredicate",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Flaming Tyrannosaurus",
-    "Keeper of Secrets",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Invasion of Arcavios // Invocation of the Founders",
-    "Mizzix, Replica Rider"
    ]
   },
   {
@@ -5478,25 +5419,6 @@
    ]
   },
   {
-   "what": "AttacksAloneSourceTriggeredAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Idolized",
-    "Grunn, the Lonely King",
-    "Nefarox, Overlord of Grixis",
-    "Intrepid Trufflesnout // Go Hog Wild",
-    "Luke Cage, Power Man",
-    "Voltaic Whip",
-    "Bob, Reluctant HYDRA Agent",
-    "Ma Chao, Western Warrior",
-    "Rogue Kavu",
-    "Lunk Errant",
-    "Yuan Shao's Infantry",
-    "Reckless Ogre"
-   ]
-  },
-  {
    "what": "fight targets",
    "score": 12,
    "lines": 12,
@@ -5646,6 +5568,25 @@
     "Ghost Hounds",
     "Dread Specter",
     "Rock Basilisk"
+   ]
+  },
+  {
+   "what": "CastFromHandForFreeEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Lady Octopus, Inspired Inventor",
+    "Maelstrom Archangel",
+    "Coveted Prize",
+    "Founding the Third Path",
+    "Epistolary Librarian",
+    "West Coast Expansion",
+    "Gandalf, Party Guest",
+    "Wildfire Eternal",
+    "Surtland Elementalist",
+    "Oracle of Bones",
+    "Omnispell Adept",
+    "Twinning Glass"
    ]
   },
   {
@@ -5960,6 +5901,15 @@
    ]
   },
   {
+   "what": "or of CastFromZonePredicate",
+   "score": 11,
+   "lines": 2,
+   "cards": [
+    "Aven Interrupter",
+    "Doc Aurlock, Grizzled Genius"
+   ]
+  },
+  {
    "what": "delayed AddCounterNextSpellDelayedTriggeredAbility",
    "score": 11,
    "lines": 2,
@@ -6095,6 +6045,24 @@
    ]
   },
   {
+   "what": "words:withKeyword",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Pick Your Poison",
+    "Warden of Evos Isle",
+    "Watcher of the Spheres",
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder",
+    "Radiant, Serra Archangel",
+    "Hidden Spider",
+    "Clip Wings",
+    "Run Afoul"
+   ]
+  },
+  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 11,
    "lines": 11,
@@ -6200,24 +6168,6 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
-   ]
-  },
-  {
-   "what": "CastFromHandForFreeEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Lady Octopus, Inspired Inventor",
-    "Maelstrom Archangel",
-    "Coveted Prize",
-    "Founding the Third Path",
-    "Epistolary Librarian",
-    "West Coast Expansion",
-    "Gandalf, Party Guest",
-    "Surtland Elementalist",
-    "Oracle of Bones",
-    "Omnispell Adept",
-    "Twinning Glass"
    ]
   },
   {
@@ -6540,6 +6490,20 @@
    ]
   },
   {
+   "what": "cost reduction shape",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Morophon, the Boundless",
+    "Eluge, the Shoreless Sea",
+    "Avatar Aang // Aang, Master of Elements",
+    "Golden-Tail Trainer",
+    "Edgewalker",
+    "Samut, the Driving Force",
+    "Ragemonger"
+   ]
+  },
+  {
    "what": "ManaValueEqualToCountersSourceCountPredicate",
    "score": 10,
    "lines": 7,
@@ -6551,20 +6515,6 @@
     "The Filigree Sylex",
     "Powder Keg",
     "Wave of Terror"
-   ]
-  },
-  {
-   "what": "words:power",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Gwenna, Eyes of Gaea",
-    "Monstrous Vortex",
-    "Sarkhan's Unsealing",
-    "Living Phone",
-    "Militia Bugler",
-    "Mayael the Anima",
-    "Squad Rallier"
    ]
   },
   {
@@ -7186,6 +7136,23 @@
     "Noggin Whack",
     "Gruesome Discovery",
     "Pulse of the Dross"
+   ]
+  },
+  {
+   "what": "AssignNoCombatDamageSourceEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Goblin Vandal",
+    "Laccolith Whelp",
+    "Ophidian",
+    "Dwarven Vigilantes",
+    "Lim-Dûl's Paladin",
+    "Farrel's Zealot",
+    "Laccolith Titan",
+    "Laccolith Warrior",
+    "Laccolith Grunt",
+    "Keeper of Tresserhorn"
    ]
   },
   {
@@ -8089,21 +8056,6 @@
    ]
   },
   {
-   "what": "words:withKeyword",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Pick Your Poison",
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings",
-    "Radiant, Serra Archangel",
-    "Hidden Spider",
-    "Clip Wings",
-    "Run Afoul"
-   ]
-  },
-  {
    "what": "ReturnFromGraveyardAtRandomEffect",
    "score": 8,
    "lines": 8,
@@ -8503,13 +8455,43 @@
     "Goblin Ski Patrol",
     "Subversive Acolyte"
    ]
+  },
+  {
+   "what": "ConditionalOneShotEffect without a condition",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Coalition Victory",
+    "Omnivorous Flytrap",
+    "Lyzolda, the Blood Witch",
+    "Sift Through Sands",
+    "Dream Thief",
+    "Shape of the Wiitigo",
+    "Bring Low",
+    "Wiitigo"
+   ]
+  },
+  {
+   "what": "PhaseOutSourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Hostile Hostel // Creeping Inn",
+    "Renegade Silent",
+    "Blink Dog",
+    "Dream Fighter",
+    "Mist Dragon",
+    "Crystal Golem",
+    "Rainbow Efreet",
+    "Teferi's Honor Guard"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4751,
-   "cards": 3977,
+   "score": 4758,
+   "cards": 3984,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8833,8 +8815,8 @@
   },
   {
    "what": "UnlockThisDoorTriggeredAbility",
-   "score": 31,
-   "cards": 16,
+   "score": 32,
+   "cards": 17,
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Funeral Room // Awakening Hall",
@@ -8868,45 +8850,6 @@
     "Prehistoric Pet",
     "Ant-Man, Elusive Avenger",
     "Exit Specialist"
-   ]
-  },
-  {
-   "what": "AttacksAloneControlledTriggeredAbility",
-   "score": 30,
-   "cards": 30,
-   "names": [
-    "Squall, SeeD Mercenary",
-    "Ironsoul Enforcer",
-    "Raiyuu, Storm's Edge",
-    "Selfless Samurai",
-    "Finest Hour",
-    "Spider-Man Noir"
-   ]
-  },
-  {
-   "what": "AttacksAndIsNotBlockedTriggeredAbility",
-   "score": 30,
-   "cards": 30,
-   "names": [
-    "Guiltfeeder",
-    "Cybermat",
-    "Thalakos Deceiver",
-    "Wildfire Eternal",
-    "Eternal of Harsh Truths",
-    "Swamp Mosquito"
-   ]
-  },
-  {
-   "what": "SpellsCostReductionControllerEffect",
-   "score": 29,
-   "cards": 23,
-   "names": [
-    "Goreclaw, Terror of Qal Sisma",
-    "Morophon, the Boundless",
-    "Conduit of Ruin",
-    "The Ur-Dragon",
-    "Thryx, the Sudden Storm",
-    "Shadow in the Warp"
    ]
   },
   {
@@ -9298,6 +9241,19 @@
    ]
   },
   {
+   "what": "AttachEffect",
+   "score": 20,
+   "cards": 17,
+   "names": [
+    "Hero's Blade",
+    "Shielded by Faith",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Doc Ock's Tentacles",
+    "Brilliant Wings"
+   ]
+  },
+  {
    "what": "delayed CopyNextSpellDelayedTriggeredAbility",
    "score": 20,
    "cards": 14,
@@ -9373,19 +9329,6 @@
     "Turn Aside",
     "Avoid Fate",
     "Confound"
-   ]
-  },
-  {
-   "what": "AttachEffect",
-   "score": 19,
-   "cards": 16,
-   "names": [
-    "Hero's Blade",
-    "Shielded by Faith",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Doc Ock's Tentacles",
-    "Brilliant Wings"
    ]
   },
   {
@@ -9545,6 +9488,19 @@
    ]
   },
   {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 18,
+   "cards": 18,
+   "names": [
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders"
+   ]
+  },
+  {
    "what": "DamageTargetControllerEffect",
    "score": 18,
    "cards": 18,
@@ -9568,6 +9524,19 @@
     "Lupine Prototype",
     "Hazoret, Godseeker",
     "Technodrome"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 17,
+   "cards": 14,
+   "names": [
+    "Up the Beanstalk",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Delivery Moogle",
+    "Bygone Bishop",
+    "Collected Company"
    ]
   },
   {
@@ -9855,19 +9824,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders"
-   ]
-  },
-  {
    "what": "two types at once",
    "score": 15,
    "cards": 15,
@@ -9920,6 +9876,19 @@
    ]
   },
   {
+   "what": "words:power",
+   "score": 14,
+   "cards": 8,
+   "names": [
+    "Goreclaw, Terror of Qal Sisma",
+    "Gwenna, Eyes of Gaea",
+    "Monstrous Vortex",
+    "Sarkhan's Unsealing",
+    "Living Phone",
+    "Militia Bugler"
+   ]
+  },
+  {
    "what": "ManaSpentToCastPredicate",
    "score": 14,
    "cards": 8,
@@ -9956,19 +9925,6 @@
     "Dewdrop Spy",
     "Draugr Thought-Thief",
     "Lurking Informant"
-   ]
-  },
-  {
-   "what": "words:mv",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Up the Beanstalk",
-    "Kozilek's Unsealing",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Collected Company",
-    "Recruitment Officer"
    ]
   },
   {
@@ -10336,6 +10292,19 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Passionate Archaeologist",
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Flaming Tyrannosaurus",
+    "Keeper of Secrets",
+    "Gravebreaker Lamia"
+   ]
+  },
+  {
    "what": "custom cost",
    "score": 13,
    "cards": 13,
@@ -10658,6 +10627,19 @@
    ]
   },
   {
+   "what": "MayCastTargetCardEffect",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Torrential Gearhulk",
+    "Memory Plunder",
+    "Arcane Heist",
+    "Impulsivity",
+    "Goblin Dark-Dwellers",
+    "Quistis Trepe"
+   ]
+  },
+  {
    "what": "RegenerateSourceEffect",
    "score": 12,
    "cards": 12,
@@ -10694,19 +10676,6 @@
     "Coalstoke Gearhulk",
     "From the Catacombs",
     "Zoraline, Cosmos Caller"
-   ]
-  },
-  {
-   "what": "AttacksAloneSourceTriggeredAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Idolized",
-    "Grunn, the Lonely King",
-    "Nefarox, Overlord of Grixis",
-    "Intrepid Trufflesnout // Go Hog Wild",
-    "Luke Cage, Power Man",
-    "Voltaic Whip"
    ]
   },
   {
@@ -10987,19 +10956,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Flaming Tyrannosaurus",
-    "Keeper of Secrets",
-    "Kellan, the Kid"
-   ]
-  },
-  {
    "what": "EntersBattlefieldEffect",
    "score": 11,
    "cards": 11,
@@ -11088,19 +11044,6 @@
    ]
   },
   {
-   "what": "MayCastTargetCardEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Torrential Gearhulk",
-    "Memory Plunder",
-    "Arcane Heist",
-    "Impulsivity",
-    "Goblin Dark-Dwellers",
-    "Quistis Trepe"
-   ]
-  },
-  {
    "what": "CardsInAllGraveyardsCount",
    "score": 11,
    "cards": 11,
@@ -11111,6 +11054,19 @@
     "Exoskeletal Armor",
     "Accumulated Knowledge",
     "Invigorating Falls"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Pick Your Poison",
+    "Warden of Evos Isle",
+    "Watcher of the Spheres",
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings"
    ]
   },
   {
@@ -11411,19 +11367,6 @@
    "cards": 1,
    "names": [
     "Dour Port-Mage"
-   ]
-  },
-  {
-   "what": "words:power",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Gwenna, Eyes of Gaea",
-    "Monstrous Vortex",
-    "Sarkhan's Unsealing",
-    "Living Phone",
-    "Militia Bugler",
-    "Mayael the Anima"
    ]
   },
   {
@@ -12297,19 +12240,6 @@
    ]
   },
   {
-   "what": "SpellsCostIncreasingAllEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Tax Collector",
-    "Alabaster Leech",
-    "High Seas",
-    "Irini Sengir",
-    "Sapphire Leech",
-    "Ruby Leech"
-   ]
-  },
-  {
    "what": "CanBlockAdditionalCreatureEffect",
    "score": 9,
    "cards": 9,
@@ -12333,6 +12263,58 @@
     "Advanced Stitchwing",
     "Geralf's Masterpiece",
     "Stitchwing Skaab"
+   ]
+  },
+  {
+   "what": "keyword ForecastAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Skyscribing",
+    "Pride of the Clouds",
+    "Spirit en-Dal",
+    "Sky Hussar",
+    "Piercing Rays",
+    "Proclamation of Rebirth"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Wight of Precinct Six",
+    "Shantotto, Tactician Magician",
+    "Carrion Grub",
+    "Skanos Dragonheart",
+    "Greven, Predator Captain",
+    "Manaplasm"
+   ]
+  },
+  {
+   "what": "DealtDamageAttachedTriggeredAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Hot Soup",
+    "Druid's Call",
+    "Sleep Magic",
+    "Ragged Veins",
+    "Spiteful Shadows",
+    "Binding Agony"
+   ]
+  },
+  {
+   "what": "opponent or planeswalker",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Mogg Maniac",
+    "Rakdos's Return",
+    "Frilled Deathspitter",
+    "Sun-Crowned Hunters",
+    "Stensia Banquet",
+    "Goblin Lyre"
    ]
   }
  ]

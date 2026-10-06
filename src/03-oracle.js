@@ -3541,6 +3541,10 @@
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' leaves? the battlefield(?:,| )', 'i'),
       event: 'permLeaves', filt: (m) => subjectFilter(m[1]) },
+    // "attacks alone": the only attacker this combat (before plain "attacks")
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks alone,? /i, event: 'attacksAlone', self: true },
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
+      event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks?(?:,| )', 'i'),
       event: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' blocks?(?:,| )', 'i'),
@@ -3614,6 +3618,8 @@
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|this enchantment|~|CARDNAME) enters(?: the battlefield)?(?:,| )/i, event: 'etb', self: true },
     { re: /^When(?:ever)? (?:this creature|this permanent|~|CARDNAME) dies(?:,| )/i, event: 'dies', self: true },
+    // (before "attacks", which would read the rest as the effect)
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks and isn'?t blocked,? /i, event: 'attacksUnblocked', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks(?:,| )/i, event: 'attacks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) blocks(?:,| )/i, event: 'blocks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
