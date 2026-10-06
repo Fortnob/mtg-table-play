@@ -728,6 +728,23 @@
 .spot-card > .cv.static .cv-body { box-shadow: 0 0 0 2px rgba(190,160,255,.7), 0 0 50px 10px rgba(160,120,255,.35), 0 24px 50px rgba(0,0,0,.8); }
 .mode-opt.off, .mode-opt:disabled { opacity: .5; cursor: not-allowed; }
 .mode-opt .cant { font-style: normal; font-size: 11px; color: #ff9d92; margin-left: 6px; }
+/* the generic question (docs/choices.md): how the picks stand, a pick taken back, what cannot be added */
+.choose-status { color: #dfe5ee; }
+.choose-status.short { color: #ffcf8a; }
+.mode-opt .mode-less { margin-left: auto; flex: none; min-width: 28px; }
+.pick-tile.off { filter: grayscale(.7) brightness(.6); }
+.pip.pip-paw { background: radial-gradient(circle at 50% 62%, #2a1702 0 28%, transparent 30%),
+  radial-gradient(circle at 30% 30%, #2a1702 0 11%, transparent 13%), radial-gradient(circle at 70% 30%, #2a1702 0 11%, transparent 13%),
+  var(--gold-hi); }
+.paw-cost { display: inline-flex; gap: 2px; vertical-align: -3px; }
+.extra-choose { display: flex; flex-direction: column; gap: 6px; padding: 8px 14px; border-radius: 12px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.14); }
+.extra-choose .pick-row { max-height: 34vh; padding: 12px 4px 14px; }
+.extra-choose .pick-tile { width: clamp(84px, 9vw, 120px); }
+.extra-choose .x-pick { justify-content: flex-start; gap: 12px; }
+.extra-choose .x-val { font-size: 30px; min-width: 44px; }
+.extra-choose .x-pick .btn:not(.xs) { width: 38px; height: 38px; font-size: 18px; }
+.life-orb.chosen .orb-ring { box-shadow: 0 0 0 4px var(--gold-hi), 0 0 30px 10px rgba(246,220,140,.65); }
 .over-word.loss { filter: drop-shadow(0 0 24px rgba(160,180,220,.35)); }
 
 /* a token the engine made from words: its own colours until its art arrives */

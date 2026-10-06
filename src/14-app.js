@@ -2694,6 +2694,8 @@
           free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,
           spree: intent.spree || null, via: intent.via || null,
+          // generic questions answered with the extra costs (replicate, splice); the engine checks them
+          choices: intent.choices && typeof intent.choices === 'object' ? intent.choices : null,
           x: Math.max(0, Math.min(99, parseInt(intent.x, 10) || 0)) }); break;
         case 'cycle': g.cycleCard(actorId, intent.objId, { auto: true }); break;
         case 'plot': g.plotCard(actorId, intent.objId, { auto: true }); break;

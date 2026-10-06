@@ -74,6 +74,15 @@
           return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : 'Click a card in your hand.');
         if (ch.type === 'sacrifice')
           return set('ask', escapeHtml(ch.prompt || 'Sacrifice'), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : 'Click one of your permanents.');
+        // a generic question answered on the board alone: what to click, and how the picks stand
+        if (ch.type === 'choose') {
+          const s = this.chooseSpec(ch);
+          const board = this.chooseBoardIds(s);
+          if (s.kind === 'players' || (s.kind === 'objects' && s.items.length && s.items.every(x => board.has(x.id)))) {
+            const b2 = this.chooseBanner(ch);
+            return set(b2.cls, b2.title, b2.sub, b2.extra);
+          }
+        }
         return off();
       }
       if (ch && ch.waiting) {
@@ -103,17 +112,17 @@
       if (v.over) want = { key: 'over:' + (v.winners || []).join(',') + ':' + JSON.stringify(v.match || {}), build: () => this.gameOverPanel() };
       else if (v.mulliganPhase && this.me && !this.me.keptHand) want = { key: 'mull:' + this.me.mulligansTaken, build: () => this.mulliganPanel(), live: true };
       else if (v.mulliganPhase && this.me) want = { key: 'mullwait', build: () => this.waitPanel('Waiting for the other players to keep their hands…') };
-      else if (this.asking) want = { key: 'ask:' + this.asking.key, build: () => this.asking.build() };
+      else if (this.asking) want = { key: 'ask:' + this.asking.key, base: 'ask:' + (this.asking.base || this.asking.key), build: () => this.asking.build() };
       else {
         const ch = live.pendingChoice;
         if (ch && ch.playerId === this.meId && !ch.waiting && this._ready()) {
-          const key = 'ch:' + ch.type + ':' + (ch.prompt || '') + ':' + JSON.stringify(ch.cards ? ch.cards.map(c => c.id) : ch.options || '');
+          const base = 'ch:' + ch.type + ':' + (ch.prompt || '') + ':' + JSON.stringify(ch.cards ? ch.cards.map(c => c.id) : ch.options || '');
           const build = this.choiceBuilder(ch);
-          if (build) want = { key, build };
+          if (build) want = { key: base + this.chooseKeyExtra(ch), base, build };
         }
       }
       if (!want) {
-        if (host._key) { host._key = null; host.innerHTML = ''; host.className = 'decision-host'; }
+        if (host._key) { host._key = null; host._base = null; host.innerHTML = ''; host.className = 'decision-host'; }
         return;
       }
       if (host._key === want.key && !want.live) return;
@@ -123,7 +132,10 @@
       }
       host.innerHTML = '';
       const node = want.build(host._state);
-      if (!node) { host._key = null; host.className = 'decision-host'; return; }
+      if (!node) { host._key = null; host._base = null; host.className = 'decision-host'; return; }
+      // the same question with a pick changed is drawn again in place, not brought in afresh
+      if (want.base && host._base === want.base) node.style.animation = 'none';
+      host._base = want.base || null;
       host.className = 'decision-host on ' + (node._wide ? 'wide' : '') + (node._full ? ' full' : '');
       if (node._full) this.hidePreview();
       host.appendChild(node);
@@ -182,11 +194,10 @@
         return named ? [escapeHtml(ch.sourceName), q + (extra ? ' ' + extra : '')] : [q, extra || ''];
       };
       switch (ch.type) {
-        case 'confirm':
-          return () => this.panel(...head('Do it?'), null, [
-            { label: 'No', fn: () => send({ yes: false }) },
-            { label: 'Yes', cls: 'primary', fn: () => send({ yes: true }) },
-          ], { card });
+        /* The generic question, and the older shapes simple enough to be
+           one: confirm, vote, modes and "choose a card" (MTG.choice). */
+        case 'choose': case 'confirm': case 'vote': case 'mode': case 'pickCard':
+          return () => this.choosePanel(ch, card, head);
         case 'payOrDont': {
           const mana = typeof ch.cost === 'string';
           return () => this.panel(...head('Pay?'), null, [
@@ -205,11 +216,6 @@
             { label: 'Haste', fn: () => send({ haste: true }) },
             { label: '+1/+1 counter', cls: 'primary', fn: () => send({ haste: false }) },
           ], { card });
-        case 'vote':
-          return () => this.panel(...head('Vote', 'Everyone votes; the most votes wins.'), null,
-            (ch.options || []).map(opt => ({ label: opt, cls: 'primary', fn: () => send({ choice: opt }) })), { card });
-        case 'mode': return (st) => this.modePanel(ch, st, card, head);
-        case 'pickCard': return (st) => this.pickCardPanel(ch, st, card, head);
         case 'scry': case 'surveil': return (st) => this.scryPanel(ch, st, card, head);
         case 'arrange': return (st) => this.arrangePanel(ch, st, { card, head });
         case 'orderTriggers': return (st) => this.arrangePanel(ch, st, { card, head,
@@ -236,91 +242,291 @@
       }
     },
 
+    /* ---------------- the generic question (docs/choices.md) ----------------
+       One renderer for any question the engine puts in the generic shape,
+       and for the older shapes simple enough to be one. Permanents on the
+       battlefield are picked by clicking them where they are, players by
+       their life orbs; everything else — cards in other zones, options, a
+       number — is laid out in a panel. The selection lives on the table, so
+       the board, the panel and the big button all see the same picks. */
+
+    /** The question as the generic renderer reads it, or null when it is not one. */
+    chooseSpec(ch) {
+      if (!ch || ch.waiting) return null;
+      if (ch.type === 'choose') return MTG.choice.normalize(ch);
+      return MTG.choice.fromLegacy(ch);
+    },
+    /** What has been picked so far, kept for as long as the same question stands. */
+    chooseSel(s) {
+      const key = JSON.stringify([s.resumeKey || null, s.purpose || null, s.prompt || '', s.legacy || '', MTG.choice.candidates(s)]);
+      if (!this.choosing || this.choosing.key !== key) {
+        const n = s.kind === 'number' ? (s.default != null ? s.default : s.number.min) : null;
+        this.choosing = { key, picks: [], number: n };
+      }
+      return this.choosing;
+    },
+    /** The question on the table for me, when it is one the generic renderer answers. */
+    chooseLive() {
+      const live = this.live || this.view;
+      const ch = live && live.pendingChoice;
+      if (!ch || ch.playerId !== this.meId || ch.waiting) return null;
+      const s = this.chooseSpec(ch);
+      return s ? { ch, s } : null;
+    },
+    /** Part of the panel's key, so a pick made on the board redraws the panel. */
+    chooseKeyExtra(ch) {
+      const s = this.chooseSpec(ch);
+      if (!s) return '';
+      const sel = this.chooseSel(s);
+      return ':' + JSON.stringify([sel.picks, sel.number]);
+    },
+    /** The candidates that are permanents on the battlefield, to be clicked there. */
+    chooseBoardIds(s) {
+      const v = this.live || this.view;
+      if (s.kind !== 'objects' || s.panel) return new Set();
+      return new Set((s.items || []).filter(x => x.zone !== 'hand' && (v.battlefield || []).some(o => o.id === x.id)).map(x => x.id));
+    },
+    /** Send the answer: the generic shape, or the shape an older question has always taken. */
+    chooseSend(ch, answer) {
+      this.choosing = null;
+      const data = ch.type === 'choose' ? answer : (MTG.choice.legacyData(ch, answer) || answer);
+      this.send({ kind: 'choice', data });
+    },
+    /** One click is the whole answer when only one thing is chosen and nothing else is asked. */
+    chooseOneClick(s) {
+      return s.kind !== 'number' && s.max === 1 && !s.repeat && (s.min === 1 || s.min === 0) &&
+        !s.constraints.some(c => c.kind === 'mana');
+    },
+    /** Add a pick, or take it back. */
+    chooseToggle(ch, s, pick) {
+      const C = MTG.choice;
+      const sel = this.chooseSel(s);
+      if (this.chooseOneClick(s)) return this.chooseSend(ch, { picks: [pick] });
+      const at = sel.picks.lastIndexOf(pick);
+      const why = () => C.check(s, { picks: sel.picks.concat([pick]) }).reason || 'That will not fit.';
+      if (s.repeat) {
+        if (C.canAdd(s, sel.picks, pick)) sel.picks.push(pick);
+        else if (at >= 0) sel.picks.splice(at, 1);
+        else return UI.error(why());
+      } else if (at >= 0) sel.picks.splice(at, 1);
+      else if (C.canAdd(s, sel.picks, pick)) sel.picks.push(pick);
+      else if (s.max === 1) sel.picks = [pick];
+      else return UI.error(sel.picks.length >= s.max ? `Choose no more than ${s.max}.` : why());
+      MTG.sfx('click');
+      this.render();
+    },
+    /** Take one of a repeated pick back. */
+    chooseLess(s, pick) {
+      const sel = this.chooseSel(s);
+      const at = sel.picks.lastIndexOf(pick);
+      if (at >= 0) sel.picks.splice(at, 1);
+      this.render();
+    },
+    /** The answer as it stands, if it could be sent. */
+    chooseReady(s) {
+      const sel = this.chooseSel(s);
+      const ans = s.kind === 'number' ? { number: sel.number } : { picks: sel.picks.slice() };
+      return MTG.choice.check(s, ans).ok ? ans : null;
+    },
+    chooseConfirm(ch) {
+      const s = this.chooseSpec(ch);
+      if (!s) return;
+      if (!MTG.choice.solve(s)) return this.chooseSend(ch, { picks: [] });
+      const ans = this.chooseReady(s);
+      const sel = this.chooseSel(s);
+      if (!ans) return UI.error(MTG.choice.progress(s, sel.picks, sel.number).reason || 'Not yet.');
+      this.chooseSend(ch, ans);
+    },
+
+    /* ---- the board's part: permanents and players ---- */
+    /** Whether a card on the table is one of the choices, and whether it has been picked. */
+    chooseMark(ch, id) {
+      const s = this.chooseSpec(ch);
+      if (!s || s.kind !== 'objects' || s.panel) return { cand: false, chosen: false };
+      const sel = this.chooseSel(s);
+      const cand = (s.items || []).some(x => x.id === id);
+      return { cand, chosen: cand && sel.picks.includes(id) };
+    },
+    chooseClick(ch, id) {
+      const s = this.chooseSpec(ch);
+      if (!s || s.kind !== 'objects' || s.panel || !(s.items || []).some(x => x.id === id)) return false;
+      this.chooseToggle(ch, s, id);
+      return true;
+    },
+    chooseOrb(pid) {
+      const got = this.chooseLive();
+      if (!got || got.s.kind !== 'players') return { cand: false, chosen: false };
+      const cand = (got.s.items || []).some(x => x.id === pid);
+      return { cand, chosen: cand && this.chooseSel(got.s).picks.includes(pid) };
+    },
+    choosePlayer(pid) {
+      const got = this.chooseLive();
+      if (!got || got.s.kind !== 'players' || !(got.s.items || []).some(x => x.id === pid)) return false;
+      this.chooseToggle(got.ch, got.s, pid);
+      return true;
+    },
+    /** What the big button says while a generic question is on the table. */
+    choosePrimary(ch) {
+      const s = this.chooseSpec(ch);
+      const sel = this.chooseSel(s);
+      if (!MTG.choice.solve(s)) return { label: 'Continue', cls: 'go', sub: 'nothing can be chosen' };
+      const pr = MTG.choice.progress(s, sel.picks, sel.number);
+      const none = s.kind !== 'number' && !sel.picks.length;
+      return { label: pr.ok ? (none ? (s.noneLabel || 'Choose none') : (s.confirmLabel || 'Confirm')) : 'Choose', cls: pr.ok ? 'go' : 'idle',
+        disabled: !pr.ok, sub: pr.ok ? pr.text : (pr.reason || pr.text) };
+    },
+    /** The banner while a question is answered on the board. */
+    chooseBanner(ch) {
+      const s = this.chooseSpec(ch);
+      const sel = this.chooseSel(s);
+      const pr = MTG.choice.progress(s, sel.picks, sel.number);
+      const title = richText(s.prompt || (s.kind === 'players' ? 'Choose a player' : 'Choose'));
+      const how = s.kind === 'players' ? 'Click a highlighted player.' : 'Click the highlighted permanents.';
+      let extra = null;
+      if (s.kind === 'players') {
+        // the players as chips as well, for a seat whose orb is out of sight
+        const row = el('div', { class: 'ab-chips' }, (s.items || []).map(p => el('button', {
+          type: 'button', class: 'ab-chip' + (sel.picks.includes(p.id) ? ' on' : ''), text: p.id === this.meId ? 'You' : p.name,
+          onclick: () => this.chooseToggle(ch, s, p.id),
+        })));
+        extra = { node: row, sig: sel.picks.join(',') };
+      }
+      const named = ch.sourceName && !String(s.prompt || '').includes(ch.sourceName) ? escapeHtml(ch.sourceName) + ': ' : '';
+      const short = !pr.ok && sel.picks.length ? ` <i class="cant">${escapeHtml(pr.reason)}</i>` : '';
+      return { cls: 'ask', title: named + title, sub: how + ' ' + richText(pr.text) + short, extra };
+    },
+
+    /* ---- the panel's part: cards elsewhere, options, numbers ---- */
     /**
-     * "Choose one —". The modes are the card's own words, in the card's own
-     * order. Choosing one of two is one decision, so it takes one click; a
-     * choice of several collects them and then confirms.
+     * The panel for a generic question, or null when it is answered on the
+     * board alone (permanents and players need no panel).
      */
-    modePanel(ch, st, card, head) {
-      st.picked = st.picked || [];
-      const single = ch.count === 1 && !ch.repeatable;
-      const list = el('div', { class: 'mode-list' });
-      const paint = () => {
-        list.innerHTML = '';
-        ch.options.forEach((opt) => {
-          const n = st.picked.filter(i => i === opt.i).length;
-          list.appendChild(el('button', {
-            type: 'button', class: 'mode-opt' + (n ? ' on' : ''),
-            onclick: () => {
-              if (single) { this.send({ kind: 'choice', data: { modes: [opt.i] } }); return; }
-              const at = st.picked.indexOf(opt.i);
-              if (at >= 0 && !ch.repeatable) st.picked.splice(at, 1);
-              else if (st.picked.length < ch.count) st.picked.push(opt.i);
-              else if (at >= 0) st.picked.splice(at, 1);
-              paint();
-              confirm.disabled = st.picked.length !== ch.count;
-            },
-          }, [
-            el('span', { class: 'mode-dot', text: n ? (ch.repeatable && n > 1 ? '×' + n : '✓') : '' }),
-            el('span', { class: 'mode-text', html: MTG.mana.textHtml(opt.label) }),
-          ]));
-        });
-      };
-      paint();
-      const confirm = el('button', { type: 'button', class: 'btn primary', text: 'Confirm', disabled: st.picked.length !== ch.count,
-        onclick: () => this.send({ kind: 'choice', data: { modes: st.picked.slice() } }) });
-      const [t, sub] = head('Choose', single ? '' : `Choose ${ch.count}.`);
-      const p = this.panel(t, sub || (single && !/choose one/i.test(t) ? 'Choose one.' : ''), list, [], { card });
-      if (!single) p.appendChild(el('div', { class: 'dp-buttons' }, confirm));
-      return p;
+    choosePanel(ch, card, head) {
+      const C = MTG.choice;
+      const s = this.chooseSpec(ch);
+      if (!s) return null;
+      const sel = this.chooseSel(s);
+      const board = this.chooseBoardIds(s);
+      if (s.kind === 'players') return null;
+      if (s.kind === 'objects' && (s.items || []).length && (s.items || []).every(x => board.has(x.id))) return null;
+      const fallback = { confirm: 'Do it?', vote: 'Vote', mode: 'Choose', pickCard: 'Choose a card' }[s.legacy] || 'Choose';
+      let [title, sub0] = head(fallback, s.legacy === 'vote' ? 'Everyone votes; the most votes wins.' : '');
+      if (s.prompt && /\{/.test(s.prompt)) { title = title.replace(escapeHtml(s.prompt), richText(s.prompt)); sub0 = sub0.replace(escapeHtml(s.prompt), richText(s.prompt)); }
+      // nothing that could be chosen: say so, and carry on
+      if (!C.solve(s)) {
+        return this.panel(title, 'There is nothing that can be chosen.', null,
+          [{ label: 'Continue', cls: 'primary', fn: () => this.chooseSend(ch, { picks: [] }) }], { card });
+      }
+      const one = this.chooseOneClick(s);
+      /* Two or three short answers are buttons and nothing more: "No" and
+         "Yes", or a ballot. */
+      const opts = s.options || [];
+      if (s.kind === 'options' && one && s.min === 1 && (s.compact ||
+          (opts.length <= 3 && opts.every(o => String(o.label || '').length <= 24 && !o.cost && !o.card)))) {
+        return this.panel(title, sub0, null, opts.map((o, k) => ({
+          label: o.label, cls: o.primary || s.legacy === 'vote' || opts.length === 1 ? 'primary' : '',
+          fn: () => this.chooseSend(ch, { picks: [k] }),
+        })), { card });
+      }
+      const body = this.chooseBody(s, sel, {
+        exclude: board, onPick: (p) => this.chooseToggle(ch, s, p), onLess: (p) => this.chooseLess(s, p),
+        onNumber: (n) => { sel.number = n; this.render(); },
+      });
+      const pr = C.progress(s, sel.picks, sel.number);
+      const lines = [];
+      if (board.size) lines.push('Or click the highlighted permanents on the battlefield.');
+      if (s.reveal) lines.push('What you choose is revealed.');
+      if (!one || s.kind === 'number') {
+        const short = !pr.ok && (sel.picks.length || s.kind === 'number') ? ' — ' + escapeHtml(pr.reason) : '';
+        lines.push(`<span class="choose-status${pr.ok ? '' : ' short'}">${richText(pr.text)}${short}</span>`);
+      }
+      const sub = [sub0].concat(lines).filter(Boolean).join('<br>');
+      const buttons = [];
+      if (one) {
+        if (s.min === 0 || s.optional) {
+          buttons.push({ label: s.noneLabel || (s.legacy === 'pickCard' ? 'None of them' : 'None'), fn: () => this.chooseSend(ch, { picks: [] }) });
+        }
+      } else {
+        const none = s.kind !== 'number' && !sel.picks.length;
+        buttons.push({ label: pr.ok && none ? (s.noneLabel || 'Choose none') : (s.confirmLabel || 'Confirm'), cls: 'primary', disabled: !pr.ok,
+          fn: () => this.chooseConfirm(ch) });
+      }
+      return this.panel(title, sub, body, buttons, { wide: s.kind === 'objects', card });
     },
 
     /**
-     * "Choose a card" — a face-up row of specific cards, for effects that
-     * look at a hand or offer something from a set. The cards travel with
-     * the question, so whoever is choosing can already see them.
+     * The middle of a generic question's panel: tiles for cards, a list for
+     * options, a stepper for a number. `opts.onPick(pick)` is told about a
+     * click, `opts.onLess(pick)` about taking a repeated pick back, and
+     * `opts.onNumber(n)` about a new number; `opts.exclude` leaves out
+     * candidates shown somewhere else. The casting panel uses this too.
      */
-    pickCardPanel(ch, st, card, head) {
-      const want = Math.max(1, ch.count || 1);
-      st.picks = st.picks || [];
+    chooseBody(s, sel, opts) {
+      const C = MTG.choice;
+      opts = opts || {};
+      if (s.kind === 'number') {
+        const nb = s.number;
+        const set = (n) => { if (opts.onNumber) opts.onNumber(U.clamp(n, nb.min, nb.max)); };
+        return el('div', { class: 'x-pick' }, [
+          el('button', { type: 'button', class: 'btn', text: '−', disabled: sel.number <= nb.min, onclick: () => set(sel.number - nb.step), 'aria-label': 'Fewer' }),
+          el('div', { class: 'x-val', text: String(sel.number) }),
+          el('button', { type: 'button', class: 'btn', text: '+', disabled: sel.number >= nb.max, onclick: () => set(sel.number + nb.step), 'aria-label': 'More' }),
+          nb.max > nb.min + 1 ? el('button', { type: 'button', class: 'btn xs ghost', text: `max (${nb.max})`, onclick: () => set(nb.max) }) : null,
+        ].filter(Boolean));
+      }
+      if (s.kind === 'options') {
+        const list = el('div', { class: 'mode-list' });
+        (s.options || []).forEach((o, k) => {
+          const n = sel.picks.filter(x => x === k).length;
+          const can = n > 0 || C.canAdd(s, sel.picks, k) || (s.max === 1 && !s.repeat);
+          const paws = /^(?:\{P\})+$/.test(o.cost || '');
+          const cost = !o.cost ? '' : (paws
+            ? '<span class="paw-cost">' + '<i class="pip pip-paw" title="paw print"></i>'.repeat(o.cost.length / 3) + '</span>'
+            : MTG.mana.html(o.cost)) + ' ';
+          list.appendChild(el('button', {
+            type: 'button', class: 'mode-opt' + (n ? ' on' : '') + (can ? '' : ' off'), 'aria-pressed': n ? 'true' : 'false',
+            onclick: () => { if (opts.onPick) opts.onPick(k); },
+          }, [
+            el('span', { class: 'mode-dot', text: n ? (s.repeat && n > 1 ? '×' + n : '✓') : '' }),
+            el('span', { class: 'mode-text', html: cost + richText(o.label || '') }),
+            s.repeat && n ? el('span', { class: 'btn xs mode-less', role: 'button', text: '−', title: 'One fewer',
+              onclick: (e) => { e.stopPropagation(); if (opts.onLess) opts.onLess(k); } }) : null,
+          ].filter(Boolean)));
+        });
+        return list;
+      }
+      /* Cards: a face-up row. A library search offers twenty Forests;
+         copies of the same card share one tile with a count, and taking
+         from it takes the next copy. */
       const grid = el('div', { class: 'pick-row' });
-      const choose = (ids) => this.send({ kind: 'choice', data: { cardIds: ids } });
-      /* A library search offers twenty Forests; twenty identical tiles is a
-         wall, not a choice. Copies of the same card share one tile with a
-         count, and taking from it takes the next copy. */
       const groups = [], byKey = new Map();
-      for (const c of (ch.cards || [])) {
-        const key = c.card ? (c.card.oracle_id || c.card.name) + '|' + (c.card.id || '') : c.id;
+      for (const it of (s.items || [])) {
+        if (opts.exclude && opts.exclude.has(it.id)) continue;
+        const key = it.card && !it.cost ? (it.card.oracle_id || it.card.name) + '|' + (it.card.id || '') : it.id;
         let g = byKey.get(key);
-        if (!g) { g = { card: c.card, ids: [] }; byKey.set(key, g); groups.push(g); }
-        g.ids.push(c.id);
+        if (!g) { g = { item: it, ids: [] }; byKey.set(key, g); groups.push(g); }
+        g.ids.push(it.id);
       }
       for (const g of groups) {
-        const taken = () => g.ids.filter(id => st.picks.includes(id)).length;
-        const badge = () => (g.ids.length > 1 ? (taken() ? `${taken()}/${g.ids.length}` : '×' + g.ids.length) : (taken() ? '✓' : ''));
-        const tile = this.pickTile(g.card, {
-          cls: taken() ? 'on' : '', badge: badge(),
+        const taken = g.ids.filter(id => sel.picks.includes(id)).length;
+        const free = g.ids.find(id => !sel.picks.includes(id));
+        const can = taken > 0 || (free && C.canAdd(s, sel.picks, free)) || s.max === 1;
+        const badge = g.ids.length > 1 ? (taken ? `${taken}/${g.ids.length}` : '×' + g.ids.length) : (taken ? '✓' : '');
+        const tile = this.pickTile(g.item.card, {
+          cls: (taken ? 'on' : '') + (can ? '' : ' off'), badge, label: g.item.label || g.item.cost || '',
           onClick: () => {
-            if (want === 1) return choose([g.ids[0]]);
-            const free = g.ids.find(id => !st.picks.includes(id));
-            if (free && st.picks.length < want) st.picks.push(free);
-            else { const had = g.ids.filter(id => st.picks.includes(id)).pop(); if (had) st.picks.splice(st.picks.indexOf(had), 1); }
-            tile.classList.toggle('on', taken() > 0);
-            const b = tile.querySelector('.pt-badge');
-            if (b) b.textContent = badge();
-            go.disabled = !(st.picks.length === want || (ch.optional && st.picks.length));
+            if (!opts.onPick) return;
+            if (g.ids.length === 1) return opts.onPick(g.ids[0]);
+            // a stack of copies: take the next, or put the last one back
+            if (free && (C.canAdd(s, sel.picks, free) || this.chooseOneClick(s))) return opts.onPick(free);
+            const had = g.ids.filter(id => sel.picks.includes(id)).pop();
+            if (had) opts.onPick(had);
           },
         });
         grid.appendChild(tile);
       }
-      if (!(ch.cards || []).length) grid.appendChild(el('div', { class: 'empty-note', text: 'There is nothing to choose.' }));
-      const go = el('button', { type: 'button', class: 'btn primary', text: 'Choose', disabled: true, onclick: () => choose(st.picks.slice()) });
-      const buttons = [];
-      if (ch.optional || !(ch.cards || []).length) buttons.push({ label: want === 1 ? 'None of them' : 'Decline', fn: () => choose([]) });
-      const [t, sub] = head('Choose a card', want > 1 ? `Choose ${want}.` : '');
-      const p = this.panel(t, sub, grid, buttons, { wide: true, card });
-      if (want > 1) p.querySelector('.dp-buttons') ? p.querySelector('.dp-buttons').appendChild(go) : p.appendChild(el('div', { class: 'dp-buttons' }, go));
-      return p;
+      if (!groups.length) grid.appendChild(el('div', { class: 'empty-note', text: 'There is nothing to choose.' }));
+      return grid;
     },
 
     /**
@@ -486,7 +692,7 @@
     beginCast(o, a, via) {
       const live = this.live || this.view;
       const extras = (live.extras || {})[o.id] || [];
-      const steps = { o, a, via, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [] }, x: 0 };
+      const steps = { o, a, via, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       const hasX = /\{X\}/.test(o.card.mana_cost || (o.card.card_faces && o.card.card_faces[o.face || 0] && o.card.card_faces[o.face || 0].mana_cost) || '');
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
       const afterX = () => this.castTargets(steps);
@@ -508,13 +714,48 @@
       const st = steps.picked;
       const key = 'extras:' + steps.o.id;
       const base = MTG.mana.cmc(String(steps.o.card.mana_cost || '').replace(/\{X\}/g, ''));
+      /* what a generic question answered here adds: so many copies, or the cards spliced on */
+      const chosenCost = (ex) => {
+        const sel = st.choices[(ex.choose || {}).purpose];
+        if (!sel) return 0;
+        if (ex.choose.kind === 'number') return MTG.mana.cmc(ex.cost || '') * (sel.number || 0);
+        return (ex.choose.items || []).filter(it => sel.picks.includes(it.id)).reduce((n, it) => n + MTG.mana.cmc(it.cost || ''), 0);
+      };
       const spent = () => (st.kick ? MTG.mana.cmc((extras.find(x => x.kind === 'kicker' || x.kind === 'multikicker') || {}).cost || '') * st.kick : 0) +
         extras.filter(x => ['buyback', 'entwine', 'offspring'].includes(x.kind) && st[x.kind]).reduce((n, x) => n + MTG.mana.cmc(x.cost || ''), 0) +
-        (st.squad ? MTG.mana.cmc((extras.find(x => x.kind === 'squad') || {}).cost || '') * st.squad : 0);
-      this.asking = { key, build: () => {
+        (st.squad ? MTG.mana.cmc((extras.find(x => x.kind === 'squad') || {}).cost || '') * st.squad : 0) +
+        extras.filter(x => x.choose).reduce((n, x) => n + chosenCost(x), 0);
+      // the panel is drawn again whenever something in it changes
+      this.asking = { base: key, get key() { return key + ':' + JSON.stringify(st); }, build: () => {
         const spare = this.manaHere() - base - spent();
         const rows = el('div', { class: 'extras' });
         for (const ex of extras) {
+          /* Replicate and splice are generic questions (docs/choices.md):
+             answered here, with the same body the table uses for them
+             anywhere, they go with the cast and the engine does not ask. */
+          if (ex.choose) {
+            const per = MTG.mana.cmc(ex.cost || '');
+            const room = Math.max(0, spare + chosenCost(ex));
+            const s = MTG.choice.normalize(ex.choose.kind === 'number'
+              ? Object.assign({}, ex.choose, { number: { min: 0, max: Math.min(ex.choose.number.max, per ? Math.floor(room / per) : ex.choose.number.max) } })
+              : ex.choose);
+            const sel = st.choices[s.purpose] = st.choices[s.purpose] || { picks: [], number: 0 };
+            if (s.kind === 'number') sel.number = Math.min(sel.number, s.number.max);
+            rows.appendChild(el('div', { class: 'extra-choose' }, [
+              el('div', { class: 'mode-text', html: MTG.mana.textHtml(ex.label) + (s.kind === 'number' ? '' : ' <i class="tiny">— click the cards to add</i>') }),
+              this.chooseBody(s, sel, {
+                onNumber: (n) => { sel.number = n; this.render(); },
+                onPick: (id) => {
+                  const at = sel.picks.indexOf(id);
+                  if (at >= 0) sel.picks.splice(at, 1);
+                  else if (MTG.mana.cmc((s.items.find(x => x.id === id) || {}).cost || '') <= spare) sel.picks.push(id);
+                  else return UI.error('You do not have the mana for this as well.');
+                  this.render();
+                },
+              }),
+            ]));
+            continue;
+          }
           if (ex.kind === 'spree') {
             for (const m of (ex.modes || [])) {
               const on = st.spree.includes(m.i);
@@ -597,6 +838,13 @@
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
       if (via) extra.via = via;
+      // generic questions answered with the extra costs, in the shape the engine checks them in
+      const answered = {};
+      for (const [purpose, sel] of Object.entries(picked.choices || {})) {
+        const ex = (((this.live || this.view).extras || {})[o.id] || []).find(x => x.choose && x.choose.purpose === purpose);
+        if (ex) answered[purpose] = ex.choose.kind === 'number' ? { number: sel.number || 0 } : { picks: sel.picks.slice() };
+      }
+      if (Object.keys(answered).length) extra.choices = answered;
       const go = (targets) => { MTG.sfx('cast'); this._dropAt = null; this.send(Object.assign({ kind: 'cast', objId: o.id, targets }, extra)); };
       this.render();
       if (!specs.length) return go([]);
@@ -607,6 +855,11 @@
       });
     },
   });
+
+  /** A question's words with mana symbols drawn, and {P} as a paw print. */
+  function richText(s) {
+    return MTG.mana.textHtml(String(s || '')).replace(/<i class="pip [^"]*" title="P">P<\/i>/g, '<i class="pip pip-paw" title="paw print"></i>');
+  }
 
   /** What a target has to be, in words: "a creature you don't control". */
   function specText(spec) {

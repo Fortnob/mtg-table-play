@@ -630,6 +630,7 @@
               const pl = this.view.players.find(x => x.id === p.id);
               if (pl && this.isTargetablePlayer(pl)) return this.aimAtPlayer(p.id);
             }
+            if (this.choosePlayer(p.id)) return;
             const live = this.live || this.view;
             const c = live.pendingChoice;
             if (c && c.type === 'declareAttackers' && c.playerId === this.meId && (c.defenders || []).some(d => d.id === p.id)) {
@@ -1199,6 +1200,7 @@
           const need = ch.count || 1;
           return { label: 'Discard', sub: `${this.discardSel.length}/${need} chosen`, cls: 'go', disabled: this.discardSel.length !== need };
         }
+        if (ch.type === 'choose') return this.choosePrimary(ch);
         if (ch.type === 'sacrifice') {
           const need = ch.count || 1;
           return { label: 'Sacrifice', sub: `${this.sacSel.length}/${need} chosen`, cls: 'go', disabled: this.sacSel.length !== need };
@@ -1261,6 +1263,7 @@
           this.discardSel = [];
           return;
         }
+        if (ch.type === 'choose') { this.chooseConfirm(ch); return; }
         if (ch.type === 'sacrifice' && this.sacSel.length === (ch.count || 1)) {
           this.send({ kind: 'choice', data: { cardIds: this.sacSel.slice() } });
           this.sacSel = [];
@@ -1309,6 +1312,8 @@
             chosen = this.sacSel.includes(id);
           } else if (ch.type === 'discard' || ch.type === 'discardToHandSize') {
             cand = inHand; chosen = this.discardSel.includes(id);
+          } else if (ch.type === 'choose') {
+            ({ cand, chosen } = this.chooseMark(ch, id));
           }
         }
         n.classList.toggle('targetable', target);
@@ -1320,7 +1325,9 @@
       // a player you could point at glows
       for (const orb of this.arena.querySelectorAll('.life-orb')) {
         const p = v.players.find(x => x.id === orb.dataset.player);
-        orb.classList.toggle('targetable', !!(p && this.isTargetablePlayer(p)));
+        const pick = p ? this.chooseOrb(p.id) : {};
+        orb.classList.toggle('targetable', !!(p && (this.isTargetablePlayer(p) || (pick.cand && !pick.chosen))));
+        orb.classList.toggle('chosen', !!pick.chosen);
       }
       this.handHost.classList.toggle('choosing', !!(ch && (ch.type === 'discard' || ch.type === 'discardToHandSize')));
       this.markCombat();
@@ -1459,6 +1466,7 @@
         if (p && this.isTargetablePlayer(p)) return this.aimAtPlayer(pid);
         return UI.error('Not a legal target for that.');
       }
+      if (this._ready() && this.choosePlayer(pid)) return;
       const ch = this.live && this.live.pendingChoice;
       if (ch && ch.type === 'declareAttackers' && ch.playerId === this.meId && this.attackPlan) {
         // pointing at a player chooses who the next attackers go at
@@ -1492,6 +1500,7 @@
           toggleIn(this.discardSel, id, ch.count);
           return this.render();
         }
+        if (ch.type === 'choose' && this.chooseClick(ch, id)) return;
         if (ch.type === 'sacrifice' && loc.zone === 'battlefield' && loc.o.controller === this.meId) {
           if ((ch.count || 1) === 1) { this.sacSel = []; return this.send({ kind: 'choice', data: { cardIds: [id] } }); }
           toggleIn(this.sacSel, id, ch.count);
