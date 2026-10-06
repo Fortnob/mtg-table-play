@@ -9,6 +9,7 @@
   const UI = MTG.ui;
   const net = MTG.net;
 
+  /** @type {Record<string, any>} the app's state and the screens' entry points, added to below */
   const App = MTG.app = {
     screen: 'menu',
     formatId: 'commander',
@@ -1757,6 +1758,7 @@
    */
   /* The rules come in three kinds, and only the first is something most
      tables change: the rest are folded away until they are wanted. */
+  /** @type {Array<[string, string, string[]]>} id, title, the rule keys it gathers */
   const RULE_GROUPS = [
     ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage']],
     ['decks', 'Deck building', ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'sideboardMax', 'colorIdentity']],
@@ -2218,6 +2220,7 @@
     /** Come back to the table. */
     takeSeat() {
       if (!this.spectating) return;
+      /** @type {Record<string, any>} */
       const was = this._satOut || {};
       this.roster.unshift({
         id: 'me', kind: 'local', name: was.name || App.myName,

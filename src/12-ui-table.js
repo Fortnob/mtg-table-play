@@ -113,7 +113,11 @@
   }
 
   class Table {
-    /** @param send  function(intent) -> void  (host applies locally, client sends over net) */
+    /**
+     * @param {HTMLElement} root
+     * @param {string} meId
+     * @param {(intent: MTG.Intent) => void} send  host applies locally, client sends over net
+     */
     constructor(root, meId, send) {
       this.root = root;
       this.meId = meId;
@@ -142,6 +146,7 @@
     _build() {
       this.root.innerHTML = '';
       this.root.classList.add('table-screen', 'arena-screen');
+      /** @type {(cls: string, attrs?: Record<string, any> | null, ...ignored: any[]) => HTMLElement} */
       const div = (cls, attrs) => el('div', Object.assign({ class: cls }, attrs || {}));
 
       this.arena = div('arena');
@@ -250,6 +255,7 @@
       window.addEventListener('resize', this._onResize);
     }
 
+    /** @this {MTG.TableInstance} */
     destroy() {
       document.removeEventListener('keydown', this._onKey);
       window.removeEventListener('resize', this._onResize);
@@ -267,6 +273,7 @@
     /* ---------------- data in ----------------
        A view is queued rather than drawn: the pump plays them back in order,
        holding each one for as long as what happened in it deserves. */
+    /** @this {MTG.TableInstance} */
     update(view) {
       /* A guest told the host how it likes to be passed for when it joined
          the lobby, before there was a game to tell. The first view is the
@@ -318,6 +325,7 @@
     analysis(o) { return o && o.card ? MTG.oracle.analyze(o.card, o.face || 0) : null; }
 
     /* ---------------- render ---------------- */
+    /** @this {MTG.TableInstance} */
     render() {
       const v = this.view;
       if (!v || this._destroyed) return;
@@ -395,6 +403,7 @@
     }
 
     /** Bring a card element up to date with the object it shows. */
+    /** @this {MTG.TableInstance} */
     paintCard(n, o) {
       const hidden = !!(o.hidden || o.faceDown || !o.card);
       const face = n.firstChild.firstChild;
@@ -595,6 +604,7 @@
     }
 
     /** The row of nameplates across the top when there is more than one opponent. */
+    /** @this {MTG.TableInstance} */
     renderOppStrip(others) {
       const host = this.oppStrip;
       const v = this.view;
@@ -1153,6 +1163,7 @@
      * the one place the table tells you what will happen next, so the label
      * is never "OK": it names the step it moves you to or the thing it
      * confirms.
+     * @this {MTG.TableInstance}
      */
     primaryInfo() {
       const v = this.view, live = this.live || v;
@@ -1224,6 +1235,7 @@
       return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
     }
 
+    /** @this {MTG.TableInstance} */
     primaryAction() {
       const v = this.view, live = this.live || v;
       if (!v || v.over || v.mulliganPhase) return;
@@ -1269,6 +1281,7 @@
     }
 
     /* ---- the marks that say what you can do with each card ---- */
+    /** @this {MTG.TableInstance} */
     markInteractive() {
       const v = this.view, live = this.live || v;
       const ready = this._ready();
@@ -1314,6 +1327,7 @@
     }
 
     /* ---------------- input ---------------- */
+    /** @this {MTG.TableInstance} */
     _wireInput() {
       const a = this.arena;
       a.addEventListener('click', (e) => {
@@ -1438,6 +1452,7 @@
       document.addEventListener('pointerup', up);
     }
 
+    /** @this {MTG.TableInstance} */
     onOrbClick(pid, e) {
       if (this.targeting) {
         const p = this.view.players.find(x => x.id === pid);
@@ -1453,6 +1468,7 @@
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
     }
 
+    /** @this {MTG.TableInstance} */
     onCardClick(id, e, node) {
       const loc = this.locate(id);
       if (!loc) return;
@@ -1565,6 +1581,7 @@
       this.popover(node, o, uses);
     }
 
+    /** @this {MTG.TableInstance} */
     playFromHand(o) {
       const a = this.analysis(o);
       if (!a) return;
@@ -1614,6 +1631,7 @@
       const a = this.analysis(o);
       return MTG.oracle.matchesSpec(spec, o, a, this.meId, VIEW_SPEC_CTX);
     }
+    /** @this {MTG.TableInstance} */
     cancelTargeting() { this.targeting = null; this.hideAim(); }
 
     targetName(t) {
@@ -1695,6 +1713,7 @@
       if (node.closest('.mull-hand')) return;
       this._hoverT = setTimeout(() => this.showPreview(node), node.closest('.stack-col, .spotlight') ? 60 : 220);
     }
+    /** @type {(node?: Element) => void} */
     unhoverCard() { clearTimeout(this._hoverT); this.hidePreview(); }
     hidePreview() { this.preview.classList.remove('on'); }
 
@@ -1818,6 +1837,7 @@
      * do to it by hand. The second half is a toolbox for the rare card the
      * rules engine does not carry out itself, so it sits behind a heading
      * rather than among the real choices.
+     * @this {MTG.TableInstance}
      */
     cardMenu(id, e) {
       const loc = this.locate(id);
@@ -1923,11 +1943,13 @@
     }
 
     /* ---------------- the game menu ---------------- */
+    /** @this {MTG.TableInstance} */
     gameMenu(e) {
       const concede = async () => { if (await UI.confirm('Concede this game?')) this.send({ kind: 'concede' }); };
       const sorts = [['cmc', 'mana value'], ['type', 'type'], ['color', 'colour'], ['name', 'name']];
       const cur = MTG.settings.handSort || 'cmc';
       const nextSort = sorts[(sorts.findIndex(s => s[0] === cur) + 1) % sorts.length];
+      /** @type {Partial<MTG.View>} */
       const live = this.live || this.view || {};
       UI.contextMenu(e, [
         ['Game log  (L)', () => this.toggleDrawer(true, 'log')],
@@ -2054,6 +2076,7 @@
       return MTG.mana.textHtml ? h.replace(/\{[^}]+\}/g, (m) => MTG.mana.html(m)) : h;
     }
 
+    /** @this {MTG.TableInstance} */
     addChat(msg) {
       this.chat.push(msg);
       if (this.drawerOpen && this.drawerTab === 'chat') { this._drawerSig = null; this.renderDrawer(); }

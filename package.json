@@ -1,0 +1,15 @@
+{
+  "name": "mtg-table",
+  "private": true,
+  "description": "A browser table for playing Magic: The Gathering against bots or friends. The deliverable is the single file index.html, built from src/.",
+  "scripts": {
+    "build": "python tools/build.py",
+    "check": "python tools/check.py",
+    "check:quick": "python tools/check.py --quick",
+    "types": "tsc --noEmit -p tsconfig.json",
+    "test": "node tools/cardtest.js"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

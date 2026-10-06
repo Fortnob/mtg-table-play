@@ -70,7 +70,7 @@
       this.selfId = 'host';
       const id = ROOM_PREFIX + this.roomCode;
 
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: any) => void} */ resolve, reject) => {
         let settled = false;
         try { this.peer = new window.Peer(id, peerOptions()); }
         catch (e) { return reject(new Error('Could not start the multiplayer layer: ' + (e && e.message || e))); }
@@ -134,7 +134,7 @@
       this.roomCode = String(code || '').trim().toUpperCase();
       if (!this.roomCode) throw new Error('Enter a room code.');
 
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: any) => void} */ resolve, reject) => {
         let settled = false;
         try { this.peer = new window.Peer(null, peerOptions()); }
         catch (e) { return reject(new Error('Could not start the multiplayer layer: ' + (e && e.message || e))); }
