@@ -3178,6 +3178,13 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    /* Run Away Together: "Choose two target creatures controlled by
+       different players. Return those creatures to their owners' hands." */
+    { re: /^Choose two target (creatures|permanents|nonland permanents) controlled by different players\. Return those (?:creatures|permanents) to their owners'? hands\.?$/i,
+      make: (m) => {
+        const one = () => Object.assign(targetSpec('target ' + m[1].replace(/s$/, '')), { differentControllers: true });
+        return [{ op: 'bounce', targets: [one(), one()] }];
+      } },
     /* Circle of Protection, Pentagram of the Ages, Deflecting Palm: "The
        next time a (red) source of your choice would deal damage to you this
        turn, prevent that damage." — and what follows from it */

@@ -2801,6 +2801,19 @@ module.exports = (test) => {
     t.no(T.g.playableNow('A').some(x => x.objId === r.id), 'not again from a later exile');
   });
 
+  test('Run Away Together: two creatures under different players', (mk, t) => {
+    t.auto('Run Away Together');
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('B', 'Grizzly Bears'), w = T.bf('B', 'Craw Wurm');
+    T.mana('A', '1U');
+    const r = T.hand('A', 'Run Away Together');
+    t.no(T.g.castSpell('A', r.id, { auto: true, targets: [{ kind: 'object', id: b.id }, { kind: 'object', id: w.id }] }), "both of B's refused");
+    t.eq(T.g.player('A').pool.total(), 2, 'nothing paid');
+    t.ok(T.g.castSpell('A', r.id, { auto: true, targets: [{ kind: 'object', id: a.id }, { kind: 'object', id: w.id }] }), T.g.lastError);
+    T.resolve();
+    t.zone(a, 'hand'); t.zone(w, 'hand'); t.zone(b, 'battlefield');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

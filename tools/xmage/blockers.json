@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16650,
+  "needed": 16649,
   "gainedCards": 1766,
-  "linesNeeded": 18914,
+  "linesNeeded": 18913,
   "linesGained": 2273,
   "gained": {
    "all": 1766,
@@ -223,25 +223,6 @@
    ]
   },
   {
-   "what": "custom target",
-   "score": 73,
-   "lines": 49,
-   "cards": [
-    "Siren Stormtamer",
-    "Secret Tunnel",
-    "Goblin Welder",
-    "Run Away Together",
-    "Rampaging Yao Guai",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "V.A.T.S.",
-    "Reunion of the House",
-    "Behold the Sinister Six!",
-    "Kairi, the Swirling Sky",
-    "Role Reversal",
-    "Modify Memory"
-   ]
-  },
-  {
    "what": "Target.setTargetTag",
    "score": 72,
    "lines": 69,
@@ -296,6 +277,25 @@
     "Once Upon a Time",
     "Disrupting Shoal",
     "Massacre"
+   ]
+  },
+  {
+   "what": "custom target",
+   "score": 63,
+   "lines": 48,
+   "cards": [
+    "Siren Stormtamer",
+    "Secret Tunnel",
+    "Goblin Welder",
+    "Rampaging Yao Guai",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+    "V.A.T.S.",
+    "Reunion of the House",
+    "Behold the Sinister Six!",
+    "Kairi, the Swirling Sky",
+    "Role Reversal",
+    "Modify Memory",
+    "Unbury"
    ]
   },
   {
@@ -8221,19 +8221,6 @@
    ]
   },
   {
-   "what": "custom target",
-   "score": 67,
-   "cards": 43,
-   "names": [
-    "Siren Stormtamer",
-    "Secret Tunnel",
-    "Goblin Welder",
-    "Run Away Together",
-    "Rampaging Yao Guai",
-    "V.A.T.S."
-   ]
-  },
-  {
    "what": "AlternativeCostSourceAbility",
    "score": 59,
    "cards": 56,
@@ -8244,6 +8231,19 @@
     "Foil",
     "Submerge",
     "Archive Trap"
+   ]
+  },
+  {
+   "what": "custom target",
+   "score": 57,
+   "cards": 42,
+   "names": [
+    "Siren Stormtamer",
+    "Secret Tunnel",
+    "Goblin Welder",
+    "Rampaging Yao Guai",
+    "V.A.T.S.",
+    "Reunion of the House"
    ]
   },
   {

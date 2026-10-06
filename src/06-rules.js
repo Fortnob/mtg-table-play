@@ -2495,6 +2495,14 @@
       if (!c || c.layout !== 'split' || !c.card_faces || c.card_faces.length !== 2) return false;
       return !/^Aftermath\b/m.test(String(c.card_faces[1].oracle_text || ''));
     }
+    /** "controlled by different players": no two of the chosen objects share a controller. */
+    _differentControllersOk(effects, targets) {
+      const flat = [];
+      for (const x of effects || []) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
+      if (!flat.some(x => (x.targets || []).some(sp => sp && sp.differentControllers))) return true;
+      const ctl = (targets || []).filter(t => t.kind === 'object').map(t => (this.obj(t.id) || {}).controller).filter(Boolean);
+      return new Set(ctl).size === ctl.length;
+    }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
       const c = o && o.card;
@@ -3456,6 +3464,14 @@
         const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true, face: 0 }));
         if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
         return ok;
+      }
+      /* Run Away Together: "two target creatures controlled by different
+         players" — a pair the same player controls is no legal choice */
+      {
+        const so0 = this.obj(objId), a0 = so0 && so0.analysis();
+        if (a0 && !a0.isPermanent && (opts.targets || []).length > 1 &&
+          !this._differentControllersOk(this._cardSpellEffects(a0), (opts.targets || []).map(normTarget)))
+          return this.fail('Those targets must be controlled by different players.');
       }
       // Aftermath: the right half, from the graveyard
       if (opts.via === 'aftermath' && !opts._faceSet) {
@@ -7930,6 +7946,11 @@
           }, 'tgt');
           if (picked === SUSPEND) return SUSPEND;
           targets = (picked || []).map(normTarget);
+          // "controlled by different players": a second one under the same player isn't a target
+          if (e.targets.some(sp => sp && sp.differentControllers)) {
+            const seenCtl = new Set();
+            targets = targets.filter(t => { if (t.kind !== 'object') return true; const c = (this.obj(t.id) || {}).controller; if (seenCtl.has(c)) return false; seenCtl.add(c); return true; });
+          }
           ctx.resolvedTargets = targets;
           if (ctx.kind === 'ability') this._crimeCheck(ctx.controller, targets);
         }
