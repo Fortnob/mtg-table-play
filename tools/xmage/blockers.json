@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31810,
   "skippedLayout": 21,
-  "needed": 17340,
+  "needed": 17312,
   "gainedCards": 1802,
-  "linesNeeded": 19843,
+  "linesNeeded": 19811,
   "linesGained": 2353,
   "gained": {
    "all": 1802,
@@ -448,25 +448,6 @@
     "Greenhouse // Rickety Gazebo",
     "Roaring Furnace // Steaming Sauna",
     "Cramped Vents // Access Maze"
-   ]
-  },
-  {
-   "what": "ReturnToHandChosenControlledPermanentCost",
-   "score": 42,
-   "lines": 39,
-   "cards": [
-    "Multani, Yavimaya's Avatar",
-    "Mina and Denn, Wildborn",
-    "Quirion Ranger",
-    "Master Transmuter",
-    "Wirewood Symbiote",
-    "Scryb Ranger",
-    "Karoo",
-    "Coral Atoll",
-    "Meloku the Clouded Mirror",
-    "Jungle Basin",
-    "Oboro Breezecaller",
-    "Icebreaker Kraken"
    ]
   },
   {
@@ -2911,6 +2892,25 @@
    ]
   },
   {
+   "what": "ReturnToHandChosenControlledPermanentCost",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Karoo",
+    "Coral Atoll",
+    "Jungle Basin",
+    "Quickling",
+    "Crosis's Catacombs",
+    "Dormant Volcano",
+    "Dromar's Cavern",
+    "Rith's Grove",
+    "Everglades",
+    "Treva's Ruins",
+    "Darigaaz's Caldera",
+    "Oboro Envoy"
+   ]
+  },
+  {
    "what": "CovenCondition.instance",
    "score": 16,
    "lines": 16,
@@ -3140,25 +3140,6 @@
     "Starscream, Power Hungry // Starscream, Seeker Leader",
     "Garrulous Sycophant",
     "Throne Warden"
-   ]
-  },
-  {
-   "what": "ReturnToHandFromBattlefieldSourceCost",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Shigeki, Jukai Visionary",
-    "Maze's End",
-    "Rootha, Mercurial Artist",
-    "Attunement",
-    "Broken Fall",
-    "Steelshaper Apprentice",
-    "Gossamer Chains",
-    "Ovinomancer",
-    "Molting Skin",
-    "Krasis Incubation",
-    "Cycle of Life",
-    "Recurring Nightmare"
    ]
   },
   {
@@ -8019,6 +8000,17 @@
    ]
   },
   {
+   "what": "ReturnToHandFromBattlefieldSourceCost",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Shigeki, Jukai Visionary",
+    "Maze's End",
+    "Gossamer Chains",
+    "Cycle of Life"
+   ]
+  },
+  {
    "what": "CantLoseGameSourceControllerEffect",
    "score": 7,
    "lines": 4,
@@ -8273,8 +8265,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4746,
-   "cards": 3972,
+   "score": 4747,
+   "cards": 3973,
    "names": [
     "Ripples of Undeath",
     "Champion of Lambholt",
@@ -8503,19 +8495,6 @@
     "Aether Spike",
     "Swallowed by Leviathan",
     "The Tabernacle at Pendrell Vale"
-   ]
-  },
-  {
-   "what": "ReturnToHandChosenControlledPermanentCost",
-   "score": 35,
-   "cards": 35,
-   "names": [
-    "Mina and Denn, Wildborn",
-    "Quirion Ranger",
-    "Master Transmuter",
-    "Wirewood Symbiote",
-    "Scryb Ranger",
-    "Karoo"
    ]
   },
   {
@@ -8881,6 +8860,19 @@
    ]
   },
   {
+   "what": "AdditiveDynamicValue",
+   "score": 21,
+   "cards": 15,
+   "names": [
+    "Multani, Yavimaya's Avatar",
+    "Nighthawk Scavenger",
+    "Kellan, the Fae-Blooded // Birthright Boon",
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Champion of the Flame"
+   ]
+  },
+  {
    "what": "mana ability with more",
    "score": 21,
    "cards": 15,
@@ -9128,19 +9120,6 @@
    ]
   },
   {
-   "what": "AdditiveDynamicValue",
-   "score": 17,
-   "cards": 14,
-   "names": [
-    "Nighthawk Scavenger",
-    "Kellan, the Fae-Blooded // Birthright Boon",
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Champion of the Flame",
-    "Moon-Vigil Adherents"
-   ]
-  },
-  {
    "what": "second use of a later target",
    "score": 17,
    "cards": 17,
@@ -9240,6 +9219,19 @@
     "Twinblade Geist // Twinblade Invocation",
     "Lantern Bearer // Lanterns' Lift",
     "Chaplain of Alms // Chapel Shieldgeist"
+   ]
+  },
+  {
+   "what": "ReturnToHandChosenControlledPermanentCost",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Karoo",
+    "Coral Atoll",
+    "Jungle Basin",
+    "Quickling",
+    "Crosis's Catacombs",
+    "Dormant Volcano"
    ]
   },
   {
@@ -10855,19 +10847,6 @@
    ]
   },
   {
-   "what": "ReturnToHandFromBattlefieldSourceCost",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Maze's End",
-    "Rootha, Mercurial Artist",
-    "Attunement",
-    "Broken Fall",
-    "Steelshaper Apprentice",
-    "Gossamer Chains"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 10,
    "cards": 10,
@@ -12081,6 +12060,19 @@
     "Sanctuary Warden",
     "Soul Diviner",
     "Xavier Sal, Infested Captain"
+   ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Toph, Hardheaded Teacher",
+    "The Boulder, Ready to Rumble",
+    "Rockalanche",
+    "Toph, Greatest Earthbender",
+    "Earth Rumble",
+    "Earthshape"
    ]
   }
  ]

@@ -4220,9 +4220,11 @@
         const need = this._costCount(cost.exile.n, opts);
         if (this._exileCostPool(pid, cost.exile, self).length < need) return 'Not enough cards in your graveyard.';
       }
+      if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.returnOwn) {
-        if (!this.battlefield.some(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter)))
-          return `No ${cost.returnOwn.filter} to return.`;
+        const back = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
+          !(cost.returnOwn.untapped && x.tapped));
+        if (back.length < (cost.returnOwn.n || 1)) return `No ${cost.returnOwn.filter} to return.`;
       }
       if (cost.tapCreatures && cost.tapCreatures.totalPower != null) {
         const pool = this._tapCostPool(pid, cost.tapCreatures, self, cost.tap);
@@ -4248,6 +4250,8 @@
     _payThingCosts(pid, cost, self, opts, item) {
       if (!cost) return;
       opts = opts || {};
+      // "Return this creature to its owner's hand" as the price
+      if (cost.returnSelf && self && self.zone === 'battlefield') this.moveObject(self, 'hand');
       const p = this.player(pid);
       const auto = !!(p && p.isBot) || !!opts.autoCost;
       const ask = (choice) => this.queueChoice(Object.assign({
@@ -4296,12 +4300,14 @@
         }
       }
       if (cost.returnOwn) {
-        const pool = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter));
-        if (pool.length && (auto || pool.length === 1)) this.moveObject(this._cheapestFirst(pool)[0], 'hand');
+        const pool = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
+          !(cost.returnOwn.untapped && x.tapped));
+        const need = Math.min(cost.returnOwn.n || 1, pool.length);
+        if (pool.length && (auto || pool.length === need)) for (const x of this._cheapestFirst(pool).slice(0, need)) this.moveObject(x, 'hand');
         else if (pool.length) {
-          ask({ type: 'pickCard', count: 1, purpose: 'returnCost', worst: true, candidates: pool.map(x => x.id),
+          ask({ type: 'pickCard', count: need, purpose: 'returnCost', worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: `Return a ${cost.returnOwn.filter} you control to its owner's hand.` });
+            prompt: `Return ${need === 1 ? 'a ' + cost.returnOwn.filter : need + ' ' + cost.returnOwn.filter + 's'} you control to their owner's hand.` });
         }
       }
       /* Permanents tapped to pay ("Tap an untapped creature you control"):

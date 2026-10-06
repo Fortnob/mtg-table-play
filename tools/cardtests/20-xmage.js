@@ -1031,6 +1031,28 @@ module.exports = (test) => {
     t.no(T.g.couldBlock(blocker, bear, 'B'), 'cannot be blocked');
   });
 
+  test('Quirion Ranger returns a Forest to untap a creature', (mk, t) => {
+    t.auto('Quirion Ranger');
+    const T = mk();
+    const qr = T.bf('A', 'Quirion Ranger');
+    const f = T.bf('A', 'Forest');
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.tapped = true;
+    T.activate('A', qr, 0, { targets: [bear] });
+    t.zone(f, 'hand', 'the Forest paid for it');
+    t.no(bear.tapped, 'untapped');
+  });
+
+  test('Broken Fall returns itself to regenerate a creature', (mk, t) => {
+    t.auto('Broken Fall');
+    const T = mk();
+    const bf = T.bf('A', 'Broken Fall');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.activate('A', bf, 0, { targets: [bear] });
+    t.zone(bf, 'hand');
+    t.eq(bear.shields, 1);
+  });
+
   test('A clone exception that grants a keyword is read as words for the copy', (mk, t) => {
     const card = { id: 'probe-hasty-mimic', name: 'Hasty Mimic', type_line: 'Creature — Shapeshifter', mana_cost: '{3}{U}', cmc: 4, power: '0', toughness: '0',
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };

@@ -249,6 +249,15 @@
         cost.putCounters = { n: WORDN(m[1]), kind: m[2].toLowerCase() };
         continue;
       }
+      // "Return this creature to its owner's hand": the permanent itself as the price
+      if (/^Return (?:this (?:creature|artifact|enchantment|permanent|Aura|land)|CARDNAME) to its owner'?s hand$/i.test(p)) { cost.returnSelf = true; continue; }
+      /* "Return a land you control to its owner's hand", "Return two Islands
+         you control to their owner's hand": permanents bounced as the price */
+      if ((m = p.match(/^Return (a|an|one|two|three) (?:untapped )?([A-Za-z -]+?) you control to (?:its|their) owner'?s'? hands?$/i))) {
+        const w = m[2].trim().replace(/ies$/, 'y').replace(/s$/, '');
+        cost.returnOwn = { n: WORDN(m[1]), filter: w.toLowerCase(), untapped: /untapped/i.test(p) || undefined };
+        continue;
+      }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|\d+|X) (.+?) counters? from/i))) {
