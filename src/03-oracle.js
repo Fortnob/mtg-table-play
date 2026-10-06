@@ -3122,6 +3122,16 @@
     return (script.abilities || []).concat(script.add || []).every(ab => (ab.effects || []).every(ok));
   }
 
+  /* The same, for the abilities standing in for one line: and a line that
+     prints an intervening "if" or an "Activate only if" has to have kept it. */
+  function generatedLineSound(abs, line) {
+    if (!generatedScriptSound({ abilities: abs })) return false;
+    if (/^(?:When|Whenever|At)[^,\n]*, if /.test(line) &&
+        !abs.some(x => x.kind === 'triggered' && (x.condition || x.intervening))) return false;
+    if (/Activate only if/.test(line) && !abs.some(x => x.only && x.only.cond)) return false;
+    return true;
+  }
+
   /** Does this effect, or anything inside it, still need a person? */
   function hasManualStep(e) {
     if (!e || typeof e !== 'object') return false;
@@ -3271,7 +3281,11 @@
 
   function parseEffects(text) {
     const known = SPELL_TEXT.get(text);
-    if (known) return known;
+    /* Another card's reading of the same words: a copy, because whatever
+       folds riders into this card's effects must not reach back into that
+       card's (Precognitive Perception's addendum once gave Jace's Ingenuity
+       a main-phase condition). */
+    if (known) return { effects: JSON.parse(JSON.stringify(known.effects)), auto: known.auto };
     const cleaned = stripReminder(text);
     for (const rule of COMBO_RULES) {
       const m = cleaned.match(rule.re);
@@ -3796,7 +3810,11 @@
     let pawBudget = 0;
     const pawModes = [];
 
+    /* Where each line's abilities start, and how much of it was read: a
+       generated script can then stand in for just the lines that were not. */
+    const lineMarks = [];
     for (const line of lines) {
+      lineMarks.push({ text: line, ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines });
       totalLines++;
       /* "12+ | {G}, {T}: Add {G} for each creature you control." (station)
          and "Max speed — This creature has double strike." An ordinary
@@ -4324,6 +4342,14 @@
       out.abilities.push({ kind: 'static', text: line, auto: false, effects: [{ op: 'manual', text: line }] });
     }
 
+    const lineInfo = lineMarks.map((mk, i) => {
+      const nx = lineMarks[i + 1] || { ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines };
+      const got = nx.auto - mk.auto;
+      return { text: mk.text, got, auto: got >= 0.999,
+        abilities: out.abilities.slice(mk.ab, nx.ab), mana: out.manaAbilities.slice(mk.mana, nx.mana) };
+    });
+    Object.defineProperty(out, 'lineInfo', { value: lineInfo, enumerable: false, configurable: true });
+
     /* Overload (CR 702.96): the same spell with every "target" turned into
        "each", read now so casting it that way has something to run. */
     const ovl = out.abilities.find(x => x.kind === 'castModifier' && /^overload$/i.test(x.keyword || '') && x.arg);
@@ -4441,8 +4467,35 @@
        generated one only steps in where reading the text fell short. */
     let script = MTG.scripts && MTG.scripts.scriptFor(name);
     const readWholeCard = totalLines > 0 && autoLines >= totalLines - 0.001;
-    if (!script && !readWholeCard && MTG.cardlib) {
-      script = MTG.cardlib.generatedFor(MTG.scripts.keyFor(name));
+    const gen = !script && !readWholeCard && MTG.cardlib ? MTG.cardlib.generatedFor(MTG.scripts.keyFor(name)) : null;
+    /* A generated script written line by line stands in for exactly the
+       lines the reading above could not manage, and nothing else: what was
+       read stays as it was read. Each replacement goes where the line's own
+       abilities were, so the card keeps its printed order. */
+    if (gen && gen.lines) {
+      for (const li of lineInfo) {
+        if (li.auto) continue;
+        const shared = gen.lines[U.hash(li.text)];
+        if (!shared || !shared.length || !generatedLineSound(shared, li.text)) continue;
+        // the table's shapes are shared between cards: this card gets its own
+        const rep = JSON.parse(JSON.stringify(shared));
+        const mine = li.abilities.concat(li.mana);
+        if (mine.some(x => x.kind === 'castModifier')) continue;
+        const at = mine.length ? out.abilities.indexOf(li.abilities[0]) : -1;
+        out.abilities = out.abilities.filter(x => !mine.includes(x));
+        out.manaAbilities = out.manaAbilities.filter(x => !mine.includes(x));
+        const others = rep.filter(x => x.kind !== 'mana');
+        if (at >= 0) out.abilities.splice(Math.min(at, out.abilities.length), 0, ...others);
+        else out.abilities.push(...others);
+        out.manaAbilities.push(...rep.filter(x => x.kind === 'mana'));
+        autoLines += 1 - li.got;
+        li.auto = true;
+        li.generated = true;
+        out.generated = true;
+      }
+    }
+    if (!script && gen && gen.abilities && autoLines < totalLines - 0.001) {
+      script = gen;
       if (script && !generatedScriptSound(script)) script = null;
       /* A generated script that dropped a condition the card prints — "at
          the beginning of your upkeep, if you control six or more lands",

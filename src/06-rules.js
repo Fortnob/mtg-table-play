@@ -5773,6 +5773,11 @@
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
         case 'control':
+          /* a group described the way a static ability describes one
+             ("two or more other nontoken Elves you control") is counted the
+             same way, from printed characteristics, because a condition on a
+             continuous effect is asked while the layers are being worked out */
+          if (cond.scope) return !!me && at(this._scopeList(cond.scope, me.id, src, null, true).length);
           return !!me && at(this.countPermanents(me.id, { per: cond.what || 'permanent', who: cond.who || 'you' }));
         case 'controlPower': {
           if (!me) return false;

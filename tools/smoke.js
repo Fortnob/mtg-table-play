@@ -1,7 +1,7 @@
 /* Play every automated card once, headless, and report the ones that throw,
    warn, or fall through to "resolve this by hand".
 
-   node tools/smoke.js [--from 0] [--to 1000] [--name "Card Name"]
+   node tools/smoke.js [--from 0] [--to 1000] [--name "Card Name"] [--generated]
 
    Each card gets a fresh table with a few creatures, artifacts and lands on
    both sides and cards in every zone, so most targets have something to
@@ -57,7 +57,12 @@ function setup(T) {
 
 const failures = [];
 let tried = 0, cast = 0, activated = 0;
-const list = only ? pool.filter(c => c.name.toLowerCase() === only.toLowerCase()) : pool.slice(from, to);
+/* --generated: every card that leans on a translated line from 19-cardlib.js,
+   wherever it ranks */
+const genOnly = process.argv.includes('--generated');
+const list = only ? pool.filter(c => c.name.toLowerCase() === only.toLowerCase())
+  : genOnly ? pool.filter(c => { try { const a = MTG.oracle.analyze(MTG.scry.slim(c)); return !!(a && a.generated); } catch (e) { return false; } })
+  : pool.slice(from, to);
 for (const c of list) {
   let a;
   try { a = MTG.oracle.analyze(MTG.scry.slim(c)); } catch (e) { continue; }

@@ -1,0 +1,8523 @@
+{
+ "generated": "2026-10-06",
+ "stats": {
+  "cards": 32661,
+  "withClass": 30991,
+  "skippedLayout": 861,
+  "needed": 18234,
+  "gainedCards": 787,
+  "linesNeeded": 19903,
+  "linesGained": 1054,
+  "gained": {
+   "all": 787,
+   "top2000": 11,
+   "stdTop": 2
+  },
+  "compare": {
+   "same": 0,
+   "differ": 0,
+   "lines": 0
+  },
+  "verifyFail": 197
+ },
+ "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
+ "blockers": [
+  {
+   "what": "custom effect",
+   "score": 5120,
+   "lines": 4250,
+   "cards": [
+    "Ripples of Undeath",
+    "Champion of Lambholt",
+    "Thespian's Stage",
+    "Culling Ritual",
+    "Tibalt's Trickery",
+    "Tribute to the World Tree",
+    "Torment of Hailfire",
+    "Rite of Flame",
+    "Distant Melody",
+    "Sphere of Safety",
+    "Kindred Dominance",
+    "Springheart Nantuko"
+   ]
+  },
+  {
+   "what": "custom ability",
+   "score": 1041,
+   "lines": 831,
+   "cards": [
+    "Mangara, the Diplomat",
+    "Trouble in Pairs",
+    "Midnight Clock",
+    "Forbidden Orchard",
+    "Kaya's Ghostform",
+    "Scrap Trawler",
+    "Forsaken Monument",
+    "Burgeoning",
+    "The Gitrog Monster",
+    "Myr Battlesphere",
+    "Caged Sun",
+    "Mesmeric Orb"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 907,
+   "lines": 781,
+   "cards": [
+    "Mizzix's Mastery",
+    "Throne of Eldraine",
+    "Great Train Heist",
+    "Full Throttle",
+    "Rankle, Master of Pranks",
+    "Case of the Locked Hothouse",
+    "Stubborn Denial",
+    "Smuggler's Surprise",
+    "March of Swirling Mist",
+    "Kaldra Compleat",
+    "Delina, Wild Mage",
+    "Season of Gathering"
+   ]
+  },
+  {
+   "what": "(no XMage class)",
+   "score": 797,
+   "lines": 797,
+   "cards": [
+    "Deadpool, Trading Card",
+    "Cyber Conversion",
+    "Aminatou, Veil Piercer",
+    "Cybership",
+    "River Song's Diary",
+    "Raph & Mikey, Troublemakers",
+    "Psychic Paper",
+    "Zinnia, Valley's Voice",
+    "Mikey & Leo, Chaos & Order",
+    "Immortal Obligation",
+    "Lorehold, the Historian",
+    "Secret of Bloodbending"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 364,
+   "lines": 343,
+   "cards": [
+    "Excalibur, Sword of Eden",
+    "Light Up the Stage",
+    "Cavern-Hoard Dragon",
+    "Metalwork Colossus",
+    "Reforge the Soul",
+    "Shigeki, Jukai Visionary",
+    "Emrakul, the Promised End",
+    "Not of This World",
+    "Kogla and Yidaro",
+    "Temporal Mastery",
+    "Chandra's Incinerator",
+    "Metamorphosis Fanatic"
+   ]
+  },
+  {
+   "what": "(layout transform)",
+   "score": 363,
+   "lines": 300,
+   "cards": [
+    "Etali, Primal Conqueror // Etali, Primal Sickness",
+    "Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel",
+    "Invasion of Ikoria // Zilortha, Apex of Ikoria",
+    "Ojer Axonil, Deepest Might // Temple of Power",
+    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+    "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+    "Matzalantli, the Great Door // The Core",
+    "Urabrask // The Great Work",
+    "Sheoldred // The True Scriptures",
+    "Ojer Kaslem, Deepest Growth // Temple of Cultivation",
+    "Thousand Moons Smithy // Barracks of the Thousand",
+    "Primal Amulet // Primal Wellspring"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldAbility",
+   "score": 274,
+   "lines": 238,
+   "cards": [
+    "Mockingbird",
+    "Sakashima of a Thousand Faces",
+    "Astral Cornucopia",
+    "Phantasmal Image",
+    "Ulamog, the Defiler",
+    "Chameleon, Master of Disguise",
+    "Arixmethes, Slumbering Isle",
+    "Sakashima the Impostor",
+    "Diregraf Colossus",
+    "Imposter Mech",
+    "Nine-Lives Familiar",
+    "Echoing Deeps"
+   ]
+  },
+  {
+   "what": "Ability.setTargetAdjuster",
+   "score": 274,
+   "lines": 238,
+   "cards": [
+    "Curse of the Swine",
+    "The Mycosynth Gardens",
+    "Pest Infestation",
+    "Grasp of Fate",
+    "Crackle with Power",
+    "Comet Storm",
+    "Heliod's Intervention",
+    "March of Swirling Mist",
+    "Galadriel's Dismissal",
+    "Lazotep Quarry",
+    "Likeness Looter",
+    "Kozilek's Command"
+   ]
+  },
+  {
+   "what": "static ability in ALL",
+   "score": 183,
+   "lines": 174,
+   "cards": [
+    "Opposition Agent",
+    "Daxos, Blessed by the Sun",
+    "Nighthawk Scavenger",
+    "Grist, the Hunger Tide",
+    "Auton Soldier",
+    "Karn, Legacy Reforged",
+    "Haughty Djinn",
+    "Rakdos, Lord of Riots",
+    "Planar Nexus",
+    "Renata, Called to the Hunt",
+    "Machine God's Effigy",
+    "Nazgûl"
+   ]
+  },
+  {
+   "what": "SagaAbility",
+   "score": 166,
+   "lines": 124,
+   "cards": [
+    "Summon: Bahamut",
+    "Summon: Titan",
+    "Summon: Fenrir",
+    "The Eldest Reborn",
+    "There and Back Again",
+    "Summon: Knights of Round",
+    "Summon: Primal Odin",
+    "Summon: Yojimbo",
+    "Elspeth Conquers Death",
+    "One Ring to Rule Them All",
+    "Summon: Leviathan",
+    "In the Darkness Bind Them"
+   ]
+  },
+  {
+   "what": "AsEntersBattlefieldAbility",
+   "score": 154,
+   "lines": 109,
+   "cards": [
+    "Cloud Key",
+    "Banner of Kinship",
+    "Windcrag Siege",
+    "Frostcliff Siege",
+    "Talion, the Kindly Lord",
+    "Multiversal Passage",
+    "Outpost Siege",
+    "Mirrodin Besieged",
+    "Manor Gate",
+    "Serra's Emissary",
+    "Temple of the Dragon Queen",
+    "Sea Gate"
+   ]
+  },
+  {
+   "what": "combat damage trigger pointing at the player",
+   "score": 153,
+   "lines": 120,
+   "cards": [
+    "Hellkite Tyrant",
+    "Balefire Dragon",
+    "Cavern-Hoard Dragon",
+    "Unstoppable Slasher",
+    "Battle Angels of Tyr",
+    "Fallen Shinobi",
+    "Lightning, Army of One",
+    "Gishath, Sun's Avatar",
+    "Tinybones, the Pickpocket",
+    "Silent-Blade Oni",
+    "Ink-Eyes, Servant of Oni",
+    "Gríma, Saruman's Footman"
+   ]
+  },
+  {
+   "what": "SimpleActivatedAbility",
+   "score": 152,
+   "lines": 152,
+   "cards": [
+    "Bootleggers' Stash",
+    "Umbral Mantle",
+    "Thornbite Staff",
+    "Zombie Master",
+    "Squirrel Nest",
+    "Retraction Helix",
+    "Viridian Longbow",
+    "Phenax, God of Deception",
+    "Bigger on the Inside",
+    "Necrotic Sliver",
+    "Underworld Connections",
+    "Splinter Twin"
+   ]
+  },
+  {
+   "what": "(layout split)",
+   "score": 137,
+   "lines": 101,
+   "cards": [
+    "Dusk // Dawn",
+    "Wear // Tear",
+    "Walk-In Closet // Forgotten Cellar",
+    "Dazzling Theater // Prop Room",
+    "Funeral Room // Awakening Hall",
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Charred Foyer // Warped Space",
+    "Mirror Room // Fractured Realm",
+    "Unholy Annex // Ritual Chamber",
+    "Commit // Memory",
+    "Expansion // Explosion",
+    "Spiked Corridor // Torture Pit"
+   ]
+  },
+  {
+   "what": "LookLibraryAndPickControllerEffect",
+   "score": 134,
+   "lines": 110,
+   "cards": [
+    "Loot, Exuberant Explorer",
+    "Narset, Parter of Veils",
+    "Kinnan, Bonder Prodigy",
+    "Fomori Vault",
+    "Silverback Elder",
+    "Professor Onyx",
+    "Ureni of the Unwritten",
+    "Heroes' Podium",
+    "Consult the Star Charts",
+    "Karumonix, the Rat King",
+    "Genesis Ultimatum",
+    "Flow State"
+   ]
+  },
+  {
+   "what": "SimpleManaAbility",
+   "score": 128,
+   "lines": 76,
+   "cards": [
+    "Rugged Prairie",
+    "Cascade Bluffs",
+    "Flooded Grove",
+    "Fetid Heath",
+    "Twilight Mire",
+    "Graven Cairns",
+    "Incubation Druid",
+    "Mystic Gate",
+    "Sunken Ruins",
+    "Fire-Lit Thicket",
+    "Astral Cornucopia",
+    "Relic of Sauron"
+   ]
+  },
+  {
+   "what": "CreateDelayedTriggeredAbilityEffect",
+   "score": 124,
+   "lines": 115,
+   "cards": [
+    "High Tide",
+    "Thunderclap Drake",
+    "Bubbling Muck",
+    "Nine-Lives Familiar",
+    "Twinferno",
+    "Dalkovan Encampment",
+    "Ral, Storm Conduit",
+    "Teferi, Hero of Dominaria",
+    "Vizkopa Guildmage",
+    "Bonus Round",
+    "Arcbond",
+    "Mercurial Spelldancer"
+   ]
+  },
+  {
+   "what": "AttacksWithCreaturesTriggeredAbility",
+   "score": 122,
+   "lines": 101,
+   "cards": [
+    "Anim Pakal, Thousandth Moon",
+    "Guide of Souls",
+    "Twenty-Toed Toad",
+    "Ghalta and Mavren",
+    "Firemane Commando",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Caesar, Legion's Emperor",
+    "Toph, Earthbending Master",
+    "Chivalric Alliance",
+    "Hermes, Overseer of Elpis"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 111,
+   "lines": 78,
+   "cards": [
+    "Mindbreak Trap",
+    "Clever Concealment",
+    "Eerie Interlude",
+    "Twinflame",
+    "Priest of Forgotten Gods",
+    "Mantle of the Ancients",
+    "Call the Coppercoats",
+    "Deepglow Skate",
+    "Guardian of Faith",
+    "Perpetual Timepiece",
+    "Singularity Rupture",
+    "Brago, King Eternal"
+   ]
+  },
+  {
+   "what": "(layout adventure)",
+   "score": 103,
+   "lines": 82,
+   "cards": [
+    "Ishgard, the Holy See // Faith & Grief",
+    "Murderous Rider // Swift End",
+    "Monster Manual // Zoological Study",
+    "Jidoor, Aristocratic Capital // Overture",
+    "Two-Handed Axe // Sweeping Cleave",
+    "Virtue of Strength // Garenbrig Growth",
+    "Marang River Regent // Coil and Catch",
+    "Kellan, the Fae-Blooded // Birthright Boon",
+    "Decadent Dragon // Expensive Taste",
+    "Brightcap Badger // Fungus Frolic",
+    "Bramble Familiar // Fetch Quest",
+    "Zanarkand, Ancient Metropolis // Lasting Fayth"
+   ]
+  },
+  {
+   "what": "GetEmblemEffect",
+   "score": 97,
+   "lines": 67,
+   "cards": [
+    "Elspeth, Sun's Champion",
+    "Tezzeret, Cruel Captain",
+    "Chandra, Torch of Defiance",
+    "Nissa, Who Shakes the World",
+    "Daretti, Scrap Savant",
+    "Liliana of the Dark Realms",
+    "Ral, Crackling Wit",
+    "Wrenn and Realmbreaker",
+    "Tamiyo, Field Researcher",
+    "Garruk, Cursed Huntsman",
+    "Teferi, Hero of Dominaria",
+    "Tezzeret, Betrayer of Flesh"
+   ]
+  },
+  {
+   "what": "trigger pointing at PLAYER",
+   "score": 97,
+   "lines": 73,
+   "cards": [
+    "Painful Quandary",
+    "Talion, the Kindly Lord",
+    "Generous Plunderer",
+    "The Lord of Pain",
+    "Forced Fruition",
+    "Roiling Vortex",
+    "Rampaging Ferocidon",
+    "Gleeful Arsonist",
+    "Bane of Bala Ged",
+    "Rug of Smothering",
+    "Heartwood Storyteller",
+    "Terisian Mindbreaker"
+   ]
+  },
+  {
+   "what": "trigger pointing at SPELL",
+   "score": 91,
+   "lines": 73,
+   "cards": [
+    "Boromir, Warden of the Tower",
+    "Shark Typhoon",
+    "Liberator, Urza's Battlethopter",
+    "Vexing Bauble",
+    "Echoes of Eternity",
+    "Sunbird's Invocation",
+    "Monstrous Vortex",
+    "Powerbalance",
+    "Unbound Flourishing",
+    "Kaervek the Merciless",
+    "Ramos, Dragon Engine",
+    "Lavinia, Azorius Renegade"
+   ]
+  },
+  {
+   "what": "trigger pointing at PERMANENT",
+   "score": 86,
+   "lines": 71,
+   "cards": [
+    "Miirym, Sentinel Wyrm",
+    "Ondu Spiritdancer",
+    "Hero's Blade",
+    "Warden of the Grove",
+    "Brainstealer Dragon",
+    "Mimic Vat",
+    "Molten Echoes",
+    "Railway Brawler",
+    "Thornbite Staff",
+    "Cloudstone Curio",
+    "Emiel the Blessed",
+    "Marauding Raptor"
+   ]
+  },
+  {
+   "what": "(layout modal_dfc)",
+   "score": 80,
+   "lines": 53,
+   "cards": [
+    "Hydroelectric Specimen // Hydroelectric Laboratory",
+    "Sundering Eruption // Volcanic Fissure",
+    "Agadeem's Awakening // Agadeem, the Undercrypt",
+    "Legion Leadership // Legion Stronghold",
+    "Wandering Archaic // Explore the Vastlands",
+    "Waterlogged Teachings // Inundated Archive",
+    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
+    "Tergrid, God of Fright // Tergrid's Lantern",
+    "Strength of the Harvest // Haven of the Harvest",
+    "Hagra Mauling // Hagra Broodpit",
+    "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+    "Halvar, God of Battle // Sword of the Realms"
+   ]
+  },
+  {
+   "what": "(verify) number 1 missing",
+   "score": 79,
+   "lines": 67,
+   "cards": [
+    "All That Glitters",
+    "Nettlecyst",
+    "Wight of the Reliquary",
+    "Jarad, Golgari Lich Lord",
+    "Nissa, Ascended Animist",
+    "Rampaging Brontodon",
+    "Muxus, Goblin Grandee",
+    "Fiend Artisan",
+    "Boon of the Spirit Realm",
+    "Wellwisher",
+    "Glamdring",
+    "Knight of the Reliquary"
+   ]
+  },
+  {
+   "what": "DoWhenCostPaid",
+   "score": 79,
+   "lines": 79,
+   "cards": [
+    "Eden, Seat of the Sanctum",
+    "Sorin, Imperious Bloodlord",
+    "Undead Butler",
+    "The Balrog of Moria",
+    "Smoke Bomb",
+    "Auron, Venerated Guardian",
+    "Terra, Herald of Hope",
+    "Go-Shintai of Hidden Cruelty",
+    "Go-Shintai of Ancient Wars",
+    "Go-Shintai of Boundless Vigor",
+    "Rodolf Duskbringer",
+    "Go-Shintai of Lost Wisdom"
+   ]
+  },
+  {
+   "what": "Ability.setIdentifier",
+   "score": 77,
+   "lines": 50,
+   "cards": [
+    "Muldrotha, the Gravetide",
+    "Valgavoth, Terror Eater",
+    "One with the Multiverse",
+    "Nashi, Moon Sage's Scion",
+    "Quilled Greatwurm",
+    "Gwenom, Remorseless",
+    "Kess, Dissident Mage",
+    "Serra Paragon",
+    "Thundermane Dragon",
+    "Locke, Treasure Hunter",
+    "Assemble the Players",
+    "Squee, Dubious Monarch"
+   ]
+  },
+  {
+   "what": "(layout prepare)",
+   "score": 76,
+   "lines": 70,
+   "cards": [
+    "Grave Researcher // Reanimate",
+    "Studious First-Year // Rampant Growth",
+    "Emeritus of Woe // Demonic Tutor",
+    "Scheming Silvertongue // Sign in Blood",
+    "Stensian Sanguinist // Exsanguinate",
+    "Harmonized Trio // Brainstorm",
+    "Blazing Firesinger // Seething Song",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Emeritus of Abundance // Regrowth",
+    "Eiganjo Dynastorian // Replenish",
+    "Emeritus of Truce // Swords to Plowshares",
+    "Eccentric Pestfinder // Turn Stones"
+   ]
+  },
+  {
+   "what": "DealtDamageToSourceTriggeredAbility",
+   "score": 72,
+   "lines": 66,
+   "cards": [
+    "Brash Taunter",
+    "Apex Altisaur",
+    "Body of Knowledge",
+    "Stuffy Doll",
+    "Hornet Nest",
+    "Ripjaw Raptor",
+    "Flumph",
+    "Ranging Raptors",
+    "Strength of Will",
+    "Hungering Hydra",
+    "Polyraptor",
+    "Metropolis Reformer"
+   ]
+  },
+  {
+   "what": "custom target",
+   "score": 70,
+   "lines": 46,
+   "cards": [
+    "Siren Stormtamer",
+    "Secret Tunnel",
+    "Goblin Welder",
+    "Run Away Together",
+    "Rampaging Yao Guai",
+    "V.A.T.S.",
+    "Reunion of the House",
+    "Behold the Sinister Six!",
+    "Kairi, the Swirling Sky",
+    "Role Reversal",
+    "Modify Memory",
+    "Unbury"
+   ]
+  },
+  {
+   "what": "AlternativeCostSourceAbility",
+   "score": 67,
+   "lines": 64,
+   "cards": [
+    "Sephara, Sky's Blade",
+    "Daze",
+    "Invigorate",
+    "Foil",
+    "Submerge",
+    "Archive Trap",
+    "Gush",
+    "Mogg Salvage",
+    "Ricochet Trap",
+    "Once Upon a Time",
+    "Disrupting Shoal",
+    "Massacre"
+   ]
+  },
+  {
+   "what": "BecomesCreatureSourceEffect",
+   "score": 67,
+   "lines": 64,
+   "cards": [
+    "Mutavault",
+    "Raging Ravine",
+    "Den of the Bugbear",
+    "Creeping Tar Pit",
+    "Ride the Shoopuf",
+    "Restless Anchorage",
+    "Restless Reef",
+    "Restless Spire",
+    "Kaito, Bane of Nightmares",
+    "Lumbering Falls",
+    "Restless Vents",
+    "Celestial Colonnade"
+   ]
+  },
+  {
+   "what": "LimitedTimesPerTurnActivatedAbility",
+   "score": 66,
+   "lines": 54,
+   "cards": [
+    "Steel Hellkite",
+    "Chainer, Nightmare Adept",
+    "Quirion Ranger",
+    "Wirewood Symbiote",
+    "Invigorating Hot Spring",
+    "Instill Energy",
+    "Scryb Ranger",
+    "Nature's Chosen",
+    "Nimbleclaw Adept",
+    "Mavinda, Students' Advocate",
+    "Akul the Unrepentant",
+    "Hired Claw"
+   ]
+  },
+  {
+   "what": "Target.setTargetTag",
+   "score": 66,
+   "lines": 63,
+   "cards": [
+    "Resourceful Defense",
+    "Ulvenwald Tracker",
+    "Tidus, Yuna's Guardian",
+    "Contest of Claws",
+    "Cosmic Hunger",
+    "Incremental Blight",
+    "Iroh, Tea Master",
+    "Phantom Blade",
+    "Domri Rade",
+    "Friendly Rivalry",
+    "Allies at Last",
+    "Burning Sun's Avatar"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility",
+   "score": 65,
+   "lines": 62,
+   "cards": [
+    "Up the Beanstalk",
+    "Cityscape Leveler",
+    "Giggling Skitterspike",
+    "Unbound Flourishing",
+    "Aerial Extortionist",
+    "Heaped Harvest",
+    "Tectonic Giant",
+    "Gathering Stone",
+    "Minsc & Boo, Timeless Heroes",
+    "Tivit, Seller of Secrets",
+    "Balor",
+    "Alpha Deathclaw"
+   ]
+  },
+  {
+   "what": "SimpleEvasionAbility",
+   "score": 64,
+   "lines": 64,
+   "cards": [
+    "War's Toll",
+    "Signal Pest",
+    "The Balrog, Durin's Bane",
+    "Deluxe Dragster",
+    "Dauthi Horror",
+    "Ghost of Ramirez DePietro",
+    "Silhana Ledgewalker",
+    "Daxos of Meletis",
+    "Nick Valentine, Private Eye",
+    "Evil Eye of Orms-by-Gore",
+    "Stromkirk Noble",
+    "April O'Neil, Kunoichi Trainee"
+   ]
+  },
+  {
+   "what": "SacrificeSourceUnlessPaysEffect",
+   "score": 63,
+   "lines": 60,
+   "cards": [
+    "The Gitrog Monster",
+    "Command Bridge",
+    "Solitary Confinement",
+    "Karoo",
+    "Coral Atoll",
+    "Jungle Basin",
+    "Quickling",
+    "Contamination",
+    "Public Thoroughfare",
+    "Crosis's Catacombs",
+    "Dormant Volcano",
+    "Dromar's Cavern"
+   ]
+  },
+  {
+   "what": "DiesAttachedTriggeredAbility",
+   "score": 57,
+   "lines": 54,
+   "cards": [
+    "Gift of Immortality",
+    "Angelic Destiny",
+    "Ghoulish Impetus",
+    "Mask of Griselbrand",
+    "Heirloom Blade",
+    "Fungal Fortitude",
+    "Changing Loyalty",
+    "Nurgle's Rot",
+    "Dead Man's Chest",
+    "Eater of Virtue",
+    "Necrosynthesis",
+    "Deathrender"
+   ]
+  },
+  {
+   "what": "several subtypes in a scope",
+   "score": 55,
+   "lines": 46,
+   "cards": [
+    "Valley Floodcaller",
+    "Swarmyard Massacre",
+    "Valley Rotcaller",
+    "Silver-Fur Master",
+    "Gisa, the Hellraiser",
+    "Sapling Nursery",
+    "Orcish Siegemaster",
+    "Valley Questcaller",
+    "Spider-Ham, Peter Porker",
+    "Edward Kenway",
+    "Raphael, Fiendish Savior",
+    "Hollowhenge Overlord"
+   ]
+  },
+  {
+   "what": "DealsDamageToAPlayerAllTriggeredAbility",
+   "score": 55,
+   "lines": 43,
+   "cards": [
+    "Kodama of the West Tree",
+    "Old Gnawbone",
+    "Kediss, Emberclaw Familiar",
+    "Coastal Piracy",
+    "Yuriko, the Tiger's Shadow",
+    "Fynn, the Fangbearer",
+    "Angel of Destiny",
+    "Impostor Syndrome",
+    "Calix, Guided by Fate",
+    "Waterbender Ascension",
+    "Necropolis Regent",
+    "Strixhaven Stadium"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 53,
+   "lines": 44,
+   "cards": [
+    "Demonic Counsel",
+    "Cid, Freeflier Pilot",
+    "Bedrock Tortoise",
+    "Prava of the Steel Legion",
+    "Freya Crescent",
+    "Pugnacious Hammerskull",
+    "Sorin, Vengeful Bloodlord",
+    "Chakram Retriever",
+    "Sokka's Charge",
+    "Dragoon's Lance",
+    "Mite Overseer",
+    "Kain, Traitorous Dragoon"
+   ]
+  },
+  {
+   "what": "TargetCreaturePermanentAmount",
+   "score": 51,
+   "lines": 42,
+   "cards": [
+    "The Earth Crystal",
+    "Court of Garenbrig",
+    "Lathiel, the Bounteous Dawn",
+    "Abzan Charm",
+    "Ajani, Sleeper Agent",
+    "Verdurous Gearhulk",
+    "Ajani, Mentor of Heroes",
+    "Broodlord",
+    "Quirion Beastcaller",
+    "Biogenic Upgrade",
+    "Ghired's Belligerence",
+    "Synchronized Charge"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 50,
+   "lines": 41,
+   "cards": [
+    "Drakuseth, Maw of Flames",
+    "Pain for All",
+    "Take the Bait",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter",
+    "Needle Drop",
+    "Self-Destruct",
+    "You Look Upon the Tarrasque"
+   ]
+  },
+  {
+   "what": "keyword PartnerWithAbility",
+   "score": 50,
+   "lines": 50,
+   "cards": [
+    "Alisaie Leveilleur",
+    "Alphinaud Leveilleur",
+    "Pippin, Warden of Isengard",
+    "Brallin, Skyshark Rider",
+    "Frodo, Adventurous Hobbit",
+    "Toothy, Imaginary Friend",
+    "Merry, Warden of Isengard",
+    "Pir, Imaginative Rascal",
+    "Chakram Retriever",
+    "Sam, Loyal Attendant",
+    "Shabraz, the Skyshark",
+    "Evie Frye"
+   ]
+  },
+  {
+   "what": "NamePredicate",
+   "score": 50,
+   "lines": 50,
+   "cards": [
+    "Hare Apparent",
+    "Gruff Triplets",
+    "Detention Sphere",
+    "Clever Conjurer",
+    "Genasi Enforcers",
+    "Volo, Itinerant Scholar",
+    "Tempest Hawk",
+    "Seven Dwarves",
+    "Asmoranomardicadaistinaculdacar",
+    "Rufus Shinra",
+    "Gary Clone",
+    "Templar Knight"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 49,
+   "lines": 49,
+   "cards": [
+    "Gadrak, the Crown-Scourge",
+    "Bilbo's Ring",
+    "Putrid Imp",
+    "Thieves' Tools",
+    "Security Bypass",
+    "Detective of the Month",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Yuan-Ti Malison",
+    "Fugitive Droid",
+    "Nimble Trapfinder"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 48,
+   "lines": 12,
+   "cards": [
+    "Restoration Magic",
+    "Great Train Heist",
+    "Smuggler's Surprise",
+    "Lively Dirge",
+    "Fire Magic",
+    "Tifa's Limit Break",
+    "Rush of Dread",
+    "One Last Job",
+    "Ice Magic",
+    "Jailbreak Scheme",
+    "Caught in the Crossfire",
+    "Unfortunate Accident"
+   ]
+  },
+  {
+   "what": "BecomesCreatureTargetEffect",
+   "score": 48,
+   "lines": 42,
+   "cards": [
+    "Vraska, Betrayal's Sting",
+    "Nissa, Who Shakes the World",
+    "Wrenn and Realmbreaker",
+    "Llanowar Loamspeaker",
+    "Nissa, Vital Force",
+    "Kamahl, Heart of Krosa",
+    "The Mechanist, Aerial Artisan",
+    "Nissa, Steward of Elements",
+    "Vronos, Masked Inquisitor",
+    "Embodiment of Insight",
+    "Tatyova, Steward of Tides",
+    "Nissa, Worldwaker"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 47,
+   "lines": 38,
+   "cards": [
+    "Inspiring Statuary",
+    "Rain of Riches",
+    "Hoarding Broodlord",
+    "Pearl-Ear, Imperial Advisor",
+    "Party Thrasher",
+    "Thrumming Stone",
+    "Imoti, Celebrant of Bounty",
+    "Zhulodok, Void Gorger",
+    "Tezzeret, Master of the Bridge",
+    "Mycosynth Golem",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousEffect outside a static ability",
+   "score": 46,
+   "lines": 43,
+   "cards": [
+    "Temur Battle Rage",
+    "Sower of Temptation",
+    "Evereth, Viceroy of Plunder",
+    "Courageous Resolve",
+    "Built to Smash",
+    "Savage Punch",
+    "Cytoplast Manipulator",
+    "Helm of Possession",
+    "Take the Fall",
+    "Stolen Vitality",
+    "Callous Oppressor",
+    "Team Tactics"
+   ]
+  },
+  {
+   "what": "DynamicManaAbility",
+   "score": 46,
+   "lines": 43,
+   "cards": [
+    "Crypt of Agadeem",
+    "Glittering Stockpile",
+    "Arbor Adherent",
+    "Karametra's Acolyte",
+    "Axebane Guardian",
+    "Wirewood Channeler",
+    "White Lotus Tile",
+    "Mage-Ring Network",
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Bighorner Rancher",
+    "Accomplished Alchemist"
+   ]
+  },
+  {
+   "what": "PutCardFromHandOntoBattlefieldEffect",
+   "score": 45,
+   "lines": 24,
+   "cards": [
+    "Archaeomancer's Map",
+    "Horizon of Progress",
+    "Uro, Titan of Nature's Wrath",
+    "Terrain Generator",
+    "Anticausal Vestige",
+    "Arboreal Grazer",
+    "Contaminant Grafter",
+    "Braids, Conjurer Adept",
+    "Scaretiller",
+    "Lessons from Life",
+    "Court of Bounty",
+    "Zimone, Quandrix Prodigy"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldThisOrAnotherTriggeredAbility",
+   "score": 44,
+   "lines": 38,
+   "cards": [
+    "Hammer of Nazahn",
+    "Kappa Cannoneer",
+    "Pantlaza, Sun-Favored",
+    "Fecund Greenshell",
+    "High Perfect Morcant",
+    "Arbaaz Mir",
+    "Maralen, Fae Ascendant",
+    "Clement, the Worrywort",
+    "Darksteel Splicer",
+    "Radiant Solar",
+    "Cacophony Unleashed",
+    "Merchant Raiders"
+   ]
+  },
+  {
+   "what": "SacrificePermanentTriggeredAbility",
+   "score": 44,
+   "lines": 38,
+   "cards": [
+    "It That Betrays",
+    "Mazirek, Kraul Death Priest",
+    "Ravenous Squirrel",
+    "Bloodroot Apothecary",
+    "Evendo Brushrazer",
+    "Szarel, Genesis Shepherd",
+    "Riveteers Ascendancy",
+    "Zodiark, Umbral God",
+    "Fumulus, the Infestation",
+    "Rakdos, the Muscle",
+    "Ashling, the Limitless",
+    "Scouring Swarm"
+   ]
+  },
+  {
+   "what": "CantBeBlockedTargetEffect",
+   "score": 44,
+   "lines": 41,
+   "cards": [
+    "Thassa, God of the Sea",
+    "Bria, Riptide Rogue",
+    "K-9, Mark I",
+    "Kaito, Cunning Infiltrator",
+    "Merfolk Sovereign",
+    "Deekah, Fractal Theorist",
+    "Turtle Lair",
+    "Higure, the Still Wind",
+    "Corsairs of Umbar",
+    "Distortion Strike",
+    "Long River Lurker",
+    "Wedding Invitation"
+   ]
+  },
+  {
+   "what": "PutOnLibraryTargetEffect",
+   "score": 44,
+   "lines": 44,
+   "cards": [
+    "Barkform Harvester",
+    "Reclaim",
+    "Cavalier of Thorns",
+    "Conjurer's Bauble",
+    "Primal Command",
+    "Treason of Isengard",
+    "Transplant Theorist",
+    "Chrome Companion",
+    "The Spot's Portal",
+    "Tomb Trawler",
+    "Junktroller",
+    "Vessel of Endless Rest"
+   ]
+  },
+  {
+   "what": "keyword EquipAbility",
+   "score": 43,
+   "lines": 37,
+   "cards": [
+    "Dragonfire Blade",
+    "Dancer's Chakrams",
+    "Mjölnir, Hammer of Thor",
+    "Luxior, Giada's Gift",
+    "Machinist's Arsenal",
+    "Robe of the Archmagi",
+    "Gavel of the Righteous",
+    "Astrologian's Planisphere",
+    "Crown of Gondor",
+    "Pact Weapon",
+    "Samurai's Katana",
+    "Reaper's Scythe"
+   ]
+  },
+  {
+   "what": "SpellsCostReductionControllerEffect",
+   "score": 42,
+   "lines": 36,
+   "cards": [
+    "Goreclaw, Terror of Qal Sisma",
+    "Morophon, the Boundless",
+    "It That Heralds the End",
+    "Conduit of Ruin",
+    "Ancient Cellarspawn",
+    "Doc Aurlock, Grizzled Genius",
+    "The Ur-Dragon",
+    "Emet-Selch of the Third Seat",
+    "Eluge, the Shoreless Sea",
+    "Thryx, the Sudden Storm",
+    "Shadow in the Warp",
+    "Warden of Evos Isle"
+   ]
+  },
+  {
+   "what": "CardsLeaveGraveyardTriggeredAbility",
+   "score": 42,
+   "lines": 30,
+   "cards": [
+    "Insidious Roots",
+    "Teval's Judgment",
+    "Teval, the Balanced Scale",
+    "On Wings of Gold",
+    "Tormod, the Desecrator",
+    "Kheru Goldkeeper",
+    "Desecrated Tomb",
+    "Imotekh the Stormlord",
+    "Skeleton Crew",
+    "Fang, Fearless l'Cie",
+    "Thran Vigil",
+    "Dredger's Insight"
+   ]
+  },
+  {
+   "what": "ConditionalAsThoughEffect",
+   "score": 41,
+   "lines": 32,
+   "cards": [
+    "The Reality Chip",
+    "Augur of Autumn",
+    "Forge Anew",
+    "Summoning Materia",
+    "The Blue Spirit",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Captain Mar-Vell, Space-Born",
+    "Demon Wall",
+    "Quicksilver, Speedster",
+    "Elvish Refueler"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 41,
+   "lines": 11,
+   "cards": [
+    "Exploration Broodship",
+    "The Eternity Elevator",
+    "Adagia, Windswept Bastion",
+    "Uthros Research Craft",
+    "Dawnsire, Sunstar Dreadnought",
+    "Inspirit, Flagship Vessel",
+    "Entropic Battlecruiser",
+    "Synthesizer Labship",
+    "Debris Field Crusher"
+   ]
+  },
+  {
+   "what": "Ability.setCostAdjuster",
+   "score": 40,
+   "lines": 40,
+   "cards": [
+    "Voldaren Estate",
+    "Mariposa Military Base",
+    "Hylda's Crown of Winter",
+    "Mirror of Galadriel",
+    "Sanctum of Tranquil Light",
+    "Waterbending Scroll",
+    "Towashi Guide-Bot",
+    "The Lonely Mountain",
+    "Osgir, the Reconstructor",
+    "Wayta, Trainer Prodigy",
+    "Prototype Portal",
+    "Mobilized District"
+   ]
+  },
+  {
+   "what": "SignInversionDynamicValue",
+   "score": 40,
+   "lines": 40,
+   "cards": [
+    "Black Sun's Twilight",
+    "Liliana, Waker of the Dead",
+    "Liliana, Untouched by Death",
+    "Deluge of Doom",
+    "Drana, Kalastria Bloodchief",
+    "Lys Alana Scarblade",
+    "Essence Pulse",
+    "Priest of the Haunted Edge",
+    "Nyxathid",
+    "Drown in Filth",
+    "Cloudkill",
+    "Stingerback Terror"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 39,
+   "lines": 30,
+   "cards": [
+    "Gingerbrute",
+    "Azure Beastbinder",
+    "Locke, Treasure Hunter",
+    "Lydia Frye",
+    "Cynical Loner",
+    "Departed Deckhand",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Tatsunari, Toad Rider",
+    "Ant-Man, Elusive Avenger"
+   ]
+  },
+  {
+   "what": "DealsDamageToAPlayerAttachedTriggeredAbility",
+   "score": 38,
+   "lines": 23,
+   "cards": [
+    "Sword of Hearth and Home",
+    "The Key to the Vault",
+    "Sword of Wealth and Power",
+    "Super State",
+    "Quietus Spike",
+    "Vorpal Sword",
+    "Sigil of Sleep",
+    "Sword of Sinew and Steel",
+    "Sword of Once and Future",
+    "Orcrist, Goblin-cleaver",
+    "Glamdring",
+    "Dream-Thief's Bandana"
+   ]
+  },
+  {
+   "what": "(verify) number 2 missing",
+   "score": 38,
+   "lines": 38,
+   "cards": [
+    "Ioreth of the Healing House",
+    "Cast into the Fire",
+    "Garruk Wildspeaker",
+    "Volcanic Salvo",
+    "Argothian Elder",
+    "Cleopatra, Exiled Pharaoh",
+    "Dual Shot",
+    "Scholar of the Ages",
+    "Felidar Savior",
+    "Ley Weaver",
+    "Rooftop Percher",
+    "Basri's Acolyte"
+   ]
+  },
+  {
+   "what": "TurnedFaceUpSourceTriggeredAbility",
+   "score": 38,
+   "lines": 38,
+   "cards": [
+    "Branch of Vitu-Ghazi",
+    "Kheru Spellsnatcher",
+    "Coveted Falcon",
+    "Chromeshell Crab",
+    "Brine Elemental",
+    "Boltbender",
+    "Kadena's Silencer",
+    "Flourishing Bloom-Kin",
+    "Icefeather Aven",
+    "Exit Specialist",
+    "Aurelia's Vindicator",
+    "Unyielding Gatekeeper"
+   ]
+  },
+  {
+   "what": "trigger pointing at the creature",
+   "score": 37,
+   "lines": 37,
+   "cards": [
+    "Liesa, Forgotten Archangel",
+    "Ratadrabik of Urborg",
+    "Meathook Massacre II",
+    "Yedora, Grave Gardener",
+    "Nightmare Shepherd",
+    "Fecundity",
+    "Valkyrie's Call",
+    "Thieving Amalgam",
+    "Vraska, the Silencer",
+    "Shelob, Dread Weaver",
+    "Hofri Ghostforge",
+    "Taborax, Hope's Demise"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldWithCountersAbility",
+   "score": 36,
+   "lines": 30,
+   "cards": [
+    "Dark Depths",
+    "Blast Zone",
+    "Diamond City",
+    "Gemstone Mine",
+    "Reckoner Bankbuster",
+    "Invigorating Hot Spring",
+    "Tendo Ice Bridge",
+    "Moonshadow",
+    "Paradox Zone",
+    "Costume Closet",
+    "The Monumental Facade",
+    "Explorer's Cache"
+   ]
+  },
+  {
+   "what": "TargetCardInOpponentsGraveyard",
+   "score": 36,
+   "lines": 30,
+   "cards": [
+    "Lord Skitter, Sewer King",
+    "Puppeteer Clique",
+    "Dire Fleet Daredevil",
+    "Captain N'ghathrod",
+    "Memory Plunder",
+    "Uchuulon",
+    "Arcane Heist",
+    "Lobelia Sackville-Baggins",
+    "Spelltwine",
+    "Ethereal Absolution",
+    "Chancellor of the Spires",
+    "Jailbreak"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 36,
+   "lines": 36,
+   "cards": [
+    "Human Torch, Johnny Storm",
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Quicksilver, Brash Blur",
+    "Captain Marvel, Earth's Protector",
+    "Loki Laufeyson",
+    "Viv Vision, Teen Synthezoid",
+    "Hulk, Gamma Goliath",
+    "Thanos, the Mad Titan",
+    "Ultron Drone",
+    "She-Hulk, Jade Defender",
+    "Serpent Specialist",
+    "Shang-Chi, Martial Mentor"
+   ]
+  },
+  {
+   "what": "DiscardTargetCost",
+   "score": 35,
+   "lines": 29,
+   "cards": [
+    "Solphim, Mayhem Dominus",
+    "Nezahal, Primal Tide",
+    "Thrilling Discovery",
+    "Moria Scavenger",
+    "Plague Reaver",
+    "Pumpkin Bombs",
+    "Lluwen, Imperfect Naturalist",
+    "Zombie Infestation",
+    "Ormos, Archive Keeper",
+    "Wild Mongrel",
+    "Necromancer's Stockpile",
+    "Divining Witch"
+   ]
+  },
+  {
+   "what": "DealsDamageToOpponentTriggeredAbility",
+   "score": 35,
+   "lines": 32,
+   "cards": [
+    "Snake Umbra",
+    "Questing Beast",
+    "Hydra Omnivore",
+    "Vincent, Vengeful Atoner",
+    "Looter il-Kor",
+    "Warren Instigator",
+    "Hypnotic Specter",
+    "Atemsis, All-Seeing",
+    "Thieving Otter",
+    "Nicol Bolas",
+    "Kosei, Penitent Warlord",
+    "Thieving Magpie"
+   ]
+  },
+  {
+   "what": "CastSecondSpellTriggeredAbility",
+   "score": 35,
+   "lines": 35,
+   "cards": [
+    "The Council of Four",
+    "Cosmogrand Zenith",
+    "Storm of Saruman",
+    "Alphinaud Leveilleur",
+    "Rammas Echor, Ancient Shield",
+    "Jori En, Ruin Diver",
+    "Stella Lee, Wild Card",
+    "Tomb of Horrors Adventurer",
+    "Eris, Roar of the Storm",
+    "Clarion Spirit",
+    "Oji, the Exquisite Blade",
+    "Malcolm, the Eyes"
+   ]
+  },
+  {
+   "what": "SearchLibraryGraveyardPutInHandEffect",
+   "score": 35,
+   "lines": 35,
+   "cards": [
+    "Tower Winder",
+    "Delivery Moogle",
+    "Tale of Momo",
+    "The First Doctor",
+    "Raven Clan War-Axe",
+    "Fang-Druid Summoner",
+    "Visage of Bolas",
+    "Grand Master of Flowers",
+    "Chandra's Outburst",
+    "Chandra's Firemaw",
+    "Liberating Combustion",
+    "Liliana's Scorn"
+   ]
+  },
+  {
+   "what": "PutIntoGraveFromBattlefieldAllTriggeredAbility",
+   "score": 34,
+   "lines": 31,
+   "cards": [
+    "Marionette Master",
+    "Agent of the Iron Throne",
+    "Vat of Rebirth",
+    "Yuna, Grand Summoner",
+    "Aetherworks Marvel",
+    "Prowess of the Fair",
+    "Soulcatchers' Aerie",
+    "Kibo, Uktabi Prince",
+    "Colfenor's Urn",
+    "Angelic Renewal",
+    "Neva, Stalked by Nightmares",
+    "Field of Souls"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 34,
+   "lines": 31,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Alela, Cunning Conqueror",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Descendants' Fury",
+    "Olivia, Opulent Outlaw",
+    "Ramirez DePietro, Pillager",
+    "Vaan, Street Thief"
+   ]
+  },
+  {
+   "what": "AttacksAllTriggeredAbility",
+   "score": 33,
+   "lines": 33,
+   "cards": [
+    "Vengeful Ancestor",
+    "Revenge of Ravens",
+    "Fumulus, the Infestation",
+    "Caltrops",
+    "Najeela, the Blade-Blossom",
+    "Sarkhan the Masterless",
+    "Marchesa's Decree",
+    "Raggadragga, Goreguts Boss",
+    "Search the Premises",
+    "Isperia, Supreme Judge",
+    "Crown of Doom",
+    "Dogmeat, Ever Loyal"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 33,
+   "lines": 33,
+   "cards": [
+    "Drown in Dreams",
+    "Will of the Jeskai",
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance",
+    "Will of the Abzan",
+    "Will of the Sultai",
+    "See Double",
+    "Will of the Temur",
+    "Moxite Refinery",
+    "Szat's Will",
+    "Klauth's Will"
+   ]
+  },
+  {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 32,
+   "lines": 14,
+   "cards": [
+    "Innkeeper's Talent",
+    "Artist's Talent",
+    "Fighter Class",
+    "Blacksmith's Talent",
+    "Fortune Teller's Talent",
+    "Sorcerer Class",
+    "Rogue Class",
+    "Ninja Teen",
+    "Bard Class",
+    "Fisher's Talent",
+    "Advanced Reconstruction"
+   ]
+  },
+  {
+   "what": "PreventNextDamageFromChosenSourceEffect",
+   "score": 32,
+   "lines": 29,
+   "cards": [
+    "Deflecting Palm",
+    "New Way Forward",
+    "Righteous Aura",
+    "Intervention Pact",
+    "Reverse Damage",
+    "Circle of Protection: White",
+    "Story Circle",
+    "Circle of Protection: Red",
+    "Circle of Protection: Black",
+    "Circle of Protection: Green",
+    "Rune of Protection: White",
+    "Circle of Protection: Blue"
+   ]
+  },
+  {
+   "what": "or of Predicates.and",
+   "score": 32,
+   "lines": 23,
+   "cards": [
+    "Circuitous Route",
+    "Iron Spider, Stark Upgrade",
+    "Map the Frontier",
+    "Starfield Shepherd",
+    "Scampering Surveyor",
+    "Open the Gates",
+    "Magmaquake",
+    "Explore the Underdark",
+    "Gatecreeper Vine",
+    "Carnivorous Canopy",
+    "District Guide",
+    "Doctor Doom"
+   ]
+  },
+  {
+   "what": "BecomesBlockedSourceTriggeredAbility",
+   "score": 32,
+   "lines": 32,
+   "cards": [
+    "Anzrag, the Quake-Mole",
+    "Goblin Javelineer",
+    "Battle-Scarred Goblin",
+    "Bill Ferny, Bree Swindler",
+    "Elvish Berserker",
+    "Laccolith Whelp",
+    "Slate Street Ruffian",
+    "Alley Grifters",
+    "Thresher Beast",
+    "Gustcloak Harrier",
+    "Vedalken Ghoul",
+    "Gang of Elk"
+   ]
+  },
+  {
+   "what": "AttacksAttachedTriggeredAbility",
+   "score": 32,
+   "lines": 32,
+   "cards": [
+    "Mjölnir, Storm Hammer",
+    "Songbirds' Blessing",
+    "Andúril, Flame of the West",
+    "The Spear of Leonidas",
+    "Hexplate Wallbreaker",
+    "Martial Impetus",
+    "Ordeal of Nylea",
+    "Staff of Titania",
+    "Mage Slayer",
+    "Pact Weapon",
+    "Fractal Harness",
+    "Nuka-Nuke Launcher"
+   ]
+  },
+  {
+   "what": "ReturnToHandSourceEffect",
+   "score": 31,
+   "lines": 25,
+   "cards": [
+    "Encroaching Dragonstorm",
+    "Breaching Dragonstorm",
+    "Roiling Dragonstorm",
+    "Thopter Assembly",
+    "Acererak the Archlich",
+    "Mana Bloom",
+    "Squirrel Sanctuary",
+    "Glitch Interpreter",
+    "Corroding Dragonstorm",
+    "Corpses of the Lost",
+    "Phelddagrif",
+    "Teeming Dragonstorm"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 31,
+   "lines": 31,
+   "cards": [
+    "Ghirapur Orrery",
+    "Braids, Cabal Minion",
+    "Bottomless Pit",
+    "Well of Ideas",
+    "Demonic Taskmaster",
+    "Shrieking Affliction",
+    "Katara's Reversal",
+    "Davriel, Rogue Shadowmage",
+    "Walking Archive",
+    "Djeru's Resolve",
+    "Absorb Identity",
+    "Titan Hunter"
+   ]
+  },
+  {
+   "what": "ExileThenReturnTargetEffect",
+   "score": 30,
+   "lines": 21,
+   "cards": [
+    "Thassa, Deep-Dwelling",
+    "Planar Incision",
+    "Displace",
+    "Airbender Ascension",
+    "Y'shtola Rhul",
+    "Emiel the Blessed",
+    "Eldrazi Displacer",
+    "Splash Portal",
+    "Distinguished Conjurer",
+    "Lilysplash Mentor",
+    "Scrollshift",
+    "Illusionist's Stratagem"
+   ]
+  },
+  {
+   "what": "AttacksAloneControlledTriggeredAbility",
+   "score": 30,
+   "lines": 30,
+   "cards": [
+    "Squall, SeeD Mercenary",
+    "Ironsoul Enforcer",
+    "Raiyuu, Storm's Edge",
+    "Selfless Samurai",
+    "Finest Hour",
+    "Spider-Man Noir",
+    "Heiko Yamazaki, the General",
+    "Team Avatar",
+    "Angelic Exaltation",
+    "Altar of the Goyf",
+    "Seifer Almasy",
+    "Rafiq of the Many"
+   ]
+  },
+  {
+   "what": "AttacksAndIsNotBlockedTriggeredAbility",
+   "score": 30,
+   "lines": 30,
+   "cards": [
+    "Guiltfeeder",
+    "Cybermat",
+    "Thalakos Deceiver",
+    "Wildfire Eternal",
+    "Eternal of Harsh Truths",
+    "Swamp Mosquito",
+    "Suq'Ata Assassin",
+    "Kukemssa Pirates",
+    "Dauthi Mindripper",
+    "Bone Dancer",
+    "Goblin Vandal",
+    "Zealot il-Vec"
+   ]
+  },
+  {
+   "what": "keyword ExertAbility",
+   "score": 29,
+   "lines": 26,
+   "cards": [
+    "Combat Celebrant",
+    "Glorybringer",
+    "Hydra Trainer",
+    "Themberchaud",
+    "Champion of Rhonas",
+    "Sandstorm Crasher",
+    "Anep, Vizier of Hazoret",
+    "Clockwork Droid",
+    "Rohirrim Chargers",
+    "Ahn-Crop Crasher",
+    "Glory-Bound Initiate",
+    "Emberhorn Minotaur"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Dance of the Dead",
+    "Stab Wound",
+    "Super Intelligence",
+    "Soul Tithe",
+    "One Thousand Lashes",
+    "Paralyze",
+    "Festering Wound",
+    "Apathy",
+    "Slow Motion",
+    "Takklemaggot",
+    "Cursed Land",
+    "Unnatural Hunger"
+   ]
+  },
+  {
+   "what": "CounterUnlessPaysEffect",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Spell Stutter",
+    "Dazzling Denial",
+    "Perplex",
+    "Lofty Denial",
+    "Don't Make a Sound",
+    "Mausoleum Wanderer",
+    "Divert Disaster",
+    "Circular Logic",
+    "Dispelling Exhale",
+    "Countervailing Winds",
+    "Protect the Negotiators",
+    "We Say Thee Nay!"
+   ]
+  },
+  {
+   "what": "BlocksOrBlockedByCreatureSourceTriggeredAbility",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Mirror Shield",
+    "Engulfing Slagwurm",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Assembled Alphas",
+    "Skewer Slinger",
+    "Witherscale Wurm",
+    "Ornery Goblin",
+    "Ashmouth Hound",
+    "Tangle Asp",
+    "Giant Shark",
+    "Shape Stealer"
+   ]
+  },
+  {
+   "what": "EmpowerJaceEffect",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Fatehold Charm",
+    "Way of the Pyromancer",
+    "Jace, Reality Sculptor",
+    "Theorist's Sanctum",
+    "Way of the Necromancer",
+    "Way of the Paradox",
+    "Countersculpt",
+    "Way of the Mentor",
+    "Way of the Cryomancer",
+    "Way of the Healer",
+    "Vraska's Final Mercy",
+    "Theorist's Proxy"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 28,
+   "lines": 16,
+   "cards": [
+    "Dolmen Gate",
+    "Iroas, God of Victory",
+    "Losheel, Clockwork Scholar",
+    "Mutational Advantage",
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever",
+    "Blinding Fog",
+    "Safe Passage",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage"
+   ]
+  },
+  {
+   "what": "MaximumHandSizeControllerEffect",
+   "score": 28,
+   "lines": 22,
+   "cards": [
+    "Twenty-Toed Toad",
+    "Jin-Gitaxias, Core Augur",
+    "Folio of Fancies",
+    "The Second Doctor",
+    "The Ten Rings",
+    "Necrodominance",
+    "Anvil of Bogardan",
+    "Marina Vendrell's Grimoire",
+    "Doctor Octopus, Master Planner",
+    "Gnat Miser",
+    "Price of Knowledge",
+    "Locust Miser"
+   ]
+  },
+  {
+   "what": "MayTapOrUntapTargetEffect",
+   "score": 28,
+   "lines": 25,
+   "cards": [
+    "Retreat to Coralhelm",
+    "Merrow Reejerey",
+    "Fatestitcher",
+    "Twiddle",
+    "Mind Over Matter",
+    "Twitch",
+    "Puppet Strings",
+    "Pestermite",
+    "Tidal Bore",
+    "Tideforce Elemental",
+    "Puppeteer",
+    "Tidal Force"
+   ]
+  },
+  {
+   "what": "MillThenPutInHandEffect",
+   "score": 27,
+   "lines": 24,
+   "cards": [
+    "Six",
+    "Wrenn and Realmbreaker",
+    "Barrowgoyf",
+    "Dredger's Insight",
+    "Midnight Tilling",
+    "Bristlebud Farmer",
+    "Szarekh, the Silent King",
+    "Blanchwood Prowler",
+    "Ainok Wayfarer",
+    "Eerie Gravestone",
+    "Rosheen, Roaring Prophet",
+    "Wasteful Harvest"
+   ]
+  },
+  {
+   "what": "DiscardCardControllerTriggeredAbility",
+   "score": 27,
+   "lines": 18,
+   "cards": [
+    "Monument to Endurance",
+    "Bone Miser",
+    "Currency Converter",
+    "Surly Badgersaur",
+    "Hashaton, Scarab's Fist",
+    "Bag of Holding",
+    "Mary Read and Anne Bonny",
+    "Green Goblin, Nemesis",
+    "Dying to Serve",
+    "Oskar, Rubbish Reclaimer",
+    "Moonstone, Harsh Mistress",
+    "All-Seeing Arbiter"
+   ]
+  },
+  {
+   "what": "keyword SoulbondAbility",
+   "score": 27,
+   "lines": 24,
+   "cards": [
+    "Deadeye Navigator",
+    "Tandem Lookout",
+    "Mirage Phalanx",
+    "Wingcrafter",
+    "Doom Weaver",
+    "Silverblade Paladin",
+    "Donna Noble",
+    "Thundering Mightmare",
+    "Druid's Familiar",
+    "Wolfir Silverheart",
+    "Imperious Mindbreaker",
+    "Nightshade Peddler"
+   ]
+  },
+  {
+   "what": "ConditionalAnyColorManaAbility",
+   "score": 27,
+   "lines": 21,
+   "cards": [
+    "Maelstrom of the Spirit Dragon",
+    "Inga and Esika",
+    "Resonating Lute",
+    "Mech Hangar",
+    "Crucible of the Spirit Dragon",
+    "Thieving Varmint",
+    "Shang-Chi, Master of Kung Fu",
+    "White Lotus Hideout",
+    "Gallifrey Council Chamber",
+    "Turtle Lair",
+    "Brotherhood Headquarters",
+    "Corrupted Crossroads"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 27,
+   "lines": 27,
+   "cards": [
+    "Ultimate Magic: Holy",
+    "Mirri, Weatherlight Duelist",
+    "Might of the Meek",
+    "The Irencrag",
+    "Aragorn, King of Gondor",
+    "Tail Swipe",
+    "Bilbo's Gambit",
+    "Winding Canyons",
+    "Frodo, Sauron's Bane",
+    "Withering Curse",
+    "Join the Dead",
+    "The Destined Warrior"
+   ]
+  },
+  {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 27,
+   "lines": 27,
+   "cards": [
+    "Angel of Serenity",
+    "Champions of the Perfect",
+    "Champion of the Path",
+    "Admonition Angel",
+    "Journey to Nowhere",
+    "Hoarding Dragon",
+    "Connecting the Dots",
+    "Prowling Geistcatcher",
+    "Parallax Wave",
+    "Wall of Nets",
+    "Bomat Courier",
+    "Champion of the Weird"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 26,
+   "lines": 20,
+   "cards": [
+    "Spellskite",
+    "Disallow",
+    "Not of This World",
+    "Wyll's Reversal",
+    "Ertai Resurrected",
+    "Wild Ricochet",
+    "Voidslime",
+    "Tale's End",
+    "Green Slime",
+    "Louisoix's Sacrifice",
+    "Consign to Memory",
+    "Deny the Witch"
+   ]
+  },
+  {
+   "what": "filter:colored",
+   "score": 26,
+   "lines": 5,
+   "cards": [
+    "Ugin, the Ineffable",
+    "Ugin, Eye of the Storms",
+    "Devourer of Destiny",
+    "Reach of Shadows"
+   ]
+  },
+  {
+   "what": "ConditionalColoredManaAbility",
+   "score": 26,
+   "lines": 23,
+   "cards": [
+    "Codsworth, Handy Helper",
+    "Master of Dark Rites",
+    "Tablet of Discovery",
+    "Jegantha, the Wellspring",
+    "Freya Crescent",
+    "Mm'menon, the Right Hand",
+    "Omen Hawker",
+    "Troyan, Gutsy Explorer",
+    "Cormela, Glamour Thief",
+    "Steelswarm Operator",
+    "Fíli and Kíli, Joyous",
+    "Guidelight Optimizer"
+   ]
+  },
+  {
+   "what": "keyword SneakAbility",
+   "score": 26,
+   "lines": 26,
+   "cards": [
+    "Splinter's Technique",
+    "Raphael, the Nightwatcher",
+    "Shredder's Technique",
+    "Shark Shredder, Killer Clone",
+    "Kitsune's Technique",
+    "Leonardo, Cutting Edge",
+    "Donatello, Gadget Master",
+    "Splinter, Hamato Yoshi",
+    "New Generation's Technique",
+    "Karai, Future of the Foot",
+    "Michelangelo, Improviser",
+    "Raphael's Technique"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerTriggeredAbility",
+   "score": 25,
+   "lines": 13,
+   "cards": [
+    "Herd Heirloom",
+    "Power Fist",
+    "The Pride of Hull Clade",
+    "Hunter's Prowess",
+    "Dreadmaw's Ire",
+    "Subterfuge",
+    "Blitzball Stadium",
+    "Fly",
+    "Thief's Knife",
+    "Nimble Trapfinder",
+    "Warriors' Lesson",
+    "Lyra, Tolarian Archangel"
+   ]
+  },
+  {
+   "what": "StriveAbility",
+   "score": 25,
+   "lines": 19,
+   "cards": [
+    "Twinflame",
+    "Call the Coppercoats",
+    "Solidarity of Heroes",
+    "Setessan Tactics",
+    "Ajani's Presence",
+    "Harness by Force",
+    "Consign to Dust",
+    "Rouse the Mob",
+    "Polymorphous Rush",
+    "Aerial Formation",
+    "Kiora's Dismissal",
+    "Silence the Believers"
+   ]
+  },
+  {
+   "what": "BecomesColorTargetEffect",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Crimson Wisps",
+    "Cerulean Wisps",
+    "Tam, Mindful First-Year",
+    "Aphotic Wisps",
+    "Niveous Wisps",
+    "Viridescent Wisps",
+    "Cloudchaser Kestrel",
+    "Touch of Darkness",
+    "Heaven's Gate",
+    "Scuttling Sentinel",
+    "Tidal Visionary",
+    "Vodalian Mystic"
+   ]
+  },
+  {
+   "what": "Ability.setMayActivate",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Xantcha, Sleeper Agent",
+    "Oft-Nabbed Goat",
+    "Lethal Vapors",
+    "Land's Edge",
+    "Soul Ransom",
+    "Detention Vortex",
+    "Lightning Storm",
+    "Warmonger",
+    "Glittering Lynx",
+    "Tidal Control",
+    "Wishmonger",
+    "Squallmonger"
+   ]
+  },
+  {
+   "what": "keyword BackupAbility",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Archpriest of Shadows",
+    "Guardian Scalelord",
+    "Emergent Woodwurm",
+    "Conclave Sledge-Captain",
+    "Boon-Bringer Valkyrie",
+    "Scorn-Blade Berserker",
+    "Bright-Palm, Soul Awakener",
+    "Saiba Cryptomancer",
+    "Voldaren Thrillseeker",
+    "Mirror-Style Master",
+    "Death-Greeter's Champion",
+    "Doomskar Warrior"
+   ]
+  },
+  {
+   "what": "PreventDamageToTargetEffect",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Eiganjo Castle",
+    "Dovin, Hand of Control",
+    "Fleeting Flight",
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Shielded Passage",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic",
+    "Indestructible Aura",
+    "Enshrouding Mist",
+    "Oriss, Samite Guardian"
+   ]
+  },
+  {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Vicious Battlerager",
+    "Evil Eye of Urborg",
+    "Nessian Boar",
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Gloom Sower",
+    "Tolarian Entrancer",
+    "Retaliation",
+    "Sylvan Basilisk",
+    "Battering Ram",
+    "Basalt Golem",
+    "Catacomb Dragon"
+   ]
+  },
+  {
+   "what": "PlayFromTopOfLibraryEffect",
+   "score": 24,
+   "lines": 9,
+   "cards": [
+    "Realmwalker",
+    "Traveling Chocobo",
+    "Crystal Skull, Isu Spyglass",
+    "Glarb, Calamity's Augur",
+    "Elsha of the Infinite",
+    "Errant and Giada",
+    "Nalia de'Arnise",
+    "Galea, Kindler of Hope",
+    "Isu the Abominable"
+   ]
+  },
+  {
+   "what": "YouDontLoseManaEffect",
+   "score": 24,
+   "lines": 6,
+   "cards": [
+    "Electro, Assaulting Battery",
+    "Ashling, Flame Dancer",
+    "The Last Agni Kai",
+    "Leyline Tyrant",
+    "Omnath, Locus of Mana",
+    "Fangorn, Tree Shepherd"
+   ]
+  },
+  {
+   "what": "GainAbilityPairedEffect",
+   "score": 24,
+   "lines": 21,
+   "cards": [
+    "Deadeye Navigator",
+    "Tandem Lookout",
+    "Mirage Phalanx",
+    "Wingcrafter",
+    "Breathkeeper Seraph",
+    "Doom Weaver",
+    "Silverblade Paladin",
+    "Thundering Mightmare",
+    "Imperious Mindbreaker",
+    "Nightshade Peddler",
+    "Lightning Mauler",
+    "Elgaud Shieldmate"
+   ]
+  },
+  {
+   "what": "ReturnToHandChosenControlledPermanentCost",
+   "score": 24,
+   "lines": 21,
+   "cards": [
+    "Multani, Yavimaya's Avatar",
+    "Mina and Denn, Wildborn",
+    "Master Transmuter",
+    "Meloku the Clouded Mirror",
+    "Oboro Breezecaller",
+    "Icebreaker Kraken",
+    "Trench Behemoth",
+    "Uyo, Silent Prophet",
+    "Soratami Savant",
+    "Soratami Rainshaper",
+    "Soratami Cloudskater",
+    "Soratami Mirror-Mage"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Angelic Destiny",
+    "Machinist's Arsenal",
+    "Astrologian's Planisphere",
+    "Samurai's Katana",
+    "Reaper's Scythe",
+    "Blue Mage's Cane",
+    "Demonic Embrace",
+    "Dragoon's Lance",
+    "Summoner's Grimoire",
+    "Ninja's Blades",
+    "Sigiled Sword of Valeron",
+    "Warrior's Sword"
+   ]
+  },
+  {
+   "what": "DealsDamageToACreatureTriggeredAbility",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Stinkweed Imp",
+    "Obelisk Spider",
+    "Mirri the Cursed",
+    "Frostwalk Bastion",
+    "Maarika, Brutal Gladiator",
+    "Overclocked Electromancer",
+    "Matsu-Tribe Sniper",
+    "Spider-Slayer, Hatred Honed",
+    "Kashi-Tribe Elite",
+    "Strax, Sontaran Nurse",
+    "Spiritmonger",
+    "East-Mark Cavalier"
+   ]
+  },
+  {
+   "what": "second use of a later target",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Invigorated Rampage",
+    "Out Cold",
+    "Abandon Reason",
+    "Involuntary Cooldown",
+    "Donatello, Rad Scientist",
+    "Twisted Riddlekeeper",
+    "Rowan, Fearless Sparkmage",
+    "Burning Sun's Fury",
+    "Homesickness"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Aetherworks Marvel",
+    "Gonti's Aether Heart",
+    "Unstable Amulet",
+    "Roil Cartographer",
+    "Aetherflux Conduit",
+    "Bespoke Battlewagon",
+    "Aethersquall Ancient",
+    "Stone Idol Generator",
+    "Era of Innovation",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Architect of the Untamed"
+   ]
+  },
+  {
+   "what": "SimpleStaticAbility",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "The Masamune",
+    "Dancer's Chakrams",
+    "Sokrates, Athenian Teacher",
+    "Nerd Rage",
+    "Zurgo, Thunder's Decree",
+    "Cloudsteel Kirin",
+    "Rune of Sustenance",
+    "Rune of Might",
+    "Entangler",
+    "Rune of Mortality",
+    "Glowcap Lantern",
+    "Valor Made Real"
+   ]
+  },
+  {
+   "what": "VentureIntoTheDungeonEffect",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Nadaar, Selfless Paladin",
+    "Yuan-Ti Malison",
+    "Dungeon Map",
+    "Triumphant Adventurer",
+    "Bar the Gate",
+    "Barrowin of Clan Undurr",
+    "Fates' Reversal",
+    "Eccentric Apprentice",
+    "Displacer Beast",
+    "Yuan-Ti Fang-Blade",
+    "Secret Door",
+    "Cloister Gargoyle"
+   ]
+  },
+  {
+   "what": "ChooseACardNameEffect",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Petrified Hamlet",
+    "Tunnel Vision",
+    "Cabal Therapy",
+    "Predict",
+    "Spoils of the Vault",
+    "The Stone Brain",
+    "Lost Legacy",
+    "Academic Probation",
+    "Nebuchadnezzar",
+    "Ancient Vendetta",
+    "Necromentia",
+    "Slaughter Games"
+   ]
+  },
+  {
+   "what": "AttacksCreatureYouControlTriggeredAbility",
+   "score": 23,
+   "lines": 20,
+   "cards": [
+    "Shared Animosity",
+    "Reyav, Master Smith",
+    "Breeches, Eager Pillager",
+    "Akki Battle Squad",
+    "Winota, Joiner of Forces",
+    "Nahiri, Forged in Fury",
+    "Byrke, Long Ear of the Law",
+    "Shadow Puppeteers",
+    "Kami of Celebration",
+    "Keleth, Sunmane Familiar",
+    "Assaultron Dominator",
+    "Arna Kennerüd, Skycaptain"
+   ]
+  },
+  {
+   "what": "CreateTokenCopyTargetEffect",
+   "score": 23,
+   "lines": 17,
+   "cards": [
+    "Irenicus's Vile Duplication",
+    "Quantum Misalignment",
+    "Astral Dragon",
+    "Relm's Sketching",
+    "Urza, Prince of Kroog",
+    "Chandra, Flameshaper",
+    "Croaking Counterpart",
+    "Ashling's Command",
+    "Ember Island Production",
+    "Saheeli's Artistry",
+    "Multiversal Recruitment",
+    "Grub's Command"
+   ]
+  },
+  {
+   "what": "DiesSourceTriggeredAbility",
+   "score": 23,
+   "lines": 14,
+   "cards": [
+    "Not Dead After All",
+    "Return to Action",
+    "Infuse with Vitality",
+    "Pain 101",
+    "Endless Whispers",
+    "Perigee Beckoner",
+    "Presumed Dead",
+    "Galuf's Final Act",
+    "Time Lord Regeneration",
+    "Expedition Diviner",
+    "Oculus Whelp",
+    "Reborn Hero"
+   ]
+  },
+  {
+   "what": "mixed or",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Eidolon of Countless Battles",
+    "Kari Zev's Expertise",
+    "Paladin Danse, Steel Maverick",
+    "Brimaz, Blight of Oreskos",
+    "Avoid Fate",
+    "Opportunistic Dragon",
+    "Thor, God of Thunder",
+    "Beyond the Quiet",
+    "Born to Drive",
+    "Tend the Sprigs",
+    "Scrounge for Eternity",
+    "Quag Feast"
+   ]
+  },
+  {
+   "what": "PutOnTopOrBottomLibraryTargetEffect",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Subtlety",
+    "Lost Days",
+    "Temporal Cleansing",
+    "Wan Shi Tong, All-Knowing",
+    "Dire Downdraft",
+    "Plan for All Outcomes",
+    "Deem Inferior",
+    "Uncharted Voyage",
+    "Riverwalk Technique",
+    "Vanish from Sight",
+    "Trip Up",
+    "Trickster's Stratagem"
+   ]
+  },
+  {
+   "what": "TapAllEffect",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Monstrosity of the Lake",
+    "Githzerai Monk",
+    "Deluge",
+    "Dread Cacodemon",
+    "Ensnare",
+    "Aether Shockwave",
+    "Spore Cloud",
+    "Blinding Light",
+    "Arena of the Ancients",
+    "Thundermare",
+    "Aboshan, Cephalid Emperor",
+    "Roaring Slagwurm"
+   ]
+  },
+  {
+   "what": "BecomesBasicLandTargetEffect",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Shimmering Mirage",
+    "Zombie Trailblazer",
+    "Tidal Warrior",
+    "Streambed Aquitects",
+    "Jinx",
+    "Tideshaper Mystic",
+    "Navigator's Compass",
+    "Unstable Frontier",
+    "Reef Shaman",
+    "Pixie Illusionist",
+    "Mystic Compass",
+    "Dream Thrush"
+   ]
+  },
+  {
+   "what": "TapForManaAllTriggeredManaAbility",
+   "score": 22,
+   "lines": 16,
+   "cards": [
+    "Badgermole Cub",
+    "Kinnan, Bonder Prodigy",
+    "Leyline of Abundance",
+    "Mana Flare",
+    "Roxanne, Starfall Savant",
+    "Heartbeat of Spring",
+    "Dictate of Karametra",
+    "Lavaleaper",
+    "Barbflare Gremlin",
+    "Zhur-Taa Ancient",
+    "Overabundance",
+    "Vernal Bloom"
+   ]
+  },
+  {
+   "what": "RevealLibraryPickControllerEffect",
+   "score": 22,
+   "lines": 16,
+   "cards": [
+    "Grisly Salvage",
+    "Satyr Wayfinder",
+    "Malevolent Rumble",
+    "Cavalier of Thorns",
+    "Adéwalé, Breaker of Chains",
+    "Commune with the Gods",
+    "See the Unwritten",
+    "Torsten, Founder of Benalia",
+    "Earth's Mightiest Heroes",
+    "Glacial Revelation",
+    "Vessel of Nascency",
+    "Kruphix's Insight"
+   ]
+  },
+  {
+   "what": "GetEnergyCountersControllerEffect",
+   "score": 22,
+   "lines": 19,
+   "cards": [
+    "Guide of Souls",
+    "Aether Refinery",
+    "Sphinx of the Revelation",
+    "Blaster Hulk",
+    "Amped Raptor",
+    "Aurora Shifter",
+    "The Motherlode, Excavator",
+    "Aethertide Whale",
+    "Peema Trailblazer",
+    "Wheel of Potential",
+    "Sentry Bot",
+    "Robobrain War Mind"
+   ]
+  },
+  {
+   "what": "keyword DevourAbility",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Mycoloth",
+    "Famished Worldsire",
+    "Feasting Hobbit",
+    "Ravenous Tyrannosaurus",
+    "Ribtruss Roaster",
+    "Bloodspore Thrinax",
+    "Fell Beast of Mordor",
+    "Skullmulcher",
+    "Gluttonous Slime",
+    "Voracious Dragon",
+    "Preyseizer Dragon",
+    "Feaster of Fools"
+   ]
+  },
+  {
+   "what": "EerieAbility",
+   "score": 22,
+   "lines": 16,
+   "cards": [
+    "Entity Tracker",
+    "Fear of Sleep Paralysis",
+    "Ghostly Dancers",
+    "Victor, Valgavoth's Seneschal",
+    "Balemurk Leech",
+    "Gremlin Tamer",
+    "Optimistic Scavenger",
+    "Scrabbling Skullcrab",
+    "Fear of Infinity",
+    "Skullsnap Nuisance",
+    "Unwilling Vessel",
+    "Cult Healer"
+   ]
+  },
+  {
+   "what": "AttachedToMatchesFilterCondition",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Combat Research",
+    "Tenza, Godo's Maul",
+    "Rune of Sustenance",
+    "Rune of Might",
+    "Clawing Torment",
+    "Rune of Mortality",
+    "Careful Cultivation",
+    "Rune of Speed",
+    "Rune of Flight",
+    "Akki War Paint",
+    "Twisted Embrace",
+    "Gift of Wrath"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Biophagus",
+    "Crypt Rats",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant",
+    "Consume Spirit",
+    "Sphere of the Suns",
+    "Kimoyo Beads",
+    "Drain Life",
+    "Murdock's Crusade",
+    "Atalya, Samite Master",
+    "Soul Burn"
+   ]
+  },
+  {
+   "what": "DiscardHandControllerEffect",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Blood for the Blood God!",
+    "Song of Creation",
+    "Change of Fortune",
+    "Anje's Ravager",
+    "Ox of Agonas",
+    "Avaricious Dragon",
+    "Peer Past the Veil",
+    "Chandra, Heart of Fire",
+    "Chandra, Flame's Catalyst",
+    "Hoarder's Overflow",
+    "Borrowed Knowledge",
+    "Ajani Unrelenting"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Bloodroot Apothecary",
+    "Hunted Horror",
+    "Verdant Command",
+    "Clackbridge Troll",
+    "Hunted Bonebrute",
+    "Hungry Lynx",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Hunted Troll",
+    "Ox Drover",
+    "Gravedig"
+   ]
+  },
+  {
+   "what": "BlocksCreatureTriggeredAbility",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Wall of Frost",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Snarespinner",
+    "Ezuri's Archers",
+    "Frostweb Spider",
+    "Netcaster Spider",
+    "Skystinger",
+    "Aetherplasm",
+    "Loyal Sentry",
+    "Mindbender Spores",
+    "Meglonoth"
+   ]
+  },
+  {
+   "what": "WasDealtDamageThisTurnPredicate.instance",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "You Are Already Dead",
+    "Mirrodin Avenged",
+    "Swift Demise",
+    "Rooftop Assassin",
+    "Stingblade Assassin",
+    "Death-Rattle Oni",
+    "Qutrub Forayer",
+    "Downwind Ambusher",
+    "Crushing Pain",
+    "Vraska's Finisher",
+    "Jarl of the Forsaken",
+    "Hooded Assassin"
+   ]
+  },
+  {
+   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Bloodchief Ascension",
+    "Sand Scout",
+    "Lazav, Dimir Mastermind",
+    "The Haunt of Hightower",
+    "Sefris of the Hidden Ways",
+    "Yuma, Proud Protector",
+    "Compost",
+    "Centaur Vinecrasher",
+    "Slogurk, the Overslime",
+    "Lorcan, Warlock Collector",
+    "Planar Void",
+    "Skola Grovedancer"
+   ]
+  },
+  {
+   "what": "RemoveCounterSourceEffect",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Dark Depths",
+    "Archfiend of the Dross",
+    "Bristlebane Battler",
+    "Creakwood Safewright",
+    "Midnight Oil",
+    "Divine Intervention",
+    "Woolly Razorback",
+    "Celestial Convergence",
+    "Evolved Spinoderm",
+    "Reluctant Dounguard",
+    "Encumbered Reejerey",
+    "River Delta"
+   ]
+  },
+  {
+   "what": "PreventAllDamageByAllPermanentsEffect",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Obscuring Haze",
+    "Dawn Charm",
+    "Galadhrim Ambush",
+    "Ethereal Haze",
+    "Haze Frog",
+    "Blunt the Assault",
+    "Fog of War",
+    "Thwart the Enemy",
+    "Hindervines",
+    "Snag",
+    "Pollen Lullaby",
+    "Hunter's Ambush"
+   ]
+  },
+  {
+   "what": "CaseAbility",
+   "score": 21,
+   "lines": 12,
+   "cards": [
+    "Case of the Locked Hothouse",
+    "Case of the Ransacked Lab",
+    "Case of the Uneaten Feast",
+    "Case of the Shifting Visage",
+    "Case of the Trampled Garden",
+    "Case of the Shattered Pact",
+    "Case of the Crimson Pulse",
+    "Case of the Gateway Express",
+    "Case of the Pilfered Proof",
+    "Case of the Gorgon's Kiss",
+    "Case of the Burning Masks",
+    "Case of the Lost Witness"
+   ]
+  },
+  {
+   "what": "Ability.setRuleAtTheTop",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Open the Way",
+    "See Double",
+    "Display of Power",
+    "Officious Interrogation",
+    "Malicious Affliction",
+    "Ertai's Scorn",
+    "Even the Score",
+    "Choreographed Sparks",
+    "Discontinuity",
+    "Brush Off",
+    "Take for a Ride",
+    "Stormwing Entity"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Horizon Explorer",
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Bitter Work",
+    "Long-Range Sensor",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Meriadoc Brandybuck",
+    "Demonic Covenant"
+   ]
+  },
+  {
+   "what": "RevealCardsFromLibraryUntilEffect",
+   "score": 21,
+   "lines": 15,
+   "cards": [
+    "Hermit Druid",
+    "The Regalia",
+    "Clifftop Lookout",
+    "Evolutionary Leap",
+    "Spinner of Souls",
+    "Gamekeeper",
+    "Jalira, Master Polymorphist",
+    "Dreamshaper Shaman",
+    "Recross the Paths",
+    "Ajani, Valiant Protector",
+    "Vivien, Nature's Avenger",
+    "Tezzeret, Master of Metal"
+   ]
+  },
+  {
+   "what": "BecomesTargetAnyTriggeredAbility",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Venerated Rotpriest",
+    "Thunderbreak Regent",
+    "Shay Cormac",
+    "Gargos, Vicious Watcher",
+    "Diffusion Sliver",
+    "Professor Hojo",
+    "Monk Gyatso",
+    "Scalelord Reckoner",
+    "Willbreaker",
+    "Elrond, Master of Healing",
+    "Battle Mammoth",
+    "Silverfur Partisan"
+   ]
+  },
+  {
+   "what": "EnchantedCreatureColorCondition",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Steel of the Godhead",
+    "Shield of the Oversoul",
+    "Helm of the Ghastlord",
+    "Clout of the Dominus",
+    "Favor of the Overbeing",
+    "Runes of the Deus",
+    "Edge of the Divinity",
+    "Fists of the Demigod",
+    "Gift of the Deity",
+    "Scourge of the Nobilis",
+    "Favorable Destiny"
+   ]
+  },
+  {
+   "what": "DealtDamageAndDiedTriggeredAbility",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Predator Ooze",
+    "Markov Enforcer",
+    "Zurgo Helmsmasher",
+    "Rot Wolf",
+    "Blood Cultist",
+    "Sengir Vampire",
+    "Wight",
+    "Dread Slaver",
+    "Vampiric Dragon",
+    "Madame Vastra",
+    "Abattoir Ghoul",
+    "Vampiric Sliver"
+   ]
+  },
+  {
+   "what": "CantAttackBlockUnlessConditionSourceEffect",
+   "score": 20,
+   "lines": 14,
+   "cards": [
+    "Wayward Swordtooth",
+    "Topiary Stomper",
+    "Sab-Sunen, Luxa Embodied",
+    "The Ancient One",
+    "Ketramose, the New Dawn",
+    "Relic Golem",
+    "Lupine Prototype",
+    "Hazoret, Godseeker",
+    "Technodrome",
+    "Bast, Panther Goddess",
+    "The Lion-Turtle",
+    "Hazoret the Fervent"
+   ]
+  },
+  {
+   "what": "ExploitCreatureTriggeredAbility",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Sidisi, Undead Vizier",
+    "Overcharged Amalgam",
+    "Fell Stinger",
+    "Repository Skaab",
+    "Profaner of the Dead",
+    "Rot-Tide Gargantua",
+    "Infernal Captor",
+    "Sidisi's Faithful",
+    "Mindleech Ghoul",
+    "Silumgar Sorcerer",
+    "Stitched Assistant",
+    "Vulturous Aven"
+   ]
+  },
+  {
+   "what": "LoseLifeAllPlayersEffect",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Risky Shortcut",
+    "Smallpox",
+    "Shepherd of Rot",
+    "Rankle's Prank",
+    "Death Cloud",
+    "Crushing Disappointment",
+    "Bad Deal",
+    "Conciliator's Duelist",
+    "Soulcage Fiend",
+    "Orzhov Guildmage",
+    "Urza's Guilt",
+    "Maggot Carrier"
+   ]
+  },
+  {
+   "what": "CreateTokenAttachSourceEffect",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Field-Tested Frying Pan",
+    "Citizen's Crowbar",
+    "Foot Chopper",
+    "Kyoshi Battle Fan",
+    "Ancestral Blade",
+    "Dwarven Hammer",
+    "Giant's Amulet",
+    "Dwarven Shortsword",
+    "Barbed Spike",
+    "Headsplitter",
+    "Midnight Angel Armor",
+    "Elven Bow"
+   ]
+  },
+  {
+   "what": "(layout flip)",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
+    "Budoka Gardener // Dokai, Weaver of Life",
+    "Nezumi Graverobber // Nighteyes the Desecrator",
+    "Nezumi Shortfang // Stabwhisker the Odious",
+    "Sasaya, Orochi Ascendant // Sasaya's Essence",
+    "Homura, Human Ascendant // Homura's Essence",
+    "Jushi Apprentice // Tomoya the Revealer",
+    "Bushi Tenderfoot // Kenzo the Hardhearted",
+    "Orochi Eggwatcher // Shidako, Broodmistress",
+    "Kitsune Mystic // Autumn-Tail, Kitsune Sage",
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Kuon, Ogre Ascendant // Kuon's Essence"
+   ]
+  },
+  {
+   "what": "conditional with an otherwise",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Hunter's Blowgun",
+    "Sardian Cliffstomper",
+    "Precipitous Drop",
+    "Goblin Caves",
+    "Relic Axe",
+    "Favorable Destiny",
+    "Evolved Spinoderm",
+    "Gorilla Titan",
+    "Mind Carver",
+    "Sea Legs",
+    "Court Homunculus",
+    "Tahngarth's Rage"
+   ]
+  },
+  {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Hawkeye's Bow",
+    "Betrayal",
+    "Relic Putrescence",
+    "Contaminated Ground",
+    "Darksteel Garrison",
+    "Spreading Algae",
+    "Blight",
+    "Seizures",
+    "Psychic Venom",
+    "Brink of Disaster",
+    "Corrupted Roots",
+    "Kudzu"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Oran-Rief, the Vastwood",
+    "Force of Despair",
+    "Oakhollow Village",
+    "Octomancer",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Ruins of Oran-Rief",
+    "Cathedral Acolyte",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Deathleaper, Terror Weapon",
+    "Romana II"
+   ]
+  },
+  {
+   "what": "TargetCardInExile",
+   "score": 19,
+   "lines": 10,
+   "cards": [
+    "The Darkness Crystal",
+    "Quintorius, Loremaster",
+    "Pull from Eternity",
+    "The Animus",
+    "Rootcoil Creeper",
+    "Riftsweeper",
+    "Sentinel of Lost Lore",
+    "Runic Repetition",
+    "Nyla, Shirshu Sleuth",
+    "Blade of the Swarm"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Vorinclex, Monstrous Raider",
+    "Invert Polarity",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Aether Spike",
+    "Swallowed by Leviathan",
+    "Haunt the Network",
+    "Beastie Beatdown",
+    "Fatal Fissure",
+    "Necromantic Summons",
+    "Ghostfire Blade",
+    "Glyph of Life"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Meren of Clan Nel Toth",
+    "Vraska's Fall",
+    "Otharri, Suns' Glory",
+    "Toph, Earthbending Master",
+    "Ichor Rats",
+    "The Wise Mothman",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Screeching Scorchbeast",
+    "Tato Farmer",
+    "Minthara, Merciless Soul",
+    "Ezuri, Claw of Progress"
+   ]
+  },
+  {
+   "what": "TargetsPermanentPredicate",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Rebuff the Wicked",
+    "Pearl-Ear, Imperial Advisor",
+    "Season of Growth",
+    "Keep Safe",
+    "Turn Aside",
+    "Legolas, Master Archer",
+    "Fugitive Droid",
+    "Confound",
+    "Ms. Marvel, Kamala Khan",
+    "Intervene",
+    "Colleen Wing, Street Samurai",
+    "Vigilant Martyr"
+   ]
+  },
+  {
+   "what": "SpellsCostIncreasingAllEffect",
+   "score": 19,
+   "lines": 10,
+   "cards": [
+    "Aven Interrupter",
+    "Anointed Peacekeeper",
+    "Alabaster Leech",
+    "High Seas",
+    "Irini Sengir",
+    "Sapphire Leech",
+    "Ruby Leech",
+    "Andradite Leech",
+    "Derelor",
+    "Jade Leech"
+   ]
+  },
+  {
+   "what": "DiscardOneOrMoreCardsTriggeredAbility",
+   "score": 19,
+   "lines": 10,
+   "cards": [
+    "Inti, Seneschal of the Sun",
+    "Magmakin Artillerist",
+    "Cryptcaller Chariot",
+    "Captain Howler, Sea Scourge",
+    "Marauding Mako",
+    "Scrounging Skyray",
+    "Doctor Doom, King of Latveria",
+    "Urza, Powerstone Prodigy",
+    "Mishra, Excavation Prodigy",
+    "Spider-Man, New Champion"
+   ]
+  },
+  {
+   "what": "ExileTopXMayPlayUntilEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Party Thrasher",
+    "Glimpse the Impossible",
+    "Haste Magic",
+    "Opera Love Song",
+    "Burning Curiosity",
+    "Lightning, Security Sergeant",
+    "Loot, the Key to Everything",
+    "Seize Opportunity",
+    "Jaya, Fiery Negotiator",
+    "Magmatic Channeler",
+    "Yasmin Khan",
+    "Act on Impulse"
+   ]
+  },
+  {
+   "what": "SurvivalAbility",
+   "score": 19,
+   "lines": 13,
+   "cards": [
+    "Kona, Rescue Beastie",
+    "Reluctant Role Model",
+    "Cynical Loner",
+    "Rip, Spawn Hunter",
+    "House Cartographer",
+    "Glimmer Seeker",
+    "Defiant Survivor",
+    "Savior of the Small",
+    "Shrewd Storyteller",
+    "Veteran Survivor",
+    "Cautious Survivor",
+    "Acrobatic Cheerleader"
+   ]
+  },
+  {
+   "what": "keyword JobSelectAbility",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Black Mage's Rod",
+    "Dancer's Chakrams",
+    "Machinist's Arsenal",
+    "Astrologian's Planisphere",
+    "Samurai's Katana",
+    "Reaper's Scythe",
+    "Blue Mage's Cane",
+    "Dragoon's Lance",
+    "Summoner's Grimoire",
+    "White Mage's Staff",
+    "Ninja's Blades",
+    "Red Mage's Rapier"
+   ]
+  },
+  {
+   "what": "CreateRoleAttachedTargetEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Royal Treatment",
+    "Monstrous Rage",
+    "Charming Scoundrel",
+    "Witch's Mark",
+    "Lord Skitter's Blessing",
+    "Ellivere of the Wild Court",
+    "Twisted Fealty",
+    "Syr Armont, the Redeemer",
+    "Shatter the Oath",
+    "Spiteful Hexmage",
+    "Eriette's Whisper",
+    "Splashy Spellcaster"
+   ]
+  },
+  {
+   "what": "TargetAnyTargetAmount",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Inferno Titan",
+    "Magma Opus",
+    "Aurelia's Fury",
+    "Avacyn's Judgment",
+    "Magic Missile",
+    "Orca, Siege Demon",
+    "Mogg Mob",
+    "Arc Lightning",
+    "Angel of Salvation",
+    "Flames of the Firebrand",
+    "Remedy",
+    "Ral, Caller of Storms"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Archenemy's Charm",
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell",
+    "Become Brutes",
+    "Appeal to Eirdu",
+    "Hearts on Fire"
+   ]
+  },
+  {
+   "what": "BolsterEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Anafenza, Kin-Tree Spirit",
+    "Elite Scaleguard",
+    "Dragonscale General",
+    "Sandsteppe War Riders",
+    "Abzan Advantage",
+    "Sandsteppe Mastodon",
+    "Scale Blessing",
+    "Abzan Skycaptain",
+    "Sunbringer's Touch",
+    "Dromoka Captain",
+    "Honor's Reward",
+    "Echoes of the Kin Tree"
+   ]
+  },
+  {
+   "what": "CantBlockAllEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Varchild, Betrayer of Kjeldor",
+    "Hazardous Blast",
+    "Gruul Charm",
+    "Cosmotronic Wave",
+    "Fire of Orthanc",
+    "Magmatic Chasm",
+    "Destructive Tampering",
+    "Tectonic Rift",
+    "Seismic Stomp",
+    "Hero of Oxid Ridge",
+    "Falter",
+    "Pyrophobia"
+   ]
+  },
+  {
+   "what": "DiscardCardYouChooseTargetEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Inquisition of Kozilek",
+    "Thought-Stalker Warlock",
+    "Deceit",
+    "Extract the Truth",
+    "Ego Drain",
+    "Blackmail",
+    "Devour Intellect",
+    "Acquisitions Expert",
+    "Dread Fugue",
+    "Thieving Sprite",
+    "Mire's Toll",
+    "Tourach's Canticle"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Bombur, Gentle Dreamer",
+    "Fall from Favor",
+    "Wild Slash",
+    "Alirios, Enraptured",
+    "Moonhold",
+    "Steel Dromedary",
+    "Stunning Strike",
+    "Scorching Lava",
+    "River Delta",
+    "Land Cap",
+    "Lava Tubes",
+    "Merseine"
+   ]
+  },
+  {
+   "what": "YouGainedLifeCondition.getZero",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Ocelot Pride",
+    "Witch of the Moors",
+    "Crested Sunmare",
+    "Markov Purifier",
+    "Tippy-Toe, Terrific Partner",
+    "Tivash, Gloom Summoner",
+    "Courier Bat",
+    "Regal Bloodlord",
+    "Ob Nixilis, the Ascended",
+    "Foolish Fate",
+    "Lucky the Pizza Dog",
+    "Old-Growth Educator"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Staff of Compleation",
+    "Aminatou, the Fateshifter",
+    "Slip On the Ring",
+    "Meneldor, Swift Savior",
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Northampton Farm",
+    "Despotic Scepter",
+    "Tel-Jilad Stylus",
+    "Conjured Currency",
+    "The Neutrinos"
+   ]
+  },
+  {
+   "what": "modal activated ability",
+   "score": 18,
+   "lines": 6,
+   "cards": [
+    "Koma, Cosmos Serpent",
+    "Insidious Fungus",
+    "Bow of Nylea",
+    "Power Conduit",
+    "Lobelia, Defender of Bag End",
+    "Pyramids"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Kaito, Bane of Nightmares",
+    "Liliana's Standard Bearer",
+    "Wyleth, Soul of Steel",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Narset, Jeskai Waymaster",
+    "Misty Knight, Hero for Hire",
+    "Amber Gristle O'Maul",
+    "April O'Neil, Hacktivist"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Multani, Yavimaya's Avatar",
+    "Ancestral Anger",
+    "Desmond Miles",
+    "Hobbit's Sting",
+    "Champion of the Flame",
+    "Moon-Vigil Adherents",
+    "Cid, Timeless Artificer",
+    "Heavenly Blademaster",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Road Rage",
+    "The Archimandrite"
+   ]
+  },
+  {
+   "what": "BecomesBlockedAllTriggeredAbility",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Grazilaxx, Illithid Scholar",
+    "Cunning Evasion",
+    "General Marhault Elsdragon",
+    "Norin, Swift Survivalist",
+    "She-Hulk, Wallbreaker",
+    "Labyrinth Raptor",
+    "Ib Halfheart, Goblin Tactician",
+    "Unstoppable Ash",
+    "Gustcloak Savior",
+    "Spined Sliver",
+    "Somberwald Alpha",
+    "Tattered Ratter"
+   ]
+  },
+  {
+   "what": "(verify) optional where the card is not",
+   "score": 18,
+   "lines": 9,
+   "cards": [
+    "Thirst for Knowledge",
+    "Thirst for Discovery",
+    "Tezzeret, Betrayer of Flesh",
+    "Winternight Stories",
+    "Thirst for Meaning",
+    "Thirst for Identity",
+    "Practical Research",
+    "Alpharael, Dreaming Acolyte",
+    "Mystic Meditation"
+   ]
+  },
+  {
+   "what": "GainAbilityAttachedEffect outside a static ability",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Pemmin's Aura",
+    "Ring of Evos Isle",
+    "Fae Flight",
+    "Gilt-Leaf's Embrace",
+    "Aquitect's Defenses",
+    "Starlit Mantle",
+    "Cradle of Safety",
+    "Gelid Shackles",
+    "Fire-Rim Form",
+    "Sentinel's Mark",
+    "Military Discipline",
+    "Super Speed"
+   ]
+  },
+  {
+   "what": "damage to it again",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Court of Ire",
+    "Galvanic Blast",
+    "Firebending Lesson",
+    "Unholy Heat",
+    "Plasma Bolt",
+    "Cinder Strike",
+    "Galvanize",
+    "Fiery Impulse",
+    "Brimstone Volley",
+    "Invasive Maneuvers",
+    "Frost Bite",
+    "Slaying Fire"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Hobgoblin Bandit Lord",
+    "Noise Marine",
+    "Thor, God of Thunder",
+    "Mana Cannons",
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Runeflare Trap",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Lightning Storm"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeFlavorWord",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Astarion, the Decadent",
+    "You Find Some Prisoners",
+    "Cloud's Limit Break",
+    "Thunder Magic",
+    "Yuna's Decision",
+    "You Come to a River",
+    "What Must Be Done",
+    "Tax Collector",
+    "Megaton's Fate",
+    "Heroes' Hangout",
+    "Cult of Skaro",
+    "Aerith Rescue Mission"
+   ]
+  },
+  {
+   "what": "TargetCardInASingleGraveyard",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Unlicensed Hearse",
+    "Shred Memory",
+    "Spellweaver Helix",
+    "Kaya, Orzhov Usurper",
+    "Soul-Shackled Zombie",
+    "Pulsemage Advocate",
+    "Spurnmage Advocate",
+    "Ebony Charm",
+    "Digsite Conservator",
+    "Arashin Sunshield",
+    "Serene Remembrance",
+    "Carrion Beetles"
+   ]
+  },
+  {
+   "what": "keyword CumulativeUpkeepAbility",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Braid of Fire",
+    "Phyrexian Soulgorger",
+    "Wall of Shards",
+    "Karplusan Minotaur",
+    "Sheltering Ancient",
+    "Herald of Leshrac",
+    "Thought Lash",
+    "Varchild's War-Riders",
+    "Psychic Vortex",
+    "Infernal Darkness",
+    "Vexing Sphinx",
+    "Jötun Grunt"
+   ]
+  },
+  {
+   "what": "DomainValue.REGULAR",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Briar Hydra",
+    "Radha, Coalition Warlord",
+    "Herd Migration",
+    "Gaea's Might",
+    "Tromp the Domains",
+    "Exploding Borders",
+    "Tribal Flames",
+    "Meria's Outrider",
+    "Spore Burst",
+    "Manaforce Mace",
+    "Might of Alara",
+    "Power Armor"
+   ]
+  },
+  {
+   "what": "activated with 2 effects in its constructor",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Kozilek, the Great Distortion",
+    "Primordial Mist",
+    "The Capitoline Triad",
+    "Phyrexian Devourer",
+    "Kithkin Armor",
+    "Back from the Brink",
+    "Sphinx of the Chimes",
+    "Void Maw",
+    "Skeleton Scavengers",
+    "Nivmagus Elemental",
+    "Murderous Betrayal",
+    "Impelled Giant"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Intruder Alarm",
+    "Betor, Kin to All",
+    "Xolatoyac, the Smiling Flood",
+    "The Thirteenth Doctor",
+    "Éomer, Marshal of Rohan",
+    "Benefactor's Draught",
+    "Lita, Mechanical Engineer",
+    "Awakening",
+    "Veteran Beastrider",
+    "Preston Garvey, Minuteman",
+    "Blinkmoth Infusion",
+    "Deepway Navigator"
+   ]
+  },
+  {
+   "what": "custom cost",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Sunforger",
+    "Shelob, Dread Weaver",
+    "Captain America, First Avenger",
+    "Baba Lysaga, Night Witch",
+    "Fabrication Foundry",
+    "Wonderscape Sage",
+    "Araumi of the Dead Tide",
+    "Clay Golem",
+    "Necron Overlord",
+    "The Book of Vile Darkness",
+    "Synthesis Pod",
+    "Emrakul's Evangel"
+   ]
+  },
+  {
+   "what": "counter count twice",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Honored Dreyleader",
+    "Heroes' Bane",
+    "Huatli, Radiant Champion",
+    "Lasyd Prowler",
+    "Gideon, Champion of Justice",
+    "Geometric Nexus",
+    "Waker of the Wilds",
+    "Grave Strength",
+    "Rubblebelt Raiders",
+    "Ooze Patrol",
+    "Reverent Hunter",
+    "Soulstinger"
+   ]
+  },
+  {
+   "what": "MenaceAbility with arguments",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Infantry Shield",
+    "Ardyn, the Usurper",
+    "Nazgûl Battle-Mace",
+    "Warg Rider",
+    "Predators' Hour",
+    "Vadmir, New Blood",
+    "Root Manipulation",
+    "Criminal Past",
+    "Drach'Nyen",
+    "Midnight Mayhem",
+    "Triarch Stalker",
+    "Kaito's Pursuit"
+   ]
+  },
+  {
+   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Hydra Broodmaster",
+    "Death Kiss",
+    "Shipbreaker Kraken",
+    "Stormbreath Dragon",
+    "Polukranos, World Eater",
+    "Clay Golem",
+    "Grim Giganotosaurus",
+    "Splitting Slime",
+    "Hythonia the Cruel",
+    "Kalemne's Captain",
+    "Arbor Colossus",
+    "Vitality Hunter"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Rampant Frogantua",
+    "Coram, the Undertaker",
+    "Umbris, Fear Manifest",
+    "Wight of Precinct Six",
+    "Shantotto, Tactician Magician",
+    "Carrion Grub",
+    "Anya, Merciless Angel",
+    "Skanos Dragonheart",
+    "Omnath, Locus of the Void",
+    "Renegade Bull",
+    "Greven, Predator Captain",
+    "Manaplasm"
+   ]
+  },
+  {
+   "what": "DamageTargetControllerEffect",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Unlicensed Disintegration",
+    "Ravaging Blaze",
+    "Blooming Blast",
+    "Repulsor Blast",
+    "Misthios's Fury",
+    "Fodder Launch",
+    "Heated Argument",
+    "Structural Distortion",
+    "Melt Terrain",
+    "Agonizing Demise",
+    "Searing Barrage",
+    "Cryoclasm"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesAllEffect",
+   "score": 16,
+   "lines": 7,
+   "cards": [
+    "Delney, Streetwise Lookout",
+    "Shifting Sliver",
+    "Graaz, Unstoppable Juggernaut",
+    "Midnight Pathlighter",
+    "Wall Crawl",
+    "Jasmine Boreal of the Seven",
+    "Dread Charge"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Shalai, Voice of Plenty",
+    "Surge of Salvation",
+    "Solitary Confinement",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Sigarda, Heron's Grace",
+    "Captain America, Super-Soldier",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker",
+    "True Believer"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
+   "score": 16,
+   "lines": 7,
+   "cards": [
+    "Keeper of the Accord",
+    "Archfiend of Depravity",
+    "Luminarch Ascension",
+    "Goblin Spymaster",
+    "Predatory Advantage",
+    "Discordant Spirit"
+   ]
+  },
+  {
+   "what": "DealsDamageToYouAllTriggeredAbility",
+   "score": 16,
+   "lines": 10,
+   "cards": [
+    "Mikaeus, the Unhallowed",
+    "No Mercy",
+    "The Cabbage Merchant",
+    "Dissipation Field",
+    "Strixhaven Stadium",
+    "Teysa, Envoy of Ghosts",
+    "Dread",
+    "Aurification",
+    "Contested War Zone",
+    "Hixus, Prison Warden"
+   ]
+  },
+  {
+   "what": "CantBeBlockedAllEffect",
+   "score": 16,
+   "lines": 7,
+   "cards": [
+    "Tetsuko Umezawa, Fugitive",
+    "Glaring Spotlight",
+    "Jace, Arcane Strategist",
+    "Keeper of Keys",
+    "Leitmotif Composer",
+    "Tezzeret's Gatebreaker",
+    "Tanglewalker"
+   ]
+  },
+  {
+   "what": "EnchantedPredicate.instance",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Winds of Rath",
+    "Lord Skitter's Blessing",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Beastmaster's Magemark",
+    "Necromancer's Magemark",
+    "Guardian's Magemark",
+    "Graceful Takedown",
+    "Fencer's Magemark",
+    "Time Elemental",
+    "Ramses Overdark",
+    "Cut the Earthly Bond"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Allosaurus Shepherd",
+    "Jolrael, Mwonvuli Recluse",
+    "March of the World Ooze",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Graaz, Unstoppable Juggernaut",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration",
+    "Archon of the Wild Rose",
+    "Oko, the Trickster",
+    "Inkfathom Witch"
+   ]
+  },
+  {
+   "what": "IntPlusDynamicValue",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Proft's Eidetic Memory",
+    "Combustion Technique",
+    "Impending Flux",
+    "ED-E, Lonesome Eyebot",
+    "Focus Fire",
+    "Crater's Claws",
+    "Welding Sparks",
+    "Thunder Salvo",
+    "Artillery Blast",
+    "Vitalizing Cascade",
+    "Feast of Flesh",
+    "Kjeldoran War Cry"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 16,
+   "lines": 7,
+   "cards": [
+    "The Aetherspark",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Hylderblade",
+    "Detainment Spell",
+    "Bespoke Battlegarb",
+    "Stasis Cell"
+   ]
+  },
+  {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Touch the Spirit Realm",
+    "Mardu Siegebreaker",
+    "Aang's Iceberg",
+    "Werefox Bodyguard",
+    "Trapped in the Screen",
+    "Assimilation Aegis",
+    "All-Fates Stalker",
+    "Turncoat Kunoichi",
+    "Sigrid, God-Favored",
+    "Detention Chariot",
+    "Prayer of Binding",
+    "Liminal Hold"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Elturel Survivors",
+    "The Tarrasque",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Genestealer Patriarch",
+    "Decimator Beetle",
+    "Spring Splasher",
+    "Fear of Falling",
+    "Coveted Peacock",
+    "Goblin Racketeer"
+   ]
+  },
+  {
+   "what": "DealsDamageToAPlayerTriggeredAbility",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Goblin Lackey",
+    "Niv-Mizzet, Dracogenius",
+    "Soltari Visionary",
+    "Stigma Lasher",
+    "Abyssal Specter",
+    "Barbed Shocker",
+    "Sabertooth Cobra",
+    "Arm with Aether",
+    "Order of Yawgmoth",
+    "Shocker",
+    "Marsh Viper",
+    "Odylic Wraith"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Imotekh the Stormlord",
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar",
+    "Golem Artisan",
+    "Aethershield Artificer",
+    "Neurok Transmuter",
+    "Baxter Stockman",
+    "Abuna Acolyte",
+    "Auriok Siege Sled"
+   ]
+  },
+  {
+   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Chocobo Kick",
+    "Animist's Might",
+    "Rabid Gnaw",
+    "Polliwallop",
+    "Felling Blow",
+    "Piercing Exhale",
+    "Domri's Ambush",
+    "Huatli, Dinosaur Knight",
+    "Assert Perfection",
+    "Punishing Punch",
+    "Devouring Tendrils",
+    "Hunter's Edge"
+   ]
+  },
+  {
+   "what": "BecomesTargetSourceTriggeredAbility",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Stormchaser Drake",
+    "Frost Titan",
+    "Treacherous Blessing",
+    "Reality Smasher",
+    "Opaline Sliver",
+    "Forsaken Wastes",
+    "The Howling Abomination",
+    "Illuminator Virtuoso",
+    "Black Bolt, Inhuman King",
+    "Crystalline Nautilus",
+    "Lava Runner",
+    "Boneshard Slasher"
+   ]
+  },
+  {
+   "what": "keyword AssistAbility",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Game Plan",
+    "Play of the Game",
+    "Out of Bounds",
+    "The Crowd Goes Wild",
+    "Huddle Up",
+    "Gang Up",
+    "Vampire Charmseeker",
+    "Skystreamer",
+    "Bring Down",
+    "Bloodborn Scoundrels",
+    "Lava-Field Overlord",
+    "Fan Favorite"
+   ]
+  },
+  {
+   "what": "AnyColorManaAbility",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "The World Tree",
+    "Great Divide Guide",
+    "Gemstone Mine",
+    "Study Hall",
+    "Yuna, Grand Summoner",
+    "Solar Array",
+    "Path of Annihilation",
+    "Altar of the Pantheon",
+    "Rainbow Vale",
+    "Undiscovered Paradise",
+    "Cryptex",
+    "Divergent Growth"
+   ]
+  },
+  {
+   "what": "CantAttackYouUnlessPayAllEffect",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "Windborn Muse",
+    "Norn's Annex",
+    "Baird, Steward of Argive",
+    "Onakke Oathkeeper",
+    "Archon of Absolution",
+    "Sivitri, Dragon Master",
+    "Elephant Grass",
+    "Koskun Falls",
+    "Forbidding Spirit"
+   ]
+  },
+  {
+   "what": "CreateTokenEffect.withAdditionalTokens",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Wurmcoil Engine",
+    "Triplicate Titan",
+    "Farmer Cotton",
+    "Reckoner Bankbuster",
+    "Forbidden Friendship",
+    "Wurmcoil Larva",
+    "Somberwald Beastmaster",
+    "Mascot Exhibition",
+    "Trostani's Summoner",
+    "Bestial Menace",
+    "Specimen Collector",
+    "A Killer Among Us"
+   ]
+  },
+  {
+   "what": "CompositeCost",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Mount Doom",
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Quest for the Holy Relic",
+    "Quest for Ancient Secrets",
+    "Sokenzan Smelter",
+    "Sphinx's Approach",
+    "Urborg Panther",
+    "Kyscu Drake"
+   ]
+  },
+  {
+   "what": "BecomesTappedTriggeredAbility",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Magda, Brazen Outlaw",
+    "Quest for Renewal",
+    "Gideon's Avenger",
+    "Judge of Currents",
+    "Mine Layer",
+    "Palliation Accord",
+    "Roots of Life",
+    "Lifetap",
+    "Thoughtleech",
+    "Freyalise's Winds",
+    "Temporal Distortion",
+    "Lifeblood"
+   ]
+  },
+  {
+   "what": "Ability.setModeTag",
+   "score": 15,
+   "lines": 6,
+   "cards": [
+    "Silent Hallcreeper",
+    "Gandalf the Grey",
+    "Captive Audience",
+    "Kargan Intimidator",
+    "Three Bowls of Porridge",
+    "Sol'Kanar the Tainted"
+   ]
+  },
+  {
+   "what": "WinGameSourceControllerEffect",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "Triskaidekaphile",
+    "Twenty-Toed Toad",
+    "Liliana's Contract",
+    "Helix Pinnacle",
+    "Mortal Combat",
+    "Happily Ever After",
+    "Near-Death Experience",
+    "Battle of Wits",
+    "Barren Glory"
+   ]
+  },
+  {
+   "what": "(verify) number 3 missing",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Runaway Steam-Kin",
+    "Goblin Traprunner",
+    "Adaptive Training Post",
+    "Steward of the Harvest",
+    "Daring Discovery",
+    "Wondrous Revival",
+    "Proclamation of Rebirth",
+    "Panic Attack",
+    "Sea God's Revenge",
+    "Unearthly Blizzard",
+    "Tidal Surge",
+    "Wave Elemental"
+   ]
+  },
+  {
+   "what": "ReturnToHandFromBattlefieldSourceCost",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Shigeki, Jukai Visionary",
+    "Maze's End",
+    "Rootha, Mercurial Artist",
+    "Attunement",
+    "Broken Fall",
+    "Steelshaper Apprentice",
+    "Gossamer Chains",
+    "Ovinomancer",
+    "Molting Skin",
+    "Krasis Incubation",
+    "Cycle of Life",
+    "Recurring Nightmare"
+   ]
+  },
+  {
+   "what": "trigger pointing at CARD",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "The Locust God",
+    "The Scarab God",
+    "Rivaz of the Claw",
+    "The Scorpion God",
+    "Phytotitan",
+    "Ashcloud Phoenix",
+    "Sphinx of False Conclusions",
+    "Molten Firebird",
+    "Ivory Gargoyle"
+   ]
+  },
+  {
+   "what": "UntapAllControllerEffect",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "Port Razer",
+    "Overpowering Attack",
+    "Grim Reaper's Sprint",
+    "Tori D'Avenant, Fury Rider",
+    "Merrow Commerce",
+    "Urtet, Remnant of Memnarch",
+    "Estrid, the Masked",
+    "Unity of Purpose",
+    "Dryad's Caress"
+   ]
+  },
+  {
+   "what": "PreventAllNonCombatDamageToAllEffect",
+   "score": 15,
+   "lines": 6,
+   "cards": [
+    "Crystal Barricade",
+    "The Wanderer",
+    "Blessed Sanctuary",
+    "Drogskol Reinforcements",
+    "Tajic, Legion's Edge",
+    "Mark of Asylum"
+   ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "Earthbender Ascension",
+    "Toph, Hardheaded Teacher",
+    "The Boulder, Ready to Rumble",
+    "Rockalanche",
+    "Toph, Greatest Earthbender",
+    "Earth Rumble",
+    "Earthshape",
+    "Beifong's Bounty Hunters",
+    "Bumi's Feast Lecture"
+   ]
+  },
+  {
+   "what": "MustBeBlockedByAtLeastOneSourceEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Anzrag, the Quake-Mole",
+    "Nacatl War-Pride",
+    "Maarika, Brutal Gladiator",
+    "Raphael, Ninja Destroyer",
+    "Gorm the Great",
+    "Jurin, Leading the Charge",
+    "Fear of Being Hunted",
+    "Vinebred Brawler",
+    "Madame Vastra",
+    "Canopy Stalker",
+    "Riveteers Decoy",
+    "Gaea's Protector"
+   ]
+  },
+  {
+   "what": "DamageEverythingEffect with a filter",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Earthquake",
+    "Delete",
+    "Rolling Earthquake",
+    "Hurricane",
+    "Molten Disaster",
+    "Squall Line",
+    "Breath of Darigaaz",
+    "Volcanic Spray",
+    "Flamebreak",
+    "Hammerfist Giant",
+    "Time Bomb",
+    "Canopy Surge"
+   ]
+  },
+  {
+   "what": "EntersWithCountersControlledEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Dragonstorm Globe",
+    "Renata, Called to the Hunt",
+    "Tromell, Seymour's Butler",
+    "Grumgully, the Generous",
+    "Oona's Blackguard",
+    "Thunderous Velocipede",
+    "Curator Beastie",
+    "Oath of Gideon",
+    "Bramblewood Paragon",
+    "Sage of Fables",
+    "Tayam, Luminous Enigma",
+    "Zameck Guildmage"
+   ]
+  },
+  {
+   "what": "keyword SunburstAbility",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Pentad Prism",
+    "Etched Oracle",
+    "Engineered Explosives",
+    "Suntouched Myr",
+    "Clearwater Goblet",
+    "Solarion",
+    "Suncrusher",
+    "Skyreach Manta",
+    "Infused Arrows",
+    "Opaline Bracers",
+    "Lunar Avenger",
+    "Spinal Parasite"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Sword of the Paruns",
+    "Tomb Tyrant",
+    "Cloud, Planet's Champion",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity",
+    "Emergent Haunting",
+    "Trap Runner",
+    "Trade Caravan",
+    "Arcum's Sleigh",
+    "Inventive Wingsmith"
+   ]
+  },
+  {
+   "what": "LoseAbilityTargetEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Emerald Charm",
+    "Smite the Deathless",
+    "Rebel Salvo",
+    "Soul Sear",
+    "Adarkar Windform",
+    "Canopy Claws",
+    "Downdraft",
+    "Goblin Skycutter",
+    "Crash Landing",
+    "Reality Anchor",
+    "Shelkin Brownie",
+    "Radjan Spirit"
+   ]
+  },
+  {
+   "what": "CovenCondition.instance",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Leinore, Autumn Sovereign",
+    "Redemption Choir",
+    "Stalwart Pathlighter",
+    "Duel for Dominance",
+    "Candletrap",
+    "Contortionist Troupe",
+    "Wall of Mourning",
+    "Sungold Sentinel",
+    "Dawnhart Wardens",
+    "Dawnhart Mentor",
+    "Might of the Old Ways",
+    "Duelcraft Trainer"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAttachedEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Spider-Man No More",
+    "In Too Deep",
+    "Retro-Mutation",
+    "Zoetic Glyph",
+    "Deep Freeze",
+    "Ensoul Artifact",
+    "Harmonious Emergence",
+    "Corrupted Zendikon",
+    "Nissa's Zendikon",
+    "Awaken the Ancient",
+    "Crackling Emergence",
+    "Mightstone's Animation"
+   ]
+  },
+  {
+   "what": "TapEnchantedEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Honest Work",
+    "Stuck in Summoner's Sanctum",
+    "Flood the Engine",
+    "Stop Cold",
+    "Enchanted River's Grasp",
+    "Tractor Beam",
+    "Hold for Questioning",
+    "Ray of Frost",
+    "Weakstone's Subjugation",
+    "Malfunction",
+    "Infinite Coursework",
+    "Unquenchable Thirst"
+   ]
+  },
+  {
+   "what": "AddCardTypeSourceEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Phoenix Fleet Airship",
+    "Phantom Train",
+    "Fleetwheel Cruiser",
+    "Voyager Glidecar",
+    "Earthrumbler",
+    "Gastal Thrillroller",
+    "Grond, the Gatebreaker",
+    "Midnight Mangler",
+    "Tangle Tumbler",
+    "The Fantasticar",
+    "Mizzium Tank",
+    "War Balloon"
+   ]
+  },
+  {
+   "what": "keyword TeamworkAbility",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "HULK SMASH!",
+    "We Say Thee Nay!",
+    "Earth's Mightiest Heroes",
+    "Go Nuts!",
+    "Too Evil to Stay Dead",
+    "Team Tactics",
+    "Repulsor Blast",
+    "Crossover Collaboration",
+    "Cruel Alliance",
+    "Widow's Bite",
+    "Atlantis Attacks",
+    "Helicarrier Strike"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Descent into Avernus",
+    "Akroan Horse",
+    "Slaughter Specialist",
+    "Kibo, Uktabi Prince",
+    "Marching Duodrone",
+    "Grismold, the Dreadsower",
+    "Elephant-Mandrill",
+    "Edge Rover",
+    "Pursued Whale",
+    "Rasputin, the Oneiromancer",
+    "Elephant Resurgence"
+   ]
+  },
+  {
+   "what": "CommanderPredicate.instance",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Witch's Clinic",
+    "Forge of Heroes",
+    "Sanctum of Eternity",
+    "Anara, Wolvid Familiar",
+    "Slash the Ranks",
+    "Sauron, Lord of the Rings",
+    "Cultist of the Absolute",
+    "Drillworks Mole",
+    "Shield Broker",
+    "Gray Harbor Merfolk",
+    "Nakia, Wakandan Operative"
+   ]
+  },
+  {
+   "what": "LegendRuleDoesntApplyEffect",
+   "score": 14,
+   "lines": 8,
+   "cards": [
+    "Sakashima of a Thousand Faces",
+    "Mirror Box",
+    "The Master, Multiplied",
+    "Cadric, Soul Kindler",
+    "Sliver Gravemother",
+    "Spider-Verse",
+    "Mirror Gallery",
+    "Council of Reeds"
+   ]
+  },
+  {
+   "what": "LookLibraryTopCardTargetPlayerEffect",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Mishra's Bauble",
+    "Moonring Island",
+    "Orcish Spy",
+    "Dewdrop Spy",
+    "Draugr Thought-Thief",
+    "Lurking Informant",
+    "Eye Spy",
+    "Visions",
+    "Saheeli's Silverwing",
+    "Rootwater Mystic",
+    "Merfolk Observer"
+   ]
+  },
+  {
+   "what": "HalfValue",
+   "score": 14,
+   "lines": 5,
+   "cards": [
+    "Wan Shi Tong, Librarian",
+    "The Goose Mother",
+    "Imskir Iron-Eater",
+    "Rakdos the Defiler",
+    "Banshee"
+   ]
+  },
+  {
+   "what": "ActivateAbilityTriggeredAbility",
+   "score": 14,
+   "lines": 8,
+   "cards": [
+    "Rings of Brighthearth",
+    "Illusionist's Bracers",
+    "Battlemage's Bracers",
+    "Adrenaline Jockey",
+    "Kurkesh, Onakke Ancient",
+    "Rangers' Refueler",
+    "Afterburner Expert",
+    "Rangers' Aetherhive"
+   ]
+  },
+  {
+   "what": "AttachTargetToTargetEffect",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Codsworth, Handy Helper",
+    "Brass Squire",
+    "Magnetic Theft",
+    "Raubahn, Bull of Ala Mhigo",
+    "Barret, Avalanche Leader",
+    "Noctis, Heir Apparent",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Auriok Windwalker",
+    "Swordsman, Sharp Scoundrel",
+    "Kor Outfitter"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Resourceful Defense",
+    "Zurgo Stormrender",
+    "The Ooze",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Costume Closet",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger",
+    "Extractor Demon",
+    "Dual Nature"
+   ]
+  },
+  {
+   "what": "variable loyalty",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Ugin, the Spirit Dragon",
+    "Chandra, Awakened Inferno",
+    "Chandra, Hope's Beacon",
+    "Jeska, Thrice Reborn",
+    "Xenagos, the Reveler",
+    "Jace, the Perfected Mind",
+    "Ashiok, Nightmare Weaver",
+    "Huatli, Warrior Poet",
+    "Chandra, Chill of Compliance",
+    "Nissa, Genesis Mage",
+    "Angrath, Minotaur Pirate"
+   ]
+  },
+  {
+   "what": "FirebendingAbility",
+   "score": 14,
+   "lines": 5,
+   "cards": [
+    "Fire Nation Palace",
+    "Sozin's Comet",
+    "Fire Nation Turret",
+    "Iroh, Dragon of the West",
+    "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "EscapesWithAbility",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Woe Strider",
+    "Chainweb Aracnir",
+    "Ox of Agonas",
+    "Charred Graverobber",
+    "Skyway Robber",
+    "Phoenix of Ash",
+    "Pharika's Spawn",
+    "Underworld Rage-Hound",
+    "Underworld Charger",
+    "Voracious Typhon",
+    "Loathsome Chimera"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Grateful Apparition",
+    "Psychic Frog",
+    "Neheb, Dreadhorde Champion",
+    "Bladewing, Deathless Tyrant",
+    "Jaya's Phoenix",
+    "Guildpact Informant",
+    "Dreadhorde Butcher",
+    "Storrev, Devkarin Lich",
+    "Garruk's Harbinger",
+    "Silent Submersible",
+    "Storm the Citadel"
+   ]
+  },
+  {
+   "what": "MayCastTargetCardEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Torrential Gearhulk",
+    "Vohar, Vodalian Desecrator",
+    "Impulsivity",
+    "Chandra, Acolyte of Flame",
+    "The Dawning Archaic",
+    "Goblin Dark-Dwellers",
+    "Quistis Trepe",
+    "Daring Waverider",
+    "Seifer Almasy",
+    "Chandra, Flame's Catalyst",
+    "Toshiro Umezawa",
+    "Efreet Flamepainter"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldTappedUnlessAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Turbulent Fen",
+    "Turbulent Springs",
+    "Turbulent Moor",
+    "Argoth, Sanctum of Nature",
+    "Turbulent Wilderness",
+    "Turbulent Steppe",
+    "Country Roads",
+    "Rocky Roads",
+    "Reef Roads",
+    "Turbulent Shore",
+    "Turbulent Wetlands",
+    "Wild Roads"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Reluctant Role Model",
+    "Shadow the Hedgehog",
+    "Archghoul of Thraben",
+    "Azlask, the Swelling Scourge",
+    "Colfenor, the Last Yew",
+    "Havi, the All-Father",
+    "Basri's Lieutenant",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger"
+   ]
+  },
+  {
+   "what": "CycleTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Agonasaur Rex",
+    "Gempalm Incinerator",
+    "Nimble Obstructionist",
+    "Valor's Flagship",
+    "Yidaro, Wandering Monster",
+    "Gempalm Polluter",
+    "Rampaging War Mammoth",
+    "Shefet Monitor",
+    "Webstrike Elite",
+    "Dirge of Dread",
+    "Howler's Heavy",
+    "Primal Boost"
+   ]
+  },
+  {
+   "what": "MustBeBlockedByAllSourceEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Breaker of Armies",
+    "Treeshaker Chimera",
+    "Taunting Elf",
+    "Nessian Boar",
+    "Ochran Assassin",
+    "Noble Quarry",
+    "Shinen of Life's Roar",
+    "Prized Unicorn",
+    "Golgari Decoy",
+    "Elvish Bard",
+    "Mortipede",
+    "Nath's Elite"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Elvish Mariner",
+    "Elrond, Master of Healing",
+    "Galadriel of Lothlórien",
+    "Arwen Undómiel",
+    "Celeborn the Wise",
+    "Lost Isle Calling",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Council's Deliberation",
+    "Glorfindel, Dauntless Rescuer",
+    "Chance-Met Elves",
+    "Nimrodel Watcher"
+   ]
+  },
+  {
+   "what": "TurnedFaceUpAllTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Deathmist Raptor",
+    "Roshan, Hidden Magister",
+    "Experiment Twelve",
+    "Printlifter Ooze",
+    "Secret Plans",
+    "Pyrotechnic Performer",
+    "Aphetto Runecaster",
+    "Mastery of the Unseen",
+    "True Identity",
+    "Unblinking Bleb",
+    "Sumala Sentry",
+    "Pine Walker"
+   ]
+  },
+  {
+   "what": "keyword FlyingAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Eradicator Valkyrie",
+    "Breathkeeper Seraph",
+    "Niv-Mizzet, Guildpact",
+    "Niv-Mizzet, Supreme",
+    "Teeka's Dragon",
+    "Dust Elemental",
+    "Mesa Pegasus",
+    "Kjeldoran Skyknight",
+    "Bayou Dragonfly",
+    "Teremko Griffin",
+    "Knight of Sursi",
+    "Kjeldoran Skycaptain"
+   ]
+  },
+  {
+   "what": "PermanentPredicate.instance",
+   "score": 13,
+   "lines": 7,
+   "cards": [
+    "Conduit of Worlds",
+    "Lithoform Engine",
+    "Squirming Emergence",
+    "Staff of Eden, Vault's Key",
+    "Myojin of Cryptic Dreams",
+    "Astelli Reclaimer",
+    "Pull Through the Weft"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 13,
+   "lines": 10,
+   "cards": [
+    "Tekuthal, Inquiry Dominus",
+    "Scholar of New Horizons",
+    "Fain, the Broker",
+    "O'aka, Traveling Merchant",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain",
+    "Tayam, Luminous Enigma",
+    "The Filigree Sylex"
+   ]
+  },
+  {
+   "what": "GoadAttachedEffect",
+   "score": 13,
+   "lines": 10,
+   "cards": [
+    "Shiny Impetus",
+    "Bloodthirsty Blade",
+    "Ghoulish Impetus",
+    "Parasitic Impetus",
+    "The Sound of Drums",
+    "Martial Impetus",
+    "Coercive Impetus",
+    "Psychic Impetus",
+    "Acquired Mutation",
+    "Incriminating Impetus"
+   ]
+  },
+  {
+   "what": "AttachedToAttachedPredicate.instance",
+   "score": 13,
+   "lines": 7,
+   "cards": [
+    "Mantle of the Ancients",
+    "Thran Power Suit",
+    "Strong Back",
+    "With Great Power . . .",
+    "Brass Knuckles",
+    "Golem-Skin Gauntlets",
+    "Auramancer's Guise"
+   ]
+  },
+  {
+   "what": "TargetActivatedOrTriggeredAbility",
+   "score": 13,
+   "lines": 10,
+   "cards": [
+    "Sublime Epiphany",
+    "Weaver of Harmony",
+    "Tishana's Tidebinder",
+    "Stifle",
+    "Abstruse Archaic",
+    "The Peregrine Dynamo",
+    "Trickbind",
+    "Adric, Mathematical Genius",
+    "Echo, Perceptive Prodigy",
+    "Tawnos, Urza's Apprentice"
+   ]
+  },
+  {
+   "what": "subject:toughness",
+   "score": 13,
+   "lines": 4,
+   "cards": [
+    "Massacre Girl, Known Killer",
+    "Ulvenwald Observer",
+    "Kheru Bloodsucker",
+    "Sultai Flayer"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .withTextThatCard)",
+   "score": 13,
+   "lines": 4,
+   "cards": [
+    "Charming Prince",
+    "Venser, the Sojourner"
+   ]
+  },
+  {
+   "what": "UntapTargetCost",
+   "score": 13,
+   "lines": 4,
+   "cards": [
+    "Halo Fountain",
+    "Crackleburr"
+   ]
+  },
+  {
+   "what": "keyword GraftAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Llanowar Reborn",
+    "Plaxcaster Frogling",
+    "Vigean Graftmage",
+    "Cytoplast Manipulator",
+    "Aquastrand Spider",
+    "Cytoplast Root-Kin",
+    "Sporeback Troll",
+    "Novijen Sages",
+    "Helium Squirter",
+    "Simic Initiate",
+    "Cytospawn Shambler",
+    "Vigean Hydropon"
+   ]
+  },
+  {
+   "what": "LoyaltyAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Ichormoon Gauntlet",
+    "Liliana's Talent",
+    "Teferi's Talent",
+    "Rowan's Talent",
+    "Elspeth's Talent",
+    "Way of the Pyromancer",
+    "Way of the Cryomancer",
+    "Way of the Healer",
+    "Vivien's Talent",
+    "Avatar of Burgeoning Echoes",
+    "Way of the Deathbringer",
+    "Way of the Warlord"
+   ]
+  },
+  {
+   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Metamorphosis Fanatic",
+    "Rakdos Joins Up",
+    "Yuna, Hope of Spira",
+    "Evil Reawakened",
+    "Admiral Brass, Unsinkable",
+    "Coalstoke Gearhulk",
+    "From the Catacombs",
+    "Prison Break",
+    "Perennation",
+    "Queen's Bay Paladin",
+    "Shuri's Fabricator",
+    "Graceful Restoration"
+   ]
+  },
+  {
+   "what": "OpponentControlsPermanentCondition",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Syr Ginger, the Meal Ender",
+    "Tectonic Edge",
+    "Black Scarab",
+    "White Scarab",
+    "Blue Scarab",
+    "Green Scarab",
+    "Red Scarab",
+    "Skyshroud Elite",
+    "Night Revelers",
+    "Beasts of Bogardan",
+    "Wu Admiral",
+    "Water Wurm"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Goro-Goro, Disciple of Ryusei",
+    "Red XIII, Proud Warrior",
+    "Thundering Raiju",
+    "Iron Man, Armored Avenger",
+    "One with the Kami",
+    "Golden-Tail Trainer",
+    "Silver Sable, Mercenary Leader",
+    "War Machine, Avenging Arsenal",
+    "Ambitious Assault",
+    "Upriser Renegade",
+    "Expanding Ooze",
+    "Akki Ember-Keeper"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesAttachedEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Prowler's Helm",
+    "Canopy Cover",
+    "Invisibility",
+    "Hedgewitch's Mask",
+    "Dust Corona",
+    "Treetop Bracers",
+    "Saddle of the Cavalier",
+    "Blazing Torch",
+    "Black Scarab",
+    "White Scarab",
+    "Blue Scarab",
+    "Green Scarab"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Riverchurn Monument",
+    "Skyserpent Seeker",
+    "Peema Trailblazer",
+    "Jeong Jeong, the Deserter",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin",
+    "Rangers' Refueler",
+    "Boom Scholar"
+   ]
+  },
+  {
+   "what": "WaterbendCost",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Waterbender Ascension",
+    "Waterbending Lesson",
+    "Katara, Bending Prodigy",
+    "Aang's Iceberg",
+    "Yue, the Moon Spirit",
+    "North Pole Patrol",
+    "Watery Grasp",
+    "Water Tribe Rallier",
+    "Flexible Waterbender",
+    "Giant Koi",
+    "Geyser Leaper",
+    "Foggy Swamp Vinebender"
+   ]
+  },
+  {
+   "what": "token statement MutagenToken",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "The Ooze",
+    "Michelangelo, Weirdness to 11",
+    "Mutagen Man, Living Ooze",
+    "Raphael, the Muscle",
+    "Michelangelo, Mutant BFF",
+    "April O'Neil, Human Element",
+    "Roadkill Rodney",
+    "Mona Lisa, Ever Adaptable",
+    "Ooze Spill",
+    "Ray Fillet, Man Ray",
+    "Crustacean Commando",
+    "Zoo Escapees"
+   ]
+  },
+  {
+   "what": "RevealLibraryPutIntoHandEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Goblin Ringleader",
+    "Marina Vendrell",
+    "Garruk, Caller of Beasts",
+    "Ajani Unyielding",
+    "Sylvan Messenger",
+    "Elder Pine of Jukai",
+    "Enshrined Memories",
+    "Merfolk Wayfinder",
+    "Tidal Courier",
+    "Grave Defiler",
+    "Enlistment Officer",
+    "Lair Delve"
+   ]
+  },
+  {
+   "what": "EndOfCombatTriggeredAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Rose, Cutthroat Raider",
+    "Wall of Nets",
+    "Heat Stroke",
+    "Daredevil Dragster",
+    "Clockwork Steed",
+    "The Wretched",
+    "Joven's Ferrets",
+    "Clockwork Beast",
+    "Clockwork Avian",
+    "Clockwork Swarm",
+    "Kjeldoran Home Guard",
+    "Greater Werewolf"
+   ]
+  },
+  {
+   "what": "BlightCost",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Scuzzback Scrounger",
+    "Dawnhand Dissident",
+    "Boggart Mischief",
+    "Gristle Glutton",
+    "Champion of the Weird",
+    "Sourbread Auntie",
+    "Blighted Blackthorn",
+    "Spiral into Solitude",
+    "Evershrike's Gift",
+    "Dream Seizer",
+    "Sting-Slinger",
+    "Gutsplitter Gang"
+   ]
+  },
+  {
+   "what": "ControlEnchantedEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Steal Enchantment",
+    "Confiscate",
+    "In Bolas's Clutches",
+    "Lay Claim",
+    "Steal Artifact",
+    "Annex",
+    "Tractor Beam",
+    "Take Possession",
+    "Volition Reins",
+    "Dream Leash",
+    "Conquer",
+    "Carry Away"
+   ]
+  },
+  {
+   "what": "PreventDamageAndRemoveCountersEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Protean Hydra",
+    "Unbreathing Horde",
+    "Undergrowth Champion",
+    "Ugin's Conjurant",
+    "Polukranos, Unchained",
+    "Phantom Nishoba",
+    "Phantom Nantuko",
+    "Oathsworn Knight",
+    "Phantom Tiger",
+    "Phantom Flock",
+    "Phantom Wurm",
+    "Phantom Nomad"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Genesis",
+    "Master of Death",
+    "Arden Angel",
+    "Gigapede",
+    "Ichorid",
+    "Akuta, Born of Ash",
+    "Death Spark",
+    "Nether Spirit",
+    "Death of a Thousand Stings",
+    "Pyre Zombie",
+    "Ghastly Remains",
+    "Exile into Darkness"
+   ]
+  },
+  {
+   "what": "KickedCostCondition",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Wastescape Battlemage",
+    "Thornscape Battlemage",
+    "Stormscape Battlemage",
+    "Nightscape Battlemage",
+    "Thunderscape Battlemage",
+    "Sunscape Battlemage",
+    "Ana Battlemage"
+   ]
+  },
+  {
+   "what": "Zone.GRAVEYARD",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Cult Conscript",
+    "Gutterbones",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential",
+    "Kuldotha Phoenix",
+    "Cleaving Reaper",
+    "Fleshless Gladiator",
+    "Ashen Ghoul",
+    "Brackish Trudge",
+    "Coffin Puppets"
+   ]
+  },
+  {
+   "what": "keyword BloodrushAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Wasteland Viper",
+    "Rubblehulk",
+    "Ghor-Clan Rampager",
+    "Skarrg Goliath",
+    "Pyrewild Shaman",
+    "Rubblebelt Maaka",
+    "Wrecking Ogre",
+    "Skinbrand Goblin",
+    "Zhur-Taa Swine",
+    "Scorchwalker",
+    "Slaughterhorn",
+    "Viashino Shanktail"
+   ]
+  },
+  {
+   "what": "ReparteeAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Stirring Hopesinger",
+    "Informed Inkwright",
+    "Graduation Day",
+    "Melancholic Poet",
+    "Forum Necroscribe",
+    "Conciliator's Duelist",
+    "Scolding Administrator",
+    "Lecturing Scornmage",
+    "Snooping Page",
+    "Inkling Mascot",
+    "Inkshape Demonstrator",
+    "Rehearsed Debater"
+   ]
+  },
+  {
+   "what": "PreventDamageByTargetEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Gideon of the Trials",
+    "Boros Fury-Shield",
+    "Horn of Deafening",
+    "Azorius Ploy",
+    "Shieldmage Elder",
+    "Resistance Fighter",
+    "Fend Off",
+    "Lady Evangela",
+    "Songstitcher",
+    "Safeguard",
+    "Kry Shield",
+    "Subdue"
+   ]
+  },
+  {
+   "what": "DealtDamageToCreatureBySourceDies",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Red Sun's Zenith",
+    "Demonfire",
+    "Crush the Weak",
+    "Annihilating Fire",
+    "Incendiary Flow",
+    "Frostwielder",
+    "Kumano, Master Yamabushi",
+    "Underworld Fires",
+    "Yamabushi's Storm",
+    "Touch of the Void",
+    "Yamabushi's Flame",
+    "Incendiary Oracle"
+   ]
+  },
+  {
+   "what": "several colours in a scope",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Abzan Runemark",
+    "Rise of the Hobgoblins",
+    "Glistening Deluge",
+    "Jeskai Runemark",
+    "Sultai Runemark",
+    "Battle Brawler",
+    "Mardu Runemark",
+    "Temur Runemark",
+    "Abzan Kin-Guard",
+    "Wandering Champion",
+    "Kavu Runner",
+    "Skittish Kavu"
+   ]
+  },
+  {
+   "what": "keyword BandingAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Benalish Hero",
+    "Kjeldoran Warrior",
+    "Shield Bearer",
+    "Kjeldoran Knight",
+    "Wall of Shields",
+    "Benalish Infantry",
+    "Timber Wolves",
+    "Kjeldoran Escort",
+    "Camel",
+    "Mishra's War Machine",
+    "Ayesha Tanaka",
+    "Icatian Phalanx"
+   ]
+  },
+  {
+   "what": "BecomesColorSourceEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Spiritmonger",
+    "Repentant Vampire",
+    "Blazing Blade Askari",
+    "Wayward Angel",
+    "Kavu Chameleon",
+    "Rainbow Crow",
+    "Possessed Aven",
+    "Caldera Kavu",
+    "Ancient Kavu",
+    "Possessed Barbarian",
+    "Possessed Centaur",
+    "Possessed Nomad"
+   ]
+  },
+  {
+   "what": "PhaseOutTargetEffect",
+   "score": 12,
+   "lines": 6,
+   "cards": [
+    "Talon Gates of Madara",
+    "Slip Out the Back",
+    "Teferi, Master of Time",
+    "Haystack",
+    "Reality Ripple",
+    "Vodalian Illusionist"
+   ]
+  },
+  {
+   "what": "keyword EscalateAbility",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Collective Resistance",
+    "Collective Effort",
+    "Collective Defiance",
+    "Collective Brutality",
+    "Borrowed Hostility",
+    "Blessed Alliance",
+    "Savage Alliance",
+    "Borrowed Grace",
+    "Borrowed Malevolence"
+   ]
+  },
+  {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Breach the Multiverse",
+    "Fractured Sanity",
+    "Hope Estheim",
+    "Fascination",
+    "Unseal the Necropolis",
+    "Overwhelmed Apprentice",
+    "Path of the Schemer",
+    "Flitting Guerrilla",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
+   "what": "ExileTargetCost",
+   "score": 12,
+   "lines": 3,
+   "cards": [
+    "The Soul Stone",
+    "Curie, Emergent Intelligence",
+    "City of Shadows"
+   ]
+  },
+  {
+   "what": "NextSpellCastHasAbilityEffect",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Archway of Innovation",
+    "Wand of the Worldsoul",
+    "Storm, Force of Nature",
+    "TARDIS",
+    "Crackling Spellslinger",
+    "Dark Apostle",
+    "Flockchaser Phantom",
+    "Sloppity Bilepiper",
+    "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "CreaturesCantGetOrHaveAbilityEffect",
+   "score": 12,
+   "lines": 6,
+   "cards": [
+    "Arcane Lighthouse",
+    "Archetype of Imagination",
+    "Archetype of Aggression",
+    "Archetype of Endurance",
+    "Archetype of Courage",
+    "Archetype of Finality"
+   ]
+  },
+  {
+   "what": "keyword DethroneAbility",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Scourge of the Throne",
+    "Treasonous Ogre",
+    "Marchesa, the Black Rose",
+    "Park Heights Maverick",
+    "Marchesa's Infiltrator",
+    "Marchesa's Smuggler",
+    "Grenzo's Cutthroat",
+    "Marchesa's Emissary",
+    "Enraged Revolutionary"
+   ]
+  },
+  {
+   "what": "search for several",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Defense of the Heart",
+    "Tooth and Nail",
+    "Reshape the Earth",
+    "Brightglass Gearhulk",
+    "Journey of Discovery",
+    "Reclaim the Wastes",
+    "Nissa's Triumph",
+    "Slimefoot's Survey",
+    "Samut, the Tested"
+   ]
+  },
+  {
+   "what": "ReturnSourceFromGraveyardToBattlefieldWithCounterEffect",
+   "score": 12,
+   "lines": 3,
+   "cards": [
+    "Unstoppable Slasher",
+    "Retrofitted Transmogrant",
+    "Winter Soldier, Icy Assassin"
+   ]
+  },
+  {
+   "what": "MagecraftAbility",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Ashling, Flame Dancer",
+    "Deekah, Fractal Theorist",
+    "Quandrix Apprentice",
+    "Zaffai, Thunder Conductor",
+    "Lorehold Apprentice",
+    "Prismari Apprentice",
+    "Elemental Expressionist",
+    "Symmetry Sage",
+    "Prismari Pledgemage"
+   ]
+  },
+  {
+   "what": "MonarchIsSourceControllerCondition.instance",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Court of Grace",
+    "Skyline Despot",
+    "Court of Embereth",
+    "Court of Ardenvale",
+    "Grave Venerations",
+    "Faramir, Steward of Gondor",
+    "Dawnglade Regent",
+    "Garrulous Sycophant",
+    "Throne Warden"
+   ]
+  },
+  {
+   "what": "token code PhyrexianMiteToken",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Skrelv's Hive",
+    "Mirrex",
+    "Crawling Chorus",
+    "Vishgraz, the Doomhive",
+    "Mite Overseer",
+    "Charge of the Mites",
+    "Basilica Shepherd",
+    "Indoctrination Attendant",
+    "Stinging Hivemaster"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "The Council of Four",
+    "Alandra, Sky Dreamer",
+    "Minn, Wily Illusionist",
+    "On the Trail",
+    "Krang, the All-Powerful",
+    "Sneaky Snacker",
+    "Otter-Penguin",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper",
+    "Moon Girl and Devil Dinosaur",
+    "Jaded Analyst",
+    "Emerald Collector"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Archon of Emeria",
+    "Phyrexian Censor",
+    "Spider-Woman, Stunning Savior",
+    "Frozen Aether",
+    "Zhao, the Moon Slayer",
+    "Root Maze",
+    "Kismet",
+    "Loxodon Gatekeeper",
+    "Orb of Dreams",
+    "Ashling's Prerogative",
+    "False Floor",
+    "Due Respect"
+   ]
+  },
+  {
+   "what": "WishEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Karn, the Great Creator",
+    "Mastermind's Acquisition",
+    "Vivien, Arkbow Ranger",
+    "Legion Angel",
+    "Coax from the Blind Eternities",
+    "Burning Wish",
+    "North Wind Avatar",
+    "Living Wish",
+    "Cunning Wish",
+    "Death Wish",
+    "Glittering Wish",
+    "Golden Wish"
+   ]
+  },
+  {
+   "what": "keyword RavenousAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Jacked Rabbit",
+    "Sporocyst",
+    "Tyrant Guard",
+    "Aberrant",
+    "Tervigon",
+    "Termagant Swarm",
+    "Zoanthrope",
+    "Exocrine",
+    "Mawloc",
+    "Broodlord",
+    "Hormagaunt Horde",
+    "Ravener"
+   ]
+  },
+  {
+   "what": "SourceDealsNoncombatDamageToOpponentTriggeredAbility",
+   "score": 12,
+   "lines": 6,
+   "cards": [
+    "Niv-Mizzet, Visionary",
+    "Chandra's Incinerator",
+    "Fear of Burning Alive",
+    "Chandra's Pyreling",
+    "Thor, Guardian of Midgard",
+    "Asgardian Inspiration"
+   ]
+  },
+  {
+   "what": "ReturnCardChosenFromGraveyardEffect",
+   "score": 12,
+   "lines": 6,
+   "cards": [
+    "Overlord of the Balemurk",
+    "Teval, the Balanced Scale",
+    "Blossoming Tortoise",
+    "Port of Karfell",
+    "Cruel Ultimatum",
+    "Say Its Name"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Generous Patron",
+    "Nest of Scarabs",
+    "Rikku, Resourceful Guardian",
+    "Hapatra, Vizier of Poisons",
+    "Obelisk Spider",
+    "Earth Kingdom General",
+    "Casey Jones, Back Alley Brute",
+    "Omarthis, Ghostfire Initiate",
+    "Kros, Defense Contractor",
+    "Kate Stewart",
+    "Ant-Man, Colony Commander",
+    "Inspired Tethermage"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Mech Hangar",
+    "Peacewalker Colossus",
+    "Chandra, Spark Hunter",
+    "Tough Cookie",
+    "Memnarch",
+    "Guidelight Matrix",
+    "Ashnod's Transmogrant",
+    "Tezzeret, Agent of Bolas",
+    "Workshop Elders",
+    "Stone by Sunlight",
+    "Thran Forge",
+    "Tezzeret, Cruel Machinist"
+   ]
+  },
+  {
+   "what": "ExpendTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Trailtracker Scout",
+    "Wandertale Mentor",
+    "Teapot Slinger",
+    "Pyreswipe Hawk",
+    "Bakersbane Duo",
+    "Muerra, Trash Tactician",
+    "Roughshod Duo",
+    "Byway Barterer",
+    "Bark-Knuckle Boxer",
+    "Brambleguard Veteran",
+    "Junkblade Bruiser"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Cryogen Relic",
+    "Candlekeep Sage",
+    "Bilbo, Retired Burglar",
+    "Sewer-veillance Cam",
+    "Experimental Synthesizer",
+    "Wernog, Rider's Chaplain",
+    "Brandywine Farmer",
+    "Mouser Foundry",
+    "Deadwood Treefolk",
+    "Aven Riftwatcher",
+    "Raving Oni-Slave",
+    "Sundering Titan"
+   ]
+  },
+  {
+   "what": "RollDieWithResultTableEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Myrkul's Edict",
+    "Cone of Cold",
+    "Berserker's Frenzy",
+    "Thunderwave",
+    "Revivify",
+    "Diviner's Portent",
+    "Recruitment Drive",
+    "Overwhelming Encounter",
+    "Aberrant Mind Sorcerer",
+    "Power of Persuasion",
+    "Scion of Stygia",
+    "Loathsome Troll"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToACreatureTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Phage the Untouchable",
+    "Ohran Viper",
+    "Permeating Mass",
+    "Flayed Nim",
+    "Mephitic Ooze",
+    "Plague Fiend",
+    "Stone-Tongue Basilisk",
+    "Serpentine Basilisk",
+    "Grotesque Hybrid",
+    "Death Charmer",
+    "Soul Charmer",
+    "Dripping Dead"
+   ]
+  },
+  {
+   "what": "keyword ChampionAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Wanderwine Prophets",
+    "Mistbind Clique",
+    "Wren's Run Packmaster",
+    "Changeling Berserker",
+    "Lightning Crafter",
+    "Boggart Mob",
+    "Unstoppable Ash",
+    "Changeling Titan",
+    "Changeling Hero",
+    "Thoughtweft Trio",
+    "Nova Chaser",
+    "Supreme Exemplar"
+   ]
+  },
+  {
+   "what": "PartyCount.instance",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Squad Commander",
+    "Malakir Blood-Priest",
+    "Practiced Tactics",
+    "Shepherd of Heroes",
+    "Emeria Captain",
+    "Allied Assault",
+    "Grotag Bug-Catcher",
+    "Ravager's Mace",
+    "Cascade Seer",
+    "Drana's Silencer",
+    "Thundering Sparkmage",
+    "Kabira Outrider"
+   ]
+  },
+  {
+   "what": "DealtDamageAttachedTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Hot Soup",
+    "Druid's Call",
+    "Sporogenic Infection",
+    "Cracked Skull",
+    "Sleep Magic",
+    "Soul Link",
+    "Ragged Veins",
+    "Spiteful Shadows",
+    "Binding Agony",
+    "Frozen Solid",
+    "Mire Blight",
+    "Mortal Wound"
+   ]
+  },
+  {
+   "what": "GainAbilityWithAttachmentEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "The Dominion Bracelet",
+    "Citizen's Crowbar",
+    "Surestrike Trident",
+    "Trusty Boomerang",
+    "Deconstruction Hammer",
+    "Blinding Powder",
+    "Heartseeker",
+    "Ninja's Kunai",
+    "Blazing Torch",
+    "Leonin Bola",
+    "Shuriken",
+    "Razor Boomerang"
+   ]
+  },
+  {
+   "what": "KinshipAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Leaf-Crowned Elder",
+    "Wolf-Skull Shaman",
+    "Sensation Gorger",
+    "Nightshade Schemers",
+    "Wandering Graybeard",
+    "Mudbutton Clanger",
+    "Kithkin Zephyrnaut",
+    "Ink Dissolver",
+    "Waterspout Weavers",
+    "Squeaking Pie Grubfellows",
+    "Winnower Patrol",
+    "Pyroclast Consul"
+   ]
+  },
+  {
+   "what": "keyword PhasingAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Taniwha",
+    "Teferi's Isle",
+    "Katabatic Winds",
+    "Shimmering Efreet",
+    "Ertai's Familiar",
+    "Merfolk Raiders",
+    "Teferi's Imp",
+    "Sandbar Crocodile",
+    "Teferi's Drake",
+    "Breezekeeper",
+    "Tolarian Drake",
+    "Warping Wurm"
+   ]
+  },
+  {
+   "what": "LicidAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Tempting Licid",
+    "Dominating Licid",
+    "Transmogrifying Licid",
+    "Nurturing Licid",
+    "Convulsing Licid",
+    "Corrupting Licid",
+    "Enraging Licid",
+    "Calming Licid",
+    "Stinging Licid",
+    "Leeching Licid",
+    "Quickening Licid",
+    "Gliding Licid"
+   ]
+  },
+  {
+   "what": "CanAttackAsThoughItDidntHaveDefenderSourceEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Wall of One Thousand Cuts",
+    "Nivix Cyclops",
+    "Roving Keep",
+    "Krotiq Nestguard",
+    "Territorial Witchstalker",
+    "Skyclave Squid",
+    "Returned Phalanx",
+    "Steelclad Spirit",
+    "Wall of Wonder",
+    "Mirror Wall",
+    "Dark Maze",
+    "Vodalian War Machine"
+   ]
+  },
+  {
+   "what": "GainHarnessedAbilitySourceEffect",
+   "score": 11,
+   "lines": 2,
+   "cards": [
+    "The Soul Stone",
+    "The Mind Stone"
+   ]
+  },
+  {
+   "what": "ProliferateEffect args",
+   "score": 11,
+   "lines": 5,
+   "cards": [
+    "Ripples of Potential",
+    "Contagion Engine",
+    "Ezuri, Stalker of Spheres",
+    "Agent Frank Horrigan",
+    "Roalesk, Apex Hybrid"
+   ]
+  },
+  {
+   "what": "RegenerateTargetEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Swarmyard",
+    "Ezuri, Renegade Leader",
+    "Accursed Duneyard",
+    "Mad Auntie",
+    "Sporeback Troll",
+    "Regenerate",
+    "Gaze of the Gorgon",
+    "Baron Sengir"
+   ]
+  },
+  {
+   "what": "LoseLifeTriggeredAbility",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Vilis, Broker of Blood",
+    "Marina Vendrell's Grimoire",
+    "Lich's Mastery",
+    "The Master of Lake-town",
+    "Transcendence",
+    "Vampire Scrivener",
+    "Lich's Tomb",
+    "Oath of Lim-Dûl"
+   ]
+  },
+  {
+   "what": "AddCardSubTypeTargetEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Tyrite Sanctum",
+    "Jenova, Ancient Calamity",
+    "Enter the Avatar State",
+    "Archangel Elspeth",
+    "Olivia Voldaren",
+    "Loki's Scepter",
+    "Beorn the Fierce",
+    "Jump Scare"
+   ]
+  },
+  {
+   "what": "TargetPlayerGainControlSourceEffect",
+   "score": 11,
+   "lines": 5,
+   "cards": [
+    "Alexios, Deimos of Kosmos",
+    "Humble Defector",
+    "Jinxed Idol",
+    "Jinxed Choker",
+    "Jinxed Ring"
+   ]
+  },
+  {
+   "what": "OneOrMoreLeaveWithoutDyingTriggeredAbility",
+   "score": 11,
+   "lines": 2,
+   "cards": [
+    "Dour Port-Mage",
+    "Aang, Airbending Master"
+   ]
+  },
+  {
+   "what": "AddExtraTurnControllerEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Final Fortune",
+    "Last Chance",
+    "Warrior's Oath",
+    "Savor the Moment",
+    "Seedtime",
+    "Alchemist's Gambit",
+    "Second Chance",
+    "Wormfang Manta"
+   ]
+  },
+  {
+   "what": "SacrificeCostCreaturesPower.instance",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Jarad, Golgari Lich Lord",
+    "Dina, Soul Steeper",
+    "Shadowheart, Dark Justiciar",
+    "Dina, Essence Brewer",
+    "Wick, the Whorled Mind",
+    "Vish Kal, Blood Arbiter",
+    "Atogatog",
+    "Blood-Chin Fanatic"
+   ]
+  },
+  {
+   "what": "ConditionalRequirementEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Dragon's Rage Channeler",
+    "Frodo Baggins",
+    "Seton's Desire",
+    "Enkira, Hostile Scavenger",
+    "Stone-Tongue Basilisk",
+    "Otarian Juggernaut",
+    "Reckless Cohort",
+    "Marauding Maulhorn"
+   ]
+  },
+  {
+   "what": "(verify) condition lost",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Ob Nixilis, the Fallen",
+    "Blowfly Infestation",
+    "Grakmaw, Skyclave Ravager",
+    "Depala, Pilot Exemplar",
+    "Sandman's Quicksand",
+    "Earth Surge",
+    "Adipose Offspring",
+    "Stockpiling Celebrant"
+   ]
+  },
+  {
+   "what": "RenewAbility",
+   "score": 11,
+   "lines": 5,
+   "cards": [
+    "Qarsi Revenant",
+    "Kheru Goldkeeper",
+    "Sage of the Fang",
+    "Champion of Dusan",
+    "Sagu Pummeler"
+   ]
+  },
+  {
+   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Brilliant Restoration",
+    "Primevals' Glorious Rebirth",
+    "Raise the Past",
+    "Zombie Apocalypse",
+    "Redress Fate",
+    "Archangel Elspeth",
+    "Knights' Charge",
+    "Angel of Glory's Rise",
+    "Fix What's Broken",
+    "Triumphant Reckoning",
+    "Return of the Nightstalkers"
+   ]
+  },
+  {
+   "what": "ActivateIfConditionManaAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Sceptre of Eternal Glory",
+    "Mirrex",
+    "Glistening Sphere",
+    "Dark Fortress",
+    "Gleaming Bastion",
+    "Hidden Lair",
+    "Gathering Place",
+    "Training Compound",
+    "Flywheel Racer",
+    "Lys Alana Dignitary",
+    "Pyramid of the Pantheon"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Pyrohemia",
+    "Pestilence",
+    "Colfenor's Urn",
+    "Biovisionary",
+    "Call to the Grave",
+    "Arachnus Web",
+    "Withering Wisps",
+    "Skizzik",
+    "Lightning Shrieker",
+    "Blitz Hellion",
+    "Krovikan Horror"
+   ]
+  },
+  {
+   "what": "CombatDamageByToughnessControlledEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Assault Formation",
+    "Bedrock Tortoise",
+    "Felothar the Steadfast",
+    "High Alert",
+    "Arcades, the Strategist",
+    "Huatli, the Sun's Heart",
+    "Ancient Lumberknot",
+    "Rasaad yn Bashir",
+    "Tapestry Warden",
+    "Ghalta the Immovable",
+    "Belligerent Brontodon"
+   ]
+  },
+  {
+   "what": "control for whileControlled",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Kellogg, Dangerous Mind",
+    "Roil Elemental",
+    "Mind Flayer",
+    "Yuffie, Materia Hunter",
+    "Olivia Voldaren",
+    "Dragonlord Silumgar",
+    "Possession Engine",
+    "Merieke Ri Berit",
+    "Master Thief",
+    "Aladdin",
+    "Thrull Champion"
+   ]
+  },
+  {
+   "what": "PutSourceCountersOnTargetEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Zack Fair",
+    "Essence Channeler",
+    "Sin, Unending Cataclysm",
+    "Broodguard Elite",
+    "Dockworker Drone",
+    "Selfless Police Captain",
+    "Star Pupil",
+    "Hei Bai, Spirit of Balance",
+    "Parish-Blade Trainee",
+    "Spiteful Squad",
+    "Graft Surgeon"
+   ]
+  },
+  {
+   "what": "AttacksAloneSourceTriggeredAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Idolized",
+    "Grunn, the Lonely King",
+    "Nefarox, Overlord of Grixis",
+    "Luke Cage, Power Man",
+    "Voltaic Whip",
+    "Bob, Reluctant HYDRA Agent",
+    "Ma Chao, Western Warrior",
+    "Rogue Kavu",
+    "Lunk Errant",
+    "Yuan Shao's Infantry",
+    "Reckless Ogre"
+   ]
+  },
+  {
+   "what": "fight targets",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Primal Might",
+    "Savage Stomp",
+    "Temur Charm",
+    "Longstalk Brawl",
+    "Hunt the Weak",
+    "Vigorbloom Charm",
+    "Chelonian Tackle",
+    "Struggle for Skemfar",
+    "Mage Duel",
+    "Troll Negotiations",
+    "Hunt the Hunter"
+   ]
+  },
+  {
+   "what": "FlurryAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Cori-Steel Cutter",
+    "Taigam, Master Opportunist",
+    "Aligned Heart",
+    "Shiko and Narset, Unified",
+    "Devoted Duelist",
+    "Wingblade Disciple",
+    "Cori Mountain Stalwart",
+    "Poised Practitioner",
+    "Equilibrium Adept",
+    "Wayspeaker Bodyguard",
+    "Jeskai Devotee"
+   ]
+  },
+  {
+   "what": "ConditionalReplacementEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Phial of Galadriel",
+    "Vampire Socialite",
+    "Batwing Brume",
+    "Aether Revolt",
+    "Dáin, Lord of the Iron Hills",
+    "Winds of Qal Sisma",
+    "Spirit of Resistance",
+    "Woolly Razorback",
+    "Veteran Bodyguard",
+    "Orim's Touch",
+    "Martyrs of Korlis"
+   ]
+  },
+  {
+   "what": "RemoveCountersSourceCost",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Glen Elendra Guardian",
+    "Flitterwing Nuisance",
+    "The Duke, Rebel Sentry",
+    "Reaping Willow",
+    "Loch Mare",
+    "Moonlit Lamenter",
+    "Burdened Stoneback",
+    "Brambleback Brute",
+    "Gnarlbark Elm",
+    "Hovel Hurler"
+   ]
+  },
+  {
+   "what": "keyword ReinforceAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Brighthearth Banneret",
+    "Wren's Run Hydra",
+    "Hunting Triad",
+    "Break Ties",
+    "Fowl Strike",
+    "Rustic Clachan",
+    "Bannerhide Krushok",
+    "Mosquito Guard",
+    "Burrenton Bombardier",
+    "Earthbrawn",
+    "Swell of Courage"
+   ]
+  },
+  {
+   "what": "token statement MercenaryToken",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Hellspur Posse Boss",
+    "Ertha Jo, Frontier Mentor",
+    "Nezumi Linkbreaker",
+    "Selvala, Eager Trailblazer",
+    "Rakish Crew",
+    "Form a Posse",
+    "Mourner's Surprise",
+    "Prickly Pair",
+    "Lassoed by the Law",
+    "Wanted Griffin",
+    "Prosperity Tycoon"
+   ]
+  },
+  {
+   "what": "CantBeBlockedSourceEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Vampire Gourmand",
+    "Brotherhood Spy",
+    "Tidal Terror",
+    "Biblioplex Kraken",
+    "Cephalid Inkshrouder",
+    "Glassdust Hulk",
+    "Elusive Spellfist",
+    "Gravelgill Scoundrel",
+    "Ant-Man, Reformed Rogue",
+    "TVA Bureaucrat",
+    "Vectis Agents"
+   ]
+  },
+  {
+   "what": "keyword ForecastAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Skyscribing",
+    "Pride of the Clouds",
+    "Spirit en-Dal",
+    "Sky Hussar",
+    "Piercing Rays",
+    "Writ of Passage",
+    "Govern the Guildless",
+    "Proclamation of Rebirth",
+    "Plumes of Peace",
+    "Paladin of Prahv",
+    "Steeling Stance"
+   ]
+  },
+  {
+   "what": "BlocksOrBlockedSourceTriggeredAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Karn, Silver Golem",
+    "Goblin Cadets",
+    "Raging Gorilla",
+    "Chub Toad",
+    "Escaped Null",
+    "Jukai Trainee",
+    "Goblin Elite Infantry",
+    "Brushwagg",
+    "Dromosaur",
+    "Slinking Giant",
+    "Spitting Slug"
+   ]
+  },
+  {
+   "what": "keyword TributeAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Nessian Wilds Ravager",
+    "Oracle of Bones",
+    "Flame-Wreathed Phoenix",
+    "Snake of the Golden Grove",
+    "Pharagax Giant",
+    "Siren of the Fanged Coast",
+    "Fanatic of Xenagos",
+    "Nessian Demolok",
+    "Ornitharch",
+    "Thunder Brute",
+    "Shrike Harpy"
+   ]
+  },
+  {
+   "what": "CantBlockCreaturesSourceEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Zurgo Bellstriker",
+    "Sunweb",
+    "Hinterland Drake",
+    "Ironclaw Orcs",
+    "Goblin Mutant",
+    "Cyclops Tyrant",
+    "Brassclaw Orcs",
+    "Ironclaw Buzzardiers",
+    "Gibbering Hyenas",
+    "Orgg",
+    "Orcish Veteran"
+   ]
+  },
+  {
+   "what": "MustBeBlockedByTargetSourceEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Turntimber Basilisk",
+    "Sisters of Stone Death",
+    "Torchling",
+    "Tangle Angler",
+    "Vortex Elemental",
+    "Maraleaf Rider",
+    "Matsu-Tribe Decoy",
+    "Burning-Tree Bloodscale",
+    "Giant Ambush Beetle",
+    "Trumpeting Armodon",
+    "Rampant Elephant"
+   ]
+  },
+  {
+   "what": "LoseAbilitySourceEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Surge Engine",
+    "Grozoth",
+    "Tidewater Minion",
+    "Manor Gargoyle",
+    "Xathrid Slyblade",
+    "Gargoyle Sentinel",
+    "Torpid Moloch",
+    "Mist Dragon",
+    "Elder Land Wurm",
+    "Swooping Talon",
+    "Leering Gargoyle"
+   ]
+  },
+  {
+   "what": "ExileFromZoneTargetEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Perfect Intimidation",
+    "Skullcap Snail",
+    "Ruthless Negotiation",
+    "Kyoki, Sanity's Eclipse",
+    "Unscrupulous Agent",
+    "Aim for the Head",
+    "Decaying Soil",
+    "Mindmelter",
+    "Witness the End",
+    "Vessel of Malignity",
+    "Parallax Nexus"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToSourceByPermanentsEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Wall of Shadows",
+    "Wall of Vapor",
+    "Armored Transport",
+    "Uncle Istvan",
+    "Desert Nomads",
+    "Wall of Putrid Flesh",
+    "Argothian Pixies",
+    "Champion Lancer",
+    "Tresserhorn Skyknight",
+    "Marble Priest",
+    "Enchanted Being"
+   ]
+  },
+  {
+   "what": "ConjureCardEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Rusko, Clockmaker",
+    "Overcooked",
+    "Sanguine Brushstroke",
+    "Toralf's Disciple",
+    "Dragonfly Pilot",
+    "Shoreline Scout",
+    "Swarm Saboteur",
+    "Kiora, the Tide's Fury",
+    "Emporium Thopterist",
+    "Wingsteed Trainer",
+    "Grave Studies"
+   ]
+  },
+  {
+   "what": "HideawayPlayEffect",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Spinerock Knoll",
+    "Clive's Hideaway",
+    "Evercoat Ursine",
+    "Collector's Cage",
+    "Widespread Thieving",
+    "Shelldock Isle",
+    "Howltooth Hollow"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashAllEffect",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Teferi, Time Raveler",
+    "Tidal Barracuda",
+    "Quick Sliver",
+    "Complete the Circuit",
+    "Vernal Equinox",
+    "Cherished Hatchling",
+    "Rootwater Shaman"
+   ]
+  },
+  {
+   "what": "keyword CompleatedAbility",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Vraska, Betrayal's Sting",
+    "Nissa, Ascended Animist",
+    "Jace, the Perfected Mind",
+    "Ajani, Sleeper Agent",
+    "Tamiyo, Compleated Sage",
+    "Lukka, Bound to Ruin",
+    "Nahiri, the Unforgiving"
+   ]
+  },
+  {
+   "what": "GrabThePrizeCondition.instance",
+   "score": 10,
+   "lines": 1,
+   "cards": [
+    "Grab the Prize"
+   ]
+  },
+  {
+   "what": "token code Spider22Token",
+   "score": 10,
+   "lines": 1,
+   "cards": [
+    "Twitching Doll"
+   ]
+  },
+  {
+   "what": "ManaValueEqualToCountersSourceCountPredicate",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Blast Zone",
+    "Engineered Explosives",
+    "Ratchet Bomb",
+    "Necroplasm",
+    "The Filigree Sylex",
+    "Powder Keg",
+    "Wave of Terror"
+   ]
+  },
+  {
+   "what": "DeathBaronPredicate.instance",
+   "score": 10,
+   "lines": 1,
+   "cards": [
+    "Death Baron"
+   ]
+  },
+  {
+   "what": "AleshaWhoLaughsAtFatePredicate.instance",
+   "score": 10,
+   "lines": 1,
+   "cards": [
+    "Alesha, Who Laughs at Fate"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashIfConditionAbility",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Timely Ward",
+    "Flash Photography",
+    "Silver Scrutiny",
+    "Fated Clash",
+    "Bard's Company",
+    "Scarring Memories",
+    "Illusion Spinners"
+   ]
+  },
+  {
+   "what": "AllianceAbility",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Gala Greeters",
+    "Devilish Valet",
+    "Rose Room Treasurer",
+    "Galadriel, Light of Valinor",
+    "The Neutrinos",
+    "Sizzling Soloist",
+    "Elegant Entourage"
+   ]
+  },
+  {
+   "what": "fixed control",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Archmage's Charm",
+    "Captivating Crew",
+    "Grip of Phyresis",
+    "Enthralling Victor",
+    "Siren of the Fanged Coast",
+    "Infernal Denizen",
+    "Smelt-Ward Ignus"
+   ]
+  },
+  {
+   "what": "AmassEffect",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Barad-dûr",
+    "Sauron, Lord of the Rings",
+    "Summons of Saruman",
+    "Assault on Osgiliath",
+    "Gríma Wormtongue",
+    "Invade the City",
+    "Bleeding Edge"
+   ]
+  },
+  {
+   "what": "DiscardAndDrawThatManyEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Daretti, Scrap Savant",
+    "Cathartic Pyre",
+    "Celes, Rune Knight",
+    "Tersa Lightshatter",
+    "Cavalier of Flame",
+    "Jaya Ballard",
+    "Sokka, Bold Boomeranger",
+    "Illuminate History",
+    "Colossus of the Blood Age",
+    "Kinetic Augur"
+   ]
+  },
+  {
+   "what": "(constructor: assignment)",
+   "score": 10,
+   "lines": 4,
+   "cards": [
+    "Electroduplicate",
+    "Banewhip Punisher",
+    "Ammit Eternal",
+    "Suq'Ata Firewalker"
+   ]
+  },
+  {
+   "what": "DealsDamageToAnyTriggeredAbility",
+   "score": 10,
+   "lines": 4,
+   "cards": [
+    "Quilled Greatwurm",
+    "Essence Sliver",
+    "Noble Purpose",
+    "Five-Alarm Fire"
+   ]
+  },
+  {
+   "what": "token code RatCantBlockToken",
+   "score": 10,
+   "lines": 4,
+   "cards": [
+    "Song of Totentanz",
+    "Tangled Colony",
+    "Twisted Sewer-Witch",
+    "Rat Out"
+   ]
+  },
+  {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Mogis, God of Slaughter",
+    "Rakdos, Patron of Chaos",
+    "Demanding Dragon",
+    "Starseer Mentor",
+    "Thornplate Intimidator",
+    "Carrionette",
+    "Rhystic Lightning",
+    "Tyrannize",
+    "Rhystic Syphon",
+    "Flay"
+   ]
+  },
+  {
+   "what": "CreateTokenCopySourceEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Skyclave Relic",
+    "Gruff Triplets",
+    "Skitterbeam Battalion",
+    "Compy Swarm",
+    "Phoenix Fleet Airship",
+    "Improvised Arsenal",
+    "Joo Dee, One of Many",
+    "Chronozoa",
+    "Council of Reeds",
+    "Mirror-Sigil Sergeant"
+   ]
+  },
+  {
+   "what": "keyword CompanionAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Lurrus of the Dream-Den",
+    "Zirda, the Dawnwaker",
+    "Jegantha, the Wellspring",
+    "Gyruda, Doom of Depths",
+    "Yorion, Sky Nomad",
+    "Kaheera, the Orphanguard",
+    "Keruga, the Macrosage",
+    "Obosh, the Preypiercer",
+    "Umori, the Collector",
+    "Lutri, the Spellchaser"
+   ]
+  },
+  {
+   "what": "GainLifeEffect amount",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Children of Korlis",
+    "Tainted Sigil",
+    "From Under the Floorboards",
+    "Dihada's Ploy",
+    "Sanguine Sacrament",
+    "Predator's Rapport",
+    "Simulacrum",
+    "Benediction of Moons",
+    "Silent-Chant Zubera",
+    "Reverse Polarity"
+   ]
+  },
+  {
+   "what": "EquippedSourceCondition.instance",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Merry, Esquire of Rohan",
+    "Raksha Golden Cub",
+    "Leonin Lightbringer",
+    "Dwarfhold Champion",
+    "Kitesail Apprentice",
+    "Leonin Den-Guard",
+    "Skyhunter Cub",
+    "Auriok Glaivemaster",
+    "Patriot, Young Avenger",
+    "Armed Assailant"
+   ]
+  },
+  {
+   "what": "AddCardSubTypeSourceEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Skyknight Squire",
+    "Sarkhan, Dragon Ascendant",
+    "Adrestia",
+    "Ascendant Spirit",
+    "Hero of Bretagard",
+    "Figure of Destiny",
+    "Figure of Fable",
+    "Evolved Sleeper",
+    "Warden of the First Tree"
+   ]
+  },
+  {
+   "what": "CastFromHandForFreeEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Lady Octopus, Inspired Inventor",
+    "Maelstrom Archangel",
+    "Coveted Prize",
+    "Epistolary Librarian",
+    "West Coast Expansion",
+    "Gandalf, Party Guest",
+    "Surtland Elementalist",
+    "Oracle of Bones",
+    "Omnispell Adept",
+    "Twinning Glass"
+   ]
+  },
+  {
+   "what": "MutatesSourceTriggeredAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Nethroi, Apex of Death",
+    "Auspicious Starrix",
+    "Souvenir Snatcher",
+    "Insatiable Hemophage",
+    "Archipelagore",
+    "Illuna, Apex of Wishes",
+    "Mindleecher",
+    "Everquill Phoenix",
+    "Vadrok, Apex of Thunder",
+    "Huntmaster Liger"
+   ]
+  },
+  {
+   "what": "OpponentsTurnCondition.instance",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "The Watcher in the Water",
+    "Voracious Tome-Skimmer",
+    "Brineborn Cutthroat",
+    "Faerie Tauntings",
+    "Unwelcome Sprite",
+    "Nightmare Sower",
+    "Breath of the Sleepless",
+    "Glen Elendra Pranksters",
+    "Dream Spoilers",
+    "Dreamspoiler Witches"
+   ]
+  },
+  {
+   "what": "BecomeDayAsEntersAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "The Celestus",
+    "Vadrik, Astral Archmage",
+    "Sunstreak Phoenix",
+    "Brimstone Vandal",
+    "Obsessive Astronomer",
+    "Component Collector",
+    "Gavony Dawnguard",
+    "Firmament Sage",
+    "Sunrise Cavalier",
+    "Celestus Sanctifier"
+   ]
+  },
+  {
+   "what": "BecomesDayOrNightTriggeredAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "The Celestus",
+    "Vadrik, Astral Archmage",
+    "Sunstreak Phoenix",
+    "Brimstone Vandal",
+    "Obsessive Astronomer",
+    "Component Collector",
+    "Gavony Dawnguard",
+    "Firmament Sage",
+    "Sunrise Cavalier",
+    "Celestus Sanctifier"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid not optional",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Charitable Levy",
+    "Mistbreath Elder",
+    "Marit Lage's Slumber",
+    "Gearbane Orangutan",
+    "Dreadfeast Demon",
+    "Clockwork Hydra",
+    "Territorial Kavu",
+    "Exemplar of Strength",
+    "Charnel Troll",
+    "Boneyard Aberration"
+   ]
+  },
+  {
+   "what": "OpusAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Molten-Core Maestro",
+    "Exhibition Tidecaller",
+    "Thunderdrum Soloist",
+    "Muse Seeker",
+    "Colorstorm Stallion",
+    "Tackle Artist",
+    "Spectacular Skywhale",
+    "Elemental Mascot",
+    "Deluge Virtuoso",
+    "Expressive Firedancer"
+   ]
+  },
+  {
+   "what": "IsStepCondition.getMyUpkeep",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Scourglass",
+    "Magus of the Mirror",
+    "Mirror Universe",
+    "Clockwork Steed",
+    "Clockwork Beast",
+    "Energy Vortex",
+    "Clockwork Avian",
+    "Cyclopean Tomb",
+    "Clockwork Swarm",
+    "Life Matrix"
+   ]
+  },
+  {
+   "what": "DetainTargetEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Martial Law",
+    "Azorius Arrester",
+    "Lyev Skyknight",
+    "Inaction Injunction",
+    "Azorius Justiciar",
+    "Archon of the Triumvirate",
+    "New Prahv Guildmage",
+    "Lyev Decree",
+    "Soulsworn Spirit",
+    "Isperia's Skywatch"
+   ]
+  },
+  {
+   "what": "DrawExceptFirstDrawTwoReplacementEffect",
+   "score": 9,
+   "lines": 3,
+   "cards": [
+    "Teferi's Ageless Insight",
+    "Alhammarret's Archive",
+    "Bard, King of Dale"
+   ]
+  },
+  {
+   "what": "ChooseCreatureTypeEffect",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Raise the Palisade",
+    "Crippling Fear",
+    "Pact of the Serpent",
+    "Kindred Summons",
+    "Haunting Voyage",
+    "Kindred Charge"
+   ]
+  },
+  {
+   "what": "MaxManaValueControlledCreatureOrPlaneswalkerPredicate.instance",
+   "score": 9,
+   "lines": 3,
+   "cards": [
+    "Soul Shatter",
+    "Flare of Malice",
+    "Riveteers Charm"
+   ]
+  },
+  {
+   "what": "CreaturesDiedThisTurnCount.instance",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Mahadi, Emporium Master",
+    "Deadly Embrace",
+    "Nevinyrral, Urborg Tyrant",
+    "Canopy Stalker",
+    "Khabál Ghoul",
+    "Scavenging Ghoul"
+   ]
+  },
+  {
+   "what": "DrawCardsEqualToDifferenceEffect",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Kozilek, the Great Distortion",
+    "The Ten Rings",
+    "Iymrith, Desert Doom",
+    "Doctor Octopus, Master Planner",
+    "Krang, Master Mind",
+    "Damia, Sage of Stone"
+   ]
+  },
+  {
+   "what": "TargetPermanentOrPlayer",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Ardenn, Intrepid Archaeologist",
+    "Animation Module",
+    "Mutated Cultist",
+    "Skyship Plunderer",
+    "Powerful Broker",
+    "Price of Betrayal"
+   ]
+  },
+  {
+   "what": "ColorsOfManaSpentToCastCount",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Painful Truths",
+    "Together as One",
+    "Sweep the Skies",
+    "Brilliant Spectrum",
+    "Arcane Omens",
+    "Kaleidoscorch"
+   ]
+  },
+  {
+   "what": "AuraAttachedCount",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Kor Spiritdancer",
+    "Uril, the Miststalker",
+    "Graceblade Artisan",
+    "Gatherer of Graces",
+    "Evershrike",
+    "Rabid Wombat"
+   ]
+  },
+  {
+   "what": "CastFromHandWithoutPayingManaCostEffect",
+   "score": 9,
+   "lines": 3,
+   "cards": [
+    "Dracogenesis",
+    "Fires of Invention",
+    "Omnipresence"
+   ]
+  },
+  {
+   "what": "scope:colorless",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "It That Heralds the End",
+    "Kozilek, the Broken Reality",
+    "Ruination Guide",
+    "Tide Drifter",
+    "Dominator Drone",
+    "Dust Stalker",
+    "Eldrazi Aggressor",
+    "Reaver Drone",
+    "Skitterskin"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByOneEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Pathrazer of Ulamog",
+    "Troll of Khazad-dûm",
+    "Relentless X-ATM092",
+    "Guile",
+    "Rampaging Ceratops",
+    "Hexmark Destroyer",
+    "Gorilla Berserkers",
+    "Phyrexian Colossus",
+    "Underworld Cerberus"
+   ]
+  },
+  {
+   "what": "ShuffleHandGraveyardAllEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Echo of Eons",
+    "Timetwister",
+    "Day's Undoing",
+    "Time Reversal",
+    "Game Plan",
+    "Emergency Powers",
+    "Jace, the Living Guildpact",
+    "Temporal Cascade",
+    "Diminishing Returns"
+   ]
+  },
+  {
+   "what": "WardAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Gold-Forged Thopteryx",
+    "Saruman, the White Hand",
+    "Svyelun of Sea and Sky",
+    "Coppercoat Vanguard",
+    "Iymrith, Desert Doom",
+    "Leyline Immersion",
+    "Paladin's Arms",
+    "Thorin Oakenshield",
+    "Radagast, Wizard of Wilds"
+   ]
+  },
+  {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Eldrazi Confluence",
+    "Rootcast Apprenticeship",
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Brokers Confluence",
+    "Maestros Confluence",
+    "Cosmium Confluence",
+    "Riveteers Confluence",
+    "Obscura Confluence"
+   ]
+  },
+  {
+   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Lurrus of the Dream-Den",
+    "Rivaz of the Claw",
+    "Gisa and Geralf",
+    "Danitha, New Benalia's Light",
+    "Raul, Trouble Shooter",
+    "Banon, the Returners' Leader",
+    "Edgar, Master Machinist",
+    "Karador, Ghost Chieftain",
+    "Arcade Gannon"
+   ]
+  },
+  {
+   "what": "keyword WebSlingingAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Spider-Sense",
+    "Spider-Man, Brooklyn Visionary",
+    "Silk, Web Weaver",
+    "Spider-Man India",
+    "Scarlet Spider, Ben Reilly",
+    "Spider-UK",
+    "Spiders-Man, Heroic Horde",
+    "Spider-Man, Web-Slinger",
+    "Amazing Spider-Girl"
+   ]
+  },
+  {
+   "what": "ReturnFromGraveyardAtRandomEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Exalted Flamer of Tzeentch",
+    "Haunted Fengraf",
+    "Charmbreaker Devils",
+    "Moldgraf Monstrosity",
+    "Viconia, Drow Apostate",
+    "Ghoulraiser",
+    "Surreal Memoir",
+    "Make a Wish",
+    "Woodland Sleuth"
+   ]
+  },
+  {
+   "what": "ProtectionAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Lord of the Nazgûl",
+    "Spectra Ward",
+    "Rebbec, Architect of Ascension",
+    "Etched Champion",
+    "Haktos the Unscarred",
+    "Devoted Caretaker",
+    "Pristine Angel",
+    "Spare from Evil",
+    "Masked Gorgon"
+   ]
+  },
+  {
+   "what": "ConditionalCostModificationEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Alisaie Leveilleur",
+    "Paladin Class",
+    "Gran-Gran",
+    "Momo, Friendly Flier",
+    "Uthros Psionicist",
+    "Monk Class",
+    "Highspire Bell-Ringer",
+    "Raging Battle Mouse",
+    "Nahiri, Storm of Stone"
+   ]
+  },
+  {
+   "what": "SourceEnteredThisTurnCondition.TRUE",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Moon-Circuit Hacker",
+    "Shardmage's Rescue",
+    "Kaito Shizuki",
+    "Zurgo and Ojutai",
+    "Thrasta, Tempest's Roar",
+    "Drownyard Behemoth",
+    "Crew Captain",
+    "Keldon Strike Team",
+    "Fungus Elemental"
+   ]
+  },
+  {
+   "what": "SpellsCostModificationThatTargetSourceEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Charix, the Raging Isle",
+    "Icefall Regent",
+    "Syr Elenora, the Discerning",
+    "Spellwild Ouphe",
+    "Pursued Whale",
+    "Elderwood Scion",
+    "Sphinx of New Prahv",
+    "Boreal Elemental"
+   ]
+  },
+  {
+   "what": "AttacksTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Conformer Shuriken",
+    "Level Up",
+    "Flaming Fist",
+    "White Mage's Staff",
+    "Unquenchable Fury",
+    "Giant Inheritance",
+    "Sage's Nouliths",
+    "Invocation of Saint Traft",
+    "Ghostly Touch"
+   ]
+  },
+  {
+   "what": "OutlawPredicate.instance",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Shoot the Sheriff",
+    "Vihaan, Goldwaker",
+    "At Knifepoint",
+    "Hellspur Posse Boss",
+    "Vial Smasher, Gleeful Grenadier",
+    "Rakish Crew",
+    "Dead Before Sunrise",
+    "Charred Graverobber",
+    "Mine Raider"
+   ]
+  },
+  {
+   "what": "TargetCardInTargetPlayersGraveyard",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Quandrix Command",
+    "Gaea's Blessing",
+    "Loaming Shaman",
+    "Rite of Renewal",
+    "Memory's Journey",
+    "Witness the Future",
+    "Stream of Consciousness",
+    "Krosan Reclamation",
+    "Dwell on the Past"
+   ]
+  },
+  {
+   "what": "scope:multicolored",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Ravnica at War",
+    "Rienne, Angel of Rebirth",
+    "Infinite Guideline Station",
+    "Bant Sureblade",
+    "Naya Hushblade",
+    "Grixis Grimblade",
+    "Esper Stormblade",
+    "Scuttling Butler",
+    "Jund Hackblade"
+   ]
+  },
+  {
+   "what": "AttacksOrBlocksAttachedTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Wand of Orcus",
+    "Super-Soldier Serum",
+    "Sinister Possession",
+    "Contaminated Bond",
+    "Luminous Wake",
+    "Primal Cocoon",
+    "Nettling Curse",
+    "Cunning",
+    "Imprison"
+   ]
+  },
+  {
+   "what": "boost for longer",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Jace, the Perfected Mind",
+    "Liliana, the Last Hope",
+    "Dovin Baan",
+    "Mu Yanling, Sky Dancer",
+    "Garruk, Veiled Butcher",
+    "Mu Yanling, Celestial Wind",
+    "Riding the Dilu Horse",
+    "Glyph of Destruction",
+    "Wasp, Shrinking Savior"
+   ]
+  },
+  {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Ominous Cemetery",
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae",
+    "Cathartic Parting",
+    "Unravel the Aether",
+    "Deglamer",
+    "Put Away",
+    "Living Library"
+   ]
+  },
+  {
+   "what": "ValiantTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Heartfire Hero",
+    "Emberheart Challenger",
+    "Whiskervale Forerunner",
+    "Nettle Guard",
+    "Seedglaive Mentor",
+    "Flowerfoot Swordmaster",
+    "Whiskerquill Scribe",
+    "Mouse Trapper",
+    "Veteran Guardmouse"
+   ]
+  },
+  {
+   "what": "AttacksIfAbleAttachedEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Fealty to the Realm",
+    "Furor of the Bitten",
+    "Mogis's Warhound",
+    "Impending Doom",
+    "Tormentor's Trident",
+    "Nettling Curse",
+    "Guise of Fire",
+    "Uncontrollable Anger",
+    "Infectious Bloodlust"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessSourceEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Timber Paladin",
+    "Doc Ock, Sinister Scientist",
+    "Living Conundrum",
+    "Mirkwood Meditator",
+    "Snowmelt Stag",
+    "Sutured Ghoul",
+    "Bramblefort Fink"
+   ]
+  },
+  {
+   "what": "TargetActivatedAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Azorius Guildmage",
+    "Bind",
+    "Voidmage Husher",
+    "Squelch",
+    "Interdict",
+    "Brown Ouphe",
+    "Ayesha Tanaka",
+    "Rust",
+    "Ouphe Vandals"
+   ]
+  },
+  {
+   "what": "LearnEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Eyetwitch",
+    "Poet's Quill",
+    "Sparring Regimen",
+    "Overgrown Arch",
+    "Gnarled Professor",
+    "Dream Strix",
+    "Retriever Phoenix",
+    "Professor of Symbology",
+    "Rise of Extus"
+   ]
+  },
+  {
+   "what": "keyword AmplifyAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Kilnmouth Dragon",
+    "Feral Throwback",
+    "Aven Warhawk",
+    "Ghastly Remains",
+    "Canopy Crawler",
+    "Zombie Brute",
+    "Daru Stinger",
+    "Embalmed Brawler",
+    "Glowering Rogon"
+   ]
+  },
+  {
+   "what": "EnchantedPlayerAttackedTriggeredAbility",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Curse of Opulence",
+    "Curse of Verbosity",
+    "Curse of Disturbance",
+    "Curse of Bounty",
+    "Curse of Vitality"
+   ]
+  },
+  {
+   "what": "AttacksIfAbleAllEffect",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Kardur, Doomscourge",
+    "Avatar of Slaughter",
+    "Goblin Diplomats",
+    "Skeletal Swarming",
+    "Hellraiser Goblin"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOpponentTriggeredAbility",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Charismatic Conqueror",
+    "Sire of Stagnation",
+    "Faerie Artisans",
+    "Prison Term",
+    "Illusory Gains"
+   ]
+  },
+  {
+   "what": "AddCreatureTypeAdditionEffect",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Portal to Phyrexia",
+    "Liliana, Death's Majesty",
+    "Rise from the Grave",
+    "Ever After",
+    "Call a Surprise Witness"
+   ]
+  },
+  {
+   "what": "(constructor: local method addAbility)",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Neheb, the Eternal",
+    "Deification",
+    "Fall of the Titans",
+    "Owen Grady, Raptor Trainer",
+    "Reckless Bushwhacker"
+   ]
+  },
+  {
+   "what": "(verify) targets 1, printed 0",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Stitch Together",
+    "Rest for the Weary",
+    "Hunger of the Howlpack",
+    "Decommission",
+    "Whispers of Emrakul"
+   ]
+  },
+  {
+   "what": "MayPay2LifeForColorAbility",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Defiler of Vigor",
+    "Defiler of Dreams",
+    "Defiler of Instinct",
+    "Defiler of Faith",
+    "Defiler of Flesh"
+   ]
+  },
+  {
+   "what": "SagesReveriePredicate.instance",
+   "score": 8,
+   "lines": 2,
+   "cards": [
+    "Sage's Reverie"
+   ]
+  },
+  {
+   "what": "CardsDrawnThisTurnDynamicValue.instance",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Fists of Flame",
+    "Elenda and Azor",
+    "Knowledge Is Power",
+    "Niko Aris",
+    "Thundering Djinn"
+   ]
+  },
+  {
+   "what": "SourceDealsDamageToThisTriggeredAbility",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Phyrexian Obliterator",
+    "Reaper of Sheoldred",
+    "Belltower Sphinx",
+    "Nested Ghoul",
+    "Crag Saurian"
+   ]
+  },
+  {
+   "what": "keyword BoastAbility",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Varragoth, Bloodsky Sire",
+    "Broadside Bombardiers",
+    "Sigurd, Jarl of Ravensthorpe",
+    "Baron Helmut Zemo",
+    "Arni Brokenbrow"
+   ]
+  },
+  {
+   "what": "ExchangeControlTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Oko, Thief of Crowns",
+    "Eyes Everywhere",
+    "Vedalken Plotter",
+    "Avarice Totem",
+    "Trade the Helm",
+    "Visions of Duplicity",
+    "Political Trickery",
+    "Phyrexian Infiltrator"
+   ]
+  },
+  {
+   "what": "CantCastMoreThanOneSpellEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Archon of Emeria",
+    "Rule of Law",
+    "Eidolon of Rhetoric",
+    "High Noon",
+    "Arcane Laboratory",
+    "Moderation",
+    "Colfenor's Plans",
+    "Yawgmoth's Agenda"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"exile\"]",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Masked Vandal",
+    "Greenwarden of Murasa",
+    "Academy Rector",
+    "Arena Rector",
+    "Aphemia, the Cacophony",
+    "Aegis Sculptor",
+    "Skywarp Skaab",
+    "Forgotten Harvest"
+   ]
+  },
+  {
+   "what": "DiscardsACardOpponentTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Geth's Grimoire",
+    "Liliana's Caress",
+    "Megrim",
+    "Fell Specter",
+    "Raiders' Wake",
+    "Tourach, Dread Cantor",
+    "Quest for the Nihil Stone",
+    "Nath of the Gilt-Leaf"
+   ]
+  },
+  {
+   "what": "token code ZombieDecayedToken",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Crowded Crypt",
+    "Ghoulish Procession",
+    "Rotten Reunion",
+    "Startle",
+    "Hobbling Zombie",
+    "Falcon Abomination",
+    "Ghoulcaller's Harvest",
+    "No Way Out"
+   ]
+  },
+  {
+   "what": "(constructor: statement:loop)",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Lair of the Hydra",
+    "Mind Grind",
+    "Marath, Will of the Wild",
+    "Apocalypse Chime",
+    "City in a Bottle"
+   ]
+  },
+  {
+   "what": "DamageCantBePreventedEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Sunspine Lynx",
+    "Spider-Punk",
+    "Everlasting Torment",
+    "Isengard Unleashed",
+    "Pyrewood Gearhulk",
+    "Fear, Fire, Foes!",
+    "Impractical Joke",
+    "Flaring Pain"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Pick Your Poison",
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Radiant, Serra Archangel",
+    "Hidden Spider",
+    "Clip Wings",
+    "Run Afoul"
+   ]
+  },
+  {
+   "what": "token ability PilotSaddleCrewToken",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Defend the Rider",
+    "Country Roads",
+    "Rocky Roads",
+    "Reef Roads",
+    "Wild Roads",
+    "Cloudspire Coordinator",
+    "Roadside Assistance",
+    "Foul Roads"
+   ]
+  },
+  {
+   "what": "keyword MonstrosityAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Maester Seymour",
+    "Hydra Broodmaster",
+    "Death Kiss",
+    "Polukranos, World Eater",
+    "Grim Giganotosaurus",
+    "Domesticated Hydra",
+    "Nemesis of Mortals",
+    "Vitality Hunter"
+   ]
+  },
+  {
+   "what": "CantAttackControllerAttachedEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Assault Suit",
+    "Vow of Duty",
+    "Vow of Lightning",
+    "Vow of Malice",
+    "Vow of Torment",
+    "Vow of Wildness",
+    "Vow of Flight",
+    "Spectral Grasp"
+   ]
+  },
+  {
+   "what": "DrawCardTargetControllerEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Ob Nixilis, the Hate-Twisted",
+    "Dream Fracture",
+    "Introduction to Annihilation",
+    "Argent Dais",
+    "Gwafa Hazid, Profiteer",
+    "Nin, the Pain Artist",
+    "Call to Heel",
+    "Triad of Fates"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Tavern Brawler",
+    "The Tabernacle at Pendrell Vale",
+    "Custody Battle",
+    "Essence Leak",
+    "Pendrell Flux",
+    "Chlorophant",
+    "Coral Net",
+    "Disruption Aura"
+   ]
+  },
+  {
+   "what": "IsStepCondition",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Desert",
+    "Armageddon Clock",
+    "Tolaria",
+    "Infinite Hourglass",
+    "Balduvian Warlord",
+    "General Jarkeld",
+    "Dwarven Armory",
+    "Lesser Werewolf"
+   ]
+  },
+  {
+   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Brought Back",
+    "Samwise the Stouthearted",
+    "Continue?",
+    "Grim Return",
+    "Salvager of Ruin",
+    "Moira, Urborg Haunt",
+    "Othelm, Sigardian Outcast",
+    "Sudden Salvation"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Requiem Angel",
+    "Wildborn Preserver",
+    "Call to the Grave",
+    "Ooze Garden",
+    "Redcap Raiders",
+    "Archdemon of Unx"
+   ]
+  },
+  {
+   "what": "OpponentsLostLifeCondition.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Vampire Socialite",
+    "Falkenrath Pit Fighter",
+    "Stromkirk Bloodthief",
+    "Voldaren Ambusher",
+    "Arrogant Outlaw",
+    "Lion Vulture",
+    "Bloodtithe Collector",
+    "Savage Gorger"
+   ]
+  },
+  {
+   "what": "CorruptedCondition.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "The Seedcore",
+    "Bonepicker Skirge",
+    "Zealot's Conviction",
+    "Sinew Dancer",
+    "Apostle of Invasion",
+    "Incisor Glider",
+    "Vivisection Evangelist",
+    "Ravenous Necrotitan"
+   ]
+  },
+  {
+   "what": "ConditionalColorlessManaAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Cryptic Trilobite",
+    "Automated Artificer",
+    "Lord of the Forsaken",
+    "Pit Automaton",
+    "Cultivator Drone",
+    "Sage of the Unknowable",
+    "Qarsi Deceiver",
+    "Soldevi Machinist"
+   ]
+  },
+  {
+   "what": "keyword StoriedAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Kíli the Resourceful",
+    "Thorin Oakenshield",
+    "Dáin, Lord of the Iron Hills",
+    "Fíli the Pathfinder",
+    "Balin, Loremaster",
+    "Óin the Brave",
+    "Bombur, Gentle Dreamer",
+    "Ori, Keeper of Songs"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Curse of Unbinding",
+    "Torment of Scarabs",
+    "Cruel Reality",
+    "Curse of Surveillance",
+    "Curse of Thirst",
+    "Curse of the Bloody Tome",
+    "Curse of the Pierced Heart",
+    "Curse of Oblivion"
+   ]
+  },
+  {
+   "what": "MonstrousCondition.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Colossus of Akros",
+    "Fleecemane Lion",
+    "Hundred-Handed One",
+    "Domesticated Hydra",
+    "Skittering Crustacean",
+    "Sinuous Vermin",
+    "Chillerpillar",
+    "Swarmborn Giant"
+   ]
+  },
+  {
+   "what": "comparison EQUAL_TO",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Ayara's Oathsworn",
+    "Magus of the Library",
+    "Demonic Rising",
+    "Homarid",
+    "Tidal Influence",
+    "Library of Alexandria"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Ondu Cleric",
+    "Kabira Evangel",
+    "Halimar Excavator",
+    "Hagra Diabolist",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer",
+    "Bala Ged Thief"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledEffect.withForceQuotes",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Callaphe, Beloved of the Sea",
+    "Mishra, Tamer of Mak Fawa",
+    "Scuttling Sliver",
+    "Cathedral of Serra",
+    "Adventurers' Guildhouse",
+    "Mountain Stronghold",
+    "Unholy Citadel",
+    "Seafarer's Quay"
+   ]
+  },
+  {
+   "what": "RemoveAllCountersSourceCost",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Sage of Hours",
+    "Catti-brie of Mithral Hall",
+    "Vish Kal, Blood Arbiter",
+    "Jar of Eyeballs",
+    "Relic Amulet",
+    "Torture Chamber",
+    "Molten Hydra",
+    "Essence Bottle"
+   ]
+  },
+  {
+   "what": "ConniveTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Villainous Hideout",
+    "Unstable Experiment",
+    "Leader, Super-Genius",
+    "Scorpion, Seething Striker",
+    "Mechanical Mobster",
+    "Mob Lookout",
+    "Namor, Scourge of the Seas",
+    "Valentina Allegra de Fontaine"
+   ]
+  },
+  {
+   "what": "TargetSpellOrPermanent",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Eight-and-a-Half-Tails",
+    "Moonlace",
+    "Blind Seer",
+    "Thoughtlace",
+    "Deathlace",
+    "Chaoslace",
+    "Purelace",
+    "Lifelace"
+   ]
+  },
+  {
+   "what": "ChancellorAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Devourer of Destiny",
+    "Sphinx of Foresight",
+    "Chancellor of the Annex",
+    "Chancellor of the Spires",
+    "Chancellor of the Forge",
+    "Chancellor of the Tangle",
+    "Chancellor of the Dross",
+    "Providence"
+   ]
+  },
+  {
+   "what": "scope:snow",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Ice-Fang Coatl",
+    "Spirit of the Aldergard",
+    "Dead of Winter",
+    "Heidar, Rimewind Master",
+    "Rimewind Cryomancer",
+    "Rimewind Taskmage",
+    "Gangrenous Zombies",
+    "Woolly Mammoths"
+   ]
+  },
+  {
+   "what": "BoostEnchantedEffect p/t",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Alpha Status",
+    "Righteous Authority",
+    "Gleam of Authority",
+    "Blessing of the Nephilim",
+    "Disturbing Conversion",
+    "Aspect of Wolf",
+    "So Tiny",
+    "Snowblind"
+   ]
+  },
+  {
+   "what": "ActivateOncePerGameActivatedAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "In the Trenches",
+    "Haunted Screen",
+    "Duggan, Private Detective",
+    "Possessed Goat",
+    "Mild-Mannered Librarian",
+    "Touch of Vitae",
+    "Goblin Ski Patrol",
+    "Subversive Acolyte"
+   ]
+  },
+  {
+   "what": "SacrificeSourceUnlessConditionEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Chorale of the Void",
+    "War Elemental",
+    "Plaxmanta",
+    "Patagia Viper",
+    "Azorius Herald",
+    "Court Hussar",
+    "Crypt Champion",
+    "Squealing Devil"
+   ]
+  },
+  {
+   "what": "aura targeting",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Myojin of Life's Web",
+    "Myojin of Night's Reach",
+    "Myojin of Seeing Winds",
+    "Myojin of Cleansing Fire",
+    "Myojin of Infinite Rage",
+    "Wind Zendikon",
+    "Guardian Zendikon",
+    "Vastwood Zendikon"
+   ]
+  },
+  {
+   "what": "CantAttackBlockAttachedEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Faith's Fetters",
+    "Realmbreaker's Grasp",
+    "Heliod's Punishment",
+    "Bound in Gold",
+    "Intercessor's Arrest",
+    "Hold for Ransom",
+    "Revoke Privileges",
+    "Serra Bestiary"
+   ]
+  },
+  {
+   "what": "RedirectDamageFromSourceToTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Nomads en-Kor",
+    "Shaman en-Kor",
+    "Warrior en-Kor",
+    "Outrider en-Kor",
+    "Spirit en-Kor",
+    "Lancers en-Kor",
+    "Zhalfirin Crusader",
+    "Zealous Inquisitor"
+   ]
+  },
+  {
+   "what": "EquippedHasSubtypeCondition",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Butcher's Cleaver",
+    "Gift of Fangs",
+    "Bladed Bracers",
+    "Bonds of Faith",
+    "True-Faith Censer",
+    "Sharpened Pitchfork",
+    "Silver-Inlaid Dagger",
+    "Heavy Mattock"
+   ]
+  },
+  {
+   "what": "PreventDamageToSourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Opal-Eye, Konda's Yojimbo",
+    "Rasputin Dreamweaver",
+    "Ursine Fylgja",
+    "Rock Hydra",
+    "Ethereal Champion",
+    "Balduvian Hydra",
+    "Ordruun Commando",
+    "Revered Elder"
+   ]
+  },
+  {
+   "what": "ExileOpponentsCardFromExileToGraveyardCost",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Void Attendant",
+    "Ruin Processor",
+    "Wasteland Strangler",
+    "Ulamog's Reclaimer",
+    "Mind Raker",
+    "Oracle of Dust",
+    "Murk Strider",
+    "Cryptic Cruiser"
+   ]
+  },
+  {
+   "what": "BecomesChosenCreatureTypeSourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Mistform Warchief",
+    "Mistform Wall",
+    "Mistform Wakecaster",
+    "Mistform Dreamer",
+    "Mistform Stalker",
+    "Mistform Seaswift",
+    "Mistform Skyreaver",
+    "Mistform Shrieker"
+   ]
+  },
+  {
+   "what": "keyword ProvokeAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Goblin Grappler",
+    "Deftblade Elite",
+    "Krosan Vorine",
+    "Feral Throwback",
+    "Brontotherium",
+    "Crested Craghorn",
+    "Swooping Talon",
+    "Lowland Tracker"
+   ]
+  },
+  {
+   "what": "DontUntapAsLongAsSourceTappedEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Amber Prison",
+    "Giant Oyster",
+    "Sand Squid",
+    "Rust Tick",
+    "Deserter's Quarters",
+    "Mole Worms",
+    "Mana Leech",
+    "Phyrexian Gremlins"
+   ]
+  },
+  {
+   "what": "DraftFromSpellbookEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Key to the Archive",
+    "Emmara, Voice of the Conclave",
+    "Cursebound Witch",
+    "Slimefoot, Thallid Transplant",
+    "Boseiju Pathlighter",
+    "Tireless Angler",
+    "Ishkanah, Broodmother",
+    "Faithful Disciple"
+   ]
+  },
+  {
+   "what": "SkipExtraTurnsAbility",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Trouble in Pairs",
+    "Stranglehold",
+    "Ugin's Nexus",
+    "Gerrard's Hourglass Pendant"
+   ]
+  },
+  {
+   "what": "GoadAllEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Disrupt Decorum",
+    "Geode Rager",
+    "Baeloth Barrityl, Entertainer",
+    "Fast Forward"
+   ]
+  },
+  {
+   "what": "RemoveFromCombatTargetEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Reconnaissance",
+    "Labyrinth of Skophos",
+    "Hollowhenge Spirit",
+    "Disharmony"
+   ]
+  },
+  {
+   "what": "VariableManaCost",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Mirror Entity",
+    "Panoptic Mirror",
+    "Thought Dissector",
+    "Testament of Faith"
+   ]
+  },
+  {
+   "what": "GainControlAllOwnedEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Homeward Path",
+    "Trostani Discordant",
+    "Alicia Masters, Skilled Sculptor",
+    "Brooding Saurian"
+   ]
+  },
+  {
+   "what": "RemoveUpToAmountCountersEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Glissa Sunslayer",
+    "Rhys, the Evermore",
+    "Render Inert",
+    "Mabel, Bitter Recluse"
+   ]
+  },
+  {
+   "what": "RegenerateAllEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Golgari Charm",
+    "Wrap in Vigor",
+    "Wail of the Nim",
+    "Loxodon Hierarch"
+   ]
+  },
+  {
+   "what": "BecomesClassLevelTriggeredAbility",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Druid Class",
+    "Artificer Class",
+    "Cool but Rude",
+    "Monk Class"
+   ]
+  },
+  {
+   "what": "SpellCastControllerTriggeredAbility",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Passionate Archaeologist",
+    "Black Mage's Rod",
+    "Folk Hero",
+    "Red Mage's Rapier"
+   ]
+  },
+  {
+   "what": "CreaturesAreExiledOnDeathReplacementEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Liesa, Forgotten Archangel",
+    "Stone of Erech",
+    "Vren, the Relentless",
+    "Lorcan, Warlock Collector",
+    "Misery's Shadow",
+    "Garruk, Veiled Butcher",
+    "Corpseweaver Prodigy"
+   ]
+  },
+  {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Tymna the Weaver",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade",
+    "Kirri, Talented Sprout"
+   ]
+  },
+  {
+   "what": "CantAttackYouAllEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sandwurm Convergence",
+    "Rite of the Raging Storm",
+    "Eriette of the Charmed Apple",
+    "Blazing Archon",
+    "Elephant Grass",
+    "Reverence",
+    "Form of the Dragon"
+   ]
+  },
+  {
+   "what": "ZoneChangeAllTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Disciple of the Vault",
+    "Kothophed, Soul Hoarder",
+    "Myth Unbound",
+    "Tameshi, Reality Architect",
+    "Justice, Vance Astrovik",
+    "Stormfront Riders",
+    "Urza's Miter"
+   ]
+  },
+  {
+   "what": "AbilitiesCostReductionControllerEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Inquisitive Glimmer",
+    "Bureau Headmaster",
+    "Bladehold War-Whip",
+    "Éowyn, Lady of Rohan",
+    "Auriok Steelshaper",
+    "Hulk, Gamma Goliath",
+    "Boom Scholar"
+   ]
+  },
+  {
+   "what": "CastFromZonePredicate",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Flaming Tyrannosaurus",
+    "Keeper of Secrets",
+    "Kellan, the Kid",
+    "Mizzix, Replica Rider"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Kozilek's Unsealing",
+    "Helga, Skittish Seer",
+    "Bygone Bishop",
+    "Kalemne, Disciple of Iroas",
+    "Superior Foes of Spider-Man",
+    "Solarium Sentry",
+    "Exile into Darkness"
+   ]
+  },
+  {
+   "what": "DealtDamageAnyTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Repercussion",
+    "Rite of Passage",
+    "Sonic the Hedgehog",
+    "Termination Facilitator",
+    "Expedited Inheritance",
+    "Death Pits of Rath",
+    "Kazarov, Sengir Pureblood"
+   ]
+  },
+  {
+   "what": "DealsDamageAttachedTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Spirit Link",
+    "Vampiric Link",
+    "Armadillo Cloak",
+    "Spirit Loop",
+    "Guilty Conscience",
+    "Visions of Brutality",
+    "Soul Link"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessTargetEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Flayer of Loyalties",
+    "Restless Vinestalk",
+    "Will Kenrith",
+    "Glamer Gifter",
+    "Wings of Velis Vel",
+    "Sorceress Queen",
+    "Serendib Sorcerer"
+   ]
+  },
+  {
+   "what": "CounterTargetWithReplacementEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Memory Lapse",
+    "Remand",
+    "Lapse of Certainty",
+    "Defabricate",
+    "Hinder",
+    "Spell Crumple",
+    "Devious Cover-Up"
+   ]
+  },
+  {
+   "what": "CastFromHandSourcePermanentCondition.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Wakening Sun's Avatar",
+    "Feasting Troll King",
+    "Angel of the Dire Hour",
+    "Reiver Demon",
+    "Iname as One",
+    "Furnace Dragon",
+    "Soulhunter Rakshasa"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Spirit Water Revival",
+    "Blizzard Brawl",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Dawnhand Eulogist",
+    "Contested Game Ball",
+    "Torch the Tower"
+   ]
+  }
+ ]
+}
