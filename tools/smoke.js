@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const { Table, engine } = require('./harness');
+const { Table, engine, contractReport } = require('./harness');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const from = +arg('from', 0), to = +arg('to', 1000), only = arg('name', null);
@@ -68,6 +68,7 @@ for (const c of list) {
   console.warn = (...x) => warns.push(x.map(String).join(' '));
   let err = null;
   let T = null;
+  Table.label = c.name;
   try {
     T = new Table();
     setup(T);
@@ -124,3 +125,9 @@ for (const f of failures) {
   for (const m of f.manual) console.log('   manual: ' + m.slice(0, 200));
 }
 console.log(`${tried} automated cards played (${cast} cast, ${activated} abilities activated), ${failures.length} with problems`);
+// with CONTRACTS=1, every view and question along the way was checked as well
+const rep = contractReport();
+if (rep) {
+  for (const v of rep.violations.concat(rep.known)) console.log('  ' + rep.format(v));
+  console.log(`contracts: ${rep.violations.length} violations, ${rep.known.length} known`);
+}

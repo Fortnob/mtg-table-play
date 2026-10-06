@@ -2,6 +2,7 @@
 
    node tools/sim.js --format standard --games 10 --a 3 --b 8 [--seed 1] [--turns 40] [--verbose]
    node tools/sim.js --format commander --players 4 --games 4
+   node tools/sim.js --contracts ...   (check every view, question and bot call; see tools/contracts.js)
 
    With --players 3 or 4 the extra seats (C, D) play at difficulty b.
 
@@ -17,7 +18,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose' || k === 'json') { a[k] = true; continue; }
+    if (k === 'verbose' || k === 'json' || k === 'contracts') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -92,14 +93,19 @@ async function playOne(MTG, o) {
 async function main() {
   const a = args();
   const MTG = load();
+  const C = a.contracts ? require('./contracts') : null;
   const results = [];
+  const found = [];
   for (let i = 0; i < a.games; i++) {
     // alternate seats so the play/draw advantage washes out
     const swap = i % 2 === 1;
+    let mon = null;
     const r = await playOne(MTG, {
       formatId: a.format, seed: a.seed + i, diffA: swap ? a.b : a.a, diffB: swap ? a.a : a.b,
       maxTurns: a.turns, verbose: a.verbose, players: a.players,
+      onGame: C ? (g) => { mon = C.watch(g, MTG, { label: `${a.format} seed ${a.seed + i}` }); } : undefined,
     });
+    if (mon) { mon.stop(); found.push(mon.violations.concat(mon.known)); r.contracts = mon.violations.length; mon = null; }
     r.swap = swap;
     // credit the win to the difficulty, not the seat
     r.winnerDiff = r.winner === 'A' ? (swap ? a.b : a.a) : r.winner === 'B' ? (swap ? a.a : a.b) : r.winner ? a.b : null;
@@ -122,7 +128,14 @@ async function main() {
     avgTurns: +(results.reduce((s, r) => s + r.turns, 0) / results.length).toFixed(1),
     withErrors: results.filter(r => r.errors.length).length,
     liveFetches: globalThis.__liveFetches(),
+    offlineMisses: globalThis.__offlineMisses ? globalThis.__offlineMisses() : 0,
   };
+  if (C) {
+    const all = C.merge(found);
+    summary.contractViolations = all.filter(v => !v.known).length;
+    summary.contractKnown = all.filter(v => v.known).length;
+    if (!a.json) for (const v of all) console.log('  ' + C.format(v));
+  }
   if (a.json) console.log(JSON.stringify({ summary, results }, null, 1));
   else console.log('summary', JSON.stringify(summary));
   process.exit(0);

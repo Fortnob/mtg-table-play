@@ -13,6 +13,10 @@ const { load } = require('./engine');
 
 let MTG = null;
 let CARDS = null;
+/* CONTRACTS=1: every view and every question at every test table is
+   checked against tools/contracts.js, and contractReport() says what broke. */
+const CONTRACTS = process.env.CONTRACTS ? require('./contracts') : null;
+const watched = [];
 
 /** Every card in the bulk file, by name (and by front-face name). */
 function cards() {
@@ -105,6 +109,7 @@ class Table {
     });
     const names = opts.players || ['A', 'B'];
     for (const id of names) g.addPlayer({ id, name: id });
+    if (CONTRACTS) watched.push(CONTRACTS.watch(g, M, { calls: false, net: false, label: opts.label || Table.label || '' }));
     const filler = opts.library || ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
     for (const id of names) {
       g.loadDeck(id, { main: filler.map(n => ({ qty: opts.libraryEach || 4, card: card(n) })) });
@@ -266,4 +271,11 @@ class Table {
   manualLines() { return this.g.log.filter(l => /resolve this by hand|resolve by hand|Unhandled effect/i.test(l.text)).map(l => l.text); }
 }
 
-module.exports = { Table, card, cards, engine };
+/** What the contract checks found at every table so far (null when CONTRACTS is off). */
+function contractReport() {
+  if (!CONTRACTS) return null;
+  const all = CONTRACTS.merge(watched.map(w => w.violations.concat(w.known)));
+  return { violations: all.filter(v => !v.known), known: all.filter(v => v.known), format: CONTRACTS.format };
+}
+
+module.exports = { Table, card, cards, engine, contractReport };

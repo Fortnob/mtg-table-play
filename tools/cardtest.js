@@ -10,7 +10,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { Table, card, engine } = require('./harness');
+const { Table, card, engine, contractReport } = require('./harness');
 
 const filter = (process.argv[2] || '').toLowerCase();
 const tests = [];
@@ -52,6 +52,7 @@ for (const t of tests) {
   const warnings = [];
   console.warn = (...x) => warnings.push(x.map(String).join(' '));
   let err = null, T = null;
+  Table.label = t.name;
   try {
     const mk = (opts) => (T = new Table(opts));
     t.fn(mk, asserts());
@@ -68,4 +69,10 @@ for (const t of tests) {
   } else { pass++; if (process.env.VERBOSE) console.log(`ok   ${t.name}`); }
 }
 console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// with CONTRACTS=1, what the tables showed and asked was checked as well
+const rep = contractReport();
+if (rep) {
+  for (const v of rep.violations.concat(rep.known)) console.log('  ' + rep.format(v));
+  console.log(`contracts: ${rep.violations.length} violations, ${rep.known.length} known`);
+}
+process.exit(fail || (rep && rep.violations.length) ? 1 : 0);

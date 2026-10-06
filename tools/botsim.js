@@ -18,6 +18,10 @@
                     the path where a runner can trip over a bot that is
                     still thinking, so it is worth a run now and then.
 
+   Contracts:
+     --contracts    check every view, question and bot call as it happens
+                    (tools/contracts.js); violations are listed at the end.
+
    Reports winners by difficulty, turns, stalls, crashes, runner nudges
    ("Nobody could act"), engine warnings, and cards that needed a person. */
 'use strict';
@@ -29,7 +33,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose' || k === 'json' || k === 'mirror') { a[k] = true; continue; }
+    if (k === 'verbose' || k === 'json' || k === 'mirror' || k === 'contracts') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -82,6 +86,8 @@ async function playOne(MTG, o) {
   }
   const runner = new MTG.bots.BotRunner(g);
   for (const s of seats) runner.add(s.id, s.play, s.playTune || undefined);
+  // a caller that wants to watch the game (tools/contracts.js) gets it before it starts
+  if (o.onGame) o.onGame(g);
   g.start();
   runner.kick();
 
@@ -143,19 +149,23 @@ async function main() {
   const a = args();
   const MTG = load();
   MTG.settings.botSpeed = a.speed || 0;
+  const C = a.contracts ? require('./contracts') : null;
+  const found = [];
   const results = [];
   for (let i = 0; i < a.games; i++) {
     const seats = seatsFor(a, i);
-    let r;
+    let r, mon = null;
     try {
       r = await playOne(MTG, {
         formatId: a.format, seed: a.seed + i, seats, maxTurns: a.turns, verbose: a.verbose,
         mirror: a.mirror, speed: a.speed, timeout: a.timeout, trace: a.trace, chunkSeed: a.seed,
+        onGame: C ? (g) => { mon = C.watch(g, MTG, { label: `${a.format} seed ${a.seed + i}` }); } : undefined,
       });
     } catch (e) {
       r = { seed: a.seed + i, winner: null, turns: 0, over: false, stalled: false, crashed: String(e && e.stack || e).slice(0, 400),
         errors: [String(e)], life: [], manualCards: [], rulesLines: [], nudges: 0 };
     }
+    if (mon) { mon.stop(); found.push(mon.violations.concat(mon.known)); r.contracts = mon.violations.length; }
     r.seats = seats.map(s => ({ id: s.id, diff: s.diff, play: s.play, deck: s.deck }));
     // credit the win to the difficulty, not the seat
     const w = seats.find(s => s.id === r.winner);
@@ -183,7 +193,14 @@ async function main() {
     withErrors: results.filter(r => r.errors.length).length,
     nudges: results.reduce((s, r) => s + (r.nudges || 0), 0),
     liveFetches: globalThis.__liveFetches(),
+    offlineMisses: globalThis.__offlineMisses ? globalThis.__offlineMisses() : 0,
   });
+  if (C) {
+    const all = C.merge(found);
+    summary.contractViolations = all.filter(v => !v.known).length;
+    summary.contractKnown = all.filter(v => v.known).length;
+    if (!a.json) for (const v of all) console.log('  ' + C.format(v));
+  }
   if (a.json) console.log(JSON.stringify({ summary, results }));
   else console.log('summary', JSON.stringify(summary));
   process.exit(0);

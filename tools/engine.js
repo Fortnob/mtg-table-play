@@ -53,7 +53,7 @@ function installShims() {
   g.location = { search: '', href: 'http://localhost/' };
 
   const realFetch = g.fetch;
-  let live = 0, lastLive = 0;
+  let live = 0, lastLive = 0, misses = 0;
   g.fetch = async (url, opts) => {
     opts = opts || {};
     const key = crypto.createHash('sha1').update(String(url) + '|' + (opts.body || '')).digest('hex');
@@ -66,7 +66,9 @@ function installShims() {
         json: async () => JSON.parse(body),
       };
     }
-    if (process.env.OFFLINE) return { ok: false, status: 404, statusText: 'offline', json: async () => ({}) };
+    // offline, a request the cache cannot answer is a miss: a bot deck built
+    // from it is built from less than it would have had
+    if (process.env.OFFLINE) { misses++; return { ok: false, status: 404, statusText: 'offline', json: async () => ({}) }; }
     live++;
     /* Scryfall's hard limits: two a second for search, named, random and
        collection, ten a second for everything else. A 429 shuts the door
@@ -98,6 +100,7 @@ function installShims() {
     return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(text) };
   };
   g.__liveFetches = () => live;
+  g.__offlineMisses = () => misses;
 }
 
 function load(opts) {
