@@ -299,7 +299,8 @@ function main() {
 constructs that alone block a card (score, cards, construct):`);
     for (const b of soleRanked.slice(0, show)) console.log(`  ${String(b.score).padStart(6)} ${String(b.cards).padStart(5)}  ${b.what}   [${b.names.slice(0, 3).join('; ')}]`);
   }
-  fs.writeFileSync(path.join(__dirname, 'blockers.json'), JSON.stringify({
+  // a run over part of the pool says nothing about the whole: leave the report alone
+  if (!only && !limit) fs.writeFileSync(path.join(__dirname, 'blockers.json'), JSON.stringify({
     generated: new Date().toISOString().slice(0, 10), stats,
     weights: 'per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500',
     blockers: ranked.slice(0, 500),
