@@ -694,15 +694,19 @@
      * Each step is a panel or the targeting banner; cancelling any of them
      * leaves the card in your hand.
      */
-    beginCast(o, a, via) {
+    beginCast(o, a, via, face) {
       const live = this.live || this.view;
       const all = (live.extras || {})[o.id] || [];
       // convoke, improvise and delve are not extra costs to toggle: they are what pays, asked about last
       const PAYS = ['convoke', 'improvise', 'delve'];
       const extras = all.filter(x => !PAYS.includes(x.kind));
       const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
-      const steps = { o, a, via, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
-      const hasX = /\{X\}/.test(o.card.mana_cost || (o.card.card_faces && o.card.card_faces[o.face || 0] && o.card.card_faces[o.face || 0].mana_cost) || '');
+      const steps = { o, a, via, face, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
+      // the cost being paid: one half of a split card, or the face that is up
+      const faces = o.card.card_faces;
+      steps.cost = (face != null && faces && faces[face] ? faces[face].mana_cost
+        : o.card.mana_cost || (faces && faces[o.face || 0] && faces[o.face || 0].mana_cost)) || '';
+      const hasX = /\{X\}/.test(steps.cost);
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
       const afterX = () => (pays.length ? this.askAltPay(steps, pays, afterPay) : afterPay());
       const afterPay = () => this.castTargets(steps);
@@ -772,7 +776,7 @@
     askExtras(steps, extras, next) {
       const st = steps.picked;
       const key = 'extras:' + steps.o.id;
-      const base = MTG.mana.cmc(String(steps.o.card.mana_cost || '').replace(/\{X\}/g, ''));
+      const base = MTG.mana.cmc(String(steps.cost || '').replace(/\{X\}/g, ''));
       /* what a generic question answered here adds: so many copies, or the cards spliced on */
       const chosenCost = (ex) => {
         const sel = st.choices[(ex.choose || {}).purpose];
@@ -870,11 +874,11 @@
     askX(steps, next) {
       const me = this.me;
       const live = this.live || this.view;
-      const fixed = MTG.mana.cmc((steps.o.card.mana_cost || '').replace(/\{X\}/g, ''));
+      const fixed = MTG.mana.cmc((steps.cost || '').replace(/\{X\}/g, ''));
       const sources = live.battlefield.filter(o => o.controller === this.meId && !o.tapped &&
         (() => { const a = this.analysis(o); return a && a.manaAbilities && a.manaAbilities.length; })()).length;
       const pool = me && me.pool ? ['W', 'U', 'B', 'R', 'G', 'C'].reduce((s, c) => s + (me.pool[c] || 0), 0) : 0;
-      const xs = ((steps.o.card.mana_cost || '').match(/\{X\}/g) || []).length || 1;
+      const xs = ((steps.cost || '').match(/\{X\}/g) || []).length || 1;
       const most = Math.max(0, Math.floor((sources + pool - fixed) / xs));
       steps.x = most;
       this.asking = { key: 'x:' + steps.o.id, build: () => {
@@ -906,6 +910,7 @@
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
       if (via) extra.via = via;
+      if (steps.face != null) extra.face = steps.face;
       if (steps.altPay) Object.assign(extra, steps.altPay);
       // generic questions answered with the extra costs, in the shape the engine checks them in
       const answered = {};

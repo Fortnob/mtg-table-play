@@ -3190,6 +3190,7 @@
           free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,
           spree: intent.spree || null, via: intent.via || null,
+          face: intent.face === 1 ? 1 : 0,       // which half of a split card
           // what pays instead of mana, when the player chose it: creatures to convoke, artifacts to improvise, cards to delve
           convokeIds: idList(intent.convokeIds), improviseIds: idList(intent.improviseIds), delveIds: idList(intent.delveIds),
           // generic questions answered with the extra costs (replicate, splice); the engine checks them

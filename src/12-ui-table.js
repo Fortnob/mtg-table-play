@@ -1823,7 +1823,21 @@
       }
       if (a.isLand) { MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id }); }
       if (this._landBack(o)) return this._spellOrLand(o, a);
+      const halves = (live.splitFaces || {})[o.id];
+      if (o.card.layout === 'split' && halves && halves.length) return this._castHalf(o, halves);
       this.beginCast(o, a);
+    }
+
+    /** A split card: the half that can be cast, or a choice of the two. @this {MTG.TableInstance} */
+    _castHalf(o, halves) {
+      const faces = o.card.card_faces || [];
+      const go = (f) => this.beginCast(o, MTG.oracle.analyze(o.card, f), null, f);
+      if (halves.length === 1) return go(halves[0]);
+      /** @type {Array<[string, () => void]>} */
+      const items = halves.map(f => [`Cast ${faces[f] ? faces[f].name : 'half ' + (f + 1)} ${faces[f] ? faces[f].mana_cost || '' : ''}`, () => go(f)]);
+      const n = this.els.get(o.id);
+      const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
+      UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
     }
 
     /** Cast a copy of a prepared permanent's spell: targets and X are the spell's. @this {MTG.TableInstance} */
