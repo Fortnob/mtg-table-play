@@ -439,4 +439,46 @@ module.exports = (test) => {
     T.resolve();
     t.zone(forest, 'hand');
   });
+
+  test('XMage: Thieving Magpie draws when it deals damage to an opponent', (mk, t) => {
+    generated(t, 'Thieving Magpie');
+    const T = mk();
+    const m = T.bf('A', 'Thieving Magpie');
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, h0 + 1);
+  });
+
+  test('Damage to a player, not to a creature (Thieving Magpie blocked)', (mk, t) => {
+    const T = mk();
+    const m = T.bf('A', 'Thieving Magpie');
+    const bird = T.bf('B', 'Birds of Paradise');
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bird.id, attackerIds: [m.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, h0, 'no card for hitting the Birds');
+  });
+
+  test('XMage: Thunderbreak Regent punishes an opponent who targets a Dragon', (mk, t) => {
+    generated(t, 'Thunderbreak Regent');
+    const T = mk();
+    const r = T.bf('B', 'Thunderbreak Regent');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [r] });
+    t.eq(T.life('A'), 17);
+  });
+
+  test('XMage: Choking Tethers taps a creature when cycled', (mk, t) => {
+    generated(t, 'Choking Tethers');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const ct = T.hand('A', 'Choking Tethers');
+    T.mana('A', '1U');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    t.ok(T.g.cycleCard('A', ct.id, { auto: true }), 'cycled: ' + T.g.lastError);
+    T.resolve();
+    t.ok(bear.tapped);
+  });
 };

@@ -223,8 +223,12 @@ def('ability', 'BlocksCreatureTriggeredAbility', (o, tc) => {
 });
 def('ability', 'DealsDamageToOpponentTriggeredAbility', (o, tc) => {
   const b = A(o).all('bool').map(x => x.v);
+  // any damage to an opponent, not only combat damage: to a player who is not its controller
+  if (!b[1]) {
+    if (o.args.some(a => kindOf(a) === 'filter')) block('damage to an opponent by some');
+    return AB.triggered(o, tc, { event: 'dealsDamage', self: true, optional: !!b[0], pointer: b[2] ? 'player' : null, extra: { toPlayer: true, toOpponent: true } });
+  }
   // combat damage to a player is always to an opponent: only that one is the same trigger
-  if (!b[1]) block('damage to an opponent, not only combat');
   return AB.triggered(o, tc, { event: 'combatDamageToPlayer', self: true, optional: !!b[0], pointer: b[2] ? 'player' : null });
 });
 def('effect', 'PreventDamageToTargetEffect', (o, tc) => {

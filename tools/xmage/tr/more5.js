@@ -247,4 +247,49 @@ def('effect', 'MillThenPutInHandEffect', (o, tc) => {
   return [{ op: 'mill', n: P.amount(v, tc), who: 'you' }, { op: 'takeFromMilled', n: 1, filter, optional }];
 });
 
+/* "When you cycle this card": from the graveyard it went to */
+def('ability', 'CycleTriggeredAbility', (o, tc) =>
+  AB.triggered(o, tc, { event: 'cycleSelf', optional: A(o).bool(0, false) }));
+
+/* "Whenever this creature deals damage to a player" (or an opponent) */
+def('ability', 'DealsDamageToAPlayerTriggeredAbility', (o, tc) => {
+  const b = A(o).all('bool').map(x => x.v);
+  if (b[2]) block('damage to a player or planeswalker');
+  return AB.triggered(o, tc, { event: 'dealsDamage', self: true, optional: !!b[0], pointer: b[1] ? 'player' : null, extra: { toPlayer: true } });
+});
+
+/* "Whenever a permanent you control is turned face up" */
+def('ability', 'TurnedFaceUpAllTriggeredAbility', (o, tc) => {
+  const zone = A(o).enumv('Zone');
+  if (zone && zone !== 'BATTLEFIELD') block('turned face up from ' + zone);
+  const f = o.args.find(a => kindOf(a) === 'filter');
+  const d = F.describe(f, tc);
+  // the engine tells only its controller's permanents
+  if (d.controller !== 'you') block('turned face up under anyone');
+  const b = A(o).all('bool').map(x => x.v);
+  return AB.triggered(o, tc, { event: 'turnedFaceUp', objFilter: F.toSubject(d), optional: !!b[1], pointer: b[0] ? 'permanent' : null });
+});
+
+/* "Whenever a creature you control becomes the target of a spell or
+   ability an opponent controls" */
+const BY_STACK = {
+  'StaticFilters.FILTER_SPELL_OR_ABILITY_A': {}, 'StaticFilters.FILTER_SPELL_OR_ABILITY': {},
+  'StaticFilters.FILTER_SPELL_OR_ABILITY_OPPONENTS': { byOpponent: true },
+  'StaticFilters.FILTER_SPELL_A': { bySpellOnly: true }, 'StaticFilters.FILTER_SPELL': { bySpellOnly: true },
+};
+def('ability', 'BecomesTargetAnyTriggeredAbility', (o, tc) => {
+  const [, ft, fs, ptr, opt] = o.args;
+  const d = F.describe(ft, tc);
+  if (d.controller !== 'you') block('becomes the target, under anyone');
+  const by = fs ? BY_STACK[fs.t === 'ref' ? fs.path : ''] : {};
+  if (!by) block('becomes the target of ' + keyOf(fs));
+  let pointer = 'permanent';
+  if (ptr) {
+    const p = ptr.t === 'ref' ? ptr.path.split('.')[1] : '';
+    pointer = { PERMANENT: 'permanent', PLAYER: 'player', NONE: null }[p];
+    if (pointer === undefined) block('becomes the target, pointing at ' + p);
+  }
+  return AB.triggered(o, tc, { event: 'becomesTarget', objFilter: F.toSubject(d), optional: !!(opt && opt.v), pointer, extra: by });
+});
+
 module.exports = {};

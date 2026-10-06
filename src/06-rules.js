@@ -6764,6 +6764,8 @@
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
           if (ab.toOpponent && data.player === o.controller) continue;
+          // "whenever this deals damage to a player": not to a creature
+          if (ab.toPlayer && !data.player) continue;
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
