@@ -678,9 +678,9 @@
 
     // --- counters ---
     { re: /^Put (a|one|two|three|\d+|X) \+1\/\+1 counters? on (?:up to one )?((?:another )?target creature|(?:another )?target creature you control|it|this creature|CARDNAME|each creature you control)\.?$/i,
-      make: (m) => ({ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: /target/.test(m[2]) ? [targetSpec(m[2])] : null, scope: /each/.test(m[2]) ? 'yourCreatures' : (/it|this/.test(m[2]) ? 'self' : null) }) },
+      make: (m) => ({ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: /target/.test(m[2]) ? [targetSpec(m[2])] : null, scope: /each/.test(m[2]) ? 'yourCreatures' : (/it|this|CARDNAME/.test(m[2]) ? 'self' : null) }) },
     { re: /^Put (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (-1\/-1|\+1\/\+1|[a-z ]+) counters? on ((?:another )?target [a-z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
-      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this/.test(m[3]) ? 'self' : null }) },
+      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */

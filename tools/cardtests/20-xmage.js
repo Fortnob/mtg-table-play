@@ -170,6 +170,44 @@ module.exports = (test) => {
     t.eq(T.g.toughnessOf(pc), 3);
   });
 
+  test('XMage override: The Great Henge puts its counter on the creature that entered', (mk, t) => {
+    const T = mk();
+    const h = T.bf('A', 'The Great Henge');
+    const b = T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(b.counters['+1/+1'], 1, 'on the bear');
+    t.no(h.counters['+1/+1'], 'not on the Henge');
+  });
+
+  test('XMage override: Kaito stuns its target, not itself', (mk, t) => {
+    const T = mk();
+    const k = T.bf('A', 'Kaito, Bane of Nightmares', { counters: { loyalty: 5 } });
+    const b = T.bf('B', 'Grizzly Bears');
+    const a = k.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', k, list.findIndex(x => x.cost && x.cost.loyalty === -2), { targets: [b] });
+    t.eq(b.counters.stun, 2);
+    t.ok(b.tapped);
+    t.no(k.counters.stun, 'none on Kaito');
+  });
+
+  test('XMage override: Fervent Charge pumps the attacker', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Fervent Charge');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.g._fire('permAttacks', null, { object: b, objController: 'A', attacker: b });
+    T.resolve();
+    t.eq(T.g.powerOf(b), 4);
+  });
+
+  test('Counters "on CARDNAME" go on the card itself (Qala)', (mk, t) => {
+    const T = mk();
+    const q = T.bf('A', "Qala, Ajani's Pridemate");
+    T.g.changeLife(T.player('A'), 2);
+    T.resolve();
+    t.eq(q.counters['+1/+1'], 1);
+  });
+
   test('XMage override: Earthshaker Dreadmaw draws for each other Dinosaur', (mk, t) => {
     const T = mk();
     T.bf('A', 'Earthshaker Dreadmaw');

@@ -163,6 +163,18 @@ function overrideReason(parsed, translated) {
   /* "Target opponent" read as any player: Duress could be cast on yourself. */
   const ps = specsOf(parsed), ts = specsOf(translated);
   if (ps.length === ts.length && ps.some((s, i) => s && s.type === 'player' && !s.opponent && ts[i] && ts[i].type === 'player' && ts[i].opponent)) return 'opponent';
+  /* "It" read as the wrong thing: The Great Henge's counter on the Henge
+     rather than the creature that entered, Kaito's stun counters on
+     Kaito, "it gets +2/+2" on a trigger pointing at nothing. Effects
+     line up one for one, and only what each acts on differs. */
+  const SCOPES = new Set(['self', 'lastTarget', 'triggerObject']);
+  if (pe.length === te.length && pe.every((e, i) => e.op === te[i].op || (e.op === 'grantLast' && te[i].op === 'grantKeyword'))) {
+    for (let i = 0; i < pe.length; i++) {
+      const a = pe[i], b = te[i];
+      if (a.targets && a.targets.length) continue;
+      if (SCOPES.has(b.scope) && (a.scope == null || SCOPES.has(a.scope)) && a.scope !== b.scope && !(a.op === 'grantLast' && b.scope === 'lastTarget')) return 'it';
+    }
+  }
   /* A count the engine cannot do: "cards in your hand", "other Dinosaurs",
      "attacking Elves" read as permanents of one type, which counts none. */
   let badPer = false;

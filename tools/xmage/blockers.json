@@ -20,8 +20,9 @@
   },
   "verifyFail": 131,
   "overrides": {
+   "it": 166,
    "drain": 62,
-   "count": 37,
+   "count": 35,
    "opponent": 65
   }
  },
