@@ -5,6 +5,7 @@
 (function (MTG) {
   const { el, $, util: U } = MTG;
   const UI = MTG.ui;
+  const CARD_RATIO = 88 / 63;
 
   class DraftTable {
     constructor(root, seatId, send) {
@@ -37,6 +38,17 @@
       };
       this.root.addEventListener('click', this._onBlank);
 
+      // the pack is sized to the room it has, so it is laid out again when the room changes
+      this._packSize = '';
+      this._ro = window.ResizeObserver ? new ResizeObserver(() => {
+        const k = this.packWrap.clientWidth + 'x' + this.packWrap.clientHeight;
+        if (k === this._packSize) return;
+        this._packSize = k;
+        clearTimeout(this._fitTimer);
+        this._fitTimer = setTimeout(() => { if (this.view && this.view.pack && this.view.pack.length) this.render(); }, 60);
+      }) : null;
+      if (this._ro) this._ro.observe(this.packWrap);
+
       /* Space confirms whatever is selected, from anywhere on the screen, so
          a pick is click-then-space without having to find the button. */
       this._onKey = (e) => {
@@ -53,11 +65,16 @@
     destroy() {
       document.removeEventListener('keydown', this._onKey);
       this.root.removeEventListener('click', this._onBlank);
+      if (this._ro) this._ro.disconnect();
+      clearTimeout(this._fitTimer);
       this.root.innerHTML = '';
       this.root.classList.remove('draft-layout');
     }
     update(view) {
       this.view = view;
+      // a choice only means something in the pack it was made in
+      const inPack = new Set((view.pack || []).map(c => c.id));
+      this.chosen = this.chosen.filter(id => inPack.has(id));
       // a card that asks a question the moment it is drafted asks it here
       for (const o of (view.offers || [])) {
         if (this._seenOffers.has(o.cardId)) continue;
@@ -99,9 +116,14 @@
       if (!v || v.sittingOut || !v.pack.length) return false;
       const need = this._need(v);
       if (need > 0 && this.chosen.length !== need) return false;
-      this.send({ kind: 'pick', cardIds: this.chosen.slice(), ability: this.ability || null });
+      const pick = { kind: 'pick', cardIds: this.chosen.slice(), ability: this.ability || null };
+      /* Put the cards down before sending: at a table hosted here the next
+         pack can come back inside send(), and it must not be drawn with the
+         last pick still in hand (the pack dimmed, the old card flagged). */
       this.chosen = [];
       this.ability = null;
+      this.send(pick);
+      this.render();
       return true;
     }
 
@@ -201,6 +223,45 @@
     /** The layout redraws on rotation; there is no floating advice to put away. */
     closeAdvice() {}
 
+    /**
+     * How to lay a pack of `n` cards out in the room there is: as many rows
+     * as give the biggest card that still fits (no scrolling if it can be
+     * helped), the cards split across them as evenly as they go (fourteen
+     * is two rows of seven, thirteen is seven and six). Returns the card
+     * width and how many cards go in each row, top first.
+     */
+    _packFit(n) {
+      const box = this.packWrap;
+      const cs = getComputedStyle(box);
+      const phone = MTG.isPhone();
+      const W = Math.max(200, box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 8);
+      // the hint line under the pack, and room for a card to lift on hover
+      const H = Math.max(200, box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (phone ? 30 : 56));
+      const gx = phone ? 8 : 16, gy = phone ? 10 : 22;
+      const scale = U.clamp(MTG.settings.cardScale || 1, 0.6, 2);
+      const maxW = (phone ? 150 : 250) * scale, minW = (phone ? 80 : 110) * scale;
+      let best = null;
+      for (let r = 1; r <= Math.max(1, n); r++) {
+        const c = Math.ceil(n / r);
+        if (r > 1 && Math.ceil(n / (r - 1)) === c) continue;   // the same columns with an emptier last row
+        const byW = (W - (c - 1) * gx) / c;
+        const byH = (H - (r - 1) * gy) / r / CARD_RATIO;
+        const w = Math.min(byW, byH, maxW);
+        if (!best || w > best.w + 0.5) best = { w, r };
+        if (byH < minW) break;      // more rows only make them shorter still
+      }
+      if (!best) best = { w: maxW, r: 1 };
+      // past the smallest readable size it scrolls instead, at that size and as many across as fit
+      if (best.w < minW) {
+        const c = Math.max(1, Math.floor((W + gx) / (minW + gx)));
+        best = { w: Math.min(minW, (W - (c - 1) * gx) / c), r: Math.ceil(n / c) };
+      }
+      const r = Math.max(1, best.r);
+      const rows = [];
+      for (let i = 0; i < r; i++) rows.push(Math.floor(n / r) + (i < n % r ? 1 : 0));
+      return { w: best.w, rows: rows.filter(x => x > 0) };
+    }
+
     render() {
       const v = this.view;
       if (!v) return;
@@ -208,7 +269,7 @@
 
       /* -- the head: where you are in the draft, over the pack's best card -- */
       this.head.innerHTML = '';
-      const best = UI.packOrder(v.pack || []).slice().reverse().find(c => UI.packBand(c) < 9) || (v.pack || [])[0];
+      const best = UI.packOrder(v.pack || []).find(c => UI.packBand(c) < 9) || (v.pack || [])[0];
       const art = el('div', { class: 'draft-head-art', 'aria-hidden': 'true' });
       if (best) UI.setArt(art, best);
       const packSize = Math.max(v.pack.length + (v.pick || 1) - 1, v.pack.length);
@@ -260,8 +321,15 @@
         ]));
       } else {
         const grid = el('div', { class: 'pack-grid' + (this.chosen.length ? ' choosing' : '') });
-        // laid out by colour and then by rarity, the way you would fan a pack
-        UI.packOrder(v.pack).forEach((c, i) => {
+        const order = UI.packOrder(v.pack);
+        const fit = this._packFit(order.length);
+        grid.style.setProperty('--card-w', fit.w.toFixed(1) + 'px');
+        grid.style.setProperty('--card-h', (fit.w * CARD_RATIO).toFixed(1) + 'px');
+        const rows = fit.rows.map(() => el('div', { class: 'pack-row' }));
+        rows.forEach(r => grid.appendChild(r));
+        const rowOf = (i) => { let k = i; for (let r = 0; r < fit.rows.length; r++) { if (k < fit.rows[r]) return rows[r]; k -= fit.rows[r]; } return rows[rows.length - 1]; };
+        // rarest first, left to right and down the rows
+        order.forEach((c, i) => {
           const chosen = this.chosen.includes(c.id);
           const slot = UI.cardSlot(c, {}, {
             class: 'pick-card' + (chosen ? ' chosen' : '') + ' r-' + (c.rarity || 'common'),
@@ -281,7 +349,7 @@
           slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || '')[0].toUpperCase() }));
           slot.appendChild(UI.autoBadge(c, { corner: true }));
           if (chosen) slot.appendChild(el('span', { class: 'pick-flag', text: need > 1 ? `Pick ${this.chosen.indexOf(c.id) + 1}` : 'Your pick' }));
-          grid.appendChild(slot);
+          rowOf(i).appendChild(slot);
         });
         // a new pack deals itself out; a re-render of the same pack does not
         const packKey = v.round + ':' + v.pick;

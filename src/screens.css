@@ -1103,7 +1103,7 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .draft-go { min-width: 200px; min-height: 50px; font-size: 14px !important; }
 .draft-abilities { border-top-color: rgba(255,255,255,.08); color: #c9d1de; }
 .draft-pack { padding: 22px 22px 14px; --card-w: calc(200px * var(--card-scale)); --card-h: calc(279px * var(--card-scale)); }
-.pack-grid { gap: 18px 16px; }
+.pack-grid { gap: 22px; }
 .pick-card .card-img { box-shadow: 0 10px 22px rgba(0,0,0,.6); }
 .pick-card:hover .card-img { transform: translateY(-10px) scale(1.03); box-shadow: 0 22px 40px rgba(0,0,0,.7), 0 0 0 1px rgba(246,220,140,.4); }
 .pick-card.chosen .card-img {

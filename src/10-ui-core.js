@@ -961,9 +961,13 @@
     const r = RARITY_RANK[card.rarity];
     return r != null ? r : 1;
   };
+  /* A pack is read rarest first, left to right, the way you look for the
+     rare when you open one: mythics, rares, uncommons, commons, and the
+     basic land at the very end. */
+  const rarestFirst = (c) => (/\bBasic\b/.test(c.type_line || '') ? -1 : (RARITY_RANK[c.rarity] != null ? RARITY_RANK[c.rarity] : 1));
   UI.packOrder = function (cards) {
     return cards.slice().sort((a, b) =>
-      UI.packBand(a) - UI.packBand(b) ||
+      rarestFirst(b) - rarestFirst(a) ||
       UI.colorBucket(a) - UI.colorBucket(b) ||
       (a.cmc || 0) - (b.cmc || 0) ||
       String(a.name).localeCompare(String(b.name)));

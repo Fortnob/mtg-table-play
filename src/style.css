@@ -1110,13 +1110,13 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
   box-shadow: 0 -1px 0 rgba(255,255,255,.04), 0 -8px 22px rgba(0,0,0,.28);
   min-height: calc(13 * var(--vh)); max-height: calc(28 * var(--vh)); overflow-y: auto;
 }
+/* rows the draft table works out for the room it has (see _packFit) */
 .pack-grid {
-  display: grid; gap: 12px; width: 100%; margin: auto 0;
+  display: flex; flex-direction: column; align-items: center; gap: 22px; width: 100%;
   /* auto margins would do the same thing as centring, so they stop too */
   margin-block: auto;
-  grid-template-columns: repeat(auto-fit, minmax(var(--card-w), max-content));
-  justify-content: center; align-content: center;
 }
+.pack-row { display: flex; justify-content: center; gap: 16px; }
 @media (max-height: 900px) {
   .draft-pack { --card-w: calc(158px * var(--card-scale)); --card-h: calc(220px * var(--card-scale)); }
 }
@@ -1735,7 +1735,8 @@ a { color: var(--info); }
   --card-w: calc(98px * var(--card-scale));
   --card-h: calc(137px * var(--card-scale));
 }
-:root[data-phone] .pack-grid { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(var(--card-w), 1fr)); }
+:root[data-phone] .pack-grid { gap: 10px; }
+:root[data-phone] .pack-row { gap: 8px; }
 :root[data-phone] .draft-pool { min-height: auto; max-height: calc(30 * var(--vh)); padding: 8px; }
 
 /* ---- landscape phone: very little height, so trim the chrome ---- */
