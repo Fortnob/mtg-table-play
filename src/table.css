@@ -895,3 +895,27 @@
 :root[data-phone] .dock-hint { font-size: 10.5px; padding: 5px 7px 6px; line-height: 1.3;
   display: none; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 :root[data-phone] .dock-hint.on { display: -webkit-box; }
+
+/* ---------- the first-game walkthrough: a ring and a note on the real table ---------- */
+.coach-ring { position: absolute; z-index: 80; pointer-events: none; border-radius: 14px; opacity: 0;
+  box-shadow: 0 0 0 3px var(--gold-hi), 0 0 0 9px rgba(246,220,140,.18), 0 0 40px 10px rgba(246,220,140,.35);
+  transition: opacity .25s, left .3s cubic-bezier(.3,.7,.3,1), top .3s cubic-bezier(.3,.7,.3,1), width .3s, height .3s;
+  animation: coachPulse 1.8s ease-in-out infinite; }
+.coach-ring.on { opacity: 1; }
+@keyframes coachPulse { 50% { box-shadow: 0 0 0 3px var(--gold-hi), 0 0 0 14px rgba(246,220,140,.08), 0 0 56px 14px rgba(246,220,140,.28); } }
+.coach-bubble { position: absolute; z-index: 81; width: min(320px, calc(100% - 20px)); padding: 13px 16px 12px; border-radius: 16px;
+  background: linear-gradient(180deg, rgba(28,24,14,.98), rgba(14,12,8,.98)); border: 1px solid rgba(246,220,140,.6);
+  box-shadow: 0 16px 40px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.4); color: #eef1f6;
+  opacity: 0; pointer-events: none; translate: 0 6px; transition: opacity .2s, translate .25s cubic-bezier(.3,.7,.3,1); }
+.coach-bubble.on { opacity: 1; pointer-events: auto; translate: 0 0; }
+.coach-step { font: 700 9.5px/1 var(--font); letter-spacing: .18em; text-transform: uppercase; color: rgba(246,220,140,.7); }
+.coach-title { font: 600 18px/1.25 var(--serif); color: var(--gold-hi); margin: 5px 0 4px; }
+.coach-text { font-size: 13px; line-height: 1.5; color: #d8dee8; }
+.coach-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 11px; }
+.coach-skip { all: unset; cursor: pointer; font-size: 11.5px; color: #8d97a8; text-decoration: underline; text-underline-offset: 3px; }
+.coach-skip:hover { color: #c9d2e0; }
+.coach-skip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+:root[data-phone] .coach-bubble { padding: 10px 12px; }
+:root[data-phone] .coach-title { font-size: 16px; }
+:root[data-phone] .coach-text { font-size: 12px; }
+:root[data-reduce-motion] .coach-ring { animation: none; }

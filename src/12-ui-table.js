@@ -384,6 +384,8 @@
       for (const [id, w] of this.wraps) if (!this._usedWraps || !this._usedWraps.has(id)) { w.remove(); this.wraps.delete(id); }
       this._usedWraps = null;
       this.chaseArrows();
+      // the walkthrough, if one is running, follows what is on the table
+      if (this.coach) this.coach.onRender();
     }
 
     _opponents() {

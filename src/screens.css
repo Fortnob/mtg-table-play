@@ -1301,3 +1301,10 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 :root[data-phone] .starter-list { grid-template-columns: 1fr; }
 :root[data-phone] .pick-deck.starter .tiny.dim { white-space: normal; }
 .starter-head > .small { flex: 1 1 260px; }
+.guide-card { border-color: rgba(246,220,140,.45); }
+.guide-mark { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #241a05;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold-mid)); box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+.guide-mark svg { width: 16px; height: 16px; margin-left: 2px; }
+:root[data-phone] .guide-card { flex-wrap: wrap; }
+:root[data-phone] .guide-card > .grow { flex: 1 1 calc(100% - 60px); }
+.guide-card .resume-sub { white-space: normal; overflow: visible; line-height: 1.4; }

@@ -422,6 +422,22 @@
       resumeHost.appendChild(card);
     }).catch(() => {});
 
+    /* -- somebody new is offered a guided first game, until they take it or say no -- */
+    if (!MTG.settings.tutorialDone && !MTG.settings.tutorialDismissed) {
+      const offer = el('div', { class: 'resume-card guide-card' }, [
+        el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
+        el('div', { class: 'guide-mark', 'aria-hidden': 'true', html: SVG.play }),
+        el('div', { class: 'grow', style: { minWidth: 0 } }, [
+          el('div', { class: 'resume-title', text: 'New to Magic, or to this table?' }),
+          el('div', { class: 'resume-sub', text: 'Play a guided first game against a gentle bot. A few notes on the table show you the land, the creature, the big button, attacking and blocking as they come up.' }),
+        ]),
+        el('button', { class: 'btn sm ghost', text: 'No thanks', onclick: () => { MTG.setSetting('tutorialDismissed', true); renderHome(); } }),
+        el('button', { class: 'btn primary', text: 'Show me', onclick: () => App.startTutorial() }),
+      ]);
+      decorArt(offer.firstChild, 'Lightning Helix');
+      page.appendChild(offer);
+    }
+
     /* -- the three doors -- */
     const tile = (id, icon, title, body, onClick) => {
       const t = el('button', { class: 'home-tile', onclick: onClick, dataset: { tile: id } }, [
@@ -1070,6 +1086,15 @@
     sections.push(group('gameplay', 'Gameplay', null, [
       toggle('beginnerHints', 'Beginner hints', 'A line under the big button that says what is going on and what you could do, in plain English.',
         () => { if (App.table) App.table.render(); }),
+      el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label', text: 'First-game walkthrough' }),
+          el('div', { class: 'opt-help', text: S.tutorialDone
+            ? 'Seen. Play the guided first game again: a gentle bot, a starter deck, and notes on the table as things come up.'
+            : 'A guided first game: a gentle bot, a starter deck, and notes on the table as things come up.' }),
+        ]),
+        el('button', { class: 'btn sm', text: S.tutorialDone ? 'Play it again' : 'Play it', onclick: () => App.startTutorial() }),
+      ]),
       toggle('autoTapLands', 'Tap lands for me', 'When you cast something, the engine works out which lands to tap.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
       choice('handSort', 'Sort my hand by', [['cmc', 'Mana value'], ['name', 'Name'], ['type', 'Type'], ['color', 'Colour']]),
@@ -1381,6 +1406,22 @@
       UI.error(e.message || String(e));
       startLobby();
     }
+  };
+
+  /**
+   * A guided first game: a starter deck the game runs in full, one gentle
+   * bot, and coach marks over the real table (src/12e-ui-coach.js).
+   */
+  App.startTutorial = async function () {
+    let deck = null;
+    const busy = UI.busy('A first game', 'Shuffling up your deck…');
+    try { deck = await MTG.starters.build('w-cats'); }
+    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    // the walkthrough talks to whoever is reading it, so the hints come on with it
+    if (MTG.settings.beginnerHints === false) MTG.setSetting('beginnerHints', true);
+    await App.quickGame({ formatId: 'standard', difficulty: 1, opponents: 1, deck });
+    if (App.table && App.screen === 'table' && !App.table.coach) new UI.Coach(App.table);
   };
 
   async function joinRoom(code) {
