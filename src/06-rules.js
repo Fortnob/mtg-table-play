@@ -2118,6 +2118,8 @@
             const words = e.op === 'costMod' ? e.words : String(e.filter || '').trim();
             if (words && words !== 'spell' && !this._cardFitsWords(o, words)) continue;
             if (e.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
+            // Goreclaw: "with power 4 or greater", as printed on the card being cast
+            if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
             // Defense Grid: only on a turn that isn't the caster's
             if (e.offTurn && this.activePlayer && this.activePlayer.id === pid) continue;
             d += Number(e.amount) || 0;
@@ -5365,11 +5367,14 @@
       if (ev && ev.minBlockerPower != null && this.powerOf(blocker) < ev.minBlockerPower) return false;
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
       /* Delney: "creatures you control with power 2 or less can't be
-         blocked by creatures with power 3 or greater" */
+         blocked by creatures with power 3 or greater"; Champion of Lambholt:
+         "creatures with power less than this creature's power can't block
+         creatures you control" */
       for (const s of this.battlefield) {
         if (s.controller !== attacker.controller || s.phasedOut) continue;
         const g = this._staticOp(s, 'groupEvasion');
         if (g && this.powerOf(attacker) <= g.maxPower && this.powerOf(blocker) > g.maxBlockerPower) return false;
+        if (this._staticOp(s, 'smallCantBlock') && this.powerOf(blocker) < this.powerOf(s)) return false;
       }
       /* "Creatures with power less than this one's can't block it." */
       if (ev && ev.blockerAtLeastMyPower && this.powerOf(blocker) < this.powerOf(attacker)) return false;
@@ -9032,6 +9037,45 @@
           }
           break;
         }
+        /* "Sacrifice it unless you sacrifice a land", "… unless you return an
+           untapped Plains you control to its owner's hand", "… unless you
+           discard a card": a thing picked is the price paid; none, and it goes */
+        case 'sacSelfUnless': {
+          if (!src || src.zone !== 'battlefield') break;
+          const words = String(e.filter || 'card').replace(/^non-lair /, '');
+          const fits = (x) => (e.filter === 'card' || this._cardFitsWords(x, words)) &&
+            !(/^non-lair/.test(e.filter || '') && ((x.analysis() || {}).subtypes || []).includes('Lair'));
+          const pool = e.how === 'discard' ? this.zones[ctx.controller].hand.filter(fits)
+            : this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && fits(x) &&
+              !(e.untapped && x.tapped) && !(e.another && x === src) && !(e.how === 'sacrifice' && x === src));
+          let paid = null;
+          if (pool.length) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'unlessSacrifice', kind: 'objects',
+              zone: e.how === 'discard' ? 'hand' : 'battlefield', items: this._chooseItems(pool), min: 0, max: 1,
+              sourceId: src.id, sourceName: src.name,
+              prompt: `${e.how === 'discard' ? 'Discard' : e.how === 'return' ? 'Return' : 'Sacrifice'} ${/^[aeiou]/i.test(words) ? 'an' : 'a'} ${e.filter}${e.how === 'return' ? ' to its owner\'s hand' : ''}, or sacrifice ${src.name}?` }, 'unless');
+            if (got === SUSPEND) return SUSPEND;
+            paid = got && got.picks.length ? this.obj(got.picks[0]) : null;
+            if (paid && !pool.includes(paid)) paid = null;
+          }
+          if (paid && e.how === 'discard') this._discardNow(ctx.controller, [paid]);
+          else if (paid && e.how === 'return') { this.moveObject(paid, 'hand'); this.logEvent('rules', `${me.name} returns ${paid.name} to hand.`); }
+          else if (paid) { this._sacrificeNow(ctx.controller, [paid], ctx); this._fire('youSacrifice', ctx.controller, { count: 1 }); }
+          else {
+            this.moveObject(src, 'graveyard');
+            this._fire('youSacrifice', ctx.controller, { count: 1 });
+            this.logEvent('sacrifice', `${src.name} is sacrificed.`);
+          }
+          break;
+        }
+        // "Each player searches their library for …": one search each, in turn order from you
+        case 'eachPlayerTutor': {
+          const order = this.players.filter(p => !p.hasLost);
+          const at = Math.max(0, order.findIndex(p => p.id === ctx.controller));
+          const turnOrder = order.slice(at).concat(order.slice(0, at));
+          this._spliceNext(turnOrder.map(p => Object.assign({}, e.tutor, { who: 'player', pid: p.id })));
+          break;
+        }
         // Insurrection: every creature, untapped and yours until end of turn
         case 'threatenAll': {
           const ts = this._stampNew();
@@ -9146,7 +9190,8 @@
         case 'tutor': {
           /* "Its controller may search their library" is somebody else's
              search: their library, and their choice. */
-          const seeker = e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
+          const seeker = e.who === 'targetController' ? (this._lastAffectedController() || me)
+            : e.who === 'player' ? (this.player(e.pid) || me) : me;
           if (!this._doneHere('searched')) this._searched(seeker.id);
           const z = this.zones[seeker.id];
           const want = String(e.filter || 'any').toLowerCase();

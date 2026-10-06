@@ -1459,6 +1459,22 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* "Sacrifice it unless you sacrifice a land / return a Plains / discard
+       a card": pay with the least of them when the permanent is worth more. */
+    unlessSacrifice(s) {
+      const g = this.game;
+      const src = s.sourceId ? g.obj(s.sourceId) : null;
+      const keep = src ? this.permanentValue(src) : 0;
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
+        .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : this.rating(o) })).sort((x, y) => x.v - y.v);
+      return pool.length && pool[0].v <= keep ? { picks: [pool[0].o.id] } : { picks: [] };
+    },
+    /* Painful Quandary: a card from hand rather than 5 life, the least of them */
+    unlessDiscard(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((x, y) => this.rating(x) - this.rating(y));
+      return pool.length ? { picks: [pool[0].id] } : { picks: [] };
+    },
     /* Replicate: every copy is the spell again, so as many as can be paid
        for — unless the spell is one we would not want twice. */
     replicate(s) {

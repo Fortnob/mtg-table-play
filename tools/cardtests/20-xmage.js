@@ -2452,6 +2452,61 @@ module.exports = (test) => {
     t.eq(T.life('B'), 14, 'not the second');
   });
 
+  test('Karoo: return an untapped Plains, or it goes', (mk, t) => {
+    t.auto('Karoo');
+    for (const keep of [true, false]) {
+      const T = mk();
+      const pl = T.bf('A', 'Plains');
+      T.answer('choose', (ch) => ({ picks: keep ? [pl.id] : [] }));
+      const k = T.hand('A', 'Karoo');
+      T.playLand('A', k);
+      T.resolve();
+      t.zone(k, keep ? 'battlefield' : 'graveyard', keep ? 'kept' : 'sacrificed');
+      t.zone(pl, keep ? 'hand' : 'battlefield');
+    }
+  });
+
+  test('Quickling needs another creature to go back', (mk, t) => {
+    t.auto('Quickling');
+    const T = mk();
+    T.mana('A', '1U');
+    const q = T.hand('A', 'Quickling');
+    T.cast('A', q);
+    T.resolve();
+    t.zone(q, 'graveyard', 'nothing to return');
+  });
+
+  test('Field of Ruin: every player fetches a basic', (mk, t) => {
+    t.auto('Field of Ruin');
+    const T = mk();
+    const f = T.bf('A', 'Field of Ruin');
+    const nb = T.bf('B', 'Steam Vents');
+    T.top('A', 'Forest'); T.top('B', 'Island');
+    T.mana('A', '2');
+    T.activate('A', f, f.analysis().manaAbilities.length, { targets: [nb] });
+    T.resolve();
+    t.zone(nb, 'graveyard');
+    t.ok(T.bfOf('A').some(o => o.name === 'Forest') && T.bfOf('B').some(o => o.name === 'Island'), 'one each');
+  });
+
+  test('Goreclaw: big creature spells cost {2} less', (mk, t) => {
+    t.auto('Goreclaw, Terror of Qal Sisma');
+    const T = mk();
+    T.bf('A', 'Goreclaw, Terror of Qal Sisma');
+    t.eq(T.g.castCost(T.hand('A', 'Craw Wurm')), '{2}{G}{G}');
+    t.eq(T.g.castCost(T.hand('A', 'Grizzly Bears')), '{1}{G}', 'not a 2/2');
+  });
+
+  test("Champion of Lambholt: smaller creatures can't block yours", (mk, t) => {
+    t.auto('Champion of Lambholt');
+    const T = mk();
+    const c = T.bf('A', 'Champion of Lambholt');
+    c.counters['+1/+1'] = 2; T.g.bumpBoard();
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.no(T.g.couldBlock(T.bf('B', 'Grizzly Bears'), bear, 'B'), 'a 2/2 cannot block');
+    t.ok(T.g.couldBlock(T.bf('B', 'Craw Wurm'), bear, 'B'), 'the Wurm can');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

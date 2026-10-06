@@ -2325,6 +2325,29 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    /* The Gitrog Monster, Karoo, Quickling, Solitary Confinement: "sacrifice
+       it unless you sacrifice a land / return an untapped Plains you control
+       to its owner's hand / discard a card" */
+    { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you (sacrifice|discard|return) (an?|another) (untapped )?([A-Za-z -]+?)( card)?( you control)?( to its owner'?s hand)?\.?$/i,
+      make: (m) => {
+        const how = m[1].toLowerCase();
+        if ((how === 'return') !== !!m[7]) return null;
+        if (how === 'discard' ? !!m[6] : !!m[5]) return null;
+        let filter = m[4].trim().toLowerCase();
+        if (how === 'discard' && filter === 'card') filter = 'card';
+        if (!/^(?:card|land|creature|artifact|enchantment|permanent|non-lair land|basic land|plains|island|swamp|mountain|forest|[a-z]+ creature|[a-z]+ card)$/.test(filter)) return null;
+        return { op: 'sacSelfUnless', how, filter, untapped: !!m[3], another: /another/i.test(m[2]) };
+      } },
+    /* Field of Ruin: "Each player searches their library for a basic land
+       card, puts it onto the battlefield, then shuffles." The same search,
+       once for each player, from their own library. */
+    { re: /^Each player (may )?searches their library for (.+?), puts? (it|them) onto the battlefield( tapped)?, then shuffles\.?$/i,
+      make: (m) => {
+        const one = parseSearch('Search your library for ' + m[2] + ', put ' + m[3] + ' onto the battlefield' + (m[4] || '') + ', then shuffle.');
+        if (!one || one.op !== 'tutor') return null;
+        if (m[1]) one.optional = true;
+        return { op: 'eachPlayerTutor', tutor: one };
+      } },
     /* Consuming Aberration, Balustrade Spy: "each opponent reveals cards
        from the top of their library until they reveal a land card, then
        puts those cards into their graveyard" */
@@ -3447,6 +3470,9 @@
     // Defense Grid: "…cost {3} more to cast except during its controller's turn"
     const offTurn = / except during its controller'?s turn$/i.test(s);
     s = s.replace(/ except during its controller'?s turn$/i, '');
+    // Goreclaw: "Creature spells you cast with power 4 or greater cost {2} less to cast"
+    const pw = s.match(/ with power (\d+) or greater(?= costs?)/i);
+    if (pw) s = s.replace(pw[0], '');
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+)\} (more|less) to cast$/i);
     if (!m) return null;
     const words = (m[1] + ' ' + (m[4] || '')).replace(/,/g, ' ').trim().toLowerCase()
@@ -3457,7 +3483,8 @@
     if (/historic/.test(words)) return null;
     const who = /opponent/i.test(m[2] || '') ? 'opponents' : /you cast/i.test(m[2] || '') ? 'you' : 'all';
     const amount = (+m[5]) * (/less/i.test(m[6]) ? -1 : 1);
-    return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {});
+    return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {},
+      pw ? { minPower: +pw[1] } : {});
   }
 
   /* "This spell costs {1} less to cast for each artifact you control",
@@ -6466,6 +6493,9 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Champion of Lambholt: "Creatures with power less than this creature's power can't block creatures you control."
+      { re: /^Creatures with power less than (?:this creature|CARDNAME)'?s power can'?t block creatures you control\.?$/i,
+        eff: { op: 'smallCantBlock' }, auto: true },
       // Frenzied Baloth: "Combat damage can't be prevented."
       { re: /^Combat damage can'?t be prevented\.?$/i, eff: { op: 'noCombatPrevention' }, auto: true },
       // Woe Strider: "This creature escapes with two +1/+1 counters on it."
