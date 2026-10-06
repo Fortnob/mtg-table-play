@@ -966,8 +966,10 @@
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
 
     // --- sentences that need no action from the engine ---
-    { re: /^(?:They|It) can'?t be regenerated\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^(?:This|That) creature can'?t be regenerated\.?$/i, make: () => ({ op: 'noop' }) },
+    /* "They can't be regenerated": a rider on the destruction before it,
+       folded into it as the sentences are put together */
+    { re: /^(?:They|It) can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
+    { re: /^(?:This|That) creature can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
     { re: /^Activate (?:this ability )?only as a sorcery\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Activate (?:this ability )?only any time you could cast a sorcery\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Activate (?:this ability )?only once each turn\.?$/i, make: () => ({ op: 'noop' }) },
@@ -1000,9 +1002,9 @@
 
     // --- mass removal ---
     { re: /^Destroy all creatures\.?(?: They can'?t be regenerated\.?)?$/i,
-      make: () => ({ op: 'destroyAll', what: 'creature' }) },
+      make: (m) => Object.assign({ op: 'destroyAll', what: 'creature' }, /regenerated/i.test(m[0]) ? { noRegen: true } : {}) },
     { re: /^Destroy all (creatures|artifacts|enchantments|lands|planeswalkers|nonland permanents|permanents)\.?(?: They can'?t be regenerated\.?)?$/i,
-      make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
+      make: (m) => Object.assign({ op: 'destroyAll', what: m[1].toLowerCase() }, /regenerated/i.test(m[0]) ? { noRegen: true } : {}) },
     { re: /^Exile all (creatures|artifacts|enchantments|nonland permanents|permanents)\.?$/i,
       make: (m) => ({ op: 'exileAll', what: m[1].toLowerCase() }) },
     { re: /^Return all (creatures|artifacts|enchantments|nonland permanents|permanents) to their owners'? hands?\.?$/i,
@@ -3903,8 +3905,11 @@
         continue;
       }
       if (e && e.noRegenRider) {
+        const hits = (x) => x && (x.op === 'damage' || x.op === 'destroy' || x.op === 'destroyAll');
         for (let i = out.length - 1; i >= 0; i--) {
-          if (out[i].op === 'damage' || out[i].op === 'destroy' || out[i].op === 'destroyAll') { out[i].noRegen = true; break; }
+          // "…destroy target creature and …" read as a sequence: the destruction inside it
+          const inner = out[i].op === 'sequence' ? (out[i].list || []).slice().reverse().find(hits) : null;
+          if (hits(out[i]) || inner) { (inner || out[i]).noRegen = true; break; }
         }
         continue;
       }

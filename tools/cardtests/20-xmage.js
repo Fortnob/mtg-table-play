@@ -2549,6 +2549,33 @@ module.exports = (test) => {
     t.zone(b, 'exile');
   });
 
+  test("Wrath of God: a regeneration shield doesn't save it; Day of Judgment's does", (mk, t) => {
+    t.auto('Wrath of God'); t.auto('Day of Judgment');
+    for (const [spell, cost, dies] of [['Wrath of God', '2WW', true], ['Day of Judgment', '2WW', false]]) {
+      const T = mk();
+      const sk = T.bf('A', 'Drudge Skeletons');
+      T.mana('A', 'B');
+      T.activate('A', sk, 0);
+      T.resolve();
+      t.ok(sk.shields > 0, 'shielded');
+      T.mana('A', cost);
+      T.cast('A', T.hand('A', spell));
+      T.resolve();
+      t.zone(sk, dies ? 'graveyard' : 'battlefield', spell);
+    }
+  });
+
+  test("Terminate: 'It can't be regenerated' on a single target", (mk, t) => {
+    t.auto('Terminate');
+    const T = mk();
+    const sk = T.bf('B', 'Drudge Skeletons');
+    sk.shields = 1;
+    T.mana('A', 'BR');
+    T.cast('A', T.hand('A', 'Terminate'), { targets: [T.tgt(sk)] });
+    T.resolve();
+    t.zone(sk, 'graveyard');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

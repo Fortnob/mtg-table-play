@@ -8162,7 +8162,7 @@
         case 'destroy':
           if (e.scope === 'attached') {
             const x = src && src.attachedTo && this.obj(src.attachedTo);
-            if (x && !this.hasKw(x, 'indestructible') && !this._totemArmor(x) && !this._regenerated(x)) this.moveObject(x, 'graveyard');
+            if (x && !this.hasKw(x, 'indestructible') && !this._totemArmor(x) && !(!e.noRegen && this._regenerated(x))) this.moveObject(x, 'graveyard');
             break;
           }
           this._noteLastAffected(targets);
@@ -8174,7 +8174,8 @@
             if (e.ifColor && !((a && a.colors) || []).includes(e.ifColor)) continue;
             if (this.hasKw(o, 'indestructible')) { this.logEvent('rules', `${o.name} is indestructible.`); continue; }
             if (this._totemArmor(o)) continue;
-            if (this._regenerated(o)) continue;
+            // "It can't be regenerated."
+            if (!e.noRegen && this._regenerated(o)) continue;
             this.moveObject(o, 'graveyard');
           }
           break;
