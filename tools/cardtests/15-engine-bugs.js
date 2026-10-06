@@ -188,4 +188,25 @@ module.exports = (test) => {
     t.ok(T2.g.viewFor('A').players.find(p => p.id === 'A').topCard, 'A may look');
     t.no(T2.g.viewFor('B').players.find(p => p.id === 'A').topCard, 'B may not');
   });
+
+  test('every land in hand is playable, not just the first', (mk, t) => {
+    const T = mk();
+    const a = T.hand('A', 'Forest');
+    const b = T.hand('A', 'Island');
+    const c = T.hand('A', 'Mountain');
+    const ids = T.g.playableNow('A').filter(x => x.kind === 'land').map(x => x.objId);
+    t.ok(ids.includes(a.id) && ids.includes(b.id) && ids.includes(c.id), 'all three lands are offered');
+    t.ok(T.g.playLand('A', c.id), 'the third one can be played');
+    t.eq(T.g.playableNow('A').filter(x => x.kind === 'land').length, 0, 'and then none, one land a turn');
+  });
+
+  test('a modal double-faced card goes down as the land on its back', (mk, t) => {
+    const T = mk();
+    const card = T.hand('A', 'Shatterskull Smashing');
+    t.ok(T.g.playableNow('A').some(x => x.kind === 'land' && x.objId === card.id), 'offered as a land');
+    t.ok(T.g.playLand('A', card.id, 1), 'played as its back');
+    t.zone(card, 'battlefield');
+    t.ok(card.analysis().isLand, 'it is the land on the battlefield');
+    t.eq(T.player('A').landsPlayed, 1, 'it was the land for the turn');
+  });
 };

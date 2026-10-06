@@ -785,7 +785,7 @@
           .filter(o => this._playFromRule(playerId, o, 'land'));
         for (const o of z.hand.concat(impulsed, elsewhere)) {
           const a = o.analysis();
-          if (a && a.isLand) { out.push({ kind: 'land', objId: o.id }); break; }
+          if ((a && a.isLand) || this.landBack(o)) out.push({ kind: 'land', objId: o.id });
         }
       }
       const fromTop = z.library.slice(0, 1).filter(o => this._playFromRule(playerId, o, 'spell'));
@@ -1926,14 +1926,27 @@
       return k;
     }
 
-    playLand(playerId, objId) {
+    /**
+     * A modal double-faced card whose back is a land (Fell the Profane //
+     * Fell Mire): it can be played as that land instead of cast (CR 712.12).
+     */
+    landBack(o) {
+      const faces = o && o.card && o.card.card_faces;
+      return !!(o && !o.faceDown && o.card.layout === 'modal_dfc' && faces && faces[1] &&
+        /\bLand\b/.test(faces[1].type_line || '') && !/\bLand\b/.test(faces[0].type_line || ''));
+    }
+
+    /** Play a land from hand. `face` 1 plays a modal double-faced card as the land on its back. */
+    playLand(playerId, objId, face) {
       const p = this.player(playerId);
       const o = this.obj(objId);
       if (!o) return this.fail('No such card.');
       if (o.controller !== playerId && o.owner !== playerId) return this.fail('Not your card.');
       const a = o.analysis();
-      if (!a || !a.isLand) return this.fail('That is not a land.');
+      const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
+      if (!back && (!a || !a.isLand)) return this.fail('That is not a land.');
       if (!this.canPlayLand(playerId)) return this.fail('You cannot play a land right now.');
+      if (back) o.face = 1;
       p.landsPlayed++;
       this.moveObject(o, 'battlefield', { asLand: true });
       this.logEvent('land', `${p.name} plays ${o.name}.`);
@@ -6426,6 +6439,7 @@
         (o.effects || []).find(e => e.returnOnDeath);
       if (toZone !== 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
+        if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') o.face = 0;
         o._diedCounters = Object.assign({}, o.counters);
         o.tapped = false; o.damage = 0; o.counters = {};
         o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];

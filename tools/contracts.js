@@ -239,7 +239,7 @@ const INTENTS = {
   fullControl: closed({ on: bool, sticky: opt(bool) }),
   yield: closed({ mode: maybe(lit('turn', 'response')) }),
   keep: closed({ bottom: opt(ids) }),
-  playLand: onObj, cycle: onObj, plot: onObj, suspend: onObj, transmute: onObj, encore: onObj, turnFaceUp: onObj,
+  playLand: closed({ objId: id, face: opt(nat) }), cycle: onObj, plot: onObj, suspend: onObj, transmute: onObj, encore: onObj, turnFaceUp: onObj,
   cast: closed({
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), spree: opt(maybe(arr(int))), via: opt(maybe(str)),

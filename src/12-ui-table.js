@@ -1761,7 +1761,35 @@
         return UI.toast(a.isInstant || a.has('flash') ? 'You cannot pay for that right now.' : 'You cannot cast that right now.');
       }
       if (a.isLand) { MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id }); }
+      if (this._landBack(o)) return this._spellOrLand(o, a);
       this.beginCast(o, a);
+    }
+
+    /** A modal double-faced card with a land on its back: the land side, if one can go down now. */
+    _landBack(o) {
+      const faces = o && o.card && o.card.card_faces;
+      if (!(o.card.layout === 'modal_dfc' && faces && faces[1] && /\bLand\b/.test(faces[1].type_line || '') &&
+        !/\bLand\b/.test(faces[0].type_line || ''))) return null;
+      const v = this.live, me = this.me;
+      const canLand = me && v.activePlayer === this.meId && /^main/.test(v.step || '') && !(v.stack || []).length &&
+        me.landsPlayed < (me.maxLands || 1);
+      return canLand ? faces[1] : null;
+    }
+
+    /** Cast the front, or play the back as this turn's land. @this {MTG.TableInstance} */
+    _spellOrLand(o, a) {
+      const faces = o.card.card_faces;
+      // the reason the engine gives is the front's: none means it can be cast as well
+      const castable = !this.whyNot(o.id);
+      /** @type {Array<[string, () => void]>} */
+      const items = [
+        [`Play ${faces[1].name} as a land`, () => { MTG.sfx('ui_play'); this.send({ kind: 'playLand', objId: o.id, face: 1 }); }],
+      ];
+      if (castable) items.unshift([`Cast ${faces[0].name}`, () => this.beginCast(o, a)]);
+      if (items.length === 1) return items[0][1]();
+      const n = this.els.get(o.id);
+      const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
+      UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
     }
 
     /* ---- targets ---- */

@@ -3180,7 +3180,7 @@
         case 'yield': g.setYield(actorId, intent.mode || null); break;
         case 'mulligan': g.mulligan(actorId); break;
         case 'keep': g.keepHand(actorId, intent.bottom || []); break;
-        case 'playLand': g.playLand(actorId, intent.objId); break;
+        case 'playLand': g.playLand(actorId, intent.objId, intent.face === 1 ? 1 : 0); break;
         case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: true,
           free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,

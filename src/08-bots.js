@@ -2394,8 +2394,14 @@
     playLandIfUseful() {
       const g = this.game;
       if (!g.canPlayLand(this.pid)) return false;
-      const lands = this.hand().filter(o => { const a = o.analysis(); return a && a.isLand; });
-      if (!lands.length) return false;
+      let lands = this.hand().filter(o => { const a = o.analysis(); return a && a.isLand; });
+      // with no land in hand, a spell with a land on its back goes down as the land
+      if (!lands.length) {
+        const backs = this.hand().filter(o => g.landBack(o));
+        if (!backs.length || !g.playLand(this.pid, backs[0].id, 1)) return false;
+        this._did('land', backs[0]);
+        return true;
+      }
       const need = this.colorNeeds();
       const useNow = this._wouldUseUntapped();
       let pick;
