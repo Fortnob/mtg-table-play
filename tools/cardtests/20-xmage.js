@@ -2576,6 +2576,27 @@ module.exports = (test) => {
     t.zone(sk, 'graveyard');
   });
 
+  test('Split cards: either half can be cast, with face', (mk, t) => {
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const fi = T.hand('A', 'Fire // Ice');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1U');
+    t.eq(JSON.stringify(T.g.playableNow('A').filter(x => x.objId === fi.id).map(x => x.face)), '[1]', 'only Ice is affordable');
+    t.eq(T.g.whyNotPlayable('A', fi.id), null, 'so the card is playable');
+    t.eq(JSON.stringify(T.g.viewFor('A').splitFaces[fi.id]), '[1]', 'and the view says which');
+    t.no(T.g.castSpell('A', fi.id, { auto: true, face: 2 }), 'no third half');
+    t.no(T.g.castSpell('A', fi.id, { auto: true, face: 0, targets: [{ kind: 'object', id: b.id }] }), 'Fire needs red');
+    t.eq(fi.face || 0, 0, 'left as it was');
+    const before = T.zone('A', 'hand').length;
+    t.ok(T.g.castSpell('A', fi.id, { auto: true, face: 1, targets: [{ kind: 'object', id: b.id }] }), T.g.lastError);
+    T.resolve();
+    t.ok(b.tapped, 'Ice tapped it');
+    t.eq(T.zone('A', 'hand').length, before, 'and drew');
+    t.zone(fi, 'graveyard');
+    t.eq(fi.face || 0, 0, 'a whole card again in the graveyard');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

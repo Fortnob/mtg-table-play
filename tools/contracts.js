@@ -202,6 +202,8 @@ const View = obj({
   canUndo: bool, undoLabel: maybe(str), holding: bool,
   fullControl: bool, fullControlSticky: bool, yielding: maybe(lit('turn', 'response')),
   playable: arr(id), uses: rec(arr(AltUse)), extras: rec(arr(ExtraCost)),
+  /* split cards in hand: the halves castable now */
+  splitFaces: opt(rec(arr(nat))),
   monarch: maybe(id), initiative: maybe(id), isDay: maybe(bool),
   pendingChoice: maybe((v, p, out) => (v.waiting ? WaitingChoice : Choice)(v, p, out)),
   stack: arr(StackItemView), battlefield: arr(ObjectView), players: arr(PlayerView, { min: 1 }),
@@ -248,6 +250,8 @@ const INTENTS = {
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
     convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),
+    /* a split card's half: 0 left, 1 right */
+    face: opt(nat),
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
   }),

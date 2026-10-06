@@ -913,6 +913,18 @@
             if (timing.ok) out.push({ kind: 'cast', objId: o.id, via: use.via });
           }
         }
+        /* A split card in hand: either half, each offered with its face */
+        if (o.zone === 'hand' && this._splitHalves(o)) {
+          for (const face of [0, 1]) {
+            const okHalf = this._asHalf(o, face, () => {
+              const c2 = this.canCast(playerId, o.id);
+              return c2.ok && this.canPayNow(playerId, String(c2.cost || '').replace(/\{X\}/g, ''), { forSpell: o }) &&
+                this._targetsAvailable(this._spellEffects(o.analysis()), playerId);
+            });
+            if (okHalf) out.push({ kind: 'cast', objId: o.id, face });
+          }
+          continue;
+        }
         const chk = this.canCast(playerId, o.id);
         // the same check castSpell's payment makes, so what is offered can be paid for
         if (!chk.ok || !this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o })) continue;
@@ -2452,7 +2464,29 @@
      *   code: 'timing' | 'land' | 'priority' | 'mana' | 'targets' | 'rule'
      *   missing (for 'mana'): the shortfall by colour, plus `generic`
      */
-    whyNotPlayable(playerId, objId) {
+    /** A split card in hand whose halves are each cast on their own (not aftermath's graveyard half). */
+    _splitHalves(o) {
+      const c = o && o.card;
+      if (!c || c.layout !== 'split' || !c.card_faces || c.card_faces.length !== 2) return false;
+      return !/^Aftermath\b/m.test(String(c.card_faces[1].oracle_text || ''));
+    }
+    /** Ask something of one half of a split card, and put the card back as it was. */
+    _asHalf(o, face, fn) {
+      const was = o.face || 0;
+      o.face = face; o._chr = null;
+      try { return fn(); } finally { o.face = was; o._chr = null; }
+    }
+
+    whyNotPlayable(playerId, objId, face) {
+      /* A split card is playable when either half is; the reason given is the
+         left half's when neither is. */
+      const so = this.obj(objId);
+      if (face == null && so && this._splitHalves(so) && so.zone === 'hand') {
+        const left = this._asHalf(so, 0, () => this.whyNotPlayable(playerId, objId, 0));
+        if (!left) return null;
+        const right = this._asHalf(so, 1, () => this.whyNotPlayable(playerId, objId, 1));
+        return right ? left : null;
+      }
       const p = this.player(playerId);
       const o = this.obj(objId);
       if (!p || !o || p.hasLost || this.over || this.mulliganPhase) return null;
@@ -3362,6 +3396,23 @@
     castSpell(playerId, objId, opts) {
       opts = opts || {};
       if (opts.via === 'prepared') return this._castPrepared(playerId, objId, opts);
+      /* A split card (CR 709): cast one half or the other, as `face` says.
+         The half is what the spell is while it is on the stack; a cast that
+         doesn't happen leaves the card as it was. */
+      if (opts.face != null && !opts._faceSet) {
+        const so = this.obj(objId);
+        if (!so) return this.fail('No such card.');
+        const f = Number(opts.face);
+        if (!this._splitHalves(so)) { if (f !== 0) return this.fail('That card has only one half to cast.'); }
+        else {
+          if (f !== 0 && f !== 1) return this.fail('A split card has two halves: face 0 or 1.');
+          const was = so.face || 0;
+          so.face = f; so._chr = null;
+          const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true }));
+          if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
+          return ok;
+        }
+      }
       /* An ability that works from the graveyard is offered among the ways
          to cast a card from there, so choosing it arrives here: it is
          activated, not cast. Targets chosen for the card as a spell are
@@ -6994,6 +7045,8 @@
       if (toZone !== 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
         if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') o.face = 0;
+        // a split card's half is only what it is on the stack
+        if (toZone !== 'stack' && from === 'stack' && o.card.layout === 'split') o.face = 0;
         o._diedCounters = Object.assign({}, o.counters);
         o.tapped = false; o.damage = 0; o.counters = {};
         o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];
@@ -13744,6 +13797,14 @@
         yielding: (this.player(playerId) || {}).yieldUntil || null,
         playable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).map(x => x.objId) : [],
+        /* Split cards in hand: which halves can be cast now (0 left, 1 right),
+           for the table to offer each; cast with the intent's `face`. */
+        splitFaces: (() => {
+          const out = {};
+          if (!(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;
+          for (const x of this.playableNow(playerId)) if (x.kind === 'cast' && x.face != null) (out[x.objId] = out[x.objId] || []).push(x.face);
+          return out;
+        })(),
         /* Why each card in your hand cannot be played just now, so the
            table can say so when you point at one. */
         unplayable: (() => {

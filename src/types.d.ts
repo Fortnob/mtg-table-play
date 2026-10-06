@@ -200,6 +200,8 @@ declare namespace MTG {
     yielding: 'turn' | 'response' | null;
     /** objects with something to do right now (only for the player with priority) */
     playable: Id[];
+    /** split cards in hand: which halves (0 left, 1 right) can be cast now */
+    splitFaces?: Record<Id, number[]>;
     uses: Record<Id, AltUse[]>;
     extras: Record<Id, ExtraCost[]>;
     monarch: PlayerId | null;
@@ -374,6 +376,8 @@ declare namespace MTG {
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number;
       /** what pays for convoke, improvise and delve (left out, the engine picks the cheapest) */
       convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
+      /** a split card's half to cast: 0 left, 1 right */
+      face?: number;
       /** generic questions answered as the spell is cast (replicate, splice), by purpose */
       choices?: Record<string, ChooseAnswer>;
     }
