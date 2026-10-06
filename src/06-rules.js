@@ -13854,6 +13854,8 @@
         attacking: o.attacking, blocking: o.blocking, blockedBy: o.blockedBy, blockOrder: o.blockOrder,
         effects: o.effects, isCommander: !!o.isCommander, note: o.note, entered: o.entered,
         prepared: !!o.prepared,
+        // soulbond: the creature it is paired with
+        pairedWith: o.zone === 'battlefield' ? ((this._pairOf(o) || {}).id || null) : null,
         power: (() => { const a = o.analysis(); return a && a.isCreature ? this.powerOf(o) : null; })(),
         toughness: (() => { const a = o.analysis(); return a && a.isCreature ? this.toughnessOf(o) : null; })(),
         /* what it has right now, granted keywords included, so the table can

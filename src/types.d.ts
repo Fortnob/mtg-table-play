@@ -81,6 +81,8 @@ declare namespace MTG {
     isCommander: boolean;
     /** prepared: it can cast a copy of its card's spell */
     prepared?: boolean;
+    /** soulbond: the id of the creature it is paired with */
+    pairedWith?: Id | null;
     note?: string | null;
     /** the turn it entered */
     entered?: number | null;
