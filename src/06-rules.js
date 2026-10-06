@@ -5930,7 +5930,7 @@
       try {
         /* A granted ability is its words, or (from a translated card) the
            ability already written out, carried as JSON. */
-        const said = (e) => e.grantText || ('' + JSON.stringify(e.grantAbilities));
+        const said = (e) => e.grantText || ('\u0002' + JSON.stringify(e.grantAbilities));
         texts = own.map(said);
         // when each was handed over, so an effect that takes every ability away can tell what came after it
         stamps = own.map(e => (e.ts != null ? e.ts : (this._tsSeq || 0) + 0.5));
@@ -5967,6 +5967,11 @@
       if (texts.length) {
         const extra = [];
         texts.forEach((t, i) => {
+          if (t[0] === '\u0002') {
+            // written out: triggered and activated abilities alike
+            for (const ab of JSON.parse(t.slice(1))) if (ab.kind === 'triggered' || ab.kind === 'activated') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
+            return;
+          }
           const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Creature', oracle_text: t, keywords: [], layout: 'token' });
           for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
         });
