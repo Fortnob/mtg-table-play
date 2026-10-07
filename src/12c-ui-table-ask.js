@@ -915,8 +915,32 @@
       // fused, both halves' targets are asked for, the left half's first
       const parts = via === 'fuse' ? [MTG.oracle.analyze(o.card, 0), MTG.oracle.analyze(o.card, 1)].filter(Boolean) : [a];
       for (const part of parts) {
-        const eff = part.isPermanent ? [] : MTG.oracle.parseEffects(part.oracleTextParsed || part.oracleText || '').effects;
-        for (const e of eff) for (const s of (e.targets || [])) specs.push(s);
+        if (part.isPermanent) continue;
+        /* the targets in the order the engine reads them (Game._cardSpellEffects
+           and _specsOf): the spell abilities' effects when all of them run
+           themselves, else the words parsed, with sequences walked into */
+        const lines = [];
+        let allAuto = true;
+        for (const ab of (part.abilities || [])) {
+          if (ab.kind !== 'spell') continue;
+          lines.push(...(ab.effects || []));
+          if (!ab.auto) allAuto = false;
+        }
+        let eff = lines;
+        // a spell that is nothing but keywords does them as it is cast, and aims at nothing
+        if (!lines.length && part.autoCoverage >= 0.999) eff = [];
+        else if (!(lines.length && allAuto)) {
+          const parsed = MTG.oracle.parseEffects(part.oracleTextParsed || part.oracleText || '');
+          if (parsed.auto || !lines.length) eff = parsed.effects;
+        }
+        const walk = (list) => {
+          for (const e of (list || [])) {
+            if (!e) continue;
+            if (e.op === 'sequence') { walk(e.list); continue; }
+            for (const s of (e.targets || [])) specs.push(s);
+          }
+        };
+        walk(eff);
       }
       if (a.isAura && a.auraSpec) specs.push(a.auraSpec);
       if (via === 'bestow') specs.push({ type: 'creature', zone: 'battlefield' });
@@ -944,11 +968,13 @@
          are a group of their own, as many as X (or as many as there are),
          ended with Done when fewer will do. The picks join up in order. */
       const groups = [];
+      const offBoard = (sp) => sp && (sp.zone === 'graveyard' || sp.zone === 'exile');
       for (const s of specs) {
         const m = s.multi;
+        const off = offBoard(s);
         if (!m) {
           const last = groups[groups.length - 1];
-          if (last && !last.multi) last.specs.push(s); else groups.push({ specs: [s] });
+          if (last && !last.multi && !!last.off === off) last.specs.push(s); else groups.push({ specs: [s], off });
           continue;
         }
         const plain = Object.assign({}, s, { multi: null });
@@ -959,7 +985,7 @@
         else { n = Math.min(x, legal); min = m.exact ? n : 0; }
         if (!n) continue;
         const each = Array.from({ length: n }, (z, i) => (i < min ? plain : Object.assign({}, plain, { upTo: true })));
-        groups.push({ specs: each, multi: m, min });
+        groups.push({ specs: each, multi: m, min, off });
       }
       const run = (i, acc) => {
         if (i >= groups.length) return go(acc);
@@ -969,18 +995,74 @@
           ? (g.multi.count === 'any' ? `any number of targets${g.multi.perExtra ? ` (each after the first costs ${g.multi.perExtra} more)` : ''}`
             : g.multi.exact ? `${k} target${k === 1 ? '' : 's'}` : `up to ${k} target${k === 1 ? '' : 's'}`)
           : (k === 1 ? 'a target' : k + ' targets');
+        const next = (chosen) => run(i + 1, acc.concat(chosen));
+        if (g.off) return this._pickOffBoard(g, o, `${o.card.name}: choose ${what}`, next);
         this.startTargeting({
           need: k, specs: g.specs, minChosen: g.min || 0, source: o.id, cardName: o.card.name,
           label: `${o.card.name}: choose ${what}`,
-          onDone: (chosen) => run(i + 1, acc.concat(chosen)),
+          onDone: next,
         });
       };
       if (!groups.length) return go([]);
       run(0, []);
     },
 
+    /** The cards in graveyards (or exile) a target there could be. */
+    _offCandidates(spec) {
+      const v = this.live || this.view;
+      const zone = spec.zone === 'exile' ? 'exile' : 'graveyard';
+      const who = v.players.filter(p => spec.controller === 'you' ? p.id === this.meId
+        : spec.controller === 'opponent' ? p.id !== this.meId : true);
+      const out = [];
+      for (const p of who) {
+        for (const x of (p[zone] || [])) {
+          if (!x || x.hidden || !x.card) continue;
+          if (MTG.oracle.matchesSpec(spec, x, MTG.oracle.analyze(x.card, x.face || 0), this.meId)) out.push(x);
+        }
+      }
+      return out;
+    },
+
+    /**
+     * A target that is a card in a graveyard or in exile: the cards it could
+     * be, laid out in a panel to pick from, since they are not on the table.
+     * Picks are required up to the group's minimum; the rest are optional.
+     */
+    _pickOffBoard(g, o, label, onDone) {
+      const k = g.specs.length;
+      const min = g.min != null ? g.min : g.specs.filter(sp => !sp.upTo).length;
+      const picked = [];
+      const key = 'offpick:' + o.id + ':' + label;
+      const finish = () => { this.asking = null; onDone(picked.map(id => ({ kind: 'object', id }))); };
+      this.asking = { base: key, get key() { return key + ':' + picked.join(','); }, build: () => {
+        const cands = this._offCandidates(g.specs[Math.min(picked.length, k - 1)] || g.specs[0])
+          .concat(picked.map(id => this.objIn(id)).filter(Boolean))
+          .filter((x, i, arr) => arr.findIndex(y => y.id === x.id) === i);
+        const row = el('div', { class: 'pick-row' });
+        for (const x of cands) {
+          const on = picked.includes(x.id);
+          row.appendChild(this.pickTile(x.card, { face: x.face || 0, cls: on ? 'chosen' : '', badge: on ? picked.indexOf(x.id) + 1 : null,
+            onClick: () => {
+              const at = picked.indexOf(x.id);
+              if (at >= 0) picked.splice(at, 1);
+              else if (picked.length < k) picked.push(x.id);
+              if (picked.length === k && k === min) return finish();
+              this.render();
+            } }));
+        }
+        if (!cands.length) row.appendChild(el('div', { class: 'empty-note', text: 'There is nothing there it could choose.' }));
+        const enough = picked.length >= min;
+        return this.panel(escapeHtml(label), min === k ? (k === 1 ? 'Click the card.' : `Choose ${k}.`) : `Choose up to ${k}${min ? `, at least ${min}` : ''}.`, row, [
+          { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
+          { label: picked.length ? 'Done' : 'None', cls: 'primary', disabled: !enough, fn: () => finish() },
+        ], { card: o.card, wide: true });
+      } };
+      this.render();
+    },
+
     /** How many things could be chosen for this target right now. */
     _countLegal(spec) {
+      if (spec && (spec.zone === 'graveyard' || spec.zone === 'exile')) return this._offCandidates(spec).length;
       const was = this.targeting;
       this.targeting = { specs: [spec], chosen: [], need: 1, onDone: () => {} };
       const v = this.live || this.view;

@@ -534,11 +534,12 @@
       if (chips.length) n.appendChild(el('div', { class: 'cv-mark cv-chips' }, chips));
       // a Room with one door still locked says which, and what it takes to open
       const faces = o.card && o.card.card_faces;
-      if (o.card && o.card.layout === 'split' && faces && faces.length === 2 && (o.face === 0 || o.face === 1) &&
+      if (o.card && o.card.layout === 'split' && faces && faces.length === 2 && (o.face === 0 || o.face === 1 || o.face === 3) &&
           faces.every(f => /\bRoom\b/.test(f.type_line || ''))) {
-        const shut = faces[1 - o.face];
-        n.appendChild(el('div', { class: 'cv-mark cv-locked', text: '\u{1F512} ' + shut.name,
-          title: `${shut.name} is locked. Unlock it for ${shut.mana_cost || 'its cost'} as a sorcery.` }));
+        // face 3: put onto the battlefield without being cast, both doors shut
+        const shut = o.face === 3 ? faces : [faces[1 - o.face]];
+        n.appendChild(el('div', { class: 'cv-mark cv-locked', text: '\u{1F512} ' + (shut.length > 1 ? 'Both doors locked' : shut[0].name),
+          title: shut.map(f => `${f.name} is locked. Unlock it for ${f.mana_cost || 'its cost'} as a sorcery.`).join('\n') }));
       }
       if (o.pairedWith) {
         const mate = this.objIn(o.pairedWith);
