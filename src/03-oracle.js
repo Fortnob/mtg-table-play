@@ -842,6 +842,9 @@
     // Solitude: "Exile up to one other target creature."
     { re: /^(Exile|Destroy) up to one (other |another )?target ([a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: m[1].toLowerCase(), targets: [Object.assign(targetSpec('target ' + m[3]), { upTo: true }, m[2] ? { another: true } : {})] }) },
+    // Bottomless Pool: "Return up to one target creature to its owner's hand."
+    { re: /^Return up to one (other )?target ([a-z ]+?) to its owner'?s hand\.?$/i,
+      make: (m) => ({ op: 'bounce', targets: [Object.assign(targetSpec('target ' + m[2]), { upTo: true }, m[1] ? { another: true } : {})] }) },
     // Ulamog: "Defending player exiles the top twenty cards of their library."
     { re: /^(Defending player|Target player|Each opponent) exiles the top (\w+) cards of their library\.?$/i,
       make: (m) => (typeof num(m[2]) === 'number' ? Object.assign({ op: 'exileTop', n: num(m[2]),
@@ -1225,6 +1228,9 @@
     { re: /^You may play (?:that card|it|those cards|them|the exiled cards?) this turn\.?$/i, make: () => ({ op: 'impulseLast', duration: 'eot' }) },
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
+    // Inti: "You may play that card until your next end step."
+    { re: /^You may play (?:that card|it|those cards|them) until your next end step\.?$/i,
+      make: () => ({ op: 'impulseLast', duration: 'nextEnd' }) },
     { re: /^You may play (?:that card|it|those cards|them) for as long as (?:it remains|they remain) exiled\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'exiled' }) },
     { re: /^Untap them\.?$/i, make: () => ({ op: 'untap', scope: 'lastGroup' }) },
@@ -3240,7 +3246,9 @@
       .replace(/\b([Tt])his token\b/g, '$1his creature')
       // Wan Shi Tong: "put X +1/+1 counters on him" — a character card means itself
       .replace(/ counters? on (?:him|her)\b/g, (x) => x.replace(/him|her/, 'CARDNAME'))
-      .replace(/^(?:That|The) (?:creature|permanent|land|artifact|enchantment|spell|planeswalker)'s controller\b/, 'Its controller');
+      .replace(/^(?:That|The) (?:creature|permanent|land|artifact|enchantment|spell|planeswalker)'s controller\b/, 'Its controller')
+      // Aurelia: "each of your opponents" is each opponent
+      .replace(/\beach of your opponents\b/g, 'each opponent');
     if (!s) return null;
     for (const rule of EFFECT_RULES) {
       const m = s.match(rule.re);
@@ -4526,6 +4534,8 @@
     { re: /^When(?:ever)? a(?:nother)? creature you control enters(?: the battlefield)?(?:,| )/i, event: 'yourCreatureEtb' },
     { re: /^When(?:ever)? a(?:n)? (?:nontoken )?permanent you control enters(?: the battlefield)?(?:,| )/i, event: 'yourPermanentEtb' },
     { re: /^When(?:ever)? you discard a card(?:,| )/i, event: 'youDiscard' },
+    // Inti: "Whenever you discard one or more cards" — once for the lot
+    { re: /^Whenever you discard one or more cards,? /i, event: 'youDiscard', extra: { batch: true } },
     { re: /^When(?:ever)? an opponent casts their first ([a-zA-Z ]*?)spell each turn(?:,| )/i, event: 'opponentFirstSpell',
       filt: (m) => spellFilter(m[1]), extra: { firstOfKind: true } },
     { re: /^When(?:ever)? a player casts their second spell each turn(?:,| )/i, event: 'anySecondSpell' },
@@ -4632,6 +4642,9 @@
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
     { re: /^At the beginning of each opponent'?s upkeep(?:,| )/i, event: 'opponentUpkeep' },
     { re: /^At the beginning of your (?:postcombat )?main phase(?:,| )/i, event: 'yourMain1' },
+    // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
+    { re: /^Whenever you attack with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
     { re: /^When(?:ever)? (?:a|one or more) creatures? you control attacks?(?:,| )/i, event: 'yourCreatureAttacks' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes blocked(?:,| )/i, event: 'becomesBlocked', self: true },

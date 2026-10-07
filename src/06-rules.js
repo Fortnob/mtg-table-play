@@ -338,7 +338,311 @@
       }
       p.sideboard = (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty }));
       p.deck = deck;
+      this._loadDraftExtras(p, deck);
       this.rng.shuffle(z.library);
+    }
+
+    /* ---------- what a drafted deck brings with it (src/07-draft.js) ----------
+       Conspiracies start the game in the command zone (CR 905.4): face
+       up, or as a hidden agenda, face down with a card name secretly chosen
+       for it (CR 702.106). What the draft cards noted as they were drafted
+       ("the highest number you noted for cards named Lurking Automaton") is
+       the player's, and is looked up for whoever controls such a card. Cards
+       exiled before the game began (Arcane Savant) wait in exile, marked
+       with what exiled them. A conspiracy's abilities count from the
+       command zone, the way an emblem's do. A hidden agenda's work as soon
+       as the game begins, since its owner may turn it face up whenever they
+       like, and it is shown to the table the first time a card with its
+       name is cast or put onto the battlefield. */
+    _loadDraftExtras(p, deck) {
+      const z = this.zones[p.id];
+      p.draftNotes = deck.draftNotes ? JSON.parse(JSON.stringify(deck.draftNotes)) : null;
+      for (const c of (deck.conspiracies || [])) {
+        if (!c || !(c.card || c).name) continue;
+        const o = this._register(new GObj(c.card || c, p.id, 'command'));
+        o.controller = p.id;
+        const names = (c.names || []).filter(Boolean);
+        o.conspiracy = { hidden: names.length > 0, names, mv: c.number == null ? null : Number(c.number) };
+        if (names.length) o.note = (names.length > 1 ? 'Chosen names: ' : 'Chosen name: ') + names.join(', ');
+        else if (c.number != null) o.note = 'Chosen number: ' + c.number;
+        o.ts = this._stampNew();
+        z.command.push(o);
+      }
+      for (const x of (deck.draftExiled || [])) {
+        if (!x || !x.card) continue;
+        const o = this._register(new GObj(x.card, p.id, 'exile'));
+        o.exiledWith = x.with;
+        z.exile.push(o);
+      }
+    }
+    /** What this player's draft noted for cards with this name. */
+    _draftNote(pid, key) {
+      const p = this.player(pid);
+      return (p && p.draftNotes && p.draftNotes[key]) || {};
+    }
+    /** A noted number: the highest pick noted, how many cards were removed, how many guesses were right. */
+    _draftNoteValue(pid, spec) {
+      const n = this._draftNote(pid, spec.noted || spec.card);
+      if (spec.how === 'removed') return Number(n.removed) || 0;
+      if (spec.how === 'right') return Number(n.right) || 0;
+      return (n.numbers || []).reduce((m, k) => Math.max(m, Number(k) || 0), 0);
+    }
+    /** "with a name you noted", or (Paliano Vanguard) "of a type you noted". */
+    _isNoted(o, oa, pid, spec) {
+      const n = this._draftNote(pid, spec.card);
+      if (spec.by === 'type') {
+        const types = (n.types || []).map(t => String(t).toLowerCase());
+        if (!types.length) return false;
+        if (oa && oa.keywordSet && oa.keywordSet.has('changeling')) return true;
+        return ((oa && oa.subtypes) || []).some(t => types.includes(t.toLowerCase()));
+      }
+      return this._nameAmong(o, n.names);
+    }
+    _nameAmong(x, names) {
+      if (!x || !names || !names.length) return false;
+      const full = (x.card && x.card.name) || '';
+      return names.some(nm => nm === x.name || nm === full || U.frontName(nm) === x.name);
+    }
+    /** "with the chosen name": the name a conspiracy was given before the game. */
+    _chosenNameOf(src, x) {
+      return !!(src && src.conspiracy && this._nameAmong(x, src.conspiracy.names));
+    }
+    _conspiracies(pid) { return ((this.zones[pid] || {}).command || []).filter(o => o.conspiracy); }
+    /** Each of a player's conspiracies that says this, with what it says. */
+    _conspiracyOps(pid, op) {
+      const out = [];
+      for (const o of this._conspiracies(pid)) { const e = this._staticOp(o, op); if (e) out.push({ o, e }); }
+      return out;
+    }
+    /** A hidden agenda is shown once a card with its name is cast or enters under its owner. */
+    _revealAgendas(x) {
+      if (!x || !x.controller) return;
+      for (const o of this._conspiracies(x.controller)) {
+        if (!o.conspiracy.hidden || !this._chosenNameOf(o, x)) continue;
+        o.conspiracy.hidden = false;
+        this.logEvent('rules', `${this.player(o.owner).name} turns ${o.name} face up: ${o.conspiracy.names.join(' and ')}.`);
+        this.bumpBoard();
+      }
+    }
+    /** A target spec that depends on what was noted, made concrete for this player. */
+    _notedSpec(spec, pid) {
+      const out = Object.assign({}, spec, { notedColors: null, notedMaxPower: null });
+      if (spec.notedColors) {
+        const cols = this._draftNote(pid, spec.notedColors).colors || [];
+        out.colors = cols.length ? cols.slice() : ['-'];
+      }
+      if (spec.notedMaxPower) out.maxPower = this._draftNoteValue(pid, { noted: spec.notedMaxPower, how: 'max' });
+      return out;
+    }
+    /** Conditions about the draft and the start of the game. */
+    _draftCond(cond, me, src, ctx) {
+      if (cond.kind === 'draftNoted') {
+        const n = me ? this._draftNote(me.id, cond.card) : {};
+        if (cond.keyword) return (n.keywords || []).map(k => String(k).toLowerCase()).includes(cond.keyword);
+        return cond.flag === 'right' ? (Number(n.right) || 0) > 0 : !!n[cond.flag];
+      }
+      // "the first upkeep" of the game, or of the player whose upkeep it is
+      if (cond.kind === 'firstUpkeep') return cond.of === 'game' ? this.turn === 1 : ((this.activePlayer || {}).turnsTaken || 0) <= 1;
+      // Echoing Boon: "if it targets a creature you control with the chosen name"
+      if (cond.kind === 'spellTargetsChosen') {
+        const id = ctx && ctx.triggerData && ctx.triggerData.stackId;
+        const item = id && this.stack.find(st => st.id === id);
+        return !!item && (item.targets || []).some(t => {
+          const x = t.kind === 'object' && this.obj(t.id);
+          return !!x && x.zone === 'battlefield' && !!me && x.controller === me.id && this._chosenNameOf(src, x);
+        });
+      }
+      return false;
+    }
+    /** Does this player's creature deal its combat damage by its toughness (Weight Advantage)? */
+    _dealsByToughness(o) {
+      return this._conspiracyOps(o.controller, 'toughnessDamage').length > 0;
+    }
+    /** "You may spend mana as though it were mana of any color to cast …": the cost, with its colours made generic. */
+    _anyColorCost(pid, o, cost) {
+      const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
+        if (e.chosenName && !this._chosenNameOf(src, o)) return false;
+        if (e.chosenMv && !(src.conspiracy.mv != null && ((o.card && o.card.cmc) || 0) === src.conspiracy.mv)) return false;
+        return !e.words || this._cardFitsWords(o, e.words);
+      });
+      if (!hit) return cost;
+      return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+    }
+    /** Hymn of the Wilds: "You can't cast instant or sorcery spells." */
+    _conspiracyCastBan(pid, o) {
+      const ban = this._conspiracyOps(pid, 'selfCantCast').find(({ e }) => this._cardFitsWords(o, e.words));
+      return ban ? `${ban.o.name} says you can't cast ${ban.e.words} spells.` : null;
+    }
+    /** As a permanent enters: counters for what was noted, and the player a Cogwork Tracker must attack. */
+    _enterNoted(o) {
+      const p = this.player(o.controller);
+      if (!p || !p.draftNotes) return;
+      const e = this._staticOp(o, 'entersWithNoted');
+      if (e) {
+        const k = this._draftNoteValue(o.controller, e);
+        if (k > 0) {
+          o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + k;
+          this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind: e.counter, amount: k });
+        }
+      }
+      const m = this._staticOp(o, 'mustAttackNoted');
+      if (m) {
+        const foe = (this._draftNote(o.controller, m.card).players || []).map(id => this.player(id))
+          .find(q => q && !q.hasLost && q.id !== o.controller);
+        if (foe) o.mustAttackPlayer = foe.id;
+      }
+    }
+    /** Before the first hand: Power Play's starting player, and the hand sizes conspiracies change. */
+    _conspiracyTurnOrder() {
+      const firsts = this.turnOrder.filter(pid => this._conspiracyOps(pid, 'startingPlayer').length);
+      if (!firsts.length) return;
+      const first = firsts[this.rng.int(firsts.length)];
+      while (this.turnOrder[0] !== first) this.turnOrder.push(this.turnOrder.shift());
+      this.logEvent('rules', `${this.player(first).name} is the starting player (Power Play).`);
+    }
+    _startingHandOf(p) {
+      const set = this._conspiracyOps(p.id, 'startingHandSize').map(x => Number(x.e.n) || 0);
+      return set.length ? Math.min(...set) : this.config.startingHand;
+    }
+    /**
+     * Backup Plan: "Draw an additional hand of seven cards as the game
+     * begins. Before taking mulligans, shuffle all but one of your hands
+     * into your library." A bot keeps the hand nearest three lands; anyone
+     * else is asked, and the mulligans wait for the answer.
+     */
+    _backupPlans() {
+      let asked = false;
+      for (const pid of this.turnOrder) {
+        const p = this.player(pid);
+        const extra = this._conspiracyOps(pid, 'backupHand').length;
+        if (!extra) continue;
+        const z = this.zones[pid];
+        const hands = [z.hand.splice(0)];
+        for (let k = 0; k < extra; k++) hands.push(z.library.splice(0, 7));
+        for (const h of hands) for (const o of h) o.zone = 'hand';
+        p._hands = hands;
+        if (p.isBot) { this._keepBackupHand(pid, this._bestHand(hands)); continue; }
+        asked = true;
+        this.queueChoice(MTG.choice.normalize({ kind: 'options', playerId: pid, purpose: 'backupPlan', min: 1, max: 1,
+          options: hands.map((h, i) => ({ label: `Hand ${i + 1}: ${h.map(o => o.name).join(', ')}` })),
+          prompt: 'Backup Plan: which hand do you keep? The others are shuffled into your library.' }));
+      }
+      return asked;
+    }
+    _bestHand(hands) {
+      const lands = (h) => h.filter(o => (o.analysis() || {}).isLand).length;
+      let best = 0;
+      hands.forEach((h, i) => { if (Math.abs(lands(h) - 3) < Math.abs(lands(hands[best]) - 3)) best = i; });
+      return best;
+    }
+    _keepBackupHand(pid, i) {
+      const p = this.player(pid);
+      const hands = p._hands || [];
+      const keep = hands[i] || hands[0] || [];
+      const z = this.zones[pid];
+      for (const h of hands) {
+        if (h === keep) continue;
+        for (const o of h) { o.zone = 'library'; z.library.push(o); }
+      }
+      z.hand.push(...keep);
+      this.rng.shuffle(z.library);
+      p._hands = null;
+      this.logEvent('mulligan', `${p.name} keeps one of ${hands.length} hands (Backup Plan).`);
+      if (this._awaitingBackup && !this.players.some(x => x._hands)) {
+        this._awaitingBackup = false;
+        this.mulliganPhase = true;
+        this.emit('mulligan:begin');
+      }
+    }
+    /* The things these cards do as an effect: Aether Searcher's search and
+       free cast, Arcane Savant's copy, Caller of the Untamed's token,
+       Volatile Chimera's copy, and a token for the player whose upkeep it
+       is (Hold the Perimeter). */
+    _draftEffect(e, ctx, src, n) {
+      const me = this.player(ctx.controller);
+      const exiledWith = () => ((this.zones[ctx.controller] || {}).exile || []).filter(x => x.exiledWith === e.with);
+      switch (e.op) {
+        case 'castNoted': {
+          const names = this._draftNote(ctx.controller, e.noted).names || [];
+          const z = this.zones[ctx.controller];
+          const pool = z.hand.concat(z.library).filter(x => this._nameAmong(x, names) && !(x.analysis() || {}).isLand);
+          if (!pool.length) { if (names.length) this.rng.shuffle(z.library); break; }
+          const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+            cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card, zone: x.zone })),
+            prompt: `Search your hand and library for ${names.join(' or ')}: you may cast it without paying its mana cost.` }, 'castNoted');
+          if (got === SUSPEND) return SUSPEND;
+          const c = this.obj((got || [])[0]);
+          const fromLibrary = !!c && c.zone === 'library';
+          if (c) {
+            if (fromLibrary) { z.library.splice(z.library.indexOf(c), 1); c.zone = 'hand'; z.hand.push(c); }
+            const ok = this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+            // not cast after all: it goes back where it was found
+            if (!ok && fromLibrary && c.zone === 'hand') { z.hand.splice(z.hand.indexOf(c), 1); c.zone = 'library'; z.library.push(c); }
+          }
+          this.rng.shuffle(z.library);
+          break;
+        }
+        case 'castExiledCopy': {
+          const pool = exiledWith().filter(x => !(x.analysis() || {}).isLand);
+          if (!pool.length) break;
+          let c = pool[0];
+          if (pool.length > 1) {
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+              cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })), prompt: 'Copy which card? You may cast the copy without paying its mana cost.' }, 'savant');
+            if (got === SUSPEND) return SUSPEND;
+            c = this.obj((got || [])[0]) || c;
+          }
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast a copy of ${c.name} without paying its mana cost?` }, 'savantCast');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes === false) break;
+          const dup = this._register(new GObj(c.card, ctx.controller, 'exile'));
+          dup.isCopy = true;
+          this.zones[ctx.controller].exile.push(dup);
+          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+          const st = this.stack.find(x => x.objId === dup.id);
+          if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`); }
+          else { this._removeFromZone(dup); dup.zone = null; }
+          break;
+        }
+        case 'tokenOfExiled': {
+          // "X is the mana value of that card": the X paid picks which cards can be copied
+          const x = ctx.x || (src && src.chosenX) || 0;
+          const pool = exiledWith().filter(c => ((c.card && c.card.cmc) || 0) === x);
+          if (!pool.length) { this.logEvent('rules', `${me.name} has no card with mana value ${x} exiled with ${src ? src.name : 'it'}.`); break; }
+          let c = pool[0];
+          if (pool.length > 1) {
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: 'Create a token that is a copy of which card?' }, 'caller');
+            if (got === SUSPEND) return SUSPEND;
+            c = this.obj((got || [])[0]) || c;
+          }
+          this._spliceNext([{ op: 'copyPermanent', _forced: c, n: 1 }]);
+          break;
+        }
+        case 'becomeExiledCopy': {
+          const pool = exiledWith();
+          if (!src || src.zone !== 'battlefield' || !pool.length) break;
+          const c = pool[this.rng.int(pool.length)];
+          const printed = src.printedCard || src.card;
+          const keep = (O.analyze(printed) || { abilities: [] }).abilities.filter(ab => (ab.effects || []).some(x => x.op === 'becomeExiledCopy'));
+          src.printedCard = printed;
+          src.copyOf = c.card;
+          src.card = c.card;
+          src.face = 0;
+          // "except it has this ability"
+          if (!(src.effects || []).some(x => x.keepsChimera)) src.effects.push({ grantAbilities: keep, until: null, keepsChimera: true });
+          src._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${printed.name} becomes a copy of ${c.name}.`);
+          break;
+        }
+        case 'activeToken': {
+          const ap = this.activePlayer;
+          if (ap) this._createToken(ap.id, Object.assign({}, e, { n: 1 }));
+          break;
+        }
+      }
+      return null;
     }
 
     start() {
@@ -346,16 +650,19 @@
       this.started = true;
       this.turnOrder = this.players.map(p => p.id);
       this.rng.shuffle(this.turnOrder);
+      this._conspiracyTurnOrder();
       this.activeIndex = 0;
       this.priorityIndex = 0;
       for (const p of this.players) {
         const z = this.zones[p.id];
         this.rng.shuffle(z.library);
-        this._drawCards(p, this.config.startingHand, true);
+        this._drawCards(p, this._startingHandOf(p), true);
       }
-      this.mulliganPhase = true;
+      // Backup Plan: a hand to choose before anybody mulligans
+      this._awaitingBackup = this._backupPlans();
+      this.mulliganPhase = !this._awaitingBackup;
       this.logEvent('game', `Game begins. ${this.players.length} players. Turn order: ${this.turnOrder.map(id => this.player(id).name).join(' → ')}.`);
-      this.emit('mulligan:begin');
+      if (this.mulliganPhase) this.emit('mulligan:begin');
       this.touch();
     }
 
@@ -367,8 +674,8 @@
       for (const o of z.hand.splice(0)) { o.zone = 'library'; z.library.push(o); }
       this.rng.shuffle(z.library);
       p.mulligansTaken++;
-      this._drawCards(p, this.config.startingHand, true);
-      this.logEvent('mulligan', `${p.name} mulligans to ${Math.max(0, this.config.startingHand - this.bottomCountFor(p))}.`);
+      this._drawCards(p, this._startingHandOf(p), true);
+      this.logEvent('mulligan', `${p.name} mulligans to ${Math.max(0, this._startingHandOf(p) - this.bottomCountFor(p))}.`);
       this.emit('sfx', 'shuffle');
       this.touch();
     }
@@ -1099,6 +1406,8 @@
     _manaAmong(e, o, pid) {
       const out = new Set();
       const from = e.from || 'opponentLands';
+      // Paliano, the High City: the colours chosen as it was drafted
+      if (from === 'noted') return (this._draftNote(pid, e.noted).colors || []).slice();
       if (from === 'exiledCard') {
         const x = o && o.imprinted && this.obj(o.imprinted);
         for (const c of ((x && x.card.colors) || [])) out.add(c);
@@ -2164,6 +2473,9 @@
             const words = e.op === 'costMod' ? e.words : String(e.filter || '').trim();
             if (words && words !== 'spell' && !this._cardFitsWords(o, words)) continue;
             if (e.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
+            // Brago's Favor: the chosen name; Hymn of the Wilds: the first such spell each turn
+            if (e.chosenName && !this._chosenNameOf(src, o)) continue;
+            if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
             // Goreclaw: "with power 4 or greater", as printed on the card being cast
             if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
             // Defense Grid: only on a turn that isn't the caster's
@@ -2439,6 +2751,9 @@
       if (!a) return { ok: false, reason: 'Unknown card.' };
       if (a.isLand) return { ok: false, reason: 'Lands are played, not cast.' };
       if (o.card && o.card.layout === 'emblem') return { ok: false, reason: 'An emblem is not a card.' };
+      if (o.conspiracy) return { ok: false, reason: 'A conspiracy is not cast.' };
+      const banned = this._conspiracyCastBan(playerId, o);
+      if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
       const leave = (o.zone === 'library' || o.zone === 'graveyard') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
       if (o.zone === 'library' && !leave && opts !== 'resolution') return { ok: false, reason: 'Not castable from library.' };
@@ -4223,6 +4538,7 @@
         }
       }
       this._fire('youAttack', pid, { attackers });
+      this._fire('anyPlayerAttacks', null, { attackers, playerId: pid });
       this._fire('yourCreatureAttacks', pid, { attackers });
       /* "Whenever a creature you control attacks alone" (exalted's cousins):
          the only creature declared as an attacker this combat */
@@ -4324,16 +4640,20 @@
           this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n });
         }
       }
+      // what the draft noted: Lurking Automaton's counters, Cogwork Tracker's player
+      this._enterNoted(o);
       /* Metallic Mimic, Giada, Renata: "each other creature you control
          (of the chosen type) enters with an additional +1/+1 counter on it
-         (for each Angel you already control)" */
-      for (const s0 of this.battlefield) {
+         (for each Angel you already control)"; Muzzio's Preparations, from
+         the command zone, for the chosen name */
+      for (const s0 of this._withEmblems(this.battlefield)) {
         if (s0.controller !== o.controller || s0.phasedOut) continue;
         const ex = this._staticOp(s0, 'entersExtra');
         if (!ex || (ex.other && s0 === o)) continue;
         if (!this._cardFitsWords(o, ex.what || 'creature')) continue;
         if (ex.nontoken && o.isToken) continue;
         if (ex.chosenType && !(s0.chosenType && this._hasCreatureType(o, s0.chosenType))) continue;
+        if (ex.chosenName && !this._chosenNameOf(s0, o)) continue;
         let k = 1;
         // Arwen: "equal to CARDNAME's toughness"
         if (ex.bySourceToughness) k = Math.max(0, this.toughnessOf(s0));
@@ -5053,6 +5373,8 @@
       opts = opts || {};
       const p = this.player(playerId);
       if (!cost || !MANA.parse(cost).length) return true;
+      // Unexpected Potential, Emissary's Ploy: mana spent as though it were any colour
+      if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
       /* Mana that may only be spent on certain spells waits apart from the
          pool; it is lent to a payment it is allowed to pay for, and what is
          not used goes back to waiting. */
@@ -5077,6 +5399,7 @@
       const p = this.player(playerId);
       if (!p) return false;
       if (!cost || !MANA.parse(cost).length) return true;
+      if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
       const wasFor = this._payingFor;
       this._payingFor = opts.forSpell || null;
       const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
@@ -5866,7 +6189,8 @@
         const fs = this.hasKw(o, 'first strike'), ds = this.hasKw(o, 'double strike');
         if (firstStrikeStep && !(fs || ds)) continue;
         if (!firstStrikeStep && fs && !ds) continue;
-        const power = this.powerOf(o);
+        // Weight Advantage: "assigns combat damage equal to its toughness rather than its power"
+        const power = this._dealsByToughness(o) ? this.toughnessOf(o) : this.powerOf(o);
         if (power <= 0) continue;
         if (this._hasFlag(o, 'noDamage')) continue;
 
@@ -6582,6 +6906,7 @@
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        case 'draftNoted': case 'firstUpkeep': case 'spellTargetsChosen': return this._draftCond(cond, me, src, ctx);
         // Boromir: "if no mana was spent to cast it"
         case 'triggerNoMana': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
@@ -7599,7 +7924,7 @@
        and never a spell. */
     _emblems() {
       const out = [];
-      for (const p of this.players) for (const o of ((this.zones[p.id] || {}).command || [])) if (o.card && o.card.layout === 'emblem') out.push(o);
+      for (const p of this.players) for (const o of ((this.zones[p.id] || {}).command || [])) if (o.card && (o.card.layout === 'emblem' || o.conspiracy)) out.push(o);
       return out;
     }
     /** A list of permanents with the emblems after them, for whatever watches for triggers. */
@@ -7638,6 +7963,7 @@
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, { playerId: controllerId });
       }
       this._fireDelayed(event, this.activePlayer && this.activePlayer.id);
+      if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);
       const tData = {
         event, drawer: data.drawer, deadController: data.deadController,
         player: data.player, playerId: data.playerId,
@@ -7649,7 +7975,7 @@
         if (this._triggerHushed(o, event, data)) return;
         /* "One or more creatures die" is one trigger for the lot of them,
            however many went at once. */
-        if (ab.objFilter && ab.objFilter.batch &&
+        if (((ab.objFilter && ab.objFilter.batch) || ab.batch) &&
             this.pendingTriggers.some(t => t.objId === o.id && t.abilityIndex === i)) return;
         // "This ability triggers only once each turn."
         if (ab.oncePerTurn) {
@@ -8182,6 +8508,8 @@
       };
       const n = (v) => {
         if (v === 'X') return ctx.x || (src && src.chosenX) || 0;
+        // "the highest number you noted for cards named Garbage Fire"
+        if (v && typeof v === 'object' && v.noted) return this._draftNoteValue(ctx.controller, v);
         // "the number of cards in your hand plus one"
         if (v && typeof v === 'object' && v.plus) { const base = Object.assign({}, v); delete base.plus; return n(base) + v.plus; }
         // "half X, rounded down"; "half their life, rounded up"
@@ -9270,6 +9598,10 @@
            resolves. The copy is cast — it counts for everything that
            watches spells being cast — but it is not a card, and when it
            leaves the stack it is gone. */
+        // draft cards in the game (src/07-draft.js)
+        case 'castNoted': case 'castExiledCopy': case 'tokenOfExiled': case 'becomeExiledCopy': case 'activeToken':
+          if (this._draftEffect(e, ctx, src, n) === SUSPEND) return SUSPEND;
+          break;
         case 'castEncoded': {
           const card = this.obj(e.cardId);
           const host = src;
@@ -11742,7 +12074,10 @@
            sentence before exiled may be played, for the turn or a bit longer. */
         case 'impulseLast': {
           const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : [this._lastExiled]).filter(Boolean);
-          const until = e.duration === 'nextTurn' ? this.turn + 1 : e.duration === 'exiled' ? 99999 : this.turn;
+          // "until your next end step": this turn's, if it is yours and that step is still to come
+          const mineNow = this.activePlayer && this.activePlayer.id === ctx.controller && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
+          const until = e.duration === 'nextTurn' ? this.turn + 1 : e.duration === 'exiled' ? 99999
+            : e.duration === 'nextEnd' ? (mineNow ? this.turn : this.turn + 1) : this.turn;
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
@@ -12494,6 +12829,10 @@
       if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||
           (oa.keywordSet && oa.keywordSet.has('changeling'))))) return false;
       if (sc.chosenColor && !(src && src.chosenColor && (oa.colors || []).includes(src.chosenColor))) return false;
+      // a conspiracy's chosen name, and what the draft noted (src/07-draft.js)
+      if (sc.chosenName && !this._chosenNameOf(src, o)) return false;
+      if (sc.noted && !this._isNoted(o, oa, pid, sc.noted)) return false;
+      if (sc.basic && !(oa.supertypes || []).includes('Basic')) return false;
       if (sc.nonbasic && (oa.supertypes || []).includes('Basic')) return false;
       if (sc.legendary && !(oa.supertypes || []).includes('Legendary')) return false;
       if (sc.nonlegendary && (oa.supertypes || []).includes('Legendary')) return false;
@@ -13277,6 +13616,7 @@
             if (!got.ok) return this.fail(got.reason);
           }
           data = { picks: got.picks, number: got.number, order: got.order };
+          if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           // asked while casting: the cast starts again with the answer
           if (ch.then && ch.then.kind === 'cast') {
             const again = Object.assign({}, ch.then.opts);
@@ -13726,6 +14066,7 @@
       if (f.token && !x.isToken) return false;
       if (f.words && !this._cardFitsWords(x, f.words)) return false;
       if (f.chosenType && !(src && this._hasCreatureType(x, src.chosenType))) return false;
+      if (f.chosenName && !this._chosenNameOf(src, x)) return false;
       if (f.minPower != null && this.powerOf(x) < f.minPower) return false;
       if (f.maxPower != null && this.powerOf(x) > f.maxPower) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
@@ -13755,6 +14096,8 @@
      */
     _legalTargetsFor(spec, controllerId, sourceId) {
       spec = spec || {};
+      // Regicide, Custodi Peacekeeper: the colours or the number noted during the draft
+      if (spec.notedColors || spec.notedMaxPower) return this._legalTargetsFor(this._notedSpec(spec, controllerId), controllerId, sourceId);
       // Alesha: "with mana value less than or equal to CARDNAME's power", as it is now
       if (spec.maxMvSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
@@ -14050,6 +14393,9 @@
           // its timestamp, who controlled it before a control effect, what a copy for the turn covered up
           ts: o.ts == null ? null : o.ts, ctlBase: o.ctlBase == null ? null : o.ctlBase,
           copyBefore: o.copyBefore || null,
+          // a conspiracy and its chosen name, a card exiled before the game, a player it must attack
+          conspiracy: o.conspiracy ? JSON.parse(JSON.stringify(o.conspiracy)) : null, exiledWith: o.exiledWith || null,
+          mustAttackPlayer: o.mustAttackPlayer || null,
         });
       }
       return {
@@ -14076,6 +14422,7 @@
           ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null,
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
+          draftNotes: p.draftNotes || null,
         })),
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
@@ -14373,7 +14720,7 @@
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
          so the card cannot be read off the wire. */
-      const secret = (o) => o.faceDown && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId;
+      const secret = (o) => (o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId;
       const ser = (o, hidden) => hidden ? { id: o.id, hidden: true, owner: o.owner, zone: o.zone } : {
         id: o.id, cardId: secret(o) ? FACE_DOWN_VIEW.id : o.card.id, card: secret(o) ? FACE_DOWN_VIEW : o.card,
         owner: o.owner, controller: o.controller,
@@ -14383,7 +14730,7 @@
         counters: Object.assign({}, o.counters), damage: o.damage, summoningSick: o.summoningSick,
         attachedTo: o.attachedTo, attachments: o.attachments, isToken: o.isToken,
         attacking: o.attacking, blocking: o.blocking, blockedBy: o.blockedBy, blockOrder: o.blockOrder,
-        effects: o.effects, isCommander: !!o.isCommander, note: o.note, entered: o.entered,
+        effects: o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
         prepared: !!o.prepared,
         // soulbond: the creature it is paired with
         pairedWith: o.zone === 'battlefield' ? ((this._pairOf(o) || {}).id || null) : null,

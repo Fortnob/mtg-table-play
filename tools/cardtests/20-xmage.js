@@ -3598,4 +3598,40 @@ module.exports = (test) => {
     t.eq((fd && fd.counters['+1/+1']) || 0, 1);
     t.eq(r.counters['+1/+1'] || 0, 0, 'not on the Room');
   });
+
+  test('Aurelia, the Law Above: draws when anybody attacks with three', (mk, t) => {
+    t.auto('Aurelia, the Law Above');
+    const T = mk();
+    T.bf('B', 'Aurelia, the Law Above');
+    const xs = [T.bf('A', 'Grizzly Bears'), T.bf('A', 'Llanowar Elves'), T.bf('A', 'Craw Wurm')];
+    const h0 = T.zone('B', 'hand').length;
+    T.answer('declareAttackers', () => xs.map(x => ({ attackerId: x.id, defenderId: 'B' })));
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.zone('B', 'hand').length, h0 + 1);
+  });
+
+  test('Inti: one exile for two cards discarded at once, playable a while', (mk, t) => {
+    t.auto('Inti, Seneschal of the Sun');
+    const T = mk();
+    T.bf('A', 'Inti, Seneschal of the Sun');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    T.hand('A', 'Forest'); T.hand('A', 'Mountain');
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    T.resolve();
+    const ex = T.zone('A', 'exile');
+    t.eq(ex.length, 1, 'one card exiled');
+    t.ok(ex[0] && ex[0].impulseBy === 'A', 'and A may play it');
+  });
+
+  test('Bottomless Pool: up to one creature returned as the door unlocks', (mk, t) => {
+    t.auto('Bottomless Pool // Locker Room');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b.id }] }));
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Bottomless Pool // Locker Room'), { face: 0 });
+    T.resolve();
+    t.zone(b, 'hand');
+  });
 };

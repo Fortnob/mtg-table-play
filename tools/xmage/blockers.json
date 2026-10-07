@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16175,
-  "gainedCards": 1689,
-  "linesNeeded": 18336,
-  "linesGained": 2163,
+  "needed": 16141,
+  "gainedCards": 1670,
+  "linesNeeded": 18290,
+  "linesGained": 2138,
   "gained": {
-   "all": 1689,
+   "all": 1670,
    "top2000": 52,
    "stdTop": 11
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5645,
-   "lines": 4865,
+   "score": 5644,
+   "lines": 4864,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1016,
-   "lines": 833,
+   "score": 996,
+   "lines": 831,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1396,23 +1396,6 @@
    ]
   },
   {
-   "what": "DiscardOneOrMoreCardsTriggeredAbility",
-   "score": 19,
-   "lines": 10,
-   "cards": [
-    "Inti, Seneschal of the Sun",
-    "Magmakin Artillerist",
-    "Cryptcaller Chariot",
-    "Captain Howler, Sea Scourge",
-    "Marauding Mako",
-    "Scrounging Skyray",
-    "Doctor Doom, King of Latveria",
-    "Urza, Powerstone Prodigy",
-    "Mishra, Excavation Prodigy",
-    "Spider-Man, New Champion"
-   ]
-  },
-  {
    "what": "words:mv",
    "score": 19,
    "lines": 19,
@@ -1610,24 +1593,6 @@
     "Infernal Darkness",
     "Vexing Sphinx",
     "Jötun Grunt"
-   ]
-  },
-  {
-   "what": "attack with 2 or more",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Twenty-Toed Toad",
-    "Firemane Commando",
-    "Chivalric Alliance",
-    "Military Intelligence",
-    "Eiganjo Dynastorian // Replenish",
-    "Craig Boone, Novac Guard",
-    "Spinneret and Spiderling",
-    "Master's Guidance",
-    "Tide Skimmer",
-    "Escarpment Fortress",
-    "Path of Mettle // Metzali, Tower of Triumph"
    ]
   },
   {
@@ -2280,19 +2245,6 @@
    ]
   },
   {
-   "what": "UnlockThisDoorTriggeredAbility",
-   "score": 15,
-   "lines": 6,
-   "cards": [
-    "Walk-In Closet // Forgotten Cellar",
-    "Mirror Room // Fractured Realm",
-    "Bottomless Pool // Locker Room",
-    "Cramped Vents // Access Maze",
-    "Central Elevator // Promising Stairs",
-    "Experimental Lab // Staff Room"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 15,
    "lines": 12,
@@ -2552,6 +2504,18 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "UnlockThisDoorTriggeredAbility",
+   "score": 14,
+   "lines": 5,
+   "cards": [
+    "Walk-In Closet // Forgotten Cellar",
+    "Mirror Room // Fractured Realm",
+    "Cramped Vents // Access Maze",
+    "Central Elevator // Promising Stairs",
+    "Experimental Lab // Staff Room"
    ]
   },
   {
@@ -4231,24 +4195,6 @@
     "Pristine Angel",
     "Spare from Evil",
     "Masked Gorgon"
-   ]
-  },
-  {
-   "what": "attack with 3 or more",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Legion's Landing // Adanto, the First Fort",
-    "Phoenix Chick",
-    "Overwhelming Instinct",
-    "Gallia of the Endless Dance",
-    "Warcry Phoenix",
-    "Armasaur Guide",
-    "Inniaz, the Gale Force",
-    "Karlov Watchdog",
-    "Meddling Youths",
-    "Seasoned Consultant",
-    "Ruby Collector"
    ]
   },
   {
@@ -6085,6 +6031,21 @@
    ]
   },
   {
+   "what": "DiscardOneOrMoreCardsTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Magmakin Artillerist",
+    "Captain Howler, Sea Scourge",
+    "Marauding Mako",
+    "Scrounging Skyray",
+    "Doctor Doom, King of Latveria",
+    "Urza, Powerstone Prodigy",
+    "Mishra, Excavation Prodigy",
+    "Spider-Man, New Champion"
+   ]
+  },
+  {
    "what": "(verify) condition lost",
    "score": 8,
    "lines": 8,
@@ -7603,16 +7564,6 @@
    ]
   },
   {
-   "what": "BecomesClassLevelTriggeredAbility",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Druid Class",
-    "Cool but Rude",
-    "Monk Class"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 6,
    "lines": 3,
@@ -7968,6 +7919,19 @@
    ]
   },
   {
+   "what": "attack with 3 or more",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Legion's Landing // Adanto, the First Fort",
+    "Phoenix Chick",
+    "Gallia of the Endless Dance",
+    "Warcry Phoenix",
+    "Inniaz, the Gale Force",
+    "Ruby Collector"
+   ]
+  },
+  {
    "what": "(verify) \"may\" lost",
    "score": 6,
    "lines": 6,
@@ -8017,6 +7981,32 @@
     "Muck Drubb",
     "Loki, God of Lies"
    ]
+  },
+  {
+   "what": "PutIntoLibraryNFromTopTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Teferi, Hero of Dominaria",
+    "Oust",
+    "Synchronized Eviction",
+    "Isolation at Orthanc",
+    "Bury in Books",
+    "Chronostutter"
+   ]
+  },
+  {
+   "what": "keyword OfferingAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Blast-Furnace Hellkite",
+    "Patron of the Moon",
+    "Patron of the Orochi",
+    "Patron of the Nezumi",
+    "Patron of the Kitsune",
+    "Patron of the Akki"
+   ]
   }
  ],
  "sole": [
@@ -8035,7 +8025,7 @@
   },
   {
    "what": "custom ability",
-   "score": 752,
+   "score": 746,
    "cards": 611,
    "names": [
     "Mangara, the Diplomat",
@@ -8538,19 +8528,6 @@
     "Iron Man, Futurist Paragon",
     "Doc Ock, Evil Inventor",
     "Tendril of the Mycotyrant"
-   ]
-  },
-  {
-   "what": "DiscardOneOrMoreCardsTriggeredAbility",
-   "score": 19,
-   "cards": 10,
-   "names": [
-    "Inti, Seneschal of the Sun",
-    "Magmakin Artillerist",
-    "Cryptcaller Chariot",
-    "Captain Howler, Sea Scourge",
-    "Marauding Mako",
-    "Scrounging Skyray"
    ]
   },
   {
@@ -9217,16 +9194,6 @@
    ]
   },
   {
-   "what": "UnlockThisDoorTriggeredAbility",
-   "score": 12,
-   "cards": 3,
-   "names": [
-    "Walk-In Closet // Forgotten Cellar",
-    "Mirror Room // Fractured Realm",
-    "Bottomless Pool // Locker Room"
-   ]
-  },
-  {
    "what": "keyword DevourAbility",
    "score": 12,
    "cards": 12,
@@ -9505,6 +9472,15 @@
     "Luminarch Ascension",
     "Goblin Spymaster",
     "Predatory Advantage"
+   ]
+  },
+  {
+   "what": "UnlockThisDoorTriggeredAbility",
+   "score": 11,
+   "cards": 2,
+   "names": [
+    "Walk-In Closet // Forgotten Cellar",
+    "Mirror Room // Fractured Realm"
    ]
   },
   {
@@ -9940,19 +9916,6 @@
     "Anathemancer",
     "Pyre-Sledge Arsonist",
     "Electrostatic Bolt"
-   ]
-  },
-  {
-   "what": "attack with 3 or more",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Legion's Landing // Adanto, the First Fort",
-    "Phoenix Chick",
-    "Overwhelming Instinct",
-    "Gallia of the Endless Dance",
-    "Warcry Phoenix",
-    "Armasaur Guide"
    ]
   },
   {
@@ -10967,6 +10930,19 @@
    ]
   },
   {
+   "what": "DiscardOneOrMoreCardsTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Magmakin Artillerist",
+    "Captain Howler, Sea Scourge",
+    "Marauding Mako",
+    "Scrounging Skyray",
+    "Doctor Doom, King of Latveria",
+    "Urza, Powerstone Prodigy"
+   ]
+  },
+  {
    "what": "(verify) targets 3, printed 0",
    "score": 8,
    "cards": 8,
@@ -11477,19 +11453,6 @@
    ]
   },
   {
-   "what": "attack with 2 or more",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Chivalric Alliance",
-    "Military Intelligence",
-    "Eiganjo Dynastorian // Replenish",
-    "Craig Boone, Novac Guard",
-    "Master's Guidance",
-    "Tide Skimmer"
-   ]
-  },
-  {
    "what": "AddManaInAnyCombinationEffect",
    "score": 7,
    "cards": 7,
@@ -11864,6 +11827,32 @@
     "Illusionary Armor",
     "Spinal Graft",
     "Sleeping Potion"
+   ]
+  },
+  {
+   "what": "DesertControlledOrGraveyardCondition.instance",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Desert's Hold",
+    "Wall of Forgotten Pharaohs",
+    "Sand Strangler",
+    "Solitary Camel",
+    "Sidewinder Naga",
+    "Gilded Cerodon"
+   ]
+  },
+  {
+   "what": "CanAttackAsThoughItDidntHaveDefenderSourceEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Animate Wall",
+    "Nivix Cyclops",
+    "Roving Keep",
+    "Mobile Fort",
+    "Territorial Witchstalker",
+    "Walking Wall"
    ]
   }
  ]
