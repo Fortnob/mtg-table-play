@@ -7699,4 +7699,53 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, 'none for the plain one');
   });
+
+  test('Thrakkus the Butcher: each Dragon\'s power doubled as it attacks', (mk, t) => {
+    t.auto('Thrakkus the Butcher');
+    const T = mk();
+    const th = T.bf('A', 'Thrakkus the Butcher'), sd = T.bf('A', 'Shivan Dragon'), bear = T.bf('A', 'Grizzly Bears');
+    th.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: th.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.powerOf(sd), 10, 'Shivan Dragon'); t.eq(T.g.powerOf(th), 6, 'Thrakkus'); t.eq(T.g.powerOf(bear), 2);
+  });
+
+  test('Archfiend of Despair: each opponent loses again what they lost', (mk, t) => {
+    t.auto('Archfiend of Despair');
+    const T = mk();
+    T.bf('A', 'Archfiend of Despair');
+    T.g.changeLife(T.player('B'), -3);
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('B'), 14);
+  });
+
+  test('Folio of Fancies: each opponent mills as many as are in their hand', (mk, t) => {
+    t.auto('Folio of Fancies');
+    const T = mk();
+    const f = T.bf('A', 'Folio of Fancies');
+    const h = T.zone('B', 'hand').length, g0 = T.zone('B', 'graveyard').length;
+    T.mana('A', '2U');
+    T.activate('A', f, f.analysis().manaAbilities.length);
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, g0 + h);
+  });
+
+  test('Cosmos Elixir: above the starting life a card, otherwise 2 life', (mk, t) => {
+    t.auto('Cosmos Elixir');
+    const T = mk();
+    T.bf('A', 'Cosmos Elixir');
+    const l0 = T.life('A'), h0 = T.zone('A', 'hand').length;
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('A'), l0 + 2); t.eq(T.zone('A', 'hand').length, h0);
+  });
+
+  test('Karn, Legacy Reforged: power and toughness the greatest artifact mana value', (mk, t) => {
+    const T = mk();
+    const k = T.bf('A', 'Karn, Legacy Reforged');
+    T.bf('A', 'Mind Stone');
+    t.eq(T.g.powerOf(k), 5); t.eq(T.g.toughnessOf(k), 5);
+  });
 };

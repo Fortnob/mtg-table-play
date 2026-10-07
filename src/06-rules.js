@@ -10065,7 +10065,9 @@
         }
         case 'loseLife': {
           const cnt = n(e.n);
-          if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
+          // Archfiend of Despair: each loses what they lost this turn
+          if (e.who === 'opponents' && e.n && e.n.lifeLostBy === 'each') { for (const p of this.opponentsOf(ctx.controller)) { const k = p.lifeLostThisTurn || 0; if (k > 0) this.changeLife(p, -k); } }
+          else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           else if (e.who === 'targetController') { const o = firstObj(); const p = o && this.player(o.controller); if (p) this.changeLife(p, -cnt); }
@@ -10740,7 +10742,9 @@
             // The Water Crystal: "they mill that many cards plus four instead"
             // Maddening Cacophony: each opponent's own half
             const cnt1 = e.n && e.n.halfLibrary === 'each'
-              ? (e.n.up ? Math.ceil : Math.floor)(this.zones[p.id].library.length / 2) : cnt;
+              ? (e.n.up ? Math.ceil : Math.floor)(this.zones[p.id].library.length / 2)
+              // Folio of Fancies: as many as are in that player's hand
+              : e.n && e.n.cardsInHandEach ? this.zones[p.id].hand.length : cnt;
             const evM = cnt1 > 0 ? this._replace({ kind: 'mill', n: cnt1, controller: p.id }) : { n: cnt1 };
             if (evM.cancelled) continue;
             const many = evM.n;
@@ -14119,6 +14123,16 @@
           break;
         }
         // Geist of Saint Traft: the token just made goes as combat ends
+        // Two-Handed Axe, Thrakkus: +X/+0 where X is each one's power as this resolves
+        case 'doublePower': {
+          applyToScope(e, (o) => {
+            if (!o || o.zone !== 'battlefield') return;
+            const k = this.powerOf(o);
+            if (k > 0) { o.effects.push({ p: k, t: 0, until: 'eot' }); o._chr = null; }
+          });
+          this.bumpBoard();
+          break;
+        }
         // Siege-Gang Lieutenant: the tokens just made gain haste
         case 'grantMade': {
           for (const id of (this._madeThisResolution || [])) {

@@ -577,7 +577,7 @@
     const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
-    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
+    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
     /* Foot Chopper: "create a 1/1 Ninja token, then attach this Equipment
@@ -1056,6 +1056,17 @@
     { re: /^You lose half your life, rounded (up|down)\.?$/i, make: (m) => ({ op: 'loseLife', n: { halfLife: 'you', up: /up/i.test(m[1]) }, who: 'you' }) },
     // Blessed Wind: "Target player's life total becomes 20."
     { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
+    // Archfiend of Despair: "each opponent loses life equal to the life that player lost this turn"
+    { re: /^Each opponent loses life equal to the life that player lost this turn\.?$/i,
+      make: () => ({ op: 'loseLife', who: 'opponents', n: { lifeLostBy: 'each' } }) },
+    // Folio of Fancies: "Each opponent mills cards equal to the number of cards in their hand."
+    { re: /^Each opponent mills cards equal to the number of cards in their hand\.?$/i,
+      make: () => ({ op: 'mill', who: 'opponents', n: { cardsInHandEach: true } }) },
+    // Two-Handed Axe: "double its power until end of turn"; Thrakkus: "double the power of each Dragon you control"
+    { re: /^[Dd]ouble (?:its|that creature'?s) power until end of turn\.?$/,
+      make: () => ({ op: 'doublePower', scope: 'lastTarget' }) },
+    { re: /^Double the power of each ([A-Za-z ]+? you control) until end of turn\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1].replace(/^([A-Za-z]+)(?= you control$)/, (w) => (/s$/.test(w) ? w : w + 's'))); return sc ? { op: 'doublePower', scope: sc } : null; } },
     // Maddening Cacophony: "each opponent mills half their library, rounded up" — each their own half
     { re: /^Each opponent mills half their library, rounded (down|up)\.?$/i,
       make: (m) => ({ op: 'mill', who: 'opponents', n: { halfLibrary: 'each', up: /up/i.test(m[1]) } }) },
@@ -3028,10 +3039,13 @@
       make: (m) => ({ op: 'taxSpells', amount: -(+m[2]), filter: m[1].toLowerCase(), who: 'you' }) },
     // Renata, Called to the Hunt: "CARDNAME's power is equal to your devotion to green."
     // Towering Gibbon: "CARDNAME's power is equal to the greatest mana value among creatures you control."
-    { re: /^(?:CARDNAME|This creature)'?s power is equal to the greatest mana value among ([a-z ]+? you control)\.?$/i,
+    { re: /^(?:CARDNAME|This creature)'?s (power is|power and toughness are each) equal to the greatest mana value among ([a-z ]+? you control)\.?$/i,
       make: (m) => {
-        const sc = scopeOf(m[1]);
-        return sc ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { greatestMvOf: sc }, t: null, keepToughness: true } } : null;
+        const sc = scopeOf(m[2]);
+        if (!sc) return null;
+        const v = { greatestMvOf: sc };
+        return { op: 'continuous', layer: 7, cda: true, scope: { self: true },
+          setPt: /toughness/i.test(m[1]) ? { p: v, t: v } : { p: v, t: null, keepToughness: true } };
       } },
     // Daxos, Blessed by the Sun: "CARDNAME's toughness is equal to your devotion to white."
     { re: /^(?:CARDNAME|This creature)'?s (power|toughness) is equal to your devotion to (white|blue|black|red|green)\.?$/i,
@@ -5486,6 +5500,8 @@
       ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
     // Righteous Valkyrie: "you have at least 7 life more than your starting life total"
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
+    // Cosmos Elixir: "your life total is greater than your starting life total"
+    [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
     // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
     [/^(?:this creature|CARDNAME) has fewer than (\w+) ([+\-0-9/a-z]+) counters on it$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]) - 1, cmp: 'atMost', counter: m[2].toLowerCase() } : null)],
