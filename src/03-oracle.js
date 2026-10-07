@@ -1666,6 +1666,8 @@
     /* the newer mechanics, each a word for a small procedure */
     { re: /^Discover (one|two|three|four|five|six|seven|eight|nine|ten|\d+)\.?$/i, make: (m) => ({ op: 'discover', n: num(m[1]) }) },
     { re: /^Discover X, where X is (?:that spell'?s|its) mana value\.?$/i, make: () => ({ op: 'discover', n: { ofTrigger: 'mv' } }) },
+    // Pantlaza: "discover X, where X is that creature's toughness"
+    { re: /^Discover X, where X is that creature'?s (power|toughness)\.?$/i, make: (m) => ({ op: 'discover', n: { ofTrigger: m[1].toLowerCase() } }) },
     { re: /^[Ee]arthbend (one|two|three|four|five|six|\d+|X)\.?$/,
       make: (m) => ({ op: 'earthbend', n: num(m[1]), targets: [{ type: 'land', controller: 'you', filter: 'land you control' }] }) },
     { re: /^[Aa]irbend (up to one )?(other )?(target [a-z ]+?)\.?$/,
@@ -5172,6 +5174,12 @@
         if (prev && prev.op === 'damage' && (prev.targets || []).length === 1 && prev.targets[0].type !== 'player') {
           for (const x of e.insteadOf.effects) if (x.op === 'damage' && x.toTriggerObject && !x.targets) { delete x.toTriggerObject; x.targets = prev.targets; }
         }
+        /* Blade of the Bloodchief: "put a +1/+1 counter on equipped creature.
+           If equipped creature is a Vampire, put two … on it instead" — "it"
+           is what the first sentence put them on */
+        if (prev && prev.scope && typeof prev.scope === 'string' && !(prev.targets || []).length) {
+          for (const x of e.insteadOf.effects) if (x.op === prev.op && (!x.scope || x.scope === 'triggerObject' || x.scope === 'lastTarget' || (x.scope === 'self' && / it\b/.test(x.text || '') && !/this|CARDNAME/.test(x.text || ''))) && !(x.targets || []).length) { x.scope = prev.scope; delete x.targets; }
+        }
         if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
         // with nothing before it on this line, the line before this one is what it replaces
         else out.push(e);
@@ -5424,6 +5432,14 @@
     // Sulam Djinn: "as long as green is the most common color among all permanents or is tied for most common"
     [/^(white|blue|black|red|green) is the most common colou?r among all permanents(?: or is tied for most common)?$/i,
       (m) => ({ kind: 'mostCommonColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
+    // Pestilence: "if no creatures are on the battlefield"
+    [/^no creatures are on the battlefield$/i, () => ({ kind: 'noCreatures' })],
+    // Y'shtola: "if a player lost 4 or more life this turn"
+    [/^a player lost (\w+) or more life this turn$/i, (m) => ({ kind: 'anyLostLife', n: num(m[1]) })],
+    // Endless Atlas: "you control three or more lands with the same name"
+    [/^you control (\w+) or more lands with the same name$/i, (m) => ({ kind: 'sameNameLands', n: num(m[1]) })],
+    // Blade of the Bloodchief: "equipped creature is a Vampire"
+    [/^(equipped|enchanted) creature is an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'attachedSubtype', type: m[2] })],
     // Candletrap, Candlegrove Witch: "you control three or more creatures with different powers"
     [/^you control (\w+) or more creatures with different powers$/i, (m) => ({ kind: 'differentPowers', n: num(m[1]) })],
     // Glistening Sphere: "Activate only if an opponent has three or more poison counters"

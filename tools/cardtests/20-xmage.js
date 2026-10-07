@@ -6917,4 +6917,23 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Ascend from Avernus'), { x: 2 });
     t.eq(b.zone, 'battlefield'); t.eq(g.zone, 'graveyard');
   });
+
+  test('Blade of the Bloodchief: two counters on a Vampire, one otherwise', (mk, t) => {
+    t.auto('Blade of the Bloodchief');
+    const T = mk();
+    const vamp = T.bf('A', 'Vampire Nighthawk');
+    const bb = T.bf('A', 'Blade of the Bloodchief');
+    bb.attachedTo = vamp.id; vamp.attachments.push(bb.id); T.g.bumpBoard();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard'); T.g.checkStateBasedActions(); T.resolve();
+    t.eq(vamp.counters['+1/+1'] || 0, 2);
+  });
+
+  test('Pestilence: gone at end of turn when no creatures are left', (mk, t) => {
+    t.auto('Pestilence');
+    const T = mk();
+    const p = T.bf('A', 'Pestilence');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(p.zone, 'graveyard');
+  });
 };

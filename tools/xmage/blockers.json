@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14337,
+  "needed": 14324,
   "gainedCards": 1521,
-  "linesNeeded": 15894,
+  "linesNeeded": 15878,
   "linesGained": 1894,
   "gained": {
    "all": 1521,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5241,
-   "lines": 4566,
+   "score": 5240,
+   "lines": 4565,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 227,
-   "lines": 197,
+   "score": 224,
+   "lines": 194,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -159,10 +159,10 @@
     "Sting, the Glinting Dagger",
     "Urabrask // The Great Work",
     "Nasty End",
-    "Endless Atlas",
-    "Y'shtola, Night's Blessed",
     "Queen Marchesa",
-    "The Chain Veil"
+    "The Chain Veil",
+    "Cosmos Elixir",
+    "Emeritus of Woe // Demonic Tutor"
    ]
   },
   {
@@ -2950,24 +2950,6 @@
    ]
   },
   {
-   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Pyrohemia",
-    "Pestilence",
-    "Colfenor's Urn",
-    "Biovisionary",
-    "Call to the Grave",
-    "Arachnus Web",
-    "Withering Wisps",
-    "Skizzik",
-    "Lightning Shrieker",
-    "Blitz Hellion",
-    "Krovikan Horror"
-   ]
-  },
-  {
    "what": "scope:alts",
    "score": 11,
    "lines": 11,
@@ -3734,22 +3716,6 @@
    ]
   },
   {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Pantlaza, Sun-Favored",
-    "Nykthos Paragon",
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
-   ]
-  },
-  {
    "what": "CreateTokenCopySourceEffect",
    "score": 9,
    "lines": 9,
@@ -4195,22 +4161,6 @@
    ]
   },
   {
-   "what": "EquippedHasSubtypeCondition",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Butcher's Cleaver",
-    "Gift of Fangs",
-    "Bladed Bracers",
-    "Harvest Hand // Scrounged Scythe",
-    "Bonds of Faith",
-    "True-Faith Censer",
-    "Sharpened Pitchfork",
-    "Silver-Inlaid Dagger",
-    "Heavy Mattock"
-   ]
-  },
-  {
    "what": "RevealCardsFromLibraryUntilEffect",
    "score": 9,
    "lines": 9,
@@ -4416,6 +4366,21 @@
     "Vampire Scrivener",
     "Lich's Tomb",
     "Oath of Lim-Dûl"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Nykthos Paragon",
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {
@@ -5364,6 +5329,20 @@
     "All of History, All at Once",
     "The Parting of the Ways",
     "The Wedding of River Song"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Colfenor's Urn",
+    "Biovisionary",
+    "Arachnus Web",
+    "Skizzik",
+    "Lightning Shrieker",
+    "Blitz Hellion",
+    "Krovikan Horror"
    ]
   },
   {
@@ -6680,6 +6659,19 @@
    ]
   },
   {
+   "what": "EquippedHasSubtypeCondition",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Gift of Fangs",
+    "Bladed Bracers",
+    "Bonds of Faith",
+    "True-Faith Censer",
+    "Silver-Inlaid Dagger",
+    "Heavy Mattock"
+   ]
+  },
+  {
    "what": "TargetPermanentSameController",
    "score": 6,
    "lines": 6,
@@ -6932,18 +6924,6 @@
     "Octopus Umbra",
     "Stasis Field",
     "Coerced to Kill"
-   ]
-  },
-  {
-   "what": "ActivateIfConditionManaAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Sceptre of Eternal Glory",
-    "Mirrex",
-    "Flywheel Racer",
-    "Lys Alana Dignitary",
-    "Pyramid of the Pantheon"
    ]
   },
   {
@@ -7506,6 +7486,18 @@
     "Mayael the Anima",
     "Squad Rallier"
    ]
+  },
+  {
+   "what": "ChosenSubtypePredicate.TRUE",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Dawn-Blessed Pennant",
+    "Kindred Boon",
+    "From the Rubble",
+    "Mirror of the Forebears",
+    "Belbe's Portal"
+   ]
   }
  ],
  "sole": [
@@ -7524,8 +7516,8 @@
   },
   {
    "what": "custom ability",
-   "score": 684,
-   "cards": 582,
+   "score": 685,
+   "cards": 583,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7563,8 +7555,8 @@
   },
   {
    "what": "custom condition",
-   "score": 175,
-   "cards": 157,
+   "score": 172,
+   "cards": 154,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -9529,32 +9521,6 @@
    ]
   },
   {
-   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Pyrohemia",
-    "Pestilence",
-    "Biovisionary",
-    "Arachnus Web",
-    "Skizzik",
-    "Lightning Shrieker"
-   ]
-  },
-  {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Pantlaza, Sun-Favored",
-    "Nykthos Paragon",
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Baron Strucker, HYDRA Overlord"
-   ]
-  },
-  {
    "what": "RemoveCounterCost",
    "score": 8,
    "cards": 8,
@@ -9828,19 +9794,6 @@
    ]
   },
   {
-   "what": "EquippedHasSubtypeCondition",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Butcher's Cleaver",
-    "Gift of Fangs",
-    "Bladed Bracers",
-    "Bonds of Faith",
-    "True-Faith Censer",
-    "Sharpened Pitchfork"
-   ]
-  },
-  {
    "what": "ConditionalContinuousRuleModifyingEffect",
    "score": 8,
    "cards": 8,
@@ -10013,6 +9966,19 @@
    ]
   },
   {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Nykthos Paragon",
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge"
+   ]
+  },
+  {
    "what": "AddCountersPlayersEffect",
    "score": 7,
    "cards": 7,
@@ -10140,6 +10106,19 @@
     "Workshop Elders",
     "Stone by Sunlight",
     "Animating Faerie // Bring to Life"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Call to the Grave",
+    "Redcap Raiders"
    ]
   },
   {
@@ -10792,19 +10771,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Redcap Raiders",
-    "Archdemon of Unx"
-   ]
-  },
-  {
    "what": "blocks or blocked by a kind of creature",
    "score": 6,
    "cards": 6,
@@ -10919,6 +10885,19 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Biovisionary",
+    "Arachnus Web",
+    "Skizzik",
+    "Lightning Shrieker",
+    "Blitz Hellion",
+    "Krovikan Horror"
    ]
   },
   {
@@ -11101,6 +11080,19 @@
     "Misinformation",
     "Shieldmage Advocate",
     "Forcemage Advocate"
+   ]
+  },
+  {
+   "what": "EquippedHasSubtypeCondition",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Gift of Fangs",
+    "Bladed Bracers",
+    "Bonds of Faith",
+    "True-Faith Censer",
+    "Silver-Inlaid Dagger",
+    "Heavy Mattock"
    ]
   },
   {

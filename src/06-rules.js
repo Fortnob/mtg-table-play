@@ -7848,6 +7848,18 @@
         }
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
+        case 'noCreatures': return !this.battlefield.some(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+        case 'anyLostLife': return this.players.some(p => (p.lifeLostThisTurn || 0) >= (cond.n || 0));
+        case 'sameNameLands': {
+          if (!me) return false;
+          const k = new Map();
+          for (const o of this.battlefield) if (o.controller === me.id && !o.phasedOut && (o.analysis() || {}).isLand) k.set(o.name, (k.get(o.name) || 0) + 1);
+          return Math.max(0, ...k.values()) >= (cond.n || 0);
+        }
+        case 'attachedSubtype': {
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          return !!host && this._hasSubtype(host, cond.type);
+        }
         case 'differentPowers': {
           if (!me) return false;
           const pw = new Set(this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature).map(o => this.powerOf(o)));
