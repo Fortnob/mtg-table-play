@@ -3096,6 +3096,71 @@ module.exports = (test) => {
     t.ok(m.analysis().abilities.some(x => x.kind === 'activated'), 'the Mountain has it');
   });
 
+  test('Kindred Dominance: choose a type, the rest are destroyed', (mk, t) => {
+    t.auto('Kindred Dominance');
+    const T = mk();
+    const a = T.bf('A', 'Elvish Visionary'), c = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.label === 'Elf')] }));
+    T.mana('A', '5BB');
+    T.cast('A', T.hand('A', 'Kindred Dominance'));
+    T.resolve();
+    t.zone(a, 'battlefield'); t.zone(c, 'graveyard');
+  });
+
+  test('Distant Melody draws for each permanent of the chosen type', (mk, t) => {
+    t.auto('Distant Melody');
+    const T = mk();
+    T.bf('A', 'Elvish Visionary'); T.bf('A', 'Llanowar Elves');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const dm = T.hand('A', 'Distant Melody');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', '3U');
+    T.cast('A', dm);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length - h + 1, 2);
+  });
+
+  test("Platinum Angel: you can't lose", (mk, t) => {
+    t.auto('Platinum Angel');
+    const T = mk();
+    T.bf('A', 'Platinum Angel');
+    T.g.player('A').life = 0;
+    T.g.checkStateBasedActions();
+    t.no(T.g.player('A').hasLost);
+  });
+
+  test('No Mercy destroys a creature that damaged you', (mk, t) => {
+    t.auto('No Mercy');
+    const T = mk();
+    T.bf('B', 'No Mercy');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.g.dealDamageToPlayer(T.g.player('B'), 2, b, true);
+    T.resolve();
+    t.zone(b, 'graveyard');
+  });
+
+  test("Soul Shatter takes the opponent's most expensive creature", (mk, t) => {
+    t.auto('Soul Shatter');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears'), w = T.bf('B', 'Craw Wurm');
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Soul Shatter'));
+    T.resolve();
+    t.zone(w, 'graveyard'); t.zone(b, 'battlefield');
+  });
+
+  test('Homeward Path returns creatures to their owners', (mk, t) => {
+    t.auto('Homeward Path');
+    const T = mk();
+    const h = T.bf('A', 'Homeward Path');
+    const b = T.bf('B', 'Grizzly Bears');
+    b.effects.push({ control: 'A', until: null, ts: T.g._stampNew() }); T.g._refreshControl();
+    t.eq(b.controller, 'A');
+    T.activate('A', h, h.analysis().manaAbilities.length);
+    T.resolve();
+    t.eq(b.controller, 'B');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

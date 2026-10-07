@@ -1459,6 +1459,8 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* "Choose a creature type": the options come most-ours first */
+    creatureType() { return { picks: [0] }; },
     /* Circle of Protection: the opponent's source most likely to hurt us
        this turn — an attacker, a spell on the stack, then their biggest creature */
     preventSource(s) {

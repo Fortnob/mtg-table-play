@@ -845,6 +845,13 @@
       make: (m) => (typeof num(m[2]) === 'number' ? Object.assign({ op: 'exileTop', n: num(m[2]),
         who: /defending/i.test(m[1]) ? 'defending' : /each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: 'player' }] } : {}) : null) },
+    // Flare of Malice, Soul Shatter
+    { re: /^Each opponent sacrifices an? (creature or planeswalker|creature) with the greatest mana value among (?:creatures and planeswalkers|creatures) they control\.?$/i,
+      make: (m) => ({ op: 'sacGreatestMv', what: m[1].toLowerCase().split(' or ') }) },
+    // Homeward Path
+    { re: /^Each player gains control of all creatures they own\.?$/i, make: () => ({ op: 'controlToOwners' }) },
+    // Hellkite Tyrant
+    { re: /^Gain control of all artifacts that player controls\.?$/i, make: () => ({ op: 'stealAllArtifacts' }) },
     // Wound Reflection: "each opponent loses life equal to the life they lost this turn"
     { re: /^Each opponent loses life equal to the life they lost this turn\.?$/i, make: () => ({ op: 'woundReflection' }) },
     /* "Exile two target permanents", "destroy up to three target
@@ -2233,7 +2240,17 @@
     { re: /^You and that player each draw (\w+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerPlayer' }] }) },
     { re: /^Name a (?:nonland )?card\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^Choose a creature type\.?$/i, make: () => ({ op: 'noop' }) },
+    /* "Choose a creature type." as an effect: the spell or ability remembers
+       it, for "of the chosen type" after it */
+    { re: /^Choose a creature type\.?$/i, make: () => ({ op: 'chooseTypeNow' }) },
+    // Distant Melody: "Draw a card for each permanent you control of that type."
+    { re: /^Draw a card for each (permanent|creature) you control of that type\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'you', n: { scope: { who: 'you', chosenType: true, what: m[1].toLowerCase() }, mult: 1 } }) },
+    // Kindred Dominance, Raise the Palisade: "… all creatures that aren't of the chosen type"
+    { re: /^(Destroy|Exile) all creatures that aren'?t of the chosen type\.?$/i,
+      make: (m) => ({ op: m[1].toLowerCase() + 'All', what: 'creature', notChosenType: true }) },
+    { re: /^Return all creatures that aren'?t of the chosen type to their owners'? hands\.?$/i,
+      make: () => ({ op: 'bounceAll', what: 'creatures', notChosenType: true }) },
     { re: /^You may pay ((?:\{[^}]+\})+) rather than pay (?:CARDNAME|this spell)'?s mana cost\.?$/i,
       make: () => ({ op: 'noop' }) },
     { re: /^Destroy all ([A-Z][a-z]+s)\.?$/i,
@@ -4280,6 +4297,9 @@
   const TRIGGER_PATTERNS = [
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // No Mercy, Mikaeus: "Whenever a creature deals damage to you"
+    { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals damage to you,/i, event: 'youDealtDamage', aboutObject: true,
+      filt: (m) => ({ words: m[1].toLowerCase() }) },
     // City of Traitors: "When you play another land"
     { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
     // the Eldrazi titans: a trigger from the stack, as the spell is cast
@@ -6658,6 +6678,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Platinum Angel
+      { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
       // Iroas, Losheel: "Prevent all (combat) damage that would be dealt to attacking (artifact) creatures you control."
       { re: /^Prevent all (combat )?damage that would be dealt to attacking (artifact )?creatures you control\.?$/i,
         make: (m) => {

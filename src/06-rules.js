@@ -7035,6 +7035,8 @@
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${p.name} (${p.life} life).`);
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!combat, player: p.id });
+      // No Mercy: "Whenever a creature deals damage to you" — the damaged player's triggers
+      if (source) this._fire('youDealtDamage', p.id, { object: source, objController: source.controller, amount, combat: !!combat, player: p.id });
       if (source && (source.attachments || []).length) {
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
@@ -9003,6 +9005,8 @@
             // Fell the Mighty: "with power greater than target creature's power"
             if (e.aboveTargetPower) { const tg = firstObj(); if (!tg || this.powerOf(x) <= this.powerOf(tg)) return false; }
             if (e.exceptMade && (this._madeThisResolution || []).includes(x.id)) return false;
+            // "creatures that aren't of the chosen type"
+            if (e.notChosenType && src && src.chosenType && this._hasCreatureType(x, src.chosenType)) return false;
             // Winds of Rath: "creatures that aren't enchanted"
             if (e.unenchanted && (x.attachments || []).some(id => { const at = this.obj(id); return at && ((at.analysis() || {}).subtypes || []).includes('Aura'); })) return false;
             return true;
@@ -9446,6 +9450,66 @@
           this.noAttacksTurn = this.turn;
           this.logEvent('rules', "Creatures can't attack this turn.");
           break;
+        /* "Choose a creature type." as an effect: asked now, remembered on
+           the spell or permanent for "of the chosen type" after it */
+        case 'chooseTypeNow': {
+          if (!src) break;
+          const counts = new Map();
+          for (const x of this.battlefield.concat(this.zones[ctx.controller].hand)) {
+            const xa = x.analysis();
+            if (!xa || !xa.isCreature) continue;
+            for (const t of (xa.subtypes || [])) counts.set(t, (counts.get(t) || 0) + (x.controller === ctx.controller ? 2 : 1));
+          }
+          const types = [...counts].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+          if (!types.length) types.push('Human');
+          const got = this._choose({ playerId: ctx.controller, purpose: 'creatureType', kind: 'options', min: 1, max: 1,
+            options: types.slice(0, 20).map((t, i) => ({ i, label: t })), prompt: 'Choose a creature type.' }, 'ctype');
+          if (got === SUSPEND) return SUSPEND;
+          src.chosenType = types[(got && got.picks.length ? got.picks[0] : 0)] || types[0];
+          this.logEvent('rules', `${me.name} chooses ${src.chosenType}.`);
+          break;
+        }
+        /* Flare of Malice, Soul Shatter: "each opponent sacrifices a creature
+           or planeswalker with the greatest mana value among those they control" */
+        case 'sacGreatestMv': {
+          for (const q of this.opponentsOf(ctx.controller)) {
+            const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
+            if (!pool.length) continue;
+            const top = Math.max(...pool.map(x => (x.card && x.card.cmc) || 0));
+            const tied = pool.filter(x => ((x.card && x.card.cmc) || 0) === top);
+            let pick = tied[0];
+            if (tied.length > 1) {
+              const got = this._choose({ playerId: q.id, purpose: 'sacrifice', kind: 'objects', zone: 'battlefield', harmful: true,
+                items: this._chooseItems(tied), min: 1, max: 1, prompt: 'Sacrifice one of these.' }, 'sgm' + q.id);
+              if (got === SUSPEND) return SUSPEND;
+              pick = (got && got.picks.length && this.obj(got.picks[0])) || tied[0];
+            }
+            this._sacrificeNow(q.id, [pick], ctx);
+            this._fire('youSacrifice', q.id, { count: 1 });
+          }
+          break;
+        }
+        // Homeward Path: "Each player gains control of all creatures they own."
+        case 'controlToOwners': {
+          const ts = this._stampNew();
+          for (const x of this.battlefield) {
+            if (x.controller === x.owner || !(this.characteristics(x) || {}).isCreature) continue;
+            x.effects.push({ control: x.owner, until: null, ts });
+          }
+          this._refreshControl();
+          this.logEvent('control', 'Each player gains control of the creatures they own.');
+          break;
+        }
+        // Hellkite Tyrant: "gain control of all artifacts that player controls"
+        case 'stealAllArtifacts': {
+          const q = triggerPlayer();
+          if (!q) break;
+          const ts = this._stampNew();
+          for (const x of this.battlefield.filter(y => y.controller === q.id && (y.analysis() || {}).isArtifact)) x.effects.push({ control: ctx.controller, until: null, ts });
+          this._refreshControl();
+          this.logEvent('control', `${me.name} gains control of ${q.name}'s artifacts.`);
+          break;
+        }
         // Wound Reflection: each opponent loses again what they lost this turn
         case 'woundReflection':
           for (const q of this.opponentsOf(ctx.controller)) { const k = q.lifeLostThisTurn || 0; if (k > 0) this.changeLife(q, -k); }
@@ -12916,6 +12980,8 @@
 
     playerLoses(p, reason) {
       if (p.hasLost) return;
+      // Platinum Angel: "You can't lose the game and your opponents can't win the game."
+      if (this._anyStaticOf(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout') return;
       p.hasLost = true;
       p.lossReason = reason;
       const words = {

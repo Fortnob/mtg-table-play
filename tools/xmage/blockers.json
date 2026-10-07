@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16571,
-  "gainedCards": 1766,
-  "linesNeeded": 18806,
+  "needed": 16550,
+  "gainedCards": 1767,
+  "linesNeeded": 18781,
   "linesGained": 2270,
   "gained": {
-   "all": 1766,
+   "all": 1767,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5708,
-   "lines": 4907,
+   "score": 5697,
+   "lines": 4902,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -45,16 +45,16 @@
     "Torment of Hailfire",
     "Incubation Druid",
     "Rite of Flame",
-    "Distant Melody",
     "Sphere of Safety",
     "Shared Animosity",
-    "Kindred Dominance"
+    "Springheart Nantuko",
+    "Whip of Erebos"
    ]
   },
   {
    "what": "custom ability",
-   "score": 1025,
-   "lines": 839,
+   "score": 1022,
+   "lines": 836,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1988,23 +1988,6 @@
     "Goblin Spymaster",
     "Predatory Advantage",
     "Discordant Spirit"
-   ]
-  },
-  {
-   "what": "DealsDamageToYouAllTriggeredAbility",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Mikaeus, the Unhallowed",
-    "No Mercy",
-    "The Cabbage Merchant",
-    "Dissipation Field",
-    "Strixhaven Stadium",
-    "Teysa, Envoy of Ghosts",
-    "Dread",
-    "Aurification",
-    "Contested War Zone",
-    "Hixus, Prison Warden"
    ]
   },
   {
@@ -4702,20 +4685,6 @@
    ]
   },
   {
-   "what": "ChooseCreatureTypeEffect",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Raise the Palisade",
-    "Crippling Fear",
-    "Pact of the Serpent",
-    "Kindred Summons",
-    "Haunting Voyage",
-    "Kindred Charge",
-    "Tribal Forcemage"
-   ]
-  },
-  {
    "what": "keyword AftermathAbility",
    "score": 10,
    "lines": 7,
@@ -5523,16 +5492,6 @@
    ]
   },
   {
-   "what": "MaxManaValueControlledCreatureOrPlaneswalkerPredicate.instance",
-   "score": 9,
-   "lines": 3,
-   "cards": [
-    "Soul Shatter",
-    "Flare of Malice",
-    "Riveteers Charm"
-   ]
-  },
-  {
    "what": "becomes a creature and loses something",
    "score": 9,
    "lines": 6,
@@ -6175,18 +6134,6 @@
    ]
   },
   {
-   "what": "GainControlAllControlledTargetEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Hellkite Tyrant",
-    "Emrakul, the World Anew",
-    "Ashiok, Sculptor of Fears",
-    "Gilt-Leaf Archdruid",
-    "Tezzeret, Master of Metal"
-   ]
-  },
-  {
    "what": "RemoveFromCombatTargetEffect",
    "score": 8,
    "lines": 5,
@@ -6232,18 +6179,6 @@
     "Ever After",
     "Call a Surprise Witness",
     "Terror of Towashi"
-   ]
-  },
-  {
-   "what": "GainControlAllOwnedEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Homeward Path",
-    "Trostani Discordant",
-    "The Fall of Lord Konda // Fragment of Konda",
-    "Alicia Masters, Skilled Sculptor",
-    "Brooding Saurian"
    ]
   },
   {
@@ -7101,17 +7036,6 @@
     "Maze's End",
     "Gossamer Chains",
     "Cycle of Life"
-   ]
-  },
-  {
-   "what": "CantLoseGameSourceControllerEffect",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Platinum Angel",
-    "Herald of Eternal Dawn",
-    "Cloudsteel Kirin",
-    "Darksteel Angel"
    ]
   },
   {
@@ -8084,6 +8008,19 @@
    ]
   },
   {
+   "what": "ChooseCreatureTypeEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Crippling Fear",
+    "Pact of the Serpent",
+    "Kindred Summons",
+    "Haunting Voyage",
+    "Kindred Charge",
+    "Tribal Forcemage"
+   ]
+  },
+  {
    "what": "ExileTopXMayPlayUntilEffect.withTextOptions",
    "score": 6,
    "lines": 6,
@@ -8095,13 +8032,78 @@
     "Act on Impulse",
     "Wiccan, Young Avenger"
    ]
+  },
+  {
+   "what": "subject:owner",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Brainstealer Dragon",
+    "Thieving Amalgam",
+    "Shirei, Shizo's Caretaker",
+    "Edea, Possessed Sorceress",
+    "Nihiloor",
+    "Lurking Skirge"
+   ]
+  },
+  {
+   "what": "TapForManaAllTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Manabarbs",
+    "War's Toll",
+    "Burning Earth",
+    "Storm Cauldron",
+    "Scald",
+    "Sanctimony"
+   ]
+  },
+  {
+   "what": "DontUntapInControllersUntapStepEnchantedEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Dance of the Dead",
+    "T-45 Power Armor",
+    "Stuck in Summoner's Sanctum",
+    "Hold for Questioning",
+    "Encrust",
+    "Leaden Fists"
+   ]
+  },
+  {
+   "what": "filter:anyCounter",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Together Forever",
+    "Hidden Hideout",
+    "Concord with the Kami",
+    "Volrath, the Shapestealer",
+    "Hunter of Eyeblights",
+    "Razorfin Abolisher"
+   ]
+  },
+  {
+   "what": "or of EnchantedPredicate.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Halvar, God of Battle // Sword of the Realms",
+    "Reyav, Master Smith",
+    "Koll, the Forgemaster",
+    "Dogmeat, Ever Loyal",
+    "Kestia, the Cultivator",
+    "Feast of Dreams"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4477,
-   "cards": 3913,
+   "score": 4466,
+   "cards": 3908,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8113,8 +8115,8 @@
   },
   {
    "what": "custom ability",
-   "score": 759,
-   "cards": 615,
+   "score": 756,
+   "cards": 612,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8948,19 +8950,6 @@
    "names": [
     "Summon: Bahamut",
     "Delayed Blast Fireball"
-   ]
-  },
-  {
-   "what": "DealsDamageToYouAllTriggeredAbility",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Mikaeus, the Unhallowed",
-    "No Mercy",
-    "The Cabbage Merchant",
-    "Dissipation Field",
-    "Teysa, Envoy of Ghosts",
-    "Dread"
    ]
   },
   {
@@ -9993,19 +9982,6 @@
    ]
   },
   {
-   "what": "ChooseCreatureTypeEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Raise the Palisade",
-    "Crippling Fear",
-    "Pact of the Serpent",
-    "Kindred Summons",
-    "Haunting Voyage",
-    "Kindred Charge"
-   ]
-  },
-  {
    "what": "OneOrMoreLeaveWithoutDyingTriggeredAbility",
    "score": 10,
    "cards": 1,
@@ -10318,16 +10294,6 @@
     "Failure // Comply",
     "Prepare // Fight",
     "Reduce // Rubble"
-   ]
-  },
-  {
-   "what": "MaxManaValueControlledCreatureOrPlaneswalkerPredicate.instance",
-   "score": 9,
-   "cards": 3,
-   "names": [
-    "Soul Shatter",
-    "Flare of Malice",
-    "Riveteers Charm"
    ]
   },
   {
@@ -11709,17 +11675,6 @@
    ]
   },
   {
-   "what": "GainControlAllControlledTargetEffect",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Hellkite Tyrant",
-    "Ashiok, Sculptor of Fears",
-    "Gilt-Leaf Archdruid",
-    "Tezzeret, Master of Metal"
-   ]
-  },
-  {
    "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
    "score": 7,
    "cards": 4,
@@ -11728,17 +11683,6 @@
     "Blizzard Strix",
     "Roll-Roll-Roll-Roll",
     "Wiccan, Rising Magician"
-   ]
-  },
-  {
-   "what": "GainControlAllOwnedEffect",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Homeward Path",
-    "Trostani Discordant",
-    "The Fall of Lord Konda // Fragment of Konda",
-    "Brooding Saurian"
    ]
   },
   {
@@ -11939,6 +11883,71 @@
     "Glacial Revelation",
     "Lead the Stampede",
     "Forging the Anchor"
+   ]
+  },
+  {
+   "what": "static ability in STACK",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Banefire",
+    "Demonfire",
+    "Exquisite Firecraft",
+    "Dragonlord's Prerogative",
+    "Bloodbraid Marauder",
+    "Kaervek's Torch"
+   ]
+  },
+  {
+   "what": "ProtectionAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Seasoned Dungeoneer",
+    "Spectra Ward",
+    "Rebbec, Architect of Ascension",
+    "Etched Champion",
+    "Devoted Caretaker",
+    "Pristine Angel"
+   ]
+  },
+  {
+   "what": "MagecraftAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Deekah, Fractal Theorist",
+    "Quandrix Apprentice",
+    "Zaffai, Thunder Conductor",
+    "Lorehold Apprentice",
+    "Prismari Apprentice",
+    "Elemental Expressionist"
+   ]
+  },
+  {
+   "what": "keyword CraftAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Tithing Blade // Consuming Sepulcher",
+    "Clay-Fired Bricks // Cosmium Kiln",
+    "Inverted Iceberg // Iceberg Titan",
+    "Lodestone Needle // Guidestone Compass",
+    "Oteclan Landmark // Oteclan Levitator",
+    "Visage of Dread // Dread Osseosaur"
+   ]
+  },
+  {
+   "what": "control for custom",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Sliver Overlord",
+    "Connive // Concoct",
+    "Empress Galina",
+    "Invoke the Winds",
+    "Jace, Ingenious Mind-Mage",
+    "Sorin, Vampire Lord"
    ]
   }
  ]
