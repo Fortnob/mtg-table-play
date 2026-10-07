@@ -1840,6 +1840,24 @@
       if (this._landBack(o)) return this._spellOrLand(o, a);
       const halves = (live.splitFaces || {})[o.id];
       if ((o.card.layout === 'split' || o.card.layout === 'adventure') && halves && halves.length) return this._castHalf(o, halves);
+      /* Another way to cast it from where it is (spectacle, evoke, surge,
+         morph face down…): offered beside the ordinary cast, which comes
+         first, rather than left in a right-click menu nobody opens. */
+      if (o.zone === 'hand') {
+        const alts = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cast');
+        if (alts.length) {
+          const normal = !this.whyNot(o.id);
+          /** @type {Array<[string, () => void]>} */
+          const items = alts.map(u => [u.label, () => (u.via === 'morph'
+            ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
+            : this.castUse(o, a, u))]);
+          if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
+          if (items.length === 1) return items[0][1]();
+          const n = this.els.get(o.id);
+          const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
+          return UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
+        }
+      }
       this.beginCast(o, a);
     }
 
