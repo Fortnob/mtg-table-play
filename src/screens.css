@@ -357,6 +357,31 @@ input[type=checkbox].switch:checked::after { left: 20px; background: linear-grad
   align-items: stretch; gap: 10px; margin: 0; padding-left: 22px; border-left: 1px solid rgba(255,255,255,.07); }
 .quick > .quick-go .hero-btn { min-width: 190px; }
 .quick > .quick-go .quick-note { text-align: center; max-width: 190px; }
+/* a narrower screen: the button column gives up some width to the choices */
+@media (max-width: 1500px) {
+  .home-hero-inner { width: min(1240px, 84%); }
+  .quick { column-gap: 18px; }
+  .quick > .quick-go { padding-left: 16px; }
+  .quick > .quick-go .hero-btn { min-width: 150px; }
+  .quick > .quick-go .quick-note { max-width: 150px; }
+}
+/* a short screen (1366x768 and the like): the same page, packed tighter so
+   it still shows whole */
+@media (max-height: 820px) {
+  .home-wrap { padding-bottom: 4px; }
+  .home-hero { margin-top: 6px; }
+  .home-hero-inner { padding: 12px 18px 14px; gap: 10px; }
+  .home-title { font-size: 30px; }
+  .home-tag { margin-top: 4px; font-size: 13px; }
+  .quick { padding: 11px 16px 13px; row-gap: 8px; }
+  .home-notes { margin-top: 8px; }
+  .home-notes .resume-card { padding: 8px 14px; }
+  .home-tiles { margin-top: 8px; }
+  .home-tile { min-height: 58px; padding: 10px 14px; align-items: center; }
+  .home-tile p { display: none; }
+  .home-section-row { margin-top: 8px; margin-bottom: 4px; }
+  .recent-deck { height: 66px; }
+}
 .quick > .quick-pair { display: contents; }
 .quick select { width: 100%; }
 .quick-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -401,7 +426,7 @@ input[type=checkbox].switch:checked::after { left: 20px; background: linear-grad
 .home-notes:not(:has(.resume-card)) { display: none; }
 .home-resume:empty { display: none; }
 .home-notes .resume-card { height: 100%; padding: 12px 16px; }
-.home-notes .resume-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.home-notes .resume-sub, .home-notes .guide-card .resume-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .home-section-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; margin-bottom: 6px; }
 .home-section-row .home-section { margin: 0; }
 .resume-card {
