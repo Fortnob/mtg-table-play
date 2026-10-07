@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14628,
+  "needed": 14616,
   "gainedCards": 1523,
-  "linesNeeded": 16228,
+  "linesNeeded": 16214,
   "linesGained": 1903,
   "gained": {
    "all": 1523,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5340,
-   "lines": 4629,
+   "score": 5321,
+   "lines": 4619,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -48,7 +48,7 @@
     "Veyran, Voice of Duality",
     "Isochron Scepter",
     "Inkshield",
-    "Liliana, Dreadhorde General"
+    "Urza, Lord High Artificer"
    ]
   },
   {
@@ -1417,38 +1417,6 @@
    ]
   },
   {
-   "what": "CompositeCost",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Mount Doom",
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for Pure Flame",
-    "Ultimecia, Time Sorceress // Ultimecia, Omnipotent",
-    "Quest for the Holy Relic",
-    "Sokenzan Smelter",
-    "Fugitive of the Judoon",
-    "Sphinx's Approach",
-    "Urborg Panther"
-   ]
-  },
-  {
-   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "Keeper of the Accord",
-    "Archfiend of Depravity",
-    "Luminarch Ascension",
-    "Goblin Spymaster",
-    "Predatory Advantage",
-    "Discordant Spirit"
-   ]
-  },
-  {
    "what": "ActivateAbilityTriggeredAbility",
    "score": 16,
    "lines": 10,
@@ -2158,23 +2126,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Breach the Multiverse",
-    "Hope Estheim",
-    "Fascination",
-    "Invasion of Amonkhet // Lazotep Convert",
-    "Unseal the Necropolis",
-    "Overwhelmed Apprentice",
-    "Flotsam // Jetsam",
-    "Pestilent Cauldron // Restorative Burst",
-    "Path of the Schemer",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "damage affecting the defending player",
    "score": 13,
    "lines": 10,
@@ -2654,6 +2605,18 @@
    ]
   },
   {
+   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
+   "score": 12,
+   "lines": 6,
+   "cards": [
+    "Keeper of the Accord",
+    "Luminarch Ascension",
+    "Goblin Spymaster",
+    "Predatory Advantage",
+    "Discordant Spirit"
+   ]
+  },
+  {
    "what": "WinGameSourceControllerEffect",
    "score": 12,
    "lines": 9,
@@ -2803,6 +2766,25 @@
     "Conduit Goblin",
     "Voltstorm Angel",
     "Janjeet Sentry"
+   ]
+  },
+  {
+   "what": "CompositeCost",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Ultimecia, Time Sorceress // Ultimecia, Omnipotent",
+    "Quest for the Holy Relic",
+    "Sokenzan Smelter",
+    "Fugitive of the Judoon",
+    "Sphinx's Approach",
+    "Urborg Panther",
+    "Kyscu Drake"
    ]
   },
   {
@@ -3010,6 +2992,21 @@
     "Leeching Licid",
     "Quickening Licid",
     "Gliding Licid"
+   ]
+  },
+  {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Breach the Multiverse",
+    "Hope Estheim",
+    "Fascination",
+    "Invasion of Amonkhet // Lazotep Convert",
+    "Flotsam // Jetsam",
+    "Pestilent Cauldron // Restorative Burst",
+    "Path of the Schemer",
+    "Halo-Charged Skaab"
    ]
   },
   {
@@ -7599,8 +7596,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4270,
-   "cards": 3766,
+   "score": 4253,
+   "cards": 3758,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8543,19 +8540,6 @@
    ]
   },
   {
-   "what": "CompositeCost",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Mount Doom",
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for the Holy Relic"
-   ]
-  },
-  {
    "what": "Ability.setModeTag",
    "score": 12,
    "cards": 3,
@@ -8767,18 +8751,6 @@
     "Shadow of the Second Sun",
     "Tymna the Weaver",
     "Belbe, Corrupted Observer"
-   ]
-  },
-  {
-   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
-   "score": 11,
-   "cards": 5,
-   "names": [
-    "Keeper of the Accord",
-    "Archfiend of Depravity",
-    "Luminarch Ascension",
-    "Goblin Spymaster",
-    "Predatory Advantage"
    ]
   },
   {
@@ -9034,19 +9006,6 @@
     "Evercoat Ursine",
     "Collector's Cage",
     "Shelldock Isle"
-   ]
-  },
-  {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Breach the Multiverse",
-    "Hope Estheim",
-    "Fascination",
-    "Unseal the Necropolis",
-    "Overwhelmed Apprentice",
-    "Flotsam // Jetsam"
    ]
   },
   {
@@ -9673,6 +9632,18 @@
    ]
   },
   {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Breach the Multiverse",
+    "Hope Estheim",
+    "Fascination",
+    "Flotsam // Jetsam",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
    "what": "CreateTokenAllEffect",
    "score": 8,
    "cards": 5,
@@ -9925,6 +9896,19 @@
    ]
   },
   {
+   "what": "CompositeCost",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for the Holy Relic",
+    "Sokenzan Smelter"
+   ]
+  },
+  {
    "what": "IsStepCondition",
    "score": 8,
    "cards": 8,
@@ -10146,6 +10130,19 @@
    ]
   },
   {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Fall from Favor",
+    "Alirios, Enraptured",
+    "Moonhold",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Walking Dream"
+   ]
+  },
+  {
    "what": "ConditionalContinuousEffect without a condition",
    "score": 8,
    "cards": 8,
@@ -10193,6 +10190,17 @@
     "Ever After",
     "Call a Surprise Witness",
     "Terror of Towashi"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Keeper of the Accord",
+    "Luminarch Ascension",
+    "Goblin Spymaster",
+    "Predatory Advantage"
    ]
   },
   {
@@ -10681,19 +10689,6 @@
     "Doomsday Specter",
     "Thrull Surgeon",
     "Mind Warp"
-   ]
-  },
-  {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Fall from Favor",
-    "Alirios, Enraptured",
-    "Moonhold",
-    "Stunning Strike",
-    "Scorching Lava",
-    "Walking Dream"
    ]
   },
   {

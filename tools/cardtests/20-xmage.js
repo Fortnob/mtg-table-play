@@ -6218,4 +6218,37 @@ module.exports = (test) => {
     T.g.checkStateBasedActions(); T.resolve();
     t.eq(aura.zone, 'graveyard', 'exiled, not died: the Aura is not returned');
   });
+
+  test('Cataclysm: each player keeps one of each kind, the rest are sacrificed', (mk, t) => {
+    t.auto('Cataclysm');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+    const l1 = T.bf('B', 'Forest'), l2 = T.bf('B', 'Mountain');
+    const ench = T.bf('B', 'Glorious Anthem');
+    const mine = T.bf('A', 'Grizzly Bears');
+    T.answer('choose', (ch) => ({ picks: [ch.items.find(x => x.name === 'Grizzly Bears' || x.name === 'Forest') ? ch.items.find(x => x.name === 'Grizzly Bears' || x.name === 'Forest').id : ch.items[0].id] }));
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Cataclysm'));
+    T.resolve();
+    const left = T.bfOf('B').map(o => o.name).sort();
+    t.eq(left.length, 3, 'a creature, a land and an enchantment stay: ' + left.join(', '));
+    t.eq(mine.zone, 'battlefield', 'my only creature stays');
+    void b1; void b2; void l1; void l2; void ench;
+  });
+
+  test('Mount Doom: choose up to two creatures, destroy the rest', (mk, t) => {
+    t.auto('Mount Doom');
+    const T = mk();
+    const md = T.bf('A', 'Mount Doom');
+    const ring = T.bf('A', 'The One Ring');
+    const a1 = T.bf('A', 'Grizzly Bears'), a2 = T.bf('A', 'Hill Giant');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+    T.answer('choose', () => ({ picks: [a1.id, a2.id] }));
+    T.mana('A', 'BR5');
+    const idx = md.analysis().manaAbilities.length + md.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /destroy the rest/.test(x.text));
+    T.activate('A', md, idx, { sacrificeIds: [ring.id] });
+    T.resolve();
+    t.eq(a1.zone, 'battlefield'); t.eq(a2.zone, 'battlefield');
+    t.eq(b1.zone, 'graveyard'); t.eq(b2.zone, 'graveyard');
+  });
 };

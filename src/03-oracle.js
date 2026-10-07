@@ -1686,6 +1686,24 @@
     { re: /^Remove an? ([+\-]\d+\/[+\-]\d+) counter from (?:it|CARDNAME|this creature) at end of combat\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Remove a counter at end of combat',
         effects: [{ op: 'counters', kind: m[1], n: -1, scope: 'thatObject' }] }) },
+    /* Cataclysm, Cataclysmic Gearhulk: "each player chooses an artifact, a
+       creature, an enchantment, and a land …, then sacrifices the rest" */
+    { re: /^(Each player|Each opponent) chooses (?:from among the permanents they control )?an artifact, a creature, an enchantment, and an? (land|planeswalker)(?: from among the (nonland )?permanents they control)?,? (?:then|and) sacrifices the rest\.?$/i,
+      make: (m) => ({ op: 'keepRest', who: /opponent/i.test(m[1]) ? 'opponents' : 'each', types: ['artifact', 'creature', 'enchantment', m[2].toLowerCase()],
+        rest: m[3] || /planeswalker/i.test(m[2]) ? 'nonland' : 'permanent' }) },
+    // Liliana, Dreadhorde General: "a permanent they control of each permanent type"
+    { re: /^(Each player|Each opponent) chooses a permanent they control of each permanent type and sacrifices the rest\.?$/i,
+      make: (m) => ({ op: 'keepRest', who: /opponent/i.test(m[1]) ? 'opponents' : 'each', types: ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'], rest: 'permanent' }) },
+    // Global Ruin: "a land of each basic land type"
+    { re: /^Each player chooses from the lands they control a land of each basic land type, then sacrifices the rest\.?$/i,
+      make: () => ({ op: 'keepRest', who: 'each', types: ['plains', 'island', 'swamp', 'mountain', 'forest'], rest: 'land' }) },
+    // Razia's Purification, Limited Resources, Covetous Elegy, Archfiend of Depravity
+    { re: /^(Each player|Each opponent|That player) chooses (up to )?(a|an|one|two|three|four|five|six) (creatures?|lands?|permanents?)(?: they control)?,? (?:then |and )sacrifices the rest\.?$/i,
+      make: (m) => ({ op: 'keepRest', who: /^each player/i.test(m[1]) ? 'each' : /^each opponent/i.test(m[1]) ? 'opponents' : 'triggerPlayer',
+        n: num(m[3]), upTo: !!m[2], filter: m[4].toLowerCase().replace(/s$/, ''), rest: m[4].toLowerCase().replace(/s$/, '') }) },
+    // Mount Doom: "Choose up to two creatures, then destroy the rest."
+    { re: /^Choose up to (one|two|three) creatures, then destroy the rest\.?$/i,
+      make: (m) => ({ op: 'keepRest', who: 'all', chooser: 'you', n: num(m[1]), upTo: true, filter: 'creature', rest: 'creature', destroy: true }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -3967,6 +3985,10 @@
     if (!depth && /^Then /.test(s)) {
       const again = parseEffectSentence(s.replace(/^Then (\w)/, (x, c) => c.toUpperCase()), 1);
       if (again) return again;
+      // Covetous Elegy: "Then you create a tapped Treasure token …"
+      const bare = /^Then you (create|put|return|exile|search|sacrifice|look|reveal|scry|surveil|mill) /i.test(s) &&
+        parseEffectSentence(s.replace(/^Then you (\w)/, (x, c) => c.toUpperCase()), 1);
+      if (bare) return bare;
     }
     if (!depth && / also /.test(s)) {
       const again = parseEffectSentence(s.replace(/ also /, ' '), 1);
@@ -4200,6 +4222,9 @@
         delete again.targets;
         return [again];
       } },
+    /* Tragic Arrogance: you choose what each player keeps */
+    { re: /^For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker\. Then each player sacrifices all other nonland permanents they control\.?$/i,
+      make: () => [{ op: 'keepRest', who: 'each', chooser: 'you', types: ['artifact', 'creature', 'enchantment', 'planeswalker'], rest: 'nonland' }] },
     /* Eldritch Evolution: "with mana value X or less, where X is 2 plus the sacrificed creature's mana value" */
     { re: /^Search your library for an? ([a-z ]+?) card with mana value X or less, where X is (one|two|three|\d+) plus the sacrificed creature'?s mana value\. Put that card onto the battlefield, then shuffle\.( Exile CARDNAME\.)?$/i,
       make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', maxMv: { ofSacrificed: 'mv', plus: num(m[2]) },

@@ -11779,6 +11779,51 @@
           this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
           break;
         }
+        /* Cataclysm, Tragic Arrogance, Razia's Purification, Mount Doom: some
+           are chosen to stay, and the rest are sacrificed (or destroyed). One
+           permanent may answer for two of the kinds asked for. */
+        case 'keepRest': {
+          const restFits = (o) => e.rest === 'permanent' ? true : e.rest === 'nonland' ? !(o.analysis() || {}).isLand : this._cardFitsWords(o, e.rest);
+          const groups = e.who === 'all' ? [{ p: null, list: this.battlefield.filter(o => !o.phasedOut && restFits(o)) }]
+            : (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean) : this.players)
+              .filter(p => p && !p.hasLost)
+              .map(p => ({ p, list: this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && restFits(o)) }));
+          const byValue = (l) => l.slice().sort((a, b) => ((b.card && b.card.cmc) || 0) - ((a.card && a.card.cmc) || 0));
+          const doomed = [];
+          for (let gi = 0; gi < groups.length; gi++) {
+            const { p, list } = groups[gi];
+            const chooser = e.chooser === 'you' || !p ? ctx.controller : p.id;
+            const kept = new Set();
+            const asks = e.types ? e.types.map(t => ({ t, pool: list.filter(o => this._cardFitsWords(o, t)), n: 1 }))
+              : [{ t: e.filter, pool: list.filter(o => this._cardFitsWords(o, e.filter || 'permanent')), n: e.n || 1 }];
+            for (let ai = 0; ai < asks.length; ai++) {
+              const { t, pool, n: want } = asks[ai];
+              if (!pool.length) continue;
+              let picks;
+              if (pool.length <= want && !e.upTo) picks = pool;
+              else {
+                const got = this._choose({ playerId: chooser, purpose: 'keep', kind: 'objects', items: this._chooseItems(byValue(pool)),
+                  min: e.upTo ? 0 : Math.min(want, pool.length), max: Math.min(want, pool.length),
+                  prompt: `Choose ${want === 1 ? (/^[aeiou]/i.test(t) ? 'an ' : 'a ') + t : (e.upTo ? 'up to ' : '') + want + ' ' + t + 's'}${p ? ' ' + p.name + ' keeps' : ' to keep'}; the rest ${e.destroy ? 'are destroyed' : 'are sacrificed'}.` }, 'keep' + gi + ':' + ai);
+                if (got === SUSPEND) return SUSPEND;
+                picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o));
+              }
+              for (const o of picks) kept.add(o);
+            }
+            for (const o of list) if (!kept.has(o)) doomed.push(o);
+          }
+          if (e.destroy) {
+            for (const o of doomed) {
+              if (o.zone !== 'battlefield' || this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
+              this.moveObject(o, 'graveyard');
+            }
+          } else {
+            const owners = new Map();
+            for (const o of doomed) { if (!owners.has(o.controller)) owners.set(o.controller, []); owners.get(o.controller).push(o); }
+            for (const [pid, l] of owners) this._sacrificeNow(pid, l, null);
+          }
+          break;
+        }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
         case 'leaveExile': {
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
