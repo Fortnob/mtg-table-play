@@ -110,7 +110,7 @@ const ObjectView = obj({
   attachedTo: maybe(id), attachments: opt(arr(id)), isToken: opt(maybe(bool)),
   attacking: maybe(id), blocking: opt(arr(id)), blockedBy: opt(arr(id)), blockOrder: opt(arr(id)),
   effects: opt(arr(S.plainObj)), isCommander: bool, note: opt(maybe(str)), entered: opt(maybe(num)),
-  prepared: opt(bool), pairedWith: opt(maybe(id)), power: maybe(num), toughness: maybe(num), keywords: arr(str),
+  prepared: opt(bool), agenda: opt(bool), pairedWith: opt(maybe(id)), power: maybe(num), toughness: maybe(num), keywords: arr(str),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({
@@ -126,7 +126,7 @@ const PlayerView = obj({
   hasLost: opt(maybe(bool)), hasWon: opt(maybe(bool)), lossReason: opt(maybe(str)), connected: opt(maybe(bool)),
   mulligansTaken: nat, keptHand: bool, mulliganBottom: nat,
   commanderDamage: opt(maybe(rec(num))), commanderCasts: opt(maybe(rec(num))),
-  librarySize: nat, topCard: maybe(ObjectView), handSize: nat,
+  librarySize: nat, topCard: maybe(ObjectView), handSize: nat, draftNotes: opt(maybe(S.plainObj)),
   hand: arr(AnyObject), graveyard: arr(ObjectView), exile: arr(ObjectView), command: arr(ObjectView),
 });
 const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str });

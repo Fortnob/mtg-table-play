@@ -81,6 +81,8 @@ declare namespace MTG {
     isCommander: boolean;
     /** prepared: it can cast a copy of its card's spell */
     prepared?: boolean;
+    /** a hidden agenda of the viewer's that has not been turned face up */
+    agenda?: boolean;
     /** soulbond: the id of the creature it is paired with */
     pairedWith?: Id | null;
     note?: string | null;
@@ -117,6 +119,8 @@ declare namespace MTG {
     botDifficulty?: number;
     /** A bot's style of play: a key of MTG.bots.PERSONALITIES. */
     botPersonality?: string | null;
+    /** what the viewer noted while drafting (their own view only) */
+    draftNotes?: Record<string, any> | null;
     life: number;
     poison?: number;
     energy?: number;

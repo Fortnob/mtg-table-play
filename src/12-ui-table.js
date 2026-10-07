@@ -1981,7 +1981,22 @@
         return x && x.controller === o.controller;
       })) return false;
       const a = this.analysis(o);
-      return MTG.oracle.matchesSpec(spec, o, a, this.meId, VIEW_SPEC_CTX);
+      return MTG.oracle.matchesSpec(this._notedSpec(spec), o, a, this.meId, VIEW_SPEC_CTX);
+    }
+
+    /* Regicide's colour, Custodi Peacekeeper's power cap: a target spec
+       that depends on what you noted while drafting, made concrete the
+       way the engine does it, so only what is legal lights up. */
+    _notedSpec(spec) {
+      if (!spec || !(spec.notedColors || spec.notedMaxPower)) return spec;
+      const notes = (this.me && this.me.draftNotes) || {};
+      const out = Object.assign({}, spec, { notedColors: null, notedMaxPower: null });
+      if (spec.notedColors) {
+        const cols = (notes[spec.notedColors] || {}).colors || [];
+        out.colors = cols.length ? cols.slice() : ['-'];
+      }
+      if (spec.notedMaxPower) out.maxPower = ((notes[spec.notedMaxPower] || {}).numbers || []).reduce((m, k) => Math.max(m, Number(k) || 0), 0);
+      return out;
     }
     /** @this {MTG.TableInstance} */
     cancelTargeting() { this.targeting = null; this.hideAim(); }
@@ -2289,6 +2304,8 @@
           if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
           if (use.kind === 'encore') items.push([use.label, () => this.send({ kind: 'encore', objId: o.id })]);
         }
+      } else if (loc.zone === 'command' && mine && o.agenda) {
+        items.push(['Turn this hidden agenda face up', () => this.send({ kind: 'manual', action: 'revealAgenda', objId: o.id })]);
       } else if (loc.zone === 'battlefield' && mine && a) {
         const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
         a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: i })]));

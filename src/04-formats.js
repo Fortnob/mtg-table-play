@@ -171,6 +171,11 @@
       min += 20;
       if (max != null) max += 20;
     }
+    /* Conspiracies kept from a draft: Advantageous Proclamation lets the
+       deck be five cards smaller; Sovereign's Realm plays without basics. */
+    const plots = (deck.conspiracies || []).map(c => U.normName((c && (c.name || (c.card && c.card.name))) || c || ''));
+    if (plots.some(n => n.startsWith('advantageous proclamation'))) min = Math.max(0, min - 5);
+    const realm = plots.some(n => n.startsWith("sovereign's realm") || n.startsWith('sovereigns realm'));
     const noun = fmt.commander ? 'cards including the commander' : 'cards';
 
     if (fmt.exactSize) {
@@ -278,6 +283,7 @@
     if (fmt.commander && stats.lands < 30)
       warnings.push(`${stats.lands} lands is low for a 100-card deck; most run 34-38.`);
 
+    if (realm && main.some(e => isBasicLand(e.card))) errors.push("Sovereign's Realm: your starting deck can't have basic land cards.");
     return {
       ok: errors.length === 0, errors, warnings, stats,
       colorIdentity: ci ? Array.from(ci) : null,
