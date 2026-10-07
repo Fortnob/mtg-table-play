@@ -371,7 +371,7 @@
     e.addTypes = [];
     for (const w of words) {
       if (TOKEN_COLORS.test(w)) e.colorWords.push(w.toLowerCase());
-      else if (/^(?:artifact|enchantment)$/i.test(w)) e.addTypes.push(U.titleCase(w));
+      else if (/^(?:artifact|enchantment|land)$/i.test(w)) e.addTypes.push(U.titleCase(w));
       else if (/^legendary$/i.test(w)) e.legendary = true;
       else if (/^snow$/i.test(w)) e.snow = true;
       else if (/^[A-Z][A-Za-z'-]*$/.test(w)) subs.push(w);
@@ -1458,6 +1458,8 @@
     { re: /^Prevent all combat damage that would be dealt to and dealt by (CARDNAME|this creature|target creature) this turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', targets: [{ type: 'creature' }], flags: ['noDamage', 'noDamageTaken'] }
         : { op: 'flagEot', scope: 'self', flags: ['noDamage', 'noDamageTaken'] }) },
+    // Koma, Cosmos Serpent: "Tap target permanent. Its activated abilities can't be activated this turn."
+    { re: /^Its activated abilities can'?t be activated this turn\.?$/i, make: () => ({ op: 'flagEot', scope: 'lastTarget', flags: ['cantActivate'] }) },
     // Gideon: "Prevent all damage that would be dealt to him this turn."
     { re: /^Prevent all damage that would be dealt to (?:him|her|it|CARDNAME|this creature) this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
@@ -2567,9 +2569,14 @@
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
-    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield under (?:its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
+    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)? under (?:its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
-        name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[2] ? { counter: m[3].toLowerCase() } : {})] }) },
+        name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[3] ? { counter: m[4].toLowerCase() } : {}, m[2] ? { tapped: true } : {})] }) },
+    /* Luminous Broodmoth: "Whenever a creature … dies, return it to the
+       battlefield under its owner's control with a flying counter on it" —
+       the card the trigger is about, back from where it went */
+    { re: /^Return (?:it|that card) to the battlefield( tapped)? under (its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'returnTriggerCard', yours: /your/i.test(m[2]) }, m[1] ? { tapped: true } : {}, m[3] ? { counter: m[4].toLowerCase() } : {}) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
@@ -3763,6 +3770,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Peer into the Abyss: two halves, rounded up
+    { re: /^Target player draws cards equal to half the number of cards in their library and loses half their life\. Round up each time\.?$/i,
+      make: () => [{ op: 'draw', who: 'target', n: { halfLibrary: 'target', up: true }, targets: [{ type: 'player' }] },
+        { op: 'loseLife', who: 'target', n: { halfLife: 'target', up: true } }] },
     // Plea for Power, Tyrant's Choice: "If A gets more votes, …. If B gets more votes or the vote is tied, …."
     { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. If \1 gets more votes, (.+?)\. If \2 gets more votes or the vote is tied, (.+?)\.?$/i,
       make: (m) => { const a = voteBody(m[3]), b = voteBody(m[4]); return a && b ? [{ op: 'vote', choices: [m[1], m[2]], mode: 'most', thenA: a, thenB: b, tieB: true }] : null; } },
@@ -4894,6 +4905,9 @@
         f.maxMv = +m[1]; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         f.keyword = m[1].toLowerCase(); p = p.slice(0, m.index);
+      } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
+        // Luminous Broodmoth: "a creature you control without flying"
+        f.noKeyword = m[1].toLowerCase(); p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? ([+\-0-9/a-z]+) counter on it$/i))) {
         f.withCounter = m[1]; p = p.slice(0, m.index);
       }
@@ -7519,7 +7533,7 @@
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
-    'evasion', 'attackRequires', 'blockPowerLimit', 'toughnessDamage', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
+    'evasion', 'attackRequires', 'blockPowerLimit', 'toughnessDamage', 'drawDouble', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
@@ -7868,6 +7882,10 @@
       { re: /^Untap (?:CARDNAME|this (?:artifact|creature|permanent|land)) during each other player'?s untap step\.?$/i,
         eff: { op: 'untapOnEveryUntapStep', selfOnly: true }, auto: true },
       /* Laboratory Maniac, Jace, Wielder of Mysteries */
+      /* Thought Reflection, Teferi's Ageless Insight: each draw (but, for
+         some, the first one in your draw step) is two */
+      { re: /^If you would draw a card( except the first one you draw in each of your draw steps)?, draw two cards instead\.?$/i,
+        make: (m) => ({ op: 'drawDouble', exceptFirst: !!m[1] }), auto: true },
       { re: /^If you would draw a card while your library has no cards in it, you win the game instead\.?$/i,
         eff: { op: 'winOnEmptyDraw' }, auto: true },
       /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off */

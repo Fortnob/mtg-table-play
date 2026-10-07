@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15209,
+  "needed": 15182,
   "gainedCards": 1553,
-  "linesNeeded": 16958,
-  "linesGained": 1973,
+  "linesNeeded": 16929,
+  "linesGained": 1972,
   "gained": {
    "all": 1553,
    "top2000": 51,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5504,
-   "lines": 4745,
+   "score": 5498,
+   "lines": 4742,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 939,
-   "lines": 795,
+   "score": 935,
+   "lines": 794,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -67,7 +67,7 @@
     "Myr Battlesphere",
     "Caged Sun",
     "Mesmeric Orb",
-    "Luminous Broodmoth"
+    "Kambal, Profiteering Mayor"
    ]
   },
   {
@@ -1281,25 +1281,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Sword of Hearth and Home",
-    "Sanctum of Eternity",
-    "Aminatou, the Fateshifter",
-    "Slip On the Ring",
-    "Meneldor, Swift Savior",
-    "Coveted Falcon",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Tel-Jilad Stylus",
-    "Leave // Chance",
-    "Conjured Currency",
-    "The Neutrinos"
-   ]
-  },
-  {
    "what": "CastSpellPaidBySourceTriggeredAbility",
    "score": 18,
    "lines": 3,
@@ -1345,25 +1326,6 @@
     "Quistis Trepe",
     "Daring Waverider",
     "Seifer Almasy"
-   ]
-  },
-  {
-   "what": "ExileAndReturnSourceEffect",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Jin-Gitaxias // The Great Synthesis",
-    "Vorinclex // The Grand Evolution",
-    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
-    "Elesh Norn // The Argent Etchings",
-    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
-    "Terra, Magical Adept // Esper Terra",
-    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
-    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "Jecht, Reluctant Guardian // Braska's Final Aeon"
    ]
   },
   {
@@ -1480,6 +1442,25 @@
    ]
   },
   {
+   "what": "ExileAndReturnSourceEffect",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Jin-Gitaxias // The Great Synthesis",
+    "Vorinclex // The Grand Evolution",
+    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
+    "Elesh Norn // The Argent Etchings",
+    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
+    "Terra, Magical Adept // Esper Terra",
+    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
+    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
+    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
+    "Jecht, Reluctant Guardian // Braska's Final Aeon"
+   ]
+  },
+  {
    "what": "AddCardTypeTargetEffect",
    "score": 17,
    "lines": 17,
@@ -1551,6 +1532,25 @@
     "Pull Through the Weft",
     "Wilfred Mott",
     "United Battlefront"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Sword of Hearth and Home",
+    "Sanctum of Eternity",
+    "Meneldor, Swift Savior",
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency",
+    "The Neutrinos",
+    "Saving Grasp",
+    "Scarab of the Unseen"
    ]
   },
   {
@@ -2018,25 +2018,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance",
-    "Cyclops Superconductor",
-    "Smelted Chargebug",
-    "Emissary of Soulfire",
-    "Deadlock Trap",
-    "Multiform Wonder"
-   ]
-  },
-  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 15,
    "lines": 15,
@@ -2318,6 +2299,25 @@
     "Thantis, the Warweaver",
     "Blood Reckoning",
     "Slumbering Dragon"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Riddle Gate Gargoyle",
+    "Consulate Surveillance",
+    "Cyclops Superconductor",
+    "Smelted Chargebug",
+    "Emissary of Soulfire",
+    "Multiform Wonder",
+    "Conduit Goblin"
    ]
   },
   {
@@ -4212,16 +4212,6 @@
    ]
   },
   {
-   "what": "DrawExceptFirstDrawTwoReplacementEffect",
-   "score": 9,
-   "lines": 3,
-   "cards": [
-    "Teferi's Ageless Insight",
-    "Alhammarret's Archive",
-    "Bard, King of Dale"
-   ]
-  },
-  {
    "what": "controlled damage to a player chosen before",
    "score": 9,
    "lines": 6,
@@ -4245,19 +4235,6 @@
     "Sparkshaper Visionary",
     "The Curse of Fenric",
     "Dance of the Skywise"
-   ]
-  },
-  {
-   "what": "modal activated ability",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Koma, Cosmos Serpent",
-    "Bow of Nylea",
-    "Power Conduit",
-    "Lobelia, Defender of Bag End",
-    "Ransom Note",
-    "Pyramids"
    ]
   },
   {
@@ -5184,21 +5161,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Eldrazi Confluence",
-    "Rootcast Apprenticeship",
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Maestros Confluence",
-    "Cosmium Confluence",
-    "Riveteers Confluence",
-    "Obscura Confluence"
-   ]
-  },
-  {
    "what": "LoseLifeTriggeredAbility",
    "score": 8,
    "lines": 8,
@@ -5420,21 +5382,6 @@
     "Kadena, Slinking Sorcerer",
     "Cryptic Pursuit",
     "Cryptid Inspector"
-   ]
-  },
-  {
-   "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Fungal Fortitude",
-    "Return to Action",
-    "Infuse with Vitality",
-    "Pain 101",
-    "Perigee Beckoner",
-    "Ferocity of the Hunt",
-    "Molten Firebird",
-    "Ivory Gargoyle"
    ]
   },
   {
@@ -6028,6 +5975,20 @@
    ]
   },
   {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Rootcast Apprenticeship",
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Maestros Confluence",
+    "Cosmium Confluence",
+    "Riveteers Confluence",
+    "Obscura Confluence"
+   ]
+  },
+  {
    "what": "(verify) optional where the card is not",
    "score": 7,
    "lines": 7,
@@ -6573,16 +6534,6 @@
     "Alexios, Deimos of Kosmos",
     "Xantcha, Sleeper Agent",
     "Zurgo Helmsmasher"
-   ]
-  },
-  {
-   "what": "token ability ForestDryadToken",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Awaken the Woods",
-    "Staff of Titania",
-    "Jyoti, Moag Ancient"
    ]
   },
   {
@@ -7316,6 +7267,19 @@
    ]
   },
   {
+   "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Return to Action",
+    "Infuse with Vitality",
+    "Pain 101",
+    "Perigee Beckoner",
+    "Molten Firebird",
+    "Ivory Gargoyle"
+   ]
+  },
+  {
    "what": "SkipCombatStepEffect",
    "score": 6,
    "lines": 6,
@@ -7783,13 +7747,40 @@
     "Throne of Eldraine",
     "Keeper of the Mind"
    ]
+  },
+  {
+   "what": "ProliferateEffect args",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Ripples of Potential",
+    "Roalesk, Apex Hybrid"
+   ]
+  },
+  {
+   "what": "pick filter noncreature nonland",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Narset, Parter of Veils",
+    "Search for Azcanta // Azcanta, the Sunken Ruin"
+   ]
+  },
+  {
+   "what": "ColorlessManaAbility with arguments",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Millikin",
+    "Deranged Assistant"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4392,
-   "cards": 3849,
+   "score": 4387,
+   "cards": 3847,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7801,8 +7792,8 @@
   },
   {
    "what": "custom ability",
-   "score": 704,
-   "cards": 590,
+   "score": 700,
+   "cards": 589,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8476,19 +8467,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Sword of Hearth and Home",
-    "Sanctum of Eternity",
-    "Slip On the Ring",
-    "Meneldor, Swift Savior",
-    "Reality Scramble",
-    "Become Anonymous"
-   ]
-  },
-  {
    "what": "DamagePlayersEffect amount",
    "score": 14,
    "cards": 2,
@@ -8627,6 +8605,19 @@
    ]
   },
   {
+   "what": "owner of a permanent",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Sword of Hearth and Home",
+    "Sanctum of Eternity",
+    "Meneldor, Swift Savior",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus"
+   ]
+  },
+  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 13,
    "cards": 4,
@@ -8739,19 +8730,6 @@
     "Aang's Iceberg",
     "Yue, the Moon Spirit",
     "North Pole Patrol"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance",
-    "Cyclops Superconductor"
    ]
   },
   {
@@ -8905,6 +8883,19 @@
     "The Long Reach of Night // Animus of Night's Reach",
     "Exoskeletal Armor",
     "Accumulated Knowledge"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Riddle Gate Gargoyle",
+    "Consulate Surveillance",
+    "Cyclops Superconductor"
    ]
   },
   {
@@ -9560,16 +9551,6 @@
    ]
   },
   {
-   "what": "DrawExceptFirstDrawTwoReplacementEffect",
-   "score": 9,
-   "cards": 3,
-   "names": [
-    "Teferi's Ageless Insight",
-    "Alhammarret's Archive",
-    "Bard, King of Dale"
-   ]
-  },
-  {
    "what": "controlled damage to a player chosen before",
    "score": 9,
    "cards": 6,
@@ -10108,18 +10089,6 @@
    ]
   },
   {
-   "what": "modal activated ability",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Koma, Cosmos Serpent",
-    "Bow of Nylea",
-    "Power Conduit",
-    "Ransom Note",
-    "Pyramids"
-   ]
-  },
-  {
    "what": "MayPay2LifeForColorAbility",
    "score": 8,
    "cards": 5,
@@ -10230,19 +10199,6 @@
     "Weapons Vendor",
     "Iron Hills Stalwart",
     "Aura Finesse"
-   ]
-  },
-  {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Eldrazi Confluence",
-    "Rootcast Apprenticeship",
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Maestros Confluence",
-    "Cosmium Confluence"
    ]
   },
   {
@@ -10477,19 +10433,6 @@
     "Sinew Dancer",
     "Apostle of Invasion",
     "Incisor Glider"
-   ]
-  },
-  {
-   "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Fungal Fortitude",
-    "Return to Action",
-    "Infuse with Vitality",
-    "Pain 101",
-    "Perigee Beckoner",
-    "Ferocity of the Hunt"
    ]
   },
   {
@@ -10859,6 +10802,19 @@
     "Visions of Dominance",
     "Growth Curve",
     "Seismic Tutelage"
+   ]
+  },
+  {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Rootcast Apprenticeship",
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Maestros Confluence",
+    "Cosmium Confluence",
+    "Riveteers Confluence"
    ]
   },
   {
@@ -11285,16 +11241,6 @@
    ]
   },
   {
-   "what": "token ability ForestDryadToken",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Awaken the Woods",
-    "Staff of Titania",
-    "Jyoti, Moag Ancient"
-   ]
-  },
-  {
    "what": "SearchLibraryForFourDifferentCardsEffect",
    "score": 6,
    "cards": 3,
@@ -11615,6 +11561,58 @@
     "Attentive Skywarden",
     "Bilbo, Unexpected Adventurer",
     "Aetherblade Agent // Gitaxian Mindstinger"
+   ]
+  },
+  {
+   "what": "RemoveCounterSourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Archfiend of the Dross",
+    "Bristlebane Battler",
+    "Creakwood Safewright",
+    "Reluctant Dounguard",
+    "Encumbered Reejerey",
+    "Bloodletter Quill"
+   ]
+  },
+  {
+   "what": "gain for whileControlled",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Aegis Angel",
+    "Tale of Tinúviel",
+    "Thancred Waters",
+    "Kyodai, Soul of Kamigawa",
+    "Quicksmith Spy",
+    "Quicksmith Rebel"
+   ]
+  },
+  {
+   "what": "KickedCostCondition",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Wastescape Battlemage",
+    "Thornscape Battlemage",
+    "Stormscape Battlemage",
+    "Nightscape Battlemage",
+    "Thunderscape Battlemage",
+    "Sunscape Battlemage"
+   ]
+  },
+  {
+   "what": "CantAttackControllerAttachedEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Vow of Duty",
+    "Vow of Lightning",
+    "Vow of Malice",
+    "Vow of Torment",
+    "Vow of Wildness",
+    "Vow of Flight"
    ]
   }
  ]

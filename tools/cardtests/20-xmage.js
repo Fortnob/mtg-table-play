@@ -5117,4 +5117,73 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Blessed Wind'), { targets: ['B'] });
     t.eq(T.life('B'), 20);
   });
+
+  test('Luminous Broodmoth: a creature without flying comes back with a flying counter', (mk, t) => {
+    t.auto('Luminous Broodmoth');
+    const T = mk();
+    T.bf('A', 'Luminous Broodmoth');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    T.resolve();
+    t.eq(bear.zone, 'battlefield');
+    t.eq(bear.counters.flying || 0, 1);
+    t.ok(T.g.hasKw(bear, 'flying'));
+  });
+
+  test('Eldrazi Displacer: exiled and returned tapped', (mk, t) => {
+    t.auto('Eldrazi Displacer');
+    const T = mk();
+    const ed = T.bf('A', 'Eldrazi Displacer'); ed.summoningSick = false;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'C2');
+    T.activate('A', ed, ed.analysis().abilities.findIndex(x => x.kind === 'activated'), { targets: [bear] });
+    t.eq(bear.zone, 'battlefield');
+    t.ok(bear.tapped, 'tapped');
+    t.eq(bear.controller, 'B');
+  });
+
+  test("Teferi's Ageless Insight: every draw but the first in the draw step is two", (mk, t) => {
+    t.auto("Teferi's Ageless Insight");
+    const T = mk({ libraryEach: 10 });
+    T.bf('A', "Teferi's Ageless Insight");
+    const h = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.eq(T.zone('A', 'hand').length, h + 1, 'the draw step: one');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(T.zone('A', 'hand').length, h + 1 + 2, 'Opt: two instead of one');
+  });
+
+  test("Arrest: the enchanted creature's abilities can't be activated", (mk, t) => {
+    t.auto('Arrest');
+    const T = mk();
+    const ps = T.bf('B', 'Prodigal Sorcerer'); ps.summoningSick = false;
+    const ar = T.bf('A', 'Arrest');
+    ar.attachedTo = ps.id; ps.attachments.push(ar.id); T.g.bumpBoard();
+    const ab = ps.analysis().abilities.find(x => x.kind === 'activated');
+    t.ok(T.g._activationBlocked(ps, ab, 'B'), 'blocked');
+  });
+
+  test('Awaken the Woods: Forest Dryads that are lands', (mk, t) => {
+    t.auto('Awaken the Woods');
+    const T = mk();
+    T.mana('A', 'GG2');
+    T.cast('A', T.hand('A', 'Awaken the Woods'), { x: 2 });
+    const toks = T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 2);
+    t.ok(toks[0].analysis().isLand && toks[0].analysis().isCreature, 'land creature');
+  });
+
+  test('Peer into the Abyss: half the library drawn and half the life lost, rounded up', (mk, t) => {
+    t.auto('Peer into the Abyss');
+    const T = mk({ libraryEach: 3 });
+    const lib = T.zone('A', 'library').length;
+    T.g.player('A').life = 15;
+    T.mana('A', 'BBB4');
+    T.cast('A', T.hand('A', 'Peer into the Abyss'), { targets: ['A'] });
+    t.eq(T.zone('A', 'library').length, lib - Math.ceil(lib / 2));
+    t.eq(T.life('A'), 7);
+  });
 };

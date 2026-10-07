@@ -5227,6 +5227,8 @@
       /* Boast (CR 702.142): only once the creature has attacked this turn,
          and once each turn (twice with Birgi). Exhaust (CR 702.177): once,
          ever, for this permanent. */
+      // Arrest, Null Rod, Koma: "its activated abilities can't be activated"
+      if (o && o.zone === 'battlefield' && this._hasFlag(o, 'cantActivate')) return "Its activated abilities can't be activated.";
       const label = ab && ab.cost && ab.cost.label;
       if (label === 'boast') {
         if (o.attackedTurn !== this.turn) return 'It can boast only after attacking this turn.';
@@ -8258,7 +8260,24 @@
 
     _drawCards(p, n, silent) {
       const z = this.zones[p.id];
-      for (let i = 0; i < n; i++) {
+      /* Thought Reflection and kin: a draw made two, each source doubling
+         again; the extra cards are part of that draw, not draws of their own */
+      let left = n, extras = 0, drawnNow = 0;
+      const doubled = () => {
+        const firstInStep = this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id && p._drawStepTurn !== this.turn;
+        let k = 0;
+        for (const x of this.battlefield) {
+          if (x.controller !== p.id || x.phasedOut) continue;
+          const e = this._staticOp(x, 'drawDouble');
+          if (e && !(e.exceptFirst && firstInStep)) k++;
+        }
+        return k ? (1 << Math.min(k, 6)) - 1 : 0;
+      };
+      for (let i = 0; left > 0; i++) {
+        left--;
+        if (extras > 0) extras--;
+        else { const ex = doubled(); if (ex) { left += ex; extras += ex; } }
+        if (this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id) p._drawStepTurn = this.turn;
         if (!z.library.length) {
           // Laboratory Maniac: the draw that would lose wins instead
           if (this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'winOnEmptyDraw'))) {
@@ -8271,6 +8290,7 @@
         const o = z.library.shift();
         o.zone = 'hand';
         z.hand.push(o);
+        drawnNow++;
         p.drawnThisTurn = (p.drawnThisTurn || 0) + 1;
         if (!silent) {
           this._fire('youDraw', p.id, { object: o, nth: p.drawnThisTurn });
@@ -8282,10 +8302,10 @@
         }
       }
       if (!silent) {
-        this.logEvent('draw', `${p.name} draws ${n} card${n === 1 ? '' : 's'}.`);
+        this.logEvent('draw', `${p.name} draws ${drawnNow} card${drawnNow === 1 ? '' : 's'}.`);
         this.emit('sfx', 'draw');
       }
-      this.emit('draw', { player: p, n });
+      this.emit('draw', { player: p, n: drawnNow });
     }
     drawCards(pid, n) { this._drawCards(this.player(pid), n); this.checkStateBasedActions(); this.touch(); }
 
@@ -11361,6 +11381,8 @@
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: x.owner });
+          // Nezahal: "Return it to the battlefield tapped …"
+          if (x && e.tapped && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
           break;
@@ -11970,6 +11992,20 @@
           z.push(src);
           if (e.shuffle) this.rng.shuffle(z);
           src._wentToLibrary = true;
+          break;
+        }
+        /* "Return it to the battlefield under its owner's control": the card
+           the trigger is about (Luminous Broodmoth), or what was just exiled */
+        case 'returnTriggerCard': {
+          const td = ctx.triggerData || {};
+          // what this resolution just exiled comes first ("Exile target creature. Return it …")
+          let x = this._lastExiled && this.obj(this._lastExiled);
+          if (!x || x.zone !== 'exile') x = td.objectId && this.obj(td.objectId);
+          if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
+          this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
+          if (x.zone !== 'battlefield') break;
+          if (e.tapped) x.tapped = true;
+          if (e.counter) this.addCounters(x, e.counter, 1);
           break;
         }
         /* "Return it to your hand": the card the trigger is about (Zodiac
@@ -15179,6 +15215,7 @@
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
       if (f.keyword && !this.hasKw(x, f.keyword)) return false;
+      if (f.noKeyword && this.hasKw(x, f.noKeyword)) return false;
       if (f.withCounter && !(Number(x.counters[f.withCounter]) > 0)) return false;
       if (f.attacking && !x.attacking) return false;
       if (f.pumped && !(this.powerOf(x) > (parseInt((x.analysis() || {}).power, 10) || 0))) return false;
