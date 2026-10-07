@@ -6493,4 +6493,14 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'graveyard').length, 3, 'four milled, one back');
     t.ok(T.zone('A', 'hand').some(c => c.name === 'Grizzly Bears'));
   });
+
+  test('Diregraf Rebirth: {1} less for each creature that died this turn', (mk, t) => {
+    t.auto('Diregraf Rebirth');
+    const T = mk();
+    const b = T.bf('A', 'Grizzly Bears');
+    const d = T.hand('A', 'Diregraf Rebirth');
+    t.eq(T.g.canCast('A', d.id).cost, '{3}{B}{G}');
+    T.g.moveObject(b, 'graveyard'); T.g.checkStateBasedActions();
+    t.eq(T.g.canCast('A', d.id).cost, '{2}{B}{G}', 'one died');
+  });
 };

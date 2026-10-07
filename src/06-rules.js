@@ -2580,6 +2580,9 @@
       if (v.opponents) return this.opponentsOf(pid).length * mult;
       // Animar: "for each +1/+1 counter on CARDNAME"
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
+      // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
+      if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
+      if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
       if (v.per) return this.countPermanents(pid, v) * mult;
