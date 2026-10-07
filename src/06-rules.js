@@ -6645,7 +6645,8 @@
       }
       this.pendingChoice = null;
       // goad only compels the one combat it was aimed at (CR 701.38)
-      for (const id of ch.candidates) { const o = this.obj(id); if (o) o.goadedBy = null; }
+      // (Vengeful Ancestor still sees it as goaded as it attacks)
+      for (const id of ch.candidates) { const o = this.obj(id); if (o) { if (o.goadedBy != null) o._goadedAttack = this.turn; o.goadedBy = null; } }
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
         const a = o.analysis();
@@ -9192,6 +9193,11 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Season of Growth: a spell aimed at a creature of yours
+          if (ab.targetsYourCreature && !((data.spell && data.spell.targets) || []).some(t => {
+            const x = t.kind === 'object' && this.obj(t.id);
+            return x && x.zone === 'battlefield' && x.controller === o.controller && (this.characteristics(x) || {}).isCreature;
+          })) continue;
           // Exert: "if this creature hasn't been exerted this turn"
           if (ab.exert && ab.exertOnce && o.exertedTurn === this.turn) continue;
           if (ab.toOpponent && data.player === o.controller) continue;
@@ -10087,6 +10093,14 @@
           // Pain for All: the enchanted creature deals it
           if (e.fromAttached) { const host = src && src.attachedTo && this.obj(src.attachedTo); if (!host || host.zone !== 'battlefield') break; dsrc = host; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // Vengeful Ancestor: the creature the trigger is about, to whoever controls it
+          if (e.toTriggerObjController) {
+            const td = ctx.triggerData || {};
+            const x = td.objectId && this.obj(td.objectId);
+            const p = this.player(td.objController || (x && x.controller));
+            if (p) { this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
+            break;
+          }
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // Hellrider: "to the player or planeswalker it's attacking"
           if (e.toDefenderOf) {
@@ -16604,11 +16618,14 @@
         if (w === 'token' || w === 'tokens') return !!o.isToken;
         // Wing Shards: "an attacking creature"; Stoneshaker Shaman: "an untapped land"
         if (w === 'attacking') return !!o.attacking;
+        // Vengeful Ancestor: "a goaded creature"
+        if (w === 'goaded') return o.goadedBy != null || (!!o.attacking && o._goadedAttack === this.turn);
         if (w === 'blocking') return !!(o.blocking || []).length;
         if (w === 'tapped') return !!o.tapped;
         if (w === 'untapped') return !o.tapped;
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it
-        if (w === 'modified') return Object.values(o.counters || {}).some(v => Number(v) > 0) ||
+        // (one that has just left is judged as it last was: Costume Closet)
+        if (w === 'modified') return Object.values((o.zone === 'battlefield' ? o.counters : o._diedCounters) || {}).some(v => Number(v) > 0) ||
           (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura); });
         if (w === 'spell' || w === 'spells') return true;
         const bare = w.replace(/s$/, '');

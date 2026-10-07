@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14142,
-  "gainedCards": 1486,
-  "linesNeeded": 15616,
+  "needed": 14131,
+  "gainedCards": 1488,
+  "linesNeeded": 15603,
   "linesGained": 1847,
   "gained": {
-   "all": 1486,
+   "all": 1488,
    "top2000": 53,
    "stdTop": 12
   },
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 894,
-   "lines": 768,
+   "score": 893,
+   "lines": 767,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1211,25 +1211,6 @@
    ]
   },
   {
-   "what": "ModifiedPredicate.instance",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Kodama of the West Tree",
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Araña, Heart of the Spider",
-    "Jugan Defends the Temple // Remnant of the Rising Star",
-    "SP//dr, Piloted by Peni",
-    "Kami of Celebration",
-    "Arna Kennerüd, Skycaptain",
-    "One with the Kami",
-    "Silver Sable, Mercenary Leader",
-    "Expanding Ooze",
-    "Akki Ember-Keeper"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 17,
    "lines": 14,
@@ -1493,25 +1474,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Resourceful Defense",
-    "Zurgo Stormrender",
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Costume Closet",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger",
-    "Dual Nature"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 15,
    "lines": 12,
@@ -1699,6 +1661,24 @@
     "Widow's Bite",
     "Atlantis Attacks",
     "Helicarrier Strike"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Resourceful Defense",
+    "Zurgo Stormrender",
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -2825,24 +2805,6 @@
    "cards": [
     "Summon: Fenrir",
     "Kumano Faces Kakkazan // Etching of Kumano"
-   ]
-  },
-  {
-   "what": "TargetsPermanentPredicate",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Pearl-Ear, Imperial Advisor",
-    "Season of Growth",
-    "Avoid Fate",
-    "Legolas, Master Archer",
-    "Fugitive Droid",
-    "Ms. Marvel, Kamala Khan",
-    "Fin Fang Foom",
-    "Colleen Wing, Street Samurai",
-    "Mockingbird, Ace Agent",
-    "Hawkeye, Bowslinger",
-    "Ring of Immortals"
    ]
   },
   {
@@ -4247,6 +4209,21 @@
    ]
   },
   {
+   "what": "TargetsPermanentPredicate",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Pearl-Ear, Imperial Advisor",
+    "Avoid Fate",
+    "Legolas, Master Archer",
+    "Fugitive Droid",
+    "Ms. Marvel, Kamala Khan",
+    "Fin Fang Foom",
+    "Hawkeye, Bowslinger",
+    "Ring of Immortals"
+   ]
+  },
+  {
    "what": "TargetActivatedOrTriggeredAbility",
    "score": 8,
    "lines": 8,
@@ -5055,6 +5032,20 @@
     "Mouser Foundry",
     "Raving Oni-Slave",
     "Sundering Titan"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Akki Battle Squad",
+    "Thundering Raiju",
+    "Jugan Defends the Temple // Remnant of the Rising Star",
+    "Arna Kennerüd, Skycaptain",
+    "One with the Kami",
+    "Silver Sable, Mercenary Leader",
+    "Expanding Ooze"
    ]
   },
   {
@@ -7476,8 +7467,8 @@
   },
   {
    "what": "custom ability",
-   "score": 676,
-   "cards": 577,
+   "score": 675,
+   "cards": 576,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7913,19 +7904,6 @@
     "Scarblade's Malice",
     "Desperate Measures",
     "Felonious Rage"
-   ]
-  },
-  {
-   "what": "ModifiedPredicate.instance",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Kodama of the West Tree",
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Araña, Heart of the Spider",
-    "SP//dr, Piloted by Peni",
-    "Kami of Celebration"
    ]
   },
   {
@@ -9428,19 +9406,6 @@
    ]
   },
   {
-   "what": "TargetsPermanentPredicate",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Season of Growth",
-    "Avoid Fate",
-    "Ms. Marvel, Kamala Khan",
-    "Fin Fang Foom",
-    "Colleen Wing, Street Samurai",
-    "Mockingbird, Ace Agent"
-   ]
-  },
-  {
    "what": "RemoveCounterCost",
    "score": 8,
    "cards": 8,
@@ -9898,19 +9863,6 @@
     "Vault 12: The Necropolis",
     "Contaminated Drink",
     "Megaton's Fate"
-   ]
-  },
-  {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Zurgo Stormrender",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Costume Closet",
-    "Genku, Future Shaper",
-    "Angelic Sleuth"
    ]
   },
   {
@@ -10423,6 +10375,19 @@
    ]
   },
   {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Zurgo Stormrender",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger"
+   ]
+  },
+  {
    "what": "CounterTargetWithReplacementEffect",
    "score": 6,
    "cards": 6,
@@ -10485,6 +10450,19 @@
     "Frontline Heroism",
     "Muck Drubb",
     "Loki, God of Lies"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Akki Battle Squad",
+    "Thundering Raiju",
+    "Arna Kennerüd, Skycaptain",
+    "One with the Kami",
+    "Silver Sable, Mercenary Leader",
+    "Expanding Ooze"
    ]
   },
   {
@@ -11239,6 +11217,18 @@
     "Hope-Ender Coatl",
     "Sandman's Quicksand",
     "Earth Surge"
+   ]
+  },
+  {
+   "what": "MultipliedValue of \"X\"",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Nuclear Fallout",
+    "Thassa's Intervention",
+    "Increasing Confusion",
+    "Stonesplitter Bolt",
+    "Procrastinate"
    ]
   }
  ]

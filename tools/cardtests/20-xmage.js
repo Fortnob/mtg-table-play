@@ -7644,4 +7644,59 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.g.powerOf(bear), 2, 'not an artifact');
   });
+
+  test('Font of Mythos: the player whose draw step it is draws two more', (mk, t) => {
+    t.auto('Font of Mythos');
+    const T = mk();
+    T.bf('A', 'Font of Mythos');
+    const a0 = T.zone('A', 'hand').length, b0 = T.zone('B', 'hand').length;
+    T.nextTurn('B');
+    T.toMain('B');
+    t.eq(T.zone('B', 'hand').length, b0 + 3, 'its own draw and two more');
+    t.eq(T.zone('A', 'hand').length, a0, 'not the Font\'s controller');
+  });
+
+  test('Vengeful Ancestor: a goaded attacker hurts its own controller', (mk, t) => {
+    t.auto('Vengeful Ancestor');
+    const T = mk();
+    T.bf('A', 'Vengeful Ancestor');
+    const bear = T.bf('B', 'Grizzly Bears');
+    bear.summoningSick = false; bear.goadedBy = 'A';
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    const b0 = T.life('B');
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('B'), b0 - 1);
+  });
+
+  test('Season of Growth: a spell at a creature of yours draws a card', (mk, t) => {
+    t.auto('Season of Growth');
+    const T = mk();
+    T.bf('A', 'Season of Growth');
+    const bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [bear.id] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1);
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [theirs.id] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'not for the opponent\'s');
+  });
+
+  test('Akki Ember-Keeper: a modified creature dying is seen as it was', (mk, t) => {
+    t.auto('Akki Ember-Keeper');
+    const T = mk();
+    T.bf('A', 'Akki Ember-Keeper');
+    const bear = T.bf('A', 'Grizzly Bears'), plain = T.bf('A', 'Grizzly Bears');
+    bear.counters['+1/+1'] = 1;
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, 'a Spirit for the modified one');
+    T.g.moveObject(plain, 'graveyard');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, 'none for the plain one');
+  });
 };

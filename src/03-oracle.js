@@ -589,6 +589,12 @@
         else if (made && e.op === 'attachSelf' && (e.scope === 'triggerObject' || e.scope === 'lastTarget') && !(e.targets || []).length) e.scope = 'madeToken';
       });
     }
+    // Vengeful Ancestor: "Whenever a goaded creature attacks, it deals 1 damage to its controller."
+    walk(effects, (e) => {
+      if (e.op !== 'damage' || !e.itWord) return;
+      delete e.itWord;
+      if (scope === 'triggerObject') { delete e.toSelf; e.fromTrigger = true; e.toTriggerObjController = true; }
+    });
     // "Whenever this creature attacks, it endures 1": in its own trigger, "it" is itself
     if (scope === 'self') walk(effects, (e) => { if ((e.op === 'endure' || e.op === 'doubleCounters') && e.scope === 'triggerObject') e.scope = 'self'; });
     // "Untap it." in a trigger about another permanent: that one, not this
@@ -2221,7 +2227,7 @@
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to you\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toSelf: true }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to its controller\.?$/i,
-      make: (m) => ({ op: 'damage', n: num(m[1]), toSelf: true }) },
+      make: (m) => Object.assign({ op: 'damage', n: num(m[1]), toSelf: true }, /^It deals/i.test(m[0]) ? { itWord: true } : {}) },
 
     /* ===== wider sweepers ===== */
     { re: /^Destroy all ([a-z]+s) with (?:mana value|converted mana cost) (\d+|X) or less\.?$/i,
@@ -2292,6 +2298,9 @@
     /* ===== whoever the trigger was about ===== */
     { re: /^(?:They|That player) loses? (one|two|three|four|five|\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }) },
+    // Font of Mythos: "that player draws two additional cards"
+    { re: /^(?:They|That player) draws? (two|three|\d+) additional cards\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'triggerPlayer', n: num(m[1]) }) },
     { re: /^(?:They|That player) draws? an additional card\.?$/i,
       make: () => ({ op: 'draw', who: 'triggerPlayer', n: 1 }) },
     { re: /^(?:They|That player) draws? (a|one|two|three|\d+) cards?\.?$/i,
@@ -5676,7 +5685,7 @@
     'land', 'lands', 'planeswalker', 'planeswalkers', 'permanent', 'permanents', 'battle', 'battles',
     'token', 'tokens', 'nontoken', 'legendary', 'nonland', 'noncreature', 'nonartifact', 'snow', 'basic',
     'nonbasic', 'white', 'blue', 'black', 'red', 'green', 'colorless', 'multicolored', 'or', 'and/or',
-    'equipment', 'aura', 'vehicle', 'nonlegendary']);
+    'equipment', 'aura', 'vehicle', 'nonlegendary', 'goaded', 'modified']);
   function subjectFilter(raw) {
     let p = String(raw || '').trim();
     const f = {};
@@ -5779,6 +5788,8 @@
     { re: /^Whenever an opponent casts a spell with mana value, power, or toughness equal to the chosen number,? /i, event: 'opponentCastSpell', extra: { chosenNumberHit: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
+    // Season of Growth: "Whenever you cast a spell that targets a creature you control"
+    { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
     { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
     { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
