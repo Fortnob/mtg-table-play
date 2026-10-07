@@ -6682,4 +6682,16 @@ module.exports = (test) => {
     T.resolve();
     t.ok(l1.tapped && l2.tapped); t.no(l3.tapped);
   });
+
+  test('Granite Shard: either cost works', (mk, t) => {
+    t.auto('Granite Shard');
+    const T = mk();
+    const gs = T.bf('A', 'Granite Shard');
+    const acts = gs.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts.length, 2, 'two abilities');
+    T.mana('A', 'R');
+    T.activate('A', gs, gs.analysis().manaAbilities.length + 1, { targets: ['B'] });
+    T.resolve();
+    t.eq(T.life('B'), 19, 'paid with {R}');
+  });
 };

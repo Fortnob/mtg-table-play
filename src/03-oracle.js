@@ -5959,6 +5959,14 @@
       lines.splice(i, 1, two[1] + ', ' + two[3], 'W' + two[2].slice(1) + ', ' + two[3]);
       i++;
     }
+    /* The Shards: "{3}, {T} or {U}, {T}: Draw a card." Two costs for one
+       ability: read as two abilities. */
+    for (let i = 0; i < lines.length; i++) {
+      const two = lines[i].match(/^((?:\{[^}]+\})+(?:, \{T\})?) or ((?:\{[^}]+\})+(?:, \{T\})?): ([^]+)$/);
+      if (!two) continue;
+      lines.splice(i, 1, two[1] + ': ' + two[3], two[2] + ': ' + two[3]);
+      i++;
+    }
     let totalLines = 0, autoLines = 0;
     const spreeModes = [];
     // "Choose up to five {P} worth of modes": the budget, and the priced modes under it

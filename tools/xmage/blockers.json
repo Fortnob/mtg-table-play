@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14425,
+  "needed": 14420,
   "gainedCards": 1519,
-  "linesNeeded": 16006,
+  "linesNeeded": 16001,
   "linesGained": 1894,
   "gained": {
    "all": 1519,
@@ -3110,24 +3110,6 @@
     "Bard Class",
     "Fisher's Talent",
     "Advanced Reconstruction"
-   ]
-  },
-  {
-   "what": "OrCost",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Highway Robbery",
-    "Crystal Shard",
-    "Skeleton Shard",
-    "Reckless Detective",
-    "Nimble Hobbit",
-    "Thrull Wizard",
-    "Tidal Control",
-    "Anthropede",
-    "Granite Shard",
-    "Heartwood Shard",
-    "Pearl Shard"
    ]
   },
   {
@@ -6243,6 +6225,19 @@
    ]
   },
   {
+   "what": "OrCost",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Highway Robbery",
+    "Reckless Detective",
+    "Nimble Hobbit",
+    "Thrull Wizard",
+    "Tidal Control",
+    "Anthropede"
+   ]
+  },
+  {
    "what": "CantBeBlockedByCreaturesAllEffect",
    "score": 6,
    "lines": 6,
@@ -8780,19 +8775,6 @@
    ]
   },
   {
-   "what": "OrCost",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Highway Robbery",
-    "Crystal Shard",
-    "Skeleton Shard",
-    "Reckless Detective",
-    "Nimble Hobbit",
-    "Thrull Wizard"
-   ]
-  },
-  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 11,
    "cards": 11,
@@ -10853,6 +10835,19 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
+   ]
+  },
+  {
+   "what": "OrCost",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Highway Robbery",
+    "Reckless Detective",
+    "Nimble Hobbit",
+    "Thrull Wizard",
+    "Tidal Control",
+    "Anthropede"
    ]
   },
   {
