@@ -8137,4 +8137,51 @@ module.exports = (test) => {
     s.attachedTo = m.id; m.attachments = [s.id]; T.g.bumpBoard();
     t.ok(T.g.hasKw(m, 'first strike'));
   });
+
+  test('Furnace of Rath doubles any damage; Fiendish Duo only to an opponent', (mk, t) => {
+    t.auto('Furnace of Rath'); t.auto('Fiendish Duo');
+    const T = mk();
+    T.bf('B', 'Furnace of Rath');
+    const g = T.bf('B', 'Hill Giant');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 16);
+    T.cast('A', T.hand('A', 'Shock'), { targets: [g.id] });
+    T.resolve();
+    t.eq(g.zone, 'graveyard', '4 damage to the 3/3');
+  });
+
+  test('Fiendish Duo: double to its opponents, not to their creatures', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Fiendish Duo');
+    const g = T.bf('B', 'Hill Giant');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 16);
+    T.cast('A', T.hand('A', 'Shock'), { targets: [g.id] });
+    T.resolve();
+    t.eq(g.damage, 2);
+  });
+
+  test('Crypt Incursion: creature cards only, 3 life each', (mk, t) => {
+    t.auto('Crypt Incursion');
+    const T = mk();
+    T.grave('B', 'Grizzly Bears'); T.grave('B', 'Hill Giant'); T.grave('B', 'Island');
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Crypt Incursion'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, 1); t.eq(T.life('A'), 26);
+  });
+
+  test("Polymorphist's Jest: that player's creatures are 1/1 Frogs", (mk, t) => {
+    t.auto("Polymorphist's Jest");
+    const T = mk();
+    const s = T.bf('B', 'Serra Angel'), mine = T.bf('A', 'Serra Angel');
+    T.mana('A', '1UU');
+    T.cast('A', T.hand('A', "Polymorphist's Jest"), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.g.powerOf(s), 1); t.ok(!T.g.hasKw(s, 'flying')); t.eq(T.g.powerOf(mine), 4);
+  });
 };

@@ -1609,7 +1609,7 @@
     /* What a creature is, for the rest of the turn: Turn to Frog, Ovinize,
        Animate Land, Merfolk Trickster's "It loses all abilities until end of
        turn". Each part in its layer (becomesEff). */
-    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|creatures target (?:player|opponent) controls|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
+    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|creatures target (?:player|opponent) controls|each creature target (?:player|opponent) controls|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
       make: (m) => {
         if (!/until end of turn/i.test(m[0])) return null;
         const eff = becomesEff(m[2]);
@@ -2346,6 +2346,11 @@
     { re: /^Destroy all ((?:[a-z]+s, )+(?:and )?[a-z]+s)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
     { re: /^Exile all graveyards\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
+    // Crypt Incursion: "Exile all creature cards from target player's graveyard."
+    { re: /^Exile all ([a-z]+) cards from target player'?s graveyard\.?$/i,
+      make: (m) => ({ op: 'exileGraveyard', who: 'target', filter: m[1].toLowerCase(), targets: [{ type: 'player' }] }) },
+    { re: /^You gain (one|two|three|four|\d+) life for each card exiled this way\.?$/i,
+      make: (m) => ({ op: 'gainLife', who: 'you', n: { lastExiledCount: true, mult: num(m[1]) } }) },
     { re: /^Exile (?:all|each) (?:player'?s|players'?) graveyards?\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
     { re: /^All creatures get ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'allCreatures' }) },
@@ -8146,7 +8151,8 @@
     else if (/^(?:it|that creature|that land|that permanent)$/i.test(s)) out.scope = 'lastTarget';
     else if (/^(?:CARDNAME|this creature|this land|this artifact|this permanent)$/i.test(s)) out.scope = 'self';
     else {
-      const sc = scopeOf(s.replace(/^each /i, 'all '));
+      // Polymorphist's Jest: "each creature target player controls" is all of them
+      const sc = scopeOf(s.replace(/^each ([a-z]+)(?= (?:target|you|your|an opponent)\b)/i, (x, w) => 'all ' + (/s$/i.test(w) ? w : w + 's')).replace(/^each /i, 'all '));
       if (!sc || sc.self || sc.attached) return null;
       out.scope = sc;
       // Sudden Spoiling: "creatures target player controls"
@@ -8670,6 +8676,11 @@
           toOpponent: /opponent/i.test(m[2]), sourceWords: words || null }, noncombat ? { noncombat: true } : {},
           plus ? { how: 'add', n: num(plus[1]) } : { how: m[3].toLowerCase() });
       } },
+    /* Furnace of Rath, Dictate of the Twin Gods: any source, any victim;
+       Fiendish Duo: any source, to an opponent */
+    { re: /^If a source would deal damage to (a permanent or player|an opponent), it deals double that damage to that (?:permanent or player|player) instead\.?$/i,
+      make: (m) => Object.assign({ op: 'replace', id: 'dmgdouble', event: 'damage', who: 'any', how: 'double' },
+        /opponent/i.test(m[1]) ? { toOpponent: true, toPlayerOnly: true } : {}) },
     // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
     { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },

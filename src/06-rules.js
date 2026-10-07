@@ -7328,6 +7328,8 @@
       if (ef.event === 'damage') {
         // "to an opponent or a permanent an opponent controls"
         if (ef.toOpponent && ev.victimController === src.controller) return false;
+        // Fiendish Duo: "to an opponent" — the player, not their permanents
+        if (ef.toPlayerOnly && !ev.toPlayer) return false;
         if (ef.noncombat && ev.combat) return false;
         if (ef.sourceWords && !this._cardFitsWords(ev.source, ef.sourceWords)) return false;
       }
@@ -8509,15 +8511,15 @@
 
     /* Fiery Emancipation, Torbran, Gratuitous Violence: what a source
        deals, after anything that doubles or adds to it. */
-    _damageAmount(amount, source, victimController, combat) {
+    _damageAmount(amount, source, victimController, combat, toPlayer) {
       if (!source) return amount;
-      const ev = this._replace({ kind: 'damage', n: amount, controller: source.controller, source, victimController, combat: !!combat });
+      const ev = this._replace({ kind: 'damage', n: amount, controller: source.controller, source, victimController, combat: !!combat, toPlayer: !!toPlayer });
       return Math.max(0, ev.n);
     }
 
     dealDamageToPlayer(p, amount, source, combat) {
       if (!p || amount <= 0) return 0;
-      amount = this._damageAmount(amount, source, p.id, combat);
+      amount = this._damageAmount(amount, source, p.id, combat, true);
       if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
       if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
       // the Spheres: "If a red source would deal damage to you, prevent 2 of that damage."
@@ -9878,6 +9880,8 @@
         if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return ((p && p.spellsCastThisTurn) || 0) * (v.mult || 1); }
         // Kaya's Wrath: the ones of yours the sweep just took
         if (v === 'lastSweptYours') return (this._lastAffectedAll || []).filter(g => g.controller === ctx.controller && (this.obj(g.id) || {}).zone !== 'battlefield').length;
+        // Crypt Incursion: "for each card exiled this way"
+        if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
         // Sunfall: how many the sweep just before took
         if (v === 'lastSweep') return this._lastSweep || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
@@ -11806,9 +11810,12 @@
             // Stonespeaker Crystal: each player aimed at
             : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             : [firstPlayer()].filter(Boolean);
+          // Crypt Incursion: only cards of a kind, and "for each card exiled this way" counts them
+          this._lastExiledCount = 0;
           for (const p of who) {
-            const gy = this.zones[p.id].graveyard.slice();
+            const gy = this.zones[p.id].graveyard.slice().filter(c => !e.filter || this._cardFitsWords(c, e.filter));
             for (const c of gy) this.moveObject(c, 'exile');
+            this._lastExiledCount += gy.length;
             this.logEvent('exile', `${p.name}'s graveyard is exiled (${gy.length}).`);
           }
           break;
