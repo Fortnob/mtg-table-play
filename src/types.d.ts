@@ -384,7 +384,8 @@ declare namespace MTG {
     | { kind: 'mulligan' }
     | { kind: 'keep'; bottom?: Id[] }
     | { kind: 'playLand'; objId: Id; face?: number }
-    | { kind: 'cycle' | 'plot' | 'suspend' | 'transmute' | 'encore' | 'turnFaceUp'; objId: Id }
+    | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[] }
+    | { kind: 'plot' | 'suspend' | 'transmute' | 'encore' | 'turnFaceUp'; objId: Id }
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;

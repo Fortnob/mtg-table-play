@@ -3233,7 +3233,9 @@
           // generic questions answered with the extra costs (replicate, splice); the engine checks them
           choices: intent.choices && typeof intent.choices === 'object' ? intent.choices : null,
           x: Math.max(0, Math.min(99, parseInt(intent.x, 10) || 0)) }); break;
-        case 'cycle': g.cycleCard(actorId, intent.objId, { auto: true }); break;
+        // cycling, or channel and forecast (the same door), with what a channel ability aims at
+        case 'cycle': g.cycleCard(actorId, intent.objId, { auto: true, channel: intent.channel === true ? true : intent.channel === false ? false : undefined,
+          targets: Array.isArray(intent.targets) ? intent.targets : [] }); break;
         case 'plot': g.plotCard(actorId, intent.objId, { auto: true }); break;
         case 'suspend': g.suspendCard(actorId, intent.objId, { auto: true }); break;
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;

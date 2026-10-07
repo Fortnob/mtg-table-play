@@ -1876,7 +1876,23 @@
         if (a.isLand) return UI.toast((this.me && this.me.landsPlayed >= this.me.maxLands) ? 'You have already played a land this turn.' : 'Lands can be played in your main phase with the stack empty.');
         return UI.toast(a.isInstant || a.has('flash') ? 'You cannot pay for that right now.' : 'You cannot cast that right now.');
       }
-      if (a.isLand) { MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id }); }
+      if (a.isLand) {
+        // a channel land (Otawara): play it, or channel it
+        const chans = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cycle');
+        if (chans.length && o.zone === 'hand') {
+          const me = this.me;
+          const canLand = me && live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length &&
+            me.landsPlayed < (me.maxLands || 1);
+          /** @type {Array<[string, () => void]>} */
+          const items = chans.map(u => [u.label, () => this._cycleUse(o, a, u)]);
+          if (canLand) items.unshift(['Play this land', () => { MTG.sfx('ui_play'); this.send({ kind: 'playLand', objId: o.id }); }]);
+          if (items.length === 1) return items[0][1]();
+          const n = this.els.get(o.id);
+          const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
+          return UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
+        }
+        MTG.sfx('ui_play'); return this.send({ kind: 'playLand', objId: o.id });
+      }
       if (this._landBack(o)) return this._spellOrLand(o, a);
       const halves = (live.splitFaces || {})[o.id];
       if ((o.card.layout === 'split' || o.card.layout === 'adventure') && halves && halves.length) return this._castHalf(o, halves);
@@ -1884,7 +1900,7 @@
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */
       if (o.zone === 'hand') {
-        const alts = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cast');
+        const alts = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cast' || u.kind === 'cycle');
         if (alts.length) {
           /* the ordinary cast, when it could be made right now: the engine's
              reason covers cost, and its timing is checked here because a card
@@ -1892,8 +1908,8 @@
           const sorcerySpeed = live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length;
           const normal = !this.whyNot(o.id) && (sorcerySpeed || a.isInstant || a.has('flash'));
           /** @type {Array<[string, () => void]>} */
-          const items = alts.map(u => [u.label, () => (u.via === 'morph'
-            ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
+          const items = alts.map(u => [u.label, () => (u.kind === 'cycle' ? this._cycleUse(o, a, u)
+            : u.via === 'morph' ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
             : this.castUse(o, a, u))]);
           if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
           if (items.length === 1) return items[0][1]();
@@ -2137,12 +2153,52 @@
       }
       const more = Object.assign({}, x != null ? { x } : {}, split != null ? { manaSplit: split } : {});
       const specs = [];
-      for (const e of (ab.effects || [])) for (const s of (e.targets || [])) specs.push(s);
+      for (const s of this._effectTargets(ab.effects)) {
+        if (!s.multi) { specs.push(s); continue; }
+        // "X target lands" (Mishra's Helix): as many as the X paid, or as many as there are
+        const plain = Object.assign({}, s, { multi: null });
+        const legal = this._countLegal(plain);
+        const n = s.multi.count === 'X' ? Math.min(x || 0, legal) : legal;
+        for (let i = 0; i < n; i++) specs.push(s.multi.exact === false || s.multi.count === 'any' ? Object.assign({}, plain, { upTo: true }) : plain);
+      }
       if (!specs.length) return this.send({ kind: 'activate', objId: o.id, index, targets: [], ...more });
       this.startTargeting({
         need: specs.length, specs, label: `${o.card.name}: choose ${specs.length === 1 ? 'a target' : specs.length + ' targets'}`,
         source: o.id, cardName: o.card.name,
         onDone: (targets) => this.send({ kind: 'activate', objId: o.id, index, targets, ...more }),
+      });
+    }
+
+    /** The target specs in a list of effects, sequences walked into, in order. */
+    _effectTargets(effects) {
+      const out = [];
+      const walk = (list) => {
+        for (const e of (list || [])) {
+          if (!e) continue;
+          if (e.op === 'sequence') { walk(e.list); continue; }
+          for (const s of (e.targets || [])) if (s) out.push(s);
+        }
+      };
+      walk(effects);
+      return out;
+    }
+
+    /**
+     * Cycling, or channel and forecast, which go through the same door: the
+     * card is discarded (or, for forecast, shown) for its ability, and an
+     * ability that points at something asks for that first.
+     * @this {MTG.TableInstance}
+     */
+    _cycleUse(o, a, use) {
+      if (!use.channel) return this.send({ kind: 'cycle', objId: o.id, channel: false });
+      const eff = use.forecast ? ((a.forecast || {}).effects) : ((a.channel || {}).effects);
+      const specs = this._effectTargets(eff);
+      const send = (targets) => this.send({ kind: 'cycle', objId: o.id, channel: true, targets });
+      if (!specs.length) return send([]);
+      this.startTargeting({
+        need: specs.length, specs, source: o.id, cardName: o.card.name,
+        label: `${o.card.name}: choose ${specs.length === 1 ? 'a target' : specs.length + ' targets'}`,
+        onDone: send,
       });
     }
 
@@ -2454,7 +2510,7 @@
         if (a && a.isLand) items.push(['Play this land', () => this.playFromHand(o)]);
         else items.push(['Cast it', () => this.playFromHand(o)]);
         for (const use of ((live.uses || {})[o.id] || [])) {
-          if (use.kind === 'cycle') items.push([use.label, () => this.send({ kind: 'cycle', objId: o.id })]);
+          if (use.kind === 'cycle') items.push([use.label, () => this._cycleUse(o, a, use)]);
           else if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);
           else if (use.kind === 'suspend') items.push([use.label, () => this.send({ kind: 'suspend', objId: o.id })]);
           else if (use.kind === 'transmute') items.push([use.label, () => this.send({ kind: 'transmute', objId: o.id })]);
