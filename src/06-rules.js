@@ -2882,13 +2882,15 @@
        unlock a Room" for its controller */
     _unlockDoor(o, door) {
       if (!o || o.zone !== 'battlefield' || o.face === 2) return;
-      o.face = 2;
+      // both locked: this door opens and the other stays shut
+      const full = o.face !== 3;
+      o.face = full ? 2 : door;
       o._chr = null;
       this.bumpBoard();
       const half = (o.card.card_faces || [])[door];
       this.logEvent('rules', `${this.player(o.controller).name} unlocks ${(half && half.name) || 'a door'}.`);
       this._fire('unlockDoor', o.controller, { object: o, source: o, door });
-      this._fire('youFullyUnlock', o.controller, { object: o, source: o });
+      if (full) this._fire('youFullyUnlock', o.controller, { object: o, source: o });
     }
     /** What a craft ability may use: other permanents its controller controls, and cards in their graveyard. */
     _craftPool(src, m) {
@@ -4660,6 +4662,8 @@
       if (o._flashSacTurn != null) { if (o._flashSacTurn === this.turn && o.wasCast === this.turn) o.sacAtEndOfTurn = this.turn; o._flashSacTurn = null; }
       /* A Room cast for one door enters with that door unlocked, and that
          is unlocking it: "when you unlock this door" triggers (CR 709.5h) */
+      // a Room that wasn't cast arrives with both doors locked
+      if (o.card.layout === 'split' && o.wasCast !== this.turn && (O.analyze(o.card, 0) || {}).isRoom) { o.face = 3; o._chr = null; }
       if (o.wasCast === this.turn && o.card.layout === 'split' && (o.face === 0 || o.face === 1) && (o.analysis() || {}).isRoom) {
         this._fire('unlockDoor', o.controller, { object: o, source: o, door: o.face });
       }
@@ -5907,6 +5911,9 @@
         const hits = (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller;
         let seen = 0;
         const before = declarations.length;
+        // a person is told and declares again; a bot's extra attackers stay home
+        if (!(this.player(playerId) || {}).isBot && declarations.filter(hits).length > (lim.n || 1))
+          return this.fail(`${s0.name}: no more than ${lim.n || 1} creature${(lim.n || 1) === 1 ? '' : 's'} can attack${lim.you ? ' ' + this.player(s0.controller).name : ''} each combat.`);
         declarations = declarations.filter(d => !hits(d) || ++seen <= (lim.n || 1));
         if (declarations.length < before) this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} attacking${lim.you ? ' ' + this.player(s0.controller).name : ''}.`);
       }
@@ -6165,6 +6172,8 @@
         if (s0.phasedOut) continue;
         const lim = this._staticOp(s0, 'blockLimit');
         if (!lim || declarations.length <= (lim.n || 1)) continue;
+        if (!(this.player(playerId) || {}).isBot)
+          return this.fail(`${s0.name}: no more than ${lim.n || 1} creature${(lim.n || 1) === 1 ? '' : 's'} can block each combat.`);
         declarations = declarations.slice(0, lim.n || 1);
         this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} blocking.`);
       }
@@ -6195,6 +6204,7 @@
           const at = this.obj(aid);
           const mb = at && this._staticOp(at, 'minBlockers');
           if (!mb || k >= mb.n) continue;
+          if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked except by ${mb.n} or more creatures.`);
           declarations = declarations.map(d => Object.assign({}, d, { attackerIds: d.attackerIds.filter(x => x !== aid) })).filter(d => d.attackerIds.length);
           this.logEvent('rules', `${at.name} can't be blocked except by ${mb.n} or more creatures.`);
         }

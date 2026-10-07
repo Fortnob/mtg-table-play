@@ -4837,6 +4837,17 @@
       both.isRoom = true; both.roomFull = true;
       return both;
     }
+    /* face 3: a Room that came onto the battlefield without being cast, both
+       doors locked (CR 709.5d) — nothing but the two unlocks */
+    if (faceIndex === 3 && isRoom(card)) {
+      const shut = Object.assign({}, _analyze(roomBoth(card), 0));
+      shut.isRoom = true; shut.roomLocked = true;
+      shut.abilities = card.card_faces.map((f, d) => ({ kind: 'activated', special: 'unlock', door: d, sorcerySpeed: true,
+        cost: parseCost(f.mana_cost || '{0}'), effects: [{ op: 'unlockDoor', door: d }], text: `Unlock ${f.name}: ${f.mana_cost || '{0}'}`, auto: true }));
+      shut.manaAbilities = []; shut.keywords = []; shut.keywordSet = new Set(); shut.has = () => false;
+      shut.entersWithCounters = null;
+      return shut;
+    }
     const face = faceOf(card, faceIndex);
     const name = face.name || card.name;
     const typeLine = face.type_line || card.type_line || '';

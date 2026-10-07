@@ -3751,10 +3751,15 @@ module.exports = (test) => {
     const T = mk();
     T.bf('B', 'Silent Arbiter');
     const x = T.bf('A', 'Grizzly Bears'), y = T.bf('A', 'Craw Wurm');
-    T.answer('declareAttackers', () => [x, y].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    let refused = null;
+    T.answer('declareAttackers', () => {
+      refused = !T.g.declareAttackers('A', [x, y].map(o => ({ attackerId: o.id, defenderId: 'B' }))) && /no more than 1/.test(T.g.lastError || '');
+      return [{ attackerId: x.id, defenderId: 'B' }];
+    });
     T.answer('declareBlockers', () => []);
     T.toMain('A', 'endCombat');
-    t.eq([x, y].filter(o => o.attackedTurn === T.g.turn).length, 1);
+    t.ok(refused, 'two attackers refused, with a reason');
+    t.eq([x, y].filter(o => o.attackedTurn === T.g.turn).length, 1, 'one is fine');
   });
 
   test("Public Execution: that player's other creatures shrink", (mk, t) => {
@@ -4049,8 +4054,13 @@ module.exports = (test) => {
     tr.summoningSick = false;
     const x = T.bf('B', 'Grizzly Bears'), y = T.bf('B', 'Grizzly Bears');
     T.answer('declareAttackers', () => [{ attackerId: tr.id, defenderId: 'B' }]);
-    T.answer('declareBlockers', () => [{ blockerId: x.id, attackerIds: [tr.id] }, { blockerId: y.id, attackerIds: [tr.id] }]);
+    let refused = null;
+    T.answer('declareBlockers', () => {
+      refused = !T.g.declareBlockers('B', [{ blockerId: x.id, attackerIds: [tr.id] }, { blockerId: y.id, attackerIds: [tr.id] }]);
+      return [];
+    });
     T.toMain('A', 'endCombat');
+    t.ok(refused, 'two blockers refused');
     t.eq(T.life('B'), 14, 'unblocked');
   });
 
@@ -4153,5 +4163,18 @@ module.exports = (test) => {
     T.answer('declareBlockers', () => [{ blockerId: sp.id, attackerIds: [bird.id] }]);
     T.toMain('A', 'endCombat');
     t.zone(bird, 'graveyard', 'the pumped Spider (4 power) kills the Angel');
+  });
+
+  test('A Room put onto the battlefield uncast has both doors locked', (mk, t) => {
+    const T = mk();
+    const r = T.put('A', 'Funeral Room // Awakening Hall', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(r.face, 3, 'both locked');
+    const acts = r.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts.length, 2, 'two unlocks and nothing else');
+    t.eq(r.analysis().abilities.filter(x => x.kind === 'triggered').length, 0);
+    T.mana('A', '2B');
+    T.activate('A', r, r.analysis().manaAbilities.length + acts.findIndex(x => x.door === 0));
+    t.eq(r.face, 0, 'Funeral Room unlocked');
   });
 };
