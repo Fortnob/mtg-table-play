@@ -7210,4 +7210,52 @@ module.exports = (test) => {
     t.ok(gobs.every(o => T.g.hasKw(o, 'haste')), 'the new tokens');
     t.ok(!T.g.hasKw(old, 'haste'), 'not the Goblin already there');
   });
+
+  test('Counters other than +1/+1 change power and toughness too (Wall of Roots, Tin-Wing Chimera)', (mk, t) => {
+    t.auto('Tin-Wing Chimera'); t.auto('Wall of Roots');
+    const T = mk();
+    const wall = T.bf('A', 'Wall of Roots');
+    wall.counters['-0/-1'] = 2;
+    t.eq(T.g.toughnessOf(wall), 3); t.eq(T.g.powerOf(wall), 0);
+    const tin = T.bf('A', 'Tin-Wing Chimera'), other = T.bf('A', 'Tin-Wing Chimera');
+    T.activate('A', tin, tin.analysis().manaAbilities.length, { targets: [other.id] });
+    T.resolve();
+    t.eq(tin.zone, 'graveyard');
+    t.eq(T.g.powerOf(other), 4); t.eq(T.g.toughnessOf(other), 4);
+    t.ok(T.g.hasKw(other, 'flying'));
+  });
+
+  test('Puncture Bolt: the -1/-1 counter goes on the creature it hit', (mk, t) => {
+    t.auto('Puncture Bolt');
+    const T = mk();
+    const ogre = T.bf('B', 'Hill Giant');
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Puncture Bolt'), { targets: [ogre.id] });
+    t.eq(ogre.counters['-1/-1'], 1);
+    t.eq(ogre.damage, 1);
+  });
+
+  test('Unstable Mutation: the counter on the enchanted creature, in its controller\'s upkeep', (mk, t) => {
+    t.auto('Unstable Mutation');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Unstable Mutation'), { targets: [bear.id] });
+    t.eq(T.g.powerOf(bear), 5);
+    T.toMain('B', 'upkeep');
+    T.resolve();
+    t.eq(bear.counters['-1/-1'], 1);
+    t.eq(T.g.powerOf(bear), 4);
+  });
+
+  test('Flycatcher Giraffid: enters with one of the two keyword counters', (mk, t) => {
+    t.auto('Flycatcher Giraffid');
+    const T = mk();
+    T.mana('A', '4G');
+    T.cast('A', T.hand('A', 'Flycatcher Giraffid'));
+    const g = T.bfOf('A').find(o => o.name === 'Flycatcher Giraffid');
+    t.ok(g, 'it is on the battlefield');
+    t.eq((g.counters.reach || 0) + (g.counters.vigilance || 0), 1, 'one counter, of one kind');
+    t.ok(T.g.hasKw(g, 'reach') || T.g.hasKw(g, 'vigilance'));
+  });
 };

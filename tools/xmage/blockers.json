@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14258,
-  "gainedCards": 1493,
-  "linesNeeded": 15760,
-  "linesGained": 1858,
+  "needed": 14238,
+  "gainedCards": 1490,
+  "linesNeeded": 15738,
+  "linesGained": 1855,
   "gained": {
-   "all": 1493,
+   "all": 1490,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5222,
-   "lines": 4547,
+   "score": 5221,
+   "lines": 4546,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 133,
-   "lines": 124,
+   "score": 128,
+   "lines": 119,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -1154,25 +1154,6 @@
    ]
   },
   {
-   "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Dance of the Dead",
-    "Soul Tithe",
-    "Paralyze",
-    "Festering Wound",
-    "Apathy",
-    "Slow Motion",
-    "Takklemaggot",
-    "Unnatural Hunger",
-    "Unstable Mutation",
-    "Power Taint",
-    "Power Leak",
-    "Erosion"
-   ]
-  },
-  {
    "what": "AddCardSubtypeAttachedEffect",
    "score": 18,
    "lines": 18,
@@ -1590,6 +1571,25 @@
     "Lost Order of Jarkeld",
     "Muscle Burst",
     "Flame Burst"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Dance of the Dead",
+    "Soul Tithe",
+    "Paralyze",
+    "Festering Wound",
+    "Apathy",
+    "Slow Motion",
+    "Unnatural Hunger",
+    "Power Taint",
+    "Power Leak",
+    "Erosion",
+    "Feedback",
+    "Curse Artifact"
    ]
   },
   {
@@ -2597,25 +2597,6 @@
    ]
   },
   {
-   "what": "AddCountersAttachedEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Ordeal of Nylea",
-    "Teferi's Talent",
-    "Ordeal of Heliod",
-    "Ordeal of Thassa",
-    "Vivien's Talent",
-    "Ordeal of Purphoros",
-    "Awakened Awareness",
-    "Ordeal of Erebos",
-    "Torture",
-    "Shape of the Wiitigo",
-    "Biting Tether",
-    "Consuming Ferocity"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 12,
    "lines": 12,
@@ -3431,6 +3412,23 @@
    ]
   },
   {
+   "what": "AddCountersAttachedEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Ordeal of Nylea",
+    "Teferi's Talent",
+    "Ordeal of Heliod",
+    "Ordeal of Thassa",
+    "Vivien's Talent",
+    "Ordeal of Purphoros",
+    "Awakened Awareness",
+    "Ordeal of Erebos",
+    "Shape of the Wiitigo",
+    "Consuming Ferocity"
+   ]
+  },
+  {
    "what": "PermanentsEnterBattlefieldTappedEffect",
    "score": 10,
    "lines": 10,
@@ -3922,22 +3920,6 @@
     "Nettling Curse",
     "Cunning",
     "Imprison"
-   ]
-  },
-  {
-   "what": "DealsDamageToACreatureTriggeredAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Obelisk Spider",
-    "Frostwalk Bastion",
-    "Maarika, Brutal Gladiator",
-    "Overclocked Electromancer",
-    "Spider-Slayer, Hatred Honed",
-    "East-Mark Cavalier",
-    "Simic Basilisk",
-    "Vampire Slayer",
-    "Bellowing Fiend"
    ]
   },
   {
@@ -4769,6 +4751,21 @@
    ]
   },
   {
+   "what": "DealsDamageToACreatureTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Frostwalk Bastion",
+    "Maarika, Brutal Gladiator",
+    "Overclocked Electromancer",
+    "Spider-Slayer, Hatred Honed",
+    "East-Mark Cavalier",
+    "Simic Basilisk",
+    "Vampire Slayer",
+    "Bellowing Fiend"
+   ]
+  },
+  {
    "what": "(constructor: assignment)",
    "score": 8,
    "lines": 8,
@@ -4914,21 +4911,6 @@
     "Gnarled Sage",
     "Spinehorn Minotaur",
     "Trench Stalker"
-   ]
-  },
-  {
-   "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Grasping Giant",
-    "Elven Warhounds",
-    "Tolarian Entrancer",
-    "Battering Ram",
-    "Basalt Golem",
-    "Catacomb Dragon",
-    "Order of the Mirror // Order of the Alabaster Host",
-    "Quagmire Lamprey"
    ]
   },
   {
@@ -5245,20 +5227,6 @@
    ]
   },
   {
-   "what": "gain for static",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Kaya the Inexorable",
-    "Flame-Wreathed Phoenix",
-    "Mist Dragon",
-    "Iron-Heart Chimera",
-    "Tin-Wing Chimera",
-    "Lead-Belly Chimera",
-    "Brass-Talon Chimera"
-   ]
-  },
-  {
    "what": "ScryTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -5496,20 +5464,6 @@
    ]
   },
   {
-   "what": "BecomesTappedAttachedTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Cryoshatter",
-    "Relic Putrescence",
-    "Darksteel Garrison",
-    "Kudzu",
-    "Steam Vines",
-    "Spirit Shackle",
-    "Orcish Mine"
-   ]
-  },
-  {
    "what": "BlockingOrBlockedBySourcePredicate.EITHER",
    "score": 7,
    "lines": 7,
@@ -5535,6 +5489,20 @@
     "Guardian Zendikon",
     "Vastwood Zendikon",
     "Crusher Zendikon"
+   ]
+  },
+  {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Tolarian Entrancer",
+    "Battering Ram",
+    "Basalt Golem",
+    "Catacomb Dragon",
+    "Order of the Mirror // Order of the Alabaster Host"
    ]
   },
   {
@@ -6627,6 +6595,19 @@
    ]
   },
   {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Cryoshatter",
+    "Relic Putrescence",
+    "Darksteel Garrison",
+    "Kudzu",
+    "Steam Vines",
+    "Orcish Mine"
+   ]
+  },
+  {
    "what": "CantBlockCreaturesSourceEffect",
    "score": 6,
    "lines": 6,
@@ -7488,13 +7469,24 @@
     "Riveteers Confluence",
     "Obscura Confluence"
    ]
+  },
+  {
+   "what": "HalfValue",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Imskir Iron-Eater",
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Rakdos the Defiler",
+    "Banshee"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4190,
-   "cards": 3710,
+   "score": 4189,
+   "cards": 3709,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7571,8 +7563,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 81,
-   "cards": 81,
+   "score": 76,
+   "cards": 76,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8089,19 +8081,6 @@
    ]
   },
   {
-   "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Soul Tithe",
-    "Paralyze",
-    "Festering Wound",
-    "Apathy",
-    "Slow Motion",
-    "Unnatural Hunger"
-   ]
-  },
-  {
    "what": "PermanentPredicate.instance",
    "score": 14,
    "cards": 8,
@@ -8382,6 +8361,19 @@
     "Dancing Sword",
     "Angry Mob",
     "Flameshot"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Soul Tithe",
+    "Paralyze",
+    "Festering Wound",
+    "Apathy",
+    "Slow Motion",
+    "Unnatural Hunger"
    ]
   },
   {
@@ -9575,6 +9567,19 @@
    ]
   },
   {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Generous Patron",
+    "Nest of Scarabs",
+    "Hapatra, Vizier of Poisons",
+    "Obelisk Spider",
+    "Earth Kingdom General",
+    "The Great Goblin"
+   ]
+  },
+  {
    "what": "scope:alts",
    "score": 8,
    "cards": 8,
@@ -9992,19 +9997,6 @@
    ]
   },
   {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Generous Patron",
-    "Nest of Scarabs",
-    "Hapatra, Vizier of Poisons",
-    "Earth Kingdom General",
-    "The Great Goblin",
-    "Kros, Defense Contractor"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "cards": 7,
@@ -10366,19 +10358,6 @@
     "Possessed Aven",
     "Possessed Barbarian",
     "Possessed Centaur"
-   ]
-  },
-  {
-   "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Grasping Giant",
-    "Elven Warhounds",
-    "Tolarian Entrancer",
-    "Basalt Golem",
-    "Catacomb Dragon",
-    "Order of the Mirror // Order of the Alabaster Host"
    ]
   },
   {
@@ -11073,19 +11052,6 @@
    ]
   },
   {
-   "what": "BecomesTappedAttachedTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Cryoshatter",
-    "Relic Putrescence",
-    "Darksteel Garrison",
-    "Kudzu",
-    "Steam Vines",
-    "Spirit Shackle"
-   ]
-  },
-  {
    "what": "CantBlockCreaturesSourceEffect",
    "score": 6,
    "cards": 6,
@@ -11161,6 +11127,19 @@
     "Alms Beast",
     "Steadfast Armasaur",
     "Sworn Defender"
+   ]
+  },
+  {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Tolarian Entrancer",
+    "Basalt Golem",
+    "Catacomb Dragon",
+    "Order of the Mirror // Order of the Alabaster Host"
    ]
   },
   {
@@ -11285,6 +11264,15 @@
    "names": [
     "Baral, Chief of Compliance",
     "Lullmage Mentor"
+   ]
+  },
+  {
+   "what": "sacrifice trigger for OPPONENT",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "It That Betrays",
+    "Vengeful Tracker"
    ]
   }
  ]

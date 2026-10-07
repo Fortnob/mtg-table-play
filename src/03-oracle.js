@@ -1149,7 +1149,7 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (-1\/-1|\+1\/\+1|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
+    { re: /^Put (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
 
     // --- removal / zone changes ---
@@ -1653,7 +1653,7 @@
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on each creature you control, where X is (?:this creature|CARDNAME)'?s power\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofSelf: 'power' }, scope: 'yourCreatures' }) },
     /* Tarrian's Soulcleaver */
-    { re: /^Put (a|an|one|two|three|\d+) (\+1\/\+1|[a-z]+) counters? on (?:equipped|enchanted) creature\.?$/i,
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on (?:equipped|enchanted) creature\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), scope: 'attached' }) },
     /* Rite of Replication's kicker */
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
@@ -2006,7 +2006,7 @@
       make: (m) => ({ op: 'bottomThenDraw', plus: num(m[1]) }) },
     /* "Whenever another creature you control enters, put a +1/+1 counter on
        that creature": the creature the trigger is about */
-    { re: /^Put (a|an|one|two|three|four|\d+) (\+1\/\+1|[a-z]+) counters? on that (?:creature|permanent)\.?$/i,
+    { re: /^Put (a|an|one|two|three|four|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on that (?:creature|permanent)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), scope: 'triggerObject' }) },
     /* Plaguecrafter */
     { re: /^Each player sacrifices an? (creature or planeswalker|creature|artifact or creature) of their choice\. Each player who can'?t discards a card\.?$/i,
@@ -7192,6 +7192,11 @@
       const c = condOf(ifEtb[1]);
       if (c) out.entersWithCounters = { kind: ifEtb[3].trim(), n: num(ifEtb[2]), cond: c };
     }
+    /* Flycatcher Giraffid: "enters with your choice of a reach counter or a
+       vigilance counter on it" — one, of the kind its controller picks */
+    const etbPick = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ([a-z ]+?) counter or an? ([a-z ]+?) counter on it\./i);
+    if (etbPick && !out.entersWithCounters && [etbPick[1], etbPick[2]].every(k => kwKnown(k)))
+      out.entersWithCounters = { kind: etbPick[1].toLowerCase(), n: 1, choice: [etbPick[1].toLowerCase(), etbPick[2].toLowerCase()] };
     /* Converge, sunburst: a counter for each colour of mana spent to cast it */
     const conv = text.match(/enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on it for each (colou?r of )?mana spent to cast it/i);
     if (conv && !out.entersWithCounters) {
@@ -7384,9 +7389,19 @@
     }
     for (const ab of out.abilities) {
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
+      // Unstable Mutation: "the upkeep of enchanted creature's controller, put a -1/-1 counter on that creature"
+      if (ab.enchantedController) for (const x of (ab.effects || [])) if (x.op === 'counters' && x.scope === 'triggerObject') x.scope = 'attached';
       if (ab.kind === 'triggered' && !ab.self) continue;
       // a creature's own trigger about another creature: the one it dealt damage to, the one it exploited
       if (ab.kind === 'triggered' && ['dealsDamageToCreature', 'exploits', 'blocksCreature', 'blockedByCreature'].includes(ab.event)) continue;
+      /* Puncture Bolt: "deals 1 damage to target creature. Put a -1/-1
+         counter on that creature." — a spell's "that creature" is the one it aimed at */
+      const effs = ab.effects || [];
+      if (ab.kind !== 'triggered' && effs.length === 2 && effs[0].targets && effs[0].targets.length === 1 && effs[0].targets[0].type === 'creature' &&
+          effs[1].op === 'counters' && effs[1].scope === 'triggerObject') {
+        effs[1].scope = 'lastTarget';
+        continue;
+      }
       ab.auto = false;
       autoLines--;
     }
@@ -8733,6 +8748,8 @@
         eff: { op: 'noop' }, auto: true },
       { re: /^(?:CARDNAME|This creature|It) enters(?: the battlefield)? with X [+\-0-9/a-z' ]+ counters? on (?:it|them),? where X is the number of [-a-z' ]+ you control\.?$/i,
         eff: { op: 'noop' }, auto: true },
+      { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ([a-z ]+?) counter or an? ([a-z ]+?) counter on it\.?$/i,
+        make: (m) => ([m[1], m[2]].every(k => kwKnown(k)) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with power (\d+) or less\.?$/i,
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
       { re: /^CARDNAME can'?t be blocked by more than one creature\.?$/i,

@@ -4919,6 +4919,15 @@
         if (a.entersWithCounters.withKeywords) { o.effects.push({ keywords: a.entersWithCounters.withKeywords.slice(), until: null }); o._chr = null; }
         if (n > 0) {
           const kind = a.entersWithCounters.kind;
+          /* Flycatcher Giraffid: the first kind for now; a person picks,
+             and the answer swaps it */
+          const pick = a.entersWithCounters.choice;
+          const pl = pick && this.player(o.controller);
+          if (pl && !pl.isBot) {
+            this.queueChoice({ type: 'mode', playerId: pl.id, count: 1, purpose: 'chooseCounterKind', objId: o.id,
+              kinds: pick.slice(), n, options: pick.map((k, i) => ({ i, label: U.titleCase(k) + ' counter' })),
+              prompt: `${o.name}: choose the counter it enters with.` });
+          }
           o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
           // entering with counters is having them put on it (CR 122.6)
           this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n });
@@ -8307,6 +8316,12 @@
       }
       const plus = Number(o.counters['+1/+1']) || 0, minus = Number(o.counters['-1/-1']) || 0;
       p += plus - minus; t += plus - minus;
+      // Clockwork Beast's +1/+0, Tin-Wing Chimera's +2/+2, Wall of Roots' -0/-1
+      for (const [k, v] of Object.entries(o.counters || {})) {
+        if (k === '+1/+1' || k === '-1/-1' || !(Number(v) > 0)) continue;
+        const pt = k.match(/^([+-]\d+)\/([+-]\d+)$/);
+        if (pt) { p += Number(pt[1]) * Number(v); t += Number(pt[2]) * Number(v); }
+      }
       // layer 7d: switching, an odd number of times
       if (switches % 2) { const x = p; p = t; t = x; }
 
@@ -16296,6 +16311,20 @@
               o[ch.field] = ch.values[idx];
               o._chr = null; this.bumpBoard();
               this.logEvent('rules', `${this.player(playerId).name} chooses ${(ch.options[idx] || {}).label} for ${o.name}.`);
+            }
+            break;
+          }
+          // Flycatcher Giraffid: the counter it entered with, swapped for the one picked
+          if (ch.purpose === 'chooseCounterKind') {
+            const o = this.obj(ch.objId);
+            const idx = ((data && data.modes) || [])[0];
+            const want = ch.kinds[idx], had = ch.kinds[0];
+            if (o && want && want !== had && o.zone === 'battlefield' && (Number(o.counters[had]) || 0) >= ch.n) {
+              o.counters[had] -= ch.n;
+              if (!o.counters[had]) delete o.counters[had];
+              o.counters[want] = (Number(o.counters[want]) || 0) + ch.n;
+              o._chr = null; this.bumpBoard();
+              this.logEvent('rules', `${o.name} has a ${want} counter instead.`);
             }
             break;
           }
