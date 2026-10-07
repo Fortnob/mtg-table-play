@@ -7998,6 +7998,13 @@
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
+        case 'controlsGreatestPower': {
+          if (!me) return false;
+          const cs = this.battlefield.filter(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+          if (!cs.length) return false;
+          const best = Math.max(...cs.map(o => this.powerOf(o)));
+          return cs.some(o => o.controller === me.id && this.powerOf(o) === best);
+        }
         case 'opponentMoreHand': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].hand.length > this.zones[me.id].hand.length);
         case 'selfEquipped': {
           // Awaken the Sleeper: in a spell, "it" is the creature it aimed at
@@ -8548,7 +8555,8 @@
       /* Damage to a player is life lost: the same replacements apply
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
       const lossEv = this._replace({ kind: 'loseLife', n: amount, controller: p.id });
-      const lost = lossEv.cancelled ? 0 : lossEv.n;
+      // Platinum Emperion: the damage is dealt, but the life total stays
+      const lost = lossEv.cancelled || this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')) ? 0 : lossEv.n;
       this._speedUp(p);
       p.life -= lost;
       p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + amount;
@@ -8579,6 +8587,11 @@
       if (!p || !delta) return;
       // Teferi's Protection: "your life total can't change"
       if (p.lifeLocked && p.lifeLocked.until === p.id && this._protectionLive(p.lifeLocked)) {
+        this.logEvent('life', `${p.name}'s life total can't change.`);
+        return;
+      }
+      // Platinum Emperion: for as long as it's there
+      if (this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange'))) {
         this.logEvent('life', `${p.name}'s life total can't change.`);
         return;
       }
@@ -9880,6 +9893,8 @@
         if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return ((p && p.spellsCastThisTurn) || 0) * (v.mult || 1); }
         // Kaya's Wrath: the ones of yours the sweep just took
         if (v === 'lastSweptYours') return (this._lastAffectedAll || []).filter(g => g.controller === ctx.controller && (this.obj(g.id) || {}).zone !== 'battlefield').length;
+        // Wojek Investigator: the opponents holding more cards than you
+        if (v && typeof v === 'object' && v.opponentsMoreHand) return this.opponentsOf(ctx.controller).filter(p => this.zones[p.id].hand.length > this.zones[ctx.controller].hand.length).length;
         // Crypt Incursion: "for each card exiled this way"
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
         // Sunfall: how many the sweep just before took
@@ -10859,6 +10874,8 @@
           }
           // Grismold: "each player creates a 1/1 green Plant creature token"
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
+          // Slaughter Specialist: "each opponent creates …"
+          if (e.who === 'opponents') { for (const p of this.opponentsOf(ctx.controller)) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
           this._createToken(owner.id, Object.assign({}, e, { n: many }, sized));
           break;
         }

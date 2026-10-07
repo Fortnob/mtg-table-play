@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13989,
-  "gainedCards": 1480,
-  "linesNeeded": 15429,
-  "linesGained": 1830,
+  "needed": 13973,
+  "gainedCards": 1472,
+  "linesNeeded": 15405,
+  "linesGained": 1817,
   "gained": {
-   "all": 1480,
+   "all": 1472,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5146,
-   "lines": 4486,
+   "score": 5144,
+   "lines": 4484,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -1411,19 +1411,6 @@
    ]
   },
   {
-   "what": "Ability.setModeTag",
-   "score": 15,
-   "lines": 6,
-   "cards": [
-    "Silent Hallcreeper",
-    "Gandalf the Grey",
-    "Captive Audience",
-    "Henrika Domnathi // Henrika, Infernal Seer",
-    "Kargan Intimidator",
-    "Sol'Kanar the Tainted"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 15,
    "lines": 12,
@@ -1646,6 +1633,18 @@
     "Widow's Bite",
     "Atlantis Attacks",
     "Helicarrier Strike"
+   ]
+  },
+  {
+   "what": "Ability.setModeTag",
+   "score": 14,
+   "lines": 5,
+   "cards": [
+    "Silent Hallcreeper",
+    "Gandalf the Grey",
+    "Henrika Domnathi // Henrika, Infernal Seer",
+    "Kargan Intimidator",
+    "Sol'Kanar the Tainted"
    ]
   },
   {
@@ -2300,22 +2299,6 @@
    ]
   },
   {
-   "what": "CreateTokenAllEffect",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Descent into Avernus",
-    "Akroan Horse",
-    "Slaughter Specialist",
-    "Kibo, Uktabi Prince",
-    "Tribute to Horobi // Echo of Death's Wail",
-    "Edge Rover",
-    "Pursued Whale",
-    "Rasputin, the Oneiromancer",
-    "Elephant Resurgence"
-   ]
-  },
-  {
    "what": "NextSpellCastHasAbilityEffect",
    "score": 12,
    "lines": 9,
@@ -2355,16 +2338,6 @@
     "Near-Death Experience",
     "Battle of Wits",
     "Barren Glory"
-   ]
-  },
-  {
-   "what": "ControlsCreatureGreatestPowerCondition.instance",
-   "score": 12,
-   "lines": 3,
-   "cards": [
-    "Summon: Fenrir",
-    "High Score",
-    "Éomer of the Riddermark"
    ]
   },
   {
@@ -2762,6 +2735,15 @@
    "cards": [
     "Summon: Fenrir",
     "Kumano Faces Kakkazan // Etching of Kumano"
+   ]
+  },
+  {
+   "what": "ControlsCreatureGreatestPowerCondition.instance",
+   "score": 11,
+   "lines": 2,
+   "cards": [
+    "Summon: Fenrir",
+    "Éomer of the Riddermark"
    ]
   },
   {
@@ -3411,6 +3393,19 @@
     "Noggin Whack",
     "Gruesome Discovery",
     "Pulse of the Dross"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Descent into Avernus",
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Pursued Whale",
+    "Rasputin, the Oneiromancer",
+    "Elephant Resurgence"
    ]
   },
   {
@@ -6476,15 +6471,6 @@
    ]
   },
   {
-   "what": "LifeTotalCantChangeControllerEffect",
-   "score": 5,
-   "lines": 2,
-   "cards": [
-    "Flare of Fortitude",
-    "Platinum Emperion"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .addCost)",
    "score": 5,
    "lines": 2,
@@ -6816,18 +6802,6 @@
     "Far Fortune, End Boss",
     "Lightwheel Enhancements",
     "Tsagan, Raider Warlord"
-   ]
-  },
-  {
-   "what": "CastFromGraveyardSourceCondition.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Increasing Devotion",
-    "Increasing Savagery",
-    "From Father to Son",
-    "The Final Days",
-    "Secrets of the Key"
    ]
   },
   {
@@ -7415,13 +7389,37 @@
     "Gravelgill Scoundrel",
     "Civil Servant"
    ]
+  },
+  {
+   "what": "AdventurePredicate.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Edgewall Inn",
+    "Edgewall Innkeeper",
+    "Beluna Grandsquall // Seek Thrills",
+    "Wandermare",
+    "Garenbrig Squire"
+   ]
+  },
+  {
+   "what": "keyword SuspendAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Aeon Chronicler",
+    "Detritivore",
+    "Benalish Commander",
+    "Fungal Behemoth",
+    "Roiling Horror"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4130,
-   "cards": 3662,
+   "score": 4129,
+   "cards": 3661,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7498,8 +7496,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 71,
-   "cards": 71,
+   "score": 72,
+   "cards": 72,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8824,19 +8822,6 @@
    ]
   },
   {
-   "what": "CreateTokenAllEffect",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Descent into Avernus",
-    "Slaughter Specialist",
-    "Kibo, Uktabi Prince",
-    "Edge Rover",
-    "Pursued Whale",
-    "Elephant Resurgence"
-   ]
-  },
-  {
    "what": "controlled damage to a player chosen before",
    "score": 9,
    "cards": 6,
@@ -9270,6 +9255,18 @@
     "Fascination",
     "Flotsam // Jetsam",
     "Halo-Charged Skaab"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Descent into Avernus",
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Pursued Whale",
+    "Elephant Resurgence"
    ]
   },
   {
@@ -9975,6 +9972,19 @@
    ]
   },
   {
+   "what": "GainControlAllEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Karrthus, Tyrant of Jund",
+    "Subjugate the Hobbits",
+    "Tribute to Horobi // Echo of Death's Wail",
+    "Geyadrone Dihada",
+    "Brand",
+    "Aura Thief"
+   ]
+  },
+  {
    "what": "BoostEnchantedEffect p/t",
    "score": 7,
    "cards": 7,
@@ -10549,19 +10559,6 @@
    ]
   },
   {
-   "what": "GainControlAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Karrthus, Tyrant of Jund",
-    "Subjugate the Hobbits",
-    "Geyadrone Dihada",
-    "Brand",
-    "Aura Thief",
-    "Gruul Charm"
-   ]
-  },
-  {
    "what": "TargetOpponentsChoicePermanent",
    "score": 6,
    "cards": 6,
@@ -10944,15 +10941,6 @@
    ]
   },
   {
-   "what": "LifeTotalCantChangeControllerEffect",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Flare of Fortitude",
-    "Platinum Emperion"
-   ]
-  },
-  {
    "what": "ProliferateEffect args",
    "score": 5,
    "cards": 2,
@@ -11145,18 +11133,6 @@
    ]
   },
   {
-   "what": "CastFromGraveyardSourceCondition.instance",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Increasing Devotion",
-    "Increasing Savagery",
-    "From Father to Son",
-    "The Final Days",
-    "Secrets of the Key"
-   ]
-  },
-  {
    "what": "OneOrMoreDiceRolledTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -11190,6 +11166,30 @@
     "Gilanra, Caller of Wirewood",
     "Chocobo Camp",
     "Black Tom Cassidy"
+   ]
+  },
+  {
+   "what": "(verify) optional where the card is not",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Thirst for Discovery",
+    "Reclaim the Wastes",
+    "Practical Research",
+    "Nissa Revane",
+    "Steamcore Scholar"
+   ]
+  },
+  {
+   "what": "(verify) \"may\" lost",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Expansion // Explosion",
+    "Drillworks Mole",
+    "Liliana's Influence",
+    "Invasion of Vryn // Overloaded Mage-Ring",
+    "Izzet Guildmage"
    ]
   }
  ]

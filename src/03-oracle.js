@@ -1088,6 +1088,17 @@
       make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
     // Engulfing Flames: "It can't be regenerated this turn."
     { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
+    // Slaughter Specialist: "each opponent creates a 1/1 white Human creature token"
+    { re: /^Each opponent creates (.+)$/i,
+      make: (m) => {
+        const inner = parseEffects('Create ' + m[1]);
+        const e = inner && inner.auto && inner.effects.length === 1 ? inner.effects[0] : null;
+        if (!e || (e.op !== 'createToken' && e.op !== 'createNamedToken') || e.who) return null;
+        return Object.assign({}, e, { who: 'opponents' });
+      } },
+    // Villainous Wrath: "Target opponent loses life equal to the number of creatures they control."
+    { re: /^Target (opponent|player) loses life equal to the number of ([a-z]+?)s they control\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'target', n: { scope: { who: 'target', what: m[2].toLowerCase() }, mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Zo-Zu the Punisher: "deals 2 damage to that land's controller"
     { re: /^(?:CARDNAME|This creature|[A-Z][A-Za-z-]+) deals (one|two|three|\d+) damage to that (?:land|creature|permanent|artifact)'?s controller\.?$/,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerObjController: true }) },
@@ -2494,6 +2505,10 @@
     /* ===== keyword actions that make a thing ===== */
     { re: /^Investigate\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue' }) },
     { re: /^Investigate (two|three|\d+) times\.?$/i, make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: 'Clue' }) },
+    { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
+    // Wojek Investigator: "investigate once for each opponent who has more cards in hand than you"
+    { re: /^Investigate once for each opponent who has more cards in hand than you\.?$/i,
+      make: () => ({ op: 'createNamedToken', n: { opponentsMoreHand: true }, token: 'Clue' }) },
     /* The named artifact tokens come dressed in different words on
        different cards — "a colorless Treasure artifact token with
        '{T}, Sacrifice this artifact: Add one mana of any color.'" is the
@@ -5609,6 +5624,10 @@
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
     [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
+    // High Score: "you control a creature with the greatest power among creatures on the battlefield"
+    [/^you control (?:a|the) creature with the greatest power among creatures on the battlefield(?: or tied for the greatest power)?$/i, () => ({ kind: 'controlsGreatestPower' })],
+    // Elenda: "your life total is at least 10 greater than your starting life total"
+    [/^your life total is at least (\w+) greater than your starting life total$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lifeAboveStart', n: num(m[1]) } : null)],
     // Beza: "an opponent has more life than you", "an opponent has more cards in hand than you"
     [/^an opponent has more life than you$/i, () => ({ kind: 'opponentMoreLife' })],
     [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
@@ -6152,6 +6171,8 @@
     // (before "attacks", which would read the rest as the effect)
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks and isn'?t blocked,? /i, event: 'attacksUnblocked', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks(?:,| )/i, event: 'attacks', self: true },
+    // Restless Fortress: "Whenever this land attacks"
+    { re: /^Whenever this (?:land|Vehicle|artifact) attacks,? /i, event: 'attacks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) blocks(?:,| )/i, event: 'blocks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player or planeswalker,? /i, event: 'combatDamageToPlayer', also: 'combatDamageToPlaneswalker', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
@@ -9167,6 +9188,8 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // Platinum Emperion: "Your life total can't change."
+      { re: /^Your life total can'?t change\.?$/i, eff: { op: 'lifeCantChange' }, auto: true },
       // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."
       { re: /^During your turn, commanders you control have ([a-z ,]+)\.?$/i,
         make: (m) => {

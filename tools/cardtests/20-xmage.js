@@ -8184,4 +8184,46 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.g.powerOf(s), 1); t.ok(!T.g.hasKw(s, 'flying')); t.eq(T.g.powerOf(mine), 4);
   });
+
+  test('Platinum Emperion: its controller\'s life total does not change', (mk, t) => {
+    t.auto('Platinum Emperion');
+    const T = mk();
+    T.bf('A', 'Platinum Emperion');
+    T.mana('B', 'R');
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: [{ kind: 'player', id: 'A' }] });
+    T.resolve();
+    t.eq(T.life('A'), 20);
+  });
+
+  test('Slaughter Specialist: each opponent gets a Human', (mk, t) => {
+    t.auto('Slaughter Specialist');
+    const T = mk();
+    T.put('A', 'Slaughter Specialist', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.bfOf('B').filter(o => o.isToken).length, 1);
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0);
+  });
+
+  test('Villainous Wrath: life for each of their creatures, then all die', (mk, t) => {
+    t.auto('Villainous Wrath');
+    const T = mk();
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant'); T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3BB');
+    T.cast('A', T.hand('A', 'Villainous Wrath'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 18); t.eq(T.g.battlefield.filter(o => (o.analysis() || {}).isCreature).length, 0);
+  });
+
+  test('High Score: a card only with the biggest creature', (mk, t) => {
+    t.auto('High Score');
+    const T = mk();
+    T.bf('A', 'High Score');
+    T.bf('A', 'Hill Giant'); T.bf('B', 'Grizzly Bears');
+    const h0 = T.zone('A', 'hand').length;
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1);
+  });
 };
