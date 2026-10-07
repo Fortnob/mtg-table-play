@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15921,
-  "gainedCards": 1608,
-  "linesNeeded": 18061,
-  "linesGained": 2063,
+  "needed": 15908,
+  "gainedCards": 1603,
+  "linesNeeded": 18040,
+  "linesGained": 2055,
   "gained": {
-   "all": 1608,
+   "all": 1603,
    "top2000": 52,
    "stdTop": 12
   },
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 392,
-   "lines": 362,
+   "score": 391,
+   "lines": 361,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 310,
-   "lines": 268,
+   "score": 309,
+   "lines": 267,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -508,25 +508,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 33,
-   "lines": 33,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Scroll of Isildur",
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Ajani's Presence",
-    "Rabid Attack",
-    "Out Cold",
-    "Harness by Force",
-    "Vivien, Arkbow Ranger"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 32,
    "lines": 20,
@@ -562,6 +543,25 @@
     "Drain Life",
     "Murdock's Crusade",
     "Atalya, Samite Master"
+   ]
+  },
+  {
+   "what": "second use of a later target",
+   "score": 32,
+   "lines": 32,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Scroll of Isildur",
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Ajani's Presence",
+    "Rabid Attack",
+    "Out Cold",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress"
    ]
   },
   {
@@ -5625,22 +5625,6 @@
    ]
   },
   {
-   "what": "CastAsThoughItHadFlashSourceEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Ward of Lights",
-    "Mystic Veil",
-    "Lightning Reflexes",
-    "Parapet",
-    "Spider Climb",
-    "Relic Ward",
-    "Armor of Thorns",
-    "Grave Servitude",
-    "Soar"
-   ]
-  },
-  {
    "what": "DontUntapAsLongAsSourceTappedEffect",
    "score": 9,
    "lines": 9,
@@ -7982,6 +7966,19 @@
     "Rocksteady, Crash Courser",
     "Yuan Shao, the Indecisive"
    ]
+  },
+  {
+   "what": "CantBeBlockedAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Glaring Spotlight",
+    "Jace, Arcane Strategist",
+    "Keeper of Keys",
+    "Leitmotif Composer",
+    "Tezzeret's Gatebreaker",
+    "Tanglewalker"
+   ]
   }
  ],
  "sole": [
@@ -8039,8 +8036,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 182,
-   "cards": 173,
+   "score": 181,
+   "cards": 172,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -11724,19 +11721,6 @@
    ]
   },
   {
-   "what": "CastAsThoughItHadFlashSourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Mystic Veil",
-    "Lightning Reflexes",
-    "Parapet",
-    "Spider Climb",
-    "Relic Ward",
-    "Armor of Thorns"
-   ]
-  },
-  {
    "what": "blocked trigger pointing at the blocker",
    "score": 7,
    "cards": 7,
@@ -11817,6 +11801,16 @@
     "Sunbird's Invocation",
     "Gale, Waterdeep Prodigy",
     "Harness the Storm"
+   ]
+  },
+  {
+   "what": "keyword BoastAbility",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Varragoth, Bloodsky Sire",
+    "Broadside Bombardiers",
+    "Arni Brokenbrow"
    ]
   }
  ]

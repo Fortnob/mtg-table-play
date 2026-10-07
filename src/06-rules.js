@@ -4072,6 +4072,8 @@
         o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
         // adamant: how much of each
         o.manaSpentBy = Object.assign({}, this._spentAcc);
+        // Spider Climb: cast when a sorcery couldn't have been, it goes at end of turn
+        o._flashSacTurn = (a && a.flashSacrifice && !(this.activePlayer && this.activePlayer.id === playerId && this.isMain && this.stackEmpty)) ? this.turn : null;
         this._spentAcc = null;
         for (const x of held) x.tapped = false;
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
@@ -4624,6 +4626,7 @@
           prompt: `Unleash ${o.name}? It enters with a +1/+1 counter, and can't block while it has one.` });
       }
       this._exploitOnEnter(o);
+      if (o._flashSacTurn != null) { if (o._flashSacTurn === this.turn && o.wasCast === this.turn) o.sacAtEndOfTurn = this.turn; o._flashSacTurn = null; }
       /* A Room cast for one door enters with that door unlocked, and that
          is unlocking it: "when you unlock this door" triggers (CR 709.5h) */
       if (o.wasCast === this.turn && o.card.layout === 'split' && (o.face === 0 || o.face === 1) && (o.analysis() || {}).isRoom) {
@@ -8450,6 +8453,21 @@
         if (!got || !got.picks.length) return null;
         targets = got.picks.map(id => ({ kind: 'object', id }));
         this._noteLastAffected(targets);          // "it" in the next sentence is the one chosen
+      }
+      /* "Tap any number of target creatures": any number of the things it
+         could target, picked as it resolves */
+      if (e.anyFrom && !(e.targets && e.targets.length)) {
+        const pool = this._legalTargetsFor(e.anyFrom, ctx.controller, src ? src.id : null)
+          .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+        if (!pool.length) return null;
+        const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
+          items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+          harmful: /^(?:destroy|exile|bounce|tap|damage|sacrifice|fight|phaseOut)$/.test(e.op) || (e.op === 'counters' && /^-/.test(e.kind || '')),
+          prompt: `${ctx.name ? ctx.name + ': ' : ''}choose any number of ${e.anyFrom.filter || 'targets'}.` }, 'anyt');
+        if (got === SUSPEND) return SUSPEND;
+        if (!got || !got.picks.length) return null;
+        targets = got.picks.map(id => ({ kind: 'object', id }));
+        this._noteLastAffected(targets);
       }
       /* An effect that wants a target and has not been given one asks for it
          now. This is what a chosen mode needs: "choose one — destroy target

@@ -3324,6 +3324,22 @@
       const again = parseEffectSentence(s.replace(/ also /, ' '), 1);
       if (again) return again;
     }
+    /* "Tap any number of target creatures", "Return any number of target
+       lands you control to their owner's hand": the sentence read for one
+       target, and the picking done as it resolves — any number of the
+       things it could have targeted. */
+    const anyN = !depth && s.match(/\bany number of (other )?target ((?:[a-z]+ )*?)(creatures|artifacts|enchantments|lands|permanents|planeswalkers|players|cards)( [^,.]*)?/i);
+    if (anyN && !/divided|damage/i.test(s)) {
+      const one = s.replace(anyN[0], (anyN[1] ? 'another ' : '') + 'target ' + anyN[2] + anyN[3].replace(/s$/, '') + (anyN[4] || '').replace(/\bthey control\b/, 'it controls').replace(/\btheir owners?'?s?\b/, "its owner's"))
+        .replace(/\bto their owners'? hands?\b/i, "to its owner's hand");
+      const inner = parseEffectSentence(one, 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && (inner.targets || []).length === 1 && inner.targets[0].type !== 'player') {
+        inner.anyFrom = Object.assign({}, inner.targets[0], { upTo: true });
+        delete inner.targets;
+        inner.text = s;
+        return inner;
+      }
+    }
     /* "You draw X cards and lose X life, where X is the number of colors of
        mana spent to cast this spell": the sentence read with X in it, and
        every X then made the number the rider names. */
@@ -5453,6 +5469,16 @@
         autoLines++;
         continue;
       }
+      /* Spider Climb: "You may cast this spell as though it had flash. If you
+         cast it any time a sorcery couldn't have been cast, the controller of
+         the permanent it becomes sacrifices it at the beginning of the next
+         cleanup step." Flash, with the price kept on the permanent. */
+      if (/^You may cast this spell as though it had flash\. If you cast it any time a sorcery couldn'?t have been cast, the controller of the permanent it becomes sacrifices it at the beginning of the next cleanup step\.?$/i.test(line)) {
+        out.flashSacrifice = true;
+        out.abilities.push({ kind: 'castModifier', keyword: 'Flash', text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       /* Escalate (CR 702.120): the cost of each mode beyond the first —
          the modes are chosen and paid for as the spell is cast */
       const esc = !out.isPermanent && line.match(/^Escalate ((?:\{[^}]+\})+)$/i);
@@ -5635,6 +5661,7 @@
         out.keywords.push({ keyword: U.titleCase(k), arg: null, text: k });
     }
     out.keywordSet = new Set(out.keywords.map(k => k.keyword.toLowerCase()));
+    if (out.flashSacrifice) out.keywordSet.add('flash');
 
     /* A script for this card replaces or adds to what the lines gave us. It is
        written in the same vocabulary, so from here on nothing can tell the

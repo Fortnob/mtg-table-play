@@ -3855,4 +3855,38 @@ module.exports = (test) => {
     T.resolve();
     t.eq(s.counters['+1/+1'] || 0, 1);
   });
+
+  test('Spider Climb: flashed in, it is sacrificed as the turn ends', (mk, t) => {
+    t.auto('Spider Climb');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('A', 'beginCombat');
+    T.mana('A', 'G');
+    const sc = T.hand('A', 'Spider Climb');
+    T.cast('A', sc, { targets: [bear] });
+    T.resolve();
+    t.zone(sc, 'battlefield');
+    T.nextTurn('B');
+    t.zone(sc, 'graveyard');
+    const T2 = mk();
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', 'G');
+    const sc2 = T2.hand('A', 'Spider Climb');
+    T2.cast('A', sc2, { targets: [b2] });
+    T2.resolve();
+    T2.nextTurn('B');
+    t.zone(sc2, 'battlefield', 'cast at sorcery speed, it stays');
+  });
+
+  test('Frantic Salvage: any number of artifact cards back on top, chosen as it resolves', (mk, t) => {
+    t.auto('Frantic Salvage');
+    const T = mk();
+    const a = T.grave('A', 'Sol Ring'), b = T.grave('A', 'Ornithopter'), c = T.grave('A', 'Grizzly Bears');
+    T.answer('choose', (ch) => { t.no(ch.items.some(x => x.id === c.id), 'only artifacts offered'); return { picks: [a.id, b.id] }; });
+    T.mana('A', '3W');
+    T.cast('A', T.hand('A', 'Frantic Salvage'));
+    T.resolve();
+    t.zone(c, 'graveyard');
+    t.eq([a, b].filter(x => x.zone === 'hand' || x.zone === 'library').length, 2, 'both went to the library (one drawn)');
+  });
 };
