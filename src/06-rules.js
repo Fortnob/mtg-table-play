@@ -1507,6 +1507,8 @@
 
     _manaXValue(e, o, pid) {
       if (e.x === 'power') return o ? Math.max(0, this.powerOf(o)) : 0;
+      // Neheb, the Eternal: the life your opponents have lost this turn
+      if (e.x === 'opponentsLifeLost') return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0);
       if (e.x === 'count') return this._scopeList(e.scope || {}, pid, o).length;
       // "where X is the number of charge counters on this"
       if (e.x === 'counters') return o ? (Number(o.counters[e.counter]) || 0) : 0;
@@ -1891,7 +1893,7 @@
       this._madeThisResolution = [];
       this._exiledNow = [];
       this._returnedNow = [];
-      this._lastAffected = null;
+      this._lastAffected = null; this._lastAffectedAll = null;
       this._lastCopy = null;
       this._lastPut = null;
       this._lastExiled = null;
@@ -10708,6 +10710,15 @@
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "an X/X token, where X is that spell's mana value": the size, worked out now
           const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) } : {};
+          // Curse of the Swine: a token for the controller of each one that went
+          if (e.who === 'eachGoneTargetController') {
+            for (const g of (this._lastAffectedAll || [])) {
+              const x = this.obj(g.id), p = this.player(g.controller);
+              if (!p || p.hasLost || (x && x.zone === 'battlefield')) continue;
+              this._createToken(p.id, Object.assign({}, e, { n: many }, sized));
+            }
+            break;
+          }
           // Grismold: "each player creates a 1/1 green Plant creature token"
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
           this._createToken(owner.id, Object.assign({}, e, { n: many }, sized));
@@ -10773,6 +10784,8 @@
           this._leavingTogether = victims;
           // "a creature card put into your graveyard this way"
           this._lastSwept = victims.map(x => x.id);
+          // Rampage of the Clans: whose each one was, for "its controller creates …"
+          this._lastAffectedAll = victims.map(x => ({ id: x.id, controller: x.controller }));
           for (const x of victims) {
             if (x.zone !== 'battlefield') continue;
             if (e.op === 'destroyAll' && this._totemArmor(x)) continue;
@@ -16417,6 +16430,9 @@
      * by the time that sentence runs, so the numbers have to be taken first.
      */
     _noteLastAffected(targets) {
+      // Curse of the Swine: every one of them, and whose each was
+      this._lastAffectedAll = (targets || []).filter(x => x.kind === 'object').map(x => this.obj(x.id)).filter(Boolean)
+        .map(x => ({ id: x.id, controller: x.controller }));
       const t = (targets || []).find(x => x.kind === 'object');
       const o = t && this.obj(t.id);
       if (!o) return;

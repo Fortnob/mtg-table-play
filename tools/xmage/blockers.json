@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14192,
+  "needed": 14186,
   "gainedCards": 1482,
-  "linesNeeded": 15684,
+  "linesNeeded": 15676,
   "linesGained": 1847,
   "gained": {
    "all": 1482,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5207,
-   "lines": 4538,
+   "score": 5201,
+   "lines": 4532,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -129,10 +129,9 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 235,
-   "lines": 202,
+   "score": 231,
+   "lines": 201,
    "cards": [
-    "Curse of the Swine",
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
     "Grasp of Fate",
@@ -143,7 +142,8 @@
     "Lazotep Quarry",
     "Likeness Looter",
     "Kozilek's Command",
-    "Ruthless Technomancer"
+    "Ruthless Technomancer",
+    "Sepulchral Primordial"
    ]
   },
   {
@@ -1980,23 +1980,6 @@
    ]
   },
   {
-   "what": "BeginningOfPostcombatMainTriggeredAbility",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Neheb, the Eternal",
-    "Sphinx of the Second Sun",
-    "Florian, Voldaren Scion",
-    "Shadow of the Second Sun",
-    "Sorin of House Markov // Sorin, Ravenous Neonate",
-    "Tymna the Weaver",
-    "Belbe, Corrupted Observer",
-    "Brazen Cannonade",
-    "Megatron, Tyrant // Megatron, Destructive Force",
-    "Kirri, Talented Sprout"
-   ]
-  },
-  {
    "what": "RemoveCounterCost",
    "score": 13,
    "lines": 10,
@@ -3675,6 +3658,22 @@
     "Political Trickery",
     "Shrewd Negotiation",
     "Phyrexian Infiltrator"
+   ]
+  },
+  {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Sorin of House Markov // Sorin, Ravenous Neonate",
+    "Tymna the Weaver",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade",
+    "Megatron, Tyrant // Megatron, Destructive Force",
+    "Kirri, Talented Sprout"
    ]
   },
   {
@@ -7478,8 +7477,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4178,
-   "cards": 3704,
+   "score": 4174,
+   "cards": 3700,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7517,15 +7516,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 203,
-   "cards": 170,
+   "score": 199,
+   "cards": 169,
    "names": [
-    "Curse of the Swine",
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
     "Grasp of Fate",
     "Crackle with Power",
-    "Shatterskull Smashing // Shatterskull, the Hammer Pass"
+    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
+    "Comet Storm"
    ]
   },
   {
@@ -8555,19 +8554,6 @@
    "names": [
     "Loot, Exuberant Explorer",
     "Beseech the Queen"
-   ]
-  },
-  {
-   "what": "BeginningOfPostcombatMainTriggeredAbility",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Neheb, the Eternal",
-    "Sphinx of the Second Sun",
-    "Florian, Voldaren Scion",
-    "Shadow of the Second Sun",
-    "Tymna the Weaver",
-    "Belbe, Corrupted Observer"
    ]
   },
   {
@@ -9896,6 +9882,19 @@
     "Necrogen Rotpriest",
     "Flensing Raptor",
     "Slaughter Singer"
+   ]
+  },
+  {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Tymna the Weaver",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade"
    ]
   },
   {

@@ -7334,4 +7334,42 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(rock), 4); t.ok(T.g.characteristics(rock).isCreature);
     t.ok(!T.g.characteristics(theirs).isCreature, 'not the opponent\'s');
   });
+
+  test('Curse of the Swine: a Boar for the controller of each creature exiled', (mk, t) => {
+    t.auto('Curse of the Swine');
+    const T = mk();
+    const a1 = T.bf('B', 'Grizzly Bears'), a2 = T.bf('B', 'Hill Giant'), mine = T.bf('A', 'Gray Ogre');
+    T.mana('A', '3UU');
+    T.cast('A', T.hand('A', 'Curse of the Swine'), { x: 3, targets: [a1.id, a2.id, mine.id] });
+    t.eq(a1.zone, 'exile'); t.eq(mine.zone, 'exile');
+    t.eq(T.bfOf('B').filter(o => o.isToken && o.name === 'Boar').length, 2);
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Boar').length, 1);
+  });
+
+  test('Rampage of the Clans: a Centaur for each permanent destroyed, to its controller', (mk, t) => {
+    t.auto('Rampage of the Clans');
+    const T = mk();
+    T.bf('B', 'Mind Stone'); T.bf('B', 'Propaganda'); T.bf('A', 'Mind Stone');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Rampage of the Clans'));
+    t.eq(T.bfOf('B').filter(o => o.isToken).length, 2);
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 1);
+  });
+
+  test('Neheb, the Eternal: red mana for the life opponents lost', (mk, t) => {
+    t.auto('Neheb, the Eternal');
+    const T = mk();
+    T.bf('A', 'Neheb, the Eternal');
+    T.g.changeLife(T.player('B'), -4);
+    T.toMain('A', 'endCombat');
+    const g = T.g;
+    let seen = false;
+    for (let i = 0; i < 20 && !(g.phase.id === 'postcombat' && seen && !g.stack.length); i++) {
+      T.settle();
+      if (g.phase.id === 'postcombat' && g.stack.length) seen = true;
+      g.passPriority(g.priorityPlayer.id, true);
+    }
+    t.eq(g.phase.id, 'postcombat');
+    t.eq(g.player('A').pool.total(), 4);
+  });
 };

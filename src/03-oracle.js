@@ -767,6 +767,18 @@
     // Marwyn: "Add an amount of {G} equal to CARDNAME's power."
     { re: /^Add an amount of \{([WUBRGC])\} equal to (?:CARDNAME'?s?|this creature'?s|its) power\.?$/i,
       make: (m) => ({ op: 'addManaX', x: 'power', symbol: m[1].toUpperCase() }) },
+    /* Curse of the Swine: "Exile X target creatures. For each creature
+       exiled this way, its controller creates a 2/2 green Boar creature token." */
+    { re: /^For each (creature|permanent) (?:exiled|destroyed) this way, its controller creates (.+)$/i,
+      make: (m) => {
+        const inner = parseEffects('Its controller creates ' + m[2]);
+        const e = inner && inner.auto && inner.effects.length === 1 ? inner.effects[0] : null;
+        if (!e || e.op !== 'createToken' || e.who !== 'targetController') return null;
+        return Object.assign({}, e, { who: 'eachGoneTargetController' });
+      } },
+    // Neheb, the Eternal: "Add {R} for each 1 life your opponents have lost this turn."
+    { re: /^Add \{([WUBRGC])\} for each 1 life your opponents have lost this turn\.?$/i,
+      make: (m) => ({ op: 'addManaX', x: 'opponentsLifeLost', symbol: m[1].toUpperCase() }) },
     // Castle Garenbrig: "Add six {G}."
     { re: /^Add (two|three|four|five|six|seven|eight|nine|ten) (\{[WUBRGC]\})\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: Array.from({ length: num(m[1]) }, () => m[2].replace(/[{}]/g, '').toUpperCase()) }) },
