@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14324,
+  "needed": 14309,
   "gainedCards": 1521,
-  "linesNeeded": 15878,
-  "linesGained": 1894,
+  "linesNeeded": 15860,
+  "linesGained": 1891,
   "gained": {
    "all": 1521,
    "top2000": 52,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5240,
-   "lines": 4565,
+   "score": 5237,
+   "lines": 4562,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 304,
-   "lines": 286,
+   "score": 303,
+   "lines": 285,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -3619,19 +3619,6 @@
    ]
   },
   {
-   "what": "HideawayPlayEffect",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Spinerock Knoll",
-    "Rabble Rousing",
-    "Clive's Hideaway",
-    "Evercoat Ursine",
-    "Shelldock Isle",
-    "Howltooth Hollow"
-   ]
-  },
-  {
    "what": "controlled damage to a player chosen before",
    "score": 9,
    "lines": 6,
@@ -3729,22 +3716,6 @@
     "Joo Dee, One of Many",
     "Chronozoa",
     "Council of Reeds"
-   ]
-  },
-  {
-   "what": "WardAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Gold-Forged Thopteryx",
-    "Saruman, the White Hand",
-    "Coppercoat Vanguard",
-    "Iymrith, Desert Doom",
-    "Hall of Storm Giants",
-    "Leyline Immersion",
-    "Paladin's Arms",
-    "Thorin Oakenshield",
-    "Radagast, Wizard of Wilds"
    ]
   },
   {
@@ -4221,6 +4192,18 @@
    ]
   },
   {
+   "what": "HideawayPlayEffect",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Spinerock Knoll",
+    "Rabble Rousing",
+    "Evercoat Ursine",
+    "Shelldock Isle",
+    "Howltooth Hollow"
+   ]
+  },
+  {
    "what": "keyword AftermathAbility",
    "score": 8,
    "lines": 5,
@@ -4411,6 +4394,21 @@
     "Blinkmoth Infusion",
     "Jiang Yanggu, Never Alone",
     "Battle Cry"
+   ]
+  },
+  {
+   "what": "WardAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Saruman, the White Hand",
+    "Coppercoat Vanguard",
+    "Iymrith, Desert Doom",
+    "Hall of Storm Giants",
+    "Leyline Immersion",
+    "Paladin's Arms",
+    "Thorin Oakenshield",
+    "Radagast, Wizard of Wilds"
    ]
   },
   {
@@ -5444,20 +5442,6 @@
    ]
   },
   {
-   "what": "LookLibraryTopCardTargetPlayerEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Moonring Island",
-    "Orcish Spy",
-    "Draugr Thought-Thief",
-    "Lurking Informant",
-    "Eye Spy",
-    "Visions",
-    "Saheeli's Silverwing"
-   ]
-  },
-  {
    "what": "CelebrationCondition.instance",
    "score": 7,
    "lines": 7,
@@ -5842,19 +5826,6 @@
     "Day of the Dragons",
     "Yukora, the Prisoner",
     "Death Pit Offering"
-   ]
-  },
-  {
-   "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Murkfiend Liege",
-    "Quest for Renewal",
-    "Teferi, Who Slows the Sunset",
-    "Ivorytusk Fortress",
-    "Ohabi Caleria",
-    "Prophet of Kruphix"
    ]
   },
   {
@@ -6763,6 +6734,19 @@
    ]
   },
   {
+   "what": "LookLibraryTopCardTargetPlayerEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Orcish Spy",
+    "Draugr Thought-Thief",
+    "Lurking Informant",
+    "Eye Spy",
+    "Visions",
+    "Saheeli's Silverwing"
+   ]
+  },
+  {
    "what": "EntersBattlefieldOrTurnedFaceUpTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -7153,6 +7137,18 @@
    ]
   },
   {
+   "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Quest for Renewal",
+    "Teferi, Who Slows the Sunset",
+    "Ivorytusk Fortress",
+    "Ohabi Caleria",
+    "Prophet of Kruphix"
+   ]
+  },
+  {
    "what": "SearchLibraryPutOntoBattlefieldTappedRestInHandEffect",
    "score": 5,
    "lines": 5,
@@ -7503,8 +7499,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4203,
-   "cards": 3723,
+   "score": 4200,
+   "cards": 3720,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7529,8 +7525,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 228,
-   "cards": 213,
+   "score": 227,
+   "cards": 212,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -8959,19 +8955,6 @@
    ]
   },
   {
-   "what": "HideawayPlayEffect",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Spinerock Knoll",
-    "Rabble Rousing",
-    "Clive's Hideaway",
-    "Evercoat Ursine",
-    "Shelldock Isle",
-    "Howltooth Hollow"
-   ]
-  },
-  {
    "what": "CreateTokenAllEffect",
    "score": 9,
    "cards": 6,
@@ -9407,6 +9390,18 @@
     "Curse of Disturbance",
     "Curse of Bounty",
     "Curse of Vitality"
+   ]
+  },
+  {
+   "what": "HideawayPlayEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Spinerock Knoll",
+    "Rabble Rousing",
+    "Evercoat Ursine",
+    "Shelldock Isle",
+    "Howltooth Hollow"
    ]
   },
   {
@@ -10356,19 +10351,6 @@
    ]
   },
   {
-   "what": "LookLibraryTopCardTargetPlayerEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Moonring Island",
-    "Orcish Spy",
-    "Draugr Thought-Thief",
-    "Lurking Informant",
-    "Eye Spy",
-    "Visions"
-   ]
-  },
-  {
    "what": "Ability.withTargetPointerSet",
    "score": 7,
    "cards": 7,
@@ -10599,19 +10581,6 @@
     "Volrath, the Shapestealer",
     "Hunter of Eyeblights",
     "Razorfin Abolisher"
-   ]
-  },
-  {
-   "what": "WardAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Gold-Forged Thopteryx",
-    "Saruman, the White Hand",
-    "Coppercoat Vanguard",
-    "Iymrith, Desert Doom",
-    "Leyline Immersion",
-    "Radagast, Wizard of Wilds"
    ]
   },
   {
@@ -11213,6 +11182,19 @@
    ]
   },
   {
+   "what": "LookLibraryTopCardTargetPlayerEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Orcish Spy",
+    "Draugr Thought-Thief",
+    "Lurking Informant",
+    "Eye Spy",
+    "Visions",
+    "Saheeli's Silverwing"
+   ]
+  },
+  {
    "what": "DiscardedByOpponentTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -11303,6 +11285,15 @@
    "names": [
     "Arachnogenesis",
     "Blessed Reversal"
+   ]
+  },
+  {
+   "what": "AttacksFirstTimeTriggeredAbility",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Scourge of the Throne",
+    "Godo, Bandit Warlord"
    ]
   }
  ]

@@ -5249,6 +5249,8 @@
         if (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty)
           return this.fail('That ability is sorcery speed only.');
         if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return this.fail('One loyalty ability per turn.');
+        // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
+        if (ab.kind === 'loyalty') { const sun = this._anyStatic('noLoyalty'); if (sun) return this.fail(`${sun.name}: loyalty abilities can't be activated.`); }
       }
 
       // the storage lands: how many counters come off is the X of what it makes

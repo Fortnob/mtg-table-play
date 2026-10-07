@@ -6936,4 +6936,30 @@ module.exports = (test) => {
     T.toMain('A', 'end'); T.resolve();
     t.eq(p.zone, 'graveyard');
   });
+
+  test('The Immortal Sun: no loyalty abilities', (mk, t) => {
+    t.auto('The Immortal Sun');
+    const T = mk();
+    T.bf('B', 'The Immortal Sun');
+    const pw = T.bf('A', 'Liliana of the Veil');
+    pw.counters.loyalty = 3;
+    t.no(T.g.activateAbility('A', pw.id, 0));
+  });
+
+  test("Heroes' Podium: +1/+1 for each other legendary creature", (mk, t) => {
+    t.auto("Heroes' Podium");
+    const T = mk();
+    T.bf('A', "Heroes' Podium");
+    const a = T.bf('A', 'Isamaru, Hound of Konda'), b = T.bf('A', 'Thalia, Guardian of Thraben');
+    t.eq(T.g.powerOf(a), 3, 'Isamaru 2/2 plus one');
+    t.eq(T.g.powerOf(b), 3, 'Thalia 2/1 plus one');
+  });
+
+  test('Sulfuric Vortex: nobody gains life', (mk, t) => {
+    t.auto('Sulfuric Vortex');
+    const T = mk();
+    T.bf('B', 'Sulfuric Vortex');
+    T.g.changeLife(T.player('A'), 5);
+    t.eq(T.life('A'), 20);
+  });
 };

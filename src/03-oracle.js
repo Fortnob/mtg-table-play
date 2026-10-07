@@ -1855,6 +1855,11 @@
     // Winds of Change: "Each player shuffles the cards from their hand into their library, then draws that many cards."
     { re: /^Each player shuffles the cards from their hand into their library, then draws that many cards\.?$/i,
       make: () => ({ op: 'shuffleHandDraw' }) },
+    // Pemmin's Aura: "Enchanted creature gets +1/-1 or -1/+1 until end of turn."
+    { re: /^(Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+) or ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'modal', count: 1, repeatable: false, modes: [
+        { label: m[2] + '/' + m[3], auto: true, effects: [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', scope: 'attached' }] },
+        { label: m[4] + '/' + m[5], auto: true, effects: [{ op: 'pump', p: pmNum(m[4]), t: pmNum(m[5]), duration: 'eot', scope: 'attached' }] }] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -2879,6 +2884,9 @@
     { re: /^Play with the top card of your library revealed\.?$/i,
       make: () => ({ op: 'peekTop', revealed: true }) },
     { re: /^Players can'?t gain life\.?$/i,
+      make: () => ({ op: 'noLifeGain', who: 'all' }) },
+    // Sulfuric Vortex: "If a player would gain life, that player gains no life instead."
+    { re: /^If a player would gain life, that player gains no life instead\.?$/i,
       make: () => ({ op: 'noLifeGain', who: 'all' }) },
     { re: /^Your opponents can'?t gain life\.?$/i,
       make: () => ({ op: 'noLifeGain', who: 'opponents' }) },
@@ -5432,6 +5440,9 @@
     // Sulam Djinn: "as long as green is the most common color among all permanents or is tied for most common"
     [/^(white|blue|black|red|green) is the most common colou?r among all permanents(?: or is tied for most common)?$/i,
       (m) => ({ kind: 'mostCommonColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
+    // Mistveil Plains: "you control two or more white permanents"
+    [/^you control (\w+) or more ((?:white|blue|black|red|green|snow|basic|legendary|nonland|tapped|untapped) [a-z]+?)s$/i,
+      (m) => { const sc = scopeOf(m[2] + 's you control'); return sc ? { kind: 'control', n: num(m[1]), scope: sc } : null; }],
     // Pestilence: "if no creatures are on the battlefield"
     [/^no creatures are on the battlefield$/i, () => ({ kind: 'noCreatures' })],
     // Y'shtola: "if a player lost 4 or more life this turn"
@@ -8693,6 +8704,18 @@
       { re: /^You may cast (spells|((?:[A-Za-z]+ )+?)spells(?: and ((?:[A-Za-z]+ )+?)spells)?) as though they had flash\.?$/i,
         make: (m) => ({ op: 'flashGrant', filter: m[2] ? [m[2], m[3]].filter(Boolean).map(x => x.trim().toLowerCase().replace(/ and /g, ' or ')).join(' or ') : null }), auto: true },
       /* Seedborn Muse's smaller cousins */
+      // Murkfiend Liege: "Untap all green and/or blue creatures you control during each other player's untap step."
+      { re: /^Untap all (white|blue|black|red|green) and\/or (white|blue|black|red|green) creatures you control during each other player'?s untap step\.?$/i,
+        make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase() + ' creature or ' + m[2].toLowerCase() + ' creature' }), auto: true },
+      // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
+      { re: /^Players can'?t activate planeswalkers'? loyalty abilities\.?$/i, eff: { op: 'noLoyalty' }, auto: true },
+      // Gold-Forged Thopteryx: "Each legendary permanent you control has ward {2}."
+      { re: /^Each (legendary permanent|legendary creature|artifact|creature|other creature) you control has ward (\{\d+\})\.?$/i,
+        make: (m) => { const scope = scopeOf(m[1] + 's you control'); return scope ? { op: 'continuous', layer: 6, scope, grant: ['Ward ' + m[2]] } : null; }, auto: true },
+      // Heroes' Podium: "Each legendary creature you control gets +1/+1 for each other legendary creature you control."
+      { re: /^Each legendary creature you control gets \+1\/\+1 for each other legendary creature you control\.?$/i,
+        make: () => { const c = { scope: { who: 'you', what: 'creature', legendary: true }, mult: 1, plus: -1 };
+          return { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', legendary: true }, pt: { p: c, t: Object.assign({}, c) } }; }, auto: true },
       { re: /^Untap all (artifacts|creatures|permanents) you control during each other player'?s untap step\.?$/i,
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase().replace(/s$/, '') }), auto: true },
       // Prop Room: "Untap each creature you control during each other player's untap step."
