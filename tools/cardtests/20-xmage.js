@@ -7931,4 +7931,52 @@ module.exports = (test) => {
     t.eq(eff.op, 'randomFromGraveyard'); t.eq(eff.n, 2);
     void h0;
   });
+
+  test('The Endstone: life becomes half the starting total, a loss as it goes', (mk, t) => {
+    t.auto('The Endstone');
+    const T = mk();
+    T.bf('A', 'The Endstone');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('A'), Math.ceil(((T.g.config && T.g.config.startingLife) || 20) / 2));
+    t.ok((T.player('A').lifeLostThisTurn || 0) > 0, 'counted as life lost');
+  });
+
+  test('Proliferate: your good counters and their bad ones, never your own poison', (mk, t) => {
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears'), hurt = T.bf('A', 'Hill Giant'), theirs = T.bf('B', 'Hill Giant'), theirGood = T.bf('B', 'Grizzly Bears');
+    mine.counters['+1/+1'] = 1; hurt.counters['-1/-1'] = 1; theirs.counters['-1/-1'] = 1; theirGood.counters['+1/+1'] = 1;
+    T.player('A').poison = 2; T.player('B').poison = 2;
+    const card = { id: 'probe-prolif', name: 'Probe Proliferate', type_line: 'Sorcery', mana_cost: '{U}', cmc: 1, colors: ['U'], layout: 'normal', oracle_text: 'Proliferate.', keywords: [] };
+    const o = T.put('A', 'Island', 'hand');
+    o.card = card;
+    T.mana('A', 'U');
+    T.cast('A', o);
+    T.resolve();
+    t.eq(mine.counters['+1/+1'], 2); t.eq(hurt.counters['-1/-1'], 1); t.eq(theirs.counters['-1/-1'], 2); t.eq(theirGood.counters['+1/+1'], 1);
+    t.eq(T.player('A').poison, 2); t.eq(T.player('B').poison, 3);
+  });
+
+  test('Devilish Valet: doubles its own power when another creature enters', (mk, t) => {
+    t.auto('Devilish Valet');
+    const T = mk();
+    const v = T.bf('A', 'Devilish Valet');
+    const p0 = T.g.powerOf(v);
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.g.powerOf(v), p0 * 2);
+  });
+
+  test('Vrestin: a counter on each attacking Insect', (mk, t) => {
+    t.auto('Vrestin, Menoptra Leader');
+    const T = mk();
+    T.bf('A', 'Vrestin, Menoptra Leader').counters['+1/+1'] = 2;
+    const ins = T.bf('A', 'Giant Cockroach'), bear = T.bf('A', 'Grizzly Bears');
+    ins.summoningSick = false; bear.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: ins.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.eq(ins.counters['+1/+1'], 1); t.ok(!bear.counters['+1/+1']);
+  });
 };

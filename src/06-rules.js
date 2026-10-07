@@ -7994,6 +7994,8 @@
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
+        case 'anyGraveyardAtLeast': return this.players.some(p => ((this.zones[p.id] || {}).graveyard || []).length >= (cond.n || 1));
+        case 'spellsCastOfKind': return !!me && (me.spellObjsThisTurn || []).filter(x => this._cardFitsWords(x, cond.words)).length >= (cond.n || 1);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
           const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[ctx.abilityIndex];
@@ -9235,6 +9237,8 @@
           if (ab.enchantedPlayer && data.playerId !== o.attachedTo) continue;
           // battalion: this and at least so many others attacking
           if (ab.minAttackers && ((this.combat && this.combat.attackers) || []).length < ab.minAttackers) continue;
+          // Hermes: "with one or more Birds"
+          if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
@@ -10804,7 +10808,9 @@
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "an X/X token, where X is that spell's mana value": the size, worked out now
-          const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) } : {};
+          const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
+            // Arboreal Alliance: "an X/X … token", X as it was cast
+            : /^X\/X$/i.test(e.pt || '') ? { pt: Math.max(0, n('X')) + '/' + Math.max(0, n('X')) } : {};
           // Curse of the Swine: a token for the controller of each one that went
           if (e.who === 'eachGoneTargetController') {
             for (const g of (this._lastAffectedAll || [])) {
@@ -11513,12 +11519,21 @@
           break;
         }
         case 'proliferate': {
+          /* Whose to choose: your own permanents unless what they carry hurts
+             them, an opponent's only when it does, and opponents' poison —
+             never your own. Each one chosen gets one more of every kind. */
+          const BAD = new Set(['-1/-1', 'stun', 'time', 'doom', 'age', 'fade', 'decay', 'hit', 'bounty', 'slime', 'blight', 'ice', 'rust', 'wage']);
           let n2 = 0;
           for (const x of this.battlefield) {
-            if (x.controller !== ctx.controller) continue;
-            for (const k of Object.keys(x.counters)) { if (x.counters[k] > 0) { x.counters[k]++; n2++; } }
+            const kinds = Object.keys(x.counters || {}).filter(k => x.counters[k] > 0);
+            if (!kinds.length) continue;
+            const bad = kinds.filter(k => BAD.has(k)).length, good = kinds.length - bad;
+            const mine = x.controller === ctx.controller;
+            if (mine ? bad > good : bad === 0) continue;
+            for (const k of kinds) { x.counters[k]++; n2++; }
           }
-          for (const p of this.players) if (p.poison > 0) { p.poison++; n2++; }
+          for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller) { p.poison++; n2++; }
+          this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
           this.logEvent('proliferate', `Proliferate adds ${n2} counter${n2 === 1 ? '' : 's'}.`);
           break;
         }
@@ -11873,7 +11888,11 @@
         case 'setLife': {
           // Blessed Wind: "Target player's life total becomes 20."
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
-          for (const p of who) { p.life = e.n; this.logEvent('life', `${p.name}'s life becomes ${e.n}.`); }
+          /* a life total that "becomes" a number gains or loses the difference
+             (CR 119.5); The Endstone: half the starting life total */
+          const start = (this.config && this.config.startingLife) || 20;
+          const to = e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n);
+          for (const p of who) { if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); }
           break;
         }
 

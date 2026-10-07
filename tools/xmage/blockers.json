@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14056,
+  "needed": 14046,
   "gainedCards": 1483,
-  "linesNeeded": 15503,
+  "linesNeeded": 15489,
   "linesGained": 1835,
   "gained": {
    "all": 1483,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5170,
-   "lines": 4510,
+   "score": 5166,
+   "lines": 4506,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -148,21 +148,21 @@
   },
   {
    "what": "custom condition",
-   "score": 207,
-   "lines": 183,
+   "score": 201,
+   "lines": 180,
    "cards": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
-    "Urabrask // The Great Work",
     "Nasty End",
     "Queen Marchesa",
     "The Chain Veil",
     "Diamond City",
-    "Lyse Hext",
     "Blitzball",
-    "Garna, Bloodfist of Keld"
+    "Garna, Bloodfist of Keld",
+    "Elanor Gardner",
+    "Lux Artillery"
    ]
   },
   {
@@ -375,25 +375,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 34,
-   "lines": 25,
-   "cards": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Hermes, Overseer of Elpis",
-    "Persistent Marshstalker",
-    "Choco, Seeker of Paradise",
-    "Prodigy's Prototype",
-    "Fangorn, Tree Shepherd",
-    "Celeborn the Wise",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 34,
    "lines": 31,
@@ -448,6 +429,25 @@
     "Kastral, the Windcrested",
     "Descendants' Fury",
     "Olivia, Opulent Outlaw"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 30,
+   "lines": 21,
+   "cards": [
+    "Anim Pakal, Thousandth Moon",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Persistent Marshstalker",
+    "Choco, Seeker of Paradise",
+    "Prodigy's Prototype",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance"
    ]
   },
   {
@@ -6870,18 +6870,6 @@
    ]
   },
   {
-   "what": "AllianceAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Devilish Valet",
-    "Rose Room Treasurer",
-    "The Neutrinos",
-    "Sizzling Soloist",
-    "Elegant Entourage"
-   ]
-  },
-  {
    "what": "EntersBattlefieldFromGraveyardTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7419,13 +7407,25 @@
     "Give No Ground",
     "Foriysian Totem"
    ]
+  },
+  {
+   "what": "AddExtraTurnControllerEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Savor the Moment",
+    "Seedtime",
+    "Alchemist's Gambit",
+    "Second Chance",
+    "Wormfang Manta"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4147,
-   "cards": 3682,
+   "score": 4148,
+   "cards": 3680,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7489,8 +7489,8 @@
   },
   {
    "what": "custom condition",
-   "score": 158,
-   "cards": 146,
+   "score": 157,
+   "cards": 145,
    "names": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -7631,19 +7631,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 28,
-   "cards": 19,
-   "names": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Hermes, Overseer of Elpis",
-    "Persistent Marshstalker"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 28,
    "cards": 25,
@@ -7693,6 +7680,19 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 25,
+   "cards": 16,
+   "names": [
+    "Anim Pakal, Thousandth Moon",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Persistent Marshstalker",
+    "Choco, Seeker of Paradise"
    ]
   },
   {

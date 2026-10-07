@@ -1103,6 +1103,12 @@
     // Two-Handed Axe: "double its power until end of turn"; Thrakkus: "double the power of each Dragon you control"
     { re: /^[Dd]ouble (?:its|that creature'?s) power until end of turn\.?$/,
       make: () => ({ op: 'doublePower', scope: 'lastTarget' }) },
+    // Devilish Valet: "double this creature's power until end of turn"
+    { re: /^[Dd]ouble (?:this creature'?s|CARDNAME'?s) power until end of turn\.?$/,
+      make: () => ({ op: 'doublePower', scope: 'self' }) },
+    // The Endstone: "your life total becomes half your starting life total, rounded up"
+    { re: /^[Yy]our life total becomes half your starting life total, rounded (up|down)\.?$/,
+      make: (m) => ({ op: 'setLife', who: 'you', n: { halfStartingLife: true, up: /up/i.test(m[1]) } }) },
     { re: /^Double the power of each ([A-Za-z ]+? you control) until end of turn\.?$/i,
       make: (m) => { const sc = scopeOf(m[1].replace(/^([A-Za-z]+)(?= you control$)/, (w) => (/s$/.test(w) ? w : w + 's'))); return sc ? { op: 'doublePower', scope: sc } : null; } },
     // Maddening Cacophony: "each opponent mills half their library, rounded up" — each their own half
@@ -4002,6 +4008,8 @@
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
+    // Ovika: "the mana value of that spell"
+    if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
     if ((m = p.match(/^(?:that card's|the revealed card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
@@ -5549,6 +5557,11 @@
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
     // Blowfly Infestation: "it had a -1/-1 counter on it" — the creature that died, as it last was
     [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
+    // Visions of Beyond: "a graveyard has twenty or more cards in it"
+    [/^a graveyard has (\w+) or more cards in it$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'anyGraveyardAtLeast', n: num(m[1]) } : null)],
+    // Lyse Hext: "you've cast two or more noncreature spells this turn"
+    [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Messenger Hawk: "you've drawn two or more cards this turn"
@@ -6136,6 +6149,10 @@
     { re: /^Whenever an opponent plays a land,? /i, event: 'opponentPlaysLand' },
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
     { re: /^Whenever you attack with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
+    { re: /^Whenever you attack with one or more ([A-Z][a-z]+?)s?,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: m[1] }) },
+    // Ezuri, Stalker of Spheres: "Whenever you proliferate"
+    { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
     { re: /^When(?:ever)? (?:a|one or more) creatures? you control attacks?(?:,| )/i, event: 'yourCreatureAttacks' },
@@ -7600,6 +7617,9 @@
           delete e.itWord;
           if (before.some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
         }
+        // Vrestin: "Whenever you attack with one or more Insects, put a +1/+1 counter on each of them"
+        if (ab.attackersOfType && e.scope === 'eachTarget' && !effs.some(x => x && (x.targets || []).length))
+          e.scope = { who: 'you', what: 'creature', attacking: true, subtype: ab.attackersOfType.toLowerCase() };
         if (e.op === 'becomes' && e.scope === 'lastTarget' && !effs.some(x => x && (x.targets || []).length) &&
             i > 0 && effs[i - 1] && effs[i - 1].op === 'tutor' && effs[i - 1].to === 'battlefield' && effs[i - 1].n === 1) e.scope = 'thatObject';
       });
