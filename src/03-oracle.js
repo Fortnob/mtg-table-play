@@ -2372,6 +2372,12 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Each player sacrifices (a|one|two|\d+) ([a-z]+) of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'each', filter: m[2].toLowerCase() }) },
+    // Anowon, the Ruin Sage: "each player sacrifices a non-Vampire creature of their choice"
+    { re: /^Each player sacrifices (a|one|two|\d+) non-([A-Z][a-z]+) creatures? of their choice\.?$/,
+      make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'each', filter: 'non-' + m[2].toLowerCase() + ' creature' }) },
+    // Honden of Infinite Rage: "deals damage to any target equal to the number of Shrines you control"
+    { re: /^(?:CARDNAME|This (?:creature|enchantment|artifact)) deals damage to any target equal to (the number of .+? you control)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, targets: [targetSpec('any target')] } : null; } },
 
 
     /* ===== a graveyard anybody can reach into ===== */
@@ -4087,6 +4093,8 @@
     if ((m = p.match(/^the amount of mana spent to cast (this spell|that spell|it|her|him|CARDNAME|this creature)$/i)))
       return done({ manaSpent: true, of: spentOf(m[1]), mult: 1 });
     if (/^the number of cards in your graveyard$/i.test(p)) return done({ cardsInGraveyard: 'you', mult: 1 });
+    // Formless Genesis: "the number of land cards in your graveyard"
+    if ((m = p.match(/^the number of ([a-z]+) cards in your graveyard$/i))) return done({ cardsInGraveyard: true, filter: m[1].toLowerCase(), mult: 1 });
     // "the number of counters on this creature": every kind
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
@@ -5419,7 +5427,8 @@
        rule goes, unless it is one of the keywords above. */
     const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= 4 &&
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
-      /^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your )/.test(m[2].trim());
+      // (Diamond Weapon: "Immune — Prevent all combat damage …")
+      /^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents )/.test(m[2].trim());
     if (!ABILITY_WORDS.has(word) && !flavour) return line;
     const rest = m[2].trim();
     return rest.charAt(0).toUpperCase() + rest.slice(1);
@@ -8039,6 +8048,8 @@
       else if (lw === 'nontoken') sc.nontoken = true;
       else if (lw === 'token') sc.token = true;
       else if (lw === 'nonbasic') sc.nonbasic = true;
+      // Phylath: "for each basic land you control"
+      else if (lw === 'basic') sc.basic = true;
       else if (lw === 'legendary') sc.legendary = true;
       else if (lw === 'nonlegendary') sc.nonlegendary = true;
       // "artifact creatures": a creature that is an artifact as well
@@ -9205,6 +9216,9 @@
       { re: /^Equipped creature gets \+1\/\+1 for each other creature you control that shares a creature type with it\.?$/i,
         eff: { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' },
           pt: { p: { sharesTypeOthers: true, mineOnly: true }, t: { sharesTypeOthers: true, mineOnly: true } } }, auto: true },
+      // Diamond Weapon: "Prevent all combat damage that would be dealt to CARDNAME."
+      { re: /^Prevent all combat damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { self: true }, flag: 'noDamageTaken' }, auto: true },
       // Platinum Emperion: "Your life total can't change."
       { re: /^Your life total can'?t change\.?$/i, eff: { op: 'lifeCantChange' }, auto: true },
       // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."
@@ -9425,6 +9439,8 @@
   function singularType(w) {
     const lw = String(w).trim().toLowerCase();
     if (PLURAL_TYPES[lw]) return PLURAL_TYPES[lw];
+    // "Plains" is its own plural; "Pegasus", "Octopus" end in s already
+    if (lw === 'plains' || /us$/.test(lw)) return lw;
     if (/ies$/.test(lw)) return lw.replace(/ies$/, 'y');
     if (/(?:x|ch|sh|ss)es$/.test(lw)) return lw.replace(/es$/, '');
     return lw.replace(/([^s])s$/, '$1');

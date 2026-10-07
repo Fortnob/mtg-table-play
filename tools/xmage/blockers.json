@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13964,
-  "gainedCards": 1471,
-  "linesNeeded": 15393,
-  "linesGained": 1815,
+  "needed": 13931,
+  "gainedCards": 1456,
+  "linesNeeded": 15355,
+  "linesGained": 1796,
   "gained": {
-   "all": 1471,
+   "all": 1456,
    "top2000": 52,
    "stdTop": 12
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 61,
+  "verifyFail": 60,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -26,16 +26,15 @@
    "x": 3,
    "it": 18,
    "opponent": 72,
-   "condition": 22,
-   "subtype": 3
+   "condition": 22
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5142,
-   "lines": 4482,
+   "score": 5135,
+   "lines": 4475,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 885,
-   "lines": 759,
+   "score": 884,
+   "lines": 758,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +109,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 273,
-   "lines": 243,
+   "score": 271,
+   "lines": 241,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -1154,25 +1153,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Nimbleclaw Adept",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg",
-    "Graverobber Spider",
-    "Painwracker Oni",
-    "Fires of Victory"
-   ]
-  },
-  {
    "what": "second use of a later target",
    "score": 18,
    "lines": 18,
@@ -1265,6 +1245,25 @@
     "Emergent Haunting",
     "Trap Runner",
     "Trade Caravan"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Nimbleclaw Adept",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "The Chief Warg",
+    "Painwracker Oni",
+    "Fires of Victory",
+    "Gutwrencher Oni"
    ]
   },
   {
@@ -4294,21 +4293,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Call to the Grave",
-    "Redcap Raiders",
-    "Archdemon of Unx"
-   ]
-  },
-  {
    "what": "GainAbilityWithAttachmentEffect",
    "score": 8,
    "lines": 8,
@@ -4963,6 +4947,20 @@
     "Wormfang Turtle",
     "Temporal Firestorm",
     "Muse Vessel"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Call to the Grave",
+    "Redcap Raiders",
+    "Archdemon of Unx"
    ]
   },
   {
@@ -7208,18 +7206,6 @@
    ]
   },
   {
-   "what": "ExileTargetIfDiesEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Combustion Technique",
-    "Smite the Deathless",
-    "Blitz of the Thunder-Raptor",
-    "Necrotic Wound",
-    "Unnatural Aggression"
-   ]
-  },
-  {
    "what": "IsPhaseCondition",
    "score": 5,
    "lines": 5,
@@ -7301,18 +7287,6 @@
     "Quickchange",
     "Swirling Spriggan",
     "Prismwake Merrow"
-   ]
-  },
-  {
-   "what": "ConstellationAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Nessian Wanderer",
-    "Eidolon of Astral Winds",
-    "Daxos's Torment",
-    "Strength from the Fallen",
-    "Goldenhide Ox"
    ]
   },
   {
@@ -7410,13 +7384,37 @@
     "Fungal Behemoth",
     "Roiling Horror"
    ]
+  },
+  {
+   "what": "MultikickerCount.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Wolfbriar Elemental",
+    "Bloodhusk Ritualist",
+    "Stronghold Arena",
+    "Lightkeeper of Emeria",
+    "Spell Contortion"
+   ]
+  },
+  {
+   "what": "PermanentsTargetOpponentControlsCount",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Sting, Bilbo's Sword",
+    "Bloodvial Purveyor",
+    "Gideon, Champion of Justice",
+    "Killmonger, Ruthless Usurper",
+    "Renewing Dawn"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4128,
-   "cards": 3660,
+   "score": 4121,
+   "cards": 3653,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7428,8 +7426,8 @@
   },
   {
    "what": "custom ability",
-   "score": 671,
-   "cards": 572,
+   "score": 670,
+   "cards": 571,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7467,8 +7465,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 162,
-   "cards": 150,
+   "score": 161,
+   "cards": 149,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7816,19 +7814,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Nimbleclaw Adept",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Oak Street Innkeeper"
-   ]
-  },
-  {
    "what": "DrawCardSourceControllerEffect amount",
    "score": 17,
    "cards": 14,
@@ -7865,6 +7850,19 @@
     "Twinblade Geist // Twinblade Invocation",
     "Lantern Bearer // Lanterns' Lift",
     "Chaplain of Alms // Chapel Shieldgeist"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Nimbleclaw Adept",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Oak Street Innkeeper"
    ]
   },
   {
@@ -9839,19 +9837,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Call to the Grave",
-    "Redcap Raiders"
-   ]
-  },
-  {
    "what": "DontUntapInControllersNextUntapStepTargetEffect",
    "score": 7,
    "cards": 7,
@@ -10436,6 +10421,19 @@
     "Luminous Wake",
     "Primal Cocoon",
     "Cunning"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Ruthless Winnower",
+    "Call to the Grave",
+    "Redcap Raiders",
+    "Archdemon of Unx"
    ]
   },
   {

@@ -8269,4 +8269,41 @@ module.exports = (test) => {
     t.eq(g.zone, 'graveyard');
     t.eq(T.bfOf('B').filter(o => o.name === 'Treasure').length, 1);
   });
+
+  test('Phylath: a Plant for each basic land, not the others', (mk, t) => {
+    t.auto('Phylath, World Sculptor');
+    const T = mk();
+    T.bf('A', 'Forest'); T.bf('A', 'Plains'); T.bf('A', 'Savannah');
+    T.put('A', 'Phylath, World Sculptor', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 2);
+  });
+
+  test('A count of Plains you control counts Plains', (mk, t) => {
+    const card = { id: 'probe-plains', name: 'Probe Plains', type_line: 'Sorcery', mana_cost: '{W}', cmc: 1, colors: ['W'], layout: 'normal',
+      oracle_text: 'Create a 1/1 white Soldier creature token for each Plains you control.', keywords: [] };
+    const e = engine().oracle.analyze(card).abilities[0].effects[0];
+    t.eq(e.count.scope.subtype, 'plains');
+  });
+
+  test('Formless Genesis: X is the land cards in your graveyard', (mk, t) => {
+    t.auto('Formless Genesis');
+    const T = mk();
+    T.grave('A', 'Forest'); T.grave('A', 'Island'); T.grave('A', 'Grizzly Bears');
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Formless Genesis'));
+    T.resolve();
+    const tok = T.bfOf('A').find(o => o.isToken);
+    t.eq(T.g.powerOf(tok), 2); t.ok(T.g.hasKw(tok, 'deathtouch'));
+  });
+
+  test('Anowon: each player sacrifices a non-Vampire', (mk, t) => {
+    t.auto('Anowon, the Ruin Sage');
+    const T = mk();
+    T.bf('A', 'Anowon, the Ruin Sage');
+    const v = T.bf('A', 'Vampire Nighthawk'), b = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('A');
+    T.toMain('A');
+    t.eq(b.zone, 'graveyard'); t.eq(v.zone, 'battlefield');
+  });
 };
