@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15738,
+  "needed": 15716,
   "gainedCards": 1610,
-  "linesNeeded": 17737,
+  "linesNeeded": 17692,
   "linesGained": 2049,
   "gained": {
    "all": 1610,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5610,
-   "lines": 4839,
+   "score": 5597,
+   "lines": 4826,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 380,
-   "lines": 350,
+   "score": 379,
+   "lines": 349,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -102,10 +102,10 @@
     "Winds of Abandon",
     "Alchemist's Talent",
     "Liliana, Death's Majesty",
-    "Stuffy Doll",
     "Fighter Class",
     "Wand of Wonder",
-    "Fangs of Kalonia"
+    "Fangs of Kalonia",
+    "Spectacular Showdown"
    ]
   },
   {
@@ -186,21 +186,21 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 132,
-   "lines": 105,
+   "score": 100,
+   "lines": 82,
    "cards": [
     "Cloud Key",
     "Banner of Kinship",
-    "Talion, the Kindly Lord",
     "Multiversal Passage",
     "Mirrodin Besieged",
-    "Manor Gate",
     "Serra's Emissary",
     "Temple of the Dragon Queen",
-    "Sea Gate",
-    "Black Dragon Gate",
     "Struggle for Project Purity",
-    "Citadel Gate"
+    "Hollowmurk Siege",
+    "Eclipsed Realms",
+    "Frontier Siege",
+    "Sower of Discord",
+    "Barrensteppe Siege"
    ]
   },
   {
@@ -7587,19 +7587,6 @@
    ]
   },
   {
-   "what": "ProtectionChosenColorAttachedEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Flickering Ward",
-    "Benevolent Blessing",
-    "Pentarch Ward",
-    "Cho-Manno's Blessing",
-    "Ward of Lights",
-    "Floating Shield"
-   ]
-  },
-  {
    "what": "ExileGraveyardAllPlayersEffect",
    "score": 6,
    "lines": 6,
@@ -7909,13 +7896,26 @@
     "Reckless Cohort",
     "Marauding Maulhorn"
    ]
+  },
+  {
+   "what": "ConditionalColorlessManaAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Automated Artificer",
+    "Lord of the Forsaken",
+    "Cultivator Drone",
+    "Sage of the Unknowable",
+    "Qarsi Deceiver",
+    "Soldevi Machinist"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4434,
-   "cards": 3888,
+   "score": 4436,
+   "cards": 3890,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7927,8 +7927,8 @@
   },
   {
    "what": "custom ability",
-   "score": 727,
-   "cards": 598,
+   "score": 729,
+   "cards": 600,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7940,8 +7940,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 231,
-   "cards": 192,
+   "score": 232,
+   "cards": 193,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -7966,8 +7966,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 190,
-   "cards": 178,
+   "score": 191,
+   "cards": 179,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -8057,15 +8057,15 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 45,
-   "cards": 33,
+   "score": 40,
+   "cards": 28,
    "names": [
     "Cloud Key",
     "Banner of Kinship",
     "Mirrodin Besieged",
-    "Manor Gate",
     "Temple of the Dragon Queen",
-    "Sea Gate"
+    "Struggle for Project Purity",
+    "Hollowmurk Siege"
    ]
   },
   {
@@ -9620,6 +9620,14 @@
     "Necroplasm",
     "The Filigree Sylex",
     "Powder Keg"
+   ]
+  },
+  {
+   "what": "TalionTheKindlyLordPredicate.instance",
+   "score": 10,
+   "cards": 1,
+   "names": [
+    "Talion, the Kindly Lord"
    ]
   },
   {
@@ -11726,19 +11734,6 @@
     "Hinder",
     "Spell Crumple",
     "Devious Cover-Up"
-   ]
-  },
-  {
-   "what": "CombatDamageByToughnessControlledEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Bedrock Tortoise",
-    "High Alert",
-    "Arcades, the Strategist",
-    "Ancient Lumberknot",
-    "The Kingpin of Crime",
-    "Belligerent Brontodon"
    ]
   }
  ]

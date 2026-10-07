@@ -405,6 +405,8 @@
     }
     /** "with the chosen name": the name a conspiracy was given before the game. */
     _chosenNameOf(src, x) {
+      // a conspiracy's name from the draft, or the name chosen as a permanent entered (Pithing Needle)
+      if (src && src.chosenName && this._nameAmong(x, [src.chosenName])) return true;
       return !!(src && src.conspiracy && this._nameAmong(x, src.conspiracy.names));
     }
     _conspiracies(pid) { return ((this.zones[pid] || {}).command || []).filter(o => o.conspiracy); }
@@ -2813,6 +2815,14 @@
       if (!midway && (!this.priorityPlayer || this.priorityPlayer.id !== playerId)) return { ok: false, reason: 'You do not have priority.' };
       const hush = this._castBlocked(playerId);
       if (hush) return { ok: false, reason: hush };
+      /* Meddling Mage: "Spells with the chosen name can't be cast";
+         Iona: "Your opponents can't cast spells of the chosen color" */
+      for (const s0 of this.battlefield) {
+        if (s0.phasedOut) continue;
+        if (this._staticOp(s0, 'nameLockSpells') && this._chosenNameOf(s0, o)) return { ok: false, reason: `${s0.name}: spells named ${s0.chosenName} can't be cast.` };
+        if (this._staticOp(s0, 'colorLockSpells') && s0.chosenColor && s0.controller !== playerId && (a.colors || []).includes(s0.chosenColor))
+          return { ok: false, reason: `${s0.name}: spells of that colour can't be cast.` };
+      }
       /* Deafening Silence, Rule of Law: "Each player can't cast more than one
          (noncreature) spell each turn." */
       for (const s0 of this.battlefield) {
@@ -4713,6 +4723,7 @@
          permanent is never without one, and a person is asked to confirm. */
       if (this._staticOp(o, 'chooseTypeOnEnter')) this._chooseTypeFor(o);
       if (this._staticOp(o, 'chooseColorOnEnter')) this._chooseColorFor(o);
+      if (this._staticOp(o, 'chooseOnEnter')) this._chooseValueFor(o, this._staticOp(o, 'chooseOnEnter'));
       if (this._staticOp(o, 'chooseModeOnEnter')) this._chooseEnterMode(o);
       /* Devour: the creatures chosen as it was cast, sacrificed as it enters,
          and N +1/+1 counters for each */
@@ -4898,6 +4909,50 @@
       this.logEvent('rules', `${o.name}: ${md.name} is chosen.`);
     }
 
+    /* "As this enters, choose a card name / a player / a number": the most
+       likely answer at once, and a person asked to confirm or change it */
+    _chooseValueFor(o, rule) {
+      const p = this.player(o.controller);
+      if (!p) return;
+      let values = [], labels = [], field = 'chosenName';
+      if (rule.what === 'name') {
+        const seen = new Map();
+        for (const q of this.players) for (const z of ['hand', 'library', 'graveyard', 'exile', 'command']) for (const c of ((this.zones[q.id] || {})[z] || [])) {
+          const ca = c.analysis();
+          if (!ca || (rule.nonland && ca.isLand)) continue;
+          const k = c.card ? c.card.name : c.name;
+          const w = (seen.get(k) || 0) + (q.id === p.id ? 0 : 3);
+          seen.set(k, w);
+        }
+        for (const x of this.battlefield) { const ca = x.analysis(); if (ca && !(rule.nonland && ca.isLand) && x.controller !== p.id) seen.set(x.card.name, (seen.get(x.card.name) || 0) + 10); }
+        values = [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(x => x[0]).slice(0, 40);
+        labels = values.slice();
+      } else if (rule.what === 'player' || rule.what === 'opponent') {
+        field = 'chosenPlayer';
+        const list = rule.what === 'opponent' ? this.opponentsOf(p.id).filter(q => !q.hasLost) : this.players.filter(q => !q.hasLost);
+        // the most likely: an opponent
+        list.sort((a, b) => (a.id === p.id) - (b.id === p.id));
+        values = list.map(q => q.id); labels = list.map(q => q.name);
+      } else if (rule.what === 'number') {
+        field = 'chosenNumber';
+        for (let k = rule.min || 0; k <= (rule.max == null ? 10 : rule.max); k++) { values.push(k); labels.push(String(k)); }
+        // the mana value most common among the opponents' cards
+        const counts = new Map();
+        for (const q of this.opponentsOf(p.id)) for (const c of ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))) {
+          const mv = (c.card && c.card.cmc) || 0; counts.set(mv, (counts.get(mv) || 0) + 1);
+        }
+        const best = values.slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0))[0];
+        values = [best].concat(values.filter(v => v !== best)); labels = values.map(String);
+      }
+      if (!values.length) return;
+      o[field] = values[0];
+      this.bumpBoard();
+      this.logEvent('rules', `${o.name}: ${labels[0]} is chosen.`);
+      if (!p.isBot && values.length > 1) {
+        this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseValue', objId: o.id, field, values,
+          options: labels.map((label, i) => ({ i, label })), prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : 'a player'}.` });
+      }
+    }
     _chooseColorFor(o) {
       const p = this.player(o.controller);
       // "choose a color other than blue"
@@ -5072,6 +5127,11 @@
       // power-up: once, as exhaust is
       if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That power-up ability has been used.';
       if (ab && ab.only && ab.only.once && o._usedOnce && o._usedOnce[ab.text] === o.entered) return 'That ability can be activated only once.';
+      // Pithing Needle: "activated abilities of sources with the chosen name can't be activated"
+      for (const s0 of this.battlefield) {
+        const lock = !s0.phasedOut && this._staticOp(s0, 'nameLockAbilities');
+        if (lock && this._chosenNameOf(s0, o) && !(lock.manaOk && ab && ab.kind === 'mana')) return `${s0.name}: abilities of ${o.name} can't be activated.`;
+      }
       // Craft: something to craft with
       if (ab && ab.craft && this._craftPool(o, ab.craft).length < (ab.craft.min || 1)) return 'There is not enough to craft with.';
       if (ab && ab.only && ab.only.perTurn && o._turnUses && o._turnUses.turn === this.turn && (o._turnUses.n[ab.text] || 0) >= ab.only.perTurn)
@@ -6142,6 +6202,14 @@
       const c = this.characteristics(o);
       for (const k of (c && c.keywords) || []) {
         if (/^protection from /.test(k)) args.push(k.slice('protection from '.length));
+      }
+      // Voice of All, Flickering Ward: "protection from the chosen color"
+      const CN = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+      if (this._staticOp(o, 'protChosenColor') && !this._staticOp(o, 'protChosenColor').attached && o.chosenColor) args.push(CN[o.chosenColor]);
+      for (const id of (o.attachments || [])) {
+        const at = this.obj(id);
+        const r = at && this._staticOp(at, 'protChosenColor');
+        if (r && r.attached && at.chosenColor) args.push(CN[at.chosenColor]);
       }
       return args.some(arg => this._matchesProtection(arg, source));
     }
@@ -9032,6 +9100,10 @@
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // Inferno Elemental: "deals 3 damage to that creature" — the one the trigger is about
+          // Stuffy Doll: "to the chosen player"
+          if (e.toChosenPlayer) { const p = src && this.player(src.chosenPlayer); if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // "deals 1 damage to itself"
+          if (e.toSelf2) { if (src && src.zone === 'battlefield') this.dealDamageToObject(src, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerObject) { const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId); if (x && x.zone === 'battlefield') this.dealDamageToObject(x, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           /* "Destroy target land. It deals 2 damage to that land's
              controller": whoever controlled what the effect before acted
@@ -14228,6 +14300,17 @@
             const o = this.obj(ch.objId);
             const idx = ((data && data.modes) || [])[0];
             if (o && idx != null && o.zone === 'battlefield') this._setEnterMode(o, idx);
+            break;
+          }
+          // Pithing Needle, Stuffy Doll, Talion: the name, player or number
+          if (ch.purpose === 'chooseValue') {
+            const o = this.obj(ch.objId);
+            const idx = ((data && data.modes) || [])[0];
+            if (o && idx != null && ch.values[idx] !== undefined) {
+              o[ch.field] = ch.values[idx];
+              o._chr = null; this.bumpBoard();
+              this.logEvent('rules', `${this.player(playerId).name} chooses ${(ch.options[idx] || {}).label} for ${o.name}.`);
+            }
             break;
           }
           if (ch.purpose !== 'chooseType' && ch.purpose !== 'chooseColor') break;

@@ -4207,4 +4207,66 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(x), 3); t.eq(T.g.powerOf(y), 2);
     t.ok(T.g.hasKw(y, 'indestructible'));
   });
+
+  test('Pithing Needle: the chosen name has its abilities stopped, mana ones excepted', (mk, t) => {
+    t.auto('Pithing Needle');
+    const T = mk();
+    const vamp = T.bf('B', 'Vampire Nighthawk');
+    const sh = T.bf('B', 'Shivan Dragon');
+    const pn = T.put('A', 'Pithing Needle', 'battlefield', { etb: true });
+    pn.chosenName = 'Shivan Dragon';
+    T.mana('B', 'R');
+    t.no(T.g.activateAbility('B', sh.id, sh.analysis().manaAbilities.length, {}), 'firebreathing stopped');
+    t.ok(/can't be activated/.test(T.g.lastError || ''));
+  });
+
+  test('Meddling Mage: the chosen name can\'t be cast', (mk, t) => {
+    t.auto('Meddling Mage');
+    const T = mk();
+    const mm = T.put('B', 'Meddling Mage', 'battlefield', { etb: true });
+    mm.chosenName = 'Lightning Bolt';
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), 'Bolt is named');
+  });
+
+  test('Stuffy Doll: damage dealt to it goes to the chosen player', (mk, t) => {
+    t.auto('Stuffy Doll');
+    const T = mk();
+    const d = T.put('A', 'Stuffy Doll', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(d.chosenPlayer, 'B', 'an opponent chosen');
+    d.tapped = false; d.summoningSick = false;
+    const acts = d.analysis().abilities.filter(x => x.kind === 'activated');
+    T.activate('A', d, d.analysis().manaAbilities.length + d.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated'));
+    T.resolve();
+    t.eq(T.life('B'), 19);
+  });
+
+  test('Sea Gate: a colour other than blue', (mk, t) => {
+    t.auto('Sea Gate');
+    const T = mk();
+    const g = T.put('A', 'Sea Gate', 'battlefield', { etb: true });
+    t.ok(g.chosenColor && g.chosenColor !== 'U', 'not blue');
+  });
+
+  test('Iona: opponents cannot cast spells of the chosen colour', (mk, t) => {
+    t.auto('Iona, Shield of Emeria');
+    const T = mk();
+    const io = T.put('B', 'Iona, Shield of Emeria', 'battlefield', { etb: true });
+    io.chosenColor = 'R';
+    T.mana('A', 'RG');
+    t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), 'red is stopped');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Llanowar Elves').id, {}), 'green is fine');
+  });
+
+  test('Voice of All: protection from the chosen colour', (mk, t) => {
+    t.auto('Voice of All');
+    const T = mk();
+    const v = T.put('B', 'Voice of All', 'battlefield', { etb: true });
+    v.chosenColor = 'R';
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'object', id: v.id }] }) && v.zone !== 'battlefield', "the Bolt can't be aimed at it");
+    T.resolve();
+    t.zone(v, 'battlefield');
+  });
 };

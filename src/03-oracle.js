@@ -2415,6 +2415,10 @@
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
     // Bridge from Below: "exile this card" — from the graveyard it works in
     { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
+    // Stuffy Doll: "it deals that much damage to the chosen player", "deals 1 damage to itself"
+    { re: /^(?:CARDNAME|This creature|It) deals (that much|\d+) damage to the chosen player\.?$/i,
+      make: (m) => ({ op: 'damage', n: /that much/i.test(m[1]) ? 'triggerAmount' : +m[1], toChosenPlayer: true }) },
+    { re: /^(?:CARDNAME|This creature) deals (\d+) damage to itself\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toSelf2: true }) },
     // Inferno Elemental: "this creature deals 3 damage to that creature"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to that creature\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toTriggerObject: true }) },
     // Plaxmanta: "sacrifice it unless {G} was spent to cast it"
@@ -7009,7 +7013,8 @@
 
   /* Ops that make sense as a permanent's standing rule rather than a one-off. */
   const STATIC_OPS = new Set(['continuous', 'replace', 'taxSpells', 'extraLand',
-    'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
+    'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
+    'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
     'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'peekTop', 'optionalUntap',
     'blocksExtra',
@@ -7058,6 +7063,25 @@
         eff: { op: 'chooseTypeOnEnter' }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a colou?r\.?$/i,
         eff: { op: 'chooseColorOnEnter' }, auto: true },
+      // the Gates: "As this land enters, choose a color other than blue."
+      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a colou?r other than (white|blue|black|red|green)\.?$/i,
+        make: (m) => ({ op: 'chooseColorOnEnter', except: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }), auto: true },
+      /* Pithing Needle, Meddling Mage, Stuffy Doll, Talion: a name, a player
+         or a number, chosen as it enters and kept on it */
+      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? (?:look at an opponent'?s hand, then )?choose (?:a|any) (nonland )?card name\.?$/i,
+        make: (m) => ({ op: 'chooseOnEnter', what: 'name', nonland: !!m[1] }), auto: true },
+      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose (a player|an opponent)\.?$/i,
+        make: (m) => ({ op: 'chooseOnEnter', what: /opponent/i.test(m[1]) ? 'opponent' : 'player' }), auto: true },
+      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number between (\d+) and (\d+)\.?$/i,
+        make: (m) => ({ op: 'chooseOnEnter', what: 'number', min: +m[1], max: +m[2] }), auto: true },
+      { re: /^Activated abilities of sources with the chosen name can'?t be activated( unless they'?re mana abilities)?\.?$/i,
+        make: (m) => ({ op: 'nameLockAbilities', manaOk: !!m[1] }), auto: true },
+      { re: /^Spells with the chosen name can'?t be cast\.?$/i, eff: { op: 'nameLockSpells' }, auto: true },
+      // Iona: "Your opponents can't cast spells of the chosen color."
+      { re: /^Your opponents can'?t cast spells of the chosen colou?r\.?$/i, eff: { op: 'colorLockSpells' }, auto: true },
+      // Voice of All, Flickering Ward
+      { re: /^(?:CARDNAME|This creature) has protection from the chosen colou?r\.?$/i, eff: { op: 'protChosenColor' }, auto: true },
+      { re: /^Enchanted creature has protection from the chosen colou?r\.?$/i, eff: { op: 'protChosenColor', attached: true }, auto: true },
       /* The Sieges: "As this enchantment enters, choose Khans or Dragons.
          • Khans — … • Dragons — …" The permanent has only the abilities of
          the one chosen, so each is read as a card of its own. */
