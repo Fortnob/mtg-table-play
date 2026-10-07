@@ -3778,4 +3778,30 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2);
   });
+
+  test('Fable of the Mirror-Breaker: chapter II swaps up to two cards', (mk, t) => {
+    t.auto('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki');
+    const T = mk();
+    const f = T.put('A', 'Fable of the Mirror-Breaker // Reflection of Kiki-Jiki', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(T.bfOf('A').some(o => o.isToken && /Goblin/.test(o.name)), 'chapter I: a Goblin Shaman');
+    const a = T.hand('A', 'Island'), b = T.hand('A', 'Forest');
+    T.answer('pickCard', () => ({ cardIds: [a.id, b.id] }));
+    T.nextTurn('A');
+    t.zone(a, 'graveyard'); t.zone(b, 'graveyard');
+    t.ok(f.zone === 'battlefield', 'still a saga');
+  });
+
+  test('Tezzeret the Seeker: every artifact a 5/5 creature for the turn', (mk, t) => {
+    t.auto('Tezzeret the Seeker');
+    const T = mk();
+    const tz = T.bf('A', 'Tezzeret the Seeker');
+    tz.counters.loyalty = 6;
+    const ring = T.bf('A', 'Sol Ring');
+    const acts = tz.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+    T.activate('A', tz, tz.analysis().manaAbilities.length + acts.findIndex(x => /^-5/.test(x.text)));
+    T.resolve();
+    t.ok(T.g.characteristics(ring).isCreature, 'a creature');
+    t.eq(T.g.powerOf(ring), 5);
+  });
 };

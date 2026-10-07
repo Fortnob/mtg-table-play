@@ -11776,6 +11776,15 @@
           });
           break;
         }
+        // "Artifacts you control become artifact creatures with base power and toughness 5/5"
+        case 'animateAll': {
+          for (const o of this._scopeList(e.scope, ctx.controller, src)) {
+            o.effects.push({ addTypes: ['Creature'], setPt: { p: n(e.p), t: n(e.t) }, until: e.duration === 'eot' ? 'eot' : null });
+            o._chr = null;
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'removeFromCombat':
           applyToScope(e, (o) => {
             if (!o.attacking && !(o.blocking || []).length) return;
@@ -12228,6 +12237,29 @@
           break;
         }
         /* Valakut Awakening: any number of cards to the bottom, then that many plus one */
+        // Fable of the Mirror-Breaker: up to N discarded, as many drawn
+        case 'discardUpToDraw': {
+          const hand = this.zones[ctx.controller].hand.slice();
+          const most = Math.min(hand.length, n(e.n) || 0);
+          if (!most) break;
+          let picked = [];
+          if (me.isBot) {
+            // spare lands go, once there are enough on the table
+            const lands = this.battlefield.filter(o => o.controller === me.id && (o.analysis() || {}).isLand).length;
+            picked = lands >= 4 ? hand.filter(c => (c.analysis() || {}).isLand).slice(0, most).map(c => c.id) : [];
+          } else {
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: most, optional: true,
+              cards: hand.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `Discard up to ${most} card${most === 1 ? '' : 's'}, then draw that many.` }, 'dud');
+            if (got === SUSPEND) return SUSPEND;
+            picked = (got || []).slice(0, most);
+          }
+          const list = picked.map(id => this.obj(id)).filter(c => c && c.zone === 'hand' && c.owner === me.id);
+          if (!list.length) break;
+          this._discardNow(me.id, list);
+          this._drawCards(me, list.length);
+          break;
+        }
         case 'bottomThenDraw': {
           const hand = this.zones[ctx.controller].hand.slice();
           let picked = [];
@@ -14404,6 +14436,14 @@
         case 'resolveManual':
           this.logEvent('manual', `${p.name} resolved: ${data.text || 'effect'}`);
           break;
+        // a hidden agenda may be turned face up any time its owner has priority (CR 905.4b)
+        case 'revealAgenda': {
+          if (!o || o.owner !== playerId || !o.conspiracy || !o.conspiracy.hidden) return this.fail('That is not a hidden agenda of yours.');
+          o.conspiracy.hidden = false;
+          this.logEvent('rules', `${p.name} turns ${o.name} face up: ${o.conspiracy.names.join(' and ')}.`);
+          this.bumpBoard();
+          break;
+        }
         default: return this.fail('Unknown manual action.');
       }
       this.checkStateBasedActions();
@@ -14818,6 +14858,8 @@
         attacking: o.attacking, blocking: o.blocking, blockedBy: o.blockedBy, blockOrder: o.blockOrder,
         effects: o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
         prepared: !!o.prepared,
+        // a hidden agenda its owner can still choose to turn face up
+        agenda: !!(o.conspiracy && o.conspiracy.hidden && o.owner === playerId),
         // soulbond: the creature it is paired with
         pairedWith: o.zone === 'battlefield' ? ((this._pairOf(o) || {}).id || null) : null,
         power: (() => { const a = o.analysis(); return a && a.isCreature ? this.powerOf(o) : null; })(),
@@ -14919,6 +14961,8 @@
           librarySize: this.zones[p.id].library.length,
           // which dungeon room they are in ({ name, room }), for the table to show
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,
+          // what you noted while drafting, for your own eyes: the table needs it to tell which targets a noted colour allows
+          draftNotes: p.id === playerId && p.draftNotes ? JSON.parse(JSON.stringify(p.draftNotes)) : null,
           /* "You may look at the top card of your library any time", or a
              permanent that lets them play it, shows it to that player and
              nobody else; "play with the top card of your library revealed"

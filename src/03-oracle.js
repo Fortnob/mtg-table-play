@@ -1572,6 +1572,9 @@
     /* ===== blink, in the longer phrasings ===== */
     { re: /^Exile (up to one )?((?:other |another )?target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blink', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
+    // Aethergeode Miner: "Exile this creature, then return it to the battlefield under its owner's control."
+    { re: /^Exile (?:this creature|this permanent|this artifact|CARDNAME), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
+      make: () => ({ op: 'blink', self: true }) },
     { re: /^Exile (another target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1].replace(/^another /i, ''))] }) },
     { re: /^Destroy (another target [a-z0-9 '-]+?)\.?$/i,
@@ -1855,8 +1858,8 @@
       make: () => ({ op: 'noop' }) },
 
     /* ===== keyword actions ===== */
-    { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+)\.?$/i,
-      make: (m) => ({ op: 'amass', n: +m[2], kind: (m[1] || 'Zombie').trim() }) },
+    { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+|X)\.?$/i,
+      make: (m) => ({ op: 'amass', n: m[2] === 'X' ? 'X' : +m[2], kind: (m[1] || 'Zombie').trim() }) },
     { re: /^(?:Then )?[Cc]onnive\.?$/i, make: () => ({ op: 'connive', n: 1 }) },
     { re: /^(?:Then )?[Cc]onnive (\d+)\.?$/i, make: (m) => ({ op: 'connive', n: +m[1] }) },
     { re: /^[Ss]cry (\d+), then draw (a|one|two|three|\d+) cards?\.?$/i,
@@ -2393,6 +2396,9 @@
     { re: /^(?:CARDNAME|It) deals (\d+|X) damage to (target player(?: or planeswalker)?) and each (creature(?: and planeswalker)?) (?:that player|they)(?: or that planeswalker'?s controller)? controls?\.?$/i,
       make: (m) => ({ op: 'damageAndTheirs', n: num(m[1]), andPlaneswalkers: /planeswalker/i.test(m[3]),
         targets: [/planeswalker/i.test(m[2]) ? targetSpec('target player or planeswalker') : { type: 'player' }] }) },
+    // Tezzeret the Seeker, The Antiquities War: every artifact a 5/5 creature for the turn
+    { re: /^Artifacts you control become artifact creatures with base power and toughness (\d+)\/(\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'animateAll', scope: { who: 'you', what: 'artifact' }, p: +m[1], t: +m[2], duration: 'eot' }) },
     // Capenna Express: "This Vehicle becomes an artifact creature until end of turn." — not crewed, just a creature
     { re: /^(?:This Vehicle|CARDNAME) becomes an artifact creature until end of turn\.?$/i,
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
@@ -3264,6 +3270,8 @@
       // Wan Shi Tong: "put X +1/+1 counters on him" — a character card means itself
       .replace(/ counters? on (?:him|her)\b/g, (x) => x.replace(/him|her/, 'CARDNAME'))
       .replace(/^(?:That|The) (?:creature|permanent|land|artifact|enchantment|spell|planeswalker)'s controller\b/, 'Its controller')
+      // Aethersphere Harvester: "This Vehicle gains lifelink" — a permanent talking about itself
+      .replace(/^This (?:Vehicle|Spacecraft|permanent) (gains|gets|has) /, 'This creature $1 ')
       // Aurelia: "each of your opponents" is each opponent
       .replace(/\beach of your opponents\b/g, 'each opponent');
     if (!s) return null;
@@ -3472,6 +3480,10 @@
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
         { op: 'takeFromMilled', n: 1, filter: m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any', optional: !!m[2] }] },
+    /* Fable of the Mirror-Breaker: "You may discard up to two cards. If you
+       do, draw that many cards." */
+    { re: /^You may discard up to (one|two|three|four|\d+) cards?\. If you do, draw that many cards\.?$/i,
+      make: (m) => [{ op: 'discardUpToDraw', n: num(m[1]) }] },
     /* Dig Through Time, Stock Up */
     { re: /^Look at the top (\w+) cards of your library\. Put (two|three) of them into your hand and the rest on the bottom of your library in (?:any|a random) order\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: 'bottom' }] },

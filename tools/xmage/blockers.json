@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15956,
+  "needed": 15945,
   "gainedCards": 1611,
-  "linesNeeded": 18106,
-  "linesGained": 2070,
+  "linesNeeded": 18093,
+  "linesGained": 2069,
   "gained": {
    "all": 1611,
    "top2000": 52,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5620,
-   "lines": 4846,
+   "score": 5613,
+   "lines": 4842,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -489,25 +489,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 33,
-   "lines": 24,
-   "cards": [
-    "Season of Gathering",
-    "Biophagus",
-    "Season of the Burrow",
-    "Crypt Rats",
-    "Season of the Bold",
-    "Guildmages' Forum",
-    "Animal Attendant",
-    "Consume Spirit",
-    "Sphere of the Suns",
-    "Kimoyo Beads",
-    "Drain Life",
-    "Murdock's Crusade"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 33,
    "lines": 33,
@@ -565,17 +546,22 @@
    ]
   },
   {
-   "what": "keyword StationLevelAbility",
-   "score": 30,
-   "lines": 9,
+   "what": "(constructor: view.get)",
+   "score": 32,
+   "lines": 23,
    "cards": [
-    "Exploration Broodship",
-    "Adagia, Windswept Bastion",
-    "Uthros Research Craft",
-    "Dawnsire, Sunstar Dreadnought",
-    "Inspirit, Flagship Vessel",
-    "Synthesizer Labship",
-    "Debris Field Crusher"
+    "Season of Gathering",
+    "Biophagus",
+    "Season of the Burrow",
+    "Crypt Rats",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant",
+    "Consume Spirit",
+    "Sphere of the Suns",
+    "Drain Life",
+    "Murdock's Crusade",
+    "Atalya, Samite Master"
    ]
   },
   {
@@ -614,6 +600,19 @@
     "Spoils of the Vault",
     "The Stone Brain",
     "Lost Legacy"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 29,
+   "lines": 8,
+   "cards": [
+    "Exploration Broodship",
+    "Adagia, Windswept Bastion",
+    "Uthros Research Craft",
+    "Dawnsire, Sunstar Dreadnought",
+    "Inspirit, Flagship Vessel",
+    "Synthesizer Labship"
    ]
   },
   {
@@ -728,25 +727,6 @@
     "Case of the Gorgon's Kiss",
     "Case of the Burning Masks",
     "Case of the Lost Witness"
-   ]
-  },
-  {
-   "what": "DiscardAndDrawThatManyEffect",
-   "score": 27,
-   "lines": 15,
-   "cards": [
-    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
-    "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
-    "Daretti, Scrap Savant",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "Cathartic Pyre",
-    "Celes, Rune Knight",
-    "Tersa Lightshatter",
-    "Cavalier of Flame",
-    "Jaya Ballard",
-    "The Elder Dragon War",
-    "Sokka, Bold Boomeranger",
-    "Illuminate History"
    ]
   },
   {
@@ -1015,6 +995,25 @@
     "Tato Farmer",
     "Zuko, Firebending Master",
     "Minthara, Merciless Soul"
+   ]
+  },
+  {
+   "what": "DiscardAndDrawThatManyEffect",
+   "score": 23,
+   "lines": 14,
+   "cards": [
+    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+    "Daretti, Scrap Savant",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+    "Cathartic Pyre",
+    "Celes, Rune Knight",
+    "Tersa Lightshatter",
+    "Cavalier of Flame",
+    "Jaya Ballard",
+    "The Elder Dragon War",
+    "Sokka, Bold Boomeranger",
+    "Illuminate History",
+    "Leave // Chance"
    ]
   },
   {
@@ -1434,25 +1433,6 @@
    ]
   },
   {
-   "what": "ExileAndReturnSourceEffect",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Jin-Gitaxias // The Great Synthesis",
-    "Vorinclex // The Grand Evolution",
-    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
-    "Elesh Norn // The Argent Etchings",
-    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
-    "Terra, Magical Adept // Esper Terra",
-    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
-    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "Jecht, Reluctant Guardian // Braska's Final Aeon"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -1555,6 +1535,25 @@
     "Quistis Trepe",
     "Daring Waverider",
     "Seifer Almasy"
+   ]
+  },
+  {
+   "what": "ExileAndReturnSourceEffect",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Jin-Gitaxias // The Great Synthesis",
+    "Vorinclex // The Grand Evolution",
+    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
+    "Elesh Norn // The Argent Etchings",
+    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
+    "Terra, Magical Adept // Esper Terra",
+    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
+    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
+    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
+    "Jecht, Reluctant Guardian // Braska's Final Aeon"
    ]
   },
   {
@@ -1687,25 +1686,6 @@
     "Close Encounter",
     "Lightning Storm",
     "Pyre-Sledge Arsonist"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Aethergeode Miner",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance",
-    "Aethersphere Harvester",
-    "Cyclops Superconductor",
-    "Smelted Chargebug",
-    "Emissary of Soulfire"
    ]
   },
   {
@@ -2318,6 +2298,25 @@
     "Genghis Frog",
     "Ray Fillet, Man Ray",
     "Crustacean Commando"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Riddle Gate Gargoyle",
+    "Consulate Surveillance",
+    "Cyclops Superconductor",
+    "Smelted Chargebug",
+    "Emissary of Soulfire",
+    "Deadlock Trap",
+    "Multiform Wonder"
    ]
   },
   {
@@ -4452,20 +4451,6 @@
    ]
   },
   {
-   "what": "AmassEffect",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Barad-dûr",
-    "Sauron, Lord of the Rings",
-    "Summons of Saruman",
-    "Assault on Osgiliath",
-    "Gríma Wormtongue",
-    "Invade the City",
-    "Bleeding Edge"
-   ]
-  },
-  {
    "what": "CardsInOpponentGraveyardCondition.EIGHT",
    "score": 10,
    "lines": 7,
@@ -6550,17 +6535,6 @@
    ]
   },
   {
-   "what": "GainAbilityPairedEffect",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Deadeye Navigator",
-    "Tandem Lookout",
-    "Mirage Phalanx",
-    "Breathkeeper Seraph"
-   ]
-  },
-  {
    "what": "ReturnToHandFromBattlefieldSourceCost",
    "score": 7,
    "lines": 4,
@@ -7928,6 +7902,19 @@
    ]
   },
   {
+   "what": "AmassEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Sauron, Lord of the Rings",
+    "Summons of Saruman",
+    "Assault on Osgiliath",
+    "Gríma Wormtongue",
+    "Invade the City",
+    "Bleeding Edge"
+   ]
+  },
+  {
    "what": "BecomesCreatureAllEffect",
    "score": 6,
    "lines": 6,
@@ -7977,13 +7964,26 @@
     "Fang-Druid Summoner",
     "Rise from the Wreck"
    ]
+  },
+  {
+   "what": "RemoveCounterTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Clash of the Eikons",
+    "Thrull Parasite",
+    "Ferropede",
+    "Chainbreaker",
+    "Spinal Parasite",
+    "Medicine Runner"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4422,
-   "cards": 3876,
+   "score": 4416,
+   "cards": 3873,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8241,19 +8241,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 27,
-   "cards": 18,
-   "names": [
-    "Season of Gathering",
-    "Biophagus",
-    "Season of the Burrow",
-    "Crypt Rats",
-    "Season of the Bold",
-    "Guildmages' Forum"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 27,
    "cards": 27,
@@ -8277,6 +8264,19 @@
     "Toothy, Imaginary Friend",
     "Merry, Warden of Isengard",
     "Chakram Retriever"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 26,
+   "cards": 17,
+   "names": [
+    "Season of Gathering",
+    "Biophagus",
+    "Season of the Burrow",
+    "Crypt Rats",
+    "Season of the Bold",
+    "Guildmages' Forum"
    ]
   },
   {
@@ -8384,19 +8384,6 @@
    ]
   },
   {
-   "what": "keyword StationLevelAbility",
-   "score": 22,
-   "cards": 7,
-   "names": [
-    "Exploration Broodship",
-    "Adagia, Windswept Bastion",
-    "Uthros Research Craft",
-    "Dawnsire, Sunstar Dreadnought",
-    "Inspirit, Flagship Vessel",
-    "Synthesizer Labship"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 22,
    "cards": 22,
@@ -8420,6 +8407,19 @@
     "Akki Battle Squad",
     "Thundering Raiju",
     "Araña, Heart of the Spider"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 21,
+   "cards": 6,
+   "names": [
+    "Exploration Broodship",
+    "Adagia, Windswept Bastion",
+    "Uthros Research Craft",
+    "Dawnsire, Sunstar Dreadnought",
+    "Inspirit, Flagship Vessel",
+    "Synthesizer Labship"
    ]
   },
   {
@@ -8709,19 +8709,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Aethergeode Miner",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance"
-   ]
-  },
-  {
    "what": "prevent all, or only combat",
    "score": 15,
    "cards": 15,
@@ -8985,6 +8972,19 @@
     "Coalstoke Gearhulk",
     "From the Catacombs",
     "Zoraline, Cosmos Caller"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Riddle Gate Gargoyle",
+    "Consulate Surveillance",
+    "Cyclops Superconductor"
    ]
   },
   {
@@ -9748,19 +9748,6 @@
    ]
   },
   {
-   "what": "DiscardAndDrawThatManyEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
-    "Cathartic Pyre",
-    "Cavalier of Flame",
-    "Sokka, Bold Boomeranger",
-    "Illuminate History",
-    "Colossus of the Blood Age"
-   ]
-  },
-  {
    "what": "CantAttackYouUnlessPayAllEffect",
    "score": 10,
    "cards": 7,
@@ -10026,19 +10013,6 @@
     "Fated Clash",
     "Scarring Memories",
     "Illusion Spinners"
-   ]
-  },
-  {
-   "what": "AmassEffect",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Barad-dûr",
-    "Summons of Saruman",
-    "Assault on Osgiliath",
-    "Gríma Wormtongue",
-    "Invade the City",
-    "Bleeding Edge"
    ]
   },
   {
@@ -11297,17 +11271,6 @@
    ]
   },
   {
-   "what": "GainAbilityPairedEffect",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Deadeye Navigator",
-    "Tandem Lookout",
-    "Mirage Phalanx",
-    "Breathkeeper Seraph"
-   ]
-  },
-  {
    "what": "sacrifice trigger for ANY",
    "score": 7,
    "cards": 4,
@@ -11817,6 +11780,36 @@
     "Awaken the Woods",
     "Staff of Titania",
     "Jyoti, Moag Ancient"
+   ]
+  },
+  {
+   "what": "SearchLibraryForFourDifferentCardsEffect",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Gifts Ungiven",
+    "Realms Uncharted",
+    "Elemental Teachings"
+   ]
+  },
+  {
+   "what": "cost reduction shape",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Morophon, the Boundless",
+    "Edgewalker",
+    "Ragemonger"
+   ]
+  },
+  {
+   "what": "Ability.modes.setLimitUsageByOnce",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Teval's Judgment",
+    "Vindictive Lich",
+    "Survivor's Med Kit"
    ]
   }
  ]
