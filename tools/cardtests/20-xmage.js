@@ -3547,6 +3547,8 @@ module.exports = (test) => {
     t.eq(r.name, 'Funeral Room // Awakening Hall');
     T.resolve();
     t.zone(dead, 'battlefield');
+    t.no(T.g.log.some(l => /unlock door [01]/.test(l.text)), 'the log names the door');
+    t.ok(T.g.log.some(l => /When you unlock Awakening Hall/.test(l.text)), 'by its name');
     // both halves' abilities now: a creature dying drains
     T.g.moveObject(dead, 'graveyard');
     T.resolve();
@@ -3568,4 +3570,32 @@ module.exports = (test) => {
     t.eq(r.face, 0, 'locked again');
   });
 
+
+  test("Killer's Mask: manifested, and the mask goes on that creature", (mk, t) => {
+    t.auto("Killer's Mask");
+    const T = mk();
+    T.top('A', 'Island'); T.top('A', 'Grizzly Bears');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', '2B');
+    const m = T.hand('A', "Killer's Mask");
+    T.cast('A', m);
+    T.resolve();
+    const fd = T.bfOf('A').find(o => o.faceDown);
+    t.ok(fd, 'a face-down creature');
+    t.eq(m.attachedTo, fd && fd.id, 'the mask is on it');
+  });
+
+  test('Slimy Aquarium: the counter goes on the manifested creature', (mk, t) => {
+    const T = mk();
+    T.top('A', 'Island'); T.top('A', 'Grizzly Bears');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', '3U');
+    const r = T.hand('A', 'Underwater Tunnel // Slimy Aquarium');
+    T.cast('A', r, { face: 1 });
+    T.resolve();
+    const fd = T.bfOf('A').find(o => o.faceDown);
+    t.ok(fd, 'a face-down creature');
+    t.eq((fd && fd.counters['+1/+1']) || 0, 1);
+    t.eq(r.counters['+1/+1'] || 0, 0, 'not on the Room');
+  });
 };

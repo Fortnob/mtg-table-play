@@ -315,7 +315,7 @@ const NetToGuest = union('t', NET_TO_GUEST, 'message to a guest');
    to a string that does. Cards themselves are printed data and are left out. */
 function placeholderIn(v, p, out, depth) {
   if ((depth || 0) > 40 || out.length > 20) return;
-  if (typeof v === 'string') { if (v.includes('CARDNAME')) out.push(p); return; }
+  if (typeof v === 'string') { if (v.includes('CARDNAME') || /\bunlock door [01]\b/.test(v)) out.push(p); return; }
   if (!v || typeof v !== 'object') return;
   if (Array.isArray(v)) { v.forEach((x, i) => placeholderIn(x, `${p}[${i}]`, out, (depth || 0) + 1)); return; }
   for (const k of Object.keys(v)) {
@@ -382,7 +382,7 @@ function checkView(view, viewer, game) {
   for (const x of json) bad('view.json', x.path, x.msg);
   const named = [];
   placeholderIn(view, 'view', named);
-  for (const at of named) bad('view.words', at, 'shows the placeholder "CARDNAME" where the name should be');
+  for (const at of named) bad('view.words', at, 'shows a placeholder ("CARDNAME", "door 0") where a name should be');
   if (viewer !== undefined && view.you !== viewer) bad('view.sense', 'view.you', `made for ${show(viewer)} but says ${show(view.you)}`);
   const pids = new Set(view.players.map(p => p.id));
   for (const k of ['activePlayer', 'priorityPlayer', 'monarch', 'initiative'])

@@ -2365,6 +2365,16 @@
         scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^it$/i.test(m[1]) ? 'lastTarget' : null) }) },
 
     /* ===== regeneration and damage prevention ===== */
+    /* "Manifest dread, then put a +1/+1 counter on that creature": what
+       follows is done to the creature just manifested */
+    { re: /^Manifest dread, then (.+)$/i,
+      make: (m) => {
+        const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        if (!rest || rest.op === 'manual' || hasManualStep(rest)) return null;
+        const re = (x) => { if (x && /^(?:self|triggerObject|lastTarget)$/.test(x.scope) && !x.targets) x.scope = 'thatObject'; (x.list || []).forEach(re); };
+        re(rest);
+        return { op: 'sequence', list: [{ op: 'manifestDread' }, rest] };
+      } },
     /* Removed from combat (CR 506.4) */
     { re: /^Remove (target (?:attacking |blocking |attacking or blocking )?creature(?: you control| defending player controls)?|it|this creature|CARDNAME|enchanted creature) from combat\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'removeFromCombat', targets: [targetSpec(m[1])] }
@@ -5793,6 +5803,14 @@
     /* A Room's locked door: its mana cost, paid any time you could cast a
        sorcery, unlocks it (CR 709.5e) — a special action, offered with the
        Room's abilities */
+    /* "door 0" and "door 1" are only how the reading tells the doors apart;
+       a player reads the door's name */
+    if (isRoom(card) || card.roomOf) {
+      const faces = (card.roomOf ? null : card.card_faces) || String(card.name).split(' // ').map(n => ({ name: n }));
+      for (const ab of out.abilities) {
+        if (typeof ab.text === 'string') ab.text = ab.text.replace(/When you unlock door ([01])/g, (x, d) => 'When you unlock ' + ((faces[+d] || {}).name || 'this door'));
+      }
+    }
     if (isRoom(card) && (faceIndex === 0 || faceIndex === 1)) {
       const other = card.card_faces[1 - faceIndex];
       out.isRoom = true;

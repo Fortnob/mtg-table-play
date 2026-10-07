@@ -8551,7 +8551,7 @@
             this._lastGroup = list.map(o => o.id);
             for (const o of list) this.addCounters(o, e.kind, cnt);
           }
-          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
+          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.addCounters(o, e.kind, cnt);
           }
@@ -11079,7 +11079,9 @@
         }
         case 'attachSelf': {
           // "attach this Equipment to it": the creature the trigger is about
-          const tid = e.scope === 'triggerObject' && (ctx.triggerData || {}).objectId;
+          const tid = e.scope === 'triggerObject' ? (ctx.triggerData || {}).objectId
+            // "manifest dread, then attach this Equipment to that creature"
+            : e.scope === 'thatObject' ? this._lastPut : null;
           const host = tid ? this.obj(tid) : firstObj();
           if (host && host.zone !== 'battlefield') break;
           if (!src || !host) break;
@@ -11696,6 +11698,8 @@
               c.faceDown = true;
               this.moveObject(c, 'battlefield', { controller: ctx.controller });
               c.faceDown = true;
+              // "then put a +1/+1 counter on that creature"
+              this._lastPut = c.id;
             } else if (c.zone === 'library') this.moveObject(c, 'graveyard');
           }
           this.logEvent('rules', `${me.name} manifests dread.`);
