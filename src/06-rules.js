@@ -1890,6 +1890,7 @@
       this._dealtThisWay = [];
       this._madeThisResolution = [];
       this._exiledNow = [];
+      this._returnedNow = [];
       this._lastAffected = null;
       this._lastCopy = null;
       this._lastPut = null;
@@ -7741,6 +7742,7 @@
           return top > 0 && k[cond.color] === top;
         }
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
+        case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
         case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
@@ -7886,9 +7888,11 @@
     }
 
     /** A number in a continuous effect, which may be counting something. */
-    _contValue(v, o) {
+    _contValue(v, o, src) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
+      // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
+      if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
@@ -8044,7 +8048,7 @@
         if (ef.grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant: ef.grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
-        if (ef.pt) modifying.push(ef.pt);
+        if (ef.pt) modifying.push(Object.assign({ src: entry.src }, ef.pt));
         if (ef.switchPt) switches++;
       }
       (o.effects || []).forEach((e, i) => {
@@ -8086,8 +8090,8 @@
       if (setting.length) { setting.sort((x, y) => x.ts - y.ts); setting.forEach(setTo); }
       // layer 7c: effects that modify, and counters
       for (const m of modifying) {
-        if (m.p) p += this._contValue(m.p, o);
-        if (m.t) t += this._contValue(m.t, o);
+        if (m.p) p += this._contValue(m.p, o, m.src);
+        if (m.t) t += this._contValue(m.t, o, m.src);
       }
       const plus = Number(o.counters['+1/+1']) || 0, minus = Number(o.counters['-1/-1']) || 0;
       p += plus - minus; t += plus - minus;
@@ -9424,6 +9428,11 @@
         if (v && typeof v === 'object' && v.minusHand != null) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, v.minusHand - (p ? this.zones[p.id].hand.length : 0)); }
         // Kozilek: "draw cards equal to the difference" — up to seven in hand
         if (v && typeof v === 'object' && v.handTo != null) return Math.max(0, v.handTo - ((me && this.zones[me.id].hand.length) || 0));
+        // Generous Plunderer: "equal to the number of artifacts they control" — the defending player's
+        if (v && typeof v === 'object' && v.defendersCount) {
+          const dp = this._defenderOf(src);
+          return dp ? this.battlefield.filter(o => o.controller === dp.id && !o.phasedOut && this._cardFitsWords(o, v.defendersCount)).length : 0;
+        }
         // Children of Korlis: the life lost this turn
         if (v && typeof v === 'object' && v.lifeLostThisTurn) return (me && me.lifeLostThisTurn) || 0;
         // Traumatize: half a library
@@ -9774,7 +9783,8 @@
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // Hellrider: "to the player or planeswalker it's attacking"
           if (e.toDefenderOf) {
-            const att = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            // Generous Plunderer: the creature itself, attacking
+            const att = e.toDefenderOf === 'self' ? src : (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
             const def = att && att.attacking && (this.player(att.attacking) || this.obj(att.attacking));
             if (def && def.pool) this.dealDamageToPlayer(def, cnt, dsrc);
             else if (def && def.zone === 'battlefield') this.dealDamageToObject(def, cnt, dsrc);
@@ -11515,6 +11525,8 @@
             if (!o || o.zone !== 'battlefield') continue;
             this.moveObject(o, 'hand');
             this.logEvent('bounce', `${me.name} returns ${o.name} to their hand.`);
+            // Arid Archway: "if another Desert was returned this way"
+            (this._returnedNow = this._returnedNow || []).push({ id: o.id, self: !!src && o.id === src.id, subtypes: ((o.analysis() || {}).subtypes || []).slice() });
           }
           this.emit('sfx', 'bounce');
           break;

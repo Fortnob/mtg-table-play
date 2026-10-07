@@ -6528,4 +6528,40 @@ module.exports = (test) => {
     const syms = T.g.manaAbilitiesOf(forest).map(ab => JSON.stringify(ab.effects)).join(' ');
     t.ok(syms.includes('"U"') && !syms.includes('"G"'), 'blue, not green: ' + syms);
   });
+
+  test('Generous Plunderer: damage equal to the artifacts the defending player controls', (mk, t) => {
+    t.auto('Generous Plunderer');
+    const T = mk();
+    const gp = T.bf('A', 'Generous Plunderer');
+    T.bf('B', 'Mind Stone'); T.bf('B', 'Mind Stone');
+    T.answer('declareAttackers', () => [{ attackerId: gp.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 20 - 2 - T.g.powerOf(gp), 'two from the trigger, and the combat damage');
+  });
+
+  test('Banner of Kinship: a fellowship counter for each creature of the chosen type', (mk, t) => {
+    t.auto('Banner of Kinship');
+    const T = mk();
+    const b1 = T.bf('A', 'Grizzly Bears'); T.bf('A', 'Grizzly Bears');
+    T.answer('choose', (ch) => ({ picks: [Math.max(0, ch.options.findIndex(o => o.label === 'Bear'))] }));
+    T.mana('A', '5');
+    const bk = T.hand('A', 'Banner of Kinship');
+    T.cast('A', bk);
+    T.resolve();
+    t.eq(bk.counters.fellowship || 0, 2);
+    t.eq(T.g.powerOf(b1), 4, '+2/+2');
+  });
+
+  test('Arid Archway: surveil only when another Desert went back', (mk, t) => {
+    t.auto('Arid Archway');
+    const T = mk();
+    const des = T.bf('A', 'Desert');
+    T.top('A', 'Island'); T.top('A', 'Island');
+    T.answer('pickCard', () => ({ cardIds: [des.id] }));
+    const aa = T.put('A', 'Arid Archway', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(des.zone, 'hand');
+    t.ok(T.asked.some(c => c.type === 'scry' || c.type === 'surveil'), 'surveilled');
+    void aa;
+  });
 };

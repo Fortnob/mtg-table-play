@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14477,
+  "needed": 14474,
   "gainedCards": 1517,
-  "linesNeeded": 16042,
+  "linesNeeded": 16038,
   "linesGained": 1894,
   "gained": {
    "all": 1517,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5276,
-   "lines": 4586,
+   "score": 5259,
+   "lines": 4584,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -185,25 +185,6 @@
    ]
   },
   {
-   "what": "AsEntersBattlefieldAbility",
-   "score": 90,
-   "lines": 78,
-   "cards": [
-    "Cloud Key",
-    "Banner of Kinship",
-    "Mirrodin Besieged",
-    "Serra's Emissary",
-    "Temple of the Dragon Queen",
-    "Struggle for Project Purity",
-    "Hollowmurk Siege",
-    "Eclipsed Realms",
-    "Frontier Siege",
-    "Sower of Discord",
-    "Barrensteppe Siege",
-    "Sin, Unending Cataclysm"
-   ]
-  },
-  {
    "what": "Ability.setIdentifier",
    "score": 84,
    "lines": 57,
@@ -220,6 +201,25 @@
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Tarrian's Journal // The Tomb of Aclazotz",
     "Locke, Treasure Hunter"
+   ]
+  },
+  {
+   "what": "AsEntersBattlefieldAbility",
+   "score": 80,
+   "lines": 77,
+   "cards": [
+    "Cloud Key",
+    "Mirrodin Besieged",
+    "Serra's Emissary",
+    "Temple of the Dragon Queen",
+    "Struggle for Project Purity",
+    "Hollowmurk Siege",
+    "Eclipsed Realms",
+    "Frontier Siege",
+    "Sower of Discord",
+    "Barrensteppe Siege",
+    "Sin, Unending Cataclysm",
+    "Greymond, Avacyn's Stalwart"
    ]
   },
   {
@@ -1942,21 +1942,6 @@
     "Covetous Castaway // Ghostly Castigator",
     "Piper's Melody",
     "Put Away"
-   ]
-  },
-  {
-   "what": "attack trigger with its own text",
-   "score": 14,
-   "lines": 8,
-   "cards": [
-    "Generous Plunderer",
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Cultivator of Blades",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent"
    ]
   },
   {
@@ -5578,6 +5563,20 @@
    ]
   },
   {
+   "what": "attack trigger with its own text",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Conqueror's Galleon // Conqueror's Foothold",
+    "Cultivator of Blades",
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental",
+    "Shrouded Serpent"
+   ]
+  },
+  {
    "what": "DealsCombatDamageTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -7556,8 +7555,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4222,
-   "cards": 3733,
+   "score": 4212,
+   "cards": 3732,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7698,19 +7697,6 @@
    ]
   },
   {
-   "what": "AsEntersBattlefieldAbility",
-   "score": 40,
-   "cards": 28,
-   "names": [
-    "Cloud Key",
-    "Banner of Kinship",
-    "Mirrodin Besieged",
-    "Temple of the Dragon Queen",
-    "Struggle for Project Purity",
-    "Hollowmurk Siege"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 35,
    "cards": 35,
@@ -7760,6 +7746,19 @@
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy",
     "Ragost, Deft Gastronaut"
+   ]
+  },
+  {
+   "what": "AsEntersBattlefieldAbility",
+   "score": 30,
+   "cards": 27,
+   "names": [
+    "Cloud Key",
+    "Mirrodin Besieged",
+    "Temple of the Dragon Queen",
+    "Struggle for Project Purity",
+    "Hollowmurk Siege",
+    "Eclipsed Realms"
    ]
   },
   {

@@ -1743,6 +1743,20 @@
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'flagWhile', pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, targets: [t], whileTapped: true } : null; } },
     // Corpseberry Cultivator: "you may forage" with nothing after it
     { re: /^Forage\.?$/i, make: () => ({ op: 'mayPay', pay: { forage: true }, then: [], noAsk: true }) },
+    // Banner of Kinship: "This artifact enters with a fellowship counter on it for each creature you control of the chosen type."
+    { re: /^(?:This artifact|This creature|CARDNAME) enters with an? ([a-z]+) counter on it for each (creature you control of the chosen type)\.?$/i,
+      make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, scope: 'self' } : null; } },
+    // Arid Archway: "If another Desert was returned this way, surveil 1."
+    { re: /^If another ([A-Z][a-z]+) was returned this way, (.+)$/,
+      make: (m) => { const inner = parseEffectSentence(U.titleCase(m[2].charAt(0)) + m[2].slice(1), 1);
+        return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'returnedType', type: m[1], other: true }, then: [inner] } : null; } },
+    // Generous Plunderer: "target opponent creates a tapped Treasure token"
+    { re: /^(Target opponent|Each opponent) creates? an? (tapped )?(Treasure|Food|Clue|Blood|Map) token\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'target', targets: [{ type: 'player', opponent: true }] }
+        : { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'opponents' }) },
+    // Generous Plunderer: "it deals damage to defending player equal to the number of artifacts they control"
+    { re: /^(?:It|CARDNAME|This creature) deals damage to defending player equal to the number of ([a-z]+)s they control\.?$/i,
+      make: (m) => ({ op: 'damage', n: { defendersCount: m[1].toLowerCase() }, toDefenderOf: 'self' }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
