@@ -5595,4 +5595,18 @@ module.exports = (test) => {
     t.eq(bolt.zone, 'graveyard');
     t.eq(T.life('B'), 20);
   });
+
+  test('Fresh Start and Grounded: what an Aura takes away', (mk, t) => {
+    t.auto('Fresh Start'); t.auto('Grounded');
+    const T = mk();
+    const bird = T.bf('B', 'Birds of Paradise');
+    const gr = T.bf('A', 'Grounded');
+    gr.attachedTo = bird.id; bird.attachments.push(gr.id); T.g.bumpBoard();
+    t.no(T.g.hasKw(bird, 'flying'), 'grounded');
+    const angel = T.bf('B', 'Serra Angel');
+    const fs = T.bf('A', 'Fresh Start');
+    fs.attachedTo = angel.id; angel.attachments.push(fs.id); T.g.bumpBoard();
+    t.no(T.g.hasKw(angel, 'flying'), 'no flying');
+    t.no(T.g.hasKw(angel, 'vigilance'), 'no vigilance');
+  });
 };

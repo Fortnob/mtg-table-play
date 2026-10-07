@@ -7224,6 +7224,11 @@
     if (/^can'?t be blocked$/.test(w)) return { op: 'continuous', layer: 6, scope, grant: ['Unblockable'] };
     if (/^attacks each combat if able$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'mustAttackEot' };
     if (/^can attack as though (?:it|they) didn'?t have defender$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'attackDespiteDefender' };
+    // Leaden Fists: "doesn't untap during its controller's untap step"
+    if (/^(?:doesn'?t|don'?t) untap during (?:its|their) controllers?'?s? untap steps?$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'noUntap' };
+    // Quantum Reduction: "loses all abilities"
+    if (/^loses? all abilities$/.test(w)) return { op: 'continuous', layer: 6, scope, loseAll: true };
+    if (/^(?:its|their) activated abilities can'?t be activated$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'cantActivate' };
     return null;
   }
 
@@ -7281,12 +7286,31 @@
         return { op: 'continuous', layer: 4, scope: { attached: true }, loseAll: true, setTypes: ['Creature'], setCreatureTypes: [m[2]],
           setColors: m[1].split(' and ').map(c => CW[c]), setPt: { p: +m[3], t: +m[4] } };
       } },
-    { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able)\.?$/i,
+    { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able|(?:doesn'?t|don'?t) untap during [a-z' ]+ untap steps?|loses? all abilities)\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);
+        const part = scope && restrictionPart(Object.assign({}, scope), m[4]);
+        if (!part) return null;
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) } }, part] };
+      } },
+    // Stupefying Touch: "Enchanted creature's activated abilities can't be activated."
+    { re: /^(Enchanted creature|Enchanted permanent|Equipped creature)'s activated abilities can'?t be activated\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 6, scope, flag: 'cantActivate' } : null; } },
+    // Encrust: "doesn't untap during its controller's untap step and its activated abilities can't be activated"
+    { re: /^(Enchanted creature|Enchanted permanent|Enchanted artifact) doesn'?t untap during its controller'?s untap step and its activated abilities can'?t be activated\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope, flag: 'noUntap' },
+        { op: 'continuous', layer: 6, scope: Object.assign({}, scope), flag: 'cantActivate' }] } : null; } },
+    // Grounded: "Enchanted creature loses flying."
+    { re: /^(Enchanted creature|Equipped creature) loses (flying|first strike|trample|deathtouch|lifelink|vigilance|reach|haste|menace|defender|hexproof|indestructible)\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 6, scope, lose: [U.titleCase(m[2].toLowerCase())] } : null; } },
+    // Sandskin, Candletrap: combat damage prevented to and/or by what this enchants
+    { re: /^Prevent all combat damage that would be dealt (to and dealt by|by|to) (enchanted creature|equipped creature)\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[2]);
         if (!scope) return null;
-        return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) } },
-          restrictionPart(Object.assign({}, scope), m[4])] };
+        const flags = /to and/i.test(m[1]) ? ['noDamage', 'noDamageTaken'] : /^by/i.test(m[1]) ? ['noDamage'] : ['noDamageTaken'];
+        return flags.length === 1 ? { op: 'continuous', layer: 6, scope, flag: flags[0] }
+          : { op: 'sequence', list: flags.map(f => ({ op: 'continuous', layer: 6, scope: Object.assign({}, scope), flag: f })) };
       } },
     // "This creature can't be blocked as long as you've drawn two or more cards this turn."
     { re: /^(.+?) can'?t be blocked as long as (.+?)\.?$/i,
