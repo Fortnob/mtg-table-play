@@ -6870,7 +6870,7 @@
            when one could that isn't blocking anything else */
         for (const aid of this.combat.attackers) {
           const at = this.obj(aid);
-          if (!at || !this._staticOp(at, 'mustBeBlocked')) continue;
+          if (!at || !(this._staticOp(at, 'mustBeBlocked') || this._hasFlag(at, 'mustBeBlockedTurn'))) continue;
           if (declarations.some(d => d.attackerIds.includes(aid))) continue;
           const free = this.battlefield.filter(o => o.controller === playerId && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
           if (free.length) return this.fail(`${at.name} must be blocked if able.`);
@@ -9522,6 +9522,11 @@
           const dp = this._defenderOf(src);
           return dp ? this.battlefield.filter(o => o.controller === dp.id && !o.phasedOut && this._cardFitsWords(o, v.defendersCount)).length : 0;
         }
+        // Pain for All: "damage equal to its power" — the enchanted creature's
+        if (v && typeof v === 'object' && v.ofAttached) {
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          return host && host.zone === 'battlefield' ? (v.ofAttached === 'toughness' ? this.toughnessOf(host) : this.powerOf(host)) : 0;
+        }
         // Children of Korlis: the life lost this turn
         if (v && typeof v === 'object' && v.lifeLostThisTurn) return (me && me.lifeLostThisTurn) || 0;
         // Traumatize: half a library
@@ -9868,6 +9873,8 @@
           let dsrc = src;
           if (e.fromTrigger) { const id = (ctx.triggerData || {}).objectId; dsrc = (id && this.obj(id)) || src; }
           if (e.fromTarget) { const t0 = targets.find(t => t.kind === 'object'); dsrc = (t0 && this.obj(t0.id)) || src; }
+          // Pain for All: the enchanted creature deals it
+          if (e.fromAttached) { const host = src && src.attachedTo && this.obj(src.attachedTo); if (!host || host.zone !== 'battlefield') break; dsrc = host; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // Hellrider: "to the player or planeswalker it's attacking"
@@ -12171,6 +12178,15 @@
             o._chr = null;
           });
           this.bumpBoard();
+          break;
+        }
+        // Sunspine Lynx: to each player, as much as the nonbasic lands they control
+        case 'damageEachByCount': {
+          for (const p of this.players) {
+            if (p.hasLost) continue;
+            const k = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && this._cardFitsWords(o, e.what)).length;
+            if (k > 0) this.dealDamageToPlayer(p, k, src);
+          }
           break;
         }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
@@ -15264,6 +15280,8 @@
     /** Stomp, Skullcrack: "Damage can't be prevented this turn"; Frenzied Baloth: combat damage, while it's here. */
     _noPrevention(isCombat) {
       if (this.noPreventTurn === this.turn) return true;
+      // Sunspine Lynx: "Damage can't be prevented."
+      if (this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noPreventionAll'))) return true;
       return !!isCombat && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noCombatPrevention'));
     }
     _damagePrevented(target, isCombat, source, amount) {
@@ -16314,6 +16332,12 @@
       if (spec.maxMvSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
         return this._legalTargetsFor(Object.assign({}, spec, { maxMvSourcePower: false, maxMv: s0 ? Math.max(0, this.powerOf(s0)) : 0 }), controllerId, sourceId);
+      }
+      // Pain for All: "any other target" — not the creature this Aura enchants
+      if (spec.notAttached && sourceId) {
+        const s0 = this.obj(sourceId);
+        const host = s0 && s0.attachedTo;
+        return this._legalTargetsFor(Object.assign({}, spec, { notAttached: false }), controllerId, sourceId).filter(t => t.id !== host);
       }
       // "another target creature" is never the creature asking (CR 115.5)
       if (spec.another && sourceId) {

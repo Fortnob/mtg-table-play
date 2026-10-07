@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14409,
+  "needed": 14392,
   "gainedCards": 1519,
-  "linesNeeded": 15990,
+  "linesNeeded": 15964,
   "linesGained": 1894,
   "gained": {
    "all": 1519,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5259,
-   "lines": 4584,
+   "score": 5257,
+   "lines": 4582,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 276,
-   "lines": 246,
+   "score": 275,
+   "lines": 245,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -357,10 +357,9 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 38,
-   "lines": 38,
+   "score": 37,
+   "lines": 37,
    "cards": [
-    "Pain for All",
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
     "Screaming Nemesis",
@@ -371,7 +370,8 @@
     "Dune Chanter",
     "Needle Drop",
     "Self-Destruct",
-    "You Look Upon the Tarrasque"
+    "You Look Upon the Tarrasque",
+    "Jhoira's Timebug"
    ]
   },
   {
@@ -505,25 +505,6 @@
     "Spoils of the Vault",
     "The Stone Brain",
     "Lost Legacy"
-   ]
-  },
-  {
-   "what": "AddCardSubtypeAttachedEffect",
-   "score": 29,
-   "lines": 29,
-   "cards": [
-    "Black Mage's Rod",
-    "Angelic Destiny",
-    "Astrologian's Planisphere",
-    "Samurai's Katana",
-    "Reaper's Scythe",
-    "Blue Mage's Cane",
-    "Demonic Embrace",
-    "Dragoon's Lance",
-    "Summoner's Grimoire",
-    "White Mage's Staff",
-    "Ninja's Blades",
-    "Red Mage's Rapier"
    ]
   },
   {
@@ -1227,6 +1208,25 @@
     "Power Taint",
     "Power Leak",
     "Erosion"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Black Mage's Rod",
+    "Astrologian's Planisphere",
+    "Reaper's Scythe",
+    "Blue Mage's Cane",
+    "Dragoon's Lance",
+    "Summoner's Grimoire",
+    "White Mage's Staff",
+    "Ninja's Blades",
+    "Red Mage's Rapier",
+    "Thief's Knife",
+    "Warrior's Sword",
+    "Sage's Nouliths"
    ]
   },
   {
@@ -2074,23 +2074,6 @@
     "Curie, Emergent Intelligence",
     "The War Games",
     "Wormfang Drake"
-   ]
-  },
-  {
-   "what": "damage affecting the defending player",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Kediss, Emberclaw Familiar",
-    "Fynn, the Fangbearer",
-    "Angel of Destiny",
-    "Vraska, Golgari Queen",
-    "Strixhaven Stadium",
-    "Cosima, God of the Voyage // The Omenkeel",
-    "Edward Kenway",
-    "Rogue Class",
-    "Virulent Silencer",
-    "Etrata, Deadly Fugitive"
    ]
   },
   {
@@ -2957,6 +2940,21 @@
     "Vernal Equinox",
     "Cherished Hatchling",
     "Rootwater Shaman"
+   ]
+  },
+  {
+   "what": "damage affecting the defending player",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Kediss, Emberclaw Familiar",
+    "Angel of Destiny",
+    "Vraska, Golgari Queen",
+    "Strixhaven Stadium",
+    "Cosima, God of the Voyage // The Omenkeel",
+    "Edward Kenway",
+    "Rogue Class",
+    "Etrata, Deadly Fugitive"
    ]
   },
   {
@@ -5993,19 +5991,6 @@
    ]
   },
   {
-   "what": "DamageCantBePreventedEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Sunspine Lynx",
-    "Spider-Punk",
-    "Everlasting Torment",
-    "Isengard Unleashed",
-    "Insult // Injury",
-    "Fear, Fire, Foes!"
-   ]
-  },
-  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 6,
    "lines": 6,
@@ -6029,18 +6014,6 @@
     "Earth Rumble",
     "Earthshape",
     "Bumi's Feast Lecture"
-   ]
-  },
-  {
-   "what": "HalfValue",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "The Goose Mother",
-    "Imskir Iron-Eater",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Rakdos the Defiler",
-    "Banshee"
    ]
   },
   {
@@ -7535,13 +7508,37 @@
     "Goblin Flotilla",
     "Treacherous Vampire"
    ]
+  },
+  {
+   "what": "DamagedPlayerThisTurnPredicate",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Spear of Heliod",
+    "Giltspire Avenger",
+    "Reciprocate",
+    "Otherworldly Escort",
+    "Retaliate"
+   ]
+  },
+  {
+   "what": "BecomesTargetSourceFirstTimeTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Kira, Great Glass-Spinner",
+    "Angelic Cub",
+    "Glyph Keeper",
+    "Shimmering Glasskite",
+    "Jetting Glasskite"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4213,
-   "cards": 3733,
+   "score": 4214,
+   "cards": 3734,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7605,8 +7602,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 165,
-   "cards": 153,
+   "score": 164,
+   "cards": 152,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7631,8 +7628,8 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 53,
-   "cards": 41,
+   "score": 55,
+   "cards": 43,
    "names": [
     "Muldrotha, the Gravetide",
     "One with the Multiverse",
@@ -7721,19 +7718,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 31,
-   "cards": 31,
-   "names": [
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 30,
    "cards": 27,
@@ -7744,6 +7728,19 @@
     "Struggle for Project Purity",
     "Hollowmurk Siege",
     "Eclipsed Realms"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 30,
+   "cards": 30,
+   "names": [
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut",
+    "Press the Enemy"
    ]
   },
   {
@@ -9509,18 +9506,6 @@
    ]
   },
   {
-   "what": "damage affecting the defending player",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Kediss, Emberclaw Familiar",
-    "Fynn, the Fangbearer",
-    "Vraska, Golgari Queen",
-    "Edward Kenway",
-    "Virulent Silencer"
-   ]
-  },
-  {
    "what": "MayPay2LifeForColorAbility",
    "score": 8,
    "cards": 5,
@@ -10365,19 +10350,6 @@
    ]
   },
   {
-   "what": "AddCardSubtypeAttachedEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Sigiled Sword of Valeron",
-    "Spider-Suit",
-    "Inner Demon",
-    "Dub",
-    "Raven Wings",
-    "Call to Serve"
-   ]
-  },
-  {
    "what": "BoostEnchantedEffect p/t",
    "score": 7,
    "cards": 7,
@@ -10613,6 +10585,16 @@
     "Charismatic Conqueror",
     "Sire of Stagnation",
     "Faerie Artisans"
+   ]
+  },
+  {
+   "what": "damage affecting the defending player",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Kediss, Emberclaw Familiar",
+    "Vraska, Golgari Queen",
+    "Edward Kenway"
    ]
   },
   {
@@ -11365,6 +11347,15 @@
     "Minotaur Explorer",
     "Pillaging Horde",
     "Stormscale Anarch"
+   ]
+  },
+  {
+   "what": "activated in HAND",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Talon Gates of Madara",
+    "Urban Retreat"
    ]
   }
  ]

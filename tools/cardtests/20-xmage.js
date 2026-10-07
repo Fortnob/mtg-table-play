@@ -6732,4 +6732,51 @@ module.exports = (test) => {
     t.eq(giant.counters['-1/-1'] || 0, 1);
     t.eq(T.life('B'), 18);
   });
+
+  test('Pain for All: the enchanted creature deals damage equal to its power', (mk, t) => {
+    t.auto('Pain for All');
+    const T = mk();
+    const giant = T.bf('A', 'Hill Giant');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R2');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    const pfa = T.hand('A', 'Pain for All');
+    T.cast('A', pfa, { targets: [giant.id] });
+    T.resolve();
+    t.eq(pfa.attachedTo, giant.id);
+    t.eq(bear.zone, 'graveyard', 'three damage from the Giant');
+  });
+
+  test('Angelic Destiny: +4/+4, flying, an Angel; back to hand when it dies', (mk, t) => {
+    t.auto('Angelic Destiny');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ad = T.bf('A', 'Angelic Destiny');
+    ad.attachedTo = bear.id; bear.attachments.push(ad.id); T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 6);
+    t.ok(T.g.hasKw(bear, 'flying'));
+    t.ok(T.g._hasSubtype(bear, 'Angel'));
+    T.g.moveObject(bear, 'graveyard'); T.g.checkStateBasedActions(); T.resolve();
+    t.eq(ad.zone, 'hand');
+  });
+
+  test('Sunspine Lynx: damage for nonbasic lands, and it cannot be prevented', (mk, t) => {
+    t.auto('Sunspine Lynx');
+    const T = mk();
+    T.bf('B', 'Steam Vents'); T.bf('B', 'Steam Vents'); T.bf('B', 'Island');
+    T.bf('A', 'Steam Vents');
+    T.mana('A', 'RR2');
+    T.cast('A', T.hand('A', 'Sunspine Lynx'));
+    T.resolve();
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 19);
+  });
+
+  test('Jumbo Cactuar: a label with a number in it is still a label', (mk, t) => {
+    t.auto('Jumbo Cactuar');
+    const T = mk();
+    const jc = T.bf('A', 'Jumbo Cactuar');
+    T.answer('declareAttackers', () => [{ attackerId: jc.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.ok(T.life('B') <= 0, 'ten thousand needles');
+  });
 };

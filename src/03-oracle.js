@@ -1804,6 +1804,23 @@
     // Generous Plunderer: "it deals damage to defending player equal to the number of artifacts they control"
     { re: /^(?:It|CARDNAME|This creature) deals damage to defending player equal to the number of ([a-z]+)s they control\.?$/i,
       make: (m) => ({ op: 'damage', n: { defendersCount: m[1].toLowerCase() }, toDefenderOf: 'self' }) },
+    // Fynn, the Fangbearer: "that player gets two poison counters"
+    { re: /^(?:That player|They) gets? (a|one|two|three|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'triggerPlayer' }) },
+    // Angelic Destiny: "return this card to its owner's hand" from the graveyard it went to
+    { re: /^Return (?:this card|CARDNAME) to its owner'?s hand\.?$/i, make: () => ({ op: 'selfFromGraveyard', to: 'hand' }) },
+    // The Goose Mother: "create half X Food tokens, rounded up"
+    { re: /^Create half X (Food|Treasure|Clue) tokens, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', n: { half: 'X', up: /up/i.test(m[2]) }, token: m[1] }) },
+    // Sunspine Lynx: "it deals damage to each player equal to the number of nonbasic lands that player controls"
+    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to the number of ([a-z ]+?)s that player controls\.?$/i,
+      make: (m) => ({ op: 'damageEachByCount', what: m[1].toLowerCase() }) },
+    // Anzrag: "CARDNAME must be blocked each combat this turn if able."
+    { re: /^(?:CARDNAME|This creature) must be blocked each combat this turn if able\.?$/i,
+      make: () => ({ op: 'flagEot', scope: 'self', flags: ['mustBeBlockedTurn'] }) },
+    // Pain for All: "enchanted creature deals damage equal to its power to any other target"
+    { re: /^(Enchanted|Equipped) creature deals damage equal to its power to (any other target|any target|target creature|target player)\.?$/i,
+      make: (m) => ({ op: 'damage', n: { ofAttached: 'power' }, fromAttached: true,
+        targets: [Object.assign(targetSpec(m[2].replace(/ other/, '')), /other/i.test(m[2]) ? { notAttached: true } : {})] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -5046,7 +5063,8 @@
   const NOT_ABILITY_WORDS = new Set(['boast', 'exhaust', 'power-up', 'max speed', 'channel', 'companion', 'forecast', 'renew',
     'to solve', 'solved', 'visit', 'prize', 'eminence', 'mono eminence', 'bloodrush', 'spree', 'level up']);
   function stripAbilityWord(line) {
-    const m = String(line).match(/^([A-Za-z][A-Za-z' ]{2,30}?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Jumbo Cactuar: "10,000 Needles — Whenever …")
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' ]{2,30}?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -8189,7 +8207,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll']);
 
   function parseStatic(line, ctx) {
     /* the Wards: "Enchanted creature has protection from white. This effect
@@ -8370,6 +8388,17 @@
         make: (m) => ({ op: 'abilityCostMod', scope: { who: 'opponents', what: 'planeswalker' }, loyalty: true, amount: +m[1] }), auto: true },
       /* Blazing Archon, Reverence, Spectral Grasp: "Creatures with power 2 or
          less can't attack you", "…or planeswalkers you control" */
+      // Sunspine Lynx: "Damage can't be prevented."
+      { re: /^Damage can'?t be prevented\.?$/i, eff: { op: 'noPreventionAll' }, auto: true },
+      // Angelic Destiny: "gets +4/+4, has flying and first strike, and is an Angel in addition to its other types"
+      { re: /^(Enchanted creature|Equipped creature) gets ([+-]\d+)\/([+-]\d+), has ([a-z ,]+?),? and is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+        make: (m) => {
+          const kws = keywordList(m[4]);
+          const scope = scopeOf(m[1]);
+          if (!scope || !kws.every(k => kwKnown(k))) return null;
+          return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
+            { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[5]] }] };
+        }, auto: true },
       { re: /^(.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,
         make: (m) => {
           if (/^(?:CARDNAME|this creature|it|they)$/i.test(m[1])) return null;
