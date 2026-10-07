@@ -6990,6 +6990,7 @@
           return who.some(q => (q.lifeLostThisTurn || 0) >= (cond.n || 1));
         }
         case 'controlNotOwned': return !!me && this.battlefield.filter(x => x.controller === me.id && x.owner !== me.id && !x.phasedOut).length >= (cond.n || 1);
+        case 'selfInGraveyard': return !!src && src.zone === 'graveyard';
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
@@ -8072,7 +8073,10 @@
         // "When you next cast …": the turn's emblem goes once it has triggered
         if (o.card && o.card.once && o.zone === 'command') { this._removeFromZone(o); o.zone = null; this.bumpBoard(); }
       };
-      for (const o of this._withEmblems(this.battlefield)) {
+      // with the cards whose triggered abilities work from a graveyard (Nether Traitor)
+      const graveOnes = [];
+      for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) { const ca = c.analysis(); if (ca && ca.graveTriggers) graveOnes.push(c); }
+      for (const o of this._withEmblems(this.battlefield).concat(graveOnes)) {
         if (o.phasedOut) continue;
         const a = o.analysis();
         if (!a) continue;
@@ -8080,6 +8084,8 @@
           const ab = a.abilities[i];
           // "enters or attacks" is one ability that answers to either event
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+          // a graveyard ability works from there and nowhere else
+          if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
           if (ab.self && data.source && data.source.id !== o.id) continue;
           if (ab.self && !data.source) continue;
           // "When this Class becomes level 3" is only that level
@@ -12245,6 +12251,10 @@
           break;
         }
         /* Nesting Grounds: a counter moved from one target to the other */
+        // "Exile this card": wherever it is (Bridge from Below, in a graveyard)
+        case 'exileSelfAnywhere':
+          if (src && src.zone && src.zone !== 'exile' && src.zone !== 'stack') { this.moveObject(src, 'exile'); this.logEvent('exile', `${src.name} is exiled.`); }
+          break;
         // Backup: another creature backed up gains the abilities printed below the keyword
         case 'backupGrant': {
           const t0 = targets.find(t => t.kind === 'object');

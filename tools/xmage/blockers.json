@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15870,
-  "gainedCards": 1607,
-  "linesNeeded": 17969,
+  "needed": 15854,
+  "gainedCards": 1608,
+  "linesNeeded": 17946,
   "linesGained": 2055,
   "gained": {
-   "all": 1607,
+   "all": 1608,
    "top2000": 52,
    "stdTop": 12
   },
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 980,
-   "lines": 821,
+   "score": 975,
+   "lines": 816,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -3047,25 +3047,6 @@
    ]
   },
   {
-   "what": "RollDieWithResultTableEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Myrkul's Edict",
-    "Cone of Cold",
-    "Berserker's Frenzy",
-    "Thunderwave",
-    "Revivify",
-    "Diviner's Portent",
-    "Recruitment Drive",
-    "Overwhelming Encounter",
-    "Aberrant Mind Sorcerer",
-    "Power of Persuasion",
-    "Scion of Stygia",
-    "Loathsome Troll"
-   ]
-  },
-  {
    "what": "PreventDamageAndRemoveCountersEffect",
    "score": 13,
    "lines": 13,
@@ -3631,22 +3612,21 @@
    ]
   },
   {
-   "what": "only to its controller's graveyard",
+   "what": "RollDieWithResultTableEffect",
    "score": 12,
    "lines": 12,
    "cards": [
-    "Prowess of the Fair",
-    "Soulcatchers' Aerie",
-    "Colfenor's Urn",
-    "Angelic Renewal",
-    "Field of Souls",
-    "Mortuary",
-    "Jinxed Ring",
-    "Mazzy, Truesword Paladin",
-    "Enduring Renewal",
-    "Sigil of the New Dawn",
-    "Kithkin Mourncaller",
-    "Magus of the Bridge"
+    "Myrkul's Edict",
+    "Cone of Cold",
+    "Berserker's Frenzy",
+    "Thunderwave",
+    "Revivify",
+    "Diviner's Portent",
+    "Recruitment Drive",
+    "Overwhelming Encounter",
+    "Aberrant Mind Sorcerer",
+    "Power of Persuasion",
+    "Scion of Stygia"
    ]
   },
   {
@@ -6840,6 +6820,20 @@
    ]
   },
   {
+   "what": "only to its controller's graveyard",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Colfenor's Urn",
+    "Angelic Renewal",
+    "Mortuary",
+    "Mazzy, Truesword Paladin",
+    "Enduring Renewal",
+    "Sigil of the New Dawn",
+    "Kithkin Mourncaller"
+   ]
+  },
+  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 7,
    "lines": 7,
@@ -7102,20 +7096,6 @@
     "Alms Beast",
     "Steadfast Armasaur",
     "Sworn Defender"
-   ]
-  },
-  {
-   "what": "keyword RecoverAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Garza's Assassin",
-    "Grim Harvest",
-    "Icefall",
-    "Controvert",
-    "Resize",
-    "Sun's Bounty",
-    "Krovikan Rot"
    ]
   },
   {
@@ -7955,13 +7935,26 @@
     "Splinter, the Mentor",
     "April O'Neil, Live on the Scene"
    ]
+  },
+  {
+   "what": "delayed UntilYourNextTurnDelayedTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Vraska the Unseen",
+    "Jace, Architect of Thought",
+    "Don't Move",
+    "Tamiyo Meets the Story Circle",
+    "Jace, Reality Sculptor"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4420,
-   "cards": 3877,
+   "score": 4421,
+   "cards": 3878,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7973,8 +7966,8 @@
   },
   {
    "what": "custom ability",
-   "score": 732,
-   "cards": 603,
+   "score": 729,
+   "cards": 600,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8012,8 +8005,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 189,
-   "cards": 180,
+   "score": 190,
+   "cards": 181,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -10925,19 +10918,6 @@
    ]
   },
   {
-   "what": "only to its controller's graveyard",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Prowess of the Fair",
-    "Soulcatchers' Aerie",
-    "Angelic Renewal",
-    "Field of Souls",
-    "Mortuary",
-    "Jinxed Ring"
-   ]
-  },
-  {
    "what": "CorruptedCondition.instance",
    "score": 8,
    "cards": 8,
@@ -11606,19 +11586,6 @@
    ]
   },
   {
-   "what": "keyword RecoverAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Garza's Assassin",
-    "Grim Harvest",
-    "Icefall",
-    "Controvert",
-    "Resize",
-    "Sun's Bounty"
-   ]
-  },
-  {
    "what": "keyword ProvokeAbility",
    "score": 7,
    "cards": 7,
@@ -11787,6 +11754,32 @@
     "Mary Read and Anne Bonny",
     "Green Goblin, Nemesis",
     "Shipwreck Sifters"
+   ]
+  },
+  {
+   "what": "CantAttackYouAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Sandwurm Convergence",
+    "Eriette of the Charmed Apple",
+    "Blazing Archon",
+    "Chronomantic Escape",
+    "Reverence",
+    "Form of the Dragon"
+   ]
+  },
+  {
+   "what": "filter:anyCounter",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Together Forever",
+    "Hidden Hideout",
+    "Concord with the Kami",
+    "Volrath, the Shapestealer",
+    "Hunter of Eyeblights",
+    "Razorfin Abolisher"
    ]
   }
  ]

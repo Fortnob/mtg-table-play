@@ -42,7 +42,7 @@
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
-    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour',
+    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
     // keywords the engine now runs on its own
@@ -2402,6 +2402,8 @@
     // Capenna Express: "This Vehicle becomes an artifact creature until end of turn." — not crewed, just a creature
     { re: /^(?:This Vehicle|CARDNAME) becomes an artifact creature until end of turn\.?$/i,
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
+    // Bridge from Below: "exile this card" — from the graveyard it works in
+    { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
     // Star Pupil: "put its counters on target creature you control"
     { re: /^Put its counters on (target [a-z ]+?)\.?$/i, make: (m) => ({ op: 'putItsCounters', targets: [targetSpec(m[1])] }) },
     /* Removed from combat (CR 506.4) */
@@ -4292,6 +4294,8 @@
     [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
+    // Bridge from Below: "if this card is in your graveyard" — where it works from
+    [/^(?:this card|CARDNAME) is in your graveyard$/i, () => ({ kind: 'selfInGraveyard' })],
     // Jace, Wielder of Mysteries: "if your library has no cards in it"
     [/^your library has no cards in it$/i, () => ({ kind: 'libraryEmpty' })],
     // Adamant: "at least three white mana was spent to cast this spell"; "five or more mana was spent to cast that spell"
@@ -4531,6 +4535,10 @@
         if (f && m[2]) f.who = /your/i.test(m[2]) ? 'you' : 'opponent';
         return f;
       } },
+    /* Nether Traitor, Bridge from Below: "is put into your graveyard / an
+       opponent's graveyard from the battlefield" — dying, with whose it was */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) put into (your|an opponent\'s) graveyard from the battlefield(?:,| )', 'i'),
+      event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.who = /your/i.test(m[2]) ? 'you' : 'opponent'; return f; } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     // Dour Port-Mage: "leave the battlefield without dying"; Soulherder: "is exiled from the battlefield"
@@ -5829,8 +5837,17 @@
       out.abilities.push({ kind: 'triggered', event: 'etb', self: true, text: text.split('\n')[backupAt],
         effects: [{ op: 'counters', kind: '+1/+1', n: bn, targets: [targetSpec('target creature')] }, { op: 'backupGrant', texts: below }],
         auto: below.every(l => grantableText(l) || KW_LIST.test(l)) });
-      if (!out.abilities[out.abilities.length - 1].auto) out.fullyAutomated = false;
+      if (!out.abilities[out.abilities.length - 1].auto) out._keywordManual = true;
     }
+    /* Recover {cost} (CR 702.59): from the graveyard, as a creature of yours
+       dies, pay to have this card back in hand, or it is exiled */
+    const recover = out.keywords.some(k => k.keyword === 'Recover') && text.split('\n').map(l => l.match(/^Recover ((?:\{[^}]+\})+)/)).find(Boolean);
+    if (recover) {
+      out.abilities.push({ kind: 'triggered', event: 'permDies', objFilter: subjectFilter('a creature you control'), fromGraveyard: true,
+        effects: [{ op: 'mayPay', pay: { mana: recover[1] }, then: [{ op: 'selfFromGraveyard', to: 'hand' }], otherwise: [{ op: 'exileSelfAnywhere' }] }],
+        text: 'Recover ' + recover[1], auto: true });
+      out.graveTriggers = true;
+    } else if (/(?:^|\n)Recover\b/.test(text)) out._keywordManual = true;   // "Recover—Pay half your life"
     // Devour N: how many counters for each creature it eats
     const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (\d+)/)).find(Boolean);
     if (devourN) out.devour = +devourN[1];
@@ -5937,6 +5954,8 @@
     // only now, with every footnote folded into its line, is the count final
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
+    // a keyword the reading could do only part of (Backup granting words it can't read, "Recover—Pay half your life")
+    if (out._keywordManual) out.fullyAutomated = false;
     /* A Room's locked door: its mana cost, paid any time you could cast a
        sorcery, unlocks it (CR 709.5e) — a special action, offered with the
        Room's abilities */
@@ -5971,6 +5990,16 @@
       if (spellEffects.length) SPELL_TEXT.set(text, { effects: spellEffects, auto: allAuto });
     }
     out.needsManual = out.abilities.some(a => !a.auto && a.kind !== 'castModifier');
+    /* Nether Traitor, Bridge from Below, Recover: a triggered ability that
+       works while the card is in its owner's graveyard, and only there */
+    for (const ab of out.abilities) {
+      if (ab.kind !== 'triggered' || !ab.text) continue;
+      if (/^When(?:ever)? (?:this creature|CARDNAME|this card) (?:dies|is put into)/i.test(ab.text)) continue;
+      if (/\b(?:return|exile) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
+        ab.fromGraveyard = true;
+        out.graveTriggers = true;
+      }
+    }
 
     /* --- what an Aura goes on ---
        "Enchant creature" is a targeting restriction, not a footnote: the

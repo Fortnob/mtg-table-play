@@ -3944,4 +3944,51 @@ module.exports = (test) => {
     t.zone(x, 'graveyard'); t.zone(y, 'graveyard'); t.zone(z, 'battlefield');
     t.eq(el.counters['+1/+1'] || 0, 6);
   });
+
+  test('Nether Traitor: back from the graveyard as another creature dies', (mk, t) => {
+    t.auto('Nether Traitor');
+    const T = mk();
+    const nt = T.grave('A', 'Nether Traitor');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.answer('confirm', () => ({ yes: true }));
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.zone(nt, 'battlefield');
+  });
+
+  test('Bridge from Below: Zombies from the graveyard, and gone when theirs die', (mk, t) => {
+    t.auto('Bridge from Below');
+    const T = mk();
+    const br = T.grave('A', 'Bridge from Below');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Zombie').length, 1);
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.g.moveObject(theirs, 'graveyard');
+    T.resolve();
+    t.zone(br, 'exile');
+  });
+
+  test('Recover: Grim Harvest back to hand when a creature dies, if paid', (mk, t) => {
+    t.auto('Grim Harvest');
+    const T = mk();
+    const gh = T.grave('A', 'Grim Harvest');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2B');
+    T.answer('confirm', () => ({ yes: true }));
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.zone(gh, 'hand');
+  });
+
+  test('Bridge from Below does nothing on the battlefield or in hand', (mk, t) => {
+    const T = mk();
+    T.hand('A', 'Bridge from Below');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0);
+  });
 };
