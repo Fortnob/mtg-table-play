@@ -2871,10 +2871,16 @@
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
       const instantSpeed = midway || a.isInstant || a.has('flash') || this._flashFor(playerId, o);
+      // Saproling Symbiosis: flash, for {2} more
+      let flashTax = '';
       if (!instantSpeed) {
-        if (this.activePlayer.id !== playerId) return { ok: false, reason: 'Sorcery speed: only on your turn.' };
-        if (!this.isMain) return { ok: false, reason: 'Sorcery speed: only in a main phase.' };
-        if (!this.stackEmpty) return { ok: false, reason: 'Sorcery speed: the stack must be empty.' };
+        const sorceryOk = this.activePlayer.id === playerId && this.isMain && this.stackEmpty;
+        if (!sorceryOk && a.flashTax) flashTax = a.flashTax;
+        else {
+          if (this.activePlayer.id !== playerId) return { ok: false, reason: 'Sorcery speed: only on your turn.' };
+          if (!this.isMain) return { ok: false, reason: 'Sorcery speed: only in a main phase.' };
+          if (!this.stackEmpty) return { ok: false, reason: 'Sorcery speed: the stack must be empty.' };
+        }
       }
       /* "As an additional cost to cast this spell, sacrifice a creature":
          with nothing to give up, there is no casting it. */
@@ -2897,7 +2903,9 @@
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       if (!opts && this.battlefield.some(s => s.controller === playerId && !s.phasedOut &&
         (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: '' };
-      return { ok: true, cost: this.castCost(o, opts) };
+      const base = this.castCost(o, opts);
+      const gTax = /^\{\d+\}$/.test(flashTax) ? parseInt(flashTax.slice(1), 10) : 0;
+      return { ok: true, cost: gTax ? this._addGeneric(base, gTax) : base + flashTax };
     }
 
     /**

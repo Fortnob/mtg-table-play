@@ -6502,6 +6502,15 @@
         autoLines++;
         continue;
       }
+      /* Saproling Symbiosis, Oakshade Stalker: "You may cast this spell as
+         though it had flash if you pay {2} more to cast it." */
+      const fTax = line.match(/^You may cast (?:this spell|CARDNAME|this creature) as though it had flash if you pay ((?:\{[^}]+\})+) more to cast it\.?$/i);
+      if (fTax) {
+        out.flashTax = fTax[1];
+        out.abilities.push({ kind: 'castModifier', keyword: 'Flash', text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       /* Escalate (CR 702.120): the cost of each mode beyond the first —
          the modes are chosen and paid for as the spell is cast */
       const esc = !out.isPermanent && line.match(/^Escalate ((?:\{[^}]+\})+)$/i);

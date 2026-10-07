@@ -6351,4 +6351,16 @@ module.exports = (test) => {
     T.nextTurn('A'); T.nextTurn('B');
     t.no(giant.tapped, 'free once the Geists are gone');
   });
+
+  test('Rout: flash, for {2} more', (mk, t) => {
+    t.auto('Rout');
+    const T = mk();
+    const rout = T.hand('A', 'Rout');
+    t.eq(T.g.canCast('A', rout.id).cost, '{3}{W}{W}', 'at sorcery speed, the printed cost');
+    T.nextTurn('B');
+    T.g.passPriority('B', true);
+    const chk = T.g.canCast('A', rout.id);
+    t.ok(chk.ok, 'on their turn too');
+    t.eq(require('../harness').engine().mana.cmc(chk.cost), 7, 'two more');
+  });
 };

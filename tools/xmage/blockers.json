@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14547,
+  "needed": 14541,
   "gainedCards": 1516,
-  "linesNeeded": 16133,
+  "linesNeeded": 16124,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 285,
-   "lines": 255,
+   "score": 276,
+   "lines": 246,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -7571,8 +7571,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4240,
-   "cards": 3745,
+   "score": 4243,
+   "cards": 3748,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7636,8 +7636,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 171,
-   "cards": 159,
+   "score": 165,
+   "cards": 153,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
