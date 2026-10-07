@@ -774,8 +774,8 @@
     /* Connive (CR 702.153). */
     { re: /^(?:It|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, scope: 'self' }) },
-    { re: /^Target creature connives(?: (one|two|three|\d+))?\.?$/i,
-      make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, targets: [{ type: 'creature' }] }) },
+    { re: /^(Target creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
+      make: (m) => ({ op: 'connive', n: m[2] ? num(m[2]) : 1, targets: [targetSpec(m[1])] }) },
 
     /* "…copy that spell." */
     { re: /^Copy that spell\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
@@ -1474,6 +1474,12 @@
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: countSpec(m[2], 1) }) },
     { re: /^Add (\{[^}]+\}) for each ([-a-z' ]+?) on the battlefield\.?$/i,
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: countSpec(m[2], 1, 'any') }) },
+    // anything else counted: "for each card named CARDNAME in each graveyard"
+    { re: /^Add (\{[WUBRGC]\}) for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[2]); return c ? { op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: c } : null; } },
+    // Culling Ritual: "Add {B} or {G} for each permanent destroyed this way."
+    { re: /^Add (\{[WUBRGC]\}) or (\{[WUBRGC]\}) for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[3]); return c ? { op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])], n: c } : null; } },
 
     /* ===== damage aimed at whoever controls the source ===== */
     { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to you\.?$/i,
@@ -2359,7 +2365,21 @@
         scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^it$/i.test(m[1]) ? 'lastTarget' : null) }) },
 
     /* ===== regeneration and damage prevention ===== */
-    { re: /^Regenerate (target [a-z0-9 '-]+?|this creature|it)\.?$/i,
+    /* Removed from combat (CR 506.4) */
+    { re: /^Remove (target (?:attacking |blocking |attacking or blocking )?creature(?: you control| defending player controls)?|it|this creature|CARDNAME|enchanted creature) from combat\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'removeFromCombat', targets: [targetSpec(m[1])] }
+        : { op: 'removeFromCombat', scope: /^it$/i.test(m[1]) ? 'lastTarget' : /^enchanted/i.test(m[1]) ? 'attached' : 'self' }) },
+    // Reconnaissance: "Remove target attacking creature you control from combat and untap it."
+    { re: /^Remove (target (?:attacking |blocking |attacking or blocking )?creature(?: you control)?) from combat and untap it\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'removeFromCombat', targets: [targetSpec(m[1])] }, { op: 'untap', scope: 'lastTarget' }] }) },
+    // Gustcloak, Stunning Strike: "untap it and remove it from combat"; "tap enchanted creature and remove it from combat"
+    { re: /^(?:You may )?(untap|tap) (it|this creature|CARDNAME|enchanted creature|that creature) and remove it from combat\.?$/i,
+      make: (m) => {
+        const sc = /^enchanted/i.test(m[2]) ? 'attached' : /^that/i.test(m[2]) ? 'triggerObject' : 'self';
+        const list = [{ op: m[1].toLowerCase(), scope: sc }, { op: 'removeFromCombat', scope: sc }];
+        return /^You may/i.test(m[0]) ? { op: 'may', then: list } : { op: 'sequence', list };
+      } },
+    { re: /^Regenerate (target [a-z0-9 ,'-]+?|this creature|it)\.?$/i,
       make: (m) => ({ op: 'regenerate',
         targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
         scope: /^target/i.test(m[1]) ? null : (/^it$/i.test(m[1]) ? 'lastTarget' : 'self') }) },
@@ -2876,7 +2896,11 @@
     // Verazol: "for each mana spent to cast it"
     if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
     // Mahadi: "for each creature that died this turn"
-    if (/^creature that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Rite of Flame: "for each card named CARDNAME in each graveyard"
+    if (/^card named CARDNAME in (?:each graveyard|all graveyards)$/i.test(p)) return { namedInGraveyards: true, mult: k };
+    // Culling Ritual: "for each permanent destroyed this way"
+    if (/^(?:permanent|creature) (?:destroyed|exiled|returned) this way$/i.test(p)) return { lastSweep: true, mult: k };
     // "for each land card in your graveyard"
     if ((m = p.match(/^([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase(), mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
@@ -4181,6 +4205,8 @@
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
     [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
+    // Jace, Wielder of Mysteries: "if your library has no cards in it"
+    [/^your library has no cards in it$/i, () => ({ kind: 'libraryEmpty' })],
     // Adamant: "at least three white mana was spent to cast this spell"; "five or more mana was spent to cast that spell"
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },

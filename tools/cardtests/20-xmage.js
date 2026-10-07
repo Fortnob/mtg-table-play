@@ -3430,4 +3430,72 @@ module.exports = (test) => {
     T.resolve();
     t.eq(m.counters['+1/+1'] || 0, 3);
   });
+
+  test('Reconnaissance: the attacker leaves combat untapped and deals nothing', (mk, t) => {
+    t.auto('Reconnaissance');
+    const T = mk();
+    const r = T.bf('A', 'Reconnaissance');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(bear.tapped && bear.attacking, 'attacking');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.activate('A', r, 0, { targets: [bear] });
+    T.resolve();
+    t.no(bear.tapped, 'untapped');
+    t.no(bear.attacking, 'out of combat');
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20);
+  });
+
+  test('Gustcloak Harrier: blocked, it untaps and leaves combat', (mk, t) => {
+    t.auto('Gustcloak Harrier');
+    const T = mk();
+    const h = T.bf('A', 'Gustcloak Harrier');
+    const wall = T.bf('B', 'Giant Spider');
+    T.answer('declareAttackers', () => [{ attackerId: h.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [h.id] }]);
+    T.answer('confirm', () => ({ yes: true }));
+    T.toMain('A', 'endCombat');
+    t.zone(h, 'battlefield');
+    t.no(h.tapped, 'untapped');
+    t.eq(wall.damage, 0, 'no damage dealt');
+  });
+
+  test('Rite of Flame: one more {R} for each Rite in each graveyard', (mk, t) => {
+    t.auto('Rite of Flame');
+    const T = mk();
+    T.grave('A', 'Rite of Flame'); T.grave('B', 'Rite of Flame');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Rite of Flame'));
+    T.resolve();
+    t.eq(T.player('A').pool.total(), 4);
+  });
+
+  test('Culling Ritual: a {B} or {G} for each permanent destroyed', (mk, t) => {
+    t.auto('Culling Ritual');
+    const T = mk();
+    T.bf('A', 'Llanowar Elves'); T.bf('B', 'Grizzly Bears'); T.bf('B', 'Sol Ring');
+    const big = T.bf('B', 'Craw Wurm');
+    T.answer('choose', () => ({ picks: [1] }));
+    T.mana('A', '2BG');
+    T.cast('A', T.hand('A', 'Culling Ritual'));
+    T.resolve();
+    t.zone(big, 'battlefield');
+    t.eq(T.player('A').pool.total(), 3);
+    t.eq(T.player('A').pool.G || 0, 1);
+  });
+
+  test("Jace, Wielder of Mysteries: -8 wins with an empty library", (mk, t) => {
+    t.auto('Jace, Wielder of Mysteries');
+    const T = mk();
+    const j = T.bf('A', 'Jace, Wielder of Mysteries');
+    j.counters.loyalty = 9;
+    T.zone('A', 'library').splice(0);
+    for (let i = 0; i < 7; i++) T.top('A', 'Island');
+    const ab = j.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+    T.activate('A', j, j.analysis().manaAbilities.length + ab.findIndex(x => /^-8/.test(x.text)));
+    T.resolve();
+    t.ok(T.player('B').hasLost, 'B has lost');
+  });
 };

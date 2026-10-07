@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16234,
-  "gainedCards": 1687,
-  "linesNeeded": 18406,
+  "needed": 16213,
+  "gainedCards": 1688,
+  "linesNeeded": 18381,
   "linesGained": 2163,
   "gained": {
-   "all": 1687,
+   "all": 1688,
    "top2000": 52,
    "stdTop": 11
   },
@@ -34,21 +34,21 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5665,
-   "lines": 4873,
+   "score": 5645,
+   "lines": 4865,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
     "Opposition Agent",
-    "Culling Ritual",
     "Tibalt's Trickery",
     "Torment of Hailfire",
     "Incubation Druid",
-    "Rite of Flame",
     "Sphere of Safety",
     "Shared Animosity",
     "Springheart Nantuko",
-    "Whip of Erebos"
+    "Whip of Erebos",
+    "Veyran, Voice of Duality",
+    "Isochron Scepter"
    ]
   },
   {
@@ -3438,22 +3438,6 @@
    ]
   },
   {
-   "what": "RegenerateTargetEffect",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Swarmyard",
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Accursed Duneyard",
-    "Mad Auntie",
-    "Sporeback Troll",
-    "Regenerate",
-    "Gaze of the Gorgon",
-    "Baron Sengir"
-   ]
-  },
-  {
    "what": "FilterArtifactOrEnchantmentCard",
    "score": 12,
    "lines": 3,
@@ -4836,23 +4820,6 @@
    ]
   },
   {
-   "what": "AddManaInAnyCombinationEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Burnt Offering",
-    "Hazel of the Rootbloom",
-    "Thornvault Forager",
-    "The Golden Throne",
-    "Molten Slagheap",
-    "Muerra, Trash Tactician",
-    "Dreadship Reef",
-    "Calciform Pools",
-    "Saltcrusted Steppe",
-    "Fungal Reaches"
-   ]
-  },
-  {
    "what": "TargetSpellOrPermanent",
    "score": 10,
    "lines": 10,
@@ -5154,23 +5121,6 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
-   ]
-  },
-  {
-   "what": "BecomesBlockedAllTriggeredAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "General Marhault Elsdragon",
-    "Norin, Swift Survivalist",
-    "She-Hulk, Wallbreaker",
-    "Labyrinth Raptor",
-    "Ib Halfheart, Goblin Tactician",
-    "Gustcloak Savior",
-    "Spined Sliver",
-    "Tattered Ratter",
-    "Beastmaster's Magemark",
-    "Berserk Murlodont"
    ]
   },
   {
@@ -5512,6 +5462,22 @@
    ]
   },
   {
+   "what": "AddManaInAnyCombinationEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Burnt Offering",
+    "Hazel of the Rootbloom",
+    "Thornvault Forager",
+    "The Golden Throne",
+    "Molten Slagheap",
+    "Dreadship Reef",
+    "Calciform Pools",
+    "Saltcrusted Steppe",
+    "Fungal Reaches"
+   ]
+  },
+  {
    "what": "(verify) targets 3, printed 0",
    "score": 9,
    "lines": 9,
@@ -5768,22 +5734,6 @@
    ]
   },
   {
-   "what": "ConniveTargetEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Kamiz, Obscura Oculus",
-    "Villainous Hideout",
-    "Unstable Experiment",
-    "Leader, Super-Genius",
-    "Scorpion, Seething Striker",
-    "Mechanical Mobster",
-    "Mob Lookout",
-    "Namor, Scourge of the Seas",
-    "Valentina Allegra de Fontaine"
-   ]
-  },
-  {
    "what": "ValiantTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -5816,6 +5766,22 @@
    ]
   },
   {
+   "what": "BecomesBlockedAllTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "General Marhault Elsdragon",
+    "Norin, Swift Survivalist",
+    "She-Hulk, Wallbreaker",
+    "Labyrinth Raptor",
+    "Ib Halfheart, Goblin Tactician",
+    "Spined Sliver",
+    "Tattered Ratter",
+    "Beastmaster's Magemark",
+    "Berserk Murlodont"
+   ]
+  },
+  {
    "what": "CanBlockAdditionalCreatureEffect",
    "score": 9,
    "lines": 9,
@@ -5845,22 +5811,6 @@
     "Vampire's Zeal",
     "Invert the Skies",
     "Strength of Night"
-   ]
-  },
-  {
-   "what": "UntapSourceEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Hydro-Man, Fluid Felon",
-    "Kitsune Ace",
-    "Foreboding Statue // Forsaken Thresher",
-    "Forsaken City",
-    "Gustcloak Harrier",
-    "Gustcloak Cavalier",
-    "Gustcloak Skirmisher",
-    "Gustcloak Runner",
-    "Gustcloak Sentinel"
    ]
   },
   {
@@ -5985,18 +5935,6 @@
     "Curse of Disturbance",
     "Curse of Bounty",
     "Curse of Vitality"
-   ]
-  },
-  {
-   "what": "RemoveFromCombatTargetEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Reconnaissance",
-    "Labyrinth of Skophos",
-    "Thaumatic Compass // Spires of Orazca",
-    "Hollowhenge Spirit",
-    "Disharmony"
    ]
   },
   {
@@ -6850,6 +6788,20 @@
    "lines": 1,
    "cards": [
     "Thousand Moons Smithy // Barracks of the Thousand"
+   ]
+  },
+  {
+   "what": "RegenerateTargetEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Dawn Charm",
+    "Ezuri, Renegade Leader",
+    "Mad Auntie",
+    "Sporeback Troll",
+    "Regenerate",
+    "Gaze of the Gorgon",
+    "Baron Sengir"
    ]
   },
   {
@@ -8047,20 +7999,57 @@
     "Black Tom Cassidy",
     "Avid Reclaimer"
    ]
+  },
+  {
+   "what": "AttackedByCreatureTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "MacCready, Lamplight Mayor",
+    "Hissing Miasma",
+    "Genestealer Locus",
+    "Briar Patch",
+    "Barbed Foliage"
+   ]
+  },
+  {
+   "what": "(verify) \"may\" lost",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Expansion // Explosion",
+    "Drillworks Mole",
+    "Liliana's Influence",
+    "Invasion of Vryn // Overloaded Mage-Ring",
+    "Izzet Guildmage"
+   ]
+  },
+  {
+   "what": "LoseAllAbilitiesAttachedEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Unable to Scream",
+    "Observed Stasis",
+    "Fresh Start",
+    "Flood the Engine",
+    "Enchanted River's Grasp",
+    "Infinite Coursework"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4452,
-   "cards": 3891,
+   "score": 4434,
+   "cards": 3885,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
-    "Culling Ritual",
     "Tibalt's Trickery",
     "Torment of Hailfire",
-    "Incubation Druid"
+    "Incubation Druid",
+    "Sphere of Safety"
    ]
   },
   {
@@ -9543,19 +9532,6 @@
    ]
   },
   {
-   "what": "RegenerateTargetEffect",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Swarmyard",
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Accursed Duneyard",
-    "Mad Auntie",
-    "Regenerate"
-   ]
-  },
-  {
    "what": "BeginningOfPostcombatMainTriggeredAbility",
    "score": 11,
    "cards": 8,
@@ -9669,6 +9645,19 @@
     "Nyxathid",
     "Rose Tyler",
     "Thunder Salvo"
+   ]
+  },
+  {
+   "what": "ExpendTriggeredAbility",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Trailtracker Scout",
+    "Wandertale Mentor",
+    "Teapot Slinger",
+    "Bakersbane Duo",
+    "Muerra, Trash Tactician",
+    "Roughshod Duo"
    ]
   },
   {
@@ -10000,19 +9989,6 @@
     "Blind Seer",
     "Thoughtlace",
     "Illusion // Reality"
-   ]
-  },
-  {
-   "what": "ExpendTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Trailtracker Scout",
-    "Wandertale Mentor",
-    "Teapot Slinger",
-    "Bakersbane Duo",
-    "Roughshod Duo",
-    "Byway Barterer"
    ]
   },
   {
@@ -10543,19 +10519,6 @@
    ]
   },
   {
-   "what": "BecomesBlockedAllTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "General Marhault Elsdragon",
-    "Norin, Swift Survivalist",
-    "She-Hulk, Wallbreaker",
-    "Labyrinth Raptor",
-    "Ib Halfheart, Goblin Tactician",
-    "Gustcloak Savior"
-   ]
-  },
-  {
    "what": "PreventDamageAndRemoveCountersEffect",
    "score": 9,
    "cards": 9,
@@ -10786,18 +10749,6 @@
     "Curse of Disturbance",
     "Curse of Bounty",
     "Curse of Vitality"
-   ]
-  },
-  {
-   "what": "RemoveFromCombatTargetEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Reconnaissance",
-    "Labyrinth of Skophos",
-    "Thaumatic Compass // Spires of Orazca",
-    "Hollowhenge Spirit",
-    "Disharmony"
    ]
   },
   {
@@ -11322,6 +11273,19 @@
     "Lord of the Forsaken",
     "Cultivator Drone",
     "Sage of the Unknowable"
+   ]
+  },
+  {
+   "what": "BecomesBlockedAllTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "General Marhault Elsdragon",
+    "Norin, Swift Survivalist",
+    "She-Hulk, Wallbreaker",
+    "Labyrinth Raptor",
+    "Ib Halfheart, Goblin Tactician",
+    "Spined Sliver"
    ]
   },
   {
@@ -11874,19 +11838,6 @@
    ]
   },
   {
-   "what": "UntapSourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Kitsune Ace",
-    "Forsaken City",
-    "Gustcloak Harrier",
-    "Gustcloak Cavalier",
-    "Gustcloak Skirmisher",
-    "Gustcloak Runner"
-   ]
-  },
-  {
    "what": "keyword ExhaustAbility",
    "score": 7,
    "cards": 7,
@@ -11897,6 +11848,45 @@
     "Invasion Submersible",
     "Sita Varma, Masked Racer",
     "Greasewrench Goblin"
+   ]
+  },
+  {
+   "what": "LookTargetHandChooseDiscardEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Cracked Skull",
+    "Leshrac's Sigil",
+    "Abandon Hope",
+    "Doomsday Specter",
+    "Thrull Surgeon",
+    "Mind Warp"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Fall from Favor",
+    "Alirios, Enraptured",
+    "Moonhold",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Walking Dream"
+   ]
+  },
+  {
+   "what": "DamageTargetAndTargetControllerEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Chandra's Outrage",
+    "Neonate's Rush",
+    "Assembled Alphas",
+    "Carnival // Carnage",
+    "First Volley",
+    "Unleash Shell"
    ]
   }
  ]

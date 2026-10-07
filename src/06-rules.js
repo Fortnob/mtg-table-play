@@ -6560,6 +6560,7 @@
         case 'xAtLeast': return ((ctx && ctx.x) || (src && src.chosenX) || 0) >= (cond.n || 0);
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
+        case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         case 'manaSpentAtLeast': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
           if (!x) return false;
@@ -8180,6 +8181,11 @@
           const o = t0 && this.obj(t0.id);
           return o ? (v.ofTarget === 'power' ? this.powerOf(o) : v.ofTarget === 'toughness' ? this.toughnessOf(o) : ((o.card && o.card.cmc) || 0)) : 0;
         }
+        // Rite of Flame: cards of this name in every graveyard
+        if (v && typeof v === 'object' && v.namedInGraveyards) {
+          const nm = src && (src.card ? src.card.name : src.name);
+          return this.players.reduce((t, q) => t + ((this.zones[q.id] || {}).graveyard || []).filter(c => (c.card ? c.card.name : c.name) === nm).length, 0) * (v.mult || 1);
+        }
         if (v && typeof v === 'object' && v.lastSweep) return (this._lastSweep || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.ofSelf) {
           if (!src) return 0;
@@ -8319,6 +8325,22 @@
           break;
         }
         case 'addManaChoice': {
+          /* Culling Ritual: "{B} or {G} for each …" — how many of each, chosen
+             as the spell resolves */
+          if (e.n != null) {
+            const k = n(e.n);
+            if (k <= 0) break;
+            const [a0, b0] = e.choices;
+            const opts = [];
+            for (let i = 0; i <= Math.min(k, 20); i++) opts.push({ i, label: `{${a0[0]}}×${k - i}, {${b0[0]}}×${i}` });
+            const got = this._choose({ playerId: ctx.controller, purpose: 'manaSplit', kind: 'options', min: 1, max: 1,
+              options: opts, prompt: `Add ${k} mana: how much of each?` }, 'msplit');
+            if (got === SUSPEND) return SUSPEND;
+            const i = Math.min(k, (got && got.picks.length ? got.picks[0] : 0));
+            for (let j = 0; j < k; j++) me.pool.add(j < k - i ? a0[0] : b0[0]);
+            this.logEvent('mana', `${me.name} adds ${k} mana.`);
+            break;
+          }
           const want = ctx.manaChoice;
           let choice = e.choices[0];
           if (want) {
@@ -10250,6 +10272,8 @@
         case 'addManaPer': {
           const k = (e.per && e.per.countersOnSelf) ? ((src && Number(src.counters[e.per.countersOnSelf])) || 0)
             : (e.per && (e.per.scope || e.per.cardsInHand || e.per.cardsInGraveyard || e.per.opponents || e.per.colorsAmongYours)) ? n(e.per)
+            // anything else that counts, read the way every other number is
+            : (e.per && e.per.per == null && !e.per.counteredMv) ? n(e.per)
             : this.countPermanents(ctx.controller, e.per) * ((e.per && e.per.mult) || 1);
           for (let i = 0; i < k; i++) me.pool.add(e.symbol === 'C' ? 'C' : e.symbol);
           if (k) this.logEvent('mana', `${me.name} adds ${k} mana.`);
@@ -11288,6 +11312,24 @@
           for (const sub of (e.list || [])) this._runEffect(sub, ctx);
           break;
 
+        /* Reconnaissance, Gustcloak: "remove it from combat" (CR 506.4) — it
+           neither deals nor is dealt combat damage, and what it was blocking
+           or blocked by lets go of it */
+        case 'removeFromCombat':
+          applyToScope(e, (o) => {
+            if (!o.attacking && !(o.blocking || []).length) return;
+            o.removedFromCombat = true;
+            o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
+            this.combat.attackers = (this.combat.attackers || []).filter(id => id !== o.id);
+            this.combat.blockers = (this.combat.blockers || []).filter(id => id !== o.id);
+            for (const x of this.battlefield) {
+              if ((x.blocking || []).includes(o.id)) x.blocking = x.blocking.filter(id => id !== o.id);
+              if ((x.blockOrder || []).includes(o.id)) x.blockOrder = x.blockOrder.filter(id => id !== o.id);
+            }
+            this.logEvent('combat', `${o.name} is removed from combat.`);
+            this.bumpBoard();
+          });
+          break;
         case 'regenerate':
           applyToScope(e, (o) => {
             o.shields = (o.shields || 0) + 1;
