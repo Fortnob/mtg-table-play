@@ -400,10 +400,11 @@ declare namespace MTG {
     | { kind: 'chat'; text: string }
     | { kind: 'setDeck'; deck: Record<string, any>; name?: string }
     /* the draft */
-    | { kind: 'pick'; cardIds: Id[]; ability?: string | null }
+    /** mods: cards spent on the first card taken (Cogwork Grinder, Noble Banneret); guess: Spire Phantasm's */
+    | { kind: 'pick'; cardIds: Id[]; ability?: string | null; mods?: Id[]; guess?: string | null }
     | { kind: 'draftOffer'; cardId: Id; yes: boolean }
-    | { kind: 'draftExile'; cardId: Id; targetId: Id }
-    | { kind: 'draftPeek'; cardId: Id; which?: number };
+    /** the rest of what draft cards do: peek, watch, answer, brokerReveal, brokerOffer, brokerAccept (MTG.draft.Draft#act) */
+    | { kind: 'draftAct'; act: string; cardId?: Id | null; which?: string; targetId?: Id; askId?: number; value?: string; yes?: boolean };
   type IntentKind = Intent['kind'];
 
   /* ---------------- net messages ---------------- */
@@ -429,7 +430,6 @@ declare namespace MTG {
     | { t: 'state'; payload: View }
     | SyncViewMessage
     | { t: 'draft'; payload: Record<string, any> }
-    | { t: 'draftPeek'; payload: any }
     | { t: 'chat'; payload: { from: string; text: string; at: number } }
     | { t: 'log'; payload: LogEntry | Record<string, any> }
     | { t: 'error'; payload: string }

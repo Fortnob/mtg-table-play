@@ -278,7 +278,6 @@
         case 'lobby': this.members = msg.payload.members || []; this.emit('lobby', msg.payload); break;
         case 'state': this.emit('state', msg.payload); break;
         case 'draft': this.emit('draft', msg.payload); break;
-        case 'draftPeek': this.emit('draftPeek', msg.payload); break;
         case 'chat': this.emit('chat', msg.payload); MTG.sfx('chat'); break;
         case 'log': this.emit('log', msg.payload); break;
         case 'error': this.emit('error', msg.payload); break;

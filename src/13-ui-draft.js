@@ -15,7 +15,10 @@
       this.view = null;
       this.chosen = [];
       this.ability = null;      // the card in the pool paying for this pick
+      this.mods = [];           // cards spent on the first card taken (Cogwork Grinder, Noble Banneret)
       this._seenOffers = new Set();
+      this._seenAsks = new Set();
+      this._seenSeen = new Set();
       this._build();
     }
     _build() {
@@ -75,11 +78,27 @@
       // a choice only means something in the pack it was made in
       const inPack = new Set((view.pack || []).map(c => c.id));
       this.chosen = this.chosen.filter(id => inPack.has(id));
+      // what is being spent on this pick has to still be there to spend
+      const usable = new Set((view.canUse || []).map(a => a.cardId));
+      if (this.ability && !usable.has(this.ability)) this.ability = null;
+      this.mods = this.mods.filter(id => usable.has(id));
       // a card that asks a question the moment it is drafted asks it here
       for (const o of (view.offers || [])) {
         if (this._seenOffers.has(o.cardId)) continue;
         this._seenOffers.add(o.cardId);
         this._askOffer(o);
+      }
+      // Regicide and Paliano, the High City: a colour, for yours or a neighbour's
+      for (const a of (view.asks || [])) {
+        if (this._seenAsks.has(a.id)) continue;
+        this._seenAsks.add(a.id);
+        this._askColor(a);
+      }
+      // what a Cogwork Spy, an Illusionary Informant or a Whispergear Sneak let you see
+      for (const s of (view.seen || [])) {
+        if (this._seenSeen.has(s.id)) continue;
+        this._seenSeen.add(s.id);
+        this._showSeen(s);
       }
       this.render();
     }
@@ -113,18 +132,37 @@
     /** Send the pick, if it is complete. Returns whether anything went. */
     confirmPick() {
       const v = this.view;
-      if (!v || v.sittingOut || !v.pack.length) return false;
+      if (!v || v.sittingOut || v.blind || v.broker || !v.pack.length || this._guessing) return false;
       const need = this._need(v);
       if (need > 0 && this.chosen.length !== need) return false;
-      const pick = { kind: 'pick', cardIds: this.chosen.slice(), ability: this.ability || null };
+      const first = v.pack.find(c => c.id === (need > 0 ? this.chosen[0] : (v.pack[0] || {}).id));
+      // a name or a type is only noted for a creature, by the cards that say so
+      const bad = this.mods.map(id => (v.canUse || []).find(a => a.cardId === id)).find(a => a && a.creature && !/\bCreature\b/.test((first && first.type_line) || ''));
+      if (bad) { UI.error(`${bad.name} notes a creature: take a creature first, or put ${bad.name} down.`); return false; }
+      const ids = need > 0 ? this.chosen.slice() : [];
+      const pick = { kind: 'pick', cardIds: ids, ability: this.ability || null, mods: this.mods.slice(), guess: null };
+      /* Spire Phantasm: a guess at the next card taken from this pack, made
+         as it is drafted, from the cards that will be left in it. */
+      const taking = need > 0 ? ids : v.pack.map(c => c.id);
+      const phantasm = v.pack.some(c => taking.includes(c.id) && /^Spire Phantasm$/i.test(c.name));
+      const rest = v.pack.filter(c => !taking.includes(c.id));
+      if (phantasm && rest.length) {
+        this._guessing = true;
+        this._askGuess(rest).then((name) => { this._guessing = false; pick.guess = name; this._send(pick); });
+        return true;
+      }
+      this._send(pick);
+      return true;
+    }
+    _send(pick) {
       /* Put the cards down before sending: at a table hosted here the next
          pack can come back inside send(), and it must not be drawn with the
          last pick still in hand (the pack dimmed, the old card flagged). */
       this.chosen = [];
       this.ability = null;
+      this.mods = [];
       this.send(pick);
       this.render();
-      return true;
     }
 
     /** A double-click means "this one, and I am done." */
@@ -142,32 +180,89 @@
       this.send({ kind: 'draftOffer', cardId: o.cardId, yes: !!yes });
     }
 
-    /** The strip of cards in your pool that do something during the draft. */
+    /** Spire Phantasm's guess: which of these will the next player take? */
+    _askGuess(cards) {
+      return new Promise((res) => {
+        const grid = el('div', { class: 'card-grid' });
+        const m = UI.modal({
+          title: 'Spire Phantasm', width: '900px', closable: false,
+          content: el('div', null, [
+            el('p', { class: 'small muted', text: 'Guess the card the next player will take from this pack. Guess right and Spire Phantasm draws you a card when it enters.' }),
+            grid,
+          ]),
+        });
+        for (const c of cards) {
+          grid.appendChild(UI.cardSlot(c, {}, { size: 'small', onClick: () => { m.close(); res(c.name); } }));
+        }
+      });
+    }
+
+    _askColor(a) {
+      const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+      UI.modal({
+        title: 'Choose a colour', closable: false,
+        content: el('p', { text: a.prompt, style: { margin: 0 } }),
+        buttons: a.options.map(c => ({ label: NAMES[c] || c, onClick: (m) => {
+          m.close();
+          this.send({ kind: 'draftAct', act: 'answer', askId: a.id, value: c });
+        } })),
+      });
+    }
+
+    /** What one of your cards let you look at. */
+    _showSeen(s) {
+      const grid = el('div', { class: 'card-grid' });
+      for (const c of (s.cards || [])) grid.appendChild(UI.cardSlot(c, {}, { size: 'small' }));
+      UI.modal({
+        title: s.by, width: '900px',
+        content: el('div', null, [el('p', { class: 'small muted', text: s.text }), grid]),
+        buttons: [{ label: 'Close', class: 'primary', onClick: (m) => m.close() }],
+      });
+    }
+
+    /** The strip of cards in your pool that do something during the draft, and what they have noted. */
     _abilityBar(v) {
       const all = v.abilities || [];
-      if (!all.length) return null;
-      const usable = v.canUse || [];
-      const kids = [el('span', { class: 'small muted', text: 'Draft abilities:' })];
+      const kids = [];
+      if (all.length) kids.push(el('span', { class: 'small muted', text: 'Draft abilities:' }));
       for (const a of all) {
-        const can = usable.some(x => x.cardId === a.cardId);
-        const on = this.ability === a.cardId;
-        const spent = a.left <= 0;
-        if (a.passive || a.auto) {
-          kids.push(el('span', { class: 'pill', title: a.prompt, text: `${a.name} — ${a.label}` }));
-          continue;
-        }
+        const usable = (v.canUse || []).find(x => x.cardId === a.cardId);
+        const on = this.ability === a.cardId || this.mods.includes(a.cardId);
         if (!a.known) {
           kids.push(el('span', { class: 'pill warn', title: a.prompt, text: `${a.name} — run this one yourselves` }));
           continue;
         }
+        if (a.faceDown) {
+          kids.push(el('span', { class: 'pill', title: a.prompt, text: `${a.name} (face down)` }));
+          continue;
+        }
+        if (a.kind === 'blind') {
+          kids.push(el('span', { class: 'pill warn', title: a.prompt, text: `${a.name}: ${a.blindLeft} more at random` }));
+          continue;
+        }
+        // a card that did its work as it was drafted shows what it noted, below
+        if (a.onDraft) continue;
+        if (a.passive) {
+          kids.push(el('span', { class: 'pill', title: a.prompt, text: `${a.name} — ${a.label}` }));
+          continue;
+        }
         kids.push(el('button', {
-          class: 'btn xs' + (on ? ' primary' : '') + (spent ? ' ghost' : ''),
-          disabled: !can && !on,
-          title: spent ? 'Already used' : a.prompt,
-          onclick: () => this._useAbility(a),
-        }, [el('span', { text: spent ? `${a.name} (used)` : `${a.name}: ${a.label}` })]));
+          class: 'btn xs' + (on ? ' primary' : ''),
+          disabled: !usable && !on,
+          'aria-pressed': on ? 'true' : 'false',
+          title: a.prompt,
+          onclick: () => this._useAbility(usable || a),
+        }, [el('span', { text: `${a.name}: ${a.label}` })]));
       }
-      if (v.sittingOut) kids.push(el('span', { class: 'pill warn', text: 'Sitting out the rest of this pack' }));
+      if (v.sittingOut) kids.push(el('span', { class: 'pill warn', text: 'Sitting out the rest of this round' }));
+      if (v.skipping) kids.push(el('span', { class: 'pill warn', text: "Passing the next pack without drafting (Leovold's Operative)" }));
+      if (v.queued) kids.push(el('span', { class: 'pill', text: `${v.queued} more pack${v.queued === 1 ? '' : 's'} waiting for you` }));
+      for (const n of (v.notes || []).slice(-6)) kids.push(el('span', { class: 'pill', text: `${n.by}: ${n.text}` }));
+      // what the rest of the table has drafted face up or revealed
+      const shown = (v.seats || []).filter(s => s.id !== v.you && (s.shown || []).length)
+        .map(s => `${s.name}: ${s.shown.map(x => x.name).join(', ')}`);
+      if (shown.length) kids.push(el('span', { class: 'small muted', title: 'Cards drafted face up or revealed', text: 'Face up at the table — ' + shown.join(' · ') }));
+      if (!kids.length) return null;
       return el('div', { class: 'row wrap draft-abilities' }, kids);
     }
 
@@ -181,43 +276,87 @@
         this.render();
         return;
       }
-      if (a.kind === 'exile') return this._pickExile(a);
+      if (a.mod) {
+        const i = this.mods.indexOf(a.cardId);
+        if (i >= 0) this.mods.splice(i, 1);
+        else {
+          // only one card can take the pick out of the draft
+          if (a.kind === 'remove') this.mods = this.mods.filter(id => ((this.view.canUse || []).find(x => x.cardId === id) || {}).kind !== 'remove');
+          this.mods.push(a.cardId);
+          UI.toast(`${a.name}: the first card you take this pick.`, 'ok', 2500);
+        }
+        this.render();
+        return;
+      }
       if (a.kind === 'peek') return this._pickPeek(a);
+      if (a.kind === 'watch') return this._pickWatch(a);
     }
 
-    async _pickExile(a) {
-      const pool = this.view.pool || [];
-      const grid = el('div', { class: 'card-grid' });
+    /** Whispergear Sneak: which pack to look at. */
+    _pickPeek(a) {
+      const list = el('div', { class: 'col' });
       const m = UI.modal({
-        title: a.name, width: '900px',
-        content: el('div', null, [
-          el('p', { class: 'small muted', text: 'Choose a card in your pool to take out of the draft. It is gone for good.' }),
-          grid,
-        ]),
+        title: a.name, width: '560px',
+        content: el('div', null, [el('p', { class: 'small muted', text: a.prompt }), list]),
         buttons: [{ label: 'Cancel', onClick: () => m.close() }],
       });
-      for (const c of pool) {
-        if (c.id === a.cardId) continue;
-        grid.appendChild(UI.cardSlot(c, {}, {
-          onClick: () => { m.close(); this.send({ kind: 'draftExile', cardId: a.cardId, targetId: c.id }); },
-        }));
+      for (const o of (this.view.peekOptions || [])) {
+        list.appendChild(el('button', { class: 'btn', text: o.label, onclick: () => {
+          m.close();
+          this.send({ kind: 'draftAct', act: 'peek', cardId: a.cardId, which: o.id });
+        } }));
       }
     }
 
-    _pickPeek(a) {
-      this.send({ kind: 'draftPeek', cardId: a.cardId, which: 0 });
+    /** Illusionary Informant: whose next card to see. */
+    _pickWatch(a) {
+      const m = UI.modal({
+        title: a.name, content: el('p', { text: a.prompt, style: { margin: 0 } }),
+        buttons: [{ label: 'Cancel', onClick: () => m.close() }],
+      });
+      for (const s of (this.view.seats || [])) {
+        m.button(s.id === this.view.you ? 'Yourself' : s.name, () => {
+          m.close();
+          this.send({ kind: 'draftAct', act: 'watch', cardId: a.cardId, targetId: s.id });
+        });
+      }
     }
 
-    /** Show what a peek turned up. */
-    showPeek(res) {
-      if (!res || !res.cards) return UI.error('Nothing to look at.');
+    /**
+     * Deal Broker, once the picks are over: reveal a card, offer one for a
+     * revealed card, or take one of the offers.
+     */
+    _brokerPanel(v) {
+      const b = v.broker;
+      const box = el('div', { class: 'draft-waiting draft-broker' });
       const grid = el('div', { class: 'card-grid' });
-      for (const c of res.cards) grid.appendChild(UI.cardSlot(c, {}, { size: 'small' }));
-      UI.modal({
-        title: `An unopened pack from round ${res.round}`, width: '900px',
-        content: grid,
-        buttons: [{ label: 'Close', class: 'primary', onClick: (m) => m.close() }],
-      });
+      // the full width of the table, at a size you can read
+      grid.style.alignSelf = 'stretch';
+      grid.style.setProperty('--card-w', '132px');
+      grid.style.setProperty('--card-h', '184px');
+      const act = (x) => this.send(Object.assign({ kind: 'draftAct' }, x));
+      if (b.mine && b.stage === 'reveal') {
+        box.append(el('div', { text: 'Deal Broker: reveal a card from your pool, and the other players may offer one of theirs for it.' }), grid,
+          el('button', { class: 'btn', text: 'No trade', onclick: () => act({ act: 'brokerReveal', cardId: null }) }));
+        for (const c of (v.pool || [])) grid.appendChild(UI.cardSlot(c, {}, { size: 'small', onClick: () => act({ act: 'brokerReveal', cardId: c.id }) }));
+      } else if (!b.mine && b.stage === 'offer' && b.needs) {
+        box.append(el('div', { text: `${b.broker} reveals ${b.card ? b.card.name : 'a card'} with Deal Broker. Offer one of your cards for it?` }),
+          b.card ? UI.cardSlot(b.card, {}, { size: 'small' }) : null, grid,
+          el('button', { class: 'btn', text: 'No offer', onclick: () => act({ act: 'brokerOffer', cardId: null }) }));
+        for (const c of (v.pool || [])) grid.appendChild(UI.cardSlot(c, {}, { size: 'small', onClick: () => act({ act: 'brokerOffer', cardId: c.id }) }));
+      } else if (b.mine && b.stage === 'accept') {
+        box.append(el('div', { text: b.offers.length ? `Offers for your ${b.card.name}. Take one, or keep your card.` : `Nobody offered anything for your ${b.card.name}.` }), grid,
+          el('button', { class: 'btn', text: `Keep ${b.card.name}`, onclick: () => act({ act: 'brokerAccept', cardId: null }) }));
+        for (const o of b.offers) {
+          const slot = UI.cardSlot(o.card, {}, { size: 'small', onClick: () => act({ act: 'brokerAccept', cardId: o.card.id }) });
+          slot.appendChild(el('span', { class: 'pick-flag', text: o.seat }));
+          grid.appendChild(slot);
+        }
+      } else {
+        box.append(el('div', { class: 'busy-sigil', 'aria-hidden': 'true' }, [el('i'), el('i'), el('b')]),
+          el('div', { text: b.card ? `${b.broker} is trading ${b.card.name} with Deal Broker…` : `${b.broker} is choosing a card to trade with Deal Broker…` }));
+      }
+      return box;
     }
 
     /** The layout redraws on rotation; there is no floating advice to put away. */
@@ -279,10 +418,10 @@
       }
       const confirm = el('button', {
         class: 'btn primary hero-btn draft-go',
-        text: this.ability && need === 0
-          ? 'Take the whole pack'
+        text: v.broker ? 'Trading' : v.blind ? 'At random'
+          : this.ability && need === 0 ? 'Take the whole pack'
           : (this.chosen.length === need ? `Confirm pick${need > 1 ? 's' : ''}` : `Pick ${this.chosen.length}/${need}`),
-        disabled: (need > 0 && this.chosen.length !== need) || !v.pack.length || v.sittingOut,
+        disabled: (need > 0 && this.chosen.length !== need) || !v.pack.length || v.sittingOut || !!v.blind || !!v.broker,
         onclick: () => { this.confirmPick(); },
       });
       this.head.append(
@@ -314,7 +453,15 @@
 
       /* -- the pack, dealt out like cards on a table -- */
       this.packWrap.innerHTML = '';
-      if (!v.pack.length) {
+      if (v.broker) {
+        this.packWrap.appendChild(this._brokerPanel(v));
+      } else if (v.blind) {
+        // Archdemon of Paliano: the pack is drafted from without being looked at
+        this.packWrap.appendChild(el('div', { class: 'draft-waiting' }, [
+          el('div', { class: 'busy-sigil', 'aria-hidden': 'true' }, [el('i'), el('i'), el('b')]),
+          el('div', { text: `Archdemon of Paliano: you cannot look at this pack, and draft from it at random (${v.blind.left} more card${v.blind.left === 1 ? '' : 's'}).` }),
+        ]));
+      } else if (!v.pack.length) {
         this.packWrap.appendChild(el('div', { class: 'draft-waiting' }, [
           el('div', { class: 'busy-sigil', 'aria-hidden': 'true' }, [el('i'), el('i'), el('b')]),
           el('div', { text: 'Waiting for the next pack…' }),
@@ -458,8 +605,9 @@
     try { basics = await MTG.draft.getBasics(); } catch (e) {}
     busy.close();
 
+    // conspiracies and the cards exiled before the game are settled once the deck is
     let deck = MTG.draft.autoBuildLimited(pool, {
-      deckSize: fmt.deckMin || 40, basicCards: basics, formatId, name: 'Limited deck',
+      deckSize: fmt.deckMin || 40, basicCards: basics, formatId, name: 'Limited deck', pregame: false,
     });
 
     // Commander draft: choose a commander out of the pool
@@ -490,7 +638,109 @@
 
     UI.deckBuilder(deck, {
       drafted: true,
-      finish: { label: 'Play with this deck', onClick: (d) => { if (onDone) onDone(d); } },
+      finish: { label: 'Play with this deck', onClick: async (d) => {
+        const ready = await UI.draftPregame(d, pool);
+        if (onDone) onDone(ready);
+      } },
+    });
+  };
+
+  /* ---------------- before the game: conspiracies, and cards exiled from the pool ----------------
+     A drafted conspiracy starts the game in the command zone if its owner
+     wants it to, a hidden agenda with a name chosen for it; Arcane Savant,
+     Caller of the Untamed and Volatile Chimera take drafted cards that are
+     not in the deck into exile. The table's own choices are filled in to
+     start from (MTG.draft.pregameDefaults). Resolves with the deck. */
+  UI.draftPregame = function (deck, pool) {
+    const D = MTG.draft;
+    const conspiracies = (pool || []).filter(D.isConspiracy);
+    const exilers = [];
+    for (const e of (deck.main || [])) {
+      const key = U.normName(U.frontName(e.card.name));
+      if (D.PREGAME_EXILE[key]) for (let k = 0; k < e.qty; k++) exilers.push({ key, card: e.card, rule: D.PREGAME_EXILE[key] });
+    }
+    const defaults = D.pregameDefaults(deck, pool);
+    if (!conspiracies.length && !exilers.length) return Promise.resolve(D.applyPregame(deck, defaults));
+
+    return new Promise((res) => {
+      const body = el('div', { class: 'col draft-pregame' });
+      const rows = [];
+      const hasBasics = (deck.main || []).some(e => MTG.formats.isBasicLand(e.card));
+      const nameList = D.agendaNames(deck, 'any');
+      if (conspiracies.length) {
+        body.appendChild(el('div', { class: 'section-title', text: 'Conspiracies' }));
+        body.appendChild(el('div', { class: 'tiny dim', text: 'Each one you keep starts the game in your command zone. A hidden agenda starts face down, with the name you choose kept secret until a card with that name is cast or comes into play.' }));
+        conspiracies.forEach((c, i) => {
+          const key = U.normName(U.frontName(c.name));
+          const def = defaults.conspiracies.find(x => x.card === c) || null;
+          const ag = D.agendaOf(c);
+          const use = el('input', { type: 'checkbox', checked: !!def, style: { width: 'auto' }, id: 'pg-c' + i });
+          const blocked = key === "sovereign's realm" && hasBasics;
+          if (blocked) { use.checked = false; use.disabled = true; }
+          const selects = [];
+          if (ag && ag.names) {
+            for (let k = 0; k < ag.names; k++) {
+              const want = def && def.names ? def.names[k] : nameList[k];
+              selects.push(el('select', { 'aria-label': `Name for ${c.name}` },
+                nameList.map(nm => el('option', { value: nm, text: nm, selected: nm === want }))));
+            }
+          }
+          if (ag && ag.number) {
+            selects.push(el('select', { 'aria-label': `Number for ${c.name}` },
+              ag.number.map(nm => el('option', { value: String(nm), text: String(nm), selected: def && def.number === nm }))));
+          }
+          const label = el('label', { for: 'pg-c' + i, text: c.name });
+          UI.attachPreview(label, c, 0);
+          body.appendChild(el('div', { class: 'row wrap' }, [use, label].concat(selects,
+            blocked ? [el('span', { class: 'tiny dim', text: 'Your deck has basic lands, so this cannot start the game.' })] : [])));
+          rows.push({ card: c, use, selects, ag });
+        });
+      }
+      const exRows = [];
+      if (exilers.length) {
+        body.appendChild(el('div', { class: 'section-title', text: 'Before you shuffle' }));
+        const side = (deck.sideboard || []).map(e => e.card).filter(c => c && !D.isConspiracy(c) && !MTG.formats.isBasicLand(c));
+        exilers.forEach((x, i) => {
+          const picked = new Set(defaults.draftExiled.filter(d => d.with === x.key).map(d => d.card.id));
+          const fits = side.filter(c => (x.rule.words === 'creature' ? /\bCreature\b/.test(c.type_line || '') : /\b(?:Instant|Sorcery)\b/.test(c.type_line || '')));
+          body.appendChild(el('div', { class: 'tiny dim', text: `${x.card.name}: you may exile ${x.rule.label} that is not in your deck.` }));
+          const boxes = fits.map((c, k) => {
+            const box = el('input', { type: 'checkbox', checked: picked.has(c.id), style: { width: 'auto' }, id: `pg-x${i}-${k}` });
+            const lab = el('label', { for: `pg-x${i}-${k}`, text: c.name });
+            UI.attachPreview(lab, c, 0);
+            body.appendChild(el('div', { class: 'row' }, [box, lab]));
+            return { box, card: c };
+          });
+          if (!fits.length) body.appendChild(el('div', { class: 'tiny dim', text: 'Nothing you drafted fits.' }));
+          exRows.push({ x, boxes });
+        });
+      }
+      const done = () => {
+        const choice = { conspiracies: [], draftExiled: [] };
+        for (const r of rows) {
+          if (!r.use.checked) continue;
+          const entry = { card: r.card };
+          if (r.ag && r.ag.names) entry.names = r.selects.map(s => s.value);
+          if (r.ag && r.ag.number) entry.number = Number(r.selects[0].value);
+          if (r.ag && r.ag.names === 2 && entry.names[0] === entry.names[1]) { UI.error(`${r.card.name} needs two different names.`); return; }
+          choice.conspiracies.push(entry);
+        }
+        const used = new Set();
+        for (const r of exRows) {
+          const got = r.boxes.filter(b => b.box.checked && !used.has(b.card.id));
+          if (got.length && (got.length < r.x.rule.min || got.length > r.x.rule.max)) {
+            UI.error(`${r.x.card.name} exiles ${r.x.rule.label}.`);
+            return;
+          }
+          for (const b of got) { used.add(b.card.id); choice.draftExiled.push({ card: b.card, with: r.x.key }); }
+        }
+        m.close();
+        res(D.applyPregame(deck, choice));
+      };
+      const m = UI.modal({
+        title: 'Before the game', width: '720px', closable: false, content: body,
+        buttons: [{ label: 'Start the game', class: 'primary', onClick: () => done() }],
+      });
     });
   };
 

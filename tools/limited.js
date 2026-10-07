@@ -35,7 +35,12 @@ async function main() {
   if (!draft.finished) { console.log('draft did not finish'); process.exit(1); }
   const basics = await MTG.draft.getBasics();
   const decks = draft.seats.map(s => MTG.draft.autoBuildLimited(s.pool, { deckSize: 40, basicCards: basics, formatId: 'booster', name: s.name }));
+  // what the draft cards noted goes to the game with the deck, as the app sends it
+  decks.forEach((deck, i) => { deck.draftNotes = draft.notesFor(draft.seats[i].id, deck); });
   decks.forEach((deck, i) => {
+    const extra = (deck.conspiracies || []).map(c => c.card.name + (c.names ? ' (' + c.names.join(', ') + ')' : ''))
+      .concat((deck.draftExiled || []).map(x => x.card.name + ' exiled for ' + x.with));
+    if (extra.length) console.log(`\n${draft.seats[i].name} starts with: ${extra.join('; ')}`);
     const st = MTG.formats.deckStats(deck.main, []);
     const manual = deck.main.filter(e => !MTG.oracle.analyze(e.card).fullyAutomated && !MTG.oracle.analyze(e.card).isLand).map(e => e.card.name);
     console.log(`\n${draft.seats[i].name}: ${deck.colors.join('')} ${st.total} cards, ${st.lands} lands, ${st.creatures} creatures, avg mv ${st.avgMv}, curve ${Object.values(st.curve).join('/')}, not automated: ${manual.length ? manual.join(', ') : 'none'}`);

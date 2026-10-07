@@ -2533,11 +2533,15 @@
       side: (d.sideboard || []).map(e => ({ id: e.card.id, q: e.qty })),
       cmd: (d.commanders || []).map(c => c.id),
       comp: d.companion ? d.companion.id : null,
+      // a drafted deck's conspiracies and the cards it exiled before the game
+      consp: (d.conspiracies || []).map(x => ({ id: (x.card || x).id, names: x.names || null, number: x.number == null ? null : x.number })),
+      dex: (d.draftExiled || []).map(x => ({ id: x.card.id, with: x.with })),
       art,
     };
   }
   async function fatDeckFromWire(w) {
-    const ids = w.main.map(e => e.id).concat(w.side.map(e => e.id), w.cmd, w.comp ? [w.comp] : []);
+    const ids = w.main.map(e => e.id).concat(w.side.map(e => e.id), w.cmd, w.comp ? [w.comp] : [],
+      (w.consp || []).map(x => x.id), (w.dex || []).map(x => x.id));
     const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
     const byId = new Map(); ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
     return {
@@ -2546,6 +2550,8 @@
       sideboard: w.side.map(e => ({ card: byId.get(e.id), qty: e.q })).filter(e => e.card),
       commanders: w.cmd.map(i => byId.get(i)).filter(Boolean),
       companion: w.comp ? byId.get(w.comp) : null,
+      conspiracies: (w.consp || []).map(x => ({ card: byId.get(x.id), names: x.names, number: x.number })).filter(x => x.card),
+      draftExiled: (w.dex || []).map(x => ({ card: byId.get(x.id), with: x.with })).filter(x => x.card),
     };
   }
 
@@ -2958,6 +2964,8 @@
         });
         for (const r of this.roster) {
           const p = g.addPlayer({ id: r.id, name: r.name, isBot: r.kind === 'bot', botDifficulty: r.difficulty });
+          // what the draft cards noted, from the draft itself (src/07-draft.js)
+          if (this.draft && r.deck) r.deck.draftNotes = this.draft.notesFor(r.id, r.deck) || r.deck.draftNotes || null;
           g.loadDeck(p.id, r.deck);
         }
         // the printing each player picked is the printing everyone sees
@@ -3177,24 +3185,17 @@
       if (this.draft && !this.draft.finished) {
         const d = this.draft;
         if (intent.kind === 'pick') {
-          if (!d.pick(actorId, intent.cardIds, { ability: intent.ability || null }) && actorId === 'me')
+          const opts = { ability: intent.ability || null, mods: intent.mods || [], guess: intent.guess || null };
+          if (!d.pick(actorId, intent.cardIds, opts) && actorId === 'me')
             UI.error('That pick was not legal.');
           this.pushDraft();
         } else if (intent.kind === 'draftOffer') {
           d.answerOffer(actorId, intent.cardId, intent.yes);
           this.pushDraft();
-        } else if (intent.kind === 'draftExile') {
-          if (d.exileFromPool(actorId, intent.cardId, intent.targetId)) {
-            if (actorId === 'me') UI.ok('Taken out of the draft.');
-          } else if (actorId === 'me') UI.error('That card cannot be removed.');
-          this.pushDraft();
-        } else if (intent.kind === 'draftPeek') {
-          const res = d.peekPack(actorId, intent.cardId, intent.which || 0);
-          if (actorId === 'me' && App.draftUI) App.draftUI.showPeek(res);
-          else if (res && net.isHost) {
-            const seat = this.seat(actorId);
-            if (seat && seat.peerId) net.send(seat.peerId, { t: 'draftPeek', payload: res });
-          }
+        } else if (intent.kind === 'draftAct') {
+          /* everything else a draft card does between picks; what it lets a
+             seat look at comes back in that seat's own view */
+          if (!d.act(actorId, intent) && actorId === 'me') UI.error('That cannot be done now.');
           this.pushDraft();
         }
         return;
@@ -3491,7 +3492,6 @@
         });
       }
     });
-    net.on('draftPeek', (res) => { if (App.draftUI) App.draftUI.showPeek(res); });
     net.on('chat', (msg) => { if (App.table) App.table.addChat(msg); });
     net.on('log', () => {});
     net.on('error', (m) => UI.error(String(m)));
