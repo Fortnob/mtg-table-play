@@ -121,6 +121,8 @@ function main() {
   MTG.oracle.clearCache();
 
   const lib = {};               // name -> { lines: { hash: [abilities] } }
+  const fpByName = new Map();   // name -> fingerprint (single-faced cards)
+  const sfp = {};               // fingerprint -> name of a card with a hand-written script
   const blockers = new Map();   // what -> { score, cards: [], lines }
   const sole = new Map();       // what -> cards it alone blocks
   const stats = { cards: 0, withClass: 0, skippedLayout: 0, needed: 0, gainedCards: 0, linesNeeded: 0, linesGained: 0,
@@ -147,6 +149,12 @@ function main() {
     let an;
     try { an = MTG.oracle.analyze(MTG.scry.slim(card)); } catch (e) { continue; }
     if (!an) continue;
+    /* What each card is under its name: a renamed printing with the same
+       fingerprint finds this card's translation, or its hand-written script */
+    if (!(card.card_faces && card.card_faces.length > 1) && an.fingerprint) {
+      fpByName.set(card.name, an.fingerprint);
+      if (MTG.scripts.scriptFor(card.name) && !sfp[an.fingerprint]) sfp[an.fingerprint] = card.name;
+    }
     const needed = !an.fullyAutomated;
     if (needed) stats.needed++;
     const file = idx.get(flat(card.name)) || idx.get(flat(card.name.split(' // ').join(' ')));
@@ -314,7 +322,12 @@ constructs that alone block a card (score, cards, construct):`);
   if (flag('compare')) fs.writeFileSync(path.join(outDir, 'xmage-compare.json'), JSON.stringify(diffs, null, 1));
   if (only) console.log(JSON.stringify(lib, null, 1));
   if (flag('write')) {
-    require('./pack').write(lib, path.join(ROOT, 'src', '19-cardlib.js'), (nm) => MTG.scripts.keyFor(nm));
+    const fp = {};
+    for (const name of Object.keys(lib).sort()) {
+      const f = fpByName.get(name);
+      if (f && !fp[f]) fp[f] = MTG.scripts.keyFor(name);
+    }
+    require('./pack').write(lib, path.join(ROOT, 'src', '19-cardlib.js'), (nm) => MTG.scripts.keyFor(nm), { fp, sfp });
     console.log(`\nwrote src/19-cardlib.js: ${Object.keys(lib).length} cards`);
   }
   console.log(`\n${((Date.now() - t0) / 1000).toFixed(1)}s`);

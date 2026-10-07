@@ -88,8 +88,39 @@ const FOOTER = `;
     return out;
   }
 
+  /* Every translated line, by the hash of its words, across all cards: a
+     line printed the same on a card with no translation of its own can use
+     it. A line two cards translate differently, or one that carries the
+     line below it, is nobody's to lend. */
+  let anywhere = null;
+  function lineAnywhere(hash) {
+    if (!anywhere) {
+      anywhere = new Map();
+      const heads = new Set();
+      for (const k in PACKED.cards) for (const [, head] of (PACKED.cards[k][4] || [])) heads.add(head);
+      for (const k in PACKED.cards) {
+        for (const [h, list] of (PACKED.cards[k][2] || [])) {
+          const sig = list.join(',');
+          const had = anywhere.get(h);
+          if (!had) anywhere.set(h, { sig, list, from: k, bad: heads.has(h) });
+          else if (had.sig !== sig) had.bad = true;
+        }
+      }
+    }
+    const g = anywhere.get(hash);
+    if (!g || g.bad) return null;
+    return { abilities: g.list.map(i => PACKED.shapes[i]), from: g.from };
+  }
+  /** The translated card that is this one under another name, by fingerprint. */
+  function byFingerprint(fp) { return (PACKED.fp && PACKED.fp[fp]) || null; }
+  /** The card with a hand-written script that is this one under another name. */
+  function scriptByFingerprint(fp) { return (PACKED.sfp && PACKED.sfp[fp]) || null; }
+
   MTG.cardlib = {
     generatedFor,
+    lineAnywhere,
+    byFingerprint,
+    scriptByFingerprint,
     count: () => Object.keys(PACKED.cards).length,
     shapes: () => PACKED.shapes.length,
     keys: () => Object.keys(PACKED.cards),
@@ -100,7 +131,7 @@ const FOOTER = `;
 /**
  * lib: card key -> { lines: { hash: [abilities] }, abilities?, kw? }
  */
-function write(lib, file, keyFor) {
+function write(lib, file, keyFor, prints) {
   const shapes = [];
   const index = new Map();
   const kw = [];
@@ -122,6 +153,10 @@ function write(lib, file, keyFor) {
     cards[key] = cov.length ? [whole, kws, lines, over, cov] : over.length ? [whole, kws, lines, over] : [whole, kws, lines];
   }
   const packed = { v: 2, shapes, kw, cards };
+  /* fingerprints: what a card is, its name aside, so a renamed printing
+     finds the translated card (fp) or the hand-written script (sfp) */
+  if (prints && prints.fp) packed.fp = prints.fp;
+  if (prints && prints.sfp) packed.sfp = prints.sfp;
   fs.writeFileSync(file, HEADER + JSON.stringify(packed) + FOOTER);
   return { cards: Object.keys(cards).length, shapes: shapes.length };
 }

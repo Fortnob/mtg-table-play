@@ -4960,6 +4960,12 @@
       keywords: [], abilities: [], manaAbilities: [],
       grantedKeywords: new Set(),
     };
+    /* What the card is, its own name aside: its cost, card types, numbers
+       and words with the name read as CARDNAME and reminder text gone. Two
+       cards with the same fingerprint are the same card under two names
+       (a Universes Beyond printing and its Universes Within twin). */
+    out.fingerprint = U.hash([out.manaCost || '', tl.supertypes.join(' '), tl.types.join(' '), out.power || '', out.toughness || '',
+      out.loyalty || '', out.defense || '', stripReminder(text).replace(/\s+/g, ' ').trim()].join('|'));
 
     out.isLand = tl.types.includes('Land');
     out.isCreature = tl.types.includes('Creature');
@@ -5874,10 +5880,21 @@
        difference. A hand-written one is deliberate and always wins; a
        generated one only steps in where reading the text fell short. */
     let script = MTG.scripts && MTG.scripts.scriptFor(name);
+    /* A renamed printing of a card with a hand-written script has the same
+       words under another name: the script is the same card's */
+    if (!script && MTG.cardlib && MTG.cardlib.scriptByFingerprint && !faceIndex) {
+      const twin = MTG.cardlib.scriptByFingerprint(out.fingerprint);
+      if (twin && MTG.scripts.keyFor(twin) !== MTG.scripts.keyFor(name)) { script = MTG.scripts.scriptFor(twin); if (script) out.borrowedFrom = twin; }
+    }
     // an emblem carries the abilities written out for it when it was made
     if (!script && card._script && card.layout === 'emblem') script = card._script;
     const readWholeCard = totalLines > 0 && autoLines >= totalLines - 0.001;
-    const gen = !script && MTG.cardlib ? MTG.cardlib.generatedFor(MTG.scripts.keyFor(name)) : null;
+    let gen = !script && MTG.cardlib ? MTG.cardlib.generatedFor(MTG.scripts.keyFor(name)) : null;
+    // the same, for a translated card: its row read for this one
+    if (!script && !gen && MTG.cardlib && MTG.cardlib.byFingerprint && !faceIndex) {
+      const twin = MTG.cardlib.byFingerprint(out.fingerprint);
+      if (twin && twin !== MTG.scripts.keyFor(name)) { gen = MTG.cardlib.generatedFor(twin); if (gen) out.borrowedFrom = twin; }
+    }
     /* A generated script written line by line stands in for exactly the
        lines the reading above could not manage, and nothing else: what was
        read stays as it was read. Each replacement goes where the line's own
@@ -5922,6 +5939,36 @@
         li.generated = true;
         out.generated = true;
         done.add(key);
+      }
+    }
+    /* A line no translation of this card's own covers, read exactly the same
+       on another card that has one (its name read as CARDNAME on both): that
+       card's translation does here what it does there. Only an exact line,
+       and only one every card that prints it agrees on. */
+    if (MTG.cardlib && MTG.cardlib.lineAnywhere && !script) {
+      for (const li of lineInfo) {
+        if (li.auto) continue;
+        const key = U.hash(li.text);
+        if (gen && gen.lines && gen.lines[key]) continue;
+        const found = MTG.cardlib.lineAnywhere(key);
+        if (!found || !found.abilities.length || !generatedLineSound(found.abilities, li.text)) continue;
+        const mine = li.abilities.concat(li.mana);
+        if (mine.some(x => x.kind === 'castModifier')) continue;
+        const rep2 = JSON.parse(JSON.stringify(found.abilities));
+        const at = mine.length ? out.abilities.indexOf(li.abilities[0]) : -1;
+        out.abilities = out.abilities.filter(x => !mine.includes(x));
+        out.manaAbilities = out.manaAbilities.filter(x => !mine.includes(x));
+        const others = rep2.filter(x => x.kind !== 'mana');
+        if (at >= 0) out.abilities.splice(Math.min(at, out.abilities.length), 0, ...others);
+        else out.abilities.push(...others);
+        out.manaAbilities.push(...rep2.filter(x => x.kind === 'mana'));
+        autoLines += 1 - li.got;
+        li.auto = true;
+        li.generated = true;
+        li.borrowed = found.from;
+        out.generated = true;
+        (out.borrowedLines = out.borrowedLines || []).push({ line: li.text, from: found.from });
+        if (!out.borrowedFrom) out.borrowedFrom = found.from;
       }
     }
     if (!script && gen && gen.abilities && autoLines < totalLines - 0.001) {

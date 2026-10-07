@@ -177,6 +177,15 @@ def tsc_cmd():
     return node(bin_, '--noEmit', '-p', ROOT / 'tsconfig.json')
 
 
+def judge_newcards(code, out):
+    s = last_json(out)
+    if code != 0 or not s:
+        tail = [l for l in out.strip().splitlines() if l.strip()]
+        return False, f'exit {code}: ' + (tail[-1][:200] if tail else 'no output')
+    return True, (f"{s['fresh']:,} cards with no row or script, {s['auto']:,} automated, "
+                  f"{s['borrowedAuto']} of them by borrowing another card's reading")
+
+
 def steps(quick):
     n_std, n_pau, n_cmd = (4, 4, 2) if quick else (20, 20, 8)
     smoke_to = 300 if quick else 100000
@@ -199,6 +208,8 @@ def steps(quick):
     if not quick:
         out.append(Step('contracts smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', 1500), judge_contract_tables, 3600,
                         env={'CONTRACTS': '1'}, needs_bulk=True))
+    # cards nobody wrote anything for, and how many borrow a reading
+    out.append(Step('new cards', node(TOOLS / 'newcards.js', '--show', 0), judge_newcards, 900, needs_bulk=True))
     out.append(Step('types', tsc_cmd(), judge_tsc, 600))
     return out
 

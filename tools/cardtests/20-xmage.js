@@ -4360,4 +4360,30 @@ module.exports = (test) => {
     t.eq(T.player('A').pool.W || 0, 2);
     t.eq(f.counters.storage || 0, 0);
   });
+
+  /* ----- borrowing: a new card read through an old one with the same words ----- */
+  const fake = (o) => Object.assign({ id: 'probe-' + o.name.toLowerCase().replace(/\W+/g, '-'), cmc: 2, colors: ['W'], layout: 'normal', keywords: [] }, o);
+
+  test('Borrowing: a renamed card with a translated line uses that translation', (mk, t) => {
+    const a = engine().oracle.analyze(fake({ name: 'Probe Skirmisher', mana_cost: '{1}{W}', type_line: 'Creature — Human Scout', power: '2', toughness: '1',
+      oracle_text: "This creature can't be blocked by creatures with power 3 or greater." }));
+    t.ok(a.fullyAutomated, 'read through the translated line');
+    t.ok(a.borrowedFrom, 'and says where from: ' + a.borrowedFrom);
+  });
+
+  test('Borrowing: one number different and nothing is borrowed', (mk, t) => {
+    const a = engine().oracle.analyze(fake({ name: 'Probe Skirmisher Two', mana_cost: '{1}{W}', type_line: 'Creature — Human Scout', power: '2', toughness: '1',
+      oracle_text: "This creature can't be blocked by creatures with power 7 or greater." }));
+    t.no(a.borrowedFrom, 'no line of that wording to borrow');
+  });
+
+  test('Borrowing: a renamed printing of a scripted card gets the script', (mk, t) => {
+    const a = engine().oracle.analyze(fake({ name: 'Probe Confidant', mana_cost: '{1}{B}', colors: ['B'], type_line: 'Creature — Elf Druid', power: '2', toughness: '1',
+      oracle_text: 'At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.' }));
+    t.ok(a.scripted, 'the script is used');
+    t.eq(a.borrowedFrom, 'Dark Confidant');
+    const b = engine().oracle.analyze(fake({ name: 'Probe Confidant Big', mana_cost: '{1}{B}', colors: ['B'], type_line: 'Creature — Elf Druid', power: '3', toughness: '1',
+      oracle_text: 'At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.' }));
+    t.no(b.borrowedFrom === 'Dark Confidant' && b.scripted, 'a different power is a different card');
+  });
 };
