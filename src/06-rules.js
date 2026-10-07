@@ -12334,7 +12334,7 @@
         case 'damageEachByCount': {
           for (const p of this.players) {
             if (p.hasLost) continue;
-            const k = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && this._cardFitsWords(o, e.what)).length;
+            const k = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && this._cardFitsWords(o, e.what)).length * (e.mult || 1);
             if (k > 0) this.dealDamageToPlayer(p, k, src);
           }
           break;

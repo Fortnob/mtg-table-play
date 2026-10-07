@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14326,
+  "needed": 14314,
   "gainedCards": 1510,
-  "linesNeeded": 15847,
-  "linesGained": 1879,
+  "linesNeeded": 15831,
+  "linesGained": 1878,
   "gained": {
    "all": 1510,
    "top2000": 52,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5237,
-   "lines": 4562,
+   "score": 5230,
+   "lines": 4555,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -1593,25 +1593,6 @@
    ]
   },
   {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Syr Ginger, the Meal Ender",
-    "Tectonic Edge",
-    "Innocent Traveler // Malicious Invader",
-    "Black Scarab",
-    "White Scarab",
-    "Blue Scarab",
-    "Green Scarab",
-    "Red Scarab",
-    "Skyshroud Elite",
-    "Night Revelers",
-    "Beasts of Bogardan",
-    "Wu Admiral"
-   ]
-  },
-  {
    "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
    "score": 15,
    "lines": 15,
@@ -2968,21 +2949,21 @@
    ]
   },
   {
-   "what": "scope:alts",
+   "what": "OpponentControlsPermanentCondition",
    "score": 11,
    "lines": 11,
    "cards": [
-    "Iron Spider, Stark Upgrade",
-    "Eidolon of Countless Battles",
-    "Katilda, Dawnhart Martyr // Katilda's Rising Dawn",
-    "Paladin Danse, Steel Maverick",
-    "Doctor Doom",
-    "Beyond the Quiet",
-    "Born to Drive",
-    "Tend the Sprigs",
-    "Focus Fire",
-    "Collision Course",
-    "Battle of Frost and Fire"
+    "Syr Ginger, the Meal Ender",
+    "Tectonic Edge",
+    "Black Scarab",
+    "White Scarab",
+    "Blue Scarab",
+    "Green Scarab",
+    "Red Scarab",
+    "Skyshroud Elite",
+    "Beasts of Bogardan",
+    "Ivory Guardians",
+    "Radiant Essence"
    ]
   },
   {
@@ -3379,6 +3360,23 @@
     "Obosh, the Preypiercer",
     "Umori, the Collector",
     "Lutri, the Spellchaser"
+   ]
+  },
+  {
+   "what": "scope:alts",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Eidolon of Countless Battles",
+    "Katilda, Dawnhart Martyr // Katilda's Rising Dawn",
+    "Paladin Danse, Steel Maverick",
+    "Doctor Doom",
+    "Beyond the Quiet",
+    "Born to Drive",
+    "Tend the Sprigs",
+    "Focus Fire",
+    "Collision Course",
+    "Battle of Frost and Fire"
    ]
   },
   {
@@ -4386,21 +4384,6 @@
    ]
   },
   {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Nykthos Paragon",
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
-   ]
-  },
-  {
    "what": "(verify) condition lost",
    "score": 8,
    "lines": 8,
@@ -5192,6 +5175,20 @@
     "Bloodbraid Marauder",
     "Kaervek's Torch",
     "Torrent of Lava"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {
@@ -7505,8 +7502,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4199,
-   "cards": 3719,
+   "score": 4194,
+   "cards": 3714,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -9049,19 +9046,6 @@
    ]
   },
   {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Syr Ginger, the Meal Ender",
-    "Tectonic Edge",
-    "Skyshroud Elite",
-    "Night Revelers",
-    "Beasts of Bogardan",
-    "Wu Admiral"
-   ]
-  },
-  {
    "what": "ConditionalOneShotEffect.addEffect",
    "score": 9,
    "cards": 9,
@@ -9072,19 +9056,6 @@
     "Cursed Recording",
     "Jet's Brainwashing",
     "Dawnhand Eulogist"
-   ]
-  },
-  {
-   "what": "scope:alts",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Iron Spider, Stark Upgrade",
-    "Eidolon of Countless Battles",
-    "Paladin Danse, Steel Maverick",
-    "Doctor Doom",
-    "Beyond the Quiet",
-    "Tend the Sprigs"
    ]
   },
   {
@@ -9613,6 +9584,19 @@
    ]
   },
   {
+   "what": "scope:alts",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Eidolon of Countless Battles",
+    "Paladin Danse, Steel Maverick",
+    "Doctor Doom",
+    "Beyond the Quiet",
+    "Tend the Sprigs",
+    "Focus Fire"
+   ]
+  },
+  {
    "what": "LookLibraryAndPickControllerEffect shape",
    "score": 8,
    "cards": 8,
@@ -9990,19 +9974,6 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Patrician Geist"
-   ]
-  },
-  {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Nykthos Paragon",
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge"
    ]
   },
   {
@@ -10616,6 +10587,19 @@
    ]
   },
   {
+   "what": "OpponentControlsPermanentCondition",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Syr Ginger, the Meal Ender",
+    "Tectonic Edge",
+    "Skyshroud Elite",
+    "Beasts of Bogardan",
+    "Ivory Guardians",
+    "Radiant Essence"
+   ]
+  },
+  {
    "what": "CounterTargetWithReplacementEffect",
    "score": 6,
    "cards": 6,
@@ -10704,6 +10688,19 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {

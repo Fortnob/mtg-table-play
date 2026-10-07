@@ -1814,8 +1814,20 @@
     { re: /^Create half X (Food|Treasure|Clue) tokens, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: { half: 'X', up: /up/i.test(m[2]) }, token: m[1] }) },
     // Sunspine Lynx: "it deals damage to each player equal to the number of nonbasic lands that player controls"
-    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to the number of ([a-z ]+?)s that player controls\.?$/i,
-      make: (m) => ({ op: 'damageEachByCount', what: m[1].toLowerCase() }) },
+    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s that player controls\.?$/i,
+      make: (m) => ({ op: 'damageEachByCount', what: m[2].toLowerCase(), mult: m[1] ? 2 : 1 }) },
+    // Oswald Fiddlebender: "an artifact card with mana value equal to 1 plus the sacrificed artifact's mana value"
+    { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], mvOfSacrificedPlus: num(m[2]), prompt: 'Search your library for a ' + m[1].toLowerCase() + ' card.' }) },
+    // Nykthos Paragon: "put that many +1/+1 counters on each creature you control"
+    { re: /^Put that many \+1\/\+1 counters on each creature you control\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: 'triggerAmount', scope: 'yourCreatures' }) },
+    // Karametra's Acolyte: "Add an amount of {G} equal to your devotion to green."
+    { re: /^Add an amount of \{([WUBRG])\} equal to your devotion to (white|blue|black|red|green)\.?$/i,
+      make: (m) => ({ op: 'addManaPer', symbol: m[1].toUpperCase(), per: { devotion: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[2].toLowerCase()] } }) },
+    // Lifeblood Hydra: "you gain life and draw cards equal to its power"
+    { re: /^You gain life and draw cards equal to its power\.?$/i,
+      make: () => ({ op: 'sequence', list: [{ op: 'gainLife', who: 'you', n: { ofTrigger: 'power' } }, { op: 'draw', who: 'you', n: { ofTrigger: 'power' } }] }) },
     // Anzrag: "CARDNAME must be blocked each combat this turn if able."
     { re: /^(?:CARDNAME|This creature) must be blocked each combat this turn if able\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['mustBeBlockedTurn'] }) },
@@ -2231,7 +2243,7 @@
         { op: 'damage', n: num(m[3]), toSelf: true }] }) },
 
     /* ===== counters on a whole category ===== */
-    { re: /^Put (a|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each ([-a-z' ]+?) you control\.?$/i,
+    { re: /^Put (a|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each ([-a-zA-Z' \/]+?) you control\.?$/i,
       make: (m) => (/\bother\b|\bwith|\btarget\b|^of /i.test(m[3]) ? null
         : { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: 'yourMatching', filter: m[3].trim() }) },
     // Earth Kingdom Soldier: "put a +1/+1 counter on each of up to two target creatures you control"
@@ -5474,6 +5486,8 @@
       (m) => { const sc = scopeOf(m[2] + 's you control'); return sc ? { kind: 'control', n: num(m[1]), scope: sc } : null; }],
     // Thornfist Striker: "you gained life this turn"
     [/^you(?:'ve| have)? gained life this turn$/i, () => ({ kind: 'gainedLifeThisTurn' })],
+    // Syr Ginger: "as long as an opponent controls a planeswalker"
+    [/^an opponent controls an? ([a-z]+)$/i, (m) => ({ kind: 'control', what: m[1].toLowerCase(), n: 1, who: 'opponents' })],
     // Pestilence: "if no creatures are on the battlefield"
     [/^no creatures are on the battlefield$/i, () => ({ kind: 'noCreatures' })],
     // Y'shtola: "if a player lost 4 or more life this turn"
@@ -8508,6 +8522,9 @@
          land during their untap steps" */
       { re: /^(As long as (?:this artifact|CARDNAME) is untapped, )?(players|you) can'?t untap more than (one|two|three) (lands?|creatures?|artifacts?|permanents?) during (?:their|your) untap steps?\.?$/i,
         make: (m) => ({ op: 'untapLimit', n: num(m[3]), what: m[4].toLowerCase().replace(/s$/, ''), whileUntapped: !!m[1], who: /^you$/i.test(m[2]) ? 'you' : 'all' }), auto: true },
+      // Winter Moon: "Players can't untap more than one nonbasic land during their untap steps."
+      { re: /^(players|you) can'?t untap more than (one|two|three) nonbasic lands? during (?:their|your) untap steps?\.?$/i,
+        make: (m) => ({ op: 'untapLimit', n: num(m[2]), what: 'nonbasic land', who: /^you$/i.test(m[1]) ? 'you' : 'all' }), auto: true },
       /* Training Grounds, Suppression Field, Power Artifact: what activated
          abilities cost, a few mana either way. "Can't reduce the mana in that
          cost to less than one mana" keeps one. */

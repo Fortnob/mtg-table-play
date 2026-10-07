@@ -7095,4 +7095,26 @@ module.exports = (test) => {
     T.cast('A', pd, { targets: [bolt.id, duress.id] });
     t.eq(bolt.zone, 'hand'); t.eq(duress.zone, 'hand'); t.eq(pd.zone, 'exile');
   });
+
+  test('Price of Progress: twice the nonbasic lands each player controls', (mk, t) => {
+    t.auto('Price of Progress');
+    const T = mk();
+    T.bf('B', 'Steam Vents'); T.bf('B', 'Steam Vents'); T.bf('B', 'Island');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Price of Progress'));
+    t.eq(T.life('B'), 16); t.eq(T.life('A'), 20);
+  });
+
+  test('Oswald Fiddlebender: an artifact with mana value one more', (mk, t) => {
+    t.auto('Oswald Fiddlebender');
+    const T = mk();
+    const of = T.bf('A', 'Oswald Fiddlebender');
+    const ms = T.bf('A', 'Mind Stone');
+    const pick = T.top('A', 'Coat of Arms'); const right = T.top('A', 'Pristine Talisman');
+    T.mana('A', 'W');
+    const idx = of.analysis().manaAbilities.length + of.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Search/.test(x.text));
+    T.activate('A', of, idx, { sacrificeIds: [ms.id] });
+    T.resolve();
+    t.eq(right.zone, 'battlefield', 'mana value 3'); t.eq(pick.zone, 'library');
+  });
 };
