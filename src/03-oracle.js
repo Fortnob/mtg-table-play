@@ -2853,12 +2853,21 @@
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to each of up to (two|three) other targets\.?$/i,
       make: (m) => ({ op: 'damageSplit', amounts: [+m[1]].concat(Array.from({ length: num(m[3]) }, () => +m[2])),
         targets: [{ type: 'any', filter: 'any target', zone: 'battlefield' }].concat(Array.from({ length: num(m[3]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true }))) }) },
-    // Earthquake's kin: "2 damage to each creature without flying and each player"
-    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to (each creature (?:with|without) [a-z ]+?) and each (player|opponent)\.?$/i,
+    // Earthquake's kin: "2 damage to each creature without flying and each player"; Delete, Magmaquake
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to (each (?:creature (?:with|without) [a-z ]+?|[a-z]+ creature)) and each (player|opponent|planeswalker)\.?$/i,
       make: (m) => {
         const sc = massScopeOf(m[2]);
-        return sc ? [{ op: 'damage', n: num(m[1]), scope: sc }, { op: 'damage', n: num(m[1]), each: m[3].toLowerCase() }] : null;
+        if (!sc) return null;
+        const second = /planeswalker/i.test(m[3]) ? { op: 'damage', n: num(m[1]), scope: { who: 'all', what: 'planeswalker' } } : { op: 'damage', n: num(m[1]), each: m[3].toLowerCase() };
+        return [{ op: 'damage', n: num(m[1]), scope: sc }, second];
       } },
+    // Prismari Charm: "1 damage to each of one or two targets"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to each of one or two targets\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], targets: [{ type: 'any', filter: 'any target', zone: 'battlefield' }, { type: 'any', filter: 'any target', zone: 'battlefield', upTo: true, distinct: true }] }) },
+    // Terminus: "Put all creatures on the bottom of their owners' libraries."
+    { re: /^Put all creatures on the bottom of their owners'? libraries\.?$/i, make: () => ({ op: 'bottomAll', scope: { who: 'all', what: 'creature' } }) },
+    // Praetor's Counsel: "Return all cards from your graveyard to your hand."
+    { re: /^Return all cards from your graveyard to your hand\.?$/i, make: () => ({ op: 'regrowthAll', filter: 'card' }) },
     // Runeflare Trap: "damage to target player equal to the number of cards in that player's hand"
     { re: /^(?:CARDNAME|This creature|It) deals damage to (target (?:player|opponent)) equal to the number of cards in (?:that player'?s|their) hand\.?$/i,
       make: (m) => ({ op: 'damage', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -3059,6 +3068,9 @@
     // Dawn Charm: "Counter target spell that targets you."
     { re: /^Counter target spell that targets you\.?$/i,
       make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', targetsYour: 'you', orYou: true }] }) },
+    // Hindering Light: "Counter target spell that targets you or a permanent you control."
+    { re: /^Counter target spell that targets you or an? (permanent|creature) you control\.?$/i,
+      make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', targetsYour: m[1].toLowerCase(), orYou: true }] }) },
     // Siren Stormtamer: "Counter target spell or ability that targets you or a creature you control."
     { re: /^Counter target spell or ability that targets (you or )?an? (permanent|creature) you control\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true,
@@ -3558,11 +3570,17 @@
     if (wc) spec.withCounter = wc[1];
     // Heartless Act: "target creature with no counters on it"
     if (/with no counters on it$/.test(p)) spec.noCounters = true;
+    // Cut Down: "with total power and toughness 5 or less"; Warping Wail: "with power or toughness 1 or less"
+    const tpt = p.match(/with total power and toughness (\d+) or less$/);
+    if (tpt) spec.maxPtSum = +tpt[1];
+    const pot = p.match(/with power or toughness (\d+) or less$/);
+    if (pot) spec.maxPowerOrToughness = +pot[1];
     const mx = p.match(/with (?:mana value|converted mana cost) (\d+)$/);
     if (mx) spec.mv = +mx[1];
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
-      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.noCounters;
+      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.noCounters ||
+      spec.maxPtSum != null || spec.maxPowerOrToughness != null;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
     if (withClause && !known) spec.unknown = true;
@@ -3710,6 +3728,8 @@
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.maxPower != null && pow() > spec.maxPower) return false;
+    if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
+    if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
     if (spec.minPower != null && pow() < spec.minPower) return false;
     if (spec.maxToughness != null && tou() > spec.maxToughness) return false;
     if (spec.minToughness != null && tou() < spec.minToughness) return false;
@@ -6955,10 +6975,17 @@
     }
     if (!nouns.length) {
       const w = words[words.length - 1];
+      // Lord of Atlantis: "Other Merfolk" — a plural that is the word itself, and a few irregular ones
+      const SAME = { merfolk: 'merfolk', kithkin: 'kithkin', moonfolk: 'moonfolk', kor: 'kor', samurai: 'samurai', fish: 'fish',
+        sheep: 'sheep', mice: 'mouse', fungi: 'fungus', sphinxes: 'sphinx', octopuses: 'octopus', foxes: 'fox' };
+      if (SAME[w.toLowerCase()] && words.length <= 2 && /^[A-Z]/.test(w)) {
+        sc.subtype = SAME[w.toLowerCase()]; sc.what = 'permanent'; words.pop();
+      } else {
       if (!/^[A-Z][a-z'-]+s$/.test(w) || words.length > 2) return null;
       sc.subtype = w.toLowerCase().replace(/ves$/, 'f').replace(/s$/, '');
       sc.what = 'permanent';
       words.pop();
+      }
     } else if (nouns.length === 1) sc.what = nouns[0];
     else { sc.what = 'permanent'; sc.anyOf = nouns; }
     const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
@@ -7945,6 +7972,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Anvil of Bogardan: "Players have no maximum hand size."
+      { re: /^Players have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize', all: true }, auto: true },
       // Sphere of Law: "If a red source would deal damage to you, prevent 2 of that damage."
       { re: /^If an? (white|blue|black|red|green) source would deal damage to you, prevent (\d+) of that damage\.?$/i,
         make: (m) => ({ op: 'preventSomeFromColor', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()], n: +m[2] }), auto: true },

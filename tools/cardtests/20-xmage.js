@@ -5432,4 +5432,39 @@ module.exports = (test) => {
     T.activate('A', ck, 0);
     t.eq(T.life('A'), 20);
   });
+
+  test('Cut Down: total power and toughness 5 or less', (mk, t) => {
+    t.auto('Cut Down');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const big = T.bf('B', 'Gutsplitter Gang');
+    const ct = T.hand('A', 'Cut Down');
+    T.mana('A', 'B');
+    const spec = engine().rules.spellTargetSpecs(engine().oracle.analyze(card('Cut Down')))[0];
+    const legal = T.g._legalTargetsFor(spec, 'A').map(x => x.id);
+    t.no(legal.includes(big.id), 'a 6/6 is too big');
+    t.ok(legal.includes(bear.id), 'a 2/2 is not');
+    T.cast('A', ct, { targets: [bear] });
+    t.eq(bear.zone, 'graveyard');
+  });
+
+  test('Lord of Atlantis: other Merfolk get +1/+1 and islandwalk', (mk, t) => {
+    t.auto('Lord of Atlantis');
+    const T = mk();
+    T.bf('A', 'Lord of Atlantis');
+    const mf = T.bf('B', 'Merfolk of the Pearl Trident');
+    t.eq(T.g.powerOf(mf), 2);
+    t.ok(T.g.hasKw(mf, 'islandwalk'));
+  });
+
+  test('Hallowed Burial: every creature to the bottom of its library', (mk, t) => {
+    t.auto('Hallowed Burial');
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'WW3');
+    T.cast('A', T.hand('A', 'Hallowed Burial'));
+    t.eq(a.zone, 'library'); t.eq(b.zone, 'library');
+    const libB = T.zone('B', 'library');
+    t.eq(libB[libB.length - 1], b, 'at the bottom');
+  });
 };

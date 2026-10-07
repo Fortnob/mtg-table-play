@@ -1094,7 +1094,9 @@
       this._returnDashed();
       // discard to hand size
       const hand = this.zones[ap.id].hand;
-      if (this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand) {
+      // Anvil of Bogardan: "Players have no maximum hand size" — anyone's, for everyone
+      const allNoMax = this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'noMaxHandSize') || {}).all);
+      if (allNoMax || this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand) {
         this.logEvent('step', `${ap.name} has no maximum hand size.`);
         this._finishCleanup();
         return;
@@ -13037,6 +13039,11 @@
           if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
           if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
           this.bumpBoard();
+          break;
+        }
+        // Terminus: every creature to the bottom of its owner's library
+        case 'bottomAll': {
+          for (const o of this._scopeList(e.scope, ctx.controller, src).slice()) this.moveObject(o, 'library', { toBottom: true });
           break;
         }
         // Quandrix Command: cards from a graveyard into their owner's library, shuffled

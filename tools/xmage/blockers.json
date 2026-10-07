@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15037,
-  "gainedCards": 1535,
-  "linesNeeded": 16740,
-  "linesGained": 1940,
+  "needed": 15017,
+  "gainedCards": 1530,
+  "linesNeeded": 16712,
+  "linesGained": 1931,
   "gained": {
-   "all": 1535,
+   "all": 1530,
    "top2000": 51,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5473,
-   "lines": 4717,
+   "score": 5470,
+   "lines": 4714,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 288,
-   "lines": 258,
+   "score": 287,
+   "lines": 257,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -1941,25 +1941,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork",
-    "Wanderwine Farewell",
-    "Become Brutes",
-    "Soul Parry",
-    "Counterintelligence",
-    "Command of Unsummoning",
-    "Heroic Teamwork"
-   ]
-  },
-  {
    "what": "DoIfCostPaid not optional",
    "score": 15,
    "lines": 15,
@@ -2659,6 +2640,25 @@
    ]
   },
   {
+   "what": "target count 1-2",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell",
+    "Become Brutes",
+    "Soul Parry",
+    "Counterintelligence",
+    "Command of Unsummoning",
+    "Heroic Teamwork",
+    "Predictive Preparations"
+   ]
+  },
+  {
    "what": "PreventDamageAndRemoveCountersEffect",
    "score": 13,
    "lines": 13,
@@ -2927,25 +2927,6 @@
     "Patrician Geist",
     "Invasion of Arcavios // Invocation of the Founders",
     "Mizzix, Replica Rider"
-   ]
-  },
-  {
-   "what": "scope:alts",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Iron Spider, Stark Upgrade",
-    "Eidolon of Countless Battles",
-    "Magmaquake",
-    "Katilda, Dawnhart Martyr // Katilda's Rising Dawn",
-    "Paladin Danse, Steel Maverick",
-    "Doctor Doom",
-    "Beyond the Quiet",
-    "Born to Drive",
-    "Tend the Sprigs",
-    "Focus Fire",
-    "Collision Course",
-    "Battle of Frost and Fire"
    ]
   },
   {
@@ -3372,6 +3353,24 @@
    ]
   },
   {
+   "what": "scope:alts",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Iron Spider, Stark Upgrade",
+    "Eidolon of Countless Battles",
+    "Katilda, Dawnhart Martyr // Katilda's Rising Dawn",
+    "Paladin Danse, Steel Maverick",
+    "Doctor Doom",
+    "Beyond the Quiet",
+    "Born to Drive",
+    "Tend the Sprigs",
+    "Focus Fire",
+    "Collision Course",
+    "Battle of Frost and Fire"
+   ]
+  },
+  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 11,
    "lines": 11,
@@ -3741,23 +3740,6 @@
     "Eldrazi Aggressor",
     "Reaver Drone",
     "Skitterskin"
-   ]
-  },
-  {
-   "what": "WardAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Gold-Forged Thopteryx",
-    "Saruman, the White Hand",
-    "Svyelun of Sea and Sky",
-    "Coppercoat Vanguard",
-    "Iymrith, Desert Doom",
-    "Hall of Storm Giants",
-    "Leyline Immersion",
-    "Paladin's Arms",
-    "Thorin Oakenshield",
-    "Radagast, Wizard of Wilds"
    ]
   },
   {
@@ -4238,6 +4220,22 @@
     "Joo Dee, One of Many",
     "Chronozoa",
     "Council of Reeds"
+   ]
+  },
+  {
+   "what": "WardAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Gold-Forged Thopteryx",
+    "Saruman, the White Hand",
+    "Coppercoat Vanguard",
+    "Iymrith, Desert Doom",
+    "Hall of Storm Giants",
+    "Leyline Immersion",
+    "Paladin's Arms",
+    "Thorin Oakenshield",
+    "Radagast, Wizard of Wilds"
    ]
   },
   {
@@ -5947,20 +5945,6 @@
    ]
   },
   {
-   "what": "DamageEverythingEffect with a filter",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Delete",
-    "Rolling Earthquake",
-    "Flamebreak",
-    "Time Bomb",
-    "Borrowing the East Wind",
-    "Thunder of Hooves",
-    "Blockbuster"
-   ]
-  },
-  {
    "what": "DiscardedByOpponentTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -7660,18 +7644,6 @@
    ]
   },
   {
-   "what": "or of PowerPredicate",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Warping Wail",
-    "Repel Calamity",
-    "Arnyn, Deathbloom Botanist",
-    "Stern Scolding",
-    "Rootless Yew"
-   ]
-  },
-  {
    "what": "ModifyCountersAddedEffect",
    "score": 5,
    "lines": 5,
@@ -7718,13 +7690,37 @@
     "Stasis Field",
     "Coerced to Kill"
    ]
+  },
+  {
+   "what": "modal activated ability",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Bow of Nylea",
+    "Power Conduit",
+    "Lobelia, Defender of Bag End",
+    "Ransom Note",
+    "Pyramids"
+   ]
+  },
+  {
+   "what": "TheRingTemptsYouEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Ringsight",
+    "One Ring to Rule Them All",
+    "Frodo, Adventurous Hobbit",
+    "The Ring Goes South",
+    "Dúnedain Rangers"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4373,
-   "cards": 3833,
+   "score": 4374,
+   "cards": 3834,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7749,8 +7745,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 233,
-   "cards": 218,
+   "score": 234,
+   "cards": 219,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7788,8 +7784,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 170,
-   "cards": 158,
+   "score": 169,
+   "cards": 157,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -8470,19 +8466,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork"
-   ]
-  },
-  {
    "what": "CovenCondition.instance",
    "score": 14,
    "cards": 14,
@@ -8852,6 +8835,19 @@
     "Sylvan Messenger",
     "Elder Pine of Jukai",
     "Enshrined Memories"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell"
    ]
   },
   {
@@ -9299,19 +9295,6 @@
    ]
   },
   {
-   "what": "scope:alts",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Iron Spider, Stark Upgrade",
-    "Eidolon of Countless Battles",
-    "Magmaquake",
-    "Paladin Danse, Steel Maverick",
-    "Doctor Doom",
-    "Beyond the Quiet"
-   ]
-  },
-  {
    "what": "TargetSpellOrPermanent",
    "score": 10,
    "cards": 10,
@@ -9566,6 +9549,19 @@
     "Cursed Recording",
     "Jet's Brainwashing",
     "Dawnhand Eulogist"
+   ]
+  },
+  {
+   "what": "scope:alts",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Iron Spider, Stark Upgrade",
+    "Eidolon of Countless Battles",
+    "Paladin Danse, Steel Maverick",
+    "Doctor Doom",
+    "Beyond the Quiet",
+    "Tend the Sprigs"
    ]
   },
   {
@@ -10747,19 +10743,6 @@
    ]
   },
   {
-   "what": "DamageEverythingEffect with a filter",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Delete",
-    "Rolling Earthquake",
-    "Flamebreak",
-    "Time Bomb",
-    "Borrowing the East Wind",
-    "Thunder of Hooves"
-   ]
-  },
-  {
    "what": "ConditionalReplacementEffect",
    "score": 7,
    "cards": 7,
@@ -11207,19 +11190,6 @@
    ]
   },
   {
-   "what": "WardAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Gold-Forged Thopteryx",
-    "Saruman, the White Hand",
-    "Svyelun of Sea and Sky",
-    "Coppercoat Vanguard",
-    "Leyline Immersion",
-    "Radagast, Wizard of Wilds"
-   ]
-  },
-  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 6,
    "cards": 6,
@@ -11555,6 +11525,32 @@
     "Soaring Thought-Thief",
     "Tenured Oilcaster",
     "Nimana Skitter-Sneak"
+   ]
+  },
+  {
+   "what": "CantAttackBlockUnlessConditionSourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Relic Golem",
+    "Lupine Prototype",
+    "Hazoret, Godseeker",
+    "The Lion-Turtle",
+    "Tiger-Dillo",
+    "Blind-Spot Giant"
+   ]
+  },
+  {
+   "what": "ConditionalColorlessManaAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Automated Artificer",
+    "Lord of the Forsaken",
+    "Cultivator Drone",
+    "Sage of the Unknowable",
+    "Qarsi Deceiver",
+    "Soldevi Machinist"
    ]
   }
  ]
