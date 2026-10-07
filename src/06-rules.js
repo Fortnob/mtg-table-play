@@ -2579,6 +2579,12 @@
         return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
       }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      // Prime Speaker Zegana: "the greatest power among other creatures you control"
+      if (v.greatestPower) {
+        let best = 0;
+        for (const o of this._scopeList(v.greatestPower, pid, src, null, inLayers)) if (o !== src) best = Math.max(best, this.powerOf(o));
+        return best;
+      }
       // Animar: "for each +1/+1 counter on CARDNAME"
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
@@ -11061,7 +11067,8 @@
         case 'chooseTypeNow': {
           if (!src) break;
           const counts = new Map();
-          for (const x of this.battlefield.concat(this.zones[ctx.controller].hand)) {
+          // (the graveyard too: Bloodline Bidding brings back "the chosen type")
+          for (const x of this.battlefield.concat(this.zones[ctx.controller].hand, this.zones[ctx.controller].graveyard)) {
             const xa = x.analysis();
             if (!xa || !xa.isCreature) continue;
             for (const t of (xa.subtypes || [])) counts.set(t, (counts.get(t) || 0) + (x.controller === ctx.controller ? 2 : 1));
@@ -14758,6 +14765,8 @@
           for (const p of from) {
             for (const c of this.zones[p.id].graveyard) {
               if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > e.maxMv) continue;
+              // Bloodline Bidding: "of the chosen type"
+              if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(c, src.chosenType))) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);
             }
           }

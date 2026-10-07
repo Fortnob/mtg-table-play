@@ -1821,6 +1821,9 @@
     { re: /^(Enchanted|Equipped) creature deals damage equal to its power to (any other target|any target|target creature|target player)\.?$/i,
       make: (m) => ({ op: 'damage', n: { ofAttached: 'power' }, fromAttached: true,
         targets: [Object.assign(targetSpec(m[2].replace(/ other/, '')), /other/i.test(m[2]) ? { notAttached: true } : {})] }) },
+    // Bloodline Bidding: "Return all creature cards of the chosen type from your graveyard to the battlefield."
+    { re: /^Return all creature cards of the chosen type from your graveyard to the battlefield\.?$/i,
+      make: () => ({ op: 'massReanimate', filter: 'creature', yours: true, chosenType: true }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -3760,7 +3763,7 @@
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
       return done({ countersOnSelf: m[1].toLowerCase(), mult: 1 });
-    if ((m = p.match(/^the greatest power among (creatures you control|creatures your opponents control|creatures)$/i))) {
+    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures)$/i))) {
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
     }
@@ -5062,6 +5065,7 @@
      channel ability from the hand. They stay on the line. */
   const NOT_ABILITY_WORDS = new Set(['boast', 'exhaust', 'power-up', 'max speed', 'channel', 'companion', 'forecast', 'renew',
     'to solve', 'solved', 'visit', 'prize', 'eminence', 'mono eminence', 'bloodrush', 'spree', 'level up']);
+  function noReminderText(t) { return String(t || '').replace(/\([^)]*\)/g, ''); }
   function stripAbilityWord(line) {
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' ]{2,30}?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
@@ -7056,6 +7060,12 @@
       if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[1], n: { count: c } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
+    // Prime Speaker Zegana: "enters with X +1/+1 counters on it, where X is the greatest power among other creatures you control"
+    const etbX = noReminderText(text).match(/(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is ([^.]+)\./i);
+    if (etbX && !out.entersWithCounters) {
+      const k = amountOf(etbX[1]);
+      if (k && typeof k === 'object') out.entersWithCounters = { kind: '+1/+1', n: { count: k } };
+    }
     // (and "six", "seven" … : Clockwork Dragon, Phantom Nishoba)
     // (not in reminder text: impending's "it enters with four time counters")
     const noReminder = text.replace(/\([^)]*\)/g, '');
@@ -8388,6 +8398,9 @@
         make: (m) => ({ op: 'abilityCostMod', scope: { who: 'opponents', what: 'planeswalker' }, loyalty: true, amount: +m[1] }), auto: true },
       /* Blazing Archon, Reverence, Spectral Grasp: "Creatures with power 2 or
          less can't attack you", "…or planeswalkers you control" */
+      // Prime Speaker Zegana: the counters are read where it enters (entersWithCounters)
+      { re: /^(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is (.+?)\.?$/i,
+        make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
       // Sunspine Lynx: "Damage can't be prevented."
       { re: /^Damage can'?t be prevented\.?$/i, eff: { op: 'noPreventionAll' }, auto: true },
       // Angelic Destiny: "gets +4/+4, has flying and first strike, and is an Angel in addition to its other types"

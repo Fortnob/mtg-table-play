@@ -6779,4 +6779,26 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.ok(T.life('B') <= 0, 'ten thousand needles');
   });
+
+  test('Prime Speaker Zegana: counters for the greatest power among the others', (mk, t) => {
+    t.auto('Prime Speaker Zegana');
+    const T = mk();
+    T.bf('A', 'Hill Giant'); T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'GGUU2');
+    const z = T.hand('A', 'Prime Speaker Zegana');
+    T.cast('A', z);
+    T.resolve();
+    t.eq(z.counters['+1/+1'] || 0, 3, 'the Giant has 3 power');
+  });
+
+  test('Bloodline Bidding: every creature card of the chosen type comes back', (mk, t) => {
+    t.auto('Bloodline Bidding');
+    const T = mk();
+    const b1 = T.grave('A', 'Grizzly Bears'), b2 = T.grave('A', 'Grizzly Bears'), g = T.grave('A', 'Hill Giant');
+    T.answer('choose', (ch) => ({ picks: [Math.max(0, ch.options.findIndex(o => o.label === 'Bear'))] }));
+    T.mana('A', 'BB6');
+    T.cast('A', T.hand('A', 'Bloodline Bidding'));
+    T.resolve();
+    t.eq(b1.zone, 'battlefield'); t.eq(b2.zone, 'battlefield'); t.eq(g.zone, 'graveyard');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14392,
+  "needed": 14389,
   "gainedCards": 1519,
-  "linesNeeded": 15964,
+  "linesNeeded": 15961,
   "linesGained": 1894,
   "gained": {
    "all": 1519,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5257,
-   "lines": 4582,
+   "score": 5256,
+   "lines": 4581,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 140,
-   "lines": 131,
+   "score": 139,
+   "lines": 130,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -176,12 +176,12 @@
     "Echoing Deeps",
     "Estrid's Invocation",
     "Flesh Duplicate",
-    "Prime Speaker Zegana",
     "Xantcha, Sleeper Agent",
     "Den of the Bugbear",
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Sakashima's Student",
-    "Baloth Prime"
+    "Baloth Prime",
+    "Altered Ego"
    ]
   },
   {
@@ -7537,8 +7537,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4214,
-   "cards": 3734,
+   "score": 4213,
+   "cards": 3733,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7615,15 +7615,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 88,
-   "cards": 88,
+   "score": 87,
+   "cards": 87,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
     "Estrid's Invocation",
     "Flesh Duplicate",
-    "Prime Speaker Zegana",
-    "Sakashima's Student"
+    "Sakashima's Student",
+    "Baloth Prime"
    ]
   },
   {
