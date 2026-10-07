@@ -10073,6 +10073,8 @@
             const p = this._lastAffectedController();
             if (p) this.changeLife(p, cnt);
           } else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, cnt); }
+          // Laquatus's Champion: the player the trigger is about
+          else if (e.who === 'triggerPlayer') { const p = triggerPlayer() || (src && this.player(src._linkedPlayer)); if (p) this.changeLife(p, cnt); }
           else if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this.changeLife(p, cnt); }
           // Grove of the Burnwillows: "Each opponent gains 1 life."
           else if (e.who === 'opponents') { for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, cnt); }
@@ -10095,7 +10097,8 @@
             const p = x && this.player(x.controller);
             if (p) this.changeLife(p, -cnt);
           }
-          else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, -cnt); }
+          // (Laquatus's Champion remembers whom, for "that player gains 6 life" as it leaves)
+          else if (e.who === 'target') { const p = firstPlayer(); if (p) { this.changeLife(p, -cnt); if (src) src._linkedPlayer = p.id; } }
           // Silent Skimmer: "defending player loses 2 life"
           else if (e.who === 'defending') { const p = this._defenderOf(src) || triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           else this.changeLife(me, -cnt);
@@ -12366,10 +12369,20 @@
         // Haunted Fengraf: a card at random, from your graveyard to your hand
         case 'randomFromGraveyard': {
           const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
-          if (!pool.length) break;
-          const c = pool[Math.floor(this.rng.next() * pool.length)];
-          this.moveObject(c, 'hand');
-          this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
+          // Reap the Past: as many as it says, each at random
+          for (let k = Math.max(1, n(e.n) || 1); k > 0 && pool.length; k--) {
+            const c = pool.splice(Math.floor(this.rng.next() * pool.length), 1)[0];
+            this.moveObject(c, 'hand');
+            this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
+          }
+          break;
+        }
+        // Hunt Down: the first target blocks the second this turn if able
+        case 'blocksTargetIfAble': {
+          const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && x.zone === 'battlefield');
+          if (objs.length < 2) break;
+          objs[0].effects.push({ mustBlockId: objs[1].id, until: 'eot' });
+          this.logEvent('rules', `${objs[0].name} blocks ${objs[1].name} this turn if able.`);
           break;
         }
         /* Cataclysm, Tragic Arrogance, Razia's Purification, Mount Doom: some

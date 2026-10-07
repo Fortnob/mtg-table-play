@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14067,
+  "needed": 14056,
   "gainedCards": 1483,
-  "linesNeeded": 15514,
+  "linesNeeded": 15503,
   "linesGained": 1835,
   "gained": {
    "all": 1483,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5175,
-   "lines": 4515,
+   "score": 5170,
+   "lines": 4510,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 891,
-   "lines": 765,
+   "score": 889,
+   "lines": 763,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -7424,8 +7424,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4152,
-   "cards": 3687,
+   "score": 4147,
+   "cards": 3682,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7437,8 +7437,8 @@
   },
   {
    "what": "custom ability",
-   "score": 675,
-   "cards": 576,
+   "score": 673,
+   "cards": 574,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",

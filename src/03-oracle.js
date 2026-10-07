@@ -1063,6 +1063,16 @@
     { re: /^(?:It|That creature) deals that much damage to any (other )?target(?: that isn'?t an? ([A-Z][a-z]+))?\.?$/,
       make: (m) => ({ op: 'damage', n: 'triggerAmount', fromTrigger: true,
         targets: [Object.assign(targetSpec('any target'), m[2] ? { notSubtype: m[2].toLowerCase() } : {}, m[1] ? { another: true } : {})] }) },
+    // Laquatus's Champion: "that player gains 2 life"
+    { re: /^That player gains (one|two|three|four|five|six|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', who: 'triggerPlayer', n: num(m[1]) }) },
+    // Ragged Veins: "its controller loses that much life" — the creature the trigger is about
+    { re: /^Its controller loses that much life\.?$/i, make: () => ({ op: 'loseLife', who: 'triggerObjController', n: 'triggerAmount' }) },
+    // Instigator: "Creatures target player controls attack this turn if able."
+    { re: /^Creatures target player controls attack this turn if able\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'mustAttackEot', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
+    // Hunt Down: "Target creature blocks target creature this turn if able."
+    { re: /^(Target [a-z ]+?) blocks (target [a-z ]+?) this turn if able\.?$/i,
+      make: (m) => ({ op: 'blocksTargetIfAble', targets: [targetSpec(m[1]), targetSpec(m[2])] }) },
     // Defend the Hearth: "Prevent all combat damage that would be dealt to players this turn."
     { re: /^Prevent all combat damage that would be dealt to players this turn\.?$/i,
       make: () => ({ op: 'preventDamage', combatOnly: true, to: 'players' }) },
@@ -1849,6 +1859,9 @@
     // Haunted Fengraf: "Return a creature card at random from your graveyard to your hand."
     { re: /^Return an? ([a-z ]*?)card at random from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'randomFromGraveyard', filter: m[1].trim() || 'card' }) },
+    // Reap the Past: "Return two cards at random from your graveyard to your hand."
+    { re: /^Return (two|three|four|X|\d+) ([a-z ]*?)cards at random from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'randomFromGraveyard', filter: m[2].trim() || 'card', n: num(m[1]) }) },
     // Clockwork Dragon: "remove a +1/+1 counter from it at end of combat"
     { re: /^Remove an? ([+\-]\d+\/[+\-]\d+) counter from (?:it|CARDNAME|this creature) at end of combat\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Remove a counter at end of combat',

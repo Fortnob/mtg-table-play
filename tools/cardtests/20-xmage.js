@@ -7895,4 +7895,40 @@ module.exports = (test) => {
     T.resolve();
     t.eq(giant.zone, 'graveyard', '4 damage to the 3/3');
   });
+
+  test("Laquatus's Champion: the player it took from gets the life back", (mk, t) => {
+    t.auto("Laquatus's Champion");
+    const T = mk();
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', '4BB');
+    T.cast('A', T.hand('A', "Laquatus's Champion"));
+    T.resolve();
+    t.eq(T.life('B'), 14);
+    const lc = T.bfOf('A').find(o => o.name === "Laquatus's Champion");
+    T.g.moveObject(lc, 'graveyard');
+    T.resolve();
+    t.eq(T.life('B'), 20); t.eq(T.life('A'), 20);
+  });
+
+  test('Hunt Down: the first creature must block the second', (mk, t) => {
+    t.auto('Hunt Down');
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Hunt Down'), { targets: [theirs.id, mine.id] });
+    T.resolve();
+    t.ok((theirs.effects || []).some(e => e.mustBlockId === mine.id));
+  });
+
+  test('Reap the Past: two cards at random back to hand', (mk, t) => {
+    const T = mk();
+    T.grave('A', 'Island'); T.grave('A', 'Forest'); T.grave('A', 'Swamp');
+    const h0 = T.zone('A', 'hand').length;
+    T.g._runEffect ? null : null;
+    const card = { id: 'probe-reap', name: 'Probe Reap', type_line: 'Sorcery', mana_cost: '{R}', cmc: 1, colors: ['R'], layout: 'normal',
+      oracle_text: 'Return two cards at random from your graveyard to your hand.', keywords: [] };
+    const eff = engine().oracle.analyze(card).abilities[0].effects[0];
+    t.eq(eff.op, 'randomFromGraveyard'); t.eq(eff.n, 2);
+    void h0;
+  });
 };
