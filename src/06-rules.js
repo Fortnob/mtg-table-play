@@ -8033,6 +8033,7 @@
              same way, from printed characteristics, because a condition on a
              continuous effect is asked while the layers are being worked out */
           if (cond.scope) return !!me && at(this._scopeList(cond.scope, me.id, src, null, true).length);
+          if (cond.who === 'anOpponent') return !!me && this.opponentsOf(me.id).some(p => at(this.countPermanents(p.id, { per: cond.what || 'permanent', who: 'you' })));
           return !!me && at(this.countPermanents(me.id, { per: cond.what || 'permanent', who: cond.who || 'you' }));
         case 'controlPower': {
           if (!me) return false;
@@ -8058,6 +8059,10 @@
         case 'opponentMore': {
           if (!me) return false;
           const mine = this.countPermanents(me.id, { per: cond.what || 'land' });
+          // Keeper of the Accord: the opponent whose end step it is
+          const td = (ctx && ctx.triggerData) || {};
+          const tp = cond.thatPlayer ? this.player(td.player || td.objController || (this.activePlayer && this.activePlayer.id)) : null;
+          if (cond.thatPlayer) return !!tp && tp.id !== me.id && this.countPermanents(tp.id, { per: cond.what || 'land' }) > mine;
           return this.opponentsOf(me.id).some(p => this.countPermanents(p.id, { per: cond.what || 'land' }) > mine);
         }
         case 'controlNamed': {
@@ -10672,7 +10677,10 @@
           for (const p of who) {
             if (!p) continue;
             // The Water Crystal: "they mill that many cards plus four instead"
-            const evM = cnt > 0 ? this._replace({ kind: 'mill', n: cnt, controller: p.id }) : { n: cnt };
+            // Maddening Cacophony: each opponent's own half
+            const cnt1 = e.n && e.n.halfLibrary === 'each'
+              ? (e.n.up ? Math.ceil : Math.floor)(this.zones[p.id].library.length / 2) : cnt;
+            const evM = cnt1 > 0 ? this._replace({ kind: 'mill', n: cnt1, controller: p.id }) : { n: cnt1 };
             if (evM.cancelled) continue;
             const many = evM.n;
             for (let i = 0; i < many; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); this._lastMilled.push(o.id); }
@@ -10736,8 +10744,10 @@
           // "a Treasure for each creature that died this turn" may be none at all
           const many = e.n && typeof e.n === 'object' ? n(e.n) : (n(e.n) || 1);
           if (many <= 0) break;
-          if (owner) this._createNamedToken(owner.id, Object.assign({}, e, { n: many }));
-          else for (const p of this.opponentsOf(ctx.controller)) this._createNamedToken(p.id, Object.assign({}, e, { n: many }));
+          // "Incubate X, where X is that spell's mana value": the counters, counted now
+          const wc = e.withCounters != null ? { withCounters: Math.max(0, n(e.withCounters)) } : {};
+          if (owner) this._createNamedToken(owner.id, Object.assign({}, e, { n: many }, wc));
+          else for (const p of this.opponentsOf(ctx.controller)) this._createNamedToken(p.id, Object.assign({}, e, { n: many }, wc));
           break;
         }
         /* --- mass effects --- */
@@ -14858,7 +14868,7 @@
         /* "All permanents you control phase out" */
         case 'phaseOut': {
           const list = e.scope && e.scope.self ? [src].filter(x => x && x.zone === 'battlefield')
-            : e.scope && typeof e.scope === 'object' ? this._scopeList(e.scope, ctx.controller, src)
+            : e.scope && typeof e.scope === 'object' ? this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || {}).id)
             : targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           for (const o of list) {
             o.phasedOut = true; o.phasedOutBy = o.controller; o.phasedTurn = this.turn;

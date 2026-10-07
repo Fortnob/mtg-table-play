@@ -1050,6 +1050,20 @@
     { re: /^You lose half your life, rounded (up|down)\.?$/i, make: (m) => ({ op: 'loseLife', n: { halfLife: 'you', up: /up/i.test(m[1]) }, who: 'you' }) },
     // Blessed Wind: "Target player's life total becomes 20."
     { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
+    // Maddening Cacophony: "each opponent mills half their library, rounded up" — each their own half
+    { re: /^Each opponent mills half their library, rounded (down|up)\.?$/i,
+      make: (m) => ({ op: 'mill', who: 'opponents', n: { halfLibrary: 'each', up: /up/i.test(m[1]) } }) },
+    // Galadriel's Dismissal: "each creature target player controls phases out"
+    { re: /^Each creature target player controls phases out\.?$/i,
+      make: () => ({ op: 'phaseOut', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
+    /* Defense of the Heart: "sacrifice this enchantment, search your library
+       for …" — the sacrifice, then the rest whether or not it could be made */
+    { re: /^Sacrifice (?:CARDNAME|this (?:enchantment|artifact|creature|permanent|land)), (?:then )?([a-z].+)$/,
+      make: (m) => {
+        const rest = parseEffects(m[1].replace(/^(\w)/, (c) => c.toUpperCase()));
+        if (!rest || !rest.auto || !rest.effects.length || rest.effects.some(x => !x || x.op === 'manual')) return null;
+        return [{ op: 'sacrificeSelf' }].concat(rest.effects);
+      } },
     // Traumatize, Cut Your Losses: "mills half their library, rounded down"
     { re: /^Target (player|opponent) mills half their library, rounded (down|up)\.?$/i,
       make: (m) => ({ op: 'mill', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -5482,6 +5496,8 @@
     [/^you control at least (\w+) other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2].toLowerCase(), n: num(m[1]) + 1 })],
     // the Turbulent lands: "unless your opponents control eight or more lands"
     [/^your opponents control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), who: 'opponents' })],
+    // Defense of the Heart: "an opponent controls three or more creatures" — one of them on their own
+    [/^an opponent controls (\w+) or more ([a-z]+?)s$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'control', what: m[2], n: num(m[1]), who: 'anOpponent' } : null)],
     [/^you control (?:an?|one or more) ([a-z]+?)s?$/i, (m) => ({ kind: 'control', what: m[1], n: 1 })],
     [/^you control (\w+) or fewer ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), cmp: 'atMost' })],
     [/^you control no ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[1], n: 0, cmp: 'atMost' })],
@@ -5524,6 +5540,8 @@
     [/^an opponent has (\d+) or less life$/i, (m) => ({ kind: 'opponentLife', n: +m[1], cmp: 'atMost' })],
     // Land Tax, Gift of Estates and the other catch-up cards
     [/^an opponent controls more ([a-z]+?)s than you$/i, (m) => ({ kind: 'opponentMore', what: m[1] })],
+    // Keeper of the Accord: "that player controls more creatures than you" — the one whose end step it is
+    [/^that player controls more ([a-z]+?)s than you$/i, (m) => ({ kind: 'opponentMore', what: m[1], thatPlayer: true })],
     // what has already happened this turn
     [/^(?:a|another) creature died this turn$/i, () => ({ kind: 'morbid' })],
     [/^a permanent you controlled left the battlefield this turn$/i, () => ({ kind: 'revolt' })],

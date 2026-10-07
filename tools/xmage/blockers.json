@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14186,
+  "needed": 14180,
   "gainedCards": 1482,
-  "linesNeeded": 15676,
+  "linesNeeded": 15669,
   "linesGained": 1847,
   "gained": {
    "all": 1482,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5201,
-   "lines": 4532,
+   "score": 5197,
+   "lines": 4531,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 231,
-   "lines": 201,
+   "score": 227,
+   "lines": 200,
    "cards": [
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
@@ -138,23 +138,21 @@
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Comet Storm",
-    "Galadriel's Dismissal",
     "Lazotep Quarry",
     "Likeness Looter",
     "Kozilek's Command",
     "Ruthless Technomancer",
-    "Sepulchral Primordial"
+    "Sepulchral Primordial",
+    "Silkguard"
    ]
   },
   {
    "what": "custom condition",
-   "score": 219,
-   "lines": 189,
+   "score": 211,
+   "lines": 187,
    "cards": [
     "Veil of Summer",
-    "Archaeomancer's Map",
     "Liberator, Urza's Battlethopter",
-    "Defense of the Heart",
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
     "Urabrask // The Great Work",
@@ -162,7 +160,9 @@
     "Queen Marchesa",
     "The Chain Veil",
     "Cosmos Elixir",
-    "Diamond City"
+    "Diamond City",
+    "Lyse Hext",
+    "Blitzball"
    ]
   },
   {
@@ -2428,18 +2428,6 @@
    ]
   },
   {
-   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
-   "score": 12,
-   "lines": 6,
-   "cards": [
-    "Keeper of the Accord",
-    "Luminarch Ascension",
-    "Goblin Spymaster",
-    "Predatory Advantage",
-    "Discordant Spirit"
-   ]
-  },
-  {
    "what": "WinGameSourceControllerEffect",
    "score": 12,
    "lines": 9,
@@ -2893,24 +2881,6 @@
    ]
   },
   {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Syr Ginger, the Meal Ender",
-    "Tectonic Edge",
-    "Black Scarab",
-    "White Scarab",
-    "Blue Scarab",
-    "Green Scarab",
-    "Red Scarab",
-    "Skyshroud Elite",
-    "Beasts of Bogardan",
-    "Ivory Guardians",
-    "Radiant Essence"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 11,
    "lines": 11,
@@ -3270,6 +3240,23 @@
     "Obosh, the Preypiercer",
     "Umori, the Collector",
     "Lutri, the Spellchaser"
+   ]
+  },
+  {
+   "what": "OpponentControlsPermanentCondition",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Syr Ginger, the Meal Ender",
+    "Black Scarab",
+    "White Scarab",
+    "Blue Scarab",
+    "Green Scarab",
+    "Red Scarab",
+    "Skyshroud Elite",
+    "Beasts of Bogardan",
+    "Ivory Guardians",
+    "Radiant Essence"
    ]
   },
   {
@@ -7472,13 +7459,25 @@
     "Rakdos the Defiler",
     "Banshee"
    ]
+  },
+  {
+   "what": "ConditionalPreventionEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Multiclass Baldric",
+    "Gideon Blackblade",
+    "Sanwell, Avenger Ace",
+    "Guardian Naga // Banishing Coils",
+    "Frodo, Determined Hero"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4174,
-   "cards": 3700,
+   "score": 4170,
+   "cards": 3699,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7516,8 +7515,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 199,
-   "cards": 169,
+   "score": 195,
+   "cards": 168,
    "names": [
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
@@ -7525,19 +7524,6 @@
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Comet Storm"
-   ]
-  },
-  {
-   "what": "custom condition",
-   "score": 168,
-   "cards": 150,
-   "names": [
-    "Veil of Summer",
-    "Archaeomancer's Map",
-    "Liberator, Urza's Battlethopter",
-    "Defense of the Heart",
-    "Sting, the Glinting Dagger",
-    "Nasty End"
    ]
   },
   {
@@ -7551,6 +7537,19 @@
     "Winds of Abandon",
     "Alchemist's Talent",
     "Fighter Class"
+   ]
+  },
+  {
+   "what": "custom condition",
+   "score": 160,
+   "cards": 148,
+   "names": [
+    "Veil of Summer",
+    "Liberator, Urza's Battlethopter",
+    "Sting, the Glinting Dagger",
+    "Nasty End",
+    "Queen Marchesa",
+    "Cosmos Elixir"
    ]
   },
   {
@@ -9830,17 +9829,6 @@
    ]
   },
   {
-   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Keeper of the Accord",
-    "Luminarch Ascension",
-    "Goblin Spymaster",
-    "Predatory Advantage"
-   ]
-  },
-  {
    "what": "LifeCompareCondition",
    "score": 7,
    "cards": 4,
@@ -10495,19 +10483,6 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
-   ]
-  },
-  {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Syr Ginger, the Meal Ender",
-    "Tectonic Edge",
-    "Skyshroud Elite",
-    "Beasts of Bogardan",
-    "Ivory Guardians",
-    "Radiant Essence"
    ]
   },
   {
@@ -11257,6 +11232,30 @@
    "names": [
     "Halo Fountain",
     "Crackleburr"
+   ]
+  },
+  {
+   "what": "FirstSpellOpponentsTurnTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Wavebreak Hippocamp",
+    "Nymris, Oona's Trickster",
+    "Blightwing Bandit",
+    "Stinging Lionfish",
+    "Arena Trickster"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Tinder Wall",
+    "Guardian of the Gateless",
+    "Serene Master",
+    "Goblin Snowman",
+    "Wall of Corpses"
    ]
   }
  ]

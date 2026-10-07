@@ -7372,4 +7372,61 @@ module.exports = (test) => {
     t.eq(g.phase.id, 'postcombat');
     t.eq(g.player('A').pool.total(), 4);
   });
+
+  test('Keeper of the Accord: a Soldier when that opponent has more creatures', (mk, t) => {
+    t.auto('Keeper of the Accord');
+    const T = mk();
+    T.bf('A', 'Keeper of the Accord');
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears');
+    T.toMain('B');
+    T.toMain('B', 'end');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Soldier').length, 1);
+  });
+
+  test('Defense of the Heart: an opponent with three creatures, two creatures fetched', (mk, t) => {
+    t.auto('Defense of the Heart');
+    const T = mk();
+    const dh = T.bf('A', 'Defense of the Heart');
+    for (let i = 0; i < 3; i++) T.bf('B', 'Grizzly Bears');
+    T.top('A', 'Hill Giant'); T.top('A', 'Gray Ogre'); T.top('A', 'Island');
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.filter(c => /Giant|Ogre/.test(c.name)).map(c => c.id) }));
+    T.nextTurn('A');
+    T.toMain('A', 'upkeep');
+    T.resolve();
+    t.eq(dh.zone, 'graveyard');
+    t.ok(T.bfOf('A').some(o => o.name === 'Hill Giant') && T.bfOf('A').some(o => o.name === 'Gray Ogre'));
+  });
+
+  test("Galadriel's Dismissal kicked: each creature that player controls phases out", (mk, t) => {
+    t.auto("Galadriel's Dismissal");
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant'), mine = T.bf('A', 'Gray Ogre');
+    T.mana('A', '2WW');
+    T.cast('A', T.hand('A', "Galadriel's Dismissal"), { kick: 1, targets: [{ kind: 'player', id: 'B' }] });
+    t.ok(b1.phasedOut && b2.phasedOut, 'both of B\'s');
+    t.ok(!mine.phasedOut, 'not A\'s');
+  });
+
+  test('Maddening Cacophony kicked: each opponent mills half their own library', (mk, t) => {
+    t.auto('Maddening Cacophony');
+    const T = mk();
+    const before = T.zone('B', 'library').length;
+    T.mana('A', '4UU');
+    T.cast('A', T.hand('A', 'Maddening Cacophony'), { kick: 1 });
+    t.eq(T.zone('B', 'library').length, before - Math.ceil(before / 2));
+  });
+
+  test('Chrome Host Seedshark: incubate X, X the spell\'s mana value', (mk, t) => {
+    t.auto('Chrome Host Seedshark');
+    const T = mk();
+    T.bf('A', 'Chrome Host Seedshark');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Lava Coil'), { targets: [giant.id] });
+    T.resolve();
+    const inc = T.bfOf('A').find(o => o.isToken && o.name === 'Incubator');
+    t.ok(inc, 'an Incubator');
+    t.eq(inc.counters['+1/+1'], 2);
+  });
 };
