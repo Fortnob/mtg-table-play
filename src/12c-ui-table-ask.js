@@ -939,11 +939,54 @@
       const go = (targets) => { MTG.sfx('ui_play'); this._dropAt = null; this.send(Object.assign({ kind: 'cast', objId: o.id, targets }, extra)); };
       this.render();
       if (!specs.length) return go([]);
-      this.startTargeting({
-        need: specs.length, specs, source: o.id, cardName: o.card.name,
-        label: `${o.card.name}: choose ${specs.length === 1 ? 'a target' : specs.length + ' targets'}`,
-        onDone: go,
-      });
+      /* The targets are asked for in groups, one after the other. A plain
+         target is a group of one; "X target creatures", "up to X" and strive
+         are a group of their own, as many as X (or as many as there are),
+         ended with Done when fewer will do. The picks join up in order. */
+      const groups = [];
+      for (const s of specs) {
+        const m = s.multi;
+        if (!m) {
+          const last = groups[groups.length - 1];
+          if (last && !last.multi) last.specs.push(s); else groups.push({ specs: [s] });
+          continue;
+        }
+        const plain = Object.assign({}, s, { multi: null });
+        const legal = this._countLegal(plain);
+        const x = steps.x || 0;
+        let n, min;
+        if (m.count === 'any') { n = legal; min = Math.min(m.min || 0, legal); }
+        else { n = Math.min(x, legal); min = m.exact ? n : 0; }
+        if (!n) continue;
+        const each = Array.from({ length: n }, (z, i) => (i < min ? plain : Object.assign({}, plain, { upTo: true })));
+        groups.push({ specs: each, multi: m, min });
+      }
+      const run = (i, acc) => {
+        if (i >= groups.length) return go(acc);
+        const g = groups[i];
+        const k = g.specs.length;
+        const what = g.multi
+          ? (g.multi.count === 'any' ? `any number of targets${g.multi.perExtra ? ` (each after the first costs ${g.multi.perExtra} more)` : ''}`
+            : g.multi.exact ? `${k} target${k === 1 ? '' : 's'}` : `up to ${k} target${k === 1 ? '' : 's'}`)
+          : (k === 1 ? 'a target' : k + ' targets');
+        this.startTargeting({
+          need: k, specs: g.specs, minChosen: g.min || 0, source: o.id, cardName: o.card.name,
+          label: `${o.card.name}: choose ${what}`,
+          onDone: (chosen) => run(i + 1, acc.concat(chosen)),
+        });
+      };
+      if (!groups.length) return go([]);
+      run(0, []);
+    },
+
+    /** How many things could be chosen for this target right now. */
+    _countLegal(spec) {
+      const was = this.targeting;
+      this.targeting = { specs: [spec], chosen: [], need: 1, onDone: () => {} };
+      const v = this.live || this.view;
+      const n = v.battlefield.filter(x => this.isTargetable(x)).length + v.players.filter(p => this.isTargetablePlayer(p)).length;
+      this.targeting = was;
+      return n;
     },
   });
 

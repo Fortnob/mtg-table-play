@@ -1344,6 +1344,10 @@
       if (this.targeting) {
         const t = this.targeting;
         const upTo = (t.specs || []).some(sp => sp && sp.upTo);
+        // strive and "X targets": not done until the first ones are chosen
+        const short = (t.minChosen || 0) - t.chosen.length;
+        if (upTo && short > 0) return { label: `Choose ${short} more`, disabled: true, cls: 'idle', sub: t.label,
+          secondary: { label: 'Cancel', fn: () => { this.cancelTargeting(); this.render(); } } };
         if (upTo) return { label: t.chosen.length ? 'Done' : 'No targets', cls: 'go', sub: t.label };
         return { label: 'Choose a target', disabled: true, cls: 'idle', sub: t.label,
           secondary: t.legal ? null : { label: 'Cancel', fn: () => { this.cancelTargeting(); this.render(); } } };
@@ -1467,7 +1471,7 @@
       if (!v || v.over || v.mulliganPhase) return;
       if (this.targeting) {
         const t = this.targeting;
-        if ((t.specs || []).some(sp => sp && sp.upTo)) { this.targeting = null; t.onDone(t.chosen); this.render(); }
+        if ((t.specs || []).some(sp => sp && sp.upTo) && t.chosen.length >= (t.minChosen || 0)) { this.targeting = null; t.onDone(t.chosen); this.render(); }
         return;
       }
       const ch = live.pendingChoice;
