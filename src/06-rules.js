@@ -7931,6 +7931,9 @@
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
         case 'gainedLifeThisTurn': return !!me && (me.lifeGainedThisTurn || 0) > 0;
+        case 'lostLifeThisTurn': return !!me && (me.lifeLostThisTurn || 0) > 0;
+        case 'diedCount': return ((this.turnHistory || {}).creaturesDied || 0) >= (cond.n || 0);
+        case 'all': return (cond.of || []).every(c => this._condMet(c, ctx));
         case 'noCreatures': return !this.battlefield.some(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
         case 'anyLostLife': return this.players.some(p => (p.lifeLostThisTurn || 0) >= (cond.n || 0));
         case 'sameNameLands': {
@@ -11617,6 +11620,8 @@
         }
         case 'exileGraveyard': {
           const who = e.who === 'all' ? this.players : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            // Stonespeaker Crystal: each player aimed at
+            : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             : [firstPlayer()].filter(Boolean);
           for (const p of who) {
             const gy = this.zones[p.id].graveyard.slice();
@@ -12335,6 +12340,12 @@
             o._chr = null;
           });
           this.bumpBoard();
+          break;
+        }
+        // Heartless Hidetsugu: half each player's life
+        case 'damageEachHalfLife': {
+          const hits = this.players.filter(p => !p.hasLost).map(p => [p, e.up ? Math.ceil(p.life / 2) : Math.floor(p.life / 2)]);
+          for (const [p, k] of hits) if (k > 0) this.dealDamageToPlayer(p, k, src);
           break;
         }
         // Sunspine Lynx: to each player, as much as the nonbasic lands they control

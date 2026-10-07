@@ -1042,7 +1042,7 @@
     { re: /^Target (player|opponent) mills half their library, rounded (down|up)\.?$/i,
       make: (m) => ({ op: 'mill', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Gilder Bairn: "Double the number of each kind of counter on target permanent."
-    { re: /^Double the number of each kind of counter on (target [a-z ]+?)\.?$/i,
+    { re: /^Double the number of each kind of counter on (target [a-z ,]+?)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', allKinds: true, targets: [targetSpec(m[1])] }) },
     // Heartless Act, Glissa Sunslayer: "Remove up to three counters from target creature."
     { re: /^Remove up to (one|two|three|four|\d+) counters? from (target [a-z ]+?)\.?$/i,
@@ -1898,6 +1898,15 @@
       } },
     // Robe of Stars: "Equipped creature phases out."
     { re: /^(Equipped|Enchanted) creature phases out\.?$/i, make: () => ({ op: 'phaseOut', scope: { attached: true, what: 'creature' } }) },
+    // Heartless Hidetsugu: "deals damage to each player equal to half that player's life total, rounded down"
+    { re: /^(?:CARDNAME|It|This creature) deals damage to each player equal to half that player'?s life total, rounded (down|up)\.?$/i,
+      make: (m) => ({ op: 'damageEachHalfLife', up: /up/i.test(m[1]) }) },
+    // Stonespeaker Crystal: "Exile any number of target players' graveyards."
+    { re: /^Exile any number of target players'? graveyards\.?$/i,
+      make: () => ({ op: 'exileGraveyard', targets: [{ type: 'player', upTo: true }, { type: 'player', upTo: true }, { type: 'player', upTo: true }, { type: 'player', upTo: true }], who: 'targets' }) },
+    // Ms. Bumbleflower: "Target opponent draws a card."
+    { re: /^Target (opponent|player) draws (a|one|two|three) cards?\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'target', n: num(m[2]), targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -5505,6 +5514,10 @@
     // Mistveil Plains: "you control two or more white permanents"
     [/^you control (\w+) or more ((?:white|blue|black|red|green|snow|basic|legendary|nonland|tapped|untapped) [a-z]+?)s$/i,
       (m) => { const sc = scopeOf(m[2] + 's you control'); return sc ? { kind: 'control', n: num(m[1]), scope: sc } : null; }],
+    // Lagomos: "five or more creatures died this turn"
+    [/^(\w+) or more creatures died this turn$/i, (m) => ({ kind: 'diedCount', n: num(m[1]) })],
+    // Lunar Convocation: "you gained and lost life this turn"
+    [/^you gained and lost life this turn$/i, () => ({ kind: 'all', of: [{ kind: 'gainedLifeThisTurn' }, { kind: 'lostLifeThisTurn' }] })],
     // Thornfist Striker: "you gained life this turn"
     [/^you(?:'ve| have)? gained life this turn$/i, () => ({ kind: 'gainedLifeThisTurn' })],
     // Syr Ginger: "as long as an opponent controls a planeswalker"

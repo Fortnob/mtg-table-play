@@ -7141,4 +7141,27 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(r), T.g.devotionOf('A', 'G'));
     t.ok(T.g.powerOf(r) >= 3);
   });
+
+  test('Heartless Hidetsugu: half of each life total', (mk, t) => {
+    t.auto('Heartless Hidetsugu');
+    const T = mk();
+    const h = T.bf('A', 'Heartless Hidetsugu');
+    T.player('B').life = 15;
+    T.mana('A', '1');
+    T.activate('A', h, h.analysis().manaAbilities.length);
+    T.resolve();
+    t.eq(T.life('A'), 10); t.eq(T.life('B'), 8);
+  });
+
+  test('Stonespeaker Crystal: any number of graveyards exiled', (mk, t) => {
+    t.auto('Stonespeaker Crystal');
+    const T = mk();
+    const sc = T.bf('A', 'Stonespeaker Crystal');
+    T.grave('A', 'Island'); T.grave('B', 'Island'); T.grave('B', 'Forest');
+    T.mana('A', '2');
+    const idx = sc.analysis().manaAbilities.length + sc.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /graveyards/.test(x.text));
+    T.activate('A', sc, idx, { targets: ['B'] });
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, 0); t.eq(T.zone('A', 'graveyard').length, 2, 'its own Island stays, and the Crystal');
+  });
 };

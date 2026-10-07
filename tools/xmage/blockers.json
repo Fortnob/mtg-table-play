@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14284,
-  "gainedCards": 1495,
-  "linesNeeded": 15793,
-  "linesGained": 1861,
+  "needed": 14272,
+  "gainedCards": 1492,
+  "linesNeeded": 15779,
+  "linesGained": 1858,
   "gained": {
-   "all": 1495,
+   "all": 1492,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5225,
-   "lines": 4550,
+   "score": 5223,
+   "lines": 4548,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 223,
-   "lines": 193,
+   "score": 219,
+   "lines": 189,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -162,7 +162,7 @@
     "Queen Marchesa",
     "The Chain Veil",
     "Cosmos Elixir",
-    "Emeritus of Woe // Demonic Tutor"
+    "Diamond City"
    ]
   },
   {
@@ -413,25 +413,6 @@
    ]
   },
   {
-   "what": "target count 0",
-   "score": 32,
-   "lines": 20,
-   "cards": [
-    "Priest of Forgotten Gods",
-    "Call the Coppercoats",
-    "Singularity Rupture",
-    "Court of Cunning",
-    "Stonespeaker Crystal",
-    "Riverchurn Monument",
-    "Communal Brewing",
-    "Tinybones Joins Up",
-    "Wheel and Deal",
-    "Jace, Memory Adept",
-    "Officious Interrogation",
-    "Ral Zarek, Guest Lecturer"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 32,
    "lines": 23,
@@ -467,6 +448,25 @@
     "Kastral, the Windcrested",
     "Descendants' Fury",
     "Olivia, Opulent Outlaw"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 30,
+   "lines": 18,
+   "cards": [
+    "Priest of Forgotten Gods",
+    "Call the Coppercoats",
+    "Singularity Rupture",
+    "Court of Cunning",
+    "Riverchurn Monument",
+    "Communal Brewing",
+    "Tinybones Joins Up",
+    "Wheel and Deal",
+    "Jace, Memory Adept",
+    "Officious Interrogation",
+    "Ral Zarek, Guest Lecturer",
+    "Hollow Marauder"
    ]
   },
   {
@@ -1109,25 +1109,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Rabid Attack",
-    "Vivien, Arkbow Ranger",
-    "Sea Hag // Aquatic Ingress",
-    "Involuntary Cooldown",
-    "Rowan, Fearless Sparkmage",
-    "Invasion of Kylem // Valor's Reach Tag Team"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -1303,6 +1284,25 @@
     "Graverobber Spider",
     "Painwracker Oni",
     "Fires of Victory"
+   ]
+  },
+  {
+   "what": "second use of a later target",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown",
+    "Rowan, Fearless Sparkmage",
+    "Invasion of Kylem // Valor's Reach Tag Team",
+    "Sparkmage's Gambit"
    ]
   },
   {
@@ -7551,8 +7551,8 @@
   },
   {
    "what": "custom condition",
-   "score": 172,
-   "cards": 154,
+   "score": 168,
+   "cards": 150,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -7733,15 +7733,15 @@
   },
   {
    "what": "target count 0",
-   "score": 27,
-   "cards": 15,
+   "score": 26,
+   "cards": 14,
    "names": [
     "Priest of Forgotten Gods",
     "Call the Coppercoats",
     "Singularity Rupture",
     "Court of Cunning",
-    "Stonespeaker Crystal",
-    "Tinybones Joins Up"
+    "Tinybones Joins Up",
+    "Wheel and Deal"
    ]
   },
   {
@@ -8172,19 +8172,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Ms. Bumbleflower",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Rabid Attack",
-    "Sea Hag // Aquatic Ingress"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 14,
    "cards": 14,
@@ -8323,6 +8310,19 @@
     "Aang's Iceberg",
     "Yue, the Moon Spirit",
     "North Pole Patrol"
+   ]
+  },
+  {
+   "what": "second use of a later target",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown"
    ]
   },
   {
