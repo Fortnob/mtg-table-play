@@ -2152,6 +2152,17 @@
         }
       }
       const more = Object.assign({}, x != null ? { x } : {}, split != null ? { manaSplit: split } : {});
+      // a cost the table would otherwise pay from what is to hand (Forensic Researcher, City of Shadows...)
+      if (!this._costAsked) {
+        const rows = (((this.live || this.view).costPicks || {})[o.id] || []).filter(r => r.index === index);
+        if (rows.length) {
+          return this.askCostPicks(rows, x || 0, o.card, (chosen) => {
+            this._costAsked = chosen;
+            try { this.activate(o, a, index, ab, x, split == null ? undefined : split); } finally { this._costAsked = null; }
+          });
+        }
+      }
+      if (this._costAsked) Object.assign(more, this._costAsked);
       const specs = [];
       for (const s of this._effectTargets(ab.effects)) {
         if (!s.multi) { specs.push(s); continue; }

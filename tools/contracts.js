@@ -265,8 +265,10 @@ const INTENTS = {
     fuse: opt(bool),
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
+    /* what pays a cost the table would otherwise pick (evidence, forage, reveal, behold...) */
+    evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str),
   }),
-  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat) }),
+  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat), evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str) }),
   mana: closed({ objId: id, index: opt(nat), choice: opt(maybe(str)) }),
   declareAttackers: closed({ declarations: arr(Declaration) }),
   declareBlockers: closed({ declarations: arr(Block) }),

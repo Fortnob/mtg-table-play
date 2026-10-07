@@ -411,8 +411,10 @@ declare namespace MTG {
       fuse?: boolean;
       /** generic questions answered as the spell is cast (replicate, splice), by purpose */
       choices?: Record<string, ChooseAnswer>;
+      /** what pays a cost the table would otherwise pick */
+      evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string;
     }
-    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number }
+    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string }
     | { kind: 'mana'; objId: Id; index?: number; choice?: string | null }
     | { kind: 'declareAttackers'; declarations: AttackDeclaration[] }
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }

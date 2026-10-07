@@ -89,6 +89,18 @@
 
   /** A list of ids from the wire, or undefined: strings only, and not too many. */
   const idList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 60) : undefined);
+  /* What a person chose to pay a cost the table would otherwise pick for
+     them: graveyard cards for evidence, a Food or three cards to forage,
+     cards to reveal, a creature to exile or take a counter from. */
+  const COST_PICK_LISTS = ['evidenceIds', 'forageExileIds', 'revealIds', 'beholdIds', 'exileIds'];
+  const COST_PICK_ONES = ['forageFoodId', 'counterFromId', 'blightId'];
+  const costPicksOf = (intent) => {
+    const out = {};
+    for (const k of COST_PICK_LISTS) if (Array.isArray(intent[k])) out[k] = idList(intent[k]);
+    for (const k of COST_PICK_ONES) if (typeof intent[k] === 'string') out[k] = intent[k];
+    if (typeof intent.counterKind === 'string') out.counterKind = intent.counterKind.slice(0, 40);
+    return out;
+  };
 
   function botNameFor(deck, formatId, taken) {
     const used = new Set(taken || []);
@@ -3228,6 +3240,7 @@
           face: intent.face === 1 ? 1 : 0,       // which half of a split card
           fuse: !!intent.fuse,                   // or both halves, fused
           returnId: typeof intent.returnId === 'string' ? intent.returnId : undefined,   // sneak: the attacker that goes back
+          ...costPicksOf(intent),
           // what pays instead of mana, when the player chose it: creatures to convoke, artifacts to improvise, cards to delve
           convokeIds: idList(intent.convokeIds), improviseIds: idList(intent.improviseIds), delveIds: idList(intent.delveIds),
           // generic questions answered with the extra costs (replicate, splice); the engine checks them
@@ -3249,6 +3262,7 @@
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
           // "in any combination of two colours": how much of the second
           manaSplit: Number.isFinite(+intent.manaSplit) && intent.manaSplit != null ? Math.max(0, Math.min(99, Math.floor(+intent.manaSplit))) : undefined,
+          ...costPicksOf(intent),
           sacrificeIds: Array.isArray(intent.sacrificeIds) ? intent.sacrificeIds.slice(0, 20).map(String) : undefined,
           discardIds: Array.isArray(intent.discardIds) ? intent.discardIds.slice(0, 20).map(String) : undefined }); break;
         case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0, intent.choice); break;

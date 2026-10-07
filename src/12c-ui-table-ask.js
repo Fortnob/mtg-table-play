@@ -710,7 +710,9 @@
       const all = (live.extras || {})[o.id] || [];
       // convoke, improvise and delve are not extra costs to toggle: they are what pays, asked about last
       const PAYS = ['convoke', 'improvise', 'delve'];
-      const extras = all.filter(x => !PAYS.includes(x.kind));
+      // costs the table would otherwise pick for you (evidence, forage, reveal…): asked last, with the payment
+      const picks = all.filter(x => x.key && (x.candidates || x.foods));
+      const extras = all.filter(x => !PAYS.includes(x.kind) && !picks.includes(x));
       const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
       const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       // the cost being paid: one half of a split card, or the face that is up
@@ -721,7 +723,9 @@
       const hasX = /\{X\}/.test(steps.cost);
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
       const afterX = () => (pays.length ? this.askAltPay(steps, pays, afterPay) : afterPay());
-      const afterPay = () => this.castTargets(steps);
+      const afterPay = () => (picks.length
+        ? this.askCostPicks(picks, steps.x || 0, o.card, (chosen) => { steps.costPicks = chosen; this.castTargets(steps); })
+        : this.castTargets(steps));
       if (extras.length) this.askExtras(steps, extras, afterExtras);
       else afterExtras();
     },
@@ -946,6 +950,7 @@
       else if (via) extra.via = via;
       if (steps.face != null) extra.face = steps.face;
       if (steps.altPay) Object.assign(extra, steps.altPay);
+      if (steps.costPicks) Object.assign(extra, steps.costPicks);
       Object.assign(extra, steps.more || {});
       // generic questions answered with the extra costs, in the shape the engine checks them in
       const answered = {};
@@ -1050,6 +1055,76 @@
           { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
           { label: picked.length ? 'Done' : 'None', cls: 'primary', disabled: !enough, fn: () => finish() },
         ], { card: o.card, wide: true });
+      } };
+      this.render();
+    },
+
+    /**
+     * A cost the table would otherwise pay out of what is to hand: collect
+     * evidence (graveyard cards adding up to N mana value), forage (a Food,
+     * or three graveyard cards), reveal N cards, exile a creature of yours,
+     * take a counter off one, blight, behold. One panel per cost, in turn;
+     * "Let the game choose" leaves it to the table, as before. `onDone` gets
+     * the options to send ({ evidenceIds: [...], forageFoodId: id, ... }).
+     */
+    askCostPicks(rows, x, card, onDone) {
+      const out = {};
+      const one = (k) => !/Ids$/.test(k);
+      const step = (i) => {
+        if (i >= rows.length) return onDone(out);
+        const r = rows[i];
+        const next = () => step(i + 1);
+        // forage with both ways open: which way first
+        if (r.kind === 'forage' && (r.foods || []).length && (r.candidates || []).length >= 3) {
+          const key = 'costway:' + i;
+          this.asking = { base: key, key, build: () => this.panel(escapeHtml(r.label || 'Forage'), 'Sacrifice a Food, or exile three cards from your graveyard.', null, [
+            { label: 'Let the game choose', fn: () => { this.asking = null; next(); } },
+            { label: 'Sacrifice a Food', fn: () => { this.asking = null; this._pickPayers({ label: 'Choose a Food to sacrifice', ids: r.foods, count: 1 }, card, (ids) => { if (ids) out[r.foodKey || 'forageFoodId'] = ids[0]; next(); }); } },
+            { label: 'Exile three cards', cls: 'primary', fn: () => { this.asking = null; this._pickPayers({ label: 'Choose three cards to exile', ids: r.candidates, count: 3 }, card, (ids) => { if (ids) out[r.key] = ids; next(); }); } },
+          ], { card }) };
+          return this.render();
+        }
+        const ids = r.kind === 'forage' && !(r.candidates || []).length ? (r.foods || []) : (r.candidates || []);
+        const key = r.kind === 'forage' && !(r.candidates || []).length ? (r.foodKey || 'forageFoodId') : r.key;
+        const need = r.need === 'X' ? x : (Number(r.need) || 1);
+        const byValue = r.kind === 'evidence';
+        const count = byValue ? null : (one(key) ? 1 : need);
+        // nothing to decide: one way to pay, or not enough to choose between
+        if (!ids.length || (!byValue && ids.length <= count)) return next();
+        this._pickPayers({ label: r.label || 'Choose what pays', ids, count, total: byValue ? need : null }, card, (chosen) => {
+          if (chosen) out[key] = one(key) ? chosen[0] : chosen;
+          next();
+        });
+      };
+      step(0);
+    },
+
+    /** Pick the cards or permanents that pay a cost: a fixed number, or ones whose mana values reach a total. */
+    _pickPayers(p, card, done) {
+      const picked = [];
+      const key = 'payers:' + p.label + ':' + p.ids.join(',');
+      const mv = (id) => { const x = this.objIn(id); return (x && x.card && x.card.cmc) || 0; };
+      const enough = () => (p.total != null ? picked.reduce((n, id) => n + mv(id), 0) >= p.total : picked.length === p.count);
+      this.asking = { base: key, get key() { return key + ':' + picked.join(','); }, build: () => {
+        const row = el('div', { class: 'pick-row' });
+        for (const id of p.ids) {
+          const x = this.objIn(id);
+          if (!x || !x.card) continue;
+          const on = picked.includes(id);
+          row.appendChild(this.pickTile(x.card, { face: x.face || 0, cls: on ? 'chosen' : '', badge: p.total != null ? (x.card.cmc || 0) : (on ? picked.indexOf(id) + 1 : null),
+            onClick: () => {
+              const at = picked.indexOf(id);
+              if (at >= 0) picked.splice(at, 1);
+              else if (p.total != null || picked.length < p.count) picked.push(id);
+              this.render();
+            } }));
+        }
+        const sum = picked.reduce((n, id) => n + mv(id), 0);
+        const sub = p.total != null ? `Mana value ${sum} of ${p.total}.` : `${picked.length} of ${p.count} chosen.`;
+        return this.panel(escapeHtml(p.label), sub, row, [
+          { label: 'Let the game choose', fn: () => { this.asking = null; done(null); } },
+          { label: 'Use these', cls: 'primary', disabled: !enough(), fn: () => { this.asking = null; done(picked.slice()); } },
+        ], { card, wide: true });
       } };
       this.render();
     },
