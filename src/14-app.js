@@ -434,7 +434,9 @@
 
     /* -- a game left mid-turn is offered back before anything else -- */
     const resumeHost = el('div', { class: 'home-resume' });
-    page.appendChild(resumeHost);
+    // the game to pick up and the guided first game share a row
+    const notes = el('div', { class: 'home-notes' }, [resumeHost]);
+    page.appendChild(notes);
     MTG.savedGame.read().then((saved) => {
       if (!saved || !saved.snap || App.screen !== 'home') return;
       const names = (saved.roster || []).map(r => r.name).join(' vs ');
@@ -474,7 +476,7 @@
         el('button', { class: 'btn primary', text: 'Show me', onclick: () => App.startTutorial() }),
       ]);
       decorArt(offer.firstChild, 'Lightning Helix');
-      page.appendChild(offer);
+      notes.appendChild(offer);
     }
 
     /* -- the three doors -- */
@@ -496,15 +498,16 @@
       tile('decks', SVG.deck, 'Decks', 'Import a list from anywhere, build one from scratch, and see what it combos into.', () => showScreen('decks')),
       tile('options', SVG.gear, 'Options', 'Pace, stops, appearance, accessibility and sound.', () => showScreen('options')),
     ]));
-    page.appendChild(el('div', { class: 'home-replay' }, [
-      el('button', { class: 'btn sm ghost', text: 'Watch a replay…', title: 'Open a replay file saved from the game menu',
-        onclick: () => App.openReplayFile() }),
-    ]));
+    const replay = el('button', { class: 'btn xs ghost', text: 'Watch a replay…', title: 'Open a replay file saved from the game menu',
+      onclick: () => App.openReplayFile() });
 
-    /* -- your decks, as deck boxes -- */
+    /* -- your decks, as deck boxes, with the replay button on their heading -- */
     const idx = MTG.decks.index();
+    if (!idx.length) page.appendChild(el('div', { class: 'home-replay' }, [replay]));
     if (idx.length) {
-      page.appendChild(el('div', { class: 'section-title home-section', text: 'Your recent decks' }));
+      page.appendChild(el('div', { class: 'home-section-row' }, [
+        el('div', { class: 'section-title home-section', text: 'Your recent decks' }), replay,
+      ]));
       const row = el('div', { class: 'recent-decks' });
       for (const d of idx.slice().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5)) {
         const b = el('button', { class: 'recent-deck', onclick: () => openDeck(d.id) }, [
@@ -1242,9 +1245,11 @@
 
   /* The sections of the options screen, in the order they are read. On a
      wide screen they are listed down the side as a contents. */
+  /* The options, one category at a time: the list down the side picks
+     which, and the page remembers the last one you looked at. */
   const OPT_SECTIONS = [
-    ['you', 'You'], ['gameplay', 'Gameplay'], ['pace', 'Pace'], ['stops', 'Stops'],
-    ['appearance', 'Appearance'], ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['data', 'Card data'],
+    ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['pace', 'Pace'], ['stops', 'Stops'],
+    ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['data', 'Card data'],
   ];
   const BOT_PACE = [[0, 'Instant'], [250, 'Quick'], [600, 'Normal'], [1200, 'Unhurried']];
   const ANIM_PACE = [[0.5, 'Fast'], [1, 'Normal'], [1.6, 'Relaxed']];
@@ -1452,8 +1457,30 @@
       ])),
     ]));
 
-    /* -- appearance -- */
-    sections.push(group('appearance', 'Appearance', null, [
+    /* -- display: how big everything is, and what the table shows -- */
+    const scaleNow = el('div', { class: 'opt-help' });
+    const paintScale = () => {
+      const fit = MTG.screenFit(), z = MTG.uiZoom();
+      scaleNow.textContent = `Right now: ${Math.round(z * 100)}%` +
+        (fit > 1 ? ` \u2014 your size \u00d7 ${Math.round(fit * 100)}% to fit this screen.` : '.');
+    };
+    paintScale();
+    const scaleRow = slider('uiScale', 'Interface size', 0.75, 1.6, 0.05, (v) => Math.round(v * 100) + '%',
+      'Scales all text and controls, everywhere.');
+    scaleRow.querySelector('input').addEventListener('input', paintScale);
+    scaleRow.querySelector('.grow').appendChild(scaleNow);
+    sections.push(group('display', 'Display', null, [
+      scaleRow,
+      toggle('fitScreen', 'Grow to fit a big screen',
+        'On a large monitor everything grows with it. Turn off to keep the same size on any screen.', () => { paintScale(); }),
+      el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [el('div', { class: 'opt-label', text: 'Quick sizes' })]),
+        el('div', { class: 'row', style: { gap: '6px' } }, /** @type {Array<[number, string]>} */ ([[0.85, 'Smaller'], [1, 'Normal'], [1.15, 'Larger'], [1.3, 'Largest']]).map(([v, t]) =>
+          el('button', { type: 'button', class: 'btn xs' + (Math.abs((S.uiScale || 1) - v) < 0.01 ? ' primary' : ''), text: t,
+            onclick: () => { set('uiScale', v); renderOptions(); } }))),
+      ]),
+      slider('cardScale', 'Card size', 0.8, 1.6, 0.05, (v) => Math.round(v * 100) + '%',
+        'Makes cards in lists, packs and the deck builder bigger or smaller.'),
       pick('theme', 'Theme', [['dark', 'Dark'], ['light', 'Light']], 'The menus and deck builder. The game table is always dark.', 'dark'),
       toggle('showOracleOnHover', 'Show a large card preview on hover', 'Hover any card to read it at full size.'),
       toggle('peekOpponents', 'Show the other opponents\u2019 boards at the sides',
@@ -1463,12 +1490,6 @@
     /* -- accessibility -- */
     sections.push(group('access', 'Accessibility',
       'These change how the whole app looks and behaves. Nothing here affects the rules.', [
-      slider('uiScale', 'Interface size', 0.85, 1.5, 0.05, (v) => Math.round(v * 100) + '%',
-        'Scales all text and controls.'),
-      toggle('fitScreen', 'Grow to fit a big screen',
-        'On a large monitor everything grows with it. Turn off to keep the same size on any screen.'),
-      slider('cardScale', 'Card size', 0.8, 1.6, 0.05, (v) => Math.round(v * 100) + '%',
-        'Makes cards in lists and packs bigger or smaller.'),
       toggle('highContrast', 'High contrast', 'Stronger borders, darker backgrounds and brighter text.'),
       toggle('colorblindPips', 'Colourblind-friendly mana symbols',
         'Adds a letter and a distinct shape to every mana symbol so colour is never the only cue.'),
@@ -1530,26 +1551,30 @@
       ])),
     ]));
 
-    /* the contents down the side, lit for whichever section is in view */
-    const toc = el('nav', { class: 'opt-toc', 'aria-label': 'Option sections' }, OPT_SECTIONS.map(([id, label]) =>
-      el('a', { href: '#opt-sec-' + id, class: 'opt-toc-link', dataset: { sec: id }, text: label, onclick: (e) => {
-        e.preventDefault();
-        const t = inner.querySelector('#opt-sec-' + id);
-        if (t) t.scrollIntoView({ behavior: MTG.settings.reduceMotion ? 'auto' : 'smooth', block: 'start' });
-      } })));
+    /* the categories down the side: one shown at a time */
+    let current = OPT_SECTIONS.some(([id]) => id === S.optionsTab) ? S.optionsTab : OPT_SECTIONS[0][0];
+    const show = (id) => {
+      current = id;
+      for (const sec of sections) sec.hidden = sec.id !== 'opt-sec-' + id;
+      for (const a of toc.children) {
+        a.classList.toggle('on', a.dataset.sec === id);
+        a.setAttribute('aria-selected', a.dataset.sec === id ? 'true' : 'false');
+      }
+    };
+    const toc = el('nav', { class: 'opt-toc', role: 'tablist', 'aria-label': 'Option categories' }, OPT_SECTIONS.map(([id, label]) =>
+      el('button', { type: 'button', role: 'tab', class: 'opt-toc-link', dataset: { sec: id }, text: label,
+        'aria-controls': 'opt-sec-' + id, onclick: () => {
+          if (id === current) return;
+          show(id);
+          MTG.setSetting('optionsTab', id);
+          const w = s.querySelector('.menu-wrap');
+          if (w) w.scrollTop = 0;
+        } })));
     inner.appendChild(el('div', { class: 'opt-layout' }, [toc, el('div', { class: 'opt-sections' }, sections)]));
+    show(current);
     const wrap = el('div', { class: 'menu-wrap' }, inner);
     s.appendChild(wrap);
     if (keepTop) wrap.scrollTop = keepTop;
-    wrap.addEventListener('scroll', U.debounce(() => {
-      let current = OPT_SECTIONS[0][0];
-      for (const [id] of OPT_SECTIONS) {
-        const n = inner.querySelector('#opt-sec-' + id);
-        if (n && U.rect(n).top < 160) current = id;
-      }
-      for (const a of toc.children) a.classList.toggle('on', a.dataset.sec === current);
-    }, 60), { passive: true });
-    toc.firstChild.classList.add('on');
   }
 
   /**

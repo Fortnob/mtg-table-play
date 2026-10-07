@@ -1795,12 +1795,13 @@
             ? (c.loyalty > 0 ? '+' + c.loyalty : String(c.loyalty || 0))
             : (typeof c === 'string' ? c : (c.raw || ''));
           // the cost is shown on its own, so the text is what comes after the colon
-          const text = String(ab.text || '').replace(/^[^:]*:\s*/, '') || MTG.oracle.abilityLabel(ab);
-          uses.push({ label: MTG.oracle.abilityLabel(ab), cost, loyalty: ab.kind === 'loyalty',
+          const raw = String(ab.text || '').replace(/^[^:]*:\s*/, '');
+          const text = (raw && MTG.oracle.named ? MTG.oracle.named(raw, o) : raw) || MTG.oracle.abilityLabel(ab, o);
+          uses.push({ label: MTG.oracle.abilityLabel(ab, o), cost, loyalty: ab.kind === 'loyalty',
             text, fn: () => this.activate(o, a, idx, ab) });
         });
         if (!o.tapped) a.manaAbilities.forEach((ab, i) => {
-          uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab), mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: i }) });
+          uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: i }) });
         });
         // prepared: a copy of the spell printed with it, cast from here
         for (const use of ((live.uses || {})[o.id] || [])) {
@@ -2280,10 +2281,10 @@
         }
       } else if (loc.zone === 'battlefield' && mine && a) {
         const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
-        a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab), 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: i })]));
+        a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: i })]));
         acts.forEach((ab) => {
           const idx = a.manaAbilities.length + acts.indexOf(ab);
-          items.push([truncate(MTG.oracle.abilityLabel(ab), 52), () => this.activate(o, a, idx, ab)]);
+          items.push([truncate(MTG.oracle.abilityLabel(ab, o), 52), () => this.activate(o, a, idx, ab)]);
         });
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cast' && use.via === 'prepared') items.unshift([use.label, () => this.castPrepared(o)]);
