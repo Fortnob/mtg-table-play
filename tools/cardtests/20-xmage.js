@@ -7772,4 +7772,76 @@ module.exports = (test) => {
     T.resolve();
     t.eq(giant.zone, 'graveyard');
   });
+
+  test('Howlsquad Heavy: the new Goblin must attack', (mk, t) => {
+    t.auto('Howlsquad Heavy');
+    const T = mk();
+    T.bf('A', 'Howlsquad Heavy');
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    const gob = T.bfOf('A').find(o => o.isToken);
+    t.ok(gob, 'a Goblin');
+    t.ok(T.g._hasFlag(gob, 'mustAttackEot'), 'it attacks this combat if able');
+  });
+
+  test('Revenge of Ravens: an attacker costs its controller 1 life, you gain 1', (mk, t) => {
+    t.auto('Revenge of Ravens');
+    const T = mk();
+    T.bf('A', 'Revenge of Ravens');
+    const bear = T.bf('B', 'Grizzly Bears'); bear.summoningSick = false;
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'declareBlockers');
+    T.resolve();
+    t.eq(T.life('B'), 19); t.eq(T.life('A'), 21);
+  });
+
+  test('Necrogoyf: power counts creature cards in every graveyard', (mk, t) => {
+    t.auto('Necrogoyf');
+    const T = mk();
+    const n = T.bf('A', 'Necrogoyf');
+    T.grave('A', 'Grizzly Bears'); T.grave('B', 'Hill Giant'); T.grave('B', 'Island');
+    t.eq(T.g.powerOf(n), 2);
+  });
+
+  test('Blowfly Infestation: only a creature that had a -1/-1 counter', (mk, t) => {
+    t.auto('Blowfly Infestation');
+    const T = mk();
+    T.bf('A', 'Blowfly Infestation');
+    const a = T.bf('B', 'Grizzly Bears'), b = T.bf('B', 'Hill Giant'), c = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b.id }] }));
+    T.g.moveObject(c, 'graveyard');
+    T.resolve();
+    t.ok(!b.counters['-1/-1'], 'nothing for a plain one');
+    a.counters['-1/-1'] = 1;
+    T.g.moveObject(a, 'graveyard');
+    T.resolve();
+    t.eq(b.counters['-1/-1'], 1);
+  });
+
+  test('Repercussion: damage to a creature hits its controller too', (mk, t) => {
+    t.auto('Repercussion');
+    const T = mk();
+    T.bf('A', 'Repercussion');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [giant.id] });
+    T.resolve();
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Riddlekeeper: the attacker\'s controller mills two', (mk, t) => {
+    t.auto('Riddlekeeper');
+    const T = mk();
+    T.bf('A', 'Riddlekeeper');
+    const bear = T.bf('B', 'Grizzly Bears'); bear.summoningSick = false;
+    T.nextTurn('B');
+    const g0 = T.zone('B', 'graveyard').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'declareBlockers');
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, g0 + 2);
+  });
 };

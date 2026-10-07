@@ -580,6 +580,8 @@
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
+    // Revenge of Ravens: "that creature's controller loses 1 life" — the one the trigger is about
+    if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'loseLife' && e.who === 'targetController') e.who = 'triggerObjController'; });
     /* Foot Chopper: "create a 1/1 Ninja token, then attach this Equipment
        to it" — "it" is the token just made */
     {
@@ -1061,6 +1063,15 @@
     { re: /^(?:It|That creature) deals that much damage to any (other )?target(?: that isn'?t an? ([A-Z][a-z]+))?\.?$/,
       make: (m) => ({ op: 'damage', n: 'triggerAmount', fromTrigger: true,
         targets: [Object.assign(targetSpec('any target'), m[2] ? { notSubtype: m[2].toLowerCase() } : {}, m[1] ? { another: true } : {})] }) },
+    // Revenge of Ravens: "that creature's controller loses 1 life and you gain 1 life"
+    { re: /^That creature'?s controller loses (one|two|three|\d+) life( and you gain (one|two|three|\d+) life)?\.?$/i,
+      make: (m) => [{ op: 'loseLife', who: 'triggerObjController', n: num(m[1]) }].concat(m[2] ? [{ op: 'gainLife', who: 'you', n: num(m[3]) }] : []) },
+    // Repercussion: "this enchantment deals that much damage to that creature's controller"
+    { re: /^(?:CARDNAME|This (?:enchantment|creature|artifact)) deals that much damage to that creature'?s controller\.?$/i,
+      make: () => ({ op: 'damage', n: 'triggerAmount', toTriggerObjController: true }) },
+    // Howlsquad Heavy: "That token attacks this combat if able."
+    { re: /^(?:That token|It) attacks this combat if able\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'mustAttackEot', scope: 'thatToken' }) },
     // Archfiend of Despair: "each opponent loses life equal to the life that player lost this turn"
     { re: /^Each opponent loses life equal to the life that player lost this turn\.?$/i,
       make: () => ({ op: 'loseLife', who: 'opponents', n: { lifeLostBy: 'each' } }) },
@@ -3043,6 +3054,9 @@
     { re: /^([A-Za-z]+) spells you cast cost \{(\d+)\} less to cast\.?$/i,
       make: (m) => ({ op: 'taxSpells', amount: -(+m[2]), filter: m[1].toLowerCase(), who: 'you' }) },
     // Renata, Called to the Hunt: "CARDNAME's power is equal to your devotion to green."
+    // Necrogoyf: "CARDNAME's power is equal to the number of creature cards in all graveyards."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in all graveyards\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: null, keepToughness: true } }) },
     // Towering Gibbon: "CARDNAME's power is equal to the greatest mana value among creatures you control."
     { re: /^(?:CARDNAME|This creature)'?s (power is|power and toughness are each) equal to the greatest mana value among ([a-z ]+? you control)\.?$/i,
       make: (m) => {
@@ -5505,6 +5519,8 @@
       ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
     // Righteous Valkyrie: "you have at least 7 life more than your starting life total"
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
+    // Blowfly Infestation: "it had a -1/-1 counter on it" — the creature that died, as it last was
+    [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
     // Cosmos Elixir: "your life total is greater than your starting life total"
     [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
     // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
@@ -5843,6 +5859,9 @@
       filt: () => ({ who: 'you', words: 'permanent' }), extra: { enteredTapped: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
+    // Revenge of Ravens: "Whenever a creature attacks you or a planeswalker you control"
+    { re: /^Whenever a creature attacks you( or a planeswalker you control)?,? /i, event: 'permAttacks',
+      filt: () => ({ words: 'creature', who: 'opponent' }), extraOf: (m) => ({ attacksYou: m[1] ? 'orWalker' : 'you' }) },
     // Tome of Legends: "Whenever your commander enters or attacks"
     { re: /^Whenever your commander enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: true }) },
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
@@ -7926,7 +7945,8 @@
       out.push(U.titleCase(m0)); return '';
     });
     // the protection taken out of the middle leaves a dangling "and" behind
-    return out.concat(rest.split(/,\s*|\s+and\s+/).map(x => x.trim()).filter(x => x && !/^and$/i.test(x)).map(U.titleCase));
+    // "flying, first strike, and lifelink": the "and" after the last comma is not part of a keyword
+    return out.concat(rest.split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(x => x && !/^and$/i.test(x)).map(U.titleCase));
   }
 
   /* ---------------- what a permanent becomes (CR 613) ----------------

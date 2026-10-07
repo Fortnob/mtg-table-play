@@ -6661,7 +6661,7 @@
         // "defending player": the one it attacks, or the one whose planeswalker it attacks
         this._fire('attacks', o.controller, { attacker: o, source: o,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
-        this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o,
+        this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o, defenderId: d.defenderId,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
       }
       if (declarations.length) {
@@ -7964,6 +7964,13 @@
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
         case 'gainedLifeThisTurn': return !!me && (me.lifeGainedThisTurn || 0) > 0;
         case 'lostLifeThisTurn': return !!me && (me.lifeLostThisTurn || 0) > 0;
+        // Blowfly Infestation: the creature that died had that counter as it went
+        case 'triggerObjHadCounter': {
+          const td = (ctx && ctx.triggerData) || {};
+          const x = td.objectId && this.obj(td.objectId);
+          const had = x && (x.zone === 'battlefield' ? x.counters : x._diedCounters);
+          return !!had && Number(had[cond.counter]) > 0;
+        }
         case 'diedCount': return ((this.turnHistory || {}).creaturesDied || 0) >= (cond.n || 0);
         case 'all': return (cond.of || []).every(c => this._condMet(c, ctx));
         case 'noCreatures': return !this.battlefield.some(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
@@ -8155,6 +8162,12 @@
           const xt = types(xa);
           if ((allTypes && xt.length) || (xa.keywordSet && xa.keywordSet.has('changeling') && myTypes.length) || xt.some(t => myTypes.includes(t))) k++;
         }
+        return k * (v.mult || 1);
+      }
+      // Necrogoyf: creature cards in all graveyards
+      if (typeof v === 'object' && v.cardsInAllGraveyards) {
+        let k = 0;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
         return k * (v.mult || 1);
       }
       // Towering Gibbon: the greatest mana value among creatures you control, printed
@@ -9183,6 +9196,8 @@
           if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
           // Crawling Infestation: "during your turn"
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
+          // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
+          if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
           // Nalfeshnee: "a spell from exile"
           if (ab.fromExileOnly && !(data.spell && data.spell.fromZone === 'exile')) continue;
           // "attacks a player": not a planeswalker or a battle
@@ -10733,7 +10748,8 @@
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
             // "Counter target spell. Its controller mills two cards."
-            : e.who === 'targetController' ? [this._lastAffectedController()]
+            // Riddlekeeper: in a trigger about a creature, that creature's controller
+            : e.who === 'targetController' ? [this._lastAffectedController() || this.player((ctx.triggerData || {}).objController)]
             // Flint Golem: "defending player" — whoever this creature is attacking
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);

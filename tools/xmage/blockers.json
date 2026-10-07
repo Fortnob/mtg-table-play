@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14117,
-  "gainedCards": 1488,
-  "linesNeeded": 15587,
-  "linesGained": 1846,
+  "needed": 14091,
+  "gainedCards": 1481,
+  "linesNeeded": 15550,
+  "linesGained": 1835,
   "gained": {
-   "all": 1488,
+   "all": 1481,
    "top2000": 53,
    "stdTop": 12
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 63,
+  "verifyFail": 61,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5176,
-   "lines": 4516,
+   "score": 5175,
+   "lines": 4515,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 275,
-   "lines": 245,
+   "score": 274,
+   "lines": 244,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 210,
-   "lines": 186,
+   "score": 209,
+   "lines": 185,
    "cards": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -1385,25 +1385,6 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Reluctant Role Model",
-    "Shadow the Hedgehog",
-    "Archghoul of Thraben",
-    "Azlask, the Swelling Scourge",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Basri's Lieutenant",
-    "Slurrk, All-Ingesting",
-    "Cass, Hand of Vengeance",
-    "The Ghoul, Gunslinger"
-   ]
-  },
-  {
    "what": "two types at once",
    "score": 16,
    "lines": 16,
@@ -1566,6 +1547,25 @@
     "Genghis Frog",
     "Ray Fillet, Man Ray",
     "Crustacean Commando"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Reluctant Role Model",
+    "Shadow the Hedgehog",
+    "Archghoul of Thraben",
+    "Azlask, the Swelling Scourge",
+    "Colfenor, the Last Yew",
+    "Havi, the All-Father",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger",
+    "Orah, Skyclave Hierophant"
    ]
   },
   {
@@ -1790,25 +1790,6 @@
     "Esper Sojourners",
     "Bant Sojourners",
     "Grixis Sojourners"
-   ]
-  },
-  {
-   "what": "attacks you, or its controller",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Revenge of Ravens",
-    "Najeela, the Blade-Blossom",
-    "Sarkhan the Masterless",
-    "Marchesa's Decree",
-    "Search the Premises",
-    "Isperia, Supreme Judge",
-    "Crown of Doom",
-    "Circle of Flame",
-    "Riddlekeeper",
-    "Thantis, the Warweaver",
-    "Blood Reckoning",
-    "Slumbering Dragon"
    ]
   },
   {
@@ -2429,25 +2410,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Necrogoyf",
-    "Nighthowler",
-    "Bonehoard",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Invigorating Falls",
-    "Rune Snag",
-    "Life Burst",
-    "Feast of Flesh",
-    "Kjeldoran War Cry",
-    "Mind Burst"
-   ]
-  },
-  {
    "what": "PutCounterOnPermanentTriggeredAbility",
    "score": 12,
    "lines": 12,
@@ -2907,6 +2869,24 @@
    ]
   },
   {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Nighthowler",
+    "Bonehoard",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge",
+    "Invigorating Falls",
+    "Rune Snag",
+    "Life Burst",
+    "Feast of Flesh",
+    "Kjeldoran War Cry",
+    "Mind Burst"
+   ]
+  },
+  {
    "what": "Ability.withFirstModeCost",
    "score": 11,
    "lines": 11,
@@ -3179,23 +3159,6 @@
     "Obosh, the Preypiercer",
     "Umori, the Collector",
     "Lutri, the Spellchaser"
-   ]
-  },
-  {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Syr Ginger, the Meal Ender",
-    "Black Scarab",
-    "White Scarab",
-    "Blue Scarab",
-    "Green Scarab",
-    "Red Scarab",
-    "Skyshroud Elite",
-    "Beasts of Bogardan",
-    "Ivory Guardians",
-    "Radiant Essence"
    ]
   },
   {
@@ -4062,6 +4025,22 @@
    ]
   },
   {
+   "what": "OpponentControlsPermanentCondition",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Black Scarab",
+    "White Scarab",
+    "Blue Scarab",
+    "Green Scarab",
+    "Red Scarab",
+    "Skyshroud Elite",
+    "Beasts of Bogardan",
+    "Ivory Guardians",
+    "Radiant Essence"
+   ]
+  },
+  {
    "what": "DraftFromSpellbookEffect",
    "score": 9,
    "lines": 9,
@@ -4235,21 +4214,6 @@
     "Vampire Scrivener",
     "Lich's Tomb",
     "Oath of Lim-Dûl"
-   ]
-  },
-  {
-   "what": "(verify) condition lost",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Blowfly Infestation",
-    "Jin-Gitaxias // The Great Synthesis",
-    "Grakmaw, Skyclave Ravager",
-    "Depala, Pilot Exemplar",
-    "Hope-Ender Coatl",
-    "Sandman's Quicksand",
-    "Earth Surge",
-    "Adipose Offspring"
    ]
   },
   {
@@ -5728,6 +5692,19 @@
    ]
   },
   {
+   "what": "(verify) condition lost",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Jin-Gitaxias // The Great Synthesis",
+    "Depala, Pilot Exemplar",
+    "Hope-Ender Coatl",
+    "Sandman's Quicksand",
+    "Earth Surge",
+    "Adipose Offspring"
+   ]
+  },
+  {
    "what": "GainControlAllUntapGainHasteEffect",
    "score": 6,
    "lines": 6,
@@ -5777,18 +5754,6 @@
     "Vrondiss, Rage of Ancients",
     "Feywild Trickster",
     "Farideh, Devil's Chosen"
-   ]
-  },
-  {
-   "what": "AttackedByCreatureTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "MacCready, Lamplight Mayor",
-    "Hissing Miasma",
-    "Genestealer Locus",
-    "Briar Patch",
-    "Barbed Foliage"
    ]
   },
   {
@@ -5981,19 +5946,6 @@
     "Seer's Vision",
     "Wandering Eye",
     "Revelation"
-   ]
-  },
-  {
-   "what": "IsPhaseCondition",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Najeela, the Blade-Blossom",
-    "The Blue Spirit",
-    "Djinn of Infinite Deceits",
-    "Jade Statue",
-    "Kjeldoran Elite Guard",
-    "Heart Wolf"
    ]
   },
   {
@@ -6707,18 +6659,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAttachedEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Super State",
-    "Wrecking Ball Arm",
-    "Octopus Umbra",
-    "Stasis Field",
-    "Coerced to Kill"
-   ]
-  },
-  {
    "what": "TheRingTemptsYouEffect",
    "score": 5,
    "lines": 5,
@@ -7232,6 +7172,18 @@
    ]
   },
   {
+   "what": "attacks you, or its controller",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Najeela, the Blade-Blossom",
+    "Sarkhan the Masterless",
+    "Circle of Flame",
+    "Palazzo Archers",
+    "Lost in the Woods"
+   ]
+  },
+  {
    "what": "BecomesTargetSourceFirstTimeTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7387,6 +7339,18 @@
    ]
   },
   {
+   "what": "IsPhaseCondition",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "The Blue Spirit",
+    "Djinn of Infinite Deceits",
+    "Jade Statue",
+    "Kjeldoran Elite Guard",
+    "Heart Wolf"
+   ]
+  },
+  {
    "what": "GreatestAmongPermanentsValue",
    "score": 5,
    "lines": 5,
@@ -7445,6 +7409,30 @@
     "Alarum",
     "Unlikely Alliance"
    ]
+  },
+  {
+   "what": "BecomesColorOrColorsTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Scuttlemutt",
+    "Prismatic Lace",
+    "Quickchange",
+    "Swirling Spriggan",
+    "Prismwake Merrow"
+   ]
+  },
+  {
+   "what": "ConstellationAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Nessian Wanderer",
+    "Eidolon of Astral Winds",
+    "Daxos's Torment",
+    "Strength from the Fallen",
+    "Goldenhide Ox"
+   ]
   }
  ],
  "sole": [
@@ -7463,8 +7451,8 @@
   },
   {
    "what": "custom ability",
-   "score": 673,
-   "cards": 574,
+   "score": 674,
+   "cards": 575,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7502,8 +7490,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 164,
-   "cards": 152,
+   "score": 163,
+   "cards": 151,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7515,8 +7503,8 @@
   },
   {
    "what": "custom condition",
-   "score": 159,
-   "cards": 147,
+   "score": 158,
+   "cards": 146,
    "names": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -8352,19 +8340,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Necrogoyf",
-    "Nighthowler",
-    "Bonehoard",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge"
-   ]
-  },
-  {
    "what": "ExpendTriggeredAbility",
    "score": 12,
    "cards": 12,
@@ -8539,19 +8514,6 @@
    ]
   },
   {
-   "what": "attacks you, or its controller",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Revenge of Ravens",
-    "Sarkhan the Masterless",
-    "Marchesa's Decree",
-    "Search the Premises",
-    "Isperia, Supreme Judge",
-    "Circle of Flame"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 11,
    "cards": 11,
@@ -8617,16 +8579,16 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
+   "what": "CardsInAllGraveyardsCount",
    "score": 11,
    "cards": 11,
    "names": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Archghoul of Thraben",
-    "Colfenor, the Last Yew",
-    "Basri's Lieutenant",
-    "Slurrk, All-Ingesting"
+    "Nighthowler",
+    "Bonehoard",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge",
+    "Invigorating Falls"
    ]
   },
   {
@@ -8773,6 +8735,19 @@
     "Hand of the Praetors",
     "Donal, Herald of Wings",
     "Cunning Nightbonder"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Archghoul of Thraben",
+    "Colfenor, the Last Yew",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance"
    ]
   },
   {
@@ -8939,6 +8914,19 @@
     "Sneaky Snacker",
     "Private Eye",
     "Foggy Swamp Spirit Keeper"
+   ]
+  },
+  {
+   "what": "granting a mana ability",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Great Divide Guide",
+    "Rain of Filth",
+    "Brightcap Badger // Fungus Frolic",
+    "Glorious Sunrise",
+    "Song of Freyalise",
+    "Path of Annihilation"
    ]
   },
   {
@@ -9412,19 +9400,6 @@
     "Hexavus",
     "Soul Diviner",
     "Xavier Sal, Infested Captain"
-   ]
-  },
-  {
-   "what": "granting a mana ability",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Great Divide Guide",
-    "Rain of Filth",
-    "Brightcap Badger // Fungus Frolic",
-    "Glorious Sunrise",
-    "Path of Annihilation",
-    "Orochi Merge-Keeper"
    ]
   },
   {
@@ -11167,18 +11142,6 @@
    ]
   },
   {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Syr Ginger, the Meal Ender",
-    "Skyshroud Elite",
-    "Beasts of Bogardan",
-    "Ivory Guardians",
-    "Radiant Essence"
-   ]
-  },
-  {
    "what": "targeted by FilterSpell",
    "score": 5,
    "cards": 5,
@@ -11188,18 +11151,6 @@
     "Opaline Sliver",
     "Illuminator Virtuoso",
     "Fugitive Druid"
-   ]
-  },
-  {
-   "what": "(verify) condition lost",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Blowfly Infestation",
-    "Grakmaw, Skyclave Ravager",
-    "Hope-Ender Coatl",
-    "Sandman's Quicksand",
-    "Earth Surge"
    ]
   },
   {
@@ -11224,6 +11175,42 @@
     "Awakening",
     "Blinkmoth Infusion",
     "Battle Cry"
+   ]
+  },
+  {
+   "what": "MeldEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Hanweir Battlements",
+    "Titania, Voice of Gaea",
+    "Urza, Lord Protector",
+    "Vanille, Cheerful l'Cie",
+    "Graf Rats"
+   ]
+  },
+  {
+   "what": "ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Decadent Dragon // Expensive Taste",
+    "Outrageous Robbery",
+    "Dream-Thief's Bandana",
+    "Predators' Hour",
+    "Petty Larceny"
+   ]
+  },
+  {
+   "what": "CastFromGraveyardSourceCondition.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Increasing Devotion",
+    "Increasing Savagery",
+    "From Father to Son",
+    "The Final Days",
+    "Secrets of the Key"
    ]
   }
  ]
