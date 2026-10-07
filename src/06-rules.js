@@ -8003,6 +8003,15 @@
           const host = src && src.attachedTo && this.obj(src.attachedTo);
           return !!host && (host.attachments || []).filter(id => { const at = this.obj(id); return at && (at.analysis() || {}).isEquipment; }).length >= (cond.n || 2);
         }
+        // Kinship: the top card of your library shares a creature type with this
+        case 'topSharesTypeWithSelf': {
+          const top = me && this.zones[me.id].library[0];
+          if (!top || !src) return false;
+          const ta = top.analysis() || {}, sa = src.analysis() || {};
+          if (!ta.isCreature && !(ta.subtypes || []).length) return false;
+          if (ta.keywordSet && ta.keywordSet.has('changeling')) return true;
+          return (ta.subtypes || []).some(t => this._hasCreatureType(src, t) && this._isCreatureType(t)) || (sa.keywordSet && sa.keywordSet.has('changeling') && (ta.subtypes || []).some(t => this._isCreatureType(t)));
+        }
         // Sanguine Spy: how many different mana values the graveyard holds
         case 'graveMvDistinct': return !!me && new Set(this.zones[me.id].graveyard.map(c => (c.card && c.card.cmc) || 0)).size >= (cond.n || 1);
         case 'controlsGreatestPower': {

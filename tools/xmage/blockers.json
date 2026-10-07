@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13882,
+  "needed": 13871,
   "gainedCards": 1449,
-  "linesNeeded": 15299,
+  "linesNeeded": 15288,
   "linesGained": 1786,
   "gained": {
    "all": 1449,
@@ -2564,25 +2564,6 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
-   ]
-  },
-  {
-   "what": "KinshipAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Leaf-Crowned Elder",
-    "Wolf-Skull Shaman",
-    "Sensation Gorger",
-    "Nightshade Schemers",
-    "Wandering Graybeard",
-    "Mudbutton Clanger",
-    "Kithkin Zephyrnaut",
-    "Ink Dissolver",
-    "Waterspout Weavers",
-    "Squeaking Pie Grubfellows",
-    "Winnower Patrol",
-    "Pyroclast Consul"
    ]
   },
   {
@@ -7412,6 +7393,18 @@
     "Spellpyre Phoenix",
     "Sacred Excavation"
    ]
+  },
+  {
+   "what": "CrewsVehicleSourceTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Canyon Vaulter",
+    "Speedway Fanatic",
+    "Gearshift Ace",
+    "Veteran Motorist",
+    "Reckless Velocitaur"
+   ]
   }
  ],
  "sole": [
@@ -8420,19 +8413,6 @@
     "Melancholic Poet",
     "Forum Necroscribe",
     "Conciliator's Duelist"
-   ]
-  },
-  {
-   "what": "KinshipAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Leaf-Crowned Elder",
-    "Wolf-Skull Shaman",
-    "Sensation Gorger",
-    "Nightshade Schemers",
-    "Wandering Graybeard",
-    "Mudbutton Clanger"
    ]
   },
   {
@@ -11190,6 +11170,18 @@
     "Orb of Dreams",
     "False Floor",
     "Due Respect"
+   ]
+  },
+  {
+   "what": "attacks you, or its controller",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Najeela, the Blade-Blossom",
+    "Sarkhan the Masterless",
+    "Circle of Flame",
+    "Palazzo Archers",
+    "Lost in the Woods"
    ]
   }
  ]

@@ -8401,4 +8401,16 @@ module.exports = (test) => {
     T.grave('A', 'Craw Wurm');
     t.ok(T.g._condMet({ kind: 'graveMvDistinct', n: 5 }, { controller: 'A', obj: s }));
   });
+
+  test('Kinship (Nightshade Schemers): only when the top card shares a creature type', (mk, t) => {
+    t.auto('Nightshade Schemers');
+    const T = mk();
+    T.bf('A', 'Nightshade Schemers');
+    T.top('A', 'Island');
+    T.nextTurn('A'); T.toMain('A');
+    t.eq(T.life('B'), 20, 'an Island shares nothing');
+    T.top('A', 'Faerie Seer');
+    T.nextTurn('A'); T.toMain('A');
+    t.eq(T.life('B'), 18, 'a Faerie does');
+  });
 };

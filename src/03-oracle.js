@@ -4592,6 +4592,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Kinship: "you may look at the top card of your library. If it shares a
+       creature type with this creature, you may reveal it. If you do, …" */
+    { re: /^You may look at the top card of your library\. If it shares a creature type with (?:this creature|CARDNAME), you may reveal it\. If you do, (.+)$/i,
+      make: (m) => {
+        const rest = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        if (!rest.auto || !rest.effects.length) return null;
+        return [{ op: 'ifCond', cond: { kind: 'topSharesTypeWithSelf' }, then: [{ op: 'may', then: rest.effects }] }];
+      } },
     // Duneblast, Mount Doom: "Choose up to one creature. Destroy the rest."; Divine Reckoning: each player's own
     { re: /^Choose up to (one|two|three) creatures?(?:, then|\. Destroy) (?:destroy )?the rest\.?$/i,
       make: (m) => [{ op: 'keepDestroyRest', n: num(m[1]), who: 'you' }] },
