@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16577,
-  "gainedCards": 1764,
-  "linesNeeded": 18820,
+  "needed": 16571,
+  "gainedCards": 1766,
+  "linesNeeded": 18806,
   "linesGained": 2270,
   "gained": {
-   "all": 1764,
+   "all": 1766,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5709,
-   "lines": 4908,
+   "score": 5708,
+   "lines": 4907,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -2794,25 +2794,6 @@
    ]
   },
   {
-   "what": "granting a mana ability",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Liliana of the Dark Realms",
-    "Great Divide Guide",
-    "Rain of Filth",
-    "Brightcap Badger // Fungus Frolic",
-    "Glorious Sunrise",
-    "Song of Freyalise",
-    "Path of Annihilation",
-    "Summoning Materia",
-    "Petrified Hamlet",
-    "Huatli, Poet of Unity // Roar of the Fifth People",
-    "Orochi Merge-Keeper",
-    "Lotus Ring"
-   ]
-  },
-  {
    "what": "UntapAllEffect",
    "score": 14,
    "lines": 14,
@@ -3173,6 +3154,25 @@
     "Simic Initiate",
     "Cytospawn Shambler",
     "Vigean Hydropon"
+   ]
+  },
+  {
+   "what": "granting a mana ability",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Great Divide Guide",
+    "Rain of Filth",
+    "Brightcap Badger // Fungus Frolic",
+    "Glorious Sunrise",
+    "Song of Freyalise",
+    "Path of Annihilation",
+    "Summoning Materia",
+    "Petrified Hamlet",
+    "Huatli, Poet of Unity // Roar of the Fifth People",
+    "Orochi Merge-Keeper",
+    "Lotus Ring",
+    "Mul Daya Channelers"
    ]
   },
   {
@@ -6099,22 +6099,6 @@
    ]
   },
   {
-   "what": "keyword AmplifyAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Kilnmouth Dragon",
-    "Feral Throwback",
-    "Aven Warhawk",
-    "Ghastly Remains",
-    "Canopy Crawler",
-    "Zombie Brute",
-    "Daru Stinger",
-    "Embalmed Brawler",
-    "Glowering Rogon"
-   ]
-  },
-  {
    "what": "BecomesChosenCreatureTypeSourceEffect",
    "score": 9,
    "lines": 9,
@@ -8098,13 +8082,26 @@
     "Warrior's Resolve",
     "Hexhaven Dueling Arena"
    ]
+  },
+  {
+   "what": "ExileTopXMayPlayUntilEffect.withTextOptions",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Glimpse the Impossible",
+    "Gwen Stacy // Ghost-Spider",
+    "Chandra, Heart of Fire",
+    "Yasmin Khan",
+    "Act on Impulse",
+    "Wiccan, Young Avenger"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4476,
-   "cards": 3912,
+   "score": 4477,
+   "cards": 3913,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -9598,6 +9595,19 @@
    ]
   },
   {
+   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Genesis",
+    "Master of Death",
+    "Arden Angel",
+    "Gigapede",
+    "Ichorid",
+    "Akuta, Born of Ash"
+   ]
+  },
+  {
    "what": "ReparteeAbility",
    "score": 12,
    "cards": 12,
@@ -9876,19 +9886,6 @@
     "Felling Blow",
     "Domri's Ambush",
     "Huatli, Dinosaur Knight"
-   ]
-  },
-  {
-   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Genesis",
-    "Master of Death",
-    "Arden Angel",
-    "Gigapede",
-    "Ichorid",
-    "Akuta, Born of Ash"
    ]
   },
   {

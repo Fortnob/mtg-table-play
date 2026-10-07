@@ -3077,6 +3077,25 @@ module.exports = (test) => {
     t.eq(T.life('B'), 15);
   });
 
+  test('Amplify: a counter for each Zombie revealed from hand', (mk, t) => {
+    t.auto('Zombie Brute');
+    const T = mk();
+    T.hand('A', 'Walking Corpse'); T.hand('A', 'Walking Corpse'); T.hand('A', 'Grizzly Bears');
+    T.mana('A', '6B');
+    const z = T.hand('A', 'Zombie Brute');
+    T.cast('A', z);
+    T.resolve();
+    t.eq(z.counters['+1/+1'], 2);
+  });
+
+  test("Koth's emblem: Mountains ping", (mk, t) => {
+    t.auto('Koth of the Hammer');
+    const T = mk();
+    T.g._runEffect({ op: 'getEmblem', emblemText: 'Mountains you control have "{T}: This land deals 1 damage to any target."' }, { controller: 'A', obj: null });
+    const m = T.bf('A', 'Mountain');
+    t.ok(m.analysis().abilities.some(x => x.kind === 'activated'), 'the Mountain has it');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

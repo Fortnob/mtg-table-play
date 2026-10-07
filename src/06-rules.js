@@ -2149,7 +2149,8 @@
       const a = o.analysis();
       if (!a) return 0;
       let d = 0;
-      for (const src of this.battlefield) {
+      // an emblem's cost change counts too (Saheeli, Filigree Master)
+      for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
         const sa = src.analysis();
         if (!sa) continue;
@@ -4279,6 +4280,19 @@
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
         if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
+      }
+      /* Amplify N (CR 702.38): N +1/+1 counters for each card revealed from
+         hand that shares a creature type with it. Revealing is free and only
+         helps, so every such card is shown. */
+      const amp = this._kwArg(o, 'amplify');
+      if (amp > 0) {
+        const types = (a.subtypes || []);
+        const shown = this.zones[o.controller].hand.filter(c => c !== o && (c.analysis() || {}).isCreature &&
+          types.some(t => this._hasCreatureType(c, t)));
+        if (shown.length) {
+          this.addCounters(o, '+1/+1', amp * shown.length);
+          this.logEvent('rules', `${this.player(o.controller).name} reveals ${shown.map(c => c.name).join(', ')} for amplify.`);
+        }
       }
       // riot: haste or a +1/+1 counter
       if (a.keywordSet.has('riot')) {
@@ -6786,7 +6800,8 @@
     _grantSources() {
       if (this._grantCache && this._grantEpoch === this._boardKey) return this._grantCache;
       const list = [];
-      for (const src of this.battlefield) {
+      // an emblem hands out abilities too (Koth of the Hammer's Mountains)
+      for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
         const a = O.analyze(src.card, src.face);
         if (!a || src.faceDown) continue;
@@ -12524,7 +12539,8 @@
 
     /** Does this player control a permanent with that standing rule? */
     _anyStaticOf(playerId, op) {
-      for (const o of this.battlefield) {
+      // an emblem's standing rule is its owner's as much as a permanent's is
+      for (const o of this._withEmblems(this.battlefield)) {
         if (o.controller !== playerId) continue;
         if (this._staticOp(o, op)) return o;
       }
