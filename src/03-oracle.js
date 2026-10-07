@@ -2412,6 +2412,16 @@
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
     // Bridge from Below: "exile this card" — from the graveyard it works in
     { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
+    // Plaxmanta: "sacrifice it unless {G} was spent to cast it"
+    { re: /^Sacrifice (?:it|CARDNAME|this creature) unless \{([WUBRG])\} was spent to cast (?:it|this creature|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'not', cond: { kind: 'manaSpentAtLeast', n: 1, color: m[1].toUpperCase(), of: 'this' } }, then: [{ op: 'sacrificeSelf' }] }) },
+    /* Dragon Fangs, Eagle's Rescue: "return this card from your graveyard to
+       the battlefield attached to that creature / target creature …" */
+    { re: /^(You may )?[Rr]eturn (?:this card|CARDNAME) from your graveyard to the battlefield attached to (that creature|it|target [a-z0-9 ]+)\.?$/,
+      make: (m) => {
+        const e = /^target/i.test(m[2]) ? { op: 'returnSelfAttached', targets: [targetSpec(m[2])] } : { op: 'returnSelfAttached', scope: 'triggerObject' };
+        return m[1] ? { op: 'may', then: [e] } : e;
+      } },
     // the Wards: "This effect doesn't remove this Aura." — protection that keeps it on
     { re: /^This effect doesn'?t remove (?:this Aura|CARDNAME)\.?$/i, make: () => ({ op: 'noop', keepAura: true }) },
     // Star Pupil: "put its counters on target creature you control"

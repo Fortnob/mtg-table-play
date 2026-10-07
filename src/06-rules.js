@@ -12271,6 +12271,20 @@
           break;
         }
         /* Nesting Grounds: a counter moved from one target to the other */
+        // Dragon Fangs: back from the graveyard, attached to the creature named
+        case 'returnSelfAttached': {
+          if (!src || src.zone !== 'graveyard') break;
+          let host = null;
+          if (e.scope === 'triggerObject') host = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          else { const t0 = targets.find(t => t.kind === 'object'); host = t0 && this.obj(t0.id); }
+          if (!host || host.zone !== 'battlefield') break;
+          this.moveObject(src, 'battlefield', { controller: ctx.controller });
+          src.attachedTo = host.id;
+          host.attachments = (host.attachments || []).concat(src.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${src.name} returns attached to ${host.name}.`);
+          break;
+        }
         // "Exile this card": wherever it is (Bridge from Below, in a graveyard)
         case 'exileSelfAnywhere':
           if (src && src.zone && src.zone !== 'exile' && src.zone !== 'stack') { this.moveObject(src, 'exile'); this.logEvent('exile', `${src.name} is exiled.`); }

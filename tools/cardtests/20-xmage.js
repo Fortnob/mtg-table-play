@@ -4053,4 +4053,30 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(T.life('B'), 14, 'unblocked');
   });
+
+  test('Dragon Fangs: back from the graveyard onto a big creature', (mk, t) => {
+    t.auto('Dragon Fangs');
+    const T = mk();
+    const f = T.grave('A', 'Dragon Fangs');
+    T.answer('confirm', () => ({ yes: true }));
+    const w = T.put('A', 'Craw Wurm', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(f, 'battlefield');
+    t.eq(f.attachedTo, w.id);
+    t.ok(T.g.hasKw(w, 'trample'), 'and the Wurm has trample');
+  });
+
+  test('Plaxmanta: kept only if green mana was spent on it', (mk, t) => {
+    t.auto('Plaxmanta');
+    const T = mk();
+    T.mana('A', 'UG');
+    const p1 = T.hand('A', 'Plaxmanta');
+    T.cast('A', p1); T.resolve();
+    t.zone(p1, 'battlefield');
+    const T2 = mk();
+    T2.mana('A', 'UU');
+    const p2 = T2.hand('A', 'Plaxmanta');
+    T2.cast('A', p2); T2.resolve();
+    t.zone(p2, 'graveyard');
+  });
 };

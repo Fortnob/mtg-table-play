@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15816,
+  "needed": 15803,
   "gainedCards": 1610,
-  "linesNeeded": 17899,
+  "linesNeeded": 17885,
   "linesGained": 2055,
   "gained": {
    "all": 1610,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5612,
-   "lines": 4841,
+   "score": 5610,
+   "lines": 4839,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -6121,21 +6121,6 @@
    ]
   },
   {
-   "what": "SacrificeSourceUnlessConditionEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Chorale of the Void",
-    "War Elemental",
-    "Plaxmanta",
-    "Patagia Viper",
-    "Azorius Herald",
-    "Court Hussar",
-    "Crypt Champion",
-    "Squealing Devil"
-   ]
-  },
-  {
    "what": "several cards from one graveyard",
    "score": 8,
    "lines": 8,
@@ -7882,19 +7867,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldAnyReturnSourceFromGraveyardAttachedToItTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Smoke Shroud",
-    "Dragon Shadow",
-    "Dragon Breath",
-    "Dragon Fangs",
-    "Dragon Wings",
-    "Dragon Scales"
-   ]
-  },
-  {
    "what": "RevealAndSeparatePilesEffect",
    "score": 6,
    "lines": 6,
@@ -7932,13 +7904,39 @@
     "Meteor Shower",
     "Serra's Hymn"
    ]
+  },
+  {
+   "what": "FullPartyCondition.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Nalia de'Arnise",
+    "The Destined Black Mage",
+    "Squad Commander",
+    "The Destined White Mage",
+    "Archpriest of Iona",
+    "Nimble Trapfinder"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldTappedUnlessAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Country Roads",
+    "Horned Loch-Whale // Lagoon Breach",
+    "Rocky Roads",
+    "Reef Roads",
+    "Wild Roads",
+    "Foul Roads"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4422,
-   "cards": 3879,
+   "score": 4421,
+   "cards": 3878,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
