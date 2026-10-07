@@ -1539,7 +1539,7 @@
     { re: /^Copy target (?:instant or sorcery spell|instant spell, sorcery spell), activated ability, or triggered ability( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'instant or sorcery', abilities: true },
         m[1] ? { controller: 'you' } : {})] }) },
-    { re: /^(?:You may )?[Dd]raw that many cards\.?$/, make: () => ({ op: 'draw', who: 'you', n: 'triggerAmount' }) },
+    { re: /^(?:You may |You )?[Dd]raw that many cards\.?$/, make: () => ({ op: 'draw', who: 'you', n: 'triggerAmount' }) },
     /* Tragic Slip: the morbid half replaces the first */
     { re: /^That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if (.+?)\.?$/i,
       make: (m) => { const cond = condOf(m[3]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'lastTarget' }] } } : null; } },
@@ -5802,6 +5802,9 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes the target of a spell or ability(?:,| )/i, event: 'becomesTarget', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
+    // Niv-Mizzet, Visionary: "Whenever a source you control deals noncombat damage to an opponent"
+    { re: /^When(?:ever)? a source you control deals (noncombat )?damage to an opponent(?:,| )/i, event: 'yourSourceDamagesOpponent',
+      extraOf: (m) => (m[1] ? { noncombatOnly: true } : {}) },
     // Surveillance Monitor: "Whenever you collect evidence"
     { re: /^When(?:ever)? you collect evidence(?:,| )/i, event: 'youCollectEvidence' },
     // Corpseberry Cultivator: "Whenever you forage"

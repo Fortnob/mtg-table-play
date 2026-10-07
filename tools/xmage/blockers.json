@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14389,
+  "needed": 14386,
   "gainedCards": 1519,
-  "linesNeeded": 15961,
+  "linesNeeded": 15957,
   "linesGained": 1894,
   "gained": {
    "all": 1519,
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 913,
-   "lines": 781,
+   "score": 912,
+   "lines": 780,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -2170,20 +2170,6 @@
     "Frontline Strategist",
     "Harmless Assault",
     "Vine Snare"
-   ]
-  },
-  {
-   "what": "SourceDealsNoncombatDamageToOpponentTriggeredAbility",
-   "score": 13,
-   "lines": 7,
-   "cards": [
-    "Niv-Mizzet, Visionary",
-    "Chandra's Incinerator",
-    "Virtue of Courage // Embereth Blaze",
-    "Fear of Burning Alive",
-    "Chandra's Pyreling",
-    "Thor, Guardian of Midgard",
-    "Asgardian Inspiration"
    ]
   },
   {
@@ -7532,6 +7518,18 @@
     "Shimmering Glasskite",
     "Jetting Glasskite"
    ]
+  },
+  {
+   "what": "SpellCostReductionSourceEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Avatar of Woe",
+    "Avatar of Fury",
+    "Avatar of Might",
+    "Avatar of Hope",
+    "Avatar of Will"
+   ]
   }
  ],
  "sole": [
@@ -8504,19 +8502,6 @@
    ]
   },
   {
-   "what": "SourceDealsNoncombatDamageToOpponentTriggeredAbility",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Niv-Mizzet, Visionary",
-    "Virtue of Courage // Embereth Blaze",
-    "Fear of Burning Alive",
-    "Chandra's Pyreling",
-    "Thor, Guardian of Midgard",
-    "Asgardian Inspiration"
-   ]
-  },
-  {
    "what": "words:mv",
    "score": 12,
    "cards": 12,
@@ -9172,6 +9157,19 @@
    ]
   },
   {
+   "what": "CompositeCost",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Quest for the Holy Relic"
+   ]
+  },
+  {
    "what": "Ability.withFirstModeCost",
    "score": 9,
    "cards": 9,
@@ -9694,19 +9692,6 @@
     "Torsten, Founder of Benalia",
     "Glacial Revelation",
     "Lead the Stampede"
-   ]
-  },
-  {
-   "what": "CompositeCost",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for the Holy Relic",
-    "Sokenzan Smelter"
    ]
   },
   {
@@ -11356,6 +11341,15 @@
    "names": [
     "Talon Gates of Madara",
     "Urban Retreat"
+   ]
+  },
+  {
+   "what": "NumberOfTargetsPredicate",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Hydroelectric Specimen // Hydroelectric Laboratory",
+    "Spinerock Tyrant"
    ]
   }
  ]

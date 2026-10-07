@@ -6801,4 +6801,23 @@ module.exports = (test) => {
     T.resolve();
     t.eq(b1.zone, 'battlefield'); t.eq(b2.zone, 'battlefield'); t.eq(g.zone, 'graveyard');
   });
+
+  test('Niv-Mizzet, Visionary: noncombat damage to an opponent draws that many', (mk, t) => {
+    t.auto('Niv-Mizzet, Visionary');
+    const T = mk();
+    T.bf('A', 'Niv-Mizzet, Visionary');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 3 - 0, 'drew three (the Bolt left the hand as it was cast)');
+    T.mana('B', 'R');
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    const h2 = T.zone('A', 'hand').length;
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h2, "not for the opponent's damage");
+  });
 };

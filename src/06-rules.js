@@ -8341,6 +8341,8 @@
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!combat, player: p.id });
       // No Mercy: "Whenever a creature deals damage to you" — the damaged player's triggers
       if (source) this._fire('youDealtDamage', p.id, { object: source, objController: source.controller, amount, combat: !!combat, player: p.id });
+      // Niv-Mizzet, Visionary: a source of yours hurt an opponent
+      if (source && source.controller != null && source.controller !== p.id) this._fire('yourSourceDamagesOpponent', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       if (source && (source.attachments || []).length) {
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
@@ -8968,6 +8970,8 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // Niv-Mizzet, Visionary: noncombat damage only
+          if (ab.noncombatOnly && data.combat) continue;
           // Kaya's Ghostform: exile counts only for "dies or is put into exile"
           if (data.exiledFromBattlefield && !ab.orExiled) continue;
           // "leave the battlefield without dying", "is exiled from the battlefield"
