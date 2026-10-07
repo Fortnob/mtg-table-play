@@ -11931,6 +11931,28 @@
             const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
             card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
           }
+          /* "except it has CARDNAME's other abilities": the printed card's own
+             lines, all but the one that made it a copy */
+          if (e.keepOwn) {
+            const printed = src.printedCard || {};
+            const own = String(printed.oracle_text || '').split('\n').filter(l => l.trim() && !/enter as a copy of/i.test(l))
+              .map(l => l.split(printed.name || '\u0000').join('this creature'));
+            if (own.length) {
+              const text = String(card.oracle_text || '') + '\n' + own.join('\n');
+              card = Object.assign({}, card, { id: card.id + ':own:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
+            }
+          }
+          /* "except its name is CARDNAME" (and "it's legendary"): the copy
+             keeps this card's name, and its words say that name */
+          if (e.keepName || e.addLegendary) {
+            const printed = src.printedCard || {};
+            const was = card.name;
+            const nm = e.keepName && printed.name ? printed.name : was;
+            let line = String(card.type_line || '');
+            if (e.addLegendary && !/\bLegendary\b/.test(line)) line = 'Legendary ' + line;
+            const text = String(card.oracle_text || '').split(was).join(nm);
+            card = Object.assign({}, card, { id: card.id + ':named:' + U.hash(nm + line), name: nm, type_line: line, oracle_text: text, card_faces: null });
+          }
           src.card = card;
           src.face = pick.face || 0;
           src._chr = null;
@@ -14014,6 +14036,8 @@
         // legend rule (CR 704.5j)
         const byController = U.groupBy(this.battlefield.filter(o => { const a = o.analysis(); return a && a.isLegendary; }), o => o.controller);
         for (const [pid, list] of byController) {
+          // Mirror Box, Sakashima of a Thousand Faces: "the legend rule doesn't apply to permanents you control"
+          if (this.battlefield.some(x => { const r = !x.phasedOut && this._staticOp(x, 'noLegendRule'); return r && (r.all || x.controller === pid); })) continue;
           const byName = U.groupBy(list, o => U.frontName(o.name));
           for (const [name, dupes] of byName) {
             if (dupes.length > 1) {

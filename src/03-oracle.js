@@ -2229,11 +2229,16 @@
             let c;
             if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
             else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
+            // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
+            else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
+            else if ((c = ex.match(/^it'?s legendary in addition to its other types/i))) e.addLegendary = true;
+            // Sakashima of a Thousand Faces: "it has CARDNAME's other abilities"
+            else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
             else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
             else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible)(?=,? and |$)/i)))
               (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
             else return null;
-            ex = ex.slice(c[0].length).replace(/^,? and /, '').trim();
+            ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
           }
         }
         return e;
@@ -7169,7 +7174,7 @@
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
-    'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'peekTop', 'optionalUntap',
+    'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'peekTop', 'optionalUntap',
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
@@ -7415,6 +7420,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
+      { re: /^The "legend rule" doesn'?t apply\.?$/i, eff: { op: 'noLegendRule', all: true }, auto: true },
       // Troll of Khazad-dûm, Pathrazer of Ulamog
       { re: /^(?:CARDNAME|This creature) can'?t be blocked except by (two|three|four|five) or more creatures\.?$/i,
         make: (m) => ({ op: 'minBlockers', n: num(m[1]) }), auto: true },

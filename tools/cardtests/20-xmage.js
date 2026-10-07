@@ -4472,4 +4472,24 @@ module.exports = (test) => {
     T.g.moveObject(tl, 'graveyard');
     t.zone(ring, 'battlefield', 'back when it leaves');
   });
+
+  test('Sakashima the Impostor: a copy that keeps its own name, and is legendary', (mk, t) => {
+    t.auto('Sakashima the Impostor');
+    const T = mk();
+    T.bf('B', 'Craw Wurm');
+    const s = T.put('A', 'Sakashima the Impostor', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(s.name, 'Sakashima the Impostor');
+    t.eq(T.g.powerOf(s), 6, "the Wurm's body");
+    t.ok((s.analysis().supertypes || []).includes('Legendary'));
+  });
+
+  test('Mirror Gallery: two of the same legend stay', (mk, t) => {
+    t.auto('Mirror Gallery');
+    const T = mk();
+    T.bf('A', 'Mirror Gallery');
+    const a = T.bf('A', 'Isamaru, Hound of Konda'), b = T.bf('A', 'Isamaru, Hound of Konda');
+    T.g.checkStateBasedActions();
+    t.zone(a, 'battlefield'); t.zone(b, 'battlefield');
+  });
 };

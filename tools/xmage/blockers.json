@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15619,
+  "needed": 15615,
   "gainedCards": 1612,
-  "linesNeeded": 17466,
+  "linesNeeded": 17460,
   "linesGained": 2044,
   "gained": {
    "all": 1612,
@@ -167,13 +167,10 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 171,
-   "lines": 150,
+   "score": 156,
+   "lines": 147,
    "cards": [
-    "Sakashima of a Thousand Faces",
     "Ulamog, the Defiler",
-    "Chameleon, Master of Disguise",
-    "Sakashima the Impostor",
     "Imposter Mech",
     "Nine-Lives Familiar",
     "Echoing Deeps",
@@ -181,7 +178,10 @@
     "Flesh Duplicate",
     "Prime Speaker Zegana",
     "Xantcha, Sleeper Agent",
-    "Den of the Bugbear"
+    "Den of the Bugbear",
+    "Ral, Monsoon Mage // Ral, Leyline Prodigy",
+    "Sakashima's Student",
+    "Baloth Prime"
    ]
   },
   {
@@ -2278,21 +2278,6 @@
     "Path of the Schemer",
     "Flitting Guerrilla",
     "Halo-Charged Skaab"
-   ]
-  },
-  {
-   "what": "LegendRuleDoesntApplyEffect",
-   "score": 14,
-   "lines": 8,
-   "cards": [
-    "Sakashima of a Thousand Faces",
-    "Mirror Box",
-    "The Master, Multiplied",
-    "Cadric, Soul Kindler",
-    "Sliver Gravemother",
-    "Spider-Verse",
-    "Mirror Gallery",
-    "Council of Reeds"
    ]
   },
   {
@@ -7886,13 +7871,26 @@
     "War Elephant",
     "Noble Elephant"
    ]
+  },
+  {
+   "what": "targeted trigger pointing at the spell",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Frost Titan",
+    "Reality Smasher",
+    "Forsaken Wastes",
+    "Black Bolt, Inhuman King",
+    "Lava Runner",
+    "Retromancer"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4438,
-   "cards": 3892,
+   "score": 4442,
+   "cards": 3893,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7969,15 +7967,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 105,
-   "cards": 96,
+   "score": 94,
+   "cards": 94,
    "names": [
-    "Chameleon, Master of Disguise",
-    "Sakashima the Impostor",
     "Imposter Mech",
     "Echoing Deeps",
     "Estrid's Invocation",
-    "Flesh Duplicate"
+    "Flesh Duplicate",
+    "Prime Speaker Zegana",
+    "Sakashima's Student"
    ]
   },
   {
