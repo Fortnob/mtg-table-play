@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16385,
-  "gainedCards": 1739,
-  "linesNeeded": 18589,
-  "linesGained": 2231,
+  "needed": 16234,
+  "gainedCards": 1687,
+  "linesNeeded": 18406,
+  "linesGained": 2163,
   "gained": {
-   "all": 1739,
-   "top2000": 53,
+   "all": 1687,
+   "top2000": 52,
    "stdTop": 11
   },
   "compare": {
@@ -23,8 +23,8 @@
    "drain": 62,
    "count": 42,
    "group": 27,
-   "x": 5,
-   "it": 99,
+   "x": 3,
+   "it": 62,
    "opponent": 68,
    "condition": 24,
    "subtype": 9
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5676,
-   "lines": 4884,
+   "score": 5665,
+   "lines": 4873,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1017,
-   "lines": 834,
+   "score": 1016,
+   "lines": 833,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 812,
-   "lines": 812,
+   "score": 811,
+   "lines": 811,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 394,
-   "lines": 364,
+   "score": 393,
+   "lines": 363,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 344,
-   "lines": 326,
+   "score": 343,
+   "lines": 325,
    "cards": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 202,
-   "lines": 181,
+   "score": 192,
+   "lines": 171,
    "cards": [
     "Sakashima of a Thousand Faces",
     "Ulamog, the Defiler",
@@ -224,8 +224,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 72,
-   "lines": 69,
+   "score": 71,
+   "lines": 68,
    "cards": [
     "Resourceful Defense",
     "Ulvenwald Tracker",
@@ -375,25 +375,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 43,
-   "lines": 43,
-   "cards": [
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut",
-    "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter",
-    "Needle Drop",
-    "Self-Destruct",
-    "You Look Upon the Tarrasque"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 42,
    "lines": 42,
@@ -410,6 +391,25 @@
     "Osgir, the Reconstructor",
     "Wayta, Trainer Prodigy",
     "Prototype Portal"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 42,
+   "lines": 42,
+   "cards": [
+    "Pain for All",
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter",
+    "Needle Drop",
+    "Self-Destruct",
+    "You Look Upon the Tarrasque"
    ]
   },
   {
@@ -999,25 +999,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 24,
-   "lines": 24,
-   "cards": [
-    "Agonasaur Rex",
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Thor, God of Thunder",
-    "Excava, the Risen Past",
-    "Banishing Slash",
-    "Scrounge for Eternity",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction"
-   ]
-  },
-  {
    "what": "keyword CraftAbility",
    "score": 24,
    "lines": 24,
@@ -1110,6 +1091,25 @@
     "Crack in Time",
     "Staff of the Flame Magus",
     "Staff of the Wild Magus"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Agonasaur Rex",
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Thor, God of Thunder",
+    "Excava, the Risen Past",
+    "Banishing Slash",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction",
+    "Cloudspire Skycycle"
    ]
   },
   {
@@ -1227,25 +1227,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Genestealer Patriarch",
-    "Decimator Beetle",
-    "Spring Splasher"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -1262,25 +1243,6 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Voldaren Pariah // Abolisher of Bloodlines"
-   ]
-  },
-  {
-   "what": "TargetStackObject",
-   "score": 21,
-   "lines": 18,
-   "cards": [
-    "Spellskite",
-    "Not of This World",
-    "Wyll's Reversal",
-    "Wild Ricochet",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice",
-    "Consign to Memory",
-    "Deny the Witch",
-    "Radiant Performer",
-    "Katara's Reversal",
-    "Sister of Silence"
    ]
   },
   {
@@ -1341,6 +1303,25 @@
    ]
   },
   {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "The Tarrasque",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Genestealer Patriarch",
+    "Decimator Beetle",
+    "Spring Splasher"
+   ]
+  },
+  {
    "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 21,
    "lines": 21,
@@ -1376,6 +1357,25 @@
     "Glory of Warfare",
     "Wargling",
     "The Chief Warg"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 20,
+   "lines": 17,
+   "cards": [
+    "Spellskite",
+    "Not of This World",
+    "Wyll's Reversal",
+    "Tale's End",
+    "Green Slime",
+    "Louisoix's Sacrifice",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Katara's Reversal",
+    "Sister of Silence",
+    "Mister Fantastic"
    ]
   },
   {
@@ -1525,25 +1525,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Bespoke Battlewagon",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Aethergeode Miner",
-    "Electrostatic Pummeler",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance",
-    "Aethersphere Harvester",
-    "Cyclops Superconductor"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -1649,6 +1630,25 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Bespoke Battlewagon",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Aethergeode Miner",
+    "Riddle Gate Gargoyle",
+    "Consulate Surveillance",
+    "Aethersphere Harvester",
+    "Cyclops Superconductor",
+    "Smelted Chargebug"
+   ]
+  },
+  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 18,
    "lines": 18,
@@ -1668,25 +1668,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Rampant Frogantua",
-    "Coram, the Undertaker",
-    "Umbris, Fear Manifest",
-    "Wight of Precinct Six",
-    "Shantotto, Tactician Magician",
-    "Carrion Grub",
-    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
-    "Anya, Merciless Angel",
-    "Skanos Dragonheart",
-    "Omnath, Locus of the Void",
-    "Renegade Bull",
-    "Greven, Predator Captain"
-   ]
-  },
-  {
    "what": "attack with 2 or more",
    "score": 17,
    "lines": 11,
@@ -1702,25 +1683,6 @@
     "Tide Skimmer",
     "Escarpment Fortress",
     "Path of Mettle // Metzali, Tower of Triumph"
-   ]
-  },
-  {
-   "what": "CastFromZonePredicate",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Emet-Selch of the Third Seat",
-    "Flaming Tyrannosaurus",
-    "Gravebreaker Lamia",
-    "Norman Osborn // Green Goblin",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Patrician Geist"
    ]
   },
   {
@@ -2042,6 +2004,25 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Passionate Archaeologist",
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Rivaz of the Claw",
+    "Emet-Selch of the Third Seat",
+    "Gravebreaker Lamia",
+    "Norman Osborn // Green Goblin",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Patrician Geist",
+    "Invasion of Arcavios // Invocation of the Founders"
+   ]
+  },
+  {
    "what": "put from hand tapped, or for another player",
    "score": 16,
    "lines": 7,
@@ -2184,25 +2165,6 @@
     "Dawnhart Wardens",
     "Dawnhart Mentor",
     "Might of the Old Ways"
-   ]
-  },
-  {
-   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Chocobo Kick",
-    "Animist's Might",
-    "Rabid Gnaw",
-    "Polliwallop",
-    "Felling Blow",
-    "Piercing Exhale",
-    "Domri's Ambush",
-    "Huatli, Dinosaur Knight",
-    "Assert Perfection",
-    "Punishing Punch",
-    "Devouring Tendrils",
-    "Hunter's Edge"
    ]
   },
   {
@@ -2561,25 +2523,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Quicksilver, Brash Blur",
-    "Captain Marvel, Earth's Protector",
-    "Loki Laufeyson",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Gamma Grotesque",
-    "Brawn, Amadeus Cho",
-    "Iron Fist, Hero for Hire",
-    "Goliath, Mass Manipulator",
-    "White Tiger, Ava Ayala"
-   ]
-  },
-  {
    "what": "LegendRuleDoesntApplyEffect",
    "score": 14,
    "lines": 8,
@@ -2740,21 +2683,6 @@
    ]
   },
   {
-   "what": "TargetControlledLandPermanent",
-   "score": 14,
-   "lines": 8,
-   "cards": [
-    "Earthbender Ascension",
-    "Toph, Hardheaded Teacher",
-    "Toph, Earthbending Master",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Toph, Greatest Earthbender",
-    "Earth Rumble",
-    "Earthshape",
-    "Bumi's Feast Lecture"
-   ]
-  },
-  {
    "what": "UntapAllEffect",
    "score": 14,
    "lines": 14,
@@ -2828,6 +2756,25 @@
     "Evershrike's Gift",
     "Dream Seizer",
     "Sting-Slinger"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Rampant Frogantua",
+    "Coram, the Undertaker",
+    "Umbris, Fear Manifest",
+    "Wight of Precinct Six",
+    "Carrion Grub",
+    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
+    "Anya, Merciless Angel",
+    "Skanos Dragonheart",
+    "Omnath, Locus of the Void",
+    "Greven, Predator Captain",
+    "Lumbering Battlement",
+    "Loxodon Lifechanter"
    ]
   },
   {
@@ -3767,44 +3714,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Peema Trailblazer",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin",
-    "Rangers' Refueler",
-    "Boom Scholar",
-    "Marshals' Pathcruiser"
-   ]
-  },
-  {
-   "what": "fight targets",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Primal Might",
-    "Savage Stomp",
-    "Temur Charm",
-    "Longstalk Brawl",
-    "Hunt the Weak",
-    "Vigorbloom Charm",
-    "Chelonian Tackle",
-    "Invasion of Muraganda // Primordial Plasm",
-    "Struggle for Skemfar",
-    "Mage Duel",
-    "Troll Negotiations",
-    "Hunt the Hunter"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
    "score": 12,
    "lines": 12,
@@ -4030,6 +3939,25 @@
     "Squeaking Pie Grubfellows",
     "Winnower Patrol",
     "Pyroclast Consul"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Quicksilver, Brash Blur",
+    "Captain Marvel, Earth's Protector",
+    "Loki Laufeyson",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho",
+    "Iron Fist, Hero for Hire",
+    "White Tiger, Ava Ayala",
+    "Hercules, Prince of Power",
+    "Donald Blake, Guise of Thor"
    ]
   },
   {
@@ -4338,6 +4266,24 @@
     "Sorceress Queen",
     "Serendib Sorcerer",
     "Gnottvold Hermit // Chrome Host Hulk"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Riverchurn Monument",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin",
+    "Rangers' Refueler",
+    "Boom Scholar",
+    "Marshals' Pathcruiser"
    ]
   },
   {
@@ -4777,23 +4723,6 @@
    ]
   },
   {
-   "what": "IfAbilityHasResolvedXTimesEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Nissa, Resurgent Animist",
-    "Omnath, Locus of Creation",
-    "Belladonna Took",
-    "Zimone, Mystery Unraveler",
-    "Teething Wurmlet",
-    "Vito, Fanatic of Aclazotz",
-    "Harvestrite Host",
-    "Ashling the Pilgrim",
-    "Saint Traft and Rem Karolus",
-    "Nissa, Leyline Tamer"
-   ]
-  },
-  {
    "what": "not or",
    "score": 10,
    "lines": 10,
@@ -5194,6 +5123,23 @@
    ]
   },
   {
+   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Chocobo Kick",
+    "Animist's Might",
+    "Polliwallop",
+    "Piercing Exhale",
+    "Huatli, Dinosaur Knight",
+    "Assert Perfection",
+    "Punishing Punch",
+    "Devouring Tendrils",
+    "Thing Swing",
+    "Compel Brutality"
+   ]
+  },
+  {
    "what": "ConditionalColorlessManaAbility",
    "score": 10,
    "lines": 10,
@@ -5208,23 +5154,6 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
-   ]
-  },
-  {
-   "what": "OpusAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Molten-Core Maestro",
-    "Exhibition Tidecaller",
-    "Thunderdrum Soloist",
-    "Muse Seeker",
-    "Colorstorm Stallion",
-    "Tackle Artist",
-    "Spectacular Skywhale",
-    "Elemental Mascot",
-    "Deluge Virtuoso",
-    "Expressive Firedancer"
    ]
   },
   {
@@ -5437,6 +5366,22 @@
     "Skyship Plunderer",
     "Powerful Broker",
     "Price of Betrayal"
+   ]
+  },
+  {
+   "what": "IfAbilityHasResolvedXTimesEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Nissa, Resurgent Animist",
+    "Omnath, Locus of Creation",
+    "Belladonna Took",
+    "Zimone, Mystery Unraveler",
+    "Teething Wurmlet",
+    "Vito, Fanatic of Aclazotz",
+    "Ashling the Pilgrim",
+    "Saint Traft and Rem Karolus",
+    "Nissa, Leyline Tamer"
    ]
   },
   {
@@ -6227,18 +6172,6 @@
    ]
   },
   {
-   "what": "(constructor: statement:loop)",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Lair of the Hydra",
-    "Mind Grind",
-    "Marath, Will of the Wild",
-    "Apocalypse Chime",
-    "City in a Bottle"
-   ]
-  },
-  {
    "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
    "score": 8,
    "lines": 8,
@@ -6251,21 +6184,6 @@
     "Cosmium Confluence",
     "Riveteers Confluence",
     "Obscura Confluence"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Repulsive Mutation",
-    "Tyvar, the Pummeler",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Pathbreaker Ibex",
-    "Orcish Siegemaster",
-    "Bighorner Rancher",
-    "Peema Aether-Seer",
-    "Rubblebelt Rioters"
    ]
   },
   {
@@ -6356,20 +6274,6 @@
     "Ordeal of Purphoros",
     "Biolume Egg // Biolume Serpent",
     "Ordeal of Erebos"
-   ]
-  },
-  {
-   "what": "ManaSpentToCastPredicate",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "The Emperor of Palamecia // The Lord Master of Hell",
-    "Raggadragga, Goreguts Boss",
-    "Prompto Argentum",
-    "Ultros, Obnoxious Octopus",
-    "Blazing Bomb",
-    "Sahagin",
-    "The Prima Vista"
    ]
   },
   {
@@ -7005,6 +6909,18 @@
    ]
   },
   {
+   "what": "(constructor: statement:loop)",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Lair of the Hydra",
+    "Mind Grind",
+    "Marath, Will of the Wild",
+    "Apocalypse Chime",
+    "City in a Bottle"
+   ]
+  },
+  {
    "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_ARTIFACTS",
    "score": 7,
    "lines": 7,
@@ -7016,20 +6932,6 @@
     "Edgar, Master Machinist",
     "Armor Wars",
     "Glint Raker"
-   ]
-  },
-  {
-   "what": "ExileGraveyardAllPlayersEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Ashiok, Dream Render",
-    "Phyrexian Scriptures",
-    "Kaya's Guile",
-    "Calamity's Wake",
-    "Sanctifier en-Vec",
-    "Silent Gravestone",
-    "Ultimate Nullification"
    ]
   },
   {
@@ -7089,20 +6991,6 @@
    ]
   },
   {
-   "what": "SacrificeCostCreaturesPower.instance",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Dina, Soul Steeper",
-    "Ob Nixilis of the Black Oath",
-    "Wick, the Whorled Mind",
-    "Vish Kal, Blood Arbiter",
-    "Atogatog",
-    "Ichor Explosion",
-    "Call for Blood"
-   ]
-  },
-  {
    "what": "DamageCantBePreventedEffect",
    "score": 7,
    "lines": 7,
@@ -7114,20 +7002,6 @@
     "Insult // Injury",
     "Fear, Fire, Foes!",
     "Impractical Joke"
-   ]
-  },
-  {
-   "what": "DevotionCount.G",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Renata, Called to the Hunt",
-    "Karametra's Acolyte",
-    "Aspect of Hydra",
-    "Klothys's Design",
-    "Reverent Hunter",
-    "Skyreaping",
-    "Nylea's Huntmaster"
    ]
   },
   {
@@ -7324,6 +7198,20 @@
     "Tin-Wing Chimera",
     "Lead-Belly Chimera",
     "Brass-Talon Chimera"
+   ]
+  },
+  {
+   "what": "fight targets",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Savage Stomp",
+    "Temur Charm",
+    "Longstalk Brawl",
+    "Hunt the Weak",
+    "Invasion of Muraganda // Primordial Plasm",
+    "Struggle for Skemfar",
+    "Hunt the Hunter"
    ]
   },
   {
@@ -7603,20 +7491,6 @@
     "Human Torch",
     "Tapestry of the Ages",
     "Seeker of Insight"
-   ]
-  },
-  {
-   "what": "DamageTargetControllerEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Ravaging Blaze",
-    "Repulsor Blast",
-    "Heated Argument",
-    "Agonizing Demise",
-    "Searing Barrage",
-    "Illuminate",
-    "Word of Blasting"
    ]
   },
   {
@@ -8070,13 +7944,116 @@
     "Acolyte of Bahamut",
     "Scion of Halaster"
    ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Toph, Hardheaded Teacher",
+    "Toph, Earthbending Master",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Earth Rumble",
+    "Earthshape",
+    "Bumi's Feast Lecture"
+   ]
+  },
+  {
+   "what": "HalfValue",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "The Goose Mother",
+    "Imskir Iron-Eater",
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Rakdos the Defiler",
+    "Banshee"
+   ]
+  },
+  {
+   "what": "CounterTargetWithReplacementEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Memory Lapse",
+    "Remand",
+    "Lapse of Certainty",
+    "Hinder",
+    "Spell Crumple",
+    "Devious Cover-Up"
+   ]
+  },
+  {
+   "what": "GainControlAllUntapGainHasteEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Mob Rule",
+    "Dihada, Binder of Wills",
+    "Hot Pursuit",
+    "Broadcast Takeover",
+    "Tibalt, the Fiend-Blooded",
+    "Rowan, Fearless Sparkmage"
+   ]
+  },
+  {
+   "what": "fixed control",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Captivating Crew",
+    "Grip of Phyresis",
+    "Enthralling Victor",
+    "Siren of the Fanged Coast",
+    "Infernal Denizen",
+    "Smelt-Ward Ignus"
+   ]
+  },
+  {
+   "what": "keyword DemonstrateAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Incarnation Technique",
+    "Replication Technique",
+    "Creative Technique",
+    "Healing Technique",
+    "Transforming Flourish",
+    "Excavation Technique"
+   ]
+  },
+  {
+   "what": "OneOrMoreDiceRolledTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Vexing Puzzlebox",
+    "Wyll, Blade of Frontiers",
+    "Brazen Dwarf",
+    "Vrondiss, Rage of Ancients",
+    "Feywild Trickster",
+    "Farideh, Devil's Chosen"
+   ]
+  },
+  {
+   "what": "GreenManaAbility with arguments",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Scaled Nurturer",
+    "Jade Orb of Dragonkind",
+    "Gilanra, Caller of Wirewood",
+    "Chocobo Camp",
+    "Black Tom Cassidy",
+    "Avid Reclaimer"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
    "score": 4452,
-   "cards": 3897,
+   "cards": 3891,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8088,8 +8065,8 @@
   },
   {
    "what": "custom ability",
-   "score": 752,
-   "cards": 611,
+   "score": 751,
+   "cards": 610,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8114,8 +8091,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 222,
-   "cards": 213,
+   "score": 223,
+   "cards": 214,
    "names": [
     "Excalibur, Sword of Eden",
     "Metalwork Colossus",
@@ -8127,8 +8104,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 183,
-   "cards": 174,
+   "score": 182,
+   "cards": 173,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -8153,8 +8130,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 127,
-   "cards": 118,
+   "score": 121,
+   "cards": 112,
    "names": [
     "Chameleon, Master of Disguise",
     "Sakashima the Impostor",
@@ -8270,8 +8247,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 35,
-   "cards": 35,
+   "score": 34,
+   "cards": 34,
    "names": [
     "Pain for All",
     "Take the Bait",
@@ -8477,19 +8454,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 23,
-   "cards": 23,
-   "names": [
-    "Agonasaur Rex",
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Thor, God of Thunder",
-    "Excava, the Risen Past"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 22,
    "cards": 13,
@@ -8513,6 +8477,19 @@
     "Dawnsire, Sunstar Dreadnought",
     "Inspirit, Flagship Vessel",
     "Synthesizer Labship"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 22,
+   "cards": 22,
+   "names": [
+    "Agonasaur Rex",
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Thor, God of Thunder",
+    "Excava, the Risen Past"
    ]
   },
   {
@@ -8633,32 +8610,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders"
-   ]
-  },
-  {
-   "what": "TargetStackObject",
-   "score": 17,
-   "cards": 14,
-   "names": [
-    "Spellskite",
-    "Wyll's Reversal",
-    "Wild Ricochet",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 17,
    "cards": 14,
@@ -8711,16 +8662,16 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 17,
    "cards": 17,
    "names": [
-    "Unstable Amulet",
-    "Bespoke Battlewagon",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Aethergeode Miner",
-    "Electrostatic Pummeler"
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders"
    ]
   },
   {
@@ -8758,6 +8709,19 @@
     "Teval's Judgment",
     "Vindictive Lich",
     "Survivor's Med Kit"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Spellskite",
+    "Wyll's Reversal",
+    "Tale's End",
+    "Green Slime",
+    "Louisoix's Sacrifice",
+    "Consign to Memory"
    ]
   },
   {
@@ -8813,6 +8777,19 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Unstable Amulet",
+    "Bespoke Battlewagon",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Aethergeode Miner",
+    "Riddle Gate Gargoyle"
+   ]
+  },
+  {
    "what": "keyword BackupAbility",
    "score": 16,
    "cards": 16,
@@ -8862,6 +8839,19 @@
     "Hurricane",
     "Squall Line",
     "Breath of Darigaaz"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Fleeting Flight",
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Shielded Passage",
+    "Kitsune Healer",
+    "Alabaster Potion"
    ]
   },
   {
@@ -9055,19 +9045,6 @@
    ]
   },
   {
-   "what": "prevent all, or only combat",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Fleeting Flight",
-    "Cephalid Illusionist",
-    "Shielded Passage",
-    "Kitsune Healer",
-    "Alabaster Potion",
-    "Battlefield Medic"
-   ]
-  },
-  {
    "what": "several colours in a scope",
    "score": 14,
    "cards": 14,
@@ -9196,19 +9173,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Captain Marvel, Earth's Protector",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Gamma Grotesque"
-   ]
-  },
-  {
    "what": "BecomesBasicLandTargetEffect",
    "score": 13,
    "cards": 13,
@@ -9320,19 +9284,6 @@
     "Knowledge Is Power",
     "Duelist of the Mind",
     "Thundering Djinn"
-   ]
-  },
-  {
-   "what": "CastFromZonePredicate",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Flaming Tyrannosaurus",
-    "Gravebreaker Lamia",
-    "Kellan, the Kid"
    ]
   },
   {
@@ -9630,6 +9581,19 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 11,
+   "cards": 8,
+   "names": [
+    "Passionate Archaeologist",
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Gravebreaker Lamia",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser"
+   ]
+  },
+  {
    "what": "TargetsPermanentPredicate",
    "score": 11,
    "cards": 11,
@@ -9809,19 +9773,6 @@
     "Reaping Willow",
     "Loch Mare",
     "Moonlit Lamenter"
-   ]
-  },
-  {
-   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Chocobo Kick",
-    "Rabid Gnaw",
-    "Polliwallop",
-    "Felling Blow",
-    "Domri's Ambush",
-    "Huatli, Dinosaur Knight"
    ]
   },
   {
@@ -10130,19 +10081,6 @@
    ]
   },
   {
-   "what": "OpusAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Molten-Core Maestro",
-    "Exhibition Tidecaller",
-    "Thunderdrum Soloist",
-    "Muse Seeker",
-    "Colorstorm Stallion",
-    "Tackle Artist"
-   ]
-  },
-  {
    "what": "keyword FlyingAbility",
    "score": 10,
    "cards": 10,
@@ -10192,6 +10130,19 @@
     "King Harald's Revenge",
     "Deadly Allure",
     "Disturbed Slumber"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Captain Marvel, Earth's Protector",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho"
    ]
   },
   {
@@ -10267,19 +10218,6 @@
     "Gríma Wormtongue",
     "Invade the City",
     "Bleeding Edge"
-   ]
-  },
-  {
-   "what": "IfAbilityHasResolvedXTimesEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Nissa, Resurgent Animist",
-    "Omnath, Locus of Creation",
-    "Belladonna Took",
-    "Zimone, Mystery Unraveler",
-    "Teething Wurmlet",
-    "Vito, Fanatic of Aclazotz"
    ]
   },
   {
@@ -10433,19 +10371,6 @@
     "Brilliant Wings",
     "Ancestral Katana",
     "Hylderblade"
-   ]
-  },
-  {
-   "what": "fight targets",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Primal Might",
-    "Temur Charm",
-    "Longstalk Brawl",
-    "Hunt the Weak",
-    "Vigorbloom Charm",
-    "Chelonian Tackle"
    ]
   },
   {
@@ -10693,19 +10618,6 @@
     "Sky Hussar",
     "Piercing Rays",
     "Proclamation of Rebirth"
-   ]
-  },
-  {
-   "what": "BoostSourceEffect p/t",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Wight of Precinct Six",
-    "Shantotto, Tactician Magician",
-    "Carrion Grub",
-    "Skanos Dragonheart",
-    "Greven, Predator Captain",
-    "Manaplasm"
    ]
   },
   {
@@ -10994,6 +10906,19 @@
     "Belltower Sphinx",
     "Nested Ghoul",
     "Crag Saurian"
+   ]
+  },
+  {
+   "what": "IfAbilityHasResolvedXTimesEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Nissa, Resurgent Animist",
+    "Omnath, Locus of Creation",
+    "Belladonna Took",
+    "Zimone, Mystery Unraveler",
+    "Teething Wurmlet",
+    "Vito, Fanatic of Aclazotz"
    ]
   },
   {
@@ -11426,19 +11351,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Peema Trailblazer",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer"
-   ]
-  },
-  {
    "what": "scope:colorless",
    "score": 8,
    "cards": 8,
@@ -11660,19 +11572,6 @@
     "Serra Avatar",
     "Soul of Eternity",
     "Ajani, Wise Counselor"
-   ]
-  },
-  {
-   "what": "DevotionCount.G",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Renata, Called to the Hunt",
-    "Karametra's Acolyte",
-    "Aspect of Hydra",
-    "Klothys's Design",
-    "Reverent Hunter",
-    "Skyreaping"
    ]
   },
   {
@@ -11920,6 +11819,84 @@
     "Goblin Lyre",
     "Gruesome Scourger",
     "Final Strike"
+   ]
+  },
+  {
+   "what": "LookLibraryTopCardTargetPlayerEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Moonring Island",
+    "Orcish Spy",
+    "Draugr Thought-Thief",
+    "Lurking Informant",
+    "Eye Spy",
+    "Visions"
+   ]
+  },
+  {
+   "what": "Ability.withTargetPointerSet",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Oath of Lieges",
+    "Oath of Druids",
+    "Magus of the Abyss",
+    "The Abyss",
+    "Oath of Ghouls",
+    "Oath of Scholars"
+   ]
+  },
+  {
+   "what": "CantAttackBlockAttachedEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Faith's Fetters",
+    "Realmbreaker's Grasp",
+    "Bound in Gold",
+    "Intercessor's Arrest",
+    "Hold for Ransom",
+    "Revoke Privileges"
+   ]
+  },
+  {
+   "what": "activate more than once a turn",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Fire-Belly Changeling",
+    "Sewer Rats",
+    "Roterothopter",
+    "Vampire Bats",
+    "Phyrexian Battleflies",
+    "Soul Kiss"
+   ]
+  },
+  {
+   "what": "UntapSourceEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Kitsune Ace",
+    "Forsaken City",
+    "Gustcloak Harrier",
+    "Gustcloak Cavalier",
+    "Gustcloak Skirmisher",
+    "Gustcloak Runner"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Winter, Cursed Rider",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin"
    ]
   }
  ]

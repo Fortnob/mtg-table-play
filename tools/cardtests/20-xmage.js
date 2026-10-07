@@ -3351,4 +3351,83 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, hand0 + 6);
   });
+
+  test('Shivan Dragon: firebreathing pumps itself', (mk, t) => {
+    const T = mk();
+    const d = T.bf('A', 'Shivan Dragon');
+    T.mana('A', 'RR');
+    T.activate('A', d, d.analysis().manaAbilities.length);
+    T.resolve();
+    T.activate('A', d, d.analysis().manaAbilities.length);
+    T.resolve();
+    t.eq(T.g.powerOf(d), 7);
+  });
+
+  test("Dina, Soul Steeper: +X/+0, X the sacrificed creature's power", (mk, t) => {
+    t.auto('Dina, Soul Steeper');
+    const T = mk();
+    const d = T.bf('A', 'Dina, Soul Steeper');
+    const w = T.bf('A', 'Craw Wurm');
+    T.mana('A', '1');
+    T.answer('sacrifice', () => ({ cardIds: [w.id] }));
+    const idx = d.analysis().manaAbilities.length + d.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    T.activate('A', d, idx, { sacrificeIds: [w.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(d), 7);
+  });
+
+  test("Roilmage's Trick: -X/-0 for each colour spent", (mk, t) => {
+    t.auto("Roilmage's Trick");
+    const T = mk();
+    const b = T.bf('B', 'Craw Wurm');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.mana('A', 'UR2');
+    T.cast('A', T.hand('A', "Roilmage's Trick"));
+    T.resolve();
+    t.eq(T.g.powerOf(b), 4);
+  });
+
+  test('Ardenvale Paladin: a counter only with three white spent', (mk, t) => {
+    t.auto('Ardenvale Paladin');
+    const T = mk();
+    T.mana('A', 'WWWW');
+    const a = T.hand('A', 'Ardenvale Paladin');
+    T.cast('A', a);
+    T.resolve();
+    t.eq(a.counters['+1/+1'] || 0, 1);
+    const T2 = mk();
+    T2.mana('A', 'WGGG');
+    const b = T2.hand('A', 'Ardenvale Paladin');
+    T2.cast('A', b);
+    T2.resolve();
+    t.eq(b.counters['+1/+1'] || 0, 0);
+  });
+
+  test('Exhibition Tidecaller: ten cards milled after a five-mana spell', (mk, t) => {
+    t.auto('Exhibition Tidecaller');
+    const T = mk();
+    T.bf('A', 'Exhibition Tidecaller');
+    for (let i = 0; i < 20; i++) T.top('B', 'Island');
+    for (let i = 0; i < 8; i++) T.top('A', 'Island');
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    T.resolve();
+    const after1 = T.zone('B', 'graveyard').length;
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', '3UU');
+    T.cast('A', T.hand('A', 'Pull from Tomorrow'), { x: 3 });
+    T.resolve();
+    t.eq(after1, 3);
+    t.eq(T.zone('B', 'graveyard').length, 13);
+  });
+
+  test('Verazol and Marath: counters for the mana spent', (mk, t) => {
+    const T = mk();
+    T.mana('A', 'RWG3');
+    const m = T.hand('A', 'Marath, Will of the Wild');
+    T.cast('A', m, { x: 0 });
+    T.resolve();
+    t.eq(m.counters['+1/+1'] || 0, 3);
+  });
 };

@@ -919,16 +919,16 @@
 
     // --- pump ---
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
-      make: (m) => ({ op: 'pump', p: +m[2], t: +m[3], duration: 'eot',
+      make: (m) => ({ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^this/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     { re: /^Creatures you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^this/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     /* the same for any other kind of target ("target permanent you
        control", "target legendary creature"), with keywords the table
        knows */
@@ -1519,7 +1519,7 @@
       make: (m) => ({ op: 'damage', n: num(m[1]), each: 'creature', withKw: m[2].toLowerCase() }) },
 
     /* ===== reading the top of a library ===== */
-    { re: /^Look at the top (a|one|two|three|four|five|six|seven|\d+) cards? of your library\.?$/i,
+    { re: /^Look at the top (a|one|two|three|four|five|six|seven|\d+|X) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0 }) },
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library and put (?:that card|them) into your hand\.?$/i,
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
@@ -1531,8 +1531,8 @@
     { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? from among them into your hand and the rest (?:on the bottom of your library|into your graveyard)[^.]*\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : 'bottom' }) },
-    { re: /^Put one of them into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
-      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'bottom' }) },
+    { re: /^Put (one|two|three) of them into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: 'any', to: 'hand', rest: 'bottom' }) },
     { re: /^Put one of them into your hand and the other on the bottom of your library\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'bottom' }) },
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
@@ -2356,7 +2356,7 @@
     { re: /^(Target creature(?: you control)?|This creature|It) gets \+X\/\+X until end of turn, where X is the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'pump', p: countSpec(m[2], 1), t: countSpec(m[2], 1), duration: 'eot',
         targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^this/i.test(m[1]) ? 'self' : (/^it$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^it$/i.test(m[1]) ? 'lastTarget' : null) }) },
 
     /* ===== regeneration and damage prevention ===== */
     { re: /^Regenerate (target [a-z0-9 '-]+?|this creature|it)\.?$/i,
@@ -2394,7 +2394,7 @@
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     { re: /^(Target creature|Target permanent|Target land|Target artifact|It|That creature|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'noUntap', targets: [targetSpec(m[1])] }
-        : { op: 'noUntap', scope: /^this/i.test(m[1]) ? 'self' : 'lastTarget' }) },
+        : { op: 'noUntap', scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : 'lastTarget' }) },
     /* "Target creature phases out." */
     { re: /^(Target (?:creature|permanent|nonland permanent|artifact|creature you control|permanent you control)|This creature|CARDNAME) phases out\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'phaseOut', targets: [targetSpec(m[1])] }
@@ -2858,6 +2858,12 @@
   /* "for each creature you control with a +1/+1 counter on it", "for each
      tapped land your opponents control", "for each card in target
      opponent's hand": a number the engine counts as the effect resolves. */
+  /** Which spell "spent to cast …" means: this one, the one a trigger is about, or whichever "it" is. */
+  function spentOf(w) {
+    const t = String(w).toLowerCase();
+    return t === 'that spell' ? 'that' : (t === 'it' ? 'it' : 'this');
+  }
+
   function countOf(phrase, mult) {
     const p = String(phrase || '').trim();
     const k = mult == null ? 1 : mult;
@@ -2866,7 +2872,9 @@
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
     // Converge: "where X is the number of colors of mana spent to cast this spell"
-    if (/^colou?rs? of mana spent to cast (?:this spell|it|CARDNAME)$/i.test(p)) return { colorsSpent: true, mult: k };
+    if ((m = p.match(/^colou?rs? of mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { colorsSpent: true, of: spentOf(m[1]), mult: k };
+    // Verazol: "for each mana spent to cast it"
+    if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creature that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // "for each land card in your graveyard"
@@ -2912,6 +2920,9 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
+    // "the amount of mana spent to cast this spell / that spell / it / her"
+    if ((m = p.match(/^the amount of mana spent to cast (this spell|that spell|it|her|him|CARDNAME|this creature)$/i)))
+      return done({ manaSpent: true, of: spentOf(m[1]), mult: 1 });
     if (/^the number of cards in your graveyard$/i.test(p)) return done({ cardsInGraveyard: 'you', mult: 1 });
     // "the number of counters on this creature": every kind
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
@@ -3227,6 +3238,11 @@
     /* "If the gift was promised, permanents you control also gain
        indestructible": "also" says how the sentence relates to the one
        before it, not what it does. */
+    // "Then discard two cards": "then" only says it comes after
+    if (!depth && /^Then /.test(s)) {
+      const again = parseEffectSentence(s.replace(/^Then (\w)/, (x, c) => c.toUpperCase()), 1);
+      if (again) return again;
+    }
     if (!depth && / also /.test(s)) {
       const again = parseEffectSentence(s.replace(/ also /, ' '), 1);
       if (again) return again;
@@ -3726,6 +3742,8 @@
       for (const key of Object.keys(o)) {
         if (key === 'text') continue;
         if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
+        // "+X/+0", "-X/-0": the sign kept, the number from the rider
+        else if (o[key] && (o[key].posX || o[key].negX) && !o[key].by) { o[key] = Object.assign({}, o[key], { by: k }); used++; }
         else if (typeof o[key] === 'object') sub(o[key]);
       }
     };
@@ -4024,6 +4042,11 @@
       }
       if (e && e.insteadOf) {
         const prev = out.pop();
+        /* Exhibition Tidecaller: "target player mills three cards. If …, that
+           player mills ten cards instead" — the same player, chosen once */
+        if (prev && prev.who === 'target' && prev.targets) {
+          for (const x of e.insteadOf.effects) if (x.who === 'triggerPlayer' && x.op === prev.op && !x.targets) { x.who = 'target'; x.targets = prev.targets; }
+        }
         if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
         // with nothing before it on this line, the line before this one is what it replaces
         else out.push(e);
@@ -4158,6 +4181,10 @@
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
     [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
+    // Adamant: "at least three white mana was spent to cast this spell"; "five or more mana was spent to cast that spell"
+    [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
+      (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
+        m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
@@ -5580,9 +5607,21 @@
       const c = condOf(etbIf[3]);
       if (c) out.entersWithCounters = { kind: etbIf[2].trim(), n: num(etbIf[1]), cond: c };
     }
+    // Ardenvale Paladin: "If at least three white mana was spent to cast this spell, this creature enters with a +1/+1 counter on it."
+    const ifEtb = text.match(/\bIf ([^,.]+), (?:CARDNAME|this creature) enters(?: the battlefield)? with (a|an|one|two|three|four|\d+) ([+\-0-9/a-z]+) counters? on it\./i);
+    if (ifEtb && !out.entersWithCounters) {
+      const c = condOf(ifEtb[1]);
+      if (c) out.entersWithCounters = { kind: ifEtb[3].trim(), n: num(ifEtb[2]), cond: c };
+    }
     /* Converge, sunburst: a counter for each colour of mana spent to cast it */
-    const conv = text.match(/enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each colou?r of mana spent to cast it/i);
-    if (conv && !out.entersWithCounters) out.entersWithCounters = { kind: conv[1], n: { colorsSpent: true } };
+    const conv = text.match(/enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on it for each (colou?r of )?mana spent to cast it/i);
+    if (conv && !out.entersWithCounters) {
+      const k = typeof num(conv[1]) === 'number' ? num(conv[1]) : 1;
+      out.entersWithCounters = { kind: conv[2], n: conv[3] ? { colorsSpent: true, mult: k } : { manaSpent: true, mult: k } };
+    }
+    // Marath: "enters with a number of +1/+1 counters on it equal to the amount of mana spent to cast it"
+    const eqs = text.match(/enters(?: the battlefield)? with a number of ([+\-0-9/a-z]+) counters on it equal to the amount of mana spent to cast it/i);
+    if (eqs && !out.entersWithCounters) out.entersWithCounters = { kind: eqs[1], n: { manaSpent: true } };
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     let etbm = text.match(/enters with (a|an|one|two|three|four|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
@@ -6723,11 +6762,15 @@
       // with a condition the card-level scan could read
       { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
+      { re: /^If ([^,.]+), (?:CARDNAME|this creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it\.?$/i,
+        make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
       // the vivid lands: tapped, and with counters the card-level scan found
       { re: /^(?:CARDNAME|This (?:land|artifact|permanent)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'etbTapped' }, auto: true },
       // Converge
-      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent|enchantment)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each colou?r of mana spent to cast it\.?$/i,
+      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent|enchantment)) enters(?: the battlefield)? with (?:an?|two|three) [+\-0-9/a-z]+ counters? on it for each (?:colou?r of )?mana spent to cast it\.?$/i,
+        eff: { op: 'noop' }, auto: true },
+      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) enters(?: the battlefield)? with a number of [+\-0-9/a-z]+ counters on it equal to the amount of mana spent to cast it\.?$/i,
         eff: { op: 'noop' }, auto: true },
       { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each time it was kicked\.?$/i,
         eff: { op: 'noop' }, auto: true },

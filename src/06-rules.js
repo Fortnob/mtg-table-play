@@ -2537,6 +2537,14 @@
       if (plan && this._spentAcc) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) this._spentAcc[c] = (this._spentAcc[c] || 0) + (plan[c] || 0);
       return plan;
     }
+    /* "The amount of mana spent to cast that spell / this spell / it": the
+       spell a cast trigger is about, or the card itself. */
+    _spentOn(of, src, td) {
+      const trig = td && td.objectId ? this.obj(td.objectId) : null;
+      if (of === 'that') return trig;
+      if (of === 'this') return src;
+      return (td && td.stackId && trig) || src;
+    }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
       const c = o && o.card;
@@ -3717,6 +3725,8 @@
         const paid = this.payMana(playerId, cost, Object.assign({}, opts, { forSpell: o }));
         // converge: how many colours of mana went into it
         o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
+        // adamant: how much of each
+        o.manaSpentBy = Object.assign({}, this._spentAcc);
         this._spentAcc = null;
         for (const x of held) x.tapped = false;
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
@@ -4279,7 +4289,8 @@
         // "enters with X +1/+1 counters" resolves against the X actually paid
         const raw = a.entersWithCounters.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
-          : (raw && typeof raw === 'object' && raw.colorsSpent) ? (o.colorsSpent || 0)
+          : (raw && typeof raw === 'object' && raw.colorsSpent) ? (o.colorsSpent || 0) * (raw.mult || 1)
+          : (raw && typeof raw === 'object' && raw.manaSpent) ? (o.manaSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.per) ? this.countPermanents(o.controller, { per: raw.per })
           : (parseInt(raw, 10) || 0);
         if (n > 0) {
@@ -6547,6 +6558,14 @@
         }
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
         case 'xAtLeast': return ((ctx && ctx.x) || (src && src.chosenX) || 0) >= (cond.n || 0);
+        /* Adamant: "if at least three white mana was spent to cast this
+           spell"; "if five or more mana was spent to cast that spell" */
+        case 'manaSpentAtLeast': {
+          const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
+          if (!x) return false;
+          const had = cond.color ? ((x.manaSpentBy || {})[cond.color] || 0) : (x.manaSpent || 0);
+          return had >= (cond.n || 0);
+        }
         // Sneak: "if this creature's sneak cost was paid" — this turn, as it came in
         case 'sneaked': return !!src && src.sneaked === this.turn;
         // Court of Grace: "if you're the monarch"
@@ -8132,7 +8151,8 @@
         // "half X, rounded down"; "half their life, rounded up"
         // Blood Money: "for each nontoken creature destroyed this way"
         if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
-        if (v && typeof v === 'object' && v.colorsSpent) return ((src && src.colorsSpent) || 0) * (v.mult || 1);
+        if (v && typeof v === 'object' && v.colorsSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).colorsSpent || 0) * (v.mult || 1);
+        if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         if (v && typeof v === 'object' && v.halfLife) {
@@ -8238,7 +8258,8 @@
           return this._condMet(v.ifCond, ctx) ? n(v.then) : n(v.otherwise);
         }
         if (v && typeof v === 'object' && (v.posX || v.negX)) {
-          const x = ctx.x || (src && src.chosenX) || 0;
+          // Roilmage's Trick: "-X/-0 …, where X is …"
+          const x = v.by ? n(v.by) : (ctx.x || (src && src.chosenX) || 0);
           return v.negX ? -x : x;
         }
         return v || 0;
