@@ -42,7 +42,7 @@
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
-    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover', 'Ravenous', 'Provoke',
+    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover', 'Ravenous', 'Provoke', 'Read ahead',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
     // keywords the engine now runs on its own
@@ -5890,6 +5890,11 @@
         text: 'Recover ' + recover[1], auto: true });
       out.graveTriggers = true;
     } else if (/(?:^|\n)Recover\b/.test(text)) out._keywordManual = true;   // "Recover—Pay half your life"
+    /* Read ahead (CR 702.155): the Saga may start at any chapter, chosen as
+       it is cast; the chapters before it don't happen */
+    if (out.keywords.some(k => /^read ahead$/i.test(k.keyword))) {
+      out.readAhead = Math.max(1, ...out.abilities.filter(x => x.kind === 'chapter').flatMap(x => x.chapters || [1]));
+    }
     /* Provoke (CR 702.39): as it attacks, a creature the defender controls
        may be untapped and made to block it */
     if (out.keywords.some(k => k.keyword === 'Provoke')) {

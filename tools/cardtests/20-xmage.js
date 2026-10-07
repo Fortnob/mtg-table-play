@@ -4118,4 +4118,18 @@ module.exports = (test) => {
     t.eq(tb.face, 1, 'transformed');
     t.eq(tb.name, 'Consuming Sepulcher');
   });
+
+  test('Read ahead: Love Song of Night and Day starts at chapter II', (mk, t) => {
+    t.auto('Love Song of Night and Day');
+    const T = mk();
+    T.answer('choose', () => ({ picks: [1] }));
+    T.mana('A', '2W');
+    const ls = T.hand('A', 'Love Song of Night and Day');
+    const h0 = T.zone('A', 'hand').length;
+    T.cast('A', ls);
+    T.resolve();
+    t.eq(ls.counters.lore, 2);
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Bird'), 'chapter II: a Bird');
+    t.eq(T.zone('A', 'hand').length, h0 - 1, 'chapter I skipped: no cards drawn');
+  });
 };

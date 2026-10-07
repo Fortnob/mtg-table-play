@@ -3699,6 +3699,12 @@
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
       }
+      /* Read ahead: which chapter the Saga starts at, chosen with the cast */
+      if (a && a.readAhead > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
+        const opts2 = Array.from({ length: a.readAhead }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
+        if (this._castChoose(playerId, o, opts, { purpose: 'readAhead', kind: 'options', min: 1, max: 1, options: opts2,
+          prompt: `${o.name}: read ahead — which chapter does it start at?` }) === 'asked') return 'asked';
+      }
       /* Devour N (CR 702.82): which creatures it will eat as it enters,
          asked with the cast and done as it arrives */
       if (a && a.devour && !o.isCopy && !(opts.choices && opts.choices.devour)) {
@@ -4095,6 +4101,8 @@
         o.manaSpentBy = Object.assign({}, this._spentAcc);
         // Devour: what it will eat
         o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
+        // Read ahead: the chapter it starts at
+        o._readAhead = (((opts.choices || {}).readAhead || {}).picks || [0])[0] + 1;
         // Spider Climb: cast when a sorcery couldn't have been, it goes at end of turn
         o._flashSacTurn = (a && a.flashSacrifice && !(this.activePlayer && this.activePlayer.id === playerId && this.isMain && this.stackEmpty)) ? this.turn : null;
         this._spentAcc = null;
@@ -7813,7 +7821,12 @@
           if (a.isPlaneswalker) o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
           if (a.isBattle) o.counters.defense = parseInt(a.defense, 10) || 0;
           // a Saga arrives with its first chapter already counted (CR 714.2)
-          if (a.isSaga) { o.counters.lore = 0; this._advanceSaga(o, 1); }
+          if (a.isSaga) {
+            // read ahead: the chapters before the one chosen are passed over
+            const start = (a.readAhead && o._readAhead && o.wasCast === this.turn) ? Math.min(o._readAhead, a.readAhead) : 1;
+            o._readAhead = null;
+            o.counters.lore = start - 1; this._advanceSaga(o, 1);
+          }
         }
         // replacement effects (counters it enters with, riot) and evolve
         this._onEnter(o);

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15796,
-  "gainedCards": 1611,
-  "linesNeeded": 17864,
+  "needed": 15793,
+  "gainedCards": 1612,
+  "linesNeeded": 17854,
   "linesGained": 2055,
   "gained": {
-   "all": 1611,
+   "all": 1612,
    "top2000": 52,
    "stdTop": 12
   },
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 390,
-   "lines": 360,
+   "score": 380,
+   "lines": 350,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -7929,8 +7929,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4424,
-   "cards": 3881,
+   "score": 4426,
+   "cards": 3883,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7981,8 +7981,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 190,
-   "cards": 181,
+   "score": 186,
+   "cards": 177,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -11263,6 +11263,19 @@
    ]
   },
   {
+   "what": "DiscardAndDrawThatManyEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Cathartic Pyre",
+    "Cavalier of Flame",
+    "The Elder Dragon War",
+    "Sokka, Bold Boomeranger",
+    "Illuminate History",
+    "Colossus of the Blood Age"
+   ]
+  },
+  {
    "what": "ProtectionAbility",
    "score": 7,
    "cards": 7,
@@ -11743,19 +11756,6 @@
     "Ancient Lumberknot",
     "The Kingpin of Crime",
     "Belligerent Brontodon"
-   ]
-  },
-  {
-   "what": "ExileUntilSourceLeavesEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Summon: Ixion",
-    "Werefox Bodyguard",
-    "Trapped in the Screen",
-    "Turncoat Kunoichi",
-    "Detention Chariot",
-    "Driftgloom Coyote"
    ]
   }
  ]
