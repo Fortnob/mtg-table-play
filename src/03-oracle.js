@@ -3139,7 +3139,7 @@
        Return to Action: "gets +1/+0 and gains lifelink and '…'"; Gruesome
        Slaughter: "colorless creatures you control gain '…'" — keywords and a
        pump riding along, to a target or a group */
-    { re: /^(?:Until end of turn, )?((?:any number of |up to (?:one|two) )?target [a-z ,]+?|[A-Za-z ,'-]+? you control|those creatures)(?: each)?(?: gets? ([+-]\d+)\/([+-]\d+) and)? gains? ((?:[a-z ]+?,? )*?and )?"([^"]+)"( until end of turn)?\.?$/i,
+    { re: /^(?:Until end of turn, )?((?:any number of |up to (?:one|two) )?target [a-z ,]+?|[A-Za-z ,'-]+? you control|those creatures)(?: each)?(?: gets? ([+-]\d+)\/([+-]\d+) and)? gains? ([a-z ,]+? and )?"([^"]+)"( until end of turn)?\.?$/i,
       make: (m) => {
         if (!/^Until end of turn/i.test(m[0]) && !m[6]) return null;
         if (!m[4] && !m[2] && !/you control$|^those|^any number|^up to/i.test(m[1])) return null;   // the plain shape is the rule below
