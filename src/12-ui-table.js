@@ -1931,6 +1931,11 @@
       const spec = t.specs[t.chosen.length];
       if (!spec) return false;
       if (t.chosen.some(c => c.id === o.id)) return false;
+      // "controlled by different players" (Run Away Together): not a second one of the same player's
+      if (t.specs.some(s => s && s.differentControllers) && t.chosen.some(c => {
+        const x = c.kind === 'object' ? this.objIn(c.id) : null;
+        return x && x.controller === o.controller;
+      })) return false;
       const a = this.analysis(o);
       return MTG.oracle.matchesSpec(spec, o, a, this.meId, VIEW_SPEC_CTX);
     }
