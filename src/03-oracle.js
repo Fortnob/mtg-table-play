@@ -3280,6 +3280,8 @@
       .replace(/^This (?:Vehicle|Spacecraft|permanent) (gains|gets|has) /, 'This creature $1 ')
       // "Each opponent mills fourteen cards": the big number words as digits
       .replace(/\b(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/gi, (w) => String(BIG_WORDS[w.toLowerCase()]))
+      // Faith & Grief: "target artifact and/or enchantment cards" — either kind, as "or" says
+      .replace(/\b(artifact|creature|enchantment|land|planeswalker|instant|sorcery|battle) and\/or (artifact|creature|enchantment|land|planeswalker|instant|sorcery|battle)( cards?\b)/gi, '$1 or $2$3')
       // Aurelia: "each of your opponents" is each opponent
       .replace(/\beach of your opponents\b/g, 'each opponent');
     if (!s) return null;
@@ -4515,6 +4517,11 @@
       } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
+    // Dour Port-Mage: "leave the battlefield without dying"; Soulherder: "is exiled from the battlefield"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' leaves? the battlefield without dying(?:,| )', 'i'),
+      event: 'permLeaves', extra: { notDying: true }, filt: (m) => subjectFilter(m[1]) },
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) exiled from the battlefield(?:,| )', 'i'),
+      event: 'permLeaves', extra: { toZoneOnly: 'exile' }, filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' leaves? the battlefield(?:,| )', 'i'),
       event: 'permLeaves', filt: (m) => subjectFilter(m[1]) },
     // "attacks alone": the only attacker this combat (before plain "attacks")

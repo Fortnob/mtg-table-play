@@ -3831,4 +3831,28 @@ module.exports = (test) => {
     T.resolve();
     t.eq(d.counters['+1/+1'] || 0, 2);
   });
+
+  test('Dour Port-Mage: a card when another creature leaves without dying', (mk, t) => {
+    t.auto('Dour Port-Mage');
+    const T = mk();
+    T.bf('A', 'Dour Port-Mage');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves');
+    const h0 = T.zone('A', 'hand').length;
+    T.g.moveObject(a, 'graveyard');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0, 'dying does not count');
+    T.g.moveObject(b, 'hand');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'the Elves back, and a card');
+  });
+
+  test('Soulherder: grows when a creature is exiled', (mk, t) => {
+    t.auto('Soulherder');
+    const T = mk();
+    const s = T.bf('A', 'Soulherder');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.g.moveObject(b, 'exile');
+    T.resolve();
+    t.eq(s.counters['+1/+1'] || 0, 1);
+  });
 };

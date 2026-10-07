@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15929,
+  "needed": 15921,
   "gainedCards": 1608,
-  "linesNeeded": 18071,
-  "linesGained": 2065,
+  "linesNeeded": 18061,
+  "linesGained": 2063,
   "gained": {
    "all": 1608,
-   "top2000": 51,
-   "stdTop": 11
+   "top2000": 52,
+   "stdTop": 12
   },
   "compare": {
    "same": 0,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5613,
-   "lines": 4842,
+   "score": 5612,
+   "lines": 4841,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 986,
-   "lines": 824,
+   "score": 980,
+   "lines": 821,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1226,25 +1226,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Archenemy's Charm",
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork",
-    "Spiritcall Enthusiast // Scrollboost",
-    "Wanderwine Farewell",
-    "Become Brutes",
-    "Appeal to Eirdu"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 21,
    "lines": 21,
@@ -1337,6 +1318,25 @@
     "Necron Overlord",
     "The Book of Vile Darkness",
     "Synthesis Pod"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Spiritcall Enthusiast // Scrollboost",
+    "Wanderwine Farewell",
+    "Become Brutes",
+    "Appeal to Eirdu",
+    "Hearts on Fire"
    ]
   },
   {
@@ -3305,16 +3305,6 @@
    ]
   },
   {
-   "what": "FilterArtifactOrEnchantmentCard",
-   "score": 12,
-   "lines": 3,
-   "cards": [
-    "Ishgard, the Holy See // Faith & Grief",
-    "Runaway Trash-Bot",
-    "Master Skald"
-   ]
-  },
-  {
    "what": "hand size other than none",
    "score": 12,
    "lines": 9,
@@ -3944,15 +3934,6 @@
     "Butch DeLoria, Tunnel Snake",
     "Boldwyr Intimidator",
     "Coward // Killer"
-   ]
-  },
-  {
-   "what": "OneOrMoreLeaveWithoutDyingTriggeredAbility",
-   "score": 11,
-   "lines": 2,
-   "cards": [
-    "Dour Port-Mage",
-    "Aang, Airbending Master"
    ]
   },
   {
@@ -7975,13 +7956,39 @@
     "Spinal Parasite",
     "Medicine Runner"
    ]
+  },
+  {
+   "what": "EntersBattlefieldOrDiesSourceTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Chaos Defiler",
+    "Resplendent Marshal",
+    "Aerid Konstrari",
+    "Oracle of Tragedy",
+    "Cemetery Desecrator",
+    "Maulfist Revolutionary"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Flopsie, Bumi's Buddy",
+    "Michelangelo, Mutant BFF",
+    "Familiar Ground",
+    "Battlefront Krushok",
+    "Rocksteady, Crash Courser",
+    "Yuan Shao, the Indecisive"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4418,
-   "cards": 3875,
+   "score": 4417,
+   "cards": 3874,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7993,8 +8000,8 @@
   },
   {
    "what": "custom ability",
-   "score": 738,
-   "cards": 606,
+   "score": 732,
+   "cards": 603,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8460,19 +8467,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 20,
-   "cards": 20,
-   "names": [
-    "Archenemy's Charm",
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique"
-   ]
-  },
-  {
    "what": "becomes a creature for custom",
    "score": 19,
    "cards": 16,
@@ -8483,6 +8477,19 @@
     "Iron Man, Futurist Paragon",
     "Doc Ock, Evil Inventor",
     "Tendril of the Mycotyrant"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 19,
+   "cards": 19,
+   "names": [
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life"
    ]
   },
   {
@@ -9061,16 +9068,6 @@
     "Killer Service",
     "Dragon's Approach",
     "Quest for the Holy Relic"
-   ]
-  },
-  {
-   "what": "FilterArtifactOrEnchantmentCard",
-   "score": 12,
-   "cards": 3,
-   "names": [
-    "Ishgard, the Holy See // Faith & Grief",
-    "Runaway Trash-Bot",
-    "Master Skald"
    ]
   },
   {
@@ -9722,14 +9719,6 @@
     "Clockwork Droid",
     "Ahn-Crop Champion",
     "Oketra's Avenger"
-   ]
-  },
-  {
-   "what": "OneOrMoreLeaveWithoutDyingTriggeredAbility",
-   "score": 10,
-   "cards": 1,
-   "names": [
-    "Dour Port-Mage"
    ]
   },
   {
@@ -11808,6 +11797,26 @@
     "Teval's Judgment",
     "Vindictive Lich",
     "Survivor's Med Kit"
+   ]
+  },
+  {
+   "what": "DamageAllEffect amount",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Call Forth the Tempest",
+    "Volcanic Torrent",
+    "Draconic Intervention"
+   ]
+  },
+  {
+   "what": "spell from a zone",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Sunbird's Invocation",
+    "Gale, Waterdeep Prodigy",
+    "Harness the Storm"
    ]
   }
  ]

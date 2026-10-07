@@ -8066,6 +8066,9 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // "leave the battlefield without dying", "is exiled from the battlefield"
+          if (ab.notDying && data.toZone === 'graveyard') continue;
+          if (ab.toZoneOnly && data.toZone !== ab.toZoneOnly) continue;
           // a Room's door: only its own unlocking
           if (ab.door != null && data.door !== ab.door) continue;
           // Heroic: "whenever you cast a spell that targets this creature"
