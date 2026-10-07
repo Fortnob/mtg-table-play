@@ -6564,4 +6564,12 @@ module.exports = (test) => {
     t.ok(T.asked.some(c => c.type === 'scry' || c.type === 'surveil'), 'surveilled');
     void aa;
   });
+
+  test('Allosaurus Rider: 1 plus the number of lands you control', (mk, t) => {
+    t.auto('Allosaurus Rider');
+    const T = mk();
+    const ar = T.bf('A', 'Allosaurus Rider');
+    T.bf('A', 'Forest'); T.bf('A', 'Forest');
+    t.eq(T.g.powerOf(ar), 3); t.eq(T.g.toughnessOf(ar), 3);
+  });
 };

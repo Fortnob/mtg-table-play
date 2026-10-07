@@ -7891,6 +7891,8 @@
     _contValue(v, o, src) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
+      // Allosaurus Rider: "equal to 1 plus the number of lands you control"
+      if (typeof v === 'object' && v.plus) { const b = Object.assign({}, v); delete b.plus; return this._contValue(b, o, src) + v.plus; }
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf)) {
