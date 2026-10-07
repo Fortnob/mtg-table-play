@@ -5609,4 +5609,42 @@ module.exports = (test) => {
     t.no(T.g.hasKw(angel, 'flying'), 'no flying');
     t.no(T.g.hasKw(angel, 'vigilance'), 'no vigilance');
   });
+
+  test("Detain: can't attack, block or activate until your next turn", (mk, t) => {
+    t.auto('Azorius Arrester');
+    const T = mk();
+    const ps = T.bf('B', 'Prodigal Sorcerer'); ps.summoningSick = false;
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: ps.id }] });
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Azorius Arrester'));
+    T.resolve();
+    t.ok(T.g._hasFlag(ps, 'cantAttack'), "can't attack");
+    const ab = ps.analysis().abilities.find(x => x.kind === 'activated');
+    t.ok(T.g._activationBlocked(ps, ab, 'B'), "can't activate");
+    T.nextTurn('B'); T.nextTurn('A');
+    t.no(T.g._activationBlocked(ps, ab, 'B'), 'over at your next turn');
+  });
+
+  test('Prison Term: moves onto a creature that enters', (mk, t) => {
+    t.auto('Prison Term');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const pt = T.bf('A', 'Prison Term');
+    pt.attachedTo = bear.id; bear.attachments.push(pt.id); T.g.bumpBoard();
+    T.answer('confirm', { yes: true });
+    const ogre = T.put('B', 'Gutsplitter Gang', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(pt.attachedTo, ogre.id);
+  });
+
+  test('Mobile Fort: a defender that can attack this turn', (mk, t) => {
+    t.auto('Mobile Fort');
+    const T = mk();
+    const mf = T.bf('A', 'Mobile Fort'); mf.summoningSick = false;
+    t.no(T.g.canAttack(mf), 'a defender');
+    T.mana('A', '3');
+    T.activate('A', mf, 0);
+    t.ok(T.g.canAttack(mf), 'can attack now');
+    t.eq(T.g.powerOf(mf), 3);
+  });
 };

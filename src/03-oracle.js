@@ -891,6 +891,23 @@
         if (/^target/i.test(m[3])) return { op: 'createRole', role, targets: [Object.assign(targetSpec(m[3]), m[2] && /up to/i.test(m[2]) ? { upTo: true } : {}, m[2] && /other|another/i.test(m[2]) ? { another: true } : {})] };
         return { op: 'createRole', role, on: /enchanted|equipped/i.test(m[3]) ? 'attached' : 'it' };
       } },
+    // Luminous Guardian: "This creature can block an additional creature this turn."
+    { re: /^(?:CARDNAME|This creature) can block an additional (?:creature|(\w+) creatures) this turn\.?$/i,
+      make: (m) => ({ op: 'blocksExtraEot', n: m[1] ? num(m[1]) : 1 }) },
+    // Azorius Arrester: "detain target creature an opponent controls" (CR 701.35)
+    { re: /^Detain (target [a-z ]+?)\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'sequence', list: [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', targets: [t] },
+        { op: 'restrict', flag: 'cantActivate', duration: 'nextTurn', scope: 'lastTarget' }] } : null; } },
+    // Mobile Fort: "gets +3/-1 until end of turn and can attack this turn as though it didn't have defender"
+    { re: /^(?:CARDNAME|This creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and can attack this turn as though it didn'?t have defender\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' },
+        { op: 'restrict', flag: 'attackDespiteDefender', scope: 'self' }] }) },
+    // Rhonas's Last Stand: "Creatures you control don't untap during your next untap step."
+    { re: /^(Creatures|Lands|Permanents|Artifacts) you control don'?t untap during your next untap step\.?$/i,
+      make: (m) => ({ op: 'noUntap', scope: { who: 'you', what: m[1].toLowerCase().replace(/s$/, '') } }) },
+    // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
+    { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -2504,7 +2521,7 @@
     { re: /^Attach it to target creature you control\.?$/i, make: () => ({ op: 'attachSelf' }) },
     /* "Whenever a creature you control enters, you may attach this
        Equipment to it." */
-    { re: /^Attach (?:this Equipment|CARDNAME) to (?:it|that creature)\.?$/i, make: () => ({ op: 'attachSelf', scope: 'triggerObject' }) },
+    { re: /^Attach (?:this Equipment|this Aura|CARDNAME) to (?:it|that creature)\.?$/i, make: () => ({ op: 'attachSelf', scope: 'triggerObject' }) },
     /* Inspiring Refrain: "Exile it with three time counters on it" — the
        spell suspended as it resolves */
     { re: /^Exile (?:CARDNAME|this spell|it) with (two|three|four|five|\d+) time counters on it\.?$/i,
@@ -3937,6 +3954,12 @@
       const inner = parseEffectSentence(s.replace(/\b(?:twice|two times) X\b/g, 'X'), 1);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: 2 })) { inner.text = s; return inner; }
     }
+    // Laccolith Whelp: "have it deal damage equal to its power to target creature"
+    const hi = !depth && s.match(/^Have (it|CARDNAME|this creature) (deal|gain|fight) (.+)$/i);
+    if (hi) {
+      const inner = parseEffectSentence((/^it$/i.test(hi[1]) ? 'It' : 'CARDNAME') + ' ' + hi[2].toLowerCase() + 's ' + hi[3], 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return inner; }
+    }
     // Duelist's Heritage: "have target attacking creature gain double strike"; "have target player mill two cards"
     const hv = !depth && s.match(/^Have (target [a-z ]+?) (gain|mill|draw|lose|discard|sacrifice) (.+)$/i);
     if (hv) {
@@ -4269,7 +4292,7 @@
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
     // Academy Rector: "When this creature dies, you may exile it. If you do, …"
-    { re: /^exile (?:it|this card|CARDNAME)$/i, make: () => ({ exileSelf: true }) },
+    { re: /^exile (?:it|this card|CARDNAME)(?: from your graveyard)?$/i, make: () => ({ exileSelf: true }) },
     { re: /^exile (a|an|one|two|three) ([a-z ]*?)cards? from your graveyard$/i,
       make: (m) => ({ exileGrave: { n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' } }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },

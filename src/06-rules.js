@@ -6540,6 +6540,8 @@
           // Brave the Sands: "each creature you control can block an additional creature each combat"
           const extra = this._staticOp(b, 'blocksExtra') || (this._anyStaticOf(b.controller, 'groupBlocksExtra') ? { n: 1 } : null);
           const canMulti = (extra && d.attackerIds.length <= (extra.n || 1) + 1) ||
+            // Luminous Guardian: "can block an additional creature this turn"
+            (b.blocksExtraTurn === this.turn && d.attackerIds.length <= (b.blocksExtraN || 1) + 1) ||
             (ba && /can block an additional|can block any number/i.test(ba.oracleText || ''));
           if (!canMulti && this.config.rulesEnforcement === 'full')
             return this.fail(`${b.name} can only block one creature.`);
@@ -13159,6 +13161,13 @@
           else host = firstObj() || ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id)) || this._lastCopy;
           if (!host || host.zone !== 'battlefield' || !this.characteristics(host).isCreature) break;
           this._createRole(ctx.controller, e.role, host);
+          break;
+        }
+        // Luminous Guardian: one more creature it may block this turn
+        case 'blocksExtraEot': {
+          if (!src) break;
+          src.blocksExtraN = (src.blocksExtraTurn === this.turn ? (src.blocksExtraN || 0) : 0) + (e.n || 1);
+          src.blocksExtraTurn = this.turn;
           break;
         }
         // Door to Nothingness

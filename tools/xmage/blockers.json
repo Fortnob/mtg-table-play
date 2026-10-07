@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14925,
-  "gainedCards": 1526,
-  "linesNeeded": 16603,
-  "linesGained": 1926,
+  "needed": 14887,
+  "gainedCards": 1522,
+  "linesNeeded": 16561,
+  "linesGained": 1921,
   "gained": {
-   "all": 1526,
+   "all": 1522,
    "top2000": 51,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5446,
-   "lines": 4699,
+   "score": 5444,
+   "lines": 4697,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 243,
-   "lines": 210,
+   "score": 239,
+   "lines": 206,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -1016,25 +1016,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 21,
-   "lines": 12,
-   "cards": [
-    "The Aetherspark",
-    "Shielded by Faith",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Brilliant Wings",
-    "Ancestral Katana",
-    "Hylderblade",
-    "Bound by Moonsilver",
-    "Detainment Spell",
-    "Bespoke Battlegarb",
-    "Concealed Weapon",
-    "Stasis Cell"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 21,
    "lines": 21,
@@ -1106,6 +1087,23 @@
     "Runic Repetition",
     "Nyla, Shirshu Sleuth",
     "Blade of the Swarm"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 19,
+   "lines": 10,
+   "cards": [
+    "The Aetherspark",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Ancestral Katana",
+    "Hylderblade",
+    "Bound by Moonsilver",
+    "Detainment Spell",
+    "Bespoke Battlegarb",
+    "Concealed Weapon",
+    "Stasis Cell"
    ]
   },
   {
@@ -4006,23 +4004,6 @@
    ]
   },
   {
-   "what": "DetainTargetEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Martial Law",
-    "Azorius Arrester",
-    "Lyev Skyknight",
-    "Inaction Injunction",
-    "Azorius Justiciar",
-    "Archon of the Triumvirate",
-    "New Prahv Guildmage",
-    "Lyev Decree",
-    "Soulsworn Spirit",
-    "Isperia's Skywatch"
-   ]
-  },
-  {
    "what": "discard several, or reveal some",
    "score": 10,
    "lines": 10,
@@ -4646,22 +4627,6 @@
    ]
   },
   {
-   "what": "CanBlockAdditionalCreatureEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Entangler",
-    "Valor Made Real",
-    "Entourage of Trest",
-    "Give No Ground",
-    "Anurid Swarmsnapper",
-    "Foriysian Totem",
-    "Mounted Archers",
-    "Coastline Chimera",
-    "Luminous Guardian"
-   ]
-  },
-  {
    "what": "GainLifeEffect amount",
    "score": 9,
    "lines": 9,
@@ -4868,18 +4833,6 @@
     "Blizzard Strix",
     "Roll-Roll-Roll-Roll",
     "Wiccan, Rising Magician"
-   ]
-  },
-  {
-   "what": "EntersBattlefieldOpponentTriggeredAbility",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Charismatic Conqueror",
-    "Sire of Stagnation",
-    "Faerie Artisans",
-    "Prison Term",
-    "Illusory Gains"
    ]
   },
   {
@@ -5288,21 +5241,6 @@
    ]
   },
   {
-   "what": "ScryTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Galadriel of Lothlórien",
-    "Celeborn the Wise",
-    "Legolas, Counter of Kills",
-    "Elminster",
-    "Council's Deliberation",
-    "Glorfindel, Dauntless Rescuer"
-   ]
-  },
-  {
    "what": "keyword StoriedAbility",
    "score": 8,
    "lines": 8,
@@ -5629,21 +5567,6 @@
    ]
   },
   {
-   "what": "AssignNoCombatDamageSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Goblin Vandal",
-    "Laccolith Whelp",
-    "Dwarven Vigilantes",
-    "Lim-Dûl's Paladin",
-    "Laccolith Titan",
-    "Laccolith Warrior",
-    "Laccolith Grunt",
-    "Keeper of Tresserhorn"
-   ]
-  },
-  {
    "what": "SkipExtraTurnsAbility",
    "score": 7,
    "lines": 4,
@@ -5943,6 +5866,20 @@
     "Tin-Wing Chimera",
     "Lead-Belly Chimera",
     "Brass-Talon Chimera"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Elvish Mariner",
+    "Elrond, Master of Healing",
+    "Galadriel of Lothlórien",
+    "Celeborn the Wise",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {
@@ -6266,20 +6203,6 @@
    ]
   },
   {
-   "what": "CanAttackAsThoughItDidntHaveDefenderSourceEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Animate Wall",
-    "Nivix Cyclops",
-    "Roving Keep",
-    "Mobile Fort",
-    "Territorial Witchstalker",
-    "Walking Wall",
-    "Wall of Wonder"
-   ]
-  },
-  {
    "what": "activated in HAND",
    "score": 6,
    "lines": 3,
@@ -6317,6 +6240,16 @@
     "Last March of the Ents",
     "Huatli, the Sun's Heart",
     "Glint Weaver"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOpponentTriggeredAbility",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Charismatic Conqueror",
+    "Sire of Stagnation",
+    "Faerie Artisans"
    ]
   },
   {
@@ -7692,13 +7625,61 @@
     "Catapult Fodder // Catapult Captain",
     "Immobilizer Eldrazi"
    ]
+  },
+  {
+   "what": "targeted by FilterSpell",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tectonic Giant",
+    "Stormchaser Drake",
+    "Opaline Sliver",
+    "Illuminator Virtuoso",
+    "Fugitive Druid"
+   ]
+  },
+  {
+   "what": "copy with changes",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Increasing Vengeance",
+    "Double Major",
+    "Choreographed Sparks",
+    "Rowan, Scholar of Sparks // Will, Scholar of Frost",
+    "Aziza, Mage Tower Captain"
+   ]
+  },
+  {
+   "what": "SetBasePowerSourceEffect with two values",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Toph, the Blind Bandit",
+    "Saheeli's Lattice // Mastercraft Raptor",
+    "Bell Borca, Spectral Sergeant",
+    "Pallimud",
+    "Haunting Apparition"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAttachedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Alpha Authority",
+    "Vorrac Battlehorns",
+    "Meltstrider's Resolve",
+    "Rope",
+    "Wolfrider's Saddle"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4351,
-   "cards": 3820,
+   "score": 4350,
+   "cards": 3819,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7736,8 +7717,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 209,
-   "cards": 176,
+   "score": 206,
+   "cards": 173,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -9260,19 +9241,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Shielded by Faith",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Brilliant Wings",
-    "Ancestral Katana",
-    "Hylderblade"
-   ]
-  },
-  {
    "what": "TargetSpellOrPermanent",
    "score": 10,
    "cards": 10,
@@ -9387,19 +9355,6 @@
     "Kang the Conqueror",
     "Abomination, Terrifying Titan",
     "Brawn, Amadeus Cho"
-   ]
-  },
-  {
-   "what": "DetainTargetEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Martial Law",
-    "Azorius Arrester",
-    "Lyev Skyknight",
-    "Inaction Injunction",
-    "Azorius Justiciar",
-    "Archon of the Triumvirate"
    ]
   },
   {
@@ -9712,19 +9667,6 @@
    ]
   },
   {
-   "what": "CanBlockAdditionalCreatureEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Entangler",
-    "Valor Made Real",
-    "Entourage of Trest",
-    "Give No Ground",
-    "Anurid Swarmsnapper",
-    "Foriysian Totem"
-   ]
-  },
-  {
    "what": "ReturnFromExileForSourceEffect",
    "score": 9,
    "cards": 9,
@@ -9888,18 +9830,6 @@
     "Rags // Riches",
     "Failure // Comply",
     "Reduce // Rubble"
-   ]
-  },
-  {
-   "what": "EntersBattlefieldOpponentTriggeredAbility",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Charismatic Conqueror",
-    "Sire of Stagnation",
-    "Faerie Artisans",
-    "Prison Term",
-    "Illusory Gains"
    ]
   },
   {
@@ -10233,6 +10163,19 @@
    ]
   },
   {
+   "what": "AttachEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Ancestral Katana",
+    "Hylderblade",
+    "Detainment Spell",
+    "Bespoke Battlegarb"
+   ]
+  },
+  {
    "what": "CorruptedCondition.instance",
    "score": 8,
    "cards": 8,
@@ -10425,19 +10368,6 @@
     "Ulamog's Reclaimer",
     "Mind Raker",
     "Oracle of Dust"
-   ]
-  },
-  {
-   "what": "AssignNoCombatDamageSourceEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Goblin Vandal",
-    "Laccolith Whelp",
-    "Dwarven Vigilantes",
-    "Lim-Dûl's Paladin",
-    "Laccolith Titan",
-    "Laccolith Warrior"
    ]
   },
   {
@@ -11018,19 +10948,6 @@
    ]
   },
   {
-   "what": "CanAttackAsThoughItDidntHaveDefenderSourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Animate Wall",
-    "Nivix Cyclops",
-    "Roving Keep",
-    "Mobile Fort",
-    "Territorial Witchstalker",
-    "Walking Wall"
-   ]
-  },
-  {
    "what": "LoseAbilitySourceEffect",
    "score": 7,
    "cards": 7,
@@ -11061,6 +10978,16 @@
     "Last March of the Ents",
     "Huatli, the Sun's Heart",
     "Glint Weaver"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOpponentTriggeredAbility",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Charismatic Conqueror",
+    "Sire of Stagnation",
+    "Faerie Artisans"
    ]
   },
   {
@@ -11527,6 +11454,58 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_PERMANENTS",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Ugin's Insight",
+    "Rush of Knowledge",
+    "Boon of Boseiju",
+    "Kraven, Proud Predator",
+    "Accelerated Mutation",
+    "Torrent of Fire"
+   ]
+  },
+  {
+   "what": "MagecraftAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Quandrix Apprentice",
+    "Zaffai, Thunder Conductor",
+    "Lorehold Apprentice",
+    "Prismari Apprentice",
+    "Elemental Expressionist",
+    "Symmetry Sage"
+   ]
+  },
+  {
+   "what": "LoseAbilityAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Spectacular Pileup",
+    "Hour of Devastation",
+    "Gravity Sphere",
+    "Mystic Decree",
+    "Blind Fury",
+    "Wind Shear"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect without a condition",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Coalition Victory",
+    "Omnivorous Flytrap",
+    "Lyzolda, the Blood Witch",
+    "Sift Through Sands",
+    "Dream Thief",
+    "Bring Low"
    ]
   }
  ]
