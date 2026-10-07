@@ -926,7 +926,15 @@
       for (const part of parts) {
         if (part.isPermanent) continue;
         // the targets in the order the engine reads them: one list, shared with the engine
-        specs.push(...MTG.rules.spellTargetSpecs(part));
+        /* "target spell with mana value X": the X is the one chosen for this
+           cast, so only what matches it lights up */
+        const xNow = steps.x || 0;
+        specs.push(...MTG.rules.spellTargetSpecs(part).map(s => {
+          if (!s || !['mv', 'maxMv', 'minMv'].some(k => s[k] === 'X')) return s;
+          const c = Object.assign({}, s);
+          for (const k of ['mv', 'maxMv', 'minMv']) if (c[k] === 'X') c[k] = xNow;
+          return c;
+        }));
       }
       if (a.isAura && a.auraSpec) specs.push(a.auraSpec);
       if (via === 'bestow') specs.push({ type: 'creature', zone: 'battlefield' });
