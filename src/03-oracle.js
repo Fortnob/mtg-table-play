@@ -42,7 +42,7 @@
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
-    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover', 'Ravenous',
+    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover', 'Ravenous', 'Provoke',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
     // keywords the engine now runs on its own
@@ -74,8 +74,13 @@
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
      above, or ward with its price ("ward {2}", "ward—pay 2 life"). */
+  /* Keywords that work because the card's own reading builds them an
+     ability (provoke, graft, backup …): handed to another permanent, there
+     is no such ability on it, so they can't be handed out yet. */
+  const PRINTED_ONLY = new Set(['provoke', 'graft', 'backup', 'devour', 'recover', 'ravenous']);
   function kwKnown(k) {
     const w = String(k || '').trim();
+    if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
       /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
   }
@@ -1023,7 +1028,10 @@
     { re: /^(?:This|That) creature can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
     { re: /^Activate (?:this ability )?only as a sorcery\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Activate (?:this ability )?only any time you could cast a sorcery\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^Activate (?:this ability )?only once each turn\.?$/i, make: () => ({ op: 'noop' }) },
+    // "Activate only once each turn", "Activate no more than twice each turn": counted, each turn
+    { re: /^Activate (?:this ability )?only once each turn\.?$/i, make: () => ({ op: 'activateOnly', perTurn: 1 }) },
+    { re: /^Activate (?:this ability )?no more than (twice|three times|four times) each turn\.?$/i,
+      make: (m) => ({ op: 'activateOnly', perTurn: /twice/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 4 }) },
     { re: /^Activate (?:this ability )?only during (?:your turn|combat|your upkeep)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Cast (?:CARDNAME|this spell) only (?:before|during|after) [^.]*\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Until end of turn, you don'?t lose this mana as steps and phases end\.?$/i, make: () => ({ op: 'noop' }) },
@@ -2280,7 +2288,7 @@
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
     { re: /^Counter (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)? spell)\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [Object.assign(targetSpec(m[1]), { type: 'spell', zone: 'stack' })] }) },
-    { re: /^Prevent all combat damage that would be dealt by (target [a-z ]+? creature) this turn\.?$/i,
+    { re: /^Prevent all combat damage that would be dealt by (target (?:[a-z ]+? )?creature) this turn\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'noDamage', targets: [targetSpec(m[1])] }) },
     { re: /^(?:CARDNAME|This creature) can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'grantKeyword', keywords: ['Unblockable'], duration: 'eot', scope: 'self' }) },
@@ -2404,6 +2412,8 @@
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
     // Bridge from Below: "exile this card" — from the graveyard it works in
     { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
+    // the Wards: "This effect doesn't remove this Aura." — protection that keeps it on
+    { re: /^This effect doesn'?t remove (?:this Aura|CARDNAME)\.?$/i, make: () => ({ op: 'noop', keepAura: true }) },
     // Star Pupil: "put its counters on target creature you control"
     { re: /^Put its counters on (target [a-z ]+?)\.?$/i, make: (m) => ({ op: 'putItsCounters', targets: [targetSpec(m[1])] }) },
     /* Removed from combat (CR 506.4) */
@@ -5081,7 +5091,8 @@
         if ((cost.exile && cost.exile.fromGraveyard) ||
             /\b(?:this card|CARDNAME) from your graveyard\b/i.test(m[2])) ab.fromGraveyard = true;
         for (const o of only) {
-          ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null);
+          ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null,
+            o.perTurn ? { perTurn: o.perTurn } : null);
           if (o.anyPlayer) ab.anyPlayer = true;
         }
         /* a rider with no restriction (Path of Ancestry) still travels with the mana */
@@ -5848,6 +5859,13 @@
         text: 'Recover ' + recover[1], auto: true });
       out.graveTriggers = true;
     } else if (/(?:^|\n)Recover\b/.test(text)) out._keywordManual = true;   // "Recover—Pay half your life"
+    /* Provoke (CR 702.39): as it attacks, a creature the defender controls
+       may be untapped and made to block it */
+    if (out.keywords.some(k => k.keyword === 'Provoke')) {
+      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, optional: true, text: 'Provoke',
+        effects: [{ op: 'untap', targets: [Object.assign(targetSpec('target creature an opponent controls'), { upTo: true })] }, { op: 'mustBlockThis', scope: 'lastTarget' }],
+        auto: true });
+    }
     /* Ravenous (CR 702.156): X +1/+1 counters as it enters, and a card if X
        was 5 or more */
     if (out.keywords.some(k => k.keyword === 'Ravenous')) {
@@ -6868,6 +6886,13 @@
     'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax']);
 
   function parseStatic(line, ctx) {
+    /* the Wards: "Enchanted creature has protection from white. This effect
+       doesn't remove this Aura." — the protection, and the Aura stays on */
+    const keep = line.match(/^(.+?\.) This effect doesn'?t remove (?:this Aura|CARDNAME)\.?$/i);
+    if (keep) {
+      const inner = parseStatic(keep[1], ctx);
+      if (inner && inner.auto) return Object.assign({}, inner, { text: line, effects: (inner.effects || []).concat([{ op: 'keepDespiteProtection' }]) });
+    }
     const rep = parseReplacement(line);
     if (rep) return rep;
     const cm = parseCostMod(line);
@@ -7080,6 +7105,9 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Troll of Khazad-dûm, Pathrazer of Ulamog
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked except by (two|three|four|five) or more creatures\.?$/i,
+        make: (m) => ({ op: 'minBlockers', n: num(m[1]) }), auto: true },
       // Silent Arbiter, Crawlspace, Caverns of Despair
       { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },

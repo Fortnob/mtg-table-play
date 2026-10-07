@@ -4943,6 +4943,11 @@
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
       if (used === 'exhaust' || used === 'power-up') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
       if (ab.only && ab.only.once) { o._usedOnce = o._usedOnce || {}; o._usedOnce[ab.text] = o.entered; }
+      // "only once each turn", "no more than twice each turn"
+      if (ab.only && ab.only.perTurn) {
+        if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
+        o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
+      }
 
       if (ab.kind === 'loyalty') {
         o.activatedLoyaltyThisTurn = true;
@@ -5007,6 +5012,8 @@
       // power-up: once, as exhaust is
       if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That power-up ability has been used.';
       if (ab && ab.only && ab.only.once && o._usedOnce && o._usedOnce[ab.text] === o.entered) return 'That ability can be activated only once.';
+      if (ab && ab.only && ab.only.perTurn && o._turnUses && o._turnUses.turn === this.turn && (o._turnUses.n[ab.text] || 0) >= ab.only.perTurn)
+        return ab.only.perTurn === 1 ? 'That ability can be activated only once each turn.' : `That ability can be activated no more than ${ab.only.perTurn} times each turn.`;
       /* A level band hands out its ability only while the creature is at
          that level (CR 711.6). */
       if (ab && ab.levelCond && !this._condMet(ab.levelCond, { controller: playerId, obj: o })) {
@@ -6160,6 +6167,19 @@
             (ba && /can block an additional|can block any number/i.test(ba.oracleText || ''));
           if (!canMulti && this.config.rulesEnforcement === 'full')
             return this.fail(`${b.name} can only block one creature.`);
+        }
+      }
+      /* Troll of Khazad-dûm: "can't be blocked except by three or more
+         creatures" — fewer than that and they don't block it at all */
+      {
+        const cnt = new Map();
+        for (const d of declarations) for (const aid of d.attackerIds) cnt.set(aid, (cnt.get(aid) || 0) + 1);
+        for (const [aid, k] of cnt) {
+          const at = this.obj(aid);
+          const mb = at && this._staticOp(at, 'minBlockers');
+          if (!mb || k >= mb.n) continue;
+          declarations = declarations.map(d => Object.assign({}, d, { attackerIds: d.attackerIds.filter(x => x !== aid) })).filter(d => d.attackerIds.length);
+          this.logEvent('rules', `${at.name} can't be blocked except by ${mb.n} or more creatures.`);
         }
       }
       // menace: needs two or more blockers
@@ -13680,6 +13700,8 @@
       } else if ((a.subtypes || []).includes('Fortification')) {
         if (!ha.isLand) return false;
       }
+      // the Wards: "This effect doesn't remove this Aura."
+      if (this._staticOp(o, 'keepDespiteProtection')) return true;
       return !this._protectedFrom(host, o);
     }
 

@@ -4003,4 +4003,54 @@ module.exports = (test) => {
     t.eq(r.counters['+1/+1'] || 0, 5);
     t.eq(T.zone('A', 'hand').length, h0, 'cast one, drew one');
   });
+
+  test('Provoke: the provoked creature untaps and has to block', (mk, t) => {
+    t.auto('Goblin Grappler');
+    const T = mk();
+    const g = T.bf('A', 'Goblin Grappler');
+    const w = T.bf('B', 'Craw Wurm'); w.tapped = true;
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: w.id, attackerIds: [g.id] }]);
+    T.toMain('A', 'combatDamage');
+    t.no(w.tapped, 'untapped');
+    t.ok((w.effects || []).some(e => e.mustBlockId === g.id), 'must block the Grappler');
+  });
+
+  test('Pit Imp: no more than twice each turn', (mk, t) => {
+    t.auto('Pit Imp');
+    const T = mk();
+    const imp = T.bf('A', 'Pit Imp');
+    T.mana('A', 'BBB');
+    const i = imp.analysis().manaAbilities.length + imp.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    t.ok(T.g.activateAbility('A', imp.id, i, {}), 'once'); T.resolve();
+    t.ok(T.g.activateAbility('A', imp.id, i, {}), 'twice'); T.resolve();
+    t.no(T.g.activateAbility('A', imp.id, i, {}), 'not a third time');
+    t.eq(T.g.powerOf(imp), 2);
+  });
+
+  test('White Ward: protection from white, and the white Aura stays on', (mk, t) => {
+    t.auto('White Ward');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'W');
+    const w = T.hand('A', 'White Ward');
+    T.cast('A', w, { targets: [bear] });
+    T.resolve();
+    T.g.checkStateBasedActions();
+    t.eq(w.attachedTo, bear.id, 'still attached');
+    t.ok(T.g.hasKw(bear, 'protection from white'), 'protection from white');
+  });
+
+  test('Troll of Khazad-dum: two blockers are not enough', (mk, t) => {
+    const T = mk();
+    const tr = T.bf('A', 'Troll of Khazad-dûm');
+    tr.summoningSick = false;
+    const x = T.bf('B', 'Grizzly Bears'), y = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: tr.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: x.id, attackerIds: [tr.id] }, { blockerId: y.id, attackerIds: [tr.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 14, 'unblocked');
+  });
 };
