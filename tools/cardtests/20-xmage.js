@@ -8084,4 +8084,57 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
   });
+
+  test("Kaya's Wrath: life for each of your own creatures destroyed", (mk, t) => {
+    t.auto("Kaya's Wrath");
+    const T = mk();
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+    T.mana('A', 'WWBB');
+    T.cast('A', T.hand('A', "Kaya's Wrath"));
+    T.resolve();
+    t.eq(T.life('A'), 22);
+  });
+
+  test('Phyrexian Rebirth: an X/X Horror for the creatures destroyed', (mk, t) => {
+    t.auto('Phyrexian Rebirth');
+    const T = mk();
+    T.bf('A', 'Grizzly Bears'); T.bf('B', 'Hill Giant'); T.bf('B', 'Gray Ogre');
+    T.mana('A', '4WW');
+    T.cast('A', T.hand('A', 'Phyrexian Rebirth'));
+    T.resolve();
+    const h = T.bfOf('A').find(o => o.isToken);
+    t.ok(h); t.eq(T.g.powerOf(h), 3);
+  });
+
+  test('Zo-Zu the Punisher: 2 damage to whoever\'s land entered', (mk, t) => {
+    t.auto('Zo-Zu the Punisher');
+    const T = mk();
+    T.bf('A', 'Zo-Zu the Punisher');
+    T.nextTurn('B');
+    T.toMain('B');
+    T.playLand('B', T.hand('B', 'Mountain'));
+    T.resolve();
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
+  });
+
+  test('Beza: the Treasure, life, Fish and card only where an opponent has more', (mk, t) => {
+    t.auto('Beza, the Bounding Spring');
+    const T = mk();
+    T.bf('B', 'Plains'); T.bf('B', 'Plains');
+    T.player('B').life = 25;
+    T.mana('A', '2WW');
+    T.cast('A', T.hand('A', 'Beza, the Bounding Spring'));
+    T.resolve();
+    t.ok(T.bfOf('A').some(o => o.name === 'Treasure'), 'a Treasure');
+    t.eq(T.life('A'), 24, '4 life');
+  });
+
+  test('Merry: first strike only while equipped', (mk, t) => {
+    const T = mk();
+    const m = T.bf('A', 'Merry, Esquire of Rohan');
+    t.ok(!T.g.hasKw(m, 'first strike'));
+    const s = T.bf('A', 'Bonesplitter');
+    s.attachedTo = m.id; m.attachments = [s.id]; T.g.bumpBoard();
+    t.ok(T.g.hasKw(m, 'first strike'));
+  });
 };

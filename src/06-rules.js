@@ -7995,6 +7995,14 @@
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
+        case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
+        case 'opponentMoreHand': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].hand.length > this.zones[me.id].hand.length);
+        case 'selfEquipped': {
+          // Awaken the Sleeper: in a spell, "it" is the creature it aimed at
+          let x = src && src.zone === 'battlefield' ? src : null;
+          if (!x) { const t = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(u => u && u.kind === 'object'); x = t && this.obj(t.id); }
+          return !!x && (x.attachments || []).some(id => { const at = this.obj(id); return at && (at.analysis() || {}).isEquipment; });
+        }
         case 'anyGraveyardAtLeast': return this.players.some(p => ((this.zones[p.id] || {}).graveyard || []).length >= (cond.n || 1));
         case 'spellsCastOfKind': return !!me && (me.spellObjsThisTurn || []).filter(x => this._cardFitsWords(x, cond.words)).length >= (cond.n || 1);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
@@ -9868,6 +9876,8 @@
         if (v === 'lastLifeLost') return this._lastLifeLost || 0;
         // Rug of Smothering: the spells that player has cast this turn
         if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return ((p && p.spellsCastThisTurn) || 0) * (v.mult || 1); }
+        // Kaya's Wrath: the ones of yours the sweep just took
+        if (v === 'lastSweptYours') return (this._lastAffectedAll || []).filter(g => g.controller === ctx.controller && (this.obj(g.id) || {}).zone !== 'battlefield').length;
         // Sunfall: how many the sweep just before took
         if (v === 'lastSweep') return this._lastSweep || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
@@ -10139,7 +10149,8 @@
           if (e.toTriggerObjController) {
             const td = ctx.triggerData || {};
             const x = td.objectId && this.obj(td.objectId);
-            const p = this.player(td.objController || (x && x.controller));
+            // (in a spell, Melt Terrain: the controller of what it just destroyed)
+            const p = this.player(td.objController || (x && x.controller)) || this._lastAffectedController();
             if (p) { this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
             break;
           }

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14007,
+  "needed": 13995,
   "gainedCards": 1480,
-  "linesNeeded": 15449,
+  "linesNeeded": 15435,
   "linesGained": 1830,
   "gained": {
    "all": 1480,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5160,
-   "lines": 4500,
+   "score": 5152,
+   "lines": 4492,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 886,
-   "lines": 760,
+   "score": 885,
+   "lines": 759,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -788,25 +788,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 22,
-   "lines": 13,
-   "cards": [
-    "Allosaurus Shepherd",
-    "Dollmaker's Shop // Porcelain Gallery",
-    "March of the World Ooze",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Graaz, Unstoppable Juggernaut",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration",
-    "Archon of the Wild Rose",
-    "Oko, the Trickster",
-    "Inkfathom Witch"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -861,6 +842,25 @@
     "Minthara, Merciless Soul",
     "Ezuri, Claw of Progress",
     "Katara, Waterbending Master"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 21,
+   "lines": 12,
+   "cards": [
+    "Allosaurus Shepherd",
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Graaz, Unstoppable Juggernaut",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration",
+    "Archon of the Wild Rose",
+    "Oko, the Trickster",
+    "Inkfathom Witch",
+    "Oko's Hospitality"
    ]
   },
   {
@@ -1335,23 +1335,6 @@
    ]
   },
   {
-   "what": "BecomePreparedSourceEffect",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Grave Researcher // Reanimate",
-    "Emeritus of Ideation // Ancestral Recall",
-    "Joined Researchers // Secret Rendezvous",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Yavimaya Bloomsage // Channel",
-    "Lorehold Archivist // Restore Relic",
-    "Kirol, History Buff // Pack a Punch",
-    "Woodwork Prodigy // Soul Tether",
-    "Stingerquill Voxmancer // Vicious Verse",
-    "Paradox Shaper // Omit Variables"
-   ]
-  },
-  {
    "what": "DamageTargetEffect amount",
    "score": 16,
    "lines": 16,
@@ -1457,6 +1440,22 @@
     "Lost Order of Jarkeld",
     "Muscle Burst",
     "Flame Burst"
+   ]
+  },
+  {
+   "what": "BecomePreparedSourceEffect",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "Grave Researcher // Reanimate",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Yavimaya Bloomsage // Channel",
+    "Lorehold Archivist // Restore Relic",
+    "Kirol, History Buff // Pack a Punch",
+    "Woodwork Prodigy // Soul Tether",
+    "Stingerquill Voxmancer // Vicious Verse",
+    "Paradox Shaper // Omit Variables"
    ]
   },
   {
@@ -7421,8 +7420,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4143,
-   "cards": 3675,
+   "score": 4136,
+   "cards": 3668,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8029,19 +8028,6 @@
    ]
   },
   {
-   "what": "BecomePreparedSourceEffect",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Grave Researcher // Reanimate",
-    "Emeritus of Ideation // Ancestral Recall",
-    "Joined Researchers // Secret Rendezvous",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Lorehold Archivist // Restore Relic",
-    "Kirol, History Buff // Pack a Punch"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 14,
    "cards": 14,
@@ -8107,19 +8093,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Allosaurus Shepherd",
-    "March of the World Ooze",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Tanazir Quandrix"
-   ]
-  },
-  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 13,
    "cards": 4,
@@ -8141,6 +8114,19 @@
     "Fabrication Foundry",
     "Wonderscape Sage",
     "Araumi of the Dead Tide"
+   ]
+  },
+  {
+   "what": "BecomePreparedSourceEffect",
+   "score": 13,
+   "cards": 7,
+   "names": [
+    "Grave Researcher // Reanimate",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Lorehold Archivist // Restore Relic",
+    "Kirol, History Buff // Pack a Punch",
+    "Stingerquill Voxmancer // Vicious Verse"
    ]
   },
   {
@@ -8294,6 +8280,19 @@
     "Silent Hallcreeper",
     "Gandalf the Grey",
     "Sol'Kanar the Tainted"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 12,
+   "cards": 9,
+   "names": [
+    "Allosaurus Shepherd",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration"
    ]
   },
   {

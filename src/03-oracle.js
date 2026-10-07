@@ -1088,6 +1088,19 @@
       make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
     // Engulfing Flames: "It can't be regenerated this turn."
     { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
+    // Zo-Zu the Punisher: "deals 2 damage to that land's controller"
+    { re: /^(?:CARDNAME|This creature|[A-Z][A-Za-z-]+) deals (one|two|three|\d+) damage to that (?:land|creature|permanent|artifact)'?s controller\.?$/,
+      make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerObjController: true }) },
+    // Kaya's Wrath: "You gain life equal to the number of creatures you controlled that were destroyed this way."
+    { re: /^You gain life equal to the number of creatures you controlled that were (?:destroyed|exiled) this way\.?$/i,
+      make: () => ({ op: 'gainLife', who: 'you', n: 'lastSweptYours' }) },
+    // Phyrexian Rebirth: "Destroy all creatures, then create …"
+    { re: /^(Destroy all creatures), then (create .+)$/i,
+      make: (m) => {
+        const a = parseEffects(m[1] + '.'), b = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        if (!a.auto || !b.auto || !a.effects.length || !b.effects.length) return null;
+        return a.effects.concat(b.effects);
+      } },
     // Fanatic of Mogis: "it deals damage to each opponent equal to your devotion to red"
     { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, each: 'opponent' } : null; } },
@@ -4035,6 +4048,8 @@
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
+    // Phyrexian Rebirth: "the number of creatures destroyed this way"
+    if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
     // Ovika: "the mana value of that spell"
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
@@ -5589,6 +5604,11 @@
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
     [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
+    // Beza: "an opponent has more life than you", "an opponent has more cards in hand than you"
+    [/^an opponent has more life than you$/i, () => ({ kind: 'opponentMoreLife' })],
+    [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
+    // Merry, Esquire of Rohan: "it's equipped"
+    [/^(?:it'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Crew Captain: "it entered this turn"
@@ -9142,6 +9162,11 @@
           const kws = keywordList(m[1]);
           return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', commander: 'control' }, grant: kws, cond: { kind: 'yourTurn' } } : null;
         }, auto: true },
+      // March of the World Ooze: "Creatures you control have base power and toughness 6/6 and are Oozes in addition to their other types."
+      { re: /^Creatures you control have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other types\.?$/,
+        make: (m) => ({ op: 'sequence', list: [
+          { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' }, setPt: { p: +m[1], t: +m[2] } },
+          { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature' }, addSubtypes: [m[3]] }] }), auto: true },
       // On Wings of Gold: "Creatures you control that are Zombies and/or tokens get +1/+1 and have flying."
       { re: /^Creatures you control that are ([A-Z][a-z]+?)s and\/or tokens get \+(\d+)\/\+(\d+) and have ([a-z ,]+)\.?$/,
         make: (m) => {
