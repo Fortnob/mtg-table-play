@@ -852,6 +852,11 @@
         who: /defending/i.test(m[1]) ? 'defending' : /each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: 'player' }] } : {}) : null) },
     // Flare of Malice, Soul Shatter
+    // Myrkul's Edict, Professor Onyx, Consumed by Greed, Olórin's Searing Light: the biggest by power
+    { re: /^(Each opponent|Target opponent) (sacrifices|exiles) a creature with the greatest power among creatures (?:that player|they) controls?\.?$/i,
+      make: (m) => Object.assign({ op: 'sacGreatestMv', what: ['creature'], by: 'power' },
+        /^target/i.test(m[1]) ? { who: 'target', targets: [{ type: 'player', opponent: true }] } : {},
+        /exile/i.test(m[2]) ? { exile: true } : {}) },
     { re: /^Each opponent sacrifices an? (creature or planeswalker|creature) with the greatest mana value among (?:creatures and planeswalkers|creatures) they control\.?$/i,
       make: (m) => ({ op: 'sacGreatestMv', what: m[1].toLowerCase().split(' or ') }) },
     // Homeward Path
@@ -5967,9 +5972,11 @@
       rest = rest.replace(/ of the chosen (?:type|colou?r)\b/i, '');
     }
     // who controls them
-    const W = rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls)$/i);
+    const W = rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls)$/i);
     if (W) {
-      sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^target/i.test(W[1]) ? 'target' : 'opponents';
+      sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player)/i.test(W[1]) ? 'target' : 'opponents';
+      // Cavern-Hoard Dragon: "for each artifact that player controls"
+      if (/^that player/i.test(W[1])) sc.thatPlayer = true;
       rest = rest.slice(0, W.index);
     }
     // and what they have
@@ -6946,6 +6953,11 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Silent Arbiter, Crawlspace, Caverns of Despair
+      { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
+        make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
+      { re: /^No more than (one|two|three) creatures? can block each combat\.?$/i,
+        make: (m) => ({ op: 'blockLimit', n: num(m[1]) }), auto: true },
       // Glacial Chasm
       { re: /^Prevent all damage that would be dealt to you\.?$/i, eff: { op: 'preventAllToYou' }, auto: true },
       // Deafening Silence, Rule of Law, Eidolon of Rhetoric

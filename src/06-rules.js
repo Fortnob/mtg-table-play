@@ -512,43 +512,51 @@
      */
     _backupPlans() {
       let asked = false;
+      this._dealingHands = true;
       for (const pid of this.turnOrder) {
         const p = this.player(pid);
         const extra = this._conspiracyOps(pid, 'backupHand').length;
         if (!extra) continue;
+        /* The other hands are the cards on top of the library, where they
+           stay until one is chosen, so nothing is ever outside a zone. */
         const z = this.zones[pid];
-        const hands = [z.hand.splice(0)];
-        for (let k = 0; k < extra; k++) hands.push(z.library.splice(0, 7));
-        for (const h of hands) for (const o of h) o.zone = 'hand';
-        p._hands = hands;
+        const hands = [z.hand.map(o => o.id)];
+        for (let k = 0; k < extra; k++) hands.push(z.library.slice(k * 7, k * 7 + 7).map(o => o.id));
+        p.backupHands = hands;
         if (p.isBot) { this._keepBackupHand(pid, this._bestHand(hands)); continue; }
         asked = true;
         this.queueChoice(MTG.choice.normalize({ kind: 'options', playerId: pid, purpose: 'backupPlan', min: 1, max: 1,
-          options: hands.map((h, i) => ({ label: `Hand ${i + 1}: ${h.map(o => o.name).join(', ')}` })),
+          options: hands.map((h, i) => ({ label: `Hand ${i + 1}: ${h.map(id => (this.obj(id) || {}).name).join(', ')}` })),
           prompt: 'Backup Plan: which hand do you keep? The others are shuffled into your library.' }));
       }
+      this._dealingHands = false;
       return asked;
     }
     _bestHand(hands) {
-      const lands = (h) => h.filter(o => (o.analysis() || {}).isLand).length;
+      const lands = (h) => h.filter(id => ((this.obj(id) && this.obj(id).analysis()) || {}).isLand).length;
       let best = 0;
       hands.forEach((h, i) => { if (Math.abs(lands(h) - 3) < Math.abs(lands(hands[best]) - 3)) best = i; });
       return best;
     }
     _keepBackupHand(pid, i) {
       const p = this.player(pid);
-      const hands = p._hands || [];
+      const hands = p.backupHands || [];
       const keep = hands[i] || hands[0] || [];
       const z = this.zones[pid];
-      for (const h of hands) {
-        if (h === keep) continue;
-        for (const o of h) { o.zone = 'library'; z.library.push(o); }
+      if (keep !== hands[0]) {
+        for (const o of z.hand.splice(0)) { o.zone = 'library'; z.library.push(o); }
+        for (const id of keep) {
+          const k = z.library.findIndex(o => o.id === id);
+          if (k < 0) continue;
+          const [o] = z.library.splice(k, 1);
+          o.zone = 'hand'; z.hand.push(o);
+        }
       }
-      z.hand.push(...keep);
       this.rng.shuffle(z.library);
-      p._hands = null;
+      p.backupHands = null;
       this.logEvent('mulligan', `${p.name} keeps one of ${hands.length} hands (Backup Plan).`);
-      if (this._awaitingBackup && !this.players.some(x => x._hands)) {
+      // the last of these answers lets the mulligans begin
+      if (!this._dealingHands && !this.mulliganPhase && this.turn === 0 && this.started && !this.players.some(x => x.backupHands)) {
         this._awaitingBackup = false;
         this.mulliganPhase = true;
         this.emit('mulligan:begin');
@@ -5829,6 +5837,18 @@
           declarations = [];
         }
       }
+      /* Silent Arbiter, Crawlspace: "No more than one creature can attack
+         (you) each combat" — the first ones declared go, the rest stay home */
+      for (const s0 of this.battlefield) {
+        if (s0.phasedOut) continue;
+        const lim = this._staticOp(s0, 'attackLimit');
+        if (!lim) continue;
+        const hits = (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller;
+        let seen = 0;
+        const before = declarations.length;
+        declarations = declarations.filter(d => !hits(d) || ++seen <= (lim.n || 1));
+        if (declarations.length < before) this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} attacking${lim.you ? ' ' + this.player(s0.controller).name : ''}.`);
+      }
       const legalDef = new Set(ch.defenders.map(d => d.id));
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
@@ -6078,6 +6098,14 @@
           this.logEvent('rules', `${lone.name} can't block alone.`);
           declarations = [];
         }
+      }
+      // Silent Arbiter: "No more than one creature can block each combat."
+      for (const s0 of this.battlefield) {
+        if (s0.phasedOut) continue;
+        const lim = this._staticOp(s0, 'blockLimit');
+        if (!lim || declarations.length <= (lim.n || 1)) continue;
+        declarations = declarations.slice(0, lim.n || 1);
+        this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} blocking.`);
       }
       // validate
       for (const d of declarations) {
@@ -8463,6 +8491,10 @@
         // "choose an opponent. That player …": the one chosen, when there was a choice
         return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId) || null;
       };
+      // "each creature that player controls": who "that player" is, for the group words
+      // (or, with no player in it, the controller of what it targets: Public Execution)
+      this._thatPlayer = ((triggerPlayer() || firstPlayer()) || {}).id ||
+        ((targets.find(t => t.kind === 'object') && this.obj(targets.find(t => t.kind === 'object').id)) || {}).controller || null;
       /* Most effects name what they act on the same three ways: the thing
          they were cast from, whatever the last effect picked, or their own
          targets. This applies `fn` to whichever the effect meant. */
@@ -8584,7 +8616,9 @@
         /* "for each creature you control with a +1/+1 counter on it" — and
            "those creatures" in the next sentence are the ones counted */
         if (v && typeof v === 'object' && v.scope) {
-          const list = this._scopeList(v.scope, ctx.controller, src, (firstPlayer() || me).id);
+          // "for each artifact that player controls": the player the trigger is about
+          const tp = v.scope.thatPlayer ? (triggerPlayer() || firstPlayer() || me) : (firstPlayer() || me);
+          const list = this._scopeList(v.scope, ctx.controller, src, tp.id);
           this._lastGroup = list.map(o => o.id);
           return list.length * (v.mult || 1);
         }
@@ -9925,11 +9959,14 @@
         /* Flare of Malice, Soul Shatter: "each opponent sacrifices a creature
            or planeswalker with the greatest mana value among those they control" */
         case 'sacGreatestMv': {
-          for (const q of this.opponentsOf(ctx.controller)) {
+          // Myrkul's Edict, Olórin's Searing Light: by power, a target opponent, or exiled
+          const val = (x) => (e.by === 'power' ? this.powerOf(x) : ((x.card && x.card.cmc) || 0));
+          const whom = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller);
+          for (const q of whom) {
             const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
             if (!pool.length) continue;
-            const top = Math.max(...pool.map(x => (x.card && x.card.cmc) || 0));
-            const tied = pool.filter(x => ((x.card && x.card.cmc) || 0) === top);
+            const top = Math.max(...pool.map(val));
+            const tied = pool.filter(x => val(x) === top);
             let pick = tied[0];
             if (tied.length > 1) {
               const got = this._choose({ playerId: q.id, purpose: 'sacrifice', kind: 'objects', zone: 'battlefield', harmful: true,
@@ -9937,6 +9974,7 @@
               if (got === SUSPEND) return SUSPEND;
               pick = (got && got.picks.length && this.obj(got.picks[0])) || tied[0];
             }
+            if (e.exile) { this.moveObject(pick, 'exile'); this.logEvent('exile', `${q.name} exiles ${pick.name}.`); continue; }
             this._sacrificeNow(q.id, [pick], ctx);
             this._fire('youSacrifice', q.id, { count: 1 });
           }
@@ -12825,7 +12863,9 @@
      */
     _scopeList(sc, controllerId, src, targetPid, inLayers) {
       const out = [];
-      const pid = sc.who === 'target' ? (targetPid || controllerId) : controllerId;
+      // "that player controls" with nobody to be that player is nobody's
+      if (sc.thatPlayer && !this._thatPlayer) return out;
+      const pid = sc.thatPlayer ? this._thatPlayer : sc.who === 'target' ? (targetPid || controllerId) : controllerId;
       for (const o of this.battlefield.slice()) {
         if (o.phasedOut) continue;
         const oa = o.analysis();
@@ -14468,7 +14508,7 @@
           ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null,
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
-          draftNotes: p.draftNotes || null,
+          draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
         })),
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),

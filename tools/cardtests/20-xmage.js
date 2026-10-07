@@ -3733,4 +3733,49 @@ module.exports = (test) => {
     T2.resolve();
     t.no(T2.g.hasKw(k2, 'trample'), 'not unkicked');
   });
+
+  test('Consumed by Greed: the opponent loses their most powerful creature', (mk, t) => {
+    t.auto('Consumed by Greed');
+    const T = mk();
+    const small = T.bf('B', 'Grizzly Bears'), big = T.bf('B', 'Craw Wurm');
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Consumed by Greed'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.zone(big, 'graveyard');
+    t.zone(small, 'battlefield');
+  });
+
+  test('Silent Arbiter: only one creature attacks', (mk, t) => {
+    t.auto('Silent Arbiter');
+    const T = mk();
+    T.bf('B', 'Silent Arbiter');
+    const x = T.bf('A', 'Grizzly Bears'), y = T.bf('A', 'Craw Wurm');
+    T.answer('declareAttackers', () => [x, y].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq([x, y].filter(o => o.attackedTurn === T.g.turn).length, 1);
+  });
+
+  test("Public Execution: that player's other creatures shrink", (mk, t) => {
+    t.auto('Public Execution');
+    const T = mk();
+    const v = T.bf('B', 'Grizzly Bears'), o = T.bf('B', 'Craw Wurm'), mine = T.bf('A', 'Craw Wurm');
+    T.mana('A', '5B');
+    T.cast('A', T.hand('A', 'Public Execution'), { targets: [v] });
+    T.resolve();
+    t.zone(v, 'graveyard');
+    t.eq(T.g.powerOf(o), 4);
+    t.eq(T.g.powerOf(mine), 6);
+  });
+
+  test('Cavern-Hoard Dragon: a Treasure for each artifact the player has', (mk, t) => {
+    const T = mk();
+    const d = T.bf('A', 'Cavern-Hoard Dragon');
+    d.summoningSick = false;
+    T.g._createNamedToken('B', { token: 'Treasure', n: 2 });
+    T.answer('declareAttackers', () => [{ attackerId: d.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2);
+  });
 };

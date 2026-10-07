@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15965,
+  "needed": 15956,
   "gainedCards": 1611,
-  "linesNeeded": 18121,
+  "linesNeeded": 18106,
   "linesGained": 2070,
   "gained": {
    "all": 1611,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5636,
-   "lines": 4856,
+   "score": 5620,
+   "lines": 4846,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 311,
-   "lines": 269,
+   "score": 310,
+   "lines": 268,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -5048,19 +5048,6 @@
    ]
   },
   {
-   "what": "PermanentsTargetOpponentControlsCount",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Cavern-Hoard Dragon",
-    "Sting, Bilbo's Sword",
-    "Bloodvial Purveyor",
-    "Gideon, Champion of Justice",
-    "Killmonger, Ruthless Usurper",
-    "Renewing Dawn"
-   ]
-  },
-  {
    "what": "modal activated ability",
    "score": 9,
    "lines": 6,
@@ -7434,16 +7421,6 @@
    ]
   },
   {
-   "what": "ChangeMaxNumberThatCanAttackSourceEffect",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Crawlspace",
-    "Mirri, Weatherlight Duelist",
-    "Judoon Enforcers"
-   ]
-  },
-  {
    "what": "SearchLibraryForFourDifferentCardsEffect",
    "score": 6,
    "lines": 3,
@@ -7975,13 +7952,38 @@
     "Wandering Eye",
     "Revelation"
    ]
+  },
+  {
+   "what": "IsPhaseCondition",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Najeela, the Blade-Blossom",
+    "The Blue Spirit",
+    "Djinn of Infinite Deceits",
+    "Jade Statue",
+    "Kjeldoran Elite Guard",
+    "Heart Wolf"
+   ]
+  },
+  {
+   "what": "NoAbilityPredicate.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Ruxa, Patient Professor",
+    "Muraganda Petroglyphs",
+    "Jasmine Boreal of the Seven",
+    "Fang-Druid Summoner",
+    "Rise from the Wreck"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4430,
-   "cards": 3881,
+   "score": 4422,
+   "cards": 3876,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8006,8 +8008,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 265,
-   "cards": 226,
+   "score": 264,
+   "cards": 225,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8019,15 +8021,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 220,
-   "cards": 211,
+   "score": 224,
+   "cards": 212,
    "names": [
     "Excalibur, Sword of Eden",
+    "Cavern-Hoard Dragon",
     "Metalwork Colossus",
     "Reforge the Soul",
     "Hagra Mauling // Hagra Broodpit",
-    "Kogla and Yidaro",
-    "Temporal Mastery"
+    "Kogla and Yidaro"
    ]
   },
   {
