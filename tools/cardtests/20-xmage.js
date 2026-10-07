@@ -4523,4 +4523,96 @@ module.exports = (test) => {
     t.ok(T.g.mustAttack(bear), 'goaded');
     t.eq(T.g.powerOf(bear), 4);
   });
+
+  test('Pest Infestation: twice X Pests', (mk, t) => {
+    t.auto('Pest Infestation');
+    const T = mk();
+    const orn = T.bf('B', 'Ornithopter');
+    T.mana('A', 'G4');
+    T.cast('A', T.hand('A', 'Pest Infestation'), { x: 2, targets: [orn] });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Pest' || /Pest/.test(o.name)).length, 4);
+  });
+
+  test('Cut a Deal: each opponent draws, and you draw one for each of them', (mk, t) => {
+    t.auto('Cut a Deal');
+    const T = mk();
+    for (let i = 0; i < 3; i++) { T.top('A', 'Island'); T.top('B', 'Island'); }
+    const ha = T.zone('A', 'hand').length, hb = T.zone('B', 'hand').length;
+    T.mana('A', 'W2');
+    const cd = T.hand('A', 'Cut a Deal');
+    T.cast('A', cd);
+    t.eq(T.zone('B', 'hand').length, hb + 1);
+    t.eq(T.zone('A', 'hand').length, ha + 1 + 1 - 1);
+  });
+
+  test('Kardur, Doomscourge: the creatures across the table are goaded', (mk, t) => {
+    t.auto('Kardur, Doomscourge');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'BR2');
+    T.cast('A', T.hand('A', 'Kardur, Doomscourge'));
+    t.eq(bear.goadedBy, 'A');
+  });
+
+  test('Oran-Rief, the Vastwood: a counter on each green creature that entered this turn', (mk, t) => {
+    t.auto('Oran-Rief, the Vastwood');
+    const T = mk();
+    const old = T.bf('A', 'Grizzly Bears');
+    old.entered = T.g.turn - 1;
+    const fresh = T.bf('A', 'Llanowar Elves');
+    fresh.entered = T.g.turn;
+    const red = T.bf('A', 'Goblin Piker');
+    red.entered = T.g.turn;
+    const or = T.bf('A', 'Oran-Rief, the Vastwood');
+    const ix = or.analysis().abilities.findIndex(a => a.kind === 'activated');
+    T.activate('A', or, ix);
+    t.eq(fresh.counters['+1/+1'] || 0, 1);
+    t.eq(old.counters['+1/+1'] || 0, 0, 'entered before');
+    t.eq(red.counters['+1/+1'] || 0, 0, 'not green');
+  });
+
+  test('Desynchronization: what is not historic goes back to hand', (mk, t) => {
+    t.auto('Desynchronization');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const orn = T.bf('B', 'Ornithopter');
+    const leg = T.bf('A', 'Isamaru, Hound of Konda');
+    T.mana('A', 'UU2');
+    T.cast('A', T.hand('A', 'Desynchronization'));
+    t.eq(bear.zone, 'hand');
+    t.eq(orn.zone, 'battlefield', 'an artifact is historic');
+    t.eq(leg.zone, 'battlefield', 'legendary is historic');
+  });
+
+  test('Sundering Eruption: creatures without flying cannot block this turn', (mk, t) => {
+    t.auto('Sundering Eruption // Volcanic Fissure');
+    const T = mk();
+    const land = T.bf('B', 'Mountain');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const bird = T.bf('B', 'Birds of Paradise');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Sundering Eruption // Volcanic Fissure'), { targets: [land] });
+    t.ok(T.g._hasFlag(bear, 'cantBlock'), 'the Bears cannot block');
+    t.no(T.g._hasFlag(bird, 'cantBlock'), 'the Birds can');
+  });
+
+  test("Duelist's Heritage: reads its trigger", (mk, t) => { t.auto("Duelist's Heritage"); });
+  test('Combat Celebrant: reads its exert trigger', (mk, t) => { t.auto('Combat Celebrant'); });
+
+  test('Siren Stormtamer: a spell at you or your creature, not one at someone else', (mk, t) => {
+    t.auto('Siren Stormtamer');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const b1 = T.hand('A', 'Shock'), b2 = T.hand('A', 'Lightning Bolt'), b3 = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'RRR');
+    T.cast('A', b1, { targets: [bear], resolve: false });
+    T.cast('A', b2, { targets: ['B'], resolve: false });
+    T.cast('A', b3, { targets: ['A'], resolve: false });
+    const ab = engine().oracle.analyze(card('Siren Stormtamer')).abilities.find(a => a.kind === 'activated');
+    const spec = T.g._specsOf({ effects: ab.effects })[0];
+    const legal = T.g._legalTargetsFor(spec, 'B').map(x => x.id);
+    t.ok(legal.includes(T.stackItem(b1).id), 'the Shock at my creature');
+    t.ok(legal.includes(T.stackItem(b2).id), 'the Bolt at me');
+    t.no(legal.includes(T.stackItem(b3).id), 'not the Bolt at its caster');
+  });
 };

@@ -8830,6 +8830,8 @@
       };
       const n = (v) => {
         if (v === 'X') return ctx.x || (src && src.chosenX) || 0;
+        // "twice X"
+        if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
         // "the highest number you noted for cards named Garbage Fire"
         if (v && typeof v === 'object' && v.noted) return this._draftNoteValue(ctx.controller, v);
         // "the number of cards in your hand plus one"
@@ -9065,6 +9067,7 @@
           else if (e.who === 'fixed') { const p = this.player(e.pid); if (p && !p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'targetController') { const p = this._lastAffectedController(); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
+          else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'target') {
             // "Two target players each draw a card": every player aimed at
             const ps = targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(p => p && !p.hasLost);
@@ -13479,6 +13482,10 @@
       if (sc.nonlegendary && (oa.supertypes || []).includes('Legendary')) return false;
       if (sc.nontoken && o.isToken) return false;
       if (sc.token && !o.isToken) return false;
+      // Oran-Rief: "that entered this turn"
+      if (sc.enteredThisTurn && o.entered !== this.turn) return false;
+      // Desynchronization: historic is legendary, an artifact or a Saga
+      if (sc.notHistoric && ((oa.supertypes || []).includes('Legendary') || (oa.types || []).includes('Artifact') || (oa.subtypes || []).includes('Saga'))) return false;
       if (sc.tapped && !o.tapped) return false;
       if (sc.untapped && o.tapped) return false;
       if (sc.attacking && !o.attacking) return false;
@@ -14786,6 +14793,7 @@
         return this.stack
           .filter(st => (st.kind === 'spell' ? !spec.noSpells && this._spellMatches(st, spec, controllerId)
             : !!spec.abilities && (!spec.abilityKind || (spec.abilityKind === 'triggered') === !!st.triggered) &&
+              this._aimsAtYours(st, spec, controllerId) &&
               !(spec.controller === 'you' && st.controller !== controllerId) &&
               !(spec.controller === 'opponent' && st.controller === controllerId)))
           .map(st => ({ kind: 'stack', id: st.id, name: st.name }));
@@ -14836,6 +14844,15 @@
       return this.__specCtx;
     }
 
+    /** "that targets a creature you control" (Rebuff the Wicked), "…you or a creature you control" (Siren Stormtamer). */
+    _aimsAtYours(item, spec, controllerId) {
+      if (!spec.targetsYour) return true;
+      return (item.targets || []).some(t => {
+        if (t.kind === 'player') return !!spec.orYou && t.id === controllerId;
+        const x = t.kind === 'object' && this.obj(t.id);
+        return x && x.zone === 'battlefield' && x.controller === controllerId && (spec.targetsYour !== 'creature' || (x.analysis() || {}).isCreature);
+      });
+    }
     /** Does a spell on the stack answer to "noncreature", "instant or sorcery"…? */
     _spellMatches(item, spec, controllerId) {
       const o = item.obj;
@@ -14848,10 +14865,7 @@
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;
       // "target spell that targets a permanent you control"
-      if (spec.targetsYour && !(item.targets || []).some(t => {
-        const x = t.kind === 'object' && this.obj(t.id);
-        return x && x.zone === 'battlefield' && x.controller === controllerId && (spec.targetsYour !== 'creature' || (x.analysis() || {}).isCreature);
-      })) return false;
+      if (!this._aimsAtYours(item, spec, controllerId)) return false;
       /* "target noncreature spell", "an instant or sorcery spell", "a blue
          spell": the same reading a search uses, alternatives and all. */
       const want = String(spec.filter || '').toLowerCase()

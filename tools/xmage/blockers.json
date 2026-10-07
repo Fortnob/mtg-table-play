@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15566,
-  "gainedCards": 1615,
-  "linesNeeded": 17404,
-  "linesGained": 2044,
+  "needed": 15525,
+  "gainedCards": 1601,
+  "linesNeeded": 17355,
+  "linesGained": 2029,
   "gained": {
-   "all": 1615,
-   "top2000": 52,
+   "all": 1601,
+   "top2000": 53,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5581,
-   "lines": 4813,
+   "score": 5569,
+   "lines": 4804,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 955,
-   "lines": 805,
+   "score": 951,
+   "lines": 804,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -129,21 +129,21 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 268,
-   "lines": 229,
+   "score": 260,
+   "lines": 227,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Pest Infestation",
     "Grasp of Fate",
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Comet Storm",
-    "Heliod's Intervention",
     "Galadriel's Dismissal",
     "Lazotep Quarry",
-    "Likeness Looter"
+    "Likeness Looter",
+    "Kozilek's Command",
+    "Ruthless Technomancer"
    ]
   },
   {
@@ -281,10 +281,9 @@
   },
   {
    "what": "custom target",
-   "score": 63,
-   "lines": 48,
+   "score": 59,
+   "lines": 47,
    "cards": [
-    "Siren Stormtamer",
     "Secret Tunnel",
     "Goblin Welder",
     "Rampaging Yao Guai",
@@ -295,7 +294,8 @@
     "Kairi, the Swirling Sky",
     "Role Reversal",
     "Modify Memory",
-    "Unbury"
+    "Unbury",
+    "Chaos Mutation"
    ]
   },
   {
@@ -376,8 +376,8 @@
   },
   {
    "what": "ConditionalRestrictionEffect",
-   "score": 38,
-   "lines": 38,
+   "score": 37,
+   "lines": 37,
    "cards": [
     "Bilbo's Ring",
     "Thieves' Tools",
@@ -389,27 +389,8 @@
     "Yuan-Ti Malison",
     "Fugitive Droid",
     "Nimble Trapfinder",
-    "Barrage of Boulders",
-    "June, Bounty Hunter"
-   ]
-  },
-  {
-   "what": "Ability.modes.setChooseText",
-   "score": 35,
-   "lines": 32,
-   "cards": [
-    "Rankle, Master of Pranks",
-    "Drown in Dreams",
-    "Will of the Jeskai",
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance",
-    "Will of the Abzan",
-    "See Double",
-    "Will of the Temur",
-    "Moxite Refinery",
-    "Szat's Will",
-    "SOLDIER Military Program"
+    "June, Bounty Hunter",
+    "Nimble Brigand"
    ]
   },
   {
@@ -429,6 +410,25 @@
     "Celeborn the Wise",
     "Jolene, Plundering Pugilist",
     "Talion's Messenger"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 34,
+   "lines": 31,
+   "cards": [
+    "Rankle, Master of Pranks",
+    "Will of the Jeskai",
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance",
+    "Will of the Abzan",
+    "See Double",
+    "Will of the Temur",
+    "Moxite Refinery",
+    "Szat's Will",
+    "SOLDIER Military Program",
+    "Vincent's Limit Break"
    ]
   },
   {
@@ -508,25 +508,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 30,
-   "lines": 30,
-   "cards": [
-    "Ultimate Magic: Holy",
-    "Mirri, Weatherlight Duelist",
-    "Might of the Meek",
-    "The Irencrag",
-    "Aragorn, King of Gondor",
-    "Tail Swipe",
-    "Bilbo's Gambit",
-    "Winding Canyons",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Withering Curse",
-    "Join the Dead"
-   ]
-  },
-  {
    "what": "ChooseACardNameEffect",
    "score": 30,
    "lines": 30,
@@ -594,6 +575,25 @@
     "White Mage's Staff",
     "Ninja's Blades",
     "Red Mage's Rapier"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Ultimate Magic: Holy",
+    "Mirri, Weatherlight Duelist",
+    "Might of the Meek",
+    "The Irencrag",
+    "Aragorn, King of Gondor",
+    "Tail Swipe",
+    "Bilbo's Gambit",
+    "Winding Canyons",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Withering Curse",
+    "Join the Dead"
    ]
   },
   {
@@ -773,25 +773,6 @@
     "Nalia de'Arnise",
     "Galea, Kindler of Hope",
     "Isu the Abominable"
-   ]
-  },
-  {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 24,
-   "lines": 21,
-   "cards": [
-    "Oran-Rief, the Vastwood",
-    "Forge of Heroes",
-    "Force of Despair",
-    "Oakhollow Village",
-    "Octomancer",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Ruins of Oran-Rief",
-    "Cathedral Acolyte",
-    "Samut, Vizier of Naktamun",
-    "Ghired, Mirror of the Wilds",
-    "Let the Galaxy Burn"
    ]
   },
   {
@@ -1150,25 +1131,6 @@
    ]
   },
   {
-   "what": "TargetStackObject",
-   "score": 20,
-   "lines": 17,
-   "cards": [
-    "Spellskite",
-    "Not of This World",
-    "Wyll's Reversal",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice",
-    "Consign to Memory",
-    "Deny the Witch",
-    "Radiant Performer",
-    "Katara's Reversal",
-    "Sister of Silence",
-    "Mister Fantastic"
-   ]
-  },
-  {
    "what": "custom cost",
    "score": 20,
    "lines": 20,
@@ -1223,6 +1185,25 @@
     "Kitsune Mystic // Autumn-Tail, Kitsune Sage",
     "Akki Lavarunner // Tok-Tok, Volcano Born",
     "Kuon, Ogre Ascendant // Kuon's Essence"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Spellskite",
+    "Wyll's Reversal",
+    "Tale's End",
+    "Green Slime",
+    "Louisoix's Sacrifice",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Katara's Reversal",
+    "Sister of Silence",
+    "Mister Fantastic",
+    "Mizzium Meddler"
    ]
   },
   {
@@ -1781,6 +1762,25 @@
    ]
   },
   {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Forge of Heroes",
+    "Oakhollow Village",
+    "Octomancer",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Ruins of Oran-Rief",
+    "Cathedral Acolyte",
+    "Samut, Vizier of Naktamun",
+    "Ghired, Mirror of the Wilds",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
+   ]
+  },
+  {
    "what": "BecomesColorTargetEffect",
    "score": 16,
    "lines": 16,
@@ -1943,25 +1943,6 @@
     "The War Games",
     "City of Shadows",
     "Wormfang Drake"
-   ]
-  },
-  {
-   "what": "keyword ExertAbility",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Combat Celebrant",
-    "Themberchaud",
-    "Sandstorm Crasher",
-    "Clockwork Droid",
-    "Rohirrim Chargers",
-    "Ahn-Crop Champion",
-    "Battlefield Scavenger",
-    "Trueheart Twins",
-    "Oketra's Avenger",
-    "Resolute Survivors",
-    "Vizier of the True",
-    "Rhonas's Stalwart"
    ]
   },
   {
@@ -3714,24 +3695,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin",
-    "Rangers' Refueler",
-    "Boom Scholar",
-    "Marshals' Pathcruiser"
-   ]
-  },
-  {
    "what": "ProtectionAbility",
    "score": 11,
    "lines": 11,
@@ -3747,24 +3710,6 @@
     "Pristine Angel",
     "Spare from Evil",
     "Masked Gorgon"
-   ]
-  },
-  {
-   "what": "GainLifeEffect amount",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Children of Korlis",
-    "Tainted Sigil",
-    "From Under the Floorboards",
-    "Dihada's Ploy",
-    "Sanguine Sacrament",
-    "Predator's Rapport",
-    "Simulacrum",
-    "Niko Defies Destiny",
-    "Jade Seedstones // Jadeheart Attendant",
-    "Silent-Chant Zubera",
-    "Reverse Polarity"
    ]
   },
   {
@@ -3997,20 +3942,6 @@
    ]
   },
   {
-   "what": "AttacksIfAbleAllEffect",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Kardur, Doomscourge",
-    "Maximum Carnage",
-    "The Akroan War",
-    "Avatar of Slaughter",
-    "Goblin Diplomats",
-    "Skeletal Swarming",
-    "Hellraiser Goblin"
-   ]
-  },
-  {
    "what": "keyword CompleatedAbility",
    "score": 10,
    "lines": 7,
@@ -4239,6 +4170,23 @@
    ]
   },
   {
+   "what": "keyword ExhaustAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Riverchurn Monument",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin",
+    "Rangers' Refueler",
+    "Boom Scholar",
+    "Marshals' Pathcruiser"
+   ]
+  },
+  {
    "what": "AddCardSubTypeTargetEffect",
    "score": 10,
    "lines": 10,
@@ -4340,20 +4288,20 @@
    ]
   },
   {
-   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "what": "GainLifeEffect amount",
    "score": 10,
    "lines": 10,
    "cards": [
-    "Death Kiss",
-    "Alpha Deathclaw",
-    "Shipbreaker Kraken",
-    "Stormbreath Dragon",
-    "Polukranos, World Eater",
-    "Grim Giganotosaurus",
-    "Vitality Hunter",
-    "Sealock Monster",
-    "Wildfire Cerberus",
-    "Stoneshock Giant"
+    "Children of Korlis",
+    "Tainted Sigil",
+    "From Under the Floorboards",
+    "Dihada's Ploy",
+    "Predator's Rapport",
+    "Simulacrum",
+    "Niko Defies Destiny",
+    "Jade Seedstones // Jadeheart Attendant",
+    "Silent-Chant Zubera",
+    "Reverse Polarity"
    ]
   },
   {
@@ -4506,6 +4454,23 @@
     "Cyclopean Tomb",
     "Clockwork Swarm",
     "Life Matrix"
+   ]
+  },
+  {
+   "what": "keyword ExertAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Clockwork Droid",
+    "Rohirrim Chargers",
+    "Battlefield Scavenger",
+    "Trueheart Twins",
+    "Oketra's Avenger",
+    "Resolute Survivors",
+    "Vizier of the True",
+    "Rhonas's Stalwart"
    ]
   },
   {
@@ -4969,6 +4934,22 @@
     "Stream of Consciousness",
     "Krosan Reclamation",
     "Dwell on the Past"
+   ]
+  },
+  {
+   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Death Kiss",
+    "Alpha Deathclaw",
+    "Shipbreaker Kraken",
+    "Stormbreath Dragon",
+    "Polukranos, World Eater",
+    "Grim Giganotosaurus",
+    "Vitality Hunter",
+    "Sealock Monster",
+    "Wildfire Cerberus"
    ]
   },
   {
@@ -6295,20 +6276,6 @@
    ]
   },
   {
-   "what": "MultipliedValue of \"X\"",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Nuclear Fallout",
-    "The Master of Keys",
-    "Thassa's Intervention",
-    "Increasing Confusion",
-    "Stonesplitter Bolt",
-    "Procrastinate",
-    "Vicious Betrayal"
-   ]
-  },
-  {
    "what": "TapAllTargetPlayerControlsEffect",
    "score": 7,
    "lines": 7,
@@ -7209,6 +7176,19 @@
    ]
   },
   {
+   "what": "MultipliedValue of \"X\"",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Nuclear Fallout",
+    "Thassa's Intervention",
+    "Increasing Confusion",
+    "Stonesplitter Bolt",
+    "Procrastinate",
+    "Vicious Betrayal"
+   ]
+  },
+  {
    "what": "CounterTargetWithReplacementEffect",
    "score": 6,
    "lines": 6,
@@ -7438,6 +7418,19 @@
     "Sanctifier en-Vec",
     "Silent Gravestone",
     "Ultimate Nullification"
+   ]
+  },
+  {
+   "what": "AttacksIfAbleAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Maximum Carnage",
+    "The Akroan War",
+    "Avatar of Slaughter",
+    "Goblin Diplomats",
+    "Skeletal Swarming",
+    "Hellraiser Goblin"
    ]
   },
   {
@@ -7872,8 +7865,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4445,
-   "cards": 3896,
+   "score": 4436,
+   "cards": 3890,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7885,8 +7878,8 @@
   },
   {
    "what": "custom ability",
-   "score": 716,
-   "cards": 596,
+   "score": 712,
+   "cards": 595,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7898,28 +7891,28 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 232,
-   "cards": 193,
+   "score": 224,
+   "cards": 191,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Pest Infestation",
     "Grasp of Fate",
-    "Crackle with Power"
+    "Crackle with Power",
+    "Shatterskull Smashing // Shatterskull, the Hammer Pass"
    ]
   },
   {
    "what": "(cast modifier line)",
-   "score": 222,
-   "cards": 210,
+   "score": 223,
+   "cards": 211,
    "names": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
     "Metalwork Colossus",
     "Reforge the Soul",
     "Hagra Mauling // Hagra Broodpit",
-    "Kogla and Yidaro"
+    "Not of This World"
    ]
   },
   {
@@ -7975,19 +7968,6 @@
    ]
   },
   {
-   "what": "custom target",
-   "score": 57,
-   "cards": 42,
-   "names": [
-    "Siren Stormtamer",
-    "Secret Tunnel",
-    "Goblin Welder",
-    "Rampaging Yao Guai",
-    "V.A.T.S.",
-    "Reunion of the House"
-   ]
-  },
-  {
    "what": "Target.setTargetTag",
    "score": 57,
    "cards": 57,
@@ -7998,6 +7978,19 @@
     "Incremental Blight",
     "Fall of Gil-galad",
     "Iroh, Tea Master"
+   ]
+  },
+  {
+   "what": "custom target",
+   "score": 53,
+   "cards": 41,
+   "names": [
+    "Secret Tunnel",
+    "Goblin Welder",
+    "Rampaging Yao Guai",
+    "V.A.T.S.",
+    "Reunion of the House",
+    "Behold the Sinister Six!"
    ]
   },
   {
@@ -8014,6 +8007,19 @@
    ]
   },
   {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 41,
+   "cards": 29,
+   "names": [
+    "Inspiring Statuary",
+    "Rain of Riches",
+    "Ral, Crackling Wit",
+    "Thrumming Stone",
+    "Imoti, Celebrant of Bounty",
+    "Zhulodok, Void Gorger"
+   ]
+  },
+  {
    "what": "AsEntersBattlefieldAbility",
    "score": 40,
    "cards": 28,
@@ -8024,19 +8030,6 @@
     "Temple of the Dragon Queen",
     "Struggle for Project Purity",
     "Hollowmurk Siege"
-   ]
-  },
-  {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 40,
-   "cards": 28,
-   "names": [
-    "Inspiring Statuary",
-    "Rain of Riches",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Imoti, Celebrant of Bounty",
-    "Zhulodok, Void Gorger"
    ]
   },
   {
@@ -8080,8 +8073,8 @@
   },
   {
    "what": "ConditionalRestrictionEffect",
-   "score": 30,
-   "cards": 30,
+   "score": 29,
+   "cards": 29,
    "names": [
     "Thieves' Tools",
     "Security Bypass",
@@ -8105,19 +8098,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
-   "score": 28,
-   "cards": 25,
-   "names": [
-    "Rankle, Master of Pranks",
-    "Drown in Dreams",
-    "Will of the Jeskai",
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 27,
    "cards": 15,
@@ -8131,16 +8111,16 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
+   "what": "Ability.modes.setChooseText",
    "score": 27,
-   "cards": 27,
+   "cards": 24,
    "names": [
-    "Ultimate Magic: Holy",
-    "Might of the Meek",
-    "The Irencrag",
-    "Aragorn, King of Gondor",
-    "Tail Swipe",
-    "Bilbo's Gambit"
+    "Rankle, Master of Pranks",
+    "Will of the Jeskai",
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance",
+    "Will of the Abzan"
    ]
   },
   {
@@ -8154,6 +8134,19 @@
     "Crypt Rats",
     "Season of the Bold",
     "Guildmages' Forum"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 26,
+   "cards": 26,
+   "names": [
+    "Ultimate Magic: Holy",
+    "Might of the Meek",
+    "The Irencrag",
+    "Aragorn, King of Gondor",
+    "Tail Swipe",
+    "Bilbo's Gambit"
    ]
   },
   {
@@ -8206,19 +8199,6 @@
     "Aether Spike",
     "Swallowed by Leviathan",
     "The Tabernacle at Pendrell Vale"
-   ]
-  },
-  {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 24,
-   "cards": 21,
-   "names": [
-    "Oran-Rief, the Vastwood",
-    "Forge of Heroes",
-    "Force of Despair",
-    "Oakhollow Village",
-    "Octomancer",
-    "Sweet-Gum Recluse"
    ]
   },
   {
@@ -8469,6 +8449,19 @@
    ]
   },
   {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Forge of Heroes",
+    "Oakhollow Village",
+    "Octomancer",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Ruins of Oran-Rief"
+   ]
+  },
+  {
    "what": "DisturbAbility.makeBackAbility",
    "score": 16,
    "cards": 16,
@@ -8479,6 +8472,19 @@
     "Twinblade Geist // Twinblade Invocation",
     "Lantern Bearer // Lanterns' Lift",
     "Chaplain of Alms // Chapel Shieldgeist"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Fleeting Flight",
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Shielded Passage",
+    "Kitsune Healer",
+    "Alabaster Potion"
    ]
   },
   {
@@ -8544,19 +8550,6 @@
     "Hurricane",
     "Squall Line",
     "Breath of Darigaaz"
-   ]
-  },
-  {
-   "what": "prevent all, or only combat",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Fleeting Flight",
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Shielded Passage",
-    "Kitsune Healer",
-    "Alabaster Potion"
    ]
   },
   {
@@ -9490,19 +9483,6 @@
    ]
   },
   {
-   "what": "keyword ExertAbility",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Combat Celebrant",
-    "Themberchaud",
-    "Sandstorm Crasher",
-    "Clockwork Droid",
-    "Ahn-Crop Champion",
-    "Oketra's Avenger"
-   ]
-  },
-  {
    "what": "ManaValueEqualToCountersSourceCountPredicate",
    "score": 10,
    "cards": 7,
@@ -9911,19 +9891,6 @@
    ]
   },
   {
-   "what": "GainLifeEffect amount",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Children of Korlis",
-    "Tainted Sigil",
-    "From Under the Floorboards",
-    "Dihada's Ploy",
-    "Sanguine Sacrament",
-    "Predator's Rapport"
-   ]
-  },
-  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 9,
    "cards": 9,
@@ -10261,18 +10228,6 @@
    ]
   },
   {
-   "what": "AttacksIfAbleAllEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Kardur, Doomscourge",
-    "Maximum Carnage",
-    "Avatar of Slaughter",
-    "Goblin Diplomats",
-    "Hellraiser Goblin"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOpponentTriggeredAbility",
    "score": 8,
    "cards": 5,
@@ -10588,6 +10543,19 @@
     "Arcade Cabinet",
     "Visions of Dominance",
     "Growth Curve"
+   ]
+  },
+  {
+   "what": "GainLifeEffect amount",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Children of Korlis",
+    "Tainted Sigil",
+    "From Under the Floorboards",
+    "Dihada's Ploy",
+    "Predator's Rapport",
+    "Simulacrum"
    ]
   },
   {
@@ -11387,19 +11355,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Winter, Cursed Rider",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin"
-   ]
-  },
-  {
    "what": "LookTargetHandChooseDiscardEffect",
    "score": 7,
    "cards": 7,
@@ -11698,6 +11653,45 @@
     "Crew Captain",
     "Keldon Strike Team",
     "Fungus Elemental"
+   ]
+  },
+  {
+   "what": "SpellsCostModificationThatTargetSourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Charix, the Raging Isle",
+    "Syr Elenora, the Discerning",
+    "Spellwild Ouphe",
+    "Elderwood Scion",
+    "Sphinx of New Prahv",
+    "Boreal Elemental"
+   ]
+  },
+  {
+   "what": "attack with 3 or more",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Legion's Landing // Adanto, the First Fort",
+    "Phoenix Chick",
+    "Gallia of the Endless Dance",
+    "Warcry Phoenix",
+    "Inniaz, the Gale Force",
+    "Ruby Collector"
+   ]
+  },
+  {
+   "what": "HasOnlySingleTargetPermanentPredicate",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Vesuvan Duplimancy",
+    "Leyline of Resonance",
+    "Ivy, Gleeful Spellthief",
+    "Frontline Heroism",
+    "Muck Drubb",
+    "Loki, God of Lies"
    ]
   }
  ]

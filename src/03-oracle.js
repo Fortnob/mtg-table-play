@@ -726,6 +726,11 @@
       make: (m) => ({ op: 'draw', n: num(m[1]), who: 'you' }) },
     { re: /^Each player draws (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i,
       make: (m) => ({ op: 'draw', n: num(m[1]), who: 'each' }) },
+    { re: /^Each opponent draws (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i,
+      make: (m) => ({ op: 'draw', n: num(m[1]), who: 'opponents' }) },
+    // Cut a Deal: every opponent draws, so you draw one for each of them
+    { re: /^Each opponent draws a card, then you draw a card for each opponent who drew a card this way\.?$/i,
+      make: () => [{ op: 'draw', n: 1, who: 'opponents' }, { op: 'draw', who: 'you', n: { opponents: true, mult: 1 } }] },
     { re: /^Target player draws (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i,
       make: (m) => ({ op: 'draw', n: num(m[1]), who: 'target' , targets: [{ type: 'player' }] }) },
     { re: /^(?:You )?discards? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i,
@@ -2511,6 +2516,17 @@
       make: (m) => ({ op: 'cantBlockThis', targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
 
     /* ===== combat restrictions ===== */
+    /* Sundering Eruption: "Creatures without flying can't block this turn"
+       — a group, not a target */
+    { re: /^((?:All |Each )?(?:other )?(?:[a-z]+ )*?creatures(?: [a-z' ]+?)?) can'?t (block|attack|attack or block) this turn\.?$/i,
+      make: (m) => {
+        if (/^(?:target|it|that|those|they)\b/i.test(m[1])) return null;
+        // Orim's Chant: plain "creatures can't attack this turn" has a rule of its own
+        if (/^(?:all )?creatures$/i.test(m[1]) && m[2] === 'attack') return null;
+        const scope = scopeOf(m[1]);
+        if (!scope || scope.self || scope.attached) return null;
+        return { op: 'restrict', flag: m[2] === 'block' ? 'cantBlock' : m[2] === 'attack' ? 'cantAttack' : 'cantAttackOrBlock', scope };
+      } },
     { re: /^(Target creature|It|That creature) can'?t block this turn\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'cantBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) can'?t attack or block this turn\.?$/i,
@@ -2671,6 +2687,12 @@
     { re: /^Put (?:it|CARDNAME|this card) on the bottom of its owner'?s library\.?$/i, make: () => ({ op: 'selfToLibrary', bottom: true }) },
     // Intruder Alarm
     { re: /^Untap all creatures\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature' } }) },
+    // Combat Celebrant: "Untap all other creatures you control"
+    { re: /^Untap all (other [a-z ]+?)\.?$/i, make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
+    /* Kardur, Doomscourge: attacking each combat, and a player other than
+       you, until your next turn, is what goading is (CR 701.15) */
+    { re: /^Until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able\.?$/i,
+      make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // Quantum Misalignment: "...except it isn't legendary"
     { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except (?:it|the token) isn'?t legendary\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: 1, targets: [targetSpec(m[1])], grant: [], nonLegendary: true }) },
@@ -2689,6 +2711,10 @@
     // Rebuff the Wicked: "Counter target spell that targets a permanent you control."
     { re: /^Counter target spell that targets an? (permanent|creature) you control\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', targetsYour: m[1].toLowerCase() }] }) },
+    // Siren Stormtamer: "Counter target spell or ability that targets you or a creature you control."
+    { re: /^Counter target spell or ability that targets (you or )?an? (permanent|creature) you control\.?$/i,
+      make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true,
+        targetsYour: m[2].toLowerCase(), orYou: !!m[1] }] }) },
     /* Bloodforged Battle-Axe: "create a token that's a copy of this Equipment" */
     { re: /^Create a token that'?s a copy of (?:this (?:Equipment|artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, self: true, grant: [] }) },
@@ -3095,7 +3121,8 @@
     if (/^(?:target|it|they|that|this|CARDNAME|enchanted|equipped)\b/i.test(p)) return null;
     if (/^each /i.test(p)) {
       const sc0 = scopeOf(p.replace(/^each (other )?/i, (x, o) => (o ? 'other ' : '')).replace(/^(other )?([a-z]+)/i, '$1$2s'));
-      return sc0;
+      // "each green creature that entered this turn": the noun is not the first word
+      return sc0 || scopeOf(p);
     }
     return scopeOf(p);
   }
@@ -3445,6 +3472,17 @@
       const k = amountOf(wx[2]);
       const inner = k && parseEffectSentence(wx[1] + '.', 0);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) { inner.text = s; return inner; }
+    }
+    /* Pest Infestation, Heliod's Intervention: "twice X" — read with X, then doubled */
+    if (!depth && /\btwice X\b/.test(s) && !/\bwhere X\b/.test(s)) {
+      const inner = parseEffectSentence(s.replace(/\btwice X\b/g, 'X'), 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: 2 })) { inner.text = s; return inner; }
+    }
+    // Duelist's Heritage: "have target attacking creature gain double strike"
+    const hv = !depth && s.match(/^Have (target [a-z ]+?) gain (.+)$/i);
+    if (hv) {
+      const inner = parseEffectSentence(U.titleCase(hv[1].charAt(0)) + hv[1].slice(1) + ' gains ' + hv[2], 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return inner; }
     }
     /* "…and you may return up to one target creature card": the half of a
        compound sentence that is a choice of its own. */
@@ -3941,6 +3979,8 @@
     /,\s+and\s+/i,
     /\s+and\s+then\s+/i,
     /\s+and\s+(?=(?:you|each|target|that|all|they|it)\b)/i,
+    // Combat Celebrant: "…and after this phase, there is an additional combat phase"
+    /\s+and\s+(?=after this phase\b)/i,
     /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add)s?\b)/i,
   ];
   const SUBJECTS = /^(Target player|Target opponent|Target creature'?s? controller|Each opponent|Each player|That player|You)\b/i;
@@ -6416,7 +6456,11 @@
     const sc = { who: 'all' };
     /* "Each creature you control with a counter on it" says what "creatures
        you control with counters on them" says */
-    let rest = raw.replace(/^all /i, '').replace(/^each (other )?(creature|artifact|land|permanent|enchantment)\b/i, (x, o, n) => (o || '') + n + 's');
+    let rest = raw.replace(/^all /i, '').replace(/^each (other )?((?:(?:white|blue|black|red|green|nonland|noncreature|nonartifact|nontoken|tapped|untapped) )*)(creature|artifact|land|permanent|enchantment)\b/i, (x, o, a, n) => (o || '') + (a || '') + n + 's');
+    // Oran-Rief: "that entered this turn"; Desynchronization: "that's not historic"
+    let mm0;
+    if ((mm0 = rest.match(/ that entered (?:the battlefield )?this turn$/i))) { sc.enteredThisTurn = true; rest = rest.slice(0, mm0.index); }
+    if ((mm0 = rest.match(/ that(?:'s| is| are)(?: not|n'?t) historic$/i))) { sc.notHistoric = true; rest = rest.slice(0, mm0.index); }
     /* "Creatures you control of the chosen type": whatever this permanent
        was told as it entered */
     const chosen = rest.match(/ of the chosen (type|colou?r)\b/i);
