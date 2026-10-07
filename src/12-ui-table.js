@@ -2091,8 +2091,33 @@
         const x = c.kind === 'object' ? this.objIn(c.id) : null;
         return x && x.controller === o.controller;
       })) return false;
+      /* Shroud, an opponent's hexproof, protection from what is aiming:
+         not lit, since the engine would refuse it (CR 702.11, 702.16, 702.18) */
+      if (o.zone === 'battlefield' && !this._canAimAt(o)) return false;
       const a = this.analysis(o);
       return MTG.oracle.matchesSpec(this._notedSpec(spec), o, a, this.meId, VIEW_SPEC_CTX);
+    }
+
+    /** Whether what is choosing targets may point at this permanent at all. */
+    _canAimAt(o) {
+      const kw = (o.keywords || []).map(k => String(k).toLowerCase());
+      if (kw.includes('shroud')) return false;
+      if (o.controller !== this.meId && kw.includes('hexproof')) return false;
+      const t = this.targeting;
+      const src = t && t.source ? this.objIn(t.source) : null;
+      const cols = (src && src.card && (src.card.colors || [])) || [];
+      const NAME = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+      for (const k of kw) {
+        const m = /^(protection|hexproof) from (.+)$/.exec(k);
+        if (!m || (m[1] === 'hexproof' && o.controller === this.meId)) continue;
+        const what = m[2];
+        if (what === 'everything') return false;
+        if (NAME[what] && cols.includes(NAME[what])) return false;
+        if ((what === 'all colors' || what === 'each color') && cols.length) return false;
+        if (what === 'multicolored' && cols.length > 1) return false;
+        if (what === 'monocolored' && cols.length === 1) return false;
+      }
+      return true;
     }
 
     /* Regicide's colour, Custodi Peacekeeper's power cap: a target spec
