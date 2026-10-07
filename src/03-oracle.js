@@ -6248,7 +6248,7 @@
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
     { re: /^Whenever you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
-    { re: /^Whenever you attack with one or more ([A-Z][a-z]+?)s?,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: m[1] }) },
+    { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
     { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },

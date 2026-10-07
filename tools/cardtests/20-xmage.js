@@ -8306,4 +8306,12 @@ module.exports = (test) => {
     T.toMain('A');
     t.eq(b.zone, 'graveyard'); t.eq(v.zone, 'battlefield');
   });
+
+  test('Plural creature types in trigger words: "one or more Elves"', (mk, t) => {
+    const T = mk();
+    const elf = T.bf('A', 'Llanowar Elves'), ally = T.bf('A', 'Kazandu Blademaster'), bear = T.bf('A', 'Grizzly Bears');
+    t.ok(T.g._cardFitsWords(elf, 'elves'));
+    t.ok(T.g._cardFitsWords(ally, 'allies'));
+    t.ok(!T.g._cardFitsWords(bear, 'elves'));
+  });
 };

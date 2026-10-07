@@ -16768,7 +16768,9 @@
           (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura); });
         if (w === 'spell' || w === 'spells') return true;
         const bare = w.replace(/s$/, '');
-        return types.includes(w) || types.includes(bare) || new RegExp('\\b' + bare + 's?\\b').test(line);
+        // "Elves", "Allies", "Heroes": the plural of a type is still that type
+        const alt = w === 'plains' ? w : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
+        return types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line);
       };
       const alts = String(phrase || '').toLowerCase().replace(/\bcards?\b/g, ' ')
         .split(/\s+and\/or\s+|\s+or\s+|\s*,\s*(?:or\s+)?/).map(s => s.trim()).filter(Boolean);
