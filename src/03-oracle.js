@@ -3575,7 +3575,7 @@
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
-    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two) ([a-zA-Z ,]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
+    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
       make: (m) => ({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield' }) },
     /* "Until end of turn, creatures you control gain trample" is the same
@@ -4533,6 +4533,14 @@
      of other spells, which the engine adds up as each spell is cast. */
   function parseCostMod(line) {
     let s = String(line).trim().replace(/\.$/, '');
+    // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
+    const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
+    if (each) {
+      const per = countOf(each[4]);
+      // "Angel spells and Human spells", "instant and sorcery spells": either one
+      const words = each[2].trim().toLowerCase().replace(/ spells?\b/g, '').replace(/\band\b/g, 'or').replace(/\s+/g, ' ').trim();
+      return per ? { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+each[3]), per, yourTurn: !!each[1] } : null;
+    }
     // Defense Grid: "…cost {3} more to cast except during its controller's turn"
     const offTurn = / except during its controller'?s turn$/i.test(s);
     s = s.replace(/ except during its controller'?s turn$/i, '');
@@ -8088,7 +8096,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword']);
 
   function parseStatic(line, ctx) {
     /* the Wards: "Enchanted creature has protection from white. This effect
@@ -8229,6 +8237,9 @@
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
+      // Chief Engineer, Dazzling Theater: "Artifact spells you cast have convoke."
+      { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
       /* Winter Orb, Static Orb, Smoke: "players can't untap more than one
          land during their untap steps" */
       { re: /^(As long as (?:this artifact|CARDNAME) is untapped, )?(players|you) can'?t untap more than (one|two|three) (lands?|creatures?|artifacts?|permanents?) during (?:their|your) untap steps?\.?$/i,
@@ -8489,6 +8500,9 @@
       /* Seedborn Muse's smaller cousins */
       { re: /^Untap all (artifacts|creatures|permanents) you control during each other player'?s untap step\.?$/i,
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase().replace(/s$/, '') }), auto: true },
+      // Prop Room: "Untap each creature you control during each other player's untap step."
+      { re: /^Untap each (artifact|creature|permanent) you control during each other player'?s untap step\.?$/i,
+        make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase() }), auto: true },
       { re: /^Untap (?:CARDNAME|this (?:artifact|creature|permanent|land)) during each other player'?s untap step\.?$/i,
         eff: { op: 'untapOnEveryUntapStep', selfOnly: true }, auto: true },
       /* Laboratory Maniac, Jace, Wielder of Mysteries */

@@ -2524,7 +2524,9 @@
             if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
             // Defense Grid: only on a turn that isn't the caster's
             if (e.offTurn && this.activePlayer && this.activePlayer.id === pid) continue;
-            d += Number(e.amount) || 0;
+            // Temur Battlecrier: during your turn, and so much for each of something
+            if (e.yourTurn && !(this.activePlayer && this.activePlayer.id === pid)) continue;
+            d += (Number(e.amount) || 0) * (e.per ? this._countValue(e.per, src.controller, src) : 1);
           }
         }
       }
@@ -2576,6 +2578,8 @@
         return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
       }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      // Animar: "for each +1/+1 counter on CARDNAME"
+      if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
       if (v.per) return this.countPermanents(pid, v) * mult;
@@ -2640,7 +2644,7 @@
       const a = o.analysis();
       if (!a) return 0;
       const pid = o.controller || o.owner;
-      const cr = a.costReduction || {};
+      const cr = this._costRed(o, pid);
       let cut = 0;
       const count = (fn) => this.battlefield.filter(x => x.controller === pid && fn(x)).length;
 
@@ -2673,10 +2677,24 @@
        castCost has already counted the discount; what is left here is
        paying it. Affinity and the standing discounts cost nothing. */
 
+    /** The card's own convoke, improvise and delve, and what a permanent grants it (Chief Engineer: "Artifact spells you cast have convoke"). */
+    _costRed(o, pid) {
+      const a = o.analysis();
+      const cr = (a && a.costReduction) || {};
+      let out = cr;
+      for (const src of this.battlefield) {
+        if (src.controller !== pid || src.phasedOut) continue;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        if (!g || (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter))) continue;
+        if (out === cr) out = Object.assign({}, cr);
+        out[g.keyword] = true;
+      }
+      return out;
+    }
     /** How much of the discount convoke, improvise and delve are paying, and which of them the card has. */
     _reductionRoom(pid, o) {
       const a = o.analysis();
-      const cr = (a && a.costReduction) || {};
+      const cr = this._costRed(o, pid);
       if (!cr.convoke && !cr.improvise && !cr.delve) return null;
       const generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x)).reduce((acc, x) => acc + parseInt(x, 10), 0);
       const room = Math.max(0, generic + this._costDelta(o, pid));

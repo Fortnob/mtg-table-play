@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14491,
-  "gainedCards": 1516,
-  "linesNeeded": 16067,
+  "needed": 14480,
+  "gainedCards": 1517,
+  "linesNeeded": 16050,
   "linesGained": 1894,
   "gained": {
-   "all": 1516,
+   "all": 1517,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5296,
-   "lines": 4594,
+   "score": 5284,
+   "lines": 4588,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -223,25 +223,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 67,
-   "lines": 43,
-   "cards": [
-    "Inspiring Statuary",
-    "Rain of Riches",
-    "Hoarding Broodlord",
-    "Dazzling Theater // Prop Room",
-    "Pearl-Ear, Imperial Advisor",
-    "Party Thrasher",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Imoti, Celebrant of Bounty",
-    "Zhulodok, Void Gorger",
-    "Tezzeret, Master of the Bridge",
-    "Mycosynth Golem"
-   ]
-  },
-  {
    "what": "Target.setTargetTag",
    "score": 61,
    "lines": 58,
@@ -296,6 +277,25 @@
     "Massacre",
     "Asmoranomardicadaistinaculdacar",
     "Hand of Emrakul"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 46,
+   "lines": 34,
+   "cards": [
+    "Rain of Riches",
+    "Hoarding Broodlord",
+    "Pearl-Ear, Imperial Advisor",
+    "Party Thrasher",
+    "Ral, Crackling Wit",
+    "Thrumming Stone",
+    "Imoti, Celebrant of Bounty",
+    "Zhulodok, Void Gorger",
+    "Tezzeret, Master of the Bridge",
+    "Mycosynth Golem",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor"
    ]
   },
   {
@@ -1412,20 +1412,6 @@
     "Afterburner Expert",
     "Rangers' Aetherhive",
     "Marvel Boy, Noh-Varr"
-   ]
-  },
-  {
-   "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "Dazzling Theater // Prop Room",
-    "Murkfiend Liege",
-    "Quest for Renewal",
-    "Teferi, Who Slows the Sunset",
-    "Ivorytusk Fortress",
-    "Ohabi Caleria",
-    "Prophet of Kruphix"
    ]
   },
   {
@@ -2639,19 +2625,6 @@
     "Eye of Ojer Taq // Apex Observatory",
     "Vesuvan Doppelganger",
     "Alhammarret, High Arbiter"
-   ]
-  },
-  {
-   "what": "ReturnCardChosenFromGraveyardEffect",
-   "score": 12,
-   "lines": 6,
-   "cards": [
-    "Overlord of the Balemurk",
-    "Teval, the Balanced Scale",
-    "Blossoming Tortoise",
-    "Port of Karfell",
-    "Cruel Ultimatum",
-    "Say Its Name"
    ]
   },
   {
@@ -6034,6 +6007,19 @@
    ]
   },
   {
+   "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Murkfiend Liege",
+    "Quest for Renewal",
+    "Teferi, Who Slows the Sunset",
+    "Ivorytusk Fortress",
+    "Ohabi Caleria",
+    "Prophet of Kruphix"
+   ]
+  },
+  {
    "what": "TapSourceEffect",
    "score": 6,
    "lines": 6,
@@ -7196,6 +7182,18 @@
    ]
   },
   {
+   "what": "ReturnCardChosenFromGraveyardEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Teval, the Balanced Scale",
+    "Blossoming Tortoise",
+    "Port of Karfell",
+    "Cruel Ultimatum",
+    "Say Its Name"
+   ]
+  },
+  {
    "what": "AbilitiesCostReductionControllerEffect",
    "score": 5,
    "lines": 5,
@@ -7557,8 +7555,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4233,
-   "cards": 3738,
+   "score": 4222,
+   "cards": 3733,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7699,19 +7697,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 41,
-   "cards": 29,
-   "names": [
-    "Inspiring Statuary",
-    "Rain of Riches",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Imoti, Celebrant of Bounty",
-    "Zhulodok, Void Gorger"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 40,
    "cards": 28,
@@ -7735,6 +7720,19 @@
     "Sanctum of Tranquil Light",
     "Balamb Garden, SeeD Academy // Balamb Garden, Airborne",
     "Waterbending Scroll"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 33,
+   "cards": 24,
+   "names": [
+    "Rain of Riches",
+    "Ral, Crackling Wit",
+    "Thrumming Stone",
+    "Imoti, Celebrant of Bounty",
+    "Zhulodok, Void Gorger",
+    "Mycosynth Golem"
    ]
   },
   {
@@ -7855,6 +7853,19 @@
    ]
   },
   {
+   "what": "InfoEffect",
+   "score": 23,
+   "cards": 23,
+   "names": [
+    "Invert Polarity",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Swallowed by Leviathan"
+   ]
+  },
+  {
    "what": "ModifiedPredicate.instance",
    "score": 22,
    "cards": 19,
@@ -7865,19 +7876,6 @@
     "Akki Battle Squad",
     "Thundering Raiju",
     "Araña, Heart of the Spider"
-   ]
-  },
-  {
-   "what": "InfoEffect",
-   "score": 22,
-   "cards": 22,
-   "names": [
-    "Invert Polarity",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Aether Spike",
-    "Swallowed by Leviathan",
-    "The Tabernacle at Pendrell Vale"
    ]
   },
   {
@@ -8721,18 +8719,6 @@
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Mirror Room // Fractured Realm"
-   ]
-  },
-  {
-   "what": "ReturnCardChosenFromGraveyardEffect",
-   "score": 11,
-   "cards": 5,
-   "names": [
-    "Overlord of the Balemurk",
-    "Teval, the Balanced Scale",
-    "Blossoming Tortoise",
-    "Port of Karfell",
-    "Cruel Ultimatum"
    ]
   },
   {
@@ -11381,6 +11367,19 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOrTurnedFaceUpTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Culvert Ambusher",
+    "Rakish Scoundrel",
+    "Ponyback Brigade",
+    "Gadget Technician",
+    "Offender at Large",
+    "Efreet Weaponmaster"
    ]
   }
  ]

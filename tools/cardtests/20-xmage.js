@@ -6462,4 +6462,35 @@ module.exports = (test) => {
     t.eq(bear.zone, 'graveyard');
     t.no(food.zone === 'battlefield', 'the Food went');
   });
+
+  test('Chief Engineer: artifact spells you cast have convoke', (mk, t) => {
+    t.auto('Chief Engineer');
+    const T = mk();
+    T.bf('A', 'Chief Engineer');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears');
+    const ms = T.hand('A', 'Mind Stone');
+    T.cast('A', ms, { convokeIds: [b1.id, b2.id] });
+    t.eq(ms.zone, 'battlefield', 'paid by tapping two creatures');
+    t.ok(b1.tapped && b2.tapped);
+  });
+
+  test('Temur Battlecrier: {1} less for each creature with power 4 or greater, on your turn', (mk, t) => {
+    t.auto('Temur Battlecrier');
+    const T = mk();
+    T.bf('A', 'Temur Battlecrier');
+    T.bf('A', 'Hill Giant'); T.bf('A', 'Craw Wurm');
+    const ogre = T.hand('A', 'Gray Ogre');
+    t.eq(T.g.canCast('A', ogre.id).cost, '{R}', 'the Battlecrier, the Giant? no: Hill Giant is 3/3; Battlecrier and Wurm make two, {2}{R} less two');
+  });
+
+  test('Overlord of the Balemurk: mill four, then a creature card back', (mk, t) => {
+    t.auto('Overlord of the Balemurk');
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Grizzly Bears');
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', 'Overlord of the Balemurk'));
+    T.resolve();
+    t.eq(T.zone('A', 'graveyard').length, 3, 'four milled, one back');
+    t.ok(T.zone('A', 'hand').some(c => c.name === 'Grizzly Bears'));
+  });
 };
