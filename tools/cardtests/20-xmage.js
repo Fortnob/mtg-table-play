@@ -3526,4 +3526,46 @@ module.exports = (test) => {
     t.no(T.g.log.some(l => String(l.text).includes('CARDNAME')), 'the log');
     t.ok(T.g.log.some(l => /Whenever Haliya, Guided by Light or another/.test(l.text)), 'the trigger names Haliya');
   });
+
+  test('Funeral Room: cast one door, unlock the other, and it triggers', (mk, t) => {
+    t.auto('Funeral Room // Awakening Hall');
+    const T = mk();
+    const r = T.hand('A', 'Funeral Room // Awakening Hall');
+    const dead = T.grave('A', 'Craw Wurm');
+    T.mana('A', '2B');
+    T.cast('A', r, { face: 0 });
+    T.resolve();
+    t.eq(r.zone, 'battlefield');
+    t.eq(r.name, 'Funeral Room');
+    const a = r.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const ui = acts.findIndex(x => x.special === 'unlock');
+    t.ok(ui >= 0, 'the unlock is offered');
+    T.mana('A', '6BB');
+    T.activate('A', r, ui);
+    t.eq(r.face, 2, 'both doors unlocked');
+    t.eq(r.name, 'Funeral Room // Awakening Hall');
+    T.resolve();
+    t.zone(dead, 'battlefield');
+    // both halves' abilities now: a creature dying drains
+    T.g.moveObject(dead, 'graveyard');
+    T.resolve();
+    t.eq(T.life('B'), 19);
+  });
+
+  test('Roaring Furnace: casting the door unlocks it, and that triggers', (mk, t) => {
+    t.auto('Roaring Furnace // Steaming Sauna');
+    const T = mk();
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.hand('A', 'Island'); T.hand('A', 'Island'); T.hand('A', 'Island'); T.hand('A', 'Island');
+    const r = T.hand('A', 'Roaring Furnace // Steaming Sauna');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: wurm.id }] }));
+    T.mana('A', '1R');
+    T.cast('A', r, { face: 0 });
+    T.resolve();
+    t.zone(wurm, 'graveyard', 'four cards in hand, four damage');
+    T.g.moveObject(r, 'graveyard');
+    t.eq(r.face, 0, 'locked again');
+  });
+
 };

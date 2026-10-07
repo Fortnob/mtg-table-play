@@ -2545,6 +2545,19 @@
       if (of === 'this') return src;
       return (td && td.stackId && trig) || src;
     }
+    /* A Room's other door unlocked (CR 709.5): both halves now, "when you
+       unlock this door" for the one just opened, and "whenever you fully
+       unlock a Room" for its controller */
+    _unlockDoor(o, door) {
+      if (!o || o.zone !== 'battlefield' || o.face === 2) return;
+      o.face = 2;
+      o._chr = null;
+      this.bumpBoard();
+      const half = (o.card.card_faces || [])[door];
+      this.logEvent('rules', `${this.player(o.controller).name} unlocks ${(half && half.name) || 'a door'}.`);
+      this._fire('unlockDoor', o.controller, { object: o, source: o, door });
+      this._fire('youFullyUnlock', o.controller, { object: o, source: o });
+    }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
       const c = o && o.card;
@@ -4284,6 +4297,11 @@
           prompt: `Unleash ${o.name}? It enters with a +1/+1 counter, and can't block while it has one.` });
       }
       this._exploitOnEnter(o);
+      /* A Room cast for one door enters with that door unlocked, and that
+         is unlocking it: "when you unlock this door" triggers (CR 709.5h) */
+      if (o.wasCast === this.turn && o.card.layout === 'split' && (o.face === 0 || o.face === 1) && (o.analysis() || {}).isRoom) {
+        this._fire('unlockDoor', o.controller, { object: o, source: o, door: o.face });
+      }
       /* "As this enters, choose a creature type / a color": decided on the
          way in. The most likely answer is filled in at once, so the
          permanent is never without one, and a person is asked to confirm. */
@@ -4563,6 +4581,13 @@
         o.activatedLoyaltyThisTurn = true;
         const delta = ab.cost.loyalty;
         this.addCounters(o, 'loyalty', delta);
+      }
+
+      // unlocking a Room's door is a special action: no stack (CR 116.2m)
+      if (ab.special === 'unlock') {
+        this._unlockDoor(o, ab.door);
+        this.touch();
+        return true;
       }
 
       if (isMana) {
@@ -7298,6 +7323,8 @@
         if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') o.face = 0;
         // a split card's half is only what it is on the stack
         if (toZone !== 'stack' && from === 'stack' && o.card.layout === 'split') o.face = 0;
+        // a Room's doors lock again as it leaves (CR 709.5d)
+        if (from === 'battlefield' && o.card.layout === 'split') o.face = 0;
         o._diedCounters = Object.assign({}, o.counters);
         o.tapped = false; o.damage = 0; o.counters = {};
         o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];
@@ -7669,6 +7696,8 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // a Room's door: only its own unlocking
+          if (ab.door != null && data.door !== ab.door) continue;
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
           // Exert: "if this creature hasn't been exerted this turn"

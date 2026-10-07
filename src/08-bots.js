@@ -329,6 +329,8 @@
        Ball Lightning's sacrifice, a creature that goes back to hand. */
     if (e.scope === 'self' && /^(bounce|exile|destroy|tap|sacrificeSelf|selfToLibrary)$/.test(e.op)) return -1.5;
     switch (e.op) {
+      // a Room's other door: the rest of the card, bought late
+      case 'unlockDoor': return 3;
       case 'draw':
         if (who === 'opponents' || who === 'target') return -n * 0.6;
         if (who === 'each' || who === 'all') return n * 0.5;

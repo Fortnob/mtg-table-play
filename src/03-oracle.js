@@ -3787,7 +3787,7 @@
     /* "You gain X life and draw X cards, where X is …": both halves read
        with X in them, and the rider fills in both. */
     const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/);
-    if (wx && !/where X/.test(wx[1])) {
+    if (wx && !/bwhere Xb/.test(wx[1])) {
       const k = amountOf(wx[2]);
       const both = k && parseCompound(wx[1] + '.');
       if (both && both.every(x => x.op !== 'manual' && !hasManualStep(x))) {
@@ -4403,6 +4403,9 @@
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
+    // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
+    { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
+    { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
     // No Mercy, Mikaeus: "Whenever a creature deals damage to you"
     { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() }) },
@@ -4669,7 +4672,28 @@
     return card;
   }
 
+  /** A Room (CR 709.5): a split enchantment whose halves are doors. */
+  function isRoom(card) {
+    return !!(card && card.layout === 'split' && card.card_faces && card.card_faces.length === 2 &&
+      card.card_faces.every(f => /\bRoom\b/.test(f.type_line || card.type_line || '')));
+  }
+  /* A Room with both doors unlocked is both halves at once: their words
+     together, read as one card, each door's "when you unlock this door"
+     kept as its own. */
+  function roomBoth(card) {
+    const [a, b] = card.card_faces;
+    const door = (f, i) => normalizePunct(f.oracle_text || '').replace(/When you unlock this door/g, 'When you unlock door ' + i).replace(/\b[Tt]his Room\b/g, 'CARDNAME');
+    return { id: card.id + ':both', name: card.name, layout: 'normal', type_line: a.type_line || card.type_line,
+      mana_cost: (a.mana_cost || '') + (b.mana_cost || ''), cmc: card.cmc, colors: card.colors, color_identity: card.color_identity,
+      oracle_text: door(a, 0) + '\n' + door(b, 1), keywords: card.keywords || [], legalities: card.legalities, roomOf: card.id };
+  }
+
   function _analyze(card, faceIndex) {
+    if (faceIndex === 2 && isRoom(card)) {
+      const both = _analyze(roomBoth(card), 0);
+      both.isRoom = true; both.roomFull = true;
+      return both;
+    }
     const face = faceOf(card, faceIndex);
     const name = face.name || card.name;
     const typeLine = face.type_line || card.type_line || '';
@@ -4679,6 +4703,8 @@
     // rule patterns below (written with plain ASCII) actually match real cards.
     let text = normalizePunct(rawText)
       .replace(new RegExp(escapeRe(normalizePunct(U.frontName(name))), 'g'), 'CARDNAME');
+    // a Room's door: "this door" is the one this half is
+    if (isRoom(card)) text = text.replace(/When you unlock this door/g, 'When you unlock door ' + faceIndex).replace(/\b[Tt]his Room\b/g, 'CARDNAME');
     /* A legend calls itself by its short name: "Toski attacks each combat
        if able", "When Loran enters". That is the card talking about itself
        just as much as its full name is. */
@@ -5764,6 +5790,16 @@
     // only now, with every footnote folded into its line, is the count final
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
+    /* A Room's locked door: its mana cost, paid any time you could cast a
+       sorcery, unlocks it (CR 709.5e) — a special action, offered with the
+       Room's abilities */
+    if (isRoom(card) && (faceIndex === 0 || faceIndex === 1)) {
+      const other = card.card_faces[1 - faceIndex];
+      out.isRoom = true;
+      out.abilities.push({ kind: 'activated', special: 'unlock', door: 1 - faceIndex, sorcerySpeed: true,
+        cost: parseCost(other.mana_cost || '{0}'), effects: [{ op: 'unlockDoor', door: 1 - faceIndex }],
+        text: `Unlock ${other.name}: ${other.mana_cost || '{0}'}`, auto: true });
+    }
     // a prepare card is its creature and its spell: the copy cast later must run too
     if (out.fullyAutomated && card.layout === 'prepare' && !faceIndex && card.card_faces && card.card_faces[1]) {
       const sp = analyze(card, 1);
@@ -6747,7 +6783,7 @@
          blockers are chosen */
       { re: /^(?:CARDNAME|This creature) can'?t (attack|block|attack or block) unless (.+?)\.?$/i,
         make: (m) => {
-          if (/^defending player/i.test(m[2])) return null;      // the old landwalk-like rule below reads those
+          if (/^defending playerb/i.test(m[2])) return null;      // the old landwalk-like rule below reads those
           const cond = condOf(m[2]);
           return cond ? { op: 'restrictUnless', attack: /attack/i.test(m[1]), block: /block/i.test(m[1]), cond } : null;
         },

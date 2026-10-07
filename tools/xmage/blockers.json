@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16205,
-  "gainedCards": 1688,
-  "linesNeeded": 18373,
+  "needed": 16180,
+  "gainedCards": 1689,
+  "linesNeeded": 18336,
   "linesGained": 2163,
   "gained": {
-   "all": 1688,
+   "all": 1689,
    "top2000": 52,
    "stdTop": 11
   },
@@ -334,25 +334,6 @@
     "Sam, Loyal Attendant",
     "Shabraz, the Skyshark",
     "Evie Frye"
-   ]
-  },
-  {
-   "what": "UnlockThisDoorTriggeredAbility",
-   "score": 43,
-   "lines": 28,
-   "cards": [
-    "Walk-In Closet // Forgotten Cellar",
-    "Funeral Room // Awakening Hall",
-    "Mirror Room // Fractured Realm",
-    "Unholy Annex // Ritual Chamber",
-    "Spiked Corridor // Torture Pit",
-    "Restricted Office // Lecture Hall",
-    "Defiled Crypt // Cadaver Lab",
-    "Bottomless Pool // Locker Room",
-    "Polluted Cistern // Dim Oubliette",
-    "Greenhouse // Rickety Gazebo",
-    "Roaring Furnace // Steaming Sauna",
-    "Cramped Vents // Access Maze"
    ]
   },
   {
@@ -1053,25 +1034,6 @@
     "Tato Farmer",
     "Zuko, Firebending Master",
     "Minthara, Merciless Soul"
-   ]
-  },
-  {
-   "what": "EerieAbility",
-   "score": 23,
-   "lines": 17,
-   "cards": [
-    "Entity Tracker",
-    "Fear of Sleep Paralysis",
-    "Ghostly Dancers",
-    "Victor, Valgavoth's Seneschal",
-    "Balemurk Leech",
-    "Gremlin Tamer",
-    "Optimistic Scavenger",
-    "Scrabbling Skullcrab",
-    "Fear of Infinity",
-    "Skullsnap Nuisance",
-    "Unwilling Vessel",
-    "Cult Healer"
    ]
   },
   {
@@ -2315,6 +2277,19 @@
     "Tyrannize",
     "Rhystic Syphon",
     "Flay"
+   ]
+  },
+  {
+   "what": "UnlockThisDoorTriggeredAbility",
+   "score": 15,
+   "lines": 6,
+   "cards": [
+    "Walk-In Closet // Forgotten Cellar",
+    "Mirror Room // Fractured Realm",
+    "Bottomless Pool // Locker Room",
+    "Cramped Vents // Access Maze",
+    "Central Elevator // Promising Stairs",
+    "Experimental Lab // Staff Room"
    ]
   },
   {
@@ -8029,13 +8004,26 @@
     "Dormant Gomazoa",
     "Leovold, Emissary of Trest"
    ]
+  },
+  {
+   "what": "HasOnlySingleTargetPermanentPredicate",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Vesuvan Duplimancy",
+    "Leyline of Resonance",
+    "Ivy, Gleeful Spellthief",
+    "Frontline Heroism",
+    "Muck Drubb",
+    "Loki, God of Lies"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4434,
-   "cards": 3885,
+   "score": 4437,
+   "cards": 3888,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8047,8 +8035,8 @@
   },
   {
    "what": "custom ability",
-   "score": 751,
-   "cards": 610,
+   "score": 752,
+   "cards": 611,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8238,19 +8226,6 @@
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy",
     "Ragost, Deft Gastronaut"
-   ]
-  },
-  {
-   "what": "UnlockThisDoorTriggeredAbility",
-   "score": 33,
-   "cards": 18,
-   "names": [
-    "Walk-In Closet // Forgotten Cellar",
-    "Funeral Room // Awakening Hall",
-    "Mirror Room // Fractured Realm",
-    "Unholy Annex // Ritual Chamber",
-    "Restricted Office // Lecture Hall",
-    "Defiled Crypt // Cadaver Lab"
    ]
   },
   {
@@ -8537,19 +8512,6 @@
     "Nimbleclaw Adept",
     "Akul the Unrepentant",
     "Butterbur, Bree Innkeeper"
-   ]
-  },
-  {
-   "what": "EerieAbility",
-   "score": 20,
-   "cards": 14,
-   "names": [
-    "Entity Tracker",
-    "Victor, Valgavoth's Seneschal",
-    "Balemurk Leech",
-    "Gremlin Tamer",
-    "Optimistic Scavenger",
-    "Scrabbling Skullcrab"
    ]
   },
   {
@@ -9252,6 +9214,16 @@
     "Knowledge Is Power",
     "Duelist of the Mind",
     "Thundering Djinn"
+   ]
+  },
+  {
+   "what": "UnlockThisDoorTriggeredAbility",
+   "score": 12,
+   "cards": 3,
+   "names": [
+    "Walk-In Closet // Forgotten Cellar",
+    "Mirror Room // Fractured Realm",
+    "Bottomless Pool // Locker Room"
    ]
   },
   {
@@ -11879,6 +11851,19 @@
     "Brontotherium",
     "Crested Craghorn",
     "Swooping Talon"
+   ]
+  },
+  {
+   "what": "BecomesTargetAttachedTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Crystallization",
+    "Fractured Loyalty",
+    "Ice Cage",
+    "Illusionary Armor",
+    "Spinal Graft",
+    "Sleeping Potion"
    ]
   }
  ]
