@@ -480,6 +480,8 @@
       }
       if (s.kind === 'options') {
         const list = el('div', { class: 'mode-list' });
+        /* A long list (a card name, say) gets a search box: typing hides what does not match. */
+        const searchable = (s.options || []).length > 12;
         (s.options || []).forEach((o, k) => {
           const n = sel.picks.filter(x => x === k).length;
           const can = n > 0 || C.canAdd(s, sel.picks, k) || (s.max === 1 && !s.repeat);
@@ -497,7 +499,14 @@
               onclick: (e) => { e.stopPropagation(); if (opts.onLess) opts.onLess(k); } }) : null,
           ].filter(Boolean)));
         });
-        return list;
+        if (!searchable) return list;
+        const box = el('input', { type: 'search', class: 'mode-search', placeholder: 'Search…', 'aria-label': 'Search the choices' });
+        box.addEventListener('input', () => {
+          const q = box.value.trim().toLowerCase();
+          for (const b of list.children) b.hidden = !!q && !b.textContent.toLowerCase().includes(q);
+        });
+        setTimeout(() => { try { box.focus(); } catch (e) {} }, 0);
+        return el('div', { class: 'mode-searchable' }, [box, list]);
       }
       /* Cards: a face-up row. A library search offers twenty Forests;
          copies of the same card share one tile with a count, and taking
@@ -916,31 +925,8 @@
       const parts = via === 'fuse' ? [MTG.oracle.analyze(o.card, 0), MTG.oracle.analyze(o.card, 1)].filter(Boolean) : [a];
       for (const part of parts) {
         if (part.isPermanent) continue;
-        /* the targets in the order the engine reads them (Game._cardSpellEffects
-           and _specsOf): the spell abilities' effects when all of them run
-           themselves, else the words parsed, with sequences walked into */
-        const lines = [];
-        let allAuto = true;
-        for (const ab of (part.abilities || [])) {
-          if (ab.kind !== 'spell') continue;
-          lines.push(...(ab.effects || []));
-          if (!ab.auto) allAuto = false;
-        }
-        let eff = lines;
-        // a spell that is nothing but keywords does them as it is cast, and aims at nothing
-        if (!lines.length && part.autoCoverage >= 0.999) eff = [];
-        else if (!(lines.length && allAuto)) {
-          const parsed = MTG.oracle.parseEffects(part.oracleTextParsed || part.oracleText || '');
-          if (parsed.auto || !lines.length) eff = parsed.effects;
-        }
-        const walk = (list) => {
-          for (const e of (list || [])) {
-            if (!e) continue;
-            if (e.op === 'sequence') { walk(e.list); continue; }
-            for (const s of (e.targets || [])) specs.push(s);
-          }
-        };
-        walk(eff);
+        // the targets in the order the engine reads them: one list, shared with the engine
+        specs.push(...MTG.rules.spellTargetSpecs(part));
       }
       if (a.isAura && a.auraSpec) specs.push(a.auraSpec);
       if (via === 'bestow') specs.push({ type: 'creature', zone: 'battlefield' });

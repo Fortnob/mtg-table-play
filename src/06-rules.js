@@ -15197,6 +15197,16 @@
           for (const k of Object.keys(out)) out[k].sort();
           return out;
         })(),
+        // what it chose as it entered: a creature type, a colour, a card name, a player, a number
+        chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
+          const c = {};
+          if (o.chosenType) c.type = o.chosenType;
+          if (o.chosenColor) c.color = o.chosenColor;
+          if (o.chosenName) c.name = o.chosenName;
+          if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
+          if (o.chosenNumber != null) c.number = o.chosenNumber;
+          return Object.keys(c).length ? c : null;
+        })(),
         // split cards with fuse that can be cast with both halves now (the cast intent's `fuse`)
         fusable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).filter(x => x.fuse).map(x => x.objId) : [],

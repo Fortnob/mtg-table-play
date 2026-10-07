@@ -503,7 +503,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null)].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -540,6 +540,15 @@
         const shut = o.face === 3 ? faces : [faces[1 - o.face]];
         n.appendChild(el('div', { class: 'cv-mark cv-locked', text: '\u{1F512} ' + (shut.length > 1 ? 'Both doors locked' : shut[0].name),
           title: shut.map(f => `${f.name} is locked. Unlock it for ${f.mana_cost || 'its cost'} as a sorcery.`).join('\n') }));
+      }
+      /* What it chose as it entered: the name Pithing Needle stops, the
+         player Stuffy Doll hurts, the type a Lord pumps. */
+      if (o.chosen) {
+        const c = o.chosen;
+        const COLOUR = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+        const bits = [c.name && `Named: ${c.name}`, c.player && `Player: ${c.player}`, c.type && c.type,
+          c.color && (COLOUR[c.color] || c.color), c.number != null && `Number: ${c.number}`].filter(Boolean);
+        if (bits.length) n.appendChild(el('div', { class: 'cv-mark cv-chosen', text: bits.join(' \u00b7 '), title: 'Chosen as it entered: ' + bits.join(', ') }));
       }
       if (o.pairedWith) {
         const mate = this.objIn(o.pairedWith);

@@ -83,6 +83,8 @@ declare namespace MTG {
     prepared?: boolean;
     /** a hidden agenda of the viewer's that has not been turned face up */
     agenda?: boolean;
+    /** what it chose as it entered */
+    chosen?: { type?: string; color?: string; name?: string; player?: string; number?: number } | null;
     /** soulbond: the id of the creature it is paired with */
     pairedWith?: Id | null;
     note?: string | null;
