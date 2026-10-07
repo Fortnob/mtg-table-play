@@ -2889,6 +2889,42 @@ module.exports = (test) => {
     t.zone(b, 'battlefield');
   });
 
+  test('Spectacle: Light Up the Stage for {R} once an opponent lost life', (mk, t) => {
+    t.auto('Light Up the Stage');
+    const T = mk();
+    const l = T.hand('A', 'Light Up the Stage');
+    t.no(T.g.altUsesFor('A', l.id).some(u => u.via === 'spectacle'), 'not yet');
+    T.g.changeLife(T.g.player('B'), -1);
+    t.ok(T.g.altUsesFor('A', l.id).some(u => u.via === 'spectacle'), 'now');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.mana('A', 'R');
+    t.ok(T.g.castSpell('A', l.id, { auto: true, via: 'spectacle' }), T.g.lastError);
+    T.resolve();
+    t.eq(T.zone('A', 'exile').length, 2, 'two cards exiled to play');
+  });
+
+  test('Iroas: attackers take no damage at all', (mk, t) => {
+    t.auto('Iroas, God of Victory');
+    const T = mk();
+    T.bf('A', 'Iroas, God of Victory');
+    const b = T.bf('A', 'Grizzly Bears');
+    b.attacking = 'B'; T.g.bumpBoard();
+    T.g.dealDamageToObject(b, 3, T.bf('B', 'Craw Wurm'), false);
+    t.eq(b.damage, 0);
+  });
+
+  test('Jarad: opponents lose life equal to the power sacrificed', (mk, t) => {
+    t.auto('Jarad, Golgari Lich Lord');
+    const T = mk();
+    const j = T.bf('A', 'Jarad, Golgari Lich Lord');
+    const w = T.bf('A', 'Craw Wurm');
+    T.mana('A', '1BG');
+    T.answer('sacrifice', () => ({ cardIds: [w.id] }));
+    T.activate('A', j, j.analysis().manaAbilities.length, { sacrificeIds: [w.id] });
+    T.resolve();
+    t.eq(T.life('B'), 14);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

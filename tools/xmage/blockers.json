@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16630,
+  "needed": 16618,
   "gainedCards": 1765,
-  "linesNeeded": 18892,
+  "linesNeeded": 18877,
   "linesGained": 2272,
   "gained": {
    "all": 1765,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5739,
-   "lines": 4917,
+   "score": 5735,
+   "lines": 4916,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -110,11 +110,10 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 358,
-   "lines": 337,
+   "score": 344,
+   "lines": 326,
    "cards": [
     "Excalibur, Sword of Eden",
-    "Light Up the Stage",
     "Cavern-Hoard Dragon",
     "Metalwork Colossus",
     "Reforge the Soul",
@@ -124,7 +123,8 @@
     "Not of This World",
     "Kogla and Yidaro",
     "Temporal Mastery",
-    "Chandra's Incinerator"
+    "Chandra's Incinerator",
+    "Bloodsoaked Insight // Sanguine Morass"
    ]
   },
   {
@@ -891,25 +891,6 @@
     "Aerial Formation",
     "Kiora's Dismissal",
     "Silence the Believers"
-   ]
-  },
-  {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 25,
-   "lines": 16,
-   "cards": [
-    "Iroas, God of Victory",
-    "Losheel, Clockwork Scholar",
-    "Mutational Advantage",
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever",
-    "Blinding Fog",
-    "Safe Passage",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage"
    ]
   },
   {
@@ -1778,6 +1759,25 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Patrician Geist"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Mutational Advantage",
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever",
+    "Blinding Fog",
+    "Safe Passage",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage",
+    "Divine Light",
+    "Inner Sanctum"
    ]
   },
   {
@@ -2734,24 +2734,6 @@
     "Cavernous Maw",
     "Angus Mackenzie",
     "Dwarven Sea Clan"
-   ]
-  },
-  {
-   "what": "SacrificeCostCreaturesPower.instance",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Jarad, Golgari Lich Lord",
-    "Dina, Soul Steeper",
-    "Shadowheart, Dark Justiciar",
-    "Dina, Essence Brewer",
-    "Ob Nixilis of the Black Oath",
-    "Wick, the Whorled Mind",
-    "Vish Kal, Blood Arbiter",
-    "Atogatog",
-    "Blood-Chin Fanatic",
-    "Ichor Explosion",
-    "Call for Blood"
    ]
   },
   {
@@ -5071,6 +5053,23 @@
     "Rootcoil Creeper",
     "Intrepid Stablemaster",
     "Jeweled Lotus"
+   ]
+  },
+  {
+   "what": "SacrificeCostCreaturesPower.instance",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Dina, Soul Steeper",
+    "Shadowheart, Dark Justiciar",
+    "Dina, Essence Brewer",
+    "Ob Nixilis of the Black Oath",
+    "Wick, the Whorled Mind",
+    "Vish Kal, Blood Arbiter",
+    "Atogatog",
+    "Blood-Chin Fanatic",
+    "Ichor Explosion",
+    "Call for Blood"
    ]
   },
   {
@@ -8121,7 +8120,7 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4500,
+   "score": 4497,
    "cards": 3915,
    "names": [
     "Ripples of Undeath",
@@ -8159,22 +8158,9 @@
    ]
   },
   {
-   "what": "(cast modifier line)",
-   "score": 232,
-   "cards": 220,
-   "names": [
-    "Excalibur, Sword of Eden",
-    "Light Up the Stage",
-    "Metalwork Colossus",
-    "Reforge the Soul",
-    "Hagra Mauling // Hagra Broodpit",
-    "Kogla and Yidaro"
-   ]
-  },
-  {
    "what": "(line not matched to XMage code)",
-   "score": 222,
-   "cards": 213,
+   "score": 223,
+   "cards": 214,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -8182,6 +8168,19 @@
     "Alchemist's Talent",
     "Liliana, Death's Majesty",
     "Wand of Wonder"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 221,
+   "cards": 212,
+   "names": [
+    "Excalibur, Sword of Eden",
+    "Metalwork Colossus",
+    "Reforge the Soul",
+    "Hagra Mauling // Hagra Broodpit",
+    "Kogla and Yidaro",
+    "Temporal Mastery"
    ]
   },
   {
@@ -8536,19 +8535,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 23,
-   "cards": 14,
-   "names": [
-    "Iroas, God of Victory",
-    "Losheel, Clockwork Scholar",
-    "Mutational Advantage",
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 23,
    "cards": 23,
@@ -8895,6 +8881,19 @@
     "Voldaren Thrillseeker",
     "Death-Greeter's Champion",
     "Gloomfang Mauler"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 15,
+   "cards": 12,
+   "names": [
+    "Mutational Advantage",
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever",
+    "Blinding Fog",
+    "Safe Passage"
    ]
   },
   {
@@ -9431,19 +9430,6 @@
     "Knowledge Is Power",
     "Duelist of the Mind",
     "Thundering Djinn"
-   ]
-  },
-  {
-   "what": "SacrificeCostCreaturesPower.instance",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Jarad, Golgari Lich Lord",
-    "Dina, Soul Steeper",
-    "Shadowheart, Dark Justiciar",
-    "Dina, Essence Brewer",
-    "Ob Nixilis of the Black Oath",
-    "Atogatog"
    ]
   },
   {
@@ -11297,6 +11283,19 @@
     "Sanctuary Warden",
     "Soul Diviner",
     "Xavier Sal, Infested Captain"
+   ]
+  },
+  {
+   "what": "SacrificeCostCreaturesPower.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Dina, Soul Steeper",
+    "Shadowheart, Dark Justiciar",
+    "Dina, Essence Brewer",
+    "Ob Nixilis of the Black Oath",
+    "Atogatog",
+    "Blood-Chin Fanatic"
    ]
   },
   {

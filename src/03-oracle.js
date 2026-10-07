@@ -86,6 +86,8 @@
     'Kicker', 'Multikicker', 'Buyback', 'Entwine',
     // cheaper ways in, each with a string attached
     'Evoke', 'Dash',
+    // for less, once an opponent has lost life this turn
+    'Spectacle',
     // face down for three, and up again for the printed cost
     'Morph', 'Megamorph', 'Disguise',
     // discarded, and cast from there instead
@@ -1689,6 +1691,9 @@
     // Blood Money: "For each nontoken creature destroyed this way, you create a tapped Treasure token."
     { re: /^For each nontoken creature destroyed this way, you create an? (tapped )?(Treasure|Clue|Food) token\.?$/i,
       make: (m) => Object.assign({ op: 'createNamedToken', token: m[2], n: { sweptNontoken: true, mult: 1 } }, m[1] ? { tapped: true } : {}) },
+    // Jarad: "Each opponent loses life equal to the sacrificed creature's power."
+    { re: /^Each opponent loses life equal to the sacrificed creature'?s (power|toughness|mana value)\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'opponents', n: { ofSacrificed: ({ power: 'power', toughness: 'toughness', 'mana value': 'mv' })[m[1].toLowerCase()] } }) },
     // Decree of Pain: "Draw a card for each creature destroyed this way."
     // Bane of Progress: "Put a +1/+1 counter on this creature for each permanent destroyed this way."
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (?:this creature|CARDNAME) for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
@@ -3191,6 +3196,9 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    // Hydroid Krasis: "you gain half X life and draw half X cards. Round down each time."
+    { re: /^You gain half X life and draw half X cards\. Round (down|up) each time\.?$/i,
+      make: (m) => [{ op: 'gainLife', who: 'you', n: { half: 'X', up: /up/i.test(m[1]) } }, { op: 'draw', who: 'you', n: { half: 'X', up: /up/i.test(m[1]) } }] },
     /* Run Away Together: "Choose two target creatures controlled by
        different players. Return those creatures to their owners' hands." */
     { re: /^Choose two target (creatures|permanents|nonland permanents) controlled by different players\. Return those (?:creatures|permanents) to their owners'? hands\.?$/i,
@@ -6571,6 +6579,14 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Iroas, Losheel: "Prevent all (combat) damage that would be dealt to attacking (artifact) creatures you control."
+      { re: /^Prevent all (combat )?damage that would be dealt to attacking (artifact )?creatures you control\.?$/i,
+        make: (m) => {
+          const scope = Object.assign({ who: 'you', what: 'creature', attacking: true }, m[2] ? { cardTypes: ['artifact'] } : {});
+          const list = [{ op: 'continuous', layer: 6, scope, flag: 'noDamageTaken' }];
+          if (!m[1]) list.push({ op: 'continuous', layer: 6, scope: Object.assign({}, scope), flag: 'noNoncombatTaken' });
+          return list.length === 1 ? list[0] : { op: 'sequence', list };
+        }, auto: true },
       // Dolmen Gate: "Prevent all combat damage that would be dealt to attacking creatures you control."
       { re: /^Prevent all combat damage that would be dealt to attacking creatures you control\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', attacking: true }, flag: 'noDamageTaken' }, auto: true },

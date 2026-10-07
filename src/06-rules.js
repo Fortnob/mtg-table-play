@@ -2740,6 +2740,10 @@
         if (o.zone === 'hand' && arg && k === 'plot') {
           out.push({ kind: 'plot', cost: arg, label: 'Plot ' + arg });
         }
+        // Spectacle: the other cost, once an opponent has lost life this turn (CR 702.137)
+        if (o.zone === 'hand' && arg && k === 'spectacle' && this.opponentsOf(playerId).some(q => (q.lifeLostThisTurn || 0) > 0)) {
+          out.push({ kind: 'cast', via: 'spectacle', cost: arg, label: 'Spectacle ' + arg });
+        }
         if (o.zone === 'hand' && arg && k === 'warp') {
           out.push({ kind: 'cast', via: 'warp', cost: arg, label: 'Warp ' + arg });
         }
