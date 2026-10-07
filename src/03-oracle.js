@@ -561,7 +561,7 @@
     const probe = analyze({ id: 'emblemprobe:' + U.hash(text), name: 'Emblem', type_line: 'Emblem',
       oracle_text: text, keywords: [], layout: 'emblem' });
     // standing rules the engine asks of a player's emblems as well as their permanents
-    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'costMod'];
+    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
@@ -1077,9 +1077,9 @@
 
     // --- damage ---
     // the subject may be the card's own name, "it", "this creature", etc.
-    { re: new RegExp("^(?:[A-Za-z][-A-Za-z0-9',\u2019. ]{0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
+    { re: new RegExp("^(?!(?:When|Whenever|If|As|After|Unless|Until)\\b)(?:[A-Za-z][-A-Za-z0-9',\u2019. ]{0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'damage', n: num(m[1]), targets: [t] } : null; } },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), each: m[2].toLowerCase() }) },
 
     // --- counters ---
@@ -1655,6 +1655,15 @@
     { re: /^Put (a|an|one|two|three) ([+\-0-9/]+) counters? and an? ([a-z]+) counter on (target [a-z ]+?)\.?$/i,
       make: (m) => { const t = tgt(m[4]); return t && kwKnown(U.titleCase(m[3])) ? { op: 'sequence', list: [{ op: 'counters', kind: m[2], n: num(m[1]), targets: [t] },
         { op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
+    // Rise from the Grave: "That creature is a black Zombie in addition to its other colors and types."
+    { re: /^(?:That creature|It) is an? (white|blue|black|red|green) ([A-Z][a-z]+) in addition to its other colors and types\.?$/,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'addTypes', subtypes: [m[2]], scope: 'lastTarget' },
+        { op: 'becomes', duration: null, eff: { addColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
+    // Turn to Slag: "Destroy all Equipment attached to that creature."
+    { re: /^Destroy all (Equipment|Auras) attached to (?:that creature|it)\.?$/i,
+      make: (m) => ({ op: 'destroyAttachedTo', kind: /aura/i.test(m[1]) ? 'Aura' : 'Equipment' }) },
+    // Tetsuko, Ivory Mask: "You have shroud."
+    { re: /^You have shroud\.?$/i, make: () => ({ op: 'playerShroud' }) },
     // Guide of Souls: "It becomes an Angel in addition to its other types."
     { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
@@ -1897,9 +1906,9 @@
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])], n: c } : null; } },
 
     /* ===== damage aimed at whoever controls the source ===== */
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to you\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to you\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toSelf: true }) },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to its controller\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to its controller\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toSelf: true }) },
 
     /* ===== wider sweepers ===== */
@@ -2006,9 +2015,9 @@
       make: () => ({ op: 'sacrificeSelf' }) },
 
     /* ===== damage aimed at a list of things ===== */
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)?)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)?)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to (any target|target creature|target player) and (one|two|three|four|five|\d+) damage to you\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to (any target|target creature|target player) and (one|two|three|four|five|\d+) damage to you\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
         { op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] },
         { op: 'damage', n: num(m[3]), toSelf: true }] }) },
@@ -2150,7 +2159,7 @@
     { re: /^It'?s still a land\.?$/i, make: () => ({ op: 'noop' }) },
 
     /* ===== whoever set the trigger off ===== */
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerPlayer: true }) },
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the number of cards in their hand\.?$/i,
       make: () => ({ op: 'damage', n: { cardsInHand: 'triggerPlayer' }, toTriggerPlayer: true }) },
@@ -2326,9 +2335,9 @@
         keywords: m[1].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean), duration: null }) },
 
     /* ===== damage split between things ===== */
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
 
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
@@ -2819,7 +2828,7 @@
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
     { re: /^You gain life equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: countSpec(m[1], 1) }) },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? damage equal to the number of ([-a-z' ]+?) you control to (any target|target creature|target player|target opponent|target planeswalker)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? damage equal to the number of ([-a-z' ]+?) you control to (any target|target creature|target player|target opponent|target planeswalker)\.?$/i,
       make: (m) => ({ op: 'damage', n: countSpec(m[1], 1), targets: [targetSpec(m[2])] }) },
     { re: /^(Target creature(?: you control)?|This creature|It) gets \+X\/\+X until end of turn, where X is the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'pump', p: countSpec(m[2], 1), t: countSpec(m[2], 1), duration: 'eot',
@@ -3328,15 +3337,19 @@
     { re: /^(Exile|Destroy|Tap|Untap) (?:that|the) (?:creature|permanent|artifact|land)\.?$/i,
       make: (m) => ({ op: m[1].toLowerCase(), scope: 'lastTarget' }) },
     /* the edicts, with whatever kind of permanent they name */
-    { re: /^(Each player|Each opponent|Each other player|Target player|Target opponent) sacrifices? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|\d+) ([a-z ,/-]+?)(?: of their choice)?\.?$/i,
-      make: (m) => {
+    { re: /^(Each player|Each opponent|Each other player|Target player|Target opponent) (sacrifices?|exiles?) (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|\d+) ([a-z ,/-]+?)(?: of their choice)?(?: they control)?\.?$/i,
+      make: (m0) => {
+        // Doomfall, Early Winter: "Target opponent exiles a creature they control" — an edict that exiles
+        const exile = /^exile/i.test(m0[2]);
+        if (exile && !/they control$/i.test(m0[0].replace(/\.$/, ''))) return null;
+        const m = [m0[0], m0[1], m0[3], m0[4]];
         const filter = m[3].trim().toLowerCase().replace(/s$/, '').replace(/s or /g, ' or ').replace(/and\/or/g, 'or');
         for (const w of filter.split(/[\s,]+/)) {
           if (!/^(?:creature|artifact|enchantment|land|planeswalker|permanent|nontoken|token|nonland|noncreature|or|attacking|battle|legendary|nonlegendary)$/.test(w)) return null;
         }
         const who = /^each player/i.test(m[1]) ? 'each' : /^target/i.test(m[1]) ? 'target' : 'opponents';
-        return { op: 'sacrificeChoice', n: num(m[2]), who, filter,
-          targets: who === 'target' ? [{ type: 'player', opponent: /opponent/i.test(m[1]) }] : undefined };
+        return Object.assign({ op: 'sacrificeChoice', n: num(m[2]), who, filter,
+          targets: who === 'target' ? [{ type: 'player', opponent: /opponent/i.test(m[1]) }] : undefined }, exile ? { exile: true } : {});
       } },
     { re: /^Put an? (indestructible|flying|first strike|deathtouch|lifelink|trample|hexproof|menace|reach|vigilance|shield|stun) counter on (CARDNAME|this creature|target [a-z ]+)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1,
@@ -3460,7 +3473,7 @@
       } },
     { re: /^Return (?:each|all) ([a-zA-Z0-9 ,'/+-]+?) to (?:its owner'?s|their owners'?|their owner'?s) hands?\.?$/,
       make: (m) => { const sc = eachScope(m[1]); return sc ? { op: 'bounceAll', scope: sc, what: sc.what } : null; } },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each ([a-zA-Z0-9 ,'/+-]+?)\.?$/,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each ([a-zA-Z0-9 ,'/+-]+?)\.?$/,
       make: (m) => {
         if (/\b(?:player|opponent)s?\b/i.test(m[2])) return null;
         const sc = eachScope(m[2]);
@@ -3480,7 +3493,7 @@
       } },
     { re: /^Return (target [a-zA-Z0-9 ,'/+-]+?) to (?:its|their) owner'?s'? hands?\.?$/,
       make: (m) => ({ op: 'bounce', targets: [targetSpec(m[1])] }) },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target [a-zA-Z0-9 ,'/+-]+?)\.?$/,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target [a-zA-Z0-9 ,'/+-]+?)\.?$/,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
@@ -4745,6 +4758,14 @@
           i++;
           continue;
         }
+        /* Chandra, Torch of Defiance: "You may cast that card. If you don't,
+           CARDNAME deals 2 damage to each opponent." */
+        if (/^cast (?:that card|it|the exiled card)$/i.test(may[1])) {
+          effects.push({ op: 'mayCastOrElse', otherwise: elsePart.effects, text: s + ' ' + next });
+          if (!elsePart.auto) auto = false;
+          i++;
+          continue;
+        }
       }
 
       // "... unless <someone> pays <cost>."
@@ -5094,6 +5115,10 @@
     [/^it'?s your turn$/i, () => ({ kind: 'yourTurn' })],
     [/^it'?s the first combat phase of the turn$/i, () => ({ kind: 'firstCombat' })],
     [/^it'?s not your turn$/i, () => ({ kind: 'notYourTurn' })],
+    // Scytheclaw Raptor: "if it's not their turn" — the player who set it off
+    [/^it'?s not their turn$/i, () => ({ kind: 'notTheirTurn' })],
+    // Scab-Clan Berserker: "if this creature is renowned"
+    [/^(?:this creature|CARDNAME) is renowned$/i, () => ({ kind: 'selfRenowned' })],
     // counting the board
     [/^you control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) })],
     // Valakut: "if you control at least five other Mountains" (the one that entered among them)
@@ -7926,7 +7951,7 @@
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
-    'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
+    'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
     'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod']);
 
   function parseStatic(line, ctx) {

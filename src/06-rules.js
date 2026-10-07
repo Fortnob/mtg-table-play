@@ -795,6 +795,8 @@
       // happened this turn, so the turn keeps a short memory
       this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false };
       for (const o of this.battlefield) o.noRegenThisTurn = false;
+      // one loyalty ability per planeswalker each turn (CR 606.3): a new turn, a new one
+      for (const o of this.battlefield) o.activatedLoyaltyThisTurn = false;
       // "until your next turn" ends as that turn begins
       for (const o of this.battlefield) {
         if ((o.effects || []).some(e => e.untilTurnOf === this.turnOrder[this.activeIndex])) {
@@ -7676,6 +7678,12 @@
         case 'selfAttacking': return !!src && !!src.attacking;
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
+        case 'notTheirTurn': {
+          const d = (ctx && ctx.triggerData) || {};
+          const who = d.player || d.playerId || d.caster;
+          return !!who && !!this.activePlayer && this.activePlayer.id !== who;
+        }
+        case 'selfRenowned': return !!src && !!src.renowned;
         case 'control':
           /* a group described the way a static ability describes one
              ("two or more other nontoken Elves you control") is counted the
@@ -10390,11 +10398,11 @@
               }
               continue;
             }
-            this.queueChoice({
+            this.queueChoice(Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(n(e.n), pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `Sacrifice ${n(e.n)} ${e.filter || 'permanent'}${n(e.n) === 1 ? '' : 's'}.`,
-            });
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${n(e.n)} ${e.filter || 'permanent'}${n(e.n) === 1 ? '' : 's'}.`,
+            }, e.exile ? { exileInstead: true } : {}));
           }
           break;
         }
@@ -11738,6 +11746,18 @@
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
           break;
         }
+        // Turn to Slag: the Equipment on the creature it just hit
+        case 'destroyAttachedTo': {
+          const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
+          const ids = x ? (x.attachments || []).slice() : (this._lastAffected && this._lastAffected.attachments) || [];
+          for (const id of ids) {
+            const at = this.obj(id);
+            if (!at || at.zone !== 'battlefield' || !((at.analysis() || {}).subtypes || []).includes(e.kind || 'Equipment')) continue;
+            if (this.hasKw(at, 'indestructible')) continue;
+            this.moveObject(at, 'graveyard');
+          }
+          break;
+        }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
         case 'leaveExile': {
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
@@ -12055,6 +12075,21 @@
           break;
         }
 
+        /* Chandra, Torch of Defiance: cast the card just exiled, or else. A
+           land can't be cast, so that is the "else". Saying yes leaves it
+           castable this turn, cast once the ability is done. */
+        case 'mayCastOrElse': {
+          const x = this._lastExiled && this.obj(this._lastExiled);
+          if (!x || x.zone !== 'exile' || (x.analysis() || {}).isLand) { this._spliceNext(e.otherwise); break; }
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'castOrElse', cost: (x.card && x.card.mana_cost) || '',
+            prompt: `${ctx.name || 'Effect'}: cast ${x.name}? ${truncate(e.text || '', 90)}` }, 'mco');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) { this._spliceNext(e.otherwise); break; }
+          x.impulseBy = ctx.controller;
+          x.impulseUntil = this.turn;
+          this.logEvent('rules', `${me.name} will cast ${x.name}.`);
+          break;
+        }
         case 'markImpulse': {
           // "until end of turn, you may cast that card" — about what was just exiled
           const x = this._lastExiled && this.obj(this._lastExiled);
@@ -15390,6 +15425,11 @@
             for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
           }
           const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
+          // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled
+          if (ch.exileInstead) {
+            for (const o of pick) { this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`); }
+            break;
+          }
           this._sacrificeNow(playerId, pick, item);
           // "When this creature exploits a creature"
           if (ch.purpose === 'exploit' && pick.length) {
@@ -15856,6 +15896,8 @@
          opponent's spell may point at (CR 702.11e). */
       const players = () => this.players.filter(p => !p.hasLost && !this._protected(p))
         .filter(p => p.id === controllerId || (!this._anyStaticOf(p.id, 'playerHexproof') && p.hexproofTurn !== this.turn))
+        // True Believer: "You have shroud" — not even its controller's spells
+        .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
       if (spec.type === 'player' || spec.type === 'opponent') {
         return players().filter(t => !(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId);

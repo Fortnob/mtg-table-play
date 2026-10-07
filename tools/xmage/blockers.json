@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14667,
-  "gainedCards": 1522,
-  "linesNeeded": 16281,
-  "linesGained": 1902,
+  "needed": 14658,
+  "gainedCards": 1526,
+  "linesNeeded": 16273,
+  "linesGained": 1906,
   "gained": {
-   "all": 1522,
+   "all": 1526,
    "top2000": 53,
    "stdTop": 12
   },
@@ -26,7 +26,7 @@
    "x": 3,
    "it": 32,
    "opponent": 72,
-   "condition": 26,
+   "condition": 22,
    "subtype": 9
   }
  },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5349,
-   "lines": 4638,
+   "score": 5348,
+   "lines": 4637,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 286,
-   "lines": 256,
+   "score": 285,
+   "lines": 255,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -120,11 +120,11 @@
     "Eldritch Immunity",
     "Winds of Abandon",
     "Alchemist's Talent",
-    "Liliana, Death's Majesty",
     "Fighter Class",
     "Wand of Wonder",
     "Fangs of Kalonia",
-    "Spectacular Showdown"
+    "Spectacular Showdown",
+    "Boseiju, Who Shelters All"
    ]
   },
   {
@@ -205,8 +205,8 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 83,
-   "lines": 56,
+   "score": 84,
+   "lines": 57,
    "cards": [
     "Muldrotha, the Gravetide",
     "Valgavoth, Terror Eater",
@@ -413,25 +413,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 33,
-   "lines": 30,
-   "cards": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Feline Sovereign",
-    "Alela, Cunning Conqueror",
-    "Tidus, Yuna's Guardian",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen",
-    "Kastral, the Windcrested",
-    "Descendants' Fury",
-    "Olivia, Opulent Outlaw"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 32,
    "lines": 20,
@@ -467,6 +448,25 @@
     "Drain Life",
     "Murdock's Crusade",
     "Atalya, Samite Master"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 32,
+   "lines": 29,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Feline Sovereign",
+    "Alela, Cunning Conqueror",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Kastral, the Windcrested",
+    "Descendants' Fury",
+    "Olivia, Opulent Outlaw"
    ]
   },
   {
@@ -2768,25 +2768,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Surge of Salvation",
-    "Solitary Confinement",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier",
-    "Gor Muldrak, Amphinologist",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker",
-    "True Believer",
-    "Ivory Mask"
-   ]
-  },
-  {
    "what": "CardsInAllGraveyardsCount",
    "score": 12,
    "lines": 12,
@@ -4079,6 +4060,22 @@
    ]
   },
   {
+   "what": "GainAbilityControllerEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Surge of Salvation",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Sigarda, Heron's Grace",
+    "Captain America, Super-Soldier",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
+   ]
+  },
+  {
    "what": "token ability PilotSaddleCrewToken",
    "score": 9,
    "lines": 9,
@@ -4577,18 +4574,6 @@
     "Rags // Riches",
     "Failure // Comply",
     "Reduce // Rubble"
-   ]
-  },
-  {
-   "what": "AddCreatureTypeAdditionEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Portal to Phyrexia",
-    "Rise from the Grave",
-    "Ever After",
-    "Call a Surprise Witness",
-    "Terror of Towashi"
    ]
   },
   {
@@ -5248,6 +5233,21 @@
    ]
   },
   {
+   "what": "TributeNotPaidCondition.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Nessian Wilds Ravager",
+    "Snake of the Golden Grove",
+    "Pharagax Giant",
+    "Fanatic of Xenagos",
+    "Nessian Demolok",
+    "Ornitharch",
+    "Thunder Brute",
+    "Shrike Harpy"
+   ]
+  },
+  {
    "what": "SearchLibraryAndExileTargetEffect",
    "score": 8,
    "lines": 8,
@@ -5331,6 +5331,17 @@
     "Stranglehold",
     "Ugin's Nexus",
     "Gerrard's Hourglass Pendant"
+   ]
+  },
+  {
+   "what": "AddCreatureTypeAdditionEffect",
+   "score": 7,
+   "lines": 4,
+   "cards": [
+    "Portal to Phyrexia",
+    "Ever After",
+    "Call a Surprise Witness",
+    "Terror of Towashi"
    ]
   },
   {
@@ -5817,20 +5828,6 @@
     "Oath of Ghouls",
     "Oath of Scholars",
     "Oath of Mages"
-   ]
-  },
-  {
-   "what": "TributeNotPaidCondition.instance",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Nessian Wilds Ravager",
-    "Snake of the Golden Grove",
-    "Fanatic of Xenagos",
-    "Nessian Demolok",
-    "Ornitharch",
-    "Thunder Brute",
-    "Shrike Harpy"
    ]
   },
   {
@@ -7612,8 +7609,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4279,
-   "cards": 3775,
+   "score": 4277,
+   "cards": 3773,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7638,8 +7635,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 230,
-   "cards": 215,
+   "score": 229,
+   "cards": 214,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7677,15 +7674,15 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 172,
-   "cards": 160,
+   "score": 171,
+   "cards": 159,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
     "Eldritch Immunity",
     "Winds of Abandon",
     "Alchemist's Talent",
-    "Liliana, Death's Majesty"
+    "Fighter Class"
    ]
   },
   {
@@ -7702,6 +7699,19 @@
    ]
   },
   {
+   "what": "Ability.setIdentifier",
+   "score": 53,
+   "cards": 41,
+   "names": [
+    "Muldrotha, the Gravetide",
+    "One with the Multiverse",
+    "Nashi, Moon Sage's Scion",
+    "Gwenom, Remorseless",
+    "Kess, Dissident Mage",
+    "Serra Paragon"
+   ]
+  },
+  {
    "what": "custom target",
    "score": 53,
    "cards": 41,
@@ -7712,19 +7722,6 @@
     "V.A.T.S.",
     "Reunion of the House",
     "Behold the Sinister Six!"
-   ]
-  },
-  {
-   "what": "Ability.setIdentifier",
-   "score": 52,
-   "cards": 40,
-   "names": [
-    "Muldrotha, the Gravetide",
-    "One with the Multiverse",
-    "Nashi, Moon Sage's Scion",
-    "Gwenom, Remorseless",
-    "Kess, Dissident Mage",
-    "Serra Paragon"
    ]
   },
   {
@@ -8376,6 +8373,19 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Allosaurus Shepherd",
+    "March of the World Ooze",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Tanazir Quandrix"
+   ]
+  },
+  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 13,
    "cards": 4,
@@ -8563,19 +8573,6 @@
     "Silent Hallcreeper",
     "Gandalf the Grey",
     "Sol'Kanar the Tainted"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Allosaurus Shepherd",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration"
    ]
   },
   {
@@ -8839,19 +8836,6 @@
     "Blossoming Tortoise",
     "Port of Karfell",
     "Cruel Ultimatum"
-   ]
-  },
-  {
-   "what": "GainAbilityControllerEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Surge of Salvation",
-    "Solitary Confinement",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier"
    ]
   },
   {
@@ -9697,18 +9681,6 @@
    ]
   },
   {
-   "what": "AddCreatureTypeAdditionEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Portal to Phyrexia",
-    "Rise from the Grave",
-    "Ever After",
-    "Call a Surprise Witness",
-    "Terror of Towashi"
-   ]
-  },
-  {
    "what": "damage affecting the defending player",
    "score": 8,
    "cards": 5,
@@ -9895,6 +9867,19 @@
     "Scrounging Skyray",
     "Doctor Doom, King of Latveria",
     "Urza, Powerstone Prodigy"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Surge of Salvation",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Sigarda, Heron's Grace",
+    "Captain America, Super-Soldier",
+    "Blossoming Calm"
    ]
   },
   {
@@ -10207,6 +10192,17 @@
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter",
     "Tireless Angler"
+   ]
+  },
+  {
+   "what": "AddCreatureTypeAdditionEffect",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Portal to Phyrexia",
+    "Ever After",
+    "Call a Surprise Witness",
+    "Terror of Towashi"
    ]
   },
   {

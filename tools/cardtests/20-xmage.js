@@ -6054,4 +6054,97 @@ module.exports = (test) => {
     t.no(T.g._hasSubtype(bear, 'Angel'));
     t.eq(T.player('A').energy, 2);
   });
+
+  test('Rise from the Grave: a black Zombie as well', (mk, t) => {
+    t.auto('Rise from the Grave');
+    const T = mk();
+    const giant = T.grave('B', 'Hill Giant');
+    T.mana('A', 'B4');
+    T.cast('A', T.hand('A', 'Rise from the Grave'), { targets: [giant.id] });
+    t.eq(giant.controller, 'A');
+    t.ok(T.g._hasSubtype(giant, 'Zombie'), 'a Zombie');
+    t.ok(giant.analysis().colors.includes('B'), 'black');
+    t.ok(giant.analysis().colors.includes('R'), 'still red');
+  });
+
+  test('Turn to Slag: the Equipment on it goes too', (mk, t) => {
+    t.auto('Turn to Slag');
+    const T = mk();
+    const giant = T.bf('B', 'Hill Giant');
+    const eq = T.bf('B', 'Bonesplitter');
+    eq.attachedTo = giant.id; giant.attachments.push(eq.id); T.g.bumpBoard();
+    T.mana('A', 'RR3');
+    T.cast('A', T.hand('A', 'Turn to Slag'), { targets: [giant.id] });
+    t.eq(giant.zone, 'graveyard'); t.eq(eq.zone, 'graveyard');
+  });
+
+  test('Doomfall: the opponent exiles a creature of their choice', (mk, t) => {
+    t.auto('Doomfall');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Doomfall'), { modes: [0], targets: ['B'] });
+    t.eq(bear.zone, 'exile');
+  });
+
+  test("True Believer: you can't be targeted, not even by your own spells", (mk, t) => {
+    t.auto('True Believer');
+    const T = mk();
+    T.bf('A', 'True Believer');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    t.no((T.g._legalTargetsFor({ type: 'any' }, 'B') || []).some(x => x.kind === 'player' && x.id === 'A'), 'not by the opponent');
+    t.no((T.g._legalTargetsFor({ type: 'player' }, 'A') || []).some(x => x.id === 'A'), 'not by yourself');
+    void bolt;
+  });
+
+  test("Scytheclaw Raptor: only when it isn't the caster's turn", (mk, t) => {
+    t.auto('Scytheclaw Raptor');
+    const T = mk();
+    T.bf('A', 'Scytheclaw Raptor');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.passPriority('A', true);
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [bear.id] });
+    t.eq(T.life('B'), 16, "on A's turn: 4 damage");
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('B'), 16, 'on their own turn: nothing');
+  });
+
+  test('A clause before "deals damage" is not its subject (Fires of Mount Doom)', (mk, t) => {
+    const T = mk();
+    const e = T.g.constructor && require('../harness').engine().oracle.parseEffectSentence('When you play a card this way, CARDNAME deals 2 damage to each player.');
+    t.eq(e, null);
+  });
+
+  test("Chandra, Torch of Defiance +1: cast it, or 2 damage to each opponent", (mk, t) => {
+    t.auto('Chandra, Torch of Defiance');
+    const T = mk();
+    const ch = T.bf('A', 'Chandra, Torch of Defiance');
+    ch.counters.loyalty = 4;
+    T.top('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: false });
+    T.activate('A', ch, 0);
+    t.eq(T.life('B'), 18, 'declined: 2 damage');
+    T.nextTurn('B'); T.nextTurn('A');
+    const bolt = T.top('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: true });
+    T.activate('A', ch, 0);
+    t.eq(T.life('B'), 18, 'chose to cast: no damage');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 15, 'and cast it');
+  });
+
+  test('A planeswalker activates once each turn, and again the next turn', (mk, t) => {
+    const T = mk();
+    const pw = T.bf('A', 'Liliana of the Veil');
+    pw.counters.loyalty = 3;
+    t.ok(T.g.activateAbility('A', pw.id, 0));
+    T.resolve();
+    t.no(T.g.activateAbility('A', pw.id, 0), 'not twice in a turn');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(T.g.activateAbility('A', pw.id, 0), 'again next turn');
+  });
 };
