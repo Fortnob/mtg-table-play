@@ -682,6 +682,7 @@
         }
         return out;
       } },
+    { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
     { re: /^This mana can'?t be spent to cast (?:a |an )?non(artifact|creature) spells?\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
@@ -2390,6 +2391,8 @@
     // Capenna Express: "This Vehicle becomes an artifact creature until end of turn." — not crewed, just a creature
     { re: /^(?:This Vehicle|CARDNAME) becomes an artifact creature until end of turn\.?$/i,
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
+    // Star Pupil: "put its counters on target creature you control"
+    { re: /^Put its counters on (target [a-z ]+?)\.?$/i, make: (m) => ({ op: 'putItsCounters', targets: [targetSpec(m[1])] }) },
     /* Removed from combat (CR 506.4) */
     { re: /^Remove (target (?:attacking |blocking |attacking or blocking )?creature(?: you control| defending player controls)?|it|this creature|CARDNAME|enchanted creature) from combat\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'removeFromCombat', targets: [targetSpec(m[1])] }
@@ -4240,6 +4243,10 @@
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
     [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
+    // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
+    [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
+    [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
+    [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
     // Jace, Wielder of Mysteries: "if your library has no cards in it"
     [/^your library has no cards in it$/i, () => ({ kind: 'libraryEmpty' })],
     // Adamant: "at least three white mana was spent to cast this spell"; "five or more mana was spent to cast that spell"
@@ -5699,6 +5706,9 @@
     }
     const kickedEtb = text.match(/If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (a|an|one|two|three|four|X|\d+) ([+\-0-9/a-z' ]+?) counters? on (?:it|them)/i);
     if (kickedEtb) out.entersWithCounters = { kind: kickedEtb[2].trim(), n: num(kickedEtb[1]), ifKicked: true };
+    // Kavu Titan: "…counters on it and with trample" — the keyword for good, kicked
+    const kickedKw = text.match(/was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z' ]+? counters? on it and with ([a-z ]+?)\./i);
+    if (kickedEtb && kickedKw && KW_LIST.test(kickedKw[1])) out.entersWithCounters.withKeywords = kickedKw[1].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean);
     /* "…enters with X +1/+1 counters on it, where X is the number of
        creatures you control." The number is worked out as it arrives. */
     const etbPer = text.match(/enters(?: the battlefield)? with X ([+\-0-9/a-z' ]+?) counters? on (?:it|them),? where X is the number of ([-a-z' ]+?) you control/i);
@@ -6903,6 +6913,8 @@
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) enters(?: the battlefield)? with a number of [+\-0-9/a-z]+ counters on it equal to the amount of mana spent to cast it\.?$/i,
         eff: { op: 'noop' }, auto: true },
       { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each time it was kicked\.?$/i,
+        eff: { op: 'noop' }, auto: true },
+      { re: /^If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (?:a|an|one|two|three|four|X|\d+) [+\-0-9/a-z' ]+ counters? on it and with (?:flying|trample|haste|first strike|fear|vigilance|deathtouch|lifelink|menace|reach)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       { re: /^If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },

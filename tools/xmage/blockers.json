@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15995,
-  "gainedCards": 1610,
-  "linesNeeded": 18160,
+  "needed": 15965,
+  "gainedCards": 1611,
+  "linesNeeded": 18121,
   "linesGained": 2070,
   "gained": {
-   "all": 1610,
+   "all": 1611,
    "top2000": 52,
    "stdTop": 11
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5637,
-   "lines": 4857,
+   "score": 5636,
+   "lines": 4856,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 393,
-   "lines": 363,
+   "score": 392,
+   "lines": 362,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 192,
-   "lines": 171,
+   "score": 182,
+   "lines": 161,
    "cards": [
     "Sakashima of a Thousand Faces",
     "Ulamog, the Defiler",
@@ -4072,24 +4072,6 @@
    ]
   },
   {
-   "what": "PutSourceCountersOnTargetEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Zack Fair",
-    "Essence Channeler",
-    "Sin, Unending Cataclysm",
-    "Broodguard Elite",
-    "Dockworker Drone",
-    "Selfless Police Captain",
-    "Star Pupil",
-    "Hei Bai, Spirit of Balance",
-    "Parish-Blade Trainee",
-    "Spiteful Squad",
-    "Graft Surgeon"
-   ]
-  },
-  {
    "what": "words:withKeyword",
    "score": 11,
    "lines": 11,
@@ -4213,24 +4195,6 @@
     "Earthlore",
     "Tourach's Gate",
     "Krovikan Plague"
-   ]
-  },
-  {
-   "what": "OpponentsLostLifeCondition.instance",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Vampire Socialite",
-    "Falkenrath Pit Fighter",
-    "Flamecache Gecko",
-    "Stromkirk Bloodthief",
-    "Voldaren Ambusher",
-    "Arrogant Outlaw",
-    "Lion Vulture",
-    "Bloodtithe Collector",
-    "Bat Whisperer",
-    "Famished Foragers",
-    "Savage Gorger"
    ]
   },
   {
@@ -4910,23 +4874,6 @@
     "Devouring Tendrils",
     "Thing Swing",
     "Compel Brutality"
-   ]
-  },
-  {
-   "what": "ConditionalColorlessManaAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "The Enigma Jewel // Locus of Enlightenment",
-    "Cryptic Trilobite",
-    "James, Wandering Dad // Follow Him",
-    "Automated Artificer",
-    "Lord of the Forsaken",
-    "Pit Automaton",
-    "Cultivator Drone",
-    "Sage of the Unknowable",
-    "Qarsi Deceiver",
-    "Soldevi Machinist"
    ]
   },
   {
@@ -7989,13 +7936,52 @@
     "Ward of Lights",
     "Floating Shield"
    ]
+  },
+  {
+   "what": "ExileGraveyardAllPlayersEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Phyrexian Scriptures",
+    "Kaya's Guile",
+    "Calamity's Wake",
+    "Sanctifier en-Vec",
+    "Silent Gravestone",
+    "Ultimate Nullification"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Sylvan Awakening",
+    "Life // Death",
+    "Vihaan, Goldwaker",
+    "Natural Affinity",
+    "Kormus Bell",
+    "Ambush Commander"
+   ]
+  },
+  {
+   "what": "PlayWithHandRevealedEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Telepathy",
+    "Zur's Weirding",
+    "Enduring Renewal",
+    "Seer's Vision",
+    "Wandering Eye",
+    "Revelation"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4431,
-   "cards": 3882,
+   "score": 4430,
+   "cards": 3881,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8072,8 +8058,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 121,
-   "cards": 112,
+   "score": 111,
+   "cards": 102,
    "names": [
     "Chameleon, Master of Disguise",
     "Sakashima the Impostor",
@@ -8137,8 +8123,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 43,
-   "cards": 31,
+   "score": 44,
+   "cards": 32,
    "names": [
     "Cloud Key",
     "Banner of Kinship",
@@ -8578,6 +8564,19 @@
    ]
   },
   {
+   "what": "keyword BackupAbility",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Boon-Bringer Valkyrie",
+    "Scorn-Blade Berserker",
+    "Saiba Cryptomancer",
+    "Voldaren Thrillseeker",
+    "Death-Greeter's Champion",
+    "Gloomfang Mauler"
+   ]
+  },
+  {
    "what": "EmpowerJaceEffect",
    "score": 17,
    "cards": 17,
@@ -8643,16 +8642,16 @@
    ]
   },
   {
-   "what": "keyword BackupAbility",
-   "score": 16,
-   "cards": 16,
+   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
+   "score": 15,
+   "cards": 12,
    "names": [
-    "Boon-Bringer Valkyrie",
-    "Scorn-Blade Berserker",
-    "Saiba Cryptomancer",
-    "Voldaren Thrillseeker",
-    "Death-Greeter's Champion",
-    "Gloomfang Mauler"
+    "Bloodchief Ascension",
+    "Sand Scout",
+    "Lazav, Dimir Mastermind",
+    "Yuma, Proud Protector",
+    "Compost",
+    "Slogurk, the Overslime"
    ]
   },
   {
@@ -9596,19 +9595,6 @@
    ]
   },
   {
-   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Sand Scout",
-    "Lazav, Dimir Mastermind",
-    "Yuma, Proud Protector",
-    "Compost",
-    "Slogurk, the Overslime",
-    "Planar Void"
-   ]
-  },
-  {
    "what": "BlightCost",
    "score": 11,
    "cards": 11,
@@ -9940,19 +9926,6 @@
    ]
   },
   {
-   "what": "OpponentsLostLifeCondition.instance",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Falkenrath Pit Fighter",
-    "Flamecache Gecko",
-    "Stromkirk Bloodthief",
-    "Voldaren Ambusher",
-    "Arrogant Outlaw",
-    "Lion Vulture"
-   ]
-  },
-  {
    "what": "MustBeBlockedByAtLeastOneTargetEffect",
    "score": 10,
    "cards": 10,
@@ -10165,19 +10138,6 @@
     "Otter-Penguin",
     "Private Eye",
     "Foggy Swamp Spirit Keeper"
-   ]
-  },
-  {
-   "what": "PutSourceCountersOnTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Zack Fair",
-    "Broodguard Elite",
-    "Dockworker Drone",
-    "Selfless Police Captain",
-    "Star Pupil",
-    "Hei Bai, Spirit of Balance"
    ]
   },
   {
@@ -11107,19 +11067,6 @@
    ]
   },
   {
-   "what": "ConditionalColorlessManaAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Cryptic Trilobite",
-    "James, Wandering Dad // Follow Him",
-    "Automated Artificer",
-    "Lord of the Forsaken",
-    "Cultivator Drone",
-    "Sage of the Unknowable"
-   ]
-  },
-  {
    "what": "BecomesBlockedAllTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -11526,6 +11473,19 @@
    ]
   },
   {
+   "what": "ConditionalReplacementEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Vampire Socialite",
+    "Batwing Brume",
+    "Winds of Qal Sisma",
+    "Spirit of Resistance",
+    "Veteran Bodyguard",
+    "Orim's Touch"
+   ]
+  },
+  {
    "what": "token ability PhyrexianMiteToken",
    "score": 7,
    "cards": 7,
@@ -11835,6 +11795,26 @@
     "Robber Fly",
     "Flint Golem",
     "Corrupt Official"
+   ]
+  },
+  {
+   "what": "GainRetraceYourGraveyardEffect",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Six",
+    "Wrenn and Six",
+    "Deeproot Historian"
+   ]
+  },
+  {
+   "what": "token ability ForestDryadToken",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Awaken the Woods",
+    "Staff of Titania",
+    "Jyoti, Moag Ancient"
    ]
   }
  ]

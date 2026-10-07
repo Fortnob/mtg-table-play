@@ -4633,6 +4633,8 @@
           : (raw && typeof raw === 'object' && raw.manaSpent) ? (o.manaSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.per) ? this.countPermanents(o.controller, { per: raw.per })
           : (parseInt(raw, 10) || 0);
+        // Kavu Titan: "and with trample"
+        if (a.entersWithCounters.withKeywords) { o.effects.push({ keywords: a.entersWithCounters.withKeywords.slice(), until: null }); o._chr = null; }
         if (n > 0) {
           const kind = a.entersWithCounters.kind;
           o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
@@ -5536,6 +5538,8 @@
     _spendAllowed(spendOnly, spell, src) {
       if (!spendOnly) return true;
       if (!spell) return false;
+      // "Spend this mana only to activate abilities."
+      if (spendOnly.noSpells) return false;
       if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words)) return false;
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
       return true;
@@ -6914,9 +6918,15 @@
         }
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
         case 'xAtLeast': return ((ctx && ctx.x) || (src && src.chosenX) || 0) >= (cond.n || 0);
+        // Essence Channeler: "if you've lost life this turn"
+        case 'lostLife': {
+          if (!me) return false;
+          const who = cond.who === 'opponent' ? this.opponentsOf(me.id) : [me];
+          return who.some(q => (q.lifeLostThisTurn || 0) >= (cond.n || 1));
+        }
+        case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
-        case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         case 'manaSpentAtLeast': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
           if (!x) return false;
@@ -11717,6 +11727,15 @@
           else if (to && to.zone === 'battlefield') this.dealDamageToObject(to, cnt, src);
           for (const x of theirs) if (x.zone === 'battlefield') this.dealDamageToObject(x, cnt, src);
           this.emit('sfx', 'damage');
+          break;
+        }
+        /* Star Pupil, Essence Channeler: "When this creature dies, put its
+           counters on target creature you control." — what it had as it left */
+        case 'putItsCounters': {
+          const had = (src && (src.zone === 'battlefield' ? src.counters : src._diedCounters)) || {};
+          applyToScope(e, (o) => {
+            for (const [k, v] of Object.entries(had)) if (Number(v) > 0) this.addCounters(o, k, Number(v));
+          });
           break;
         }
         case 'removeFromCombat':

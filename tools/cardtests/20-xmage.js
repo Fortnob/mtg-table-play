@@ -3694,4 +3694,43 @@ module.exports = (test) => {
     T.resolve();
     t.ok(T.g.characteristics(v).isCreature, 'a creature now');
   });
+
+  test('Star Pupil: its counters go to another creature as it dies', (mk, t) => {
+    t.auto('Star Pupil');
+    const T = mk();
+    const sp = T.bf('A', 'Star Pupil');
+    sp.counters['+1/+1'] = 3;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.g.moveObject(sp, 'graveyard');
+    T.resolve();
+    t.eq(bear.counters['+1/+1'] || 0, 3);
+  });
+
+  test('Essence Channeler: flying once you have lost life this turn', (mk, t) => {
+    t.auto('Essence Channeler');
+    const T = mk();
+    const e = T.bf('A', 'Essence Channeler');
+    t.no(T.g.hasKw(e, 'flying'));
+    T.g.changeLife(T.player('A'), -1);
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(e, 'flying'));
+  });
+
+  test('Kavu Titan: kicked, it has its counters and trample', (mk, t) => {
+    t.auto('Kavu Titan');
+    const T = mk();
+    T.mana('A', '1GGGG');
+    const k = T.hand('A', 'Kavu Titan');
+    T.cast('A', k, { kick: 1 });
+    T.resolve();
+    t.eq(k.counters['+1/+1'] || 0, 3);
+    t.ok(T.g.hasKw(k, 'trample'));
+    const T2 = mk();
+    T2.mana('A', '1G');
+    const k2 = T2.hand('A', 'Kavu Titan');
+    T2.cast('A', k2);
+    T2.resolve();
+    t.no(T2.g.hasKw(k2, 'trample'), 'not unkicked');
+  });
 };
