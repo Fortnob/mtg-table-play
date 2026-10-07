@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15908,
-  "gainedCards": 1603,
-  "linesNeeded": 18040,
+  "needed": 15886,
+  "gainedCards": 1606,
+  "linesNeeded": 18002,
   "linesGained": 2055,
   "gained": {
-   "all": 1603,
+   "all": 1606,
    "top2000": 52,
    "stdTop": 12
   },
@@ -814,25 +814,6 @@
     "Aerial Formation",
     "Kiora's Dismissal",
     "Silence the Believers"
-   ]
-  },
-  {
-   "what": "keyword BackupAbility",
-   "score": 25,
-   "lines": 25,
-   "cards": [
-    "Archpriest of Shadows",
-    "Guardian Scalelord",
-    "Emergent Woodwurm",
-    "Conclave Sledge-Captain",
-    "Boon-Bringer Valkyrie",
-    "Scorn-Blade Berserker",
-    "Bright-Palm, Soul Awakener",
-    "Saiba Cryptomancer",
-    "Voldaren Thrillseeker",
-    "Mirror-Style Master",
-    "Death-Greeter's Champion",
-    "Doomskar Warrior"
    ]
   },
   {
@@ -2855,25 +2836,6 @@
     "Chandra's Pyreling",
     "Thor, Guardian of Midgard",
     "Asgardian Inspiration"
-   ]
-  },
-  {
-   "what": "keyword GraftAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Llanowar Reborn",
-    "Plaxcaster Frogling",
-    "Vigean Graftmage",
-    "Cytoplast Manipulator",
-    "Aquastrand Spider",
-    "Cytoplast Root-Kin",
-    "Sporeback Troll",
-    "Novijen Sages",
-    "Helium Squirter",
-    "Simic Initiate",
-    "Cytospawn Shambler",
-    "Vigean Hydropon"
    ]
   },
   {
@@ -7979,6 +7941,32 @@
     "Tezzeret's Gatebreaker",
     "Tanglewalker"
    ]
+  },
+  {
+   "what": "RemoveAllCountersPermanentTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Invasion of Fiora // Marchesa, Resolute Monarch",
+    "Vampire Hexmage",
+    "Purging Stormbrood // Absorb Essence",
+    "Hapatra's Mark",
+    "Suncleanser",
+    "Blitz Leech"
+   ]
+  },
+  {
+   "what": "EntersWithCountersControlledEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Thunderous Velocipede",
+    "Curator Beastie",
+    "Tayam, Luminous Enigma",
+    "Zameck Guildmage",
+    "Veiled Ascension",
+    "Combine Guildmage"
+   ]
   }
  ],
  "sole": [
@@ -8036,8 +8024,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 181,
-   "cards": 172,
+   "score": 189,
+   "cards": 180,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -8565,19 +8553,6 @@
     "Scarblade's Malice",
     "Desperate Measures",
     "Felonious Rage"
-   ]
-  },
-  {
-   "what": "keyword BackupAbility",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Boon-Bringer Valkyrie",
-    "Scorn-Blade Berserker",
-    "Saiba Cryptomancer",
-    "Voldaren Thrillseeker",
-    "Death-Greeter's Champion",
-    "Gloomfang Mauler"
    ]
   },
   {
@@ -10348,6 +10323,19 @@
    ]
   },
   {
+   "what": "DealsDamageToACreatureTriggeredAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Frostwalk Bastion",
+    "Maarika, Brutal Gladiator",
+    "Overclocked Electromancer",
+    "Spider-Slayer, Hatred Honed",
+    "East-Mark Cavalier",
+    "Simic Basilisk"
+   ]
+  },
+  {
    "what": "LockedInCondition",
    "score": 9,
    "cards": 9,
@@ -10647,19 +10635,6 @@
     "Arena Rector",
     "Aphemia, the Cacophony",
     "Aegis Sculptor"
-   ]
-  },
-  {
-   "what": "keyword GraftAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Llanowar Reborn",
-    "Plaxcaster Frogling",
-    "Vigean Graftmage",
-    "Novijen Sages",
-    "Helium Squirter",
-    "Simic Initiate"
    ]
   },
   {
@@ -11079,19 +11054,6 @@
    ]
   },
   {
-   "what": "DealsDamageToACreatureTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Frostwalk Bastion",
-    "Maarika, Brutal Gladiator",
-    "Overclocked Electromancer",
-    "Spider-Slayer, Hatred Honed",
-    "East-Mark Cavalier",
-    "Vampire Slayer"
-   ]
-  },
-  {
    "what": "mill then something else",
    "score": 8,
    "cards": 8,
@@ -11263,6 +11225,19 @@
     "Fumulus, the Infestation",
     "Thraximundar",
     "Mortician Beetle"
+   ]
+  },
+  {
+   "what": "RegenerateTargetEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Dawn Charm",
+    "Ezuri, Renegade Leader",
+    "Mad Auntie",
+    "Sporeback Troll",
+    "Regenerate",
+    "Gaze of the Gorgon"
    ]
   },
   {
@@ -11811,6 +11786,19 @@
     "Varragoth, Bloodsky Sire",
     "Broadside Bombardiers",
     "Arni Brokenbrow"
+   ]
+  },
+  {
+   "what": "ChooseCreatureTypeEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Crippling Fear",
+    "Pact of the Serpent",
+    "Kindred Summons",
+    "Haunting Voyage",
+    "Kindred Charge",
+    "Tribal Forcemage"
    ]
   }
  ]

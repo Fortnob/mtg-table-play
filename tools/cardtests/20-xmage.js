@@ -3889,4 +3889,32 @@ module.exports = (test) => {
     t.zone(c, 'graveyard');
     t.eq([a, b].filter(x => x.zone === 'hand' || x.zone === 'library').length, 2, 'both went to the library (one drawn)');
   });
+
+  test('Graft: Simic Initiate enters with its counter and may hand it on', (mk, t) => {
+    t.auto('Simic Initiate');
+    const T = mk();
+    T.mana('A', 'G');
+    const si = T.hand('A', 'Simic Initiate');
+    T.cast('A', si);
+    T.resolve();
+    t.eq(si.counters['+1/+1'] || 0, 1);
+    T.answer('confirm', () => ({ yes: true }));
+    const bear = T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'moved onto the Bears');
+    t.eq(si.counters['+1/+1'] || 0, 0);
+  });
+
+  test('Backup: the counters, and the abilities below for another creature', (mk, t) => {
+    t.auto('Boon-Bringer Valkyrie');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.put('A', 'Boon-Bringer Valkyrie', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(bear.counters['+1/+1'] || 0, 1);
+    t.ok(T.g.hasKw(bear, 'flying') && T.g.hasKw(bear, 'lifelink'), 'flying and lifelink until end of turn');
+    T.nextTurn('B');
+    t.no(T.g.hasKw(bear, 'flying'), 'gone at end of turn');
+  });
 };

@@ -42,7 +42,7 @@
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
-    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort',
+    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
     // keywords the engine now runs on its own
@@ -5809,6 +5809,28 @@
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
     etbm = text.match(/enters(?: tapped)? with (a|an|one|two|three|\d+) ([a-z ]+?) counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
+    /* Graft N (CR 702.58): it enters with N +1/+1 counters, and may hand
+       one to each other creature as that creature enters */
+    const graftN = out.keywords.some(k => k.keyword === 'Graft') && text.match(/(?:^|\n)Graft (\d+)/);
+    if (graftN) {
+      out.entersWithCounters = { kind: '+1/+1', n: +graftN[1] };
+      out.abilities.push({ kind: 'triggered', event: 'permEnters', objFilter: subjectFilter('another creature'), optional: true,
+        condition: { kind: 'selfCounters', n: 1, counter: '+1/+1' }, effects: [{ op: 'graftCounter' }],
+        text: 'Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.', auto: true });
+    }
+    /* Backup N (CR 702.165): as it enters, N +1/+1 counters on target
+       creature; another creature also gains the abilities printed below
+       the keyword until end of turn */
+    const backupAt = out.keywords.some(k => k.keyword === 'Backup') ? text.split('\n').findIndex(l => /^Backup \d+/.test(l)) : -1;
+    if (backupAt >= 0) {
+      const bn = +text.split('\n')[backupAt].match(/^Backup (\d+)/)[1];
+      const below = text.split('\n').slice(backupAt + 1).map(l => stripReminder(l).trim()).filter(Boolean)
+        .map(l => l.replace(/\bCARDNAME\b/g, 'this creature'));
+      out.abilities.push({ kind: 'triggered', event: 'etb', self: true, text: text.split('\n')[backupAt],
+        effects: [{ op: 'counters', kind: '+1/+1', n: bn, targets: [targetSpec('target creature')] }, { op: 'backupGrant', texts: below }],
+        auto: below.every(l => grantableText(l) || KW_LIST.test(l)) });
+      if (!out.abilities[out.abilities.length - 1].auto) out.fullyAutomated = false;
+    }
     const modular = out.keywords.find(k => k.keyword === 'Modular');
     if (modular && modular.arg) out.entersWithCounters = { kind: '+1/+1', n: parseInt(modular.arg, 10) || 0 };
 

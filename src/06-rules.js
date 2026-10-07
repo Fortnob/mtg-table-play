@@ -12216,6 +12216,33 @@
           break;
         }
         /* Nesting Grounds: a counter moved from one target to the other */
+        // Backup: another creature backed up gains the abilities printed below the keyword
+        case 'backupGrant': {
+          const t0 = targets.find(t => t.kind === 'object');
+          const o = t0 && this.obj(t0.id);
+          if (!o || o === src || o.zone !== 'battlefield') break;
+          for (const tx of (e.texts || [])) {
+            // a line of keywords ("Flying, first strike, lifelink") is those keywords
+            if (/^[A-Za-z ,]+$/.test(tx)) {
+              const kws = tx.split(/,\s*|\s+and\s+/).map(k => k.trim()).filter(Boolean).map(k => k.charAt(0).toUpperCase() + k.slice(1).toLowerCase());
+              o.effects.push({ keywords: kws, until: 'eot' });
+            } else o.effects.push({ grantText: tx, until: 'eot' });
+          }
+          o._chr = null; this.bumpBoard();
+          this.logEvent('keyword', `${o.name} gains ${src ? src.name : 'its'}'s abilities until end of turn.`);
+          break;
+        }
+        // Graft: a +1/+1 counter from this onto the creature that just entered
+        case 'graftCounter': {
+          const to = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          if (!src || !to || to === src || to.zone !== 'battlefield' || !(Number(src.counters['+1/+1']) > 0)) break;
+          src.counters['+1/+1'] = Number(src.counters['+1/+1']) - 1;
+          if (!src.counters['+1/+1']) delete src.counters['+1/+1'];
+          this.addCounters(to, '+1/+1', 1, { noReplace: true });
+          src._chr = null; this.bumpBoard();
+          this.logEvent('counters', `A +1/+1 counter moves from ${src.name} to ${to.name}.`);
+          break;
+        }
         case 'moveCounter': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const [from, to] = objs;
