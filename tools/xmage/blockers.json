@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14126,
+  "needed": 14117,
   "gainedCards": 1488,
-  "linesNeeded": 15596,
+  "linesNeeded": 15587,
   "linesGained": 1846,
   "gained": {
    "all": 1488,
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 893,
-   "lines": 767,
+   "score": 891,
+   "lines": 765,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -3631,22 +3631,6 @@
     "Spiders-Man, Heroic Horde",
     "Spider-Man, Web-Slinger",
     "Amazing Spider-Girl"
-   ]
-  },
-  {
-   "what": "DealtDamageAnyTriggeredAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Repercussion",
-    "Rite of Passage",
-    "Ill-Tempered Loner // Howlpack Avenger",
-    "Jennifer Walters // The Sensational She-Hulk",
-    "Sonic the Hedgehog",
-    "Termination Facilitator",
-    "Expedited Inheritance",
-    "Death Pits of Rath",
-    "Kazarov, Sengir Pureblood"
    ]
   },
   {
@@ -7449,6 +7433,18 @@
     "Charm Peddler",
     "Sanctum Guardian"
    ]
+  },
+  {
+   "what": "not attacking",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Domineering Will",
+    "Arcades Sabboth",
+    "Ruthless Instincts",
+    "Alarum",
+    "Unlikely Alliance"
+   ]
   }
  ],
  "sole": [
@@ -7467,8 +7463,8 @@
   },
   {
    "what": "custom ability",
-   "score": 675,
-   "cards": 576,
+   "score": 673,
+   "cards": 574,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -9432,19 +9428,6 @@
    ]
   },
   {
-   "what": "DealtDamageAnyTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Repercussion",
-    "Rite of Passage",
-    "Ill-Tempered Loner // Howlpack Avenger",
-    "Jennifer Walters // The Sensational She-Hulk",
-    "Termination Facilitator",
-    "Expedited Inheritance"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 8,
    "cards": 8,
@@ -11229,6 +11212,18 @@
     "Increasing Confusion",
     "Stonesplitter Bolt",
     "Procrastinate"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Betor, Kin to All",
+    "Éomer, Marshal of Rohan",
+    "Awakening",
+    "Blinkmoth Infusion",
+    "Battle Cry"
    ]
   }
  ]

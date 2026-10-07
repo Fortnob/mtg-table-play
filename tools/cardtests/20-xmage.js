@@ -7748,4 +7748,28 @@ module.exports = (test) => {
     T.bf('A', 'Mind Stone');
     t.eq(T.g.powerOf(k), 5); t.eq(T.g.toughnessOf(k), 5);
   });
+
+  test('Wrathful Raptors: a Dinosaur dealt damage passes it on', (mk, t) => {
+    t.auto('Wrathful Raptors');
+    const T = mk();
+    const wr = T.bf('A', 'Wrathful Raptors');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R');
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: [wr.id] });
+    T.resolve();
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Death Pits of Rath: any creature dealt damage is destroyed, the opponent\'s too', (mk, t) => {
+    t.auto('Death Pits of Rath');
+    const T = mk();
+    T.bf('A', 'Death Pits of Rath');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [giant.id] });
+    T.resolve();
+    t.eq(giant.zone, 'graveyard');
+  });
 };

@@ -8474,6 +8474,8 @@
       if (source && source.zone === 'battlefield' && a && a.isCreature) this._fire('dealsDamageToCreature', source.controller, { source, object: o, amount, combat: !!isCombat });
       // "Whenever this creature is dealt damage" (enrage): the creature's own trigger
       this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat });
+      // Death Pits of Rath, Wrathful Raptors: "whenever a creature (you control) is dealt damage" — anyone's, as the words say
+      this._fire('anyDealtDamage', null, { object: o, objController: o.controller, amount, combat: !!isCombat });
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${o.name}.`);
       this.emit('sfx', 'damage', { player: o.controller, size: amount });
       this.emit('damage', { object: o, amount, source });

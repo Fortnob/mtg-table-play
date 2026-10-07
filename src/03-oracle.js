@@ -1056,6 +1056,11 @@
     { re: /^You lose half your life, rounded (up|down)\.?$/i, make: (m) => ({ op: 'loseLife', n: { halfLife: 'you', up: /up/i.test(m[1]) }, who: 'you' }) },
     // Blessed Wind: "Target player's life total becomes 20."
     { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
+    /* Wrathful Raptors: "it deals that much damage to any target that isn't a
+       Dinosaur" — the creature that was dealt damage, passing it on */
+    { re: /^(?:It|That creature) deals that much damage to any (other )?target(?: that isn'?t an? ([A-Z][a-z]+))?\.?$/,
+      make: (m) => ({ op: 'damage', n: 'triggerAmount', fromTrigger: true,
+        targets: [Object.assign(targetSpec('any target'), m[2] ? { notSubtype: m[2].toLowerCase() } : {}, m[1] ? { another: true } : {})] }) },
     // Archfiend of Despair: "each opponent loses life equal to the life that player lost this turn"
     { re: /^Each opponent loses life equal to the life that player lost this turn\.?$/i,
       make: () => ({ op: 'loseLife', who: 'opponents', n: { lifeLostBy: 'each' } }) },
@@ -5970,6 +5975,8 @@
     { re: /^At the beginning of enchanted player's upkeep,? /i, event: 'eachUpkeep', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of each player's end step,? /i, event: 'eachEndStep' },
     { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
+    // Wrathful Raptors: "Whenever a Dinosaur you control is dealt damage"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' is dealt damage,? ', 'i'), event: 'anyDealtDamage', filt: (m) => subjectFilter(m[1]) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat )?damage,? /i, event: 'isDealtDamage', self: true,
       extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
     { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
