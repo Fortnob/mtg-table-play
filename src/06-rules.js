@@ -8003,6 +8003,8 @@
           const host = src && src.attachedTo && this.obj(src.attachedTo);
           return !!host && (host.attachments || []).filter(id => { const at = this.obj(id); return at && (at.analysis() || {}).isEquipment; }).length >= (cond.n || 2);
         }
+        // Sanguine Spy: how many different mana values the graveyard holds
+        case 'graveMvDistinct': return !!me && new Set(this.zones[me.id].graveyard.map(c => (c.card && c.card.cmc) || 0)).size >= (cond.n || 1);
         case 'controlsGreatestPower': {
           if (!me) return false;
           const cs = this.battlefield.filter(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
@@ -8775,6 +8777,8 @@
       this._removeFromZone(o);
       this.bumpBoard();
       o.zone = toZone;
+      // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
+      if (toZone === 'battlefield') o.enteredFrom = from;
 
       // reset per-zone state
       /* Who controlled it as it left matters to anything watching ("a
@@ -9234,6 +9238,8 @@
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
+          // Phyrexian Dragon Engine: only when it came straight from the graveyard
+          if (ab.fromGraveyardEnter && !(data.object && data.object.enteredFrom === 'graveyard')) continue;
           // Pain Distributor: the caster's first spell this turn
           if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
           // Flourishing Defenses: only that kind of counter
@@ -12229,6 +12235,15 @@
           // Syncopate, Power Sink: "unless its controller pays {X}" — the X this was cast with
           if (typeof cost === 'string' && /\{X\}/.test(cost)) cost = cost.replace(/\{X\}/g, '{' + (n('X') || 0) + '}');
           if (e.costFromPower && this.powerOf(src) <= 0) { this._spliceNext(e.then); break; }
+          // Rush of Inspiration: "unless you pay {E}{E}" — energy, not mana
+          if (typeof cost === 'string' && /^(?:\{E\})+$/.test(cost)) {
+            const k = (cost.match(/\{E\}/g) || []).length;
+            if ((payer.energy || 0) < k) { this._spliceNext(e.then); break; }
+            const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost, prompt: e.prompt || `Pay ${cost}?` });
+            if (paidE === SUSPEND) return SUSPEND;
+            if (paidE) { payer.energy -= k; this.logEvent('rules', `${payer.name} pays ${cost}.`); } else this._spliceNext(e.then);
+            break;
+          }
           const affordable = typeof cost === 'string'
             ? this.couldPay(payer.id, cost)
             : payer.life > (cost.life || 0);

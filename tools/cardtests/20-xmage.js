@@ -8369,4 +8369,36 @@ module.exports = (test) => {
     T.cast('A', o);
     T.resolve();
   });
+
+  test('Rush of Inspiration: pay two energy to keep the cards', (mk, t) => {
+    t.auto('Rush of Inspiration // Crackling Falls');
+    const T = mk();
+    T.player('A').energy = 2;
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '1UU');
+    T.cast('A', T.hand('A', 'Rush of Inspiration // Crackling Falls'));
+    T.resolve();
+    t.eq(T.player('A').energy, 0);
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'drew two, discarded none');
+  });
+
+  test('Phyrexian Dragon Engine: only from the graveyard', (mk, t) => {
+    t.auto('Phyrexian Dragon Engine');
+    const T = mk();
+    const e1 = T.grave('A', 'Phyrexian Dragon Engine');
+    const h0 = T.zone('A', 'hand').length;
+    T.g.moveObject(e1, 'battlefield');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 3, 'hand discarded, three drawn');
+    void h0;
+  });
+
+  test('Sanguine Spy: five different mana values in the graveyard', (mk, t) => {
+    const T = mk();
+    const s = T.bf('A', 'Sanguine Spy');
+    for (const n of ['Island', 'Llanowar Elves', 'Grizzly Bears', 'Hill Giant']) T.grave('A', n);
+    t.ok(!T.g._condMet({ kind: 'graveMvDistinct', n: 5 }, { controller: 'A', obj: s }));
+    T.grave('A', 'Craw Wurm');
+    t.ok(T.g._condMet({ kind: 'graveMvDistinct', n: 5 }, { controller: 'A', obj: s }));
+  });
 };

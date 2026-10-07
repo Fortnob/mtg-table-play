@@ -2518,6 +2518,8 @@
     { re: /^Investigate\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue' }) },
     { re: /^Investigate (two|three|\d+) times\.?$/i, make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: 'Clue' }) },
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
+    // Gallia of the Endless Dance: "discard a card at random"
+    { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     // Wojek Investigator: "investigate once for each opponent who has more cards in hand than you"
     { re: /^Investigate once for each opponent who has more cards in hand than you\.?$/i,
       make: () => ({ op: 'createNamedToken', n: { opponentsMoreHand: true }, token: 'Clue' }) },
@@ -5649,6 +5651,8 @@
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
     [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
+    // Sanguine Spy: "there are five or more mana values among cards in your graveyard"
+    [/^there are (\w+) or more mana values among cards in your graveyard$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveMvDistinct', n: num(m[1]) } : null)],
     // Lightning Phoenix: "an opponent was dealt 3 or more damage this turn" — as life lost
     [/^an opponent was dealt (\w+) or more damage this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     // High Score: "you control a creature with the greatest power among creatures on the battlefield"
@@ -6098,6 +6102,8 @@
       filt: (m) => (/^permanent$/i.test(m[1]) ? { words: 'permanent' } : subjectFilter('a ' + m[1])) },
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
     { re: /^When(?:ever)? a player casts their first spell during each of your turns(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true, yourTurnOnly: true } },
+    // Phyrexian Dragon Engine: "When this creature enters from your graveyard"
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) enters from your graveyard,? /i, event: 'etb', self: true, extra: { fromGraveyardEnter: true } },
     // Punishing Fire: "Whenever an opponent gains life"
     { re: /^Whenever an opponent gains life,? /i, event: 'opponentGainsLife' },
     // Pain Distributor: "Whenever a player casts their first spell each turn"
