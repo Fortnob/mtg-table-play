@@ -1285,7 +1285,7 @@
     { re: /^Each opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'opponents' }) },
     /* "You may put a creature card from among the milled cards into your
        hand": one of what the mill just put in the graveyard */
-    { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
+    { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way|those cards) (?:into|to) your hand\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: 1, filter: m[2].trim() || 'any', optional: !!m[1] }) },
     // Smuggler's Surprise: "You may put up to two creature and/or land cards from among the milled cards into your hand."
     { re: /^(?:Then )?(you may )?(?:put|return) up to (two|three|four) ([a-z, \/]*?)cards from among (?:the milled cards|the cards milled this way|them) (?:into|to) your hand\.?$/i,
@@ -1651,6 +1651,11 @@
     { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
     /* Chandra, Flamecaller: "Exile them at the beginning of the next end
        step" — the tokens this just made, each of them */
+    // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
+    { re: /^If (?:it|that creature|the creature) would leave the battlefield, exile it instead of putting it anywhere else\.?$/i,
+      make: () => ({ op: 'leaveExile' }) },
+    { re: /^(?:It|That creature) gains "If this (?:permanent|creature|land) would leave the battlefield, exile it instead of putting it anywhere else\.?"\.?$/i,
+      make: () => ({ op: 'leaveExile' }) },
     // Tidehollow Sculler, the Champions: "return the exiled card to its owner's hand"
     { re: /^Return the exiled cards? to (?:its|their) owners?'?s?'? hands?\.?$/i, make: () => ({ op: 'returnHeld' }) },
     // Ghostway, Eerie Interlude: "Return those cards to the battlefield under their owner's control at the beginning of the next end step."
@@ -1916,8 +1921,9 @@
 
 
     /* ===== a graveyard anybody can reach into ===== */
-    { re: /^Put target creature card from a graveyard onto the battlefield under your control\.?$/i,
-      make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
+    { re: /^Put target creature card from (a|an opponent'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'reanimate', mine: true, targets: [Object.assign({ type: 'creature', zone: 'graveyard' }, /opponent/i.test(m[1]) ? { controller: 'opponent' } : {})] },
+        m[2] ? { counter: m[2].toLowerCase() } : {}) },
     { re: /^Return target creature card from a graveyard to the battlefield under your control\.?$/i,
       make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
 
@@ -4150,6 +4156,10 @@
         delete again.targets;
         return [again];
       } },
+    /* Eldritch Evolution: "with mana value X or less, where X is 2 plus the sacrificed creature's mana value" */
+    { re: /^Search your library for an? ([a-z ]+?) card with mana value X or less, where X is (one|two|three|\d+) plus the sacrificed creature'?s mana value\. Put that card onto the battlefield, then shuffle\.( Exile CARDNAME\.)?$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', maxMv: { ofSacrificed: 'mv', plus: num(m[2]) },
+        prompt: 'Search your library for a ' + m[1].toLowerCase() + ' card.' }].concat(m[3] ? [{ op: 'exileSelf' }] : []) },
     /* Emry, Conduit of Worlds: a card from the graveyard, castable this turn */
     { re: /^Choose target ([a-z ]+?) card in your graveyard\. (?:You may cast that card this turn|If you haven'?t cast a spell this turn, you may cast that card)\.?$/i,
       make: (m) => [{ op: 'mayCastFromGraveyard', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard', controller: 'you' })] }] },
@@ -4655,7 +4665,8 @@
       }
 
       // "You may X. If you do, Y."
-      const may = s.match(/^You may (.+?)\.$/i);
+      // Ripples of Undeath: "Then you may pay {1} and 3 life. If you do, …"
+      const may = s.match(/^(?:Then )?You may (.+?)\.$/i);
       /* "When you do" (a reflexive trigger, CR 603.12) is read as "if you
          do": what follows happens once the choice is made and paid for */
       // (not "If you don't", which is its own sentence)

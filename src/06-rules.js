@@ -8229,6 +8229,8 @@
              would go to the graveyard from the battlefield is exiled. */
           if (from === 'battlefield' && toZone === 'graveyard' && (Number((o.counters || {}).finality) || 0) > 0) toZone = 'exile';
         }
+        // Whip of Erebos: "if it would leave the battlefield, exile it instead"
+        if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && o.leaveExile) toZone = 'exile';
       }
       /* A mutated pile is several cards; each of them goes where the
          permanent went (CR 702.140f). */
@@ -8297,6 +8299,7 @@
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
+        o.leaveExile = false;
         if (vanishes) this.emit('object:gone', o);
       }
 
@@ -11672,6 +11675,12 @@
           if (x && e.tapped && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
+          break;
+        }
+        // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
+        case 'leaveExile': {
+          const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
+          if (x && x.zone === 'battlefield') x.leaveExile = true;
           break;
         }
         // Tidehollow Sculler: what this card exiled goes back to its owner's hand

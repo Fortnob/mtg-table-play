@@ -5907,4 +5907,52 @@ module.exports = (test) => {
     t.no(seen.zom, 'black: refused');
     t.eq(T.life('B'), 18, 'the Bears paid {2}');
   });
+
+  test('Whip of Erebos: the returned creature is exiled if it would leave', (mk, t) => {
+    t.auto('Whip of Erebos');
+    const T = mk();
+    const whip = T.bf('A', 'Whip of Erebos');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'BB2');
+    T.activate('A', whip, 0, { targets: [bear.id] });
+    t.eq(bear.zone, 'battlefield');
+    T.g.moveObject(bear, 'graveyard');
+    t.eq(bear.zone, 'exile', 'exiled instead');
+  });
+
+  test('Gruesome Encore: from an opponent\'s graveyard, under your control', (mk, t) => {
+    t.auto('Gruesome Encore');
+    const T = mk();
+    const mine = T.grave('A', 'Grizzly Bears');
+    const theirs = T.grave('B', 'Hill Giant');
+    T.mana('A', 'B2');
+    const ge = T.hand('A', 'Gruesome Encore');
+    t.no(T.g.castSpell('A', ge.id, { targets: [{ kind: 'object', id: mine.id }] }), 'not your own graveyard');
+    T.cast('A', ge, { targets: [theirs.id] });
+    t.eq(theirs.zone, 'battlefield'); t.eq(theirs.controller, 'A');
+  });
+
+  test('Eldritch Evolution: mana value up to 2 plus the sacrificed creature\'s', (mk, t) => {
+    t.auto('Eldritch Evolution');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const wurm = T.top('A', 'Craw Wurm'), angel = T.top('A', 'Serra Angel'), giant = T.top('A', 'Hill Giant');
+    T.mana('A', 'GG1');
+    T.cast('A', T.hand('A', 'Eldritch Evolution'), { sacrificeIds: [bear.id] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(giant.zone, 'battlefield', 'mana value 4 is fine');
+    t.eq(angel.zone, 'library'); t.eq(wurm.zone, 'library');
+  });
+
+  test('Ripples of Undeath: then you may pay {1} and 3 life for one of the milled cards', (mk, t) => {
+    t.auto('Ripples of Undeath');
+    const T = mk();
+    T.bf('A', 'Ripples of Undeath');
+    T.bf('A', 'Swamp');
+    for (let i = 0; i < 4; i++) T.top('A', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.resolve();
+    t.eq(T.life('A'), 17, '3 life paid');
+    t.eq(T.zone('A', 'graveyard').length, 2, 'one of three milled came to hand');
+  });
 };
