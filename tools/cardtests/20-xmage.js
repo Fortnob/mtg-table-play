@@ -5563,4 +5563,21 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Citywide Bust'));
     t.eq(big.zone, 'graveyard'); t.eq(bear.zone, 'battlefield');
   });
+
+  test('Roles: a Wicked Role pumps, replaces an older Role, and drains as it goes', (mk, t) => {
+    t.auto('Monstrous Rage');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Monstrous Rage'), { targets: [bear] });
+    t.eq(T.g.powerOf(bear), 2 + 2 + 1, '+2/+0 for the turn and the Monster Role');
+    t.ok(T.g.hasKw(bear, 'trample'));
+    const role = T.bfOf('A').find(o => /Monster Role/.test(o.name));
+    t.ok(role && role.attachedTo === bear.id, 'attached');
+    const wicked = T.g._createRole('A', 'Wicked', bear);
+    t.eq(role.zone, 'graveyard', 'one Role per controller: the older goes');
+    T.g.moveObject(wicked, 'graveyard');
+    T.resolve();
+    t.eq(T.life('B'), 19, 'Wicked: each opponent loses 1');
+  });
 };

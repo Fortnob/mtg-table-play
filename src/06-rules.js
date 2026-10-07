@@ -5188,6 +5188,39 @@
       this.logEvent('rules', `${o.name} enters attached to ${host.name}.`);
       this.bumpBoard();
     }
+    /** A Role token (CR 303.7) attached to a creature; one Role per controller on it, the newest kept. */
+    _createRole(pid, role, host) {
+      const WORDS = {
+        Cursed: 'Enchanted creature has base power and toughness 1/1.',
+        Monster: 'Enchanted creature gets +1/+1 and has trample.',
+        Royal: 'Enchanted creature gets +1/+1 and has ward {1}.',
+        Sorcerer: 'Enchanted creature gets +1/+1 and has "Whenever this creature attacks, scry 1."',
+        Virtuous: 'Enchanted creature gets +1/+1 for each enchantment you control.',
+        Wicked: 'Enchanted creature gets +1/+1.\nWhen this Aura is put into a graveyard from the battlefield, each opponent loses 1 life.',
+        'Young Hero': 'Enchanted creature has "Whenever this creature attacks, if its toughness is 3 or less, put a +1/+1 counter on it."',
+      };
+      if (!WORDS[role]) return null;
+      const card = { id: 'role:' + role, name: role + ' Role', layout: 'token', mana_cost: '', cmc: 0,
+        type_line: 'Token Enchantment \u2014 Aura Role', oracle_text: 'Enchant creature\n' + WORDS[role],
+        colors: [], color_identity: [], keywords: [], rarity: 'common', set: 'tkn', set_name: 'Token',
+        collector_number: '0', image_uris: null, _isToken: true };
+      // the controller's other Roles on that creature go (CR 303.7a)
+      for (const id of (host.attachments || []).slice()) {
+        const r = this.obj(id);
+        if (r && r.isToken && r.controller === pid && /\bRole\b/.test(String((r.card || {}).type_line || ''))) this.moveObject(r, 'graveyard');
+      }
+      const o = this._register(new GObj(card, pid, 'battlefield'));
+      o.isToken = true; o.controller = pid; o.zone = 'battlefield'; o.entered = this.turn;
+      o.attachedTo = host.id;
+      host.attachments = (host.attachments || []).concat(o.id);
+      o.ts = this._stampNew();
+      this.battlefield.push(o);
+      this.bumpBoard();
+      this._onEnter(o);
+      this._fireEnters(o);
+      this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
+      return o;
+    }
     /** The creatures a player could blight. */
     _blightPool(pid) {
       return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this.characteristics(x).isCreature);
@@ -7459,6 +7492,7 @@
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
+        case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
           const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[ctx.abilityIndex];
@@ -13111,6 +13145,16 @@
           x.effects.push({ control: p.id, until: null, ts: this._stampNew() });
           this._refreshControl();
           this.logEvent('control', `${p.name} gains control of ${x.name}.`);
+          break;
+        }
+        // Roles: an Aura token made attached, and the controller's older Role on it goes
+        case 'createRole': {
+          let host = null;
+          if ((e.targets || []).length) host = firstObj();
+          else if (e.on === 'attached') host = src && src.attachedTo && this.obj(src.attachedTo);
+          else host = firstObj() || ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id)) || this._lastCopy;
+          if (!host || host.zone !== 'battlefield' || !this.characteristics(host).isCreature) break;
+          this._createRole(ctx.controller, e.role, host);
           break;
         }
         // Door to Nothingness

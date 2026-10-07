@@ -882,6 +882,14 @@
     // Memnarch: "Target permanent becomes an artifact in addition to its other types." — for good
     { re: /^(target [a-z ]+?) becomes an? (artifact|enchantment|creature|land) in addition to its other types\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'addTypes', types: [U.titleCase(m[2])], targets: [t] } : null; } },
+    /* Roles (CR 303.7): "Create a Wicked Role token attached to target
+       creature you control" — an Aura token with the Role's words */
+    { re: /^Create an? (Cursed|Monster|Royal|Sorcerer|Virtuous|Wicked|Young Hero) Role token attached to (up to one (?:other )?|another )?(target creature(?: you control| an opponent controls| you don'?t control)?|it|that creature|enchanted creature|equipped creature)\.?$/i,
+      make: (m) => {
+        const role = U.titleCase(m[1].toLowerCase()).replace('Young hero', 'Young Hero');
+        if (/^target/i.test(m[3])) return { op: 'createRole', role, targets: [Object.assign(targetSpec(m[3]), m[2] && /up to/i.test(m[2]) ? { upTo: true } : {}, m[2] && /other|another/i.test(m[2]) ? { another: true } : {})] };
+        return { op: 'createRole', role, on: /enchanted|equipped/i.test(m[3]) ? 'attached' : 'it' };
+      } },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -5040,6 +5048,8 @@
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
+    // Young Hero Role: "if its toughness is 3 or less"
+    [/^(?:its|CARDNAME'?s|this creature'?s) toughness is (\w+) or less$/i, (m) => ({ kind: 'selfToughnessMax', n: num(m[1]) })],
     [/^this is the (second|third|fourth|fifth) time this ability has resolved this turn$/i,
       (m) => ({ kind: 'nthResolution', n: { second: 2, third: 3, fourth: 4, fifth: 5 }[m[1].toLowerCase()] })],
     [/^you control your commander$/i, () => ({ kind: 'controlCommander' })],
