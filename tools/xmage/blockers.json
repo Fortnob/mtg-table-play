@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15056,
-  "gainedCards": 1537,
-  "linesNeeded": 16763,
-  "linesGained": 1944,
+  "needed": 15037,
+  "gainedCards": 1535,
+  "linesNeeded": 16740,
+  "linesGained": 1940,
   "gained": {
-   "all": 1537,
+   "all": 1535,
    "top2000": 51,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5475,
-   "lines": 4719,
+   "score": 5473,
+   "lines": 4717,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 933,
-   "lines": 792,
+   "score": 932,
+   "lines": 791,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1403,25 +1403,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork",
-    "Wanderwine Farewell",
-    "Become Brutes",
-    "Soul Parry",
-    "Velvetwing Butterflies // Gaze in Wonder",
-    "Counterintelligence"
-   ]
-  },
-  {
    "what": "CompoundCondition",
    "score": 17,
    "lines": 17,
@@ -1957,6 +1938,25 @@
     "Clockwork Beast",
     "Clockwork Avian",
     "Clockwork Swarm"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell",
+    "Become Brutes",
+    "Soul Parry",
+    "Counterintelligence",
+    "Command of Unsummoning",
+    "Heroic Teamwork"
    ]
   },
   {
@@ -3930,23 +3930,6 @@
    ]
   },
   {
-   "what": "GainLifeEffect amount",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Children of Korlis",
-    "Tainted Sigil",
-    "From Under the Floorboards",
-    "Dihada's Ploy",
-    "Predator's Rapport",
-    "Simulacrum",
-    "Niko Defies Destiny",
-    "Jade Seedstones // Jadeheart Attendant",
-    "Silent-Chant Zubera",
-    "Reverse Polarity"
-   ]
-  },
-  {
    "what": "AddCardSubTypeSourceEffect",
    "score": 10,
    "lines": 10,
@@ -4434,22 +4417,6 @@
    ]
   },
   {
-   "what": "TargetCardInTargetPlayersGraveyard",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Quandrix Command",
-    "Gaea's Blessing",
-    "Loaming Shaman",
-    "Rite of Renewal",
-    "Memory's Journey",
-    "Witness the Future",
-    "Stream of Consciousness",
-    "Krosan Reclamation",
-    "Dwell on the Past"
-   ]
-  },
-  {
    "what": "BecomesMonstrousSourceTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -4735,6 +4702,22 @@
     "Mounted Archers",
     "Coastline Chimera",
     "Luminous Guardian"
+   ]
+  },
+  {
+   "what": "GainLifeEffect amount",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Tainted Sigil",
+    "From Under the Floorboards",
+    "Dihada's Ploy",
+    "Predator's Rapport",
+    "Simulacrum",
+    "Niko Defies Destiny",
+    "Jade Seedstones // Jadeheart Attendant",
+    "Silent-Chant Zubera",
+    "Reverse Polarity"
    ]
   },
   {
@@ -7723,13 +7706,25 @@
     "Contested War Zone",
     "Hixus, Prison Warden"
    ]
+  },
+  {
+   "what": "SetBasePowerToughnessAttachedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Super State",
+    "Wrecking Ball Arm",
+    "Octopus Umbra",
+    "Stasis Field",
+    "Coerced to Kill"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4374,
-   "cards": 3834,
+   "score": 4373,
+   "cards": 3833,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7741,8 +7736,8 @@
   },
   {
    "what": "custom ability",
-   "score": 698,
-   "cards": 587,
+   "score": 697,
+   "cards": 586,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8311,19 +8306,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 16,
    "cards": 16,
@@ -8485,6 +8467,19 @@
     "Grand Architect",
     "Cryptek",
     "Pia Nalaar"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork"
    ]
   },
   {
@@ -10214,32 +10209,6 @@
    ]
   },
   {
-   "what": "GainLifeEffect amount",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Children of Korlis",
-    "Tainted Sigil",
-    "From Under the Floorboards",
-    "Dihada's Ploy",
-    "Predator's Rapport",
-    "Simulacrum"
-   ]
-  },
-  {
-   "what": "TargetCardInTargetPlayersGraveyard",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Quandrix Command",
-    "Loaming Shaman",
-    "Rite of Renewal",
-    "Memory's Journey",
-    "Witness the Future",
-    "Stream of Consciousness"
-   ]
-  },
-  {
    "what": "IsStepCondition",
    "score": 8,
    "cards": 8,
@@ -10921,6 +10890,19 @@
    ]
   },
   {
+   "what": "GainLifeEffect amount",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Tainted Sigil",
+    "From Under the Floorboards",
+    "Dihada's Ploy",
+    "Predator's Rapport",
+    "Simulacrum",
+    "Silent-Chant Zubera"
+   ]
+  },
+  {
    "what": "BecomesBlockedAllTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -11560,6 +11542,19 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
+   ]
+  },
+  {
+   "what": "CardsInOpponentGraveyardCondition.EIGHT",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Blackbloom Rogue // Blackbloom Bog",
+    "Thieves' Guild Enforcer",
+    "Merfolk Windrobber",
+    "Soaring Thought-Thief",
+    "Tenured Oilcaster",
+    "Nimana Skitter-Sneak"
    ]
   }
  ]

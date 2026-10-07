@@ -818,6 +818,27 @@
     // Kellogg, Merieke Ri Berit: "for as long as you control this creature"
     { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, whileSrc: true, targets: [targetSpec(m[1])] }) },
+    // Amazing Acrobatics: "Tap one or two target creatures."
+    { re: /^Tap one or two target creatures\.?$/i, make: () => ({ op: 'tap', targets: [{ type: 'creature' }, { type: 'creature', upTo: true, distinct: true }] }) },
+    // Kheru Goldkeeper: "Put two +1/+1 counters and a flying counter on target creature."
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-0-9/a-z]+) counters? and (a|an|one|two) ([a-z ]+?) counters? on (target creature(?: you control)?)\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), targets: [targetSpec(m[5])] },
+        { op: 'counters', kind: m[4].toLowerCase(), n: num(m[3]), scope: 'lastTarget' }] }) },
+    // Children of Korlis: "You gain life equal to the life you've lost this turn."
+    { re: /^You gain life equal to the life you'?ve lost this turn\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: { lifeLostThisTurn: 'you' } }) },
+    // Wall of Reverence: "gain life equal to the power of target creature you control"
+    { re: /^(?:You )?[Gg]ain life equal to the power of (target creature(?: you control)?)\.?$/,
+      make: (m) => ({ op: 'gainLife', who: 'you', n: { ofTarget: 'power' }, targets: [targetSpec(m[1])] }) },
+    // Quandrix Command, Dwell on the Past: cards from a graveyard shuffled back
+    { re: /^Target player shuffles up to (one|two|three|four|five) target cards from their graveyard into their library\.?$/i,
+      make: (m) => ({ op: 'shuffleGraveCards', targets: [{ type: 'player' }].concat(Array.from({ length: num(m[1]) },
+        () => ({ type: 'card', zone: 'graveyard', filter: 'card', upTo: true, distinct: true }))) }) },
+    // Gimli's Reckless Might: "fights up to one target creature you don't control"
+    { re: /^(Target (?:attacking )?creature you control) fights up to one (target creature (?:you don'?t control|an opponent controls))\.?$/i,
+      make: (m) => ({ op: 'fight', targets: [targetSpec(m[1]), Object.assign(targetSpec(m[2]), { upTo: true })] }) },
+    // Beacon of Unrest: "…from a graveyard onto the battlefield under your control"
+    { re: /^Put target (artifact or creature|creature|artifact) card from a graveyard onto the battlefield under your control\.?$/i,
+      make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard' })] }) },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -2881,8 +2902,11 @@
     { re: /^Its controller discards (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'discard', n: num(m[1]), who: 'targetController' }) },
     // Flint Golem: "defending player mills three cards"
-    { re: /^Defending player mills (a|one|two|three|four|five|\d+) cards?\.?$/i,
+    { re: /^Defending player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'mill', n: num(m[1]), who: 'defending' }) },
+    // Terisian Mindbreaker: "defending player mills half their library, rounded up"
+    { re: /^Defending player mills half their library, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'mill', who: 'defending', n: { halfLibrary: 'defending', up: /up/i.test(m[1]) } }) },
     // Hammer of Nazahn: "attach that Equipment to target creature you control"
     { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },

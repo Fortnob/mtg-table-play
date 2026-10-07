@@ -9052,9 +9052,11 @@
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        // Children of Korlis: the life lost this turn
+        if (v && typeof v === 'object' && v.lifeLostThisTurn) return (me && me.lifeLostThisTurn) || 0;
         // Traumatize: half a library
         if (v && typeof v === 'object' && v.halfLibrary) {
-          const p = v.halfLibrary === 'target' ? firstPlayer() : me;
+          const p = v.halfLibrary === 'target' ? firstPlayer() : v.halfLibrary === 'defending' ? (this._defenderOf(src) || triggerPlayer()) : me;
           const k = p ? this.zones[p.id].library.length : 0;
           return v.up ? Math.ceil(k / 2) : Math.floor(k / 2);
         }
@@ -13035,6 +13037,19 @@
           if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
           if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
           this.bumpBoard();
+          break;
+        }
+        // Quandrix Command: cards from a graveyard into their owner's library, shuffled
+        case 'shuffleGraveCards': {
+          const owners = new Set();
+          for (const t of targets) {
+            if (t.kind !== 'object') continue;
+            const c = this.obj(t.id);
+            if (!c || c.zone !== 'graveyard') continue;
+            this.moveObject(c, 'library');
+            owners.add(c.owner);
+          }
+          for (const pid of owners) this.rng.shuffle(this.zones[pid].library);
           break;
         }
         // Maelstrom Pulse: the target and everything else with its name

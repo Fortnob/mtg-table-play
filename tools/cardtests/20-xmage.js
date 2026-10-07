@@ -5412,4 +5412,24 @@ module.exports = (test) => {
     t.eq(b.controller, 'B');
     t.eq(c.zone, 'graveyard');
   });
+
+  test('Dwell on the Past: up to four graveyard cards shuffled into their library', (mk, t) => {
+    t.auto('Dwell on the Past');
+    const T = mk();
+    const g1 = T.grave('B', 'Grizzly Bears'), g2 = T.grave('B', 'Island');
+    const lib = T.zone('B', 'library').length;
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Dwell on the Past'), { targets: ['B', g1, g2] });
+    t.eq(T.zone('B', 'library').length, lib + 2);
+    t.eq(T.zone('B', 'graveyard').length, 0);
+  });
+
+  test('Children of Korlis: back the life lost this turn', (mk, t) => {
+    t.auto('Children of Korlis');
+    const T = mk();
+    const ck = T.bf('A', 'Children of Korlis');
+    T.g.changeLife('A', -5);
+    T.activate('A', ck, 0);
+    t.eq(T.life('A'), 20);
+  });
 };
