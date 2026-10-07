@@ -8314,4 +8314,37 @@ module.exports = (test) => {
     t.ok(T.g._cardFitsWords(ally, 'allies'));
     t.ok(!T.g._cardFitsWords(bear, 'elves'));
   });
+
+  test('Punishing Fire: back to hand when an opponent gains life', (mk, t) => {
+    t.auto('Punishing Fire');
+    const T = mk();
+    const pf = T.grave('A', 'Punishing Fire');
+    T.mana('A', 'R');
+    T.g.changeLife(T.player('B'), 3);
+    T.resolve();
+    t.eq(pf.zone, 'hand');
+  });
+
+  test('Warcry Phoenix: comes back attacking with three attackers', (mk, t) => {
+    t.auto('Warcry Phoenix');
+    const T = mk();
+    const ph = T.grave('A', 'Warcry Phoenix');
+    const xs = [T.bf('A', 'Grizzly Bears'), T.bf('A', 'Grizzly Bears'), T.bf('A', 'Grizzly Bears')];
+    xs.forEach(x => { x.summoningSick = false; });
+    T.answer('declareAttackers', () => { T.mana('A', '2R'); return xs.map(x => ({ attackerId: x.id, defenderId: 'B' })); });
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.eq(ph.zone, 'battlefield'); t.ok(ph.tapped); t.eq(ph.attacking, 'B');
+  });
+
+  test('Boneyard Scourge: a Dragon dying brings it back from the graveyard', (mk, t) => {
+    t.auto('Boneyard Scourge');
+    const T = mk();
+    const bs = T.grave('A', 'Boneyard Scourge');
+    const d = T.bf('A', 'Shivan Dragon');
+    T.mana('A', '1B');
+    T.g.moveObject(d, 'graveyard');
+    T.resolve();
+    t.eq(bs.zone, 'battlefield');
+  });
 };

@@ -8638,6 +8638,8 @@
       this.emit('sfx', delta > 0 ? 'life_gain' : 'life_loss', { player: p.id, size: Math.abs(delta) });
       this.emit('life', { player: p, delta });
       if (delta > 0) this._fire('youGainLife', p.id, { amount: delta, player: p.id });
+      // Punishing Fire: everyone else sees it
+      if (delta > 0) this._fire('opponentGainsLife', null, { except: p.id, amount: delta, player: p.id });
     }
     /** Is anything on the table stopping this player from gaining life? */
     _lifeGainStopped(p) {
@@ -13652,6 +13654,12 @@
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
           this.moveObject(x, 'battlefield', { controller: e.owner ? x.owner : ctx.controller });
           if (e.tapped) x.tapped = true;
+          // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
+          if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+            const first = this.obj(this.combat.attackers[0]);
+            const def = (first && first.attacking) || (this.opponentsOf(x.controller)[0] || {}).id;
+            if (def) { x.attacking = def; this.combat.attackers.push(x.id); }
+          }
           // a finality counter, a +1/+1 counter: whatever it was told to come back with
           if (e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, e.n || 1);
           this.logEvent('reanimate', `${x.name} returns to the battlefield.`);

@@ -1127,6 +1127,9 @@
     // Hydra Omnivore: "it deals that much damage to each other opponent"
     { re: /^(?:It|CARDNAME|This creature) deals that much damage to each other opponent\.?$/i,
       make: () => ({ op: 'damage', n: 'triggerAmount', eachOtherOpponent: true }) },
+    // Warcry Phoenix: "return this card from your graveyard to the battlefield tapped and attacking"
+    { re: /^Return (?:this card|CARDNAME) from your graveyard to the battlefield tapped and attacking\.?$/i,
+      make: () => ({ op: 'returnSelfFromGrave', tapped: true, attacking: true }) },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -5636,6 +5639,8 @@
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
     [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
+    // Lightning Phoenix: "an opponent was dealt 3 or more damage this turn" — as life lost
+    [/^an opponent was dealt (\w+) or more damage this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     // High Score: "you control a creature with the greatest power among creatures on the battlefield"
     [/^you control (?:a|the) creature with the greatest power among creatures on the battlefield(?: or tied for the greatest power)?$/i, () => ({ kind: 'controlsGreatestPower' })],
     // Elenda: "your life total is at least 10 greater than your starting life total"
@@ -6018,6 +6023,8 @@
        opponent's graveyard from the battlefield" — dying, with whose it was */
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) put into (your|an opponent\'s) graveyard from the battlefield(?:,| )', 'i'),
       event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.who = /your/i.test(m[2]) ? 'you' : 'opponent'; return f; } },
+    // Boneyard Scourge: "Whenever a Dragon you control dies while this card is in your graveyard"
+    { re: new RegExp('^Whenever ' + SUBJ + ' dies while this card is in your graveyard,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     // Dour Port-Mage: "leave the battlefield without dying"; Soulherder: "is exiled from the battlefield"
@@ -6081,6 +6088,8 @@
       filt: (m) => (/^permanent$/i.test(m[1]) ? { words: 'permanent' } : subjectFilter('a ' + m[1])) },
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
     { re: /^When(?:ever)? a player casts their first spell during each of your turns(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true, yourTurnOnly: true } },
+    // Punishing Fire: "Whenever an opponent gains life"
+    { re: /^Whenever an opponent gains life,? /i, event: 'opponentGainsLife' },
     // Pain Distributor: "Whenever a player casts their first spell each turn"
     { re: /^When(?:ever)? a player casts their first spell each turn(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true } },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or attacks(?:,| )/i,

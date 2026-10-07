@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13931,
+  "needed": 13923,
   "gainedCards": 1456,
-  "linesNeeded": 15355,
+  "linesNeeded": 15347,
   "linesGained": 1796,
   "gained": {
    "all": 1456,
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 884,
-   "lines": 758,
+   "score": 881,
+   "lines": 755,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -431,25 +431,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 30,
-   "lines": 21,
-   "cards": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Persistent Marshstalker",
-    "Choco, Seeker of Paradise",
-    "Prodigy's Prototype",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 30,
    "lines": 18,
@@ -504,6 +485,25 @@
     "Spoils of the Vault",
     "The Stone Brain",
     "Lost Legacy"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 29,
+   "lines": 20,
+   "cards": [
+    "Anim Pakal, Thousandth Moon",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Prodigy's Prototype",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge"
    ]
   },
   {
@@ -4040,18 +4040,6 @@
    ]
   },
   {
-   "what": "HideawayPlayEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Spinerock Knoll",
-    "Rabble Rousing",
-    "Evercoat Ursine",
-    "Shelldock Isle",
-    "Howltooth Hollow"
-   ]
-  },
-  {
    "what": "keyword AftermathAbility",
    "score": 8,
    "lines": 5,
@@ -5682,19 +5670,6 @@
    ]
   },
   {
-   "what": "attack with 3 or more",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Legion's Landing // Adanto, the First Fort",
-    "Phoenix Chick",
-    "Gallia of the Endless Dance",
-    "Warcry Phoenix",
-    "Inniaz, the Gale Force",
-    "Ruby Collector"
-   ]
-  },
-  {
    "what": "(verify) \"may\" lost",
    "score": 6,
    "lines": 6,
@@ -6883,6 +6858,18 @@
    ]
   },
   {
+   "what": "attack with 3 or more",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Legion's Landing // Adanto, the First Fort",
+    "Phoenix Chick",
+    "Gallia of the Endless Dance",
+    "Inniaz, the Gale Force",
+    "Ruby Collector"
+   ]
+  },
+  {
    "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7408,6 +7395,18 @@
     "Killmonger, Ruthless Usurper",
     "Renewing Dawn"
    ]
+  },
+  {
+   "what": "GainLifeFirstTimeTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Vanguard Seraph",
+    "Attended Healer",
+    "Cleric of Life's Bond",
+    "Leech Collector // Bloodletting",
+    "Deathless Knight"
+   ]
   }
  ],
  "sole": [
@@ -7426,8 +7425,8 @@
   },
   {
    "what": "custom ability",
-   "score": 670,
-   "cards": 571,
+   "score": 667,
+   "cards": 568,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7672,19 +7671,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 25,
-   "cards": 16,
-   "names": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Persistent Marshstalker",
-    "Choco, Seeker of Paradise"
-   ]
-  },
-  {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
    "score": 25,
    "cards": 22,
@@ -7695,6 +7681,19 @@
     "Feline Sovereign",
     "Tifa, Martial Artist",
     "Orochi Soul-Reaver"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 24,
+   "cards": 15,
+   "names": [
+    "Anim Pakal, Thousandth Moon",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Prodigy's Prototype"
    ]
   },
   {
@@ -9229,18 +9228,6 @@
    ]
   },
   {
-   "what": "HideawayPlayEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Spinerock Knoll",
-    "Rabble Rousing",
-    "Evercoat Ursine",
-    "Shelldock Isle",
-    "Howltooth Hollow"
-   ]
-  },
-  {
    "what": "MillCardsEachPlayerEffect",
    "score": 8,
    "cards": 5,
@@ -10320,19 +10307,6 @@
    ]
   },
   {
-   "what": "attack with 3 or more",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Legion's Landing // Adanto, the First Fort",
-    "Phoenix Chick",
-    "Gallia of the Endless Dance",
-    "Warcry Phoenix",
-    "Inniaz, the Gale Force",
-    "Ruby Collector"
-   ]
-  },
-  {
    "what": "HasOnlySingleTargetPermanentPredicate",
    "score": 6,
    "cards": 6,
@@ -11176,6 +11150,18 @@
    ]
   },
   {
+   "what": "attack with 3 or more",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Legion's Landing // Adanto, the First Fort",
+    "Phoenix Chick",
+    "Gallia of the Endless Dance",
+    "Inniaz, the Gale Force",
+    "Ruby Collector"
+   ]
+  },
+  {
    "what": "(verify) \"may\" lost",
    "score": 5,
    "cards": 5,
@@ -11185,6 +11171,18 @@
     "Liliana's Influence",
     "Invasion of Vryn // Overloaded Mage-Ring",
     "Izzet Guildmage"
+   ]
+  },
+  {
+   "what": "OutlawPredicate.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Shoot the Sheriff",
+    "Vial Smasher, Gleeful Grenadier",
+    "Dead Before Sunrise",
+    "Charred Graverobber",
+    "Mine Raider"
    ]
   }
  ]
