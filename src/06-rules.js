@@ -2379,6 +2379,8 @@
 
     canPlayLand(playerId) {
       const p = this.player(playerId);
+      // Solfatara: "can't play lands this turn"
+      if (p && p.noLandsTurn === this.turn) return false;
       return this.activePlayer.id === playerId && this.isMain && this.stackEmpty
         && this.priorityPlayer && this.priorityPlayer.id === playerId
         && p.landsPlayed < this.landAllowance(p);
@@ -6296,6 +6298,11 @@
       const ev = this._staticOp(attacker, 'evasion');
       if (ev && ev.minBlockerPower != null && this.powerOf(blocker) < ev.minBlockerPower) return false;
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
+      // Dream Prowler: unblockable while it attacks alone
+      if (ev && ev.attackingAlone && (this.combat.attackers || []).length === 1 && this.combat.attackers[0] === attacker.id) return false;
+      // Goblin Mutant: "can't block creatures with power 3 or greater"
+      const bpl = this._staticOp(blocker, 'blockPowerLimit');
+      if (bpl && this.powerOf(attacker) >= bpl.min) return false;
       // Bouncing Beebles: unblockable while the defending player controls an artifact
       if (ev && ev.defenderControls && this.battlefield.some(x => x.controller === blocker.controller && !x.phasedOut &&
         this._cardFitsWords(x, ev.defenderControls))) return false;
@@ -6781,6 +6788,8 @@
         if (ef.owner === 'you' && own !== src.controller) return false;
       }
       if (ef.toZone && ev.zone !== ef.toZone) return false;
+      // "If this creature would die": only this one
+      if (ef.self && !(ev.object && ev.object.id === src.id)) return false;
       if (ef.duringYourTurn && !(this.activePlayer && this.activePlayer.id === src.controller)) return false;
       if (ef.fromZone && ev.from && ev.from !== ef.fromZone) return false;
       // "one or more creature tokens", "one or more Treasure tokens"
@@ -9228,6 +9237,8 @@
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
+            // Alley Grifters: "defending player discards a card"
+            : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
             // "Its controller discards a card": whoever controlled what was just destroyed,
             // or what the trigger is about (Bereavement: "whenever a green creature dies")
             : e.who === 'targetController' ? [this._lastAffectedController() || this.player((ctx.triggerData || {}).objController) || triggerPlayer()]
@@ -9295,6 +9306,8 @@
             if (p) this.changeLife(p, -cnt);
           }
           else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Silent Skimmer: "defending player loses 2 life"
+          else if (e.who === 'defending') { const p = this._defenderOf(src) || triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           else this.changeLife(me, -cnt);
           break;
         }
@@ -12883,6 +12896,69 @@
           if (k) src.effects.push({ p: k, t: 0, until: 'eot' });
           this.logEvent('rules', `${src.name} enlists ${x.name} (+${k}/+0).`);
           this.bumpBoard();
+          break;
+        }
+        // Weapon Rack: counters moved off this onto the target
+        case 'moveCounterFromSelf': {
+          const x = firstObj();
+          if (!src || !x || x.zone !== 'battlefield') break;
+          const have = Number(src.counters[e.kind]) || 0;
+          const k = Math.min(have, n(e.n) || 1);
+          if (!k) break;
+          src.counters[e.kind] = have - k;
+          if (src.counters[e.kind] <= 0) delete src.counters[e.kind];
+          this.addCounters(x, e.kind, k);
+          src._chr = null; this.bumpBoard();
+          this.logEvent('counters', `${src.name} moves ${k} ${e.kind} counter${k === 1 ? '' : 's'} onto ${x.name}.`);
+          break;
+        }
+        /* Spinal Parasite: "Remove a counter from target permanent" — of the
+           kind named, or of a kind its controller (this effect's) chooses */
+        case 'removeCountersFrom': {
+          const x = firstObj();
+          if (!x) break;
+          const kinds = Object.keys(x.counters || {}).filter(k => Number(x.counters[k]) > 0 && (!e.kind || k === e.kind));
+          if (!kinds.length) break;
+          let kind = kinds[0];
+          if (kinds.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'counterKind', kind: 'options', min: 1, max: 1,
+              options: kinds.map((k, i) => ({ i, label: k })), prompt: `Remove which counter from ${x.name}?` }, 'rck');
+            if (got === SUSPEND) return SUSPEND;
+            kind = kinds[(got && got.picks[0]) || 0] || kinds[0];
+          }
+          const k = Math.min(Number(x.counters[kind]) || 0, n(e.n) || 1);
+          x.counters[kind] -= k;
+          if (x.counters[kind] <= 0) delete x.counters[kind];
+          x._chr = null; this.bumpBoard();
+          this.logEvent('counters', `${k} ${kind} counter${k === 1 ? '' : 's'} removed from ${x.name}.`);
+          break;
+        }
+        // Fire Prophecy: a card from hand to the bottom of the library
+        case 'handToBottom': {
+          const hand = this.zones[ctx.controller].hand.slice();
+          if (!hand.length) break;
+          const want = Math.min(hand.length, n(e.n) || 1);
+          let picks = hand.slice(0, want);
+          if (hand.length > want) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'handToBottom', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: want, max: want, prompt: `Put ${want === 1 ? 'a card' : want + ' cards'} from your hand on the bottom of your library.` }, 'htb');
+            if (got === SUSPEND) return SUSPEND;
+            picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && o.zone === 'hand').slice(0, want);
+          }
+          for (const o of picks) this.moveObject(o, 'library', { toBottom: true });
+          if (picks.length) this.logEvent('zone', `${me.name} puts ${picks.length === 1 ? 'a card' : picks.length + ' cards'} on the bottom of their library.`);
+          break;
+        }
+        // Phantom Wings: what this Aura enchants goes back to its owner's hand
+        case 'bounceAttached': {
+          const x = src && src.attachedTo && this.obj(src.attachedTo);
+          if (x && x.zone === 'battlefield') this.moveObject(x, 'hand');
+          break;
+        }
+        // Solfatara: no land plays for that player this turn
+        case 'noLandsTurn': {
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : [firstPlayer()];
+          for (const p of who) if (p) { p.noLandsTurn = this.turn; this.logEvent('rules', `${p.name} can't play lands this turn.`); }
           break;
         }
         // Blight N: each player named picks a creature of theirs for the counters

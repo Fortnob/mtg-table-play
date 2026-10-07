@@ -1419,6 +1419,38 @@
     /* Maze of Ith */
     { re: /^Prevent all combat damage that would be dealt to and dealt by (?:that creature|it) this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'lastTarget', flags: ['noDamage', 'noDamageTaken'] }) },
+    // Moonlight Geist: the same, said of itself or of a target
+    { re: /^Prevent all combat damage that would be dealt to and dealt by (CARDNAME|this creature|target creature) this turn\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', targets: [{ type: 'creature' }], flags: ['noDamage', 'noDamageTaken'] }
+        : { op: 'flagEot', scope: 'self', flags: ['noDamage', 'noDamageTaken'] }) },
+    // Farrel's Zealot, Laccolith Titan: "This creature assigns no combat damage this turn."
+    { re: /^(?:CARDNAME|This creature|It) assigns no combat damage this turn\.?$/i,
+      make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamage'] }) },
+    // Shielded Passage: all damage, combat or not
+    { re: /^Prevent all damage that would be dealt to (target creature|target permanent) this turn\.?$/i,
+      make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
+    // Cinder Wall: "When this creature blocks, destroy it at end of combat."
+    { re: /^Destroy (?:it|CARDNAME|this creature) at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'self' }) },
+    // Heroic Teamwork: "One or two target creatures each get +2/+1 until end of turn."
+    { re: /^One or two target creatures each get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', targets: [{ type: 'creature' }, { type: 'creature', upTo: true }] }) },
+    // Alley Grifters, Silent Skimmer: "defending player discards a card", "defending player loses 2 life"
+    { re: /^(?:the )?defending player discards (a|one|two|\d+) cards?\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'defending' }) },
+    { re: /^(?:the )?defending player loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[1], who: 'defending' }) },
+    // Weapon Rack, Simic Fluxmage: "Move a +1/+1 counter from this onto target creature."
+    { re: /^Move (a|an|one|two|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent)) onto (target [a-z ]+?)\.?$/i,
+      make: (m) => ({ op: 'moveCounterFromSelf', n: num(m[1]), kind: m[2].toLowerCase(), targets: [targetSpec(m[3])] }) },
+    // Spinal Parasite: "Remove a counter from target permanent."
+    { re: /^Remove (a|an|one|two|three|\d+) ((?:[+\-0-9/a-z]+ )?)counters? from (target [a-z ]+?)\.?$/i,
+      make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), kind: (m[2] || '').trim().toLowerCase() || null, targets: [targetSpec(m[3])] }) },
+    // Fire Prophecy: "Put a card from your hand on the bottom of your library."
+    { re: /^Put (a|one|two) cards? from your hand on the bottom of your library\.?$/i,
+      make: (m) => ({ op: 'handToBottom', n: num(m[1]) }) },
+    // Phantom Wings: "Return enchanted creature to its owner's hand."
+    { re: /^Return enchanted (creature|permanent) to its owner'?s hand\.?$/i, make: () => ({ op: 'bounceAttached' }) },
+    // Solfatara: "Target player can't play lands this turn."
+    { re: /^(Target player|Target opponent|Each opponent) can'?t play lands this turn\.?$/i,
+      make: (m) => (/^each/i.test(m[1]) ? { op: 'noLandsTurn', who: 'opponents' } : { op: 'noLandsTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     /* Second Harvest */
     { re: /^For each token you control, create a token that'?s a copy of that permanent\.?$/i,
       make: () => ({ op: 'copyEachToken' }) },
@@ -7368,6 +7400,9 @@
     { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands)(?: and (?:artifacts|creatures|lands|nonbasic lands))?) your opponents control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTapOpp', event: 'enters', who: 'opponents', how: 'tapped',
         whatAny: m[1].toLowerCase().replace(/^nonland permanents$/, 'nonland').split(/ and /).map(w => w.replace(/s$/, '')) }) },
+    // Possessed Skaab: "If this creature would die, exile it instead."
+    { re: /^If (?:CARDNAME|this creature) would die, exile it instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile' }) },
     { re: /^If a creature would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dieExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
     { re: /^If a creature dealt damage this way would die this turn, exile it instead\.?$/i,
@@ -7427,7 +7462,7 @@
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
-    'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
+    'evasion', 'attackRequires', 'blockPowerLimit', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
@@ -7662,6 +7697,12 @@
       { re: /^(?:CARDNAME|This creature) can block any number of creatures\.?$/i,
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
       // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
+      // Dream Prowler: "can't be blocked as long as it's attacking alone"
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as it'?s attacking alone\.?$/i,
+        eff: { op: 'evasion', attackingAlone: true }, auto: true },
+      // Goblin Mutant: "can't block creatures with power 3 or greater"
+      { re: /^(?:CARDNAME|This creature) can'?t block creatures with power (\d+) or greater\.?$/i,
+        make: (m) => ({ op: 'blockPowerLimit', min: +m[1] }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'evasion', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t attack unless defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,

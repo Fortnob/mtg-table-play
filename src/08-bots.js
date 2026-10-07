@@ -1463,6 +1463,12 @@
   const CHOOSE_PURPOSES = {
     /* "Choose a creature type": the options come most-ours first */
     creatureType() { return { picks: [0] }; },
+    /* Fire Prophecy: the cards we want least go to the bottom */
+    handToBottom(s) {
+      const g = this.game;
+      const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      return { picks: g._cheapestFirst(cards).slice(0, s.min || 1).map(o => o.id) };
+    },
     /* Blight: a creature that survives the counters and is worth least */
     blight(s) {
       const g = this.game;

@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15370,
+  "needed": 15316,
   "gainedCards": 1577,
-  "linesNeeded": 17159,
-  "linesGained": 2006,
+  "linesNeeded": 17094,
+  "linesGained": 2003,
   "gained": {
    "all": 1577,
    "top2000": 53,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5548,
-   "lines": 4786,
+   "score": 5533,
+   "lines": 4771,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 945,
-   "lines": 801,
+   "score": 942,
+   "lines": 798,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -470,25 +470,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 32,
-   "lines": 32,
-   "cards": [
-    "Bilbo's Ring",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Yuan-Ti Malison",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "June, Bounty Hunter",
-    "Nimble Brigand"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 30,
    "lines": 30,
@@ -613,6 +594,25 @@
     "Gylwain, Casting Director",
     "Ferocious Werefox // Guard Change",
     "The Witch's Vanity"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Bilbo's Ring",
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "June, Bounty Hunter",
+    "Nimble Brigand",
+    "Slippery Scoundrel"
    ]
   },
   {
@@ -1074,25 +1074,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Genestealer Patriarch",
-    "Decimator Beetle",
-    "Spring Splasher"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 21,
    "lines": 21,
@@ -1131,22 +1112,22 @@
    ]
   },
   {
-   "what": "target count 1-2",
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 20,
    "lines": 20,
    "cards": [
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork",
-    "Spiritcall Enthusiast // Scrollboost",
-    "Wanderwine Farewell",
-    "Become Brutes",
-    "Appeal to Eirdu",
-    "Hearts on Fire"
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "The Tarrasque",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Genestealer Patriarch",
+    "Decimator Beetle",
+    "Spring Splasher"
    ]
   },
   {
@@ -1518,6 +1499,25 @@
    ]
   },
   {
+   "what": "target count 1-2",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell",
+    "Become Brutes",
+    "Soul Parry",
+    "Velvetwing Butterflies // Gaze in Wonder",
+    "Counterintelligence"
+   ]
+  },
+  {
    "what": "CompoundCondition",
    "score": 17,
    "lines": 17,
@@ -1534,25 +1534,6 @@
     "Emergent Haunting",
     "Trap Runner",
     "Trade Caravan"
-   ]
-  },
-  {
-   "what": "prevent all, or only combat",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Fleeting Flight",
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Shielded Passage",
-    "Kitsune Healer",
-    "Alabaster Potion",
-    "Battlefield Medic",
-    "Indestructible Aura",
-    "Enshrouding Mist",
-    "Oriss, Samite Guardian",
-    "Azorius Ploy",
-    "Soratami Cloud Chariot"
    ]
   },
   {
@@ -1704,23 +1685,6 @@
     "Preeminent Captain",
     "Shadowfax, Lord of Horses",
     "Wumpus Aberration"
-   ]
-  },
-  {
-   "what": "attack trigger with its own text",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Generous Plunderer",
-    "The Haunt of Hightower",
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Cultivator of Blades",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent",
-    "Shrieking Specter"
    ]
   },
   {
@@ -2286,6 +2250,21 @@
    ]
   },
   {
+   "what": "attack trigger with its own text",
+   "score": 14,
+   "lines": 8,
+   "cards": [
+    "Generous Plunderer",
+    "Conqueror's Galleon // Conqueror's Foothold",
+    "Cultivator of Blades",
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental",
+    "Shrouded Serpent"
+   ]
+  },
+  {
    "what": "TargetsPermanentPredicate",
    "score": 14,
    "lines": 14,
@@ -2397,6 +2376,25 @@
     "Fencer's Magemark",
     "Time Elemental",
     "Ramses Overdark"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Fleeting Flight",
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic",
+    "Enshrouding Mist",
+    "Azorius Ploy",
+    "Soratami Cloud Chariot",
+    "Leap of Faith",
+    "Redeem",
+    "Wellgabber Apothecary"
    ]
   },
   {
@@ -3697,24 +3695,6 @@
    ]
   },
   {
-   "what": "CantBlockCreaturesSourceEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Zurgo Bellstriker",
-    "Sunweb",
-    "Hinterland Drake",
-    "Ironclaw Orcs",
-    "Goblin Mutant",
-    "Cyclops Tyrant",
-    "Brassclaw Orcs",
-    "Ironclaw Buzzardiers",
-    "Gibbering Hyenas",
-    "Orgg",
-    "Orcish Veteran"
-   ]
-  },
-  {
    "what": "ExileFromZoneTargetEffect",
    "score": 11,
    "lines": 11,
@@ -4267,22 +4247,6 @@
    ]
   },
   {
-   "what": "DestroySourceEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Lethal Vapors",
-    "Experimental Frenzy",
-    "Aether Storm",
-    "Vebulid",
-    "Cinder Wall",
-    "Voodoo Doll",
-    "Wall of Vipers",
-    "Fasting",
-    "Ceremonial Guard"
-   ]
-  },
-  {
    "what": "ConditionalContinuousEffect without a condition",
    "score": 10,
    "lines": 10,
@@ -4348,23 +4312,6 @@
     "Noggin Whack",
     "Gruesome Discovery",
     "Pulse of the Dross"
-   ]
-  },
-  {
-   "what": "AssignNoCombatDamageSourceEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Goblin Vandal",
-    "Laccolith Whelp",
-    "Ophidian",
-    "Dwarven Vigilantes",
-    "Lim-Dûl's Paladin",
-    "Farrel's Zealot",
-    "Laccolith Titan",
-    "Laccolith Warrior",
-    "Laccolith Grunt",
-    "Keeper of Tresserhorn"
    ]
   },
   {
@@ -5920,6 +5867,21 @@
    ]
   },
   {
+   "what": "AssignNoCombatDamageSourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Goblin Vandal",
+    "Laccolith Whelp",
+    "Dwarven Vigilantes",
+    "Lim-Dûl's Paladin",
+    "Laccolith Titan",
+    "Laccolith Warrior",
+    "Laccolith Grunt",
+    "Keeper of Tresserhorn"
+   ]
+  },
+  {
    "what": "SkipExtraTurnsAbility",
    "score": 7,
    "lines": 4,
@@ -6233,20 +6195,6 @@
    ]
   },
   {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Deathgazer",
-    "Arrogant Bloodlord",
-    "Dread Specter"
-   ]
-  },
-  {
    "what": "CounterRemovedFromSourceWhileExiledTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -6523,6 +6471,19 @@
     "Ornitharch",
     "Thunder Brute",
     "Shrike Harpy"
+   ]
+  },
+  {
+   "what": "DestroySourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Lethal Vapors",
+    "Experimental Frenzy",
+    "Aether Storm",
+    "Voodoo Doll",
+    "Wall of Vipers",
+    "Fasting"
    ]
   },
   {
@@ -7244,6 +7205,19 @@
    ]
   },
   {
+   "what": "blocks or blocked by a kind of creature",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Mirror Shield",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Giant Shark",
+    "Deathgazer",
+    "Dread Specter"
+   ]
+  },
+  {
    "what": "BecomesCreatureAllEffect",
    "score": 6,
    "lines": 6,
@@ -7318,19 +7292,6 @@
     "Jasmine Boreal of the Seven",
     "Fang-Druid Summoner",
     "Rise from the Wreck"
-   ]
-  },
-  {
-   "what": "RemoveCounterTargetEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Clash of the Eikons",
-    "Thrull Parasite",
-    "Ferropede",
-    "Chainbreaker",
-    "Spinal Parasite",
-    "Medicine Runner"
    ]
   },
   {
@@ -7503,19 +7464,6 @@
    ]
   },
   {
-   "what": "ConstellationAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Nessian Wanderer",
-    "Eidolon of Astral Winds",
-    "Harvestguard Alseids",
-    "Daxos's Torment",
-    "Strength from the Fallen",
-    "Goldenhide Ox"
-   ]
-  },
-  {
    "what": "TargetOpponentsChoicePermanent",
    "score": 6,
    "lines": 6,
@@ -7617,19 +7565,6 @@
     "Dauthi Mindripper",
     "Goblin Grenadiers",
     "Mindstab Thrull"
-   ]
-  },
-  {
-   "what": "MoveCountersFromSourceToTargetEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Costume Closet",
-    "Explorer's Cache",
-    "Weapon Rack",
-    "Simic Fluxmage",
-    "Steel Dromedary",
-    "Afiya Grove"
    ]
   },
   {
@@ -7789,6 +7724,19 @@
    ]
   },
   {
+   "what": "CantBlockCreaturesSourceEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Zurgo Bellstriker",
+    "Sunweb",
+    "Hinterland Drake",
+    "Cyclops Tyrant",
+    "Gibbering Hyenas",
+    "Orcish Veteran"
+   ]
+  },
+  {
    "what": "CantBeBlockedByAllTargetEffect",
    "score": 6,
    "lines": 6,
@@ -7826,13 +7774,52 @@
     "Sylvan Paradise",
     "Dwarven Song"
    ]
+  },
+  {
+   "what": "CastOnlyIfConditionIsTrueAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Grim Wanderer",
+    "Talara's Battalion",
+    "Even the Odds",
+    "Blizzard",
+    "Tidal Influence",
+    "Rock Jockey"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAttachedWithActivatedAbilityOrSpellEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Genju of the Realm",
+    "Genju of the Cedars",
+    "Genju of the Spires",
+    "Genju of the Fields",
+    "Genju of the Falls",
+    "Genju of the Fens"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOrTurnedFaceUpTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Culvert Ambusher",
+    "Rakish Scoundrel",
+    "Ponyback Brigade",
+    "Gadget Technician",
+    "Offender at Large",
+    "Efreet Weaponmaster"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4427,
-   "cards": 3881,
+   "score": 4413,
+   "cards": 3867,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7844,8 +7831,8 @@
   },
   {
    "what": "custom ability",
-   "score": 706,
-   "cards": 592,
+   "score": 704,
+   "cards": 590,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8142,19 +8129,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Yuan-Ti Malison"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 23,
    "cards": 23,
@@ -8204,6 +8178,19 @@
     "Opportunistic Dragon",
     "Thor, God of Thunder",
     "Excava, the Risen Past"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 22,
+   "cards": 22,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "June, Bounty Hunter"
    ]
   },
   {
@@ -8272,19 +8259,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life"
-   ]
-  },
-  {
    "what": "second use of a later target",
    "score": 18,
    "cards": 18,
@@ -8337,19 +8311,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 17,
    "cards": 17,
@@ -8373,6 +8334,19 @@
     "Vraska's Final Mercy",
     "Theorist's Proxy",
     "Rewrite Regrets"
+   ]
+  },
+  {
+   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Bloodchief Ascension",
+    "Sand Scout",
+    "Lazav, Dimir Mastermind",
+    "The Haunt of Hightower",
+    "Yuma, Proud Protector",
+    "Compost"
    ]
   },
   {
@@ -8441,29 +8415,29 @@
    ]
   },
   {
-   "what": "prevent all, or only combat",
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 16,
    "cards": 16,
    "names": [
-    "Fleeting Flight",
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Shielded Passage",
-    "Kitsune Healer",
-    "Alabaster Potion"
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders"
    ]
   },
   {
-   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
-   "score": 15,
-   "cards": 12,
+   "what": "target count 1-2",
+   "score": 16,
+   "cards": 16,
    "names": [
-    "Bloodchief Ascension",
-    "Sand Scout",
-    "Lazav, Dimir Mastermind",
-    "Yuma, Proud Protector",
-    "Compost",
-    "Slogurk, the Overslime"
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique",
+    "Run for Your Life"
    ]
   },
   {
@@ -8795,6 +8769,19 @@
     "Riddle Gate Gargoyle",
     "Consulate Surveillance",
     "Cyclops Superconductor"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Fleeting Flight",
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic"
    ]
   },
   {
@@ -9629,19 +9616,6 @@
    ]
   },
   {
-   "what": "AssignNoCombatDamageSourceEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Goblin Vandal",
-    "Laccolith Whelp",
-    "Ophidian",
-    "Dwarven Vigilantes",
-    "Lim-Dûl's Paladin",
-    "Farrel's Zealot"
-   ]
-  },
-  {
    "what": "DrawExceptFirstDrawTwoReplacementEffect",
    "score": 9,
    "cards": 3,
@@ -10065,19 +10039,6 @@
    ]
   },
   {
-   "what": "CantBlockCreaturesSourceEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Zurgo Bellstriker",
-    "Sunweb",
-    "Hinterland Drake",
-    "Ironclaw Orcs",
-    "Cyclops Tyrant",
-    "Brassclaw Orcs"
-   ]
-  },
-  {
    "what": "ExileFromZoneTargetEffect",
    "score": 9,
    "cards": 9,
@@ -10368,6 +10329,19 @@
    ]
   },
   {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Zurgo Stormrender",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Costume Closet",
+    "Genku, Future Shaper",
+    "Angelic Sleuth"
+   ]
+  },
+  {
    "what": "DealtDamageAnyTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -10628,19 +10602,6 @@
    ]
   },
   {
-   "what": "attack trigger with its own text",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Cultivator of Blades",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental"
-   ]
-  },
-  {
    "what": "ActivateOncePerGameActivatedAbility",
    "score": 8,
    "cards": 8,
@@ -10768,6 +10729,19 @@
     "Ulamog's Reclaimer",
     "Mind Raker",
     "Oracle of Dust"
+   ]
+  },
+  {
+   "what": "AssignNoCombatDamageSourceEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Goblin Vandal",
+    "Laccolith Whelp",
+    "Dwarven Vigilantes",
+    "Lim-Dûl's Paladin",
+    "Laccolith Titan",
+    "Laccolith Warrior"
    ]
   },
   {
@@ -10917,19 +10891,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Zurgo Stormrender",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "cards": 7,
@@ -11034,19 +10995,6 @@
    ]
   },
   {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Deathgazer",
-    "Arrogant Bloodlord"
-   ]
-  },
-  {
    "what": "DynamicManaAbility shape",
    "score": 7,
    "cards": 7,
@@ -11148,6 +11096,19 @@
     "Murasa Pyromancer",
     "Munda, Ambush Leader",
     "Tajuru Archer"
+   ]
+  },
+  {
+   "what": "attack trigger with its own text",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Conqueror's Galleon // Conqueror's Foothold",
+    "Cultivator of Blades",
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental"
    ]
   },
   {
@@ -11650,16 +11611,42 @@
    ]
   },
   {
-   "what": "RemoveCounterTargetEffect",
+   "what": "blocks or blocked by a kind of creature",
    "score": 6,
    "cards": 6,
    "names": [
-    "Clash of the Eikons",
-    "Thrull Parasite",
-    "Ferropede",
-    "Chainbreaker",
-    "Spinal Parasite",
-    "Medicine Runner"
+    "Mirror Shield",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Giant Shark",
+    "Deathgazer",
+    "Dread Specter"
+   ]
+  },
+  {
+   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Chocobo Kick",
+    "Polliwallop",
+    "Huatli, Dinosaur Knight",
+    "Assert Perfection",
+    "Devouring Tendrils",
+    "Compel Brutality"
+   ]
+  },
+  {
+   "what": "ReturnToHandFromGraveyardAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Wisdom of Ages",
+    "Twilight Shepherd",
+    "No Rest for the Wicked",
+    "Gleancrawler",
+    "Fell Shepherd",
+    "Infernal Caretaker"
    ]
   }
  ]

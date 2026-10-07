@@ -4959,4 +4959,59 @@ module.exports = (test) => {
     T.nextTurn('A');
     t.eq(gr.zone, 'hand');
   });
+
+  test('Possessed Skaab: would die, is exiled instead', (mk, t) => {
+    t.auto('Possessed Skaab');
+    const T = mk();
+    const sk = T.bf('A', 'Possessed Skaab');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [sk] });
+    T.cast('A', T.hand('A', 'Shock'), { targets: [bear] });
+    t.eq(sk.zone, 'exile');
+    t.eq(bear.zone, 'graveyard', 'only itself');
+  });
+
+  test("Turf Wound: no land this turn", (mk, t) => {
+    t.auto('Turf Wound');
+    const T = mk();
+    T.top('B', 'Island');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Turf Wound'), { targets: ['A'] });
+    t.no(T.g.canPlayLand('A'));
+  });
+
+  test('Cinder Wall: when it blocks, it is destroyed at end of combat', (mk, t) => {
+    t.auto('Cinder Wall');
+    const T = mk();
+    const cw = T.bf('B', 'Cinder Wall');
+    const ogre = T.bf('A', 'Gutsplitter Gang'); ogre.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: cw.id, attackerIds: [ogre.id] }]);
+    T.toMain('A', 'end');
+    t.eq(cw.zone, 'graveyard');
+  });
+
+  test('Weapon Rack: a +1/+1 counter moved onto a creature', (mk, t) => {
+    t.auto('Weapon Rack');
+    const T = mk();
+    const wr = T.bf('A', 'Weapon Rack'); wr.counters['+1/+1'] = 3;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.activate('A', wr, 0, { targets: [bear] });
+    t.eq(wr.counters['+1/+1'], 2);
+    t.eq(bear.counters['+1/+1'], 1);
+  });
+
+  test('Yuan-Ti Malison: unblockable only while it attacks alone', (mk, t) => {
+    t.auto('Yuan-Ti Malison');
+    const T = mk();
+    const y = T.bf('A', 'Yuan-Ti Malison');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const wall = T.bf('B', 'Wall of Stone');
+    T.g.combat.attackers = [y.id];
+    t.no(T.g.couldBlock(wall, y, 'B'), 'alone');
+    T.g.combat.attackers = [y.id, bear.id];
+    t.ok(T.g.couldBlock(wall, y, 'B'), 'with company');
+    T.g.combat.attackers = [];
+  });
 };
