@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15525,
-  "gainedCards": 1601,
-  "linesNeeded": 17355,
-  "linesGained": 2029,
+  "needed": 15502,
+  "gainedCards": 1598,
+  "linesNeeded": 17315,
+  "linesGained": 2025,
   "gained": {
-   "all": 1601,
+   "all": 1598,
    "top2000": 53,
    "stdTop": 12
   },
@@ -24,7 +24,7 @@
    "count": 42,
    "group": 27,
    "x": 3,
-   "it": 62,
+   "it": 31,
    "opponent": 70,
    "condition": 24,
    "subtype": 9
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5569,
-   "lines": 4804,
+   "score": 5563,
+   "lines": 4801,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 951,
-   "lines": 804,
+   "score": 950,
+   "lines": 803,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 332,
-   "lines": 317,
+   "score": 330,
+   "lines": 315,
    "cards": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
@@ -2362,25 +2362,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Anzrag, the Quake-Mole",
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "Xolatoyac, the Smiling Flood",
-    "The Thirteenth Doctor",
-    "Éomer, Marshal of Rohan",
-    "Lita, Mechanical Engineer",
-    "Awakening",
-    "Veteran Beastrider",
-    "Preston Garvey, Minuteman",
-    "Blinkmoth Infusion",
-    "Deepway Navigator"
-   ]
-  },
-  {
    "what": "attacks you, or its controller",
    "score": 14,
    "lines": 14,
@@ -2529,43 +2510,12 @@
    ]
   },
   {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 13,
-   "lines": 7,
-   "cards": [
-    "Proft's Eidetic Memory",
-    "Fists of Flame",
-    "Elenda and Azor",
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Niko Aris",
-    "Thundering Djinn"
-   ]
-  },
-  {
    "what": "UntapTargetCost",
    "score": 13,
    "lines": 4,
    "cards": [
     "Halo Fountain",
     "Crackleburr"
-   ]
-  },
-  {
-   "what": "token ability PhyrexianMiteToken",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Skrelv's Hive",
-    "Mirrex",
-    "Crawling Chorus",
-    "Vishgraz, the Doomhive",
-    "Mite Overseer",
-    "Charge of the Mites",
-    "Infested Fleshcutter",
-    "Basilica Shepherd",
-    "Indoctrination Attendant",
-    "Stinging Hivemaster"
    ]
   },
   {
@@ -3039,22 +2989,6 @@
     "Chandra, Chill of Compliance",
     "Nissa, Genesis Mage",
     "Angrath, Minotaur Pirate"
-   ]
-  },
-  {
-   "what": "hand size other than none",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Twenty-Toed Toad",
-    "The Ten Rings",
-    "Necrodominance",
-    "Doctor Octopus, Master Planner",
-    "Cecily, Haunted Mage",
-    "Midnight Oil",
-    "Recycle",
-    "Null Profusion",
-    "Inspired Idea"
    ]
   },
   {
@@ -4321,23 +4255,6 @@
    ]
   },
   {
-   "what": "DynamicManaAbility shape",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Selvala, Eager Trailblazer",
-    "Haruspex",
-    "Kydele, Chosen of Kruphix",
-    "Tower Worker",
-    "Petalmane Baku",
-    "Priest of Yawgmoth",
-    "Rasputin, the Oneiromancer",
-    "Loot, the Nexus"
-   ]
-  },
-  {
    "what": "MutatesSourceTriggeredAbility",
    "score": 10,
    "lines": 10,
@@ -4650,6 +4567,19 @@
    ]
   },
   {
+   "what": "CardsDrawnThisTurnDynamicValue.instance",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Proft's Eidetic Memory",
+    "Elenda and Azor",
+    "Knowledge Is Power",
+    "Duelist of the Mind",
+    "Niko Aris",
+    "Thundering Djinn"
+   ]
+  },
+  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 9,
    "lines": 9,
@@ -4806,6 +4736,22 @@
     "Ral, Caller of Storms",
     "Gandalf, Spark Starter",
     "Gang of Devils"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Betor, Kin to All",
+    "Hexplate Wallbreaker",
+    "Éomer, Marshal of Rohan",
+    "Lita, Mechanical Engineer",
+    "Awakening",
+    "Preston Garvey, Minuteman",
+    "Blinkmoth Infusion",
+    "Jiang Yanggu, Never Alone",
+    "Battle Cry"
    ]
   },
   {
@@ -5046,6 +4992,22 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Brutal Cathar // Moonrage Brute"
+   ]
+  },
+  {
+   "what": "DynamicManaAbility shape",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Selvala, Eager Trailblazer",
+    "Haruspex",
+    "Tower Worker",
+    "Petalmane Baku",
+    "Priest of Yawgmoth",
+    "Rasputin, the Oneiromancer",
+    "Loot, the Nexus"
    ]
   },
   {
@@ -5383,18 +5345,6 @@
     "Belltower Sphinx",
     "Nested Ghoul",
     "Crag Saurian"
-   ]
-  },
-  {
-   "what": "keyword BoastAbility",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Varragoth, Bloodsky Sire",
-    "Broadside Bombardiers",
-    "Sigurd, Jarl of Ravensthorpe",
-    "Baron Helmut Zemo",
-    "Arni Brokenbrow"
    ]
   },
   {
@@ -6951,26 +6901,6 @@
    ]
   },
   {
-   "what": "AdditionalCombatPhaseEffect",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Port Razer",
-    "Grim Reaper's Sprint",
-    "Raiyuu, Storm's Edge"
-   ]
-  },
-  {
-   "what": "AttackedThisTurnPredicate.instance",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Overpowering Attack",
-    "Warrior's Resolve",
-    "Hexhaven Dueling Arena"
-   ]
-  },
-  {
    "what": "ChooseCreatureTypeEffect",
    "score": 6,
    "lines": 6,
@@ -7860,13 +7790,78 @@
     "Trickster's Stratagem",
     "Happy Hogan, Bodyguard"
    ]
+  },
+  {
+   "what": "CardsInTargetHandCount.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Vicious Shadows",
+    "Tibalt, the Fiend-Blooded",
+    "Sudden Impact",
+    "Gerrard Capashen",
+    "Toil // Trouble",
+    "Storm Seeker"
+   ]
+  },
+  {
+   "what": "static ability in HAND",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Wilt-Leaf Liege",
+    "Serum Powder",
+    "Obstinate Baloth",
+    "Loxodon Smiter",
+    "Nullhide Ferox",
+    "Dodecapod"
+   ]
+  },
+  {
+   "what": "DoIfClashWonEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Revive the Fallen",
+    "Ringskipper",
+    "Pollen Lullaby",
+    "Woodland Guidance",
+    "Fire Juggler",
+    "Sentry Oak"
+   ]
+  },
+  {
+   "what": "BlockedPredicate.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Duelist's Flame",
+    "Smite",
+    "Curtain of Light",
+    "Tattermunge Witch",
+    "Benalish Missionary",
+    "Dazzling Beauty"
+   ]
+  },
+  {
+   "what": "GiveManaAbilityAndCastSourceAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Emrakul, the Exigent Doom",
+    "Glamorous Outlaw",
+    "Shattered Seraph",
+    "Rakish Revelers",
+    "Masked Bandits",
+    "Spara's Adjudicators"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4436,
-   "cards": 3890,
+   "score": 4437,
+   "cards": 3891,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7878,8 +7873,8 @@
   },
   {
    "what": "custom ability",
-   "score": 712,
-   "cards": 595,
+   "score": 711,
+   "cards": 594,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7904,8 +7899,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 223,
-   "cards": 211,
+   "score": 222,
+   "cards": 210,
    "names": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
@@ -7917,8 +7912,8 @@
   },
   {
    "what": "custom condition",
-   "score": 173,
-   "cards": 155,
+   "score": 174,
+   "cards": 156,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -8946,19 +8941,6 @@
    ]
   },
   {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Proft's Eidetic Memory",
-    "Fists of Flame",
-    "Elenda and Azor",
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Thundering Djinn"
-   ]
-  },
-  {
    "what": "MillHalfLibraryTargetEffect",
    "score": 12,
    "cards": 6,
@@ -9483,6 +9465,19 @@
    ]
   },
   {
+   "what": "WinGameSourceControllerEffect",
+   "score": 10,
+   "cards": 7,
+   "names": [
+    "Twenty-Toed Toad",
+    "Liliana's Contract",
+    "Helix Pinnacle",
+    "Mortal Combat",
+    "Near-Death Experience",
+    "Battle of Wits"
+   ]
+  },
+  {
    "what": "ManaValueEqualToCountersSourceCountPredicate",
    "score": 10,
    "cards": 7,
@@ -9530,6 +9525,19 @@
     "Teval, the Balanced Scale",
     "Port of Karfell",
     "Cruel Ultimatum"
+   ]
+  },
+  {
+   "what": "ActivateIfConditionManaAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Sceptre of Eternal Glory",
+    "Mirrex",
+    "Glistening Sphere",
+    "Dark Fortress",
+    "Gleaming Bastion",
+    "Hidden Lair"
    ]
   },
   {
@@ -9797,19 +9805,6 @@
     "Zombie Apocalypse",
     "Knights' Charge",
     "Angel of Glory's Rise"
-   ]
-  },
-  {
-   "what": "ActivateIfConditionManaAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Sceptre of Eternal Glory",
-    "Glistening Sphere",
-    "Dark Fortress",
-    "Gleaming Bastion",
-    "Hidden Lair",
-    "Gathering Place"
    ]
   },
   {
@@ -10300,6 +10295,18 @@
    ]
   },
   {
+   "what": "CardsDrawnThisTurnDynamicValue.instance",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Proft's Eidetic Memory",
+    "Elenda and Azor",
+    "Knowledge Is Power",
+    "Duelist of the Mind",
+    "Thundering Djinn"
+   ]
+  },
+  {
    "what": "SourceDealsDamageToThisTriggeredAbility",
    "score": 8,
    "cards": 5,
@@ -10468,19 +10475,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "The Thirteenth Doctor",
-    "Éomer, Marshal of Rohan",
-    "Awakening",
-    "Veteran Beastrider"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 8,
    "cards": 8,
@@ -10530,6 +10524,19 @@
     "Earth Kingdom General",
     "Casey Jones, Back Alley Brute",
     "The Great Goblin"
+   ]
+  },
+  {
+   "what": "LookLibraryAndPickControllerEffect shape",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Karumonix, the Rat King",
+    "Genesis Ultimatum",
+    "Ajani, Outland Chaperone",
+    "Torsten, Founder of Benalia",
+    "Glacial Revelation",
+    "Lead the Stampede"
    ]
   },
   {
@@ -10647,19 +10654,6 @@
     "Kismet",
     "Loxodon Gatekeeper",
     "Orb of Dreams"
-   ]
-  },
-  {
-   "what": "DynamicManaAbility shape",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Haruspex",
-    "Kydele, Chosen of Kruphix",
-    "Tower Worker",
-    "Petalmane Baku"
    ]
   },
   {
@@ -10926,6 +10920,17 @@
    ]
   },
   {
+   "what": "AbilityPredicate ToxicAbility",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Skrelv's Hive",
+    "Necrogen Rotpriest",
+    "Flensing Raptor",
+    "Slaughter Singer"
+   ]
+  },
+  {
    "what": "RegenerateTargetEffect",
    "score": 7,
    "cards": 7,
@@ -11043,19 +11048,6 @@
    ]
   },
   {
-   "what": "LookLibraryAndPickControllerEffect shape",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Genesis Ultimatum",
-    "Ajani, Outland Chaperone",
-    "Torsten, Founder of Benalia",
-    "Glacial Revelation",
-    "Lead the Stampede",
-    "Forging the Anchor"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -11147,6 +11139,19 @@
    ]
   },
   {
+   "what": "DynamicManaAbility shape",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Haruspex",
+    "Tower Worker",
+    "Petalmane Baku",
+    "Priest of Yawgmoth"
+   ]
+  },
+  {
    "what": "ConditionalReplacementEffect",
    "score": 7,
    "cards": 7,
@@ -11170,19 +11175,6 @@
     "Flamehold Grappler",
     "Najal, the Storm Runner",
     "Howl of the Horde"
-   ]
-  },
-  {
-   "what": "token ability PhyrexianMiteToken",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Crawling Chorus",
-    "Mite Overseer",
-    "Charge of the Mites",
-    "Infested Fleshcutter",
-    "Basilica Shepherd",
-    "Indoctrination Attendant"
    ]
   },
   {
@@ -11516,16 +11508,6 @@
    ]
   },
   {
-   "what": "keyword BoastAbility",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Varragoth, Bloodsky Sire",
-    "Broadside Bombardiers",
-    "Arni Brokenbrow"
-   ]
-  },
-  {
    "what": "ChooseCreatureTypeEffect",
    "score": 6,
    "cards": 6,
@@ -11601,6 +11583,19 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Betor, Kin to All",
+    "Hexplate Wallbreaker",
+    "Éomer, Marshal of Rohan",
+    "Awakening",
+    "Blinkmoth Infusion",
+    "Battle Cry"
    ]
   },
   {

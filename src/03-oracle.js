@@ -81,6 +81,8 @@
   function kwKnown(k) {
     const w = String(k || '').trim();
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
+    // toxic N handed out: the engine adds every instance up
+    if (/^toxic \d+$/i.test(w)) return true;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
       /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
   }
@@ -384,11 +386,11 @@
     };
     if ((m = s.match(/^ with "([^"]+)"/))) {
       e.grantedText = m[1]; s = s.slice(m[0].length);
-    } else if ((m = s.match(/^ with ([a-z ,']+?) and "([^"]+)"/))) {
+    } else if ((m = s.match(/^ with ([a-z0-9 ,']+?) and "([^"]+)"/))) {
       const k = kwText(m[1]);
       if (!k) return null;
       e.keywords = k; e.grantedText = m[2]; s = s.slice(m[0].length);
-    } else if ((m = s.match(/^ with ([a-z ,']+?)(?=$|,| that| for each )/))) {
+    } else if ((m = s.match(/^ with ([a-z0-9 ,']+?)(?=$|,| that| for each )/))) {
       const k = kwText(m[1]);
       if (!k) return null;
       e.keywords = k; s = s.slice(m[0].length);
@@ -1228,6 +1230,21 @@
         const sp = (sign, k) => Object.assign({}, c, { mult: (sign === '-' ? -1 : 1) * +k });
         return { op: 'pump', p: sp(m[2], m[3]), t: sp(m[4], m[5]), duration: 'eot', targets: [targetSpec(m[1])] };
       } },
+    /* Fists of Flame: "Until end of turn, target creature gains trample and
+       gets +1/+0 for each card you've drawn this turn." */
+    { re: /^(?:Until end of turn, )?(target creature(?: you control)?) (?:gains ([a-z ,]+?) and )?gets ([+-])(\d+)\/([+-])(\d+)(?: until end of turn)? for each (.+?)\.?$/i,
+      make: (m) => {
+        if (!/^Until end of turn/i.test(m[0]) && !/until end of turn for each/i.test(m[0])) return null;
+        if (/ you control$/i.test(m[7])) return null;       // the rule above
+        const c = countOf(m[7]);
+        if (!c || c.scope) return null;
+        const sp = (sign, k) => Object.assign({}, c, { mult: (sign === '-' ? -1 : 1) * +k });
+        const pump = { op: 'pump', p: sp(m[3], m[4]), t: sp(m[5], m[6]), duration: 'eot', targets: [targetSpec(m[1])] };
+        if (!m[2]) return pump;
+        const kws = keywordList(m[2]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] };
+      } },
     /* "Those creatures gain flying until your next turn" */
     { re: /^(Those creatures|They|It|CARDNAME|Creatures you control|Target creature(?: you control)?) gains? ([a-z ,]+?) until your next turn\.?$/i,
       make: (m) => {
@@ -1840,6 +1857,8 @@
     { re: /^After this (?:main )?phase, there is an additional combat phase( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1] }) },
     // Great Train Heist: "If it's your combat phase, there is an additional combat phase after this phase."
+    { re: /^If it'?s your main phase, there is an additional combat phase after this phase(, followed by an additional main phase)?\.?$/i,
+      make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },
     { re: /^If it'?s your combat phase, there is an additional combat phase after this phase\.?$/i,
       make: () => ({ op: 'extraCombat', count: 1, inCombat: true }) },
     { re: /^After this (?:main )?phase, there are (two|three) additional combat phases( followed by an additional main phase)?\.?$/i,
@@ -2687,6 +2706,11 @@
     { re: /^Put (?:it|CARDNAME|this card) on the bottom of its owner'?s library\.?$/i, make: () => ({ op: 'selfToLibrary', bottom: true }) },
     // Intruder Alarm
     { re: /^Untap all creatures\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature' } }) },
+    // Port Razer: "untap each creature you control"
+    { re: /^Untap each ([a-z ]+?)\.?$/i, make: (m) => { const sc = massScopeOf('each ' + m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
+    // Varragoth, Bloodsky Sire: a tutor for somebody else, onto the top
+    { re: /^Target player searches their library for a card, then shuffles and puts that card on top\.?$/i,
+      make: () => ({ op: 'tutor', who: 'target', n: 1, filter: 'any', to: 'top', targets: [{ type: 'player' }] }) },
     // Combat Celebrant: "Untap all other creatures you control"
     { re: /^Untap all (other [a-z ]+?)\.?$/i, make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
     /* Kardur, Doomscourge: attacking each combat, and a player other than
@@ -3064,6 +3088,7 @@
       if (a && b) return { sum: [a, b], mult: k };
     }
     if (/^opponent you have$/i.test(p)) return { opponents: true, mult: k };
+    if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
@@ -4186,6 +4211,14 @@
       effects.push(...parseOne(s));
     }
     const folded = foldRiders(effects);
+    /* Miraculous Recovery: "Return target creature card … to the
+       battlefield. Put a +1/+1 counter on it." After a sentence with a
+       target, "it" is that target, not this card. */
+    folded.forEach((e, i) => {
+      if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets) return;
+      if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
+      if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
+    });
     return { effects: folded, auto: auto && !folded.some(hasManualStep) };
   }
 
@@ -7541,6 +7574,9 @@
       { re: /^(?:CARDNAME|This creature) escapes with (a|an|one|two|three|four|five|\d+) ([+\-0-9/a-z]+) counters? on it\.?$/i,
         make: (m) => ({ op: 'escapesWith', n: num(m[1]), kind: m[2].toLowerCase() }), auto: true },
       // Jin-Gitaxias, Core Augur: "Each opponent's maximum hand size is reduced by seven."
+      // Twenty-Toed Toad: "Your maximum hand size is twenty." — seven, raised to it
+      { re: /^Your maximum hand size is (eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty)\.?$/i,
+        make: (m) => ({ op: 'handSizeMod', who: 'you', n: num(m[1]) - 7 }), auto: true },
       { re: /^(Each opponent'?s|Your) maximum hand size is (reduced|increased) by (one|two|three|four|five|six|seven|\d+)\.?$/i,
         make: (m) => ({ op: 'handSizeMod', who: /opponent/i.test(m[1]) ? 'opponents' : 'you', n: (/reduced/i.test(m[2]) ? -1 : 1) * num(m[3]) }), auto: true },
       { re: /^You may look at the top card of your library any time\.?$/i,

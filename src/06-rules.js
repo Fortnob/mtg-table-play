@@ -4389,6 +4389,19 @@
       if (!a) return 0;
       return a.keywords.filter(k => k.keyword.toLowerCase() === kw).length || (a.keywordSet.has(kw) ? 1 : 0);
     }
+    /** Total toxic (CR 702.164c): every instance it has, printed or given. */
+    _toxicTotal(o) {
+      const c = this.characteristics(o);
+      if (!c) return 0;
+      // nothing at all once its abilities are gone (Humility)
+      if (![...c.keywords].some(w => /^toxic\b/.test(w))) return 0;
+      let k = 0;
+      const a = o.analysis() || {};
+      for (const x of (a.keywords || [])) if (x.keyword.toLowerCase() === 'toxic') k += parseInt(x.arg, 10) || 0;
+      // handed to it ("gains toxic 1"), not its own words over again
+      for (const w of c.keywords) { const m = /^toxic (\d+)$/.exec(w); if (m && !(a.keywordSet && a.keywordSet.has(w))) k += +m[1]; }
+      return k;
+    }
     _kwArg(o, kw) {
       const a = o.analysis();
       if (!a) return 0;
@@ -7698,7 +7711,10 @@
         if (amount <= 0) return;
       }
       this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
-      if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount, source.controller); return amount; }
+      // toxic (CR 702.164): combat damage to a player gives poison counters as well
+      const tox = combat && source ? this._toxicTotal(source) : 0;
+      if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount + tox, source.controller); return amount; }
+      if (tox) this.addPoison(p, tox, source.controller);
       /* Damage to a player is life lost: the same replacements apply
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
       const lossEv = this._replace({ kind: 'loseLife', n: amount, controller: p.id });
@@ -8830,6 +8846,8 @@
       };
       const n = (v) => {
         if (v === 'X') return ctx.x || (src && src.chosenX) || 0;
+        // Fists of Flame: "for each card you've drawn this turn"
+        if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
         // "twice X"
         if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
         // "the highest number you noted for cards named Garbage Fire"
@@ -10485,7 +10503,9 @@
           /* "Its controller may search their library" is somebody else's
              search: their library, and their choice. */
           const seeker = e.who === 'targetController' ? (this._lastAffectedController() || me)
-            : e.who === 'player' ? (this.player(e.pid) || me) : me;
+            : e.who === 'player' ? (this.player(e.pid) || me)
+            // Varragoth: "Target player searches their library for a card"
+            : e.who === 'target' ? (firstPlayer() || me) : me;
           if (!this._doneHere('searched')) this._searched(seeker.id);
           const z = this.zones[seeker.id];
           const want = String(e.filter || 'any').toLowerCase();
@@ -11649,6 +11669,8 @@
         case 'extraCombat': {
           // "if it's your combat phase, …"
           if (e.inCombat && !(this.phase && this.phase.id === 'combat' && this.activePlayer.id === ctx.controller)) break;
+          // Overpowering Attack: "if it's your main phase, …"
+          if (e.inMain && !(this.phase && /^(?:precombat|postcombat)$/.test(this.phase.id) && this.activePlayer.id === ctx.controller)) break;
           const phases = [];
           for (let i = 0; i < (e.count || 1); i++) phases.push(2);
           if (e.withMain) phases.push(3);

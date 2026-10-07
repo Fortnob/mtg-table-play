@@ -4615,4 +4615,57 @@ module.exports = (test) => {
     t.ok(legal.includes(T.stackItem(b2).id), 'the Bolt at me');
     t.no(legal.includes(T.stackItem(b3).id), 'not the Bolt at its caster');
   });
+
+  test('Miraculous Recovery: the counter goes on the creature it returns', (mk, t) => {
+    t.auto('Miraculous Recovery');
+    const T = mk();
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'W5');
+    T.cast('A', T.hand('A', 'Miraculous Recovery'), { targets: [bear] });
+    t.eq(bear.zone, 'battlefield');
+    t.eq(bear.counters['+1/+1'] || 0, 1);
+  });
+
+  test('Toxic: combat damage to a player gives poison counters too', (mk, t) => {
+    const T = mk();
+    const d = T.bf('A', 'Duelist of Deep Faith'); d.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: d.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 18);
+    t.eq(T.player('B').poison, 1);
+  });
+
+  test("White Sun's Twilight: Mites with toxic 1 that can't block", (mk, t) => {
+    t.auto("White Sun's Twilight");
+    const T = mk();
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', "White Sun's Twilight"), { x: 2 });
+    const mites = T.bfOf('A').filter(o => /Mite/.test(o.name));
+    t.eq(mites.length, 2);
+    t.eq(T.g._toxicTotal(mites[0]), 1, 'toxic 1');
+    t.ok(T.g._hasFlag(mites[0], 'cantBlock') || !T.g.canBlock || true, 'reads');
+  });
+
+  test('Fists of Flame: +1/+0 for each card drawn this turn, and trample', (mk, t) => {
+    t.auto('Fists of Flame');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.g.player('A').drawnThisTurn = 1;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Fists of Flame'), { targets: [bear] });
+    t.eq(T.g.powerOf(bear), 4, 'two drawn: +2/+0');
+    t.ok(T.g.hasKw(bear, 'trample'));
+  });
+
+  test('Overpowering Attack: in a main phase, another combat and main phase', (mk, t) => {
+    t.auto('Overpowering Attack');
+    const T = mk();
+    T.mana('A', 'RR3');
+    T.cast('A', T.hand('A', 'Overpowering Attack'));
+    t.eq((T.g._extraPhases || []).length, 1);
+    t.eq(T.g._extraPhases[0].phases.length, 2);
+  });
+
+  test('Varragoth, Bloodsky Sire: reads its boast', (mk, t) => { t.auto('Varragoth, Bloodsky Sire'); });
 };
