@@ -6585,4 +6585,50 @@ module.exports = (test) => {
     T.g.dealDamageToPlayer(T.player('A'), 3, giant, false);
     t.eq(T.life('A'), 17, 'others still hurt');
   });
+
+  test('Collect evidence as an activation cost (Forensic Researcher)', (mk, t) => {
+    t.auto('Forensic Researcher');
+    const T = mk();
+    const fr = T.bf('A', 'Forensic Researcher');
+    const g1 = T.grave('A', 'Hill Giant'), g2 = T.grave('A', 'Grizzly Bears');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const idx = fr.analysis().manaAbilities.length + fr.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Collect evidence/.test(x.text));
+    T.activate('A', fr, idx, { targets: [bear.id] });
+    T.resolve();
+    t.ok(bear.tapped);
+    t.eq(g1.zone, 'exile', 'the Giant (3) is enough');
+    t.eq(g2.zone, 'graveyard');
+  });
+
+  test('Collect evidence: not enough in the graveyard, no activation', (mk, t) => {
+    const T = mk();
+    const fr = T.bf('A', 'Forensic Researcher');
+    T.grave('A', 'Grizzly Bears');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const idx = fr.analysis().manaAbilities.length + fr.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Collect evidence/.test(x.text));
+    t.no(T.g.activateAbility('A', fr.id, idx, { targets: [{ kind: 'object', id: bear.id }] }));
+  });
+
+  test('Surveillance Monitor: collecting evidence makes a Thopter', (mk, t) => {
+    t.auto('Surveillance Monitor');
+    const T = mk();
+    T.grave('A', 'Hill Giant'); T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Surveillance Monitor'));
+    T.resolve();
+    t.eq(T.zone('A', 'exile').length, 1, 'the Giant alone is evidence 4');
+    t.ok(T.bfOf('A').some(o => /Thopter/.test(o.name)), 'a Thopter');
+  });
+
+  test('Endure: counters on it, or a Spirit (Dusyut Earthcarver)', (mk, t) => {
+    t.auto('Dusyut Earthcarver');
+    const T = mk();
+    T.answer('mode', { modes: [1] });
+    T.mana('A', 'G5');
+    const de = T.hand('A', 'Dusyut Earthcarver');
+    T.cast('A', de);
+    T.resolve();
+    t.eq(de.counters['+1/+1'] || 0, 0);
+    t.ok(T.bfOf('A').some(o => /Spirit/.test(o.name) && T.g.powerOf(o) === 3), 'a 3/3 Spirit');
+  });
 };

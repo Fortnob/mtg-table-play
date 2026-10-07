@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14471,
+  "needed": 14456,
   "gainedCards": 1517,
-  "linesNeeded": 16035,
+  "linesNeeded": 16018,
   "linesGained": 1894,
   "gained": {
    "all": 1517,
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 308,
-   "lines": 290,
+   "score": 302,
+   "lines": 284,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -5550,19 +5550,6 @@
    ]
   },
   {
-   "what": "CollectEvidenceCost",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Forensic Researcher",
-    "Tenth District Hero",
-    "Kylox's Voltstrider",
-    "Polygraph Orb",
-    "Hedge Whisperer",
-    "Sample Collector"
-   ]
-  },
-  {
    "what": "attack trigger with its own text",
    "score": 7,
    "lines": 7,
@@ -7550,13 +7537,25 @@
     "Absolving Lammasu",
     "Rune-Brand Juggler"
    ]
+  },
+  {
+   "what": "AmassEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Sauron, Lord of the Rings",
+    "Summons of Saruman",
+    "Assault on Osgiliath",
+    "Gríma Wormtongue",
+    "Invade the City"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4212,
-   "cards": 3732,
+   "score": 4213,
+   "cards": 3733,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",

@@ -287,6 +287,8 @@
       if ((m = p.match(/^Blight (\d+)$/i))) { cost.blight = +m[1]; continue; }
       // Bloomburrow: "Forage" — exile three cards from your graveyard or sacrifice a Food
       if (/^Forage$/i.test(p)) { cost.forage = true; continue; }
+      // Karlov Manor: "Collect evidence 3" — cards with that much mana value, out of the graveyard
+      if ((m = p.match(/^Collect evidence (\d+)$/i))) { cost.evidence = +m[1]; continue; }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
@@ -546,6 +548,8 @@
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
+    // "Whenever this creature attacks, it endures 1": in its own trigger, "it" is itself
+    if (scope === 'self') walk(effects, (e) => { if (e.op === 'endure' && e.scope === 'triggerObject') e.scope = 'self'; });
     // "Untap it." in a trigger about another permanent: that one, not this
     /* …unless the sentence before was about this one: "put a +1/+1 counter
        on Gwenna and untap it" */
@@ -1741,6 +1745,8 @@
     // Flowstone Armor: "Target creature gets +1/-1 for as long as CARDNAME remains tapped."
     { re: /^(Target [a-z ]+?) gets ([+-]\d+)\/([+-]\d+) for as long as (?:CARDNAME|this creature|this artifact) remains tapped\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'flagWhile', pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, targets: [t], whileTapped: true } : null; } },
+    // Surveillance Monitor: "you may collect evidence 4" with nothing after it
+    { re: /^Collect evidence (\d+)\.?$/i, make: (m) => ({ op: 'mayPay', pay: { evidence: +m[1] }, then: [], noAsk: true }) },
     // Corpseberry Cultivator: "you may forage" with nothing after it
     { re: /^Forage\.?$/i, make: () => ({ op: 'mayPay', pay: { forage: true }, then: [], noAsk: true }) },
     // Banner of Kinship: "This artifact enters with a fellowship counter on it for each creature you control of the chosen type."
@@ -4461,6 +4467,7 @@
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
     { re: /^forage$/i, make: () => ({ forage: true }) },
+    { re: /^collect evidence (\d+)$/i, make: (m) => ({ evidence: +m[1] }) },
     // Sarkhan, Dragon Ascendant: "you may behold a Dragon. If you do, …"
     { re: /^behold (a|an) ([A-Za-z -]+?)$/i, make: (m) => ({ behold: { n: 1, filter: m[2].trim().toLowerCase() } }) },
     // the Processors: "put a card an opponent owns from exile into that player's graveyard"
@@ -4639,6 +4646,7 @@
     if ((k = what.match(/^pay ((?:\{[^}]+\})+)$/i))) return { mana: k[1], optional };
     if ((k = what.match(/^blight (\d+)$/i))) return { blight: +k[1], optional };
     if (/^forage$/i.test(what)) return { forage: true, optional };
+    if ((k = what.match(/^collect evidence (\d+)$/i))) return { evidence: +k[1], optional };
     if ((k = what.match(/^reveal (?:a|an) ([A-Za-z -]+?) card from your hand$/i))) return { reveal: { filter: k[1].trim() }, optional };
     // Lorwyn: "behold a Kithkin" — one you control, or one shown from your hand; "and exile it" takes it too
     if ((k = what.match(/^behold (a|an|one|two|three) ([A-Za-z -]+?)( and exile it)?$/i)))
@@ -4674,6 +4682,8 @@
     /,\s+and\s+/i,
     /\s+and\s+then\s+/i,
     /\s+and\s+(?=(?:you|each|target|that|all|they|it)\b)/i,
+    // Sinkhole Surveyor: "you lose 1 life and this creature endures 1"
+    /\s+and\s+(?=this creature endures\b)/i,
     // Combat Celebrant: "…and after this phase, there is an additional combat phase"
     /\s+and\s+(?=after this phase\b)/i,
     /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add|blight)s?\b)/i,
@@ -5304,6 +5314,8 @@
     [/^the (?:\{[^}]+\})+ cost was paid$/i, () => ({ kind: 'altPaid' })],
     // Delayed Blast Fireball: "If this spell was cast from exile"
     [/^this spell was cast from exile$/i, () => ({ kind: 'castFromExile' })],
+    // Karlov Manor: "if evidence was collected" — the optional cost was paid
+    [/^evidence was collected$/i, () => ({ kind: 'kicked', n: 1 })],
     // Osseous Exhale: "If a Dragon was beheld" — the optional behold was paid
     [/^an? [A-Za-z ]+ was beheld$/i, () => ({ kind: 'kicked', n: 1 })],
     [/^(?:CARDNAME|this spell|it) was kicked (\w+) or more times$/i, (m) => ({ kind: 'kicked', n: num(m[1]) })],
@@ -5727,6 +5739,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes the target of a spell or ability(?:,| )/i, event: 'becomesTarget', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
+    // Surveillance Monitor: "Whenever you collect evidence"
+    { re: /^When(?:ever)? you collect evidence(?:,| )/i, event: 'youCollectEvidence' },
     // Corpseberry Cultivator: "Whenever you forage"
     { re: /^When(?:ever)? you forage(?:,| )/i, event: 'youForage' },
     { re: /^When(?:ever)? you cast your first spell (?:during|each) (?:each turn|turn|opponent'?s turn)(?:,| )/i, event: 'firstSpellEachTurn' },

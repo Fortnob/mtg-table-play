@@ -3941,6 +3941,7 @@
         if (c.reveal) return 0;
         if (c.behold) return c.behold.exile ? 2 : 0;
         if (c.forage) return 2;
+        if (c.evidence) return 1 + c.evidence * 0.2;
         if (c.mana) return 1 + MANA.cmc(c.mana) * 0.5;
         if (c.life != null) return (p.life - (+c.life || 0)) > 8 ? (+c.life || 0) * 0.3 : 50;
         if (c.tapCreatures) return 1.5;
@@ -5318,6 +5319,22 @@
       this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
       return o;
     }
+    /** Collect evidence: the mana value there is to exile from a graveyard. */
+    _evidenceTotal(pid, self) {
+      return this.zones[pid].graveyard.filter(c => c !== self).reduce((k, c) => k + ((c.card && c.card.cmc) || 0), 0);
+    }
+    /** Exile cards with total mana value N or more: the biggest first, so as few go as can. */
+    _collectEvidence(pid, need, self) {
+      const pool = this.zones[pid].graveyard.filter(c => c !== self).sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0));
+      let k = 0;
+      const picks = [];
+      for (const c of pool) { if (k >= need) break; picks.push(c); k += (c.card && c.card.cmc) || 0; }
+      if (k < need) return false;
+      for (const c of picks) this.moveObject(c, 'exile');
+      this.logEvent('exile', `${this.player(pid).name} collects evidence ${need}: ${picks.map(c => c.name).join(', ')}.`);
+      this._fire('youCollectEvidence', pid, { playerId: pid });
+      return true;
+    }
     /** Forage: a Food to sacrifice, or three cards in the graveyard to exile. */
     _canForage(pid, self) {
       if (this.battlefield.some(o => o.controller === pid && !o.phasedOut && this._hasSubtype(o, 'Food'))) return true;
@@ -5570,6 +5587,7 @@
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
       if (cost.forage && !this._canForage(pid, self)) return 'Nothing to forage: no Food, and fewer than three cards in your graveyard.';
+      if (cost.evidence && this._evidenceTotal(pid, self) < cost.evidence) return `Not enough evidence: cards with total mana value ${cost.evidence} are needed in your graveyard.`;
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
@@ -5668,6 +5686,8 @@
       }
       // Forage: a Food if there is one, or three cards out of the graveyard
       if (cost.forage) this._forageAuto(pid, self);
+      // Collect evidence: the fewest cards that add up
+      if (cost.evidence) this._collectEvidence(pid, cost.evidence, self);
       /* Behold: one you control or one from your hand, shown. "And exile it"
          takes it away, held by this card for "return the exiled card". */
       if (cost.behold) {
@@ -11562,10 +11582,11 @@
             (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
             (!pay.behold || this._beholdPool(ctx.controller, pay.behold, src).length > 0) &&
             (!pay.forage || this._canForage(ctx.controller, src)) &&
+            (!pay.evidence || this._evidenceTotal(ctx.controller, src) >= pay.evidence) &&
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
             (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1)) &&
             (!pay.energy || (me.energy || 0) >= pay.energy);
-          if (!able && (pay.forage || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          if (!able && (pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
@@ -11576,6 +11597,12 @@
             me.energy -= pay.energy;
             this.logEvent('counters', `${me.name} pays ${pay.energy} energy (${me.energy} left).`);
             if (!pay.mana && pay.life == null && !pay.discard && !pay.sacrifice) { this._spliceNext(e.then); break; }
+          }
+          // Izoni: "you may collect evidence 4"
+          if (pay.evidence) {
+            this._collectEvidence(ctx.controller, pay.evidence, src);
+            this._spliceNext(e.then);
+            break;
           }
           // Treetop Sentries: "you may forage" — a Food, or three cards from the graveyard
           if (pay.forage) {
