@@ -7558,4 +7558,52 @@ module.exports = (test) => {
     t.ok(two, 'two blockers refused');
     t.ok(one, 'one blocker allowed');
   });
+
+  test('Jetmir: "also get" read past, each line on its own count', (mk, t) => {
+    t.auto('Jetmir, Nexus of Revels');
+    const T = mk();
+    T.bf('A', 'Jetmir, Nexus of Revels');
+    const bears = [];
+    for (let i = 0; i < 5; i++) bears.push(T.bf('A', 'Grizzly Bears'));
+    t.eq(T.g.powerOf(bears[0]), 4, 'six creatures: +1/+0 for three and again for six');
+    t.ok(T.g.hasKw(bears[0], 'trample'));
+    t.ok(!T.g.hasKw(bears[0], 'double strike'), 'not nine');
+  });
+
+  test('Toxrill: -1/-1 for each slime counter on each creature you don\'t control', (mk, t) => {
+    t.auto('Toxrill, the Corrosive');
+    const T = mk();
+    T.bf('A', 'Toxrill, the Corrosive');
+    const giant = T.bf('B', 'Hill Giant'), mine = T.bf('A', 'Hill Giant');
+    giant.counters.slime = 2; mine.counters.slime = 2;
+    t.eq(T.g.powerOf(giant), 1); t.eq(T.g.powerOf(mine), 3);
+  });
+
+  test('Galadhrim Ambush: combat damage from non-Elves is prevented, Elves still hit', (mk, t) => {
+    t.auto('Galadhrim Ambush');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+    bear.summoningSick = false; elf.summoningSick = false;
+    T.toMain('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }, { attackerId: elf.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'declareBlockers');
+    if (T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Galadhrim Ambush'));
+    T.resolve();
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 19, 'only the Elf\'s 1');
+  });
+
+  test('Halvar: enchanted or equipped creatures have double strike', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Halvar, God of Battle // Sword of the Realms');
+    const bear = T.bf('A', 'Grizzly Bears'), other = T.bf('A', 'Grizzly Bears');
+    const sword = T.bf('A', 'Bonesplitter');
+    sword.attachedTo = bear.id; bear.attachments = [sword.id];
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(bear, 'double strike'));
+    t.ok(!T.g.hasKw(other, 'double strike'));
+  });
 };

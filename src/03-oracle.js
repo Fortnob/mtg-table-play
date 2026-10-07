@@ -3249,6 +3249,9 @@
         scope: /^target/i.test(m[1]) ? null : (/^it$/i.test(m[1]) ? 'lastTarget' : 'self') }) },
     { re: /^Prevent all combat damage that would be dealt this turn\.?$/i,
       make: () => ({ op: 'preventDamage', combatOnly: true }) },
+    // Galadhrim Ambush: "Prevent all combat damage that would be dealt this turn by non-Elf creatures."
+    { re: /^Prevent all combat damage that would be dealt this turn by non-([A-Z][a-z]+) creatures\.?$/,
+      make: (m) => ({ op: 'preventDamage', combatOnly: true, fromNotSubtype: m[1] }) },
     { re: /^Prevent all damage that would be dealt this turn\.?$/i,
       make: () => ({ op: 'preventDamage' }) },
     { re: /^Prevent all (combat )?damage that would be dealt to you this turn\.?$/i,
@@ -5805,6 +5808,10 @@
       filt: () => ({ who: 'you', words: 'permanent' }), extra: { enteredTapped: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
+    // Tome of Legends: "Whenever your commander enters or attacks"
+    { re: /^Whenever your commander enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: true }) },
+    // Patrolling Peacemaker: "Whenever an opponent commits a crime"
+    { re: /^Whenever an opponent commits a crime,? /i, event: 'opponentCommitCrime' },
     // Daxos, Blessed by the Sun: "Whenever another creature you control enters or dies"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
       event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
@@ -8583,6 +8590,12 @@
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
        deathtouch as long as there are seven or more cards in your
        graveyard" — the condition at the end read as the one at the front */
+    // Jetmir: "Creatures you control also get +1/+0 and have trample as long as …" — "also" adds nothing
+    const also = String(line).match(/^((?:Other )?[A-Za-z ]+? you control) also (gets?|ha(?:ve|s)) (.+)$/i);
+    if (also) {
+      const again = parseStatic(also[1] + ' ' + also[2] + ' ' + also[3], ctx);
+      if (again && again.auto) return Object.assign({}, again, { text: line });
+    }
     const tail = !/^As long as /i.test(line) && String(line).match(/^([^.]+?) as long as ([^,.]+)\.?$/i);
     if (tail && condOf(tail[2])) {
       const again = parseStatic('As long as ' + tail[2] + ', ' + tail[1].charAt(0).toLowerCase() + tail[1].slice(1) + '.', ctx);
@@ -8969,6 +8982,16 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // Toxrill, the Corrosive: "Creatures you don't control get -1/-1 for each slime counter on them."
+      { re: /^Creatures you don'?t control get -1\/-1 for each ([a-z]+) counter on them\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'opponents', what: 'creature' },
+          pt: { p: { countersOnIt: m[1].toLowerCase(), mult: -1 }, t: { countersOnIt: m[1].toLowerCase(), mult: -1 } } }), auto: true },
+      // Halvar, God of Battle: "Creatures you control that are enchanted or equipped have double strike."
+      { re: /^Creatures you control that are enchanted or equipped have ([a-z ]+)\.?$/i,
+        make: (m) => {
+          const kws = keywordList(m[1]);
+          return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', enchantedOrEquipped: true }, grant: kws } : null;
+        }, auto: true },
       // Mirror Box: "+1/+1 for each other creature you control with the same name as that creature"
       { re: /^Each nontoken creature you control gets \+1\/\+1 for each other creature you control with the same name as that creature\.?$/i,
         eff: { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', nontoken: true },

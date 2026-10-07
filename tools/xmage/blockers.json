@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14153,
+  "needed": 14146,
   "gainedCards": 1486,
-  "linesNeeded": 15630,
+  "linesNeeded": 15620,
   "linesGained": 1847,
   "gained": {
    "all": 1486,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5185,
-   "lines": 4525,
+   "score": 5183,
+   "lines": 4523,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 895,
-   "lines": 769,
+   "score": 894,
+   "lines": 768,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -2017,25 +2017,6 @@
    ]
   },
   {
-   "what": "prevent damage by some permanents",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Galadhrim Ambush",
-    "Ethereal Haze",
-    "Haze Frog",
-    "Fog of War",
-    "Hindervines",
-    "Snag",
-    "Hunter's Ambush",
-    "Inspire Awe",
-    "Tanglesap",
-    "Frontline Strategist",
-    "Harmless Assault",
-    "Vine Snare"
-   ]
-  },
-  {
    "what": "granting a mana ability",
    "score": 13,
    "lines": 13,
@@ -2636,6 +2617,25 @@
     "Nyx Infusion",
     "Clutch of Undeath",
     "Phyrexian Boon"
+   ]
+  },
+  {
+   "what": "prevent damage by some permanents",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Ethereal Haze",
+    "Haze Frog",
+    "Fog of War",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush",
+    "Inspire Awe",
+    "Tanglesap",
+    "Frontline Strategist",
+    "Harmless Assault",
+    "Vine Snare",
+    "Radiant Kavu"
    ]
   },
   {
@@ -5662,19 +5662,6 @@
    ]
   },
   {
-   "what": "or of EnchantedPredicate.instance",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Halvar, God of Battle // Sword of the Realms",
-    "Reyav, Master Smith",
-    "Koll, the Forgemaster",
-    "Dogmeat, Ever Loyal",
-    "Kestia, the Cultivator",
-    "Feast of Dreams"
-   ]
-  },
-  {
    "what": "FirstSpellOpponentsTurnTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -6734,18 +6721,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldOrAttacksAllTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Tome of Legends",
-    "Norn's Choirmaster",
-    "Vivi's Persistence",
-    "Endless Ranks of HYDRA",
-    "Search for Dagger"
-   ]
-  },
-  {
    "what": "DealsDamageToYouAllTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -6850,6 +6825,18 @@
     "Auriok Steelshaper",
     "Hulk, Gamma Goliath",
     "Boom Scholar"
+   ]
+  },
+  {
+   "what": "or of EnchantedPredicate.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Reyav, Master Smith",
+    "Koll, the Forgemaster",
+    "Dogmeat, Ever Loyal",
+    "Kestia, the Cultivator",
+    "Feast of Dreams"
    ]
   },
   {
@@ -7460,13 +7447,25 @@
     "Tide Skimmer",
     "Path of Mettle // Metzali, Tower of Triumph"
    ]
+  },
+  {
+   "what": "PreventNextDamageFromChosenSourceToTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Martyr's Cause",
+    "Circle of Despair",
+    "Samite Blessing",
+    "Charm Peddler",
+    "Sanctum Guardian"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4161,
-   "cards": 3696,
+   "score": 4159,
+   "cards": 3694,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7478,8 +7477,8 @@
   },
   {
    "what": "custom ability",
-   "score": 677,
-   "cards": 578,
+   "score": 676,
+   "cards": 577,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8188,19 +8187,6 @@
    ]
   },
   {
-   "what": "prevent damage by some permanents",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Galadhrim Ambush",
-    "Ethereal Haze",
-    "Haze Frog",
-    "Fog of War",
-    "Hindervines",
-    "Snag"
-   ]
-  },
-  {
    "what": "MayCastTargetCardEffect",
    "score": 13,
    "cards": 13,
@@ -8481,6 +8467,19 @@
     "Afflicted Deserter // Werewolf Ransacker",
     "Concealing Curtains // Revealing Eye",
     "Blightreaper Thallid // Blightsower Thallid"
+   ]
+  },
+  {
+   "what": "prevent damage by some permanents",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Ethereal Haze",
+    "Haze Frog",
+    "Fog of War",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush"
    ]
   },
   {

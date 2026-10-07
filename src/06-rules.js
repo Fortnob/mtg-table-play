@@ -4544,6 +4544,8 @@
         return o.zone === 'battlefield' ? o.controller !== playerId : (o.zone === 'graveyard' && o.owner !== playerId);
       });
       if (crime) this._fire('youCommitCrime', playerId, { playerId });
+      // Patrolling Peacemaker: everyone else sees it
+      if (crime) this._fire('opponentCommitCrime', null, { except: playerId, playerId });
     }
 
     /* ============================================================
@@ -8162,6 +8164,8 @@
       }
       // Renata: "your devotion to green"
       if (typeof v === 'object' && v.devotion) return this.devotionOf((src || o).controller, v.devotion) * (v.mult || 1);
+      // Toxrill: "for each slime counter on them" — on each one it touches
+      if (typeof v === 'object' && v.countersOnIt) return (Number((o.counters || {})[v.countersOnIt]) || 0) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf)) {
@@ -13588,7 +13592,7 @@
 
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
-            fromOpponentCreatures: !!e.fromOpponentCreatures });
+            fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null });
           this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'} is prevented this turn${e.to === 'you' ? ` to ${me.name}` : ''}.`);
           break;
 
@@ -15274,6 +15278,8 @@
       if (sc.multicolored && (oa.colors || []).length < 2) return false;
       if (sc.colorless && (oa.colors || []).length) return false;
       if (sc.faceDown && !o.faceDown) return false;
+      // Halvar: "that are enchanted or equipped"
+      if (sc.enchantedOrEquipped && !(o.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return aa && (aa.isAura || aa.isEquipment); })) return false;
       if (sc.monocolored && (oa.colors || []).length !== 1) return false;
       // Bothersome Quasit: "goaded creatures"
       if (sc.goaded && o.goadedBy == null) return false;
@@ -15610,6 +15616,8 @@
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
         // Obscuring Haze: "by creatures your opponents control"
         if (pv.fromOpponentCreatures && !(source && source.controller !== pv.who && (this.characteristics(source) || {}).isCreature)) continue;
+        // Galadhrim Ambush: only what non-Elf creatures deal
+        if (pv.fromNotSubtype && !(source && (this.characteristics(source) || {}).isCreature && !this._hasCreatureType(source, pv.fromNotSubtype))) continue;
         /* Circle of Protection: "the next time a red source of your choice
            would deal damage to you this turn": that source, once */
         if (pv.sourceId && !(source && source.id === pv.sourceId)) continue;
@@ -16619,6 +16627,8 @@
       if (f.selfOk && src && x.id === src.id) return true;
       if (f.other && src && x.id === src.id) return false;
       if (f.name && x.name !== f.name) return false;
+      // Tome of Legends: "your commander"
+      if (f.commander && !(x.isCommander && src && x.owner === src.controller)) return false;
       // "whenever equipped creature attacks": the creature this is attached to
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
       /* "you control" is decided by who controlled it at the time, which
