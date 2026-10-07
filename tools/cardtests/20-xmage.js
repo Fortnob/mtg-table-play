@@ -6147,4 +6147,49 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A');
     t.ok(T.g.activateAbility('A', pw.id, 0), 'again next turn');
   });
+
+  test('Killing Glare: power X or less, with the X paid', (mk, t) => {
+    t.auto('Killing Glare');
+    const T = mk();
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'B2');
+    const kg = T.hand('A', 'Killing Glare');
+    t.no(T.g.castSpell('A', kg.id, { x: 2, targets: [{ kind: 'object', id: giant.id }] }), 'power 3 is too big for X=2');
+    T.mana('A', '1');
+    T.cast('A', kg, { x: 3, targets: [giant.id] });
+    t.eq(giant.zone, 'graveyard');
+  });
+
+  test('Succumb to the Cold: both tapped, a stun counter on each', (mk, t) => {
+    t.auto('Succumb to the Cold');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Succumb to the Cold'), { targets: [b1.id, b2.id] });
+    t.ok(b1.tapped && b2.tapped);
+    t.eq(b1.counters.stun || 0, 1); t.eq(b2.counters.stun || 0, 1);
+  });
+
+  test('Geistwave: draws only when the permanent was yours', (mk, t) => {
+    t.auto('Geistwave');
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.top('A', 'Island'); T.top('A', 'Island');
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Geistwave'), { targets: [theirs.id] });
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Geistwave'), { targets: [mine.id] });
+    t.eq(T.zone('A', 'hand').length, h + 1, 'its own Bears back, and a card');
+  });
+
+  test('Clockwork Beetle: a counter comes off at end of combat after it attacks', (mk, t) => {
+    t.auto('Clockwork Beetle');
+    const T = mk();
+    const cb = T.bf('A', 'Clockwork Beetle', { counters: { '+1/+1': 2 } });
+    T.answer('declareAttackers', () => [{ attackerId: cb.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 18);
+    t.eq(cb.counters['+1/+1'] || 0, 1);
+  });
 };

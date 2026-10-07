@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14658,
-  "gainedCards": 1526,
-  "linesNeeded": 16273,
-  "linesGained": 1906,
+  "needed": 14629,
+  "gainedCards": 1523,
+  "linesNeeded": 16229,
+  "linesGained": 1903,
   "gained": {
-   "all": 1526,
+   "all": 1523,
    "top2000": 53,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5348,
-   "lines": 4637,
+   "score": 5340,
+   "lines": 4629,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 311,
-   "lines": 293,
+   "score": 310,
+   "lines": 292,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 238,
-   "lines": 205,
+   "score": 235,
+   "lines": 202,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 143,
-   "lines": 134,
+   "score": 140,
+   "lines": 131,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -664,25 +664,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 25,
-   "lines": 25,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Scroll of Isildur",
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Rabid Attack",
-    "Out Cold",
-    "Vivien, Arkbow Ranger",
-    "Sea Hag // Aquatic Ingress",
-    "Involuntary Cooldown"
-   ]
-  },
-  {
    "what": "DisturbAbility.makeBackAbility",
    "score": 25,
    "lines": 25,
@@ -1147,6 +1128,25 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown",
+    "Rowan, Fearless Sparkmage",
+    "Invasion of Kylem // Valor's Reach Tag Team"
+   ]
+  },
+  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -1463,25 +1463,6 @@
     "Afterburner Expert",
     "Rangers' Aetherhive",
     "Marvel Boy, Noh-Varr"
-   ]
-  },
-  {
-   "what": "enters with counters the text reading did not see",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Dark Depths",
-    "Moonshadow",
-    "Heliod's Punishment",
-    "Midnight Oil",
-    "Surge Node",
-    "Sekki, Seasons' Guide",
-    "Clockwork Dragon",
-    "Rasputin Dreamweaver",
-    "Clockwork Beast",
-    "Spike Hatcher",
-    "Floodchaser",
-    "Wiitigo"
    ]
   },
   {
@@ -2513,25 +2494,6 @@
    ]
   },
   {
-   "what": "target count 1-2",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork",
-    "Wanderwine Farewell",
-    "Become Brutes",
-    "Soul Parry",
-    "Counterintelligence",
-    "Command of Unsummoning",
-    "Heroic Teamwork",
-    "Predictive Preparations"
-   ]
-  },
-  {
    "what": "KickedCostCondition",
    "score": 13,
    "lines": 13,
@@ -2860,6 +2822,25 @@
     "Oracle of Bones",
     "Omnispell Adept",
     "Twinning Glass"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Get Out",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell",
+    "Become Brutes",
+    "Soul Parry",
+    "Counterintelligence",
+    "Command of Unsummoning",
+    "Heroic Teamwork",
+    "Predictive Preparations",
+    "Wind Sail"
    ]
   },
   {
@@ -4755,21 +4736,6 @@
     "Blinkmoth Infusion",
     "Jiang Yanggu, Never Alone",
     "Battle Cry"
-   ]
-  },
-  {
-   "what": "ReturnFromGraveyardAtRandomEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Exalted Flamer of Tzeentch",
-    "Haunted Fengraf",
-    "Charmbreaker Devils",
-    "Moldgraf Monstrosity",
-    "Viconia, Drow Apostate",
-    "Ghoulraiser",
-    "Make a Wish",
-    "Woodland Sleuth"
    ]
   },
   {
@@ -7604,13 +7570,37 @@
     "Siren of the Fanged Coast",
     "Smelt-Ward Ignus"
    ]
+  },
+  {
+   "what": "GreenManaAbility with arguments",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Scaled Nurturer",
+    "Jade Orb of Dragonkind",
+    "Gilanra, Caller of Wirewood",
+    "Chocobo Camp",
+    "Black Tom Cassidy"
+   ]
+  },
+  {
+   "what": "LegendRuleDoesntApplyEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "The Master, Multiplied",
+    "Cadric, Soul Kindler",
+    "Sliver Gravemother",
+    "Spider-Verse",
+    "Council of Reeds"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4277,
-   "cards": 3773,
+   "score": 4270,
+   "cards": 3766,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7622,8 +7612,8 @@
   },
   {
    "what": "custom ability",
-   "score": 698,
-   "cards": 587,
+   "score": 700,
+   "cards": 589,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7648,8 +7638,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 207,
-   "cards": 174,
+   "score": 204,
+   "cards": 171,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -7687,8 +7677,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 89,
-   "cards": 89,
+   "score": 88,
+   "cards": 88,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8036,19 +8026,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "Ms. Bumbleflower",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Rabid Attack",
-    "Out Cold"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 18,
    "cards": 18,
@@ -8321,6 +8298,19 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Ms. Bumbleflower",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Sea Hag // Aquatic Ingress"
+   ]
+  },
+  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 14,
    "cards": 14,
@@ -8370,6 +8360,19 @@
     "Mistbreath Elder",
     "Promise of Aclazotz // Foul Rebirth",
     "Family's Favor"
+   ]
+  },
+  {
+   "what": "BecomesBasicLandTargetEffect",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Zombie Trailblazer",
+    "Tidal Warrior",
+    "Navigator's Compass",
+    "Unstable Frontier",
+    "Pixie Illusionist",
+    "Thelonite Monk"
    ]
   },
   {
@@ -8485,19 +8488,6 @@
     "Shepherd of Heroes",
     "Emeria Captain",
     "Allied Assault"
-   ]
-  },
-  {
-   "what": "BecomesBasicLandTargetEffect",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Zombie Trailblazer",
-    "Tidal Warrior",
-    "Navigator's Compass",
-    "Unstable Frontier",
-    "Pixie Illusionist",
-    "Thelonite Monk"
    ]
   },
   {
@@ -8690,19 +8680,6 @@
     "Roadkill Rodney",
     "Mona Lisa, Ever Adaptable",
     "Ooze Spill"
-   ]
-  },
-  {
-   "what": "target count 1-2",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Get Out",
-    "Succumb to the Cold",
-    "Leonardo's Technique",
-    "Run for Your Life",
-    "Fancy Footwork",
-    "Wanderwine Farewell"
    ]
   },
   {
@@ -8940,6 +8917,19 @@
     "Reaping Willow",
     "Loch Mare",
     "Moonlit Lamenter"
+   ]
+  },
+  {
+   "what": "target count 1-2",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Get Out",
+    "Leonardo's Technique",
+    "Run for Your Life",
+    "Fancy Footwork",
+    "Wanderwine Farewell",
+    "Become Brutes"
    ]
   },
   {
@@ -9281,6 +9271,19 @@
    ]
   },
   {
+   "what": "RemoveCounterCost",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Scholar of New Horizons",
+    "Fain, the Broker",
+    "O'aka, Traveling Merchant",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner"
+   ]
+  },
+  {
    "what": "OpponentControlsPermanentCondition",
    "score": 9,
    "cards": 9,
@@ -9408,6 +9411,19 @@
     "Hexgold Hoverwings",
     "Long-Lost Lances",
     "Item Shopkeep"
+   ]
+  },
+  {
+   "what": "control for whileControlled",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Scroll of Isildur",
+    "Yuffie, Materia Hunter",
+    "Possession Engine",
+    "Vault 87: Forced Evolution",
+    "Merieke Ri Berit",
+    "Helm of Possession"
    ]
   },
   {
@@ -9818,19 +9834,6 @@
    ]
   },
   {
-   "what": "RemoveCounterCost",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Scholar of New Horizons",
-    "Fain, the Broker",
-    "O'aka, Traveling Merchant",
-    "Sanctuary Warden",
-    "Soul Diviner",
-    "Xavier Sal, Infested Captain"
-   ]
-  },
-  {
    "what": "granting a mana ability",
    "score": 8,
    "cards": 8,
@@ -9893,19 +9896,6 @@
     "Wings of Velis Vel",
     "Atomic Microsizer",
     "Sorceress Queen"
-   ]
-  },
-  {
-   "what": "ReturnFromGraveyardAtRandomEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Exalted Flamer of Tzeentch",
-    "Haunted Fengraf",
-    "Charmbreaker Devils",
-    "Moldgraf Monstrosity",
-    "Viconia, Drow Apostate",
-    "Ghoulraiser"
    ]
   },
   {
@@ -10013,19 +10003,6 @@
    ]
   },
   {
-   "what": "control for whileControlled",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Yuffie, Materia Hunter",
-    "Possession Engine",
-    "Vault 87: Forced Evolution",
-    "Merieke Ri Berit",
-    "Helm of Possession",
-    "Rubinia Soulsinger"
-   ]
-  },
-  {
    "what": "CastFromHandForFreeEffect",
    "score": 8,
    "cards": 8,
@@ -10127,6 +10104,19 @@
     "Trade the Helm",
     "Visions of Duplicity",
     "Political Trickery"
+   ]
+  },
+  {
+   "what": "CantAttackBlockAttachedEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Faith's Fetters",
+    "Realmbreaker's Grasp",
+    "Heliod's Punishment",
+    "Bound in Gold",
+    "Intercessor's Arrest",
+    "Hold for Ransom"
    ]
   },
   {
@@ -10486,6 +10476,19 @@
    ]
   },
   {
+   "what": "RemoveCounterSourceEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Archfiend of the Dross",
+    "Bristlebane Battler",
+    "Creakwood Safewright",
+    "Celestial Convergence",
+    "Reluctant Dounguard",
+    "Encumbered Reejerey"
+   ]
+  },
+  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 7,
    "cards": 7,
@@ -10561,6 +10564,19 @@
     "Predator's Rapport",
     "Simulacrum",
     "Silent-Chant Zubera"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect without a condition",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Coalition Victory",
+    "Omnivorous Flytrap",
+    "Lyzolda, the Blood Witch",
+    "Sift Through Sands",
+    "Dream Thief",
+    "Bring Low"
    ]
   },
   {
@@ -10652,19 +10668,6 @@
     "The Abyss",
     "Oath of Ghouls",
     "Oath of Scholars"
-   ]
-  },
-  {
-   "what": "CantAttackBlockAttachedEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Faith's Fetters",
-    "Realmbreaker's Grasp",
-    "Bound in Gold",
-    "Intercessor's Arrest",
-    "Hold for Ransom",
-    "Revoke Privileges"
    ]
   },
   {
@@ -11099,19 +11102,6 @@
    ]
   },
   {
-   "what": "RemoveCounterSourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Archfiend of the Dross",
-    "Bristlebane Battler",
-    "Creakwood Safewright",
-    "Reluctant Dounguard",
-    "Encumbered Reejerey",
-    "Bloodletter Quill"
-   ]
-  },
-  {
    "what": "gain for whileControlled",
    "score": 6,
    "cards": 6,
@@ -11268,19 +11258,6 @@
    ]
   },
   {
-   "what": "ConditionalOneShotEffect without a condition",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Coalition Victory",
-    "Omnivorous Flytrap",
-    "Lyzolda, the Blood Witch",
-    "Sift Through Sands",
-    "Dream Thief",
-    "Bring Low"
-   ]
-  },
-  {
    "what": "BoostSourceEffect p/t",
    "score": 6,
    "cards": 6,
@@ -11434,6 +11411,19 @@
     "Fencer Clique",
     "Saprazzan Outrigger",
     "Wayward Soul"
+   ]
+  },
+  {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Cryoshatter",
+    "Relic Putrescence",
+    "Darksteel Garrison",
+    "Kudzu",
+    "Steam Vines",
+    "Spirit Shackle"
    ]
   }
  ]

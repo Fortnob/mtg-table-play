@@ -1185,6 +1185,14 @@
     { re: /^Tap up to (one|two|three|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
       make: (m) => ({ op: 'tap', targets: Array.from({ length: num(m[1]) },
         () => Object.assign(targetSpec(m[2]), { upTo: true })) }) },
+    // Succumb to the Cold, Donatello: "one or two target creatures an opponent controls"
+    { re: /^Tap (up to (?:one|two|three|\d+)|one or two) target ([a-z][a-z '-]*?)s (an opponent controls|your opponents control|you don'?t control)\.?$/i,
+      make: (m) => {
+        const k = /one or two/i.test(m[1]) ? 2 : num(m[1].replace(/^up to /i, ''));
+        const one = () => targetSpec('target ' + m[2] + ' ' + (/your opponents/i.test(m[3]) ? 'an opponent controls' : m[3].toLowerCase()));
+        if (!one() || typeof k !== 'number') return null;
+        return { op: 'tap', targets: Array.from({ length: k }, (x, i) => Object.assign(one(), /one or two/i.test(m[1]) && !i ? {} : { upTo: true }, { distinct: true })) };
+      } },
     { re: /^Untap up to (one|two|three|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
       make: (m) => ({ op: 'untap', targets: Array.from({ length: num(m[1]) },
         () => Object.assign(targetSpec(m[2]), { upTo: true })) }) },
@@ -1668,6 +1676,16 @@
     { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
         : { op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
+    // Succumb to the Cold: "Put a stun counter on each of them." — every target just tapped
+    { re: /^Put an? ([a-z]+|[+\-]\d+\/[+\-]\d+) counter on each of them\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'eachTarget' }) },
+    // Haunted Fengraf: "Return a creature card at random from your graveyard to your hand."
+    { re: /^Return an? ([a-z ]*?)card at random from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'randomFromGraveyard', filter: m[1].trim() || 'card' }) },
+    // Clockwork Dragon: "remove a +1/+1 counter from it at end of combat"
+    { re: /^Remove an? ([+\-]\d+\/[+\-]\d+) counter from (?:it|CARDNAME|this creature) at end of combat\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Remove a counter at end of combat',
+        effects: [{ op: 'counters', kind: m[1], n: -1, scope: 'thatObject' }] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -3690,8 +3708,9 @@
     // Blue Sun's Twilight, Spell Blast: "with mana value X (or less)", the X it was cast with
     const px = p.match(/with (?:mana value|converted mana cost) x( or less| or greater)?$/i);
     if (px) { if (!px[1]) spec.mv = 'X'; else if (/less/.test(px[1])) spec.maxMv = 'X'; else spec.minMv = 'X'; }
-    const pp = p.match(/with power (\d+) or less/);
-    if (pp) spec.maxPower = +pp[1];
+    const pp = p.match(/with power (\d+|x) or less/i);
+    // Killing Glare: "with power X or less", the X it was cast with
+    if (pp) spec.maxPower = /x/i.test(pp[1]) ? 'X' : +pp[1];
     const pg = p.match(/with power (\d+) or (?:greater|more)/);
     if (pg) spec.minPower = +pg[1];
     const tg = p.match(/with toughness (\d+) or less/);
@@ -3873,7 +3892,7 @@
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
-    if (spec.maxPower != null && pow() > spec.maxPower) return false;
+    if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
     if (spec.minPowerOrToughness != null && pow() < spec.minPowerOrToughness && tou() < spec.minPowerOrToughness) return false;
@@ -5192,6 +5211,8 @@
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
+    // Geistwave: "If you controlled that permanent"
+    [/^you controlled that (?:permanent|creature|artifact|enchantment|land)$/i, () => ({ kind: 'lastWasYours' })],
     // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
     [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],
     // the Myojin: "if you cast it from your hand"
@@ -6807,9 +6828,12 @@
       if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[1], n: { count: c } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
-    let etbm = text.match(/enters with (a|an|one|two|three|four|X|\d+) \+1\/\+1 counters?/i);
+    // (and "six", "seven" … : Clockwork Dragon, Phantom Nishoba)
+    // (not in reminder text: impending's "it enters with four time counters")
+    const noReminder = text.replace(/\([^)]*\)/g, '');
+    let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
-    etbm = text.match(/enters(?: tapped)? with (a|an|one|two|three|\d+) ([a-z ]+?) counters?/i);
+    etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([a-z ]+?) counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
     /* Graft N (CR 702.58): it enters with N +1/+1 counters, and may hand
        one to each other creature as that creature enters */
@@ -8069,7 +8093,7 @@
         make: (m) => ({ op: 'sequence', list: [
           { op: 'continuous', layer: 6, scope: { attached: true }, grant: ['Ward ' + m[1], 'Unblockable'] },
           { op: 'continuous', layer: 4, scope: { attached: true }, addSubtypes: [m[2]] }] }), auto: true },
-      { re: /^(?:This artifact|CARDNAME|This permanent) enters with (?:a|an|one|two|three|four|five|\d+) [a-z]+ counters? on it\.?$/i,
+      { re: /^(?:This artifact|CARDNAME|This permanent) enters with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'noop' }, auto: true },
       /* Maskwood Nexus: every creature type, on the battlefield and off it */
       { re: /^Creatures you control are every creature type\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/i,
@@ -8191,7 +8215,7 @@
          so counts as read rather than as a line nobody could parse. */
       { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each ([^.]+?)\.?$/i,
         make: (m) => (!/mana spent/i.test(m[1]) && plainCount(countOf(m[1])) ? { op: 'noop' } : null), auto: true },
-      { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
+      { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read
       { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,

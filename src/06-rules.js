@@ -7620,6 +7620,7 @@
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
+        case 'lastWasYours': return !!me && !!this._lastAffected && this._lastAffected.controller === me.id;
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
@@ -9245,6 +9246,11 @@
           return;
         }
         if (e2.scope === 'lastTarget') { const x = firstObj(); if (x) fn(x); return; }
+        // "put a stun counter on each of them": every object target
+        if (e2.scope === 'eachTarget') {
+          for (const t of targets) { const x = t.kind === 'object' && this.obj(t.id); if (x && x.zone === 'battlefield') fn(x); }
+          return;
+        }
         if (e2.scope === 'yourCreatures' || e2.scope === 'opponentCreatures') {
           for (const o of this.creaturesOf(ctx.controller, e2.scope)) fn(o);
           return;
@@ -9727,7 +9733,7 @@
           }
           // Ring of Valkas: "on equipped creature if it's red"
           else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
-          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
+          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.addCounters(o, e.kind, cnt);
           }
@@ -11756,6 +11762,15 @@
             if (this.hasKw(at, 'indestructible')) continue;
             this.moveObject(at, 'graveyard');
           }
+          break;
+        }
+        // Haunted Fengraf: a card at random, from your graveyard to your hand
+        case 'randomFromGraveyard': {
+          const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          if (!pool.length) break;
+          const c = pool[Math.floor(this.rng.next() * pool.length)];
+          this.moveObject(c, 'hand');
+          this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
           break;
         }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
