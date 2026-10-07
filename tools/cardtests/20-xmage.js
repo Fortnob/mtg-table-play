@@ -377,7 +377,7 @@ module.exports = (test) => {
   });
 
   test('XMage: Battlegrace Angel gives lifelink to a creature attacking alone', (mk, t) => {
-    generated(t, 'Battlegrace Angel');
+    t.auto('Battlegrace Angel');      // read from its own words now
     const T = mk();
     T.bf('A', 'Battlegrace Angel');
     const bear = T.bf('A', 'Grizzly Bears');
