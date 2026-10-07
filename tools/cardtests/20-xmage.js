@@ -2814,6 +2814,37 @@ module.exports = (test) => {
     t.zone(a, 'hand'); t.zone(w, 'hand'); t.zone(b, 'battlefield');
   });
 
+  test("Skullcrack: no life gained, no damage prevented this turn", (mk, t) => {
+    t.auto('Skullcrack');
+    const T = mk();
+    T.g.prevention.push({ to: 'you', who: 'B', until: 'eot' });
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Skullcrack'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 17, 'the prevention shield did nothing');
+    T.g.changeLife(T.g.player('B'), 5);
+    t.eq(T.life('B'), 17, 'and B gained nothing');
+  });
+
+  test('A bot casts Stomp first, then Bonecrusher Giant from exile', (mk, t) => {
+    t.auto('Bonecrusher Giant');
+    const T = mk();
+    const r = T.hand('A', 'Bonecrusher Giant');
+    const e = T.bf('B', 'Llanowar Elves');
+    e.preventShield = 3;
+    T.player('A').isBot = true;
+    const bot = new MTG.bots.BotPlayer(T.g, 'A', 8);
+    T.mana('A', '1R');
+    t.ok(bot.castFromPlan('main1'), 'cast something');
+    T.resolve();
+    t.zone(e, 'graveyard', "Stomp's damage can't be prevented");
+    t.zone(r, 'exile', 'on an adventure');
+    T.mana('A', '2R');
+    t.ok(bot.castFromPlan('main1'), 'and then the Giant');
+    T.resolve();
+    t.zone(r, 'battlefield');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

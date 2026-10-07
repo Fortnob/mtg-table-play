@@ -6906,14 +6906,15 @@
       if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat);
       if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
-      if (o.preventShield) {
+      if (o.preventShield && !this._noPrevention(isCombat)) {
         const soak = Math.min(o.preventShield, amount);
         o.preventShield -= soak; amount -= soak;
         this.logEvent('damage', `${soak} damage to ${o.name} is prevented.`);
         if (amount <= 0) return;
       }
       const a = o.analysis();
-      if (a && source && this._protectedFrom(o, source)) return;
+      // protection prevents damage too (CR 702.16e), unless damage can't be prevented
+      if (a && source && this._protectedFrom(o, source) && !this._noPrevention(isCombat)) return;
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
@@ -6953,9 +6954,9 @@
     dealDamageToPlayer(p, amount, source, combat) {
       if (!p || amount <= 0) return 0;
       amount = this._damageAmount(amount, source, p.id, combat);
-      if (this._protected(p)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
+      if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
       if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
-      if (p.preventShield) {
+      if (p.preventShield && !this._noPrevention(combat)) {
         const soak = Math.min(p.preventShield, amount);
         p.preventShield -= soak; amount -= soak;
         this.logEvent('damage', `${soak} damage to ${p.name} is prevented.`);
@@ -7035,6 +7036,9 @@
     }
     /** Is anything on the table stopping this player from gaining life? */
     _lifeGainStopped(p) {
+      // Skullcrack: "Players can't gain life this turn"; "your opponents can't …"
+      const t = this.noLifeGainTurn;
+      if (t && t.turn === this.turn && (t.who === 'all' || (t.who === 'opponents' && p.id !== t.by))) return true;
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'noLifeGain');
         if (!e) continue;
@@ -9361,6 +9365,16 @@
           this.emit('sfx', 'damage');
           break;
         }
+        // Stomp, Skullcrack: "Damage can't be prevented this turn."
+        // Skullcrack: "Players can't gain life this turn."
+        case 'noLifeGainTurn':
+          this.noLifeGainTurn = { turn: this.turn, who: e.who || 'all', by: ctx.controller };
+          this.logEvent('rules', (e.who === 'opponents' ? me.name + "'s opponents" : 'Players') + " can't gain life this turn.");
+          break;
+        case 'noPreventionTurn':
+          this.noPreventTurn = this.turn;
+          this.logEvent('rules', "Damage can't be prevented this turn.");
+          break;
         // Insurrection: every creature, untapped and yours until end of turn
         case 'threatenAll': {
           const ts = this._stampNew();
@@ -12444,9 +12458,14 @@
     }
 
     /** Damage prevention from "prevent all damage this turn" effects. */
+    /** Stomp, Skullcrack: "Damage can't be prevented this turn"; Frenzied Baloth: combat damage, while it's here. */
+    _noPrevention(isCombat) {
+      if (this.noPreventTurn === this.turn) return true;
+      return !!isCombat && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noCombatPrevention'));
+    }
     _damagePrevented(target, isCombat, source, amount) {
-      // Frenzied Baloth: "Combat damage can't be prevented."
-      if (isCombat && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noCombatPrevention'))) return false;
+      // "damage can't be prevented"
+      if (this._noPrevention(isCombat)) return false;
       // "prevent all combat damage that would be dealt to this creature"
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
       // Crystal Barricade: "prevent all noncombat damage that would be dealt to other creatures you control"

@@ -2332,6 +2332,11 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Stomp, Skullcrack: "Damage can't be prevented this turn."
+    { re: /^Damage can'?t be prevented this turn\.?$/i, make: () => ({ op: 'noPreventionTurn' }) },
+    // Skullcrack: "Players can't gain life this turn."
+    { re: /^(Players|Your opponents|Each opponent) can'?t gain life this turn\.?$/i,
+      make: (m) => ({ op: 'noLifeGainTurn', who: /^players/i.test(m[1]) ? 'all' : 'opponents' }) },
     // Starfall Invocation: "return a creature card put into your graveyard this way to the battlefield under your control"
     { re: /^[Rr]eturn an? ([a-z]+) card put into your graveyard this way to the battlefield under your control\.?$/,
       make: (m) => ({ op: 'returnSwept', filter: m[1].toLowerCase() }) },

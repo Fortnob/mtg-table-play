@@ -2604,6 +2604,13 @@
       };
       for (const o of z.hand.concat(z.command)) {
         consider(o, null);
+        /* An adventurer: the adventure first is a card and a half — the
+           creature waits in exile for later. Weighed as the half it casts. */
+        if (o.zone === 'hand' && g._adventure && g._adventure(o)) {
+          const before = out.length;
+          g._asHalf(o, 1, () => consider(o, null));
+          for (const x of out.slice(before)) { x.face = 1; x.v += 1; }
+        }
         /* A creature you cannot pay for is still a 2/2 for three if it has
            morph — which is what morph is for. */
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
@@ -2612,6 +2619,8 @@
           consider(o, use);
         }
       }
+      // back from an adventure: the creature, cast from exile like a card in hand
+      for (const o of z.exile) if (o.adventureBy === this.pid) consider(o, null);
       // flashback and its friends: a card in the graveyard is a card in hand for these
       for (const o of z.graveyard.concat(z.exile)) {
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
@@ -2764,9 +2773,12 @@
     castChoice(choice, mana) {
       const g = this.game;
       // a look ahead may have settled the targets already
-      const targets = choice.targets || this.chooseTargets(choice.o, choice.a);
+      const targets = choice.targets || (choice.face != null
+        ? g._asHalf(choice.o, choice.face, () => this.chooseTargets(choice.o, choice.a))
+        : this.chooseTargets(choice.o, choice.a));
       if (targets === null) return false;            // needs a target and none is worth it
       const opts = { targets, auto: true };
+      if (choice.face != null) opts.face = choice.face;
       if (choice.via) opts.via = choice.via;
       /* Kicker and friends: pay for the better version when the mana is
          spare, because that is what the extra cost is for. */

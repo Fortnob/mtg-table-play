@@ -1,12 +1,12 @@
 {
- "generated": "2026-10-06",
+ "generated": "2026-10-07",
  "stats": {
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16649,
+  "needed": 16640,
   "gainedCards": 1766,
-  "linesNeeded": 18913,
+  "linesNeeded": 18904,
   "linesGained": 2273,
   "gained": {
    "all": 1766,
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 312,
-   "lines": 270,
+   "score": 311,
+   "lines": 269,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -1474,25 +1474,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Gideon of the Trials",
-    "Bombur, Gentle Dreamer",
-    "Fall from Favor",
-    "Wild Slash",
-    "Alirios, Enraptured",
-    "Moonhold",
-    "Steel Dromedary",
-    "Stunning Strike",
-    "Scorching Lava",
-    "River Delta",
-    "Land Cap",
-    "Lava Tubes"
-   ]
-  },
-  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -1636,6 +1617,25 @@
     "Otherworldly Outburst",
     "Searing Blood",
     "Melira, the Living Cure"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Gideon of the Trials",
+    "Bombur, Gentle Dreamer",
+    "Fall from Favor",
+    "Alirios, Enraptured",
+    "Moonhold",
+    "Steel Dromedary",
+    "Stunning Strike",
+    "Scorching Lava",
+    "River Delta",
+    "Land Cap",
+    "Lava Tubes",
+    "Merseine"
    ]
   },
   {
@@ -5135,23 +5135,6 @@
    ]
   },
   {
-   "what": "DamageCantBePreventedEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Sunspine Lynx",
-    "Spider-Punk",
-    "Everlasting Torment",
-    "Isengard Unleashed",
-    "Bonecrusher Giant // Stomp",
-    "Insult // Injury",
-    "Pyrewood Gearhulk",
-    "Fear, Fire, Foes!",
-    "Impractical Joke",
-    "Flaring Pain"
-   ]
-  },
-  {
    "what": "AddManaInAnyCombinationEffect",
    "score": 10,
    "lines": 10,
@@ -7383,6 +7366,20 @@
    ]
   },
   {
+   "what": "DamageCantBePreventedEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sunspine Lynx",
+    "Spider-Punk",
+    "Everlasting Torment",
+    "Isengard Unleashed",
+    "Insult // Injury",
+    "Fear, Fire, Foes!",
+    "Impractical Joke"
+   ]
+  },
+  {
    "what": "DevotionCount.G",
    "score": 7,
    "lines": 7,
@@ -8157,8 +8154,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 265,
-   "cards": 226,
+   "score": 264,
+   "cards": 225,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
