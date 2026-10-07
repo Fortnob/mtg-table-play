@@ -2110,12 +2110,14 @@
       for (const k of kw) {
         const m = /^(protection|hexproof) from (.+)$/.exec(k);
         if (!m || (m[1] === 'hexproof' && o.controller === this.meId)) continue;
-        const what = m[2];
-        if (what === 'everything') return false;
-        if (NAME[what] && cols.includes(NAME[what])) return false;
-        if ((what === 'all colors' || what === 'each color') && cols.length) return false;
-        if (what === 'multicolored' && cols.length > 1) return false;
-        if (what === 'monocolored' && cols.length === 1) return false;
+        // "protection from black and from green": each quality on its own
+        for (const what of m[2].split(/\s*(?:,|\band\b|\bor\b)\s*(?:from\s+)?/).map(x => x.trim()).filter(Boolean)) {
+          if (what === 'everything') return false;
+          if (NAME[what] && cols.includes(NAME[what])) return false;
+          if ((what === 'all colors' || what === 'each color') && cols.length) return false;
+          if (what === 'multicolored' && cols.length > 1) return false;
+          if (what === 'monocolored' && cols.length === 1) return false;
+        }
       }
       return true;
     }
