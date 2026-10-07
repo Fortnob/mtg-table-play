@@ -2302,6 +2302,15 @@
       const e = this._resolvingEffect();
       const count = Math.max(1, ch.count || 1);
       const options = ch.options || [];
+      // protection from the colour the opponents play most
+      if (ch.purpose === 'protectionColor') {
+        const k = { White: 0, Blue: 0, Black: 0, Red: 0, Green: 0 };
+        const NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+        for (const o of g.battlefield) if (o.controller !== this.pid) for (const c of ((o.analysis() || {}).colors || [])) k[NAME[c]]++;
+        for (const st of g.stack) if (st.controller !== this.pid && st.obj) for (const c of ((st.obj.analysis() || {}).colors || [])) k[NAME[c]] += 3;
+        const best = options.slice().sort((x, y) => (k[y.label] || 0) - (k[x.label] || 0))[0];
+        return [best ? best.i : 0];
+      }
       // the colour question asks through the same door
       if (e && e.op === 'chooseColor') {
         const pips = { W: 0, U: 0, B: 0, R: 0, G: 0 };

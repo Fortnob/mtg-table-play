@@ -6995,4 +6995,18 @@ module.exports = (test) => {
     T.resolve();
     t.eq(giant.zone, 'exile'); t.eq(b1.zone, 'battlefield');
   });
+
+  test('Mother of Runes: protection from the colour chosen, which works', (mk, t) => {
+    t.auto('Mother of Runes');
+    const T = mk();
+    const mom = T.bf('A', 'Mother of Runes');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('mode', { modes: [3] });
+    T.activate('A', mom, mom.analysis().manaAbilities.length, { targets: [bear.id] });
+    T.resolve();
+    t.ok(T.g.hasKw(bear, 'protection from red'), 'protection from red');
+    T.g.passPriority('A', true);
+    T.mana('B', 'R');
+    t.no(T.g.castSpell('B', T.hand('B', 'Lightning Bolt').id, { targets: [{ kind: 'object', id: bear.id }] }), 'can no longer be targeted by red');
+  });
 };

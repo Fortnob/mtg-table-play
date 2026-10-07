@@ -10500,12 +10500,26 @@
           } else applyToScope(e, apply);
           break;
         }
-        case 'grantKeyword':
+        case 'grantKeyword': {
+          /* Mother of Runes, Gods Willing: "protection from the color of your
+             choice" is a colour asked for as it resolves */
+          let kws = e.keywords || [];
+          if (kws.some(k => /^protection from the colou?r of your choice$/i.test(k))) {
+            const COLORS = ['White', 'Blue', 'Black', 'Red', 'Green'];
+            const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'protectionColor',
+              options: COLORS.map((c, i) => ({ i, label: c })), prompt: 'Protection from which colour?' }, 'protcol');
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            const col = COLORS[idx == null ? 0 : idx] || COLORS[0];
+            kws = kws.map(k => (/^protection from the colou?r of your choice$/i.test(k) ? 'Protection From ' + col : k));
+            this.logEvent('rules', `${me.name} chooses ${col.toLowerCase()}.`);
+          }
           // "That token gains haste." with no end to it is for good
           applyToScope(e, (o) => o.effects.push(e.duration === 'nextTurn'
-            ? { keywords: e.keywords, until: null, untilTurnOf: ctx.controller }
-            : { keywords: e.keywords, until: e.duration === 'permanent' ? null : 'eot' }));
+            ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
+            : { keywords: kws, until: e.duration === 'permanent' ? null : 'eot' }));
           break;
+        }
         /* "…gains 'When this creature dies, …' until end of turn": the
            quoted ability is the creature's own until the effect ends. */
         case 'grantAbility':
@@ -16485,6 +16499,10 @@
         if (!MTG.oracle.matchesSpec(spec, o, a, controllerId, this._specCtx())) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
             (this.hasKw(o, 'hexproof') || this.hasKw(o, 'shroud'))) continue;
+        // shroud: not even its own controller's (CR 702.18a)
+        if (zone === 'battlefield' && this.hasKw(o, 'shroud')) continue;
+        // protection: not by a spell or ability from a source with that quality (CR 702.16b)
+        if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && s0 !== o && this._protectedFrom(o, s0)) continue; }
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
       if (spec.type === 'any') out.push(...players());
