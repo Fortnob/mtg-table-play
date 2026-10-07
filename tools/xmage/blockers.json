@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15017,
-  "gainedCards": 1530,
-  "linesNeeded": 16712,
-  "linesGained": 1931,
+  "needed": 14995,
+  "gainedCards": 1527,
+  "linesNeeded": 16688,
+  "linesGained": 1928,
   "gained": {
-   "all": 1530,
+   "all": 1527,
    "top2000": 51,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5470,
-   "lines": 4714,
+   "score": 5465,
+   "lines": 4709,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 932,
-   "lines": 791,
+   "score": 931,
+   "lines": 790,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 287,
-   "lines": 257,
+   "score": 286,
+   "lines": 256,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -1846,25 +1846,6 @@
    ]
   },
   {
-   "what": "ShuffleIntoLibraryTargetEffect",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Perpetual Timepiece",
-    "The Bath Song",
-    "Ominous Cemetery",
-    "This Is How It Ends",
-    "Turn the Earth",
-    "Wand of Vertebrae",
-    "Cathartic Parting",
-    "Unravel the Aether",
-    "Tamiyo Meets the Story Circle",
-    "Deglamer",
-    "Covetous Castaway // Ghostly Castigator",
-    "Piper's Melody"
-   ]
-  },
-  {
    "what": "OpponentControlsPermanentCondition",
    "score": 15,
    "lines": 15,
@@ -2116,6 +2097,25 @@
    ]
   },
   {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Perpetual Timepiece",
+    "The Bath Song",
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae",
+    "Cathartic Parting",
+    "Unravel the Aether",
+    "Tamiyo Meets the Story Circle",
+    "Deglamer",
+    "Covetous Castaway // Ghostly Castigator",
+    "Piper's Melody",
+    "Put Away"
+   ]
+  },
+  {
    "what": "attack trigger with its own text",
    "score": 14,
    "lines": 8,
@@ -2204,25 +2204,6 @@
     "Thantis, the Warweaver",
     "Blood Reckoning",
     "Slumbering Dragon"
-   ]
-  },
-  {
-   "what": "CreateTokenTargetEffect",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Bloodroot Apothecary",
-    "Verdant Command",
-    "Varchild, Betrayer of Kjeldor",
-    "Ashling's Command",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian",
-    "Thran Spider",
-    "Oath of the Grey Host",
-    "Hansk, Slayer Zealot",
-    "Bloodvial Purveyor",
-    "Relic Robber",
-    "Vazi, Keen Negotiator"
    ]
   },
   {
@@ -2545,6 +2526,25 @@
    ]
   },
   {
+   "what": "CreateTokenTargetEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Bloodroot Apothecary",
+    "Verdant Command",
+    "Varchild, Betrayer of Kjeldor",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host",
+    "Hansk, Slayer Zealot",
+    "Bloodvial Purveyor",
+    "Relic Robber",
+    "Vazi, Keen Negotiator",
+    "Baffling End"
+   ]
+  },
+  {
    "what": "WaterbendCost",
    "score": 13,
    "lines": 13,
@@ -2822,22 +2822,6 @@
    ]
   },
   {
-   "what": "AttachTargetToTargetEffect",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Codsworth, Handy Helper",
-    "Magnetic Theft",
-    "Raubahn, Bull of Ala Mhigo",
-    "Barret, Avalanche Leader",
-    "Weapons Vendor",
-    "Noctis, Heir Apparent",
-    "Iron Hills Stalwart",
-    "Aura Finesse",
-    "Swordsman, Sharp Scoundrel"
-   ]
-  },
-  {
    "what": "WinGameSourceControllerEffect",
    "score": 12,
    "lines": 9,
@@ -3022,23 +3006,6 @@
     "Granite Shard",
     "Heartwood Shard",
     "Pearl Shard"
-   ]
-  },
-  {
-   "what": "Ability.withFirstModeCost",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Dance of the Tumbleweeds",
-    "Rustler Rampage",
-    "One Last Job",
-    "Ice Magic",
-    "Caught in the Crossfire",
-    "Unfortunate Accident"
    ]
   },
   {
@@ -3272,6 +3239,21 @@
    ]
   },
   {
+   "what": "AttachTargetToTargetEffect",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Codsworth, Handy Helper",
+    "Raubahn, Bull of Ala Mhigo",
+    "Barret, Avalanche Leader",
+    "Weapons Vendor",
+    "Noctis, Heir Apparent",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Swordsman, Sharp Scoundrel"
+   ]
+  },
+  {
    "what": "MagecraftAbility",
    "score": 11,
    "lines": 8,
@@ -3422,6 +3404,22 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "Rustler Rampage",
+    "One Last Job",
+    "Caught in the Crossfire",
+    "Unfortunate Accident"
    ]
   },
   {
@@ -3695,23 +3693,6 @@
     "Age of Ultron",
     "Vault 13: Dweller's Journey",
     "The Curse of Fenric"
-   ]
-  },
-  {
-   "what": "not or",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Swarmyard Massacre",
-    "Whelming Wave",
-    "Signal Pest",
-    "Path of Mettle // Metzali, Tower of Triumph",
-    "Spire Tracer",
-    "Amrou Seekers",
-    "Skirk Shaman",
-    "Angelic Voices",
-    "Elven Riders",
-    "Orchard Spirit"
    ]
   },
   {
@@ -5751,6 +5732,20 @@
    ]
   },
   {
+   "what": "not or",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Swarmyard Massacre",
+    "Whelming Wave",
+    "Path of Mettle // Metzali, Tower of Triumph",
+    "Amrou Seekers",
+    "Skirk Shaman",
+    "Angelic Voices",
+    "Elven Riders"
+   ]
+  },
+  {
    "what": "(constructor: statement:loop)",
    "score": 7,
    "lines": 7,
@@ -5830,20 +5825,6 @@
     "Liliana, Untouched by Death",
     "Hazezon, Shaper of Sand",
     "Abandoned Sarcophagus"
-   ]
-  },
-  {
-   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Zombie Apocalypse",
-    "Archangel Elspeth",
-    "Knights' Charge",
-    "Angel of Glory's Rise",
-    "Fix What's Broken",
-    "Triumphant Reckoning",
-    "Return of the Nightstalkers"
    ]
   },
   {
@@ -7714,13 +7695,25 @@
     "The Ring Goes South",
     "Dúnedain Rangers"
    ]
+  },
+  {
+   "what": "GodEternalDiesTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "God-Eternal Oketra",
+    "Ilharg, the Raze-Boar",
+    "God-Eternal Bontu",
+    "God-Eternal Rhonas",
+    "God-Eternal Kefnet"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4374,
-   "cards": 3834,
+   "score": 4369,
+   "cards": 3829,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7732,8 +7725,8 @@
   },
   {
    "what": "custom ability",
-   "score": 697,
-   "cards": 586,
+   "score": 696,
+   "cards": 585,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8529,19 +8522,6 @@
    ]
   },
   {
-   "what": "ShuffleIntoLibraryTargetEffect",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Perpetual Timepiece",
-    "The Bath Song",
-    "Ominous Cemetery",
-    "This Is How It Ends",
-    "Turn the Earth",
-    "Wand of Vertebrae"
-   ]
-  },
-  {
    "what": "prevent damage by some permanents",
    "score": 13,
    "cards": 13,
@@ -8731,6 +8711,19 @@
     "Kudo, King Among Bears",
     "Tanazir Quandrix",
     "Candlekeep Inspiration"
+   ]
+  },
+  {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Perpetual Timepiece",
+    "The Bath Song",
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae",
+    "Cathartic Parting"
    ]
   },
   {
@@ -9334,32 +9327,6 @@
    ]
   },
   {
-   "what": "Ability.withFirstModeCost",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Dance of the Tumbleweeds",
-    "Rustler Rampage"
-   ]
-  },
-  {
-   "what": "CreateTokenTargetEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Verdant Command",
-    "Ashling's Command",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian",
-    "Thran Spider",
-    "Oath of the Grey Host"
-   ]
-  },
-  {
    "what": "MutatesSourceTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -9490,19 +9457,6 @@
    ]
   },
   {
-   "what": "not or",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Swarmyard Massacre",
-    "Whelming Wave",
-    "Signal Pest",
-    "Spire Tracer",
-    "Amrou Seekers",
-    "Skirk Shaman"
-   ]
-  },
-  {
    "what": "LoseGameTargetPlayerEffect",
    "score": 9,
    "cards": 3,
@@ -9604,6 +9558,19 @@
    ]
   },
   {
+   "what": "Ability.withFirstModeCost",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "Rustler Rampage"
+   ]
+  },
+  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 9,
    "cards": 9,
@@ -9640,6 +9607,19 @@
     "Skyline Cascade",
     "Fogwalker",
     "Sudden Storm"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Verdant Command",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host",
+    "Hansk, Slayer Zealot"
    ]
   },
   {
@@ -11164,6 +11144,19 @@
    ]
   },
   {
+   "what": "not or",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Swarmyard Massacre",
+    "Whelming Wave",
+    "Amrou Seekers",
+    "Skirk Shaman",
+    "Angelic Voices",
+    "Elven Riders"
+   ]
+  },
+  {
    "what": "CantAttackYouAllEffect",
    "score": 6,
    "cards": 6,
@@ -11200,19 +11193,6 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
-   ]
-  },
-  {
-   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Zombie Apocalypse",
-    "Knights' Charge",
-    "Angel of Glory's Rise",
-    "Fix What's Broken",
-    "Triumphant Reckoning",
-    "Return of the Nightstalkers"
    ]
   },
   {
@@ -11551,6 +11531,19 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_PERMANENTS",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Ugin's Insight",
+    "Rush of Knowledge",
+    "Boon of Boseiju",
+    "Kraven, Proud Predator",
+    "Accelerated Mutation",
+    "Torrent of Fire"
    ]
   }
  ]

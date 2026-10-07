@@ -251,7 +251,7 @@ module.exports = (test) => {
   });
 
   test('XMage: Silhana Ledgewalker can only be blocked by fliers', (mk, t) => {
-    generated(t, 'Silhana Ledgewalker');
+    t.auto('Silhana Ledgewalker');      // read from its own words now
     const T = mk();
     const s = T.bf('A', 'Silhana Ledgewalker');
     const bear = T.bf('B', 'Grizzly Bears');
@@ -5498,5 +5498,34 @@ module.exports = (test) => {
     const bogle = T.bf('B', 'Slippery Bogle');
     t.no(T.g.activateAbility('A', ps.id, 0, { targets: [{ kind: 'object', id: bogle.id }] }), 'hexproof');
     t.no(ps.tapped, 'not tapped: nothing was paid');
+  });
+
+  test('Hellrider: each attacker pings the player it attacks', (mk, t) => {
+    t.auto('Hellrider');
+    const T = mk();
+    const h = T.bf('A', 'Hellrider'); h.summoningSick = false;
+    const b = T.bf('A', 'Grizzly Bears'); b.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: h.id, defenderId: 'B' }, { attackerId: b.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20 - 2 - 3 - 2);
+  });
+
+  test('Donate: the target player gains control of your permanent', (mk, t) => {
+    t.auto('Donate');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Donate'), { targets: ['B', bear] });
+    t.eq(bear.controller, 'B');
+  });
+
+  test('Signal Pest: only flying or reach can block it', (mk, t) => {
+    t.auto('Signal Pest');
+    const T = mk();
+    const sp = T.bf('A', 'Signal Pest');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const bird = T.bf('B', 'Birds of Paradise');
+    t.no(T.g.couldBlock(bear, sp, 'B'));
+    t.ok(T.g.couldBlock(bird, sp, 'B'));
   });
 };

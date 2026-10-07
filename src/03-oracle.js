@@ -839,6 +839,31 @@
     // Beacon of Unrest: "…from a graveyard onto the battlefield under your control"
     { re: /^Put target (artifact or creature|creature|artifact) card from a graveyard onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard' })] }) },
+    // Wrong Turn, Harmless Offering: "Target opponent gains control of target creature (you control)."
+    { re: /^Target (opponent|player) gains control of (target (?:creature|permanent|artifact)(?: you control)?)\.?$/i,
+      make: (m) => ({ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }, targetSpec(m[2])] }) },
+    // Counterflux: "Counter target spell you don't control."
+    { re: /^Counter target spell you don'?t control\.?$/i, make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'opponent' }] }) },
+    // Ashling's Command: "2 damage to each creature target player controls"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // Ominous Cemetery: "Target creature's owner shuffles it into their library."
+    { re: /^(Target (?:creature|permanent|nonland permanent))'s owner shuffles it into their library\.?$/i,
+      make: (m) => ({ op: 'toLibrary', where: 'shuffle', targets: [targetSpec(m[1])] }) },
+    // Tangle: "Each attacking creature doesn't untap during its controller's next untap step."
+    { re: /^Each attacking creature doesn'?t untap during its controller'?s next untap step\.?$/i,
+      make: () => ({ op: 'noUntap', scope: { who: 'all', what: 'creature', attacking: true } }) },
+    // Words of Wisdom: "You draw two cards, then each other player draws a card."
+    { re: /^You draw (a|one|two|three|\d+) cards?, then each other player draws (a|one|two|\d+) cards?\.?$/i,
+      make: (m) => [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[2]), who: 'opponents' }] },
+    // Magnetic Theft: "Attach target Equipment to target creature."
+    { re: /^Attach target Equipment to target creature\.?$/i,
+      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', filter: 'Equipment', subtypes: ['equipment'] }, { type: 'creature' }] }) },
+    // Hellrider: "deals 1 damage to the player or planeswalker it's attacking"
+    { re: /^(?:CARDNAME|This creature) deals (\d+) damage to the player or planeswalker it'?s attacking\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], toDefenderOf: 'triggerObject' }) },
+    { re: /^(?:It|That creature) deals damage equal to its power to the player or planeswalker it'?s attacking\.?$/i,
+      make: () => ({ op: 'damage', n: { ofTrigger: 'power' }, fromTrigger: true, toDefenderOf: 'triggerObject' }) },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -2102,6 +2127,9 @@
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
     { re: /^Untap all attacking creatures\.?$/i, make: () => ({ op: 'untapAttacking' }) },
     /* Splendid Reclamation, Aftermath Analyst, Lumra */
+    // Knights' Charge: "Return all Knight creature cards from your graveyard to the battlefield."
+    { re: /^Return all ([A-Z][a-z]+) creature cards from your graveyard to the battlefield( tapped)?\.?$/,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase() + ' creature', yours: true, tapped: !!m[2] }) },
     // Primevals' Glorious Rebirth, Raise the Past: "all legendary permanent cards", "with mana value 2 or less"
     { re: /^[Rr]eturn all ((?:legendary|nonlegendary|historic) (?:permanent|creature|artifact) |(?:creature|artifact|enchantment|permanent) )cards with (?:mana value|converted mana cost) (\d+) or less from your graveyard to the battlefield\.?$|^[Rr]eturn all (legendary (?:permanent|creature|artifact)) cards from your graveyard to the battlefield\.?$/,
       make: (m) => (m[3] ? { op: 'massReanimate', filter: m[3].toLowerCase(), yours: true }
@@ -7949,6 +7977,9 @@
       // Doran and kin: combat damage by toughness
       { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },
+      // Signal Pest: "can't be blocked except by creatures with flying or reach"
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked except by creatures with (flying|reach)(?: or (flying|reach))?\.?$/i,
+        make: (m) => ({ op: 'evasion', onlyBy: [m[1].toLowerCase()].concat(m[2] ? [m[2].toLowerCase()] : []) }), auto: true },
       // Dream Prowler: "can't be blocked as long as it's attacking alone"
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as it'?s attacking alone\.?$/i,
         eff: { op: 'evasion', attackingAlone: true }, auto: true },

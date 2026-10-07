@@ -6367,6 +6367,8 @@
       const ev = this._staticOp(attacker, 'evasion');
       if (ev && ev.minBlockerPower != null && this.powerOf(blocker) < ev.minBlockerPower) return false;
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
+      // Signal Pest: only fliers and creatures with reach may block it
+      if (ev && ev.onlyBy && !ev.onlyBy.some(k => this.hasKw(blocker, k))) return false;
       // Dream Prowler: unblockable while it attacks alone
       if (ev && ev.attackingAlone && (this.combat.attackers || []).length === 1 && this.combat.attackers[0] === attacker.id) return false;
       // Goblin Mutant: "can't block creatures with power 3 or greater"
@@ -9437,6 +9439,15 @@
           if (e.fromTarget) { const t0 = targets.find(t => t.kind === 'object'); dsrc = (t0 && this.obj(t0.id)) || src; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // Hellrider: "to the player or planeswalker it's attacking"
+          if (e.toDefenderOf) {
+            const att = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            const def = att && att.attacking && (this.player(att.attacking) || this.obj(att.attacking));
+            if (def && def.pool) this.dealDamageToPlayer(def, cnt, dsrc);
+            else if (def && def.zone === 'battlefield') this.dealDamageToObject(def, cnt, dsrc);
+            this.emit('sfx', 'damage');
+            break;
+          }
           // Inferno Elemental: "deals 3 damage to that creature" — the one the trigger is about
           // Stuffy Doll: "to the chosen player"
           if (e.toChosenPlayer) { const p = src && this.player(src.chosenPlayer); if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
@@ -13086,6 +13097,16 @@
           if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
           if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
           this.bumpBoard();
+          break;
+        }
+        // Wrong Turn: the target player gains control of the target permanent
+        case 'giveControl': {
+          const p = firstPlayer();
+          const x = firstObj();
+          if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
+          x.effects.push({ control: p.id, until: null, ts: this._stampNew() });
+          this._refreshControl();
+          this.logEvent('control', `${p.name} gains control of ${x.name}.`);
           break;
         }
         // Terminus: every creature to the bottom of its owner's library
