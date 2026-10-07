@@ -12217,6 +12217,17 @@
           }
           break;
         }
+        // Winds of Change: each hand into its library, and as many cards back
+        case 'shuffleHandDraw': {
+          for (const p of this.players) {
+            if (p.hasLost) continue;
+            const hand = this.zones[p.id].hand.slice();
+            for (const c of hand) this.moveObject(c, 'library');
+            this.rng.shuffle(this.zones[p.id].library);
+            this._drawCards(p, hand.length);
+          }
+          break;
+        }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
         case 'leaveExile': {
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
@@ -14785,7 +14796,7 @@
           const from = e.yours ? [me] : this.players;
           for (const p of from) {
             for (const c of this.zones[p.id].graveyard) {
-              if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > e.maxMv) continue;
+              if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > n(e.maxMv)) continue;
               // Bloodline Bidding: "of the chosen type"
               if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(c, src.chosenType))) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);

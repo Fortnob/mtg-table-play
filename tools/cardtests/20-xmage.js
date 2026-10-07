@@ -6888,4 +6888,33 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.ok(T.g.hasKw(w, 'flying'), 'powers 2, 3 and 6');
   });
+
+  test("Artifact Mutation: Saprolings for the destroyed artifact's mana value", (mk, t) => {
+    t.auto('Artifact Mutation');
+    const T = mk();
+    const ms = T.bf('B', 'Mind Stone');
+    T.mana('A', 'RG');
+    T.cast('A', T.hand('A', 'Artifact Mutation'), { targets: [ms.id] });
+    t.eq(ms.zone, 'graveyard');
+    t.eq(T.bfOf('A').filter(o => /Saproling/.test(o.name)).length, 2);
+  });
+
+  test('Winds of Change: each hand shuffled in, and as many drawn', (mk, t) => {
+    t.auto('Winds of Change');
+    const T = mk();
+    T.hand('B', 'Island'); T.hand('B', 'Island'); T.hand('B', 'Island');
+    for (let i = 0; i < 5; i++) T.top('B', 'Forest');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Winds of Change'));
+    t.eq(T.zone('B', 'hand').length, 3);
+  });
+
+  test('Ascend from Avernus: X or less, creatures and planeswalkers', (mk, t) => {
+    t.auto('Ascend from Avernus');
+    const T = mk();
+    const b = T.grave('A', 'Grizzly Bears'), g = T.grave('A', 'Craw Wurm');
+    T.mana('A', 'WWW2');
+    T.cast('A', T.hand('A', 'Ascend from Avernus'), { x: 2 });
+    t.eq(b.zone, 'battlefield'); t.eq(g.zone, 'graveyard');
+  });
 };

@@ -1839,6 +1839,20 @@
     { re: /^Creatures of the creature type of your choice get ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'chooseTypeNow' },
         { op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: { who: 'all', what: 'creature', chosenType: true } }] }) },
+    // Crimson Wisps: "Target creature becomes red and gains haste until end of turn."
+    { re: /^(Target creature) becomes (white|blue|black|red|green) and gains ([a-z ]+?) until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); const kws = keywordList(m[3]); if (!t || !kws.every(k => kwKnown(k))) return null;
+        return { op: 'sequence', list: [{ op: 'becomes', duration: 'eot', eff: { setColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[2].toLowerCase()]] }, targets: [t] },
+          { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] }; } },
+    // Assault Formation: "Target creature with defender can attack this turn as though it didn't have defender."
+    { re: /^(Target creature(?: with defender)?) can attack this turn as though it didn'?t have defender\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', targets: [t] } : null; } },
+    // Ascend from Avernus: "Return all creature and planeswalker cards with mana value X or less from your graveyard to the battlefield."
+    { re: /^Return all (creature|artifact|enchantment|permanent)(?: and (creature|planeswalker|artifact|enchantment))? cards with (?:mana value|converted mana cost) X or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase() + (m[2] ? ' or ' + m[2].toLowerCase() : ''), yours: true, maxMv: 'X' }) },
+    // Winds of Change: "Each player shuffles the cards from their hand into their library, then draws that many cards."
+    { re: /^Each player shuffles the cards from their hand into their library, then draws that many cards\.?$/i,
+      make: () => ({ op: 'shuffleHandDraw' }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -3764,7 +3778,7 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
-    if ((m = p.match(/^(?:that card's|the revealed card's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
+    if ((m = p.match(/^(?:that card's|the revealed card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
     // Rackling: "3 minus the number of cards in their hand"
     if ((m = p.match(/^(\d+) minus the number of cards in (?:their|that player'?s) hand$/i))) return done({ minusHand: +m[1] });

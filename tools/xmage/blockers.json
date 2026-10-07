@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14345,
+  "needed": 14337,
   "gainedCards": 1521,
-  "linesNeeded": 15904,
+  "linesNeeded": 15894,
   "linesGained": 1894,
   "gained": {
    "all": 1521,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5246,
-   "lines": 4571,
+   "score": 5241,
+   "lines": 4566,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -1448,25 +1448,6 @@
    ]
   },
   {
-   "what": "BecomesColorTargetEffect",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Crimson Wisps",
-    "Tam, Mindful First-Year",
-    "Aphotic Wisps",
-    "Viridescent Wisps",
-    "Sway of Illusion",
-    "Scuttling Sentinel",
-    "Tidal Visionary",
-    "Vodalian Mystic",
-    "Sisay's Ingenuity",
-    "Traitor's Clutch",
-    "Incite",
-    "Ersatz Gnomes"
-   ]
-  },
-  {
    "what": "DamageTargetEffect amount",
    "score": 16,
    "lines": 16,
@@ -1968,6 +1949,25 @@
     "Item Shopkeep",
     "Resistance Reunited",
     "Zamriel, Seraph of Steel"
+   ]
+  },
+  {
+   "what": "BecomesColorTargetEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Tam, Mindful First-Year",
+    "Viridescent Wisps",
+    "Sway of Illusion",
+    "Scuttling Sentinel",
+    "Tidal Visionary",
+    "Vodalian Mystic",
+    "Sisay's Ingenuity",
+    "Traitor's Clutch",
+    "Incite",
+    "Ersatz Gnomes",
+    "Alchor's Tomb",
+    "Aisling Leprechaun"
    ]
   },
   {
@@ -7511,8 +7511,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4206,
-   "cards": 3726,
+   "score": 4203,
+   "cards": 3723,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8107,19 +8107,6 @@
    ]
   },
   {
-   "what": "BecomesColorTargetEffect",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Crimson Wisps",
-    "Aphotic Wisps",
-    "Viridescent Wisps",
-    "Sway of Illusion",
-    "Scuttling Sentinel",
-    "Tidal Visionary"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
    "score": 15,
    "cards": 15,
@@ -8374,6 +8361,19 @@
     "Shepherd of Heroes",
     "Emeria Captain",
     "Allied Assault"
+   ]
+  },
+  {
+   "what": "BecomesColorTargetEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Viridescent Wisps",
+    "Sway of Illusion",
+    "Scuttling Sentinel",
+    "Tidal Visionary",
+    "Vodalian Mystic",
+    "Sisay's Ingenuity"
    ]
   },
   {
