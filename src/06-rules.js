@@ -8136,6 +8136,12 @@
         }
         return k * (v.mult || 1);
       }
+      // Towering Gibbon: the greatest mana value among creatures you control, printed
+      if (typeof v === 'object' && v.greatestMvOf) {
+        let best = 0;
+        for (const x of this._scopeList(v.greatestMvOf, (src || o).controller, src || o, null, true)) best = Math.max(best, (x.card && x.card.cmc) || 0);
+        return best * (v.mult || 1);
+      }
       // Renata: "your devotion to green"
       if (typeof v === 'object' && v.devotion) return this.devotionOf((src || o).controller, v.devotion) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
@@ -11567,7 +11573,7 @@
             const where = dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
-            if (where === 'battlefield') { this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; }
+            if (where === 'battlefield') { this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; this._lastPut = c.id; }
             else if (where === 'graveyard') this.moveObject(c, 'graveyard', { controller: seeker.id });
             else if (where === 'top' || where === 'bottom') {
               // shuffle first, then put it where the card says (CR 701.19)
@@ -11779,7 +11785,7 @@
             for (const c of this.zones[p.id].hand.slice()) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
           }
           live.forEach((p, i) => {
-            const k = e.n === 'mostDiscarded' ? most : e.n === 'sameDiscarded' ? counts[i] : e.n === 'sameMinusOne' ? Math.max(0, counts[i] - 1) : (n(e.n) || 7);
+            const k = (e.n === 'mostDiscarded' ? most : e.n === 'sameDiscarded' ? counts[i] : e.n === 'sameMinusOne' ? Math.max(0, counts[i] - 1) : (n(e.n) || 7)) + (e.plus || 0);
             this._drawCards(p, k);
           });
           this.logEvent('wheel', 'Everyone discards their hand and draws a new one.');

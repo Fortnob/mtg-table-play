@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14177,
-  "gainedCards": 1483,
-  "linesNeeded": 15663,
+  "needed": 14159,
+  "gainedCards": 1485,
+  "linesNeeded": 15638,
   "linesGained": 1847,
   "gained": {
-   "all": 1483,
+   "all": 1485,
    "top2000": 53,
    "stdTop": 12
   },
@@ -24,7 +24,7 @@
    "count": 42,
    "group": 27,
    "x": 3,
-   "it": 32,
+   "it": 18,
    "opponent": 72,
    "condition": 22,
    "subtype": 3
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5189,
-   "lines": 4529,
+   "score": 5185,
+   "lines": 4525,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 128,
-   "lines": 119,
+   "score": 125,
+   "lines": 116,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -709,25 +709,6 @@
     "Dawnhand Eulogist",
     "Contested Game Ball",
     "Torch the Tower"
-   ]
-  },
-  {
-   "what": "DiscardAndDrawThatManyEffect",
-   "score": 23,
-   "lines": 14,
-   "cards": [
-    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
-    "Daretti, Scrap Savant",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "Cathartic Pyre",
-    "Celes, Rune Knight",
-    "Tersa Lightshatter",
-    "Cavalier of Flame",
-    "Jaya Ballard",
-    "The Elder Dragon War",
-    "Sokka, Bold Boomeranger",
-    "Illuminate History",
-    "Leave // Chance"
    ]
   },
   {
@@ -1340,6 +1321,20 @@
    ]
   },
   {
+   "what": "DiscardAndDrawThatManyEffect",
+   "score": 16,
+   "lines": 7,
+   "cards": [
+    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+    "Celes, Rune Knight",
+    "Cavalier of Flame",
+    "The Elder Dragon War",
+    "Illuminate History",
+    "Leave // Chance",
+    "Colossus of the Blood Age"
+   ]
+  },
+  {
    "what": "put from hand tapped, or for another player",
    "score": 16,
    "lines": 7,
@@ -1734,24 +1729,6 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
-   ]
-  },
-  {
-   "what": "becomes a creature for custom",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Nissa, Who Shakes the World",
-    "Waker of the Wilds",
-    "Iron Man, Futurist Paragon",
-    "Tendril of the Mycotyrant",
-    "Wakeroot Elemental",
-    "Wall of Resurgence",
-    "Kenku Artificer",
-    "Relive the Past",
-    "Cyclone Sire",
-    "Woodwraith Corrupter",
-    "Titania, Gaea Incarnate"
    ]
   },
   {
@@ -3294,23 +3271,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin",
-    "Rangers' Refueler",
-    "Boom Scholar",
-    "Marshals' Pathcruiser"
-   ]
-  },
-  {
    "what": "words:withKeyword",
    "score": 10,
    "lines": 10,
@@ -3757,6 +3717,22 @@
     "Cloudspire Coordinator",
     "Roadside Assistance",
     "Foul Roads"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Riverchurn Monument",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Rangers' Refueler",
+    "Boom Scholar",
+    "Marshals' Pathcruiser"
    ]
   },
   {
@@ -7473,13 +7449,25 @@
     "Pummeler for Hire",
     "Impetuous Protege"
    ]
+  },
+  {
+   "what": "DamageEverythingEffect with a filter",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Rolling Earthquake",
+    "Flamebreak",
+    "Time Bomb",
+    "Borrowing the East Wind",
+    "Thunder of Hooves"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4163,
-   "cards": 3698,
+   "score": 4161,
+   "cards": 3696,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7556,8 +7544,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 77,
-   "cards": 77,
+   "score": 74,
+   "cards": 74,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8083,19 +8071,6 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
-   ]
-  },
-  {
-   "what": "becomes a creature for custom",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Nissa, Who Shakes the World",
-    "Waker of the Wilds",
-    "Iron Man, Futurist Paragon",
-    "Tendril of the Mycotyrant",
-    "Wakeroot Elemental",
-    "Wall of Resurgence"
    ]
   },
   {
@@ -10007,19 +9982,6 @@
    ]
   },
   {
-   "what": "DiscardAndDrawThatManyEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Cathartic Pyre",
-    "Cavalier of Flame",
-    "The Elder Dragon War",
-    "Sokka, Bold Boomeranger",
-    "Illuminate History",
-    "Colossus of the Blood Age"
-   ]
-  },
-  {
    "what": "words: non-subtype",
    "score": 7,
    "cards": 7,
@@ -10893,19 +10855,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Greasewrench Goblin",
-    "Marshals' Pathcruiser"
-   ]
-  },
-  {
    "what": "SearchLibraryAndExileTargetEffect",
    "score": 6,
    "cards": 6,
@@ -11259,6 +11208,42 @@
     "Marath, Will of the Wild",
     "Apocalypse Chime",
     "City in a Bottle"
+   ]
+  },
+  {
+   "what": "TargetController.ACTIVE.getControllerPredicate",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Persistent Constrictor",
+    "Topplegeist",
+    "Kitt Kanto, Mayhem Diva",
+    "Tooth Collector",
+    "Urborg Stalker"
+   ]
+  },
+  {
+   "what": "OpponentControlsPermanentCondition",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Syr Ginger, the Meal Ender",
+    "Skyshroud Elite",
+    "Beasts of Bogardan",
+    "Ivory Guardians",
+    "Radiant Essence"
+   ]
+  },
+  {
+   "what": "targeted by FilterSpell",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Tectonic Giant",
+    "Stormchaser Drake",
+    "Opaline Sliver",
+    "Illuminator Virtuoso",
+    "Fugitive Druid"
    ]
   }
  ]

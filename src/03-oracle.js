@@ -1285,8 +1285,8 @@
     { re: /^Each opponent discards (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'discard', n: num(m[1]), who: 'opponents' }) },
     { re: /^Untap ((?:another )?target [a-z0-9 '-]+?)\.?$/i, make: (m) => ({ op: 'untap', targets: [targetSpec(m[1])] }) },
-    { re: /^Untap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
-      make: () => ({ op: 'untap', scope: 'self' }) },
+    { re: /^Untap (CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
+      make: (m) => Object.assign({ op: 'untap', scope: 'self' }, /^it$/i.test(m[1]) ? { itWord: true } : {}) },
     { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
       make: () => ({ op: 'tap', scope: 'self' }) },
     { re: /^Exile (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|~)\.?$/i,
@@ -1540,6 +1540,13 @@
         return out;
       } },
     { re: /^(?:They'?re|It'?s) still (?:a land|lands)\.?$/i, make: () => ({ op: 'noop' }) },
+    // Wakeroot Elemental: "Untap target land you control. It becomes a 5/5 Elemental creature with haste."
+    { re: /^(It|That land|That creature|That artifact) becomes an? (\d+\/\d+ [A-Za-z ]*?creature(?: with [a-z, ]+?)?)(?: that'?s still an? (?:land|artifact))?( until end of turn)?\.?$/,
+      make: (m) => {
+        const eff = becomesEff('becomes a ' + m[2]);
+        if (!eff || !eff.setPt) return null;
+        return becomesSubject('it', eff, m[3] ? 'eot' : 'permanent');
+      } },
     /* Twisted Image: power and toughness switched (layer 7d) */
     { re: /^Switch (target creature|CARDNAME|this creature|it)'s power and toughness until end of turn\.?$/i,
       make: (m) => becomesSubject(m[1], { switchPt: true }, 'eot') },
@@ -3008,6 +3015,12 @@
     { re: /^([A-Za-z]+) spells you cast cost \{(\d+)\} less to cast\.?$/i,
       make: (m) => ({ op: 'taxSpells', amount: -(+m[2]), filter: m[1].toLowerCase(), who: 'you' }) },
     // Renata, Called to the Hunt: "CARDNAME's power is equal to your devotion to green."
+    // Towering Gibbon: "CARDNAME's power is equal to the greatest mana value among creatures you control."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the greatest mana value among ([a-z ]+? you control)\.?$/i,
+      make: (m) => {
+        const sc = scopeOf(m[1]);
+        return sc ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { greatestMvOf: sc }, t: null, keepToughness: true } } : null;
+      } },
     // Daxos, Blessed by the Sun: "CARDNAME's toughness is equal to your devotion to white."
     { re: /^(?:CARDNAME|This creature)'?s (power|toughness) is equal to your devotion to (white|blue|black|red|green)\.?$/i,
       make: (m) => {
@@ -3068,6 +3081,12 @@
     { re: /^(Each player|Shuffle your) (?:shuffles their )?hand and graveyard into (?:their|your) library, then (?:draws?) (seven|five|four|three|\d+) cards\.?$/i,
       make: (m) => ({ op: 'twister', who: /^each/i.test(m[1]) ? 'each' : 'you', n: num(m[2]) }) },
     { re: /^Discard all the cards in your hand, then draw that many cards\.?$/i, make: () => ({ op: 'wheel', who: 'you', n: 'sameDiscarded' }) },
+    // Heartwarming Redemption: "…then draw that many cards plus one"
+    { re: /^Discard all the cards in your hand, then draw that many cards plus (one|two|three|\d+)\.?$/i,
+      make: (m) => ({ op: 'wheel', who: 'you', n: 'sameDiscarded', plus: num(m[1]) }) },
+    // Kinetic Augur: "discard up to two cards, then draw that many cards"
+    { re: /^Discard up to (one|two|three|four|\d+) cards?, then draw that many cards\.?$/i,
+      make: (m) => ({ op: 'discardUpToDraw', n: num(m[1]) }) },
     { re: /^Target creature can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }) },
     /* "Target creature becomes black until end of turn." */
     { re: /^(Target creature|Target permanent|This creature|CARDNAME) becomes (white|blue|black|red|green|colorless)( until end of turn)?\.?$/i,
@@ -7279,6 +7298,9 @@
     const etbPick = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ([a-z ]+?) counter or an? ([a-z ]+?) counter on it\./i);
     if (etbPick && !out.entersWithCounters && [etbPick[1], etbPick[2]].every(k => kwKnown(k)))
       out.entersWithCounters = { kind: etbPick[1].toLowerCase(), n: 1, choice: [etbPick[1].toLowerCase(), etbPick[2].toLowerCase()] };
+    // Sautekh Immortal: "enters with a +1/+1 counter on it for each creature that died this turn"
+    const etbDied = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each creature that died this turn\./i);
+    if (etbDied && !out.entersWithCounters) out.entersWithCounters = { kind: etbDied[1], n: { count: { diedThisTurn: true } } };
     /* Converge, sunburst: a counter for each colour of mana spent to cast it */
     const conv = text.match(/enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on it for each (colou?r of )?mana spent to cast it/i);
     if (conv && !out.entersWithCounters) {
@@ -7468,6 +7490,24 @@
       if (!/"op":"(?:destroy|exile|copyPermanent)",(?:"n":1,)?"scope":"lastTarget"/.test(js) || /"targets":\[\{/.test(js)) continue;
       ab.auto = false;
       autoLines--;
+    }
+    /* Nissa, Who Shakes the World: "Put three +1/+1 counters on up to one
+       target noncreature land you control. Untap it." — "it" is the land.
+       Rampaging Growth: "Search your library for a basic land card, put it
+       onto the battlefield … that land becomes a 4/3 Insect creature" — the
+       land just found, there being nothing targeted. */
+    for (const ab of out.abilities) {
+      const effs = ab.effects || [];
+      effs.forEach((e, i) => {
+        if (!e) return;
+        const before = effs.slice(0, i);
+        if (e.itWord) {
+          delete e.itWord;
+          if (before.some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
+        }
+        if (e.op === 'becomes' && e.scope === 'lastTarget' && !effs.some(x => x && (x.targets || []).length) &&
+            i > 0 && effs[i - 1] && effs[i - 1].op === 'tutor' && effs[i - 1].to === 'battlefield' && effs[i - 1].n === 1) e.scope = 'thatObject';
+      });
     }
     for (const ab of out.abilities) {
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
@@ -8820,7 +8860,7 @@
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
       { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each ([^.]+?)\.?$/i,
-        make: (m) => (!/mana spent/i.test(m[1]) && plainCount(countOf(m[1])) ? { op: 'noop' } : null), auto: true },
+        make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read

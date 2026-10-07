@@ -7471,4 +7471,46 @@ module.exports = (test) => {
     T.resolve();
     t.eq(bear.counters['+1/+1'], 1); t.eq(m.counters['+1/+1'], 1);
   });
+
+  test('Towering Gibbon: power is the greatest mana value among your creatures', (mk, t) => {
+    t.auto('Towering Gibbon');
+    const T = mk();
+    const g = T.bf('A', 'Towering Gibbon');
+    T.bf('A', 'Craterhoof Behemoth'); T.bf('B', 'Emrakul, the Aeons Torn');
+    t.eq(T.g.powerOf(g), 8, 'the Craterhoof, not the opponent\'s Emrakul');
+  });
+
+  test('Sautekh Immortal: a counter for each creature that died this turn', (mk, t) => {
+    t.auto('Sautekh Immortal');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears');
+    T.g.moveObject(b1, 'graveyard'); T.g.moveObject(b2, 'graveyard');
+    T.put('A', 'Sautekh Immortal', 'battlefield', { etb: true });
+    const s = T.bfOf('A').find(o => o.name === 'Sautekh Immortal');
+    t.eq(s.counters['+1/+1'], 2);
+  });
+
+  test('Nissa, Who Shakes the World: the land is untapped and becomes a creature, not Nissa', (mk, t) => {
+    t.auto('Nissa, Who Shakes the World');
+    const T = mk();
+    const n = T.bf('A', 'Nissa, Who Shakes the World');
+    const land = T.bf('A', 'Forest'); land.tapped = true;
+    T.activate('A', n, n.analysis().manaAbilities.length, { targets: [land.id] });
+    T.resolve();
+    t.ok(!land.tapped, 'the land untapped');
+    t.ok(T.g.characteristics(land).isCreature, 'a creature');
+    t.eq(T.g.powerOf(land), 3); t.ok(T.g.hasKw(land, 'haste'));
+  });
+
+  test('Rampaging Growth: the land found is the one that becomes an Insect', (mk, t) => {
+    t.auto('Rampaging Growth');
+    const T = mk();
+    T.top('A', 'Forest');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Rampaging Growth'));
+    T.resolve();
+    const f = T.bfOf('A').find(o => o.name === 'Forest');
+    t.ok(f, 'a Forest on the battlefield');
+    t.eq(T.g.powerOf(f), 4); t.ok(T.g.hasKw(f, 'reach'));
+  });
 };
