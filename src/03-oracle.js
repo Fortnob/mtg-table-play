@@ -1088,6 +1088,9 @@
       make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
     // Engulfing Flames: "It can't be regenerated this turn."
     { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
+    // Pain Distributor: "they create a Treasure token"
+    { re: /^(?:They|That player) creates? an? (Treasure|Clue|Food|Blood|Gold|Map) token\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', n: 1, token: m[1], who: 'triggerPlayer' }) },
     // Slaughter Specialist: "each opponent creates a 1/1 white Human creature token"
     { re: /^Each opponent creates (.+)$/i,
       make: (m) => {
@@ -5703,6 +5706,10 @@
       return sc ? { kind: 'control', scope: sc, n: 1 } : null;
     }],
     [/^you control a creature with power (\d+) or greater$/i, (m) => ({ kind: 'controlPower', n: +m[1] })],
+    // Rhonas the Indomitable: "you control another creature with power 4 or greater"
+    [/^you control another creature with power (\d+) or greater$/i, (m) => ({ kind: 'controlPower', n: +m[1], other: true })],
+    // Brass Knuckles: "two or more Equipment are attached to it"
+    [/^(\w+) or more Equipment are attached to it$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'hostEquipmentAtLeast', n: num(m[1]) } : null)],
     [/^you control an? ([A-Za-z]+) or an? ([A-Za-z]+)$/i, (m) => ({ kind: 'controlAny', what: [m[1], m[2]].map(x => x.toLowerCase()) })],
     [/^you control (\w+) or more other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) + 1 })],
     [/^you created a token this turn$/i, () => ({ kind: 'createdToken' })],
@@ -6064,7 +6071,9 @@
     { re: /^When(?:ever)? you sacrifice an? ([A-Za-z]+)(?:,| )/i, event: 'youSacrifice',
       filt: (m) => (/^permanent$/i.test(m[1]) ? { words: 'permanent' } : subjectFilter('a ' + m[1])) },
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
-    { re: /^When(?:ever)? a player casts their first spell during each of your turns(?:,| )/i, event: 'anyCastSpell' },
+    { re: /^When(?:ever)? a player casts their first spell during each of your turns(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true, yourTurnOnly: true } },
+    // Pain Distributor: "Whenever a player casts their first spell each turn"
+    { re: /^When(?:ever)? a player casts their first spell each turn(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true } },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or attacks(?:,| )/i,
       event: 'etb', self: true, also: 'attacks' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or dies(?:,| )/i,
@@ -9188,6 +9197,14 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // Bonehoard: "Equipped creature gets +X/+X, where X is the number of creature cards in all graveyards."
+      { re: /^Equipped creature gets \+X\/\+X, where X is the number of ([a-z]+) cards in all graveyards\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' },
+          pt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: { cardsInAllGraveyards: m[1].toLowerCase() } } }), auto: true },
+      // Stoneforge Masterwork: "+1/+1 for each other creature you control that shares a creature type with it"
+      { re: /^Equipped creature gets \+1\/\+1 for each other creature you control that shares a creature type with it\.?$/i,
+        eff: { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' },
+          pt: { p: { sharesTypeOthers: true, mineOnly: true }, t: { sharesTypeOthers: true, mineOnly: true } } }, auto: true },
       // Platinum Emperion: "Your life total can't change."
       { re: /^Your life total can'?t change\.?$/i, eff: { op: 'lifeCantChange' }, auto: true },
       // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13973,
-  "gainedCards": 1472,
-  "linesNeeded": 15405,
-  "linesGained": 1817,
+  "needed": 13964,
+  "gainedCards": 1471,
+  "linesNeeded": 15393,
+  "linesGained": 1815,
   "gained": {
-   "all": 1472,
+   "all": 1471,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5144,
-   "lines": 4484,
+   "score": 5142,
+   "lines": 4482,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -577,9 +577,20 @@
    ]
   },
   {
+   "what": "filter:colored",
+   "score": 26,
+   "lines": 5,
+   "cards": [
+    "Ugin, the Ineffable",
+    "Ugin, Eye of the Storms",
+    "Devourer of Destiny",
+    "Reach of Shadows"
+   ]
+  },
+  {
    "what": "ConditionalRestrictionEffect",
-   "score": 27,
-   "lines": 27,
+   "score": 26,
+   "lines": 26,
    "cards": [
     "Bilbo's Ring",
     "Thieves' Tools",
@@ -593,17 +604,6 @@
     "Nimble Brigand",
     "Slippery Scoundrel",
     "Waterlogged Hulk // Watertight Gondola"
-   ]
-  },
-  {
-   "what": "filter:colored",
-   "score": 26,
-   "lines": 5,
-   "cards": [
-    "Ugin, the Ineffable",
-    "Ugin, Eye of the Storms",
-    "Devourer of Destiny",
-    "Reach of Shadows"
    ]
   },
   {
@@ -2076,25 +2076,6 @@
    ]
   },
   {
-   "what": "CreateTokenTargetEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Bloodroot Apothecary",
-    "Verdant Command",
-    "Varchild, Betrayer of Kjeldor",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian",
-    "Thran Spider",
-    "Oath of the Grey Host",
-    "Hansk, Slayer Zealot",
-    "Bloodvial Purveyor",
-    "Relic Robber",
-    "Vazi, Keen Negotiator",
-    "Baffling End"
-   ]
-  },
-  {
    "what": "WaterbendCost",
    "score": 13,
    "lines": 13,
@@ -2413,6 +2394,25 @@
     "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
     "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
     "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Bloodroot Apothecary",
+    "Verdant Command",
+    "Varchild, Betrayer of Kjeldor",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host",
+    "Hansk, Slayer Zealot",
+    "Relic Robber",
+    "Vazi, Keen Negotiator",
+    "Baffling End",
+    "Greener Pastures"
    ]
   },
   {
@@ -2846,24 +2846,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Nighthowler",
-    "Bonehoard",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Invigorating Falls",
-    "Rune Snag",
-    "Life Burst",
-    "Feast of Flesh",
-    "Kjeldoran War Cry",
-    "Mind Burst"
-   ]
-  },
-  {
    "what": "Ability.withFirstModeCost",
    "score": 11,
    "lines": 11,
@@ -3207,6 +3189,23 @@
     "Ordeal of Erebos",
     "Shape of the Wiitigo",
     "Consuming Ferocity"
+   ]
+  },
+  {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Nighthowler",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge",
+    "Invigorating Falls",
+    "Rune Snag",
+    "Life Burst",
+    "Feast of Flesh",
+    "Kjeldoran War Cry",
+    "Mind Burst"
    ]
   },
   {
@@ -4355,21 +4354,6 @@
    ]
   },
   {
-   "what": "CantAttackBlockUnlessConditionSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Sab-Sunen, Luxa Embodied",
-    "The Ancient One",
-    "Ketramose, the New Dawn",
-    "Lupine Prototype",
-    "Hazoret, Godseeker",
-    "The Lion-Turtle",
-    "Tiger-Dillo",
-    "Blind-Spot Giant"
-   ]
-  },
-  {
    "what": "subject:faceDown",
    "score": 8,
    "lines": 8,
@@ -5021,6 +5005,20 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
+   ]
+  },
+  {
+   "what": "CantAttackBlockUnlessConditionSourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sab-Sunen, Luxa Embodied",
+    "The Ancient One",
+    "Ketramose, the New Dawn",
+    "Lupine Prototype",
+    "Hazoret, Godseeker",
+    "The Lion-Turtle",
+    "Blind-Spot Giant"
    ]
   },
   {
@@ -5784,19 +5782,6 @@
     "Wall Crawl",
     "Jasmine Boreal of the Seven",
     "Dread Charge"
-   ]
-  },
-  {
-   "what": "BoostEquippedEffect p/t",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Luxior, Giada's Gift",
-    "Stoneforge Masterwork",
-    "Strata Scythe",
-    "Runechanter's Pike",
-    "Drach'Nyen",
-    "Civic Saber"
    ]
   },
   {
@@ -6936,6 +6921,18 @@
    ]
   },
   {
+   "what": "BoostEquippedEffect p/t",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Luxior, Giada's Gift",
+    "Strata Scythe",
+    "Runechanter's Pike",
+    "Drach'Nyen",
+    "Civic Saber"
+   ]
+  },
+  {
    "what": "hand size other than none",
    "score": 5,
    "lines": 5,
@@ -7418,8 +7415,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4129,
-   "cards": 3661,
+   "score": 4128,
+   "cards": 3660,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7780,19 +7777,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 20,
-   "cards": 20,
-   "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nimble Brigand"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 20,
    "cards": 20,
@@ -7803,6 +7787,19 @@
     "Scrappy Bruiser",
     "Fire Giant's Fury",
     "Act of Heroism"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 19,
+   "cards": 19,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nimble Brigand"
    ]
   },
   {
@@ -8559,19 +8556,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Nighthowler",
-    "Bonehoard",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Invigorating Falls"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 11,
    "cards": 11,
@@ -8715,6 +8699,19 @@
     "Hand of the Praetors",
     "Donal, Herald of Wings",
     "Cunning Nightbonder"
+   ]
+  },
+  {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Nighthowler",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge",
+    "Invigorating Falls",
+    "Rune Snag"
    ]
   },
   {

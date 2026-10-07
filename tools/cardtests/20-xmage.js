@@ -8226,4 +8226,35 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, h0 + 1);
   });
+
+  test('Pain Distributor: a Treasure for each player\'s first spell only', (mk, t) => {
+    t.auto('Pain Distributor');
+    const T = mk();
+    T.bf('A', 'Pain Distributor');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1);
+  });
+
+  test('Rhonas the Indomitable: needs another creature with power 4', (mk, t) => {
+    t.auto('Rhonas the Indomitable');
+    const T = mk();
+    const r = T.bf('A', 'Rhonas the Indomitable');
+    t.ok(!T.g._condMet({ kind: 'controlPower', n: 4, other: true }, { controller: 'A', obj: r }), 'itself does not count');
+    T.bf('A', 'Craw Wurm');
+    t.ok(T.g._condMet({ kind: 'controlPower', n: 4, other: true }, { controller: 'A', obj: r }));
+  });
+
+  test('Bonehoard: +X/+X for creature cards in all graveyards', (mk, t) => {
+    t.auto('Bonehoard');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), bh = T.bf('A', 'Bonehoard');
+    bh.attachedTo = bear.id; bear.attachments = [bh.id];
+    T.grave('A', 'Hill Giant'); T.grave('B', 'Gray Ogre');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 4);
+  });
 };

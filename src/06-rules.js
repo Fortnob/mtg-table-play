@@ -7998,6 +7998,11 @@
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
+        // Brass Knuckles: the creature it's on wears two Equipment or more
+        case 'hostEquipmentAtLeast': {
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          return !!host && (host.attachments || []).filter(id => { const at = this.obj(id); return at && (at.analysis() || {}).isEquipment; }).length >= (cond.n || 2);
+        }
         case 'controlsGreatestPower': {
           if (!me) return false;
           const cs = this.battlefield.filter(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
@@ -8086,7 +8091,7 @@
           return !!me && at(this.countPermanents(me.id, { per: cond.what || 'permanent', who: cond.who || 'you' }));
         case 'controlPower': {
           if (!me) return false;
-          return this.battlefield.some(o => o.controller === me.id &&
+          return this.battlefield.some(o => o.controller === me.id && !(cond.other && src && o.id === src.id) &&
             (o.analysis() || {}).isCreature && this.powerOf(o) >= (cond.n || 4));
         }
         case 'graveyard': {
@@ -8180,6 +8185,8 @@
           const xa = printed(x);
           if (!xa.isCreature) continue;
           if (v.sameNameOthers) { if (x.controller === o.controller && x.name === o.name) k++; continue; }
+          // Stoneforge Masterwork: only its controller's
+          if (v.mineOnly && x.controller !== o.controller) continue;
           const xt = types(xa);
           if ((allTypes && xt.length) || (xa.keywordSet && xa.keywordSet.has('changeling') && myTypes.length) || xt.some(t => myTypes.includes(t))) k++;
         }
@@ -9225,6 +9232,8 @@
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
+          // Pain Distributor: the caster's first spell this turn
+          if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
           // Flourishing Defenses: only that kind of counter
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // Secrets of the Dead: "a spell from your graveyard"
@@ -10882,10 +10891,12 @@
         case 'createNamedToken': {
           // "Its controller creates two Treasure tokens" — An Offer You Can't Refuse
           const owner = e.who === 'targetController' ? (this._lastAffectedController() || me)
+            // Pain Distributor: the player the trigger is about
+            : e.who === 'triggerPlayer' ? triggerPlayer()
             // "Target player creates a Treasure token."
             : e.who === 'target' ? firstPlayer()
             : e.who === 'opponents' || e.who === 'each' ? null : me;
-          if (e.who === 'target' && !owner) break;
+          if ((e.who === 'target' || e.who === 'triggerPlayer') && !owner) break;
           // Marching Duodrone: "each player creates a Treasure token"
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createNamedToken(p.id, Object.assign({}, e, { n: n(e.n) || 1 })); break; }
           // "a Treasure for each creature that died this turn" may be none at all
