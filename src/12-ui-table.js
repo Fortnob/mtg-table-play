@@ -503,7 +503,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -532,6 +532,14 @@
           text: (plus || minus) ? (num > 1 ? `${k} ×${num}` : k) : `${num} ${k}` }));
       }
       if (chips.length) n.appendChild(el('div', { class: 'cv-mark cv-chips' }, chips));
+      // a Room with one door still locked says which, and what it takes to open
+      const faces = o.card && o.card.card_faces;
+      if (o.card && o.card.layout === 'split' && faces && faces.length === 2 && (o.face === 0 || o.face === 1) &&
+          faces.every(f => /\bRoom\b/.test(f.type_line || ''))) {
+        const shut = faces[1 - o.face];
+        n.appendChild(el('div', { class: 'cv-mark cv-locked', text: '\u{1F512} ' + shut.name,
+          title: `${shut.name} is locked. Unlock it for ${shut.mana_cost || 'its cost'} as a sorcery.` }));
+      }
       if (o.pairedWith) {
         const mate = this.objIn(o.pairedWith);
         n.appendChild(el('div', { class: 'cv-mark cv-paired', text: '⚭ Paired',
@@ -1795,7 +1803,9 @@
             ? (c.loyalty > 0 ? '+' + c.loyalty : String(c.loyalty || 0))
             : (typeof c === 'string' ? c : (c.raw || ''));
           // the cost is shown on its own, so the text is what comes after the colon
-          const raw = String(ab.text || '').replace(/^[^:]*:\s*/, '');
+          // a Room's locked door reads "Unlock <door>", its cost shown beside it
+          const raw = ab.special === 'unlock' ? String(ab.text || '').replace(/:\s*[^:]*$/, '')
+            : String(ab.text || '').replace(/^[^:]*:\s*/, '');
           const text = (raw && MTG.oracle.named ? MTG.oracle.named(raw, o) : raw) || MTG.oracle.abilityLabel(ab, o);
           uses.push({ label: MTG.oracle.abilityLabel(ab, o), cost, loyalty: ab.kind === 'loyalty',
             text, fn: () => this.activate(o, a, idx, ab) });

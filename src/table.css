@@ -263,6 +263,9 @@
 .cv-prepared { position: absolute; left: 50%; top: 4%; translate: -50% 0; z-index: 3; pointer-events: none; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .095)/1.5 var(--font); letter-spacing: .06em; text-transform: uppercase; padding: 0 .6em; border-radius: 99px;
   color: #12202e; background: linear-gradient(180deg, #a7e3ff, #6cc6f0); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.cv-locked { position: absolute; left: 50%; bottom: 8%; translate: -50% 0; z-index: 3; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 calc(var(--w, 90px) * .085)/1.5 var(--font); padding: 0 .6em; border-radius: 99px; pointer-events: auto;
+  color: #e9edf4; background: rgba(14,17,24,.88); border: 1px solid rgba(255,255,255,.2); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .cv-paired { position: absolute; left: 50%; bottom: 22%; translate: -50% 0; z-index: 3; pointer-events: auto; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .09)/1.5 var(--font); letter-spacing: .04em; padding: 0 .6em; border-radius: 99px;
   color: #2a1a3a; background: linear-gradient(180deg, #e9c8ff, #c79af0); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
