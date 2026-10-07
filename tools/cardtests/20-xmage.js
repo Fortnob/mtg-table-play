@@ -5983,4 +5983,36 @@ module.exports = (test) => {
     t.eq(T.g._abilityMana(ps, ab), '{2}');
     t.eq(T.g._abilityMana(elf, elf.analysis().manaAbilities[0]), '', 'mana abilities untouched');
   });
+
+  test('Baleful Mastery: the {1}{B} cost has an opponent draw a card', (mk, t) => {
+    t.auto('Baleful Mastery');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears');
+    for (let i = 0; i < 3; i++) T.top('B', 'Island');
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Baleful Mastery'), { via: 'alt0', targets: [b1.id] });
+    t.eq(b1.zone, 'exile'); t.eq(T.zone('B', 'hand').length, 1, 'they drew');
+    T.mana('A', 'B3');
+    T.cast('A', T.hand('A', 'Baleful Mastery'), { targets: [b2.id] });
+    t.eq(b2.zone, 'exile'); t.eq(T.zone('B', 'hand').length, 1, 'full price: no draw');
+  });
+
+  test("Each creature your opponents control: not yours, and not their faces", (mk, t) => {
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.g.resolving = true;
+    T.g._runEffect({ op: 'damage', n: 2, each: 'creature your opponents control' }, { controller: 'A', obj: mine });
+    T.g.resolving = false;
+    T.g.checkStateBasedActions();
+    t.eq(mine.zone, 'battlefield'); t.eq(theirs.zone, 'graveyard'); t.eq(T.life('B'), 20);
+  });
+
+  test('Delayed Blast Fireball: 2 to each opponent and their creatures', (mk, t) => {
+    t.auto('Delayed Blast Fireball');
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'RR1');
+    T.cast('A', T.hand('A', 'Delayed Blast Fireball'));
+    t.eq(mine.zone, 'battlefield'); t.eq(theirs.zone, 'graveyard'); t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
+  });
 };

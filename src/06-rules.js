@@ -7611,6 +7611,8 @@
           return cond.cmp === 'atMost' ? times <= (cond.n || 0) : times >= (cond.n == null ? 1 : cond.n);
         }
         case 'boughtBack': return !!(ctx && ctx.boughtBack);
+        case 'altPaid': return !!(ctx && /^alt/.test(String(ctx.via || '')));
+        case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
@@ -9514,6 +9516,18 @@
           else if (e.who === 'targetController') { const p = this._lastAffectedController(); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
+          // Baleful Mastery: "an opponent draws a card" — the caster picks which
+          else if (e.who === 'anOpponent') {
+            const foes = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+            let p = foes[0];
+            if (foes.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'opponent', kind: 'options', min: 1, max: 1,
+                options: foes.map((f, i) => ({ i, label: f.name })), prompt: 'Choose an opponent.' }, 'anOpp');
+              if (got === SUSPEND) return SUSPEND;
+              p = foes[(got && got.picks && got.picks[0]) || 0] || foes[0];
+            }
+            if (p) this._drawCards(p, cnt);
+          }
           else if (e.who === 'target') {
             // "Two target players each draw a card": every player aimed at
             const ps = targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(p => p && !p.hasLost);
@@ -9650,9 +9664,12 @@
               if (e.without && this.hasKw(o, e.without)) continue;
               if (e.withKw && !this.hasKw(o, e.withKw)) continue;
               if (e.eachOther && o === dsrc) continue;
+              // "each creature your opponents control", "each creature you control", and Delayed Blast Fireball's "they control"
+              if (/creatures? (?:your opponents|they) control/.test(e.each) && o.controller === ctx.controller) continue;
+              if (/creatures? you control/.test(e.each) && o.controller !== ctx.controller) continue;
               this.dealDamageToObject(o, cnt, dsrc);
             }
-            if (/opponent/.test(e.each)) for (const p of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(p, cnt, dsrc);
+            if (/opponent/.test(e.each.replace(/creatures? your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(p, cnt, dsrc);
             if (/^player/.test(e.each) || /each player/.test(e.each)) for (const p of this.players) this.dealDamageToPlayer(p, cnt, dsrc);
             if (/planeswalker/.test(e.each)) for (const o of this.battlefield.slice()) { const a = o.analysis(); if (a && a.isPlaneswalker) this.dealDamageToObject(o, cnt, dsrc); }
           } else if (e.scope && typeof e.scope === 'object') {

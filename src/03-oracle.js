@@ -1079,7 +1079,7 @@
     // the subject may be the card's own name, "it", "this creature", etc.
     { re: new RegExp("^(?:[A-Za-z][-A-Za-z0-9',\u2019. ]{0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'damage', n: num(m[1]), targets: [t] } : null; } },
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player)\.?$/i,
+    { re: /^(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), each: m[2].toLowerCase() }) },
 
     // --- counters ---
@@ -1651,6 +1651,8 @@
     { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
     /* Chandra, Flamecaller: "Exile them at the beginning of the next end
        step" — the tokens this just made, each of them */
+    // Baleful Mastery: "an opponent draws a card" — the one you choose
+    { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
     { re: /^If (?:it|that creature|the creature) would leave the battlefield, exile it instead of putting it anywhere else\.?$/i,
       make: () => ({ op: 'leaveExile' }) },
@@ -5132,6 +5134,10 @@
     [/^(?:CARDNAME|this spell|it) was kicked$/i, () => ({ kind: 'kicked', n: 1 })],
     // an optional additional cost, paid, is counted as the spell's kicker
     [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
+    // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost
+    [/^the (?:\{[^}]+\})+ cost was paid$/i, () => ({ kind: 'altPaid' })],
+    // Delayed Blast Fireball: "If this spell was cast from exile"
+    [/^this spell was cast from exile$/i, () => ({ kind: 'castFromExile' })],
     // Osseous Exhale: "If a Dragon was beheld" — the optional behold was paid
     [/^an? [A-Za-z ]+ was beheld$/i, () => ({ kind: 'kicked', n: 1 })],
     [/^(?:CARDNAME|this spell|it) was kicked (\w+) or more times$/i, (m) => ({ kind: 'kicked', n: num(m[1]) })],
