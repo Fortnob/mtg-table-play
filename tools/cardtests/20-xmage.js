@@ -6363,4 +6363,29 @@ module.exports = (test) => {
     t.ok(chk.ok, 'on their turn too');
     t.eq(require('../harness').engine().mana.cmc(chk.cost), 7, 'two more');
   });
+
+  test('Purelace: a permanent becomes white for good', (mk, t) => {
+    t.auto('Purelace');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Purelace'), { targets: [bear.id] });
+    t.eq(JSON.stringify(bear.analysis().colors), JSON.stringify(['W']));
+    T.nextTurn('B');
+    t.eq(JSON.stringify(bear.analysis().colors), JSON.stringify(['W']), 'still white');
+  });
+
+  test('Mistform Wall: a Wall has defender; another type does not', (mk, t) => {
+    t.auto('Mistform Wall');
+    const T = mk();
+    const w = T.bf('A', 'Mistform Wall');
+    t.ok(T.g.hasKw(w, 'defender'));
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.label === 'Bear') >= 0 ? ch.options.findIndex(o => o.label === 'Bear') : 0] }));
+    T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1');
+    T.activate('A', w, 0);
+    T.resolve();
+    t.ok(T.g._hasSubtype(w, 'Bear'));
+    t.no(T.g.hasKw(w, 'defender'), 'not a Wall now');
+  });
 };

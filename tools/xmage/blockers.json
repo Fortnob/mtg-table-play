@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14541,
+  "needed": 14514,
   "gainedCards": 1516,
-  "linesNeeded": 16124,
+  "linesNeeded": 16092,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5308,
-   "lines": 4606,
+   "score": 5296,
+   "lines": 4594,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -645,25 +645,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 26,
-   "lines": 26,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry",
-    "Mindbender Spores"
-   ]
-  },
-  {
    "what": "DisturbAbility.makeBackAbility",
    "score": 25,
    "lines": 25,
@@ -680,6 +661,25 @@
     "Dorothea, Vengeful Victim // Dorothea's Retribution",
     "Chaplain of Alms // Chapel Shieldgeist",
     "Kindly Ancestor // Ancestor's Embrace"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry",
+    "Mindbender Spores"
    ]
   },
   {
@@ -3550,23 +3550,6 @@
    ]
   },
   {
-   "what": "TargetSpellOrPermanent",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Commit // Memory",
-    "Eight-and-a-Half-Tails",
-    "Moonlace",
-    "Blind Seer",
-    "Thoughtlace",
-    "Illusion // Reality",
-    "Deathlace",
-    "Chaoslace",
-    "Purelace",
-    "Lifelace"
-   ]
-  },
-  {
    "what": "LookLibraryAndPickControllerEffect shape",
    "score": 10,
    "lines": 10,
@@ -4335,22 +4318,6 @@
    ]
   },
   {
-   "what": "LockedInCondition",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Built to Smash",
-    "Savage Punch",
-    "Built to Last",
-    "Burrog Barrage",
-    "Evil's Thrall",
-    "Festering Newt",
-    "Vampire's Zeal",
-    "Invert the Skies",
-    "Strength of Night"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessSourceEffect with a duration",
    "score": 9,
    "lines": 9,
@@ -4426,22 +4393,6 @@
     "Foster",
     "Avenging Druid",
     "Sacred Guide"
-   ]
-  },
-  {
-   "what": "BecomesChosenCreatureTypeSourceEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Proteus Machine",
-    "Mistform Warchief",
-    "Mistform Wall",
-    "Mistform Wakecaster",
-    "Mistform Dreamer",
-    "Mistform Stalker",
-    "Mistform Seaswift",
-    "Mistform Skyreaver",
-    "Mistform Shrieker"
    ]
   },
   {
@@ -5078,6 +5029,21 @@
     "Spurnmage Advocate",
     "Serene Remembrance",
     "Push // Pull"
+   ]
+  },
+  {
+   "what": "LockedInCondition",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Built to Smash",
+    "Savage Punch",
+    "Built to Last",
+    "Burrog Barrage",
+    "Evil's Thrall",
+    "Festering Newt",
+    "Invert the Skies",
+    "Strength of Night"
    ]
   },
   {
@@ -7566,13 +7532,37 @@
     "Null Profusion",
     "Inspired Idea"
    ]
+  },
+  {
+   "what": "words:owner",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tasha, the Witch Queen",
+    "Don Andres, the Renegade",
+    "Vaan, Street Thief",
+    "Gonti, Canny Acquisitor",
+    "Nita, Forum Conciliator"
+   ]
+  },
+  {
+   "what": "SurvivalAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Reluctant Role Model",
+    "Rip, Spawn Hunter",
+    "Glimmer Seeker",
+    "Acrobatic Cheerleader",
+    "Rootwise Survivor"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4243,
-   "cards": 3748,
+   "score": 4233,
+   "cards": 3738,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7947,19 +7937,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 21,
-   "cards": 21,
-   "names": [
-    "Wall of Tears",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Fire Giant's Fury",
-    "Act of Heroism"
-   ]
-  },
-  {
    "what": "keyword StationLevelAbility",
    "score": 20,
    "cards": 5,
@@ -7969,6 +7946,19 @@
     "Uthros Research Craft",
     "Inspirit, Flagship Vessel",
     "Synthesizer Labship"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 20,
+   "cards": 20,
+   "names": [
+    "Wall of Tears",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Fire Giant's Fury",
+    "Act of Heroism"
    ]
   },
   {
@@ -9013,19 +9003,6 @@
    ]
   },
   {
-   "what": "TargetSpellOrPermanent",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Commit // Memory",
-    "Eight-and-a-Half-Tails",
-    "Moonlace",
-    "Blind Seer",
-    "Thoughtlace",
-    "Illusion // Reality"
-   ]
-  },
-  {
    "what": "words:withKeyword",
    "score": 10,
    "cards": 10,
@@ -9475,19 +9452,6 @@
     "Sky Hussar",
     "Piercing Rays",
     "Proclamation of Rebirth"
-   ]
-  },
-  {
-   "what": "LockedInCondition",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Built to Smash",
-    "Savage Punch",
-    "Built to Last",
-    "Burrog Barrage",
-    "Evil's Thrall",
-    "Festering Newt"
    ]
   },
   {
@@ -9960,6 +9924,19 @@
     "Spider-Slayer, Hatred Honed",
     "East-Mark Cavalier",
     "Simic Basilisk"
+   ]
+  },
+  {
+   "what": "LockedInCondition",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Built to Smash",
+    "Savage Punch",
+    "Built to Last",
+    "Burrog Barrage",
+    "Evil's Thrall",
+    "Festering Newt"
    ]
   },
   {
@@ -11395,6 +11372,19 @@
     "Resistance Fighter",
     "Songstitcher",
     "Kry Shield"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Cromat",
+    "Abu Ja'far",
+    "Sentinel",
+    "Alms Beast",
+    "Steadfast Armasaur",
+    "Sworn Defender"
    ]
   }
  ]

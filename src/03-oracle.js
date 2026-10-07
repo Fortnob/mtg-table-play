@@ -1717,6 +1717,13 @@
     // Karn, Silver Golem: "power and toughness each equal to its mana value"
     { re: /^(Target (?:noncreature )?artifact) becomes an artifact creature with (?:base )?power and toughness each equal to its mana value until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'becomes', duration: 'eot', eff: { addTypes: ['Artifact', 'Creature'], setPtMv: true }, targets: [t] } : null; } },
+    // Mistform Wall: "This creature becomes the creature type of your choice until end of turn."
+    { re: /^(?:This creature|CARDNAME|This permanent) becomes the creature type of your choice( in addition to its other types)? until end of turn\.?$/i,
+      make: (m) => ({ op: 'becomeChosenType', add: !!m[1] }) },
+    // Purelace, Chaoslace: "Target spell or permanent becomes white."
+    { re: /^Target spell or permanent becomes (white|blue|black|red|green|colorless)\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { setColors: /colorless/i.test(m[1]) ? [] : [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]] },
+        targets: [{ type: 'spellOrPermanent' }], spellsToo: true }) },
     // Spiritmonger: "This creature becomes the color of your choice until end of turn."
     { re: /^(?:This creature|CARDNAME) becomes the colou?r of your choice until end of turn\.?$/i,
       make: () => ({ op: 'chooseColorFor', scope: 'self' }) },
@@ -5266,6 +5273,8 @@
     // Geistwave: "If you controlled that permanent"
     [/^you controlled that (?:permanent|creature|artifact|enchantment|land)$/i, () => ({ kind: 'lastWasYours' })],
     // Glistening Sphere: "Activate only if an opponent has three or more poison counters"
+    // Mistform Wall: "as long as it's a Wall"
+    [/^(?:it'?s|this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],
     [/^an opponent has (\w+) or more poison counters$/i, (m) => ({ kind: 'opponentPoison', n: num(m[1]) })],
     // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
     [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],

@@ -7663,6 +7663,7 @@
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
         case 'lastWasYours': return !!me && !!this._lastAffected && this._lastAffected.controller === me.id;
+        case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
         case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
@@ -10848,6 +10849,27 @@
           this.noAttacksTurn = this.turn;
           this.logEvent('rules', "Creatures can't attack this turn.");
           break;
+        /* Mistform Wall: the creature type of its controller's choice, until
+           end of turn — instead of its own, or as well as them */
+        case 'becomeChosenType': {
+          if (!src || src.zone !== 'battlefield') break;
+          const counts = new Map();
+          for (const x of this.battlefield.concat(this.zones[ctx.controller].hand)) {
+            const xa = x.analysis();
+            if (!xa || !xa.isCreature) continue;
+            for (const t of (xa.subtypes || [])) counts.set(t, (counts.get(t) || 0) + 1);
+          }
+          const types = [...counts].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+          if (!types.length) types.push('Human');
+          const got = this._choose({ playerId: ctx.controller, purpose: 'creatureType', kind: 'options', min: 1, max: 1,
+            options: types.slice(0, 20).map((t, i) => ({ i, label: t })), prompt: `${src.name} becomes the creature type of your choice.` }, 'btype');
+          if (got === SUSPEND) return SUSPEND;
+          const ty = types[(got && got.picks.length ? got.picks[0] : 0)] || types[0];
+          src.effects.push(e.add ? { addSubtypes: [ty], until: 'eot' } : { setCreatureTypes: [ty], until: 'eot' });
+          src._chr = null; this.bumpBoard();
+          this.logEvent('rules', `${src.name} becomes ${/^[AEIOU]/.test(ty) ? 'an' : 'a'} ${ty}.`);
+          break;
+        }
         /* "Choose a creature type." as an effect: asked now, remembered on
            the spell or permanent for "of the chosen type" after it */
         case 'chooseTypeNow': {
@@ -14572,6 +14594,11 @@
             o.effects.push(Object.assign(one, { until }));
             o._chr = null;
           });
+          // Purelace: a spell on the stack changes colour too
+          if (e.spellsToo) for (const t of targets) {
+            const it = t.kind === 'stack' && this.stack.find(x => x.id === t.id);
+            if (it && it.obj) { it.obj.effects = it.obj.effects || []; it.obj.effects.push(Object.assign(JSON.parse(JSON.stringify(eff)), { until })); it.obj._chr = null; }
+          }
           this.bumpBoard();
           break;
         }
