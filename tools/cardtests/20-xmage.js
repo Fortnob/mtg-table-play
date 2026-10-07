@@ -3991,4 +3991,16 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.bfOf('A').filter(o => o.isToken).length, 0);
   });
+
+  test('Ravenous: X counters, and a card for X of 5 or more', (mk, t) => {
+    t.auto('Jacked Rabbit');
+    const T = mk();
+    T.mana('A', '6W');
+    const r = T.hand('A', 'Jacked Rabbit');
+    const h0 = T.zone('A', 'hand').length;
+    T.cast('A', r, { x: 5 });
+    T.resolve();
+    t.eq(r.counters['+1/+1'] || 0, 5);
+    t.eq(T.zone('A', 'hand').length, h0, 'cast one, drew one');
+  });
 };

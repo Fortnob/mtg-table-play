@@ -42,7 +42,7 @@
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
-    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover',
+    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover', 'Ravenous',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
     // keywords the engine now runs on its own
@@ -5848,6 +5848,13 @@
         text: 'Recover ' + recover[1], auto: true });
       out.graveTriggers = true;
     } else if (/(?:^|\n)Recover\b/.test(text)) out._keywordManual = true;   // "Recover—Pay half your life"
+    /* Ravenous (CR 702.156): X +1/+1 counters as it enters, and a card if X
+       was 5 or more */
+    if (out.keywords.some(k => k.keyword === 'Ravenous')) {
+      out.entersWithCounters = { kind: '+1/+1', n: 'X' };
+      out.abilities.push({ kind: 'triggered', event: 'etb', self: true, condition: { kind: 'xAtLeast', n: 5 },
+        effects: [{ op: 'draw', n: 1, who: 'you' }], text: 'Ravenous: when it enters, if X is 5 or more, draw a card.', auto: true });
+    }
     // Devour N: how many counters for each creature it eats
     const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (\d+)/)).find(Boolean);
     if (devourN) out.devour = +devourN[1];

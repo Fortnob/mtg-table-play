@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15854,
-  "gainedCards": 1608,
-  "linesNeeded": 17946,
+  "needed": 15847,
+  "gainedCards": 1610,
+  "linesNeeded": 17934,
   "linesGained": 2055,
   "gained": {
-   "all": 1608,
+   "all": 1610,
    "top2000": 52,
    "stdTop": 12
   },
@@ -3315,25 +3315,6 @@
     "Terisian Mindbreaker",
     "Fleet Swallower",
     "Kitsune's Technique"
-   ]
-  },
-  {
-   "what": "keyword RavenousAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Jacked Rabbit",
-    "Sporocyst",
-    "Tyrant Guard",
-    "Aberrant",
-    "Tervigon",
-    "Termagant Swarm",
-    "Zoanthrope",
-    "Exocrine",
-    "Mawloc",
-    "Broodlord",
-    "Hormagaunt Horde",
-    "Ravener"
    ]
   },
   {
@@ -7948,6 +7929,19 @@
     "Tamiyo Meets the Story Circle",
     "Jace, Reality Sculptor"
    ]
+  },
+  {
+   "what": "EntersBattlefieldAnyReturnSourceFromGraveyardAttachedToItTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Smoke Shroud",
+    "Dragon Shadow",
+    "Dragon Breath",
+    "Dragon Fangs",
+    "Dragon Wings",
+    "Dragon Scales"
+   ]
   }
  ],
  "sole": [
@@ -8005,8 +7999,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 190,
-   "cards": 181,
+   "score": 191,
+   "cards": 182,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -8920,6 +8914,19 @@
    ]
   },
   {
+   "what": "amount from a count",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Lathiel, the Bounteous Dawn",
+    "Ureni, the Song Unending",
+    "Elusive Otter // Grove's Bounty",
+    "Broodlord",
+    "Quirion Beastcaller",
+    "Ghired's Belligerence"
+   ]
+  },
+  {
    "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
    "score": 13,
    "cards": 13,
@@ -9122,19 +9129,6 @@
     "The Long Reach of Night // Animus of Night's Reach",
     "Exoskeletal Armor",
     "Accumulated Knowledge"
-   ]
-  },
-  {
-   "what": "amount from a count",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Lathiel, the Bounteous Dawn",
-    "Ureni, the Song Unending",
-    "Elusive Otter // Grove's Bounty",
-    "Quirion Beastcaller",
-    "Ghired's Belligerence",
-    "Impact Resonance"
    ]
   },
   {
@@ -9953,19 +9947,6 @@
     "Fated Clash",
     "Scarring Memories",
     "Illusion Spinners"
-   ]
-  },
-  {
-   "what": "keyword RavenousAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Jacked Rabbit",
-    "Sporocyst",
-    "Tyrant Guard",
-    "Aberrant",
-    "Tervigon",
-    "Termagant Swarm"
    ]
   },
   {
@@ -11780,6 +11761,19 @@
     "Volrath, the Shapestealer",
     "Hunter of Eyeblights",
     "Razorfin Abolisher"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByOneEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Pathrazer of Ulamog",
+    "Troll of Khazad-dûm",
+    "Relentless X-ATM092",
+    "Rampaging Ceratops",
+    "Hexmark Destroyer",
+    "Phyrexian Colossus"
    ]
   }
  ]
