@@ -11200,6 +11200,19 @@
           this.emit('sfx', 'damage');
           break;
         }
+        // Savage Stomp: the creature the spell aimed at first fights this one
+        case 'fightFirstTarget': {
+          const all = (ctx.resolvedTargets || ctx.targets || []).filter(t => t && t.kind === 'object');
+          // (Gruul Ragebeast: in a trigger with one target, "that creature" is the one the trigger is about)
+          const td = ctx.triggerData || {};
+          const x = all.length >= 2 ? this.obj(all[0].id) : (td.objectId && this.obj(td.objectId)) || null, y = firstObj();
+          if (!x || !y || x === y || x.zone !== 'battlefield' || y.zone !== 'battlefield') break;
+          this.dealDamageToObject(y, this.powerOf(x), x);
+          this.dealDamageToObject(x, this.powerOf(y), y);
+          this.logEvent('fight', `${x.name} fights ${y.name}.`);
+          this.emit('sfx', 'damage');
+          break;
+        }
         case 'fight': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           if (objs.length < 2) { this.logEvent('rules', 'Fight needs two creatures.'); break; }

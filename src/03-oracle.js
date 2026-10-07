@@ -1594,6 +1594,9 @@
     // --- fight, control, counters on many things ---
     { re: /^(?:It|CARDNAME|This creature) fights (up to one )?(target creature(?: you don'?t control| an opponent controls)?|another target creature)\.?$/i,
       make: (m) => ({ op: 'fightSelf', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
+    // Savage Stomp: "Put a +1/+1 counter on target creature you control. Then that creature fights target creature you don't control."
+    { re: /^(?:Then )?that creature fights (up to one )?(target creature(?: you don'?t control| an opponent controls)?)\.?$/i,
+      make: (m) => ({ op: 'fightFirstTarget', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
     { re: /^Target creature you control fights target creature you don'?t control\.?$/i,
       make: () => ({ op: 'fight', targets: [{ type: 'creature', controller: 'you' }, { type: 'creature', controller: 'opponent' }] }) },
     // Domri Rade, Clash of Titans: two targets, the second never the first

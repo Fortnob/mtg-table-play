@@ -8442,4 +8442,27 @@ module.exports = (test) => {
     t.ok(T.zone('A', 'hand').some(x => x.name === 'Grizzly Bears'));
     t.eq(lib.slice(-2).map(x => x.name).sort().join(), 'Island,Swamp', 'the other two at the bottom');
   });
+
+  test('Hunt the Weak: a counter, then that creature fights', (mk, t) => {
+    t.auto('Hunt the Weak');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Hunt the Weak'), { targets: [bear.id, elf.id] });
+    T.resolve();
+    t.eq(elf.zone, 'graveyard');
+    t.eq(bear.damage, 1); t.eq(bear.counters['+1/+1'], 1);
+  });
+
+  test('Gruul Ragebeast: the creature that entered fights', (mk, t) => {
+    t.auto('Gruul Ragebeast');
+    const T = mk();
+    T.bf('A', 'Gruul Ragebeast');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: elf.id }] }));
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(elf.zone, 'graveyard');
+  });
 };
