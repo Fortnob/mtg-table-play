@@ -2100,6 +2100,8 @@
       p.landsPlayed++;
       this.moveObject(o, 'battlefield', { asLand: true });
       this.logEvent('land', `${p.name} plays ${o.name}.`);
+      // City of Traitors: "when you play another land"
+      this._fire('youPlayLand', playerId, { object: o });
       this.emit('sfx', 'land');
       this.checkStateBasedActions();
       /* Playing a land is a special action and uses no stack, but a land that
@@ -4236,7 +4238,9 @@
         if (ex.nontoken && o.isToken) continue;
         if (ex.chosenType && !(s0.chosenType && this._hasCreatureType(o, s0.chosenType))) continue;
         let k = 1;
-        if (ex.per) {
+        // Arwen: "equal to CARDNAME's toughness"
+        if (ex.bySourceToughness) k = Math.max(0, this.toughnessOf(s0));
+        else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
         if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
@@ -7554,6 +7558,8 @@
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
           if (ab.toOpponent && data.player === o.controller) continue;
+          // "when you play another land": not this one
+          if (ab.notSelf && data.object && data.object.id === o.id) continue;
           if (o.card && o.card.onlyPlayer && data.player && data.player !== o.card.onlyPlayer) continue;
           // "whenever this deals damage to a player": not to a creature
           if (ab.toPlayer && !data.player) continue;
@@ -8034,6 +8040,8 @@
         // "the number of cards in your hand plus one"
         if (v && typeof v === 'object' && v.plus) { const base = Object.assign({}, v); delete base.plus; return n(base) + v.plus; }
         // "half X, rounded down"; "half their life, rounded up"
+        // Blood Money: "for each nontoken creature destroyed this way"
+        if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         if (v && typeof v === 'object' && v.halfLife) {

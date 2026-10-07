@@ -1086,6 +1086,8 @@
     { re: /^Untap target creature\. It gains haste until end of turn\.?$/i,
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
+    // Contagion Engine: "Proliferate twice."
+    { re: /^Proliferate (twice|three times)\.?$/i, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'proliferate' })) }) },
     { re: /^Put a \+1\/\+1 counter on each creature you control\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: 'yourCreatures' }) },
     { re: /^(?:Each creature you control|Creatures you control) gets? ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
@@ -1376,6 +1378,9 @@
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
     { re: /^You may play (two|three) additional lands(?: on each of your turns| this turn)?\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
     { re: /^Take an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn' }) },
+    // Final Fortune: "At the beginning of that turn's end step, you lose the game."
+    { re: /^At the beginning of that turn'?s end step, you lose the game\.?$/i,
+      make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, name: 'You lose the game', effects: [{ op: 'loseGame' }] }) },
     // Time Warp: "Target player takes an extra turn after this one."
     { re: /^Target player takes an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn', who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
@@ -1542,7 +1547,7 @@
         : { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: 'yourMatching', filter: m[3].trim() }) },
     /* "a -1/-1 counter on each creature your opponents control", "on each
        other creature": any group the table can name */
-    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on (each [-a-zA-Z' ]+?)\.?$/i,
+    { re: /^Put (a|an|one|two|three|\d+|X) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on (each [-a-zA-Z' ]+?)\.?$/i,
       make: (m) => {
         const sc = massScopeOf(m[3]);
         if (!sc) return null;
@@ -1681,6 +1686,9 @@
       make: () => ({ op: 'mill', who: 'triggerPlayer', n: 'triggerAmount' }) },
     { re: /^You may have (?:that player|them) lose (one|two|three|\d+) life\.?$/i,
       make: (m) => ({ op: 'may', then: [{ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }] }) },
+    // Blood Money: "For each nontoken creature destroyed this way, you create a tapped Treasure token."
+    { re: /^For each nontoken creature destroyed this way, you create an? (tapped )?(Treasure|Clue|Food) token\.?$/i,
+      make: (m) => Object.assign({ op: 'createNamedToken', token: m[2], n: { sweptNontoken: true, mult: 1 } }, m[1] ? { tapped: true } : {}) },
     // Decree of Pain: "Draw a card for each creature destroyed this way."
     // Bane of Progress: "Put a +1/+1 counter on this creature for each permanent destroyed this way."
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (?:this creature|CARDNAME) for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
@@ -4213,6 +4221,8 @@
   const TRIGGER_PATTERNS = [
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // City of Traitors: "When you play another land"
+    { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
     // the Eldrazi titans: a trigger from the stack, as the spell is cast
     { re: /^When you cast (?:this spell|CARDNAME),? /i, event: 'castSelf' },
     { re: /^Whenever (?:CARDNAME|this creature) attacks for the first time each turn,? /i, event: 'attacks', self: true,
@@ -6561,6 +6571,12 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Dolmen Gate: "Prevent all combat damage that would be dealt to attacking creatures you control."
+      { re: /^Prevent all combat damage that would be dealt to attacking creatures you control\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', attacking: true }, flag: 'noDamageTaken' }, auto: true },
+      // Arwen: "Each other creature you control enters with a number of additional +1/+1 counters on it equal to CARDNAME's toughness."
+      { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s toughness\.?$/i,
+        eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourceToughness: true }, auto: true },
       /* Metallic Mimic, Giada, Renata, Oath of Gideon: "Each other creature
          you control (of the chosen type) enters with an additional +1/+1
          counter on it (for each Angel you already control)." */

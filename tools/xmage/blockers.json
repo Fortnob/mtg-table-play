@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16640,
-  "gainedCards": 1766,
-  "linesNeeded": 18904,
-  "linesGained": 2273,
+  "needed": 16630,
+  "gainedCards": 1765,
+  "linesNeeded": 18892,
+  "linesGained": 2272,
   "gained": {
-   "all": 1766,
+   "all": 1765,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5751,
-   "lines": 4920,
+   "score": 5739,
+   "lines": 4917,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1033,
-   "lines": 841,
+   "score": 1029,
+   "lines": 840,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -655,25 +655,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 29,
-   "lines": 17,
-   "cards": [
-    "Dolmen Gate",
-    "Iroas, God of Victory",
-    "Losheel, Clockwork Scholar",
-    "Mutational Advantage",
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever",
-    "Blinding Fog",
-    "Safe Passage",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Emmara Tandris",
-    "Bubble Matrix"
-   ]
-  },
-  {
    "what": "CreateTokenTargetEffect",
    "score": 29,
    "lines": 29,
@@ -910,6 +891,25 @@
     "Aerial Formation",
     "Kiora's Dismissal",
     "Silence the Believers"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 25,
+   "lines": 16,
+   "cards": [
+    "Iroas, God of Victory",
+    "Losheel, Clockwork Scholar",
+    "Mutational Advantage",
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever",
+    "Blinding Fog",
+    "Safe Passage",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage"
    ]
   },
   {
@@ -4246,18 +4246,6 @@
    ]
   },
   {
-   "what": "ProliferateEffect args",
-   "score": 11,
-   "lines": 5,
-   "cards": [
-    "Ripples of Potential",
-    "Contagion Engine",
-    "Ezuri, Stalker of Spheres",
-    "Agent Frank Horrigan",
-    "Roalesk, Apex Hybrid"
-   ]
-  },
-  {
    "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
    "score": 11,
    "lines": 8,
@@ -4307,21 +4295,6 @@
    "cards": [
     "Dour Port-Mage",
     "Aang, Airbending Master"
-   ]
-  },
-  {
-   "what": "AddExtraTurnControllerEffect",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Final Fortune",
-    "Last Chance",
-    "Warrior's Oath",
-    "Savor the Moment",
-    "Seedtime",
-    "Alchemist's Gambit",
-    "Second Chance",
-    "Wormfang Manta"
    ]
   },
   {
@@ -8123,13 +8096,33 @@
     "Gond Gate",
     "The Wandering Minstrel"
    ]
+  },
+  {
+   "what": "DamageAllEffect amount",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Call Forth the Tempest",
+    "Volcanic Torrent",
+    "Draconic Intervention"
+   ]
+  },
+  {
+   "what": "CanBlockAdditionalCreatureAllEffect",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Brave the Sands",
+    "High Ground",
+    "Cenn's Tactician"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4512,
-   "cards": 3918,
+   "score": 4500,
+   "cards": 3915,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8141,8 +8134,8 @@
   },
   {
    "what": "custom ability",
-   "score": 767,
-   "cards": 617,
+   "score": 763,
+   "cards": 616,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8413,19 +8406,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 27,
-   "cards": 15,
-   "names": [
-    "Dolmen Gate",
-    "Iroas, God of Victory",
-    "Losheel, Clockwork Scholar",
-    "Mutational Advantage",
-    "Pack Leader",
-    "Loyal Unicorn"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 27,
    "cards": 18,
@@ -8553,6 +8533,19 @@
     "Grasping Giant",
     "Elven Warhounds",
     "Gloom Sower"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 23,
+   "cards": 14,
+   "names": [
+    "Iroas, God of Victory",
+    "Losheel, Clockwork Scholar",
+    "Mutational Advantage",
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever"
    ]
   },
   {
@@ -10374,16 +10367,6 @@
    ]
   },
   {
-   "what": "ProliferateEffect args",
-   "score": 9,
-   "cards": 3,
-   "names": [
-    "Ripples of Potential",
-    "Contagion Engine",
-    "Roalesk, Apex Hybrid"
-   ]
-  },
-  {
    "what": "keyword AftermathAbility",
    "score": 9,
    "cards": 6,
@@ -10417,19 +10400,6 @@
     "Soul Shatter",
     "Flare of Malice",
     "Riveteers Charm"
-   ]
-  },
-  {
-   "what": "AddExtraTurnControllerEffect",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Final Fortune",
-    "Last Chance",
-    "Warrior's Oath",
-    "Savor the Moment",
-    "Seedtime",
-    "Second Chance"
    ]
   },
   {
@@ -11965,6 +11935,32 @@
     "Dreadship Reef",
     "Calciform Pools",
     "Saltcrusted Steppe"
+   ]
+  },
+  {
+   "what": "Ability.setWorksFaceDown",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Hooded Hydra",
+    "Gift of Doom",
+    "Vesuvan Shapeshifter",
+    "Jeering Instigator",
+    "Bubble Smuggler",
+    "Crowd-Control Warden"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesAttachedEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Prowler's Helm",
+    "Invisibility",
+    "Hedgewitch's Mask",
+    "Dust Corona",
+    "Treetop Bracers",
+    "Saddle of the Cavalier"
    ]
   }
  ]

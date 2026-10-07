@@ -2845,6 +2845,50 @@ module.exports = (test) => {
     t.zone(r, 'battlefield');
   });
 
+  test('City of Traitors goes when you play another land', (mk, t) => {
+    t.auto('City of Traitors');
+    const T = mk();
+    const c = T.bf('A', 'City of Traitors');
+    T.toMain('A');
+    T.playLand('A', T.hand('A', 'Forest'));
+    T.resolve();
+    t.zone(c, 'graveyard');
+  });
+
+  test('Blood Money: a tapped Treasure for each nontoken creature destroyed', (mk, t) => {
+    t.auto('Blood Money');
+    const T = mk();
+    T.bf('A', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears');
+    T.mana('A', '5BB');
+    T.cast('A', T.hand('A', 'Blood Money'));
+    T.resolve();
+    const tr = T.bfOf('A').filter(o => o.name === 'Treasure');
+    t.eq(tr.length, 2); t.ok(tr.every(o => o.tapped), 'tapped');
+  });
+
+  test('Final Fortune: an extra turn, lost at its end', (mk, t) => {
+    t.auto('Final Fortune');
+    const T = mk();
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Final Fortune'));
+    T.resolve();
+    for (let i = 0; i < 400 && !T.g.over && T.g.turn < 4; i++) { T.settle(); const p = T.g.priorityPlayer; if (!p) break; T.g.passPriority(p.id, true); }
+    t.eq(T.g.turn, 2); t.eq(T.g.activePlayer.id, 'A', 'A took the extra turn');
+    t.ok(T.g.player('A').hasLost, 'and lost at its end');
+  });
+
+  test('Dolmen Gate: attackers take no combat damage', (mk, t) => {
+    t.auto('Dolmen Gate');
+    const T = mk();
+    T.bf('A', 'Dolmen Gate');
+    const b = T.bf('A', 'Grizzly Bears'); b.summoningSick = false;
+    const w = T.bf('B', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: w.id, attackerIds: [b.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(b, 'battlefield');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
