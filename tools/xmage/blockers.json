@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15615,
-  "gainedCards": 1612,
-  "linesNeeded": 17460,
+  "needed": 15566,
+  "gainedCards": 1615,
+  "linesNeeded": 17404,
   "linesGained": 2044,
   "gained": {
-   "all": 1612,
+   "all": 1615,
    "top2000": 52,
    "stdTop": 12
   },
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 295,
-   "lines": 265,
+   "score": 291,
+   "lines": 261,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -413,25 +413,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 35,
-   "lines": 32,
-   "cards": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Alela, Cunning Conqueror",
-    "Tidus, Yuna's Guardian",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen",
-    "Kastral, the Windcrested",
-    "Descendants' Fury"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 34,
    "lines": 25,
@@ -448,6 +429,25 @@
     "Celeborn the Wise",
     "Jolene, Plundering Pugilist",
     "Talion's Messenger"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 34,
+   "lines": 31,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Feline Sovereign",
+    "Alela, Cunning Conqueror",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Kastral, the Windcrested",
+    "Descendants' Fury",
+    "Olivia, Opulent Outlaw"
    ]
   },
   {
@@ -505,25 +505,6 @@
     "Drain Life",
     "Murdock's Crusade",
     "Atalya, Samite Master"
-   ]
-  },
-  {
-   "what": "effect with no target",
-   "score": 32,
-   "lines": 32,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time"
    ]
   },
   {
@@ -632,6 +613,25 @@
     "Gylwain, Casting Director",
     "Ferocious Werefox // Guard Change",
     "The Witch's Vanity"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 29,
+   "lines": 29,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Djeru's Resolve",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time"
    ]
   },
   {
@@ -1965,25 +1965,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Kinnan, Bonder Prodigy",
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Requiem Angel",
-    "Wildborn Preserver",
-    "Call to the Grave",
-    "Sage of the Falls",
-    "Redcap Raiders",
-    "Archdemon of Unx"
-   ]
-  },
-  {
    "what": "Ability.setModeTag",
    "score": 15,
    "lines": 6,
@@ -2165,25 +2146,6 @@
     "Clockwork Beast",
     "Clockwork Avian",
     "Clockwork Swarm"
-   ]
-  },
-  {
-   "what": "DynamicManaAbility shape",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Selvala, Eager Trailblazer",
-    "Haruspex",
-    "Kydele, Chosen of Kruphix",
-    "Tower Worker",
-    "Petalmane Baku",
-    "Priest of Yawgmoth",
-    "Rasputin, the Oneiromancer",
-    "Loot, the Nexus",
-    "Blue Mana Battery",
-    "Black Mana Battery"
    ]
   },
   {
@@ -2569,20 +2531,20 @@
    ]
   },
   {
-   "what": "GoadAttachedEffect",
+   "what": "words: non-subtype",
    "score": 13,
    "lines": 10,
    "cards": [
-    "Shiny Impetus",
-    "Bloodthirsty Blade",
-    "Ghoulish Impetus",
-    "Parasitic Impetus",
-    "The Sound of Drums",
-    "Martial Impetus",
-    "Coercive Impetus",
-    "Psychic Impetus",
-    "Acquired Mutation",
-    "Incriminating Impetus"
+    "Kinnan, Bonder Prodigy",
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Wildborn Preserver",
+    "Call to the Grave",
+    "Redcap Raiders",
+    "Archdemon of Unx"
    ]
   },
   {
@@ -3842,24 +3804,6 @@
    ]
   },
   {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Abomination",
-    "Cockatrice",
-    "Deathgazer",
-    "Thicket Basilisk",
-    "Arrogant Bloodlord",
-    "Dread Specter",
-    "Rock Basilisk"
-   ]
-  },
-  {
    "what": "delayed CopyNextSpellDelayedTriggeredAbility",
    "score": 11,
    "lines": 11,
@@ -4413,23 +4357,6 @@
    ]
   },
   {
-   "what": "DealsDamageToACreatureTriggeredAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Obelisk Spider",
-    "Frostwalk Bastion",
-    "Maarika, Brutal Gladiator",
-    "Overclocked Electromancer",
-    "Spider-Slayer, Hatred Honed",
-    "East-Mark Cavalier",
-    "Simic Basilisk",
-    "Vampire Slayer",
-    "Bellowing Fiend",
-    "Lowland Basilisk"
-   ]
-  },
-  {
    "what": "AddCardSubTypeSourceEffect",
    "score": 10,
    "lines": 10,
@@ -4443,6 +4370,23 @@
     "Figure of Fable",
     "Evolved Sleeper",
     "Warden of the First Tree"
+   ]
+  },
+  {
+   "what": "DynamicManaAbility shape",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Selvala, Eager Trailblazer",
+    "Haruspex",
+    "Kydele, Chosen of Kruphix",
+    "Tower Worker",
+    "Petalmane Baku",
+    "Priest of Yawgmoth",
+    "Rasputin, the Oneiromancer",
+    "Loot, the Nexus"
    ]
   },
   {
@@ -5060,6 +5004,22 @@
    ]
   },
   {
+   "what": "DealsDamageToACreatureTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Obelisk Spider",
+    "Frostwalk Bastion",
+    "Maarika, Brutal Gladiator",
+    "Overclocked Electromancer",
+    "Spider-Slayer, Hatred Honed",
+    "East-Mark Cavalier",
+    "Simic Basilisk",
+    "Vampire Slayer",
+    "Bellowing Fiend"
+   ]
+  },
+  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "lines": 9,
@@ -5169,22 +5129,6 @@
     "Silhana Wayfinder",
     "Sage of Days",
     "Voda Sea Scavenger"
-   ]
-  },
-  {
-   "what": "BecomesBlockedAllTriggeredAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "General Marhault Elsdragon",
-    "Norin, Swift Survivalist",
-    "She-Hulk, Wallbreaker",
-    "Labyrinth Raptor",
-    "Ib Halfheart, Goblin Tactician",
-    "Spined Sliver",
-    "Tattered Ratter",
-    "Beastmaster's Magemark",
-    "Berserk Murlodont"
    ]
   },
   {
@@ -5310,22 +5254,6 @@
     "Mistform Seaswift",
     "Mistform Skyreaver",
     "Mistform Shrieker"
-   ]
-  },
-  {
-   "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Grasping Giant",
-    "Elven Warhounds",
-    "Tolarian Entrancer",
-    "Battering Ram",
-    "Basalt Golem",
-    "Catacomb Dragon",
-    "Infernal Medusa",
-    "Order of the Mirror // Order of the Alabaster Host",
-    "Quagmire Lamprey"
    ]
   },
   {
@@ -5932,6 +5860,21 @@
    ]
   },
   {
+   "what": "BecomesBlockedAllTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Norin, Swift Survivalist",
+    "She-Hulk, Wallbreaker",
+    "Labyrinth Raptor",
+    "Ib Halfheart, Goblin Tactician",
+    "Spined Sliver",
+    "Tattered Ratter",
+    "Beastmaster's Magemark",
+    "Berserk Murlodont"
+   ]
+  },
+  {
    "what": "(constructor: assignment)",
    "score": 8,
    "lines": 8,
@@ -6122,6 +6065,21 @@
     "Oracle of Dust",
     "Murk Strider",
     "Cryptic Cruiser"
+   ]
+  },
+  {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Tolarian Entrancer",
+    "Battering Ram",
+    "Basalt Golem",
+    "Catacomb Dragon",
+    "Order of the Mirror // Order of the Alabaster Host",
+    "Quagmire Lamprey"
    ]
   },
   {
@@ -6463,6 +6421,20 @@
    ]
   },
   {
+   "what": "blocks or blocked by a kind of creature",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Mirror Shield",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Giant Shark",
+    "Deathgazer",
+    "Arrogant Bloodlord",
+    "Dread Specter"
+   ]
+  },
+  {
    "what": "CounterRemovedFromSourceWhileExiledTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -6631,20 +6603,6 @@
    ]
   },
   {
-   "what": "DealsCombatDamageToACreatureTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Ohran Viper",
-    "Permeating Mass",
-    "Flayed Nim",
-    "Mephitic Ooze",
-    "Stone-Tongue Basilisk",
-    "Serpentine Basilisk",
-    "Soul Charmer"
-   ]
-  },
-  {
    "what": "ExileTargetForSourceEffect",
    "score": 7,
    "lines": 7,
@@ -6697,20 +6655,6 @@
     "Demilich",
     "Flawless Forgery",
     "Roving Actuator"
-   ]
-  },
-  {
-   "what": "PartnerVariantType.FRIENDS_FOREVER.makeAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Wernog, Rider's Chaplain",
-    "Bjorna, Nightfall Alchemist",
-    "Cecily, Haunted Mage",
-    "Elmar, Ulvenwald Informant",
-    "Sophina, Spearsage Deserter",
-    "Othelm, Sigardian Outcast",
-    "Hargilde, Kindly Runechanter"
    ]
   },
   {
@@ -7678,19 +7622,6 @@
    ]
   },
   {
-   "what": "PartnerVariantType.CHARACTER_SELECT.makeAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Donatello, the Brains",
-    "Raphael, the Muscle",
-    "Leonardo, the Balance",
-    "Michelangelo, the Heart",
-    "Splinter, the Mentor",
-    "April O'Neil, Live on the Scene"
-   ]
-  },
-  {
    "what": "delayed UntilYourNextTurnDelayedTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -7884,13 +7815,65 @@
     "Lava Runner",
     "Retromancer"
    ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"sacSelf\"]",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Servant of the Stinger",
+    "Rotisserie Elemental",
+    "Blind Zealot",
+    "Dauthi Mindripper",
+    "Goblin Grenadiers",
+    "Mindstab Thrull"
+   ]
+  },
+  {
+   "what": "MoveCountersFromSourceToTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Costume Closet",
+    "Explorer's Cache",
+    "Weapon Rack",
+    "Simic Fluxmage",
+    "Steel Dromedary",
+    "Afiya Grove"
+   ]
+  },
+  {
+   "what": "PlanCounterThresholdTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Doom Reigns Supreme",
+    "Claim the Kingdom",
+    "Construct a Cosmic Cube",
+    "Death to Our Enemies",
+    "Rewrite History",
+    "Villainous Syndication"
+   ]
+  },
+  {
+   "what": "into the library some way down",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Lost Days",
+    "Temporal Cleansing",
+    "Wan Shi Tong, All-Knowing",
+    "Deem Inferior",
+    "Trickster's Stratagem",
+    "Happy Hogan, Bodyguard"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4442,
-   "cards": 3893,
+   "score": 4445,
+   "cards": 3896,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7902,8 +7885,8 @@
   },
   {
    "what": "custom ability",
-   "score": 715,
-   "cards": 595,
+   "score": 716,
+   "cards": 596,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7954,8 +7937,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 172,
-   "cards": 160,
+   "score": 171,
+   "cards": 159,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -8174,19 +8157,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 26,
-   "cards": 23,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Tifa, Martial Artist"
-   ]
-  },
-  {
    "what": "CreateRoleAttachedTargetEffect",
    "score": 26,
    "cards": 26,
@@ -8213,6 +8183,19 @@
    ]
   },
   {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 25,
+   "cards": 22,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Feline Sovereign",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver"
+   ]
+  },
+  {
    "what": "InfoEffect",
    "score": 25,
    "cards": 25,
@@ -8226,19 +8209,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 25,
-   "cards": 25,
-   "names": [
-    "Wall of Tears",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 24,
    "cards": 21,
@@ -8249,6 +8219,19 @@
     "Oakhollow Village",
     "Octomancer",
     "Sweet-Gum Recluse"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 23,
+   "cards": 23,
+   "names": [
+    "Wall of Tears",
+    "Djeru's Resolve",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice"
    ]
   },
   {
@@ -8869,19 +8852,6 @@
    ]
   },
   {
-   "what": "DynamicManaAbility shape",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Haruspex",
-    "Kydele, Chosen of Kruphix",
-    "Tower Worker",
-    "Petalmane Baku"
-   ]
-  },
-  {
    "what": "PartyCount.instance",
    "score": 13,
    "cards": 13,
@@ -9429,19 +9399,6 @@
    ]
   },
   {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Abomination",
-    "Cockatrice"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 11,
    "cards": 11,
@@ -9980,16 +9937,16 @@
    ]
   },
   {
-   "what": "words: non-subtype",
+   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "cards": 9,
    "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Requiem Angel",
-    "Wildborn Preserver"
+    "Brought Back",
+    "Samwise the Stouthearted",
+    "Continue?",
+    "Lobelia Sackville-Baggins",
+    "Grim Return",
+    "Salvager of Ruin"
    ]
   },
   {
@@ -10146,19 +10103,6 @@
     "Sky Hussar",
     "Piercing Rays",
     "Proclamation of Rebirth"
-   ]
-  },
-  {
-   "what": "DealsDamageToACreatureTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Frostwalk Bastion",
-    "Maarika, Brutal Gladiator",
-    "Overclocked Electromancer",
-    "Spider-Slayer, Hatred Honed",
-    "East-Mark Cavalier",
-    "Simic Basilisk"
    ]
   },
   {
@@ -10362,18 +10306,6 @@
     "Vraska, Golgari Queen",
     "Edward Kenway",
     "Virulent Silencer"
-   ]
-  },
-  {
-   "what": "GoadAttachedEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Shiny Impetus",
-    "Bloodthirsty Blade",
-    "Parasitic Impetus",
-    "Coercive Impetus",
-    "Psychic Impetus"
    ]
   },
   {
@@ -10711,19 +10643,6 @@
    ]
   },
   {
-   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Brought Back",
-    "Samwise the Stouthearted",
-    "Continue?",
-    "Lobelia Sackville-Baggins",
-    "Grim Return",
-    "Salvager of Ruin"
-   ]
-  },
-  {
    "what": "VoidCondition.instance",
    "score": 8,
    "cards": 8,
@@ -10760,6 +10679,19 @@
     "Kismet",
     "Loxodon Gatekeeper",
     "Orb of Dreams"
+   ]
+  },
+  {
+   "what": "DynamicManaAbility shape",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Haruspex",
+    "Kydele, Chosen of Kruphix",
+    "Tower Worker",
+    "Petalmane Baku"
    ]
   },
   {
@@ -10802,19 +10734,6 @@
    ]
   },
   {
-   "what": "BecomesBlockedAllTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "General Marhault Elsdragon",
-    "Norin, Swift Survivalist",
-    "She-Hulk, Wallbreaker",
-    "Labyrinth Raptor",
-    "Ib Halfheart, Goblin Tactician",
-    "Spined Sliver"
-   ]
-  },
-  {
    "what": "attack trigger with its own text",
    "score": 8,
    "cards": 8,
@@ -10851,6 +10770,19 @@
     "Dominator Drone",
     "Dust Stalker",
     "Eldrazi Aggressor"
+   ]
+  },
+  {
+   "what": "DealsDamageToACreatureTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Frostwalk Bastion",
+    "Maarika, Brutal Gladiator",
+    "Overclocked Electromancer",
+    "Spider-Slayer, Hatred Honed",
+    "East-Mark Cavalier",
+    "Simic Basilisk"
    ]
   },
   {
@@ -11104,6 +11036,19 @@
    ]
   },
   {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Zurgo Stormrender",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger"
+   ]
+  },
+  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "cards": 7,
@@ -11140,6 +11085,19 @@
     "Glacial Revelation",
     "Lead the Stampede",
     "Forging the Anchor"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Cryogen Relic",
+    "Sewer-veillance Cam",
+    "Experimental Synthesizer",
+    "Wernog, Rider's Chaplain",
+    "Mouser Foundry",
+    "Raving Oni-Slave"
    ]
   },
   {
@@ -11182,6 +11140,19 @@
    ]
   },
   {
+   "what": "words: non-subtype",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Wildborn Preserver",
+    "Redcap Raiders"
+   ]
+  },
+  {
    "what": "control for custom",
    "score": 7,
    "cards": 7,
@@ -11192,6 +11163,19 @@
     "Invoke the Winds",
     "Jace, Ingenious Mind-Mage",
     "Sorin, Vampire Lord"
+   ]
+  },
+  {
+   "what": "blocks or blocked by a kind of creature",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Mirror Shield",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Giant Shark",
+    "Deathgazer",
+    "Arrogant Bloodlord"
    ]
   },
   {
@@ -11309,6 +11293,19 @@
     "Disturbing Conversion",
     "Aspect of Wolf",
     "So Tiny"
+   ]
+  },
+  {
+   "what": "BecomesBlockedAllTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Norin, Swift Survivalist",
+    "She-Hulk, Wallbreaker",
+    "Labyrinth Raptor",
+    "Ib Halfheart, Goblin Tactician",
+    "Spined Sliver",
+    "Tattered Ratter"
    ]
   },
   {
@@ -11649,19 +11646,6 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
-   ]
-  },
-  {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Zurgo Stormrender",
-    "Suki, Courageous Rescuer",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger",
-    "Extractor Demon"
    ]
   },
   {

@@ -4492,4 +4492,35 @@ module.exports = (test) => {
     T.g.checkStateBasedActions();
     t.zone(a, 'battlefield'); t.zone(b, 'battlefield');
   });
+
+  test('Abomination: a green or white creature it blocks is destroyed at end of combat', (mk, t) => {
+    t.auto('Abomination');
+    const T = mk();
+    const ab = T.bf('B', 'Abomination');
+    const elf = T.bf('A', 'Llanowar Elves');
+    elf.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: elf.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: ab.id, attackerIds: [elf.id] }]);
+    T.toMain('A', 'end');
+    t.zone(elf, 'graveyard');
+  });
+
+  test('Sphere of Law: red damage to you is 2 less', (mk, t) => {
+    t.auto('Sphere of Law');
+    const T = mk();
+    T.bf('B', 'Sphere of Law');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T.life('B'), 19);
+  });
+
+  test('Psychic Impetus: the enchanted creature must attack', (mk, t) => {
+    t.auto('Psychic Impetus');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const pi = T.bf('B', 'Psychic Impetus');
+    pi.attachedTo = bear.id; bear.attachments.push(pi.id); T.g.bumpBoard();
+    t.ok(T.g.mustAttack(bear), 'goaded');
+    t.eq(T.g.powerOf(bear), 4);
+  });
 };

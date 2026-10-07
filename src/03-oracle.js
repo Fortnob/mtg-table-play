@@ -2454,6 +2454,14 @@
     { re: /^(?:CARDNAME|This creature|It) deals (that much|\d+) damage to the chosen player\.?$/i,
       make: (m) => ({ op: 'damage', n: /that much/i.test(m[1]) ? 'triggerAmount' : +m[1], toChosenPlayer: true }) },
     { re: /^(?:CARDNAME|This creature) deals (\d+) damage to itself\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toSelf2: true }) },
+    // Abomination: "destroy that creature at end of combat"
+    { re: /^Destroy that creature at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'triggerObject' }) },
+    // Rabid Elephant: "it gets +2/+2 until end of turn for each creature blocking it"
+    { re: /^(?:It|CARDNAME|This creature) gets \+(\d+)\/\+(\d+) until end of turn for each creature blocking it\.?$/i,
+      make: (m) => ({ op: 'pumpPerBlocker', p: +m[1], t: +m[2] }) },
+    // the Mana Batteries: "Add {U}, then add an additional {U} for each charge counter removed this way."
+    { re: /^Add \{([WUBRGC])\}, then add an additional \{\1\} for each ([a-z]+) counter removed this way\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'addMana', symbols: [m[1].toUpperCase()] }, { op: 'addManaPer', symbol: m[1].toUpperCase(), per: { removedCounters: true, mult: 1 } }] }) },
     // Inferno Elemental: "this creature deals 3 damage to that creature"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to that creature\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toTriggerObject: true }) },
     // Plaxmanta: "sacrifice it unless {G} was spent to cast it"
@@ -4590,6 +4598,8 @@
       if (SUBJ_WORDS.has(w.toLowerCase()) && w === w.toLowerCase()) continue;
       // a creature type is printed with a capital: "a Goblin", "another Elf"
       if (/^[A-Z][a-z'-]+s?$/.test(w) && w !== 'CARDNAME') continue;
+      // "a non-Wall creature"
+      if (/^non-[A-Z][a-z'-]+$/.test(w)) continue;
       return null;
     }
     if (words.includes('nontoken')) f.nontoken = true;
@@ -5479,6 +5489,11 @@
       }
       /* Partner with NAME (CR 702.124j): a deck rule, and as it enters you
          may search your library for the partner, reveal it and take it */
+      if (/^Partner\s*(?:\u2014|-)\s*(?:Friends forever|Character select|Survivors)$/i.test(line)) {
+        out.keywords.push({ keyword: 'Partner', arg: null, text: line });
+        autoLines++;
+        continue;
+      }
       const pw = line.match(/^Partner with ([^(]+?)\s*$/);
       if (pw) {
         out.keywords.push({ keyword: 'Partner with', arg: pw[1], text: line });
@@ -6257,7 +6272,7 @@
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
       if (ab.kind === 'triggered' && !ab.self) continue;
       // a creature's own trigger about another creature: the one it dealt damage to, the one it exploited
-      if (ab.kind === 'triggered' && (ab.event === 'dealsDamageToCreature' || ab.event === 'exploits')) continue;
+      if (ab.kind === 'triggered' && ['dealsDamageToCreature', 'exploits', 'blocksCreature', 'blockedByCreature'].includes(ab.event)) continue;
       ab.auto = false;
       autoLines--;
     }
@@ -7174,7 +7189,7 @@
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
-    'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'peekTop', 'optionalUntap',
+    'evasion', 'attackRequires', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
@@ -7420,6 +7435,12 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Sphere of Law: "If a red source would deal damage to you, prevent 2 of that damage."
+      { re: /^If an? (white|blue|black|red|green) source would deal damage to you, prevent (\d+) of that damage\.?$/i,
+        make: (m) => ({ op: 'preventSomeFromColor', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()], n: +m[2] }), auto: true },
+      // Psychic Impetus: "Enchanted creature gets +2/+2 and is goaded."
+      { re: /^Enchanted creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
+        make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
       { re: /^The "legend rule" doesn'?t apply\.?$/i, eff: { op: 'noLegendRule', all: true }, auto: true },
       // Troll of Khazad-dûm, Pathrazer of Ulamog

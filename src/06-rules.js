@@ -5981,7 +5981,9 @@
       const a = o.analysis();
       if (!a) return false;
       return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack')) ||
-        this._hasFlag(o, 'mustAttackEot') || o.goadedBy != null || o.mustAttackPlayer != null;
+        this._hasFlag(o, 'mustAttackEot') || o.goadedBy != null || o.mustAttackPlayer != null ||
+        // Psychic Impetus: an Aura that keeps it goaded
+        (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
     }
 
     declareAttackers(playerId, declarations) {
@@ -6520,6 +6522,12 @@
       }
       /* Tokens that only came along for the fight (mobilize) go away when
          the fight is over. */
+      // Abomination: what it fought is destroyed as combat ends
+      for (const o of this.battlefield.slice()) {
+        if (o.destroyAtEndOfCombat !== this.turn) continue;
+        o.destroyAtEndOfCombat = null;
+        if (!this.hasKw(o, 'indestructible') && !this._regenerated(o)) { this.moveObject(o, 'graveyard'); this.logEvent('destroy', `${o.name} is destroyed at end of combat.`); }
+      }
       for (const o of this.battlefield.slice()) {
         if (!o.sacAtEndOfCombat) continue;
         this.moveObject(o, 'graveyard');
@@ -7671,6 +7679,18 @@
       amount = this._damageAmount(amount, source, p.id, combat);
       if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
       if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
+      // the Spheres: "If a red source would deal damage to you, prevent 2 of that damage."
+      if (source && !this._noPrevention(combat)) {
+        const sc = ((this.characteristics(source) || {}).colors || []).length ? this.characteristics(source).colors : ((source.analysis && source.analysis()) || {}).colors || [];
+        for (const s0 of this.battlefield) {
+          const r = !s0.phasedOut && s0.controller === p.id && this._staticOp(s0, 'preventSomeFromColor');
+          if (!r || !sc.includes(r.color)) continue;
+          const cut = Math.min(r.n || 0, amount);
+          amount -= cut;
+          if (cut) this.logEvent('damage', `${s0.name} prevents ${cut} damage to ${p.name}.`);
+          if (amount <= 0) return;
+        }
+      }
       if (p.preventShield && !this._noPrevention(combat)) {
         const soak = Math.min(p.preventShield, amount);
         p.preventShield -= soak; amount -= soak;
@@ -12634,6 +12654,17 @@
             if (e.then === 'destroy') { if (!this.hasKw(x, 'indestructible')) this.moveObject(x, 'graveyard'); }
             else this.moveObject(x, 'exile');
           }
+          break;
+        }
+        case 'destroyAtEndOfCombat':
+          applyToScope(e, (o) => { o.destroyAtEndOfCombat = this.turn; });
+          break;
+        // Rabid Elephant: +N/+N for each creature blocking it
+        case 'pumpPerBlocker': {
+          if (!src || src.zone !== 'battlefield') break;
+          const k = (src.blockedBy || []).length;
+          if (k) src.effects.push({ p: e.p * k, t: e.t * k, until: 'eot' });
+          this.bumpBoard();
           break;
         }
         // "Exile this card": wherever it is (Bridge from Below, in a graveyard)
