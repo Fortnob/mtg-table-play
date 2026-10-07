@@ -1461,6 +1461,8 @@
   const CHOOSE_PURPOSES = {
     /* "Choose a creature type": the options come most-ours first */
     creatureType() { return { picks: [0] }; },
+    /* Culling Ritual: "{B} or {G} for each …" — all of the first colour */
+    manaSplit() { return { picks: [0] }; },
     /* Circle of Protection: the opponent's source most likely to hurt us
        this turn — an attacker, a spell on the stack, then their biggest creature */
     preventSource(s) {
