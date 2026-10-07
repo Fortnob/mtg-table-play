@@ -7633,6 +7633,10 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // Heroic: "whenever you cast a spell that targets this creature"
+          if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Exert: "if this creature hasn't been exerted this turn"
+          if (ab.exert && ab.exertOnce && o.exertedTurn === this.turn) continue;
           if (ab.toOpponent && data.player === o.controller) continue;
           // "when you play another land": not this one
           if (ab.notSelf && data.object && data.object.id === o.id) continue;
@@ -9527,6 +9531,13 @@
           this.logEvent('control', `${me.name} gains control of ${q.name}'s artifacts.`);
           break;
         }
+        // Exert (CR 701.43): it won't untap during your next untap step
+        case 'exertSelf':
+          if (!src || src.zone !== 'battlefield') break;
+          src.noUntapNext = true;
+          src.exertedTurn = this.turn;
+          this.logEvent('rules', `${src.name} is exerted.`);
+          break;
         // Wound Reflection: each opponent loses again what they lost this turn
         case 'woundReflection':
           for (const q of this.opponentsOf(ctx.controller)) { const k = q.lifeLostThisTurn || 0; if (k > 0) this.changeLife(q, -k); }
@@ -12646,6 +12657,8 @@
       if (this._noPrevention(isCombat)) return false;
       // "prevent all combat damage that would be dealt to this creature"
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
+      // Glacial Chasm: "Prevent all damage that would be dealt to you."
+      if (target && target.pool && this._anyStaticOf(target.id, 'preventAllToYou')) return true;
       // Crystal Barricade: "prevent all noncombat damage that would be dealt to other creatures you control"
       if (!isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noNoncombatTaken')) return true;
       for (const pv of this.prevention) {

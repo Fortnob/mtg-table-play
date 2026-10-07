@@ -3195,6 +3195,42 @@ module.exports = (test) => {
     t.ok((b.counters['+1/+1'] || 0) + T.bfOf('A').filter(o => o.isToken).reduce((k, o) => k + (o.counters['+1/+1'] || 0), 0) === 2, 'two counters');
   });
 
+  test('Exert: Glorybringer exerts as it attacks and does not untap next turn', (mk, t) => {
+    t.auto('Glorybringer');
+    const T = mk();
+    const g = T.bf('A', 'Glorybringer'); g.summoningSick = false;
+    const b = T.bf('B', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(b, 'graveyard');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(g.tapped, 'still tapped');
+  });
+
+  test('Heroic: Hero of Iroas gets a counter when targeted by your spell', (mk, t) => {
+    t.auto('Hero of Iroas');
+    const T = mk();
+    const h = T.bf('A', 'Hero of Iroas');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [T.tgt(h)] });
+    T.resolve();
+    t.eq(h.counters['+1/+1'], 1);
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(h.counters['+1/+1'], 1, 'not for a spell aimed elsewhere');
+  });
+
+  test('Glacial Chasm prevents all damage to you', (mk, t) => {
+    t.auto('Glacial Chasm');
+    const T = mk();
+    T.bf('A', 'Glacial Chasm');
+    T.g.dealDamageToPlayer(T.g.player('A'), 3, T.bf('B', 'Grizzly Bears'), true);
+    t.eq(T.life('A'), 20);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

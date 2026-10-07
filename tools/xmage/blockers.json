@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16538,
+  "needed": 16483,
   "gainedCards": 1768,
-  "linesNeeded": 18765,
+  "linesNeeded": 18706,
   "linesGained": 2270,
   "gained": {
    "all": 1768,
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 435,
-   "lines": 405,
+   "score": 394,
+   "lines": 364,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -581,25 +581,6 @@
     "Jace, Memory Adept",
     "Officious Interrogation",
     "Ral Zarek, Guest Lecturer"
-   ]
-  },
-  {
-   "what": "keyword ExertAbility",
-   "score": 31,
-   "lines": 28,
-   "cards": [
-    "Combat Celebrant",
-    "Glorybringer",
-    "Hydra Trainer",
-    "Themberchaud",
-    "Champion of Rhonas",
-    "Sandstorm Crasher",
-    "Anep, Vizier of Hazoret",
-    "Clockwork Droid",
-    "Rohirrim Chargers",
-    "Ahn-Crop Crasher",
-    "Glory-Bound Initiate",
-    "Ahn-Crop Champion"
    ]
   },
   {
@@ -2329,6 +2310,25 @@
     "The War Games",
     "City of Shadows",
     "Wormfang Drake"
+   ]
+  },
+  {
+   "what": "keyword ExertAbility",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Combat Celebrant",
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Clockwork Droid",
+    "Rohirrim Chargers",
+    "Ahn-Crop Champion",
+    "Battlefield Scavenger",
+    "Trueheart Twins",
+    "Oketra's Avenger",
+    "Resolute Survivors",
+    "Vizier of the True",
+    "Rhonas's Stalwart"
    ]
   },
   {
@@ -8100,8 +8100,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4464,
-   "cards": 3909,
+   "score": 4465,
+   "cards": 3910,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8113,8 +8113,8 @@
   },
   {
    "what": "custom ability",
-   "score": 752,
-   "cards": 611,
+   "score": 753,
+   "cards": 612,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8138,19 +8138,6 @@
    ]
   },
   {
-   "what": "(line not matched to XMage code)",
-   "score": 221,
-   "cards": 212,
-   "names": [
-    "Mizzix's Mastery",
-    "Eldritch Immunity",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Liliana, Death's Majesty",
-    "Wand of Wonder"
-   ]
-  },
-  {
    "what": "(cast modifier line)",
    "score": 221,
    "cards": 212,
@@ -8161,6 +8148,19 @@
     "Hagra Mauling // Hagra Broodpit",
     "Kogla and Yidaro",
     "Temporal Mastery"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 183,
+   "cards": 174,
+   "names": [
+    "Mizzix's Mastery",
+    "Eldritch Immunity",
+    "Winds of Abandon",
+    "Alchemist's Talent",
+    "Liliana, Death's Majesty",
+    "Wand of Wonder"
    ]
   },
   {
@@ -8408,19 +8408,6 @@
     "Aragorn, King of Gondor",
     "Tail Swipe",
     "Bilbo's Gambit"
-   ]
-  },
-  {
-   "what": "keyword ExertAbility",
-   "score": 26,
-   "cards": 23,
-   "names": [
-    "Combat Celebrant",
-    "Glorybringer",
-    "Hydra Trainer",
-    "Themberchaud",
-    "Champion of Rhonas",
-    "Sandstorm Crasher"
    ]
   },
   {
@@ -9733,6 +9720,19 @@
    ]
   },
   {
+   "what": "GainAbilityControllerEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Surge of Salvation",
+    "Solitary Confinement",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Sigarda, Heron's Grace",
+    "Captain America, Super-Soldier"
+   ]
+  },
+  {
    "what": "words:withKeyword",
    "score": 11,
    "cards": 11,
@@ -9967,6 +9967,19 @@
    ]
   },
   {
+   "what": "keyword ExertAbility",
+   "score": 10,
+   "cards": 7,
+   "names": [
+    "Combat Celebrant",
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Clockwork Droid",
+    "Ahn-Crop Champion",
+    "Oketra's Avenger"
+   ]
+  },
+  {
    "what": "OneOrMoreLeaveWithoutDyingTriggeredAbility",
    "score": 10,
    "cards": 1,
@@ -10061,19 +10074,6 @@
     "Paladin Danse, Steel Maverick",
     "Doctor Doom",
     "Beyond the Quiet"
-   ]
-  },
-  {
-   "what": "GainAbilityControllerEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Surge of Salvation",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier",
-    "Blossoming Calm"
    ]
   },
   {

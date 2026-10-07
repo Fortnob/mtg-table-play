@@ -4300,6 +4300,8 @@
   const TRIGGER_PATTERNS = [
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // Heroic: "Whenever you cast a spell that targets this creature"
+    { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
     // No Mercy, Mikaeus: "Whenever a creature deals damage to you"
     { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() }) },
@@ -4925,6 +4927,17 @@
       if (!out.isPermanent && /^(?:Whenever|At the beginning of) [^,"]+? this turn, /.test(line)) {
         const parsed = parseEffects(line);
         out.abilities.push({ kind: 'spell', text: line, effects: parsed.effects, auto: parsed.auto });
+        if (parsed.auto) autoLines++;
+        continue;
+      }
+      /* Exert (CR 701.43): "You may exert this creature as it attacks. When
+         you do, …" — an attack trigger you may take, exerting it first */
+      const ex = line.match(/^(If (?:this creature|CARDNAME) hasn'?t been exerted this turn, )?[Yy]ou may exert (?:this creature|CARDNAME|it) as it attacks\. When you do, ([\s\S]+)$/);
+      if (ex) {
+        const parsed = parseEffects(ex[2].replace(/^(\w)/, (c) => c.toUpperCase()));
+        itIsTheTrigger(parsed.effects, 'self');
+        out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, optional: true, exert: true, exertOnce: !!ex[1],
+          text: line, effects: [{ op: 'exertSelf' }].concat(parsed.effects), auto: parsed.auto, condition: null });
         if (parsed.auto) autoLines++;
         continue;
       }
@@ -6701,6 +6714,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Glacial Chasm
+      { re: /^Prevent all damage that would be dealt to you\.?$/i, eff: { op: 'preventAllToYou' }, auto: true },
       // Deafening Silence, Rule of Law, Eidolon of Rhetoric
       { re: /^Each player can'?t cast more than one (noncreature )?spell each turn\.?$/i,
         make: (m) => ({ op: 'spellLimit', n: 1, noncreature: !!m[1] }), auto: true },
