@@ -2988,6 +2988,21 @@ module.exports = (test) => {
     t.no(T.g.canAttack(b), 'creatures cannot attack');
   });
 
+  test("Taunt from the Rampart: goaded, and can't block until your next turn", (mk, t) => {
+    t.auto('Taunt from the Rampart');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '3RW');
+    T.cast('A', T.hand('A', 'Taunt from the Rampart'));
+    T.resolve();
+    t.eq(b.goadedBy, 'A');
+    t.ok(T.g._hasFlag(b, 'cantBlock'), "can't block");
+    T.nextTurn('B');
+    t.ok(T.g._hasFlag(b, 'cantBlock'), 'still on their turn');
+    T.nextTurn('A');
+    t.no(T.g._hasFlag(b, 'cantBlock'), 'over at your next turn');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

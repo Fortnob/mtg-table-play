@@ -2708,6 +2708,9 @@
     { re: /^Your opponents can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents' }) },
     // Orim's Chant: "Target player can't cast spells this turn."
     { re: /^Target (player|opponent) can'?t cast spells this turn\.?$/i, make: (m) => ({ op: 'silence', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Taunt from the Rampart: "Until your next turn, those creatures can't block."
+    { re: /^Until your next turn, those creatures can'?t (block|attack)\.?$/i,
+      make: (m) => ({ op: 'restrict', flag: /block/i.test(m[1]) ? 'cantBlock' : 'cantAttack', duration: 'nextTurn', scope: 'lastGroup' }) },
     // Orim's Chant, kicked: "creatures can't attack this turn"
     { re: /^Creatures can'?t attack this turn\.?$/i, make: () => ({ op: 'noAttacksTurn' }) },
     // Ranger-Captain of Eos: only the noncreature ones
