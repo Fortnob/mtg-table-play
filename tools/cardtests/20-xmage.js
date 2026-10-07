@@ -4132,4 +4132,26 @@ module.exports = (test) => {
     t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Bird'), 'chapter II: a Bird');
     t.eq(T.zone('A', 'hand').length, h0 - 1, 'chapter I skipped: no cards drawn');
   });
+
+  test('Inferno Elemental: 3 damage to each creature it blocks', (mk, t) => {
+    t.auto('Inferno Elemental');
+    const T = mk();
+    const ie = T.bf('B', 'Inferno Elemental');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: ie.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'combatDamage');
+    t.zone(bear, 'graveyard');
+  });
+
+  test('Netcaster Spider: +2/+0 only when it blocks a flyer', (mk, t) => {
+    t.auto('Netcaster Spider');
+    const T = mk();
+    const sp = T.bf('B', 'Netcaster Spider');
+    const bird = T.bf('A', 'Serra Angel');
+    T.answer('declareAttackers', () => [{ attackerId: bird.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: sp.id, attackerIds: [bird.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(bird, 'graveyard', 'the pumped Spider (4 power) kills the Angel');
+  });
 };

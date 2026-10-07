@@ -2412,6 +2412,8 @@
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
     // Bridge from Below: "exile this card" — from the graveyard it works in
     { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
+    // Inferno Elemental: "this creature deals 3 damage to that creature"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to that creature\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toTriggerObject: true }) },
     // Plaxmanta: "sacrifice it unless {G} was spent to cast it"
     { re: /^Sacrifice (?:it|CARDNAME|this creature) unless \{([WUBRG])\} was spent to cast (?:it|this creature|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'not', cond: { kind: 'manaSpentAtLeast', n: 1, color: m[1].toUpperCase(), of: 'this' } }, then: [{ op: 'sacrificeSelf' }] }) },
@@ -4632,6 +4634,15 @@
       event: 'dies', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks or blocks(?:,| )/i,
       event: 'attacks', self: true, also: 'blocks' },
+    /* "Whenever this creature blocks a creature with flying", "blocks or
+       becomes blocked by a creature": one trigger for each creature on the
+       other side, which is "that creature" */
+    { re: new RegExp('^When(?:ever)? (?:this creature|~|CARDNAME) blocks or becomes blocked by ' + SUBJ + ', ', 'i'),
+      event: 'blocksCreature', also: 'blockedByCreature', self: true, aboutObject: true, filt: (m) => subjectFilter(m[1]) },
+    { re: new RegExp('^When(?:ever)? (?:this creature|~|CARDNAME) blocks ' + SUBJ + ', ', 'i'),
+      event: 'blocksCreature', self: true, aboutObject: true, filt: (m) => subjectFilter(m[1]) },
+    { re: new RegExp('^When(?:ever)? (?:this creature|~|CARDNAME) becomes blocked by ' + SUBJ + ', ', 'i'),
+      event: 'blockedByCreature', self: true, aboutObject: true, filt: (m) => subjectFilter(m[1]) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) blocks or becomes blocked,? /i,
       event: 'blocks', self: true, also: 'becomesBlocked' },
 

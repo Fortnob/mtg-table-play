@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15793,
-  "gainedCards": 1612,
-  "linesNeeded": 17854,
-  "linesGained": 2055,
+  "needed": 15763,
+  "gainedCards": 1610,
+  "linesNeeded": 17810,
+  "linesGained": 2052,
   "gained": {
-   "all": 1612,
+   "all": 1610,
    "top2000": 52,
    "stdTop": 12
   },
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 974,
-   "lines": 815,
+   "score": 973,
+   "lines": 814,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -375,25 +375,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 41,
-   "lines": 41,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Engulfing Slagwurm",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice",
-    "Fire Giant's Fury",
-    "Act of Heroism"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 40,
    "lines": 31,
@@ -562,6 +543,25 @@
     "Out Cold",
     "Vivien, Arkbow Ranger",
     "Sea Hag // Aquatic Ingress"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 32,
+   "lines": 32,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Djeru's Resolve",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time"
    ]
   },
   {
@@ -776,25 +776,6 @@
     "Sand Silos",
     "Saprazzan Cove",
     "Hollow Trees"
-   ]
-  },
-  {
-   "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 26,
-   "lines": 26,
-   "cards": [
-    "Vicious Battlerager",
-    "Evil Eye of Urborg",
-    "Nessian Boar",
-    "Grasping Giant",
-    "Elven Warhounds",
-    "Gloom Sower",
-    "Tolarian Entrancer",
-    "Retaliation",
-    "Sylvan Basilisk",
-    "Battering Ram",
-    "Basalt Golem",
-    "Catacomb Dragon"
    ]
   },
   {
@@ -3479,44 +3460,6 @@
    ]
   },
   {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Wall of Frost",
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Ojutai, Soul of Winter",
-    "Skyline Cascade",
-    "Fogwalker",
-    "Cleric of Chill Depths",
-    "Sudden Storm",
-    "Mana Skimmer",
-    "Stensia Innkeeper",
-    "Labyrinth Minotaur",
-    "Samite Alchemist"
-   ]
-  },
-  {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Abomination",
-    "Cockatrice",
-    "Deathgazer",
-    "Thicket Basilisk",
-    "Arrogant Bloodlord",
-    "Ghost Hounds",
-    "Dread Specter",
-    "Rock Basilisk"
-   ]
-  },
-  {
    "what": "CastFromHandForFreeEffect",
    "score": 12,
    "lines": 12,
@@ -4021,6 +3964,24 @@
     "Earthlore",
     "Tourach's Gate",
     "Krovikan Plague"
+   ]
+  },
+  {
+   "what": "blocks or blocked by a kind of creature",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Mirror Shield",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Giant Shark",
+    "Abomination",
+    "Cockatrice",
+    "Deathgazer",
+    "Thicket Basilisk",
+    "Arrogant Bloodlord",
+    "Dread Specter",
+    "Rock Basilisk"
    ]
   },
   {
@@ -5250,6 +5211,22 @@
    ]
   },
   {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Kefnet's Monument",
+    "Lorthos, the Tidemaker",
+    "Ojutai, Soul of Winter",
+    "Skyline Cascade",
+    "Fogwalker",
+    "Sudden Storm",
+    "Mana Skimmer",
+    "Stensia Innkeeper",
+    "Samite Alchemist"
+   ]
+  },
+  {
    "what": "TransformsOrEntersTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -5468,6 +5445,22 @@
     "Mistform Seaswift",
     "Mistform Skyreaver",
     "Mistform Shrieker"
+   ]
+  },
+  {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Tolarian Entrancer",
+    "Battering Ram",
+    "Basalt Golem",
+    "Catacomb Dragon",
+    "Infernal Medusa",
+    "Order of the Mirror // Order of the Alabaster Host",
+    "Quagmire Lamprey"
    ]
   },
   {
@@ -6234,21 +6227,6 @@
     "First Volley",
     "Unleash Shell",
     "Kamahl's Sledge"
-   ]
-  },
-  {
-   "what": "blocks a kind of creature",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Snarespinner",
-    "Ezuri's Archers",
-    "Frostweb Spider",
-    "Netcaster Spider",
-    "Skystinger",
-    "High-Rise Sawjack",
-    "Woolly Spider",
-    "Crimson Roc"
    ]
   },
   {
@@ -7924,6 +7902,19 @@
     "Strength from the Fallen",
     "Goldenhide Ox"
    ]
+  },
+  {
+   "what": "TargetOpponentsChoicePermanent",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Arena",
+    "Preacher",
+    "Evangelize",
+    "Echo Chamber",
+    "Magus of the Arena",
+    "Nova Pentacle"
+   ]
   }
  ],
  "sole": [
@@ -7942,8 +7933,8 @@
   },
   {
    "what": "custom ability",
-   "score": 728,
-   "cards": 599,
+   "score": 727,
+   "cards": 598,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8136,19 +8127,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 32,
-   "cards": 32,
-   "names": [
-    "Engulfing Slagwurm",
-    "Wall of Tears",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 30,
    "cards": 30,
@@ -8279,6 +8257,19 @@
    ]
   },
   {
+   "what": "effect with no target",
+   "score": 25,
+   "cards": 25,
+   "names": [
+    "Wall of Tears",
+    "Djeru's Resolve",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice"
+   ]
+  },
+  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 24,
    "cards": 21,
@@ -8302,19 +8293,6 @@
     "Haruspex",
     "Kydele, Chosen of Kruphix",
     "Bottomless Vault"
-   ]
-  },
-  {
-   "what": "BecomesBlockedByCreatureTriggeredAbility",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Vicious Battlerager",
-    "Evil Eye of Urborg",
-    "Nessian Boar",
-    "Grasping Giant",
-    "Elven Warhounds",
-    "Gloom Sower"
    ]
   },
   {
@@ -9166,32 +9144,6 @@
    ]
   },
   {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Wall of Frost",
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Ojutai, Soul of Winter",
-    "Skyline Cascade",
-    "Fogwalker"
-   ]
-  },
-  {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Abomination",
-    "Cockatrice"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 12,
    "cards": 12,
@@ -9544,6 +9496,19 @@
     "Sourbread Auntie",
     "Warren Torchmaster",
     "Blighted Blackthorn"
+   ]
+  },
+  {
+   "what": "blocks or blocked by a kind of creature",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Mirror Shield",
+    "Gorgon Recluse",
+    "Corrosive Ooze",
+    "Giant Shark",
+    "Abomination",
+    "Cockatrice"
    ]
   },
   {
@@ -10095,6 +10060,19 @@
     "Ruthless Winnower",
     "Requiem Angel",
     "Wildborn Preserver"
+   ]
+  },
+  {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Kefnet's Monument",
+    "Lorthos, the Tidemaker",
+    "Ojutai, Soul of Winter",
+    "Skyline Cascade",
+    "Fogwalker",
+    "Sudden Storm"
    ]
   },
   {
@@ -11037,19 +11015,6 @@
    ]
   },
   {
-   "what": "blocks a kind of creature",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Snarespinner",
-    "Ezuri's Archers",
-    "Frostweb Spider",
-    "Netcaster Spider",
-    "Skystinger",
-    "High-Rise Sawjack"
-   ]
-  },
-  {
    "what": "DrewTwoOrMoreCardsCondition.instance",
    "score": 8,
    "cards": 8,
@@ -11523,6 +11488,19 @@
    ]
   },
   {
+   "what": "BecomesBlockedByCreatureTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Grasping Giant",
+    "Elven Warhounds",
+    "Tolarian Entrancer",
+    "Basalt Golem",
+    "Catacomb Dragon",
+    "Order of the Mirror // Order of the Alabaster Host"
+   ]
+  },
+  {
    "what": "BecomesTargetAttachedTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -11756,6 +11734,19 @@
     "Ancient Lumberknot",
     "The Kingpin of Crime",
     "Belligerent Brontodon"
+   ]
+  },
+  {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Summon: Ixion",
+    "Werefox Bodyguard",
+    "Trapped in the Screen",
+    "Turncoat Kunoichi",
+    "Detention Chariot",
+    "Driftgloom Coyote"
    ]
   }
  ]

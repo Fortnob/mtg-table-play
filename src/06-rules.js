@@ -6251,6 +6251,14 @@
         }
         this.combat.blockers.push(b.id);
         this._fire('blocks', b.controller, { blocker: b, source: b });
+        /* Inferno Elemental, Netcaster Spider: each blocker and attacker pair,
+           seen from either side ("that creature" is the other one) */
+        for (const aid of d.attackerIds) {
+          const at = this.obj(aid);
+          if (!at) continue;
+          this._fire('blocksCreature', b.controller, { source: b, object: at, objController: at.controller });
+          this._fire('blockedByCreature', at.controller, { source: at, object: b, objController: b.controller });
+        }
         this._fire('permBlocks', null, { object: b, objController: b.controller });
       }
       if (declarations.length) {
@@ -8968,6 +8976,8 @@
           if (e.fromTarget) { const t0 = targets.find(t => t.kind === 'object'); dsrc = (t0 && this.obj(t0.id)) || src; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // Inferno Elemental: "deals 3 damage to that creature" — the one the trigger is about
+          if (e.toTriggerObject) { const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId); if (x && x.zone === 'battlefield') this.dealDamageToObject(x, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           /* "Destroy target land. It deals 2 damage to that land's
              controller": whoever controlled what the effect before acted
              on, or the permanent the trigger is about */
