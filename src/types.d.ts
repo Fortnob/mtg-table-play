@@ -377,7 +377,7 @@ declare namespace MTG {
     | { kind: 'cycle' | 'plot' | 'suspend' | 'transmute' | 'encore' | 'turnFaceUp'; objId: Id }
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
-      offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number;
+      offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;
       /** what pays for convoke, improvise and delve (left out, the engine picks the cheapest) */
       convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
       /** a split card's half to cast: 0 left, 1 right */

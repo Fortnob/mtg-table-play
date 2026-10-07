@@ -248,7 +248,7 @@ const INTENTS = {
   playLand: closed({ objId: id, face: opt(nat) }), cycle: onObj, plot: onObj, suspend: onObj, transmute: onObj, encore: onObj, turnFaceUp: onObj,
   cast: closed({
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
-    offspring: opt(bool), squad: opt(nat), casualty: opt(bool), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
+    offspring: opt(bool), squad: opt(nat), casualty: opt(bool), returnId: opt(id), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
     convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),

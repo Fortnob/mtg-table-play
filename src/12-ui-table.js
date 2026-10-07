@@ -1846,7 +1846,11 @@
       if (o.zone === 'hand') {
         const alts = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cast');
         if (alts.length) {
-          const normal = !this.whyNot(o.id);
+          /* the ordinary cast, when it could be made right now: the engine's
+             reason covers cost, and its timing is checked here because a card
+             with another way in (sneak in combat) is not "unplayable" */
+          const sorcerySpeed = live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length;
+          const normal = !this.whyNot(o.id) && (sorcerySpeed || a.isInstant || a.has('flash'));
           /** @type {Array<[string, () => void]>} */
           const items = alts.map(u => [u.label, () => (u.via === 'morph'
             ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
@@ -1882,6 +1886,17 @@
     /** An alternative cast: a use that names a face (aftermath's other half) is cast as that face. @this {MTG.TableInstance} */
     castUse(o, a, use) {
       if (use.face != null) return this.beginCast(o, MTG.oracle.analyze(o.card, use.face) || a, use.via, use.face);
+      /* Sneak: an unblocked attacker goes back to hand. With more than one,
+         which one is yours to say. */
+      if (use.via === 'sneak') {
+        const v = this.live || this.view;
+        const free = v.battlefield.filter(x => x.controller === this.meId && x.attacking && !(x.blockedBy || []).length);
+        const go = (rid) => this.beginCast(o, a, 'sneak', undefined, rid ? { returnId: rid } : {});
+        if (free.length <= 1) return go(free[0] && free[0].id);
+        /** @type {Array<[string, () => void]>} */
+        const items = free.map(x => [`Return ${x.card.name}`, () => go(x.id)]);
+        return UI.contextMenu(null, items, { title: `Sneak ${o.card.name}: return which attacker?` });
+      }
       return this.beginCast(o, a, use.via);
     }
 

@@ -3201,6 +3201,7 @@
           spree: intent.spree || null, via: intent.via || null,
           face: intent.face === 1 ? 1 : 0,       // which half of a split card
           fuse: !!intent.fuse,                   // or both halves, fused
+          returnId: typeof intent.returnId === 'string' ? intent.returnId : undefined,   // sneak: the attacker that goes back
           // what pays instead of mana, when the player chose it: creatures to convoke, artifacts to improvise, cards to delve
           convokeIds: idList(intent.convokeIds), improviseIds: idList(intent.improviseIds), delveIds: idList(intent.delveIds),
           // generic questions answered with the extra costs (replicate, splice); the engine checks them

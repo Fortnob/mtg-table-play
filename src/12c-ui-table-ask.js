@@ -696,14 +696,14 @@
      * Each step is a panel or the targeting banner; cancelling any of them
      * leaves the card in your hand.
      */
-    beginCast(o, a, via, face) {
+    beginCast(o, a, via, face, more) {
       const live = this.live || this.view;
       const all = (live.extras || {})[o.id] || [];
       // convoke, improvise and delve are not extra costs to toggle: they are what pays, asked about last
       const PAYS = ['convoke', 'improvise', 'delve'];
       const extras = all.filter(x => !PAYS.includes(x.kind));
       const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
-      const steps = { o, a, via, face, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
+      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       // the cost being paid: one half of a split card, or the face that is up
       const faces = o.card.card_faces;
       steps.cost = (via === 'fuse' && faces && faces[1] ? (faces[0].mana_cost || '') + (faces[1].mana_cost || '')
@@ -920,6 +920,7 @@
       else if (via) extra.via = via;
       if (steps.face != null) extra.face = steps.face;
       if (steps.altPay) Object.assign(extra, steps.altPay);
+      Object.assign(extra, steps.more || {});
       // generic questions answered with the extra costs, in the shape the engine checks them in
       const answered = {};
       for (const [purpose, sel] of Object.entries(picked.choices || {})) {
