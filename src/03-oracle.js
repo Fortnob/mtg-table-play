@@ -1343,6 +1343,12 @@
       } },
     /* the d20 Dragons */
     { re: /^[Rr]oll a d(4|6|8|10|12|20)\.?$/, make: (m) => ({ op: 'rollDie', sides: +m[1] }) },
+    // coins: several at once, or until one is lost, counting the wins
+    { re: /^Flip (two|three|four|five|\d+) coins\.?$/i, make: (m) => ({ op: 'flipCoins', n: num(m[1]) }) },
+    { re: /^Flip a coin until you lose a flip\.?$/i, make: () => ({ op: 'flipCoins', untilLose: true }) },
+    // "For each flip you won, create a token that's a copy of that creature."
+    { re: /^For each flip you (?:win|won), (.+)$/i,
+      make: (m) => { const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return pe.auto && pe.effects.length ? { op: 'repeatPerFlip', effects: pe.effects } : null; } },
     { re: /^(?:You )?[Cc]reate a number of (Treasure|Food|Clue|Blood|Gold) tokens equal to the result\.?$/,
       make: (m) => ({ op: 'createNamedToken', token: m[1], n: 'lastRoll' }) },
     { re: /^Draw cards equal to the result\.?$/i, make: () => ({ op: 'draw', who: 'you', n: 'lastRoll' }) },
@@ -4574,6 +4580,10 @@
   const TRIGGER_PATTERNS = [
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // Tavern Scoundrel, Zndrsplt: winning and losing coin flips
+    { re: /^Whenever you win a coin flip,? /i, event: 'youWinFlip' },
+    { re: /^Whenever you lose a coin flip,? /i, event: 'youLoseFlip' },
+    { re: /^Whenever a player wins a coin flip,? /i, event: 'anyWinFlip' },
     // Talion: "with mana value, power, or toughness equal to the chosen number"
     { re: /^Whenever an opponent casts a spell with mana value, power, or toughness equal to the chosen number,? /i, event: 'opponentCastSpell', extra: { chosenNumberHit: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
@@ -5025,6 +5035,26 @@
     let pawBudget = 0;
     const pawModes = [];
 
+    /* A die's results ("1—9 | Draw a card." under "Roll a d20."): the rows
+       belong to the line that rolls, read once its ability is */
+    const dieTables = [];
+    for (let i = 0; i < lines.length; i++) {
+      const row = lines[i].match(/^(\d+)(?:\s*[\u2014\u2013-]\s*(\d+))?\s*\|\s*([\s\S]+)$/);
+      if (!row) continue;
+      let h = i - 1;
+      while (h >= 0 && lines[h] === null) h--;
+      if (h < 0) continue;
+      let tb = dieTables.find(x => x.at === h);
+      if (!tb) {
+        if (!/\broll(?:s)? a d\d+\b/i.test(lines[h])) continue;
+        tb = { at: h, head: lines[h], rows: [] };
+        dieTables.push(tb);
+      }
+      // "1 | Trapped! — You lose 3 life.": the row's name is flavour
+      tb.rows.push({ min: +row[1], max: row[2] ? +row[2] : +row[1], text: row[3].trim().replace(/^[A-Z][^—|.]{0,40}?\s*—\s+/, '') });
+      lines[i] = null;
+    }
+    for (let i = lines.length - 1; i >= 0; i--) if (lines[i] === null) lines.splice(i, 1);
     /* Where each line's abilities start, and how much of it was read: a
        generated script can then stand in for just the lines that were not. */
     const lineMarks = [];
@@ -5387,6 +5417,16 @@
         out.abilities.push({ kind: 'activated', cost: parseCost(craft[2]), sorcerySpeed: true, craft: spec,
           effects: [{ op: 'craft', materials: spec }], text: line, auto: !!spec });
         if (spec) autoLines++;
+        continue;
+      }
+      /* Partner with NAME (CR 702.124j): a deck rule, and as it enters you
+         may search your library for the partner, reveal it and take it */
+      const pw = line.match(/^Partner with ([^(]+?)\s*$/);
+      if (pw) {
+        out.keywords.push({ keyword: 'Partner with', arg: pw[1], text: line });
+        out.abilities.push({ kind: 'triggered', event: 'etb', self: true, optional: true, text: line,
+          effects: [{ op: 'tutor', n: 1, filter: 'named', named: pw[1].trim(), to: 'hand', reveal: true }], auto: true });
+        autoLines++;
         continue;
       }
       /* Keyword line? A keyword whose cost has a comma in it ("Escape—{2}{B},
@@ -6123,6 +6163,16 @@
       autoLines--;
     }
     // only now, with every footnote folded into its line, is the count final
+    /* the die's results put on the roll that reads them */
+    for (const tb of dieTables) {
+      const ab = out.abilities.find(x => x.text === tb.head) || out.abilities.find(x => x.text && tb.head.includes(x.text));
+      let roll = null;
+      const walk = (list) => { for (const e of list || []) { if (!e || roll) continue; if (e.op === 'rollDie') roll = e; walk(e.list); walk(e.then); } };
+      if (ab) walk(ab.effects);
+      const rows = tb.rows.map(r => { const pe = parseEffects(r.text); return { min: r.min, max: r.max, effects: pe.effects, auto: pe.auto }; });
+      if (!roll || rows.some(r => !r.auto)) { if (ab) ab.auto = false; out._keywordManual = true; continue; }
+      roll.table = rows.map(r => ({ min: r.min, max: r.max, effects: r.effects }));
+    }
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
     // a keyword the reading could do only part of (Backup granting words it can't read, "Recover—Pay half your life")

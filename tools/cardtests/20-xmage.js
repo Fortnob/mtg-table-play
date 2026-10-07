@@ -4304,4 +4304,33 @@ module.exports = (test) => {
     T.resolve();
     t.ok(T.g.hasKw(lion, 'protection from red'));
   });
+
+  test('Contact Other Plane: the d20 result picks the row', (mk, t) => {
+    t.auto('Contact Other Plane');
+    const T = mk();
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    T.g.rng.next = () => 0.5;            // a d20 comes up 11
+    const rolls = []; T.g.on('roll', (r) => rolls.push(r.result));
+    T.mana('A', '3U');
+    const h0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Contact Other Plane'));
+    T.resolve();
+    t.eq(rolls[0], 11, 'the roll is shown');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, '10—19: scry 2, then draw two');
+  });
+
+  test('Coin flips: Tavern Scoundrel profits from a won flip, Goblin Traprunner counts wins', (mk, t) => {
+    t.auto('Tavern Scoundrel'); t.auto('Goblin Traprunner');
+    const T = mk();
+    T.bf('A', 'Tavern Scoundrel');
+    const g = T.bf('A', 'Goblin Traprunner'); g.summoningSick = false;
+    let k = 0; T.g.rng.chance = () => (k++ % 3) !== 2;   // win, win, lose
+    const coins = []; T.g.on('coin', (c) => coins.push(c.result));
+    T.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'combatDamage');
+    t.eq(coins.length, 3, 'three coins shown');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Goblin').length, 2, 'two Goblins for two wins');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 4, 'two Treasures for each win');
+  });
 };

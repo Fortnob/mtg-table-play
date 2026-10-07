@@ -2904,6 +2904,15 @@
       if (mt && mt.spec.multi.perExtra && got > 1) cost += mt.spec.multi.perExtra.repeat(got - 1);
       return cost;
     }
+    /** One coin flipped by a player: the result told and shown, and the win or loss seen by triggers. */
+    _flipOne(p) {
+      const won = this.rng.chance(0.5);
+      this.logEvent('rules', `${p.name} flips a coin: ${won ? 'heads — they win the flip' : 'tails — they lose it'}.`);
+      this.emit('coin', { playerId: p.id, result: won ? 'heads' : 'tails' });
+      this._fire(won ? 'youWinFlip' : 'youLoseFlip', p.id, { playerId: p.id });
+      if (won) this._fire('anyWinFlip', null, { playerId: p.id });
+      return won;
+    }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
       const c = o && o.card;
@@ -9480,9 +9489,7 @@
         }
         /* A coin flip, with what happens either way (CR 705). */
         case 'flipCoin': {
-          const won = this.rng.chance(0.5);
-          this.logEvent('rules', `${me.name} flips a coin: ${won ? 'heads — they win the flip' : 'tails — they lose it'}.`);
-          this.emit('coin', { playerId: ctx.controller, result: won ? 'heads' : 'tails' });
+          const won = this._flipOne(me);
           ctx.wonFlip = won;
           const run = won ? (e.then || []) : (e.otherwise || []);
           if (run.length) this._spliceNext(run);
@@ -12541,6 +12548,27 @@
           const sides = n(e.sides) || 20;
           this._lastRoll = 1 + Math.floor(this.rng.next() * sides);
           this.logEvent('rules', `${me.name} rolls a d${sides}: ${this._lastRoll}.`);
+          this.emit('roll', { playerId: ctx.controller, sides, result: this._lastRoll });
+          this._fire('youRoll', ctx.controller, { amount: this._lastRoll, playerId: ctx.controller });
+          // the results printed under the roll
+          const row = (e.table || []).find(r => this._lastRoll >= r.min && this._lastRoll <= r.max);
+          if (row && (row.effects || []).length) this._spliceNext(row.effects);
+          break;
+        }
+        // "Flip three coins", "Flip a coin until you lose a flip": the wins counted
+        case 'flipCoins': {
+          let wins = 0;
+          if (e.untilLose) { for (let k = 0; k < 50 && this._flipOne(me); k++) wins++; }
+          else for (let k = 0; k < (n(e.n) || 1); k++) if (this._flipOne(me)) wins++;
+          this._flipsWon = wins;
+          break;
+        }
+        // "For each flip you won, …"
+        case 'repeatPerFlip': {
+          const k = this._flipsWon || 0;
+          const run = [];
+          for (let i = 0; i < k; i++) run.push(...(e.effects || []));
+          if (run.length) this._spliceNext(run);
           break;
         }
         /* Wishclaw Talisman: an opponent gains control of it */

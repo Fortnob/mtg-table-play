@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15713,
-  "gainedCards": 1610,
-  "linesNeeded": 17688,
+  "needed": 15667,
+  "gainedCards": 1612,
+  "linesNeeded": 17528,
   "linesGained": 2049,
   "gained": {
-   "all": 1610,
+   "all": 1612,
    "top2000": 52,
    "stdTop": 12
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 78,
+  "verifyFail": 77,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5595,
-   "lines": 4824,
+   "score": 5590,
+   "lines": 4822,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 793,
-   "lines": 793,
+   "score": 792,
+   "lines": 792,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -87,25 +87,6 @@
     "Immortal Obligation",
     "Lorehold, the Historian",
     "Secret of Bloodbending"
-   ]
-  },
-  {
-   "what": "(line not matched to XMage code)",
-   "score": 379,
-   "lines": 349,
-   "cards": [
-    "Mizzix's Mastery",
-    "Throne of Eldraine",
-    "Case of the Locked Hothouse",
-    "March of Swirling Mist",
-    "Eldritch Immunity",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Liliana, Death's Majesty",
-    "Fighter Class",
-    "Wand of Wonder",
-    "Fangs of Kalonia",
-    "Spectacular Showdown"
    ]
   },
   {
@@ -125,6 +106,25 @@
     "Chandra's Incinerator",
     "Bloodsoaked Insight // Sanguine Morass",
     "Metamorphosis Fanatic"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 295,
+   "lines": 265,
+   "cards": [
+    "Mizzix's Mastery",
+    "Throne of Eldraine",
+    "Case of the Locked Hothouse",
+    "March of Swirling Mist",
+    "Eldritch Immunity",
+    "Winds of Abandon",
+    "Alchemist's Talent",
+    "Liliana, Death's Majesty",
+    "Fighter Class",
+    "Wand of Wonder",
+    "Fangs of Kalonia",
+    "Spectacular Showdown"
    ]
   },
   {
@@ -296,25 +296,6 @@
     "Role Reversal",
     "Modify Memory",
     "Unbury"
-   ]
-  },
-  {
-   "what": "keyword PartnerWithAbility",
-   "score": 51,
-   "lines": 51,
-   "cards": [
-    "Alisaie Leveilleur",
-    "Alphinaud Leveilleur",
-    "Pippin, Warden of Isengard",
-    "Brallin, Skyshark Rider",
-    "Frodo, Adventurous Hobbit",
-    "Toothy, Imaginary Friend",
-    "Merry, Warden of Isengard",
-    "Pir, Imaginative Rascal",
-    "Chakram Retriever",
-    "Sam, Loyal Attendant",
-    "Shabraz, the Skyshark",
-    "Evie Frye"
    ]
   },
   {
@@ -3476,24 +3457,6 @@
     "Mouth of the Storm",
     "Mu Yanling, Celestial Wind",
     "Wasp, Shrinking Savior"
-   ]
-  },
-  {
-   "what": "RollDieWithResultTableEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Myrkul's Edict",
-    "Cone of Cold",
-    "Berserker's Frenzy",
-    "Thunderwave",
-    "Revivify",
-    "Diviner's Portent",
-    "Recruitment Drive",
-    "Overwhelming Encounter",
-    "Aberrant Mind Sorcerer",
-    "Power of Persuasion",
-    "Scion of Stygia"
    ]
   },
   {
@@ -7786,6 +7749,19 @@
    ]
   },
   {
+   "what": "RollDieWithResultTableEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Berserker's Frenzy",
+    "Revivify",
+    "Diviner's Portent",
+    "Aberrant Mind Sorcerer",
+    "Power of Persuasion",
+    "Scion of Stygia"
+   ]
+  },
+  {
    "what": "RevealAndSeparatePilesEffect",
    "score": 6,
    "lines": 6,
@@ -7914,13 +7890,26 @@
     "Accelerated Mutation",
     "Torrent of Fire"
    ]
+  },
+  {
+   "what": "LoseAbilityAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Spectacular Pileup",
+    "Hour of Devastation",
+    "Gravity Sphere",
+    "Mystic Decree",
+    "Blind Fury",
+    "Wind Shear"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4435,
-   "cards": 3889,
+   "score": 4443,
+   "cards": 3897,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7932,8 +7921,8 @@
   },
   {
    "what": "custom ability",
-   "score": 729,
-   "cards": 600,
+   "score": 731,
+   "cards": 602,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7970,22 +7959,9 @@
    ]
   },
   {
-   "what": "(line not matched to XMage code)",
-   "score": 191,
-   "cards": 179,
-   "names": [
-    "Mizzix's Mastery",
-    "March of Swirling Mist",
-    "Eldritch Immunity",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Liliana, Death's Majesty"
-   ]
-  },
-  {
    "what": "custom condition",
-   "score": 172,
-   "cards": 154,
+   "score": 173,
+   "cards": 155,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -7993,6 +7969,19 @@
     "Defense of the Heart",
     "Sting, the Glinting Dagger",
     "Nasty End"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 172,
+   "cards": 160,
+   "names": [
+    "Mizzix's Mastery",
+    "March of Swirling Mist",
+    "Eldritch Immunity",
+    "Winds of Abandon",
+    "Alchemist's Talent",
+    "Liliana, Death's Majesty"
    ]
   },
   {
@@ -8191,19 +8180,6 @@
    ]
   },
   {
-   "what": "keyword PartnerWithAbility",
-   "score": 27,
-   "cards": 27,
-   "names": [
-    "Alphinaud Leveilleur",
-    "Pippin, Warden of Isengard",
-    "Brallin, Skyshark Rider",
-    "Toothy, Imaginary Friend",
-    "Merry, Warden of Isengard",
-    "Chakram Retriever"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 26,
    "cards": 17,
@@ -8214,6 +8190,19 @@
     "Crypt Rats",
     "Season of the Bold",
     "Guildmages' Forum"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 26,
+   "cards": 23,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Tifa, Martial Artist"
    ]
   },
   {
@@ -8240,19 +8229,6 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
-   ]
-  },
-  {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 25,
-   "cards": 22,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Tifa, Martial Artist"
    ]
   },
   {
@@ -11718,6 +11694,19 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Zurgo Stormrender",
+    "Suki, Courageous Rescuer",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger",
+    "Extractor Demon"
    ]
   },
   {
