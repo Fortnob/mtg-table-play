@@ -2546,6 +2546,13 @@
         if (!scope || scope.self || scope.attached) return null;
         return { op: 'restrict', flag: m[2] === 'block' ? 'cantBlock' : m[2] === 'attack' ? 'cantAttack' : 'cantAttackOrBlock', scope };
       } },
+    // Keeper of Keys: "Creatures you control can't be blocked this turn."
+    { re: /^((?:All |Each )?(?:other )?(?:[a-z]+ )*?creatures(?: [a-z' ]+?)?) can'?t be blocked this turn\.?$/i,
+      make: (m) => {
+        if (/^(?:target|it|that|those|they)\b/i.test(m[1])) return null;
+        const scope = scopeOf(m[1]);
+        return scope && !scope.self && !scope.attached ? { op: 'restrict', flag: 'unblockable', scope } : null;
+      } },
     { re: /^(Target creature|It|That creature) can'?t block this turn\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'cantBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) can'?t attack or block this turn\.?$/i,
@@ -2586,6 +2593,28 @@
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to each of up to (two|three) other targets\.?$/i,
       make: (m) => ({ op: 'damageSplit', amounts: [+m[1]].concat(Array.from({ length: num(m[3]) }, () => +m[2])),
         targets: [{ type: 'any', filter: 'any target', zone: 'battlefield' }].concat(Array.from({ length: num(m[3]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true }))) }) },
+    // Arc Trail: "2 damage to any target and 1 damage to any other target" — two different targets
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to any other target\.?$/i,
+      make: (m) => ({ op: 'damageSplit', amounts: [+m[1], +m[2]],
+        targets: [{ type: 'any', filter: 'any target', zone: 'battlefield' }, { type: 'any', filter: 'any target', zone: 'battlefield', distinct: true }] }) },
+    // Lunge: "2 damage to target creature and 2 damage to target player or planeswalker"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target [a-z ]+?) and (\d+) damage to (target [a-z ]+?)\.?$/i,
+      make: (m) => { const a = tgt(m[2]), b = tgt(m[4]); return a && b ? { op: 'damageSplit', amounts: [+m[1], +m[3]], targets: [a, b] } : null; } },
+    // Chandra's Outrage: "…to target creature and 2 damage to that creature's controller"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target [a-z ]+?) and (\d+) damage to (?:that (?:creature|permanent|planeswalker|artifact)'s|its) controller\.?$/i,
+      make: (m) => { const a = tgt(m[2]); return a ? [{ op: 'damage', n: +m[1], targets: [a] }, { op: 'damage', n: +m[3], toAffectedController: true }] : null; } },
+    // Chronosavant, Unstable Hulk: "You skip your next turn."
+    { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
+      make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Chronostutter: "Put target creature into its owner's library second from the top."
+    { re: /^Put (target [a-z ]+?) into its owner'?s library second from the top\.?$/i,
+      make: (m) => { const a = tgt(m[1]); return a && !/spell/i.test(m[1]) ? { op: 'toLibrary', where: 'second', targets: [a] } : null; } },
+    // Assassin's Strike: "Destroy target creature. Its controller discards a card."
+    { re: /^Its controller discards (a|one|two|three|\d+) cards?\.?$/i,
+      make: (m) => ({ op: 'discard', n: num(m[1]), who: 'targetController' }) },
+    // Flint Golem: "defending player mills three cards"
+    { re: /^Defending player mills (a|one|two|three|four|five|\d+) cards?\.?$/i,
+      make: (m) => ({ op: 'mill', n: num(m[1]), who: 'defending' }) },
     // Hammer of Nazahn: "attach that Equipment to target creature you control"
     { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },

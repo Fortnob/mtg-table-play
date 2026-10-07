@@ -4692,4 +4692,84 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.eq(T.bfOf('A').filter(o => o.name === 'Caller of the Pack').length, 1, 'the copy is gone');
   });
+
+  test('Arc Trail: 2 to one target and 1 to another, never the same one twice', (mk, t) => {
+    t.auto('Arc Trail');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'RR1');
+    const arc = T.hand('A', 'Arc Trail');
+    t.no(T.g.castSpell('A', arc.id, { targets: [{ kind: 'player', id: 'B' }, { kind: 'player', id: 'B' }] }), 'the same target twice');
+    T.cast('A', arc, { targets: [bear, 'B'] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(T.life('B'), 19);
+  });
+
+  test("Chandra's Outrage: 4 to the creature and 2 to its controller", (mk, t) => {
+    t.auto("Chandra's Outrage");
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'RR2');
+    T.cast('A', T.hand('A', "Chandra's Outrage"), { targets: [bear] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Skipping a turn: the next turn goes to the player after', (mk, t) => {
+    t.auto('Chronosavant');
+    const T = mk();
+    T.g.player('B').skipTurns = 1;
+    const turn = T.g.turn;
+    T.nextTurn('A');
+    t.eq(T.g.activePlayer.id, 'A');
+    t.eq(T.g.turn, turn + 1, "B's turn was skipped");
+    t.eq(T.g.player('B').skipTurns, 0);
+  });
+
+  test('Chronostutter: second from the top of its owner\'s library', (mk, t) => {
+    t.auto('Chronostutter');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'U5');
+    T.cast('A', T.hand('A', 'Chronostutter'), { targets: [bear] });
+    t.eq(T.zone('B', 'library')[1], bear);
+  });
+
+  test("Assassin's Strike: the creature's controller discards", (mk, t) => {
+    t.auto("Assassin's Strike");
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.hand('B', 'Island');
+    T.mana('A', 'BB4');
+    T.cast('A', T.hand('A', "Assassin's Strike"), { targets: [bear] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(T.zone('B', 'hand').length, 0);
+  });
+
+  test('Flint Golem: blocked, the defending player mills three', (mk, t) => {
+    t.auto('Flint Golem');
+    const T = mk();
+    const fg = T.bf('A', 'Flint Golem'); fg.summoningSick = false;
+    const wall = T.bf('B', 'Wall of Stone');
+    const lib = T.zone('B', 'library').length;
+    T.answer('declareAttackers', () => [{ attackerId: fg.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [fg.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('B', 'library').length, lib - 3);
+  });
+
+  test('Keeper of Keys: reads its trigger', (mk, t) => { t.auto('Keeper of Keys'); });
+
+  test('Bereavement: the controller of the green creature that died discards', (mk, t) => {
+    t.auto('Bereavement');
+    const T = mk();
+    T.bf('A', 'Bereavement');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.hand('B', 'Island');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [elf] });
+    T.resolve();
+    t.eq(elf.zone, 'graveyard');
+    t.eq(T.zone('B', 'hand').length, 0, 'B discarded');
+  });
 };

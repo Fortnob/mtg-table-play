@@ -767,11 +767,18 @@
         const pid = this.extraTurnsQueue.shift();
         this.activeIndex = this.turnOrder.indexOf(pid);
       } else {
-        let guard = 0;
+        let guard = 0, np = null;
         do {
           this.activeIndex = (this.activeIndex + 1) % this.turnOrder.length;
           guard++;
-        } while (this.player(this.turnOrder[this.activeIndex]).hasLost && guard <= this.turnOrder.length);
+          np = this.player(this.turnOrder[this.activeIndex]);
+          // "skip your next turn"
+          if (np && !np.hasLost && np.skipTurns > 0 && guard <= this.turnOrder.length) {
+            np.skipTurns--;
+            this.logEvent('turn', `${np.name} skips a turn.`);
+            np = null;
+          }
+        } while ((!np || np.hasLost) && guard <= this.turnOrder.length * 2);
       }
       this.turn++;
       this.stormCount = 0;
@@ -4100,6 +4107,15 @@
         } else if (mm.count === 'any') {
           if (got < Math.min(mm.min || 0, legalN)) return this.fail(`Choose at least ${mm.min} target${mm.min === 1 ? '' : 's'}.`);
           if (mm.perExtra && got > 1) cost += mm.perExtra.repeat(got - 1);
+        }
+      }
+      // Arc Trail: "any other target" — not one this spell already aims at
+      if ((opts.targets || []).length > 1) {
+        const dsp = spellTargetSpecs(a) || [];
+        const tg = opts.targets;
+        for (let i = 1; i < tg.length; i++) {
+          if (!(dsp[i] && dsp[i].distinct) || !tg[i]) continue;
+          if (tg.slice(0, i).some(t => t && (t.id || t) === (tg[i].id || tg[i]))) return this.fail('That needs a different target.');
         }
       }
       /* What the generic questions bought (CR 702.56, 702.47, 702.78):
@@ -8268,6 +8284,8 @@
         /* the spell that set this off, for "copy that spell" */
         stackId: data.stackId, objectId: data.object && data.object.id,
         amount: data.amount,
+        // who controlled the permanent it is about (Bereavement: "its controller discards")
+        objController: data.objController,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -9105,6 +9123,9 @@
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
+            // "Its controller discards a card": whoever controlled what was just destroyed,
+            // or what the trigger is about (Bereavement: "whenever a green creature dies")
+            : e.who === 'targetController' ? [this._lastAffectedController() || this.player((ctx.triggerData || {}).objController) || triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           for (const p of who) {
             if (!p || p.hasLost) continue;
@@ -9174,6 +9195,8 @@
         }
         case 'damage': {
           const cnt = n(e.n);
+          // Chandra's Outrage: "…and 2 damage to that creature's controller" — noted before it dies
+          if (!e.toAffectedController && targets.some(t => t.kind === 'object')) this._noteLastAffected(targets);
           /* Warstorm Surge, Chandra's Ignition: the damage comes from the
              creature the trigger or the spell is about, not from this */
           let dsrc = src;
@@ -9761,6 +9784,8 @@
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
             // "Counter target spell. Its controller mills two cards."
             : e.who === 'targetController' ? [this._lastAffectedController()]
+            // Flint Golem: "defending player" — whoever this creature is attacking
+            : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           // "…from among the milled cards": what this mill put there
           this._lastMilled = [];
@@ -12280,6 +12305,8 @@
             const o = this.obj(t.id);
             if (!o) continue;
             this.moveObject(o, 'library', { toBottom: e.where === 'bottom' });
+            // Chronostutter: second from the top
+            if (e.where === 'second') { const lib = this.zones[o.owner].library; if (lib[0] === o && lib.length > 1) { lib[0] = lib[1]; lib[1] = o; } }
             if (e.where === 'shuffle') this.rng.shuffle(this.zones[o.owner].library);
             this.logEvent('zone', `${o.name} goes to the ${e.where === 'shuffle' ? 'library (shuffled)' : e.where} of its owner's library.`);
           }
@@ -12726,6 +12753,14 @@
           if (k) src.effects.push({ p: k, t: 0, until: 'eot' });
           this.logEvent('rules', `${src.name} enlists ${x.name} (+${k}/+0).`);
           this.bumpBoard();
+          break;
+        }
+        // "You skip your next turn."
+        case 'skipTurn': {
+          const p = e.who === 'target' ? firstPlayer() : me;
+          if (!p || p.hasLost) break;
+          p.skipTurns = (p.skipTurns || 0) + 1;
+          this.logEvent('turn', `${p.name} will skip their next turn.`);
           break;
         }
         case 'destroyAtEndOfCombat':
@@ -14688,6 +14723,14 @@
         power: this.powerOf(o), toughness: this.toughnessOf(o),
         mv: (o.card && o.card.cmc) || 0,
       };
+    }
+    /** The player a creature is attacking, or the controller of the planeswalker or battle it attacks. */
+    _defenderOf(o) {
+      if (!o || !o.attacking) return null;
+      const p = this.player(o.attacking);
+      if (p) return p;
+      const x = this.obj(o.attacking);
+      return x ? this.player(x.controller) : null;
     }
     _lastAffectedController() {
       const s = this._lastAffected;

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15502,
+  "needed": 15469,
   "gainedCards": 1598,
-  "linesNeeded": 17315,
+  "linesNeeded": 17278,
   "linesGained": 2025,
   "gained": {
    "all": 1598,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5563,
-   "lines": 4801,
+   "score": 5558,
+   "lines": 4796,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 950,
-   "lines": 803,
+   "score": 949,
+   "lines": 802,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 291,
-   "lines": 261,
+   "score": 290,
+   "lines": 260,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -223,25 +223,6 @@
    ]
   },
   {
-   "what": "Target.setTargetTag",
-   "score": 71,
-   "lines": 68,
-   "cards": [
-    "Resourceful Defense",
-    "Ulvenwald Tracker",
-    "Tidus, Yuna's Guardian",
-    "Contest of Claws",
-    "Cosmic Hunger",
-    "Incremental Blight",
-    "Fall of Gil-galad",
-    "Iroh, Tea Master",
-    "Phantom Blade",
-    "Domri Rade",
-    "Friendly Rivalry",
-    "Allies at Last"
-   ]
-  },
-  {
    "what": "GainAbilityControlledSpellsEffect",
    "score": 67,
    "lines": 43,
@@ -277,6 +258,25 @@
     "Once Upon a Time",
     "Disrupting Shoal",
     "Massacre"
+   ]
+  },
+  {
+   "what": "Target.setTargetTag",
+   "score": 66,
+   "lines": 63,
+   "cards": [
+    "Resourceful Defense",
+    "Ulvenwald Tracker",
+    "Tidus, Yuna's Guardian",
+    "Contest of Claws",
+    "Cosmic Hunger",
+    "Incremental Blight",
+    "Fall of Gil-galad",
+    "Iroh, Tea Master",
+    "Phantom Blade",
+    "Domri Rade",
+    "Friendly Rivalry",
+    "Allies at Last"
    ]
   },
   {
@@ -337,25 +337,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 42,
-   "lines": 42,
-   "cards": [
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut",
-    "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter",
-    "Needle Drop",
-    "Self-Destruct",
-    "You Look Upon the Tarrasque"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 40,
    "lines": 31,
@@ -372,6 +353,25 @@
     "Captain Mar-Vell, Space-Born",
     "Demon Wall",
     "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 39,
+   "lines": 39,
+   "cards": [
+    "Pain for All",
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter",
+    "Needle Drop",
+    "Self-Destruct",
+    "You Look Upon the Tarrasque"
    ]
   },
   {
@@ -3862,20 +3862,6 @@
    ]
   },
   {
-   "what": "keyword AftermathAbility",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Dusk // Dawn",
-    "Insult // Injury",
-    "Indulge // Excess",
-    "Rags // Riches",
-    "Failure // Comply",
-    "Prepare // Fight",
-    "Reduce // Rubble"
-   ]
-  },
-  {
    "what": "keyword CompleatedAbility",
    "score": 10,
    "lines": 7,
@@ -4499,6 +4485,19 @@
     "Teferi's Ageless Insight",
     "Alhammarret's Archive",
     "Bard, King of Dale"
+   ]
+  },
+  {
+   "what": "keyword AftermathAbility",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Dusk // Dawn",
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Prepare // Fight",
+    "Reduce // Rubble"
    ]
   },
   {
@@ -5954,21 +5953,6 @@
    ]
   },
   {
-   "what": "DamageTargetAndTargetControllerEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Chandra, Flame's Fury",
-    "Chandra's Outrage",
-    "Neonate's Rush",
-    "Assembled Alphas",
-    "Carnival // Carnage",
-    "First Volley",
-    "Unleash Shell",
-    "Kamahl's Sledge"
-   ]
-  },
-  {
    "what": "DrewTwoOrMoreCardsCondition.instance",
    "score": 8,
    "lines": 8,
@@ -6589,20 +6573,6 @@
    ]
   },
   {
-   "what": "SkipNextTurnSourceEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Eater of Days",
-    "Magosi, the Waterveil",
-    "Chronatog Totem",
-    "Chronatog",
-    "Wormfang Manta",
-    "Waterspout Elemental",
-    "Unstable Hulk"
-   ]
-  },
-  {
    "what": "CelebrationCondition.instance",
    "score": 7,
    "lines": 7,
@@ -6754,20 +6724,6 @@
     "Territorial Witchstalker",
     "Walking Wall",
     "Wall of Wonder"
-   ]
-  },
-  {
-   "what": "blocked trigger pointing at the blocker",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Slate Street Ruffian",
-    "Alley Grifters",
-    "Thresher Beast",
-    "Robber Fly",
-    "Flint Golem",
-    "Corrupt Official",
-    "Port Inspector"
    ]
   },
   {
@@ -7273,19 +7229,6 @@
    ]
   },
   {
-   "what": "PutIntoLibraryNFromTopTargetEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Teferi, Hero of Dominaria",
-    "Oust",
-    "Synchronized Eviction",
-    "Isolation at Orthanc",
-    "Bury in Books",
-    "Chronostutter"
-   ]
-  },
-  {
    "what": "keyword OfferingAbility",
    "score": 6,
    "lines": 6,
@@ -7490,19 +7433,6 @@
     "Battlefront Krushok",
     "Rocksteady, Crash Courser",
     "Yuan Shao, the Indecisive"
-   ]
-  },
-  {
-   "what": "CantBeBlockedAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Glaring Spotlight",
-    "Jace, Arcane Strategist",
-    "Keeper of Keys",
-    "Leitmotif Composer",
-    "Tezzeret's Gatebreaker",
-    "Tanglewalker"
    ]
   },
   {
@@ -7855,13 +7785,78 @@
     "Masked Bandits",
     "Spara's Adjudicators"
    ]
+  },
+  {
+   "what": "trigger with two effects in its constructor",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Quicksilver Fountain",
+    "Thrasher Brute",
+    "Charging Cinderhorn",
+    "Impatience",
+    "Keldon Twilight",
+    "Krovikan Vampire"
+   ]
+  },
+  {
+   "what": "all from one opponent",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Deadeye Tracker",
+    "Lochmere Serpent",
+    "Nullmage Advocate",
+    "Misinformation",
+    "Shieldmage Advocate",
+    "Forcemage Advocate"
+   ]
+  },
+  {
+   "what": "TeamworkCondition.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Earth's Mightiest Heroes",
+    "Team Tactics",
+    "Crossover Collaboration",
+    "Helicarrier Strike",
+    "Timeline Inquiry",
+    "Beast Mode"
+   ]
+  },
+  {
+   "what": "DamageTargetControllerEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Ravaging Blaze",
+    "Repulsor Blast",
+    "Heated Argument",
+    "Agonizing Demise",
+    "Illuminate",
+    "Word of Blasting"
+   ]
+  },
+  {
+   "what": "TargetPermanentSameController",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Trial of Agony",
+    "Incriminate",
+    "Cannibalize",
+    "Sorrow's Path",
+    "Barrin's Spite",
+    "Retribution"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4437,
-   "cards": 3891,
+   "score": 4432,
+   "cards": 3886,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7873,8 +7868,8 @@
   },
   {
    "what": "custom ability",
-   "score": 711,
-   "cards": 594,
+   "score": 710,
+   "cards": 593,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7899,8 +7894,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 222,
-   "cards": 210,
+   "score": 224,
+   "cards": 212,
    "names": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
@@ -7925,8 +7920,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 171,
-   "cards": 159,
+   "score": 170,
+   "cards": 158,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7963,19 +7958,6 @@
    ]
   },
   {
-   "what": "Target.setTargetTag",
-   "score": 57,
-   "cards": 57,
-   "names": [
-    "Ulvenwald Tracker",
-    "Contest of Claws",
-    "Cosmic Hunger",
-    "Incremental Blight",
-    "Fall of Gil-galad",
-    "Iroh, Tea Master"
-   ]
-  },
-  {
    "what": "custom target",
    "score": 53,
    "cards": 41,
@@ -7999,6 +7981,19 @@
     "Gwenom, Remorseless",
     "Kess, Dissident Mage",
     "Serra Paragon"
+   ]
+  },
+  {
+   "what": "Target.setTargetTag",
+   "score": 52,
+   "cards": 52,
+   "names": [
+    "Ulvenwald Tracker",
+    "Contest of Claws",
+    "Cosmic Hunger",
+    "Incremental Blight",
+    "Fall of Gil-galad",
+    "Iroh, Tea Master"
    ]
   },
   {
@@ -8041,19 +8036,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 34,
-   "cards": 34,
-   "names": [
-    "Pain for All",
-    "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 32,
    "cards": 26,
@@ -8064,6 +8046,19 @@
     "The Lunar Whale",
     "Kianne, Corrupted Memory",
     "Captain Mar-Vell, Space-Born"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 31,
+   "cards": 31,
+   "names": [
+    "Pain for All",
+    "Take the Bait",
+    "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Ragost, Deft Gastronaut"
    ]
   },
   {
@@ -10800,19 +10795,6 @@
    ]
   },
   {
-   "what": "DamageTargetAndTargetControllerEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Chandra, Flame's Fury",
-    "Chandra's Outrage",
-    "Neonate's Rush",
-    "Assembled Alphas",
-    "Carnival // Carnage",
-    "First Volley"
-   ]
-  },
-  {
    "what": "ConditionalContinuousEffect without a condition",
    "score": 8,
    "cards": 8,
@@ -11425,19 +11407,6 @@
    ]
   },
   {
-   "what": "blocked trigger pointing at the blocker",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Slate Street Ruffian",
-    "Alley Grifters",
-    "Thresher Beast",
-    "Robber Fly",
-    "Flint Golem",
-    "Corrupt Official"
-   ]
-  },
-  {
    "what": "GainRetraceYourGraveyardEffect",
    "score": 6,
    "cards": 3,
@@ -11687,6 +11656,32 @@
     "Frontline Heroism",
     "Muck Drubb",
     "Loki, God of Lies"
+   ]
+  },
+  {
+   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Gisa and Geralf",
+    "Danitha, New Benalia's Light",
+    "Raul, Trouble Shooter",
+    "Banon, the Returners' Leader",
+    "Karador, Ghost Chieftain",
+    "Arcade Gannon"
+   ]
+  },
+  {
+   "what": "OutlawPredicate.instance",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Shoot the Sheriff",
+    "Vial Smasher, Gleeful Grenadier",
+    "Dead Before Sunrise",
+    "Charred Graverobber",
+    "Take the Fall",
+    "Mine Raider"
    ]
   }
  ]
