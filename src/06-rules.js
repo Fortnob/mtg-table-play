@@ -16427,6 +16427,14 @@
         if (w === 'monocolored') return colors.length === 1;
         if (w === 'permanent') return !!a.isPermanent;
         if (w === 'token' || w === 'tokens') return !!o.isToken;
+        // Wing Shards: "an attacking creature"; Stoneshaker Shaman: "an untapped land"
+        if (w === 'attacking') return !!o.attacking;
+        if (w === 'blocking') return !!(o.blocking || []).length;
+        if (w === 'tapped') return !!o.tapped;
+        if (w === 'untapped') return !o.tapped;
+        // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it
+        if (w === 'modified') return Object.values(o.counters || {}).some(v => Number(v) > 0) ||
+          (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura); });
         if (w === 'spell' || w === 'spells') return true;
         const bare = w.replace(/s$/, '');
         return types.includes(w) || types.includes(bare) || new RegExp('\\b' + bare + 's?\\b').test(line);

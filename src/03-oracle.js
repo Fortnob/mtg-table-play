@@ -1860,6 +1860,22 @@
       make: (m) => ({ op: 'modal', count: 1, repeatable: false, modes: [
         { label: m[2] + '/' + m[3], auto: true, effects: [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', scope: 'attached' }] },
         { label: m[4] + '/' + m[5], auto: true, effects: [{ op: 'pump', p: pmNum(m[4]), t: pmNum(m[5]), duration: 'eot', scope: 'attached' }] }] }) },
+    // Pull from the Deep, Retrieve: "Return up to one target instant card and up to one target sorcery card from your graveyard to your hand."
+    { re: /^Return up to one target ([a-z ]+?) card and up to one target ([a-z ]+?) card from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: [m[1], m[2]].map(w => {
+        // an instant or sorcery card is a card in the graveyard, not a permanent
+        const t = Object.assign(targetSpec('target ' + w), { zone: 'graveyard', controller: 'you', upTo: true });
+        if (t.spellish) { t.type = 'card'; delete t.unknown; delete t.spellish; }
+        return t;
+      }) }) },
+    // Restock: "Return two target cards from your graveyard to your hand."
+    { re: /^Return (two|three) target cards from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: Array.from({ length: num(m[1]) }, () => ({ type: 'card', filter: 'card', zone: 'graveyard', controller: 'you', distinct: true })) }) },
+    // Death's Duet, Infernal Rebirth: "Return two (one or two) target creature cards from your graveyard to your hand."
+    { re: /^Return (two|three|one or two) target ([a-z ]+?) cards from your graveyard to your hand\.?$/i,
+      make: (m) => { const k = /one or two/i.test(m[1]) ? 2 : num(m[1]);
+        const one = (i) => Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', distinct: true }, /one or two/i.test(m[1]) && i ? { upTo: true } : {});
+        return { op: 'regrowth', targets: Array.from({ length: k }, (x, i) => one(i)) }; } },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -2216,8 +2232,13 @@
 
     /* ===== counters on a whole category ===== */
     { re: /^Put (a|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each ([-a-z' ]+?) you control\.?$/i,
-      make: (m) => (/\bother\b|\bwith/i.test(m[3]) ? null
+      make: (m) => (/\bother\b|\bwith|\btarget\b|^of /i.test(m[3]) ? null
         : { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: 'yourMatching', filter: m[3].trim() }) },
+    // Earth Kingdom Soldier: "put a +1/+1 counter on each of up to two target creatures you control"
+    { re: /^Put (a|one|two) ([+\-]\d\/[+\-]\d) counters? on each of (up to )?(two|three) target ([a-zA-Z ]+?)( you control)?\.?$/i,
+      make: (m) => { const noun = /folk$/i.test(m[5]) ? m[5] : m[5].replace(/s$/, '');
+        const one = () => Object.assign(targetSpec('target ' + noun + (m[6] || '')), m[3] ? { upTo: true } : {}, { distinct: true });
+        return { op: 'counters', kind: m[2], n: num(m[1]), targets: Array.from({ length: num(m[4]) }, one) }; } },
     /* "a -1/-1 counter on each creature your opponents control", "on each
        other creature": any group the table can name */
     { re: /^Put (a|an|one|two|three|\d+|X) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on (each [-a-zA-Z' ]+?)\.?$/i,
@@ -3696,7 +3717,7 @@
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
-      make: (m) => ({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
+      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : { op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield' }) },
     /* "Until end of turn, creatures you control gain trample" is the same
        sentence with its time at the front. */
@@ -4570,7 +4591,7 @@
     { re: /^discard (a|one|two|three|\d+) ([a-z ]*?)cards?$/i,
       make: (m) => ({ discard: num(m[1]), filter: (m[2] || '').trim() || 'card' }) },
     { re: /^sacrifice (a|an|one|two|three|\d+) ([-a-z ]+?)$/i,
-      make: (m) => ({ sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
+      make: (m) => (/ or (?:discard|pay|exile)\b/i.test(m[2]) ? null : { sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
     { re: /^forage$/i, make: () => ({ forage: true }) },
@@ -4926,7 +4947,8 @@
       /* "You may sacrifice another creature. If you do, you gain X life and
          draw X cards, where X is that creature's power." The sacrifice is
          asked for as the ability resolves, and X is read off what went. */
-      const sacMay = may && ifDo && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
+      // (not "sacrifice an artifact or discard a card": two prices, not one)
+      const sacMay = may && ifDo && !/ or (?:discard|pay|exile)\b/i.test(may[1]) && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
       if (sacMay) {
         let tt = U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1);
         let xv = null;

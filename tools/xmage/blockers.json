@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14319,
-  "gainedCards": 1509,
-  "linesNeeded": 15835,
-  "linesGained": 1877,
+  "needed": 14326,
+  "gainedCards": 1510,
+  "linesNeeded": 15847,
+  "linesGained": 1879,
   "gained": {
-   "all": 1509,
+   "all": 1510,
    "top2000": 52,
    "stdTop": 12
   },
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 234,
-   "lines": 201,
+   "score": 235,
+   "lines": 202,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -2635,6 +2635,25 @@
    ]
   },
   {
+   "what": "OrCost",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Highway Robbery",
+    "Chandra, Spark Hunter",
+    "Vision of Love",
+    "Reckless Detective",
+    "Nimble Hobbit",
+    "Thrull Wizard",
+    "Bullseye, Death Dealer",
+    "Tidal Control",
+    "K'un-Lun Warrior",
+    "Crypt Lurker",
+    "Anthropede",
+    "Contract Hero"
+   ]
+  },
+  {
    "what": "CompositeCost",
    "score": 12,
    "lines": 12,
@@ -3669,6 +3688,22 @@
    ]
   },
   {
+   "what": "filter:historic",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Abstergo Entertainment",
+    "Samwise Gamgee",
+    "Elena, Turk Recruit",
+    "What Must Be Done",
+    "Lost to Legend",
+    "Tegan Jovanka",
+    "Guardians of Koilos",
+    "Sentinel of the Pearl Trident",
+    "Rona, Disciple of Gix"
+   ]
+  },
+  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 9,
    "lines": 9,
@@ -4084,6 +4119,22 @@
    ]
   },
   {
+   "what": "filter:snow",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Rime Tender",
+    "Sculptor of Winter",
+    "Jorn, God of Winter // Kaldring, the Rimestaff",
+    "Avalanche Caller",
+    "The Three Seasons",
+    "Balduvian Frostwaker",
+    "Arcum's Weathervane",
+    "Balduvian Conjurer",
+    "Ohran Yeti"
+   ]
+  },
+  {
    "what": "SetBasePowerToughnessSourceEffect with a duration",
    "score": 9,
    "lines": 9,
@@ -4317,21 +4368,6 @@
     "Emerald Dragon // Dissonant Wave",
     "Echo, Perceptive Prodigy",
     "Tawnos, Urza's Apprentice"
-   ]
-  },
-  {
-   "what": "filter:historic",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Samwise Gamgee",
-    "Elena, Turk Recruit",
-    "What Must Be Done",
-    "Lost to Legend",
-    "Tegan Jovanka",
-    "Guardians of Koilos",
-    "Sentinel of the Pearl Trident",
-    "Rona, Disciple of Gix"
    ]
   },
   {
@@ -4777,21 +4813,6 @@
     "Knight of Malice",
     "Suq'Ata Firewalker",
     "Bull Elephant"
-   ]
-  },
-  {
-   "what": "filter:snow",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Rime Tender",
-    "Sculptor of Winter",
-    "Jorn, God of Winter // Kaldring, the Rimestaff",
-    "Avalanche Caller",
-    "Balduvian Frostwaker",
-    "Arcum's Weathervane",
-    "Balduvian Conjurer",
-    "Ohran Yeti"
    ]
   },
   {
@@ -6054,19 +6075,6 @@
     "Patron of the Nezumi",
     "Patron of the Kitsune",
     "Patron of the Akki"
-   ]
-  },
-  {
-   "what": "OrCost",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Highway Robbery",
-    "Reckless Detective",
-    "Nimble Hobbit",
-    "Thrull Wizard",
-    "Tidal Control",
-    "Anthropede"
    ]
   },
   {
@@ -7497,8 +7505,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4200,
-   "cards": 3720,
+   "score": 4199,
+   "cards": 3719,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8690,6 +8698,19 @@
    ]
   },
   {
+   "what": "OrCost",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Highway Robbery",
+    "Vision of Love",
+    "Reckless Detective",
+    "Nimble Hobbit",
+    "Thrull Wizard",
+    "Bullseye, Death Dealer"
+   ]
+  },
+  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 11,
    "cards": 11,
@@ -9475,6 +9496,19 @@
    ]
   },
   {
+   "what": "filter:historic",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Abstergo Entertainment",
+    "Samwise Gamgee",
+    "Elena, Turk Recruit",
+    "What Must Be Done",
+    "Lost to Legend",
+    "Tegan Jovanka"
+   ]
+  },
+  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 8,
    "cards": 8,
@@ -9917,19 +9951,6 @@
     "Necrogen Rotpriest",
     "Flensing Raptor",
     "Slaughter Singer"
-   ]
-  },
-  {
-   "what": "filter:historic",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Samwise Gamgee",
-    "Elena, Turk Recruit",
-    "What Must Be Done",
-    "Lost to Legend",
-    "Tegan Jovanka",
-    "Guardians of Koilos"
    ]
   },
   {
@@ -10683,19 +10704,6 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
-   ]
-  },
-  {
-   "what": "OrCost",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Highway Robbery",
-    "Reckless Detective",
-    "Nimble Hobbit",
-    "Thrull Wizard",
-    "Tidal Control",
-    "Anthropede"
    ]
   },
   {

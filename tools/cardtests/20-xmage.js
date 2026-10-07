@@ -7062,4 +7062,37 @@ module.exports = (test) => {
     T.g.changeLife(T.player('A'), 2); T.g.bumpBoard();
     t.ok(T.g.hasKw(bear, 'trample')); t.eq(T.g.powerOf(bear), 3);
   });
+
+  test("Death's Duet: two target creature cards back to hand", (mk, t) => {
+    t.auto("Death's Duet");
+    const T = mk();
+    const a = T.grave('A', 'Grizzly Bears'), b = T.grave('A', 'Hill Giant');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', "Death's Duet"), { targets: [a.id, b.id] });
+    t.eq(a.zone, 'hand'); t.eq(b.zone, 'hand');
+  });
+
+  test('Wing Shards: the sacrifice is of an attacking creature', (mk, t) => {
+    t.auto('Wing Shards');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    T.mana('A', 'WW1');
+    T.g.passPriority('B', true);
+    T.cast('A', T.hand('A', 'Wing Shards'), { targets: ['B'] });
+    t.eq(giant.zone, 'graveyard', 'the attacker'); t.eq(bear.zone, 'battlefield');
+  });
+
+  test('Pull from the Deep: an instant and a sorcery back, nothing else', (mk, t) => {
+    t.auto('Pull from the Deep');
+    const T = mk();
+    const bolt = T.grave('A', 'Lightning Bolt'), duress = T.grave('A', 'Duress'), bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'UU2');
+    const pd = T.hand('A', 'Pull from the Deep');
+    t.no(T.g.castSpell('A', pd.id, { targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: duress.id }] }), 'not a creature card');
+    T.cast('A', pd, { targets: [bolt.id, duress.id] });
+    t.eq(bolt.zone, 'hand'); t.eq(duress.zone, 'hand'); t.eq(pd.zone, 'exile');
+  });
 };
