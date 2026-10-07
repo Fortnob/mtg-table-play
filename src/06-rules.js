@@ -1650,6 +1650,12 @@
           o.effects.push({ keywords: ['Haste'], until: null });
           o.blitzedTurn = this.turn;
           this.logEvent('rules', `${item.name} blitzes in.`);
+        } else if (item.via === 'sneak') {
+          // "It enters tapped and attacking."
+          if (o.zone === 'battlefield') {
+            o.tapped = true;
+            if (this.phase && this.phase.id === 'combat' && o._sneakDefender) { o.attacking = o._sneakDefender; this.combat.attackers.push(o.id); }
+          }
         } else if (item.via === 'escape') {
           // "This creature escapes with two +1/+1 counters on it."
           const ec = this._staticOp(o, 'escapesWith');
@@ -2414,6 +2420,14 @@
       if (!o) return { ok: false, reason: 'No such card.' };
       if (this._splitSecond()) return { ok: false, reason: 'A spell with split second is on the stack.' };
       if (typeof opts === 'string' && /^ability:\d+$/.test(opts)) return this._graveAbilityCheck(playerId, o, +opts.slice(8));
+      /* Sneak (TMNT): cast during the declare blockers step, returning an
+         unblocked attacker you control to hand */
+      if (opts === 'sneak') {
+        if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return { ok: false, reason: 'You do not have priority.' };
+        if (this.step !== 'declareBlockers' || !this._unblockedAttackers(playerId).length) return { ok: false, reason: 'Sneak needs an unblocked attacker of yours, in the declare blockers step.' };
+        const use = this.altUsesFor(playerId, objId).find(u => u.via === 'sneak');
+        return use ? { ok: true, cost: use.cost } : { ok: false, reason: 'No sneak.' };
+      }
       if (opts === 'ninjutsu') {
         if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return { ok: false, reason: 'You do not have priority.' };
         if (!this._unblockedAttackers(playerId).length) return { ok: false, reason: 'Ninjutsu needs an unblocked attacker of yours.' };
@@ -2773,6 +2787,9 @@
       }
       if (o.zone === 'hand' && k === 'prototype' && a.prototype) {
         out.push({ kind: 'cast', via: 'prototype', cost: a.prototype.cost, label: 'Prototype ' + a.prototype.cost + ' (' + a.prototype.power + '/' + a.prototype.toughness + ')' });
+      }
+      if (o.zone === 'hand' && arg && k === 'sneak' && this.step === 'declareBlockers' && this._unblockedAttackers(playerId).length) {
+        out.push({ kind: 'cast', via: 'sneak', cost: arg, label: 'Sneak ' + arg });
       }
       if (o.zone === 'hand' && arg && k === 'ninjutsu') {
         out.push({ kind: 'cast', via: 'ninjutsu', cost: arg, label: 'Ninjutsu ' + arg });
@@ -3678,6 +3695,19 @@
         for (const x of held) x.tapped = false;
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
         if (reduces) this._payReduction(playerId, o, plan);
+      }
+      /* Sneak: the unblocked attacker goes back to hand as the spell is cast;
+         what it was attacking, the sneaked creature attacks */
+      if (via && via.via === 'sneak') {
+        const list = this._unblockedAttackers(playerId);
+        const back = (opts.returnId && list.find(x => x.id === opts.returnId)) || this._cheapestFirst(list)[0];
+        if (back) {
+          o._sneakDefender = back.attacking;
+          this.moveObject(back, 'hand');
+          this.combat.attackers = this.combat.attackers.filter(id => id !== back.id);
+          this.logEvent('rules', `${p.name} returns ${back.name} to sneak in ${o.name}.`);
+        }
+        o.sneaked = this.turn;
       }
       const payFlags = this._payFlags || {};
       this._payFlags = {};
@@ -6476,6 +6506,8 @@
         }
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
         case 'xAtLeast': return ((ctx && ctx.x) || (src && src.chosenX) || 0) >= (cond.n || 0);
+        // Sneak: "if this creature's sneak cost was paid" — this turn, as it came in
+        case 'sneaked': return !!src && src.sneaked === this.turn;
         // Court of Grace: "if you're the monarch"
         case 'monarch': return !!me && !!me.monarch;
         // Righteous Valkyrie: "at least 7 life more than your starting life total"

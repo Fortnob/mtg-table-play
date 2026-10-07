@@ -98,6 +98,8 @@
     'Blitz',
     // played from the graveyard for the printed cost, plus a card
     'Retrace',
+    // cast during the declare blockers step, an unblocked attacker returned to hand
+    'Sneak',
     // set aside now, cast later
     'Plot', 'Suspend', 'Warp',
     // thrown away to go and find something that costs the same
@@ -137,7 +139,7 @@
     'Cycling', 'Transmute', 'Morph', 'Megamorph', 'Disguise', 'Prototype', 'Impending',
     'Offering', 'Splice', 'Spree', 'Gift', 'Plot', 'Freerunning', 'Warp',
     'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu',
-    'Replicate', 'Conspire', 'Assist']);
+    'Replicate', 'Conspire', 'Assist', 'Sneak']);
 
   /* Keyword names are title-cased before they are looked up, which turns
      "Split second" into "Split Second". Compare in lower case so a keyword
@@ -151,7 +153,7 @@
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway)\s+\d+$/i,
     // parameterised keywords with a cost
-    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize)(?:\s+|\s*\u2014\s*)\S.*$/i,
+    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
   ];
 
   function splitKeywordLine(line) {
@@ -4076,6 +4078,8 @@
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
     [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
     [/^you'?re the monarch$/i, () => ({ kind: 'monarch' })],
+    // Sneak: "if this creature's sneak cost was paid"
+    [/^(?:this creature|this spell|CARDNAME)'?s sneak cost was paid$/i, () => ({ kind: 'sneaked' })],
     // Triskaidekaphile: "if you have exactly thirteen cards in your hand"
     [/^you have exactly (\w+) cards in your hand$/i, (m) => (typeof num(m[1]) === 'number'
       ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
@@ -6091,6 +6095,22 @@
           if (!kws.length || !kws.every(k => kwKnown(k))) return null;
           list.push({ op: 'continuous', layer: 6, scope: Object.assign({}, scope), grant: kws });
         }
+        if (m[2]) list.push({ op: 'continuous', layer: 7, scope: Object.assign({}, scope), pt: { p: pmNum(m[2]), t: pmNum(m[3]) } });
+        return { op: 'sequence', list };
+      } },
+    /* Diviner's Wand, Ichormoon Gauntlet: 'has "…" and "…"' — two abilities handed out */
+    { re: /^(.+?) (?:gets? ([+-]\d+)\/([+-]\d+) and )?(?:has|have) "([^"]+)" and "([^"]+)"\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        const one = (t) => {
+          if (grantableText(t)) return { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: t };
+          const qk = matchKeyword(t.replace(/\.$/, ''));
+          return qk && kwKnown(qk.text) ? { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grant: [qk.text] } : null;
+        };
+        const a = one(m[4]), b = one(m[5]);
+        if (!a || !b) return null;
+        const list = [a, b];
         if (m[2]) list.push({ op: 'continuous', layer: 7, scope: Object.assign({}, scope), pt: { p: pmNum(m[2]), t: pmNum(m[3]) } });
         return { op: 'sequence', list };
       } },

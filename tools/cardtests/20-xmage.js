@@ -3058,6 +3058,25 @@ module.exports = (test) => {
     t.eq(g.counters['+1/+1'], 1, 'not for a 2/2');
   });
 
+  test('Sneak: an unblocked attacker goes home and Foot Ninjas comes in attacking', (mk, t) => {
+    t.auto('Foot Ninjas');
+    const T = mk();
+    const b = T.bf('A', 'Grizzly Bears'); b.summoningSick = false;
+    const f = T.hand('A', 'Foot Ninjas');
+    t.no(T.g.altUsesFor('A', f.id).some(u => u.via === 'sneak'), 'not outside combat');
+    T.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.ok(T.g.altUsesFor('A', f.id).some(u => u.via === 'sneak'), 'offered in the declare blockers step');
+    T.mana('A', '3W');
+    t.ok(T.g.castSpell('A', f.id, { auto: true, via: 'sneak', returnId: b.id }), T.g.lastError);
+    T.resolve();
+    t.zone(b, 'hand');
+    t.ok(f.tapped && f.attacking === 'B', 'tapped and attacking');
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 15);
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

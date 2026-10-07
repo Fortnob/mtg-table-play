@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16594,
-  "gainedCards": 1765,
-  "linesNeeded": 18849,
-  "linesGained": 2271,
+  "needed": 16577,
+  "gainedCards": 1764,
+  "linesNeeded": 18820,
+  "linesGained": 2270,
   "gained": {
-   "all": 1765,
+   "all": 1764,
    "top2000": 52,
    "stdTop": 12
   },
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 436,
-   "lines": 406,
+   "score": 435,
+   "lines": 405,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -834,25 +834,6 @@
     "Sand Silos",
     "Saprazzan Cove",
     "Hollow Trees"
-   ]
-  },
-  {
-   "what": "keyword SneakAbility",
-   "score": 26,
-   "lines": 26,
-   "cards": [
-    "Splinter's Technique",
-    "Raphael, the Nightwatcher",
-    "Shredder's Technique",
-    "Shark Shredder, Killer Clone",
-    "Kitsune's Technique",
-    "Leonardo, Cutting Edge",
-    "Donatello, Gadget Master",
-    "Splinter, Hamato Yoshi",
-    "New Generation's Technique",
-    "Karai, Future of the Foot",
-    "Michelangelo, Improviser",
-    "Raphael's Technique"
    ]
   },
   {
@@ -4993,23 +4974,6 @@
    ]
   },
   {
-   "what": "UntapSourceEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Thornbite Staff",
-    "Hydro-Man, Fluid Felon",
-    "Kitsune Ace",
-    "Foreboding Statue // Forsaken Thresher",
-    "Forsaken City",
-    "Gustcloak Harrier",
-    "Gustcloak Cavalier",
-    "Gustcloak Skirmisher",
-    "Gustcloak Runner",
-    "Gustcloak Sentinel"
-   ]
-  },
-  {
    "what": "ConditionalAnyColorManaAbility shape",
    "score": 10,
    "lines": 10,
@@ -6068,6 +6032,22 @@
     "Vampire's Zeal",
     "Invert the Skies",
     "Strength of Night"
+   ]
+  },
+  {
+   "what": "UntapSourceEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Hydro-Man, Fluid Felon",
+    "Kitsune Ace",
+    "Foreboding Statue // Forsaken Thresher",
+    "Forsaken City",
+    "Gustcloak Harrier",
+    "Gustcloak Cavalier",
+    "Gustcloak Skirmisher",
+    "Gustcloak Runner",
+    "Gustcloak Sentinel"
    ]
   },
   {
@@ -8108,13 +8088,23 @@
     "Grim Reaper's Sprint",
     "Raiyuu, Storm's Edge"
    ]
+  },
+  {
+   "what": "AttackedThisTurnPredicate.instance",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Overpowering Attack",
+    "Warrior's Resolve",
+    "Hexhaven Dueling Arena"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4472,
-   "cards": 3908,
+   "score": 4476,
+   "cards": 3912,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8139,8 +8129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 264,
-   "cards": 225,
+   "score": 265,
+   "cards": 226,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8152,8 +8142,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 222,
-   "cards": 213,
+   "score": 221,
+   "cards": 212,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -8243,8 +8233,8 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 51,
-   "cards": 39,
+   "score": 52,
+   "cards": 40,
    "names": [
     "Muldrotha, the Gravetide",
     "One with the Multiverse",
@@ -8645,6 +8635,19 @@
    ]
   },
   {
+   "what": "target count 1-2",
+   "score": 20,
+   "cards": 20,
+   "names": [
+    "Archenemy's Charm",
+    "Amazing Acrobatics",
+    "Prismari Charm",
+    "Get Out",
+    "Succumb to the Cold",
+    "Leonardo's Technique"
+   ]
+  },
+  {
    "what": "becomes a creature for custom",
    "score": 19,
    "cards": 16,
@@ -8668,19 +8671,6 @@
     "Captain Howler, Sea Scourge",
     "Marauding Mako",
     "Scrounging Skyray"
-   ]
-  },
-  {
-   "what": "target count 1-2",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Archenemy's Charm",
-    "Amazing Acrobatics",
-    "Prismari Charm",
-    "Get Out",
-    "Succumb to the Cold",
-    "Run for Your Life"
    ]
   },
   {
@@ -9067,6 +9057,19 @@
    ]
   },
   {
+   "what": "CompoundCondition",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Flow State",
+    "Tomb Tyrant",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity"
+   ]
+  },
+  {
    "what": "two types at once",
    "score": 14,
    "cards": 14,
@@ -9077,19 +9080,6 @@
     "Grand Architect",
     "Cryptek",
     "Pia Nalaar"
-   ]
-  },
-  {
-   "what": "keyword SneakAbility",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Splinter's Technique",
-    "Raphael, the Nightwatcher",
-    "Leonardo, Cutting Edge",
-    "Donatello, Gadget Master",
-    "Splinter, Hamato Yoshi",
-    "New Generation's Technique"
    ]
   },
   {
@@ -9273,19 +9263,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Flow State",
-    "Tomb Tyrant",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Defenders of Humanity",
-    "Lake-town Toymaker"
-   ]
-  },
-  {
    "what": "Zone.GRAVEYARD",
    "score": 13,
    "cards": 13,
@@ -9449,6 +9426,19 @@
     "Gluttonous Slime",
     "Preyseizer Dragon",
     "Feaster of Fools"
+   ]
+  },
+  {
+   "what": "MillHalfLibraryTargetEffect",
+   "score": 12,
+   "cards": 6,
+   "names": [
+    "Jidoor, Aristocratic Capital // Overture",
+    "Traumatize",
+    "Cut Your Losses",
+    "Terisian Mindbreaker",
+    "Fleet Swallower",
+    "Kitsune's Technique"
    ]
   },
   {
@@ -9717,18 +9707,6 @@
     "Luminarch Ascension",
     "Goblin Spymaster",
     "Predatory Advantage"
-   ]
-  },
-  {
-   "what": "MillHalfLibraryTargetEffect",
-   "score": 11,
-   "cards": 5,
-   "names": [
-    "Jidoor, Aristocratic Capital // Overture",
-    "Traumatize",
-    "Cut Your Losses",
-    "Terisian Mindbreaker",
-    "Fleet Swallower"
    ]
   },
   {
@@ -11227,19 +11205,6 @@
    ]
   },
   {
-   "what": "UntapSourceEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Thornbite Staff",
-    "Kitsune Ace",
-    "Forsaken City",
-    "Gustcloak Harrier",
-    "Gustcloak Cavalier",
-    "Gustcloak Skirmisher"
-   ]
-  },
-  {
    "what": "RemoveCounterCost",
    "score": 8,
    "cards": 8,
@@ -11951,6 +11916,32 @@
     "Rubblebelt Raiders",
     "Strength in Numbers",
     "Tears of Rage"
+   ]
+  },
+  {
+   "what": "ShrinesYouControlCount.WHERE_X",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Sanctum of Stone Fangs",
+    "Honden of Infinite Rage",
+    "Sanctum of Calm Waters",
+    "Go-Shintai of Ancient Wars",
+    "Go-Shintai of Lost Wisdom",
+    "Southern Air Temple"
+   ]
+  },
+  {
+   "what": "LookLibraryAndPickControllerEffect shape",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Genesis Ultimatum",
+    "Ajani, Outland Chaperone",
+    "Torsten, Founder of Benalia",
+    "Glacial Revelation",
+    "Lead the Stampede",
+    "Forging the Anchor"
    ]
   }
  ]
