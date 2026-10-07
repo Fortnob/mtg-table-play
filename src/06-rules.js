@@ -2128,21 +2128,7 @@
      * resolved by hand — on every kicker, flashback and buyback spell in
      * the game.
      */
-    _cardSpellEffects(a) {
-      const lines = [];
-      let allAuto = true;
-      for (const ab of ((a && a.abilities) || [])) {
-        if (ab.kind !== 'spell') continue;
-        lines.push(...(ab.effects || []));
-        if (!ab.auto) allAuto = false;
-      }
-      if (lines.length && allAuto) return lines;
-      // a spell that is nothing but keywords (Into the Time Vortex) does them as it is cast
-      if (!lines.length && a && a.autoCoverage >= 0.999) return [];
-      const parsed = O.parseEffects((a && (a.oracleTextParsed || a.oracleText)) || '');
-      if (parsed.auto || !lines.length) return parsed.effects;
-      return lines;
-    }
+    _cardSpellEffects(a) { return cardSpellEffects(a); }
 
     _resolveAbility(item) {
       this.logEvent('resolve', `${item.name} resolves.`);
@@ -2352,25 +2338,9 @@
 
     /** The target specs of a spell or ability, in the order its targets were chosen. */
     _specsOf(item, n) {
-      const specs = [];
-      const walk = (list) => {
-        for (const e of (list || [])) {
-          if (!e) continue;
-          if (e.op === 'sequence') { walk(e.list); continue; }
-          for (const sp of (e.targets || [])) specs.push(sp);
-        }
-      };
-      walk(item && item.effects);
-      return this._fitSpecs(specs, n == null ? (item && item.targets ? item.targets.length : null) : n);
+      return fitSpecs(effectSpecs(item && item.effects), n == null ? (item && item.targets ? item.targets.length : null) : n);
     }
-    /* "X target creatures": one spec standing for however many targets
-       were chosen for it — repeated to fill the targets beyond the fixed ones */
-    _fitSpecs(specs, n) {
-      const i = specs.findIndex(sp => sp && sp.multi);
-      if (i < 0 || n == null) return specs;
-      const k = Math.max(0, n - (specs.length - 1));
-      return specs.slice(0, i).concat(Array.from({ length: k }, () => specs[i]), specs.slice(i + 1));
-    }
+    _fitSpecs(specs, n) { return fitSpecs(specs, n); }
     /** The variable-count target of a spell, if it has one: the spec, and how many fixed targets come before it. */
     _multiOf(a) {
       if (!a) return null;
@@ -15315,13 +15285,53 @@
     }
   }
 
+  /** The effects a spell card does as it resolves: its spell lines, or its whole text read again when they fall short. */
+  function cardSpellEffects(a) {
+    const lines = [];
+    let allAuto = true;
+    for (const ab of ((a && a.abilities) || [])) {
+      if (ab.kind !== 'spell') continue;
+      lines.push(...(ab.effects || []));
+      if (!ab.auto) allAuto = false;
+    }
+    if (lines.length && allAuto) return lines;
+    // a spell that is nothing but keywords (Into the Time Vortex) does them as it is cast
+    if (!lines.length && a && a.autoCoverage >= 0.999) return [];
+    const parsed = O.parseEffects((a && (a.oracleTextParsed || a.oracleText)) || '');
+    if (parsed.auto || !lines.length) return parsed.effects;
+    return lines;
+  }
+  /** The target specs a list of effects asks for, in order (into sequences, not into modes). */
+  function effectSpecs(effects) {
+    const specs = [];
+    const walk = (list) => {
+      for (const e of (list || [])) {
+        if (!e) continue;
+        if (e.op === 'sequence') { walk(e.list); continue; }
+        for (const sp of (e.targets || [])) specs.push(sp);
+      }
+    };
+    walk(effects);
+    return specs;
+  }
+  /* "X target creatures": one spec standing for however many targets were
+     chosen for it — repeated to fill the targets beyond the fixed ones */
+  function fitSpecs(specs, n) {
+    const i = specs.findIndex(sp => sp && sp.multi);
+    if (i < 0 || n == null) return specs;
+    const k = Math.max(0, n - (specs.length - 1));
+    return specs.slice(0, i).concat(Array.from({ length: k }, () => specs[i]), specs.slice(i + 1));
+  }
+  /** What a spell card asks to target as it is cast: the one list the engine and the table both read. */
+  function spellTargetSpecs(a) { return effectSpecs(cardSpellEffects(a)); }
+
   function normTarget(t) {
     if (typeof t === 'string') return { kind: 'object', id: t };
     return t;
   }
   function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
-  MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES };
+  MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs };
 })(window.MTG);
 
 
