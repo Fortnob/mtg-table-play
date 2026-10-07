@@ -3917,4 +3917,31 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.no(T.g.hasKw(bear, 'flying'), 'gone at end of turn');
   });
+
+  test('Phasing: out on one of its untap steps, back on the next', (mk, t) => {
+    t.auto('Sandbar Crocodile');
+    const T = mk();
+    const c = T.bf('A', 'Sandbar Crocodile');
+    T.nextTurn('B');
+    t.no(c.phasedOut, 'not on the other player\'s turn');
+    T.nextTurn('A');
+    t.ok(c.phasedOut, 'phased out');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.no(c.phasedOut, 'phased back in');
+  });
+
+  test('Devour: the creatures chosen are eaten as it enters', (mk, t) => {
+    t.auto('Thunder-Thrash Elder');
+    const T = mk();
+    const x = T.bf('A', 'Grizzly Bears'), y = T.bf('A', 'Llanowar Elves'), z = T.bf('A', 'Craw Wurm');
+    T.answer('choose', () => ({ picks: [x.id, y.id] }));
+    T.mana('A', '2R');
+    const el = T.hand('A', 'Thunder-Thrash Elder');
+    T.cast('A', el);
+    T.resolve();
+    t.zone(el, 'battlefield');
+    t.zone(x, 'graveyard'); t.zone(y, 'graveyard'); t.zone(z, 'battlefield');
+    t.eq(el.counters['+1/+1'] || 0, 6);
+  });
 };

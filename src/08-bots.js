@@ -1465,6 +1465,8 @@
     creatureType() { return { picks: [0] }; },
     /* Culling Ritual: "{B} or {G} for each …" — all of the first colour */
     manaSplit() { return { picks: [0] }; },
+    /* Devour: tokens are fodder; real creatures stay */
+    devour(s) { return { picks: (s.items || []).filter(x => { const o = this.game.obj(x.id); return o && o.isToken; }).map(x => x.id) }; },
     /* Circle of Protection: the opponent's source most likely to hurt us
        this turn — an attacker, a spell on the stack, then their biggest creature */
     preventSource(s) {

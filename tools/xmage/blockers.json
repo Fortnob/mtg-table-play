@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15886,
-  "gainedCards": 1606,
-  "linesNeeded": 18002,
+  "needed": 15870,
+  "gainedCards": 1607,
+  "linesNeeded": 17969,
   "linesGained": 2055,
   "gained": {
-   "all": 1606,
+   "all": 1607,
    "top2000": 52,
    "stdTop": 12
   },
@@ -1128,25 +1128,6 @@
     "Brush Off",
     "Take for a Ride",
     "Redemptor Dreadnought"
-   ]
-  },
-  {
-   "what": "keyword DevourAbility",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Mycoloth",
-    "Famished Worldsire",
-    "Feasting Hobbit",
-    "Ravenous Tyrannosaurus",
-    "Ribtruss Roaster",
-    "Bloodspore Thrinax",
-    "Fell Beast of Mordor",
-    "Skullmulcher",
-    "Gluttonous Slime",
-    "Voracious Dragon",
-    "Preyseizer Dragon",
-    "Feaster of Fools"
    ]
   },
   {
@@ -3780,25 +3761,6 @@
     "White Tiger, Ava Ayala",
     "Hercules, Prince of Power",
     "Donald Blake, Guise of Thor"
-   ]
-  },
-  {
-   "what": "keyword PhasingAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Taniwha",
-    "Teferi's Isle",
-    "Katabatic Winds",
-    "Shimmering Efreet",
-    "Ertai's Familiar",
-    "Merfolk Raiders",
-    "Teferi's Imp",
-    "Sandbar Crocodile",
-    "Teferi's Drake",
-    "Breezekeeper",
-    "Tolarian Drake",
-    "Warping Wurm"
    ]
   },
   {
@@ -7967,13 +7929,39 @@
     "Veiled Ascension",
     "Combine Guildmage"
    ]
+  },
+  {
+   "what": "gain for whileControlled",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Aegis Angel",
+    "Tale of Tinúviel",
+    "Thancred Waters",
+    "Kyodai, Soul of Kamigawa",
+    "Quicksmith Spy",
+    "Quicksmith Rebel"
+   ]
+  },
+  {
+   "what": "PartnerVariantType.CHARACTER_SELECT.makeAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Donatello, the Brains",
+    "Raphael, the Muscle",
+    "Leonardo, the Balance",
+    "Michelangelo, the Heart",
+    "Splinter, the Mentor",
+    "April O'Neil, Live on the Scene"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4417,
-   "cards": 3874,
+   "score": 4420,
+   "cards": 3877,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8115,8 +8103,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 44,
-   "cards": 32,
+   "score": 45,
+   "cards": 33,
    "names": [
     "Cloud Key",
     "Banner of Kinship",
@@ -9079,19 +9067,6 @@
    ]
   },
   {
-   "what": "keyword DevourAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Mycoloth",
-    "Feasting Hobbit",
-    "Fell Beast of Mordor",
-    "Gluttonous Slime",
-    "Preyseizer Dragon",
-    "Feaster of Fools"
-   ]
-  },
-  {
    "what": "MillHalfLibraryTargetEffect",
    "score": 12,
    "cards": 6,
@@ -9154,6 +9129,19 @@
     "The Long Reach of Night // Animus of Night's Reach",
     "Exoskeletal Armor",
     "Accumulated Knowledge"
+   ]
+  },
+  {
+   "what": "amount from a count",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Lathiel, the Bounteous Dawn",
+    "Ureni, the Song Unending",
+    "Elusive Otter // Grove's Bounty",
+    "Quirion Beastcaller",
+    "Ghired's Belligerence",
+    "Impact Resonance"
    ]
   },
   {
@@ -9460,19 +9448,6 @@
    ]
   },
   {
-   "what": "amount from a count",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Lathiel, the Bounteous Dawn",
-    "Ureni, the Song Unending",
-    "Elusive Otter // Grove's Bounty",
-    "Quirion Beastcaller",
-    "Ghired's Belligerence",
-    "Impact Resonance"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 11,
    "cards": 11,
@@ -9509,6 +9484,19 @@
     "Horn of the Mark",
     "Bitter Work",
     "Long-Range Sensor"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Hobgoblin Bandit Lord",
+    "Noise Marine",
+    "Mana Cannons",
+    "Anathemancer",
+    "Voracious Dragon",
+    "Pyre-Sledge Arsonist"
    ]
   },
   {
@@ -9793,19 +9781,6 @@
     "Voyager Glidecar",
     "Gastal Thrillroller",
     "Grond, the Gatebreaker"
-   ]
-  },
-  {
-   "what": "DamageTargetEffect amount",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Hobgoblin Bandit Lord",
-    "Noise Marine",
-    "Mana Cannons",
-    "Anathemancer",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt"
    ]
   },
   {
@@ -11799,6 +11774,19 @@
     "Haunting Voyage",
     "Kindred Charge",
     "Tribal Forcemage"
+   ]
+  },
+  {
+   "what": "discard trigger for a kind of card",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Bone Miser",
+    "Surly Badgersaur",
+    "Hashaton, Scarab's Fist",
+    "Mary Read and Anne Bonny",
+    "Green Goblin, Nemesis",
+    "Shipwreck Sifters"
    ]
   }
  ]

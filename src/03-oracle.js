@@ -42,7 +42,7 @@
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
-    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup',
+    'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
     // keywords the engine now runs on its own
@@ -5831,6 +5831,9 @@
         auto: below.every(l => grantableText(l) || KW_LIST.test(l)) });
       if (!out.abilities[out.abilities.length - 1].auto) out.fullyAutomated = false;
     }
+    // Devour N: how many counters for each creature it eats
+    const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (\d+)/)).find(Boolean);
+    if (devourN) out.devour = +devourN[1];
     const modular = out.keywords.find(k => k.keyword === 'Modular');
     if (modular && modular.arg) out.entersWithCounters = { kind: '+1/+1', n: parseInt(modular.arg, 10) || 0 };
 

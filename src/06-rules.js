@@ -793,8 +793,14 @@
       /* "until your next turn" is over, and what phased out phases back in */
       if (ap.protection && ap.protection.setTurn < this.turn) ap.protection = null;
       if (ap.lifeLocked && ap.lifeLocked.setTurn < this.turn) ap.lifeLocked = null;
+      // Phasing (CR 702.26): what has it and is phased in goes out as the rest come back
+      const phasers = this.battlefield.filter(o => !o.phasedOut && o.controller === ap.id && this.hasKw(o, 'phasing'));
       for (const o of this.battlefield) {
         if (o.phasedOut && o.phasedOutBy === ap.id && o.phasedTurn < this.turn) { o.phasedOut = false; o.phasedOutBy = null; }
+      }
+      for (const o of phasers) {
+        o.phasedOut = true; o.phasedOutBy = ap.id; o.phasedTurn = this.turn;
+        for (const id of (o.attachments || [])) { const at = this.obj(id); if (at) { at.phasedOut = true; at.phasedOutBy = ap.id; at.phasedTurn = this.turn; } }
       }
       /* "You may play an additional land this turn" lasts for this turn
          only; the standing ones are counted as they are asked about. */
@@ -3686,6 +3692,14 @@
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
       }
+      /* Devour N (CR 702.82): which creatures it will eat as it enters,
+         asked with the cast and done as it arrives */
+      if (a && a.devour && !o.isCopy && !(opts.choices && opts.choices.devour)) {
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature);
+        if (pool.length && this._castChoose(playerId, o, opts, { purpose: 'devour', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+          prompt: `${o.name}: devour ${a.devour} — sacrifice any number of creatures as it enters.` }) === 'asked') return 'asked';
+      }
       /* Replicate, splice onto Arcane and conspire are generic questions:
          asked one after another, each knowing what the last one added. */
       if (!o.isCopy) {
@@ -4072,6 +4086,8 @@
         o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
         // adamant: how much of each
         o.manaSpentBy = Object.assign({}, this._spentAcc);
+        // Devour: what it will eat
+        o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
         // Spider Climb: cast when a sorcery couldn't have been, it goes at end of turn
         o._flashSacTurn = (a && a.flashSacrifice && !(this.activePlayer && this.activePlayer.id === playerId && this.isMain && this.stackEmpty)) ? this.turn : null;
         this._spentAcc = null;
@@ -4638,6 +4654,19 @@
       if (this._staticOp(o, 'chooseTypeOnEnter')) this._chooseTypeFor(o);
       if (this._staticOp(o, 'chooseColorOnEnter')) this._chooseColorFor(o);
       if (this._staticOp(o, 'chooseModeOnEnter')) this._chooseEnterMode(o);
+      /* Devour: the creatures chosen as it was cast, sacrificed as it enters,
+         and N +1/+1 counters for each */
+      if (a.devour && o._devourPicks) {
+        const eaten = o._devourPicks.map(id => this.obj(id)).filter(x => x && x !== o && x.zone === 'battlefield' && x.controller === o.controller);
+        o._devourPicks = null;
+        if (eaten.length) {
+          this._sacrificeNow(o.controller, eaten, { controller: o.controller, obj: o });
+          this._fire('youSacrifice', o.controller, { count: eaten.length });
+          o.devoured = eaten.length;
+          o.counters['+1/+1'] = (Number(o.counters['+1/+1']) || 0) + a.devour * eaten.length;
+          this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
+        }
+      }
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
