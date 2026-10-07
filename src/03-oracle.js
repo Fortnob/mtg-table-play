@@ -1489,6 +1489,15 @@
           .map(x => x.replace(/ (has|have) '(.+)'\.?$/, ' $1 "$2"')).join('\n');
         return emblemText(text) ? { op: 'getEmblem', emblemText: text } : null;
       } },
+    // Ob Nixilis Reignited: "Target opponent gets an emblem with '…'"; Chandra, Awakened Inferno: "Each opponent gets …"
+    { re: /^(Target opponent|Target player|Each opponent) gets an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
+      make: (m) => {
+        const text = [...m[2].matchAll(/"([^"]+)"/g)].map(x => x[1].trim()).join('\n');
+        if (!emblemText(text)) return null;
+        const each = /^Each/i.test(m[1]);
+        return Object.assign({ op: 'getEmblem', emblemText: text, who: each ? 'opponents' : 'target' },
+          each ? {} : { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] });
+      } },
     { re: /^Each opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'opponents' }) },
     /* "You may put a creature card from among the milled cards into your
        hand": one of what the mill just put in the graveyard */
@@ -3126,6 +3135,48 @@
     /* Dawn's Truce, Veil of Summer: the player as well as their things,
        for the rest of the turn. */
     { re: /^You gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou' }) },
+    /* Infuse with Vitality: "target creature gains deathtouch and '…'";
+       Return to Action: "gets +1/+0 and gains lifelink and '…'"; Gruesome
+       Slaughter: "colorless creatures you control gain '…'" — keywords and a
+       pump riding along, to a target or a group */
+    { re: /^(?:Until end of turn, )?((?:any number of |up to (?:one|two) )?target [a-z ,]+?|[A-Za-z ,'-]+? you control|those creatures)(?: each)?(?: gets? ([+-]\d+)\/([+-]\d+) and)? gains? ((?:[a-z ]+?,? )*?and )?"([^"]+)"( until end of turn)?\.?$/i,
+      make: (m) => {
+        if (!/^Until end of turn/i.test(m[0]) && !m[6]) return null;
+        if (!m[4] && !m[2] && !/you control$|^those|^any number|^up to/i.test(m[1])) return null;   // the plain shape is the rule below
+        if (!grantableText(m[5])) return null;
+        const who = m[1];
+        const g = { op: 'grantAbility', ability: m[5], duration: 'eot' };
+        let scope = null;
+        const upTo = who.match(/^(any number of|up to (one|two)) /i);
+        if (/target /i.test(who)) {
+          const t = tgt(who.replace(/^(?:any number of|up to (?:one|two)) /i, '').replace(/creatures/, 'creature'));
+          if (!t) return null;
+          if (upTo && /any number/i.test(upTo[1])) {
+            // picked as it resolves, or (strive) as it is cast; what follows is about that group
+            g.anyFrom = Object.assign({}, t, { upTo: true });
+            g.targets = [];
+            scope = 'lastGroup';
+          } else {
+            const k = !upTo ? 1 : num(upTo[2]);
+            g.targets = Array.from({ length: k }, () => Object.assign({}, t, upTo ? { upTo: true, distinct: true } : {}));
+            scope = k === 1 ? 'lastTarget' : 'eachTarget';
+            if (k > 1) g.scope = 'eachTarget';
+          }
+        } else if (/^those creatures$/i.test(who)) { scope = 'lastGroup'; g.scope = 'lastGroup'; }
+        else {
+          const sc = scopeOf(who);
+          if (!sc) return null;
+          scope = sc; g.scope = sc;
+        }
+        const list = [g];
+        if (m[4]) {
+          const kws = keywordList(m[4].replace(/,?\s*and\s*$/i, ''));
+          if (!kws.length || !kws.every(k => kwKnown(k))) return null;
+          list.push({ op: 'grantKeyword', keywords: kws, duration: 'eot', scope: typeof scope === 'object' ? Object.assign({}, scope) : scope });
+        }
+        if (m[2]) list.push({ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', scope: typeof scope === 'object' ? Object.assign({}, scope) : scope });
+        return list.length === 1 ? g : list;
+      } },
     /* "Until end of turn, target creature gains 'When this creature dies,
        return it to the battlefield tapped under its owner's control.'" An
        ability handed over for the turn, run as the creature's own. */
@@ -5642,9 +5693,15 @@
   function splitSentences(t) {
     // keep "{1}, {T}:" style intact; split on period followed by space+capital
     // (or a quotation closed after its period: 'with "This token can't block." Creatures …')
-    return String(t || '')
+    /* …but not inside a quotation: the Mercenary's '"{T}: Target creature
+       you control gets +1/+0 until end of turn. Activate only as a
+       sorcery."' is one ability handed over, not two sentences */
+    let text = String(t || '');
+    const quotes = (text.match(/["“”]/g) || []).length;
+    if (quotes && quotes % 2 === 0) text = text.replace(/["“][^"“”]*["”]/g, (q) => q.replace(/\.\s+/g, '.\u0007'));
+    return text
       .split(/(?<=\.["”]?)\s+(?=[A-Z"“])/)
-      .map(s => s.trim())
+      .map(s => s.replace(/\u0007/g, ' ').trim())
       .filter(Boolean);
   }
 

@@ -10486,6 +10486,19 @@
           };
           // abilities written out for it (a translated card), or else its words, read like any card's
           if (e.abilities) card._script = { abilities: e.abilities };
+          // Ob Nixilis Reignited, Chandra: an emblem for someone else
+          const getters = e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(p => !p.hasLost)
+            : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
+          if (getters.length !== 1 || getters[0] !== me) {
+            for (const g of getters) {
+              const em2 = this._register(new GObj(Object.assign({}, card), g.id, 'command'));
+              em2.controller = g.id; em2.ts = this._stampNew();
+              this.zones[g.id].command.push(em2);
+              this.logEvent('rules', `${g.name} gets an emblem: "${truncate(text, 90)}"`);
+            }
+            this.bumpBoard();
+            break;
+          }
           const em = this._register(new GObj(card, ctx.controller, 'command'));
           em.controller = ctx.controller;
           em.ts = this._stampNew();

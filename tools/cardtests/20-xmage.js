@@ -8499,4 +8499,40 @@ module.exports = (test) => {
     t.ok(refused, 'Dismember cannot be paid for with life');
     t.eq(T.life('A'), 20);
   });
+
+  test('Return to Action: +1/+0, lifelink and a quoted ability on the target', (mk, t) => {
+    t.auto('Return to Action');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Return to Action'), { targets: [bear.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(bear), 3); t.ok(T.g.hasKw(bear, 'lifelink'));
+    t.ok((bear.analysis().abilities || []).some(a => a.granted), 'the quoted ability is on it');
+  });
+
+  test('Setessan Tactics: any number of targets each get the bonus and the ability', (mk, t) => {
+    t.auto('Setessan Tactics');
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Hill Giant');
+    T.mana('A', '1GG');
+    T.cast('A', T.hand('A', 'Setessan Tactics'), { targets: [a.id, b.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(a), 3); t.eq(T.g.powerOf(b), 4);
+    t.ok((b.analysis().abilities || []).some(x => x.granted && x.kind === 'activated'));
+  });
+
+  test('Ob Nixilis Reignited: the opponent gets the emblem and loses life on draws', (mk, t) => {
+    t.auto('Ob Nixilis Reignited');
+    const T = mk();
+    const ob = T.bf('A', 'Ob Nixilis Reignited');
+    ob.counters.loyalty = 8;
+    const idx = ob.analysis().manaAbilities.length + ob.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /emblem/.test(x.text));
+    T.activate('A', ob, idx, { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.zone('B', 'command').length, 1, 'the emblem is the opponent\'s');
+    T.g._drawCards(T.player('B'), 1);
+    T.resolve();
+    t.eq(T.life('B'), 18);
+  });
 };
