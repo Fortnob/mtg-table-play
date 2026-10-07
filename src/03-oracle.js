@@ -2310,7 +2310,7 @@
         keywords: m[1].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean), duration: null }) },
 
     /* ===== damage split between things ===== */
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
+    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
     { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
@@ -4417,7 +4417,7 @@
     // Goreclaw: "Creature spells you cast with power 4 or greater cost {2} less to cast"
     const pw = s.match(/ with power (\d+) or greater(?= costs?)/i);
     if (pw) s = s.replace(pw[0], '');
-    const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+)\} (more|less) to cast$/i);
+    const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
     const words = (m[1] + ' ' + (m[4] || '')).replace(/,/g, ' ').trim().toLowerCase()
       .replace(/\band\b/g, 'or');
@@ -4426,6 +4426,11 @@
     }
     if (/historic/.test(words)) return null;
     const who = /opponent/i.test(m[2] || '') ? 'opponents' : /you cast/i.test(m[2] || '') ? 'you' : 'all';
+    // Andradite Leech: "Black spells you cast cost {B} more to cast" — coloured mana on top
+    if (/^[WUBRG]$/.test(m[5])) {
+      if (/less/i.test(m[6]) || m[3] || offTurn || pw) return null;
+      return { op: 'costMod', who, words: words || 'spell', chosenType: false, amount: 0, symbols: '{' + m[5] + '}' };
+    }
     const amount = (+m[5]) * (/less/i.test(m[6]) ? -1 : 1);
     return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {},
       pw ? { minPower: +pw[1] } : {});
@@ -7887,7 +7892,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou']);
 
   function parseStatic(line, ctx) {
     /* the Wards: "Enchanted creature has protection from white. This effect
@@ -8028,9 +8033,29 @@
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
+      /* Blazing Archon, Reverence, Spectral Grasp: "Creatures with power 2 or
+         less can't attack you", "…or planeswalkers you control" */
+      { re: /^(.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,
+        make: (m) => {
+          if (/^(?:CARDNAME|this creature|it|they)$/i.test(m[1])) return null;
+          const scope = scopeOf(m[1]);
+          return scope ? { op: 'cantAttackYou', scope, walkers: !!m[2] } : null;
+        }, auto: true },
+      // the Vows: "Enchanted creature gets +2/+2, has vigilance, and can't attack you or planeswalkers you control."
+      { re: /^(Enchanted creature|Equipped creature) gets ([+-]\d+)\/([+-]\d+), has ([a-z ]+?), (?:and )?can'?t attack you or planeswalkers you control(, and can'?t be sacrificed)?\.?$/i,
+        make: (m) => {
+          const kws = keywordList(m[4]);
+          if (!kws.every(k => kwKnown(k)) || m[5]) return null;
+          const scope = scopeOf(m[1]);
+          return scope ? { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
+            { op: 'cantAttackYou', scope: Object.assign({}, scope), walkers: true }] } : null;
+        }, auto: true },
       // Ghostly Prison, Baird: any generic amount, and planeswalkers as well
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         make: (m) => ({ op: 'attackTax', amount: '{' + m[2] + '}', walkers: !!m[1] }), auto: true },
+      // Elephant Grass: "Nonblack creatures can't attack you unless…" — only those
+      { re: /^((?:[A-Za-z]+ )?creatures(?: with [a-z0-9 ]+)?) can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
+        make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'attackTax', amount: '{' + m[3] + '}', walkers: !!m[2], scope } : null; }, auto: true },
       /* "This creature can't attack or block unless you control another
          artifact": a condition the engine checks as attackers and
          blockers are chosen */

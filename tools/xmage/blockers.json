@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14742,
+  "needed": 14716,
   "gainedCards": 1523,
-  "linesNeeded": 16373,
+  "linesNeeded": 16344,
   "linesGained": 1906,
   "gained": {
    "all": 1523,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 71,
+  "verifyFail": 63,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5414,
-   "lines": 4676,
+   "score": 5412,
+   "lines": 4674,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -3985,19 +3985,6 @@
    ]
   },
   {
-   "what": "CantAttackYouUnlessPayAllEffect",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Norn's Annex",
-    "Summon: Yojimbo",
-    "Onakke Oathkeeper",
-    "Sivitri, Dragon Master",
-    "Elephant Grass",
-    "Forbidding Spirit"
-   ]
-  },
-  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 9,
    "lines": 9,
@@ -4723,6 +4710,18 @@
    ]
   },
   {
+   "what": "CantAttackYouUnlessPayAllEffect",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Norn's Annex",
+    "Summon: Yojimbo",
+    "Onakke Oathkeeper",
+    "Sivitri, Dragon Master",
+    "Forbidding Spirit"
+   ]
+  },
+  {
    "what": "AbilityPredicate ToxicAbility",
    "score": 8,
    "lines": 5,
@@ -4761,21 +4760,6 @@
     "Guardians of Koilos",
     "Sentinel of the Pearl Trident",
     "Rona, Disciple of Gix"
-   ]
-  },
-  {
-   "what": "CantAttackYouAllEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Sandwurm Convergence",
-    "Rite of the Raging Storm",
-    "Eriette of the Charmed Apple",
-    "Blazing Archon",
-    "Elephant Grass",
-    "Chronomantic Escape",
-    "Reverence",
-    "Form of the Dragon"
    ]
   },
   {
@@ -4821,21 +4805,6 @@
     "Sandman's Quicksand",
     "Earth Surge",
     "Adipose Offspring"
-   ]
-  },
-  {
-   "what": "(verify) targets 3, printed 0",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Inferno Titan",
-    "Magic Missile",
-    "Mogg Mob",
-    "Arc Lightning",
-    "Flames of the Firebrand",
-    "Ral, Caller of Storms",
-    "Gandalf, Spark Starter",
-    "Gang of Devils"
    ]
   },
   {
@@ -4896,21 +4865,6 @@
     "Domesticated Hydra",
     "Nemesis of Mortals",
     "Vitality Hunter"
-   ]
-  },
-  {
-   "what": "CantAttackControllerAttachedEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Assault Suit",
-    "Vow of Duty",
-    "Vow of Lightning",
-    "Vow of Malice",
-    "Vow of Torment",
-    "Vow of Wildness",
-    "Vow of Flight",
-    "Spectral Grasp"
    ]
   },
   {
@@ -7256,19 +7210,6 @@
    ]
   },
   {
-   "what": "cost increase shape",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Alabaster Leech",
-    "Sapphire Leech",
-    "Ruby Leech",
-    "Andradite Leech",
-    "Derelor",
-    "Jade Leech"
-   ]
-  },
-  {
    "what": "discard at random",
    "score": 6,
    "lines": 6,
@@ -7631,13 +7572,61 @@
     "Viewpoint Synchronization",
     "Flourishing Bloom-Kin"
    ]
+  },
+  {
+   "what": "AllianceAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Devilish Valet",
+    "Rose Room Treasurer",
+    "The Neutrinos",
+    "Sizzling Soloist",
+    "Elegant Entourage"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldFromGraveyardTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Oscorp Industries",
+    "Canoptek Tomb Sentinel",
+    "Phyrexian Dragon Engine",
+    "Triarch Praetorian",
+    "Treacherous Pit-Dweller"
+   ]
+  },
+  {
+   "what": "VariableManaCostPredicate.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Frontline Medic",
+    "Elementalist's Palette",
+    "Geometer's Arthropod",
+    "Rosheen, Roaring Prophet",
+    "Matterbending Mage"
+   ]
+  },
+  {
+   "what": "keyword UndauntedAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Curtains' Call",
+    "Divergent Transformations",
+    "Coastal Breach",
+    "Sublime Exhalation",
+    "Seeds of Renewal"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4335,
-   "cards": 3804,
+   "score": 4334,
+   "cards": 3803,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7649,8 +7638,8 @@
   },
   {
    "what": "custom ability",
-   "score": 697,
-   "cards": 586,
+   "score": 698,
+   "cards": 587,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -9922,19 +9911,6 @@
    ]
   },
   {
-   "what": "(verify) targets 3, printed 0",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Inferno Titan",
-    "Magic Missile",
-    "Mogg Mob",
-    "Arc Lightning",
-    "Flames of the Firebrand",
-    "Ral, Caller of Storms"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 8,
    "cards": 8,
@@ -10919,19 +10895,6 @@
    ]
   },
   {
-   "what": "CantAttackYouAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Sandwurm Convergence",
-    "Eriette of the Charmed Apple",
-    "Blazing Archon",
-    "Chronomantic Escape",
-    "Reverence",
-    "Form of the Dragon"
-   ]
-  },
-  {
    "what": "filter:anyCounter",
    "score": 6,
    "cards": 6,
@@ -11205,19 +11168,6 @@
    ]
   },
   {
-   "what": "CantAttackControllerAttachedEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Vow of Duty",
-    "Vow of Lightning",
-    "Vow of Malice",
-    "Vow of Torment",
-    "Vow of Wildness",
-    "Vow of Flight"
-   ]
-  },
-  {
    "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
    "score": 6,
    "cards": 6,
@@ -11462,6 +11412,45 @@
     "Sita Varma, Masked Racer",
     "Greasewrench Goblin",
     "Marshals' Pathcruiser"
+   ]
+  },
+  {
+   "what": "SearchLibraryAndExileTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Jester's Cap",
+    "Extract",
+    "Sadistic Sacrament",
+    "Rootwater Thief",
+    "Denying Wind",
+    "Supreme Inquisitor"
+   ]
+  },
+  {
+   "what": "DoUnlessAnyPlayerPaysEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rhystic Tutor",
+    "Soul Strings",
+    "Rhystic Circle",
+    "Wild Might",
+    "Rhystic Shield",
+    "Nakaya Shade"
+   ]
+  },
+  {
+   "what": "all from one opponent",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Deadeye Tracker",
+    "Lochmere Serpent",
+    "Nullmage Advocate",
+    "Misinformation",
+    "Shieldmage Advocate",
+    "Forcemage Advocate"
    ]
   }
  ]

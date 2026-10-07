@@ -2468,6 +2468,8 @@
          spell's own "costs {1} less for each…"), then convoke and its kin */
       const delta = this._costDelta(o, o.controller || o.owner);
       if (delta) mana = this._addGeneric(mana, delta);
+      // Andradite Leech: "Black spells you cast cost {B} more to cast"
+      mana += this._costExtraSymbols(o, o.controller || o.owner);
       const cut = this.costReductionFor(o, opts);
       if (cut > 0) mana = this._addGeneric(mana, -cut);
       return mana;
@@ -2520,6 +2522,27 @@
         d += (Number(sc.amount) || 0) * k;
       }
       return d;
+    }
+
+    /** Coloured mana added to a spell's cost by standing taxes (Andradite Leech). */
+    _costExtraSymbols(o, pid) {
+      let out = '';
+      for (const src of this.battlefield) {
+        if (src.phasedOut) continue;
+        const sa = src.analysis();
+        if (!sa) continue;
+        for (const ab of sa.abilities) {
+          if (ab.kind !== 'static') continue;
+          for (const e of (ab.effects || [])) {
+            if (e.op !== 'costMod' || !e.symbols) continue;
+            if (e.who === 'you' && src.controller !== pid) continue;
+            if (e.who === 'opponents' && src.controller === pid) continue;
+            if (e.words && e.words !== 'spell' && !this._cardFitsWords(o, e.words)) continue;
+            out += e.symbols;
+          }
+        }
+      }
+      return out;
     }
 
     /** A count the parser described ("for each artifact you control"), worked out for a player. */
@@ -6287,6 +6310,19 @@
         if (!o || !this.canAttack(o)) return this.fail('Illegal attacker.');
         if (!legalDef.has(d.defenderId)) return this.fail('Illegal defender.');
       }
+      /* Blazing Archon, Spectral Grasp: "can't attack you (or planeswalkers
+         you control)". A person is told; a bot's attacker stays home. */
+      {
+        const kept = [];
+        for (const d of declarations) {
+          const o = this.obj(d.attackerId);
+          const why = this._cantAttackYou(o, d.defenderId);
+          if (!why) { kept.push(d); continue; }
+          if (!(this.player(playerId) || {}).isBot) return this.fail(`${o.name} can't attack ${why.who} (${why.src.name}).`);
+          this.logEvent('rules', `${o.name} can't attack ${why.who} (${why.src.name}).`);
+        }
+        declarations = kept;
+      }
       /* "creatures can't attack you unless their controller pays {2} for
          each" — and Baird's {1}, and planeswalkers of yours where it says so */
       const taxFor = (d) => {
@@ -6298,6 +6334,8 @@
           if (o.controller !== def.id || o.phasedOut) continue;
           for (const ab of ((o.analysis() || { abilities: [] }).abilities || [])) for (const ef of (ab.effects || [])) {
             if (!ef || ef.op !== 'attackTax' || (walker && !ef.walkers)) continue;
+            // Elephant Grass: only nonblack creatures pay
+            if (ef.scope) { const at = this.obj(d.attackerId); if (!at || !this._scopeHit(ef.scope, at, at.analysis() || {}, o.controller, o)) continue; }
             k += parseInt(String(ef.amount || '{2}').replace(/[{}]/g, ''), 10) || 0;
           }
         }
@@ -14637,6 +14675,33 @@
           if (e.op === op) return e;
           // a line that says two standing things arrives as a sequence
           if (e.op === 'sequence') for (const x of (e.list || [])) if (x && x.op === op) return x;
+        }
+      }
+      return null;
+    }
+
+    /** What, if anything, says this creature can't attack that player or planeswalker. */
+    _cantAttackYou(o, defenderId) {
+      if (!o) return null;
+      let def = this.player(defenderId), walker = false;
+      if (!def) { const pw = this.obj(defenderId); def = pw && this.player(pw.controller); walker = true; }
+      if (!def) return null;
+      const oa = o.analysis();
+      if (!oa) return null;
+      for (const s0 of this.battlefield) {
+        if (s0.controller !== def.id || s0.phasedOut) continue;
+        const sa = s0.analysis();
+        if (!sa) continue;
+        for (const ab of sa.abilities || []) {
+          if (ab.kind && ab.kind !== 'static') continue;
+          for (const e0 of ab.effects || []) {
+            for (const e of (e0 && e0.op === 'sequence' ? e0.list || [] : [e0])) {
+              if (!e || e.op !== 'cantAttackYou' || (walker && !e.walkers)) continue;
+              const sc = e.scope || {};
+              const hit = sc.attached ? s0.attachedTo === o.id : this._scopeHit(sc, o, oa, s0.controller, s0);
+              if (hit) return { src: s0, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
+            }
+          }
         }
       }
       return null;

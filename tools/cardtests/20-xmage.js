@@ -5839,4 +5839,72 @@ module.exports = (test) => {
     T.resolve();
     t.eq(bolt.zone, 'hand');
   });
+
+  test('Andradite Leech: black spells you cast cost {B} more', (mk, t) => {
+    t.auto('Andradite Leech');
+    const T = mk();
+    T.bf('A', 'Andradite Leech');
+    const d = T.hand('A', 'Duress');
+    t.eq(T.g.canCast('A', d.id).cost, '{B}{B}');
+    t.eq(T.g.canCast('A', T.hand('A', 'Lightning Bolt').id).cost, '{R}', 'not red spells');
+    T.mana('A', 'BB');
+    T.cast('A', d, { targets: ['B'] });
+    t.eq(d.zone, 'graveyard', 'cast for BB');
+  });
+
+  test('Arc Lightning: 3 damage divided among three targets', (mk, t) => {
+    t.auto('Arc Lightning');
+    const T = mk();
+    const e1 = T.bf('B', 'Llanowar Elves'), e2 = T.bf('B', 'Llanowar Elves');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Arc Lightning'), { targets: [e1.id, e2.id, 'B'], divide: [1, 1, 1] });
+    t.eq(e1.zone, 'graveyard'); t.eq(e2.zone, 'graveyard'); t.eq(T.life('B'), 19);
+  });
+
+  test("Reverence: creatures with power 2 or less can't attack you", (mk, t) => {
+    t.auto('Reverence');
+    const T = mk();
+    T.bf('B', 'Reverence');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ogre = T.bf('A', 'Hill Giant');
+    const seen = {};
+    T.answer('declareAttackers', (ch, g) => {
+      seen.bear = g.declareAttackers('A', [{ attackerId: bear.id, defenderId: 'B' }]);
+      return [{ attackerId: ogre.id, defenderId: 'B' }];
+    });
+    T.toMain('A', 'endCombat');
+    t.no(seen.bear, 'the Bears are refused');
+    t.eq(T.life('B'), 17, 'the Giant gets through');
+  });
+
+  test("Vow of Duty: the enchanted creature can't attack the Aura's controller", (mk, t) => {
+    t.auto('Vow of Duty');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const vow = T.bf('B', 'Vow of Duty');
+    vow.attachedTo = bear.id; bear.attachments.push(vow.id); T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 4);
+    const seen = {};
+    T.answer('declareAttackers', (ch, g) => { seen.ok = g.declareAttackers('A', [{ attackerId: bear.id, defenderId: 'B' }]); return []; });
+    T.toMain('A', 'endCombat');
+    t.no(seen.ok);
+    t.eq(T.life('B'), 20);
+  });
+
+  test("Elephant Grass: black creatures can't attack, others pay {2}", (mk, t) => {
+    t.auto('Elephant Grass');
+    const T = mk();
+    T.bf('B', 'Elephant Grass');
+    const zom = T.bf('A', 'Walking Corpse');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const seen = {};
+    T.answer('declareAttackers', (ch, g) => {
+      seen.zom = g.declareAttackers('A', [{ attackerId: zom.id, defenderId: 'B' }]);
+      g.player('A').pool.add('C', 2);
+      return [{ attackerId: bear.id, defenderId: 'B' }];
+    });
+    T.toMain('A', 'endCombat');
+    t.no(seen.zom, 'black: refused');
+    t.eq(T.life('B'), 18, 'the Bears paid {2}');
+  });
 };
