@@ -3245,6 +3245,8 @@
         case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: true,
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
+          // "in any combination of two colours": how much of the second
+          manaSplit: Number.isFinite(+intent.manaSplit) && intent.manaSplit != null ? Math.max(0, Math.min(99, Math.floor(+intent.manaSplit))) : undefined,
           sacrificeIds: Array.isArray(intent.sacrificeIds) ? intent.sacrificeIds.slice(0, 20).map(String) : undefined,
           discardIds: Array.isArray(intent.discardIds) ? intent.discardIds.slice(0, 20).map(String) : undefined }); break;
         case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0, intent.choice); break;

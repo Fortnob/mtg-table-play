@@ -259,7 +259,7 @@ const INTENTS = {
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
   }),
-  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat) }),
+  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat) }),
   mana: closed({ objId: id, index: opt(nat), choice: opt(maybe(str)) }),
   declareAttackers: closed({ declarations: arr(Declaration) }),
   declareBlockers: closed({ declarations: arr(Block) }),

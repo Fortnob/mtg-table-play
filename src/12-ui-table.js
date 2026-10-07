@@ -2043,14 +2043,28 @@
      * @this {MTG.TableInstance}
      * @param {any} o @param {any} a @param {number} index @param {any} ab
      * @param {number=} x the X of its cost, once chosen
+     * @param {number=} split how much of the second colour, once chosen
      */
-    activate(o, a, index, ab, x) {
+    activate(o, a, index, ab, x, split) {
       this.closePopover();
       // an ability whose cost has an X (mana, or counters taken off) asks for it first
       const asks = x == null ? this._abilityX(o, ab) : null;
       if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, 0, asks.max, asks.max,
         (n) => this.activate(o, a, index, ab, n), o.card);
-      const more = x != null ? { x } : {};
+      /* "Add X mana in any combination of {U} and/or {B}": how much of the
+         second colour, the rest the first. Asked only when the amount is
+         known now (X, or a number); otherwise the engine splits it. */
+      const mix = split == null ? (ab.effects || []).find(e => e && e.op === 'addManaChoice' && (e.choices || []).length === 2) : null;
+      if (mix) {
+        const total = mix.n === 'X' ? (x || 0) : (typeof mix.n === 'number' ? mix.n : null);
+        if (total != null && total > 0) {
+          const [c1, c2] = mix.choices.map(c => (Array.isArray(c) ? c[0] : c));
+          return this._askNumber(`${escapeHtml(o.card.name)}: how much ${MTG.mana.html('{' + c2 + '}')}?`,
+            `The rest is {${c1}}: ${total} mana in all.`, 0, total, 0,
+            (n) => this.activate(o, a, index, ab, x, n), o.card, (n) => `{${c1}}\u00d7${total - n} \u00b7 {${c2}}\u00d7${n}`);
+        }
+      }
+      const more = Object.assign({}, x != null ? { x } : {}, split != null ? { manaSplit: split } : {});
       const specs = [];
       for (const e of (ab.effects || [])) for (const s of (e.targets || [])) specs.push(s);
       if (!specs.length) return this.send({ kind: 'activate', objId: o.id, index, targets: [], ...more });
@@ -2089,7 +2103,7 @@
     }
 
     /** A number to pick, between min and max: a stepper, then on with it. @this {MTG.TableInstance} */
-    _askNumber(title, sub, min, max, start, onDone, card) {
+    _askNumber(title, sub, min, max, start, onDone, card, explain) {
       let n = U.clamp(start, min, max);
       const key = 'num:' + title;
       this.asking = { base: key, get key() { return key + ':' + n; }, build: () => this.panel(title, escapeHtml(sub || ''),
@@ -2098,6 +2112,7 @@
           el('div', { class: 'x-val', text: String(n) }),
           el('button', { type: 'button', class: 'btn', text: '+', disabled: n >= max, onclick: () => { n = Math.min(max, n + 1); this.render(); }, 'aria-label': 'More' }),
           max > min + 1 ? el('button', { type: 'button', class: 'btn xs ghost', text: `max (${max})`, onclick: () => { n = max; this.render(); } }) : null,
+          explain ? el('div', { class: 'x-explain', html: MTG.mana.textHtml(explain(n)) }) : null,
         ].filter(Boolean)),
         [
           { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
