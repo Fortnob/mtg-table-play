@@ -5186,4 +5186,23 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'library').length, lib - Math.ceil(lib / 2));
     t.eq(T.life('A'), 7);
   });
+
+  test('Reconfigure: attached it is no creature, and the same price takes it off', (mk, t) => {
+    t.auto('Lizard Blades');
+    const T = mk();
+    const lb = T.bf('A', 'Lizard Blades'); lb.summoningSick = false;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const abs = lb.analysis().abilities.filter(x => x.kind === 'activated');
+    const on = abs.findIndex(x => !x.onlyAttached), off = abs.findIndex(x => x.onlyAttached);
+    t.ok(T.g._activationBlocked(lb, abs[off], 'A'), 'nothing to come off yet');
+    T.mana('A', '2');
+    T.activate('A', lb, on, { targets: [bear] });
+    t.eq(lb.attachedTo, bear.id);
+    t.no(T.g.characteristics(lb).isCreature, 'not a creature while attached');
+    t.ok(T.g.hasKw(bear, 'double strike'));
+    T.mana('A', '2');
+    T.activate('A', lb, off);
+    t.no(lb.attachedTo, 'off again');
+    t.ok(T.g.characteristics(lb).isCreature, 'a creature again');
+  });
 };

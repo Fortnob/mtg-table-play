@@ -6619,6 +6619,13 @@
       if (!roll || rows.some(r => !r.auto)) { if (ab) ab.auto = false; out._keywordManual = true; continue; }
       roll.table = rows.map(r => ({ min: r.min, max: r.max, effects: r.effects }));
     }
+    /* Reconfigure (CR 702.151): the same price also takes it off again,
+       and attached it is no creature */
+    for (const ab of out.abilities.slice()) {
+      if (ab.kind !== 'activated' || !/^Reconfigure \{/i.test(ab.text || '')) continue;
+      out.abilities.push({ kind: 'activated', text: ab.text + ' (unattach)', auto: true, sorcerySpeed: true, onlyAttached: true,
+        cost: ab.cost, effects: [{ op: 'unattachSelf' }] });
+    }
     // "Cast this spell only during combat": the window, where the table looks for it
     for (const ab of out.abilities) {
       const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.castWindow) out.castWindow = e.castWindow; walk(e.list); } };
@@ -7963,7 +7970,10 @@
       if (eff.op === 'equip' || eff.op === 'fortify' || eff.op === 'reconfigure') {
         /* "Equip legendary creature {3}", "Equip commander {3}": the creature
            it may go on is narrower than usual */
-        const spec = { type: 'creature', controller: 'you' };
+        // Fortify: a land you control, not a creature
+        const spec = eff.op === 'fortify' ? { type: 'land', controller: 'you', filter: 'land you control' } : { type: 'creature', controller: 'you' };
+        // Reconfigure: another creature, never itself
+        if (eff.op === 'reconfigure') spec.another = true;
         if (eff.only === 'legendary creature') spec.legendary = true;
         else if (eff.only === 'commander') spec.commander = true;
         else if (eff.only) spec.subtypes = [eff.only.toLowerCase()];

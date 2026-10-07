@@ -5227,6 +5227,8 @@
       /* Boast (CR 702.142): only once the creature has attacked this turn,
          and once each turn (twice with Birgi). Exhaust (CR 702.177): once,
          ever, for this permanent. */
+      // Reconfigure's second use: only while it is attached
+      if (ab && ab.onlyAttached && !o.attachedTo) return 'It is not attached to anything.';
       // Arrest, Null Rod, Koma: "its activated abilities can't be activated"
       if (o && o.zone === 'battlefield' && this._hasFlag(o, 'cantActivate')) return "Its activated abilities can't be activated.";
       const label = ab && ab.cost && ab.cost.label;
@@ -7750,7 +7752,9 @@
         addTypes: s && s.changed ? (a.types || []).filter(x => !(s.base.types || []).includes(x)) : [],
         abilitiesLost: !!(s && s.lost),
         // bestowed and attached, it is an Aura rather than a creature
-        isCreature: !!a.isCreature && !(o.bestowed && o.attachedTo) };
+        isCreature: !!a.isCreature && !(o.bestowed && o.attachedTo) &&
+          // reconfigure: an Equipment creature attached to something is not a creature (CR 702.151b)
+          !(o.attachedTo && a.isEquipment && a.keywordSet && a.keywordSet.has('reconfigure')) };
       // worked out while a granted ability was being looked up, it is only half the answer
       if (this._dynBusy || this._layerBusy) return res;
       o._chr = res;
@@ -12971,6 +12975,14 @@
         // Geist of Saint Traft: the token just made goes as combat ends
         case 'exileMadeEoc': {
           for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.exileAtEndOfCombat = true; }
+          break;
+        }
+        // Reconfigure: off whatever it was attached to
+        case 'unattachSelf': {
+          const h = src && src.attachedTo && this.obj(src.attachedTo);
+          if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
+          if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
+          this.bumpBoard();
           break;
         }
         // Wave of Reckoning: every creature hits itself with its own power
