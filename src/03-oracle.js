@@ -5450,6 +5450,8 @@
     // Mistveil Plains: "you control two or more white permanents"
     [/^you control (\w+) or more ((?:white|blue|black|red|green|snow|basic|legendary|nonland|tapped|untapped) [a-z]+?)s$/i,
       (m) => { const sc = scopeOf(m[2] + 's you control'); return sc ? { kind: 'control', n: num(m[1]), scope: sc } : null; }],
+    // Thornfist Striker: "you gained life this turn"
+    [/^you(?:'ve| have)? gained life this turn$/i, () => ({ kind: 'gainedLifeThisTurn' })],
     // Pestilence: "if no creatures are on the battlefield"
     [/^no creatures are on the battlefield$/i, () => ({ kind: 'noCreatures' })],
     // Y'shtola: "if a player lost 4 or more life this turn"
@@ -7306,6 +7308,40 @@
       ab.auto = false;
       autoLines--;
     }
+    /* A keyword handed out must be one the table knows. "Gains your choice
+       of flying, vigilance, or lifelink" is a choice made as it resolves;
+       "trample as long as …", "becomes blue" and other words that slipped
+       into a keyword list are not keywords, and the line goes back to a
+       person rather than granting nothing. */
+    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|the chosen colou?r|[a-z]+s)$/i;
+    const kwOk = (k) => {
+      const w = String(k || '').trim();
+      if (kwKnown(w)) return true;
+      // "can't be blocked" granted as a word the table reads; "annihilator 2", "afflict 1": the keyword with its number
+      if (/^unblockable$/i.test(w) || IMPLEMENTED_LOWER.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return true;
+      const pm = w.match(/^protection from (.+)$/i);
+      if (pm) return pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
+      return false;
+    };
+    for (const ab of out.abilities) {
+      if (!ab.auto) continue;
+      let bad = false;
+      const visit = (list) => { for (const e of list || []) { if (!e || typeof e !== 'object') continue;
+        // "your choice of A, B, or C": one of them, asked as it resolves
+        if (e.op === 'grantKeyword' && (e.keywords || []).some(k => /^your choice of /i.test(k))) {
+          const opts = e.keywords.join(', ').replace(/^your choice of /i, '').split(/,\s*(?:or\s+)?|\s+or\s+/i).map(k => k.trim()).filter(Boolean);
+          if (opts.length >= 2 && opts.every(kwOk)) { e.keywordChoice = opts.map(k => k.replace(/\b\w/g, c => c.toUpperCase())); e.keywords = []; }
+        }
+        // "and haste": the joining word went with it
+        for (const key of ['keywords', 'grant']) if (Array.isArray(e[key])) e[key] = e[key].map(k => (typeof k === 'string' ? k.replace(/^and /i, '') : k));
+        for (const k of [].concat(e.keywords || [], e.grant || [])) if (typeof k === 'string' && !kwOk(k)) bad = true;
+        if (e.eff && typeof e.eff === 'object') visit([e.eff]);
+        for (const kk of ['list', 'then', 'otherwise']) visit(e[kk]);
+        for (const m of e.modes || []) visit(m.effects);
+      } };
+      visit(ab.effects);
+      if (bad) { ab.auto = false; autoLines--; }
+    }
     // only now, with every footnote folded into its line, is the count final
     /* the die's results put on the roll that reads them */
     for (const tb of dieTables) {
@@ -7597,6 +7633,8 @@
        qualities, not "protection from black" and a keyword called "from
        green". */
     const out = [];
+    // Commander's Plate: "protection from each color that's not in your commander's color identity"
+    str = String(str).replace(/protection from each colou?r that'?s not in your commander'?s colou?r identity/i, () => { out.push('Protection From Commander Off Colors'); return ''; });
     const rest = String(str).replace(/protection from [a-z]+(?:(?:,|,? and) from [a-z]+)*/gi, (m0) => {
       out.push(U.titleCase(m0)); return '';
     });
@@ -8288,6 +8326,14 @@
     'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax']);
 
   function parseStatic(line, ctx) {
+    /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
+       deathtouch as long as there are seven or more cards in your
+       graveyard" — the condition at the end read as the one at the front */
+    const tail = !/^As long as /i.test(line) && String(line).match(/^([^.]+?) as long as ([^,.]+)\.?$/i);
+    if (tail && condOf(tail[2])) {
+      const again = parseStatic('As long as ' + tail[2] + ', ' + tail[1].charAt(0).toLowerCase() + tail[1].slice(1) + '.', ctx);
+      if (again && again.auto) return Object.assign({}, again, { text: line });
+    }
     /* the Wards: "Enchanted creature has protection from white. This effect
        doesn't remove this Aura." — the protection, and the Aura stays on */
     const keep = line.match(/^(.+?\.) This effect doesn'?t remove (?:this Aura|CARDNAME)\.?$/i);
@@ -8472,6 +8518,9 @@
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME|this permanent) cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetManaTax', amount: +m[1] }), auto: true },
+      // Commander's Plate: "protection from each color that's not in your commander's color identity"
+      { re: /^Equipped creature gets ([+-]\d+)\/([+-]\d+) and has protection from each colou?r that'?s not in your commander'?s colou?r identity\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: pmNum(m[1]), t: pmNum(m[2]) }, grant: ['Protection From Commander Off Colors'] }), auto: true },
       // Sunspine Lynx: "Damage can't be prevented."
       { re: /^Damage can'?t be prevented\.?$/i, eff: { op: 'noPreventionAll' }, auto: true },
       // Angelic Destiny: "gets +4/+4, has flying and first strike, and is an Angel in addition to its other types"

@@ -7023,4 +7023,43 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Analyze the Pollen'), { payAdditional: true });
     t.ok(T.zone('A', 'hand').some(c => c.name === 'Craw Wurm'), 'evidence collected: the Wurm');
   });
+
+  test('View keywords carry the quality: protection from red, from the chosen colour', (mk, t) => {
+    const T = mk();
+    const k = T.bf('A', 'Kor Firewalker');
+    const v = T.g.viewFor('B').battlefield.find(o => o.id === k.id);
+    t.ok(v.keywords.includes('protection from red'), 'from red');
+    t.ok(v.keywords.includes('protection'), 'plain protection kept');
+  });
+
+  test('Orcish Medicine: your choice of lifelink or indestructible', (mk, t) => {
+    t.auto('Orcish Medicine');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('mode', { modes: [1] });
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Orcish Medicine'), { targets: [bear.id] });
+    t.ok(T.g.hasKw(bear, 'indestructible')); t.no(T.g.hasKw(bear, 'lifelink'));
+  });
+
+  test('Dreadwing Scavenger: +1/+1 and deathtouch as long as seven cards are in the graveyard', (mk, t) => {
+    t.auto('Dreadwing Scavenger');
+    const T = mk();
+    const d = T.bf('A', 'Dreadwing Scavenger');
+    const p0 = T.g.powerOf(d);
+    t.no(T.g.hasKw(d, 'deathtouch'));
+    for (let i = 0; i < 7; i++) T.grave('A', 'Island');
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(d, 'deathtouch')); t.eq(T.g.powerOf(d), p0 + 1);
+  });
+
+  test('Thornfist Striker: trample and +1/+0 once you have gained life this turn', (mk, t) => {
+    t.auto('Thornfist Striker');
+    const T = mk();
+    T.bf('A', 'Thornfist Striker');
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.no(T.g.hasKw(bear, 'trample'));
+    T.g.changeLife(T.player('A'), 2); T.g.bumpBoard();
+    t.ok(T.g.hasKw(bear, 'trample')); t.eq(T.g.powerOf(bear), 3);
+  });
 };

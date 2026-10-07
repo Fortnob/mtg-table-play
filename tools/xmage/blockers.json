@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14308,
-  "gainedCards": 1521,
-  "linesNeeded": 15859,
-  "linesGained": 1891,
+  "needed": 14319,
+  "gainedCards": 1509,
+  "linesNeeded": 15835,
+  "linesGained": 1877,
   "gained": {
-   "all": 1521,
+   "all": 1509,
    "top2000": 52,
    "stdTop": 12
   },
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 791,
-   "lines": 791,
+   "score": 792,
+   "lines": 792,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 303,
-   "lines": 285,
+   "score": 302,
+   "lines": 284,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 224,
-   "lines": 194,
+   "score": 223,
+   "lines": 193,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -338,8 +338,8 @@
   },
   {
    "what": "ConditionalAsThoughEffect",
-   "score": 40,
-   "lines": 31,
+   "score": 37,
+   "lines": 28,
    "cards": [
     "The Reality Chip",
     "Augur of Autumn",
@@ -357,8 +357,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 37,
-   "lines": 37,
+   "score": 36,
+   "lines": 36,
    "cards": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -508,25 +508,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 29,
-   "lines": 29,
-   "cards": [
-    "Bilbo's Ring",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "June, Bounty Hunter",
-    "Nimble Brigand",
-    "Slippery Scoundrel"
-   ]
-  },
-  {
    "what": "EmpowerJaceEffect",
    "score": 29,
    "lines": 29,
@@ -577,6 +558,25 @@
    ]
   },
   {
+   "what": "ConditionalRestrictionEffect",
+   "score": 28,
+   "lines": 28,
+   "cards": [
+    "Bilbo's Ring",
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "June, Bounty Hunter",
+    "Nimble Brigand",
+    "Slippery Scoundrel"
+   ]
+  },
+  {
    "what": "CaseAbility",
    "score": 27,
    "lines": 18,
@@ -596,9 +596,20 @@
    ]
   },
   {
+   "what": "filter:colored",
+   "score": 26,
+   "lines": 5,
+   "cards": [
+    "Ugin, the Ineffable",
+    "Ugin, Eye of the Storms",
+    "Devourer of Destiny",
+    "Reach of Shadows"
+   ]
+  },
+  {
    "what": "AddContinuousEffectToGame",
-   "score": 27,
-   "lines": 27,
+   "score": 25,
+   "lines": 25,
    "cards": [
     "Mirri, Weatherlight Duelist",
     "Might of the Meek",
@@ -608,21 +619,10 @@
     "Winding Canyons",
     "Frodo, Sauron's Bane",
     "Regal Sliver",
-    "Withering Curse",
     "Join the Dead",
     "The Destined Warrior",
-    "Tragic Trajectory"
-   ]
-  },
-  {
-   "what": "filter:colored",
-   "score": 26,
-   "lines": 5,
-   "cards": [
-    "Ugin, the Ineffable",
-    "Ugin, Eye of the Storms",
-    "Devourer of Destiny",
-    "Reach of Shadows"
+    "Tragic Trajectory",
+    "Hazardroot Herbalist"
    ]
   },
   {
@@ -1344,24 +1344,6 @@
    ]
   },
   {
-   "what": "BecomePreparedSourceEffect",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Grave Researcher // Reanimate",
-    "Emeritus of Ideation // Ancestral Recall",
-    "Eccentric Pestfinder // Turn Stones",
-    "Joined Researchers // Secret Rendezvous",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Yavimaya Bloomsage // Channel",
-    "Lorehold Archivist // Restore Relic",
-    "Kirol, History Buff // Pack a Punch",
-    "Woodwork Prodigy // Soul Tether",
-    "Stingerquill Voxmancer // Vicious Verse",
-    "Paradox Shaper // Omit Variables"
-   ]
-  },
-  {
    "what": "CompoundCondition",
    "score": 17,
    "lines": 17,
@@ -1445,6 +1427,23 @@
     "Let the Galaxy Burn",
     "The Fifth Doctor",
     "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
+   ]
+  },
+  {
+   "what": "BecomePreparedSourceEffect",
+   "score": 16,
+   "lines": 10,
+   "cards": [
+    "Grave Researcher // Reanimate",
+    "Emeritus of Ideation // Ancestral Recall",
+    "Joined Researchers // Secret Rendezvous",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Yavimaya Bloomsage // Channel",
+    "Lorehold Archivist // Restore Relic",
+    "Kirol, History Buff // Pack a Punch",
+    "Woodwork Prodigy // Soul Tether",
+    "Stingerquill Voxmancer // Vicious Verse",
+    "Paradox Shaper // Omit Variables"
    ]
   },
   {
@@ -3106,24 +3105,6 @@
    ]
   },
   {
-   "what": "Zone.GRAVEYARD",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Cult Conscript",
-    "Gutterbones",
-    "Uchbenbak, the Great Mistake",
-    "Nemesis Phoenix",
-    "Skarrgan Firebird",
-    "Proctor of Potential",
-    "Kuldotha Phoenix",
-    "Cleaving Reaper",
-    "Ashen Ghoul",
-    "Brackish Trudge",
-    "Coffin Puppets"
-   ]
-  },
-  {
    "what": "scope:snow",
    "score": 11,
    "lines": 11,
@@ -3548,6 +3529,23 @@
     "Firmament Sage",
     "Sunrise Cavalier",
     "Celestus Sanctifier"
+   ]
+  },
+  {
+   "what": "Zone.GRAVEYARD",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Cult Conscript",
+    "Gutterbones",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential",
+    "Kuldotha Phoenix",
+    "Cleaving Reaper",
+    "Ashen Ghoul",
+    "Coffin Puppets"
    ]
   },
   {
@@ -7525,8 +7523,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 227,
-   "cards": 212,
+   "score": 226,
+   "cards": 211,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7667,19 +7665,6 @@
    ]
   },
   {
-   "what": "ConditionalAsThoughEffect",
-   "score": 32,
-   "cards": 26,
-   "names": [
-    "The Reality Chip",
-    "Augur of Autumn",
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Captain Mar-Vell, Space-Born"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 30,
    "cards": 27,
@@ -7703,6 +7688,19 @@
     "Lozhan, Dragons' Legacy",
     "Ragost, Deft Gastronaut",
     "Press the Enemy"
+   ]
+  },
+  {
+   "what": "ConditionalAsThoughEffect",
+   "score": 29,
+   "cards": 23,
+   "names": [
+    "The Reality Chip",
+    "Augur of Autumn",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Captain Mar-Vell, Space-Born"
    ]
   },
   {
@@ -7784,19 +7782,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Might of the Meek",
-    "The Irencrag",
-    "Tail Swipe",
-    "Bilbo's Gambit",
-    "Winding Canyons",
-    "Frodo, Sauron's Bane"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 23,
    "cards": 23,
@@ -7823,16 +7808,16 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
+   "what": "AddContinuousEffectToGame",
    "score": 22,
    "cards": 22,
    "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "June, Bounty Hunter"
+    "Might of the Meek",
+    "The Irencrag",
+    "Tail Swipe",
+    "Bilbo's Gambit",
+    "Winding Canyons",
+    "Frodo, Sauron's Bane"
    ]
   },
   {
@@ -7859,6 +7844,19 @@
     "Plate Armor",
     "Leather Armor",
     "Nightmare Lash"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 21,
+   "cards": 21,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "June, Bounty Hunter"
    ]
   },
   {
@@ -8744,19 +8742,6 @@
    ]
   },
   {
-   "what": "Zone.GRAVEYARD",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Cult Conscript",
-    "Gutterbones",
-    "Uchbenbak, the Great Mistake",
-    "Nemesis Phoenix",
-    "Skarrgan Firebird",
-    "Proctor of Potential"
-   ]
-  },
-  {
    "what": "WishEffect",
    "score": 11,
    "cards": 11,
@@ -8887,6 +8872,19 @@
     "Insatiable Hemophage",
     "Archipelagore",
     "Illuna, Apex of Wishes"
+   ]
+  },
+  {
+   "what": "Zone.GRAVEYARD",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Cult Conscript",
+    "Gutterbones",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential"
    ]
   },
   {
@@ -9620,6 +9618,19 @@
    ]
   },
   {
+   "what": "ProtectionAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Seasoned Dungeoneer",
+    "Spectra Ward",
+    "Rebbec, Architect of Ascension",
+    "Etched Champion",
+    "Devoted Caretaker",
+    "Pristine Angel"
+   ]
+  },
+  {
    "what": "VoidCondition.instance",
    "score": 8,
    "cards": 8,
@@ -10075,19 +10086,6 @@
     "Sokka, Bold Boomeranger",
     "Illuminate History",
     "Colossus of the Blood Age"
-   ]
-  },
-  {
-   "what": "ProtectionAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Seasoned Dungeoneer",
-    "Spectra Ward",
-    "Rebbec, Architect of Ascension",
-    "Etched Champion",
-    "Devoted Caretaker",
-    "Pristine Angel"
    ]
   },
   {

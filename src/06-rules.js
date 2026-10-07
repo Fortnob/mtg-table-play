@@ -6798,7 +6798,49 @@
         const r = at && this._staticOp(at, 'protChosenColor');
         if (r && r.attached && at.chosenColor) args.push(CN[at.chosenColor]);
       }
+      // Commander's Plate: every colour outside its controller's commanders' colour identity
+      const CNAME = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+      for (let i = args.length - 1; i >= 0; i--) {
+        if (!/^commander off colou?rs$/i.test(String(args[i]))) continue;
+        const ident = this._commanderColors(o.controller);
+        args.splice(i, 1, ...Object.keys(CNAME).filter(c => !ident.has(c)).map(c => CNAME[c]));
+      }
       return args.some(arg => this._matchesProtection(arg, source));
+    }
+    /** The keywords a person would read on it, qualities and all: "protection
+        from red" as well as "protection", the chosen colour named, a
+        commander's off-colours spelt out. */
+    _viewKeywords(o) {
+      const c = this.characteristics(o);
+      if (!c) return [];
+      const out = new Set(c.keywords);
+      const a = o.analysis() || {};
+      // printed keywords with a quality: "Protection from red", "Hexproof from black", "Ward {2}"
+      for (const k of a.keywords || []) {
+        if (!k || !k.arg || !k.text || !out.has(String(k.keyword).toLowerCase())) continue;
+        out.add(String(k.text).toLowerCase().replace(/^protection from (.+) and from /, (m0, x) => 'protection from ' + x + ' and from '));
+      }
+      const CN = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+      // Voice of All, Flickering Ward: "protection from the chosen color"
+      const chosen = [];
+      const own = this._staticOp(o, 'protChosenColor');
+      if (own && !own.attached && o.chosenColor) chosen.push(CN[o.chosenColor]);
+      for (const id of (o.attachments || [])) {
+        const at = this.obj(id);
+        const r = at && this._staticOp(at, 'protChosenColor');
+        if (r && r.attached && at.chosenColor) chosen.push(CN[at.chosenColor]);
+      }
+      for (const col of chosen) { out.add('protection'); out.add('protection from ' + col); }
+      // Commander's Plate: each colour outside the commander's identity
+      if (out.has('protection from commander off colors')) {
+        out.delete('protection from commander off colors');
+        const ident = this._commanderColors(o.controller);
+        for (const k of Object.keys(CN)) if (!ident.has(k)) out.add('protection from ' + CN[k]);
+        out.add('protection');
+      }
+      // a granted "protection from …" also reads as plain "protection" for whatever matches on it
+      for (const k of [...out]) if (/^protection from /.test(k)) out.add('protection');
+      return [...out];
     }
     _matchesProtection(arg, o) {
       if (!arg) return false;
@@ -7888,6 +7930,7 @@
         }
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
+        case 'gainedLifeThisTurn': return !!me && (me.lifeGainedThisTurn || 0) > 0;
         case 'noCreatures': return !this.battlefield.some(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
         case 'anyLostLife': return this.players.some(p => (p.lifeLostThisTurn || 0) >= (cond.n || 0));
         case 'sameNameLands': {
@@ -10504,6 +10547,19 @@
           /* Mother of Runes, Gods Willing: "protection from the color of your
              choice" is a colour asked for as it resolves */
           let kws = e.keywords || [];
+          // Assassin Initiate: "your choice of flying, vigilance, or lifelink"
+          if (e.keywordChoice && e.keywordChoice.length) {
+            const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'keywordChoice',
+              options: e.keywordChoice.map((k, i) => ({ i, label: k })), prompt: 'Which ability?' }, 'kwch');
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            kws = [e.keywordChoice[idx == null ? 0 : idx] || e.keywordChoice[0]];
+          }
+          // Prismatic Boon: "protection from the chosen color"
+          if (kws.some(k => /^protection from the chosen colou?r$/i.test(k))) {
+            const NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[ctx.chosenColor || (src && src.chosenColor)];
+            kws = kws.map(k => (/^protection from the chosen colou?r$/i.test(k) ? (NAME ? 'Protection From ' + NAME : null) : k)).filter(Boolean);
+          }
           if (kws.some(k => /^protection from the colou?r of your choice$/i.test(k))) {
             const COLORS = ['White', 'Blue', 'Black', 'Red', 'Green'];
             const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'protectionColor',
@@ -17130,7 +17186,7 @@
         toughness: (() => { const a = o.analysis(); return a && a.isCreature ? this.toughnessOf(o) : null; })(),
         /* what it has right now, granted keywords included, so the table can
            tell which permanents a spell is allowed to point at */
-        keywords: (() => { const c = this.characteristics(o); return c ? [...c.keywords] : []; })(),
+        keywords: this._viewKeywords(o),
       };
       return {
         v: this.stateVersion,
