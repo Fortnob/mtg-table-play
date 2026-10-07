@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14591,
+  "needed": 14582,
   "gainedCards": 1516,
-  "linesNeeded": 16184,
+  "linesNeeded": 16175,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5321,
-   "lines": 4619,
+   "score": 5312,
+   "lines": 4610,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -7592,8 +7592,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4253,
-   "cards": 3758,
+   "score": 4244,
+   "cards": 3749,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",

@@ -1711,6 +1711,9 @@
     { re: /^(?:CARDNAME|This creature|This enchantment|It) deals that much damage to (target opponent|target player|any target|each opponent)\.?$/i,
       make: (m) => (/each opponent/i.test(m[1]) ? { op: 'damage', n: 'triggerAmount', each: 'opponent' }
         : { op: 'damage', n: 'triggerAmount', targets: [targetSpec(m[1])] }) },
+    // Rising Waters, Hokori: "that player untaps a land they control"
+    { re: /^(That player|You) untaps? an? (land|creature|artifact|permanent) (?:they|you) control\.?$/i,
+      make: (m) => ({ op: 'untapOneOf', what: m[2].toLowerCase(), who: /^you$/i.test(m[1]) ? 'you' : 'triggerPlayer' }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -8018,7 +8021,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit']);
 
   function parseStatic(line, ctx) {
     /* the Wards: "Enchanted creature has protection from white. This effect
@@ -8159,6 +8162,10 @@
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
+      /* Winter Orb, Static Orb, Smoke: "players can't untap more than one
+         land during their untap steps" */
+      { re: /^(As long as (?:this artifact|CARDNAME) is untapped, )?(players|you) can'?t untap more than (one|two|three) (lands?|creatures?|artifacts?|permanents?) during (?:their|your) untap steps?\.?$/i,
+        make: (m) => ({ op: 'untapLimit', n: num(m[3]), what: m[4].toLowerCase().replace(/s$/, ''), whileUntapped: !!m[1], who: /^you$/i.test(m[2]) ? 'you' : 'all' }), auto: true },
       /* Training Grounds, Suppression Field, Power Artifact: what activated
          abilities cost, a few mana either way. "Can't reduce the mana in that
          cost to less than one mana" keeps one. */

@@ -960,7 +960,23 @@
       // Unwinding Clock untaps only artifacts, Bender's Waterskin only itself
       const untapsAnyway = (o) => alsoUntap.some(u => u.controller === o.controller &&
         (u.selfId ? u.selfId === o.id : (!u.filter || u.filter === 'permanent' || this._matchesCategory(o, u.filter))));
-      for (const o of this.battlefield) {
+      /* Winter Orb, Smoke: no more than so many of a kind untap. The ones
+         worth most come up first. */
+      const limits = [];
+      for (const src of this.battlefield) {
+        if (src.phasedOut) continue;
+        const ef = this._staticOp(src, 'untapLimit');
+        if (!ef || (ef.whileUntapped && src.tapped) || (ef.who === 'you' && src.controller !== ap.id)) continue;
+        limits.push({ what: ef.what || 'permanent', left: ef.n || 1, src });
+      }
+      const worth = (o) => { const a = o.analysis() || {}; return (a.isLand ? (this.manaAbilitiesOf ? this.manaAbilitiesOf(o).length : 1) : 0) * 10 + ((o.card && o.card.cmc) || 0); };
+      const order = limits.length ? this.battlefield.slice().sort((x, y) => worth(y) - worth(x)) : this.battlefield;
+      for (const o of order) {
+        if (limits.length && o.tapped && o.controller === ap.id && !o.noUntapNext && !this._hasFlag(o, 'noUntap')) {
+          const lim = limits.filter(l => l.what === 'permanent' || this._cardFitsWords(o, l.what));
+          if (lim.some(l => l.left <= 0)) { this.logEvent('step', `${o.name} stays tapped (${lim.find(l => l.left <= 0).src.name}).`); continue; }
+          for (const l of lim) l.left--;
+        }
         if (o.controller !== ap.id && !untapsAnyway(o)) continue;
         const stuck = this._hasFlag(o, 'noUntap');
         /* "You may choose not to untap CARDNAME during your untap step" —
@@ -11822,6 +11838,21 @@
             for (const o of doomed) { if (!owners.has(o.controller)) owners.set(o.controller, []); owners.get(o.controller).push(o); }
             for (const [pid, l] of owners) this._sacrificeNow(pid, l, null);
           }
+          break;
+        }
+        // Rising Waters: "that player untaps a land they control" — the one worth most
+        case 'untapOneOf': {
+          const p = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
+          const pool = this.battlefield.filter(o => o.controller === p.id && o.tapped && !o.phasedOut && this._cardFitsWords(o, e.what || 'permanent'));
+          if (!pool.length) break;
+          let x = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: p.id, purpose: 'untap', kind: 'objects', items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `Untap ${/^[aeiou]/i.test(e.what || '') ? 'an' : 'a'} ${e.what || 'permanent'} you control.` }, 'u1');
+            if (got === SUSPEND) return SUSPEND;
+            x = this.obj(((got && got.picks) || [])[0]) || pool[0];
+          }
+          if (x && x.tapped) { x.tapped = false; this.logEvent('rules', `${p.name} untaps ${x.name}.`); }
           break;
         }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile

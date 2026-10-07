@@ -6268,4 +6268,29 @@ module.exports = (test) => {
     T.g.addCounters(theirs, '+1/+1', 1); T.resolve();
     t.eq(sa.counters.growth || 0, 3, "not the opponent's");
   });
+
+  test('Winter Orb: one land untaps; tapped, the Orb lets them all', (mk, t) => {
+    t.auto('Winter Orb');
+    const T = mk();
+    const orb = T.bf('B', 'Winter Orb');
+    const lands = [T.bf('A', 'Forest', { tapped: true }), T.bf('A', 'Forest', { tapped: true }), T.bf('A', 'Forest', { tapped: true })];
+    const bear = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(lands.filter(l => !l.tapped).length, 1, 'one land');
+    t.no(bear.tapped, 'creatures are not limited');
+    T.nextTurn('B');
+    for (const l of lands) l.tapped = true;
+    orb.tapped = true;
+    T.nextTurn('A');
+    t.eq(lands.filter(l => !l.tapped).length, 3, 'all three with the Orb tapped');
+  });
+
+  test('Rising Waters: lands stay tapped, and one untaps at upkeep', (mk, t) => {
+    t.auto('Rising Waters');
+    const T = mk();
+    T.bf('B', 'Rising Waters');
+    const lands = [T.bf('A', 'Island', { tapped: true }), T.bf('A', 'Island', { tapped: true })];
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(lands.filter(l => !l.tapped).length, 1);
+  });
 };
