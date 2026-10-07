@@ -985,3 +985,6 @@
 :root[data-phone] .arrow-glow { filter: none; opacity: .18; }
 /* a seat's field is laid out on its own: what moves in it does not reflow the table */
 :root[data-phone] .seat-field { contain: layout style; }
+
+/* a spell or ability on the stack that the spell being cast could target */
+.stack-item.targetable { cursor: crosshair; border-radius: 10px; box-shadow: 0 0 0 2px var(--target, #ff7a59), 0 0 22px rgba(255,122,89,.55); }

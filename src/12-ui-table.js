@@ -1165,6 +1165,7 @@
         const w = this.wrapFor(key, 'stack-item' + (i === 0 ? ' top' : '') + (s.countered ? ' countered' : '') +
           (s.controller === this.meId ? ' mine' : ' theirs') + (s.kind === 'ability' ? ' ability' : ' spell'));
         w.dataset.stack = s.id;
+        w.classList.toggle('targetable', !!(this.targeting && this.isTargetableStack(s)));
         const who = v.players.find(p => p.id === s.controller);
         // a spell is its own card; an ability is a chip that names where it came from
         if (this.spot && this.spot.stackId === s.id) {
@@ -1538,6 +1539,7 @@
         if (this.targeting) {
           const o = this.objIn(id);
           target = !!(o && o.zone === 'battlefield' && this.isTargetable(o));
+          if (!o) { const loc = this.locate(id); if (loc && loc.zone === 'stack' && loc.item) target = this.isTargetableStack(loc.item); }
           if (this.targeting.chosen.some(t => t.id === id)) chosen = true;
         } else if (ch) {
           if (ch.type === 'declareAttackers') { cand = (ch.candidates || []).includes(id); chosen = !!(atk && atk.has(id)); }
@@ -1581,6 +1583,8 @@
         if (orb) { this.onOrbClick(orb.dataset.player, e); return; }
         const cv = e.target.closest('.cv');
         if (cv && a.contains(cv)) { this.onCardClick(cv.dataset.id, e, cv); return; }
+        const onStack = this.targeting && e.target.closest('[data-stack]');
+        if (onStack) { this.aimAtStack(onStack.dataset.stack); return; }
         const chip = e.target.closest('.ability-chip');
         if (chip) return;
         if (this._popover && !e.target.closest('.arena-pop')) this.closePopover();
@@ -1724,6 +1728,7 @@
       this.closePopover();
       const live = this.live || this.view;
       if (this.targeting) {
+        if (loc.zone === 'stack' && loc.item) return this.aimAtStack(loc.item.id);
         if (loc.zone !== 'battlefield') return;
         if (!this.isTargetable(loc.o)) return UI.error('Not a legal target for that.');
         this.targeting.chosen.push({ kind: 'object', id });
@@ -1984,6 +1989,72 @@
       if (spec.type === 'opponent') return p.id !== this.meId;
       return false;
     }
+    /**
+     * A spell or ability on the stack as a target: "counter target spell",
+     * "noncreature spell", "spell an opponent controls", "activated or
+     * triggered ability". Read leniently (the engine checks the target
+     * again as the spell is cast), so nothing legal is ever left dark.
+     * @this {MTG.TableInstance}
+     */
+    isTargetableStack(s) {
+      const t = this.targeting;
+      if (!t || !s) return false;
+      if (t.legal) return t.legal.has('stack:' + s.id);
+      const spec = t.specs[t.chosen.length];
+      if (!spec || !(spec.type === 'spell' || spec.zone === 'stack' || spec.type === 'spellOrPermanent')) return false;
+      if (t.chosen.some(c => c.kind === 'stack' && c.id === s.id)) return false;
+      if (s.objId && s.objId === t.source) return false;           // a spell does not target itself
+      if (spec.controller === 'you' && s.controller !== this.meId) return false;
+      if (spec.controller === 'opponent' && s.controller === this.meId) return false;
+      if (s.kind === 'ability') {
+        if (!spec.abilities) return false;
+        if (spec.abilityKind) return (spec.abilityKind === 'triggered') === !!s.triggered;
+        return true;
+      }
+      if (spec.noSpells) return false;
+      const card = s.card || {};
+      const mv = card.cmc || 0;
+      if (spec.maxMv != null && mv > spec.maxMv) return false;
+      if (spec.minMv != null && mv < spec.minMv) return false;
+      if (spec.mv != null && mv !== spec.mv) return false;
+      const a = MTG.oracle.analyze(card, s.face || 0) || {};
+      const want = String(spec.filter || '').toLowerCase().replace(/\s+(?:with|without)\s+.*$/, '')
+        .replace(/\s+(?:you control|an opponent controls|your opponents control|you don'?t control)$/, '').replace(/^target\s+/, '').trim();
+      if (!want || want === 'spell' || want === 'any' || spec.type === 'spellOrPermanent') return true;
+      const colours = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+      const has = (w) => {
+        if (w === 'creature') return !!a.isCreature;
+        if (w === 'instant') return !!a.isInstant;
+        if (w === 'sorcery') return !!a.isSorcery;
+        if (w === 'artifact') return !!a.isArtifact;
+        if (w === 'enchantment') return !!a.isEnchantment;
+        if (w === 'planeswalker') return !!a.isPlaneswalker;
+        if (w === 'permanent') return !!a.isPermanent;
+        if (colours[w]) return (card.colors || []).includes(colours[w]);
+        if (w === 'multicolored') return (card.colors || []).length > 1;
+        if (w === 'colorless') return !(card.colors || []).length;
+        return null;                                               // a word this does not know: no say
+      };
+      // "noncreature spell", "instant or sorcery spell", "red or green spell"
+      const words = want.replace(/\bspells?\b/g, '').trim();
+      if (/^non/.test(words)) { const r = has(words.slice(3).replace(/^-/, '')); return r == null ? true : !r; }
+      const alts = words.split(/\s+or\s+|,\s*/).map(x => x.trim()).filter(Boolean);
+      const answers = alts.map(has).filter(r => r != null);
+      return !answers.length || answers.some(Boolean);
+    }
+    /** @this {MTG.TableInstance} */
+    aimAtStack(id) {
+      const t = this.targeting;
+      if (!t) return;
+      const s = ((this.live || this.view).stack || []).find(x => x.id === id || x.objId === id);
+      if (!s) return;
+      if (!this.isTargetableStack(s)) return UI.error('Not a legal target for that.');
+      t.chosen.push({ kind: 'stack', id: s.id });
+      MTG.sfx('click');
+      if (t.chosen.length >= t.need) { this.targeting = null; t.onDone(t.chosen); }
+      this.render();
+    }
+
     aimAtPlayer(pid) {
       const t = this.targeting;
       if (!t) return;
@@ -2127,7 +2198,7 @@
       // a spell with exactly one legal target in the whole game takes it
       const live = this.view;
       if (!t.legal && t.need === 1 && !(t.specs[0] || {}).upTo && MTG.settings.autoTarget !== false) {
-        const objs = live.battlefield.filter(o => this.isTargetable(o));
+        const objs = live.battlefield.filter(o => this.isTargetable(o)).concat((live.stack || []).filter(s => this.isTargetableStack(s)));
         const players = live.players.filter(p => this.isTargetablePlayer(p));
         if (objs.length + players.length === 0) {
           UI.error('There is nothing it could target.');

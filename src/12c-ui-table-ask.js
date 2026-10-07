@@ -1052,7 +1052,8 @@
       const was = this.targeting;
       this.targeting = { specs: [spec], chosen: [], need: 1, onDone: () => {} };
       const v = this.live || this.view;
-      const n = v.battlefield.filter(x => this.isTargetable(x)).length + v.players.filter(p => this.isTargetablePlayer(p)).length;
+      const n = v.battlefield.filter(x => this.isTargetable(x)).length + v.players.filter(p => this.isTargetablePlayer(p)).length +
+        (v.stack || []).filter(s => this.isTargetableStack(s)).length;
       this.targeting = was;
       return n;
     },
