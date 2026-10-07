@@ -4101,4 +4101,21 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Llanowar Elves')); T.resolve();
     t.zone(v, 'battlefield');
   });
+
+  test('Craft: Tithing Blade exiles a creature card with it and returns transformed', (mk, t) => {
+    t.auto('Tithing Blade // Consuming Sepulcher');
+    const T = mk();
+    const tb = T.bf('A', 'Tithing Blade // Consuming Sepulcher');
+    const dead = T.grave('A', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [dead.id] }));
+    T.mana('A', '4B');
+    const a = tb.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    t.ok(T.g.activateAbility('A', tb.id, acts.findIndex(x => x.craft), {}), 'activated');
+    T.resolve();
+    t.zone(dead, 'exile');
+    t.zone(tb, 'battlefield');
+    t.eq(tb.face, 1, 'transformed');
+    t.eq(tb.name, 'Consuming Sepulcher');
+  });
 };

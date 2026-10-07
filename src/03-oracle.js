@@ -5291,6 +5291,25 @@
         continue;
       }
 
+      /* Craft (CR 702.167): "Craft with artifact {3}{W}" — pay, exile this
+         and the materials (other permanents you control and/or cards in
+         your graveyard), and it returns transformed. The materials are
+         chosen as the ability resolves. */
+      const craft = line.match(/^Craft with (.+?) ((?:\{[^}]+\})+)$/i);
+      if (craft) {
+        const mat = String(craft[1]).trim();
+        let spec = null, mm;
+        const one = (w) => w.replace(/^an? /i, '').trim();
+        if ((mm = mat.match(/^one or more ([a-z]+?)s?$/i))) spec = { words: mm[1] === 'creature' || mm[1] === 'Dinosaur' ? mm[1] : mm[1], min: 1, max: 99 };
+        else if (/^one or more$/i.test(mat)) spec = { words: 'permanent', min: 1, max: 99 };
+        else if ((mm = mat.match(/^(two|three|four|five|six) ([a-z]+?)s$/i))) spec = { words: mm[2], min: num(mm[1]), max: num(mm[1]) };
+        else if (/^(?:an? )?[A-Za-z]+$/.test(mat)) spec = { words: one(mat), min: 1, max: 1 };
+        if (spec && /^dinosaur$/i.test(spec.words)) spec.words = 'Dinosaur';
+        out.abilities.push({ kind: 'activated', cost: parseCost(craft[2]), sorcerySpeed: true, craft: spec,
+          effects: [{ op: 'craft', materials: spec }], text: line, auto: !!spec });
+        if (spec) autoLines++;
+        continue;
+      }
       /* Keyword line? A keyword whose cost has a comma in it ("Escape—{2}{B},
          Exile three other cards from your graveyard") has to be read whole
          before the line is cut up at its commas. */

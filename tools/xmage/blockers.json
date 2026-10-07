@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15802,
-  "gainedCards": 1610,
-  "linesNeeded": 17884,
+  "needed": 15796,
+  "gainedCards": 1611,
+  "linesNeeded": 17864,
   "linesGained": 2055,
   "gained": {
-   "all": 1610,
+   "all": 1611,
    "top2000": 52,
    "stdTop": 12
   },
@@ -919,25 +919,6 @@
     "Dawnhand Eulogist",
     "Contested Game Ball",
     "Torch the Tower"
-   ]
-  },
-  {
-   "what": "keyword CraftAbility",
-   "score": 24,
-   "lines": 24,
-   "cards": [
-    "Tithing Blade // Consuming Sepulcher",
-    "The Enigma Jewel // Locus of Enlightenment",
-    "Altar of the Wretched // Wretched Bonemass",
-    "Unstable Glyphbridge // Sandswirl Wanderglyph",
-    "Clay-Fired Bricks // Cosmium Kiln",
-    "Braided Net // Braided Quipu",
-    "Eye of Ojer Taq // Apex Observatory",
-    "Sunbird Standard // Sunbird Effigy",
-    "Master's Guide-Mural // Master's Manufactory",
-    "Ore-Rich Stalactite // Cosmium Catalyst",
-    "Dire Flail // Dire Blunderbuss",
-    "Inverted Iceberg // Iceberg Titan"
    ]
   },
   {
@@ -7930,13 +7911,26 @@
     "Wild Roads",
     "Foul Roads"
    ]
+  },
+  {
+   "what": "ConstellationAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Nessian Wanderer",
+    "Eidolon of Astral Winds",
+    "Harvestguard Alseids",
+    "Daxos's Torment",
+    "Strength from the Fallen",
+    "Goldenhide Ox"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4421,
-   "cards": 3878,
+   "score": 4424,
+   "cards": 3881,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8000,8 +7994,8 @@
   },
   {
    "what": "custom condition",
-   "score": 171,
-   "cards": 153,
+   "score": 172,
+   "cards": 154,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -8155,6 +8149,19 @@
    ]
   },
   {
+   "what": "ConditionalRestrictionEffect",
+   "score": 30,
+   "cards": 30,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Yuan-Ti Malison"
+   ]
+  },
+  {
    "what": "Ability.modes.setChooseText",
    "score": 29,
    "cards": 26,
@@ -8165,19 +8172,6 @@
     "Will of the Mardu",
     "Aetheric Amplifier",
     "Inscription of Abundance"
-   ]
-  },
-  {
-   "what": "ConditionalRestrictionEffect",
-   "score": 29,
-   "cards": 29,
-   "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Yuan-Ti Malison"
    ]
   },
   {
@@ -9462,6 +9456,19 @@
    ]
   },
   {
+   "what": "AddCardTypeSourceEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Invasion of Zendikar // Awakened Skyclave",
+    "Phantom Train",
+    "Fleetwheel Cruiser",
+    "Voyager Glidecar",
+    "Spring-Loaded Sawblades // Bladewheel Chariot",
+    "Gastal Thrillroller"
+   ]
+  },
+  {
    "what": "DamageTargetEffect amount",
    "score": 11,
    "cards": 11,
@@ -9730,19 +9737,6 @@
     "Blind Seer",
     "Thoughtlace",
     "Illusion // Reality"
-   ]
-  },
-  {
-   "what": "AddCardTypeSourceEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Invasion of Zendikar // Awakened Skyclave",
-    "Phantom Train",
-    "Fleetwheel Cruiser",
-    "Voyager Glidecar",
-    "Gastal Thrillroller",
-    "Grond, the Gatebreaker"
    ]
   },
   {
@@ -11282,19 +11276,6 @@
    ]
   },
   {
-   "what": "keyword CraftAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Tithing Blade // Consuming Sepulcher",
-    "Clay-Fired Bricks // Cosmium Kiln",
-    "Inverted Iceberg // Iceberg Titan",
-    "Lodestone Needle // Guidestone Compass",
-    "Oteclan Landmark // Oteclan Levitator",
-    "Visage of Dread // Dread Osseosaur"
-   ]
-  },
-  {
    "what": "control for custom",
    "score": 7,
    "cards": 7,
@@ -11762,6 +11743,19 @@
     "Ancient Lumberknot",
     "The Kingpin of Crime",
     "Belligerent Brontodon"
+   ]
+  },
+  {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Summon: Ixion",
+    "Werefox Bodyguard",
+    "Trapped in the Screen",
+    "Turncoat Kunoichi",
+    "Detention Chariot",
+    "Driftgloom Coyote"
    ]
   }
  ]

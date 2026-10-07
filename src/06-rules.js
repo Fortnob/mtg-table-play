@@ -2890,6 +2890,13 @@
       this._fire('unlockDoor', o.controller, { object: o, source: o, door });
       this._fire('youFullyUnlock', o.controller, { object: o, source: o });
     }
+    /** What a craft ability may use: other permanents its controller controls, and cards in their graveyard. */
+    _craftPool(src, m) {
+      const words = (m && m.words) || 'permanent';
+      const fits = (x) => words === 'permanent' ? !!x.analysis() : this._cardFitsWords(x, words);
+      return this.battlefield.filter(x => x !== src && !x.phasedOut && x.controller === src.controller && fits(x))
+        .concat(((this.zones[src.controller] || {}).graveyard || []).filter(fits));
+    }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
       const c = o && o.card;
@@ -5012,6 +5019,8 @@
       // power-up: once, as exhaust is
       if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That power-up ability has been used.';
       if (ab && ab.only && ab.only.once && o._usedOnce && o._usedOnce[ab.text] === o.entered) return 'That ability can be activated only once.';
+      // Craft: something to craft with
+      if (ab && ab.craft && this._craftPool(o, ab.craft).length < (ab.craft.min || 1)) return 'There is not enough to craft with.';
       if (ab && ab.only && ab.only.perTurn && o._turnUses && o._turnUses.turn === this.turn && (o._turnUses.n[ab.text] || 0) >= ab.only.perTurn)
         return ab.only.perTurn === 1 ? 'That ability can be activated only once each turn.' : `That ability can be activated no more than ${ab.only.perTurn} times each turn.`;
       /* A level band hands out its ability only while the creature is at
@@ -12280,6 +12289,27 @@
           break;
         }
         /* Nesting Grounds: a counter moved from one target to the other */
+        /* Craft: the materials (other permanents you control, cards in your
+           graveyard) exiled with this, and it comes back transformed */
+        case 'craft': {
+          if (!src || src.zone !== 'battlefield') break;
+          const m = e.materials || { words: 'permanent', min: 1, max: 1 };
+          const pool = this._craftPool(src, m);
+          if (pool.length < m.min) { this.logEvent('rules', `${src.name}: not enough to craft with.`); break; }
+          const got = this._choose({ playerId: ctx.controller, purpose: 'craftMaterials', kind: 'objects', zone: 'any',
+            items: this._chooseItems(pool), min: m.min, max: Math.min(m.max, pool.length), harmful: true,
+            prompt: `Craft ${src.name}: choose what to exile with it.` }, 'craft');
+          if (got === SUSPEND) return SUSPEND;
+          const used = ((got && got.picks) || []).map(id => this.obj(id)).filter(Boolean);
+          if (used.length < m.min) break;
+          for (const x of used) this.moveObject(x, 'exile');
+          src.craftedWith = used.map(x => x.id);
+          this.moveObject(src, 'exile');
+          src.face = 1;
+          this.moveObject(src, 'battlefield', { controller: ctx.controller });
+          this.logEvent('rules', `${me.name} crafts ${src.name}.`);
+          break;
+        }
         // Dragon Fangs: back from the graveyard, attached to the creature named
         case 'returnSelfAttached': {
           if (!src || src.zone !== 'graveyard') break;
