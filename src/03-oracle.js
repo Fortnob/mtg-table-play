@@ -6758,8 +6758,10 @@
       const walk = (list, deep) => { for (const e of list || []) { if (!e) continue; for (const t of e.targets || []) if (t && t.multi) multi.push(deep ? { count: 'deep' } : t.multi);
         walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, true); } };
       walk(ab.effects, false);
-      if (multi.some(mm => mm.count === 'X' ? !(ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) : mm.count !== 'any') ||
-          (ab.kind !== 'spell' && /\bX target\b/.test(ab.text || ''))) { ab.auto = false; out._keywordManual = true; }
+      // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)
+      const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || ''));
+      if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any') ||
+          (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || ''))) { ab.auto = false; out._keywordManual = true; }
     }
     // Escalate: the "choose one or more" modes, bought as the spell is cast
     if (out.escalate) {

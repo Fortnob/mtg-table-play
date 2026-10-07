@@ -6670,4 +6670,16 @@ module.exports = (test) => {
     t.ok(ms.tapped && gs.tapped, 'an artifact and a creature tapped');
     t.eq(T.g.powerOf(bear), 4, '+2/+0');
   });
+
+  test("Mishra's Helix: tap X target lands, as many as X", (mk, t) => {
+    t.auto("Mishra's Helix");
+    const T = mk();
+    const mh = T.bf('A', "Mishra's Helix");
+    const l1 = T.bf('B', 'Forest'), l2 = T.bf('B', 'Forest'), l3 = T.bf('B', 'Forest');
+    T.mana('A', '2');
+    t.no(T.g.activateAbility('A', mh.id, mh.analysis().manaAbilities.length, { x: 2, targets: [{ kind: 'object', id: l1.id }] }), 'X is 2: one target is too few');
+    T.activate('A', mh, mh.analysis().manaAbilities.length, { x: 2, targets: [l1.id, l2.id] });
+    T.resolve();
+    t.ok(l1.tapped && l2.tapped); t.no(l3.tapped);
+  });
 };

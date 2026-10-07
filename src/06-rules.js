@@ -5207,6 +5207,16 @@
         const bad = this._illegalTargets(effectSpecs(ab.effects), opts.targets, playerId, o);
         this._specX = null;
         if (bad) return this.fail(bad);
+        /* Mishra's Helix: "{X}, {T}: Tap X target lands" — as many targets as X */
+        const specs = effectSpecs(ab.effects);
+        const mi = specs.findIndex(sp => sp && sp.multi && sp.multi.count === 'X');
+        if (mi >= 0) {
+          const got = Math.max(0, (opts.targets || []).length - (specs.length - 1));
+          const legalN = this._legalTargetsFor(specs[mi], playerId, o.id).length;
+          const x = opts.x || 0;
+          if (specs[mi].multi.exact && got !== Math.min(x, legalN)) return this.fail(`Choose exactly ${Math.min(x, legalN)} target${Math.min(x, legalN) === 1 ? '' : 's'} (X is ${x}).`);
+          if (!specs[mi].multi.exact && got > x) return this.fail(`Choose no more than ${x} target${x === 1 ? '' : 's'} (X is ${x}).`);
+        }
       }
       const ca = a.isArtifact || a.isCreature || a.isEnchantment;
       const hush = ca ? this._castBlocked(playerId, true) : null;
