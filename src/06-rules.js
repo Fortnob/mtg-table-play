@@ -4011,7 +4011,9 @@
         const viaUse = opts.via ? this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via) : null;
         // overload: "each" instead of "target" — nothing is aimed at
         if (!(viaUse && viaUse.overload) && !(a && a.isPermanent && !a.isAura && !(opts.targets || []).length)) {
+          this._specX = opts.x || 0;
           const bad = this._illegalTargets(specs, opts.targets, playerId, o);
+          this._specX = null;
           if (bad) return this.fail(bad);
         }
       }
@@ -5087,7 +5089,9 @@
         return this.fail('That needs another target, not this one.');
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
+        this._specX = opts.x || 0;
         const bad = this._illegalTargets(effectSpecs(ab.effects), opts.targets, playerId, o);
+        this._specX = null;
         if (bad) return this.fail(bad);
       }
       const ca = a.isArtifact || a.isCreature || a.isEnchantment;
@@ -15606,10 +15610,13 @@
     /* Power, toughness and keywords a target spec asks about are the ones
        the permanent has right now, so the matcher borrows the game's. */
     _specCtx() {
+      const game = this;
       if (!this.__specCtx) this.__specCtx = {
         powerOf: (o) => this.powerOf(o),
         toughnessOf: (o) => this.toughnessOf(o),
         hasKw: (o, k) => this.hasKw(o, k),
+        // "with mana value X": the X of the spell or ability being cast, while it is checked
+        get x() { return game._specX; },
       };
       return this.__specCtx;
     }
@@ -15631,9 +15638,11 @@
       const a = o && o.analysis();
       if (!a || !spec) return true;                       // unknown: do not rule it out
       const mv = (o.card && o.card.cmc) || 0;
-      if (spec.maxMv != null && mv > spec.maxMv) return false;
-      if (spec.minMv != null && mv < spec.minMv) return false;
-      if (spec.mv != null && mv !== spec.mv) return false;
+      // Spell Blast: "with mana value X" — the X being cast with, once known
+      const xv = (v) => (v === 'X' ? (this._specX != null ? this._specX : null) : v);
+      if (xv(spec.maxMv) != null && mv > xv(spec.maxMv)) return false;
+      if (xv(spec.minMv) != null && mv < xv(spec.minMv)) return false;
+      if (xv(spec.mv) != null && mv !== xv(spec.mv)) return false;
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;
       // "target spell that targets a permanent you control"

@@ -5580,4 +5580,19 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 19, 'Wicked: each opponent loses 1');
   });
+
+  test('Spell Blast: a spell with mana value X, the X it is cast with', (mk, t) => {
+    t.auto('Spell Blast');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    const sb = T.hand('B', 'Spell Blast');
+    T.mana('B', 'U2');
+    t.no(T.g.castSpell('B', sb.id, { x: 2, targets: [T.stackTarget(bolt)] }), 'X 2 is not the Bolt');
+    T.cast('B', sb, { x: 1, targets: [T.stackTarget(bolt)] });
+    t.eq(bolt.zone, 'graveyard');
+    t.eq(T.life('B'), 20);
+  });
 };

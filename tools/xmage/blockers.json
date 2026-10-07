@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14952,
+  "needed": 14938,
   "gainedCards": 1526,
-  "linesNeeded": 16640,
+  "linesNeeded": 16623,
   "linesGained": 1926,
   "gained": {
    "all": 1526,
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 259,
-   "lines": 226,
+   "score": 243,
+   "lines": 210,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -1485,25 +1485,6 @@
     "Spike Hatcher",
     "Floodchaser",
     "Wiitigo"
-   ]
-  },
-  {
-   "what": "activated with 2 effects in its constructor",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Kozilek, the Great Distortion",
-    "Primordial Mist",
-    "The Capitoline Triad",
-    "Phyrexian Devourer",
-    "Kithkin Armor",
-    "Back from the Brink",
-    "Void Maw",
-    "Skeleton Scavengers",
-    "Nivmagus Elemental",
-    "Murderous Betrayal",
-    "Impelled Giant",
-    "Keldon Battlewagon"
    ]
   },
   {
@@ -3003,6 +2984,25 @@
     "Oracle of Bones",
     "Omnispell Adept",
     "Twinning Glass"
+   ]
+  },
+  {
+   "what": "activated with 2 effects in its constructor",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Primordial Mist",
+    "The Capitoline Triad",
+    "Phyrexian Devourer",
+    "Kithkin Armor",
+    "Back from the Brink",
+    "Void Maw",
+    "Skeleton Scavengers",
+    "Nivmagus Elemental",
+    "Murderous Betrayal",
+    "Impelled Giant",
+    "Keldon Battlewagon",
+    "Lurking Evil"
    ]
   },
   {
@@ -7738,8 +7738,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 223,
-   "cards": 190,
+   "score": 209,
+   "cards": 176,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -7764,8 +7764,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 169,
-   "cards": 157,
+   "score": 170,
+   "cards": 158,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -9929,6 +9929,18 @@
    ]
   },
   {
+   "what": "DrawCardsEqualToDifferenceEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Kozilek, the Great Distortion",
+    "The Ten Rings",
+    "Doctor Octopus, Master Planner",
+    "Krang, Master Mind",
+    "Damia, Sage of Stone"
+   ]
+  },
+  {
    "what": "MayPay2LifeForColorAbility",
    "score": 8,
    "cards": 5,
@@ -11517,19 +11529,6 @@
     "Kraven, Proud Predator",
     "Accelerated Mutation",
     "Torrent of Fire"
-   ]
-  },
-  {
-   "what": "MagecraftAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Quandrix Apprentice",
-    "Zaffai, Thunder Conductor",
-    "Lorehold Apprentice",
-    "Prismari Apprentice",
-    "Elemental Expressionist",
-    "Symmetry Sage"
    ]
   }
  ]

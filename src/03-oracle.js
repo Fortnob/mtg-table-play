@@ -338,7 +338,8 @@
   const TGT_ADJ = "(?:attacking|blocking|tapped|untapped|nonland|nontoken|nonlegendary|legendary|token|face-down|blocked|unblocked|red|green|blue|white|black|colorless|multicolored|monocolored|artifact|enchantment|creature|land|other)";
   const TGT_NOUN = "(?:creature|player|opponent|planeswalker|battle|permanent)";
   const TGT_WHO = "(?: (?:you control|an opponent controls|you don't control|your opponents control|a player controls))?";
-  const TGT_WITH = "(?: (?:with|without) [a-z0-9'+/ ]{2,40})?";
+  // "with mana value X or less": the one capital a "with" clause can carry
+  const TGT_WITH = "(?: (?:with|without) [a-z0-9'+/ ]{2,40}(?:X(?: or less| or greater)?)?)?";
   const TGT = "(?:any (?:other )?target|(?:another )?target (?:" + TGT_ADJ + " )*" + TGT_NOUN +
     "(?:,? (?:or )?" + TGT_NOUN + ")*" + TGT_WHO + TGT_WITH + ")";
 
@@ -3604,6 +3605,9 @@
     // the "with" clauses come last and say one checkable thing each
     const pw = p.match(/with (?:mana value|converted mana cost) (\d+) or less/);
     if (pw) spec.maxMv = +pw[1];
+    // Blue Sun's Twilight, Spell Blast: "with mana value X (or less)", the X it was cast with
+    const px = p.match(/with (?:mana value|converted mana cost) x( or less| or greater)?$/i);
+    if (px) { if (!px[1]) spec.mv = 'X'; else if (/less/.test(px[1])) spec.maxMv = 'X'; else spec.minMv = 'X'; }
     const pp = p.match(/with power (\d+) or less/);
     if (pp) spec.maxPower = +pp[1];
     const pg = p.match(/with power (\d+) or (?:greater|more)/);
@@ -3776,9 +3780,12 @@
     // one particular player's ("that player controls"), settled as the effect resolves
     if (spec.controllerId && obj.controller !== spec.controllerId) return false;
     if (spec.controller === 'opponent' && obj.controller === me) return false;
-    if (spec.maxMv != null && (obj.card.cmc || 0) > spec.maxMv) return false;
-    if (spec.minMv != null && (obj.card.cmc || 0) < spec.minMv) return false;
-    if (spec.mv != null && (obj.card.cmc || 0) !== spec.mv) return false;
+    // X: the one this was cast with, when it is known yet; any, until then
+    const xv = (v) => (v === 'X' ? (ctx && ctx.x != null ? ctx.x : null) : v);
+    const mvMax = xv(spec.maxMv), mvMin = xv(spec.minMv), mvIs = xv(spec.mv);
+    if (mvMax != null && (obj.card.cmc || 0) > mvMax) return false;
+    if (mvMin != null && (obj.card.cmc || 0) < mvMin) return false;
+    if (mvIs != null && (obj.card.cmc || 0) !== mvIs) return false;
     if (spec.attacking && !obj.attacking) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
@@ -4491,14 +4498,16 @@
       if (!o || typeof o !== 'object') return;
       for (const key of Object.keys(o)) {
         if (key === 'text') continue;
-        if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
+        // a target's "mana value X" is the cast X; a count put there could not be checked (Spellstutter Sprite)
+      if (o[key] === 'X' && /^(?:mv|maxMv|minMv)$/.test(key)) { used = -1e9; continue; }
+      if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
         // "+X/+0", "-X/-0": the sign kept, the number from the rider
         else if (o[key] && (o[key].posX || o[key].negX) && !o[key].by) { o[key] = Object.assign({}, o[key], { by: k }); used++; }
         else if (typeof o[key] === 'object') sub(o[key]);
       }
     };
     sub(eff);
-    return used;
+    return used > 0 ? used : 0;
   }
 
   function parseCompound(sentence) {
