@@ -1487,6 +1487,33 @@
         if (!eff || !(eff.loseAll || eff.setPt || eff.setCreatureTypes || eff.addTypes || eff.setTypes)) return null;
         return becomesSubject(m[1], eff, 'eot');
       } },
+    /* A land or artifact that gets up and fights: Nissa, Worldwaker's "Target
+       land you control becomes a 4/4 Elemental creature with trample";
+       Cyberdrive Awakener's "each noncreature artifact you control becomes a
+       4/4 artifact creature until end of turn"; Destiny Spinner's "an X/X …
+       where X is the number of enchantments you control". Without "until end
+       of turn" it is for good. */
+    { re: /^(Until end of turn, )?((?:up to one |another )?target [a-z ]+?|each [a-z ]+? you control) (becomes an? (?:\d+\/\d+|X\/X) .+?)( until end of turn)?(?:, where X is ([^.]+?))?\.?$/i,
+      make: (m) => {
+        let body = m[3];
+        let ptX = null;
+        if (/^becomes an? X\/X/i.test(body)) {
+          if (!m[5]) return null;
+          ptX = amountOf(m[5]);
+          if (!ptX) return null;
+          body = body.replace(/X\/X/, '0/0');
+        }
+        const eff = becomesEff(body);
+        if (!eff || !eff.setPt) return null;
+        const subj = /^each /i.test(m[2]) ? m[2].replace(/^each ([a-z ]+?) (artifact|land|creature|planeswalker|permanent|enchantment) you control$/i, 'each $1 $2s you control')
+          .replace(/^each (artifact|land|creature|planeswalker|permanent|enchantment) you control$/i, 'each $1s you control') : m[2];
+        const out = becomesSubject(subj, eff, (m[1] || m[4]) ? 'eot' : 'permanent');
+        if (!out) return null;
+        if (/^up to one /i.test(m[2]) && out.targets) out.targets[0].upTo = true;
+        if (ptX) out.ptX = ptX;
+        return out;
+      } },
+    { re: /^(?:They'?re|It'?s) still (?:a land|lands)\.?$/i, make: () => ({ op: 'noop' }) },
     /* Twisted Image: power and toughness switched (layer 7d) */
     { re: /^Switch (target creature|CARDNAME|this creature|it)'s power and toughness until end of turn\.?$/i,
       make: (m) => becomesSubject(m[1], { switchPt: true }, 'eot') },
@@ -7826,6 +7853,20 @@
       // "becomes a 3/3 creature that's still a land", "becomes a 2/2 red Elemental creature"
       if ((m = p.match(/^(?:becomes?|is|are) an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless) )*)((?:[A-Za-z'-]+ )*?)creatures?(?: that'?s still an? (?:land|artifact|enchantment))?$/))) {
         if (!typed(m[3], (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
+        continue;
+      }
+      /* Clan Guildmage: "becomes a 4/4 Elemental creature with haste";
+         Vengeant Earth: "… in addition to its other types" — the creature
+         types it had stay */
+      if ((m = p.match(/^becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless|and) )*)((?:[A-Za-z'-]+ )*?)creature(?: with ([a-z, ]+?))?( in addition to its other (?:colors and )?types)?$/))) {
+        if (!typed(m[3].replace(/\band\b/g, ' '), (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
+        if (m[6] && eff.setCreatureTypes) { eff.addSubtypes = eff.setCreatureTypes; delete eff.setCreatureTypes; }
+        if (m[6] && /colors/.test(m[6]) && eff.setColors) { eff.addColors = eff.setColors; delete eff.setColors; }
+        if (m[5]) {
+          const kws = keywordList(m[5]);
+          if (!kws.length || !kws.every(kwKnown)) return null;
+          eff.keywords = (eff.keywords || []).concat(kws);
+        }
         continue;
       }
       // "becomes a blue Frog with base power and toughness 1/1", "is an Insect artifact creature with base power and toughness 0/1"

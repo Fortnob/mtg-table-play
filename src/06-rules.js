@@ -12691,6 +12691,8 @@
             addTypes: ['Creature'].concat(e.addTypes || []),
             addSubtypes: String(e.subtypes || '').split(/\s+/).filter(Boolean),
             keywords: e.keywords || [],
+            // Mutavault's kin: "becomes a 2/2 red Elemental creature" — red, then
+            ...((e.colorWords || []).length ? { setColors: e.colorWords.map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[String(w).toLowerCase()]).filter(Boolean) } : {}),
           });
           this.bumpBoard();
           this.logEvent('rules', `${src.name} becomes a ${e.pt} creature until end of turn.`);
@@ -15053,7 +15055,9 @@
            layer, on each permanent named as it resolves (CR 611.2c). */
         case 'becomes': {
           const until = e.duration === 'permanent' ? null : 'eot';
-          const eff = e.eff || {};
+          let eff = e.eff || {};
+          // Destiny Spinner: "an X/X …, where X is the number of enchantments you control" — counted as it resolves
+          if (e.ptX) { const k = Math.max(0, n(e.ptX)); eff = Object.assign({}, eff, { setPt: { p: k, t: k } }); }
           applyToScope(e, (o) => {
             if (!o || o.zone !== 'battlefield') return;
             const one = JSON.parse(JSON.stringify(eff));

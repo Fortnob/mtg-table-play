@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14214,
-  "gainedCards": 1490,
-  "linesNeeded": 15709,
-  "linesGained": 1855,
+  "needed": 14192,
+  "gainedCards": 1482,
+  "linesNeeded": 15684,
+  "linesGained": 1847,
   "gained": {
-   "all": 1490,
+   "all": 1482,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5221,
-   "lines": 4546,
+   "score": 5207,
+   "lines": 4538,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -883,25 +883,6 @@
    ]
   },
   {
-   "what": "becomes a creature for custom",
-   "score": 21,
-   "lines": 18,
-   "cards": [
-    "Nissa, Who Shakes the World",
-    "Voldaren Bloodcaster // Bloodbat Summoner",
-    "Tatyova, Steward of Tides",
-    "Nissa, Worldwaker",
-    "Waker of the Wilds",
-    "Iron Man, Futurist Paragon",
-    "Doc Ock, Evil Inventor",
-    "Tendril of the Mycotyrant",
-    "Wakeroot Elemental",
-    "Wall of Resurgence",
-    "Kenku Artificer",
-    "Relive the Past"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 21,
    "lines": 18,
@@ -1593,25 +1574,6 @@
    ]
   },
   {
-   "what": "AddCardTypeTargetEffect",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Mech Hangar",
-    "Depthshaker Titan",
-    "Peacewalker Colossus",
-    "Chandra, Spark Hunter",
-    "Tough Cookie",
-    "Guidelight Matrix",
-    "Kolodin, Triumph Caster",
-    "Ashnod's Transmogrant",
-    "Tezzeret, Agent of Bolas",
-    "Workshop Elders",
-    "Stone by Sunlight",
-    "Tezzeret the Schemer"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 15,
    "lines": 15,
@@ -1772,6 +1734,24 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "becomes a creature for custom",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Nissa, Who Shakes the World",
+    "Waker of the Wilds",
+    "Iron Man, Futurist Paragon",
+    "Tendril of the Mycotyrant",
+    "Wakeroot Elemental",
+    "Wall of Resurgence",
+    "Kenku Artificer",
+    "Relive the Past",
+    "Cyclone Sire",
+    "Woodwraith Corrupter",
+    "Titania, Gaea Incarnate"
    ]
   },
   {
@@ -2131,6 +2111,25 @@
     "Ravenous Gigantotherium",
     "Hail of Arrows",
     "Volcanic Wind"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Mech Hangar",
+    "Depthshaker Titan",
+    "Peacewalker Colossus",
+    "Chandra, Spark Hunter",
+    "Guidelight Matrix",
+    "Kolodin, Triumph Caster",
+    "Ashnod's Transmogrant",
+    "Tezzeret, Agent of Bolas",
+    "Workshop Elders",
+    "Stone by Sunlight",
+    "Tezzeret the Schemer",
+    "Thran Forge"
    ]
   },
   {
@@ -7479,8 +7478,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4190,
-   "cards": 3710,
+   "score": 4178,
+   "cards": 3704,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7492,8 +7491,8 @@
   },
   {
    "what": "custom ability",
-   "score": 676,
-   "cards": 577,
+   "score": 677,
+   "cards": 578,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7867,19 +7866,6 @@
    ]
   },
   {
-   "what": "becomes a creature for custom",
-   "score": 19,
-   "cards": 16,
-   "names": [
-    "Nissa, Who Shakes the World",
-    "Tatyova, Steward of Tides",
-    "Waker of the Wilds",
-    "Iron Man, Futurist Paragon",
-    "Doc Ock, Evil Inventor",
-    "Tendril of the Mycotyrant"
-   ]
-  },
-  {
    "what": "EmpowerJaceEffect",
    "score": 19,
    "cards": 19,
@@ -8097,6 +8083,19 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "becomes a creature for custom",
+   "score": 14,
+   "cards": 11,
+   "names": [
+    "Nissa, Who Shakes the World",
+    "Waker of the Wilds",
+    "Iron Man, Futurist Paragon",
+    "Tendril of the Mycotyrant",
+    "Wakeroot Elemental",
+    "Wall of Resurgence"
    ]
   },
   {
@@ -8607,6 +8606,19 @@
    ]
   },
   {
+   "what": "attacks you, or its controller",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Revenge of Ravens",
+    "Sarkhan the Masterless",
+    "Marchesa's Decree",
+    "Search the Premises",
+    "Isperia, Supreme Judge",
+    "Circle of Flame"
+   ]
+  },
+  {
    "what": "custom value",
    "score": 11,
    "cards": 11,
@@ -8815,19 +8827,6 @@
     "Starseer Mentor",
     "Thornplate Intimidator",
     "Tomb Blade"
-   ]
-  },
-  {
-   "what": "attacks you, or its controller",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Revenge of Ravens",
-    "Marchesa's Decree",
-    "Search the Premises",
-    "Isperia, Supreme Judge",
-    "Circle of Flame",
-    "Riddlekeeper"
    ]
   },
   {
@@ -10043,19 +10042,6 @@
    ]
   },
   {
-   "what": "AddCardTypeTargetEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Peacewalker Colossus",
-    "Tough Cookie",
-    "Ashnod's Transmogrant",
-    "Workshop Elders",
-    "Stone by Sunlight",
-    "Animating Faerie // Bring to Life"
-   ]
-  },
-  {
    "what": "words: non-subtype",
    "score": 7,
    "cards": 7,
@@ -11263,6 +11249,15 @@
    "names": [
     "Druid Class",
     "Cool but Rude"
+   ]
+  },
+  {
+   "what": "UntapTargetCost",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Halo Fountain",
+    "Crackleburr"
    ]
   }
  ]

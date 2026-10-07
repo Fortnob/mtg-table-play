@@ -7306,4 +7306,32 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, hand0 + (1 < pw ? 1 : 0));
   });
+
+  test('Destiny Spinner: an X/X land, X counted as it resolves', (mk, t) => {
+    t.auto('Destiny Spinner');
+    const T = mk();
+    const ds = T.bf('A', 'Destiny Spinner');
+    T.bf('A', 'Propaganda'); T.bf('A', 'Propaganda');
+    const land = T.bf('A', 'Forest');
+    T.mana('A', '3G');
+    T.activate('A', ds, ds.analysis().manaAbilities.length, { targets: [land.id] });
+    T.resolve();
+    const c = T.g.characteristics(land);
+    t.ok(c.isCreature, 'a creature');
+    t.eq(T.g.powerOf(land), 3, 'Destiny Spinner and two Propagandas');
+    t.ok(T.g.hasKw(land, 'trample') && T.g.hasKw(land, 'haste'));
+    const st = land.analysis().subtypes || [];
+    t.ok(st.includes('Forest') && st.includes('Elemental'), 'still a Forest, an Elemental too');
+  });
+
+  test('Cyberdrive Awakener: each noncreature artifact you control is a 4/4 for the turn', (mk, t) => {
+    t.auto('Cyberdrive Awakener');
+    const T = mk();
+    const rock = T.bf('A', 'Mind Stone'), theirs = T.bf('B', 'Mind Stone');
+    T.mana('A', '5U');
+    T.cast('A', T.hand('A', 'Cyberdrive Awakener'));
+    T.resolve();
+    t.eq(T.g.powerOf(rock), 4); t.ok(T.g.characteristics(rock).isCreature);
+    t.ok(!T.g.characteristics(theirs).isCreature, 'not the opponent\'s');
+  });
 };
