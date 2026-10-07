@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14582,
+  "needed": 14566,
   "gainedCards": 1516,
-  "linesNeeded": 16175,
+  "linesNeeded": 16154,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5312,
-   "lines": 4610,
+   "score": 5308,
+   "lines": 4606,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 310,
-   "lines": 292,
+   "score": 309,
+   "lines": 291,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -1362,25 +1362,6 @@
    ]
   },
   {
-   "what": "ExileAndReturnSourceEffect",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Jin-Gitaxias // The Great Synthesis",
-    "Vorinclex // The Grand Evolution",
-    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
-    "Elesh Norn // The Argent Etchings",
-    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
-    "Terra, Magical Adept // Esper Terra",
-    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
-    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "Jecht, Reluctant Guardian // Braska's Final Aeon"
-   ]
-  },
-  {
    "what": "CompoundCondition",
    "score": 17,
    "lines": 17,
@@ -2047,6 +2028,25 @@
     "Thantis, the Warweaver",
     "Blood Reckoning",
     "Slumbering Dragon"
+   ]
+  },
+  {
+   "what": "ExileAndReturnSourceEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
+    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
+    "Terra, Magical Adept // Esper Terra",
+    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
+    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
+    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
+    "Jecht, Reluctant Guardian // Braska's Final Aeon",
+    "Nissa, Vastwood Seer // Nissa, Sage Animist",
+    "Crystal Fragments // Summon: Alexander",
+    "Huatli, Poet of Unity // Roar of the Fifth People"
    ]
   },
   {
@@ -2845,44 +2845,6 @@
    ]
   },
   {
-   "what": "BecomesColorSourceEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Miles Morales // Ultimate Spider-Man",
-    "Wild Mongrel",
-    "Spiritmonger",
-    "Repentant Vampire",
-    "Wayward Angel",
-    "Kavu Chameleon",
-    "Rainbow Crow",
-    "Possessed Aven",
-    "Caldera Kavu",
-    "Possessed Barbarian",
-    "Possessed Centaur",
-    "Possessed Nomad"
-   ]
-  },
-  {
-   "what": "Zone.GRAVEYARD",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Cult Conscript",
-    "Gutterbones",
-    "Uchbenbak, the Great Mistake",
-    "Nemesis Phoenix",
-    "Skarrgan Firebird",
-    "Proctor of Potential",
-    "Kuldotha Phoenix",
-    "Cleaving Reaper",
-    "Fleshless Gladiator",
-    "Ashen Ghoul",
-    "Brackish Trudge",
-    "Coffin Puppets"
-   ]
-  },
-  {
    "what": "conditional with an otherwise",
    "score": 12,
    "lines": 12,
@@ -3277,6 +3239,24 @@
     "Loki Laufeyson",
     "Way of the Cryomancer",
     "Gadwick's First Duel"
+   ]
+  },
+  {
+   "what": "Zone.GRAVEYARD",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Cult Conscript",
+    "Gutterbones",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential",
+    "Kuldotha Phoenix",
+    "Cleaving Reaper",
+    "Ashen Ghoul",
+    "Brackish Trudge",
+    "Coffin Puppets"
    ]
   },
   {
@@ -4118,22 +4098,6 @@
    ]
   },
   {
-   "what": "CorruptedCondition.instance",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Contaminant Grafter",
-    "The Seedcore",
-    "Bonepicker Skirge",
-    "Zealot's Conviction",
-    "Sinew Dancer",
-    "Apostle of Invasion",
-    "Incisor Glider",
-    "Vivisection Evangelist",
-    "Ravenous Necrotitan"
-   ]
-  },
-  {
    "what": "FilterPermanentThisOrAnother",
    "score": 9,
    "lines": 9,
@@ -4957,6 +4921,21 @@
     "Óin the Brave",
     "Bombur, Gentle Dreamer",
     "Ori, Keeper of Songs"
+   ]
+  },
+  {
+   "what": "BecomesColorSourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Miles Morales // Ultimate Spider-Man",
+    "Wild Mongrel",
+    "Repentant Vampire",
+    "Wayward Angel",
+    "Possessed Aven",
+    "Possessed Barbarian",
+    "Possessed Centaur",
+    "Possessed Nomad"
    ]
   },
   {
@@ -6083,19 +6062,6 @@
     "Storm Cauldron",
     "Scald",
     "Sanctimony"
-   ]
-  },
-  {
-   "what": "ActivateIfConditionManaAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Sceptre of Eternal Glory",
-    "Mirrex",
-    "Glistening Sphere",
-    "Flywheel Racer",
-    "Lys Alana Dignitary",
-    "Pyramid of the Pantheon"
    ]
   },
   {
@@ -7256,6 +7222,18 @@
    ]
   },
   {
+   "what": "ActivateIfConditionManaAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Sceptre of Eternal Glory",
+    "Mirrex",
+    "Flywheel Racer",
+    "Lys Alana Dignitary",
+    "Pyramid of the Pantheon"
+   ]
+  },
+  {
    "what": "modal activated ability",
    "score": 5,
    "lines": 5,
@@ -7587,13 +7565,25 @@
     "Enchanted River's Grasp",
     "Infinite Coursework"
    ]
+  },
+  {
+   "what": "DamageEachOtherOpponentThatMuchEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Hydra Omnivore",
+    "Vincent, Vengeful Atoner",
+    "Kosei, Penitent Warlord",
+    "Amarant Coral",
+    "Grenzo's Ruffians"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4244,
-   "cards": 3749,
+   "score": 4240,
+   "cards": 3745,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7605,8 +7595,8 @@
   },
   {
    "what": "custom ability",
-   "score": 683,
-   "cards": 581,
+   "score": 684,
+   "cards": 582,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7618,8 +7608,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 229,
-   "cards": 214,
+   "score": 228,
+   "cards": 213,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -8676,19 +8666,6 @@
    ]
   },
   {
-   "what": "Zone.GRAVEYARD",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Cult Conscript",
-    "Gutterbones",
-    "Uchbenbak, the Great Mistake",
-    "Nemesis Phoenix",
-    "Skarrgan Firebird",
-    "Proctor of Potential"
-   ]
-  },
-  {
    "what": "ReparteeAbility",
    "score": 12,
    "cards": 12,
@@ -8914,6 +8891,19 @@
    ]
   },
   {
+   "what": "Zone.GRAVEYARD",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Cult Conscript",
+    "Gutterbones",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential"
+   ]
+  },
+  {
    "what": "WishEffect",
    "score": 11,
    "cards": 11,
@@ -8950,19 +8940,6 @@
     "Rune of Protection: Artifacts",
     "Rune of Protection: Lands",
     "Circle of Protection: Shadow"
-   ]
-  },
-  {
-   "what": "BecomesColorSourceEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Wild Mongrel",
-    "Spiritmonger",
-    "Repentant Vampire",
-    "Wayward Angel",
-    "Kavu Chameleon",
-    "Rainbow Crow"
    ]
   },
   {
@@ -9932,19 +9909,6 @@
    ]
   },
   {
-   "what": "CorruptedCondition.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "The Seedcore",
-    "Bonepicker Skirge",
-    "Zealot's Conviction",
-    "Sinew Dancer",
-    "Apostle of Invasion",
-    "Incisor Glider"
-   ]
-  },
-  {
    "what": "delayed CopyNextSpellDelayedTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -10676,6 +10640,19 @@
    ]
   },
   {
+   "what": "BecomesColorSourceEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Wild Mongrel",
+    "Repentant Vampire",
+    "Wayward Angel",
+    "Possessed Aven",
+    "Possessed Barbarian",
+    "Possessed Centaur"
+   ]
+  },
+  {
    "what": "BecomesBlockedByCreatureTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -10844,19 +10821,6 @@
     "Skirk Shaman",
     "Angelic Voices",
     "Elven Riders"
-   ]
-  },
-  {
-   "what": "ActivateIfConditionManaAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Sceptre of Eternal Glory",
-    "Mirrex",
-    "Glistening Sphere",
-    "Flywheel Racer",
-    "Lys Alana Dignitary",
-    "Pyramid of the Pantheon"
    ]
   },
   {
@@ -11416,6 +11380,32 @@
     "Cyclops Tyrant",
     "Gibbering Hyenas",
     "Orcish Veteran"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByAllTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Stealth Mission",
+    "Firefright Mage",
+    "Tower of Coireall",
+    "Ghirapur Guide",
+    "Doorman",
+    "Joven's Tools"
+   ]
+  },
+  {
+   "what": "RecruitEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "The Mountain-king's Return",
+    "Great Gilded Boat",
+    "Lake-town Lookout",
+    "Esgaroth Garrison",
+    "Patient Instructor",
+    "Long Lake Nuisance"
    ]
   }
  ]

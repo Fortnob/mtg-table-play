@@ -1714,6 +1714,12 @@
     // Rising Waters, Hokori: "that player untaps a land they control"
     { re: /^(That player|You) untaps? an? (land|creature|artifact|permanent) (?:they|you) control\.?$/i,
       make: (m) => ({ op: 'untapOneOf', what: m[2].toLowerCase(), who: /^you$/i.test(m[1]) ? 'you' : 'triggerPlayer' }) },
+    // Karn, Silver Golem: "power and toughness each equal to its mana value"
+    { re: /^(Target (?:noncreature )?artifact) becomes an artifact creature with (?:base )?power and toughness each equal to its mana value until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'becomes', duration: 'eot', eff: { addTypes: ['Artifact', 'Creature'], setPtMv: true }, targets: [t] } : null; } },
+    // Spiritmonger: "This creature becomes the color of your choice until end of turn."
+    { re: /^(?:This creature|CARDNAME) becomes the colou?r of your choice until end of turn\.?$/i,
+      make: () => ({ op: 'chooseColorFor', scope: 'self' }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -2386,6 +2392,9 @@
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
 
+    // Elesh Norn: "Exile CARDNAME, then return it to the battlefield transformed under its owner's control."
+    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent), then return it to the battlefield transformed under (its owner'?s|your) control\.?$/i,
+      make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
 
@@ -5248,6 +5257,8 @@
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
     // Geistwave: "If you controlled that permanent"
     [/^you controlled that (?:permanent|creature|artifact|enchantment|land)$/i, () => ({ kind: 'lastWasYours' })],
+    // Glistening Sphere: "Activate only if an opponent has three or more poison counters"
+    [/^an opponent has (\w+) or more poison counters$/i, (m) => ({ kind: 'opponentPoison', n: num(m[1]) })],
     // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
     [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],
     // the Myojin: "if you cast it from your hand"

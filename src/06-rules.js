@@ -7637,6 +7637,7 @@
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
         case 'lastWasYours': return !!me && !!this._lastAffected && this._lastAffected.controller === me.id;
+        case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
@@ -11855,6 +11856,32 @@
           if (x && x.tapped) { x.tapped = false; this.logEvent('rules', `${p.name} untaps ${x.name}.`); }
           break;
         }
+        // Elesh Norn: out and back, the other face up — a new object
+        case 'blinkTransformed': {
+          const x = src;
+          if (!x || x.zone !== 'battlefield' || !(x.card && x.card.card_faces && x.card.card_faces.length > 1)) break;
+          const owner = x.owner;
+          this.moveObject(x, 'exile');
+          if (x.zone !== 'exile') break;
+          x.face = 1;
+          this.moveObject(x, 'battlefield', { controller: e.ownerControl ? owner : ctx.controller });
+          this.logEvent('rules', `${x.name} returns transformed.`);
+          break;
+        }
+        // Spiritmonger: the colour of its controller's choice, until end of turn
+        case 'chooseColorFor': {
+          const x = src;
+          if (!x || x.zone !== 'battlefield') break;
+          const COLS = [['W', 'white'], ['U', 'blue'], ['B', 'black'], ['R', 'red'], ['G', 'green']];
+          const got = this._choose({ playerId: ctx.controller, purpose: 'color', kind: 'options', min: 1, max: 1,
+            options: COLS.map((c, i) => ({ i, label: c[1] })), prompt: `${x.name} becomes the colour of your choice.` }, 'col');
+          if (got === SUSPEND) return SUSPEND;
+          const c = COLS[(got && got.picks && got.picks[0]) || 0] || COLS[0];
+          x.effects.push({ setColors: [c[0]], until: 'eot' });
+          x._chr = null; this.bumpBoard();
+          this.logEvent('rules', `${x.name} becomes ${c[1]}.`);
+          break;
+        }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
         case 'leaveExile': {
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
@@ -14497,7 +14524,10 @@
           const eff = e.eff || {};
           applyToScope(e, (o) => {
             if (!o || o.zone !== 'battlefield') return;
-            o.effects.push(Object.assign(JSON.parse(JSON.stringify(eff)), { until }));
+            const one = JSON.parse(JSON.stringify(eff));
+            // Karn, Silver Golem: a creature as big as its mana value
+            if (one.setPtMv) { const k = (o.card && o.card.cmc) || 0; one.setPt = { p: k, t: k }; delete one.setPtMv; }
+            o.effects.push(Object.assign(one, { until }));
             o._chr = null;
           });
           this.bumpBoard();

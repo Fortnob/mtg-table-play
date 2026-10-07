@@ -6293,4 +6293,29 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A');
     t.eq(lands.filter(l => !l.tapped).length, 1);
   });
+
+  test('Karn, Silver Golem: an artifact as big as its mana value', (mk, t) => {
+    t.auto('Karn, Silver Golem');
+    const T = mk();
+    const karn = T.bf('A', 'Karn, Silver Golem');
+    const ring = T.bf('A', 'Mind Stone');
+    T.mana('A', '1');
+    const idx = karn.analysis().manaAbilities.length + karn.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /mana value/.test(x.text));
+    T.activate('A', karn, idx, { targets: [ring.id] });
+    T.resolve();
+    t.ok(T.g.characteristics(ring).isCreature);
+    t.eq(T.g.powerOf(ring), 2); t.eq(T.g.toughnessOf(ring), 2);
+  });
+
+  test('Spiritmonger: the colour of your choice until end of turn', (mk, t) => {
+    t.auto('Spiritmonger');
+    const T = mk();
+    const sm = T.bf('A', 'Spiritmonger');
+    T.answer('choose', () => ({ picks: [1] }));
+    T.mana('A', 'G');
+    const idx = sm.analysis().manaAbilities.length + sm.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /colou?r of your choice/.test(x.text));
+    T.activate('A', sm, idx);
+    T.resolve();
+    t.eq(JSON.stringify(sm.analysis().colors), JSON.stringify(['U']));
+  });
 };
