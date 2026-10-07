@@ -11700,6 +11700,25 @@
         /* Reconnaissance, Gustcloak: "remove it from combat" (CR 506.4) — it
            neither deals nor is dealt combat damage, and what it was blocking
            or blocked by lets go of it */
+        /* Bonfire of the Damned, Flame Wave: "… damage to target player or
+           planeswalker and each creature that player or that planeswalker's
+           controller controls" */
+        case 'damageAndTheirs': {
+          const cnt = n(e.n);
+          const t0 = targets[0];
+          if (!t0 || cnt <= 0) break;
+          const tp = t0.kind === 'player' ? this.player(t0.id) : null;
+          const to = t0.kind === 'object' ? this.obj(t0.id) : null;
+          const who = tp ? tp.id : (to ? to.controller : null);
+          if (who == null) break;
+          const theirs = this.battlefield.filter(x => x.controller === who && !x.phasedOut && x !== to &&
+            ((this.characteristics(x) || {}).isCreature || (e.andPlaneswalkers && (x.analysis() || {}).isPlaneswalker)));
+          if (tp) this.dealDamageToPlayer(tp, cnt, src);
+          else if (to && to.zone === 'battlefield') this.dealDamageToObject(to, cnt, src);
+          for (const x of theirs) if (x.zone === 'battlefield') this.dealDamageToObject(x, cnt, src);
+          this.emit('sfx', 'damage');
+          break;
+        }
         case 'removeFromCombat':
           applyToScope(e, (o) => {
             if (!o.attacking && !(o.blocking || []).length) return;
@@ -12846,6 +12865,9 @@
       if (sc.withAnyCounter && !Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
       if (sc.color && !(oa.colors || []).includes(sc.color)) return false;
       if (sc.notColor && (oa.colors || []).includes(sc.notColor)) return false;
+      // "multicolored permanents", "black or green permanents"
+      if (sc.multicolored && (oa.colors || []).length < 2) return false;
+      if (sc.colorAny && !sc.colorAny.some(c => (oa.colors || []).includes(c))) return false;
       const mv = (o.card && o.card.cmc) || 0;
       if (sc.maxMv != null && mv > sc.maxMv) return false;
       if (sc.minMv != null && mv < sc.minMv) return false;
@@ -14002,6 +14024,11 @@
       for (const w of words) {
         const want = w.replace(/s$/, '');
         if (want === 'permanent' || want === 'you' || want === 'control') continue;
+        // "multicolored permanent", "green creature": colour words are words too
+        if (want === 'multicolored') { if ((a.colors || []).length < 2) return false; continue; }
+        if (want === 'colorles') { if ((a.colors || []).length) return false; continue; }
+        const cw = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[want];
+        if (cw) { if (!(a.colors || []).includes(cw)) return false; continue; }
         if (want.startsWith('non')) {
           const bare = want.replace(/^non-?/, '');
           if ((a.types || []).some(t => t.toLowerCase() === bare)) return false;

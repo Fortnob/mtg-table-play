@@ -2381,6 +2381,15 @@
         re(rest);
         return { op: 'sequence', list: [{ op: 'manifestDread' }, rest] };
       } },
+    /* Bonfire of the Damned, the Chandras: "deals N damage to target player
+       (or planeswalker) and each creature that player (or that planeswalker's
+       controller) controls" */
+    { re: /^(?:CARDNAME|It) deals (\d+|X) damage to (target player(?: or planeswalker)?) and each (creature(?: and planeswalker)?) (?:that player|they)(?: or that planeswalker'?s controller)? controls?\.?$/i,
+      make: (m) => ({ op: 'damageAndTheirs', n: num(m[1]), andPlaneswalkers: /planeswalker/i.test(m[3]),
+        targets: [/planeswalker/i.test(m[2]) ? targetSpec('target player or planeswalker') : { type: 'player' }] }) },
+    // Capenna Express: "This Vehicle becomes an artifact creature until end of turn." — not crewed, just a creature
+    { re: /^(?:This Vehicle|CARDNAME) becomes an artifact creature until end of turn\.?$/i,
+      make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
     /* Removed from combat (CR 506.4) */
     { re: /^Remove (target (?:attacking |blocking |attacking or blocking )?creature(?: you control| defending player controls)?|it|this creature|CARDNAME|enchanted creature) from combat\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'removeFromCombat', targets: [targetSpec(m[1])] }
@@ -4239,6 +4248,9 @@
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
+    // the depletion lands: "if there are no depletion counters on this land"
+    [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
+      (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
@@ -4256,6 +4268,14 @@
     [/^you control (?:an?|one or more) ([a-z]+?)s?$/i, (m) => ({ kind: 'control', what: m[1], n: 1 })],
     [/^you control (\w+) or fewer ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), cmp: 'atMost' })],
     [/^you control no ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[1], n: 0, cmp: 'atMost' })],
+    /* Grixis Grimblade, the Runemarks: "you control another multicolored
+       permanent", "you control a black or green permanent" — any group the
+       scope words can describe */
+    [/^you control (another|an?|one or more) ([a-zA-Z ,'-]+?)$/i, (m) => {
+      const words = m[2].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)/g, '$1s');
+      const sc = scopeOf((/^another$/i.test(m[1]) ? 'other ' : '') + words + ' you control');
+      return sc ? { kind: 'control', scope: sc, n: 1 } : null;
+    }],
     [/^you control a creature with power (\d+) or greater$/i, (m) => ({ kind: 'controlPower', n: +m[1] })],
     [/^you control an? ([A-Za-z]+) or an? ([A-Za-z]+)$/i, (m) => ({ kind: 'controlAny', what: [m[1], m[2]].map(x => x.toLowerCase()) })],
     [/^you control (\w+) or more other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) + 1 })],
@@ -5991,8 +6011,17 @@
     } else if (nouns.length === 1) sc.what = nouns[0];
     else { sc.what = 'permanent'; sc.anyOf = nouns; }
     const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+    // "black or green permanents": either colour
+    for (let i = 1; i + 1 < words.length; i++) {
+      if (/^(?:or|and\/or)$/i.test(words[i]) && COL[words[i - 1].toLowerCase()] && COL[words[i + 1].toLowerCase()]) {
+        sc.colorAny = [COL[words[i - 1].toLowerCase()], COL[words[i + 1].toLowerCase()]];
+        words.splice(i - 1, 3);
+        break;
+      }
+    }
     for (const w of words) {
       const lw = w.toLowerCase();
+      if (lw === 'multicolored') { sc.multicolored = true; continue; }
       if (lw === 'tapped' || lw === 'untapped' || lw === 'attacking' || lw === 'blocking') sc[lw] = true;
       else if (lw === 'nontoken') sc.nontoken = true;
       else if (lw === 'token') sc.token = true;

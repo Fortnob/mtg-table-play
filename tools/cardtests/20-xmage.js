@@ -3634,4 +3634,64 @@ module.exports = (test) => {
     T.resolve();
     t.zone(b, 'hand');
   });
+
+  test('Grixis Grimblade: bigger and deathtouch beside another multicoloured permanent', (mk, t) => {
+    t.auto('Grixis Grimblade');
+    const T = mk();
+    const g = T.bf('A', 'Grixis Grimblade');
+    t.eq(T.g.powerOf(g), 2, 'alone');
+    T.bf('A', 'Esper Stormblade');
+    t.eq(T.g.powerOf(g), 3);
+    t.ok(T.g.hasKw(g, 'deathtouch'));
+  });
+
+  test('Abzan Runemark: vigilance with a black or green permanent', (mk, t) => {
+    t.auto('Abzan Runemark');
+    const T = mk();
+    const b = T.bf('A', 'Savannah Lions');
+    const r = T.bf('A', 'Abzan Runemark');
+    r.attachedTo = b.id; b.attachments.push(r.id); T.g.bumpBoard();
+    t.no(T.g.hasKw(b, 'vigilance'), 'not yet');
+    T.bf('A', 'Llanowar Elves');
+    t.ok(T.g.hasKw(b, 'vigilance'));
+  });
+
+  test('Hickory Woodlot: sacrificed with its last depletion counter', (mk, t) => {
+    t.auto('Hickory Woodlot');
+    const T = mk();
+    const w = T.bf('A', 'Hickory Woodlot');
+    w.counters.depletion = 1; w.tapped = false;
+    const a = w.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', w, acts.findIndex(x => /depletion/.test(x.text)));
+    T.resolve();
+    t.zone(w, 'graveyard');
+  });
+
+  test('Flame Wave: the player and each creature they control', (mk, t) => {
+    t.auto('Flame Wave');
+    const T = mk();
+    const b = T.bf('B', 'Grizzly Bears'), w = T.bf('B', 'Craw Wurm'), mine = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3RRRR');
+    T.cast('A', T.hand('A', 'Flame Wave'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 16);
+    t.zone(b, 'graveyard'); t.zone(w, 'graveyard');
+    t.zone(mine, 'battlefield', 'not ours');
+  });
+
+  test('Capenna Express: a Treasure makes it a creature without crewing', (mk, t) => {
+    t.auto('Capenna Express');
+    const T = mk();
+    const v = T.bf('A', 'Capenna Express');
+    T.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const tr = T.bfOf('A').find(o => o.name === 'Treasure');
+    t.ok(tr, 'a Treasure');
+    const a = v.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.answer('sacrifice', () => ({ cardIds: [tr.id] }));
+    T.activate('A', v, acts.findIndex(x => /Treasure/.test(x.text)), { sacrificeIds: [tr.id] });
+    T.resolve();
+    t.ok(T.g.characteristics(v).isCreature, 'a creature now');
+  });
 };
