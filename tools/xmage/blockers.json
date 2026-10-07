@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15945,
-  "gainedCards": 1611,
-  "linesNeeded": 18093,
-  "linesGained": 2069,
+  "needed": 15929,
+  "gainedCards": 1608,
+  "linesNeeded": 18071,
+  "linesGained": 2065,
   "gained": {
-   "all": 1611,
-   "top2000": 52,
+   "all": 1608,
+   "top2000": 51,
    "stdTop": 11
   },
   "compare": {
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 993,
-   "lines": 828,
+   "score": 986,
+   "lines": 824,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -63,11 +63,11 @@
     "Kaya's Ghostform",
     "Scrap Trawler",
     "Forsaken Monument",
-    "Burgeoning",
     "The Gitrog Monster",
     "Myr Battlesphere",
     "Caged Sun",
-    "Mesmeric Orb"
+    "Mesmeric Orb",
+    "Vivi Ornitier"
    ]
   },
   {
@@ -167,21 +167,21 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 182,
-   "lines": 161,
+   "score": 171,
+   "lines": 150,
    "cards": [
     "Sakashima of a Thousand Faces",
     "Ulamog, the Defiler",
     "Chameleon, Master of Disguise",
     "Sakashima the Impostor",
-    "Diregraf Colossus",
     "Imposter Mech",
     "Nine-Lives Familiar",
     "Echoing Deeps",
     "Estrid's Invocation",
     "Flesh Duplicate",
-    "Golgari Grave-Troll",
-    "Prime Speaker Zegana"
+    "Prime Speaker Zegana",
+    "Xantcha, Sleeper Agent",
+    "Den of the Bugbear"
    ]
   },
   {
@@ -2066,25 +2066,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Breach the Multiverse",
-    "Fractured Sanity",
-    "Hope Estheim",
-    "Fascination",
-    "Invasion of Amonkhet // Lazotep Convert",
-    "Unseal the Necropolis",
-    "Overwhelmed Apprentice",
-    "Flotsam // Jetsam",
-    "Pestilent Cauldron // Restorative Burst",
-    "Path of the Schemer",
-    "Flitting Guerrilla",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "CreateTokenAllEffect",
    "score": 15,
    "lines": 12,
@@ -2415,6 +2396,24 @@
    ]
   },
   {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Breach the Multiverse",
+    "Hope Estheim",
+    "Fascination",
+    "Invasion of Amonkhet // Lazotep Convert",
+    "Unseal the Necropolis",
+    "Overwhelmed Apprentice",
+    "Flotsam // Jetsam",
+    "Pestilent Cauldron // Restorative Burst",
+    "Path of the Schemer",
+    "Flitting Guerrilla",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
    "what": "LegendRuleDoesntApplyEffect",
    "score": 14,
    "lines": 8,
@@ -2546,25 +2545,6 @@
     "Colleen Wing, Street Samurai",
     "Vigilant Martyr",
     "Mockingbird, Ace Agent"
-   ]
-  },
-  {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Archon of Emeria",
-    "Phyrexian Censor",
-    "Spider-Woman, Stunning Savior",
-    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
-    "Frozen Aether",
-    "Zhao, the Moon Slayer",
-    "Root Maze",
-    "Kismet",
-    "Loxodon Gatekeeper",
-    "Radiant Grace // Radiant Restraints",
-    "Orb of Dreams",
-    "Ashling's Prerogative"
    ]
   },
   {
@@ -3046,6 +3026,25 @@
     "Grave Defiler",
     "Enlistment Officer",
     "Lair Delve"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Phyrexian Censor",
+    "Spider-Woman, Stunning Savior",
+    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
+    "Frozen Aether",
+    "Zhao, the Moon Slayer",
+    "Root Maze",
+    "Kismet",
+    "Loxodon Gatekeeper",
+    "Radiant Grace // Radiant Restraints",
+    "Orb of Dreams",
+    "Ashling's Prerogative",
+    "False Floor"
    ]
   },
   {
@@ -6604,20 +6603,6 @@
    ]
   },
   {
-   "what": "scope:owner",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Agent of Treachery",
-    "Don Andres, the Renegade",
-    "Staff of Eden, Vault's Key",
-    "The Horus Heresy",
-    "Herald of Leshrac",
-    "Garland, Royal Kidnapper",
-    "Remove Enchantments"
-   ]
-  },
-  {
    "what": "ZoneChangeAllTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -7928,6 +7913,19 @@
    ]
   },
   {
+   "what": "scope:owner",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Don Andres, the Renegade",
+    "Staff of Eden, Vault's Key",
+    "The Horus Heresy",
+    "Herald of Leshrac",
+    "Garland, Royal Kidnapper",
+    "Remove Enchantments"
+   ]
+  },
+  {
    "what": "PlayWithHandRevealedEffect",
    "score": 6,
    "lines": 6,
@@ -7982,8 +7980,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4416,
-   "cards": 3873,
+   "score": 4418,
+   "cards": 3875,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7995,8 +7993,8 @@
   },
   {
    "what": "custom ability",
-   "score": 744,
-   "cards": 609,
+   "score": 738,
+   "cards": 606,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8060,15 +8058,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 111,
-   "cards": 102,
+   "score": 105,
+   "cards": 96,
    "names": [
     "Chameleon, Master of Disguise",
     "Sakashima the Impostor",
-    "Diregraf Colossus",
     "Imposter Mech",
     "Echoing Deeps",
-    "Estrid's Invocation"
+    "Estrid's Invocation",
+    "Flesh Duplicate"
    ]
   },
   {
@@ -9040,19 +9038,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Breach the Multiverse",
-    "Fractured Sanity",
-    "Hope Estheim",
-    "Fascination",
-    "Unseal the Necropolis",
-    "Overwhelmed Apprentice"
-   ]
-  },
-  {
    "what": "NextSpellCastHasAbilityEffect",
    "score": 12,
    "cards": 9,
@@ -9369,6 +9354,19 @@
     "Evercoat Ursine",
     "Collector's Cage",
     "Widespread Thieving"
+   ]
+  },
+  {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 11,
+   "cards": 8,
+   "names": [
+    "Breach the Multiverse",
+    "Hope Estheim",
+    "Fascination",
+    "Unseal the Necropolis",
+    "Overwhelmed Apprentice",
+    "Flotsam // Jetsam"
    ]
   },
   {
@@ -9902,6 +9900,19 @@
    ]
   },
   {
+   "what": "PreventDamageAndRemoveCountersEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Unbreathing Horde",
+    "Undergrowth Champion",
+    "Ugin's Conjurant",
+    "Phantom Nantuko",
+    "Oathsworn Knight",
+    "Phantom Tiger"
+   ]
+  },
+  {
    "what": "scope:snow",
    "score": 10,
    "cards": 10,
@@ -10013,19 +10024,6 @@
     "Fated Clash",
     "Scarring Memories",
     "Illusion Spinners"
-   ]
-  },
-  {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Archon of Emeria",
-    "Spider-Woman, Stunning Savior",
-    "Frozen Aether",
-    "Root Maze",
-    "Kismet",
-    "Loxodon Gatekeeper"
    ]
   },
   {
@@ -10309,19 +10307,6 @@
     "Slimefoot's Survey",
     "Nael, Avizoa Aeronaut",
     "Gurmag Nightwatch"
-   ]
-  },
-  {
-   "what": "PreventDamageAndRemoveCountersEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Undergrowth Champion",
-    "Ugin's Conjurant",
-    "Phantom Nantuko",
-    "Oathsworn Knight",
-    "Phantom Tiger",
-    "Phantom Flock"
    ]
   },
   {
@@ -10988,6 +10973,19 @@
     "Kjeldoran Outpost",
     "Soldevi Excavations",
     "Balduvian Trading Post"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Spider-Woman, Stunning Savior",
+    "Frozen Aether",
+    "Root Maze",
+    "Kismet",
+    "Loxodon Gatekeeper",
+    "Orb of Dreams"
    ]
   },
   {

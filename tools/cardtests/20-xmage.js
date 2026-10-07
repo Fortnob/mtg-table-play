@@ -40,8 +40,9 @@ module.exports = (test) => {
     t.eq(T.g.toughnessOf(bear), 4);
   });
 
-  test('XMage: Jace Beleren mills twenty', (mk, t) => {
-    generated(t, 'Jace Beleren');
+  // the parser reads "mills twenty cards" itself now, so no translated line is needed
+  test('Jace Beleren mills twenty', (mk, t) => {
+    t.auto('Jace Beleren');
     const T = mk({ libraryEach: 6 });
     const jace = T.bf('A', 'Jace Beleren', { counters: { loyalty: 10 } });
     const before = T.zone('B', 'library').length;
@@ -3803,5 +3804,31 @@ module.exports = (test) => {
     T.resolve();
     t.ok(T.g.characteristics(ring).isCreature, 'a creature');
     t.eq(T.g.powerOf(ring), 5);
+  });
+
+  test('Horn of Greed and Burgeoning: a land played sets them off', (mk, t) => {
+    t.auto('Horn of Greed'); t.auto('Burgeoning');
+    const T = mk();
+    T.bf('A', 'Horn of Greed');
+    T.bf('B', 'Burgeoning');
+    const extra = T.hand('B', 'Forest');
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('pickCard', () => ({ cardIds: [extra.id] }));
+    const h0 = T.zone('A', 'hand').length;
+    T.playLand('A', T.hand('A', 'Island'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'A drew one for the land it played');
+    t.zone(extra, 'battlefield', 'B put a land in');
+  });
+
+  test('Diregraf Colossus: a counter for each Zombie card in the graveyard', (mk, t) => {
+    t.auto('Diregraf Colossus');
+    const T = mk();
+    T.grave('A', 'Walking Corpse'); T.grave('A', 'Walking Corpse'); T.grave('A', 'Grizzly Bears');
+    T.mana('A', '2B');
+    const d = T.hand('A', 'Diregraf Colossus');
+    T.cast('A', d);
+    T.resolve();
+    t.eq(d.counters['+1/+1'] || 0, 2);
   });
 };

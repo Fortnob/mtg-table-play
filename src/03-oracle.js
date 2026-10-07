@@ -2923,6 +2923,12 @@
     return t === 'that spell' ? 'that' : (t === 'it' ? 'it' : 'this');
   }
 
+  /** A count that can be made with no effect resolving: what is on the table, in a hand or a graveyard. */
+  function plainCount(c) {
+    return !!c && ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'colorsAmongYours', 'per', 'attachedOf']
+      .some(k => c[k] != null) || !!(c && c.sum && c.sum.every(plainCount));
+  }
+
   function countOf(phrase, mult) {
     const p = String(phrase || '').trim();
     const k = mult == null ? 1 : mult;
@@ -3272,6 +3278,8 @@
       .replace(/^(?:That|The) (?:creature|permanent|land|artifact|enchantment|spell|planeswalker)'s controller\b/, 'Its controller')
       // Aethersphere Harvester: "This Vehicle gains lifelink" — a permanent talking about itself
       .replace(/^This (?:Vehicle|Spacecraft|permanent) (gains|gets|has) /, 'This creature $1 ')
+      // "Each opponent mills fourteen cards": the big number words as digits
+      .replace(/\b(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/gi, (w) => String(BIG_WORDS[w.toLowerCase()]))
       // Aurelia: "each of your opponents" is each opponent
       .replace(/\beach of your opponents\b/g, 'each opponent');
     if (!s) return null;
@@ -4260,6 +4268,8 @@
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
     [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
+    // Agent of Treachery: "you control three or more permanents you don't own"
+    [/^you control (\w+) or more permanents you don'?t own$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'controlNotOwned', n: num(m[1]) } : null)],
     // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
     [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
@@ -4686,6 +4696,8 @@
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
     { re: /^At the beginning of each opponent'?s upkeep(?:,| )/i, event: 'opponentUpkeep' },
     { re: /^At the beginning of your (?:postcombat )?main phase(?:,| )/i, event: 'yourMain1' },
+    { re: /^Whenever a player plays a land,? /i, event: 'anyPlayLand' },
+    { re: /^Whenever an opponent plays a land,? /i, event: 'opponentPlaysLand' },
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
     { re: /^Whenever you attack with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
@@ -5752,6 +5764,12 @@
     // Marath: "enters with a number of +1/+1 counters on it equal to the amount of mana spent to cast it"
     const eqs = text.match(/enters(?: the battlefield)? with a number of ([+\-0-9/a-z]+) counters on it equal to the amount of mana spent to cast it/i);
     if (eqs && !out.entersWithCounters) out.entersWithCounters = { kind: eqs[1], n: { manaSpent: true } };
+    // Diregraf Colossus: "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
+    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each ([^.]+?)\./i);
+    if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[2])) {
+      const c = countOf(etbEach[2]);
+      if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[1], n: { count: c } };
+    }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     let etbm = text.match(/enters with (a|an|one|two|three|four|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
@@ -6686,7 +6704,7 @@
     { re: /^If you would gain life, you gain twice that much life instead\.?$/i,
       make: () => ({ op: 'replace', id: 'lifeDouble', event: 'gainLife', who: 'you', how: 'double' }) },
     /* Authority of the Consuls, Blind Obedience: the other side's arrivals come in tapped */
-    { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents)(?: and (?:artifacts|creatures|lands|nonbasic lands))?) your opponents control enter (?:the battlefield )?tapped\.?$/i,
+    { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands)(?: and (?:artifacts|creatures|lands|nonbasic lands))?) your opponents control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTapOpp', event: 'enters', who: 'opponents', how: 'tapped',
         whatAny: m[1].toLowerCase().replace(/^nonland permanents$/, 'nonland').split(/ and /).map(w => w.replace(/s$/, '')) }) },
     { re: /^If a creature would die, exile it instead\.?$/i,
@@ -6916,6 +6934,8 @@
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
+      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each ([^.]+?)\.?$/i,
+        make: (m) => (!/mana spent/i.test(m[1]) && plainCount(countOf(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read

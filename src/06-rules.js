@@ -2426,6 +2426,9 @@
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land"
       this._fire('youPlayLand', playerId, { object: o });
+      // Horn of Greed, Burgeoning: "whenever a player / an opponent plays a land"
+      this._fire('anyPlayLand', null, { object: o, playerId });
+      this._fire('opponentPlaysLand', null, { object: o, playerId, except: playerId });
       this.emit('sfx', 'land');
       this.checkStateBasedActions();
       /* Playing a land is a special action and uses no stack, but a land that
@@ -4640,6 +4643,8 @@
           : (raw && typeof raw === 'object' && raw.colorsSpent) ? (o.colorsSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.manaSpent) ? (o.manaSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.per) ? this.countPermanents(o.controller, { per: raw.per })
+          // Diregraf Colossus: "for each Zombie card in your graveyard"
+          : (raw && typeof raw === 'object' && raw.count) ? this._countValue(raw.count, o.controller, o)
           : (parseInt(raw, 10) || 0);
         // Kavu Titan: "and with trample"
         if (a.entersWithCounters.withKeywords) { o.effects.push({ keywords: a.entersWithCounters.withKeywords.slice(), until: null }); o._chr = null; }
@@ -6952,6 +6957,7 @@
           const who = cond.who === 'opponent' ? this.opponentsOf(me.id) : [me];
           return who.some(q => (q.lifeLostThisTurn || 0) >= (cond.n || 1));
         }
+        case 'controlNotOwned': return !!me && this.battlefield.filter(x => x.controller === me.id && x.owner !== me.id && !x.phasedOut).length >= (cond.n || 1);
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
