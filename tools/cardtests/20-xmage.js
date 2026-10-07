@@ -6015,4 +6015,43 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Delayed Blast Fireball'));
     t.eq(mine.zone, 'battlefield'); t.eq(theirs.zone, 'graveyard'); t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
   });
+
+  test('Olivia Voldaren: the creature she pings becomes a Vampire, and she grows', (mk, t) => {
+    t.auto('Olivia Voldaren');
+    const T = mk();
+    const ol = T.bf('A', 'Olivia Voldaren');
+    const ogre = T.bf('B', 'Hill Giant');
+    T.mana('A', 'R1');
+    T.activate('A', ol, 0, { targets: [ogre.id] });
+    t.eq(ogre.damage, 1);
+    t.ok(T.g._hasSubtype(ogre, 'Vampire'), 'a Vampire now');
+    t.eq(ol.counters['+1/+1'] || 0, 1);
+  });
+
+  test('Guide of Souls: paid, the attacker gets counters and becomes an Angel; unpaid, nothing', (mk, t) => {
+    t.auto('Guide of Souls');
+    const T = mk();
+    T.bf('A', 'Guide of Souls');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.player('A').energy = 3;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.toMain('A', 'endCombat');
+    t.eq(bear.counters['+1/+1'] || 0, 2);
+    t.eq(bear.counters.flying || 0, 1);
+    t.ok(T.g._hasSubtype(bear, 'Angel'), 'an Angel');
+    t.eq(T.player('A').energy, 0);
+  });
+
+  test('Guide of Souls: two energy is not enough, and none is spent', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Guide of Souls');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.player('A').energy = 2;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(bear.counters['+1/+1'] || 0, 0);
+    t.no(T.g._hasSubtype(bear, 'Angel'));
+    t.eq(T.player('A').energy, 2);
+  });
 };

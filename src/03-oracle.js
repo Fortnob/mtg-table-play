@@ -1651,6 +1651,14 @@
     { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
     /* Chandra, Flamecaller: "Exile them at the beginning of the next end
        step" — the tokens this just made, each of them */
+    // Guide of Souls: "Put two +1/+1 counters and a flying counter on target attacking creature."
+    { re: /^Put (a|an|one|two|three) ([+\-0-9/]+) counters? and an? ([a-z]+) counter on (target [a-z ]+?)\.?$/i,
+      make: (m) => { const t = tgt(m[4]); return t && kwKnown(U.titleCase(m[3])) ? { op: 'sequence', list: [{ op: 'counters', kind: m[2], n: num(m[1]), targets: [t] },
+        { op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
+    // Guide of Souls: "It becomes an Angel in addition to its other types."
+    { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
+        : { op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -3568,6 +3576,8 @@
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
+    // Twilight Prophet: "that card's mana value" — the card just revealed and taken
+    if ((m = p.match(/^(?:that card's|the revealed card's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
     // Rackling: "3 minus the number of cards in their hand"
     if ((m = p.match(/^(\d+) minus the number of cards in (?:their|that player'?s) hand$/i))) return done({ minusHand: +m[1] });
@@ -4700,8 +4710,16 @@
       }
       if (may && ifDo) {
         const cost = asCost(may[1]);
-        const thenText = U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1);
+        let thenText = U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1);
+        /* Guide of Souls: "When you do, put … on target attacking creature.
+           It becomes an Angel …" — what the reflexive trigger aimed at goes
+           on being talked about, and only happens if it was paid for */
+        let more = 0;
+        if (/^When/i.test(next)) {
+          while (/^(?:It|That creature|Its) /.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+        }
         const thenPart = parseSentenceList(splitSentences(thenText));
+        i += more;
         if (cost) {
           effects.push({ op: 'mayPay', pay: cost, then: thenPart.effects, text: s + ' ' + next });
           if (!thenPart.auto) auto = false;

@@ -11369,7 +11369,10 @@
            happens only if the cost was actually paid, which is why this asks
            twice: once for the offer, once for what to pay it with. */
         case 'mayPay': {
-          const pay = e.pay || {};
+          let pay = e.pay || {};
+          /* "You may pay {E}{E}{E}": energy, not mana (Guide of Souls) */
+          const eN = (String(pay.mana || '').match(/\{E\}/gi) || []).length;
+          if (eN) pay = Object.assign({}, pay, { energy: eN, mana: String(pay.mana).replace(/\{E\}/gi, '') || null });
           /* A price that cannot be paid is not offered: "you may pay {1}
              and discard a card" with no card in hand is a no. */
           const able = (!pay.mana || this.couldPay(ctx.controller, pay.mana, this.manaSources(ctx.controller))) &&
@@ -11380,12 +11383,19 @@
             (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
             (!pay.behold || this._beholdPool(ctx.controller, pay.behold, src).length > 0) &&
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
-            (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1));
-          if (!able && (pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+            (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1)) &&
+            (!pay.energy || (me.energy || 0) >= pay.energy);
+          if (!able && (pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
+          if (pay.energy && !this._doneHere('energyPaid')) {
+            if ((me.energy || 0) < pay.energy) { this._spliceNext(e.otherwise); break; }
+            me.energy -= pay.energy;
+            this.logEvent('counters', `${me.name} pays ${pay.energy} energy (${me.energy} left).`);
+            if (!pay.mana && pay.life == null && !pay.discard && !pay.sacrifice) { this._spliceNext(e.then); break; }
+          }
           // Sarkhan: "you may behold a Dragon" — shown, nothing given up
           if (pay.behold) {
             this._beholdOne(ctx.controller, this._beholdPool(ctx.controller, pay.behold, src)[0], false, null);
@@ -11894,7 +11904,13 @@
           break;
         }
 
-        case 'drawFromTop': this._drawCards(me, n(e.n)); break;
+        case 'drawFromTop': {
+          // Twilight Prophet: "where X is that card's mana value" — the card it took
+          const top = this.zones[me.id].library[0];
+          if (top && n(e.n) === 1) this._noteLastAffected([{ kind: 'object', id: top.id }]);
+          this._drawCards(me, n(e.n));
+          break;
+        }
 
         /* "…may draw up to two cards": how many is the drawer's choice. */
         case 'drawUpTo': {

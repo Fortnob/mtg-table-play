@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14685,
-  "gainedCards": 1521,
-  "linesNeeded": 16303,
+  "needed": 14667,
+  "gainedCards": 1522,
+  "linesNeeded": 16281,
   "linesGained": 1902,
   "gained": {
-   "all": 1521,
-   "top2000": 52,
+   "all": 1522,
+   "top2000": 53,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5368,
-   "lines": 4654,
+   "score": 5349,
+   "lines": 4638,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -3084,19 +3084,6 @@
    ]
   },
   {
-   "what": "BecomesCreatureTypeTargetEffect",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Guide of Souls",
-    "Sorin of House Markov // Sorin, Ravenous Neonate",
-    "Olivia, Mobilized for War",
-    "Butch DeLoria, Tunnel Snake",
-    "Boldwyr Intimidator",
-    "Coward // Killer"
-   ]
-  },
-  {
    "what": "MagecraftAbility",
    "score": 11,
    "lines": 8,
@@ -3690,23 +3677,6 @@
     "Rangers' Refueler",
     "Boom Scholar",
     "Marshals' Pathcruiser"
-   ]
-  },
-  {
-   "what": "AddCardSubTypeTargetEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Clavileño, First of the Blessed",
-    "Jenova, Ancient Calamity",
-    "Enter the Avatar State",
-    "Archangel Elspeth",
-    "Olivia Voldaren",
-    "Vronos, Masked Inquisitor",
-    "Loki's Scepter",
-    "Beorn the Fierce",
-    "Vault 87: Forced Evolution",
-    "Jump Scare"
    ]
   },
   {
@@ -5515,6 +5485,20 @@
    ]
   },
   {
+   "what": "AddCardSubTypeTargetEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Clavileño, First of the Blessed",
+    "Jenova, Ancient Calamity",
+    "Enter the Avatar State",
+    "Archangel Elspeth",
+    "Vronos, Masked Inquisitor",
+    "Loki's Scepter",
+    "Jump Scare"
+   ]
+  },
+  {
    "what": "(verify) optional where the card is not",
    "score": 7,
    "lines": 7,
@@ -6435,6 +6419,17 @@
     "Liliana's Influence",
     "Invasion of Vryn // Overloaded Mage-Ring",
     "Izzet Guildmage"
+   ]
+  },
+  {
+   "what": "BecomesCreatureTypeTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Sorin of House Markov // Sorin, Ravenous Neonate",
+    "Olivia, Mobilized for War",
+    "Boldwyr Intimidator",
+    "Coward // Killer"
    ]
   },
   {
@@ -7617,8 +7612,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4297,
-   "cards": 3790,
+   "score": 4279,
+   "cards": 3775,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7682,8 +7677,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 171,
-   "cards": 159,
+   "score": 172,
+   "cards": 160,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -10033,6 +10028,19 @@
    ]
   },
   {
+   "what": "control for whileControlled",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Yuffie, Materia Hunter",
+    "Possession Engine",
+    "Vault 87: Forced Evolution",
+    "Merieke Ri Berit",
+    "Helm of Possession",
+    "Rubinia Soulsinger"
+   ]
+  },
+  {
    "what": "CastFromHandForFreeEffect",
    "score": 8,
    "cards": 8,
@@ -10453,19 +10461,6 @@
     "Detainment Spell",
     "Bespoke Battlegarb",
     "Concealed Weapon"
-   ]
-  },
-  {
-   "what": "control for whileControlled",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Yuffie, Materia Hunter",
-    "Possession Engine",
-    "Merieke Ri Berit",
-    "Helm of Possession",
-    "Rubinia Soulsinger",
-    "Willow Satyr"
    ]
   },
   {
@@ -10936,19 +10931,6 @@
     "Hinder",
     "Spell Crumple",
     "Devious Cover-Up"
-   ]
-  },
-  {
-   "what": "AddCardSubTypeTargetEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Clavileño, First of the Blessed",
-    "Enter the Avatar State",
-    "Olivia Voldaren",
-    "Loki's Scepter",
-    "Beorn the Fierce",
-    "Jump Scare"
    ]
   },
   {
@@ -11443,6 +11425,19 @@
     "Sorrow's Path",
     "Barrin's Spite",
     "Retribution"
+   ]
+  },
+  {
+   "what": "PutOnLibrarySourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Champion of Stray Souls",
+    "Soaring Hope",
+    "Thalakos Mistfolk",
+    "Fencer Clique",
+    "Saprazzan Outrigger",
+    "Wayward Soul"
    ]
   }
  ]
