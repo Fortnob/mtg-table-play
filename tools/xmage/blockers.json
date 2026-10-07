@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13923,
-  "gainedCards": 1456,
-  "linesNeeded": 15347,
-  "linesGained": 1796,
+  "needed": 13899,
+  "gainedCards": 1454,
+  "linesNeeded": 15318,
+  "linesGained": 1792,
   "gained": {
-   "all": 1456,
+   "all": 1454,
    "top2000": 52,
    "stdTop": 12
   },
@@ -1210,25 +1210,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "It That Heralds the End",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Helga, Skittish Seer",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Delivery Moogle",
-    "Runadi, Behemoth Caller",
-    "Kalemne, Disciple of Iroas",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Recruitment Officer",
-    "Gandalf, Westward Voyager"
-   ]
-  },
-  {
    "what": "CompoundCondition",
    "score": 17,
    "lines": 17,
@@ -1331,6 +1312,25 @@
     "Let the Galaxy Burn",
     "The Fifth Doctor",
     "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Helga, Skittish Seer",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Delivery Moogle",
+    "Runadi, Behemoth Caller",
+    "Kalemne, Disciple of Iroas",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Krosan Drover"
    ]
   },
   {
@@ -2704,21 +2704,6 @@
    ]
   },
   {
-   "what": "MagecraftAbility",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Ashling, Flame Dancer",
-    "Quandrix Apprentice",
-    "Jadzi, Oracle of Arcavios // Journey to the Oracle",
-    "Zaffai, Thunder Conductor",
-    "Lorehold Apprentice",
-    "Prismari Apprentice",
-    "Elemental Expressionist",
-    "Symmetry Sage"
-   ]
-  },
-  {
    "what": "or of CastFromZonePredicate",
    "score": 11,
    "lines": 2,
@@ -3002,6 +2987,20 @@
     "Iron Hills Stalwart",
     "Aura Finesse",
     "Swordsman, Sharp Scoundrel"
+   ]
+  },
+  {
+   "what": "MagecraftAbility",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Ashling, Flame Dancer",
+    "Jadzi, Oracle of Arcavios // Journey to the Oracle",
+    "Zaffai, Thunder Conductor",
+    "Lorehold Apprentice",
+    "Prismari Apprentice",
+    "Elemental Expressionist",
+    "Symmetry Sage"
    ]
   },
   {
@@ -6447,15 +6446,6 @@
    ]
   },
   {
-   "what": "pick filter noncreature nonland",
-   "score": 5,
-   "lines": 2,
-   "cards": [
-    "Narset, Parter of Veils",
-    "Search for Azcanta // Azcanta, the Sunken Ruin"
-   ]
-  },
-  {
    "what": "ColorlessManaAbility with arguments",
    "score": 5,
    "lines": 2,
@@ -7110,18 +7100,6 @@
    ]
   },
   {
-   "what": "words:power",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Sarkhan's Unsealing",
-    "Living Phone",
-    "Militia Bugler",
-    "Mayael the Anima",
-    "Squad Rallier"
-   ]
-  },
-  {
    "what": "ChosenSubtypePredicate.TRUE",
    "score": 5,
    "lines": 5,
@@ -7407,13 +7385,37 @@
     "Leech Collector // Bloodletting",
     "Deathless Knight"
    ]
+  },
+  {
+   "what": "DescendCondition.FOUR",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Akawalli, the Seething Tower",
+    "Echo of Dusk",
+    "Basking Capybara",
+    "Frilled Cave-Wurm",
+    "Didact Echo"
+   ]
+  },
+  {
+   "what": "DoIfAnyNumberCostPaid",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Intrepid Adversary",
+    "Tainted Adversary",
+    "Primal Adversary",
+    "Bloodthirsty Adversary",
+    "Spectral Adversary"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4121,
-   "cards": 3653,
+   "score": 4126,
+   "cards": 3655,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8072,6 +8074,19 @@
    ]
   },
   {
+   "what": "(verify) number 2 missing",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Ajani, Mentor of Heroes",
+    "Armament Dragon",
+    "Defend the Celestus",
+    "Goblin Gathering",
+    "Dancing Sword",
+    "Angry Mob"
+   ]
+  },
+  {
    "what": "owner of a permanent",
    "score": 13,
    "cards": 10,
@@ -8210,19 +8225,6 @@
     "Tidal Visionary",
     "Vodalian Mystic",
     "Sisay's Ingenuity"
-   ]
-  },
-  {
-   "what": "(verify) number 2 missing",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Armament Dragon",
-    "Defend the Celestus",
-    "Goblin Gathering",
-    "Dancing Sword",
-    "Angry Mob",
-    "Flameshot"
    ]
   },
   {
@@ -8475,19 +8477,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "It That Heralds the End",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Delivery Moogle",
-    "Collected Company",
-    "Recruitment Officer"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 11,
    "cards": 11,
@@ -8670,6 +8659,19 @@
     "Omni-Changeling",
     "Mocking Doppelganger",
     "Wall of Stolen Identity"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Delivery Moogle",
+    "Collected Company",
+    "Gandalf, Westward Voyager"
    ]
   },
   {
@@ -10580,19 +10582,6 @@
    ]
   },
   {
-   "what": "MagecraftAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Quandrix Apprentice",
-    "Zaffai, Thunder Conductor",
-    "Lorehold Apprentice",
-    "Prismari Apprentice",
-    "Elemental Expressionist",
-    "Symmetry Sage"
-   ]
-  },
-  {
    "what": "LoseAbilityAllEffect",
    "score": 6,
    "cards": 6,
@@ -11183,6 +11172,18 @@
     "Dead Before Sunrise",
     "Charred Graverobber",
     "Mine Raider"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Peacewalker Colossus",
+    "Ashnod's Transmogrant",
+    "Workshop Elders",
+    "Stone by Sunlight",
+    "Thran Forge"
    ]
   }
  ]

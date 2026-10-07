@@ -12705,6 +12705,8 @@
           const want = n(e.n);
           const legal = pool.filter(o => {
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > e.maxMv) return false;
+            // Star Charter: "a creature card with power 3 or less"
+            if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
             return this._matchesFilter(o, e.filter);

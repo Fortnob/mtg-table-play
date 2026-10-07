@@ -3030,6 +3030,16 @@
     { re: /^You may reveal an? ([-a-z ]*?)card from among them and put it into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
         to: 'hand', optional: true }) },
+    /* Harald: "an Elf, Warrior, or Tyvar card"; Star Charter: "a creature
+       card with power 3 or less"; "put that card into your hand" */
+    { re: /^You may reveal an? ((?:[A-Za-z-]+,? (?:or |and\/or )?)*?)card( with power (\d+) or less| with mana value (\d+) or less)? from among them and put (?:it|that card) into your hand\.?$/,
+      make: (m) => {
+        // "an Elf, Warrior, or Tyvar card" is any one of them; "a noncreature, nonland card" is both
+        const raw = m[1].trim();
+        const filter = (/ (?:or|and\/or) /.test(raw) ? raw.replace(/,? (?:or|and\/or) /g, ' or ').replace(/, /g, ' or ') : raw.replace(/,/g, '')).toLowerCase() || 'any';
+        return Object.assign({ op: 'takeFromLooked', n: 1, filter, to: 'hand', optional: true },
+          m[3] ? { maxPower: +m[3] } : {}, m[4] ? { maxMv: +m[4] } : {});
+      } },
     { re: /^You choose an? ([-a-z ]*?)card from it\.?$/i,
       make: (m) => ({ op: 'chooseFromHand', filter: (m[1] || 'nonland').trim().toLowerCase() }) },
     { re: /^That player discards that card\.?$/i, make: () => ({ op: 'discardChosen' }) },

@@ -8347,4 +8347,26 @@ module.exports = (test) => {
     T.resolve();
     t.eq(bs.zone, 'battlefield');
   });
+
+  test('Harald: an Elf, Warrior, or Tyvar card from the top five', (mk, t) => {
+    t.auto('Harald, King of Skemfar');
+    const T = mk();
+    for (const n of ['Island', 'Island', 'Llanowar Elves', 'Island', 'Grizzly Bears']) T.top('A', n);
+    T.answer('pickCard', (ch) => { t.eq(ch.cards.length, 1, 'only the Elf offered'); return { cardIds: [ch.cards[0].id] }; });
+    T.put('A', 'Harald, King of Skemfar', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(T.zone('A', 'hand').some(o => o.name === 'Llanowar Elves'));
+  });
+
+  test('Star Charter-style: only creatures with power 3 or less are offered', (mk, t) => {
+    const T = mk();
+    const card = { id: 'probe-look', name: 'Probe Look', type_line: 'Sorcery', mana_cost: '{G}', cmc: 1, colors: ['G'], layout: 'normal',
+      oracle_text: 'Look at the top four cards of your library. You may reveal a creature card with power 3 or less from among them and put it into your hand. Put the rest on the bottom of your library in a random order.', keywords: [] };
+    for (const n of ['Craw Wurm', 'Grizzly Bears', 'Island', 'Hill Giant']) T.top('A', n);
+    const o = T.put('A', 'Island', 'hand'); o.card = card;
+    T.answer('pickCard', (ch) => { t.eq(ch.cards.length, 2, 'the Bears and the Giant'); return { cardIds: [] }; });
+    T.mana('A', 'G');
+    T.cast('A', o);
+    T.resolve();
+  });
 };
