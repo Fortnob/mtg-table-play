@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15430,
+  "needed": 15424,
   "gainedCards": 1588,
-  "linesNeeded": 17234,
+  "linesNeeded": 17228,
   "linesGained": 2015,
   "gained": {
    "all": 1588,
@@ -5855,21 +5855,6 @@
    ]
   },
   {
-   "what": "CastOnlyIfConditionIsTrueAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Twice Upon a Time // Unlikely Meeting",
-    "Feast of Blood",
-    "Grim Wanderer",
-    "Talara's Battalion",
-    "Even the Odds",
-    "Blizzard",
-    "Tidal Influence",
-    "Rock Jockey"
-   ]
-  },
-  {
    "what": "CantAttackBlockAttachedEffect",
    "score": 8,
    "lines": 8,
@@ -7840,6 +7825,19 @@
     "Fencer Clique",
     "Saprazzan Outrigger",
     "Wayward Soul"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByAllTargetEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Stealth Mission",
+    "Firefright Mage",
+    "Tower of Coireall",
+    "Ghirapur Guide",
+    "Doorman",
+    "Joven's Tools"
    ]
   }
  ],

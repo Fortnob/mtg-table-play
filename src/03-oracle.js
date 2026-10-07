@@ -477,6 +477,53 @@
       probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated'));
   }
 
+  /* When a spell may be cast: the words after "Cast this spell only".
+     Steps and turns the table keeps, or a condition it can check; anything
+     else is not read. */
+  function castWindowOf(phrase) {
+    let p = String(phrase || '').trim().replace(/\.$/, '');
+    const w = {};
+    let m;
+    if ((m = p.match(/^(.*?),? and only if (.+)$/i)) || (m = p.match(/^()if (.+)$/i))) {
+      const ifs = m[2];
+      p = m[1].trim();
+      if (/^you'?ve been attacked this step$/i.test(ifs)) w.attackedYou = true;
+      // Illusory Angel: this spell is not counted yet as it is cast
+      else if (/^you'?ve cast another spell this turn$/i.test(ifs)) w.cond = { kind: 'spellsCast', n: 1 };
+      else if (/^a creature is attacking you$/i.test(ifs)) w.attackedYou = true;
+      else { const c = condOf(ifs); if (!c) return null; w.cond = c; }
+      if (!p) return w;
+    }
+    const FORMS = [
+      [/^during combat$/i, { phase: 'combat' }],
+      [/^during combat before blockers are declared$/i, { phase: 'combat', before: 'declareBlockers' }],
+      [/^during combat after blockers are declared$/i, { phase: 'combat', from: 'declareBlockers' }],
+      [/^during combat on (?:your|an opponent'?s) turn$/i, { phase: 'combat' }],
+      [/^during combat on your turn before blockers are declared$/i, { phase: 'combat', before: 'declareBlockers' }],
+      [/^during (?:the|your) declare attackers step$/i, { step: 'declareAttackers' }],
+      [/^during the declare blockers step$/i, { step: 'declareBlockers' }],
+      [/^during the declare blockers step on an opponent'?s turn$/i, { step: 'declareBlockers' }],
+      [/^during (?:your|an opponent'?s) turn$/i, {}],
+      [/^during an opponent'?s turn,? before attackers are declared$/i, { before: 'declareAttackers' }],
+      [/^during an opponent'?s upkeep$/i, { step: 'upkeep' }],
+      [/^during an opponent'?s turn after their upkeep step$/i, { afterUpkeep: true }],
+      [/^during your end step$/i, { step: 'end' }],
+      [/^after combat$/i, { afterCombat: true }],
+      [/^before the combat damage step$/i, { before: 'firstStrikeDamage' }],
+      [/^before blockers are declared$/i, { before: 'declareBlockers' }],
+      [/^before attackers are declared$/i, { before: 'declareAttackers' }],
+      [/^before combat or during combat before blockers are declared$/i, { before: 'declareBlockers' }],
+    ];
+    for (const [re, v] of FORMS) {
+      if (!re.test(p)) continue;
+      Object.assign(w, v);
+      if (/on your turn|^during your (?:turn|declare|end)/i.test(p)) w.yours = true;
+      if (/opponent'?s (?:turn|upkeep)/i.test(p)) w.theirs = true;
+      return w;
+    }
+    return null;
+  }
+
   /** Point a target-less trigger's "it" at what the trigger is about. */
   function itIsTheTrigger(effects, scope) {
     if (!scope) return;
@@ -1063,7 +1110,10 @@
     // Vivi Ornitier, Nimbleclaw Adept: two restrictions at once
     { re: /^Activate (?:this ability )?only (during your turn|as a sorcery) and only once each turn\.?$/i,
       make: (m) => Object.assign({ op: 'activateOnly', perTurn: 1 }, /turn/i.test(m[1]) ? { when: 'yourTurn' } : {}) },
-    { re: /^Cast (?:CARDNAME|this spell) only (?:before|during|after) [^.]*\.?$/i, make: () => ({ op: 'noop' }) },
+    /* "Cast this spell only during combat": when it may be cast (CR 601.3),
+       kept by the table as the spell is cast */
+    { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
+      make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; } },
     { re: /^Until end of turn, you don'?t lose this mana as steps and phases end\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^You may choose new targets for (?:the|that) cop(?:y|ies)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^(?:Then )?shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
@@ -6419,6 +6469,11 @@
       if (!roll || rows.some(r => !r.auto)) { if (ab) ab.auto = false; out._keywordManual = true; continue; }
       roll.table = rows.map(r => ({ min: r.min, max: r.max, effects: r.effects }));
     }
+    // "Cast this spell only during combat": the window, where the table looks for it
+    for (const ab of out.abilities) {
+      const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.castWindow) out.castWindow = e.castWindow; walk(e.list); } };
+      walk(ab.effects);
+    }
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
     // a keyword the reading could do only part of (Backup granting words it can't read, "Recover—Pay half your life")
@@ -7565,6 +7620,9 @@
       { re: /^(?:CARDNAME|This creature) can'?t attack unless defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'attackRequires', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^CARDNAME can'?t be countered\.?$/i, eff: { op: 'cantBeCountered' }, auto: true },
+      // a permanent spell's window: "Cast this spell only if a creature died this turn" (Grim Wanderer)
+      { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
+        make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; }, auto: true },
       /* The cost machinery reads this off the card itself; the sentence is
          here so it counts as read rather than as a line nobody could
          parse. */

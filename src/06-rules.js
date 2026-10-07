@@ -2761,6 +2761,8 @@
       const a = o.analysis();
       if (!a) return { ok: false, reason: 'Unknown card.' };
       if (a.isLand) return { ok: false, reason: 'Lands are played, not cast.' };
+      // "Cast this spell only during combat" and its relatives (CR 601.3)
+      if (a.castWindow) { const why = this._castWindowShut(a.castWindow, playerId); if (why) return { ok: false, reason: why }; }
       if (o.card && o.card.layout === 'emblem') return { ok: false, reason: 'An emblem is not a card.' };
       if (o.conspiracy) return { ok: false, reason: 'A conspiracy is not cast.' };
       const banned = this._conspiracyCastBan(playerId, o);
@@ -5128,6 +5130,26 @@
       return true;
     }
 
+    /** Why a spell with "Cast this spell only …" can't be cast now, or null. */
+    _castWindowShut(w, pid) {
+      const mine = !!(this.activePlayer && this.activePlayer.id === pid);
+      const ph = this.phase ? this.phase.id : '';
+      const cIdx = (st) => PHASES[2].steps.indexOf(st);
+      const here = ph === 'combat' ? cIdx(this.step) : -1;
+      if (w.yours && !mine) return 'Only during your turn.';
+      if (w.theirs && mine) return "Only during an opponent's turn.";
+      if (w.phase === 'combat' && ph !== 'combat') return 'Only during combat.';
+      if (w.step && this.step !== w.step) return `Only during the ${STEP_NAMES[w.step] || w.step} step.`;
+      if (w.from && !(ph === 'combat' && here >= cIdx(w.from))) return 'Only after blockers are declared.';
+      // "before blockers are declared": earlier in the turn, or in combat before that step
+      if (w.before && (this.phaseIndex > 2 || (ph === 'combat' && here >= cIdx(w.before)))) return 'Too late in the turn for that.';
+      if (w.afterCombat && this.phaseIndex <= 2) return 'Only after combat.';
+      if (w.afterUpkeep && ph === 'beginning' && (this.step === 'untap' || this.step === 'upkeep')) return 'Only after the upkeep step.';
+      if (w.attackedYou && !(this.combat.attackers || []).some(id => { const x = this.obj(id); const d = x && this._defenderOf(x); return d && d.id === pid; }))
+        return 'Only if you are being attacked.';
+      if (w.cond && !this._condMet(w.cond, { controller: pid })) return 'Its condition is not met.';
+      return null;
+    }
     /**
      * "Activate only during your turn, before attackers are declared" and
      * "Activate only if you control a Mountain": restrictions printed under

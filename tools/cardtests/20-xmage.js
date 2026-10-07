@@ -4804,4 +4804,38 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.ok(T.g._activationBlocked(v, ab, 'A'), 'their turn');
   });
+
+  test('Cast only during combat before blockers: not in a main phase (Panic)', (mk, t) => {
+    t.auto('Panic');
+    const T = mk();
+    T.mana('A', 'R');
+    const pn = T.hand('A', 'Panic');
+    t.no(T.g.canCast('A', pn.id).ok, 'main phase');
+    T.toMain('A', 'beginCombat');
+    t.ok(T.g.canCast('A', pn.id).ok, 'beginning of combat');
+  });
+
+  test("Cast only if you've cast another spell this turn (Illusory Angel)", (mk, t) => {
+    t.auto('Illusory Angel');
+    const T = mk();
+    T.mana('A', 'RU2');
+    const ia = T.hand('A', 'Illusory Angel');
+    t.no(T.g.canCast('A', ia.id).ok, 'nothing cast yet');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.ok(T.g.canCast('A', ia.id).ok, 'after a spell');
+  });
+
+  test('Cast only when attacked this step (Defiant Stand)', (mk, t) => {
+    t.auto('Defiant Stand');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'); bear.summoningSick = false;
+    const ds = T.hand('A', 'Defiant Stand');
+    t.no(T.g.canCast('A', ds.id).ok, 'not attacked');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareAttackers');
+    T.settle();
+    T.mana('A', 'W1');
+    t.no(T.g._castWindowShut(ds.analysis().castWindow, 'A'), 'attacked, in the declare attackers step');
+  });
 };
