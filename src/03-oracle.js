@@ -1651,6 +1651,8 @@
     { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
     /* Chandra, Flamecaller: "Exile them at the beginning of the next end
        step" — the tokens this just made, each of them */
+    // Tidehollow Sculler, the Champions: "return the exiled card to its owner's hand"
+    { re: /^Return the exiled cards? to (?:its|their) owners?'?s?'? hands?\.?$/i, make: () => ({ op: 'returnHeld' }) },
     // Ghostway, Eerie Interlude: "Return those cards to the battlefield under their owner's control at the beginning of the next end step."
     { re: /^Return (?:those cards|the exiled cards|them) to the battlefield under (?:their|its) owner'?s'? control at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'exiledNow', name: 'Return them at end of turn', effects: [{ op: 'returnThat' }] }) },
@@ -4323,6 +4325,8 @@
       make: (m) => ({ sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
+    // Sarkhan, Dragon Ascendant: "you may behold a Dragon. If you do, …"
+    { re: /^behold (a|an) ([A-Za-z -]+?)$/i, make: (m) => ({ behold: { n: 1, filter: m[2].trim().toLowerCase() } }) },
     // the Processors: "put a card an opponent owns from exile into that player's graveyard"
     { re: /^put (a|one|two|three) cards? (?:an opponent owns|your opponents own) from exile into (?:that player'?s|their owners'?) graveyards?$/i,
       make: (m) => ({ process: num(m[1]) }) },
@@ -4469,7 +4473,7 @@
        pay 4 life": a choice of prices, made as the spell is cast. Each one
        has to be a price the table can take by itself. ("Sacrifice an
        artifact or creature" is one price, with two kinds of thing.) */
-    const parts = what.split(/,? or (?=(?:sacrifice|discard|pay|exile|return|reveal|tap)\b)|, (?=(?:sacrifice|discard|pay|exile|return|reveal|tap)\b)/i);
+    const parts = what.split(/,? or (?=(?:sacrifice|discard|pay|exile|return|reveal|tap|behold)\b)|, (?=(?:sacrifice|discard|pay|exile|return|reveal|tap|behold)\b)/i);
     if (parts.length < 2 || optional) return oneAdditionalCost(what, optional);
     const choice = [];
     for (const part of parts) {
@@ -4486,6 +4490,9 @@
     if ((k = what.match(/^pay ((?:\{[^}]+\})+)$/i))) return { mana: k[1], optional };
     if ((k = what.match(/^blight (\d+)$/i))) return { blight: +k[1], optional };
     if ((k = what.match(/^reveal (?:a|an) ([A-Za-z -]+?) card from your hand$/i))) return { reveal: { filter: k[1].trim() }, optional };
+    // Lorwyn: "behold a Kithkin" — one you control, or one shown from your hand; "and exile it" takes it too
+    if ((k = what.match(/^behold (a|an|one|two|three) ([A-Za-z -]+?)( and exile it)?$/i)))
+      return { behold: { n: num(k[1]), filter: k[2].trim().toLowerCase().replace(/s$/, ''), exile: !!k[3] }, optional };
     if ((k = what.match(/^tap (a|an|one|two|three) untapped ([A-Za-z -]+?) you control$/i))) {
       return { tapCreatures: { n: num(k[1]), filter: k[2].trim().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') }, optional };
     }
@@ -5109,6 +5116,8 @@
     [/^(?:CARDNAME|this spell|it) was kicked$/i, () => ({ kind: 'kicked', n: 1 })],
     // an optional additional cost, paid, is counted as the spell's kicker
     [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
+    // Osseous Exhale: "If a Dragon was beheld" — the optional behold was paid
+    [/^an? [A-Za-z ]+ was beheld$/i, () => ({ kind: 'kicked', n: 1 })],
     [/^(?:CARDNAME|this spell|it) was kicked (\w+) or more times$/i, (m) => ({ kind: 'kicked', n: num(m[1]) })],
     [/^(?:CARDNAME|this spell|it) wasn'?t kicked$/i, () => ({ kind: 'kicked', n: 0, cmp: 'atMost' })],
     [/^(?:CARDNAME|this spell|it) was bought back$/i, () => ({ kind: 'boughtBack' })],
@@ -6048,7 +6057,7 @@
         // "you may X. If you do, Y" is one thought: leave both halves together
         /* "…this way" points back at the sentence before it, so the two
            halves have to be read together rather than one at a time. */
-        const linked = /\bIf you (?:do|don'?t)\b/i.test(body) || /\bthis way\b/i.test(body);
+        const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) || /\bthis way\b/i.test(body);
         const optional = !linked && /^you may /i.test(body);
         const parsed = parseEffects(optional ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
         if (saddledOnly) condition = condition ? [].concat(condition, { kind: 'saddled' }) : { kind: 'saddled' };
@@ -7726,6 +7735,9 @@
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamage' }) },
     { re: /^Prevent all combat damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' }) },
+    // the Phantoms: "If damage would be dealt to this creature, prevent that damage. Remove a +1/+1 counter from this creature."
+    { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage\. Remove a \+1\/\+1 counter from (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'phantom' }) },
     // Crystal Barricade: "Prevent all noncombat damage that would be dealt to other creatures you control."
     { re: /^Prevent all noncombat damage that would be dealt to (other creatures you control|creatures you control)\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 6, scope: Object.assign({ who: 'you', what: 'creature' }, /^other/i.test(m[1]) ? { other: true } : {}), flag: 'noNoncombatTaken' }) },

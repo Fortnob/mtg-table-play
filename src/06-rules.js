@@ -3868,6 +3868,7 @@
       const p = this.player(playerId);
       const pain = (c) => {
         if (c.reveal) return 0;
+        if (c.behold) return c.behold.exile ? 2 : 0;
         if (c.mana) return 1 + MANA.cmc(c.mana) * 0.5;
         if (c.life != null) return (p.life - (+c.life || 0)) > 8 ? (+c.life || 0) * 0.3 : 50;
         if (c.tapCreatures) return 1.5;
@@ -5228,6 +5229,22 @@
       this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
       return o;
     }
+    /** What a player could behold: matching permanents they control, and matching cards in their hand. */
+    _beholdPool(pid, spec, self) {
+      const f = (spec && spec.filter) || 'permanent';
+      const out = this.battlefield.filter(x => x.controller === pid && !x.phasedOut && x !== self && this._cardFitsWords(x, f));
+      for (const c of this.zones[pid].hand) if (c !== self && this._cardFitsWords(c, f)) out.push(c);
+      return out;
+    }
+    /** Behold one: shown, or (Champion of the Clachan) exiled and held by the card that took it. */
+    _beholdOne(pid, x, exile, holder) {
+      const p = this.player(pid);
+      if (!x || !p) return;
+      this.logEvent('rules', `${p.name} beholds ${x.name}${x.zone === 'hand' ? ' from their hand' : ''}.`);
+      if (!exile || (x.zone !== 'hand' && x.zone !== 'battlefield')) return;
+      this.moveObject(x, 'exile');
+      if (holder) x.heldBy = holder.id;
+    }
     /** Cards opponents own in exile, face up, that a Processor could put into their graveyards. */
     _processPool(pid) {
       const out = [];
@@ -5445,6 +5462,7 @@
       }
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
+      if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
         const back = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
@@ -5538,6 +5556,21 @@
           ask({ type: 'pickCard', count: 1, purpose: 'blightCost', n: cost.blight, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
             prompt: `Blight ${cost.blight}: put ${cost.blight === 1 ? 'a -1/-1 counter' : cost.blight + ' -1/-1 counters'} on a creature you control.` });
+        }
+      }
+      /* Behold: one you control or one from your hand, shown. "And exile it"
+         takes it away, held by this card for "return the exiled card". */
+      if (cost.behold) {
+        const pool = this._beholdPool(pid, cost.behold, self);
+        const need = Math.min(cost.behold.n || 1, pool.length);
+        const named = (opts.beholdIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
+        if (named.length === need || !cost.behold.exile || auto || pool.length === need) {
+          const pick = named.length === need ? named : this._cheapestFirst(pool).slice(0, need);
+          for (const x of pick) this._beholdOne(pid, x, cost.behold.exile, self);
+        } else if (need) {
+          ask({ type: 'pickCard', count: need, purpose: 'beholdCost', exile: true, candidates: pool.map(x => x.id),
+            cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
+            prompt: `Behold ${need === 1 ? 'a ' + cost.behold.filter : need + ' ' + cost.behold.filter + 's'} and exile it: one you control or one from your hand.` });
         }
       }
       if (cost.returnOwn) {
@@ -7910,6 +7943,16 @@
       if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat);
       if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
+      // the Phantoms: "prevent that damage. Remove a +1/+1 counter from this creature."
+      if (o.zone === 'battlefield' && this._hasFlag(o, 'phantom') && !this._noPrevention(isCombat)) {
+        if (Number(o.counters['+1/+1']) > 0) {
+          o.counters['+1/+1'] -= 1;
+          if (o.counters['+1/+1'] <= 0) delete o.counters['+1/+1'];
+          o._chr = null; this.bumpBoard();
+        }
+        this.logEvent('damage', `Damage to ${o.name} is prevented, and a +1/+1 counter comes off it.`);
+        return;
+      }
       if (o.preventShield && !this._noPrevention(isCombat)) {
         const soak = Math.min(o.preventShield, amount);
         o.preventShield -= soak; amount -= soak;
@@ -11243,13 +11286,20 @@
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
             (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
             (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
+            (!pay.behold || this._beholdPool(ctx.controller, pay.behold, src).length > 0) &&
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
             (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1));
-          if (!able && (pay.removeCounter || pay.blight || pay.process || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          if (!able && (pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
+          // Sarkhan: "you may behold a Dragon" — shown, nothing given up
+          if (pay.behold) {
+            this._beholdOne(ctx.controller, this._beholdPool(ctx.controller, pay.behold, src)[0], false, null);
+            this._spliceNext(e.then);
+            break;
+          }
           // the Processors: cards opponents own, from exile to their graveyards
           if (pay.process) {
             const pool = this._processPool(ctx.controller);
@@ -11584,6 +11634,17 @@
           if (x && e.tapped && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
+          break;
+        }
+        // Tidehollow Sculler: what this card exiled goes back to its owner's hand
+        case 'returnHeld': {
+          if (!src) break;
+          for (const o of Array.from(this.objects.values())) {
+            if (o.heldBy !== src.id || o.zone !== 'exile') continue;
+            o.heldBy = null;
+            this.moveObject(o, 'hand');
+            this.logEvent('zone', `${o.name} returns to ${this.player(o.owner).name}'s hand.`);
+          }
           break;
         }
         case 'toHandThat': {
@@ -12270,6 +12331,8 @@
           const o = this._chosenCard && this.obj(this._chosenCard);
           if (!o) break;
           this.moveObject(o, e.op === 'exileChosen' ? 'exile' : 'graveyard');
+          // Tidehollow Sculler: held, for "return the exiled card" when it leaves
+          if (e.op === 'exileChosen' && src) o.heldBy = src.id;
           this.logEvent(e.op === 'exileChosen' ? 'exile' : 'discard',
             `${this.player(o.owner).name} loses ${o.name}.`);
           this._chosenCard = null;
@@ -15252,7 +15315,7 @@
             this.checkStateBasedActions();
             break;
           }
-          if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost' || ch.purpose === 'blightCost') {
+          if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost' || ch.purpose === 'blightCost' || ch.purpose === 'beholdCost') {
             const pool = (ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
             ids = ids.filter(id => (ch.candidates || []).includes(id)).slice(0, ch.count || 1);
             for (const o of this._cheapestFirst(pool)) { if (ids.length >= (ch.count || 1)) break; if (!ids.includes(o.id)) ids.push(o.id); }
@@ -15270,6 +15333,7 @@
             }
             if (ch.purpose === 'returnCost') { if (o.zone === 'battlefield') this.moveObject(o, 'hand'); continue; }
             if (ch.purpose === 'blightCost') { if (o.zone === 'battlefield') this._blightOn(o, ch.n || 1, playerId); continue; }
+            if (ch.purpose === 'beholdCost') { this._beholdOne(playerId, o, !!ch.exile, this.obj(ch.sourceId)); continue; }
             if (ch.purpose === 'landFromHand') { this.moveObject(o, 'battlefield', { controller: playerId }); this.logEvent('land', `${this.player(playerId).name} puts ${o.name} onto the battlefield.`); }
             else if (ch.purpose === 'exileFromHand') { this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s hand.`); }
             else if (ch.purpose === 'discardFromHand') { this.moveObject(o, 'graveyard'); this.logEvent('discard', `${this.player(o.owner).name} discards ${o.name}.`); this._afterDiscard(o.owner, o); }

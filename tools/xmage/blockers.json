@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14802,
-  "gainedCards": 1532,
-  "linesNeeded": 16461,
-  "linesGained": 1921,
+  "needed": 14742,
+  "gainedCards": 1523,
+  "linesNeeded": 16373,
+  "linesGained": 1906,
   "gained": {
-   "all": 1532,
+   "all": 1523,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5432,
-   "lines": 4685,
+   "score": 5414,
+   "lines": 4676,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 327,
-   "lines": 309,
+   "score": 311,
+   "lines": 293,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 228,
-   "lines": 198,
+   "score": 227,
+   "lines": 197,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -186,8 +186,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 100,
-   "lines": 82,
+   "score": 99,
+   "lines": 81,
    "cards": [
     "Cloud Key",
     "Banner of Kinship",
@@ -634,25 +634,6 @@
    ]
   },
   {
-   "what": "ReturnFromExileForSourceEffect",
-   "score": 27,
-   "lines": 27,
-   "cards": [
-    "Angel of Serenity",
-    "Champions of the Perfect",
-    "Champion of the Path",
-    "Admonition Angel",
-    "Journey to Nowhere",
-    "Hoarding Dragon",
-    "Connecting the Dots",
-    "Prowling Geistcatcher",
-    "Parallax Wave",
-    "Wall of Nets",
-    "Bomat Courier",
-    "Champion of the Weird"
-   ]
-  },
-  {
    "what": "filter:colored",
    "score": 26,
    "lines": 5,
@@ -1090,23 +1071,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 19,
-   "lines": 10,
-   "cards": [
-    "The Aetherspark",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Ancestral Katana",
-    "Hylderblade",
-    "Bound by Moonsilver",
-    "Detainment Spell",
-    "Bespoke Battlegarb",
-    "Concealed Weapon",
-    "Stasis Cell"
-   ]
-  },
-  {
    "what": "custom cost",
    "score": 19,
    "lines": 19,
@@ -1231,6 +1195,22 @@
    ]
   },
   {
+   "what": "AttachEffect",
+   "score": 18,
+   "lines": 9,
+   "cards": [
+    "The Aetherspark",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Hylderblade",
+    "Bound by Moonsilver",
+    "Detainment Spell",
+    "Bespoke Battlegarb",
+    "Concealed Weapon",
+    "Stasis Cell"
+   ]
+  },
+  {
    "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
    "score": 18,
    "lines": 18,
@@ -1323,6 +1303,25 @@
     "Graverobber Spider",
     "Painwracker Oni",
     "Fires of Victory"
+   ]
+  },
+  {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Admonition Angel",
+    "Journey to Nowhere",
+    "Hoarding Dragon",
+    "Connecting the Dots",
+    "Prowling Geistcatcher",
+    "Parallax Wave",
+    "Wall of Nets",
+    "Bomat Courier",
+    "Promise of Tomorrow",
+    "Safe Haven",
+    "Ashiok's Erasure",
+    "Parallax Tide"
    ]
   },
   {
@@ -2129,25 +2128,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance",
-    "Cyclops Superconductor",
-    "Smelted Chargebug",
-    "Emissary of Soulfire",
-    "Multiform Wonder",
-    "Conduit Goblin"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 14,
    "lines": 14,
@@ -2562,25 +2542,6 @@
    ]
   },
   {
-   "what": "PreventDamageAndRemoveCountersEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Protean Hydra",
-    "Unbreathing Horde",
-    "Undergrowth Champion",
-    "Ugin's Conjurant",
-    "Polukranos, Unchained",
-    "Phantom Nishoba",
-    "Phantom Nantuko",
-    "Oathsworn Knight",
-    "Phantom Tiger",
-    "Phantom Flock",
-    "Phantom Wurm",
-    "Phantom Nomad"
-   ]
-  },
-  {
    "what": "KickedCostCondition",
    "score": 13,
    "lines": 13,
@@ -2909,22 +2870,22 @@
    ]
   },
   {
-   "what": "OrCost",
+   "what": "PayEnergyCost",
    "score": 12,
    "lines": 12,
    "cards": [
-    "Highway Robbery",
-    "Crystal Shard",
-    "Skeleton Shard",
-    "Reckless Detective",
-    "Nimble Hobbit",
-    "Thrull Wizard",
-    "Bullseye, Death Dealer",
-    "Tidal Control",
-    "Anthropede",
-    "Granite Shard",
-    "Heartwood Shard",
-    "Pearl Shard"
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Consulate Surveillance",
+    "Smelted Chargebug",
+    "Emissary of Soulfire",
+    "Multiform Wonder",
+    "Conduit Goblin",
+    "Voltstorm Angel",
+    "Janjeet Sentry"
    ]
   },
   {
@@ -3177,21 +3138,6 @@
    ]
   },
   {
-   "what": "AttachTargetToTargetEffect",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Codsworth, Handy Helper",
-    "Raubahn, Bull of Ala Mhigo",
-    "Barret, Avalanche Leader",
-    "Weapons Vendor",
-    "Noctis, Heir Apparent",
-    "Iron Hills Stalwart",
-    "Aura Finesse",
-    "Swordsman, Sharp Scoundrel"
-   ]
-  },
-  {
    "what": "MagecraftAbility",
    "score": 11,
    "lines": 8,
@@ -3324,6 +3270,24 @@
     "Pristine Angel",
     "Spare from Evil",
     "Masked Gorgon"
+   ]
+  },
+  {
+   "what": "OrCost",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Highway Robbery",
+    "Crystal Shard",
+    "Skeleton Shard",
+    "Reckless Detective",
+    "Nimble Hobbit",
+    "Thrull Wizard",
+    "Tidal Control",
+    "Anthropede",
+    "Granite Shard",
+    "Heartwood Shard",
+    "Pearl Shard"
    ]
   },
   {
@@ -3533,6 +3497,20 @@
     "Tamiyo, Compleated Sage",
     "Lukka, Bound to Ruin",
     "Nahiri, the Unforgiving"
+   ]
+  },
+  {
+   "what": "AttachTargetToTargetEffect",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Codsworth, Handy Helper",
+    "Raubahn, Bull of Ala Mhigo",
+    "Barret, Avalanche Leader",
+    "Noctis, Heir Apparent",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Swordsman, Sharp Scoundrel"
    ]
   },
   {
@@ -4324,22 +4302,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Wildborn Preserver",
-    "Call to the Grave",
-    "Redcap Raiders",
-    "Archdemon of Unx"
-   ]
-  },
-  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "lines": 9,
@@ -4417,22 +4379,6 @@
     "Mouth of the Storm",
     "Mu Yanling, Celestial Wind",
     "Wasp, Shrinking Savior"
-   ]
-  },
-  {
-   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Chocobo Kick",
-    "Animist's Might",
-    "Polliwallop",
-    "Piercing Exhale",
-    "Huatli, Dinosaur Knight",
-    "Punishing Punch",
-    "Devouring Tendrils",
-    "Thing Swing",
-    "Compel Brutality"
    ]
   },
   {
@@ -5028,6 +4974,21 @@
    ]
   },
   {
+   "what": "words: non-subtype",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Call to the Grave",
+    "Redcap Raiders",
+    "Archdemon of Unx"
+   ]
+  },
+  {
    "what": "GainAbilityWithAttachmentEffect",
    "score": 8,
    "lines": 8,
@@ -5114,6 +5075,21 @@
     "Brand",
     "Aura Thief",
     "Gruul Charm"
+   ]
+  },
+  {
+   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Chocobo Kick",
+    "Animist's Might",
+    "Polliwallop",
+    "Huatli, Dinosaur Knight",
+    "Punishing Punch",
+    "Devouring Tendrils",
+    "Thing Swing",
+    "Compel Brutality"
    ]
   },
   {
@@ -6760,6 +6736,19 @@
    ]
   },
   {
+   "what": "PreventDamageAndRemoveCountersEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Protean Hydra",
+    "Unbreathing Horde",
+    "Undergrowth Champion",
+    "Ugin's Conjurant",
+    "Polukranos, Unchained",
+    "Oathsworn Knight"
+   ]
+  },
+  {
    "what": "RemoveAllCountersPermanentTargetEffect",
    "score": 6,
    "lines": 6,
@@ -7647,8 +7636,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4339,
-   "cards": 3808,
+   "score": 4335,
+   "cards": 3804,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7673,8 +7662,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 235,
-   "cards": 220,
+   "score": 230,
+   "cards": 215,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7686,8 +7675,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 206,
-   "cards": 173,
+   "score": 207,
+   "cards": 174,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -7725,8 +7714,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 88,
-   "cards": 88,
+   "score": 89,
+   "cards": 89,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8061,6 +8050,19 @@
    ]
   },
   {
+   "what": "EmpowerJaceEffect",
+   "score": 19,
+   "cards": 19,
+   "names": [
+    "Fatehold Charm",
+    "Theorist's Sanctum",
+    "Way of the Necromancer",
+    "Countersculpt",
+    "Way of the Mentor",
+    "Vraska's Final Mercy"
+   ]
+  },
+  {
    "what": "second use of a later target",
    "score": 18,
    "cards": 18,
@@ -8123,19 +8125,6 @@
     "Scarblade's Malice",
     "Desperate Measures",
     "Felonious Rage"
-   ]
-  },
-  {
-   "what": "EmpowerJaceEffect",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Fatehold Charm",
-    "Way of the Necromancer",
-    "Way of the Mentor",
-    "Vraska's Final Mercy",
-    "Theorist's Proxy",
-    "Rewrite Regrets"
    ]
   },
   {
@@ -8701,19 +8690,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Riddle Gate Gargoyle",
-    "Consulate Surveillance",
-    "Cyclops Superconductor"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 12,
    "cards": 12,
@@ -8724,19 +8700,6 @@
     "Sheltering Ancient",
     "Psychic Vortex",
     "Vexing Sphinx"
-   ]
-  },
-  {
-   "what": "OrCost",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Highway Robbery",
-    "Crystal Shard",
-    "Skeleton Shard",
-    "Reckless Detective",
-    "Nimble Hobbit",
-    "Thrull Wizard"
    ]
   },
   {
@@ -8991,6 +8954,19 @@
    ]
   },
   {
+   "what": "OrCost",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Highway Robbery",
+    "Crystal Shard",
+    "Skeleton Shard",
+    "Reckless Detective",
+    "Nimble Hobbit",
+    "Thrull Wizard"
+   ]
+  },
+  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 11,
    "cards": 11,
@@ -9121,6 +9097,14 @@
    ]
   },
   {
+   "what": "YouDontLoseManaEffect",
+   "score": 10,
+   "cards": 1,
+   "names": [
+    "Electro, Assaulting Battery"
+   ]
+  },
+  {
    "what": "EntersBattlefieldEffect",
    "score": 10,
    "cards": 10,
@@ -9197,6 +9181,19 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Consulate Surveillance",
+    "Smelted Chargebug",
+    "Emissary of Soulfire"
+   ]
+  },
+  {
    "what": "MutatesSourceTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -9233,19 +9230,6 @@
     "Mesa Pegasus",
     "Kjeldoran Skyknight",
     "Bayou Dragonfly"
-   ]
-  },
-  {
-   "what": "PreventDamageAndRemoveCountersEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Unbreathing Horde",
-    "Undergrowth Champion",
-    "Ugin's Conjurant",
-    "Phantom Nantuko",
-    "Oathsworn Knight",
-    "Phantom Tiger"
    ]
   },
   {
@@ -10055,19 +10039,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Ancestral Katana",
-    "Hylderblade",
-    "Detainment Spell",
-    "Bespoke Battlegarb"
-   ]
-  },
-  {
    "what": "CorruptedCondition.instance",
    "score": 8,
    "cards": 8,
@@ -10478,19 +10449,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Wildborn Preserver",
-    "Redcap Raiders"
-   ]
-  },
-  {
    "what": "control for custom",
    "score": 7,
    "cards": 7,
@@ -10514,6 +10472,19 @@
     "Spirit of Resistance",
     "Veteran Bodyguard",
     "Orim's Touch"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Hylderblade",
+    "Detainment Spell",
+    "Bespoke Battlegarb",
+    "Concealed Weapon"
    ]
   },
   {
@@ -10935,6 +10906,19 @@
    ]
   },
   {
+   "what": "ActivateIfConditionManaAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Sceptre of Eternal Glory",
+    "Mirrex",
+    "Glistening Sphere",
+    "Flywheel Racer",
+    "Lys Alana Dignitary",
+    "Pyramid of the Pantheon"
+   ]
+  },
+  {
    "what": "CantAttackYouAllEffect",
    "score": 6,
    "cards": 6,
@@ -11140,6 +11124,19 @@
     "Luminous Wake",
     "Primal Cocoon",
     "Cunning"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Redcap Raiders",
+    "Archdemon of Unx"
    ]
   },
   {
@@ -11465,19 +11462,6 @@
     "Sita Varma, Masked Racer",
     "Greasewrench Goblin",
     "Marshals' Pathcruiser"
-   ]
-  },
-  {
-   "what": "SearchLibraryAndExileTargetEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Jester's Cap",
-    "Extract",
-    "Sadistic Sacrament",
-    "Rootwater Thief",
-    "Denying Wind",
-    "Supreme Inquisitor"
    ]
   }
  ]

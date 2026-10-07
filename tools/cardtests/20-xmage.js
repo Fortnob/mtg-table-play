@@ -5770,4 +5770,73 @@ module.exports = (test) => {
     t.eq(bear.zone, 'battlefield', 'back'); t.eq(elf.zone, 'battlefield', 'back');
     t.eq(bear.controller, 'A');
   });
+
+  test('Phantoms: damage is prevented and a +1/+1 counter comes off instead', (mk, t) => {
+    t.auto('Phantom Tiger');
+    const T = mk();
+    const tiger = T.bf('B', 'Phantom Tiger', { counters: { '+1/+1': 2 } });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [tiger.id] });
+    t.eq(tiger.zone, 'battlefield');
+    t.eq(tiger.counters['+1/+1'] || 0, 1);
+  });
+
+  test('"You may pay {1}. When you do, …" in a trigger (Go-Shintai of Lost Wisdom)', (mk, t) => {
+    t.auto('Go-Shintai of Lost Wisdom');
+    const T = mk();
+    T.bf('A', 'Go-Shintai of Lost Wisdom');
+    T.bf('A', 'Island');
+    for (let i = 0; i < 3; i++) T.top('B', 'Forest');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, 1, 'one Shrine: one card milled');
+  });
+
+  test('Behold or pay: Caustic Exhale with a Dragon in hand needs no {1}', (mk, t) => {
+    t.auto('Caustic Exhale');
+    const T = mk();
+    T.hand('A', 'Shivan Dragon');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Caustic Exhale'), { targets: [bear.id] });
+    t.eq(bear.zone, 'graveyard');
+  });
+
+  test('Behold or pay: nothing to behold and no {1}, no casting', (mk, t) => {
+    t.auto('Caustic Exhale');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B');
+    const ce = T.hand('A', 'Caustic Exhale');
+    t.ok(!T.g.canCast('A', ce.id).ok || !T.g.castSpell('A', ce.id, { targets: [{ kind: 'object', id: bear.id }] }), 'refused');
+    t.eq(bear.zone, 'battlefield');
+  });
+
+  test('Champion of the Clachan: beholds and exiles a Kithkin, which comes home when it leaves', (mk, t) => {
+    t.auto('Champion of the Clachan');
+    const T = mk();
+    const kh = T.hand('A', 'Goldmeadow Harrier');
+    T.mana('A', 'W3');
+    const ch = T.hand('A', 'Champion of the Clachan');
+    T.cast('A', ch);
+    t.eq(kh.zone, 'exile', 'exiled as the cost');
+    t.eq(ch.zone, 'battlefield');
+    T.g.moveObject(ch, 'graveyard');
+    T.resolve();
+    t.eq(kh.zone, 'hand', 'back to hand');
+  });
+
+  test('Tidehollow Sculler: the exiled card comes back when it leaves', (mk, t) => {
+    t.auto('Tidehollow Sculler');
+    const T = mk();
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('A', 'WB');
+    const sc = T.hand('A', 'Tidehollow Sculler');
+    T.cast('A', sc);
+    t.eq(bolt.zone, 'exile');
+    T.g.moveObject(sc, 'graveyard');
+    T.resolve();
+    t.eq(bolt.zone, 'hand');
+  });
 };
