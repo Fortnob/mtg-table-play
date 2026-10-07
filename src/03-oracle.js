@@ -3137,6 +3137,9 @@
     /* Dawn's Truce, Veil of Summer: the player as well as their things,
        for the rest of the turn. */
     { re: /^You gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou' }) },
+    // Quicksmith Spy: "target artifact you control gains '{T}: Draw a card' for as long as you control this creature"
+    { re: /^(target [a-z ]+?) gains "([^"]+)" for as long as you control (?:this creature|CARDNAME|this artifact|this enchantment|this permanent)\.?$/i,
+      make: (m) => (grantableText(m[2]) ? { op: 'grantAbility', ability: m[2], duration: 'whileControl', targets: [targetSpec(m[1])] } : null) },
     /* Infuse with Vitality: "target creature gains deathtouch and '…'";
        Return to Action: "gets +1/+0 and gains lifelink and '…'"; Gruesome
        Slaughter: "colorless creatures you control gain '…'" — keywords and a
@@ -8267,6 +8270,20 @@
         if (!typed(m[3], (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
         continue;
       }
+      /* Lavaclaw Reaches: "becomes a 2/2 black and red Elemental creature
+         with '{X}: This creature gets +X/+0 until end of turn.'" — and the
+         quoted ability goes with it */
+      if ((m = p.match(/^becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless|and) )*)((?:[A-Za-z'-]+ )*?)creature with (?:([a-z, ]+?),? and )?"([^"]+)"$/))) {
+        if (!typed(m[3].replace(/\band\b/g, ' '), (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
+        if (!grantableText(m[6])) return null;
+        eff.grantText = m[6];
+        if (m[5]) {
+          const kws = keywordList(m[5]);
+          if (!kws.length || !kws.every(kwKnown)) return null;
+          eff.keywords = (eff.keywords || []).concat(kws);
+        }
+        continue;
+      }
       /* Clan Guildmage: "becomes a 4/4 Elemental creature with haste";
          Vengeant Earth: "… in addition to its other types" — the creature
          types it had stay */
@@ -9331,6 +9348,17 @@
       // Diamond Weapon: "Prevent all combat damage that would be dealt to CARDNAME."
       { re: /^Prevent all combat damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true }, flag: 'noDamageTaken' }, auto: true },
+      // Possessed Aven: "As long as …, this creature gets +1/+1, is black, and has '…'"
+      { re: /^As long as ([^,]+), (?:this creature|CARDNAME) gets ([+-]\d+)\/([+-]\d+), is (white|blue|black|red|green), and has "([^"]+)"\.?$/i,
+        make: (m) => {
+          const cond = condOf(m[1]);
+          if (!cond || !grantableText(m[5])) return null;
+          const C = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 7, scope: { self: true }, cond, pt: { p: pmNum(m[2]), t: pmNum(m[3]) } },
+            { op: 'continuous', layer: 5, scope: { self: true }, cond, setColors: [C[m[4].toLowerCase()]] },
+            { op: 'continuous', layer: 6, scope: { self: true }, cond, grantText: m[5] }] };
+        }, auto: true },
       // Platinum Emperion: "Your life total can't change."
       { re: /^Your life total can'?t change\.?$/i, eff: { op: 'lifeCantChange' }, auto: true },
       // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."

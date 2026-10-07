@@ -8558,4 +8558,40 @@ module.exports = (test) => {
     T.bf('A', 'Swamp');
     t.eq(T.g.powerOf(m), p0 + 1); void s;
   });
+
+  test('Lavaclaw Reaches: the animated land has its quoted ability', (mk, t) => {
+    t.auto('Lavaclaw Reaches');
+    const T = mk();
+    const l = T.bf('A', 'Lavaclaw Reaches');
+    T.mana('A', '1BR');
+    T.activate('A', l, l.analysis().manaAbilities.length);
+    T.resolve();
+    t.ok(T.g.characteristics(l).isCreature);
+    t.ok(l.analysis().abilities.some(a => a.granted && a.kind === 'activated'), 'the {X} pump is there');
+  });
+
+  test('Quicksmith Spy: the artifact taps to draw while you control the Spy', (mk, t) => {
+    t.auto('Quicksmith Spy');
+    const T = mk();
+    const art = T.bf('A', 'Mind Stone');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: art.id }] }));
+    T.put('A', 'Quicksmith Spy', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(art.analysis().abilities.some(a => a.granted), 'granted');
+    const spy = T.bfOf('A').find(o => o.name === 'Quicksmith Spy');
+    T.g.moveObject(spy, 'graveyard');
+    T.g._lapseWhileEffects();
+    t.ok(!art.analysis().abilities.some(a => a.granted), 'gone with the Spy');
+  });
+
+  test('Possessed Aven: threshold makes it bigger, black, with the ability', (mk, t) => {
+    t.auto('Possessed Aven');
+    const T = mk();
+    const a = T.bf('A', 'Possessed Aven');
+    const p0 = T.g.powerOf(a);
+    for (let i = 0; i < 7; i++) T.grave('A', 'Island');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(a), p0 + 1);
+    t.ok(a.analysis().abilities.some(x => x.granted && x.kind === 'activated'));
+  });
 };

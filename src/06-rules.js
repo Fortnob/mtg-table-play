@@ -10826,8 +10826,10 @@
         case 'grantAbility':
           applyToScope(e, (o) => {
             /* the ability written out already (a translated card), or its words to read */
-            o.effects.push(e.abilities ? { grantAbilities: e.abilities, until: e.duration === 'eot' ? 'eot' : null }
-              : { grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null });
+            // Quicksmith Spy: "for as long as you control this creature"
+            const lasting = e.duration === 'whileControl' && src ? { whileFrom: src.id, whileControl: ctx.controller } : {};
+            o.effects.push(Object.assign(e.abilities ? { grantAbilities: e.abilities, until: e.duration === 'eot' ? 'eot' : null }
+              : { grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null }, lasting));
             o._chr = null;
             this.logEvent('keyword', `${o.name} gains "${truncate(e.ability, 80)}"`);
           });

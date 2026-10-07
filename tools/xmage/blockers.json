@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13803,
-  "gainedCards": 1441,
-  "linesNeeded": 15209,
-  "linesGained": 1777,
+  "needed": 13792,
+  "gainedCards": 1440,
+  "linesNeeded": 15197,
+  "linesGained": 1776,
   "gained": {
-   "all": 1441,
+   "all": 1440,
    "top2000": 52,
    "stdTop": 12
   },
@@ -4312,21 +4312,6 @@
    ]
   },
   {
-   "what": "BecomesColorSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Miles Morales // Ultimate Spider-Man",
-    "Wild Mongrel",
-    "Repentant Vampire",
-    "Wayward Angel",
-    "Possessed Aven",
-    "Possessed Barbarian",
-    "Possessed Centaur",
-    "Possessed Nomad"
-   ]
-  },
-  {
    "what": "comparison EQUAL_TO",
    "score": 8,
    "lines": 8,
@@ -5826,19 +5811,6 @@
     "Mazzy, Truesword Paladin",
     "Sigil of the New Dawn",
     "Kithkin Mourncaller"
-   ]
-  },
-  {
-   "what": "gain for whileControlled",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Aegis Angel",
-    "Tale of Tinúviel",
-    "Thancred Waters",
-    "Kyodai, Soul of Kamigawa",
-    "Quicksmith Spy",
-    "Quicksmith Rebel"
    ]
   },
   {
@@ -7387,6 +7359,29 @@
     "Legions of Lim-Dûl",
     "Rime Dryad"
    ]
+  },
+  {
+   "what": "CollectEvidenceCost",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tenth District Hero",
+    "Kylox's Voltstrider",
+    "Polygraph Orb",
+    "Hedge Whisperer"
+   ]
+  },
+  {
+   "what": "several colours in a scope",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Rise of the Hobgoblins",
+    "Glistening Deluge",
+    "Flash of Defiance",
+    "Kavu Runner",
+    "Skittish Kavu"
+   ]
   }
  ],
  "sole": [
@@ -7470,15 +7465,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 71,
-   "cards": 71,
+   "score": 72,
+   "cards": 72,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
     "Flesh Duplicate",
+    "Den of the Bugbear",
     "Sakashima's Student",
-    "Altered Ego",
-    "Copy Artifact"
+    "Altered Ego"
    ]
   },
   {
@@ -10027,19 +10022,6 @@
    ]
   },
   {
-   "what": "BecomesColorSourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Wild Mongrel",
-    "Repentant Vampire",
-    "Wayward Angel",
-    "Possessed Aven",
-    "Possessed Barbarian",
-    "Possessed Centaur"
-   ]
-  },
-  {
    "what": "BecomesTargetAttachedTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -10377,19 +10359,6 @@
     "Attentive Skywarden",
     "Bilbo, Unexpected Adventurer",
     "Aetherblade Agent // Gitaxian Mindstinger"
-   ]
-  },
-  {
-   "what": "gain for whileControlled",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Aegis Angel",
-    "Tale of Tinúviel",
-    "Thancred Waters",
-    "Kyodai, Soul of Kamigawa",
-    "Quicksmith Spy",
-    "Quicksmith Rebel"
    ]
   },
   {
@@ -11161,6 +11130,30 @@
     "Battlefront Krushok",
     "Rocksteady, Crash Courser",
     "Yuan Shao, the Indecisive"
+   ]
+  },
+  {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Cosmium Confluence",
+    "Riveteers Confluence",
+    "Obscura Confluence"
+   ]
+  },
+  {
+   "what": "AttachToSourceTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Armory Automaton",
+    "Amy Rose",
+    "Sokka, Swordmaster",
+    "Kazuul's Toll Collector",
+    "Shagrat, Loot Bearer"
    ]
   }
  ]
