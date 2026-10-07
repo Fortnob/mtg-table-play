@@ -5467,4 +5467,36 @@ module.exports = (test) => {
     const libB = T.zone('B', 'library');
     t.eq(libB[libB.length - 1], b, 'at the bottom');
   });
+
+  test('Illegal targets are refused before anything is paid', (mk, t) => {
+    const T = mk();
+    const forest = T.bf('B', 'Forest');
+    const bogle = T.bf('B', 'Slippery Bogle');
+    const mine = T.bf('A', 'Slippery Bogle');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const un = T.hand('A', 'Unsummon');
+    T.mana('A', 'U');
+    const pool = () => JSON.stringify(T.player('A').pool.snapshot());
+    const before = pool();
+    t.no(T.g.castSpell('A', un.id, { targets: [{ kind: 'object', id: forest.id }] }), 'a land for a creature spec');
+    t.ok(/isn't a legal target for Unsummon/.test(T.g.lastError || ''), T.g.lastError);
+    t.no(T.g.castSpell('A', un.id, { targets: [{ kind: 'object', id: bogle.id }] }), "an opponent's hexproof creature");
+    t.eq(un.zone, 'hand', 'still in hand');
+    t.eq(pool(), before, 'nothing paid');
+    // a "spell" spec given a permanent
+    const cs = T.hand('A', 'Counterspell');
+    T.mana('A', 'UU');
+    t.no(T.g.castSpell('A', cs.id, { targets: [{ kind: 'object', id: bear.id }] }), 'a permanent for a spell spec');
+    // and the legal ones go through
+    T.cast('A', un, { targets: [mine] });
+    t.eq(mine.zone, 'hand', 'my own hexproof creature is fine');
+  });
+
+  test('Illegal targets are refused for abilities too, before the cost', (mk, t) => {
+    const T = mk();
+    const ps = T.bf('A', 'Prodigal Sorcerer'); ps.summoningSick = false;
+    const bogle = T.bf('B', 'Slippery Bogle');
+    t.no(T.g.activateAbility('A', ps.id, 0, { targets: [{ kind: 'object', id: bogle.id }] }), 'hexproof');
+    t.no(ps.tapped, 'not tapped: nothing was paid');
+  });
 };

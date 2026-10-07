@@ -45,7 +45,9 @@ module.exports = (test) => {
     t.zone(tp, 'exile');
     T.nextTurn('B');
     T.mana('B', 'R');
-    T.cast('B', T.hand('B', 'Pyroclasm' === 'x' ? '' : 'Lava Spike'), { targets: [] , resolve: true });
+    // protection from everything: not a legal target at all
+    t.no(T.g.castSpell('B', T.hand('B', 'Lava Spike').id, { targets: [{ kind: 'player', id: 'A' }] }), 'A cannot be targeted');
+    T.g.changeLife('A', -3);
     t.eq(T.life('A'), 20, 'life cannot change');
     T.nextTurn('A');
     t.no(bear.phasedOut, 'back in on its controller\'s turn');

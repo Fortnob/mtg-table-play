@@ -4,7 +4,8 @@ module.exports = (test) => {
   test('Liquimetal Torque makes a land an artifact for the turn', (mk, t) => {
     const T = mk();
     const lt = T.bf('A', 'Liquimetal Torque');
-    const land = T.bf('B', 'Forest');
+    // "target nonland permanent": a creature, not a land
+    const land = T.bf('B', 'Grizzly Bears');
     const i = lt.analysis().manaAbilities.length;
     T.activate('A', lt, i, { targets: [land] });
     t.ok(T.g.characteristics(land).addTypes.includes('Artifact'), 'an artifact now');

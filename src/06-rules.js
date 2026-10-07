@@ -4003,6 +4003,18 @@
       const p = this.player(playerId);
       const o = this.obj(objId);
       const a = o.analysis();
+      /* The targets, checked before anything is paid or moved: the half
+         being cast (or both, fused), as the words on it ask */
+      if (a && !a.isPermanent || (a && a.isAura) || (opts.targets || []).length) {
+        let specs = a && a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a);
+        if (opts.fuse && this._fusable(o)) specs = specs.concat(spellTargetSpecs(MTG.oracle.analyze(o.card, 1)));
+        const viaUse = opts.via ? this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via) : null;
+        // overload: "each" instead of "target" — nothing is aimed at
+        if (!(viaUse && viaUse.overload) && !(a && a.isPermanent && !a.isAura && !(opts.targets || []).length)) {
+          const bad = this._illegalTargets(specs, opts.targets, playerId, o);
+          if (bad) return this.fail(bad);
+        }
+      }
       /* Two things decided while casting need an answer before anything is
          paid: which of two additional costs to pay, and whether to promise
          a gift, and to whom. A person is asked and the cast starts again
@@ -5073,6 +5085,11 @@
       const aimed = this._specsOf({ effects: ab.effects });
       if ((opts.targets || []).some((t, i) => aimed[i] && aimed[i].another && t && t.id === o.id))
         return this.fail('That needs another target, not this one.');
+      // every target checked against what it was chosen for, before any cost is paid
+      if (ab.kind !== 'mana') {
+        const bad = this._illegalTargets(effectSpecs(ab.effects), opts.targets, playerId, o);
+        if (bad) return this.fail(bad);
+      }
       const ca = a.isArtifact || a.isCreature || a.isEnchantment;
       const hush = ca ? this._castBlocked(playerId, true) : null;
       if (hush) return this.fail(hush);
@@ -5199,6 +5216,36 @@
       }
       this._blightOn(x, n, pid);
       return true;
+    }
+    /**
+     * Every chosen target against what it was chosen for (CR 601.2c, 602.2b),
+     * before anything is paid: whoever sent the targets — the table, a bot,
+     * a guest over the wire — nothing illegal gets past. Returns why not,
+     * or null. A target beyond the ones the words ask for is left alone
+     * (some effects pick their own); a cast with no target at all, when the
+     * first one is not optional and something could be chosen, is refused.
+     */
+    _illegalTargets(specs, targets, playerId, source) {
+      const tg = (targets || []).map(normTarget).filter(Boolean);
+      const fitted = fitSpecs(specs || [], tg.length || null);
+      const name = (source && source.name) || 'that';
+      const first = fitted[0];
+      if (!tg.length) {
+        const optional = !first || first.upTo || (first.multi && !(first.multi.min > 0) && first.multi.count !== 'X');
+        if (!optional && this._legalTargetsFor(first, playerId, source && source.id).length) return `${name} needs a target.`;
+        return null;
+      }
+      for (let i = 0; i < tg.length && i < fitted.length; i++) {
+        const t = tg[i], sp = fitted[i];
+        if (!sp) continue;
+        const legal = this._legalTargetsFor(sp, playerId, source && source.id);
+        const same = (u) => u && u.kind === t.kind && u.id === t.id;
+        const what = this.describeTarget(t);
+        if (!legal.some(same)) return `${what} isn't a legal target for ${name}.`;
+        // "any other target", "another target creature": not one already chosen
+        if (sp.distinct && tg.slice(0, i).some(same)) return `${what} isn't a legal target for ${name}.`;
+      }
+      return null;
     }
     /** Why a spell with "Cast this spell only …" can't be cast now, or null. */
     _castWindowShut(w, pid) {
@@ -16227,6 +16274,9 @@
         if (e.op === 'sequence') { out = out.concat(deep(e.list)); continue; }
         if ((e.targets || []).length) { out = out.concat(e.targets); continue; }
         const a = deep(e.then), b = deep(e.otherwise);
+        /* two branches asking for different things (Into the Flood Maw's
+           gift): which is wanted is settled as it resolves, and picked then */
+        if (a.length && b.length && JSON.stringify(a) !== JSON.stringify(b)) continue;
         out = out.concat(a.length >= b.length ? a : b);
       }
       return out;
