@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16601,
+  "needed": 16594,
   "gainedCards": 1765,
-  "linesNeeded": 18856,
+  "linesNeeded": 18849,
   "linesGained": 2271,
   "gained": {
    "all": 1765,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5715,
-   "lines": 4911,
+   "score": 5709,
+   "lines": 4908,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 230,
-   "lines": 200,
+   "score": 228,
+   "lines": 198,
    "cards": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -4819,20 +4819,6 @@
    ]
   },
   {
-   "what": "words:power",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Gwenna, Eyes of Gaea",
-    "Monstrous Vortex",
-    "Sarkhan's Unsealing",
-    "Living Phone",
-    "Militia Bugler",
-    "Mayael the Anima",
-    "Squad Rallier"
-   ]
-  },
-  {
    "what": "TargetPermanentOrPlayer",
    "score": 10,
    "lines": 7,
@@ -8112,13 +8098,23 @@
     "High Ground",
     "Cenn's Tactician"
    ]
+  },
+  {
+   "what": "AdditionalCombatPhaseEffect",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Port Razer",
+    "Grim Reaper's Sprint",
+    "Raiyuu, Storm's Edge"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4478,
-   "cards": 3911,
+   "score": 4472,
+   "cards": 3908,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8182,8 +8178,8 @@
   },
   {
    "what": "custom condition",
-   "score": 170,
-   "cards": 152,
+   "score": 168,
+   "cards": 150,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -10040,19 +10036,6 @@
    "cards": 1,
    "names": [
     "Dour Port-Mage"
-   ]
-  },
-  {
-   "what": "words:power",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Gwenna, Eyes of Gaea",
-    "Monstrous Vortex",
-    "Sarkhan's Unsealing",
-    "Living Phone",
-    "Militia Bugler",
-    "Mayael the Anima"
    ]
   },
   {
@@ -11955,6 +11938,19 @@
     "Dust Corona",
     "Treetop Bracers",
     "Saddle of the Cavalier"
+   ]
+  },
+  {
+   "what": "AttackingCreatureCount",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Jazal Goldmane",
+    "Mishra, Claimed by Gix",
+    "Veteran's Armaments",
+    "Rubblebelt Raiders",
+    "Strength in Numbers",
+    "Tears of Rage"
    ]
   }
  ]

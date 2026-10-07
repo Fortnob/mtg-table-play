@@ -1530,6 +1530,7 @@
       this._lastLifeLost = 0;   // "gain life equal to the life lost this way" counts within one resolution
       this._lastDamageDealt = 0;
       this._dealtThisWay = [];
+      this._madeThisResolution = [];
       this._lastAffected = null;
       this._lastCopy = null;
       this._lastPut = null;
@@ -6473,6 +6474,8 @@
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           return !!x && (x.manaSpent || 0) === 0;
         }
+        // Martial Coup: "if X is 5 or more" — the X paid for the spell
+        case 'xAtLeast': return ((ctx && ctx.x) || (src && src.chosenX) || 0) >= (cond.n || 0);
         // Court of Grace: "if you're the monarch"
         case 'monarch': return !!me && !!me.monarch;
         // Righteous Valkyrie: "at least 7 life more than your starting life total"
@@ -8952,6 +8955,7 @@
             if (e.op === 'destroyAll' && this.hasKw(x, 'indestructible')) return false;
             // Fell the Mighty: "with power greater than target creature's power"
             if (e.aboveTargetPower) { const tg = firstObj(); if (!tg || this.powerOf(x) <= this.powerOf(tg)) return false; }
+            if (e.exceptMade && (this._madeThisResolution || []).includes(x.id)) return false;
             // Winds of Rath: "creatures that aren't enchanted"
             if (e.unenchanted && (x.attachments || []).some(id => { const at = this.obj(id); return at && ((at.analysis() || {}).subtypes || []).includes('Aura'); })) return false;
             return true;
@@ -12604,6 +12608,8 @@
         /* "…create a token. It gains haste." — the token is what the next
            sentence is talking about. */
         this._noteLastAffected([{ kind: 'object', id: o.id }]);
+        // Martial Coup: "destroy all other creatures" spares the tokens it just made
+        (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
         this.bumpBoard();
         this._onEnter(o);
         this._fireEnters(o);

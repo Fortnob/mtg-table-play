@@ -2611,6 +2611,22 @@
           g._asHalf(o, 1, () => consider(o, null));
           for (const x of out.slice(before)) { x.face = 1; x.v += 1; }
         }
+        /* A split card: the right half is a spell of its own, and with fuse
+           both halves at once — worth the two together when both can be
+           paid for and both have something to do. */
+        if (o.zone === 'hand' && g._splitHalves && g._splitHalves(o)) {
+          const left = out.find(x => x.o === o && x.face == null && !x.via);
+          if (left) left.face = 0;
+          const before = out.length;
+          g._asHalf(o, 1, () => consider(o, null));
+          const right = out.slice(before).find(x => x.o === o);
+          if (right) right.face = 1;
+          if (left && right && g._fusable(o) && left.cost + right.cost <= mana &&
+              g.couldPay(this.pid, (left.costStr || '') + (right.costStr || ''), sources)) {
+            out.push({ o, a: left.a, aRight: right.a, v: left.v + right.v, cost: left.cost + right.cost,
+              costStr: (left.costStr || '') + (right.costStr || ''), via: null, fuse: true });
+          }
+        }
         /* A creature you cannot pay for is still a 2/2 for three if it has
            morph — which is what morph is for. */
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
@@ -2773,12 +2789,18 @@
     castChoice(choice, mana) {
       const g = this.game;
       // a look ahead may have settled the targets already
-      const targets = choice.targets || (choice.face != null
+      let targets = choice.targets || (choice.face != null
         ? g._asHalf(choice.o, choice.face, () => this.chooseTargets(choice.o, choice.a))
         : this.chooseTargets(choice.o, choice.a));
+      // fused: the left half's targets, then the right half's
+      if (choice.fuse && targets !== null && !choice.targets) {
+        const right = g._asHalf(choice.o, 1, () => this.chooseTargets(choice.o, choice.aRight));
+        targets = right === null ? null : (targets || []).concat(right || []);
+      }
       if (targets === null) return false;            // needs a target and none is worth it
       const opts = { targets, auto: true };
-      if (choice.face != null) opts.face = choice.face;
+      if (choice.fuse) opts.fuse = true;
+      else if (choice.face != null) opts.face = choice.face;
       if (choice.via) opts.via = choice.via;
       /* Kicker and friends: pay for the better version when the mana is
          spare, because that is what the extra cost is for. */

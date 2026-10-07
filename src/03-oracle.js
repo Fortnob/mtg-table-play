@@ -481,8 +481,12 @@
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
     // "Untap it." in a trigger about another permanent: that one, not this
+    /* …unless the sentence before was about this one: "put a +1/+1 counter
+       on Gwenna and untap it" */
+    let prevSelf = false;
     if (scope === 'triggerObject') walk(effects, (e) => {
-      if (e.scope === 'self' && ops.includes(e.op) && /\b(?:it|that (?:creature|permanent|land))\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = scope;
+      if (e.scope === 'self' && ops.includes(e.op) && !prevSelf && /\b(?:it|that (?:creature|permanent|land))\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = scope;
+      prevSelf = e.scope === 'self' && /\bthis\b|CARDNAME/.test(e.text || '');
     });
   }
 
@@ -1979,6 +1983,15 @@
         const inner = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
         if (!inner || inner.op === 'manual') return null;
         return { op: 'noop', insteadOf: { cond, effects: [inner] } };
+      } },
+    // Martial Coup: "If X is 5 or more, destroy all other creatures."
+    { re: /^If X is (\d+) or more, (.+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+        if (!inner.auto || !inner.effects.length) return null;
+        // "all other creatures": other than the ones this spell just made
+        for (const x of inner.effects) if (x.op === 'destroyAll' && x.scope && x.scope.other) { x.exceptMade = true; delete x.scope.other; }
+        return { op: 'ifCond', cond: { kind: 'xAtLeast', n: +m[1] }, then: inner.effects };
       } },
     /* "If the gift was promised, instead return target nonland permanent
        an opponent controls to its owner's hand." The same swap, with the
@@ -4249,7 +4262,8 @@
     const f = { words: words.join(' ').toLowerCase() || 'spell' };
     if (chosenType) f.chosenType = true;
     const k = String(mv || '').match(/(\d+) or (?:greater|more)/);
-    if (k) f.minMv = +k[1];
+    // Gwenna: "a creature spell with power 5 or greater"
+    if (k) { if (/power/i.test(mv)) f.minPower = +k[1]; else f.minMv = +k[1]; }
     return f;
   }
 
@@ -4307,15 +4321,15 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     /* --- spells being cast, by whom and of what kind --- */
-    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost) \d+ or (?:greater|more))?, /i,
+    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) \d+ or (?:greater|more))?, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell of the chosen type, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' of the chosen type') },
     { re: /^When(?:ever)? you cast or copy (?:a|an) ([a-zA-Z ,-]*?)spell, /i,
       event: 'youCastSpell', also: 'youCopySpell', filt: (m) => spellFilter(m[1]) },
-    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost) \d+ or (?:greater|more))?, /i,
+    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) \d+ or (?:greater|more))?, /i,
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
-    { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost) \d+ or (?:greater|more))?, /i,
+    { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) \d+ or (?:greater|more))?, /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
 
     /* --- one ability, two ways to set it off --- */

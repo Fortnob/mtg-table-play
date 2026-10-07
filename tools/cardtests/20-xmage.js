@@ -3003,6 +3003,61 @@ module.exports = (test) => {
     t.no(T.g._hasFlag(b, 'cantBlock'), 'over at your next turn');
   });
 
+  test('A bot fuses Wear // Tear when both halves have a target', (mk, t) => {
+    const T = mk();
+    T.hand('A', 'Wear // Tear');
+    const ar = T.bf('B', 'Ornithopter'), en = T.bf('B', 'Glorious Anthem');
+    T.mana('A', '1RW');
+    T.player('A').isBot = true;
+    const bot = new MTG.bots.BotPlayer(T.g, 'A', 8);
+    t.ok(bot.castOptions('main1').some(x => x.fuse), 'fusing is an option');
+    t.ok(bot.castFromPlan('main1'), 'cast');
+    T.resolve();
+    t.zone(ar, 'graveyard'); t.zone(en, 'graveyard');
+  });
+
+  test('A bot casts the half it can pay for', (mk, t) => {
+    const T = mk();
+    const fi = T.hand('A', 'Fire // Ice');
+    T.bf('B', 'Llanowar Elves');
+    T.mana('A', '1U');
+    T.player('A').isBot = true;
+    const bot = new MTG.bots.BotPlayer(T.g, 'A', 8);
+    t.eq(JSON.stringify(bot.castOptions('main1').map(x => x.face)), '[1]', 'only Ice');
+  });
+
+  test('Martial Coup: X of 5 or more keeps only the new Soldiers', (mk, t) => {
+    t.auto('Martial Coup');
+    const T = mk();
+    T.bf('B', 'Craw Wurm'); T.bf('A', 'Grizzly Bears');
+    T.mana('A', '5WW');
+    T.cast('A', T.hand('A', 'Martial Coup'), { x: 5 });
+    T.resolve();
+    t.eq(T.bfOf('A').map(o => o.name).join(), 'Soldier,Soldier,Soldier,Soldier,Soldier');
+    t.eq(T.bfOf('B').length, 0);
+    const T2 = mk();
+    T2.bf('B', 'Craw Wurm');
+    T2.mana('A', '2WW');
+    T2.cast('A', T2.hand('A', 'Martial Coup'), { x: 2 });
+    T2.resolve();
+    t.eq(T2.bfOf('B').length, 1, 'X of 2: no sweep');
+  });
+
+  test('Gwenna: a counter and untap for a creature spell with power 5 or more', (mk, t) => {
+    t.auto('Gwenna, Eyes of Gaea');
+    const T = mk();
+    const g = T.bf('A', 'Gwenna, Eyes of Gaea');
+    g.tapped = true;
+    T.mana('A', '4GG');
+    T.cast('A', T.hand('A', 'Craw Wurm'));
+    T.resolve();
+    t.eq(g.counters['+1/+1'], 1); t.no(g.tapped, 'untapped');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(g.counters['+1/+1'], 1, 'not for a 2/2');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
