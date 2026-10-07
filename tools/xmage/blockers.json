@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14498,
+  "needed": 14491,
   "gainedCards": 1516,
-  "linesNeeded": 16076,
+  "linesNeeded": 16067,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 309,
-   "lines": 291,
+   "score": 308,
+   "lines": 290,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7530,18 +7530,6 @@
    ]
   },
   {
-   "what": "effect:missing",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Dream Devourer",
-    "Bohn, Beguiling Balladeer",
-    "Corpseberry Cultivator",
-    "Evidence Examiner",
-    "Surveillance Monitor"
-   ]
-  },
-  {
    "what": "CountersControllerCount",
    "score": 5,
    "lines": 5,
@@ -7551,6 +7539,18 @@
     "Katara, Waterbending Master",
     "Atreus, Impulsive Son",
     "Kratos, Stoic Father"
+   ]
+  },
+  {
+   "what": "becomes a creature in a static ability",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Kaito, Bane of Nightmares",
+    "Gideon Blackblade",
+    "Goddric, Cloaked Reveler",
+    "Warden of the Wall",
+    "Rusted Relic"
    ]
   }
  ],
@@ -7583,8 +7583,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 228,
-   "cards": 213,
+   "score": 227,
+   "cards": 212,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",

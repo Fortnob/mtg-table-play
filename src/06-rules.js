@@ -3918,6 +3918,7 @@
       const pain = (c) => {
         if (c.reveal) return 0;
         if (c.behold) return c.behold.exile ? 2 : 0;
+        if (c.forage) return 2;
         if (c.mana) return 1 + MANA.cmc(c.mana) * 0.5;
         if (c.life != null) return (p.life - (+c.life || 0)) > 8 ? (+c.life || 0) * 0.3 : 50;
         if (c.tapCreatures) return 1.5;
@@ -5278,6 +5279,24 @@
       this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
       return o;
     }
+    /** Forage: a Food to sacrifice, or three cards in the graveyard to exile. */
+    _canForage(pid, self) {
+      if (this.battlefield.some(o => o.controller === pid && !o.phasedOut && this._hasSubtype(o, 'Food'))) return true;
+      return this.zones[pid].graveyard.filter(c => c !== self).length >= 3;
+    }
+    /** Forage as a cost: a Food if there is one, otherwise the three cards that matter least. */
+    _forageAuto(pid, self) {
+      const food = this.battlefield.find(o => o.controller === pid && !o.phasedOut && this._hasSubtype(o, 'Food'));
+      if (food) this._sacrificeNow(pid, [food], null);
+      else {
+        const yard = this.zones[pid].graveyard.filter(c => c !== self);
+        if (yard.length < 3) return false;
+        for (const c of this._cheapestFirst(yard).slice(0, 3)) this.moveObject(c, 'exile');
+        this.logEvent('exile', `${this.player(pid).name} exiles three cards from their graveyard to forage.`);
+      }
+      this._fire('youForage', pid, { playerId: pid });
+      return true;
+    }
     /** What a player could behold: matching permanents they control, and matching cards in their hand. */
     _beholdPool(pid, spec, self) {
       const f = (spec && spec.filter) || 'permanent';
@@ -5511,6 +5530,7 @@
       }
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
+      if (cost.forage && !this._canForage(pid, self)) return 'Nothing to forage: no Food, and fewer than three cards in your graveyard.';
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
@@ -5607,6 +5627,8 @@
             prompt: `Blight ${cost.blight}: put ${cost.blight === 1 ? 'a -1/-1 counter' : cost.blight + ' -1/-1 counters'} on a creature you control.` });
         }
       }
+      // Forage: a Food if there is one, or three cards out of the graveyard
+      if (cost.forage) this._forageAuto(pid, self);
       /* Behold: one you control or one from your hand, shown. "And exile it"
          takes it away, held by this card for "return the exiled card". */
       if (cost.behold) {
@@ -11476,11 +11498,13 @@
             (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
             (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
             (!pay.behold || this._beholdPool(ctx.controller, pay.behold, src).length > 0) &&
+            (!pay.forage || this._canForage(ctx.controller, src)) &&
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
             (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1)) &&
             (!pay.energy || (me.energy || 0) >= pay.energy);
-          if (!able && (pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
-          const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+          if (!able && (pay.forage || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          // (a "you may" already asked as the trigger resolved)
+          const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
@@ -11489,6 +11513,43 @@
             me.energy -= pay.energy;
             this.logEvent('counters', `${me.name} pays ${pay.energy} energy (${me.energy} left).`);
             if (!pay.mana && pay.life == null && !pay.discard && !pay.sacrifice) { this._spliceNext(e.then); break; }
+          }
+          // Treetop Sentries: "you may forage" — a Food, or three cards from the graveyard
+          if (pay.forage) {
+            const foods = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && this._hasSubtype(o, 'Food'));
+            const yard = this.zones[ctx.controller].graveyard.filter(c => c !== src);
+            let how = foods.length ? (yard.length >= 3 ? null : 'food') : 'exile';
+            if (!how) {
+              if ((this.player(ctx.controller) || {}).isBot) how = 'food';
+              else {
+                const got = this._choose({ playerId: ctx.controller, purpose: 'forage', kind: 'options', min: 1, max: 1,
+                  options: [{ i: 0, label: 'Sacrifice a Food' }, { i: 1, label: 'Exile three cards from your graveyard' }], prompt: 'Forage: how?' }, 'fhow');
+                if (got === SUSPEND) return SUSPEND;
+                how = (got && got.picks && got.picks[0]) === 1 ? 'exile' : 'food';
+              }
+            }
+            if (how === 'food') {
+              let f = foods[0];
+              if (foods.length > 1 && !(this.player(ctx.controller) || {}).isBot) {
+                const got = this._choose({ playerId: ctx.controller, purpose: 'forage', kind: 'objects', items: this._chooseItems(foods), min: 1, max: 1, prompt: 'Sacrifice a Food.' }, 'ffood');
+                if (got === SUSPEND) return SUSPEND;
+                f = this.obj(((got && got.picks) || [])[0]) || foods[0];
+              }
+              this._sacrificeNow(ctx.controller, [f], null);
+            } else {
+              let picks = this._cheapestFirst(yard).slice(0, 3);
+              if (yard.length > 3 && !(this.player(ctx.controller) || {}).isBot) {
+                const got = this._choose({ playerId: ctx.controller, purpose: 'forage', kind: 'objects', zone: 'graveyard', items: this._chooseItems(yard), min: 3, max: 3, prompt: 'Exile three cards from your graveyard.' }, 'fex');
+                if (got === SUSPEND) return SUSPEND;
+                picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard').slice(0, 3);
+                if (picks.length < 3) picks = this._cheapestFirst(yard).slice(0, 3);
+              }
+              for (const c of picks) this.moveObject(c, 'exile');
+              this.logEvent('exile', `${me.name} exiles three cards from their graveyard to forage.`);
+            }
+            this._fire('youForage', ctx.controller, { playerId: ctx.controller });
+            this._spliceNext(e.then);
+            break;
           }
           // Sarkhan: "you may behold a Dragon" — shown, nothing given up
           if (pay.behold) {

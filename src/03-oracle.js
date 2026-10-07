@@ -285,6 +285,8 @@
       }
       // Blight N: N -1/-1 counters on a creature you control, as the price
       if ((m = p.match(/^Blight (\d+)$/i))) { cost.blight = +m[1]; continue; }
+      // Bloomburrow: "Forage" — exile three cards from your graveyard or sacrifice a Food
+      if (/^Forage$/i.test(p)) { cost.forage = true; continue; }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
@@ -1739,6 +1741,8 @@
     // Flowstone Armor: "Target creature gets +1/-1 for as long as CARDNAME remains tapped."
     { re: /^(Target [a-z ]+?) gets ([+-]\d+)\/([+-]\d+) for as long as (?:CARDNAME|this creature|this artifact) remains tapped\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'flagWhile', pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, targets: [t], whileTapped: true } : null; } },
+    // Corpseberry Cultivator: "you may forage" with nothing after it
+    { re: /^Forage\.?$/i, make: () => ({ op: 'mayPay', pay: { forage: true }, then: [], noAsk: true }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -4442,6 +4446,7 @@
       make: (m) => ({ sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
+    { re: /^forage$/i, make: () => ({ forage: true }) },
     // Sarkhan, Dragon Ascendant: "you may behold a Dragon. If you do, …"
     { re: /^behold (a|an) ([A-Za-z -]+?)$/i, make: (m) => ({ behold: { n: 1, filter: m[2].trim().toLowerCase() } }) },
     // the Processors: "put a card an opponent owns from exile into that player's graveyard"
@@ -4595,7 +4600,7 @@
        pay 4 life": a choice of prices, made as the spell is cast. Each one
        has to be a price the table can take by itself. ("Sacrifice an
        artifact or creature" is one price, with two kinds of thing.) */
-    const parts = what.split(/,? or (?=(?:sacrifice|discard|pay|exile|return|reveal|tap|behold)\b)|, (?=(?:sacrifice|discard|pay|exile|return|reveal|tap|behold)\b)/i);
+    const parts = what.split(/,? or (?=(?:sacrifice|discard|pay|exile|return|reveal|tap|behold|forage)\b)|, (?=(?:sacrifice|discard|pay|exile|return|reveal|tap|behold|forage)\b)/i);
     if (parts.length < 2 || optional) return oneAdditionalCost(what, optional);
     const choice = [];
     for (const part of parts) {
@@ -4611,6 +4616,7 @@
     let k;
     if ((k = what.match(/^pay ((?:\{[^}]+\})+)$/i))) return { mana: k[1], optional };
     if ((k = what.match(/^blight (\d+)$/i))) return { blight: +k[1], optional };
+    if (/^forage$/i.test(what)) return { forage: true, optional };
     if ((k = what.match(/^reveal (?:a|an) ([A-Za-z -]+?) card from your hand$/i))) return { reveal: { filter: k[1].trim() }, optional };
     // Lorwyn: "behold a Kithkin" — one you control, or one shown from your hand; "and exile it" takes it too
     if ((k = what.match(/^behold (a|an|one|two|three) ([A-Za-z -]+?)( and exile it)?$/i)))
@@ -5539,6 +5545,8 @@
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
     { re: /^At the beginning of each player'?s draw step(?:,| )/i, event: 'eachDrawStep' },
+    // Camellia: "Whenever you sacrifice one or more Foods" (heard once for each one)
+    { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
     { re: /^When(?:ever)? you sacrifice an? ([A-Za-z]+)(?:,| )/i, event: 'youSacrifice',
       filt: (m) => (/^permanent$/i.test(m[1]) ? { words: 'permanent' } : subjectFilter('a ' + m[1])) },
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
@@ -5697,6 +5705,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes the target of a spell or ability(?:,| )/i, event: 'becomesTarget', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
+    // Corpseberry Cultivator: "Whenever you forage"
+    { re: /^When(?:ever)? you forage(?:,| )/i, event: 'youForage' },
     { re: /^When(?:ever)? you cast your first spell (?:during|each) (?:each turn|turn|opponent'?s turn)(?:,| )/i, event: 'firstSpellEachTurn' },
     { re: /^At end of combat(?:,| )/i, event: 'endOfCombat' },
     { re: /^When(?:ever)? an? (?:artifact|enchantment) enters(?: the battlefield)?(?: under your control)?(?:,| )/i, event: 'permanentEtb' },

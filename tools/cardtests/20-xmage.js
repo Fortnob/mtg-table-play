@@ -6428,4 +6428,38 @@ module.exports = (test) => {
     T.resolve();
     t.eq(JSON.stringify(b1.analysis().colors), '["R"]'); t.eq(JSON.stringify(b2.analysis().colors), '["R"]');
   });
+
+  test('Forage: Treetop Sentries exiles three graveyard cards and draws', (mk, t) => {
+    t.auto('Treetop Sentries');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.grave('A', 'Island');
+    T.top('A', 'Forest');
+    T.mana('A', 'G3');
+    T.cast('A', T.hand('A', 'Treetop Sentries'));
+    T.resolve();
+    t.eq(T.zone('A', 'exile').length, 3, 'three exiled');
+    t.ok(T.zone('A', 'hand').some(c => c.name === 'Forest'), 'drew');
+  });
+
+  test('Forage: nothing to forage with, nothing happens', (mk, t) => {
+    const T = mk();
+    T.grave('A', 'Island');
+    T.top('A', 'Forest');
+    T.mana('A', 'G3');
+    T.cast('A', T.hand('A', 'Treetop Sentries'));
+    T.resolve();
+    t.no(T.zone('A', 'hand').some(c => c.name === 'Forest'), 'no draw');
+  });
+
+  test('Feed the Cycle: forage with a Food instead of paying {B}', (mk, t) => {
+    t.auto('Feed the Cycle');
+    const T = mk();
+    const food = T.bf('A', 'Food');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Feed the Cycle'), { targets: [bear.id] });
+    T.resolve();
+    t.eq(bear.zone, 'graveyard');
+    t.no(food.zone === 'battlefield', 'the Food went');
+  });
 };
