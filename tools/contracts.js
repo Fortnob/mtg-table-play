@@ -117,6 +117,7 @@ const StackItemView = obj({
   id, kind: lit('spell', 'ability', 'trigger'), name: str, controller: id,
   cardId: maybe(str), card: maybe(Card), objId: maybe(id),
   targets: opt(arr(Target)), abilityText: opt(maybe(str)), countered: bool,
+  triggered: opt(bool), face: opt(maybe(int)),
 });
 const ManaPool = obj({ W: num, U: num, B: num, R: num, G: num, C: num });
 const PlayerView = obj({

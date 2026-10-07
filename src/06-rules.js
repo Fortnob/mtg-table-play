@@ -5140,6 +5140,27 @@
       return true;
     }
 
+    /** What an Aura arriving uncast could be attached to: anything it could legally enchant (not targeted, so hexproof is no bar). */
+    _auraHosts(o, a) {
+      if (a.auraSpec && (a.auraSpec.type === 'player' || a.auraSpec.type === 'opponent')) return [];
+      return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x));
+    }
+    /** A leash goes on the best of theirs, a bonus on the best of ours. */
+    _bestAuraHost(o, a, hosts) {
+      const text = String(a.oracleText || '').toLowerCase();
+      const hostile = /can't attack|can't block|doesn't untap|enchanted creature gets -|loses all abilities|enchanted permanent doesn't/.test(text);
+      const side = hosts.filter(x => hostile ? x.controller !== o.controller : x.controller === o.controller);
+      const pool = side.length ? side : hosts;
+      return this._cheapestFirst(pool).slice(-1)[0];
+    }
+    _attachAura(o, host) {
+      if (!o || !host) return;
+      o.attachedTo = host.id;
+      o._awaitHost = false;
+      host.attachments = (host.attachments || []).concat(o.id);
+      this.logEvent('rules', `${o.name} enters attached to ${host.name}.`);
+      this.bumpBoard();
+    }
     /** The creatures a player could blight. */
     _blightPool(pid) {
       return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this.characteristics(x).isCreature);
@@ -8094,6 +8115,10 @@
             o.counters.lore = start - 1; this._advanceSaga(o, 1);
           }
         }
+        /* An Aura put onto the battlefield without being cast (Academy
+           Rector, Replenish): its controller chooses what it enchants as it
+           arrives (CR 303.4f); state-based actions see to it below */
+        if (from !== 'stack' && !o.attachedTo) { const aa = o.analysis(); if (aa && aa.isAura && aa.auraSpec) o._needsHost = true; }
         // replacement effects (counters it enters with, riot) and evolve
         this._onEnter(o);
         this.emit('sfx', o.isToken ? 'token' : 'play_card', { player: o.controller });
@@ -10997,12 +11022,19 @@
             (pay.life == null || me.life > pay.life || this.config.rulesEnforcement !== 'full') &&
             (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
-            (!pay.blight || this._blightPool(ctx.controller).length > 0);
-          if (!able && (pay.removeCounter || pay.blight || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+            (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
+            (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack'));
+          if (!able && (pay.removeCounter || pay.blight || pay.exileSelf || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
+          // "you may exile it. If you do, …": this card, wherever it went
+          if (pay.exileSelf) {
+            if (src && src.zone !== 'exile') { this.moveObject(src, 'exile'); this.logEvent('exile', `${src.name} is exiled.`); }
+            this._spliceNext(e.then);
+            break;
+          }
           // "You may blight 1. If you do, …"
           if (pay.blight) {
             const r = this._doneHere('mbDone') ? true : this._blightNow(ctx.controller, pay.blight, 'mb');
@@ -11897,6 +11929,14 @@
           z.push(src);
           if (e.shuffle) this.rng.shuffle(z);
           src._wentToLibrary = true;
+          break;
+        }
+        /* "Return it to your hand": the card the trigger is about (Zodiac
+           Dragon), or this card, from the graveyard (Ghastly Remains) */
+        case 'returnItToHand': {
+          const td = ctx.triggerData || {};
+          const x = (td.objectId && this.obj(td.objectId)) || src;
+          if (x && (x.zone === 'graveyard' || x.zone === 'exile') && x.owner === ctx.controller) this.moveObject(x, 'hand');
           break;
         }
         case 'selfFromGraveyard': {
@@ -14274,6 +14314,20 @@
               if (illegal) this.logEvent('sba', `${o.name} becomes unattached from ${host.name}.`);
             }
           }
+          if (a.isAura && !o.bestowed && o.zone === 'battlefield' && !o.attachedTo && o._needsHost) {
+            o._needsHost = false;
+            const hosts = this._auraHosts(o, a);
+            const pl = this.player(o.controller);
+            if (hosts.length === 1 || (hosts.length && pl && pl.isBot)) { this._attachAura(o, hosts.length === 1 ? hosts[0] : this._bestAuraHost(o, a, hosts)); repeat = true; continue; }
+            if (hosts.length) {
+              o._awaitHost = true;
+              this.queueChoice({ type: 'pickCard', playerId: o.controller, count: 1, purpose: 'auraHost', objId: o.id,
+                candidates: hosts.map(x => x.id), cards: hosts.map(x => ({ id: x.id, name: x.name, card: x.card })),
+                prompt: `${o.name}: choose what it enchants.` });
+              continue;
+            }
+          }
+          if (a.isAura && !o.bestowed && o.zone === 'battlefield' && !o.attachedTo && o._awaitHost) continue;
           if (a.isAura && !o.bestowed && o.zone === 'battlefield' && !o.attachedTo) {
             this.logEvent('sba', `${o.name} is put into the graveyard (attached to nothing).`);
             this.moveObject(o, 'graveyard'); repeat = true; continue;
@@ -14606,6 +14660,18 @@
             for (const x of this._tapCostOrder(pool)) { if (ids.length >= (ch.count || 1)) break; if (!ids.includes(x.id)) ids.push(x.id); }
             this._tapForCost(playerId, ids.map(id => this.obj(id)), ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null);
             ids = [];
+          }
+          // an Aura put onto the battlefield uncast: what it enchants
+          if (ch.purpose === 'auraHost') {
+            const au = this.obj(ch.objId);
+            const pick = ids.find(id => (ch.candidates || []).includes(id)) || (ch.candidates || [])[0];
+            const host = pick && this.obj(pick);
+            if (au && au.zone === 'battlefield' && !au.attachedTo) {
+              if (host && host.zone === 'battlefield') this._attachAura(au, host);
+              else au._awaitHost = false;
+            }
+            this.checkStateBasedActions();
+            break;
           }
           if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost' || ch.purpose === 'blightCost') {
             const pool = (ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
@@ -15247,6 +15313,8 @@
     opponentsOf(pid) { return this.players.filter(p => p.id !== pid && !p.hasLost); }
     describeTarget(t) {
       if (t.kind === 'player') { const p = this.player(t.id); return p ? p.name : 'a player'; }
+      // a spell or ability on the stack, by its name
+      if (t.kind === 'stack') { const st = this.stack.find(s => s.id === t.id); return st ? st.name : 'a spell'; }
       const o = this.obj(t.id); return o ? o.name : 'something';
     }
     _cardValue(o) {
@@ -15739,6 +15807,8 @@
           cardId: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW.id : s.obj.card.id) : null,
           card: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW : s.obj.card) : null,
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
+          // what a target spec may ask of it: a triggered ability or not, and the face a spell was cast as
+          triggered: !!s.triggered, face: s.obj && !secret(s.obj) ? (s.obj.face || 0) : null,
         })).map(s => this._namedWords(s, this._nameHint(s.objId))),
         battlefield: this.battlefield.map(o => ser(o, false)),
         players: this.players.map(p => ({

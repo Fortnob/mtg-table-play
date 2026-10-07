@@ -109,6 +109,10 @@ declare namespace MTG {
     targets?: Target[];
     abilityText?: string;
     countered: boolean;
+    /** a triggered ability (false for a spell or an activated ability) */
+    triggered?: boolean;
+    /** the face a spell was cast as; null for an ability or a face-down spell */
+    face?: number | null;
   }
 
   interface ManaPoolView { W: number; U: number; B: number; R: number; G: number; C: number }

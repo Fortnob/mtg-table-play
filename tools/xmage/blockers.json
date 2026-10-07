@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15392,
-  "gainedCards": 1578,
-  "linesNeeded": 17189,
-  "linesGained": 2008,
+  "needed": 15370,
+  "gainedCards": 1577,
+  "linesNeeded": 17159,
+  "linesGained": 2006,
   "gained": {
-   "all": 1578,
+   "all": 1577,
    "top2000": 53,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5552,
-   "lines": 4790,
+   "score": 5548,
+   "lines": 4786,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -414,8 +414,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 34,
-   "lines": 31,
+   "score": 33,
+   "lines": 30,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -2436,23 +2436,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Kinnan, Bonder Prodigy",
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Anowon, the Ruin Sage",
-    "Ruthless Winnower",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Wildborn Preserver",
-    "Call to the Grave",
-    "Redcap Raiders",
-    "Archdemon of Unx"
-   ]
-  },
-  {
    "what": "UntapTargetCost",
    "score": 13,
    "lines": 4,
@@ -2753,25 +2736,6 @@
     "Phantom Flock",
     "Phantom Wurm",
     "Phantom Nomad"
-   ]
-  },
-  {
-   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Genesis",
-    "Master of Death",
-    "Arden Angel",
-    "Gigapede",
-    "Ichorid",
-    "Akuta, Born of Ash",
-    "Death Spark",
-    "Nether Spirit",
-    "Death of a Thousand Stings",
-    "Pyre Zombie",
-    "Ghastly Remains",
-    "Exile into Darkness"
    ]
   },
   {
@@ -4537,22 +4501,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid with [\"exile\"]",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Masked Vandal",
-    "Greenwarden of Murasa",
-    "Cavalier of Thorns",
-    "Academy Rector",
-    "Arena Rector",
-    "Aphemia, the Cacophony",
-    "Aegis Sculptor",
-    "Skywarp Skaab",
-    "Forgotten Harvest"
-   ]
-  },
-  {
    "what": "Ability.setDoOnlyOnceEachTurn",
    "score": 9,
    "lines": 9,
@@ -4888,6 +4836,22 @@
    ]
   },
   {
+   "what": "words: non-subtype",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Anowon, the Ruin Sage",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Wildborn Preserver",
+    "Call to the Grave",
+    "Redcap Raiders",
+    "Archdemon of Unx"
+   ]
+  },
+  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "lines": 9,
@@ -4965,6 +4929,22 @@
     "The Lion-Turtle",
     "Tiger-Dillo",
     "Blind-Spot Giant"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Genesis",
+    "Arden Angel",
+    "Ichorid",
+    "Akuta, Born of Ash",
+    "Death Spark",
+    "Nether Spirit",
+    "Death of a Thousand Stings",
+    "Exile into Darkness",
+    "Rekindled Flame"
    ]
   },
   {
@@ -5973,17 +5953,6 @@
    ]
   },
   {
-   "what": "ReturnToHandFromBattlefieldSourceCost",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Shigeki, Jukai Visionary",
-    "Maze's End",
-    "Gossamer Chains",
-    "Cycle of Life"
-   ]
-  },
-  {
    "what": "token ability GnomeSoldierStarStarToken",
    "score": 7,
    "lines": 1,
@@ -6404,20 +6373,6 @@
    ]
   },
   {
-   "what": "only to its controller's graveyard",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Colfenor's Urn",
-    "Angelic Renewal",
-    "Mortuary",
-    "Mazzy, Truesword Paladin",
-    "Enduring Renewal",
-    "Sigil of the New Dawn",
-    "Kithkin Mourncaller"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 7,
    "lines": 7,
@@ -6823,6 +6778,19 @@
     "Haunting Voyage",
     "Kindred Charge",
     "Tribal Forcemage"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"exile\"]",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Masked Vandal",
+    "Cavalier of Thorns",
+    "Aphemia, the Cacophony",
+    "Aegis Sculptor",
+    "Skywarp Skaab",
+    "Forgotten Harvest"
    ]
   },
   {
@@ -7418,6 +7386,19 @@
    ]
   },
   {
+   "what": "only to its controller's graveyard",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Colfenor's Urn",
+    "Angelic Renewal",
+    "Mortuary",
+    "Mazzy, Truesword Paladin",
+    "Sigil of the New Dawn",
+    "Kithkin Mourncaller"
+   ]
+  },
+  {
    "what": "gain for whileControlled",
    "score": 6,
    "lines": 6,
@@ -7832,13 +7813,26 @@
     "Tenured Tethermage",
     "Hungering Puppetbeast"
    ]
+  },
+  {
+   "what": "at least some of any number",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Touch of Darkness",
+    "Heaven's Gate",
+    "Corpseweft",
+    "Sea Kings' Blessing",
+    "Sylvan Paradise",
+    "Dwarven Song"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4429,
-   "cards": 3883,
+   "score": 4427,
+   "cards": 3881,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7863,8 +7857,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 228,
-   "cards": 213,
+   "score": 229,
+   "cards": 214,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7915,8 +7909,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 94,
-   "cards": 94,
+   "score": 95,
+   "cards": 95,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8136,8 +8130,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 25,
-   "cards": 22,
+   "score": 24,
+   "cards": 21,
    "names": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -8210,6 +8204,19 @@
     "Opportunistic Dragon",
     "Thor, God of Thunder",
     "Excava, the Risen Past"
+   ]
+  },
+  {
+   "what": "TapForManaAllTriggeredManaAbility",
+   "score": 21,
+   "cards": 15,
+   "names": [
+    "Badgermole Cub",
+    "Kinnan, Bonder Prodigy",
+    "Leyline of Abundance",
+    "Mana Flare",
+    "Heartbeat of Spring",
+    "Dictate of Karametra"
    ]
   },
   {
@@ -8301,19 +8308,6 @@
     "Butterbur, Bree Innkeeper",
     "Rufus Shinra",
     "Oak Street Innkeeper"
-   ]
-  },
-  {
-   "what": "TapForManaAllTriggeredManaAbility",
-   "score": 17,
-   "cards": 14,
-   "names": [
-    "Badgermole Cub",
-    "Leyline of Abundance",
-    "Mana Flare",
-    "Heartbeat of Spring",
-    "Dictate of Karametra",
-    "Lavaleaper"
    ]
   },
   {
@@ -9019,19 +9013,6 @@
     "Afflicted Deserter // Werewolf Ransacker",
     "Concealing Curtains // Revealing Eye",
     "Blightreaper Thallid // Blightsower Thallid"
-   ]
-  },
-  {
-   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Genesis",
-    "Master of Death",
-    "Arden Angel",
-    "Gigapede",
-    "Ichorid",
-    "Akuta, Born of Ash"
    ]
   },
   {
@@ -9785,6 +9766,19 @@
    ]
   },
   {
+   "what": "CastFromHandSourcePermanentCondition.instance",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Wakening Sun's Avatar",
+    "Feasting Troll King",
+    "Angel of the Dire Hour",
+    "Reiver Demon",
+    "Dread Cacodemon",
+    "Coal Stoker"
+   ]
+  },
+  {
    "what": "AttachEffect",
    "score": 9,
    "cards": 9,
@@ -10283,19 +10277,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid with [\"exile\"]",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Masked Vandal",
-    "Greenwarden of Murasa",
-    "Academy Rector",
-    "Arena Rector",
-    "Aphemia, the Cacophony",
-    "Aegis Sculptor"
-   ]
-  },
-  {
    "what": "BeginningOfEndStepTriggeredAbility for NEXT",
    "score": 8,
    "cards": 8,
@@ -10436,19 +10417,6 @@
     "Wings of Velis Vel",
     "Atomic Microsizer",
     "Sorceress Queen"
-   ]
-  },
-  {
-   "what": "CastFromHandSourcePermanentCondition.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Wakening Sun's Avatar",
-    "Feasting Troll King",
-    "Angel of the Dire Hour",
-    "Reiver Demon",
-    "Dread Cacodemon",
-    "Coal Stoker"
    ]
   },
   {
@@ -10644,6 +10612,19 @@
     "Gandalf, Party Guest",
     "Wildfire Eternal",
     "Surtland Elementalist"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Genesis",
+    "Arden Angel",
+    "Ichorid",
+    "Akuta, Born of Ash",
+    "Death Spark",
+    "Nether Spirit"
    ]
   },
   {
@@ -10844,17 +10825,6 @@
     "Fumulus, the Infestation",
     "Thraximundar",
     "Mortician Beetle"
-   ]
-  },
-  {
-   "what": "ReturnToHandFromBattlefieldSourceCost",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Shigeki, Jukai Visionary",
-    "Maze's End",
-    "Gossamer Chains",
-    "Cycle of Life"
    ]
   },
   {
@@ -11664,6 +11634,32 @@
     "Cleopatra, Exiled Pharaoh",
     "Shadow Urchin",
     "Buzzard-Wasp Colony"
+   ]
+  },
+  {
+   "what": "AttacksOrBlocksAttachedTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Wand of Orcus",
+    "Sinister Possession",
+    "Contaminated Bond",
+    "Luminous Wake",
+    "Primal Cocoon",
+    "Cunning"
+   ]
+  },
+  {
+   "what": "RemoveCounterTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Clash of the Eikons",
+    "Thrull Parasite",
+    "Ferropede",
+    "Chainbreaker",
+    "Spinal Parasite",
+    "Medicine Runner"
    ]
   }
  ]

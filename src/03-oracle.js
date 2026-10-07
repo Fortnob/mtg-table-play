@@ -1962,6 +1962,9 @@
         const e = { op: 'damage', n: k };
         // "it" in a trigger about another creature is that creature dealing it
         if (/^(it|that creature)$/i.test(m[1])) e.fromTrigger = true;
+        /* Vein Drinker: "This creature deals damage equal to its power" —
+           its own power, in an activated ability as much as in a trigger */
+        if (/^(CARDNAME|This creature)$/i.test(m[1]) && k.ofTrigger && k.ofTrigger !== 'mv' && !k.plus) e.n = { ofSelf: k.ofTrigger };
         if (/^target/i.test(m[1])) {
           e.fromTarget = true; e.targets = [targetSpec(m[1])];
           // "its power" is the power of the creature dealing it
@@ -2244,6 +2247,15 @@
     { re: /^Put the rest on the bottom of your library in (?:a random|any) order\.?$/i,
       make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
+    // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
+    { re: /^You may put an? ([-a-z ]*?)card from among them onto the battlefield( tapped)?\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }) },
+    // Ghastly Remains, Zodiac Dragon: a card that goes back to its owner's hand by its own words
+    { re: /^Return (?:it|this card) to your hand\.?$/i, make: () => ({ op: 'returnItToHand' }) },
+    // Vein Drinker: "That creature deals damage equal to its power to this creature."
+    { re: /^That creature deals damage equal to its power to (?:this creature|CARDNAME)\.?$/i,
+      make: () => ({ op: 'damage', n: { ofTarget: 'power' }, fromTarget: true, toSelf2: true }) },
     { re: /^You may reveal an? ([-a-z ]*?)card from among them and put it into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
         to: 'hand', optional: true }) },
@@ -3937,6 +3949,8 @@
       make: (m) => ({ sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
+    // Academy Rector: "When this creature dies, you may exile it. If you do, …"
+    { re: /^exile (?:it|this card|CARDNAME)$/i, make: () => ({ exileSelf: true }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and (\d+) life$/i, make: (m) => ({ mana: m[1], life: +m[2] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and discard a card$/i, make: (m) => ({ mana: m[1], discard: 1, filter: 'card' }) },

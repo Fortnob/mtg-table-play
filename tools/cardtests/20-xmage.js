@@ -4918,6 +4918,45 @@ module.exports = (test) => {
     T.answer('confirm', { yes: false });
     T.cast('B', T.hand('B', 'Syncopate'), { x: 1, targets: [T.stackTarget(bolt)] });
     t.eq(bolt.zone, 'exile', 'countered and exiled');
+    t.ok(T.g.log.some(l => /casts Syncopate targeting Lightning Bolt/.test(l.text)), 'the log names the spell it targets');
     t.eq(T.life('B'), 20);
+  });
+
+  test('Academy Rector: dies, exile it, and an enchantment comes out', (mk, t) => {
+    t.auto('Academy Rector');
+    const T = mk();
+    const ar = T.bf('A', 'Academy Rector');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.top('A', 'Pacifism');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [ar] });
+    T.resolve();
+    t.eq(ar.zone, 'exile');
+    const pac = T.bfOf('A').find(o => o.name === 'Pacifism');
+    t.ok(pac, 'Pacifism found');
+    t.eq(pac && pac.attachedTo, bear.id, 'and it enchants the only creature there is');
+  });
+
+  test('Vein Drinker: deals its power, and takes the other creature\'s', (mk, t) => {
+    t.auto('Vein Drinker');
+    const T = mk();
+    const vd = T.bf('A', 'Vein Drinker'); vd.summoningSick = false;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.activate('A', vd, vd.analysis().abilities.findIndex(x => x.kind === 'activated'), { targets: [bear] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(vd.damage, 2);
+  });
+
+  test('Ghastly Remains: from the graveyard, pay and it comes back to hand', (mk, t) => {
+    t.auto('Ghastly Remains');
+    const T = mk();
+    const gr = T.grave('A', 'Ghastly Remains');
+    T.answer('confirm', { yes: true });
+    for (let i = 0; i < 3; i++) T.bf('A', 'Swamp');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.eq(gr.zone, 'hand');
   });
 };
