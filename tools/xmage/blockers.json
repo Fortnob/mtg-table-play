@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14887,
-  "gainedCards": 1522,
-  "linesNeeded": 16561,
+  "needed": 14841,
+  "gainedCards": 1530,
+  "linesNeeded": 16502,
   "linesGained": 1921,
   "gained": {
-   "all": 1522,
+   "all": 1530,
    "top2000": 51,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5444,
-   "lines": 4697,
+   "score": 5443,
+   "lines": 4696,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 155,
-   "lines": 146,
+   "score": 144,
+   "lines": 135,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -242,25 +242,6 @@
    ]
   },
   {
-   "what": "AlternativeCostSourceAbility",
-   "score": 67,
-   "lines": 64,
-   "cards": [
-    "Sephara, Sky's Blade",
-    "Daze",
-    "Invigorate",
-    "Foil",
-    "Submerge",
-    "Archive Trap",
-    "Gush",
-    "Mogg Salvage",
-    "Ricochet Trap",
-    "Once Upon a Time",
-    "Disrupting Shoal",
-    "Massacre"
-   ]
-  },
-  {
    "what": "Target.setTargetTag",
    "score": 61,
    "lines": 58,
@@ -296,6 +277,25 @@
     "Modify Memory",
     "Unbury",
     "Chaos Mutation"
+   ]
+  },
+  {
+   "what": "AlternativeCostSourceAbility",
+   "score": 58,
+   "lines": 55,
+   "cards": [
+    "Sephara, Sky's Blade",
+    "Invigorate",
+    "Foil",
+    "Submerge",
+    "Archive Trap",
+    "Mogg Salvage",
+    "Ricochet Trap",
+    "Once Upon a Time",
+    "Disrupting Shoal",
+    "Massacre",
+    "Asmoranomardicadaistinaculdacar",
+    "Hand of Emrakul"
    ]
   },
   {
@@ -2524,25 +2524,6 @@
    ]
   },
   {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Phyrexian Censor",
-    "Spider-Woman, Stunning Savior",
-    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
-    "Frozen Aether",
-    "Zhao, the Moon Slayer",
-    "Root Maze",
-    "Kismet",
-    "Loxodon Gatekeeper",
-    "Radiant Grace // Radiant Restraints",
-    "Orb of Dreams",
-    "Ashling's Prerogative",
-    "False Floor"
-   ]
-  },
-  {
    "what": "BoostSourceEffect p/t",
    "score": 13,
    "lines": 13,
@@ -3275,24 +3256,6 @@
    ]
   },
   {
-   "what": "ActivateIfConditionManaAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Sceptre of Eternal Glory",
-    "Mirrex",
-    "Glistening Sphere",
-    "Dark Fortress",
-    "Gleaming Bastion",
-    "Hidden Lair",
-    "Gathering Place",
-    "Training Compound",
-    "Flywheel Racer",
-    "Lys Alana Dignitary",
-    "Pyramid of the Pantheon"
-   ]
-  },
-  {
    "what": "BeginningOfEndStepTriggeredAbility for NEXT",
    "score": 11,
    "lines": 11,
@@ -3869,6 +3832,23 @@
    ]
   },
   {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Phyrexian Censor",
+    "Spider-Woman, Stunning Savior",
+    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
+    "Zhao, the Moon Slayer",
+    "Root Maze",
+    "Radiant Grace // Radiant Restraints",
+    "Orb of Dreams",
+    "Ashling's Prerogative",
+    "False Floor",
+    "Due Respect"
+   ]
+  },
+  {
    "what": "AddCardSubTypeSourceEffect",
    "score": 10,
    "lines": 10,
@@ -4047,19 +4027,6 @@
    ]
   },
   {
-   "what": "DrawCardsEqualToDifferenceEffect",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Kozilek, the Great Distortion",
-    "The Ten Rings",
-    "Iymrith, Desert Doom",
-    "Doctor Octopus, Master Planner",
-    "Krang, Master Mind",
-    "Damia, Sage of Stone"
-   ]
-  },
-  {
    "what": "TargetPermanentOrPlayer",
    "score": 9,
    "lines": 6,
@@ -4224,22 +4191,6 @@
     "Expedited Inheritance",
     "Death Pits of Rath",
     "Kazarov, Sengir Pureblood"
-   ]
-  },
-  {
-   "what": "CastFromHandSourcePermanentCondition.instance",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Wakening Sun's Avatar",
-    "Feasting Troll King",
-    "Angel of the Dire Hour",
-    "Reiver Demon",
-    "Dread Cacodemon",
-    "Coal Stoker",
-    "Iname as One",
-    "Furnace Dragon",
-    "Soulhunter Rakshasa"
    ]
   },
   {
@@ -4480,22 +4431,6 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Brutal Cathar // Moonrage Brute"
-   ]
-  },
-  {
-   "what": "DynamicManaAbility shape",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Selvala, Eager Trailblazer",
-    "Haruspex",
-    "Tower Worker",
-    "Petalmane Baku",
-    "Priest of Yawgmoth",
-    "Rasputin, the Oneiromancer",
-    "Loot, the Nexus"
    ]
   },
   {
@@ -6385,6 +6320,19 @@
    ]
   },
   {
+   "what": "ActivateIfConditionManaAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Sceptre of Eternal Glory",
+    "Mirrex",
+    "Glistening Sphere",
+    "Flywheel Racer",
+    "Lys Alana Dignitary",
+    "Pyramid of the Pantheon"
+   ]
+  },
+  {
    "what": "filter:anyCounter",
    "score": 6,
    "lines": 6,
@@ -7146,6 +7094,19 @@
    ]
   },
   {
+   "what": "DynamicManaAbility shape",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Selvala, Eager Trailblazer",
+    "Haruspex",
+    "Tower Worker",
+    "Petalmane Baku",
+    "Rasputin, the Oneiromancer",
+    "Loot, the Nexus"
+   ]
+  },
+  {
    "what": "DoIfCostPaid with [\"sacSelf\"]",
    "score": 6,
    "lines": 6,
@@ -7673,6 +7634,29 @@
     "Rope",
     "Wolfrider's Saddle"
    ]
+  },
+  {
+   "what": "MeldEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Hanweir Battlements",
+    "Titania, Voice of Gaea",
+    "Urza, Lord Protector",
+    "Vanille, Cheerful l'Cie",
+    "Graf Rats"
+   ]
+  },
+  {
+   "what": "(constructor: local method makeAbility)",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Court of Vantress",
+    "Kimahri, Valiant Guardian",
+    "Symbiote Spider-Man",
+    "The Ever-Changing 'Dane"
+   ]
   }
  ],
  "sole": [
@@ -7704,8 +7688,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 234,
-   "cards": 219,
+   "score": 235,
+   "cards": 220,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7756,8 +7740,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 97,
-   "cards": 97,
+   "score": 89,
+   "cards": 89,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -7765,19 +7749,6 @@
     "Flesh Duplicate",
     "Prime Speaker Zegana",
     "Sakashima's Student"
-   ]
-  },
-  {
-   "what": "AlternativeCostSourceAbility",
-   "score": 60,
-   "cards": 57,
-   "names": [
-    "Sephara, Sky's Blade",
-    "Daze",
-    "Invigorate",
-    "Foil",
-    "Submerge",
-    "Archive Trap"
    ]
   },
   {
@@ -7804,6 +7775,19 @@
     "Gwenom, Remorseless",
     "Kess, Dissident Mage",
     "Serra Paragon"
+   ]
+  },
+  {
+   "what": "AlternativeCostSourceAbility",
+   "score": 51,
+   "cards": 48,
+   "names": [
+    "Sephara, Sky's Blade",
+    "Invigorate",
+    "Foil",
+    "Submerge",
+    "Archive Trap",
+    "Mogg Salvage"
    ]
   },
   {
@@ -8326,6 +8310,19 @@
    ]
   },
   {
+   "what": "PermanentPredicate.instance",
+   "score": 14,
+   "cards": 8,
+   "names": [
+    "Conduit of Worlds",
+    "Lithoform Engine",
+    "Squirming Emergence",
+    "Myojin of Cryptic Dreams",
+    "Astelli Reclaimer",
+    "Pull Through the Weft"
+   ]
+  },
+  {
    "what": "DamagePlayersEffect amount",
    "score": 14,
    "cards": 2,
@@ -8435,19 +8432,6 @@
     "Mistbreath Elder",
     "Promise of Aclazotz // Foul Rebirth",
     "Family's Favor"
-   ]
-  },
-  {
-   "what": "PermanentPredicate.instance",
-   "score": 13,
-   "cards": 7,
-   "names": [
-    "Conduit of Worlds",
-    "Lithoform Engine",
-    "Squirming Emergence",
-    "Astelli Reclaimer",
-    "Pull Through the Weft",
-    "Wilfred Mott"
    ]
   },
   {
@@ -9202,19 +9186,6 @@
    ]
   },
   {
-   "what": "ActivateIfConditionManaAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Sceptre of Eternal Glory",
-    "Mirrex",
-    "Glistening Sphere",
-    "Dark Fortress",
-    "Gleaming Bastion",
-    "Hidden Lair"
-   ]
-  },
-  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 10,
    "cards": 10,
@@ -9456,19 +9427,6 @@
     "Doctor Doom",
     "Beyond the Quiet",
     "Tend the Sprigs"
-   ]
-  },
-  {
-   "what": "CastFromHandSourcePermanentCondition.instance",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Wakening Sun's Avatar",
-    "Feasting Troll King",
-    "Angel of the Dire Hour",
-    "Reiver Demon",
-    "Dread Cacodemon",
-    "Coal Stoker"
    ]
   },
   {
@@ -9857,18 +9815,6 @@
    ]
   },
   {
-   "what": "DrawCardsEqualToDifferenceEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Kozilek, the Great Distortion",
-    "The Ten Rings",
-    "Doctor Octopus, Master Planner",
-    "Krang, Master Mind",
-    "Damia, Sage of Stone"
-   ]
-  },
-  {
    "what": "MayPay2LifeForColorAbility",
    "score": 8,
    "cards": 5,
@@ -10147,19 +10093,6 @@
     "Kjeldoran Outpost",
     "Soldevi Excavations",
     "Balduvian Trading Post"
-   ]
-  },
-  {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Spider-Woman, Stunning Savior",
-    "Frozen Aether",
-    "Root Maze",
-    "Kismet",
-    "Loxodon Gatekeeper",
-    "Orb of Dreams"
    ]
   },
   {
@@ -10636,19 +10569,6 @@
    ]
   },
   {
-   "what": "DynamicManaAbility shape",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Haruspex",
-    "Tower Worker",
-    "Petalmane Baku",
-    "Priest of Yawgmoth"
-   ]
-  },
-  {
    "what": "ConditionalReplacementEffect",
    "score": 7,
    "cards": 7,
@@ -11106,6 +11026,19 @@
    ]
   },
   {
+   "what": "WardAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Gold-Forged Thopteryx",
+    "Saruman, the White Hand",
+    "Coppercoat Vanguard",
+    "Iymrith, Desert Doom",
+    "Leyline Immersion",
+    "Radagast, Wizard of Wilds"
+   ]
+  },
+  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 6,
    "cards": 6,
@@ -11506,6 +11439,58 @@
     "Sift Through Sands",
     "Dream Thief",
     "Bring Low"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Wight of Precinct Six",
+    "Carrion Grub",
+    "Skanos Dragonheart",
+    "Greven, Predator Captain",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
+   ]
+  },
+  {
+   "what": "targeted trigger pointing at the spell",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Frost Titan",
+    "Reality Smasher",
+    "Forsaken Wastes",
+    "Black Bolt, Inhuman King",
+    "Lava Runner",
+    "Retromancer"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Dropkick Bomber",
+    "Ceremonial Knife",
+    "Drinker of Sorrow",
+    "Quintessential Katana",
+    "Aisha of Sparks and Smoke",
+    "Leyline Phantom"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"sacSelf\"]",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Servant of the Stinger",
+    "Rotisserie Elemental",
+    "Blind Zealot",
+    "Dauthi Mindripper",
+    "Goblin Grenadiers",
+    "Mindstab Thrull"
    ]
   }
  ]

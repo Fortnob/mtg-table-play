@@ -1977,6 +1977,8 @@
            it arrives (CR 707.4), and it arrives once they have. */
         if (!item._cloneAsked && this._askCloneChoice(item, o, a)) return;
         o.wasCast = this.turn;
+        // the Myojin: "if you cast it from your hand"
+        o.castFromZone = item.fromZone || null;
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
@@ -3300,7 +3302,7 @@
       if ((o.zone === 'hand' || o.zone === 'command') && a.altCosts) {
         a.altCosts.forEach((alt, i) => {
           if (alt.cond && !this._condMet(alt.cond, { controller: playerId, obj: o })) return;
-          if (this._thingCostBlocked(playerId, { sacrifice: alt.sacrifice, discard: alt.discard }, o, null)) return;
+          if (this._thingCostBlocked(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn }, o, null)) return;
           if (alt.exileFromHand && this._discardPool(playerId, alt.exileFromHand, o).length < (alt.exileFromHand.n || 1)) return;
           const me = this.player(playerId);
           if (alt.life && (!me || me.life < alt.life)) return;
@@ -4320,7 +4322,7 @@
               prompt: `Exile ${need === 1 ? 'a' : need} ${alt.exileFromHand.filter} card${need === 1 ? '' : 's'} from your hand.` });
           }
         }
-        this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard }, o, opts, item);
+        this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn }, o, opts, item);
       }
       /* The rest of the price: life, and anything to be given up. */
       if (a && a.additionalCost && !opts.skipAdditional && !(optAdd && !opts.payAdditional)) {
@@ -7404,6 +7406,8 @@
       const h = this.turnHistory || {};
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
+        // Gathering Place: "if this land entered this turn or if you control a basic land"
+        case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         case 'draftNoted': case 'firstUpkeep': case 'spellTargetsChosen': return this._draftCond(cond, me, src, ctx);
         // Boromir: "if no mana was spent to cast it"
@@ -7499,6 +7503,8 @@
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
+        case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
+        case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
           const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[ctx.abilityIndex];
@@ -9143,6 +9149,8 @@
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        // Kozilek: "draw cards equal to the difference" — up to seven in hand
+        if (v && typeof v === 'object' && v.handTo != null) return Math.max(0, v.handTo - ((me && this.zones[me.id].hand.length) || 0));
         // Children of Korlis: the life lost this turn
         if (v && typeof v === 'object' && v.lifeLostThisTurn) return (me && me.lifeLostThisTurn) || 0;
         // Traumatize: half a library
@@ -9562,6 +9570,8 @@
             this._lastGroup = list.map(o => o.id);
             for (const o of list) this.addCounters(o, e.kind, cnt);
           }
+          // Ring of Valkas: "on equipped creature if it's red"
+          else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
           else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.addCounters(o, e.kind, cnt);
@@ -13161,6 +13171,19 @@
           else host = firstObj() || ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id)) || this._lastCopy;
           if (!host || host.zone !== 'battlefield' || !this.characteristics(host).isCreature) break;
           this._createRole(ctx.controller, e.role, host);
+          break;
+        }
+        // Counterbore: every other card with that name — graveyard, hand, library — exiled, then a shuffle
+        case 'exileNamedEverywhere': {
+          const la = this._lastCountered || this._lastAffected;
+          const p = la && this.player(la.controller || la.owner);
+          if (!p || !la.name) break;
+          let k = 0;
+          for (const zn of ['graveyard', 'hand', 'library']) {
+            for (const c of this.zones[p.id][zn].slice()) if (c.name === la.name) { this.moveObject(c, 'exile'); k++; }
+          }
+          this.rng.shuffle(this.zones[p.id].library);
+          this.logEvent('exile', `${k} card${k === 1 ? '' : 's'} named ${la.name} exiled from ${p.name}'s graveyard, hand and library.`);
           break;
         }
         // Luminous Guardian: one more creature it may block this turn

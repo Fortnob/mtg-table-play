@@ -5647,4 +5647,57 @@ module.exports = (test) => {
     t.ok(T.g.canAttack(mf), 'can attack now');
     t.eq(T.g.powerOf(mf), 3);
   });
+
+  test('Daze: an Island returned instead of the mana', (mk, t) => {
+    t.auto('Daze');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    const isl = T.bf('B', 'Island');
+    T.cast('B', T.hand('B', 'Daze'), { via: 'alt0', targets: [T.stackTarget(bolt)] });
+    t.eq(isl.zone, 'hand', 'the Island went back');
+    t.eq(bolt.zone, 'graveyard', 'A could not pay {1}');
+  });
+
+  test('Counterbore: the countered card, and every other with its name', (mk, t) => {
+    t.auto('Counterbore');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const other = T.hand('A', 'Lightning Bolt');
+    const gy = T.grave('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    T.mana('B', 'UU3');
+    T.cast('B', T.hand('B', 'Counterbore'), { targets: [T.stackTarget(bolt)] });
+    t.eq(other.zone, 'exile'); t.eq(gy.zone, 'exile');
+    t.eq(T.life('B'), 20);
+  });
+
+  test('The Myojin: a divinity counter only when cast from hand', (mk, t) => {
+    t.auto("Myojin of Night's Reach");
+    const T = mk();
+    T.mana('A', 'BBB5');
+    const my = T.hand('A', "Myojin of Night's Reach");
+    T.cast('A', my);
+    t.eq(my.counters.divinity || 0, 1);
+    const other = T.put('A', "Myojin of Night's Reach", 'battlefield', { etb: true });
+    t.eq(other.counters.divinity || 0, 0, 'put onto the battlefield: none');
+  });
+
+  test("Ring of Valkas: a counter on equipped creature only if it's red", (mk, t) => {
+    t.auto('Ring of Valkas');
+    const T = mk();
+    const ring = T.bf('A', 'Ring of Valkas');
+    const bear = T.bf('A', 'Grizzly Bears');
+    ring.attachedTo = bear.id; bear.attachments.push(ring.id); T.g.bumpBoard();
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(bear.counters['+1/+1'] || 0, 0, 'green: no');
+    const gob = T.bf('A', 'Goblin Piker');
+    bear.attachments = []; ring.attachedTo = gob.id; gob.attachments.push(ring.id); T.g.bumpBoard();
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(gob.counters['+1/+1'] || 0, 1, 'red: yes');
+  });
 };

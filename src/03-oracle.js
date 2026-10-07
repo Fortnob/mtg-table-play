@@ -908,6 +908,19 @@
     // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
+    { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
+      make: () => ({ op: 'exileNamedEverywhere' }) },
+    { re: /^Then that player shuffles\.?$/i, make: () => ({ op: 'noop' }) },
+    // Kozilek: "if you have fewer than seven cards in hand, draw cards equal to the difference"
+    { re: /^(?:If you have fewer than (\w+) cards in hand, )?draw cards equal to the difference\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'you', n: { handTo: m[1] ? num(m[1]) : 7 } }) },
+    // the Rings: "put a +1/+1 counter on equipped creature if it's red"
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on (equipped|enchanted) creature if it'?s (white|blue|black|red|green|an? [A-Z][a-z]+)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'attached', ifHost: m[3].replace(/^an? /i, '').toLowerCase() }) },
+    // Sacrifice: "Add an amount of {B} equal to the sacrificed creature's mana value."
+    { re: /^Add an amount of (\{[WUBRGC]\}) equal to the sacrificed (?:creature|artifact|permanent)'s mana value\.?$/i,
+      make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { ofSacrificed: 'mv' } }) },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -4344,6 +4357,9 @@
         alt.sacrifice = { n: num(k[1]), filter: k[2].trim().toLowerCase() };
       else if ((k = part.match(/^discard (a|an|one|two) ([a-z ]*?)cards?$/i)))
         alt.discard = { n: num(k[1]), filter: k[2].trim() || 'card' };
+      // Daze, Gush, the Borderposts: "return an Island you control to its owner's hand"
+      else if ((k = part.match(/^return (a|an|one|two) ([A-Za-z ]+?) you control to (?:its|their) owner'?s'? hands?$/i)))
+        alt.returnOwn = { n: num(k[1]), filter: k[2].trim().toLowerCase().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') };
       else return null;
     }
     if (alt.mana == null) alt.mana = '';
@@ -5080,6 +5096,10 @@
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
+    // the Myojin: "if you cast it from your hand"
+    [/^you cast it from your hand$/i, () => ({ kind: 'castFromHand' })],
+    // Gathering Place: "this land entered this turn or you control a basic land"
+    [/^(?:this land|CARDNAME) entered this turn or (?:if )?you control a basic land$/i, () => ({ kind: 'any', of: [{ kind: 'selfEnteredThisTurn' }, { kind: 'control', what: 'basic land', n: 1 }] })],
     // Young Hero Role: "if its toughness is 3 or less"
     [/^(?:its|CARDNAME'?s|this creature'?s) toughness is (\w+) or less$/i, (m) => ({ kind: 'selfToughnessMax', n: num(m[1]) })],
     [/^this is the (second|third|fourth|fifth) time this ability has resolved this turn$/i,
@@ -7760,9 +7780,10 @@
     { re: /^If you would gain life, you gain twice that much life instead\.?$/i,
       make: () => ({ op: 'replace', id: 'lifeDouble', event: 'gainLife', who: 'you', how: 'double' }) },
     /* Authority of the Consuls, Blind Obedience: the other side's arrivals come in tapped */
-    { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands)(?: and (?:artifacts|creatures|lands|nonbasic lands))?) your opponents control enter (?:the battlefield )?tapped\.?$/i,
+    // Kismet, Frozen Aether: "Artifacts, creatures, and lands your opponents control enter tapped."
+    { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands)(?:,? (?:and )?(?:artifacts|creatures|lands|nonbasic lands))*) your opponents control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTapOpp', event: 'enters', who: 'opponents', how: 'tapped',
-        whatAny: m[1].toLowerCase().replace(/^nonland permanents$/, 'nonland').split(/ and /).map(w => w.replace(/s$/, '')) }) },
+        whatAny: m[1].toLowerCase().replace(/^nonland permanents$/, 'nonland').split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
     // Possessed Skaab: "If this creature would die, exile it instead."
     { re: /^If (?:CARDNAME|this creature) would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile' }) },
