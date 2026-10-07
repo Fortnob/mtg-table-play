@@ -179,13 +179,6 @@
       ],
       keepKeywords: true,
     },
-    "eidolon of the great revel": {
-      abilities: [{
-        kind: 'triggered', event: 'anyCastSpell', auto: true,
-        text: 'Whenever a player casts a spell with mana value 3 or less, this creature deals 2 damage to that player.',
-        effects: [{ op: 'damage', n: 2, toTriggerPlayer: true, ifSpellMvAtMost: 3 }],
-      }],
-    },
     /* --- text that talks about a pile, a choice or a name --- */
     "fact or fiction": {
       abilities: [{

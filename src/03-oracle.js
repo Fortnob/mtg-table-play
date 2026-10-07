@@ -5665,7 +5665,12 @@
     if (chosenType) f.chosenType = true;
     const k = String(mv || '').match(/(\d+) or (?:greater|more)/);
     // Gwenna: "a creature spell with power 5 or greater"
-    if (k) { if (/power/i.test(mv)) f.minPower = +k[1]; else f.minMv = +k[1]; }
+    if (k) { if (/power \d/i.test(mv)) f.minPower = +k[1]; else f.minMv = +k[1]; }
+    // Eidolon of the Great Revel: "a spell with mana value 3 or less"
+    const lo = String(mv || '').match(/(\d+) or (?:less|fewer)/);
+    if (lo) { if (/power \d/i.test(mv)) f.maxPower = +lo[1]; else f.maxMv = +lo[1]; }
+    // Pollywog Prodigy: "with mana value less than this creature's power"
+    if (/less than (?:this creature|CARDNAME)'?s power/i.test(String(mv || ''))) f.mvBelowSelfPower = true;
     return f;
   }
 
@@ -5754,15 +5759,15 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     /* --- spells being cast, by whom and of what kind --- */
-    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) \d+ or (?:greater|more))?, /i,
+    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell of the chosen type, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' of the chosen type') },
     { re: /^When(?:ever)? you cast or copy (?:a|an) ([a-zA-Z ,-]*?)spell, /i,
       event: 'youCastSpell', also: 'youCopySpell', filt: (m) => spellFilter(m[1]) },
-    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) \d+ or (?:greater|more))?, /i,
+    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
-    { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) \d+ or (?:greater|more))?, /i,
+    { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
 
     /* --- one ability, two ways to set it off --- */
@@ -5823,6 +5828,18 @@
     { re: /^When(?:ever)? you discard a card(?:,| )/i, event: 'youDiscard' },
     // Inti: "Whenever you discard one or more cards" — once for the lot
     { re: /^Whenever you discard one or more cards,? /i, event: 'youDiscard', extra: { batch: true } },
+    /* The Gitrog Monster: "Whenever one or more land cards are put into your
+       graveyard from anywhere"; Vulturous Zombie: "a card … into an
+       opponent's graveyard"; Sidisi: "from your library" */
+    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your|a|an opponent'?s) graveyard from (anywhere|your library)( during your turn)?,? /i,
+      event: 'cardToGraveyardAny',
+      extraOf: (m) => Object.assign({}, /one or more/i.test(m[1]) ? { batch: true } : {}, /library/i.test(m[4]) ? { fromLibraryOnly: true } : {},
+        m[5] ? { yourTurnOnly: true } : {}),
+      filt: (m) => {
+        const words = m[2].trim();
+        if (words && !words.split(/\s+/).every(w => SPELL_WORDS.has(w.toLowerCase()) || /^[A-Z][a-z'-]+$/.test(w))) return null;
+        return Object.assign({ words: words.toLowerCase() || 'card' }, /^your$/i.test(m[3]) ? { who: 'you' } : /opponent/i.test(m[3]) ? { who: 'opponent' } : {});
+      } },
     { re: /^When(?:ever)? an opponent casts their first ([a-zA-Z ]*?)spell each turn(?:,| )/i, event: 'opponentFirstSpell',
       filt: (m) => spellFilter(m[1]), extra: { firstOfKind: true } },
     { re: /^When(?:ever)? a player casts their second spell each turn(?:,| )/i, event: 'anySecondSpell' },

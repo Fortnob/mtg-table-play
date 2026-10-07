@@ -8798,6 +8798,8 @@
         this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
       }
       if (toZone === 'graveyard' && from !== 'battlefield') this._fire('cardToGraveyard', null, { object: o, objController: o.owner });
+      // The Gitrog Monster: a card into a graveyard from anywhere, the battlefield as well
+      if (toZone === 'graveyard' && !o.isToken) this._fire('cardToGraveyardAny', null, { object: o, objController: o.owner, fromZone: from, amount: 1 });
       // "if you descended this turn": a permanent card went to your graveyard
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
@@ -9050,8 +9052,12 @@
         if (this._triggerHushed(o, event, data)) return;
         /* "One or more creatures die" is one trigger for the lot of them,
            however many went at once. */
-        if (((ab.objFilter && ab.objFilter.batch) || ab.batch) &&
-            this.pendingTriggers.some(t => t.objId === o.id && t.abilityIndex === i)) return;
+        if (((ab.objFilter && ab.objFilter.batch) || ab.batch)) {
+          const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i);
+          // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
+          if (had && event === 'cardToGraveyardAny') had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
+          if (had) return;
+        }
         // "This ability triggers only once each turn."
         if (ab.oncePerTurn) {
           o._onceTurn = o._onceTurn || {};
@@ -9116,6 +9122,10 @@
             const mine = (this.player(o.controller) || {}).spellObjsThisTurn || [];
             if (mine.some(x => x !== data.object && this._cardFitsWords(x, ab.spellFilter || 'spell'))) continue;
           }
+          // Sidisi: "put into your graveyard from your library"
+          if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
+          // Crawling Infestation: "during your turn"
+          if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // Nalfeshnee: "a spell from exile"
           if (ab.fromExileOnly && !(data.spell && data.spell.fromZone === 'exile')) continue;
           // "attacks a player": not a planeswalker or a battle
@@ -16552,6 +16562,8 @@
       if (f.maxPower != null && this.powerOf(x) > f.maxPower) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
+      // Pollywog Prodigy: "mana value less than this creature's power"
+      if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;
       if (f.keyword && !this.hasKw(x, f.keyword)) return false;
       if (f.noKeyword && this.hasKw(x, f.noKeyword)) return false;
       if (f.withCounter && !(Number(x.counters[f.withCounter]) > 0)) return false;

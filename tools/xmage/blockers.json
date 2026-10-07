@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14238,
+  "needed": 14214,
   "gainedCards": 1490,
-  "linesNeeded": 15738,
+  "linesNeeded": 15709,
   "linesGained": 1855,
   "gained": {
    "all": 1490,
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 912,
-   "lines": 780,
+   "score": 899,
+   "lines": 770,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -62,12 +62,12 @@
     "Forbidden Orchard",
     "Scrap Trawler",
     "Forsaken Monument",
-    "The Gitrog Monster",
     "Myr Battlesphere",
     "Caged Sun",
     "Mesmeric Orb",
     "Kambal, Profiteering Mayor",
-    "Coveted Jewel"
+    "Coveted Jewel",
+    "Hedge Shredder"
    ]
   },
   {
@@ -712,25 +712,6 @@
    ]
   },
   {
-   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
-   "score": 23,
-   "lines": 20,
-   "cards": [
-    "Bloodchief Ascension",
-    "Sand Scout",
-    "Lazav, Dimir Mastermind",
-    "The Haunt of Hightower",
-    "Sefris of the Hidden Ways",
-    "Yuma, Proud Protector",
-    "Compost",
-    "Centaur Vinecrasher",
-    "Slogurk, the Overslime",
-    "Lorcan, Warlock Collector",
-    "Planar Void",
-    "Skola Grovedancer"
-   ]
-  },
-  {
    "what": "DiscardAndDrawThatManyEffect",
    "score": 23,
    "lines": 14,
@@ -1052,25 +1033,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "It That Heralds the End",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Helga, Skittish Seer",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Runadi, Behemoth Caller",
-    "Kalemne, Disciple of Iroas",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Recruitment Officer"
-   ]
-  },
-  {
    "what": "keyword JobSelectAbility",
    "score": 19,
    "lines": 19,
@@ -1322,6 +1284,25 @@
     "Ethersworn Shieldmage",
     "Divine Light",
     "Inner Sanctum"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Helga, Skittish Seer",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Delivery Moogle",
+    "Runadi, Behemoth Caller",
+    "Kalemne, Disciple of Iroas",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Recruitment Officer",
+    "Gandalf, Westward Voyager"
    ]
   },
   {
@@ -3069,23 +3050,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Dual Strike",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde",
-    "Tzaangor Shaman",
-    "Loki Laufeyson",
-    "Way of the Cryomancer",
-    "Gadwick's First Duel"
-   ]
-  },
-  {
    "what": "scope:snow",
    "score": 11,
    "lines": 11,
@@ -3987,6 +3951,21 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman",
+    "Loki Laufeyson",
+    "Way of the Cryomancer"
+   ]
+  },
+  {
    "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
    "score": 9,
    "lines": 9,
@@ -4585,6 +4564,21 @@
     "Devouring Tendrils",
     "Thing Swing",
     "Compel Brutality"
+   ]
+  },
+  {
+   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Lazav, Dimir Mastermind",
+    "Lorcan, Warlock Collector",
+    "Planar Void",
+    "Energy Field",
+    "Dennick, Pious Apprentice // Dennick, Pious Apparition",
+    "Nihilith",
+    "Soulcipher Board // Cipherbound Spirit",
+    "Measure of Wickedness"
    ]
   },
   {
@@ -7485,8 +7479,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4189,
-   "cards": 3709,
+   "score": 4190,
+   "cards": 3710,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7498,15 +7492,15 @@
   },
   {
    "what": "custom ability",
-   "score": 687,
-   "cards": 585,
+   "score": 676,
+   "cards": 577,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
     "Forbidden Orchard",
     "Scrap Trawler",
     "Forsaken Monument",
-    "The Gitrog Monster"
+    "Myr Battlesphere"
    ]
   },
   {
@@ -7563,8 +7557,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 76,
-   "cards": 76,
+   "score": 77,
+   "cards": 77,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -7951,19 +7945,6 @@
    ]
   },
   {
-   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Bloodchief Ascension",
-    "Sand Scout",
-    "Lazav, Dimir Mastermind",
-    "The Haunt of Hightower",
-    "Yuma, Proud Protector",
-    "Compost"
-   ]
-  },
-  {
    "what": "ModifiedPredicate.instance",
    "score": 16,
    "cards": 13,
@@ -8244,19 +8225,6 @@
     "Fog of War",
     "Hindervines",
     "Snag"
-   ]
-  },
-  {
-   "what": "words:mv",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "It That Heralds the End",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Collected Company"
    ]
   },
   {
@@ -8623,6 +8591,19 @@
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Mirror Room // Fractured Realm"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Delivery Moogle",
+    "Collected Company",
+    "Recruitment Officer"
    ]
   },
   {
@@ -9671,19 +9652,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Dual Strike",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde"
-   ]
-  },
-  {
    "what": "CastFromHandForFreeEffect",
    "score": 8,
    "cards": 8,
@@ -10701,6 +10669,19 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman"
+   ]
+  },
+  {
    "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -11273,6 +11254,15 @@
    "names": [
     "It That Betrays",
     "Vengeful Tracker"
+   ]
+  },
+  {
+   "what": "BecomesClassLevelTriggeredAbility",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Druid Class",
+    "Cool but Rude"
    ]
   }
  ]

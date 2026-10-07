@@ -7258,4 +7258,52 @@ module.exports = (test) => {
     t.eq((g.counters.reach || 0) + (g.counters.vigilance || 0), 1, 'one counter, of one kind');
     t.ok(T.g.hasKw(g, 'reach') || T.g.hasKw(g, 'vigilance'));
   });
+
+  test('The Gitrog Monster: one card drawn for a lot of lands milled at once', (mk, t) => {
+    t.auto('The Gitrog Monster');
+    const T = mk();
+    T.bf('A', 'The Gitrog Monster');
+    for (let i = 0; i < 3; i++) T.top('A', 'Forest');
+    const hand0 = T.zone('A', 'hand').length;
+    for (let i = 0; i < 3; i++) T.g.moveObject(T.zone('A', 'library')[0], 'graveyard');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'one draw for the lot');
+  });
+
+  test('Voracious Brood: that many counters, one for each creature card', (mk, t) => {
+    t.auto('Voracious Brood');
+    const T = mk();
+    const vb = T.bf('A', 'Voracious Brood');
+    T.top('A', 'Grizzly Bears'); T.top('A', 'Island'); T.top('A', 'Hill Giant');
+    for (let i = 0; i < 3; i++) T.g.moveObject(T.zone('A', 'library')[0], 'graveyard');
+    T.resolve();
+    t.eq(vb.counters['+1/+1'], 2);
+  });
+
+  test('Eidolon of the Great Revel: only spells of mana value 3 or less', (mk, t) => {
+    t.auto('Eidolon of the Great Revel');
+    const T = mk();
+    T.bf('A', 'Eidolon of the Great Revel');
+    T.mana('A', '4G');
+    T.cast('A', T.hand('A', 'Thragtusk'));
+    T.resolve();
+    t.eq(T.life('A'), 25, 'Thragtusk: 5 life, no damage');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.life('A'), 23, 'the Bears: 2 damage');
+  });
+
+  test('Pollywog Prodigy: a noncreature spell smaller than its power', (mk, t) => {
+    t.auto('Pollywog Prodigy');
+    const T = mk();
+    const pp = T.bf('A', 'Pollywog Prodigy');
+    const pw = T.g.powerOf(pp);
+    const hand0 = T.zone('A', 'hand').length;
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + (1 < pw ? 1 : 0));
+  });
 };
