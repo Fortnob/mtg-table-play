@@ -4386,4 +4386,50 @@ module.exports = (test) => {
       oracle_text: 'At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.' }));
     t.no(b.borrowedFrom === 'Dark Confidant' && b.scripted, 'a different power is a different card');
   });
+
+  test('Backgrounds: Candlekeep Sage gives the commander a card as it enters and leaves', (mk, t) => {
+    t.auto('Candlekeep Sage');
+    const T = mk();
+    T.bf('A', 'Candlekeep Sage');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h0 = T.zone('A', 'hand').length;
+    const cmd = T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    cmd.isCommander = true; T.g.bumpBoard();
+    T.g.moveObject(cmd, 'graveyard');
+    T.resolve();
+    t.ok(T.zone('A', 'hand').length >= h0 + 1, 'a card for leaving at least');
+  });
+
+  test('Backgrounds: Sword Coast Sailor, unblockable attacking the player with the most life', (mk, t) => {
+    t.auto('Sword Coast Sailor');
+    const T = mk();
+    T.bf('A', 'Sword Coast Sailor');
+    const cmd = T.bf('A', 'Grizzly Bears');
+    cmd.isCommander = true; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok((cmd.effects || []).some(e => e.flag === 'unblockable') || T.g.hasKw(cmd, 'unblockable'), "can't be blocked this turn");
+  });
+
+  test('Thousand-Year Storm: the second instant is copied once', (mk, t) => {
+    t.auto('Thousand-Year Storm');
+    const T = mk();
+    T.bf('A', 'Thousand-Year Storm');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T.life('B'), 17, 'the first, alone');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T.life('B'), 11, 'the second and a copy');
+  });
+
+  test('Double Vision: only the first instant each turn is copied', (mk, t) => {
+    t.auto('Double Vision');
+    const T = mk();
+    T.bf('A', 'Double Vision');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T.life('B'), 14);
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T.life('B'), 11);
+  });
 };

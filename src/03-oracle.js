@@ -557,6 +557,8 @@
     if (m) body = 'W' + m[1].slice(1);
     // Galvanic Iteration: "When you next cast an instant or sorcery spell this turn, copy that spell." — once
     else if ((m = t.match(/^When you next (cast [^,"]+?) this turn, ([\s\S]+)$/i))) { body = 'Whenever you ' + m[1] + ', ' + m[2]; once = true; }
+    // Twinferno: "When you cast your next instant or sorcery spell this turn, …"
+    else if ((m = t.match(/^When you cast your next ([^,"]+?) this turn, ([\s\S]+)$/i))) { body = 'Whenever you cast ' + (/^[aeiou]/i.test(m[1]) ? 'an ' : 'a ') + m[1] + ', ' + m[2]; once = true; }
     else if ((m = t.match(/^((?:Whenever|At the beginning of) [^,"]+?) this turn, ([\s\S]+)$/))) body = m[1] + ', ' + m[2];
     if (!body || /\bCARDNAME\b|\bthis (?:creature|spell|card|enchantment|artifact)\b/i.test(body)) return null;
     const head = body.split(',')[0];
@@ -1039,7 +1041,7 @@
     { re: /^Activate (?:this ability )?only during (?:your turn|combat|your upkeep)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Cast (?:CARDNAME|this spell) only (?:before|during|after) [^.]*\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Until end of turn, you don'?t lose this mana as steps and phases end\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^You may choose new targets for (?:the|that) copy\.?$/i, make: () => ({ op: 'noop' }) },
+    { re: /^You may choose new targets for (?:the|that) cop(?:y|ies)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^(?:Then )?shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
     { re: /^If you do, .*$/i, make: (m) => ({ op: 'manual', text: m[0] }) },
     { re: /^Activate only during your turn\.?$/i, make: () => ({ op: 'noop' }) },
@@ -2680,6 +2682,9 @@
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // Thousand-Year Storm: "copy it for each other instant and sorcery spell you've cast before it this turn"
+    { re: /^Copy (?:it|that spell) for each other (instant and sorcery|instant or sorcery|noncreature)? ?spell you'?ve cast before it this turn\.?$/i,
+      make: (m) => ({ op: 'copyThatSpell', n: { castBefore: (m[1] || 'spell').replace(' and ', ' or ') } }) },
     /* Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." */
     { re: /^(Target (?:legendary )?creature(?: you control)?) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
@@ -3520,7 +3525,7 @@
         return e ? [Object.assign(e, { targets: [{ type: 'player', opponent: true }], onlyTarget: true })] : null;
       } },
     // a triggered ability for the rest of the turn (Jace Reawakened, Bonus Round)
-    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, [\s\S]+$|^When you next cast [^,"]+? this turn, [\s\S]+$/i,
+    { re: /^(?:Until end of turn|This turn), whenever [\s\S]+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, [\s\S]+$|^When you next cast [^,"]+? this turn, [\s\S]+$|^When you cast your next [^,"]+? this turn, [\s\S]+$/i,
       make: (m) => { const e = turnTrigger(m[0]); return e ? [e] : null; } },
     /* Final Showdown: "Choose a creature you control. It gains indestructible
        until end of turn." Chosen, not targeted: read as the targeted
@@ -4385,6 +4390,8 @@
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
     // Vengevine: "if it's the second creature spell you cast this turn"
     [/^it'?s the (second|third) creature spell you(?:'ve)? cast this turn$/i, (m) => ({ kind: 'nthCreatureSpell', n: /second/i.test(m[1]) ? 2 : 3 })],
+    // the Backgrounds: "if no opponent has more life than that player"
+    [/^no opponent has more life than that player$/i, () => ({ kind: 'attackedMostLife' })],
     // Bridge from Below: "if this card is in your graveyard" — where it works from
     [/^(?:this card|CARDNAME) is in your graveyard$/i, () => ({ kind: 'selfInGraveyard' })],
     // Jace, Wielder of Mysteries: "if your library has no cards in it"
@@ -4586,6 +4593,14 @@
   const TRIGGER_PATTERNS = [
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
+    { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
+      extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true }) },
+    // Nalfeshnee: "Whenever you cast a spell from exile"
+    { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
+    // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
+    { re: /^Whenever (?:this creature|CARDNAME) attacks a player,? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
+    { re: /^When (?:this creature|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
     // Tavern Scoundrel, Zndrsplt: winning and losing coin flips
     { re: /^Whenever you win a coin flip,? /i, event: 'youWinFlip' },
     { re: /^Whenever you lose a coin flip,? /i, event: 'youLoseFlip' },

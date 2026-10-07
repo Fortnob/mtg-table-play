@@ -7143,6 +7143,13 @@
         }
         case 'controlNotOwned': return !!me && this.battlefield.filter(x => x.controller === me.id && x.owner !== me.id && !x.phasedOut).length >= (cond.n || 1);
         case 'selfInGraveyard': return !!src && src.zone === 'graveyard';
+        // "if no opponent has more life than that player": the player attacked has the most, or ties
+        case 'attackedMostLife': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.player);
+          if (!p || !me) return false;
+          return !this.opponentsOf(me.id).some(q => !q.hasLost && q.life > p.life);
+        }
         case 'nthCreatureSpell': {
           if (!me) return false;
           const list = (me.spellObjsThisTurn || []).filter(x => (x.analysis() || {}).isCreature);
@@ -8275,6 +8282,15 @@
           if (ab.toZoneOnly && data.toZone !== ab.toZoneOnly) continue;
           // a Room's door: only its own unlocking
           if (ab.door != null && data.door !== ab.door) continue;
+          // Double Vision: the first spell of that kind this turn (this one not yet counted)
+          if (ab.firstOfKindYou) {
+            const mine = (this.player(o.controller) || {}).spellObjsThisTurn || [];
+            if (mine.some(x => x !== data.object && this._cardFitsWords(x, ab.spellFilter || 'spell'))) continue;
+          }
+          // Nalfeshnee: "a spell from exile"
+          if (ab.fromExileOnly && !(data.spell && data.spell.fromZone === 'exile')) continue;
+          // "attacks a player": not a planeswalker or a battle
+          if (ab.attacksPlayer && !(data.attacker && this.player(data.attacker.attacking))) continue;
           // Talion: the chosen number among the spell's mana value, power and toughness
           if (ab.chosenNumberHit) {
             const c = data.object && data.object.card;
@@ -8826,6 +8842,14 @@
         }
         // Fountain of Cho: "for each storage counter removed this way"
         if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
+        // Thousand-Year Storm: spells of that kind cast this turn before the one copied
+        if (v && typeof v === 'object' && v.castBefore) {
+          const list = (me && me.spellObjsThisTurn) || [];
+          const id = (ctx.triggerData || {}).objectId;
+          const at = list.findIndex(x => x.id === id);
+          const before = at >= 0 ? list.slice(0, at) : list.filter(x => x.id !== id);
+          return before.filter(x => v.castBefore === 'spell' || this._cardFitsWords(x, v.castBefore)).length;
+        }
         // Rite of Flame: cards of this name in every graveyard
         if (v && typeof v === 'object' && v.namedInGraveyards) {
           const nm = src && (src.card ? src.card.name : src.name);
@@ -9959,7 +9983,10 @@
             const item = id ? this.stack.find(st => st.id === id) : null;
             if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
             made = [];
-            for (let k = 0; k < Math.max(1, n(e.n || 1)); k++) made.push(this._copyOnStack(item, ctx.controller).id);
+            // "for each other spell you've cast before it": none, and there is nothing to copy
+            const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
+            if (times <= 0) break;
+            for (let k = 0; k < times; k++) made.push(this._copyOnStack(item, ctx.controller).id);
             if (r) r.marks[slot] = made;
             this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}${made.length > 1 ? ' ' + made.length + ' times' : ''}.`);
             this.emit('sfx', 'cast');

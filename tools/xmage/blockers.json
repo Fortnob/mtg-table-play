@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15648,
+  "needed": 15630,
   "gainedCards": 1612,
-  "linesNeeded": 17503,
+  "linesNeeded": 17480,
   "linesGained": 2044,
   "gained": {
    "all": 1612,
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 973,
-   "lines": 814,
+   "score": 955,
+   "lines": 805,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -1731,25 +1731,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Emet-Selch of the Third Seat",
-    "Gravebreaker Lamia",
-    "Norman Osborn // Green Goblin",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Patrician Geist",
-    "Invasion of Arcavios // Invocation of the Founders"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 16,
    "lines": 7,
@@ -3165,22 +3146,6 @@
    ]
   },
   {
-   "what": "spell from a zone",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Sunbird's Invocation",
-    "Appa, Steadfast Guardian",
-    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
-    "Gale, Waterdeep Prodigy",
-    "Kami of Celebration",
-    "Taigam, Ojutai Master",
-    "Goliath Daydreamer",
-    "Harness the Storm",
-    "Devoted Grafkeeper // Departed Soulkeeper"
-   ]
-  },
-  {
    "what": "ControlsCreatureGreatestPowerCondition.instance",
    "score": 12,
    "lines": 3,
@@ -3270,21 +3235,22 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "what": "CastFromZonePredicate",
    "score": 12,
    "lines": 12,
    "cards": [
-    "Twinferno",
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Dual Strike",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde",
-    "Tzaangor Shaman",
-    "Loki Laufeyson",
-    "Way of the Cryomancer",
-    "Gadwick's First Duel"
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Rivaz of the Claw",
+    "Emet-Selch of the Third Seat",
+    "Gravebreaker Lamia",
+    "Norman Osborn // Green Goblin",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Patrician Geist",
+    "Invasion of Arcavios // Invocation of the Founders",
+    "Mizzix, Replica Rider"
    ]
   },
   {
@@ -3361,25 +3327,6 @@
     "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
     "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
     "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier"
-   ]
-  },
-  {
-   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Cryogen Relic",
-    "Candlekeep Sage",
-    "Bilbo, Retired Burglar",
-    "Sewer-veillance Cam",
-    "Experimental Synthesizer",
-    "Wernog, Rider's Chaplain",
-    "Brandywine Farmer",
-    "Mouser Foundry",
-    "Deadwood Treefolk",
-    "Aven Riftwatcher",
-    "Raving Oni-Slave",
-    "Sundering Titan"
    ]
   },
   {
@@ -3928,6 +3875,23 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Dual Strike",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman",
+    "Loki Laufeyson",
+    "Way of the Cryomancer",
+    "Gadwick's First Duel"
+   ]
+  },
+  {
    "what": "PreventAllDamageToSourceEffect",
    "score": 11,
    "lines": 11,
@@ -4171,6 +4135,20 @@
     "Bard's Company",
     "Scarring Memories",
     "Illusion Spinners"
+   ]
+  },
+  {
+   "what": "spell from a zone",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Sunbird's Invocation",
+    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
+    "Gale, Waterdeep Prodigy",
+    "Taigam, Ojutai Master",
+    "Goliath Daydreamer",
+    "Harness the Storm",
+    "Devoted Grafkeeper // Departed Soulkeeper"
    ]
   },
   {
@@ -6447,6 +6425,20 @@
    ]
   },
   {
+   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Cryogen Relic",
+    "Sewer-veillance Cam",
+    "Experimental Synthesizer",
+    "Wernog, Rider's Chaplain",
+    "Mouser Foundry",
+    "Raving Oni-Slave",
+    "Sundering Titan"
+   ]
+  },
+  {
    "what": "static ability in STACK",
    "score": 7,
    "lines": 7,
@@ -7903,8 +7895,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4444,
-   "cards": 3898,
+   "score": 4445,
+   "cards": 3899,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7916,8 +7908,8 @@
   },
   {
    "what": "custom ability",
-   "score": 731,
-   "cards": 602,
+   "score": 715,
+   "cards": 595,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8266,6 +8258,19 @@
    ]
   },
   {
+   "what": "ModifiedPredicate.instance",
+   "score": 22,
+   "cards": 19,
+   "names": [
+    "Kodama of the West Tree",
+    "Goro-Goro, Disciple of Ryusei",
+    "Red XIII, Proud Warrior",
+    "Akki Battle Squad",
+    "Thundering Raiju",
+    "Araña, Heart of the Spider"
+   ]
+  },
+  {
    "what": "filter:alts",
    "score": 22,
    "cards": 22,
@@ -8276,19 +8281,6 @@
     "Opportunistic Dragon",
     "Thor, God of Thunder",
     "Excava, the Risen Past"
-   ]
-  },
-  {
-   "what": "ModifiedPredicate.instance",
-   "score": 21,
-   "cards": 18,
-   "names": [
-    "Kodama of the West Tree",
-    "Goro-Goro, Disciple of Ryusei",
-    "Red XIII, Proud Warrior",
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Araña, Heart of the Spider"
    ]
   },
   {
@@ -9274,19 +9266,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Passionate Archaeologist",
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Gravebreaker Lamia",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser"
-   ]
-  },
-  {
    "what": "TargetsPermanentPredicate",
    "score": 11,
    "cards": 11,
@@ -9401,19 +9380,6 @@
     "Anathemancer",
     "Voracious Dragon",
     "Pyre-Sledge Arsonist"
-   ]
-  },
-  {
-   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Cryogen Relic",
-    "Candlekeep Sage",
-    "Bilbo, Retired Burglar",
-    "Sewer-veillance Cam",
-    "Experimental Synthesizer",
-    "Brandywine Farmer"
    ]
   },
   {
@@ -10556,19 +10522,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Twinferno",
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Dual Strike",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner"
-   ]
-  },
-  {
    "what": "RemoveCounterCost",
    "score": 8,
    "cards": 8,
@@ -11131,6 +11084,19 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Gravebreaker Lamia",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Patrician Geist"
+   ]
+  },
+  {
    "what": "ControllerLifeCount.instance",
    "score": 7,
    "cards": 7,
@@ -11245,6 +11211,19 @@
     "Spirit of Resistance",
     "Veteran Bodyguard",
     "Orim's Touch"
+   ]
+  },
+  {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Dual Strike",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde"
    ]
   },
   {
@@ -11728,6 +11707,19 @@
     "Uthros Psionicist",
     "Highspire Bell-Ringer",
     "Nahiri, Storm of Stone"
+   ]
+  },
+  {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Summon: Ixion",
+    "Werefox Bodyguard",
+    "Trapped in the Screen",
+    "Turncoat Kunoichi",
+    "Detention Chariot",
+    "Driftgloom Coyote"
    ]
   }
  ]
