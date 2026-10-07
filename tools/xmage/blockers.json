@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14566,
+  "needed": 14547,
   "gainedCards": 1516,
-  "linesNeeded": 16154,
+  "linesNeeded": 16133,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 235,
-   "lines": 202,
+   "score": 234,
+   "lines": 201,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -3368,24 +3368,6 @@
    ]
   },
   {
-   "what": "boost for custom",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Endoskeleton",
-    "Ghosthelm Courier",
-    "Flamestick Courier",
-    "Everglove Courier",
-    "Frightshroud Courier",
-    "Ashnod's Battle Gear",
-    "Zelyon Sword",
-    "Spirit Shield",
-    "Pearlspear Courier",
-    "Tawnos's Weaponry",
-    "Flowstone Armor"
-   ]
-  },
-  {
    "what": "HideawayPlayEffect",
    "score": 10,
    "lines": 7,
@@ -4460,22 +4442,6 @@
     "Mistform Seaswift",
     "Mistform Skyreaver",
     "Mistform Shrieker"
-   ]
-  },
-  {
-   "what": "DontUntapAsLongAsSourceTappedEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Amber Prison",
-    "Giant Oyster",
-    "Thalakos Dreamsower",
-    "Sand Squid",
-    "Rust Tick",
-    "Deserter's Quarters",
-    "Mole Worms",
-    "Mana Leech",
-    "Phyrexian Gremlins"
    ]
   },
   {
@@ -6104,19 +6070,6 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Tinder Wall",
-    "Guardian of the Gateless",
-    "Serene Master",
-    "Goblin Snowman",
-    "Wall of Corpses",
-    "Whip Vine"
-   ]
-  },
-  {
    "what": "SacrificeAllControllerEffect",
    "score": 6,
    "lines": 6,
@@ -7270,6 +7223,18 @@
    ]
   },
   {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tinder Wall",
+    "Guardian of the Gateless",
+    "Serene Master",
+    "Goblin Snowman",
+    "Wall of Corpses"
+   ]
+  },
+  {
    "what": "keyword ParadigmAbility",
    "score": 5,
    "lines": 5,
@@ -7577,6 +7542,30 @@
     "Amarant Coral",
     "Grenzo's Ruffians"
    ]
+  },
+  {
+   "what": "counter of a non-spell",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Dazzling Denial",
+    "Lofty Denial",
+    "Dispelling Exhale",
+    "We Say Thee Nay!",
+    "Silumgar's Scorn"
+   ]
+  },
+  {
+   "what": "hand size other than none",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Necrodominance",
+    "Midnight Oil",
+    "Recycle",
+    "Null Profusion",
+    "Inspired Idea"
+   ]
   }
  ],
  "sole": [
@@ -7621,8 +7610,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 204,
-   "cards": 171,
+   "score": 203,
+   "cards": 170,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -8956,19 +8945,6 @@
    ]
   },
   {
-   "what": "boost for custom",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Endoskeleton",
-    "Ghosthelm Courier",
-    "Flamestick Courier",
-    "Everglove Courier",
-    "Frightshroud Courier",
-    "Ashnod's Battle Gear"
-   ]
-  },
-  {
    "what": "HideawayPlayEffect",
    "score": 10,
    "cards": 7,
@@ -9577,19 +9553,6 @@
     "Desert Nomads",
     "Wall of Putrid Flesh",
     "Argothian Pixies"
-   ]
-  },
-  {
-   "what": "DontUntapAsLongAsSourceTappedEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Amber Prison",
-    "Giant Oyster",
-    "Thalakos Dreamsower",
-    "Sand Squid",
-    "Rust Tick",
-    "Deserter's Quarters"
    ]
   },
   {
@@ -10302,6 +10265,19 @@
    ]
   },
   {
+   "what": "SpellsCostModificationThatTargetSourceEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Charix, the Raging Isle",
+    "Icefall Regent",
+    "Syr Elenora, the Discerning",
+    "Spellwild Ouphe",
+    "Elderwood Scion",
+    "Sphinx of New Prahv"
+   ]
+  },
+  {
    "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -10902,19 +10878,6 @@
    ]
   },
   {
-   "what": "SpellsCostModificationThatTargetSourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Charix, the Raging Isle",
-    "Syr Elenora, the Discerning",
-    "Spellwild Ouphe",
-    "Elderwood Scion",
-    "Sphinx of New Prahv",
-    "Boreal Elemental"
-   ]
-  },
-  {
    "what": "attack with 3 or more",
    "score": 6,
    "cards": 6,
@@ -11406,6 +11369,32 @@
     "Esgaroth Garrison",
     "Patient Instructor",
     "Long Lake Nuisance"
+   ]
+  },
+  {
+   "what": "CelebrationCondition.instance",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Ash, Party Crasher",
+    "Pests of Honor",
+    "Armory Mice",
+    "Lady of Laughter",
+    "Gallant Pie-Wielder",
+    "Belligerent of the Ball"
+   ]
+  },
+  {
+   "what": "PreventDamageByTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Boros Fury-Shield",
+    "Energy Arc",
+    "Shieldmage Elder",
+    "Resistance Fighter",
+    "Songstitcher",
+    "Kry Shield"
    ]
   }
  ]

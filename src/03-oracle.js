@@ -1720,6 +1720,14 @@
     // Spiritmonger: "This creature becomes the color of your choice until end of turn."
     { re: /^(?:This creature|CARDNAME) becomes the colou?r of your choice until end of turn\.?$/i,
       make: () => ({ op: 'chooseColorFor', scope: 'self' }) },
+    /* Phyrexian Gremlins, Icefall Regent: "It doesn't untap during its
+       controller's untap step for as long as CARDNAME remains tapped" / "for
+       as long as you control CARDNAME" */
+    { re: /^(?:It|That creature|That permanent|That land|That artifact|They) (?:doesn'?t|don'?t) untap during (?:its|their) controllers?'?s? untap steps? for as long as (?:(you control) )?(?:CARDNAME|this creature|this artifact|this land|this enchantment)( remains tapped)?\.?$/i,
+      make: (m) => (m[1] || m[2] ? { op: 'flagWhile', flag: 'noUntap', scope: 'lastTarget', whileTapped: !!m[2], whileControl: !!m[1] } : null) },
+    // Flowstone Armor: "Target creature gets +1/-1 for as long as CARDNAME remains tapped."
+    { re: /^(Target [a-z ]+?) gets ([+-]\d+)\/([+-]\d+) for as long as (?:CARDNAME|this creature|this artifact) remains tapped\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'flagWhile', pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, targets: [t], whileTapped: true } : null; } },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."

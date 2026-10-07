@@ -7118,6 +7118,24 @@
      * wears off, the Control Magic leaves. Worked out at the points a
      * control effect can begin or end, and before state-based actions.
      */
+    /* "For as long as CARDNAME remains tapped", "for as long as you control
+       CARDNAME": over the moment that stops being true. */
+    _lapseWhileEffects() {
+      for (const o of this.battlefield) {
+        if (!(o.effects || []).some(e => e && e.whileFrom)) continue;
+        const before = o.effects.length;
+        o.effects = o.effects.filter(e => {
+          if (!e || !e.whileFrom) return true;
+          const s0 = this.obj(e.whileFrom);
+          if (!s0 || s0.zone !== 'battlefield') return false;
+          if (e.whileTapped && !s0.tapped) return false;
+          if (e.whileControl != null && s0.controller !== e.whileControl) return false;
+          return true;
+        });
+        if (o.effects.length !== before) { o._chr = null; this.bumpBoard(); }
+      }
+    }
+
     _refreshControl() {
       let changed = false;
       const statics = this._continuous().filter(x => x.ef.control);
@@ -11882,6 +11900,22 @@
           this.logEvent('rules', `${x.name} becomes ${c[1]}.`);
           break;
         }
+        // Phyrexian Gremlins, Flowstone Armor: a flag or a bonus that lasts while the source stays as it is
+        case 'flagWhile': {
+          if (!src || src.zone !== 'battlefield') break;
+          if (e.whileTapped && !src.tapped) break;
+          const tag = { whileFrom: src.id, until: null };
+          if (e.whileTapped) tag.whileTapped = true;
+          if (e.whileControl) tag.whileControl = src.controller;
+          applyToScope(e, (o) => {
+            if (!o || o.zone !== 'battlefield') return;
+            if (e.flag) o.effects.push(Object.assign({ flag: e.flag }, tag));
+            if (e.pt) o.effects.push(Object.assign({ p: n(e.pt.p), t: n(e.pt.t) }, tag));
+            o._chr = null;
+          });
+          this.bumpBoard();
+          break;
+        }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile
         case 'leaveExile': {
           const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
@@ -15151,6 +15185,7 @@
            checked: a Control Magic that went to the graveyard last pass
            has let go of its creature. */
         this._flushStamps();
+        this._lapseWhileEffects();
         this._refreshControl();
 
         // players

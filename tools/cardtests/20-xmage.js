@@ -6318,4 +6318,37 @@ module.exports = (test) => {
     T.resolve();
     t.eq(JSON.stringify(sm.analysis().colors), JSON.stringify(['U']));
   });
+
+  test('Phyrexian Gremlins: the artifact stays tapped while the Gremlins do', (mk, t) => {
+    t.auto('Phyrexian Gremlins');
+    const T = mk();
+    const pg = T.bf('A', 'Phyrexian Gremlins');
+    const ms = T.bf('B', 'Mind Stone');
+    pg.keepTapped = true;
+    T.activate('A', pg, pg.analysis().manaAbilities.length + 0, { targets: [ms.id] });
+    T.resolve();
+    t.ok(ms.tapped);
+    T.nextTurn('B');
+    t.ok(ms.tapped, 'does not untap while the Gremlins stay tapped');
+    pg.tapped = false;
+    T.g.checkStateBasedActions();
+    T.nextTurn('A'); T.nextTurn('B');
+    t.no(ms.tapped, 'free once the Gremlins untap');
+  });
+
+  test('Dungeon Geists: held down for as long as you control it', (mk, t) => {
+    t.auto('Dungeon Geists');
+    const T = mk();
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'UU2');
+    const dg = T.hand('A', 'Dungeon Geists');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    T.cast('A', dg);
+    t.ok(giant.tapped);
+    T.nextTurn('B');
+    t.ok(giant.tapped, 'still tapped');
+    T.g.moveObject(dg, 'graveyard');
+    T.nextTurn('A'); T.nextTurn('B');
+    t.no(giant.tapped, 'free once the Geists are gone');
+  });
 };
