@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15084,
-  "gainedCards": 1536,
-  "linesNeeded": 16799,
+  "needed": 15056,
+  "gainedCards": 1537,
+  "linesNeeded": 16763,
   "linesGained": 1944,
   "gained": {
-   "all": 1536,
+   "all": 1537,
    "top2000": 51,
    "stdTop": 12
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 73,
+  "verifyFail": 72,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5483,
-   "lines": 4727,
+   "score": 5475,
+   "lines": 4719,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -505,25 +505,6 @@
     "Spoils of the Vault",
     "The Stone Brain",
     "Lost Legacy"
-   ]
-  },
-  {
-   "what": "CreateTokenTargetEffect",
-   "score": 29,
-   "lines": 29,
-   "cards": [
-    "Dowsing Dagger // Lost Vale",
-    "Bloodroot Apothecary",
-    "Hunted Horror",
-    "Verdant Command",
-    "Clackbridge Troll",
-    "Varchild, Betrayer of Kjeldor",
-    "Ashling's Command",
-    "Hunted Bonebrute",
-    "Hungry Lynx",
-    "Emeritus of Truce // Swords to Plowshares",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian"
    ]
   },
   {
@@ -2242,6 +2223,25 @@
     "Thantis, the Warweaver",
     "Blood Reckoning",
     "Slumbering Dragon"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Bloodroot Apothecary",
+    "Verdant Command",
+    "Varchild, Betrayer of Kjeldor",
+    "Ashling's Command",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host",
+    "Hansk, Slayer Zealot",
+    "Bloodvial Purveyor",
+    "Relic Robber",
+    "Vazi, Keen Negotiator"
    ]
   },
   {
@@ -4306,22 +4306,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "Éomer, Marshal of Rohan",
-    "Lita, Mechanical Engineer",
-    "Awakening",
-    "Preston Garvey, Minuteman",
-    "Blinkmoth Infusion",
-    "Jiang Yanggu, Never Alone",
-    "Battle Cry"
-   ]
-  },
-  {
    "what": "CastFromHandSourcePermanentCondition.instance",
    "score": 9,
    "lines": 9,
@@ -5155,6 +5139,21 @@
    ]
   },
   {
+   "what": "UntapAllEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Betor, Kin to All",
+    "Éomer, Marshal of Rohan",
+    "Lita, Mechanical Engineer",
+    "Awakening",
+    "Preston Garvey, Minuteman",
+    "Blinkmoth Infusion",
+    "Jiang Yanggu, Never Alone",
+    "Battle Cry"
+   ]
+  },
+  {
    "what": "ReturnFromGraveyardAtRandomEffect",
    "score": 8,
    "lines": 8,
@@ -5361,21 +5360,6 @@
     "Elminster",
     "Council's Deliberation",
     "Glorfindel, Dauntless Rescuer"
-   ]
-  },
-  {
-   "what": "ReturnToHandFromGraveyardAllEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Wisdom of Ages",
-    "Twilight Shepherd",
-    "No Rest for the Wicked",
-    "Gleancrawler",
-    "Underworld Cerberus",
-    "Fell Shepherd",
-    "Infernal Caretaker",
-    "Saprazzan Bailiff"
    ]
   },
   {
@@ -6272,6 +6256,20 @@
    ]
   },
   {
+   "what": "ReturnToHandFromGraveyardAllEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Twilight Shepherd",
+    "No Rest for the Wicked",
+    "Gleancrawler",
+    "Underworld Cerberus",
+    "Fell Shepherd",
+    "Infernal Caretaker",
+    "Saprazzan Bailiff"
+   ]
+  },
+  {
    "what": "CastNoncreatureSpellThisTurnCondition.instance",
    "score": 7,
    "lines": 7,
@@ -6747,19 +6745,6 @@
    ]
   },
   {
-   "what": "fixed control",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Captivating Crew",
-    "Grip of Phyresis",
-    "Enthralling Victor",
-    "Siren of the Fanged Coast",
-    "Infernal Denizen",
-    "Smelt-Ward Ignus"
-   ]
-  },
-  {
    "what": "keyword DemonstrateAbility",
    "score": 6,
    "lines": 6,
@@ -6796,19 +6781,6 @@
     "Vrondiss, Rage of Ancients",
     "Feywild Trickster",
     "Farideh, Devil's Chosen"
-   ]
-  },
-  {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Rootcast Apprenticeship",
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Cosmium Confluence",
-    "Riveteers Confluence",
-    "Obscura Confluence"
    ]
   },
   {
@@ -7727,13 +7699,37 @@
     "Pir, Imaginative Rascal",
     "Caradora, Heart of Alacria"
    ]
+  },
+  {
+   "what": "EntersBattlefieldOrAttacksAllTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tome of Legends",
+    "Norn's Choirmaster",
+    "Vivi's Persistence",
+    "Endless Ranks of HYDRA",
+    "Search for Dagger"
+   ]
+  },
+  {
+   "what": "DealsDamageToYouAllTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "The Cabbage Merchant",
+    "Strixhaven Stadium",
+    "Teysa, Envoy of Ghosts",
+    "Contested War Zone",
+    "Hixus, Prison Warden"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4378,
-   "cards": 3838,
+   "score": 4374,
+   "cards": 3834,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8108,19 +8104,6 @@
    ]
   },
   {
-   "what": "CreateTokenTargetEffect",
-   "score": 21,
-   "cards": 21,
-   "names": [
-    "Dowsing Dagger // Lost Vale",
-    "Hunted Horror",
-    "Verdant Command",
-    "Ashling's Command",
-    "Hunted Bonebrute",
-    "Hungry Lynx"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 21,
    "cards": 21,
@@ -8341,6 +8324,19 @@
    ]
   },
   {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Cynical Loner",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Ant-Man, Elusive Avenger"
+   ]
+  },
+  {
    "what": "PreventAllDamageToAllEffect",
    "score": 15,
    "cards": 12,
@@ -8377,19 +8373,6 @@
     "Sway of Illusion",
     "Scuttling Sentinel",
     "Tidal Visionary"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Cynical Loner",
-    "Tin Street Dodger",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist"
    ]
   },
   {
@@ -9360,6 +9343,19 @@
    ]
   },
   {
+   "what": "unless pays a count",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Spell Stutter",
+    "Mausoleum Wanderer",
+    "Circular Logic",
+    "Countervailing Winds",
+    "Protect the Negotiators",
+    "Evasive Action"
+   ]
+  },
+  {
    "what": "Ability.withFirstModeCost",
    "score": 10,
    "cards": 10,
@@ -9370,6 +9366,19 @@
     "Getaway Glamer",
     "Dance of the Tumbleweeds",
     "Rustler Rampage"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Verdant Command",
+    "Ashling's Command",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host"
    ]
   },
   {
@@ -9601,19 +9610,6 @@
     "Accomplished Alchemist",
     "Gumdrop Poisoner // Tempt with Treats",
     "Essence Pulse"
-   ]
-  },
-  {
-   "what": "unless pays a count",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Spell Stutter",
-    "Mausoleum Wanderer",
-    "Circular Logic",
-    "Countervailing Winds",
-    "Protect the Negotiators",
-    "Evasive Action"
    ]
   },
   {
@@ -11268,19 +11264,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Betor, Kin to All",
-    "Hexplate Wallbreaker",
-    "Éomer, Marshal of Rohan",
-    "Awakening",
-    "Blinkmoth Infusion",
-    "Battle Cry"
-   ]
-  },
-  {
    "what": "CounterTargetWithReplacementEffect",
    "score": 6,
    "cards": 6,
@@ -11330,19 +11313,6 @@
     "Crew Captain",
     "Keldon Strike Team",
     "Fungus Elemental"
-   ]
-  },
-  {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Rootcast Apprenticeship",
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Cosmium Confluence",
-    "Riveteers Confluence",
-    "Obscura Confluence"
    ]
   },
   {
@@ -11450,19 +11420,6 @@
    ]
   },
   {
-   "what": "ReturnToHandFromGraveyardAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Wisdom of Ages",
-    "Twilight Shepherd",
-    "No Rest for the Wicked",
-    "Gleancrawler",
-    "Fell Shepherd",
-    "Infernal Caretaker"
-   ]
-  },
-  {
    "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -11564,6 +11521,45 @@
     "Jaws of Stone",
     "Meteor Shower",
     "Serra's Hymn"
+   ]
+  },
+  {
+   "what": "ConniveSourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "M.O.D.O.K.",
+    "Kang, Temporal Tyrant",
+    "Madame Masque",
+    "Obscura Interceptor",
+    "Psychic Pickpocket",
+    "Tiger Shark, Abyssal Hunter"
+   ]
+  },
+  {
+   "what": "GainControlAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Karrthus, Tyrant of Jund",
+    "Subjugate the Hobbits",
+    "Geyadrone Dihada",
+    "Brand",
+    "Aura Thief",
+    "Gruul Charm"
+   ]
+  },
+  {
+   "what": "TargetOpponentsChoicePermanent",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Arena",
+    "Preacher",
+    "Evangelize",
+    "Echo Chamber",
+    "Magus of the Arena",
+    "Nova Pentacle"
    ]
   }
  ]

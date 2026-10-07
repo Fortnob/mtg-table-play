@@ -818,6 +818,36 @@
     // Kellogg, Merieke Ri Berit: "for as long as you control this creature"
     { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, whileSrc: true, targets: [targetSpec(m[1])] }) },
+    // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
+    { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
+      make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
+    // Aether Gale: "Return six target nonland permanents to their owners' hands."
+    { re: /^Return (two|three|four|five|six) target ([a-z ]+?)s to their owners'? hands\.?$/i,
+      make: (m) => { const t = tgt('target ' + m[2]); return t ? { op: 'bounce', targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, t, { distinct: true })) } : null; } },
+    // Maelstrom Pulse, Echoing Calm: "…and all other permanents with the same name as that permanent"
+    { re: /^Destroy (target [a-z ]+?) and all other ([a-z]+)s with the same name as that \2\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'destroySameName', targets: [t] } : null; } },
+    // Final Act: "Each opponent loses all counters."
+    { re: /^Each opponent loses all counters\.?$/i, make: () => ({ op: 'clearPlayerCounters', who: 'opponents' }) },
+    // Exhume: each player's own pick, all at once
+    { re: /^Each player puts a creature card from their graveyard onto the battlefield\.?$/i, make: () => ({ op: 'exhume' }) },
+    // Metallurgic Summonings: "Return all instant and sorcery cards from your graveyard to your hand."
+    { re: /^Return all ([a-z]+(?: and [a-z]+)?) cards from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'regrowthAll', filter: m[1].toLowerCase().replace(/ and /, ' or ') }) },
+    // Open the Vaults: from every graveyard, under their owners' control
+    { re: /^Return all ([a-z]+(?: and [a-z]+)?) cards from all graveyards to the battlefield under their owners'? control\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ and /, ' or '), yours: false }) },
+    // Hexplate Wallbreaker: "Untap each attacking creature."
+    { re: /^Untap each attacking creature\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature', attacking: true } }) },
+    // Vines of Vastwood: "can't be the target of spells or abilities your opponents control this turn" is hexproof
+    { re: /^(Target creature|Target permanent) can'?t be the target of spells or abilities your opponents control this turn\.?$/i,
+      make: (m) => ({ op: 'grantKeyword', keywords: ['Hexproof'], duration: 'eot', targets: [targetSpec(m[1])] }) },
+    // Rootcast Apprenticeship: "Target player creates a 1/1 green Squirrel creature token."
+    { re: /^Target (player|opponent) creates (.+)$/i,
+      make: (m) => { const inner = parseTokenSentence('Create ' + m[2]); return inner ? Object.assign(inner, { who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) : null; } },
+    // Sower of Temptation: "for as long as this creature remains on the battlefield"
+    { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as (?:CARDNAME|this creature) remains on the battlefield\.?$/i,
+      make: (m) => ({ op: 'gainControl', until: null, whileSrc: true, whileOnBf: true, targets: [targetSpec(m[1])] }) },
     // Fertilid: someone else's search, onto the battlefield tapped
     { re: /^Target player searches their library for a basic land card, puts it onto the battlefield tapped, then shuffles\.?$/i,
       make: () => ({ op: 'tutor', who: 'target', n: 1, filter: 'basic land', to: 'battlefield', tapped: true, targets: [{ type: 'player' }] }) },
@@ -7895,6 +7925,10 @@
       { re: /^If an? (white|blue|black|red|green) source would deal damage to you, prevent (\d+) of that damage\.?$/i,
         make: (m) => ({ op: 'preventSomeFromColor', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()], n: +m[2] }), auto: true },
       // Psychic Impetus: "Enchanted creature gets +2/+2 and is goaded."
+      // Redemption Arc: "Enchanted creature has indestructible and is goaded."
+      { re: /^(?:Enchanted|Equipped) creature has ([a-z ,]+?) and is goaded\.?$/i,
+        make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
+          { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws }] } : null; }, auto: true },
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },

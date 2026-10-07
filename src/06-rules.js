@@ -6910,7 +6910,8 @@
           o.effects = o.effects.filter(e => {
             if (!e || e.control == null || !e.whileSrc) return true;
             const s0 = this.obj(e.whileSrc);
-            return !!(s0 && s0.zone === 'battlefield' && s0.controller === e.control);
+            // Sower of Temptation: only while it stays; Kellogg: while you still control it
+            return !!(s0 && s0.zone === 'battlefield' && (e.whileOnBf || s0.controller === e.control));
           });
         }
         (o.effects || []).forEach((e, i) => {
@@ -10007,7 +10008,9 @@
         }
         case 'createToken': {
           const owner = e.who === 'targetController'
-            ? (this._lastAffectedController() || me) : me;
+            ? (this._lastAffectedController() || me)
+            // Rootcast Apprenticeship: "Target player creates …"
+            : e.who === 'target' ? (firstPlayer() || me) : me;
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "an X/X token, where X is that spell's mana value": the size, worked out now
@@ -10333,7 +10336,7 @@
                Threaten's ends with the turn, Dominate's lasts. */
             x.effects.push(Object.assign({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() },
               // Kellogg: "for as long as you control this creature"
-              e.whileSrc && src ? { whileSrc: src.id } : {}));
+              e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {}));
             if (e.untap) x.tapped = false;
             this.logEvent('control', `${me.name} gains control of ${x.name}.`);
           }
@@ -13032,6 +13035,51 @@
           if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
           if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
           this.bumpBoard();
+          break;
+        }
+        // Maelstrom Pulse: the target and everything else with its name
+        case 'destroySameName': {
+          const x = firstObj();
+          if (!x) break;
+          const name = x.name;
+          for (const o of this.battlefield.slice()) {
+            if (o.phasedOut || o.name !== name) continue;
+            if (this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
+            this.moveObject(o, 'graveyard');
+          }
+          this.logEvent('destroy', `Every permanent named ${name} is destroyed.`);
+          break;
+        }
+        // Final Act: poison, energy, experience and the rest gone
+        case 'clearPlayerCounters': {
+          for (const p of this.opponentsOf(ctx.controller)) {
+            p.poison = 0; p.energy = 0; p.experience = 0;
+            if (p.rad != null) p.rad = 0;
+            this.logEvent('counters', `${p.name} loses all counters.`);
+          }
+          break;
+        }
+        // Exhume: each player chooses one of their creature cards, and they all arrive together
+        case 'exhume': {
+          const chosen = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            const pool = this.zones[p.id].graveyard.filter(c => (c.analysis() || {}).isCreature);
+            if (!pool.length) continue;
+            let pick = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: p.id, purpose: 'exhume', kind: 'objects', zone: 'graveyard', items: this._chooseItems(pool),
+                min: 1, max: 1, prompt: 'Put a creature card from your graveyard onto the battlefield.' }, 'ex' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              pick = (got && got.picks.length && this.obj(got.picks[0])) || pool[0];
+            }
+            chosen.push([p, pick]);
+          }
+          for (const [p, c] of chosen) if (c.zone === 'graveyard') this.moveObject(c, 'battlefield', { controller: p.id });
+          break;
+        }
+        // Metallurgic Summonings: every card of a kind from your graveyard to your hand
+        case 'regrowthAll': {
+          for (const c of this.zones[ctx.controller].graveyard.slice()) if (this._cardFitsWords(c, e.filter)) this.moveObject(c, 'hand');
           break;
         }
         // Brass Squire: an Equipment of yours onto a creature of yours

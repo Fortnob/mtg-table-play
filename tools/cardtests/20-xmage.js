@@ -5362,4 +5362,54 @@ module.exports = (test) => {
     t.eq(bird.zone, 'graveyard');
     t.eq(bear.zone, 'battlefield');
   });
+
+  test('Maelstrom Pulse: the target and everything else with its name', (mk, t) => {
+    t.auto('Maelstrom Pulse');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears'), b3 = T.bf('A', 'Grizzly Bears');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.mana('A', 'BG1');
+    T.cast('A', T.hand('A', 'Maelstrom Pulse'), { targets: [b1] });
+    t.eq([b1, b2, b3].map(o => o.zone).join(), 'graveyard,graveyard,graveyard');
+    t.eq(elf.zone, 'battlefield');
+  });
+
+  test('Exhume: each player returns a creature card', (mk, t) => {
+    t.auto('Exhume');
+    const T = mk();
+    const mine = T.grave('A', 'Gutsplitter Gang');
+    const theirs = T.grave('B', 'Grizzly Bears');
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Exhume'));
+    T.resolve();
+    t.eq(mine.zone, 'battlefield'); t.eq(mine.controller, 'A');
+    t.eq(theirs.zone, 'battlefield'); t.eq(theirs.controller, 'B');
+  });
+
+  test('Sower of Temptation: control ends when the Sower leaves', (mk, t) => {
+    t.auto('Sower of Temptation');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.mana('A', 'UU2');
+    const sw = T.hand('A', 'Sower of Temptation');
+    T.cast('A', sw);
+    T.resolve();
+    t.eq(bear.controller, 'A');
+    T.g.moveObject(sw, 'graveyard'); T.g.checkStateBasedActions();
+    t.eq(bear.controller, 'B');
+  });
+
+  test('Open the Vaults: from every graveyard, to their owners', (mk, t) => {
+    t.auto('Open the Vaults');
+    const T = mk();
+    const a = T.grave('A', 'Ornithopter'), b = T.grave('B', 'Pacifism'), c = T.grave('B', 'Grizzly Bears');
+    T.bf('A', 'Llanowar Elves');
+    T.mana('A', 'WW4');
+    T.cast('A', T.hand('A', 'Open the Vaults'));
+    T.resolve();
+    t.eq(a.zone, 'battlefield'); t.eq(a.controller, 'A');
+    t.eq(b.controller, 'B');
+    t.eq(c.zone, 'graveyard');
+  });
 };
