@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14314,
-  "gainedCards": 1510,
-  "linesNeeded": 15831,
-  "linesGained": 1878,
+  "needed": 14284,
+  "gainedCards": 1495,
+  "linesNeeded": 15793,
+  "linesGained": 1861,
   "gained": {
-   "all": 1510,
+   "all": 1495,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5230,
-   "lines": 4555,
+   "score": 5225,
+   "lines": 4550,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 139,
-   "lines": 130,
+   "score": 134,
+   "lines": 125,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -5052,20 +5052,6 @@
    ]
   },
   {
-   "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_ARTIFACTS",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Karn, Legacy Reforged",
-    "One with the Machine",
-    "Daretti, Rocketeer Engineer",
-    "Pyreswipe Hawk",
-    "Edgar, Master Machinist",
-    "Armor Wars",
-    "Glint Raker"
-   ]
-  },
-  {
    "what": "granting a loyalty ability",
    "score": 7,
    "lines": 7,
@@ -6464,19 +6450,6 @@
    ]
   },
   {
-   "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_PERMANENTS",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Ugin's Insight",
-    "Rush of Knowledge",
-    "Boon of Boseiju",
-    "Kraven, Proud Predator",
-    "Accelerated Mutation",
-    "Torrent of Fire"
-   ]
-  },
-  {
    "what": "LoseAbilityAllEffect",
    "score": 6,
    "lines": 6,
@@ -7497,13 +7470,37 @@
     "Mirror of the Forebears",
     "Belbe's Portal"
    ]
+  },
+  {
+   "what": "BlocksIfAbleAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Brutal Hordechief",
+    "You've Been Caught Stealing",
+    "Invasion Plans",
+    "Grand Melee",
+    "Predatory Rampage"
+   ]
+  },
+  {
+   "what": "WillOfThePlaneswalkersEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Path of the Pyromancer",
+    "Path of the Animist",
+    "Path of the Ghosthunter",
+    "Path of the Schemer",
+    "Path of the Enigma"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4194,
-   "cards": 3714,
+   "score": 4190,
+   "cards": 3710,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7515,8 +7512,8 @@
   },
   {
    "what": "custom ability",
-   "score": 685,
-   "cards": 583,
+   "score": 687,
+   "cards": 585,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7580,8 +7577,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 87,
-   "cards": 87,
+   "score": 82,
+   "cards": 82,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8482,6 +8479,19 @@
    ]
   },
   {
+   "what": "ExpendTriggeredAbility",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Trailtracker Scout",
+    "Wandertale Mentor",
+    "Teapot Slinger",
+    "Pyreswipe Hawk",
+    "Bakersbane Duo",
+    "Muerra, Trash Tactician"
+   ]
+  },
+  {
    "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
    "score": 12,
    "cards": 12,
@@ -8640,19 +8650,6 @@
     "Nyxathid",
     "Rose Tyler",
     "Thunder Salvo"
-   ]
-  },
-  {
-   "what": "ExpendTriggeredAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Trailtracker Scout",
-    "Wandertale Mentor",
-    "Teapot Slinger",
-    "Bakersbane Duo",
-    "Muerra, Trash Tactician",
-    "Roughshod Duo"
    ]
   },
   {
@@ -10055,6 +10052,19 @@
    ]
   },
   {
+   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Gisa and Geralf",
+    "Danitha, New Benalia's Light",
+    "Raul, Trouble Shooter",
+    "Banon, the Returners' Leader",
+    "Edgar, Master Machinist",
+    "Karador, Ghost Chieftain"
+   ]
+  },
+  {
    "what": "static ability in STACK",
    "score": 7,
    "cards": 7,
@@ -10665,19 +10675,6 @@
    ]
   },
   {
-   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Gisa and Geralf",
-    "Danitha, New Benalia's Light",
-    "Raul, Trouble Shooter",
-    "Banon, the Returners' Leader",
-    "Karador, Ghost Chieftain",
-    "Arcade Gannon"
-   ]
-  },
-  {
    "what": "unless pays a count",
    "score": 6,
    "cards": 6,
@@ -10795,6 +10792,19 @@
    ]
   },
   {
+   "what": "GainAbilityControlledEffect.withForceQuotes",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Callaphe, Beloved of the Sea",
+    "Cathedral of Serra",
+    "Adventurers' Guildhouse",
+    "Mountain Stronghold",
+    "Unholy Citadel",
+    "Seafarer's Quay"
+   ]
+  },
+  {
    "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
    "score": 6,
    "cards": 6,
@@ -10883,19 +10893,6 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_PERMANENTS",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Ugin's Insight",
-    "Rush of Knowledge",
-    "Boon of Boseiju",
-    "Kraven, Proud Predator",
-    "Accelerated Mutation",
-    "Torrent of Fire"
    ]
   },
   {

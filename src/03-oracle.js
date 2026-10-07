@@ -1888,6 +1888,16 @@
       make: (m) => { const k = /one or two/i.test(m[1]) ? 2 : num(m[1]);
         const one = (i) => Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', distinct: true }, /one or two/i.test(m[1]) && i ? { upTo: true } : {});
         return { op: 'regrowth', targets: Array.from({ length: k }, (x, i) => one(i)) }; } },
+    // Fatal Push: "Destroy target creature if it has mana value 2 or less."
+    { re: /^Destroy (target creature|that creature) if it has mana value (\d+) or less( instead if (.+?))?\.?$/i,
+      make: (m) => {
+        const e = /^target/i.test(m[1]) ? { op: 'destroyIfMv', max: +m[2], targets: [targetSpec(m[1])] } : { op: 'destroyIfMv', max: +m[2], scope: 'lastTarget' };
+        if (!m[3]) return e;
+        const cond = condOf(m[4]);
+        return cond ? { op: 'noop', insteadOf: { cond, effects: [e] } } : null;
+      } },
+    // Robe of Stars: "Equipped creature phases out."
+    { re: /^(Equipped|Enchanted) creature phases out\.?$/i, make: () => ({ op: 'phaseOut', scope: { attached: true, what: 'creature' } }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -2927,6 +2937,10 @@
       make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }) },
     { re: /^([A-Za-z]+) spells you cast cost \{(\d+)\} less to cast\.?$/i,
       make: (m) => ({ op: 'taxSpells', amount: -(+m[2]), filter: m[1].toLowerCase(), who: 'you' }) },
+    // Renata, Called to the Hunt: "CARDNAME's power is equal to your devotion to green."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to your devotion to (white|blue|black|red|green)\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
+        setPt: { p: { devotion: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }, t: null, keepToughness: true } }) },
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: countSpec(m[1], 1), t: null, keepToughness: true } }) },
@@ -3835,6 +3849,11 @@
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
       return done({ countersOnSelf: m[1].toLowerCase(), mult: 1 });
+    // One with the Machine: "the greatest mana value among artifacts you control"
+    if ((m = p.match(/^the greatest mana value among ([a-z ]+? you control)$/i))) {
+      const sc = scopeOf(m[1]);
+      return sc ? done({ greatestMv: sc }) : null;
+    }
     if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures)$/i))) {
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
@@ -5481,6 +5500,8 @@
     // Sulam Djinn: "as long as green is the most common color among all permanents or is tied for most common"
     [/^(white|blue|black|red|green) is the most common colou?r among all permanents(?: or is tied for most common)?$/i,
       (m) => ({ kind: 'mostCommonColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
+    // Fatal Push's revolt: "a permanent left the battlefield under your control this turn"
+    [/^a permanent left the battlefield under your control this turn$/i, () => ({ kind: 'revolt' })],
     // Mistveil Plains: "you control two or more white permanents"
     [/^you control (\w+) or more ((?:white|blue|black|red|green|snow|basic|legendary|nonland|tapped|untapped) [a-z]+?)s$/i,
       (m) => { const sc = scopeOf(m[2] + 's you control'); return sc ? { kind: 'control', n: num(m[1]), scope: sc } : null; }],
@@ -7299,6 +7320,10 @@
       const list = host.effects || [];
       if (!list.length || host.kind !== ab.kind) continue;
       const prev = list.pop();
+      // Fatal Push: "destroy that creature … instead" — the creature the line above targeted
+      if (prev && (prev.targets || []).length) {
+        for (const x of effs[0].insteadOf.effects) if (x.op === prev.op && x.scope === 'lastTarget' && !(x.targets || []).length) { delete x.scope; x.targets = JSON.parse(JSON.stringify(prev.targets)); }
+      }
       list.push({ op: 'ifCond', cond: effs[0].insteadOf.cond, then: effs[0].insteadOf.effects, otherwise: [prev] });
       out.abilities.splice(i, 1); i--;
       autoLines++;

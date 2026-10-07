@@ -8098,6 +8098,8 @@
       if (typeof v === 'number') return v;
       // Allosaurus Rider: "equal to 1 plus the number of lands you control"
       if (typeof v === 'object' && v.plus) { const b = Object.assign({}, v); delete b.plus; return this._contValue(b, o, src) + v.plus; }
+      // Renata: "your devotion to green"
+      if (typeof v === 'object' && v.devotion) return this.devotionOf((src || o).controller, v.devotion) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf)) {
@@ -9714,6 +9716,11 @@
           return ((pile && Number(pile[v.countersOnSelf])) || 0) * (v.mult || 1);
         }
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
+        if (v && typeof v === 'object' && v.greatestMv) {
+          let best = 0;
+          for (const o of this._scopeList(v.greatestMv, ctx.controller, src)) best = Math.max(best, (o.card && o.card.cmc) || 0);
+          return best * (v.mult || 1);
+        }
         if (v && typeof v === 'object' && v.greatestPower) {
           let best = 0;
           for (const o of this._scopeList(v.greatestPower, ctx.controller, src)) best = Math.max(best, this.powerOf(o));
@@ -12348,6 +12355,14 @@
             this.rng.shuffle(this.zones[p.id].library);
             this._drawCards(p, hand.length);
           }
+          break;
+        }
+        // Fatal Push: destroyed only if its mana value is small enough
+        case 'destroyIfMv': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield' || ((x.card && x.card.cmc) || 0) > (e.max || 0)) break;
+          if (this.hasKw(x, 'indestructible') || this._regenerated(x)) break;
+          this.moveObject(x, 'graveyard');
           break;
         }
         // Whip of Erebos: wherever it would go from the battlefield, it goes to exile

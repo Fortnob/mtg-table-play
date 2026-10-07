@@ -7117,4 +7117,28 @@ module.exports = (test) => {
     T.resolve();
     t.eq(right.zone, 'battlefield', 'mana value 3'); t.eq(pick.zone, 'library');
   });
+
+  test('Fatal Push: mana value 2 or less, or 4 or less with revolt', (mk, t) => {
+    t.auto('Fatal Push');
+    const T = mk();
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Fatal Push'), { targets: [giant.id] });
+    t.eq(giant.zone, 'battlefield', 'mana value 4, no revolt');
+    const clue = T.bf('A', 'Mind Stone');
+    T.g.moveObject(clue, 'graveyard');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Fatal Push'), { targets: [giant.id] });
+    t.eq(giant.zone, 'graveyard', 'with revolt');
+    void bear;
+  });
+
+  test('Renata: power equal to devotion to green', (mk, t) => {
+    t.auto('Renata, Called to the Hunt');
+    const T = mk();
+    const r = T.bf('A', 'Renata, Called to the Hunt');
+    T.bf('A', 'Llanowar Elves');
+    t.eq(T.g.powerOf(r), T.g.devotionOf('A', 'G'));
+    t.ok(T.g.powerOf(r) >= 3);
+  });
 };
