@@ -458,7 +458,13 @@
     }
     /** Does this player's creature deal its combat damage by its toughness (Weight Advantage)? */
     _dealsByToughness(o) {
-      return this._conspiracyOps(o.controller, 'toughnessDamage').length > 0;
+      if (this._conspiracyOps(o.controller, 'toughnessDamage').length > 0) return true;
+      // Doran: "Each creature assigns combat damage equal to its toughness rather than its power"
+      return this.battlefield.some(s => {
+        const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
+        if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
+        return !e.ifTougher || this.toughnessOf(o) > this.powerOf(o);
+      });
     }
     /** "You may spend mana as though it were mana of any color to cast …": the cost, with its colours made generic. */
     _anyColorCost(pid, o, cost) {
@@ -8999,8 +9005,14 @@
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        // Traumatize: half a library
+        if (v && typeof v === 'object' && v.halfLibrary) {
+          const p = v.halfLibrary === 'target' ? firstPlayer() : me;
+          const k = p ? this.zones[p.id].library.length : 0;
+          return v.up ? Math.ceil(k / 2) : Math.floor(k / 2);
+        }
         if (v && typeof v === 'object' && v.halfLife) {
-          const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : null;
+          const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : v.halfLife === 'you' ? me : null;
           const life = p ? Math.max(0, p.life) : 0;
           return v.up ? Math.ceil(life / 2) : Math.floor(life / 2);
         }
@@ -10972,7 +10984,8 @@
           break;
         }
         case 'setLife': {
-          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : [me];
+          // Blessed Wind: "Target player's life total becomes 20."
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
           for (const p of who) { p.life = e.n; this.logEvent('life', `${p.name}'s life becomes ${e.n}.`); }
           break;
         }
@@ -12913,6 +12926,17 @@
           this.bumpBoard();
           break;
         }
+        // Puffer Extract: the creature a delayed note is about, destroyed
+        case 'destroyThat': {
+          const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          if (x && x.zone === 'battlefield' && !this.hasKw(x, 'indestructible') && !this._regenerated(x)) this.moveObject(x, 'graveyard');
+          break;
+        }
+        // Geist of Saint Traft: the token just made goes as combat ends
+        case 'exileMadeEoc': {
+          for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.exileAtEndOfCombat = true; }
+          break;
+        }
         // Wave of Reckoning: every creature hits itself with its own power
         case 'selfDamageAll': {
           for (const o of this.battlefield.slice()) {
@@ -12941,6 +12965,28 @@
         case 'removeCountersFrom': {
           const x = firstObj();
           if (!x) break;
+          // Heartless Act: "up to three counters", one at a time, of whatever kinds
+          if (e.upTo && !e.kind) {
+            const total = n(e.n) || 1;
+            const done = this._removedSoFar = (this._removedSoFar && this._removedSoFar.key === ctx.objId + ':' + x.id) ? this._removedSoFar : { key: ctx.objId + ':' + x.id, n: 0 };
+            while (done.n < total) {
+              const ks = Object.keys(x.counters || {}).filter(k => Number(x.counters[k]) > 0);
+              if (!ks.length) break;
+              const got = this._choose({ playerId: ctx.controller, purpose: 'counterKind', kind: 'options', min: 1, max: 1,
+                options: ks.map((k, i) => ({ i, label: 'Remove a ' + k + ' counter' })).concat([{ i: ks.length, label: 'Stop' }]),
+                prompt: `Remove a counter from ${x.name}? (${total - done.n} left)` }, 'ruc' + done.n);
+              if (got === SUSPEND) return SUSPEND;
+              const at = got && got.picks.length ? got.picks[0] : 0;
+              if (at >= ks.length) break;
+              const kk = ks[at];
+              x.counters[kk] -= 1;
+              if (x.counters[kk] <= 0) delete x.counters[kk];
+              done.n++;
+            }
+            this._removedSoFar = null;
+            x._chr = null; this.bumpBoard();
+            break;
+          }
           const kinds = Object.keys(x.counters || {}).filter(k => Number(x.counters[k]) > 0 && (!e.kind || k === e.kind));
           if (!kinds.length) break;
           let kind = kinds[0];
@@ -13357,6 +13403,8 @@
         case 'doubleCounters': {
           const kind = e.kind || '+1/+1';
           const dbl = (o) => {
+            // Gilder Bairn: "each kind of counter"
+            if (e.allKinds) { for (const [k, v] of Object.entries(o.counters || {})) if (Number(v) > 0) this.addCounters(o, k, Number(v)); return; }
             const have = (o.counters && o.counters[kind]) || 0;
             if (have) { this.addCounters(o, kind, have); this.logEvent('counters', `${o.name} now has ${have * 2} ${kind} counters.`); }
           };

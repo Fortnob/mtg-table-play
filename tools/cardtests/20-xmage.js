@@ -5059,4 +5059,62 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 19);
   });
+
+  test('Doran: creatures deal combat damage by toughness', (mk, t) => {
+    t.auto('Doran, the Siege Tower');
+    const T = mk();
+    T.bf('B', 'Doran, the Siege Tower');
+    const wall = T.bf('A', 'Wall of Stone'); wall.summoningSick = false;
+    t.ok(T.g._dealsByToughness(wall), 'for everyone');
+  });
+
+  test('Traumatize: half the library, rounded down', (mk, t) => {
+    t.auto('Traumatize');
+    const T = mk();
+    const lib = T.zone('B', 'library').length;
+    T.mana('A', 'UU3');
+    T.cast('A', T.hand('A', 'Traumatize'), { targets: ['B'] });
+    t.eq(T.zone('B', 'library').length, lib - Math.floor(lib / 2));
+  });
+
+  test('Geist of Saint Traft: the Angel attacks, then is exiled at end of combat', (mk, t) => {
+    t.auto('Geist of Saint Traft');
+    const T = mk();
+    const g = T.bf('A', 'Geist of Saint Traft'); g.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 14, '2 + 4');
+    t.eq(T.bfOf('A').filter(o => /Angel/.test(o.name)).length, 0, 'the Angel is gone');
+  });
+
+  test('Remove up to three counters: one at a time, any kinds (Heartless Act)', (mk, t) => {
+    t.auto('Heartless Act');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'); bear.counters['+1/+1'] = 2; bear.counters['shield'] = 1;
+    T.answer('mode', (ch) => ({ modes: [ch.options.find(o => /Remove/i.test(o.label)).i] }));
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Heartless Act'), { targets: [bear] });
+    T.resolve();
+    t.eq(Object.values(bear.counters).reduce((k, v) => k + Number(v || 0), 0), 0);
+  });
+
+  test('Infernal Contract: draw four, lose half your life rounded up', (mk, t) => {
+    t.auto('Infernal Contract');
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    T.g.player('A').life = 15;
+    T.mana('A', 'BBB');
+    T.cast('A', T.hand('A', 'Infernal Contract'));
+    t.eq(T.life('A'), 7);
+  });
+
+  test("Blessed Wind: a target player's life total becomes 20", (mk, t) => {
+    t.auto('Blessed Wind');
+    const T = mk();
+    T.g.player('B').life = 3;
+    T.mana('A', 'WW7');
+    T.cast('A', T.hand('A', 'Blessed Wind'), { targets: ['B'] });
+    t.eq(T.life('B'), 20);
+  });
 };

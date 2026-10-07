@@ -806,6 +806,31 @@
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^Each player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'each' }) },
+    // Tyrannize, Wit's End: "Target player discards their hand."
+    { re: /^(Target player|Target opponent|Each player|Each opponent) discards (?:their|his or her) hand\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'discard', n: 'all', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
+        : { op: 'discard', n: 'all', who: /opponent/i.test(m[1]) ? 'opponents' : 'each' }) },
+    // Infernal Contract: "You lose half your life, rounded up."
+    { re: /^You lose half your life, rounded (up|down)\.?$/i, make: (m) => ({ op: 'loseLife', n: { halfLife: 'you', up: /up/i.test(m[1]) }, who: 'you' }) },
+    // Blessed Wind: "Target player's life total becomes 20."
+    { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
+    // Traumatize, Cut Your Losses: "mills half their library, rounded down"
+    { re: /^Target (player|opponent) mills half their library, rounded (down|up)\.?$/i,
+      make: (m) => ({ op: 'mill', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Gilder Bairn: "Double the number of each kind of counter on target permanent."
+    { re: /^Double the number of each kind of counter on (target [a-z ]+?)\.?$/i,
+      make: (m) => ({ op: 'doubleCounters', allKinds: true, targets: [targetSpec(m[1])] }) },
+    // Heartless Act, Glissa Sunslayer: "Remove up to three counters from target creature."
+    { re: /^Remove up to (one|two|three|four|\d+) counters? from (target [a-z ]+?)\.?$/i,
+      make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
+    // Quiet Disrepair: "Destroy enchanted creature."
+    { re: /^Destroy enchanted (creature|permanent|artifact|land)\.?$/i, make: () => ({ op: 'destroy', scope: 'attached' }) },
+    // Puffer Extract: "Destroy it at the beginning of the next end step."
+    { re: /^Destroy (it|that creature) at the beginning of the next end step\.?$/i,
+      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Destroy it at end of turn',
+        effects: [{ op: 'destroyThat' }] }) },
+    // Geist of Saint Traft: "Exile that token at end of combat."
+    { re: /^Exile (?:that token|it|them|those tokens) at end of combat\.?$/i, make: () => ({ op: 'exileMadeEoc' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
     { re: /^Its owner gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'targetOwner' }) },
@@ -1444,7 +1469,7 @@
     { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
     /* Chandra, Flamecaller: "Exile them at the beginning of the next end
        step" — the tokens this just made, each of them */
-    { re: /^(Exile|Sacrifice) them at the beginning of the next end step\.?$/i,
+    { re: /^(Exile|Sacrifice) (?:them|those (?:creatures|tokens)) at the beginning of the next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'made', name: m[1] + ' them at end of turn',
         effects: [/^exile/i.test(m[1]) ? { op: 'exile', scope: 'thatObject' } : { op: 'sacrificeThat' }] }) },
     // Farrel's Zealot, Laccolith Titan: "This creature assigns no combat damage this turn."
@@ -1455,6 +1480,11 @@
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
     // Cinder Wall: "When this creature blocks, destroy it at end of combat."
     { re: /^Destroy (?:it|CARDNAME|this creature) at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'self' }) },
+    // Bleeding Edge: "Up to one target creature gets -2/-2 until end of turn."
+    { re: /^Up to one target creature gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', targets: [{ type: 'creature', upTo: true }] }) },
+    // Creeping Tar Pit: "It can't be blocked this turn." — itself, or the target before it
+    { re: /^It can'?t be blocked this turn\.?$/i, make: () => ({ op: 'restrict', flag: 'unblockable', scope: 'self' }) },
     // Heroic Teamwork: "One or two target creatures each get +2/+1 until end of turn."
     { re: /^One or two target creatures each get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', targets: [{ type: 'creature' }, { type: 'creature', upTo: true }] }) },
@@ -3401,11 +3431,13 @@
     if (wo) spec.withoutKeyword = wo[0].replace(/^without /, '');
     const wc = p.match(/with an? ([+\-0-9/a-z]+) counter on it/);
     if (wc) spec.withCounter = wc[1];
+    // Heartless Act: "target creature with no counters on it"
+    if (/with no counters on it$/.test(p)) spec.noCounters = true;
     const mx = p.match(/with (?:mana value|converted mana cost) (\d+)$/);
     if (mx) spec.mv = +mx[1];
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
-      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter;
+      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.noCounters;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
     if (withClause && !known) spec.unknown = true;
@@ -3559,6 +3591,7 @@
     if (spec.withKeyword && !kw(spec.withKeyword)) return false;
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
     if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
+    if (spec.noCounters && Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     return true;
   }
 
@@ -4405,7 +4438,7 @@
        battlefield. Put a +1/+1 counter on it." After a sentence with a
        target, "it" is that target, not this card. */
     folded.forEach((e, i) => {
-      if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets) return;
+      if (!e || (e.op !== 'counters' && e.op !== 'restrict') || e.scope !== 'self' || e.targets) return;
       if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
     });
@@ -7486,7 +7519,7 @@
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
-    'evasion', 'attackRequires', 'blockPowerLimit', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
+    'evasion', 'attackRequires', 'blockPowerLimit', 'toughnessDamage', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
@@ -7721,6 +7754,17 @@
       { re: /^(?:CARDNAME|This creature) can block any number of creatures\.?$/i,
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
       // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
+      // Glittering Lion: "Prevent all damage that would be dealt to this creature."
+      { re: /^Prevent all damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
+        make: () => ({ op: 'sequence', list: [
+          { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' },
+          { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noNoncombatTaken' }] }), auto: true },
+      // Iron Golem: "attacks or blocks each combat if able"
+      { re: /^(?:CARDNAME|This creature) attacks or blocks each combat if able\.?$/i,
+        make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'mustBlock' }] }), auto: true },
+      // Doran and kin: combat damage by toughness
+      { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
+        make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },
       // Dream Prowler: "can't be blocked as long as it's attacking alone"
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as it'?s attacking alone\.?$/i,
         eff: { op: 'evasion', attackingAlone: true }, auto: true },

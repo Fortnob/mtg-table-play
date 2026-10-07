@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15263,
-  "gainedCards": 1557,
-  "linesNeeded": 17030,
-  "linesGained": 1979,
+  "needed": 15209,
+  "gainedCards": 1553,
+  "linesNeeded": 16958,
+  "linesGained": 1973,
   "gained": {
-   "all": 1557,
-   "top2000": 52,
+   "all": 1553,
+   "top2000": 51,
    "stdTop": 12
   },
   "compare": {
@@ -26,7 +26,7 @@
    "x": 3,
    "it": 31,
    "opponent": 72,
-   "condition": 25,
+   "condition": 26,
    "subtype": 9
   }
  },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5521,
-   "lines": 4759,
+   "score": 5504,
+   "lines": 4745,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 941,
-   "lines": 797,
+   "score": 939,
+   "lines": 795,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 260,
-   "lines": 227,
+   "score": 259,
+   "lines": 226,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -654,25 +654,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 28,
-   "lines": 28,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry"
-   ]
-  },
-  {
    "what": "CaseAbility",
    "score": 27,
    "lines": 18,
@@ -738,6 +719,25 @@
     "Vivien, Arkbow Ranger",
     "Sea Hag // Aquatic Ingress",
     "Involuntary Cooldown"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 26,
+   "lines": 26,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry",
+    "Mindbender Spores"
    ]
   },
   {
@@ -1923,25 +1923,6 @@
    ]
   },
   {
-   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Tergrid, God of Fright // Tergrid's Lantern",
-    "Mogis, God of Slaughter",
-    "Rakdos, Patron of Chaos",
-    "Demanding Dragon",
-    "Starseer Mentor",
-    "Thornplate Intimidator",
-    "Tomb Blade",
-    "Carrionette",
-    "Rhystic Lightning",
-    "Tyrannize",
-    "Rhystic Syphon",
-    "Flay"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 15,
    "lines": 12,
@@ -2211,6 +2192,24 @@
    "cards": [
     "Summon: Bahamut",
     "Delayed Blast Fireball"
+   ]
+  },
+  {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 14,
+   "lines": 11,
+   "cards": [
+    "Tergrid, God of Fright // Tergrid's Lantern",
+    "Mogis, God of Slaughter",
+    "Rakdos, Patron of Chaos",
+    "Demanding Dragon",
+    "Starseer Mentor",
+    "Thornplate Intimidator",
+    "Tomb Blade",
+    "Carrionette",
+    "Rhystic Lightning",
+    "Rhystic Syphon",
+    "Flay"
    ]
   },
   {
@@ -2681,24 +2680,6 @@
    ]
   },
   {
-   "what": "Ability.withFirstModeCost",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Dance of the Tumbleweeds",
-    "Rustler Rampage",
-    "One Last Job",
-    "Ice Magic",
-    "Jailbreak Scheme",
-    "Caught in the Crossfire",
-    "Unfortunate Accident"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 13,
    "lines": 13,
@@ -2941,19 +2922,6 @@
    ]
   },
   {
-   "what": "MillHalfLibraryTargetEffect",
-   "score": 12,
-   "lines": 6,
-   "cards": [
-    "Jidoor, Aristocratic Capital // Overture",
-    "Traumatize",
-    "Cut Your Losses",
-    "Terisian Mindbreaker",
-    "Fleet Swallower",
-    "Kitsune's Technique"
-   ]
-  },
-  {
    "what": "ReturnCardChosenFromGraveyardEffect",
    "score": 12,
    "lines": 6,
@@ -2980,25 +2948,6 @@
     "Bard Class",
     "Fisher's Talent",
     "Advanced Reconstruction"
-   ]
-  },
-  {
-   "what": "CombatDamageByToughnessControlledEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Assault Formation",
-    "Bedrock Tortoise",
-    "Felothar the Steadfast",
-    "High Alert",
-    "Arcades, the Strategist",
-    "Huatli, the Sun's Heart",
-    "Ancient Lumberknot",
-    "Rasaad yn Bashir",
-    "Tapestry Warden",
-    "Ghalta the Immovable",
-    "The Kingpin of Crime",
-    "Belligerent Brontodon"
    ]
   },
   {
@@ -3132,6 +3081,23 @@
     "Granite Shard",
     "Heartwood Shard",
     "Pearl Shard"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "Rustler Rampage",
+    "One Last Job",
+    "Ice Magic",
+    "Caught in the Crossfire",
+    "Unfortunate Accident"
    ]
   },
   {
@@ -3993,23 +3959,6 @@
    ]
   },
   {
-   "what": "DoubleCountersTargetEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Invigorating Surge",
-    "Sazh Katzroy",
-    "Byrke, Long Ear of the Law",
-    "Fractal Harness",
-    "Arcade Cabinet",
-    "Visions of Dominance",
-    "Ferrafor, Young Yew",
-    "Growth Curve",
-    "Seismic Tutelage",
-    "Study the Classics"
-   ]
-  },
-  {
    "what": "SpellsCostModificationThatTargetSourceEffect",
    "score": 10,
    "lines": 10,
@@ -4192,23 +4141,6 @@
     "Cyclopean Tomb",
     "Clockwork Swarm",
     "Life Matrix"
-   ]
-  },
-  {
-   "what": "keyword ExertAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Themberchaud",
-    "Sandstorm Crasher",
-    "Clockwork Droid",
-    "Rohirrim Chargers",
-    "Battlefield Scavenger",
-    "Trueheart Twins",
-    "Oketra's Avenger",
-    "Resolute Survivors",
-    "Vizier of the True",
-    "Rhonas's Stalwart"
    ]
   },
   {
@@ -4956,6 +4888,22 @@
    ]
   },
   {
+   "what": "keyword ExertAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Rohirrim Chargers",
+    "Battlefield Scavenger",
+    "Trueheart Twins",
+    "Oketra's Avenger",
+    "Resolute Survivors",
+    "Vizier of the True",
+    "Rhonas's Stalwart"
+   ]
+  },
+  {
    "what": "RedirectDamageFromSourceToTargetEffect",
    "score": 9,
    "lines": 9,
@@ -5308,6 +5256,21 @@
     "Ghoulraiser",
     "Make a Wish",
     "Woodland Sleuth"
+   ]
+  },
+  {
+   "what": "DoubleCountersTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Invigorating Surge",
+    "Sazh Katzroy",
+    "Byrke, Long Ear of the Law",
+    "Fractal Harness",
+    "Visions of Dominance",
+    "Growth Curve",
+    "Seismic Tutelage",
+    "Study the Classics"
    ]
   },
   {
@@ -5869,17 +5832,6 @@
     "Stranglehold",
     "Ugin's Nexus",
     "Gerrard's Hourglass Pendant"
-   ]
-  },
-  {
-   "what": "RemoveUpToAmountCountersEffect",
-   "score": 7,
-   "lines": 4,
-   "cards": [
-    "Glissa Sunslayer",
-    "Rhys, the Evermore",
-    "Render Inert",
-    "Mabel, Bitter Recluse"
    ]
   },
   {
@@ -7157,19 +7109,6 @@
    ]
   },
   {
-   "what": "AmassEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Sauron, Lord of the Rings",
-    "Summons of Saruman",
-    "Assault on Osgiliath",
-    "Gríma Wormtongue",
-    "Invade the City",
-    "Bleeding Edge"
-   ]
-  },
-  {
    "what": "blocks or blocked by a kind of creature",
    "score": 6,
    "lines": 6,
@@ -7232,19 +7171,6 @@
     "Jade Statue",
     "Kjeldoran Elite Guard",
     "Heart Wolf"
-   ]
-  },
-  {
-   "what": "PreventAllDamageToSourceEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Gideon Jura",
-    "Gideon, the Oathsworn",
-    "Cho-Manno, Revolutionary",
-    "Sevinne, the Chronoclasm",
-    "Dawn Elemental"
    ]
   },
   {
@@ -7804,13 +7730,66 @@
     "Offender at Large",
     "Efreet Weaponmaster"
    ]
+  },
+  {
+   "what": "cost increase shape",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Alabaster Leech",
+    "Sapphire Leech",
+    "Ruby Leech",
+    "Andradite Leech",
+    "Derelor",
+    "Jade Leech"
+   ]
+  },
+  {
+   "what": "discard at random",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Balduvian Horde",
+    "Pyromancy",
+    "Barbarian Bully",
+    "Minotaur Explorer",
+    "Pillaging Horde",
+    "Stormscale Anarch"
+   ]
+  },
+  {
+   "what": "NumberOfTargetsPredicate",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Hydroelectric Specimen // Hydroelectric Laboratory",
+    "Spinerock Tyrant"
+   ]
+  },
+  {
+   "what": "LifeTotalCantChangeControllerEffect",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Flare of Fortitude",
+    "Platinum Emperion"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .addCost)",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Throne of Eldraine",
+    "Keeper of the Mind"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4403,
-   "cards": 3857,
+   "score": 4392,
+   "cards": 3849,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7822,8 +7801,8 @@
   },
   {
    "what": "custom ability",
-   "score": 703,
-   "cards": 589,
+   "score": 704,
+   "cards": 590,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7835,8 +7814,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 229,
-   "cards": 214,
+   "score": 230,
+   "cards": 215,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7848,8 +7827,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 224,
-   "cards": 191,
+   "score": 223,
+   "cards": 190,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -7887,8 +7866,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 95,
-   "cards": 95,
+   "score": 96,
+   "cards": 96,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8172,19 +8151,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 22,
-   "cards": 22,
-   "names": [
-    "Wall of Tears",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice",
-    "Fire Giant's Fury"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 21,
    "cards": 15,
@@ -8234,6 +8200,19 @@
     "Ashling's Command",
     "Hunted Bonebrute",
     "Hungry Lynx"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 21,
+   "cards": 21,
+   "names": [
+    "Wall of Tears",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Fire Giant's Fury",
+    "Act of Heroism"
    ]
   },
   {
@@ -8890,19 +8869,6 @@
    ]
   },
   {
-   "what": "MillHalfLibraryTargetEffect",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Jidoor, Aristocratic Capital // Overture",
-    "Traumatize",
-    "Cut Your Losses",
-    "Terisian Mindbreaker",
-    "Fleet Swallower",
-    "Kitsune's Technique"
-   ]
-  },
-  {
    "what": "SourceDealsNoncombatDamageToOpponentTriggeredAbility",
    "score": 12,
    "cards": 6,
@@ -9154,19 +9120,6 @@
    ]
   },
   {
-   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Mogis, God of Slaughter",
-    "Rakdos, Patron of Chaos",
-    "Demanding Dragon",
-    "Starseer Mentor",
-    "Thornplate Intimidator",
-    "Tomb Blade"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 11,
    "cards": 11,
@@ -9268,19 +9221,6 @@
     "Colfenor, the Last Yew",
     "Basri's Lieutenant",
     "Slurrk, All-Ingesting"
-   ]
-  },
-  {
-   "what": "Ability.withFirstModeCost",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Dance of the Tumbleweeds",
-    "Rustler Rampage"
    ]
   },
   {
@@ -9451,6 +9391,19 @@
    ]
   },
   {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Mogis, God of Slaughter",
+    "Rakdos, Patron of Chaos",
+    "Demanding Dragon",
+    "Starseer Mentor",
+    "Thornplate Intimidator",
+    "Tomb Blade"
+   ]
+  },
+  {
    "what": "attacks you, or its controller",
    "score": 10,
    "cards": 10,
@@ -9487,6 +9440,19 @@
     "Blind Seer",
     "Thoughtlace",
     "Illusion // Reality"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "Rustler Rampage"
    ]
   },
   {
@@ -9676,6 +9642,19 @@
     "Zombie Apocalypse",
     "Knights' Charge",
     "Angel of Glory's Rise"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Alandra, Sky Dreamer",
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper"
    ]
   },
   {
@@ -10241,19 +10220,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Private Eye",
-    "Foggy Swamp Spirit Keeper",
-    "Moon Girl and Devil Dinosaur"
-   ]
-  },
-  {
    "what": "AttachTargetToTargetEffect",
    "score": 8,
    "cards": 8,
@@ -10394,19 +10360,6 @@
     "Torsten, Founder of Benalia",
     "Glacial Revelation",
     "Lead the Stampede"
-   ]
-  },
-  {
-   "what": "DoubleCountersTargetEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Invigorating Surge",
-    "Sazh Katzroy",
-    "Byrke, Long Ear of the Law",
-    "Arcade Cabinet",
-    "Visions of Dominance",
-    "Growth Curve"
    ]
   },
   {
@@ -10746,17 +10699,6 @@
    ]
   },
   {
-   "what": "RemoveUpToAmountCountersEffect",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Glissa Sunslayer",
-    "Rhys, the Evermore",
-    "Render Inert",
-    "Mabel, Bitter Recluse"
-   ]
-  },
-  {
    "what": "LifeCompareCondition",
    "score": 7,
    "cards": 4,
@@ -10904,6 +10846,19 @@
     "Dust Corona",
     "Treetop Bracers",
     "Saddle of the Cavalier"
+   ]
+  },
+  {
+   "what": "DoubleCountersTargetEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Invigorating Surge",
+    "Sazh Katzroy",
+    "Byrke, Long Ear of the Law",
+    "Visions of Dominance",
+    "Growth Curve",
+    "Seismic Tutelage"
    ]
   },
   {
@@ -11297,6 +11252,19 @@
    ]
   },
   {
+   "what": "LoseAbilitySourceEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Glittering Lynx",
+    "Xathrid Slyblade",
+    "Glittering Lion",
+    "Gargoyle Sentinel",
+    "Elder Land Wurm",
+    "Chimeric Sphere"
+   ]
+  },
+  {
    "what": "GainRetraceYourGraveyardEffect",
    "score": 6,
    "cards": 3,
@@ -11304,6 +11272,16 @@
     "Six",
     "Wrenn and Six",
     "Deeproot Historian"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.TOUGHNESS_CONTROLLED_CREATURES",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Last March of the Ents",
+    "Huatli, the Sun's Heart",
+    "Glint Weaver"
    ]
   },
   {
@@ -11471,19 +11449,6 @@
    ]
   },
   {
-   "what": "CombatDamageByToughnessControlledEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Bedrock Tortoise",
-    "High Alert",
-    "Arcades, the Strategist",
-    "Ancient Lumberknot",
-    "The Kingpin of Crime",
-    "Belligerent Brontodon"
-   ]
-  },
-  {
    "what": "ConditionalCostModificationEffect",
    "score": 6,
    "cards": 6,
@@ -11637,6 +11602,19 @@
     "Gleancrawler",
     "Fell Shepherd",
     "Infernal Caretaker"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Furnace Reins",
+    "Rankle and Torbran",
+    "Deeproot Wayfinder",
+    "Attentive Skywarden",
+    "Bilbo, Unexpected Adventurer",
+    "Aetherblade Agent // Gitaxian Mindstinger"
    ]
   }
  ]
