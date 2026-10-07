@@ -283,8 +283,9 @@
       }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
-      if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (.+?) counters? from/i))) {
-        cost.removeCounters = { n: /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
+      if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
+        // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
+        cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
       }
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
@@ -2338,6 +2339,9 @@
       make: (m) => ({ op: 'returnOwn', filter: m[1].toLowerCase(), n: 1, other: true }) },
     { re: /^(?:This creature|CARDNAME) can attack this turn as though it didn'?t have defender\.?$/i,
       make: () => ({ op: 'restrict', flag: 'attackDespiteDefender', scope: 'self' }) },
+    // the storage lands: "Add X mana in any combination of {G} and/or {W}" — X counters removed
+    { re: /^Add X mana in any combination of \{([WUBRGC])\} and\/or \{([WUBRGC])\}\.?$/i,
+      make: (m) => ({ op: 'addManaChoice', choices: [[m[1].toUpperCase()], [m[2].toUpperCase()]], n: 'X' }) },
     /* "Add three mana in any combination of {R} and/or {G}": three times one or the other */
     { re: /^Add (two|three|four|five) mana in any combination of \{([WUBRGC])\} and\/or \{([WUBRGC])\}\.?$/i,
       make: (m) => Array.from({ length: num(m[1]) }, () => ({ op: 'addManaChoice', choices: [[m[2].toUpperCase()], [m[3].toUpperCase()]] })) },
@@ -2986,6 +2990,8 @@
     if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Fountain of Cho: "for each storage counter removed this way"
+    if (/^[a-z+\-0-9/]+ counters? removed this way$/i.test(p)) return { removedCounters: true, mult: k };
     // Rite of Flame: "for each card named CARDNAME in each graveyard"
     if (/^card named CARDNAME in (?:each graveyard|all graveyards)$/i.test(p)) return { namedInGraveyards: true, mult: k };
     // Culling Ritual: "for each permanent destroyed this way"
@@ -4348,8 +4354,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
-    [/^(?:this|CARDNAME|this permanent|this creature|this artifact) is untapped$/i, () => ({ kind: 'selfUntapped' })],
-    [/^(?:this|CARDNAME|this permanent|this creature|this artifact) is tapped$/i, () => ({ kind: 'selfTapped' })],
+    [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
+    [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is tapped$/i, () => ({ kind: 'selfTapped' })],
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],

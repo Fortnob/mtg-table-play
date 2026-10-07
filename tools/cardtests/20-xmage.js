@@ -4333,4 +4333,31 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Goblin').length, 2, 'two Goblins for two wins');
     t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 4, 'two Treasures for each win');
   });
+
+  test('Storage lands: Fountain of Cho spends its counters for that much mana', (mk, t) => {
+    t.auto('Fountain of Cho');
+    const T = mk();
+    const f = T.bf('A', 'Fountain of Cho');
+    f.counters.storage = 3; f.tapped = false;
+    const a = f.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const i = acts.findIndex(x => x.cost && x.cost.removeCounters);
+    t.ok(T.g.activateAbility('A', f.id, i, { x: 2 }), 'activated for two');
+    t.eq(T.player('A').pool.W || 0, 2);
+    t.eq(f.counters.storage, 1);
+  });
+
+  test('Storage lands: Saltcrusted Steppe, X counters for X mana of the colour wanted', (mk, t) => {
+    t.auto('Saltcrusted Steppe');
+    const T = mk();
+    const f = T.bf('A', 'Saltcrusted Steppe');
+    f.counters.storage = 2;
+    T.mana('A', '1');
+    const a = f.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const i = acts.findIndex(x => x.cost && x.cost.removeCounters);
+    t.ok(T.g.activateAbility('A', f.id, i, { x: 2, manaChoice: 'W' }), 'activated');
+    t.eq(T.player('A').pool.W || 0, 2);
+    t.eq(f.counters.storage || 0, 0);
+  });
 };

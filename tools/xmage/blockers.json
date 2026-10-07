@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15667,
+  "needed": 15648,
   "gainedCards": 1612,
-  "linesNeeded": 17528,
-  "linesGained": 2049,
+  "linesNeeded": 17503,
+  "linesGained": 2044,
   "gained": {
    "all": 1612,
    "top2000": 52,
@@ -738,25 +738,6 @@
     "Vivien, Arkbow Ranger",
     "Sea Hag // Aquatic Ingress",
     "Involuntary Cooldown"
-   ]
-  },
-  {
-   "what": "DynamicManaAbility shape",
-   "score": 26,
-   "lines": 26,
-   "cards": [
-    "Mage-Ring Network",
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Selvala, Eager Trailblazer",
-    "Haruspex",
-    "Kydele, Chosen of Kruphix",
-    "Bottomless Vault",
-    "Tower Worker",
-    "Dwarven Hold",
-    "Sand Silos",
-    "Saprazzan Cove",
-    "Hollow Trees"
    ]
   },
   {
@@ -2206,6 +2187,25 @@
    ]
   },
   {
+   "what": "DynamicManaAbility shape",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Selvala, Eager Trailblazer",
+    "Haruspex",
+    "Kydele, Chosen of Kruphix",
+    "Tower Worker",
+    "Petalmane Baku",
+    "Priest of Yawgmoth",
+    "Rasputin, the Oneiromancer",
+    "Loot, the Nexus",
+    "Blue Mana Battery",
+    "Black Mana Battery"
+   ]
+  },
+  {
    "what": "DoIfCostPaid not optional",
    "score": 15,
    "lines": 15,
@@ -2617,23 +2617,6 @@
     "Psychic Impetus",
     "Acquired Mutation",
     "Incriminating Impetus"
-   ]
-  },
-  {
-   "what": "variable loyalty",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Ugin, the Spirit Dragon",
-    "Chandra, Hope's Beacon",
-    "Jeska, Thrice Reborn",
-    "Xenagos, the Reveler",
-    "Jace, the Perfected Mind",
-    "Ashiok, Nightmare Weaver",
-    "Huatli, Warrior Poet",
-    "Chandra, Chill of Compliance",
-    "Nissa, Genesis Mage",
-    "Angrath, Minotaur Pirate"
    ]
   },
   {
@@ -3131,6 +3114,22 @@
     "Flockchaser Phantom",
     "Sloppity Bilepiper",
     "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "variable loyalty",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Ugin, the Spirit Dragon",
+    "Chandra, Hope's Beacon",
+    "Jeska, Thrice Reborn",
+    "Jace, the Perfected Mind",
+    "Ashiok, Nightmare Weaver",
+    "Huatli, Warrior Poet",
+    "Chandra, Chill of Compliance",
+    "Nissa, Genesis Mage",
+    "Angrath, Minotaur Pirate"
    ]
   },
   {
@@ -4939,22 +4938,6 @@
    ]
   },
   {
-   "what": "AddManaInAnyCombinationEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Burnt Offering",
-    "Hazel of the Rootbloom",
-    "Thornvault Forager",
-    "The Golden Throne",
-    "Molten Slagheap",
-    "Dreadship Reef",
-    "Calciform Pools",
-    "Saltcrusted Steppe",
-    "Fungal Reaches"
-   ]
-  },
-  {
    "what": "(verify) targets 3, printed 0",
    "score": 9,
    "lines": 9,
@@ -6562,20 +6545,6 @@
    ]
   },
   {
-   "what": "RemoveVariableCountersSourceCost",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Hourglass of the Lost",
-    "The Astonishing Ant-Man",
-    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
-    "Geistflame Reservoir",
-    "Brain in a Jar",
-    "Blademane Baku",
-    "Mercadian Lift"
-   ]
-  },
-  {
    "what": "gain for static",
    "score": 7,
    "lines": 7,
@@ -7620,6 +7589,19 @@
    ]
   },
   {
+   "what": "RemoveVariableCountersSourceCost",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Hourglass of the Lost",
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Geistflame Reservoir",
+    "Brain in a Jar",
+    "Blademane Baku",
+    "Mercadian Lift"
+   ]
+  },
+  {
    "what": "NoAbilityPredicate.instance",
    "score": 6,
    "lines": 6,
@@ -7903,13 +7885,26 @@
     "Blind Fury",
     "Wind Shear"
    ]
+  },
+  {
+   "what": "keyword TrampleAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Thrasta, Tempest's Roar",
+    "Varchild's War-Riders",
+    "Gorilla Berserkers",
+    "Giant Solifuge",
+    "War Elephant",
+    "Noble Elephant"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4443,
-   "cards": 3897,
+   "score": 4444,
+   "cards": 3898,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8268,19 +8263,6 @@
     "Oakhollow Village",
     "Octomancer",
     "Sweet-Gum Recluse"
-   ]
-  },
-  {
-   "what": "DynamicManaAbility shape",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Mage-Ring Network",
-    "Illuminor Szeras",
-    "Soldevi Adnate",
-    "Haruspex",
-    "Kydele, Chosen of Kruphix",
-    "Bottomless Vault"
    ]
   },
   {
@@ -8885,6 +8867,19 @@
     "Riddle Gate Gargoyle",
     "Consulate Surveillance",
     "Cyclops Superconductor"
+   ]
+  },
+  {
+   "what": "DynamicManaAbility shape",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Illuminor Szeras",
+    "Soldevi Adnate",
+    "Haruspex",
+    "Kydele, Chosen of Kruphix",
+    "Tower Worker",
+    "Petalmane Baku"
    ]
   },
   {
@@ -11149,19 +11144,6 @@
    ]
   },
   {
-   "what": "AddManaInAnyCombinationEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Burnt Offering",
-    "Thornvault Forager",
-    "Molten Slagheap",
-    "Dreadship Reef",
-    "Calciform Pools",
-    "Saltcrusted Steppe"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "cards": 7,
@@ -11733,6 +11715,19 @@
     "Ancient Lumberknot",
     "The Kingpin of Crime",
     "Belligerent Brontodon"
+   ]
+  },
+  {
+   "what": "ConditionalCostModificationEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Alisaie Leveilleur",
+    "Gran-Gran",
+    "Momo, Friendly Flier",
+    "Uthros Psionicist",
+    "Highspire Bell-Ringer",
+    "Nahiri, Storm of Stone"
    ]
   }
  ]

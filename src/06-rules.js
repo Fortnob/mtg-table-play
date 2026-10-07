@@ -5031,6 +5031,13 @@
         if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return this.fail('One loyalty ability per turn.');
       }
 
+      // the storage lands: how many counters come off is the X of what it makes
+      const rc = ab.cost && ab.cost.removeCounters;
+      if (rc && (rc.n === 'X' || rc.n === 'any')) {
+        const have = Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0;
+        if (rc.n === 'X' && (opts.x || 0) > have) return this.fail(`${o.name} does not have that many counters.`);
+        opts = Object.assign({}, opts, { x: Math.min(have, opts.x != null ? opts.x : have) });
+      }
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
       if (!payOk) return false;
       const used = ab.cost && ab.cost.label;
@@ -5058,7 +5065,7 @@
 
       if (isMana) {
         // mana abilities do not use the stack (CR 605.3a)
-        this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name + ' mana', manaChoice: opts.manaChoice });
+        this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name + ' mana', manaChoice: opts.manaChoice, x: opts.x });
         this._payThingCosts(playerId, ab.cost, o, opts, null);
         this.emit('sfx', 'mana');
         this.touch();
@@ -5475,8 +5482,10 @@
          permanent's own counters. */
       if (cost.removeCounters) {
         const kind = String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim();
-        const want = cost.removeCounters.n || 1;
         const have = Number(o.counters[kind]) || 0;
+        // "Remove X", "Remove any number of": as many as were asked for, or all of them
+        const rn = cost.removeCounters.n;
+        const want = rn === 'X' ? Math.max(0, (opts && opts.x) || 0) : rn === 'any' ? Math.min(have, (opts && opts.x != null) ? opts.x : have) : (rn || 1);
         if (have < want) return this.fail(`${o.name} does not have ${want} ${kind} counter${want === 1 ? '' : 's'}.`);
         o.counters[kind] = have - want;
         this._lastRemovedCounters = want;
@@ -8815,6 +8824,8 @@
           const o = t0 && this.obj(t0.id);
           return o ? (v.ofTarget === 'power' ? this.powerOf(o) : v.ofTarget === 'toughness' ? this.toughnessOf(o) : ((o.card && o.card.cmc) || 0)) : 0;
         }
+        // Fountain of Cho: "for each storage counter removed this way"
+        if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
         // Rite of Flame: cards of this name in every graveyard
         if (v && typeof v === 'object' && v.namedInGraveyards) {
           const nm = src && (src.card ? src.card.name : src.name);
@@ -8967,6 +8978,12 @@
             const k = n(e.n);
             if (k <= 0) break;
             const [a0, b0] = e.choices;
+            // inside a mana ability nothing waits: all of the colour being paid for
+            if (!this.resolving) {
+              const c0 = ctx.manaChoice && b0[0] === ctx.manaChoice ? b0[0] : a0[0];
+              for (let j = 0; j < k; j++) me.pool.add(c0);
+              break;
+            }
             const opts = [];
             for (let i = 0; i <= Math.min(k, 20); i++) opts.push({ i, label: `{${a0[0]}}×${k - i}, {${b0[0]}}×${i}` });
             const got = this._choose({ playerId: ctx.controller, purpose: 'manaSplit', kind: 'options', min: 1, max: 1,
