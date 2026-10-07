@@ -2963,6 +2963,31 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, before, 'cast one, drew one');
   });
 
+  test("Backgrounds: Flaming Fist's commander gains double strike as it attacks", (mk, t) => {
+    t.auto('Flaming Fist');
+    const T = mk();
+    T.bf('A', 'Flaming Fist');
+    const c = T.bf('A', 'Grizzly Bears'); c.isCommander = true; c.summoningSick = false;
+    const d = T.bf('A', 'Grizzly Bears');
+    T.g.bumpBoard();
+    t.eq(d.analysis().abilities.length, 0, 'not for a creature that is not a commander');
+    T.answer('declareAttackers', () => [{ attackerId: c.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(T.g.hasKw(c, 'double strike'), "'it gains double strike' is the attacker");
+  });
+
+  test("Orim's Chant: no spells for the target, and with kicker no attacks", (mk, t) => {
+    t.auto("Orim's Chant");
+    const T = mk();
+    T.mana('A', '1WW');
+    T.cast('A', T.hand('A', "Orim's Chant"), { kick: 1, targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.g.player('B').silencedTurn, T.g.turn);
+    const b = T.bf('A', 'Grizzly Bears'); b.summoningSick = false;
+    t.no(T.g.canAttack(b), 'creatures cannot attack');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

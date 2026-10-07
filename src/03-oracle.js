@@ -466,6 +466,13 @@
   /** Point a target-less trigger's "it" at what the trigger is about. */
   function itIsTheTrigger(effects, scope) {
     if (!scope) return;
+    /* "Whenever this creature attacks, it gains double strike until end of
+       turn": with nothing before it, "it" is what the trigger is about */
+    const g0 = (effects || [])[0];
+    if (g0 && g0.op === 'grantLast' && !g0.plural) {
+      Object.assign(g0, { op: 'grantKeyword', duration: g0.until === 'eot' ? 'eot' : 'permanent', scope });
+      delete g0.until; delete g0.plural;
+    }
     let targeted = false;
     const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
@@ -2343,7 +2350,7 @@
       make: (m) => ({ op: 'restrict', flag: 'mustAttackEot', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^Goad (target creature(?: an opponent controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
-    { re: /^Goad each creature (?:your opponents control|target opponent controls)\.?$/i,
+    { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     { re: /^(Target creature|Target permanent|Target land|Target artifact|It|That creature|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'noUntap', targets: [targetSpec(m[1])] }
@@ -2699,6 +2706,10 @@
     { re: /^Destroy target permanent if it'?s (white|blue|black|red|green)\.?$/i,
       make: (m) => ({ op: 'destroy', ifColor: COLOR_WORD[m[1].toLowerCase()], targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent' }] }) },
     { re: /^Your opponents can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents' }) },
+    // Orim's Chant: "Target player can't cast spells this turn."
+    { re: /^Target (player|opponent) can'?t cast spells this turn\.?$/i, make: (m) => ({ op: 'silence', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Orim's Chant, kicked: "creatures can't attack this turn"
+    { re: /^Creatures can'?t attack this turn\.?$/i, make: () => ({ op: 'noAttacksTurn' }) },
     // Ranger-Captain of Eos: only the noncreature ones
     { re: /^Your opponents can'?t cast noncreature spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents', noncreature: true }) },
 
@@ -5865,6 +5876,18 @@
   }
 
   const CONTINUOUS_RULES = [
+    /* Backgrounds: "Commander creatures you own have '…' / get +1/+1 and
+       have …" — the group's rule, for your commanders */
+    { re: /^Commander creatures you own (have|get) (.+)$/i,
+      make: (m) => {
+        const inner = parseContinuous('Creatures you control ' + m[1].toLowerCase() + ' ' + m[2]);
+        if (!inner || inner.effects.length !== 1) return null;
+        const cmd = (e) => Object.assign(e, { scope: { who: 'you', what: 'creature', commander: true } });
+        const e = inner.effects[0];
+        if (e.op === 'continuous') return cmd(e);
+        if (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous')) { e.list.forEach(cmd); return e; }
+        return null;
+      } },
     /* Soulbond: "As long as this creature is paired with another creature,
        each of those creatures gets +4/+4 / both creatures have flying /
        each of those creatures has '…'" — read as a group's rule, and the

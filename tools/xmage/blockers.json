@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16610,
+  "needed": 16602,
   "gainedCards": 1765,
-  "linesNeeded": 18866,
-  "linesGained": 2272,
+  "linesNeeded": 18857,
+  "linesGained": 2271,
   "gained": {
    "all": 1765,
    "top2000": 52,
@@ -24,7 +24,7 @@
    "count": 42,
    "group": 27,
    "x": 5,
-   "it": 112,
+   "it": 99,
    "opponent": 67,
    "condition": 24,
    "subtype": 9
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5723,
-   "lines": 4913,
+   "score": 5719,
+   "lines": 4912,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -490,8 +490,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 36,
-   "lines": 33,
+   "score": 35,
+   "lines": 32,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -8117,8 +8117,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4486,
-   "cards": 3913,
+   "score": 4482,
+   "cards": 3912,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8441,19 +8441,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 26,
-   "cards": 23,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Keeper of Fables",
-    "Feline Sovereign",
-    "Tifa, Martial Artist"
-   ]
-  },
-  {
    "what": "CreateRoleAttachedTargetEffect",
    "score": 26,
    "cards": 26,
@@ -8490,6 +8477,19 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 25,
+   "cards": 22,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Keeper of Fables",
+    "Feline Sovereign",
+    "Tifa, Martial Artist"
    ]
   },
   {

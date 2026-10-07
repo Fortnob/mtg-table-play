@@ -5298,6 +5298,7 @@
 
     canAttack(o) {
       if (o.zone !== 'battlefield' || o.controller !== this.activePlayer.id) return false;
+      if (this.noAttacksTurn === this.turn) return false;
       const a = o.analysis();
       const c = this.characteristics(o);
       if (!a || !(c && c.isCreature)) return false;
@@ -9389,6 +9390,11 @@
           this.noPreventTurn = this.turn;
           this.logEvent('rules', "Damage can't be prevented this turn.");
           break;
+        // Orim's Chant: "creatures can't attack this turn"
+        case 'noAttacksTurn':
+          this.noAttacksTurn = this.turn;
+          this.logEvent('rules', "Creatures can't attack this turn.");
+          break;
         // Wound Reflection: each opponent loses again what they lost this turn
         case 'woundReflection':
           for (const q of this.opponentsOf(ctx.controller)) { const k = q.lifeLostThisTurn || 0; if (k > 0) this.changeLife(q, -k); }
@@ -10406,7 +10412,7 @@
           break;   // read when a spell is countered or cast
         /* Silence: "Your opponents can't cast spells this turn." */
         case 'silence':
-          for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : this.players)) {
+          for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players)) {
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
           }
           this.logEvent('rules', `${me.name}'s opponents can't cast spells this turn.`);
@@ -12192,6 +12198,8 @@
      */
     _scopeHit(sc, o, oa, pid, src, inLayers) {
       if (sc.other && src && src.id === o.id) return false;
+      // Backgrounds: "Commander creatures you own"
+      if (sc.commander && !(o.isCommander && o.owner === pid)) return false;
       // "other creatures you control named Hare Apparent"
       if (sc.name && o.name !== sc.name) return false;
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
