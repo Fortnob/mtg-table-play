@@ -6641,4 +6641,33 @@ module.exports = (test) => {
     t.ok(ninja, 'a Ninja');
     t.eq(fc.attachedTo, ninja && ninja.id, 'attached to it');
   });
+
+  test('Forecast: in your upkeep, once, and the card stays in hand (Plumes of Peace)', (mk, t) => {
+    t.auto('Plumes of Peace');
+    const T = mk();
+    const pp = T.hand('A', 'Plumes of Peace');
+    const giant = T.bf('B', 'Hill Giant');
+    t.no(T.g.altUsesFor('A', pp.id).some(u => u.forecast), 'not in the main phase');
+    T.nextTurn('B');
+    T.toMain('A', 'upkeep');
+    t.ok(T.g.altUsesFor('A', pp.id).some(u => u.forecast), 'in the upkeep');
+    T.mana('A', 'WU');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    t.ok(T.g.cycleCard('A', pp.id, { channel: true }));
+    T.resolve();
+    t.ok(giant.tapped, 'tapped');
+    t.eq(pp.zone, 'hand', 'still in hand');
+    t.no(T.g.altUsesFor('A', pp.id).some(u => u.forecast), 'once a turn');
+  });
+
+  test('Goldfury Strider: tap two artifacts and/or creatures to pay', (mk, t) => {
+    t.auto('Goldfury Strider');
+    const T = mk();
+    const gs = T.bf('A', 'Goldfury Strider');
+    const ms = T.bf('A', 'Mind Stone'), bear = T.bf('A', 'Grizzly Bears');
+    T.activate('A', gs, gs.analysis().manaAbilities.length + 0, { targets: [bear.id], tapCostIds: [ms.id, gs.id] });
+    T.resolve();
+    t.ok(ms.tapped && gs.tapped, 'an artifact and a creature tapped');
+    t.eq(T.g.powerOf(bear), 4, '+2/+0');
+  });
 };

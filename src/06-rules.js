@@ -3383,6 +3383,10 @@
       }
       /* Channel: discard it from your hand for its ability. The table
          offers it where it offers cycling, which is the same act. */
+      // Forecast: in your upkeep, once each turn, from the hand (it goes through channel's door, and stays)
+      if (o.zone === 'hand' && a.forecast && this.activePlayer && this.activePlayer.id === playerId && this.step === 'upkeep' && o._forecastTurn !== this.turn) {
+        out.push({ kind: 'cycle', channel: true, forecast: true, cost: a.forecast.cost || '', label: 'Forecast ' + (a.forecast.cost || '{0}') });
+      }
       if (o.zone === 'hand' && a.channel) {
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
@@ -3679,7 +3683,23 @@
     _channel(playerId, o, use, opts) {
       const a = o.analysis();
       if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts))) {
-        return this.fail(`Not enough mana to channel (${use.cost}).`);
+        return this.fail(`Not enough mana to ${use.forecast ? 'forecast' : 'channel'} (${use.cost}).`);
+      }
+      // Forecast: shown, not discarded; once this turn
+      if (use.forecast) {
+        o._forecastTurn = this.turn;
+        const item = {
+          id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+          controller: playerId, name: `${o.name} — forecast`,
+          targets: (opts.targets || []).map(normTarget),
+          effects: a.forecast.effects, auto: true, abilityText: 'Forecast',
+        };
+        this.stack.push(item);
+        this.logEvent('ability', `${this.player(playerId).name} reveals ${o.name} and forecasts.`);
+        this.emit('sfx', 'cast');
+        this.emit('stack:add', item);
+        this._resetPriority();
+        return true;
       }
       /* A Spirit Guide is exiled, and its mana arrives at once: a mana
          ability never uses the stack. */

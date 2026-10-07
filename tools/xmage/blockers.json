@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14441,
-  "gainedCards": 1517,
-  "linesNeeded": 16018,
+  "needed": 14433,
+  "gainedCards": 1519,
+  "linesNeeded": 16006,
   "linesGained": 1894,
   "gained": {
-   "all": 1517,
+   "all": 1519,
    "top2000": 52,
    "stdTop": 12
   },
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 302,
-   "lines": 284,
+   "score": 304,
+   "lines": 286,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -3233,24 +3233,6 @@
     "Frost Bite",
     "Gangrenous Zombies",
     "Woolly Mammoths"
-   ]
-  },
-  {
-   "what": "keyword ForecastAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Skyscribing",
-    "Pride of the Clouds",
-    "Spirit en-Dal",
-    "Sky Hussar",
-    "Piercing Rays",
-    "Writ of Passage",
-    "Govern the Guildless",
-    "Proclamation of Rebirth",
-    "Plumes of Peace",
-    "Paladin of Prahv",
-    "Steeling Stance"
    ]
   },
   {
@@ -7549,6 +7531,18 @@
     "Gríma Wormtongue",
     "Invade the City"
    ]
+  },
+  {
+   "what": "SourceControllerCountersCount.EXPERIENCE",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Minthara, Merciless Soul",
+    "Azlask, the Swelling Scourge",
+    "Kalemne, Disciple of Iroas",
+    "Kelsien, the Plague",
+    "Azula, Ruthless Firebender"
+   ]
   }
  ],
  "sole": [
@@ -7580,8 +7574,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 227,
-   "cards": 212,
+   "score": 228,
+   "cards": 213,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7606,8 +7600,8 @@
   },
   {
    "what": "custom condition",
-   "score": 174,
-   "cards": 156,
+   "score": 175,
+   "cards": 157,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -9420,19 +9414,6 @@
     "Bomat Courier",
     "Safe Haven",
     "Parallax Tide"
-   ]
-  },
-  {
-   "what": "keyword ForecastAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Skyscribing",
-    "Pride of the Clouds",
-    "Spirit en-Dal",
-    "Sky Hussar",
-    "Piercing Rays",
-    "Proclamation of Rebirth"
    ]
   },
   {
@@ -11379,6 +11360,19 @@
     "Gadget Technician",
     "Offender at Large",
     "Efreet Weaponmaster"
+   ]
+  },
+  {
+   "what": "discard at random",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Balduvian Horde",
+    "Pyromancy",
+    "Barbarian Bully",
+    "Minotaur Explorer",
+    "Pillaging Horde",
+    "Stormscale Anarch"
    ]
   }
  ]

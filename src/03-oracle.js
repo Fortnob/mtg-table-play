@@ -298,10 +298,20 @@
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
          price, the way convoke taps them for a spell. */
-      if ((m = p.match(/^Tap (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (other )?untapped ([A-Za-z -]+?) you control$/i))) {
+      if ((m = p.match(/^Tap (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (other )?untapped ([A-Za-z \/-]+?) you control$/i))) {
         const word = m[1].toLowerCase();
         // "Elves" is an Elf and "Allies" an Ally; "Merfolk" is both
-        const noun = m[3].trim().replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
+        const sing = (w) => w.trim().replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
+        let noun = sing(m[3]);
+        /* Goldfury Strider: "artifacts and/or creatures"; Sky Hussar: "white
+           and/or blue creatures" — either kind, each word with its noun */
+        const ao = m[3].split(/ and\/or /i);
+        if (ao.length === 2) {
+          const right = ao[1].trim().split(/\s+/);
+          noun = right.length > 1 && !/\s/.test(ao[0].trim())
+            ? ao[0].trim().toLowerCase() + ' ' + sing(right[right.length - 1]) + ' or ' + sing(ao[1]).toLowerCase()
+            : sing(ao[0]).toLowerCase() + ' or ' + sing(ao[1]).toLowerCase();
+        }
         cost.tapCreatures = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word),
           filter: noun, another: word === 'another' || !!m[2] };
         continue;
@@ -6074,6 +6084,17 @@
         out.channel = { cost: reinf[2], effects: [{ op: 'counters', kind: '+1/+1', n: num(reinf[1]), targets: [targetSpec('target creature')] }] };
         out.abilities.push({ kind: 'castModifier', keyword: 'Channel', arg: reinf[2], text: line, auto: true, effects: [] });
         autoLines++;
+        continue;
+      }
+      /* Forecast (CR 702.57): during your upkeep, once a turn, the card is
+         shown from your hand and its ability used; it stays in the hand */
+      const fc = line.match(/^Forecast\s*(?:\u2014|--|-)\s*((?:\{[^}]+\})*),\s*Reveal (?:this card|CARDNAME|this creature) from your hand:\s*([\s\S]+)$/i);
+      if (fc) {
+        const body = stripReminder(fc[2]).trim();
+        const parsed = parseEffects(body);
+        out.forecast = { cost: fc[1] || '', effects: parsed.effects };
+        out.abilities.push({ kind: 'castModifier', keyword: 'Forecast', arg: fc[1], text: line, auto: parsed.auto, effects: [] });
+        if (parsed.auto) autoLines++;
         continue;
       }
       // bloodrush is channel by another name: discard it to pump an attacker
