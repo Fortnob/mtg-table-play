@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14480,
+  "needed": 14477,
   "gainedCards": 1517,
-  "linesNeeded": 16050,
+  "linesNeeded": 16042,
   "linesGained": 1894,
   "gained": {
    "all": 1517,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5284,
-   "lines": 4588,
+   "score": 5276,
+   "lines": 4586,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -186,12 +186,11 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 99,
-   "lines": 81,
+   "score": 90,
+   "lines": 78,
    "cards": [
     "Cloud Key",
     "Banner of Kinship",
-    "Multiversal Passage",
     "Mirrodin Besieged",
     "Serra's Emissary",
     "Temple of the Dragon Queen",
@@ -200,7 +199,8 @@
     "Eclipsed Realms",
     "Frontier Siege",
     "Sower of Discord",
-    "Barrensteppe Siege"
+    "Barrensteppe Siege",
+    "Sin, Unending Cataclysm"
    ]
   },
   {
@@ -6046,17 +6046,6 @@
    ]
   },
   {
-   "what": "(constructor: local method addSubType)",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Weathered Sentinels",
-    "Thran Portal",
-    "Stenn, Paranoid Partisan",
-    "Phabine, Boss's Confidant"
-   ]
-  },
-  {
    "what": "DamageCantBePreventedEffect",
    "score": 6,
    "lines": 6,
@@ -7549,6 +7538,18 @@
     "Goddric, Cloaked Reveler",
     "Warden of the Wall",
     "Rusted Relic"
+   ]
+  },
+  {
+   "what": "SuspectTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Nelly Borca, Impulsive Accuser",
+    "Hot Pursuit",
+    "Clandestine Meddler",
+    "Absolving Lammasu",
+    "Rune-Brand Juggler"
    ]
   }
  ],

@@ -8093,7 +8093,7 @@
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
     'evasion', 'attackRequires', 'blockPowerLimit', 'toughnessDamage', 'drawDouble', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
     'blocksExtra',
-    'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
+    'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
     'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword']);
@@ -8136,6 +8136,13 @@
         make: (m) => ({ op: 'etbTappedUnlessReveal', types: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }), auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a creature type\.?$/i,
         eff: { op: 'chooseTypeOnEnter' }, auto: true },
+      /* Thran Portal, Convincing Mirage, Multiversal Passage: "choose a basic
+         land type", and what is that type afterwards */
+      { re: /^As (?:CARDNAME|this (?:land|Aura|enchantment|permanent)) enters(?: the battlefield)?,? choose a basic land type\.?(?: Then you may pay (\d+) life\. If you don'?t, it enters tapped\.?)?$/i,
+        make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'chooseLandTypeOnEnter' }, { op: 'etbTappedUnlessLife', life: +m[1] }] } : { op: 'chooseLandTypeOnEnter' }), auto: true },
+      { re: /^(This land|CARDNAME|Enchanted land) is the chosen type( in addition to its other types)?\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 4, scope: /^enchanted/i.test(m[1]) ? { attached: true, what: 'land' } : { self: true, what: 'land' },
+          chosenLandType: true, addOnly: !!m[2] }), auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a colou?r\.?$/i,
         eff: { op: 'chooseColorOnEnter' }, auto: true },
       // the Gates: "As this land enters, choose a color other than blue."

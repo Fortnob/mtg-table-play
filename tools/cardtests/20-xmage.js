@@ -6503,4 +6503,29 @@ module.exports = (test) => {
     T.g.moveObject(b, 'graveyard'); T.g.checkStateBasedActions();
     t.eq(T.g.canCast('A', d.id).cost, '{2}{B}{G}', 'one died');
   });
+
+  test('Multiversal Passage: the chosen basic land type, and the mana with it', (mk, t) => {
+    t.auto('Multiversal Passage');
+    const T = mk();
+    T.hand('A', 'Counterspell');
+    T.answer('mode', (ch) => ({ modes: [ch.types.indexOf('Swamp')] }));
+    T.answer('payOrDont', { pay: false });
+    const mp = T.put('A', 'Multiversal Passage', 'battlefield', { etb: true });
+    t.eq(mp.chosenType, 'Swamp', 'chosen');
+    t.ok(T.g._hasSubtype(mp, 'Swamp'));
+    const syms = T.g.manaAbilitiesOf(mp).map(ab => JSON.stringify(ab.effects));
+    t.ok(syms.some(x => x.includes('"B"')), 'taps for black');
+  });
+
+  test('Convincing Mirage: the enchanted land is the chosen type instead', (mk, t) => {
+    t.auto('Convincing Mirage');
+    const T = mk();
+    const forest = T.bf('B', 'Forest');
+    const cm = T.bf('A', 'Convincing Mirage');
+    cm.attachedTo = forest.id; forest.attachments.push(cm.id); cm.chosenType = 'Island';
+    T.g.bumpBoard();
+    t.ok(T.g._hasSubtype(forest, 'Island')); t.no(T.g._hasSubtype(forest, 'Forest'));
+    const syms = T.g.manaAbilitiesOf(forest).map(ab => JSON.stringify(ab.effects)).join(' ');
+    t.ok(syms.includes('"U"') && !syms.includes('"G"'), 'blue, not green: ' + syms);
+  });
 };

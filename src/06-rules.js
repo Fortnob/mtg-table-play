@@ -4847,6 +4847,7 @@
          way in. The most likely answer is filled in at once, so the
          permanent is never without one, and a person is asked to confirm. */
       if (this._staticOp(o, 'chooseTypeOnEnter')) this._chooseTypeFor(o);
+      if (this._staticOp(o, 'chooseLandTypeOnEnter')) this._chooseLandTypeFor(o);
       if (this._staticOp(o, 'chooseColorOnEnter')) this._chooseColorFor(o);
       if (this._staticOp(o, 'chooseOnEnter')) this._chooseValueFor(o, this._staticOp(o, 'chooseOnEnter'));
       if (this._staticOp(o, 'chooseModeOnEnter')) this._chooseEnterMode(o);
@@ -4989,6 +4990,22 @@
         for (const t of (a.subtypes || [])) counts.set(t, (counts.get(t) || 0) + 1);
       }
       return Array.from(counts).sort((x, y) => y[1] - x[1]).map(x => x[0]);
+    }
+
+    /** "Choose a basic land type": the one for the colour this player's hand wants most, and a person may change it. */
+    _chooseLandTypeFor(o) {
+      const BASIC = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest' };
+      const want = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+      for (const c of (this.zones[o.controller] || {}).hand || []) for (const sym of MANA.parse((c.card && c.card.mana_cost) || '')) for (const k of Object.keys(want)) if (String(sym).includes(k)) want[k]++;
+      const order = Object.keys(want).sort((x, y) => want[y] - want[x]).map(k => BASIC[k]);
+      o.chosenType = order[0];
+      this.bumpBoard();
+      this.logEvent('rules', `${o.name}: ${o.chosenType} is the chosen land type.`);
+      const p = this.player(o.controller);
+      if (p && !p.isBot) {
+        this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseType', objId: o.id,
+          types: order, options: order.map((t, i) => ({ i, label: t })), prompt: `${o.name}: choose a basic land type.` });
+      }
     }
 
     _chooseTypeFor(o) {
@@ -7344,7 +7361,7 @@
        and the whole battlefield is worked out layer by layer. */
     _changesWhatItIs(e) {
       return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes ||
-        e.addChosenType || e.setColors || e.addColors || e.loseAll));
+        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll));
     }
 
     /** What a permanent printed, and was handed in quotation marks, before the layers. */
@@ -7425,7 +7442,7 @@
          that permanent. */
       const parts = [];
       const split = (ef, base) => {
-        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType) parts.push(Object.assign({ layer: 4 }, base));
+        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType) parts.push(Object.assign({ layer: 4 }, base));
         if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
         if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
       };
@@ -7490,6 +7507,17 @@
           if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
           if (e.addSubtypes) for (const t of e.addSubtypes) if (!s.subtypes.includes(t)) s.subtypes.push(t);
           if (e.addChosenType && p.src && p.src.chosenType && !s.subtypes.includes(p.src.chosenType)) s.subtypes.push(p.src.chosenType);
+          /* Thran Portal: the chosen basic land type, as well; Convincing
+             Mirage: instead, and what the land's own words gave it is gone
+             (CR 305.7) — but not the words making it so, on the land itself */
+          if (e.chosenLandType && p.src && LAND_TYPES.has(p.src.chosenType)) {
+            if (e.addOnly) { if (!s.subtypes.includes(p.src.chosenType)) s.subtypes.push(p.src.chosenType); }
+            else {
+              s.subtypes = s.subtypes.filter(t => !LAND_TYPES.has(t)).concat([p.src.chosenType]);
+              s.landSet = true;
+              if (p.src.id !== s.o.id) s.rulesLost = true;
+            }
+          }
           if (e.setSubtypes) {
             /* Setting a land's type (Blood Moon) takes away its old land
                types and every ability its own words gave it (CR 305.7). */
