@@ -7848,6 +7848,11 @@
         }
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
+        case 'differentPowers': {
+          if (!me) return false;
+          const pw = new Set(this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature).map(o => this.powerOf(o)));
+          return pw.size >= (cond.n || 0);
+        }
         case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;

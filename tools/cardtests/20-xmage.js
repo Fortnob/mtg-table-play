@@ -6856,4 +6856,36 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.g.powerOf(en), p0 - 1);
   });
+
+  test("Witch's Vengeance: creatures of the chosen type get -3/-3", (mk, t) => {
+    t.auto("Witch's Vengeance");
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), g = T.bf('B', 'Hill Giant');
+    T.answer('choose', (ch) => ({ picks: [Math.max(0, ch.options.findIndex(o => o.label === 'Bear'))] }));
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', "Witch's Vengeance"));
+    T.resolve();
+    t.eq(b1.zone, 'graveyard'); t.eq(g.zone, 'battlefield');
+  });
+
+  test('Tribal Unity: +X/+X for the chosen type', (mk, t) => {
+    t.auto('Tribal Unity');
+    const T = mk();
+    const b1 = T.bf('A', 'Grizzly Bears');
+    T.answer('choose', (ch) => ({ picks: [Math.max(0, ch.options.findIndex(o => o.label === 'Bear'))] }));
+    T.mana('A', 'G4');
+    T.cast('A', T.hand('A', 'Tribal Unity'), { x: 2 });
+    T.resolve();
+    t.eq(T.g.powerOf(b1), 4);
+  });
+
+  test('Candlegrove Witch: flying with three different powers', (mk, t) => {
+    t.auto('Candlegrove Witch');
+    const T = mk();
+    const w = T.bf('A', 'Candlegrove Witch');
+    T.bf('A', 'Craw Wurm'); T.bf('A', 'Hill Giant');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.toMain('A', 'end');
+    t.ok(T.g.hasKw(w, 'flying'), 'powers 2, 3 and 6');
+  });
 };

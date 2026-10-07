@@ -1835,6 +1835,10 @@
       make: (m) => ({ op: 'modal', count: 1, repeatable: false, modes: [
         { label: m[1] + '/' + m[2], auto: true, effects: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' }] },
         { label: m[3] + '/' + m[4], auto: true, effects: [{ op: 'pump', p: pmNum(m[3]), t: pmNum(m[4]), duration: 'eot', scope: 'self' }] }] }) },
+    // Tribal Unity: "Creatures of the creature type of your choice get +X/+X until end of turn."
+    { re: /^Creatures of the creature type of your choice get ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'chooseTypeNow' },
+        { op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: { who: 'all', what: 'creature', chosenType: true } }] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -5406,6 +5410,8 @@
     // Sulam Djinn: "as long as green is the most common color among all permanents or is tied for most common"
     [/^(white|blue|black|red|green) is the most common colou?r among all permanents(?: or is tied for most common)?$/i,
       (m) => ({ kind: 'mostCommonColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
+    // Candletrap, Candlegrove Witch: "you control three or more creatures with different powers"
+    [/^you control (\w+) or more creatures with different powers$/i, (m) => ({ kind: 'differentPowers', n: num(m[1]) })],
     // Glistening Sphere: "Activate only if an opponent has three or more poison counters"
     // Mistform Wall: "as long as it's a Wall"
     [/^(?:it'?s|this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14364,
+  "needed": 14345,
   "gainedCards": 1521,
-  "linesNeeded": 15923,
+  "linesNeeded": 15904,
   "linesGained": 1894,
   "gained": {
    "all": 1521,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5251,
-   "lines": 4576,
+   "score": 5246,
+   "lines": 4571,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -1521,25 +1521,6 @@
     "Baxter Stockman",
     "Abuna Acolyte",
     "Auriok Siege Sled"
-   ]
-  },
-  {
-   "what": "CovenCondition.instance",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Leinore, Autumn Sovereign",
-    "Redemption Choir",
-    "Ambitious Farmhand // Seasoned Cathar",
-    "Stalwart Pathlighter",
-    "Duel for Dominance",
-    "Candletrap",
-    "Contortionist Troupe",
-    "Wall of Mourning",
-    "Sungold Sentinel",
-    "Dawnhart Wardens",
-    "Dawnhart Mentor",
-    "Might of the Old Ways"
    ]
   },
   {
@@ -3251,20 +3232,6 @@
    ]
   },
   {
-   "what": "HideawayPlayEffect",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Spinerock Knoll",
-    "Rabble Rousing",
-    "Clive's Hideaway",
-    "Evercoat Ursine",
-    "Collector's Cage",
-    "Shelldock Isle",
-    "Howltooth Hollow"
-   ]
-  },
-  {
    "what": "DamagePlayersEffect amount",
    "score": 10,
    "lines": 1,
@@ -3667,6 +3634,19 @@
     "Noggin Whack",
     "Gruesome Discovery",
     "Pulse of the Dross"
+   ]
+  },
+  {
+   "what": "HideawayPlayEffect",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Spinerock Knoll",
+    "Rabble Rousing",
+    "Clive's Hideaway",
+    "Evercoat Ursine",
+    "Shelldock Isle",
+    "Howltooth Hollow"
    ]
   },
   {
@@ -7514,13 +7494,25 @@
     "Blademane Baku",
     "Mercadian Lift"
    ]
+  },
+  {
+   "what": "words:power",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Sarkhan's Unsealing",
+    "Living Phone",
+    "Militia Bugler",
+    "Mayael the Anima",
+    "Squad Rallier"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4210,
-   "cards": 3730,
+   "score": 4206,
+   "cards": 3726,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8125,19 +8117,6 @@
     "Sway of Illusion",
     "Scuttling Sentinel",
     "Tidal Visionary"
-   ]
-  },
-  {
-   "what": "CovenCondition.instance",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Leinore, Autumn Sovereign",
-    "Redemption Choir",
-    "Ambitious Farmhand // Seasoned Cathar",
-    "Stalwart Pathlighter",
-    "Duel for Dominance",
-    "Candletrap"
    ]
   },
   {
@@ -8842,19 +8821,6 @@
    ]
   },
   {
-   "what": "HideawayPlayEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Spinerock Knoll",
-    "Rabble Rousing",
-    "Clive's Hideaway",
-    "Evercoat Ursine",
-    "Collector's Cage",
-    "Shelldock Isle"
-   ]
-  },
-  {
    "what": "DamagePlayersEffect amount",
    "score": 10,
    "cards": 1,
@@ -8998,6 +8964,19 @@
     "Kjeldoran Knight",
     "Wall of Shields",
     "Benalish Infantry"
+   ]
+  },
+  {
+   "what": "HideawayPlayEffect",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Spinerock Knoll",
+    "Rabble Rousing",
+    "Clive's Hideaway",
+    "Evercoat Ursine",
+    "Shelldock Isle",
+    "Howltooth Hollow"
    ]
   },
   {
@@ -11323,6 +11302,15 @@
    "names": [
     "Millikin",
     "Deranged Assistant"
+   ]
+  },
+  {
+   "what": "CreaturesAttackingYouCount.instance",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Arachnogenesis",
+    "Blessed Reversal"
    ]
   }
  ]
