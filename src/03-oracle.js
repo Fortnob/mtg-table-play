@@ -1515,6 +1515,13 @@
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), maxMv: m[2] === 'X' ? 'X' : +m[2] }) },
     { re: /^Destroy all ([a-z]+s) with power (\d+) or (greater|more)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), minPower: +m[2] }) },
+    // Expel the Interlopers: "…with power greater than or equal to the chosen number"
+    { re: /^Destroy all ([a-z]+s) with power greater than or equal to the chosen number\.?$/i,
+      make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), minPower: 'chosen' }) },
+    { re: /^Choose a number between (\d+) and (\d+)\.?$/i, make: (m) => ({ op: 'chooseNumberNow', min: +m[1], max: +m[2] }) },
+    // Brave the Elements: "White creatures you control gain protection from the chosen color until end of turn."
+    { re: /^((?:white |blue |black |red |green )?creatures you control) gain protection from the chosen colou?r until end of turn\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'grantProtChosen', scope: sc, duration: 'eot' } : null; } },
     { re: /^Destroy all ([a-z]+s) with power (\d+) or less\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), maxPower: +m[2] }) },
     { re: /^Destroy each ((?:[a-z]+, )+(?:and )?[a-z]+) with (?:mana value|converted mana cost) (\d+|X) or less\.?$/i,
@@ -4567,6 +4574,8 @@
   const TRIGGER_PATTERNS = [
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // Talion: "with mana value, power, or toughness equal to the chosen number"
+    { re: /^Whenever an opponent casts a spell with mana value, power, or toughness equal to the chosen number,? /i, event: 'opponentCastSpell', extra: { chosenNumberHit: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"

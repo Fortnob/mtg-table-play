@@ -4269,4 +4269,39 @@ module.exports = (test) => {
     T.resolve();
     t.zone(v, 'battlefield');
   });
+
+  test('Talion: an opponent casting the chosen number loses 2 and you draw', (mk, t) => {
+    t.auto('Talion, the Kindly Lord');
+    const T = mk();
+    const tl = T.put('B', 'Talion, the Kindly Lord', 'battlefield', { etb: true });
+    tl.chosenNumber = 1;
+    const h0 = T.zone('B', 'hand').length;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('A'), 18);
+    t.eq(T.zone('B', 'hand').length, h0 + 1);
+  });
+
+  test('Expel the Interlopers: the bot-or-person number, and creatures that big go', (mk, t) => {
+    t.auto('Expel the Interlopers');
+    const T = mk();
+    const big = T.bf('B', 'Craw Wurm'), small = T.bf('A', 'Llanowar Elves');
+    T.answer('mode', () => ({ modes: [3] }));
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Expel the Interlopers'));
+    T.resolve();
+    t.zone(big, 'graveyard'); t.zone(small, 'battlefield');
+  });
+
+  test('Brave the Elements: white creatures gain protection from the chosen colour', (mk, t) => {
+    t.auto('Brave the Elements');
+    const T = mk();
+    const lion = T.bf('A', 'Savannah Lions');
+    T.answer('mode', () => ({ modes: [3] }));
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Brave the Elements'));
+    T.resolve();
+    t.ok(T.g.hasKw(lion, 'protection from red'));
+  });
 };

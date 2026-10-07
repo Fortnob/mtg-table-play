@@ -8257,6 +8257,12 @@
           if (ab.toZoneOnly && data.toZone !== ab.toZoneOnly) continue;
           // a Room's door: only its own unlocking
           if (ab.door != null && data.door !== ab.door) continue;
+          // Talion: the chosen number among the spell's mana value, power and toughness
+          if (ab.chosenNumberHit) {
+            const c = data.object && data.object.card;
+            const n0 = o.chosenNumber;
+            if (n0 == null || !c || ![c.cmc, parseInt(c.power, 10), parseInt(c.toughness, 10)].some(v => v === n0)) continue;
+          }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
           // Exert: "if this creature hasn't been exerted this turn"
@@ -9430,6 +9436,39 @@
           this.logEvent('rules', `${me.name} chooses ${col[1].toLowerCase()}.`);
           break;
         }
+        // Expel the Interlopers: a number, chosen as it resolves, kept on the spell
+        case 'chooseNumberNow': {
+          const opts2 = [];
+          for (let k = e.min || 0; k <= (e.max == null ? 10 : e.max); k++) opts2.push({ i: opts2.length, label: String(k), v: k });
+          // a bot picks the number that destroys the most of theirs and the least of ours
+          let pick = 0;
+          if (me.isBot) {
+            let best = -1e9;
+            for (const op of opts2) {
+              const v = this.battlefield.filter(x => (this.characteristics(x) || {}).isCreature && this.powerOf(x) >= op.v)
+                .reduce((t, x) => t + (x.controller === me.id ? -1 : 1), 0);
+              if (v > best) { best = v; pick = op.i; }
+            }
+          } else {
+            const got = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, options: opts2.map(x => ({ i: x.i, label: x.label })), prompt: 'Choose a number.' }, 'num');
+            if (got === SUSPEND) return SUSPEND;
+            pick = (Array.isArray(got) ? got[0] : got) || 0;
+          }
+          const val = (opts2[pick] || opts2[0]).v;
+          if (src) src.chosenNumber = val;
+          ctx.chosenNumber = val;
+          this.logEvent('rules', `${me.name} chooses ${val}.`);
+          break;
+        }
+        // Brave the Elements: protection from the colour just chosen
+        case 'grantProtChosen': {
+          const col = ctx.chosenColor || (src && src.chosenColor);
+          const NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[col];
+          if (!NAME) break;
+          for (const o of this._scopeList(e.scope, ctx.controller, src)) o.effects.push({ keywords: ['Protection From ' + NAME], until: 'eot' });
+          this.bumpBoard();
+          break;
+        }
         case 'addManaChosen': {
           let col = (src && src.chosenColor) || ctx.chosenColor;
           // "Add {U} or one mana of the chosen color": whichever was asked for
@@ -9702,7 +9741,7 @@
             if (e.withoutCounter && (x.counters[e.withoutCounter] || 0) > 0) return false;
             if (e.maxMv != null && ((x.card && x.card.cmc) || 0) > cap(e.maxMv)) return false;
             if (e.minMv != null && ((x.card && x.card.cmc) || 0) < cap(e.minMv)) return false;
-            if (e.minPower != null && this.powerOf(x) < e.minPower) return false;
+            if (e.minPower != null && this.powerOf(x) < (e.minPower === 'chosen' ? ((src && src.chosenNumber) || 0) : e.minPower)) return false;
             if (e.maxPower != null && this.powerOf(x) > e.maxPower) return false;
             if (e.op === 'destroyAll' && this.hasKw(x, 'indestructible')) return false;
             // Fell the Mighty: "with power greater than target creature's power"
@@ -15158,6 +15197,16 @@
         attacking: o.attacking, blocking: o.blocking, blockedBy: o.blockedBy, blockOrder: o.blockOrder,
         effects: o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
         prepared: !!o.prepared,
+        // what it chose as it entered: a creature type, a colour, a card name, a player, a number
+        chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
+          const c = {};
+          if (o.chosenType) c.type = o.chosenType;
+          if (o.chosenColor) c.color = o.chosenColor;
+          if (o.chosenName) c.name = o.chosenName;
+          if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
+          if (o.chosenNumber != null) c.number = o.chosenNumber;
+          return Object.keys(c).length ? c : null;
+        })(),
         // a hidden agenda its owner can still choose to turn face up
         agenda: !!(o.conspiracy && o.conspiracy.hidden && o.owner === playerId),
         // soulbond: the creature it is paired with
@@ -15196,16 +15245,6 @@
           for (const x of this.playableNow(playerId)) if (x.kind === 'cast' && x.face != null) (out[x.objId] = out[x.objId] || []).push(x.face);
           for (const k of Object.keys(out)) out[k].sort();
           return out;
-        })(),
-        // what it chose as it entered: a creature type, a colour, a card name, a player, a number
-        chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
-          const c = {};
-          if (o.chosenType) c.type = o.chosenType;
-          if (o.chosenColor) c.color = o.chosenColor;
-          if (o.chosenName) c.name = o.chosenName;
-          if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
-          if (o.chosenNumber != null) c.number = o.chosenNumber;
-          return Object.keys(c).length ? c : null;
         })(),
         // split cards with fuse that can be cast with both halves now (the cast intent's `fuse`)
         fusable: (this.priorityPlayer && this.priorityPlayer.id === playerId)

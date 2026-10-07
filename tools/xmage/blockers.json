@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15716,
+  "needed": 15713,
   "gainedCards": 1610,
-  "linesNeeded": 17692,
+  "linesNeeded": 17688,
   "linesGained": 2049,
   "gained": {
    "all": 1610,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5597,
-   "lines": 4826,
+   "score": 5595,
+   "lines": 4824,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -4198,14 +4198,6 @@
    ]
   },
   {
-   "what": "TalionTheKindlyLordPredicate.instance",
-   "score": 10,
-   "lines": 1,
-   "cards": [
-    "Talion, the Kindly Lord"
-   ]
-  },
-  {
    "what": "CastAsThoughItHadFlashIfConditionAbility",
    "score": 10,
    "lines": 7,
@@ -7909,13 +7901,26 @@
     "Qarsi Deceiver",
     "Soldevi Machinist"
    ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.MANAVALUE_CONTROLLED_PERMANENTS",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Ugin's Insight",
+    "Rush of Knowledge",
+    "Boon of Boseiju",
+    "Kraven, Proud Predator",
+    "Accelerated Mutation",
+    "Torrent of Fire"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4436,
-   "cards": 3890,
+   "score": 4435,
+   "cards": 3889,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -9620,14 +9625,6 @@
     "Necroplasm",
     "The Filigree Sylex",
     "Powder Keg"
-   ]
-  },
-  {
-   "what": "TalionTheKindlyLordPredicate.instance",
-   "score": 10,
-   "cards": 1,
-   "names": [
-    "Talion, the Kindly Lord"
    ]
   },
   {
@@ -11734,6 +11731,19 @@
     "Hinder",
     "Spell Crumple",
     "Devious Cover-Up"
+   ]
+  },
+  {
+   "what": "CombatDamageByToughnessControlledEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Bedrock Tortoise",
+    "High Alert",
+    "Arcades, the Strategist",
+    "Ancient Lumberknot",
+    "The Kingpin of Crime",
+    "Belligerent Brontodon"
    ]
   }
  ]
