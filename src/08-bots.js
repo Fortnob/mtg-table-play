@@ -2251,6 +2251,8 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      // Chandra: cast the exiled card only if it can be paid for
+      if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'payToUntap') {
         // a shock land: pay when we would use the mana this turn and can spare the life
         return this.me.life > 10 && (this.d <= 3 || this._wouldUseUntapped());
