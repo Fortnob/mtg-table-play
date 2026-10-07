@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15104,
-  "gainedCards": 1538,
-  "linesNeeded": 16819,
-  "linesGained": 1946,
+  "needed": 15084,
+  "gainedCards": 1536,
+  "linesNeeded": 16799,
+  "linesGained": 1944,
   "gained": {
-   "all": 1538,
+   "all": 1536,
    "top2000": 51,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5490,
-   "lines": 4734,
+   "score": 5483,
+   "lines": 4727,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -921,25 +921,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 22,
-   "lines": 19,
-   "cards": [
-    "Meren of Clan Nel Toth",
-    "Otharri, Suns' Glory",
-    "Toph, Earthbending Master",
-    "Ichor Rats",
-    "The Wise Mothman",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Screeching Scorchbeast",
-    "Tato Farmer",
-    "Zuko, Firebending Master",
-    "Minthara, Merciless Soul",
-    "Ezuri, Claw of Progress"
-   ]
-  },
-  {
    "what": "DrawCardSourceControllerEffect amount",
    "score": 22,
    "lines": 19,
@@ -1013,6 +994,25 @@
     "Mutant Chain Reaction",
     "Cloudspire Skycycle",
     "Hellish Sideswipe"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Meren of Clan Nel Toth",
+    "Otharri, Suns' Glory",
+    "Toph, Earthbending Master",
+    "The Wise Mothman",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Screeching Scorchbeast",
+    "Tato Farmer",
+    "Zuko, Firebending Master",
+    "Minthara, Merciless Soul",
+    "Ezuri, Claw of Progress",
+    "Katara, Waterbending Master"
    ]
   },
   {
@@ -3372,24 +3372,6 @@
    ]
   },
   {
-   "what": "words:withKeyword",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Pick Your Poison",
-    "Warden of Evos Isle",
-    "Watcher of the Spheres",
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings",
-    "Cunning Nightbonder",
-    "Radiant, Serra Archangel",
-    "Hidden Spider",
-    "Clip Wings",
-    "Run Afoul"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 11,
    "lines": 11,
@@ -3894,6 +3876,23 @@
     "Elderwood Scion",
     "Sphinx of New Prahv",
     "Boreal Elemental"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Warden of Evos Isle",
+    "Watcher of the Spheres",
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder",
+    "Radiant, Serra Archangel",
+    "Hidden Spider",
+    "Clip Wings",
+    "Run Afoul"
    ]
   },
   {
@@ -5883,20 +5882,6 @@
    ]
   },
   {
-   "what": "TapAllTargetPlayerControlsEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Naya Charm",
-    "Kiora Bests the Sea God",
-    "Tempest Caller",
-    "Tectonic Instability",
-    "Dovin, Architect of Law",
-    "Torrent Elemental",
-    "Gulf Squid"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "lines": 7,
@@ -6955,6 +6940,19 @@
    ]
   },
   {
+   "what": "TapAllTargetPlayerControlsEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Kiora Bests the Sea God",
+    "Tempest Caller",
+    "Tectonic Instability",
+    "Dovin, Architect of Law",
+    "Torrent Elemental",
+    "Gulf Squid"
+   ]
+  },
+  {
    "what": "ExileGraveyardAllPlayersEffect",
    "score": 6,
    "lines": 6,
@@ -7409,19 +7407,6 @@
    ]
   },
   {
-   "what": "DoIfClashWonEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Revive the Fallen",
-    "Ringskipper",
-    "Pollen Lullaby",
-    "Woodland Guidance",
-    "Fire Juggler",
-    "Sentry Oak"
-   ]
-  },
-  {
    "what": "BlockedPredicate.instance",
    "score": 6,
    "lines": 6,
@@ -7730,13 +7715,25 @@
     "Stern Scolding",
     "Rootless Yew"
    ]
+  },
+  {
+   "what": "ModifyCountersAddedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Winding Constrictor",
+    "Benevolent Hydra",
+    "Mauhúr, Uruk-hai Captain",
+    "Pir, Imaginative Rascal",
+    "Caradora, Heart of Alacria"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4385,
-   "cards": 3845,
+   "score": 4378,
+   "cards": 3838,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -9066,19 +9063,6 @@
    ]
   },
   {
-   "what": "words:withKeyword",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Pick Your Poison",
-    "Warden of Evos Isle",
-    "Watcher of the Spheres",
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 11,
    "cards": 11,
@@ -9360,6 +9344,19 @@
     "Blind Seer",
     "Thoughtlace",
     "Illusion // Reality"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Warden of Evos Isle",
+    "Watcher of the Spheres",
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder"
    ]
   },
   {
@@ -10130,19 +10127,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Otharri, Suns' Glory",
-    "Ichor Rats",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink"
-   ]
-  },
-  {
    "what": "DealtDamageAnyTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -10639,6 +10623,19 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Patrician Geist"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Otharri, Suns' Glory",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink",
+    "Megaton's Fate"
    ]
   },
   {

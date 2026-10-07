@@ -5316,4 +5316,50 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Beacon of Immortality'), { targets: ['A'] });
     t.eq(T.life('A'), 40);
   });
+
+  test('Time Stretch: two extra turns', (mk, t) => {
+    t.auto('Time Stretch');
+    const T = mk();
+    T.mana('A', 'UU8');
+    T.cast('A', T.hand('A', 'Time Stretch'), { targets: ['A'] });
+    t.eq(T.g.extraTurnsQueue.filter(x => x === 'A').length, 2);
+  });
+
+  test("Render Silent: the countered spell's controller can't cast spells", (mk, t) => {
+    t.auto('Render Silent');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    T.mana('B', 'WUU');
+    T.cast('B', T.hand('B', 'Render Silent'), { targets: [T.stackTarget(bolt)] });
+    t.eq(bolt.zone, 'graveyard');
+    t.eq(T.player('A').silencedTurn, T.g.turn);
+  });
+
+  test("Kenrith: a creature card from a graveyard, under its owner's control", (mk, t) => {
+    t.auto('Kenrith, the Returned King');
+    const T = mk();
+    const kr = T.bf('A', 'Kenrith, the Returned King'); kr.summoningSick = false;
+    const bear = T.grave('B', 'Grizzly Bears');
+    T.mana('A', 'B4');
+    const ix = kr.analysis().abilities.filter(x => x.kind === 'activated').findIndex(x => /graveyard/.test(x.text));
+    T.activate('A', kr, ix, { targets: [bear] });
+    t.eq(bear.zone, 'battlefield');
+    t.eq(bear.controller, 'B');
+  });
+
+  test('Pick Your Poison: a creature with flying', (mk, t) => {
+    t.auto('Pick Your Poison');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const bird = T.bf('B', 'Birds of Paradise');
+    T.answer('mode', (ch) => ({ modes: [ch.options.find(o => /flying/i.test(o.label)).i] }));
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Pick Your Poison'));
+    T.resolve();
+    t.eq(bird.zone, 'graveyard');
+    t.eq(bear.zone, 'battlefield');
+  });
 };

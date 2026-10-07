@@ -9349,6 +9349,8 @@
             if (p) this.changeLife(p, cnt);
           } else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, cnt); }
           else if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this.changeLife(p, cnt); }
+          // Grove of the Burnwillows: "Each opponent gains 1 life."
+          else if (e.who === 'opponents') { for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, cnt); }
           // Path of Peace: "Its owner gains 4 life"
           else if (e.who === 'targetOwner') { const p = this._lastAffected && this.player(this._lastAffected.owner); if (p) this.changeLife(p, cnt); }
           else this.changeLife(me, cnt);
@@ -10112,6 +10114,8 @@
               if (x.controller !== p.id || !xa || x.phasedOut) return false;
               // "another creature" never means the one doing the asking
               if (e.other && src && x.id === src.id) return false;
+              // Pick Your Poison: "a creature with flying"
+              if (e.keyword && !this.hasKw(x, e.keyword)) return false;
               return !e.filter || e.filter === 'permanent' || this._cardFitsWords(x, e.filter);
             });
             if (!pool.length) {
@@ -10876,7 +10880,8 @@
             if (t.kind !== 'object') continue;
             const x = this.obj(t.id);
             if (x) {
-              this.moveObject(x, 'battlefield', { controller: ctx.controller });
+              // Kenrith: "under its owner's control"
+              this.moveObject(x, 'battlefield', { controller: e.ownerControl ? x.owner : ctx.controller });
               if (e.tapped) x.tapped = true;
               // Persist: "with a -1/-1 counter on it"
               if (e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
@@ -11666,7 +11671,9 @@
           break;   // read when a spell is countered or cast
         /* Silence: "Your opponents can't cast spells this turn." */
         case 'silence':
-          for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players)) {
+          for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            // Render Silent: the controller of the spell just countered
+            : e.who === 'targetController' ? [this._lastAffectedController()].filter(Boolean) : this.players)) {
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
           }
           this.logEvent('rules', `${me.name}'s opponents can't cast spells this turn.`);
@@ -11995,6 +12002,7 @@
           break;   // standing rules, read where they matter
         case 'poison': {
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             // "defending player gets a poison counter": whoever the trigger was about
             : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
             : [firstPlayer()].filter(Boolean);
@@ -13901,6 +13909,8 @@
           const who = e.who === 'target' ? firstPlayer() : me;
           if (!who || who.hasLost) break;
           this.extraTurnsQueue.push(who.id);
+          // Time Stretch: two of them
+          for (let k = 1; k < (e.n || 1); k++) this.extraTurnsQueue.push(who.id);
           this.logEvent('rules', `${who.name} takes an extra turn.`);
           break;
         }

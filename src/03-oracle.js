@@ -818,6 +818,24 @@
     // Kellogg, Merieke Ri Berit: "for as long as you control this creature"
     { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, whileSrc: true, targets: [targetSpec(m[1])] }) },
+    // Fertilid: someone else's search, onto the battlefield tapped
+    { re: /^Target player searches their library for a basic land card, puts it onto the battlefield tapped, then shuffles\.?$/i,
+      make: () => ({ op: 'tutor', who: 'target', n: 1, filter: 'basic land', to: 'battlefield', tapped: true, targets: [{ type: 'player' }] }) },
+    // Naya Charm: "Return target card from a graveyard to its owner's hand."
+    { re: /^Return target (card|creature card|artifact card|instant or sorcery card) from a graveyard to its owner'?s hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec('target ' + m[1].replace(/ card$/, '')), { zone: 'graveyard' })] }) },
+    // Kenrith: "Put target creature card from a graveyard onto the battlefield under its owner's control."
+    { re: /^Put target creature card from a graveyard onto the battlefield under its owner'?s control\.?$/i,
+      make: () => ({ op: 'reanimate', ownerControl: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
+    { re: /^Each opponent gains (one|two|three|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'opponents' }) },
+    { re: /^Each player gets (a|one|two|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'each' }) },
+    { re: /^Discard (?:all the cards in your hand|your hand)\.?$/i, make: () => ({ op: 'discard', n: 'all', who: 'you' }) },
+    // Soul's Majesty: "Draw cards equal to the power of target creature you control."
+    { re: /^Draw cards equal to the power of (target creature(?: you control)?)\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'you', n: { ofTarget: 'power' }, targets: [targetSpec(m[1])] }) },
+    // Immaculate Magistrate: "Put a +1/+1 counter on target creature for each Elf you control."
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on (target creature(?: you control)?) for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[3]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [targetSpec(m[2])] } : null; } },
     // Tyrannize, Wit's End: "Target player discards their hand."
     { re: /^(Target player|Target opponent|Each player|Each opponent) discards (?:their|his or her) hand\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'discard', n: 'all', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
@@ -1211,6 +1229,9 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
+    // Pick Your Poison: "Each opponent sacrifices a creature with flying of their choice."
+    { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact)s? with (flying|reach|deathtouch|trample|haste|defender) of their choice\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase(), keyword: m[3].toLowerCase() }) },
     { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s?\.?$/i,
@@ -1645,6 +1666,8 @@
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, name: 'You lose the game', effects: [{ op: 'loseGame' }] }) },
     // Time Warp: "Target player takes an extra turn after this one."
     { re: /^Target player takes an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn', who: 'target', targets: [{ type: 'player' }] }) },
+    // Time Stretch: "Target player takes two extra turns after this one."
+    { re: /^Target player takes (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
     { re: /^Shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
@@ -1881,6 +1904,8 @@
 
     /* ===== odds and ends that come up a lot ===== */
     { re: /^You may play an additional land this turn\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
+    // Summer Bloom: "You may play up to three additional lands this turn."
+    { re: /^You may play up to (two|three|four) additional lands this turn\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
     { re: /^Shuffle (?:this (?:artifact|card)|CARDNAME) and your graveyard into (?:their|its) owner'?s library\.?$/i,
       make: () => ({ op: 'graveyardToLibrary', withSelf: true }) },
     { re: /^Shuffle your graveyard into your library\.?$/i, make: () => ({ op: 'graveyardToLibrary' }) },
@@ -3182,6 +3207,8 @@
     { re: /^Your opponents can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents' }) },
     // Orim's Chant: "Target player can't cast spells this turn."
     { re: /^Target (player|opponent) can'?t cast spells this turn\.?$/i, make: (m) => ({ op: 'silence', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Render Silent: "Counter target spell. Its controller can't cast spells this turn."
+    { re: /^Its controller can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'targetController' }) },
     // Taunt from the Rampart: "Until your next turn, those creatures can't block."
     { re: /^Until your next turn, those creatures can'?t (block|attack)\.?$/i,
       make: (m) => ({ op: 'restrict', flag: /block/i.test(m[1]) ? 'cantBlock' : 'cantAttack', duration: 'nextTurn', scope: 'lastGroup' }) },
