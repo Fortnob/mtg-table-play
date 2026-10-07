@@ -7539,4 +7539,23 @@ module.exports = (test) => {
     const w = T.bf('A', 'Watchdog');
     t.ok(T.g._staticOp(w, 'mustBlock'));
   });
+
+  test('Charging Rhino: not blocked by more than one creature (not menace)', (mk, t) => {
+    t.auto('Charging Rhino');
+    const T = mk();
+    const r = T.bf('A', 'Charging Rhino');
+    r.summoningSick = false;
+    t.ok(!T.g.hasKw(r, 'menace'), 'no menace');
+    const x = T.bf('B', 'Grizzly Bears'), y = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: r.id, defenderId: 'B' }]);
+    let two = null, one = null;
+    T.answer('declareBlockers', () => {
+      two = !T.g.declareBlockers('B', [{ blockerId: x.id, attackerIds: [r.id] }, { blockerId: y.id, attackerIds: [r.id] }]);
+      one = !!T.g.declareBlockers('B', [{ blockerId: x.id, attackerIds: [r.id] }]);
+      return null;
+    });
+    T.toMain('A', 'endCombat');
+    t.ok(two, 'two blockers refused');
+    t.ok(one, 'one blocker allowed');
+  });
 };

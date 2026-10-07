@@ -6960,6 +6960,24 @@
           this.logEvent('rules', `${at.name} can't be blocked except by ${mb.n} or more creatures.`);
         }
       }
+      /* Charging Rhino: "can't be blocked by more than one creature" — a bot's
+         extra blockers stand down, a person is told */
+      {
+        const counts = new Map();
+        for (const d of declarations) for (const aid of d.attackerIds) counts.set(aid, (counts.get(aid) || 0) + 1);
+        for (const [aid, n] of counts) {
+          const at = this.obj(aid);
+          const ev = at && this._staticOp(at, 'evasion');
+          if (!ev || !ev.oneBlocker || n < 2) continue;
+          if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked by more than one creature.`);
+          let kept = false;
+          declarations = declarations.map(d => {
+            if (!d.attackerIds.includes(aid)) return d;
+            if (!kept) { kept = true; return d; }
+            return Object.assign({}, d, { attackerIds: d.attackerIds.filter(x => x !== aid) });
+          }).filter(d => d.attackerIds.length);
+        }
+      }
       // menace: needs two or more blockers
       if (this.config.rulesEnforcement === 'full') {
         const counts = new Map();
