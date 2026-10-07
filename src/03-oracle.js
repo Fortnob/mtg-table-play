@@ -1486,10 +1486,12 @@
       make: () => ({ op: 'selfBite', targets: [{ type: 'creature' }] }) },
 
     /* A one-sided fight: it hits, and nothing hits it back. */
-    { re: /^Target creature you control deals damage equal to its power to target creature(?: you don'?t control| an opponent controls)?\.?$/i,
-      make: () => ({ op: 'bite',
+    /* Rabid Bite; Fall of the Hammer's "another target creature" (any
+       creature but the one dealing it); "target creature you don't control" */
+    { re: /^Target creature you control deals damage equal to its power to (another )?(target creature(?: or planeswalker)?(?: you don'?t control| an opponent controls)?)\.?$/i,
+      make: (m) => ({ op: 'bite',
         targets: [{ type: 'creature', controller: 'you' },
-          Object.assign(targetSpec('creature'), /you don'?t control|an opponent controls/i.test('') ? {} : {})] }) },
+          Object.assign(targetSpec(m[2]), m[1] ? { distinct: true } : {})] }) },
     { re: /^Target creature you control deals damage equal to its power to (?:target )?(?:each )?(player|opponent|target player|any target)\.?$/i,
       make: (m) => ({ op: 'bite', toPlayer: true,
         targets: [{ type: 'creature', controller: 'you' }, { type: 'player' }] }) },
@@ -3723,7 +3725,7 @@
         { op: 'draw', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }] }) },
     { re: /^Attach (?:CARDNAME|it|this Equipment) to (target [a-zA-Z ,'-]+)\.?$/,
       make: (m) => ({ op: 'attachSelf', targets: [targetSpec(m[1])] }) },
-    { re: /^Put (?:CARDNAME|this artifact|this card|it) on top of its owner'?s library\.?$/i,
+    { re: /^Put (?:CARDNAME|this (?:artifact|card|creature|enchantment|permanent)|it) on top of its owner'?s library\.?$/i,
       make: () => ({ op: 'selfToLibraryDepth', depth: 0 }) },
     { re: /^Put your commander into your hand from the command zone\.?$/i, make: () => ({ op: 'commanderToHand' }) },
     /* "Create a Food token or a Treasure token." — one or the other, chosen */
@@ -8855,7 +8857,7 @@
         make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }
           : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
       { re: /^CARDNAME attacks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustAttack' }, auto: true },
-      { re: /^CARDNAME blocks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustBlock' }, auto: true },
+      { re: /^(?:CARDNAME|This creature) blocks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustBlock' }, auto: true },
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14159,
-  "gainedCards": 1485,
-  "linesNeeded": 15638,
+  "needed": 14153,
+  "gainedCards": 1486,
+  "linesNeeded": 15630,
   "linesGained": 1847,
   "gained": {
-   "all": 1485,
+   "all": 1486,
    "top2000": 53,
    "stdTop": 12
   },
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 792,
-   "lines": 792,
+   "score": 791,
+   "lines": 791,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -223,25 +223,6 @@
    ]
   },
   {
-   "what": "Target.setTargetTag",
-   "score": 61,
-   "lines": 58,
-   "cards": [
-    "Resourceful Defense",
-    "Tidus, Yuna's Guardian",
-    "Contest of Claws",
-    "Cosmic Hunger",
-    "Incremental Blight",
-    "Fall of Gil-galad",
-    "Iroh, Tea Master",
-    "Phantom Blade",
-    "Friendly Rivalry",
-    "Allies at Last",
-    "Burning Sun's Avatar",
-    "Fall of the Hammer"
-   ]
-  },
-  {
    "what": "custom target",
    "score": 59,
    "lines": 47,
@@ -258,6 +239,25 @@
     "Modify Memory",
     "Unbury",
     "Chaos Mutation"
+   ]
+  },
+  {
+   "what": "Target.setTargetTag",
+   "score": 59,
+   "lines": 56,
+   "cards": [
+    "Resourceful Defense",
+    "Tidus, Yuna's Guardian",
+    "Contest of Claws",
+    "Cosmic Hunger",
+    "Incremental Blight",
+    "Fall of Gil-galad",
+    "Iroh, Tea Master",
+    "Phantom Blade",
+    "Friendly Rivalry",
+    "Allies at Last",
+    "Burning Sun's Avatar",
+    "Bioshift"
    ]
   },
   {
@@ -6515,19 +6515,6 @@
    ]
   },
   {
-   "what": "PutOnLibrarySourceEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Champion of Stray Souls",
-    "Soaring Hope",
-    "Thalakos Mistfolk",
-    "Fencer Clique",
-    "Saprazzan Outrigger",
-    "Wayward Soul"
-   ]
-  },
-  {
    "what": "BecomesTappedAttachedTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -7461,6 +7448,18 @@
     "Borrowing the East Wind",
     "Thunder of Hooves"
    ]
+  },
+  {
+   "what": "attack with 2 or more",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Craig Boone, Novac Guard",
+    "Spinneret and Spiderling",
+    "Master's Guidance",
+    "Tide Skimmer",
+    "Path of Mettle // Metzali, Tower of Triumph"
+   ]
   }
  ],
  "sole": [
@@ -7596,8 +7595,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 48,
-   "cards": 48,
+   "score": 47,
+   "cards": 47,
    "names": [
     "Contest of Claws",
     "Cosmic Hunger",
@@ -10920,19 +10919,6 @@
    ]
   },
   {
-   "what": "PutOnLibrarySourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Champion of Stray Souls",
-    "Soaring Hope",
-    "Thalakos Mistfolk",
-    "Fencer Clique",
-    "Saprazzan Outrigger",
-    "Wayward Soul"
-   ]
-  },
-  {
    "what": "CantBlockCreaturesSourceEffect",
    "score": 6,
    "cards": 6,
@@ -11244,6 +11230,18 @@
     "Opaline Sliver",
     "Illuminator Virtuoso",
     "Fugitive Druid"
+   ]
+  },
+  {
+   "what": "(verify) condition lost",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Blowfly Infestation",
+    "Grakmaw, Skyclave Ravager",
+    "Hope-Ender Coatl",
+    "Sandman's Quicksand",
+    "Earth Surge"
    ]
   }
  ]

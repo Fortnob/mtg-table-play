@@ -7513,4 +7513,30 @@ module.exports = (test) => {
     t.ok(f, 'a Forest on the battlefield');
     t.eq(T.g.powerOf(f), 4); t.ok(T.g.hasKw(f, 'reach'));
   });
+
+  test('Fall of the Hammer: another target creature, and not the same one twice', (mk, t) => {
+    t.auto('Fall of the Hammer');
+    const T = mk();
+    const giant = T.bf('A', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1R');
+    let refused = false;
+    try { T.cast('A', T.hand('A', 'Fall of the Hammer'), { targets: [giant.id, giant.id] }); } catch (err) { refused = true; }
+    t.ok(refused, 'the same creature twice is refused');
+    T.cast('A', T.hand('A', 'Fall of the Hammer'), { targets: [giant.id, bear.id] });
+    t.eq(bear.zone, 'graveyard', 'its own other creature is fair game');
+  });
+
+  test("A bite at a creature you don't control asks for an opponent's", (mk, t) => {
+    const card = { id: 'probe-bite', name: 'Probe Bite', type_line: 'Sorcery', mana_cost: '{G}', cmc: 1, colors: ['G'], layout: 'normal',
+      oracle_text: "Target creature you control deals damage equal to its power to target creature you don't control.", keywords: [] };
+    const spec = engine().oracle.analyze(card).abilities[0].effects[0].targets[1];
+    t.eq(spec.controller, 'opponent');
+  });
+
+  test('Watchdog blocks each combat if able', (mk, t) => {
+    t.auto('Watchdog');
+    const T = mk();
+    const w = T.bf('A', 'Watchdog');
+    t.ok(T.g._staticOp(w, 'mustBlock'));
+  });
 };
