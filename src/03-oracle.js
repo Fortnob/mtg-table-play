@@ -513,7 +513,9 @@
       oracle_text: text, keywords: [], layout: 'token' });
     // triggered and activated abilities: the engine adds either to the permanent's own
     return !!(probe && probe.fullyAutomated && probe.abilities.length &&
-      probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated'));
+      probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated' ||
+        // a standing rule that works through the card itself (enters with counters, enters tapped) can't be handed over
+        (ab.kind === 'static' && !JSON.stringify(ab.effects || []).includes('"op":"noop"') && !(ab.effects || []).some(e => e && /^etb|^enchant$/.test(e.op || '')))));
   }
 
   /* When a spell may be cast: the words after "Cast this spell only".

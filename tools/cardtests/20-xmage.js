@@ -8535,4 +8535,27 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 18);
   });
+
+  test('Inspiring Leader: a granted standing rule works from the commander', (mk, t) => {
+    t.auto('Inspiring Leader');
+    const T = mk();
+    T.bf('A', 'Inspiring Leader');
+    const cmd = T.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+    T.mana('A', '1W');
+    T.g._createToken('A', { n: 1, pt: '1/1', subtypes: 'Soldier', colorWords: ['white'], keywords: [] });
+    T.g.bumpBoard();
+    const tok = T.bfOf('A').find(o => o.isToken);
+    t.eq(T.g.powerOf(tok), 3);
+    cmd.isCommander = false; T.g.bumpBoard();
+    t.eq(T.g.powerOf(tok), 1, 'not without a commander');
+  });
+
+  test('Sedge Sliver: each Sliver gets +1/+1 with a Swamp', (mk, t) => {
+    t.auto('Sedge Sliver');
+    const T = mk();
+    const s = T.bf('A', 'Sedge Sliver'), m = T.bf('A', 'Muscle Sliver');
+    const p0 = T.g.powerOf(m);
+    T.bf('A', 'Swamp');
+    t.eq(T.g.powerOf(m), p0 + 1); void s;
+  });
 };
