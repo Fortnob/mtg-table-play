@@ -3039,7 +3039,7 @@
         // "an Elf, Warrior, or Tyvar card" is any one of them; "a noncreature, nonland card" is both
         const raw = m[1].trim();
         const filter = (/ (?:or|and\/or) /.test(raw) ? raw.replace(/,? (?:or|and\/or) /g, ' or ').replace(/, /g, ' or ') : raw.replace(/,/g, '')).toLowerCase() || 'any';
-        return Object.assign({ op: 'takeFromLooked', n: 1, filter, to: 'hand', optional: true },
+        return Object.assign({ op: 'takeFromLooked', n: 1, filter, to: 'hand', optional: true, rest: 'keep' },
           m[3] ? { maxPower: +m[3] } : {}, m[4] ? { maxMv: +m[4] } : {});
       } },
     { re: /^You choose an? ([-a-z ]*?)card from it\.?$/i,
@@ -4592,6 +4592,19 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* In the Presence of Ages, Benefaction of Rhonas: "You may put a creature
+       card and/or a land card from among them into your hand. Put the rest
+       into your graveyard." — one of each kind, at most */
+    { re: /^(?:Reveal|Look at) the top (\w+) cards of your library\. You may put an? ([a-z ]+?) card and\/or an? ([a-z ]+?) card from among them into your hand\. Put the rest (into your graveyard|on the bottom of your library in (?:any|a random) order)\.?$/i,
+      make: (m) => {
+        const k = num(m[1]);
+        if (typeof k !== 'number') return null;
+        const toGy = /graveyard/i.test(m[4]);
+        return [{ op: 'lookAt', n: k, keep: 0 },
+          { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'hand', optional: true, rest: 'keep' },
+          { op: 'takeFromLooked', n: 1, filter: m[3].toLowerCase(), to: 'hand', optional: true, rest: 'keep' },
+          toGy ? { op: 'restToGraveyard' } : { op: 'restToBottom', random: /random/i.test(m[4]) }];
+      } },
     /* Kinship: "you may look at the top card of your library. If it shares a
        creature type with this creature, you may reveal it. If you do, …" */
     { re: /^You may look at the top card of your library\. If it shares a creature type with (?:this creature|CARDNAME), you may reveal it\. If you do, (.+)$/i,

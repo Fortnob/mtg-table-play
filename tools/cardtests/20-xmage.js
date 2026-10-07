@@ -8413,4 +8413,18 @@ module.exports = (test) => {
     T.nextTurn('A'); T.toMain('A');
     t.eq(T.life('B'), 18, 'a Faerie does');
   });
+
+  test('In the Presence of Ages: a creature and a land, the rest to the graveyard', (mk, t) => {
+    t.auto('In the Presence of Ages');
+    const T = mk();
+    for (const n of ['Grizzly Bears', 'Forest', 'Shock', 'Hill Giant']) T.top('A', n);
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'In the Presence of Ages'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 2);
+    t.eq(T.zone('A', 'graveyard').filter(o => o.name !== 'In the Presence of Ages').length, 2);
+  });
 };
