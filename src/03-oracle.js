@@ -3008,9 +3008,13 @@
     { re: /^([A-Za-z]+) spells you cast cost \{(\d+)\} less to cast\.?$/i,
       make: (m) => ({ op: 'taxSpells', amount: -(+m[2]), filter: m[1].toLowerCase(), who: 'you' }) },
     // Renata, Called to the Hunt: "CARDNAME's power is equal to your devotion to green."
-    { re: /^(?:CARDNAME|This creature)'?s power is equal to your devotion to (white|blue|black|red|green)\.?$/i,
-      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
-        setPt: { p: { devotion: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }, t: null, keepToughness: true } }) },
+    // Daxos, Blessed by the Sun: "CARDNAME's toughness is equal to your devotion to white."
+    { re: /^(?:CARDNAME|This creature)'?s (power|toughness) is equal to your devotion to (white|blue|black|red|green)\.?$/i,
+      make: (m) => {
+        const dv = { devotion: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[2].toLowerCase()] };
+        return { op: 'continuous', layer: 7, cda: true, scope: { self: true },
+          setPt: /power/i.test(m[1]) ? { p: dv, t: null, keepToughness: true } : { p: null, t: dv } };
+      } },
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: countSpec(m[1], 1), t: null, keepToughness: true } }) },
@@ -5782,6 +5786,9 @@
       filt: () => ({ who: 'you', words: 'permanent' }), extra: { enteredTapped: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
+    // Daxos, Blessed by the Sun: "Whenever another creature you control enters or dies"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
+      event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
       event: 'permEnters', filt: (m) => {
         const f = subjectFilter(m[1]);
@@ -5990,7 +5997,8 @@
     { re: /^At the beginning of your draw step(?:,| )/i, event: 'yourDrawStep' },
     { re: /^At the beginning of combat on your turn(?:,| )/i, event: 'yourCombatBegin' },
     { re: /^At the beginning of each combat(?:,| )/i, event: 'eachCombatBegin' },
-    { re: /^When(?:ever)? a player sacrifices a permanent(?:,| )/i, event: 'anySacrifice' },
+    // Mazirek: "another permanent" — itself, once sacrificed, is no longer there to see it
+    { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes crewed(?: for the first time each turn)?(?:,| )/i, event: 'becomesCrewed', self: true },
@@ -8921,6 +8929,14 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // Mirror Box: "+1/+1 for each other creature you control with the same name as that creature"
+      { re: /^Each nontoken creature you control gets \+1\/\+1 for each other creature you control with the same name as that creature\.?$/i,
+        eff: { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', nontoken: true },
+          pt: { p: { sameNameOthers: true }, t: { sameNameOthers: true } } }, auto: true },
+      // Coat of Arms: "for each other creature on the battlefield that shares at least one creature type with it"
+      { re: /^Each creature gets \+1\/\+1 for each other creature on the battlefield that shares at least one creature type with it\.?$/i,
+        eff: { op: 'continuous', layer: 7, scope: { who: 'all', what: 'creature' },
+          pt: { p: { sharesTypeOthers: true }, t: { sharesTypeOthers: true } } }, auto: true },
       // Iroas, Losheel: "Prevent all (combat) damage that would be dealt to attacking (artifact) creatures you control."
       { re: /^Prevent all (combat )?damage that would be dealt to attacking (artifact )?creatures you control\.?$/i,
         make: (m) => {

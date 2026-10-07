@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14180,
-  "gainedCards": 1482,
-  "linesNeeded": 15669,
+  "needed": 14177,
+  "gainedCards": 1483,
+  "linesNeeded": 15663,
   "linesGained": 1847,
   "gained": {
-   "all": 1482,
-   "top2000": 52,
+   "all": 1483,
+   "top2000": 53,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5197,
-   "lines": 4531,
+   "score": 5189,
+   "lines": 4529,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 899,
-   "lines": 770,
+   "score": 895,
+   "lines": 769,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -4216,18 +4216,6 @@
    ]
   },
   {
-   "what": "sacrifice trigger for ANY",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Mazirek, Kraul Death Priest",
-    "Zodiark, Umbral God",
-    "Fumulus, the Infestation",
-    "Thraximundar",
-    "Mortician Beetle"
-   ]
-  },
-  {
    "what": "MayPay2LifeForColorAbility",
    "score": 8,
    "lines": 5,
@@ -5610,16 +5598,6 @@
     "Teval's Judgment",
     "Vindictive Lich",
     "Survivor's Med Kit"
-   ]
-  },
-  {
-   "what": "DevotionCount.W",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Daxos, Blessed by the Sun",
-    "Reverent Hoplite",
-    "Evangel of Heliod"
    ]
   },
   {
@@ -7471,13 +7449,37 @@
     "Guardian Naga // Banishing Coils",
     "Frodo, Determined Hero"
    ]
+  },
+  {
+   "what": "ExileTargetIfDiesEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Combustion Technique",
+    "Smite the Deathless",
+    "Blitz of the Thunder-Raptor",
+    "Necrotic Wound",
+    "Unnatural Aggression"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Alena, Kessig Trapper",
+    "Traverse Eternity",
+    "Tetsuo, Imperial Champion",
+    "Pummeler for Hire",
+    "Impetuous Protege"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4170,
-   "cards": 3699,
+   "score": 4163,
+   "cards": 3698,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -9840,17 +9842,6 @@
    ]
   },
   {
-   "what": "sacrifice trigger for ANY",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Mazirek, Kraul Death Priest",
-    "Fumulus, the Infestation",
-    "Thraximundar",
-    "Mortician Beetle"
-   ]
-  },
-  {
    "what": "cost reduction shape",
    "score": 7,
    "cards": 4,
@@ -11256,6 +11247,18 @@
     "Serene Master",
     "Goblin Snowman",
     "Wall of Corpses"
+   ]
+  },
+  {
+   "what": "(constructor: statement:loop)",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Lair of the Hydra",
+    "Mind Grind",
+    "Marath, Will of the Wild",
+    "Apocalypse Chime",
+    "City in a Bottle"
    ]
   }
  ]

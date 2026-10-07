@@ -7429,4 +7429,46 @@ module.exports = (test) => {
     t.ok(inc, 'an Incubator');
     t.eq(inc.counters['+1/+1'], 2);
   });
+
+  test('Coat of Arms: +1/+1 for each other creature sharing a type', (mk, t) => {
+    t.auto('Coat of Arms');
+    const T = mk();
+    T.bf('A', 'Coat of Arms');
+    const e1 = T.bf('A', 'Llanowar Elves'), e2 = T.bf('B', 'Elvish Mystic'), bear = T.bf('A', 'Grizzly Bears');
+    t.eq(T.g.powerOf(e1), 2, 'one other Elf, on either side');
+    t.eq(T.g.powerOf(e2), 2);
+    t.eq(T.g.powerOf(bear), 2, 'the Bear shares nothing');
+  });
+
+  test('Mirror Box: +1/+1 for each other creature you control of the same name', (mk, t) => {
+    t.auto('Mirror Box');
+    const T = mk();
+    T.bf('A', 'Mirror Box');
+    const b1 = T.bf('A', 'Grizzly Bears'); T.bf('A', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears');
+    t.eq(T.g.powerOf(b1), 3, 'one other of its name on its side');
+  });
+
+  test('Daxos, Blessed by the Sun: toughness is devotion to white', (mk, t) => {
+    t.auto('Daxos, Blessed by the Sun');
+    const T = mk();
+    const d = T.bf('A', 'Daxos, Blessed by the Sun');
+    T.bf('A', 'Savannah Lions');
+    t.eq(T.g.toughnessOf(d), T.g.devotionOf('A', 'W'));
+    t.eq(T.g.powerOf(d), 2);
+    const life0 = T.life('A');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Savannah Lions'));
+    T.resolve();
+    t.eq(T.life('A'), life0 + 1, 'another creature entered');
+  });
+
+  test('Mazirek: a sacrifice puts a counter on each of your creatures', (mk, t) => {
+    t.auto('Mazirek, Kraul Death Priest');
+    const T = mk();
+    const m = T.bf('A', 'Mazirek, Kraul Death Priest'), bear = T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Hill Giant');
+    T.g._sacrificeNow('B', T.bfOf('B').filter(o => o.name === 'Hill Giant'), { controller: 'B' });
+    T.resolve();
+    t.eq(bear.counters['+1/+1'], 1); t.eq(m.counters['+1/+1'], 1);
+  });
 };

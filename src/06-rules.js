@@ -8117,6 +8117,25 @@
       if (typeof v === 'number') return v;
       // Allosaurus Rider: "equal to 1 plus the number of lands you control"
       if (typeof v === 'object' && v.plus) { const b = Object.assign({}, v); delete b.plus; return this._contValue(b, o, src) + v.plus; }
+      /* Mirror Box: the other creatures of its controller's with its name;
+         Coat of Arms: the other creatures sharing a creature type with it.
+         Worked from printed types, as the layers are still being worked out. */
+      if (typeof v === 'object' && (v.sameNameOthers || v.sharesTypeOthers)) {
+        const printed = (x) => MTG.oracle.analyze(x.card, x.face) || {};
+        const mine = printed(o);
+        const types = (a) => (a.subtypes || []).filter(t => this._isCreatureType(t));
+        const myTypes = types(mine), allTypes = (mine.keywordSet && mine.keywordSet.has('changeling'));
+        let k = 0;
+        for (const x of this.battlefield) {
+          if (x === o || x.phasedOut) continue;
+          const xa = printed(x);
+          if (!xa.isCreature) continue;
+          if (v.sameNameOthers) { if (x.controller === o.controller && x.name === o.name) k++; continue; }
+          const xt = types(xa);
+          if ((allTypes && xt.length) || (xa.keywordSet && xa.keywordSet.has('changeling') && myTypes.length) || xt.some(t => myTypes.includes(t))) k++;
+        }
+        return k * (v.mult || 1);
+      }
       // Renata: "your devotion to green"
       if (typeof v === 'object' && v.devotion) return this.devotionOf((src || o).controller, v.devotion) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
