@@ -6694,4 +6694,42 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 19, 'paid with {R}');
   });
+
+  test('Martyr of Spores: reveal X green cards for +X/+X', (mk, t) => {
+    t.auto('Martyr of Spores');
+    const T = mk();
+    const ms = T.bf('A', 'Martyr of Spores');
+    T.hand('A', 'Grizzly Bears'); T.hand('A', 'Llanowar Elves'); T.hand('A', 'Island');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1');
+    t.no(T.g.activateAbility('A', ms.id, ms.analysis().manaAbilities.length, { x: 3, targets: [{ kind: 'object', id: bear.id }] }), 'only two green cards');
+    T.activate('A', ms, ms.analysis().manaAbilities.length, { x: 2, targets: [bear.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(bear), 4, '+2/+2');
+    t.eq(ms.zone, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, 3, 'revealed, not discarded');
+  });
+
+  test('City of Shadows: exile a creature you control for a storage counter', (mk, t) => {
+    t.auto('City of Shadows');
+    const T = mk();
+    const cs = T.bf('A', 'City of Shadows');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.activate('A', cs, cs.analysis().manaAbilities.length);
+    T.resolve();
+    t.eq(bear.zone, 'exile');
+    t.eq(cs.counters.storage || 0, 1);
+  });
+
+  test('Hatchet Bully: a -1/-1 counter on a creature of yours as the price', (mk, t) => {
+    t.auto('Hatchet Bully');
+    const T = mk();
+    const hb = T.bf('A', 'Hatchet Bully');
+    const giant = T.bf('A', 'Hill Giant');
+    T.mana('A', 'R2');
+    T.activate('A', hb, hb.analysis().manaAbilities.length, { targets: ['B'], blightId: giant.id });
+    T.resolve();
+    t.eq(giant.counters['-1/-1'] || 0, 1);
+    t.eq(T.life('B'), 18);
+  });
 };

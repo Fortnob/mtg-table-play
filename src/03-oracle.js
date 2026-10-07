@@ -266,6 +266,9 @@
           ex = { what: 'graveyard', n: WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
         else if (/^the top card of your library$/i.test(what)) ex = { what: 'libraryTop', n: 1 };
         if (ex) { cost.exile = ex; continue; }
+        // City of Shadows: "Exile a creature you control"
+        const own = what.match(/^(a|an|another) ([a-z ]+?) you control$/i);
+        if (own && !/spell/i.test(own[2])) { cost.exileOwn = { filter: own[2].trim().toLowerCase(), another: /another/i.test(own[1]) }; continue; }
         cost.other.push(p);
         continue;
       }
@@ -289,6 +292,25 @@
       if (/^Forage$/i.test(p)) { cost.forage = true; continue; }
       // Karlov Manor: "Collect evidence 3" — cards with that much mana value, out of the graveyard
       if ((m = p.match(/^Collect evidence (\d+)$/i))) { cost.evidence = +m[1]; continue; }
+      // the Martyrs: "Reveal X green cards from your hand" — shown, and kept
+      if ((m = p.match(/^Reveal (X|a|an|one|two|three|\d+) ([a-z ]+?) cards? from your hand$/i))) {
+        cost.revealHand = { n: m[1] === 'X' ? 'X' : WORDN(m[1].toLowerCase()), filter: m[2].trim().toLowerCase() };
+        continue;
+      }
+      // City of Shadows: "Exile a creature you control"
+      if ((m = p.match(/^Exile (a|an|another) ([a-z ]+?) you control$/i)) && !/spell/i.test(m[2])) {
+        cost.exileOwn = { filter: m[2].trim().toLowerCase(), another: /another/i.test(m[1]) };
+        continue;
+      }
+      // Void Attendant: a Processor's price as a cost
+      if (/^Put a card an opponent owns from exile into that player'?s graveyard$/i.test(p)) { cost.process = 1; continue; }
+      // Hatchet Bully: "Put a -1/-1 counter on a creature you control" is blight 1
+      if (/^Put a -1\/-1 counter on a creature you control$/i.test(p)) { cost.blight = (cost.blight || 0) + 1; continue; }
+      // Fain, the Broker: "Remove a counter from a creature you control"
+      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact) you control$/i))) {
+        cost.removeCounterFrom = { filter: m[2].toLowerCase(), kind: m[1] ? '+1/+1' : null };
+        continue;
+      }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {

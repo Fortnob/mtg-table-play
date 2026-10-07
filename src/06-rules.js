@@ -5349,6 +5349,11 @@
       this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
       return o;
     }
+    /** Permanents of a player's with a counter to remove for a cost: the least valuable first. */
+    _counterCostPool(pid, spec) {
+      return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._cardFitsWords(x, spec.filter || 'permanent') &&
+        (spec.kind ? Number(x.counters[spec.kind]) > 0 : Object.values(x.counters || {}).some(v => Number(v) > 0))));
+    }
     /** Collect evidence: the mana value there is to exile from a graveyard. */
     _evidenceTotal(pid, self) {
       return this.zones[pid].graveyard.filter(c => c !== self).reduce((k, c) => k + ((c.card && c.card.cmc) || 0), 0);
@@ -5618,6 +5623,13 @@
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
       if (cost.forage && !this._canForage(pid, self)) return 'Nothing to forage: no Food, and fewer than three cards in your graveyard.';
       if (cost.evidence && this._evidenceTotal(pid, self) < cost.evidence) return `Not enough evidence: cards with total mana value ${cost.evidence} are needed in your graveyard.`;
+      if (cost.revealHand) {
+        const need = this._costCount(cost.revealHand.n, opts);
+        if (this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).length < need) return `Not enough ${cost.revealHand.filter} cards in your hand to reveal.`;
+      }
+      if (cost.exileOwn && !this.battlefield.some(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter))) return `No ${cost.exileOwn.filter} of yours to exile.`;
+      if (cost.process && this._processPool(pid).length < cost.process) return 'No card an opponent owns in exile.';
+      if (cost.removeCounterFrom && !this._counterCostPool(pid, cost.removeCounterFrom).length) return 'No counter to remove.';
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
@@ -5718,6 +5730,31 @@
       if (cost.forage) this._forageAuto(pid, self);
       // Collect evidence: the fewest cards that add up
       if (cost.evidence) this._collectEvidence(pid, cost.evidence, self);
+      // the Martyrs: shown, and kept
+      if (cost.revealHand) {
+        const need = this._costCount(cost.revealHand.n, opts);
+        const shown = this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).slice(0, need);
+        if (shown.length) this.logEvent('rules', `${this.player(pid).name} reveals ${shown.map(c => c.name).join(', ')}.`);
+      }
+      // City of Shadows: the creature that matters least
+      if (cost.exileOwn) {
+        const pool = this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter));
+        const named = (opts.exileIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)[0];
+        const x = named || this._cheapestFirst(pool)[0];
+        if (x) { if (item) item.exiledCost = { id: x.id, name: x.name, power: this.powerOf(x), mv: (x.card && x.card.cmc) || 0 }; this.moveObject(x, 'exile'); this.logEvent('exile', `${this.player(pid).name} exiles ${x.name}.`); }
+      }
+      // Void Attendant: one card an opponent owns, from exile to its owner's graveyard
+      if (cost.process) for (const c of this._processPool(pid).slice(0, cost.process)) this.moveObject(c, 'graveyard');
+      // Fain: a counter off a creature of yours
+      if (cost.removeCounterFrom) {
+        const x = this._counterCostPool(pid, cost.removeCounterFrom)[0];
+        if (x) {
+          const k = cost.removeCounterFrom.kind || Object.keys(x.counters).find(q => Number(x.counters[q]) > 0);
+          x.counters[k] -= 1; if (x.counters[k] <= 0) delete x.counters[k];
+          x._chr = null; this.bumpBoard();
+          this.logEvent('counters', `A ${k} counter is removed from ${x.name}.`);
+        }
+      }
       /* Behold: one you control or one from your hand, shown. "And exile it"
          takes it away, held by this card for "return the exiled card". */
       if (cost.behold) {

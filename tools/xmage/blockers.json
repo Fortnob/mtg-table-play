@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14420,
+  "needed": 14409,
   "gainedCards": 1519,
-  "linesNeeded": 16001,
+  "linesNeeded": 15990,
   "linesGained": 1894,
   "gained": {
    "all": 1519,
@@ -1581,19 +1581,6 @@
    ]
   },
   {
-   "what": "ExileTargetCost",
-   "score": 15,
-   "lines": 6,
-   "cards": [
-    "The Soul Stone",
-    "Altar of Bhaal // Bone Offering",
-    "Curie, Emergent Intelligence",
-    "The War Games",
-    "City of Shadows",
-    "Wormfang Drake"
-   ]
-  },
-  {
    "what": "owner of a permanent",
    "score": 15,
    "lines": 12,
@@ -1854,24 +1841,6 @@
    ]
   },
   {
-   "what": "RemoveCounterCost",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Tekuthal, Inquiry Dominus",
-    "Scholar of New Horizons",
-    "Fain, the Broker",
-    "O'aka, Traveling Merchant",
-    "Sanctuary Warden",
-    "Hexavus",
-    "Soul Diviner",
-    "Xavier Sal, Infested Captain",
-    "Tayam, Luminous Enigma",
-    "Overseer of Vault 76",
-    "Chisei, Heart of Oceans"
-   ]
-  },
-  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 14,
    "lines": 11,
@@ -2097,6 +2066,17 @@
    ]
   },
   {
+   "what": "ExileTargetCost",
+   "score": 13,
+   "lines": 4,
+   "cards": [
+    "The Soul Stone",
+    "Curie, Emergent Intelligence",
+    "The War Games",
+    "Wormfang Drake"
+   ]
+  },
+  {
    "what": "damage affecting the defending player",
    "score": 13,
    "lines": 10,
@@ -2128,6 +2108,23 @@
     "Brazen Cannonade",
     "Megatron, Tyrant // Megatron, Destructive Force",
     "Kirri, Talented Sprout"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 13,
+   "lines": 10,
+   "cards": [
+    "Tekuthal, Inquiry Dominus",
+    "Scholar of New Horizons",
+    "O'aka, Traveling Merchant",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain",
+    "Tayam, Luminous Enigma",
+    "Overseer of Vault 76",
+    "Chisei, Heart of Oceans"
    ]
   },
   {
@@ -7063,18 +7060,6 @@
    ]
   },
   {
-   "what": "modal activated ability",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Bow of Nylea",
-    "Power Conduit",
-    "Lobelia, Defender of Bag End",
-    "Ransom Note",
-    "Pyramids"
-   ]
-  },
-  {
    "what": "TheRingTemptsYouEffect",
    "score": 5,
    "lines": 5,
@@ -7537,6 +7522,18 @@
     "Kalemne, Disciple of Iroas",
     "Kelsien, the Plague",
     "Azula, Ruthless Firebender"
+   ]
+  },
+  {
+   "what": "DoUnlessControllerPaysEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Rush of Inspiration // Crackling Falls",
+    "Magmatic Sprinter",
+    "Psychic Allergy",
+    "Goblin Flotilla",
+    "Treacherous Vampire"
    ]
   }
  ],
@@ -9126,19 +9123,6 @@
    ]
   },
   {
-   "what": "RemoveCounterCost",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Scholar of New Horizons",
-    "Fain, the Broker",
-    "O'aka, Traveling Merchant",
-    "Sanctuary Warden",
-    "Hexavus",
-    "Soul Diviner"
-   ]
-  },
-  {
    "what": "OpponentControlsPermanentCondition",
    "score": 9,
    "cards": 9,
@@ -9647,6 +9631,19 @@
     "G'raha Tia, Scion Reborn",
     "Krile Baldesion",
     "Baron Strucker, HYDRA Overlord"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Scholar of New Horizons",
+    "O'aka, Traveling Merchant",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain"
    ]
   },
   {
