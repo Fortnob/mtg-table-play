@@ -590,7 +590,7 @@
       });
     }
     // "Whenever this creature attacks, it endures 1": in its own trigger, "it" is itself
-    if (scope === 'self') walk(effects, (e) => { if (e.op === 'endure' && e.scope === 'triggerObject') e.scope = 'self'; });
+    if (scope === 'self') walk(effects, (e) => { if ((e.op === 'endure' || e.op === 'doubleCounters') && e.scope === 'triggerObject') e.scope = 'self'; });
     // "Untap it." in a trigger about another permanent: that one, not this
     /* …unless the sentence before was about this one: "put a +1/+1 counter
        on Gwenna and untap it" */
@@ -1093,7 +1093,7 @@
     { re: /^Untap (?:those|them|these) creatures\.?$/i, make: () => ({ op: 'untapThose' }) },
 
     /* Connive (CR 702.153). */
-    { re: /^(?:It|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
+    { re: /^(?:It|He|She|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, scope: 'self' }) },
     { re: /^(Target creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[2] ? num(m[2]) : 1, targets: [targetSpec(m[1])] }) },
@@ -1824,6 +1824,17 @@
     // Bloodline Bidding: "Return all creature cards of the chosen type from your graveyard to the battlefield."
     { re: /^Return all creature cards of the chosen type from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'massReanimate', filter: 'creature', yours: true, chosenType: true }) },
+    // Seismic Tutelage: "double the number of +1/+1 counters on it" (the creature the trigger is about)
+    { re: /^Double the number of \+1\/\+1 counters on (it|that creature|enchanted creature|equipped creature)\.?$/i,
+      make: (m) => ({ op: 'doubleCounters', kind: '+1/+1', scope: /^(?:enchanted|equipped)/i.test(m[1]) ? 'attached' : 'triggerObject' }) },
+    // Floodchaser: "Target land becomes an Island until end of turn."
+    { re: /^(Target land|Target nonbasic land) becomes an? (Plains|Island|Swamp|Mountain|Forest) until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'becomes', duration: 'eot', eff: { setSubtypes: [m[2]] }, targets: [t] } : null; } },
+    // Endling: "This creature gets +1/-1 or -1/+1 until end of turn."
+    { re: /^(?:This creature|CARDNAME) gets ([+-]\d+)\/([+-]\d+) or ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'modal', count: 1, repeatable: false, modes: [
+        { label: m[1] + '/' + m[2], auto: true, effects: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' }] },
+        { label: m[3] + '/' + m[4], auto: true, effects: [{ op: 'pump', p: pmNum(m[3]), t: pmNum(m[4]), duration: 'eot', scope: 'self' }] }] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -3115,7 +3126,7 @@
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
-    { re: /^(Target creature|Target permanent|Target land|Target artifact|It|That creature|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
+    { re: /^(Target creature|Target permanent|Target land|Target artifact|It|That creature|That permanent|That land|That artifact|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'noUntap', targets: [targetSpec(m[1])] }
         : { op: 'noUntap', scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : 'lastTarget' }) },
     /* "Target creature phases out." */
@@ -8220,7 +8231,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax']);
 
   function parseStatic(line, ctx) {
     /* the Wards: "Enchanted creature has protection from white. This effect
@@ -8404,6 +8415,9 @@
       // Prime Speaker Zegana: the counters are read where it enters (entersWithCounters)
       { re: /^(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
+      // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
+      { re: /^Spells your opponents cast that target (?:this creature|CARDNAME|this permanent) cost \{(\d+)\} more to cast\.?$/i,
+        make: (m) => ({ op: 'targetManaTax', amount: +m[1] }), auto: true },
       // Sunspine Lynx: "Damage can't be prevented."
       { re: /^Damage can'?t be prevented\.?$/i, eff: { op: 'noPreventionAll' }, auto: true },
       // Angelic Destiny: "gets +4/+4, has flying and first strike, and is an Angel in addition to its other types"

@@ -6820,4 +6820,40 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, h2, "not for the opponent's damage");
   });
+
+  test('Icefall Regent: spells aimed at it cost {2} more', (mk, t) => {
+    t.auto('Icefall Regent');
+    const T = mk();
+    const ir = T.bf('B', 'Icefall Regent');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', bolt.id, { targets: [{ kind: 'object', id: ir.id }] }), 'one red is not enough');
+    T.mana('A', '2');
+    T.cast('A', bolt, { targets: [ir.id] });
+    t.eq(ir.zone, 'graveyard', 'three damage kills the 4/3');
+  });
+
+  test('Seismic Tutelage: doubles the counters as the creature attacks', (mk, t) => {
+    t.auto('Seismic Tutelage');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    const st = T.bf('A', 'Seismic Tutelage');
+    st.attachedTo = bear.id; bear.attachments.push(st.id); T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(bear.counters['+1/+1'] || 0, 4);
+  });
+
+  test('Endling: +1/-1 or -1/+1, as you choose', (mk, t) => {
+    t.auto('Endling');
+    const T = mk();
+    const en = T.bf('A', 'Endling');
+    const p0 = T.g.powerOf(en);
+    T.answer('mode', { modes: [1] });
+    T.mana('A', '1');
+    const idx = en.analysis().manaAbilities.length + en.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /or -1\/\+1/.test(x.text));
+    T.activate('A', en, idx);
+    T.resolve();
+    t.eq(T.g.powerOf(en), p0 - 1);
+  });
 };

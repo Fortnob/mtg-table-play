@@ -2489,6 +2489,7 @@
       if (delta) mana = this._addGeneric(mana, delta);
       // Andradite Leech: "Black spells you cast cost {B} more to cast"
       mana += this._costExtraSymbols(o, o.controller || o.owner);
+
       const cut = this.costReductionFor(o, opts);
       if (cut > 0) mana = this._addGeneric(mana, -cut);
       return mana;
@@ -4273,6 +4274,17 @@
       /* A mana price chosen as the additional cost is paid with the rest,
          even for a spell cast without paying its mana cost. */
       if (addPick && addPick.mana) cost = opts.free ? addPick.mana : (cost || '') + addPick.mana;
+      // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
+      if (!opts.free) {
+        let tTax = 0;
+        for (const t of (opts.targets || [])) {
+          const x = this.obj((t && t.id) || t);
+          if (!x || x.zone !== 'battlefield' || x.controller === playerId) continue;
+          const ef = this._staticOp(x, 'targetManaTax');
+          if (ef) tTax += ef.amount || 0;
+        }
+        if (tTax) cost = this._addGeneric(cost || '', tTax);
+      }
       this._payFlags = {};
       /* Convoke, improvise and delve are paid for, not given: with what the
          player chose (checked before any mana goes), or the cheapest there

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14386,
-  "gainedCards": 1519,
-  "linesNeeded": 15957,
+  "needed": 14364,
+  "gainedCards": 1521,
+  "linesNeeded": 15923,
   "linesGained": 1894,
   "gained": {
-   "all": 1519,
+   "all": 1521,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5256,
-   "lines": 4581,
+   "score": 5251,
+   "lines": 4576,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -1562,25 +1562,6 @@
    ]
   },
   {
-   "what": "BecomesBasicLandTargetEffect",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Zombie Trailblazer",
-    "Tidal Warrior",
-    "Streambed Aquitects",
-    "Navigator's Compass",
-    "Unstable Frontier",
-    "Pixie Illusionist",
-    "Gaea's Liege",
-    "Thelonite Monk",
-    "Grixis Illusionist",
-    "Graceful Antelope",
-    "Kukemssa Serpent",
-    "Floodchaser"
-   ]
-  },
-  {
    "what": "owner of a permanent",
    "score": 15,
    "lines": 12,
@@ -2674,25 +2655,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Consulate Surveillance",
-    "Smelted Chargebug",
-    "Emissary of Soulfire",
-    "Multiform Wonder",
-    "Conduit Goblin",
-    "Voltstorm Angel",
-    "Janjeet Sentry"
-   ]
-  },
-  {
    "what": "CompositeCost",
    "score": 12,
    "lines": 12,
@@ -3094,6 +3056,24 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Consulate Surveillance",
+    "Smelted Chargebug",
+    "Emissary of Soulfire",
+    "Conduit Goblin",
+    "Voltstorm Angel",
+    "Janjeet Sentry"
+   ]
+  },
+  {
    "what": "ConditionalReplacementEffect",
    "score": 11,
    "lines": 11,
@@ -3484,22 +3464,6 @@
     "Rangers' Refueler",
     "Boom Scholar",
     "Marshals' Pathcruiser"
-   ]
-  },
-  {
-   "what": "SpellsCostModificationThatTargetSourceEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Charix, the Raging Isle",
-    "Accursed Witch // Infectious Curse",
-    "Icefall Regent",
-    "Syr Elenora, the Discerning",
-    "Spellwild Ouphe",
-    "Pursued Whale",
-    "Elderwood Scion",
-    "Sphinx of New Prahv",
-    "Boreal Elemental"
    ]
   },
   {
@@ -4062,22 +4026,6 @@
    ]
   },
   {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Ojutai, Soul of Winter",
-    "Skyline Cascade",
-    "Fogwalker",
-    "Sudden Storm",
-    "Mana Skimmer",
-    "Stensia Innkeeper",
-    "Samite Alchemist"
-   ]
-  },
-  {
    "what": "TransformsOrEntersTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -4299,6 +4247,22 @@
    ]
   },
   {
+   "what": "BecomesBasicLandTargetEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Navigator's Compass",
+    "Unstable Frontier",
+    "Pixie Illusionist",
+    "Gaea's Liege",
+    "Thelonite Monk",
+    "Grixis Illusionist",
+    "Graceful Antelope",
+    "Kukemssa Serpent",
+    "Cyclopean Giant"
+   ]
+  },
+  {
    "what": "DraftFromSpellbookEffect",
    "score": 9,
    "lines": 9,
@@ -4505,21 +4469,6 @@
    ]
   },
   {
-   "what": "DoubleCountersTargetEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Invigorating Surge",
-    "Sazh Katzroy",
-    "Byrke, Long Ear of the Law",
-    "Fractal Harness",
-    "Visions of Dominance",
-    "Growth Curve",
-    "Seismic Tutelage",
-    "Study the Classics"
-   ]
-  },
-  {
    "what": "keyword MonstrosityAbility",
    "score": 8,
    "lines": 8,
@@ -4592,21 +4541,6 @@
     "Grim Giganotosaurus",
     "Vitality Hunter",
     "Sealock Monster"
-   ]
-  },
-  {
-   "what": "ConniveSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Norman Osborn // Green Goblin",
-    "M.O.D.O.K.",
-    "Kang, Temporal Tyrant",
-    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
-    "Madame Masque",
-    "Obscura Interceptor",
-    "Psychic Pickpocket",
-    "Tiger Shark, Abyssal Hunter"
    ]
   },
   {
@@ -5324,6 +5258,20 @@
     "Wormfang Turtle",
     "Temporal Firestorm",
     "Muse Vessel"
+   ]
+  },
+  {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Kefnet's Monument",
+    "Lorthos, the Tidemaker",
+    "Skyline Cascade",
+    "Fogwalker",
+    "Sudden Storm",
+    "Mana Skimmer",
+    "Samite Alchemist"
    ]
   },
   {
@@ -7530,13 +7478,49 @@
     "Avatar of Hope",
     "Avatar of Will"
    ]
+  },
+  {
+   "what": "Ability.setMayActivate",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Oft-Nabbed Goat",
+    "Soul Ransom",
+    "Detention Vortex",
+    "Volrath's Dungeon",
+    "Personal Incarnation"
+   ]
+  },
+  {
+   "what": "token statement SpiritWorldToken",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Realm of Koh",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Hei Bai, Forest Guardian",
+    "Baboon Spirit",
+    "Lost in the Spirit World"
+   ]
+  },
+  {
+   "what": "RemoveVariableCountersSourceCost",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Hourglass of the Lost",
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Brain in a Jar",
+    "Blademane Baku",
+    "Mercadian Lift"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4213,
-   "cards": 3733,
+   "score": 4210,
+   "cards": 3730,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -8299,19 +8283,6 @@
    ]
   },
   {
-   "what": "BecomesBasicLandTargetEffect",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Zombie Trailblazer",
-    "Tidal Warrior",
-    "Navigator's Compass",
-    "Unstable Frontier",
-    "Pixie Illusionist",
-    "Thelonite Monk"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 13,
    "cards": 10,
@@ -8952,19 +8923,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Consulate Surveillance",
-    "Smelted Chargebug",
-    "Emissary of Soulfire"
-   ]
-  },
-  {
    "what": "MutatesSourceTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -9040,6 +8998,19 @@
     "Kjeldoran Knight",
     "Wall of Shields",
     "Benalish Infantry"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Descent into Avernus",
+    "Slaughter Specialist",
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Pursued Whale",
+    "Elephant Resurgence"
    ]
   },
   {
@@ -9157,6 +9128,19 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Consulate Surveillance",
+    "Smelted Chargebug",
+    "Emissary of Soulfire"
+   ]
+  },
+  {
    "what": "CompositeCost",
    "score": 9,
    "cards": 9,
@@ -9206,19 +9190,6 @@
     "Lobelia Sackville-Baggins",
     "Grim Return",
     "Salvager of Ruin"
-   ]
-  },
-  {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Ojutai, Soul of Winter",
-    "Skyline Cascade",
-    "Fogwalker",
-    "Sudden Storm"
    ]
   },
   {
@@ -9477,18 +9448,6 @@
     "Fascination",
     "Flotsam // Jetsam",
     "Halo-Charged Skaab"
-   ]
-  },
-  {
-   "what": "CreateTokenAllEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Descent into Avernus",
-    "Slaughter Specialist",
-    "Kibo, Uktabi Prince",
-    "Edge Rover",
-    "Elephant Resurgence"
    ]
   },
   {
@@ -9942,6 +9901,19 @@
    ]
   },
   {
+   "what": "BecomesBasicLandTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Navigator's Compass",
+    "Unstable Frontier",
+    "Pixie Illusionist",
+    "Thelonite Monk",
+    "Grixis Illusionist",
+    "Graceful Antelope"
+   ]
+  },
+  {
    "what": "DraftFromSpellbookEffect",
    "score": 8,
    "cards": 8,
@@ -10127,32 +10099,6 @@
    ]
   },
   {
-   "what": "DoubleCountersTargetEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Invigorating Surge",
-    "Sazh Katzroy",
-    "Byrke, Long Ear of the Law",
-    "Visions of Dominance",
-    "Growth Curve",
-    "Seismic Tutelage"
-   ]
-  },
-  {
-   "what": "SpellsCostModificationThatTargetSourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Charix, the Raging Isle",
-    "Icefall Regent",
-    "Syr Elenora, the Discerning",
-    "Spellwild Ouphe",
-    "Elderwood Scion",
-    "Sphinx of New Prahv"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -10215,6 +10161,19 @@
     "Workshop Elders",
     "Stone by Sunlight",
     "Animating Faerie // Bring to Life"
+   ]
+  },
+  {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Kefnet's Monument",
+    "Lorthos, the Tidemaker",
+    "Skyline Cascade",
+    "Fogwalker",
+    "Sudden Storm",
+    "Mana Skimmer"
    ]
   },
   {
@@ -10958,19 +10917,6 @@
    ]
   },
   {
-   "what": "ConniveSourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "M.O.D.O.K.",
-    "Kang, Temporal Tyrant",
-    "Madame Masque",
-    "Obscura Interceptor",
-    "Psychic Pickpocket",
-    "Tiger Shark, Abyssal Hunter"
-   ]
-  },
-  {
    "what": "GainControlAllEffect",
    "score": 6,
    "cards": 6,
@@ -11350,6 +11296,33 @@
    "names": [
     "Hydroelectric Specimen // Hydroelectric Laboratory",
     "Spinerock Tyrant"
+   ]
+  },
+  {
+   "what": "LifeTotalCantChangeControllerEffect",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Flare of Fortitude",
+    "Platinum Emperion"
+   ]
+  },
+  {
+   "what": "ProliferateEffect args",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Ripples of Potential",
+    "Roalesk, Apex Hybrid"
+   ]
+  },
+  {
+   "what": "ColorlessManaAbility with arguments",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Millikin",
+    "Deranged Assistant"
    ]
   }
  ]
