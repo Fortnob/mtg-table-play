@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14699,
+  "needed": 14690,
   "gainedCards": 1522,
-  "linesNeeded": 16325,
+  "linesNeeded": 16309,
   "linesGained": 1904,
   "gained": {
    "all": 1522,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5397,
-   "lines": 4668,
+   "score": 5372,
+   "lines": 4655,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -2758,22 +2758,6 @@
    ]
   },
   {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Fighter Class",
-    "Blacksmith's Talent",
-    "Fortune Teller's Talent",
-    "Sorcerer Class",
-    "Rogue Class",
-    "Ninja Teen",
-    "Bard Class",
-    "Fisher's Talent",
-    "Advanced Reconstruction"
-   ]
-  },
-  {
    "what": "CastFromZonePredicate",
    "score": 12,
    "lines": 12,
@@ -3254,6 +3238,21 @@
     "Pristine Angel",
     "Spare from Evil",
     "Masked Gorgon"
+   ]
+  },
+  {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Blacksmith's Talent",
+    "Fortune Teller's Talent",
+    "Sorcerer Class",
+    "Rogue Class",
+    "Ninja Teen",
+    "Bard Class",
+    "Fisher's Talent",
+    "Advanced Reconstruction"
    ]
   },
   {
@@ -5462,20 +5461,6 @@
    ]
   },
   {
-   "what": "AbilitiesCostReductionControllerEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Inquisitive Glimmer",
-    "Bureau Headmaster",
-    "Bladehold War-Whip",
-    "Éowyn, Lady of Rohan",
-    "Auriok Steelshaper",
-    "Hulk, Gamma Goliath",
-    "Boom Scholar"
-   ]
-  },
-  {
    "what": "granting a loyalty ability",
    "score": 7,
    "lines": 7,
@@ -7405,6 +7390,18 @@
    ]
   },
   {
+   "what": "AbilitiesCostReductionControllerEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Inquisitive Glimmer",
+    "Bladehold War-Whip",
+    "Auriok Steelshaper",
+    "Hulk, Gamma Goliath",
+    "Boom Scholar"
+   ]
+  },
+  {
    "what": "EndTurnEffect",
    "score": 5,
    "lines": 5,
@@ -7622,8 +7619,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4320,
-   "cards": 3798,
+   "score": 4301,
+   "cards": 3791,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7687,8 +7684,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 170,
-   "cards": 158,
+   "score": 171,
+   "cards": 159,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -8702,6 +8699,19 @@
    ]
   },
   {
+   "what": "token statement MutagenToken",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Michelangelo, Weirdness to 11",
+    "Mutagen Man, Living Ooze",
+    "April O'Neil, Human Element",
+    "Roadkill Rodney",
+    "Mona Lisa, Ever Adaptable",
+    "Ooze Spill"
+   ]
+  },
+  {
    "what": "target count 1-2",
    "score": 12,
    "cards": 12,
@@ -8836,6 +8846,18 @@
    ]
   },
   {
+   "what": "ReturnCardChosenFromGraveyardEffect",
+   "score": 11,
+   "cards": 5,
+   "names": [
+    "Overlord of the Balemurk",
+    "Teval, the Balanced Scale",
+    "Blossoming Tortoise",
+    "Port of Karfell",
+    "Cruel Ultimatum"
+   ]
+  },
+  {
    "what": "GainAbilityControllerEffect",
    "score": 11,
    "cards": 11,
@@ -8937,19 +8959,6 @@
     "Colfenor, the Last Yew",
     "Basri's Lieutenant",
     "Slurrk, All-Ingesting"
-   ]
-  },
-  {
-   "what": "token statement MutagenToken",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Michelangelo, Weirdness to 11",
-    "April O'Neil, Human Element",
-    "Roadkill Rodney",
-    "Mona Lisa, Ever Adaptable",
-    "Ooze Spill",
-    "Genghis Frog"
    ]
   },
   {
@@ -9101,17 +9110,6 @@
     "Omni-Changeling",
     "Mocking Doppelganger",
     "Wall of Stolen Identity"
-   ]
-  },
-  {
-   "what": "ReturnCardChosenFromGraveyardEffect",
-   "score": 10,
-   "cards": 4,
-   "names": [
-    "Overlord of the Balemurk",
-    "Teval, the Balanced Scale",
-    "Port of Karfell",
-    "Cruel Ultimatum"
    ]
   },
   {

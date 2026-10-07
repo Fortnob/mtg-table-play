@@ -7903,7 +7903,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod']);
 
   function parseStatic(line, ctx) {
     /* the Wards: "Enchanted creature has protection from white. This effect
@@ -8044,6 +8044,30 @@
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
+      /* Training Grounds, Suppression Field, Power Artifact: what activated
+         abilities cost, a few mana either way. "Can't reduce the mana in that
+         cost to less than one mana" keeps one. */
+      { re: /^(?:Each )?activated abilities of ([a-z ]+?) cost \{(\d+)\} (less|more) to activate( unless they'?re mana abilities)?\.(?: This effect can'?t reduce the mana in that cost to less than one mana\.)?$/i,
+        make: (m) => {
+          if (/graveyard|chosen name/i.test(m[1])) return null;
+          const scope = /^enchanted (creature|artifact|permanent)$/i.test(m[1]) ? { attached: true, what: m[1].split(' ')[1].toLowerCase() } : scopeOf(m[1]);
+          if (!scope) return null;
+          return { op: 'abilityCostMod', scope, amount: (+m[2]) * (/less/i.test(m[3]) ? -1 : 1), nonMana: !!m[4], minOne: /less than one mana/i.test(m[0]) };
+        }, auto: true },
+      { re: /^Enchanted (artifact|creature|permanent)'s activated abilities cost \{(\d+)\} (less|more) to activate\.(?: This effect can'?t reduce the mana in that cost to less than one mana\.)?$/i,
+        make: (m) => ({ op: 'abilityCostMod', scope: { attached: true, what: m[1].toLowerCase() }, amount: (+m[2]) * (/less/i.test(m[3]) ? -1 : 1),
+          minOne: /less than one mana/i.test(m[0]) }), auto: true },
+      { re: /^Activated abilities cost \{(\d+)\} more to activate unless they'?re mana abilities\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', scope: { who: 'all', what: 'permanent' }, amount: +m[1], nonMana: true }), auto: true },
+      // Zirda: "Abilities you activate that aren't mana abilities cost {2} less to activate."
+      { re: /^Abilities you activate that aren'?t mana abilities cost \{(\d+)\} less to activate\.(?: This effect can'?t reduce the mana in that cost to less than one mana\.)?$/i,
+        make: (m) => ({ op: 'abilityCostMod', who: 'you', amount: -(+m[1]), nonMana: true, minOne: /less than one mana/i.test(m[0]) }), auto: true },
+      // Fighter Class, Arms Scavenger: "Equip abilities you activate cost {1} less to activate."
+      { re: /^Equip abilities you activate cost \{(\d+)\} less to activate\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', who: 'you', equip: true, amount: -(+m[1]) }), auto: true },
+      // Eidolon of Obstruction: "Loyalty abilities of planeswalkers your opponents control cost {1} more to activate."
+      { re: /^Loyalty abilities of planeswalkers your opponents control cost \{(\d+)\} more to activate\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', scope: { who: 'opponents', what: 'planeswalker' }, loyalty: true, amount: +m[1] }), auto: true },
       /* Blazing Archon, Reverence, Spectral Grasp: "Creatures with power 2 or
          less can't attack you", "…or planeswalkers you control" */
       { re: /^(.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,

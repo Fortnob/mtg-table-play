@@ -5955,4 +5955,32 @@ module.exports = (test) => {
     t.eq(T.life('A'), 17, '3 life paid');
     t.eq(T.zone('A', 'graveyard').length, 2, 'one of three milled came to hand');
   });
+
+  test('Training Grounds: creature abilities cost {2} less, but not below one mana', (mk, t) => {
+    t.auto('Training Grounds');
+    const T = mk();
+    T.bf('A', 'Training Grounds');
+    const wb = T.bf('A', 'Walking Ballista');
+    const sd = T.bf('A', 'Shivan Dragon');
+    const theirs = T.bf('B', 'Walking Ballista');
+    const abOf = (o) => o.analysis().abilities.find(x => x.kind === 'activated' && x.cost && x.cost.mana);
+    t.eq(T.g._abilityMana(wb, abOf(wb)), '{2}', '{4} becomes {2}');
+    t.eq(T.g._abilityMana(sd, abOf(sd)), '{R}', '{R} stays');
+    t.eq(T.g._abilityMana(theirs, abOf(theirs)), '{4}', "not the opponent's");
+    wb.counters['+1/+1'] = 0;
+    T.mana('A', '2');
+    T.activate('A', wb, wb.analysis().manaAbilities.length + wb.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').indexOf(abOf(wb)));
+    t.eq(wb.counters['+1/+1'] || 0, 1, 'activated for {2}');
+  });
+
+  test('Suppression Field: {2} more for abilities that are not mana abilities', (mk, t) => {
+    t.auto('Suppression Field');
+    const T = mk();
+    T.bf('B', 'Suppression Field');
+    const ps = T.bf('A', 'Prodigal Sorcerer');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const ab = ps.analysis().abilities.find(x => x.kind === 'activated');
+    t.eq(T.g._abilityMana(ps, ab), '{2}');
+    t.eq(T.g._abilityMana(elf, elf.analysis().manaAbilities[0]), '', 'mana abilities untouched');
+  });
 };

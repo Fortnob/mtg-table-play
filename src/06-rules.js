@@ -5710,7 +5710,41 @@
         }
         mana = (generic > 0 ? '{' + generic + '}' : '') + rest.map(x => '{' + x + '}').join('');
       }
-      return mana;
+      return this._abilityCostMods(o, ab, mana);
+    }
+
+    /** Training Grounds, Suppression Field: standing changes to what an activated ability costs. */
+    _abilityCostMods(o, ab, mana) {
+      if (!o || !ab) return mana;
+      let d = 0, minOne = false;
+      const oa = o.analysis() || {};
+      for (const src of this.battlefield) {
+        if (src.phasedOut) continue;
+        const sa = src.analysis();
+        if (!sa) continue;
+        for (const sab of sa.abilities || []) {
+          if (sab.kind !== 'static') continue;
+          for (const e0 of sab.effects || []) {
+            for (const e of (e0 && e0.op === 'sequence' ? e0.list || [] : [e0])) {
+              if (!e || e.op !== 'abilityCostMod') continue;
+              if (e.nonMana && ab.kind === 'mana') continue;
+              if (e.equip && !/^Equip\b/i.test(ab.text || '')) continue;
+              if (e.loyalty && ab.kind !== 'loyalty') continue;
+              if (e.who === 'you' && o.controller !== src.controller) continue;
+              if (e.scope && e.scope.attached) { if (src.attachedTo !== o.id) continue; }
+              else if (e.scope && (o.zone !== 'battlefield' || !this._scopeHit(e.scope, o, oa, src.controller, src))) continue;
+              d += Number(e.amount) || 0;
+              if (e.minOne && e.amount < 0) minOne = true;
+            }
+          }
+        }
+      }
+      if (!d) return mana;
+      if (d > 0) return this._addGeneric(mana, d);
+      // "can't reduce the mana in that cost to less than one mana"
+      const before = MANA.cmc(mana || '');
+      const cut = minOne ? Math.max(0, Math.min(-d, before - 1)) : -d;
+      return cut > 0 ? this._addGeneric(mana, -cut) : mana;
     }
 
     _payAbilityCost(playerId, o, ab, opts) {
