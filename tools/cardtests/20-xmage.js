@@ -6962,4 +6962,37 @@ module.exports = (test) => {
     T.g.changeLife(T.player('A'), 5);
     t.eq(T.life('A'), 20);
   });
+
+  test('Cost picks: the player names the evidence, and the view offers it', (mk, t) => {
+    const T = mk();
+    const fr = T.bf('A', 'Forensic Researcher');
+    const g1 = T.grave('A', 'Hill Giant'), g2 = T.grave('A', 'Grizzly Bears'), g3 = T.grave('A', 'Llanowar Elves');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const idx = fr.analysis().manaAbilities.length + fr.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Collect evidence/.test(x.text));
+    const offer = (T.g.viewFor('A').costPicks || {})[fr.id] || [];
+    t.ok(offer.some(r => r.kind === 'evidence' && r.index === idx && r.key === 'evidenceIds' && r.candidates.length === 3), 'offered');
+    T.activate('A', fr, idx, { targets: [bear.id], evidenceIds: [g2.id, g3.id] });
+    T.resolve();
+    t.eq(g2.zone, 'exile'); t.eq(g3.zone, 'exile'); t.eq(g1.zone, 'graveyard', 'the Giant kept');
+  });
+
+  test('Cost picks: too little evidence named, the table makes it up', (mk, t) => {
+    const T = mk();
+    const fr = T.bf('A', 'Forensic Researcher');
+    const g1 = T.grave('A', 'Hill Giant'), g3 = T.grave('A', 'Llanowar Elves');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const idx = fr.analysis().manaAbilities.length + fr.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Collect evidence/.test(x.text));
+    T.activate('A', fr, idx, { targets: [bear.id], evidenceIds: [g3.id] });
+    T.resolve();
+    t.eq(g1.zone, 'exile'); t.eq(g3.zone, 'graveyard');
+  });
+
+  test('Cost picks: which creature to exile, which green cards to reveal', (mk, t) => {
+    const T = mk();
+    const cs = T.bf('A', 'City of Shadows');
+    const b1 = T.bf('A', 'Grizzly Bears'), giant = T.bf('A', 'Hill Giant');
+    T.activate('A', cs, cs.analysis().manaAbilities.length, { exileIds: [giant.id] });
+    T.resolve();
+    t.eq(giant.zone, 'exile'); t.eq(b1.zone, 'battlefield');
+  });
 };

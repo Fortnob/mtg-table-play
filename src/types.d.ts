@@ -169,8 +169,20 @@ declare namespace MTG {
     candidates?: Id[];
     /** the most of the cost they can pay between them */
     max?: number;
+    /** a cost the table would otherwise pick (evidence, forage, reveal, behold, blight…): the cast or activate
+        option the chosen ids go in (evidenceIds, forageExileIds, revealIds, beholdIds, exileIds, counterFromId, blightId) */
+    key?: string;
+    /** how many to choose (for evidence, the total mana value wanted), or 'X' for the X paid */
+    need?: number | 'X';
+    /** forage: the Foods that could be sacrificed instead, answered in `foodKey` (forageFoodId) */
+    foods?: Id[];
+    foodKey?: string;
+    /** remove a counter: the option naming which kind (counterKind) */
+    kindKey?: string;
     [k: string]: any;
   }
+  /** The same offer for an activated ability of one of your permanents. */
+  interface CostPick extends ExtraCost { index: number; key: string; candidates: Id[] }
 
   interface GameConfig {
     formatId: string;
@@ -218,6 +230,8 @@ declare namespace MTG {
     fusable?: Id[];
     uses: Record<Id, AltUse[]>;
     extras: Record<Id, ExtraCost[]>;
+    /** your permanents' activated abilities: what could pay the costs the table would otherwise pick */
+    costPicks?: Record<Id, CostPick[]>;
     monarch: PlayerId | null;
     initiative: PlayerId | null;
     isDay: boolean | null;

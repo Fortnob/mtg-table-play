@@ -5379,16 +5379,45 @@
       return this.zones[pid].graveyard.filter(c => c !== self).reduce((k, c) => k + ((c.card && c.card.cmc) || 0), 0);
     }
     /** Exile cards with total mana value N or more: the biggest first, so as few go as can. */
-    _collectEvidence(pid, need, self) {
+    _collectEvidence(pid, need, self, ids) {
       const pool = this.zones[pid].graveyard.filter(c => c !== self).sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0));
+      const mv = (c) => (c.card && c.card.cmc) || 0;
       let k = 0;
-      const picks = [];
-      for (const c of pool) { if (k >= need) break; picks.push(c); k += (c.card && c.card.cmc) || 0; }
+      let picks = [];
+      // the cards the player named, if they add up; the biggest first otherwise
+      const named = (ids || []).map(id => pool.find(c => c.id === id)).filter((c, i, l) => c && l.indexOf(c) === i);
+      if (named.length && named.reduce((t, c) => t + mv(c), 0) >= need) { picks = named; k = named.reduce((t, c) => t + mv(c), 0); }
+      else for (const c of pool) { if (k >= need) break; picks.push(c); k += mv(c); }
       if (k < need) return false;
       for (const c of picks) this.moveObject(c, 'exile');
       this.logEvent('exile', `${this.player(pid).name} collects evidence ${need}: ${picks.map(c => c.name).join(', ')}.`);
       this._fire('youCollectEvidence', pid, { playerId: pid });
       return true;
+    }
+    /** What could pay the costs the table would otherwise pick for the player, and the opts key each answer goes in. */
+    _costPickOffers(pid, self, cost) {
+      if (!cost) return [];
+      const out = [];
+      const choices = cost.choice ? cost.choice : [cost];
+      for (const c of choices) {
+        if (!c) continue;
+        if (c.evidence) out.push({ kind: 'evidence', label: 'Collect evidence ' + c.evidence, key: 'evidenceIds', need: c.evidence,
+          candidates: this.zones[pid].graveyard.filter(x => x !== self).map(x => x.id) });
+        if (c.forage) out.push({ kind: 'forage', label: 'Forage', key: 'forageExileIds', need: 3, foodKey: 'forageFoodId',
+          candidates: this.zones[pid].graveyard.filter(x => x !== self).map(x => x.id),
+          foods: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._hasSubtype(x, 'Food')).map(x => x.id) });
+        if (c.revealHand) out.push({ kind: 'reveal', label: 'Reveal ' + c.revealHand.filter + ' cards', key: 'revealIds', need: c.revealHand.n,
+          candidates: this.zones[pid].hand.filter(x => x !== self && this._cardFitsWords(x, c.revealHand.filter)).map(x => x.id) });
+        if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
+          candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
+        if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
+          candidates: this._counterCostPool(pid, c.removeCounterFrom).map(x => x.id) });
+        if (c.blight) out.push({ kind: 'blight', label: 'Blight ' + c.blight, key: 'blightId', need: 1,
+          candidates: this._blightPool(pid).map(x => x.id) });
+        if (c.behold) out.push({ kind: 'behold', label: 'Behold a ' + c.behold.filter, key: 'beholdIds', need: c.behold.n || 1,
+          candidates: this._beholdPool(pid, c.behold, self).map(x => x.id) });
+      }
+      return out;
     }
     /** Forage: a Food to sacrifice, or three cards in the graveyard to exile. */
     _canForage(pid, self) {
@@ -5396,13 +5425,18 @@
       return this.zones[pid].graveyard.filter(c => c !== self).length >= 3;
     }
     /** Forage as a cost: a Food if there is one, otherwise the three cards that matter least. */
-    _forageAuto(pid, self) {
-      const food = this.battlefield.find(o => o.controller === pid && !o.phasedOut && this._hasSubtype(o, 'Food'));
+    _forageAuto(pid, self, opts) {
+      opts = opts || {};
+      const foods = this.battlefield.filter(o => o.controller === pid && !o.phasedOut && this._hasSubtype(o, 'Food'));
+      const yard = this.zones[pid].graveyard.filter(c => c !== self);
+      // the player's own pick: forageFoodId, or three forageExileIds
+      const namedFood = opts.forageFoodId && foods.find(o => o.id === opts.forageFoodId);
+      const namedExile = (opts.forageExileIds || []).map(id => yard.find(c => c.id === id)).filter((c, i, l) => c && l.indexOf(c) === i);
+      const food = namedFood || (namedExile.length >= 3 ? null : foods[0]);
       if (food) this._sacrificeNow(pid, [food], null);
       else {
-        const yard = this.zones[pid].graveyard.filter(c => c !== self);
         if (yard.length < 3) return false;
-        for (const c of this._cheapestFirst(yard).slice(0, 3)) this.moveObject(c, 'exile');
+        for (const c of (namedExile.length >= 3 ? namedExile.slice(0, 3) : this._cheapestFirst(yard).slice(0, 3))) this.moveObject(c, 'exile');
         this.logEvent('exile', `${this.player(pid).name} exiles three cards from their graveyard to forage.`);
       }
       this._fire('youForage', pid, { playerId: pid });
@@ -5747,13 +5781,15 @@
         }
       }
       // Forage: a Food if there is one, or three cards out of the graveyard
-      if (cost.forage) this._forageAuto(pid, self);
+      if (cost.forage) this._forageAuto(pid, self, opts);
       // Collect evidence: the fewest cards that add up
-      if (cost.evidence) this._collectEvidence(pid, cost.evidence, self);
+      if (cost.evidence) this._collectEvidence(pid, cost.evidence, self, opts.evidenceIds);
       // the Martyrs: shown, and kept
       if (cost.revealHand) {
         const need = this._costCount(cost.revealHand.n, opts);
-        const shown = this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).slice(0, need);
+        const fits = this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter));
+        const named = (opts.revealIds || []).map(id => fits.find(c => c.id === id)).filter((c, i, l) => c && l.indexOf(c) === i);
+        const shown = (named.length >= need ? named : fits).slice(0, need);
         if (shown.length) this.logEvent('rules', `${this.player(pid).name} reveals ${shown.map(c => c.name).join(', ')}.`);
       }
       // City of Shadows: the creature that matters least
@@ -5767,9 +5803,11 @@
       if (cost.process) for (const c of this._processPool(pid).slice(0, cost.process)) this.moveObject(c, 'graveyard');
       // Fain: a counter off a creature of yours
       if (cost.removeCounterFrom) {
-        const x = this._counterCostPool(pid, cost.removeCounterFrom)[0];
+        const pool = this._counterCostPool(pid, cost.removeCounterFrom);
+        const x = (opts.counterFromId && pool.find(o => o.id === opts.counterFromId)) || pool[0];
         if (x) {
-          const k = cost.removeCounterFrom.kind || Object.keys(x.counters).find(q => Number(x.counters[q]) > 0);
+          const k = cost.removeCounterFrom.kind || (opts.counterKind && Number(x.counters[opts.counterKind]) > 0 ? opts.counterKind : null) ||
+            Object.keys(x.counters).find(q => Number(x.counters[q]) > 0);
           x.counters[k] -= 1; if (x.counters[k] <= 0) delete x.counters[k];
           x._chr = null; this.bumpBoard();
           this.logEvent('counters', `A ${k} counter is removed from ${x.name}.`);
@@ -17141,8 +17179,24 @@
           if (!z) return out;
           for (const o of z.hand.concat(z.command)) {
             // convoke, improvise and delve: what could pay, for the table to offer
-            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o));
+            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null));
             if (ex.length) out[o.id] = ex;
+          }
+          return out;
+        })(),
+        /* The same for the activated abilities of your permanents: for each
+           ability (by the index activateAbility takes), the cards or
+           permanents that could pay a cost the table would otherwise pick. */
+        costPicks: (() => {
+          const out = {};
+          for (const o of this.battlefield) {
+            if (o.controller !== playerId || o.phasedOut) continue;
+            const a = o.analysis();
+            if (!a) continue;
+            const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+            const rows = [];
+            all.forEach((ab, index) => { for (const r of this._costPickOffers(playerId, o, ab.cost || null)) rows.push(Object.assign({ index }, r)); });
+            if (rows.length) out[o.id] = rows;
           }
           return out;
         })(),

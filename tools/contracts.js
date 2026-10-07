@@ -136,7 +136,13 @@ const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str))
 const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
   choose: opt((v, p, out) => ChooseSpec(v, p, out)),
   /* convoke, improvise, delve: what could pay, and how much of the cost at most */
-  candidates: opt(arr(id)), max: opt(nat) });
+  candidates: opt(arr(id)), max: opt(nat),
+  /* a cost the table would otherwise pick (evidence, forage, reveal, behold…): the opts key the
+     answer goes in, how many (or 'X'), and forage's Foods and their key */
+  key: opt(str), need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str) });
+/* The same offer for one activated ability of a permanent, by the index activateAbility takes. */
+const CostPick = obj({ index: nat, kind: str, label: str, key: str, candidates: arr(id),
+  need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str) });
 
 /* ---- questions ---- */
 const ChoiceCard = obj({ id, name: opt(str), card: opt(maybe(Card)) });
@@ -202,7 +208,7 @@ const View = obj({
   over: bool, winners: maybe(arr(id)), mulliganPhase: bool,
   canUndo: bool, undoLabel: maybe(str), holding: bool,
   fullControl: bool, fullControlSticky: bool, yielding: maybe(lit('turn', 'response')),
-  playable: arr(id), uses: rec(arr(AltUse)), extras: rec(arr(ExtraCost)),
+  playable: arr(id), uses: rec(arr(AltUse)), extras: rec(arr(ExtraCost)), costPicks: opt(rec(arr(CostPick))),
   /* split cards in hand: the halves castable now */
   splitFaces: opt(rec(arr(nat))),
   /* split cards with fuse castable with both halves now */
