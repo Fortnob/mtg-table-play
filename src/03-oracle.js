@@ -4384,6 +4384,13 @@
         delete again.targets;
         return [again];
       } },
+    /* Analyze the Pollen: "Search your library for a basic land card. If
+       evidence was collected, instead search your library for a creature or
+       land card. Reveal that card, put it into your hand, then shuffle." */
+    { re: /^Search your library for an? ([a-z ]+?) card\. If (.+?), instead search your library for an? ([a-z ]+?) card\. Reveal that card, put it into your hand, then shuffle\.?$/i,
+      make: (m) => { const cond = condOf(m[2]); return cond ? [{ op: 'ifCond', cond,
+        then: [{ op: 'tutor', n: 1, filter: m[3].toLowerCase(), to: 'hand', prompt: 'Search your library for a ' + m[3].toLowerCase() + ' card.' }],
+        otherwise: [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'hand', prompt: 'Search your library for a ' + m[1].toLowerCase() + ' card.' }] }] : null; } },
     /* Tragic Arrogance: you choose what each player keeps */
     { re: /^For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker\. Then each player sacrifices all other nonland permanents they control\.?$/i,
       make: () => [{ op: 'keepRest', who: 'each', chooser: 'you', types: ['artifact', 'creature', 'enchantment', 'planeswalker'], rest: 'nonland' }] },

@@ -7009,4 +7009,18 @@ module.exports = (test) => {
     T.mana('B', 'R');
     t.no(T.g.castSpell('B', T.hand('B', 'Lightning Bolt').id, { targets: [{ kind: 'object', id: bear.id }] }), 'can no longer be targeted by red');
   });
+
+  test('Analyze the Pollen: a basic land, or with evidence a creature or land', (mk, t) => {
+    t.auto('Analyze the Pollen');
+    const T = mk();
+    T.top('A', 'Forest'); T.top('A', 'Craw Wurm');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Analyze the Pollen'), { payAdditional: false });
+    t.ok(T.zone('A', 'hand').some(c => c.name === 'Forest'), 'no evidence: the Forest');
+    T.grave('A', 'Craw Wurm'); T.grave('A', 'Hill Giant');
+    T.mana('A', 'G');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Craw Wurm').id] }));
+    T.cast('A', T.hand('A', 'Analyze the Pollen'), { payAdditional: true });
+    t.ok(T.zone('A', 'hand').some(c => c.name === 'Craw Wurm'), 'evidence collected: the Wurm');
+  });
 };
