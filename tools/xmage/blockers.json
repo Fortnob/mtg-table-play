@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14813,
+  "needed": 14802,
   "gainedCards": 1532,
-  "linesNeeded": 16473,
+  "linesNeeded": 16461,
   "linesGained": 1921,
   "gained": {
    "all": 1532,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5435,
-   "lines": 4688,
+   "score": 5432,
+   "lines": 4685,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -129,8 +129,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 239,
-   "lines": 206,
+   "score": 238,
+   "lines": 205,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 144,
-   "lines": 135,
+   "score": 143,
+   "lines": 134,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -4697,18 +4697,6 @@
    ]
   },
   {
-   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Eerie Interlude",
-    "Morningtide's Light",
-    "Blizzard Strix",
-    "Roll-Roll-Roll-Roll",
-    "Wiccan, Rising Magician"
-   ]
-  },
-  {
    "what": "AddCreatureTypeAdditionEffect",
    "score": 8,
    "lines": 5,
@@ -5422,21 +5410,6 @@
     "Gnarled Sage",
     "Spinehorn Minotaur",
     "Trench Stalker"
-   ]
-  },
-  {
-   "what": "ExileOpponentsCardFromExileToGraveyardCost",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Void Attendant",
-    "Ruin Processor",
-    "Wasteland Strangler",
-    "Ulamog's Reclaimer",
-    "Mind Raker",
-    "Oracle of Dust",
-    "Murk Strider",
-    "Cryptic Cruiser"
    ]
   },
   {
@@ -7646,13 +7619,36 @@
     "Lightwheel Enhancements",
     "Tsagan, Raider Warlord"
    ]
+  },
+  {
+   "what": "CastFromGraveyardSourceCondition.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Increasing Devotion",
+    "Increasing Savagery",
+    "From Father to Son",
+    "The Final Days",
+    "Secrets of the Key"
+   ]
+  },
+  {
+   "what": "SearchLibraryPutOntoBattlefieldTappedRestInHandEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Nissa's Pilgrimage",
+    "Navigation Orb",
+    "Viewpoint Synchronization",
+    "Flourishing Bloom-Kin"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4342,
-   "cards": 3811,
+   "score": 4339,
+   "cards": 3808,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7677,8 +7673,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 234,
-   "cards": 219,
+   "score": 235,
+   "cards": 220,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7729,8 +7725,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 89,
-   "cards": 89,
+   "score": 88,
+   "cards": 88,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -10254,19 +10250,6 @@
    ]
   },
   {
-   "what": "ExileOpponentsCardFromExileToGraveyardCost",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Void Attendant",
-    "Ruin Processor",
-    "Wasteland Strangler",
-    "Ulamog's Reclaimer",
-    "Mind Raker",
-    "Oracle of Dust"
-   ]
-  },
-  {
    "what": "DraftFromSpellbookEffect",
    "score": 8,
    "cards": 8,
@@ -10277,17 +10260,6 @@
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter",
     "Tireless Angler"
-   ]
-  },
-  {
-   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Eerie Interlude",
-    "Blizzard Strix",
-    "Roll-Roll-Roll-Roll",
-    "Wiccan, Rising Magician"
    ]
   },
   {
@@ -11480,6 +11452,32 @@
     "Tattermunge Witch",
     "Benalish Missionary",
     "Dazzling Beauty"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Greasewrench Goblin",
+    "Marshals' Pathcruiser"
+   ]
+  },
+  {
+   "what": "SearchLibraryAndExileTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Jester's Cap",
+    "Extract",
+    "Sadistic Sacrament",
+    "Rootwater Thief",
+    "Denying Wind",
+    "Supreme Inquisitor"
    ]
   }
  ]

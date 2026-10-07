@@ -1651,6 +1651,9 @@
     { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
     /* Chandra, Flamecaller: "Exile them at the beginning of the next end
        step" — the tokens this just made, each of them */
+    // Ghostway, Eerie Interlude: "Return those cards to the battlefield under their owner's control at the beginning of the next end step."
+    { re: /^Return (?:those cards|the exiled cards|them) to the battlefield under (?:their|its) owner'?s'? control at the beginning of the next end step\.?$/i,
+      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'exiledNow', name: 'Return them at end of turn', effects: [{ op: 'returnThat' }] }) },
     { re: /^(Exile|Sacrifice) (?:them|those (?:creatures|tokens)) at the beginning of the next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'made', name: m[1] + ' them at end of turn',
         effects: [/^exile/i.test(m[1]) ? { op: 'exile', scope: 'thatObject' } : { op: 'sacrificeThat' }] }) },
@@ -4320,6 +4323,9 @@
       make: (m) => ({ sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
+    // the Processors: "put a card an opponent owns from exile into that player's graveyard"
+    { re: /^put (a|one|two|three) cards? (?:an opponent owns|your opponents own) from exile into (?:that player'?s|their owners'?) graveyards?$/i,
+      make: (m) => ({ process: num(m[1]) }) },
     // Academy Rector: "When this creature dies, you may exile it. If you do, …"
     { re: /^exile (?:it|this card|CARDNAME)(?: from your graveyard)?$/i, make: () => ({ exileSelf: true }) },
     { re: /^exile (a|an|one|two|three) ([a-z ]*?)cards? from your graveyard$/i,

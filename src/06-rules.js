@@ -1871,6 +1871,7 @@
       this._lastDamageDealt = 0;
       this._dealtThisWay = [];
       this._madeThisResolution = [];
+      this._exiledNow = [];
       this._lastAffected = null;
       this._lastCopy = null;
       this._lastPut = null;
@@ -5227,6 +5228,12 @@
       this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
       return o;
     }
+    /** Cards opponents own in exile, face up, that a Processor could put into their graveyards. */
+    _processPool(pid) {
+      const out = [];
+      for (const p of this.opponentsOf(pid)) for (const c of this.zones[p.id].exile) if (c.owner === p.id && !c.faceDown) out.push(c);
+      return out;
+    }
     /** The creatures a player could blight. */
     _blightPool(pid) {
       return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this.characteristics(x).isCreature);
@@ -8199,6 +8206,8 @@
         // a Room's doors lock again as it leaves (CR 709.5d)
         if (from === 'battlefield' && o.card.layout === 'split') o.face = 0;
         o._diedCounters = Object.assign({}, o.counters);
+        // what a resolving spell or ability exiles, for "return those cards" after it
+        if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         o.tapped = false; o.damage = 0; o.counters = {};
         o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
@@ -11233,13 +11242,29 @@
             (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
             (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
+            (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
             (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1));
-          if (!able && (pay.removeCounter || pay.blight || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          if (!able && (pay.removeCounter || pay.blight || pay.process || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
+          // the Processors: cards opponents own, from exile to their graveyards
+          if (pay.process) {
+            const pool = this._processPool(ctx.controller);
+            let picks = pool.slice(0, pay.process);
+            if (pool.length > pay.process) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'process', kind: 'objects', zone: 'exile', items: this._chooseItems(pool),
+                min: pay.process, max: pay.process, prompt: `Put ${pay.process === 1 ? 'a card' : pay.process + ' cards'} an opponent owns from exile into its owner's graveyard.` }, 'proc');
+              if (got === SUSPEND) return SUSPEND;
+              picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'exile').slice(0, pay.process);
+            }
+            if (picks.length < pay.process) { this._spliceNext(e.otherwise); break; }
+            for (const c of picks) this.moveObject(c, 'graveyard');
+            this._spliceNext(e.then);
+            break;
+          }
           // Masked Vandal: "you may exile a creature card from your graveyard. If you do, …"
           if (pay.exileGrave) {
             const pool = this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter));
@@ -11586,6 +11611,11 @@
           // "Exile them at the beginning of the next end step": a note for each token just made
           if (e.subject === 'made') {
             for (const id of (this._madeThisResolution || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
+          // Ghostway: each card this exiled
+          if (e.subject === 'exiledNow') {
+            for (const id of (this._exiledNow || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
           const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id)

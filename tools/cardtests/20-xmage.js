@@ -5733,4 +5733,41 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.life('B'), 18);
   });
+
+  test('Processors: Wasteland Strangler puts an exiled card of theirs into the graveyard, then -3/-3', (mk, t) => {
+    t.auto('Wasteland Strangler');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const isl = T.put('B', 'Island', 'exile');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Wasteland Strangler'));
+    t.eq(isl.zone, 'graveyard', 'processed');
+    t.eq(bear.zone, 'graveyard', '-3/-3');
+  });
+
+  test('Processors: nothing of theirs in exile, nothing happens', (mk, t) => {
+    t.auto('Wasteland Strangler');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.put('A', 'Island', 'exile');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Wasteland Strangler'));
+    t.eq(bear.zone, 'battlefield', 'only your own card in exile: no -3/-3');
+  });
+
+  test('Ghostway: your creatures leave, and come back at the next end step', (mk, t) => {
+    t.auto('Ghostway');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    const them = T.bf('B', 'Goblin Piker');
+    T.mana('A', 'W2');
+    T.cast('A', T.hand('A', 'Ghostway'));
+    t.eq(bear.zone, 'exile'); t.eq(elf.zone, 'exile'); t.eq(them.zone, 'battlefield');
+    T.nextTurn('B');
+    t.eq(bear.zone, 'battlefield', 'back'); t.eq(elf.zone, 'battlefield', 'back');
+    t.eq(bear.controller, 'A');
+  });
 };
