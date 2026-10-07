@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14841,
-  "gainedCards": 1530,
-  "linesNeeded": 16502,
+  "needed": 14813,
+  "gainedCards": 1532,
+  "linesNeeded": 16473,
   "linesGained": 1921,
   "gained": {
-   "all": 1530,
-   "top2000": 51,
+   "all": 1532,
+   "top2000": 52,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5443,
-   "lines": 4696,
+   "score": 5435,
+   "lines": 4688,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -72,8 +72,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 792,
-   "lines": 792,
+   "score": 791,
+   "lines": 791,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 328,
-   "lines": 310,
+   "score": 327,
+   "lines": 309,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -2072,25 +2072,6 @@
    ]
   },
   {
-   "what": "TargetsPermanentPredicate",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Pearl-Ear, Imperial Advisor",
-    "Season of Growth",
-    "Avoid Fate",
-    "Legolas, Master Archer",
-    "Fugitive Droid",
-    "Confound",
-    "Ms. Marvel, Kamala Khan",
-    "Intervene",
-    "Fin Fang Foom",
-    "Colleen Wing, Street Samurai",
-    "Vigilant Martyr",
-    "Mockingbird, Ace Agent"
-   ]
-  },
-  {
    "what": "WishEffect",
    "score": 14,
    "lines": 14,
@@ -3244,6 +3225,24 @@
    ]
   },
   {
+   "what": "TargetsPermanentPredicate",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Pearl-Ear, Imperial Advisor",
+    "Season of Growth",
+    "Avoid Fate",
+    "Legolas, Master Archer",
+    "Fugitive Droid",
+    "Ms. Marvel, Kamala Khan",
+    "Fin Fang Foom",
+    "Colleen Wing, Street Samurai",
+    "Mockingbird, Ace Agent",
+    "Hawkeye, Bowslinger",
+    "Ring of Immortals"
+   ]
+  },
+  {
    "what": "LoseGameTargetPlayerEffect",
    "score": 11,
    "lines": 5,
@@ -3565,20 +3564,6 @@
    ]
   },
   {
-   "what": "ManaValueEqualToCountersSourceCountPredicate",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Blast Zone",
-    "Engineered Explosives",
-    "Ratchet Bomb",
-    "Necroplasm",
-    "The Filigree Sylex",
-    "Powder Keg",
-    "Wave of Terror"
-   ]
-  },
-  {
    "what": "CastAsThoughItHadFlashIfConditionAbility",
    "score": 10,
    "lines": 7,
@@ -3604,20 +3589,6 @@
     "Goliath Daydreamer",
     "Harness the Storm",
     "Devoted Grafkeeper // Departed Soulkeeper"
-   ]
-  },
-  {
-   "what": "CardsInOpponentGraveyardCondition.EIGHT",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Sheoldred // The True Scriptures",
-    "Blackbloom Rogue // Blackbloom Bog",
-    "Thieves' Guild Enforcer",
-    "Merfolk Windrobber",
-    "Soaring Thought-Thief",
-    "Tenured Oilcaster",
-    "Nimana Skitter-Sneak"
    ]
   },
   {
@@ -3812,23 +3783,6 @@
     "Fortifying Draught",
     "Nightmare's Thirst",
     "Germinate Recruits"
-   ]
-  },
-  {
-   "what": "unless pays a count",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Spell Stutter",
-    "Mausoleum Wanderer",
-    "Circular Logic",
-    "Countervailing Winds",
-    "Protect the Negotiators",
-    "Evasive Action",
-    "Rakshasa's Disdain",
-    "Lilting Refrain",
-    "Ixidor's Will",
-    "Phantasmal Sphere"
    ]
   },
   {
@@ -4447,22 +4401,6 @@
     "Rubinia Soulsinger",
     "Willow Satyr",
     "Hivis of the Scale"
-   ]
-  },
-  {
-   "what": "CantAttackBlockUnlessConditionSourceEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Sab-Sunen, Luxa Embodied",
-    "The Ancient One",
-    "Ketramose, the New Dawn",
-    "Relic Golem",
-    "Lupine Prototype",
-    "Hazoret, Godseeker",
-    "The Lion-Turtle",
-    "Tiger-Dillo",
-    "Blind-Spot Giant"
    ]
   },
   {
@@ -5144,6 +5082,21 @@
     "Balduvian Trading Post",
     "Heart of Yavimaya",
     "Sheltered Valley"
+   ]
+  },
+  {
+   "what": "CantAttackBlockUnlessConditionSourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Sab-Sunen, Luxa Embodied",
+    "The Ancient One",
+    "Ketramose, the New Dawn",
+    "Lupine Prototype",
+    "Hazoret, Godseeker",
+    "The Lion-Turtle",
+    "Tiger-Dillo",
+    "Blind-Spot Giant"
    ]
   },
   {
@@ -6627,6 +6580,19 @@
    ]
   },
   {
+   "what": "unless pays a count",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Spell Stutter",
+    "Mausoleum Wanderer",
+    "Evasive Action",
+    "Lilting Refrain",
+    "Ixidor's Will",
+    "Phantasmal Sphere"
+   ]
+  },
+  {
    "what": "keyword OfferingAbility",
    "score": 6,
    "lines": 6,
@@ -6637,19 +6603,6 @@
     "Patron of the Nezumi",
     "Patron of the Kitsune",
     "Patron of the Akki"
-   ]
-  },
-  {
-   "what": "counter of a non-spell",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Dazzling Denial",
-    "Lofty Denial",
-    "Dispelling Exhale",
-    "We Say Thee Nay!",
-    "Anticognition",
-    "Silumgar's Scorn"
    ]
   },
   {
@@ -7657,13 +7610,49 @@
     "Symbiote Spider-Man",
     "The Ever-Changing 'Dane"
    ]
+  },
+  {
+   "what": "ExileSourceAndReturnFaceUpEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Vorinclex // The Grand Evolution",
+    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
+    "Elesh Norn // The Argent Etchings",
+    "Terra, Magical Adept // Esper Terra",
+    "Jill, Shiva's Dominant // Shiva, Warden of Ice"
+   ]
+  },
+  {
+   "what": "ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Decadent Dragon // Expensive Taste",
+    "Outrageous Robbery",
+    "Dream-Thief's Bandana",
+    "Predators' Hour",
+    "Petty Larceny"
+   ]
+  },
+  {
+   "what": "MaxSpeedAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Vnwxt, Verbose Host",
+    "Racers' Scoreboard",
+    "Far Fortune, End Boss",
+    "Lightwheel Enhancements",
+    "Tsagan, Raider Warlord"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4350,
-   "cards": 3819,
+   "score": 4342,
+   "cards": 3811,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7688,8 +7677,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 235,
-   "cards": 220,
+   "score": 234,
+   "cards": 219,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -8928,19 +8917,6 @@
    ]
   },
   {
-   "what": "TargetsPermanentPredicate",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Season of Growth",
-    "Avoid Fate",
-    "Confound",
-    "Ms. Marvel, Kamala Khan",
-    "Intervene",
-    "Fin Fang Foom"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 11,
    "cards": 11,
@@ -9149,19 +9125,6 @@
    ]
   },
   {
-   "what": "ManaValueEqualToCountersSourceCountPredicate",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Blast Zone",
-    "Engineered Explosives",
-    "Ratchet Bomb",
-    "Necroplasm",
-    "The Filigree Sylex",
-    "Powder Keg"
-   ]
-  },
-  {
    "what": "EntersBattlefieldEffect",
    "score": 10,
    "cards": 10,
@@ -9235,19 +9198,6 @@
     "Hand of the Praetors",
     "Donal, Herald of Wings",
     "Cunning Nightbonder"
-   ]
-  },
-  {
-   "what": "unless pays a count",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Spell Stutter",
-    "Mausoleum Wanderer",
-    "Circular Logic",
-    "Countervailing Winds",
-    "Protect the Negotiators",
-    "Evasive Action"
    ]
   },
   {
@@ -9898,6 +9848,19 @@
     "The Peregrine Dynamo",
     "Trickbind",
     "Emerald Dragon // Dissonant Wave"
+   ]
+  },
+  {
+   "what": "TargetsPermanentPredicate",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Season of Growth",
+    "Avoid Fate",
+    "Ms. Marvel, Kamala Khan",
+    "Fin Fang Foom",
+    "Colleen Wing, Street Samurai",
+    "Mockingbird, Ace Agent"
    ]
   },
   {
@@ -11156,6 +11119,19 @@
    ]
   },
   {
+   "what": "unless pays a count",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Spell Stutter",
+    "Mausoleum Wanderer",
+    "Evasive Action",
+    "Lilting Refrain",
+    "Ixidor's Will",
+    "Phantasmal Sphere"
+   ]
+  },
+  {
    "what": "CastAsThoughItHadFlashAllEffect",
    "score": 6,
    "cards": 6,
@@ -11351,32 +11327,6 @@
    ]
   },
   {
-   "what": "CardsInOpponentGraveyardCondition.EIGHT",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Blackbloom Rogue // Blackbloom Bog",
-    "Thieves' Guild Enforcer",
-    "Merfolk Windrobber",
-    "Soaring Thought-Thief",
-    "Tenured Oilcaster",
-    "Nimana Skitter-Sneak"
-   ]
-  },
-  {
-   "what": "CantAttackBlockUnlessConditionSourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Relic Golem",
-    "Lupine Prototype",
-    "Hazoret, Godseeker",
-    "The Lion-Turtle",
-    "Tiger-Dillo",
-    "Blind-Spot Giant"
-   ]
-  },
-  {
    "what": "ConditionalColorlessManaAbility",
    "score": 6,
    "cards": 6,
@@ -11491,6 +11441,45 @@
     "Dauthi Mindripper",
     "Goblin Grenadiers",
     "Mindstab Thrull"
+   ]
+  },
+  {
+   "what": "(constructor: assignment)",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Banewhip Punisher",
+    "Ammit Eternal",
+    "Knight of Grace",
+    "Knight of Malice",
+    "Suq'Ata Firewalker",
+    "Bull Elephant"
+   ]
+  },
+  {
+   "what": "filter:snow",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rime Tender",
+    "Sculptor of Winter",
+    "Avalanche Caller",
+    "Balduvian Frostwaker",
+    "Balduvian Conjurer",
+    "Ohran Yeti"
+   ]
+  },
+  {
+   "what": "BlockedPredicate.instance",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Duelist's Flame",
+    "Smite",
+    "Curtain of Light",
+    "Tattermunge Witch",
+    "Benalish Missionary",
+    "Dazzling Beauty"
    ]
   }
  ]

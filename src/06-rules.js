@@ -7504,6 +7504,7 @@
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
+        case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
@@ -9149,6 +9150,8 @@
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        // Rackling: "3 minus the number of cards in their hand"
+        if (v && typeof v === 'object' && v.minusHand != null) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, v.minusHand - (p ? this.zones[p.id].hand.length : 0)); }
         // Kozilek: "draw cards equal to the difference" — up to seven in hand
         if (v && typeof v === 'object' && v.handTo != null) return Math.max(0, v.handTo - ((me && this.zones[me.id].hand.length) || 0));
         // Children of Korlis: the life lost this turn
@@ -11338,6 +11341,8 @@
             break;
           }
           let cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');
+          // Countervailing Winds: {1} for each card in your graveyard
+          if (e.costPer) { const k = n(e.costPer); if (k <= 0) break; cost = '{' + k + '}'; }
           // Syncopate, Power Sink: "unless its controller pays {X}" — the X this was cast with
           if (typeof cost === 'string' && /\{X\}/.test(cost)) cost = cost.replace(/\{X\}/g, '{' + (n('X') || 0) + '}');
           if (e.costFromPower && this.powerOf(src) <= 0) { this._spliceNext(e.then); break; }
@@ -13184,6 +13189,31 @@
           }
           this.rng.shuffle(this.zones[p.id].library);
           this.logEvent('exile', `${k} card${k === 1 ? '' : 's'} named ${la.name} exiled from ${p.name}'s graveyard, hand and library.`);
+          break;
+        }
+        // Bile Blight: the target and everything with its name
+        case 'pumpSameName': {
+          const x = firstObj();
+          if (!x) break;
+          for (const o of this.battlefield) {
+            if (o.phasedOut || o.name !== x.name || !this.characteristics(o).isCreature) continue;
+            o.effects.push({ p: n(e.p), t: n(e.t), until: 'eot' });
+          }
+          this.bumpBoard();
+          break;
+        }
+        // Ratchet Bomb: each nonland permanent whose mana value is the number of counters
+        case 'destroyByCounterMv': {
+          // sacrificed to pay for it: the counters it had as it went
+          const had = src ? (src.zone === 'battlefield' ? src.counters : (src._diedCounters || {})) : {};
+          const k = Number((had || {})[e.counter]) || 0;
+          for (const o of this.battlefield.slice()) {
+            if (o.phasedOut || o === src) continue;
+            const oa = o.analysis();
+            if (!oa || oa.isLand || ((o.card && o.card.cmc) || 0) !== k) continue;
+            if (this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
+            this.moveObject(o, 'graveyard');
+          }
           break;
         }
         // Luminous Guardian: one more creature it may block this turn
@@ -15655,6 +15685,13 @@
 
     /** "that targets a creature you control" (Rebuff the Wicked), "…you or a creature you control" (Siren Stormtamer). */
     _aimsAtYours(item, spec, controllerId) {
+      // Vigilant Martyr: "a spell that targets an enchantment" — anyone's
+      if (spec.targetsWhat && !(item.targets || []).some(t => {
+        const x = t.kind === 'object' && this.obj(t.id);
+        return x && x.zone === 'battlefield' && (spec.targetsWhat === 'permanent' || this._cardFitsWords(x, spec.targetsWhat)) &&
+          (!spec.targetsYour || x.controller === controllerId);
+      })) return false;
+      if (spec.targetsWhat) return true;
       if (!spec.targetsYour) return true;
       return (item.targets || []).some(t => {
         if (t.kind === 'player') return !!spec.orYou && t.id === controllerId;

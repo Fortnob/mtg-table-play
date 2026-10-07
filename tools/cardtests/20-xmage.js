@@ -5700,4 +5700,37 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A');
     t.eq(gob.counters['+1/+1'] || 0, 1, 'red: yes');
   });
+
+  test('Ratchet Bomb: each nonland permanent of mana value equal to its counters', (mk, t) => {
+    t.auto('Ratchet Bomb');
+    const T = mk();
+    const rb = T.bf('A', 'Ratchet Bomb'); rb.counters.charge = 2;
+    const bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+    T.activate('A', rb, 1);
+    t.eq(bear.zone, 'graveyard'); t.eq(elf.zone, 'battlefield');
+  });
+
+  test('Countervailing Winds: {1} for each card in your graveyard', (mk, t) => {
+    t.auto('Countervailing Winds');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'RR');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    T.grave('B', 'Island'); T.grave('B', 'Island');
+    T.mana('B', 'U2');
+    T.answer('payOrDont', true);
+    T.cast('B', T.hand('B', 'Countervailing Winds'), { targets: [T.stackTarget(bolt)] });
+    t.eq(bolt.zone, 'graveyard', 'one R left: cannot pay {3}');
+    t.eq(T.life('B'), 20);
+  });
+
+  test('Rackling: 3 minus the cards in hand, at their upkeep', (mk, t) => {
+    t.auto('Rackling');
+    const T = mk();
+    T.bf('A', 'Rackling');
+    T.hand('B', 'Island');
+    T.nextTurn('B');
+    t.eq(T.life('B'), 18);
+  });
 };

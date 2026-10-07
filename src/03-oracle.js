@@ -921,6 +921,20 @@
     // Sacrifice: "Add an amount of {B} equal to the sacrificed creature's mana value."
     { re: /^Add an amount of (\{[WUBRGC]\}) equal to the sacrificed (?:creature|artifact|permanent)'s mana value\.?$/i,
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { ofSacrificed: 'mv' } }) },
+    // Bile Blight: "Target creature and all other creatures with the same name as that creature get -3/-3 until end of turn."
+    { re: /^(Target creature) and all other creatures with the same name as that creature get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'pumpSameName', p: pmNum(m[2]), t: pmNum(m[3]), targets: [targetSpec(m[1])] }) },
+    // Vigilant Martyr: "Counter target spell that targets an enchantment."
+    { re: /^Counter target spell that targets an? (enchantment|creature|artifact|land|planeswalker|permanent)( you control)?\.?$/i,
+      make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'spell', targetsWhat: m[1].toLowerCase() },
+        m[2] ? { targetsYour: 'permanent' } : {})] }) },
+    // Ratchet Bomb, Blast Zone, Engineered Explosives
+    { re: /^Destroy each nonland permanent with mana value equal to the number of ([a-z]+) counters on (?:this artifact|this land|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'destroyByCounterMv', counter: m[1].toLowerCase() }) },
+    // Countervailing Winds: "unless its controller pays {1} for each card in your graveyard"
+    { re: /^Counter target spell unless its controller pays \{1\} for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[1]); return c ? { op: 'unlessPays', who: 'spellController', cost: '{1}', costPer: c,
+        then: [{ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }] } : null; } },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -2115,7 +2129,7 @@
     { re: /^It'?s still a land\.?$/i, make: () => ({ op: 'noop' }) },
 
     /* ===== whoever set the trigger off ===== */
-    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to (?:that player|them)\.?$/i,
+    { re: /^(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerPlayer: true }) },
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the number of cards in their hand\.?$/i,
       make: () => ({ op: 'damage', n: { cardsInHand: 'triggerPlayer' }, toTriggerPlayer: true }) },
@@ -3542,6 +3556,8 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
+    // Rackling: "3 minus the number of cards in their hand"
+    if ((m = p.match(/^(\d+) minus the number of cards in (?:their|that player'?s) hand$/i))) return done({ minusHand: +m[1] });
     // Storm Herd: "where X is your life total"
     if (/^your life total$/i.test(p)) return done({ lifeTotal: 'you' });
     // "the amount of mana spent to cast this spell / that spell / it / her"
@@ -5096,6 +5112,8 @@
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
+    // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
+    [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],
     // the Myojin: "if you cast it from your hand"
     [/^you cast it from your hand$/i, () => ({ kind: 'castFromHand' })],
     // Gathering Place: "this land entered this turn or you control a basic land"
