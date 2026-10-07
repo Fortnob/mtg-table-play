@@ -6541,6 +6541,12 @@
         o.destroyAtEndOfCombat = null;
         if (!this.hasKw(o, 'indestructible') && !this._regenerated(o)) { this.moveObject(o, 'graveyard'); this.logEvent('destroy', `${o.name} is destroyed at end of combat.`); }
       }
+      // myriad's copies
+      for (const o of this.battlefield.slice()) {
+        if (!o.exileAtEndOfCombat) continue;
+        this.moveObject(o, 'exile');
+        this.logEvent('rules', `${o.name} is exiled at end of combat.`);
+      }
       for (const o of this.battlefield.slice()) {
         if (!o.sacAtEndOfCombat) continue;
         this.moveObject(o, 'graveyard');
@@ -12679,6 +12685,47 @@
             if (e.then === 'destroy') { if (!this.hasKw(x, 'indestructible')) this.moveObject(x, 'graveyard'); }
             else this.moveObject(x, 'exile');
           }
+          break;
+        }
+        /* Myriad: for each opponent other than the defending player, a token
+           copy tapped and attacking them, exiled as combat ends */
+        case 'myriad': {
+          if (!src || src.zone !== 'battlefield' || !src.attacking) break;
+          const at = this.obj(src.attacking);
+          const defPid = at ? at.controller : src.attacking;
+          for (const p of this.opponentsOf(ctx.controller)) {
+            if (p.hasLost || p.id === defPid) continue;
+            const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
+            Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
+              summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
+            copy.ts = this._stampNew();
+            this.battlefield.push(copy);
+            copy.attacking = p.id;
+            this.combat.attackers.push(copy.id);
+            this.bumpBoard();
+            this._onEnter(copy);
+            this._fireEnters(copy);
+            this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+          }
+          break;
+        }
+        /* Enlist: another untapped creature of yours that could have attacked
+           is tapped, and this one gets +X/+0, X its power */
+        case 'enlist': {
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = this.battlefield.filter(o => o.controller === ctx.controller && o.id !== src.id && !o.tapped && !o.phasedOut &&
+            !o.attacking && this.characteristics(o).isCreature && (!o.summoningSick || this.hasKw(o, 'haste')));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: 1, prompt: `${src.name}: enlist? Tap a creature to add its power.` }, 'enlist');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!x || x.tapped || x.zone !== 'battlefield') break;
+          this._markTapped(x);
+          const k = this.powerOf(x);
+          if (k) src.effects.push({ p: k, t: 0, until: 'eot' });
+          this.logEvent('rules', `${src.name} enlists ${x.name} (+${k}/+0).`);
+          this.bumpBoard();
           break;
         }
         case 'destroyAtEndOfCombat':

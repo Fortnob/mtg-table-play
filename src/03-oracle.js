@@ -6239,6 +6239,18 @@
         effects: [{ op: 'untap', targets: [Object.assign(targetSpec('target creature an opponent controls'), { upTo: true })] }, { op: 'mustBlockThis', scope: 'lastTarget' }],
         auto: true });
     }
+    /* Myriad (CR 702.116): a copy attacking each other opponent, gone when
+       combat ends */
+    if (out.keywords.some(k => k.keyword === 'Myriad')) {
+      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, text: 'Myriad',
+        effects: [{ op: 'myriad' }], auto: true });
+    }
+    /* Enlist (CR 702.154): as it attacks, another creature of yours may be
+       tapped to lend it that creature's power */
+    if (out.keywords.some(k => k.keyword === 'Enlist')) {
+      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, text: 'Enlist',
+        effects: [{ op: 'enlist' }], auto: true });
+    }
     /* Ravenous (CR 702.156): X +1/+1 counters as it enters, and a card if X
        was 5 or more */
     if (out.keywords.some(k => k.keyword === 'Ravenous')) {

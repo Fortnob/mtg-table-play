@@ -4668,4 +4668,28 @@ module.exports = (test) => {
   });
 
   test('Varragoth, Bloodsky Sire: reads its boast', (mk, t) => { t.auto('Varragoth, Bloodsky Sire'); });
+
+  test('Enlist: a creature left home is tapped, and lends its power', (mk, t) => {
+    t.auto('Yavimaya Steelcrusher');
+    const T = mk();
+    const ys = T.bf('A', 'Yavimaya Steelcrusher'); ys.summoningSick = false;
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: ys.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => ({ picks: [ch.items[0].id] }));
+    T.toMain('A', 'endCombat');
+    t.ok(bear.tapped, 'the Bears were tapped');
+    t.eq(T.life('B'), 16, '2 + 2');
+  });
+
+  test('Myriad: a copy attacks each other opponent, and is exiled after combat', (mk, t) => {
+    t.auto('Caller of the Pack');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const cp = T.bf('A', 'Caller of the Pack'); cp.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: cp.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 12, 'the Caller hits B');
+    t.eq(T.life('C'), 12, 'its copy hits C');
+    T.toMain('A', 'end');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Caller of the Pack').length, 1, 'the copy is gone');
+  });
 };

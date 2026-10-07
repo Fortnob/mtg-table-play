@@ -1463,6 +1463,12 @@
   const CHOOSE_PURPOSES = {
     /* "Choose a creature type": the options come most-ours first */
     creatureType() { return { picks: [0] }; },
+    /* Enlist: the strongest creature that stayed home, if it adds much */
+    enlist(s) {
+      const g = this.game;
+      const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
+      return { picks: best && g.powerOf(best) >= 2 ? [best.id] : [] };
+    },
     /* Culling Ritual: "{B} or {G} for each …" — all of the first colour */
     manaSplit() { return { picks: [0] }; },
     /* Voting: our own spell, the word that does most for us; theirs, the
