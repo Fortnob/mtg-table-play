@@ -8626,4 +8626,49 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 18);
   });
+
+  test('Goblin Dark-Dwellers: cast a cheap instant from the graveyard free, then it is exiled', (mk, t) => {
+    t.auto('Goblin Dark-Dwellers');
+    const T = mk();
+    const sh = T.grave('A', 'Shock');
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: sh.id }] }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.put('A', 'Goblin Dark-Dwellers', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.life('B'), 18);
+    t.eq(sh.zone, 'exile');
+  });
+
+  test('Memory Plunder: an opponent\'s instant from their graveyard, for nothing', (mk, t) => {
+    t.auto('Memory Plunder');
+    const T = mk();
+    const sh = T.grave('B', 'Shock');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'UBUB');
+    T.cast('A', T.hand('A', 'Memory Plunder'), { targets: [sh.id] });
+    T.resolve();
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Cascade and discover into a spell with a target: its target is chosen, and the rest go to the bottom', (mk, t) => {
+    const T = mk();
+    const bolt = T.top('A', 'Lightning Bolt');
+    const big = T.top('A', 'Colossal Dreadmaw');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'RG2');
+    T.cast('A', T.hand('A', 'Bloodbraid Elf'));
+    T.resolve();
+    t.eq(T.life('B'), 17, 'the Bolt was cast at B');
+    t.eq(big.zone, 'library', 'the Dreadmaw went back');
+    t.eq(T.zone('A', 'library').slice(-1)[0].id, big.id, 'to the bottom');
+    const T2 = mk();
+    T2.top('A', 'Lightning Bolt');
+    T2.answer('confirm', () => ({ yes: true }));
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T2.mana('A', 'RR2');
+    T2.cast('A', T2.hand('A', 'Geological Appraiser'));
+    T2.resolve();
+    T2.resolve();
+    t.eq(T2.life('B'), 17, 'discover cast the Bolt at B');
+  });
 };

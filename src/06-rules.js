@@ -590,10 +590,12 @@
             prompt: `Search your hand and library for ${names.join(' or ')}: you may cast it without paying its mana cost.` }, 'castNoted');
           if (got === SUSPEND) return SUSPEND;
           const c = this.obj((got || [])[0]);
+          const tg = c ? this._askSpellTargets(ctx.controller, c, 'castNotedT') : null;
+          if (tg === SUSPEND) return SUSPEND;
           const fromLibrary = !!c && c.zone === 'library';
-          if (c) {
+          if (c && tg) {
             if (fromLibrary) { z.library.splice(z.library.indexOf(c), 1); c.zone = 'hand'; z.hand.push(c); }
-            const ok = this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+            const ok = this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
             // not cast after all: it goes back where it was found
             if (!ok && fromLibrary && c.zone === 'hand') { z.hand.splice(z.hand.indexOf(c), 1); c.zone = 'library'; z.library.push(c); }
           }
@@ -613,10 +615,13 @@
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast a copy of ${c.name} without paying its mana cost?` }, 'savantCast');
           if (yes === SUSPEND) return SUSPEND;
           if (yes === false) break;
+          const tg = this._askSpellTargets(ctx.controller, c, 'savantT');
+          if (tg === SUSPEND) return SUSPEND;
+          if (!tg) break;
           const dup = this._register(new GObj(c.card, ctx.controller, 'exile'));
           dup.isCopy = true;
           this.zones[ctx.controller].exile.push(dup);
-          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
           const st = this.stack.find(x => x.objId === dup.id);
           if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`); }
           else { this._removeFromZone(dup); dup.zone = null; }
@@ -2362,6 +2367,22 @@
       this.logEvent('rules', `${p.name} dredges ${n}, returning ${o.name}.`);
     }
 
+    /** Targets for a spell cast in the middle of a resolution: asked for now; null if it has none it could take. */
+    _askSpellTargets(pid, c, key) {
+      const ca = c && c.analysis();
+      const specs = ca ? spellTargetSpecs(ca) : [];
+      if (!specs.length) return [];
+      const options = specs.map(spec => this._legalTargetsFor(spec, pid, c.id));
+      if (specs.some((spec, i) => !options[i].length && !(spec && spec.upTo))) return null;
+      const picked = this._ask({ type: 'pickTarget', playerId: pid, specs, options, count: specs.length, sourceId: c.id,
+        prompt: `${c.name}: choose ${specs.length === 1 ? 'a target' : 'targets'}` }, key);
+      if (picked === SUSPEND) return SUSPEND;
+      if (picked == null) {
+        // nobody to ask (a bot, or a test): the first legal choice for each
+        return options.map(list => list[0]).filter(Boolean);
+      }
+      return (picked || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t));
+    }
     /** The turn number on which "the end of your next turn" falls for this player. */
     _endOfNextTurnOf(pid) {
       const live = this.players.filter(p => !p.hasLost);
@@ -4725,12 +4746,43 @@
         exiled.push(c);
       }
       for (const c of exiled) { c.zone = 'exile'; this.zones[pid].exile.push(c); }
-      if (!hit) { this.logEvent('keyword', 'Cascade found nothing cheaper.'); return; }
+      // the rest go to the bottom in a random order (CR 702.85a)
+      const bottom = (list) => {
+        const rest = list.filter(c => c && c.zone === 'exile');
+        this.rng.shuffle(rest);
+        for (const c of rest) this.moveObject(c, 'library', { toBottom: true });
+      };
+      if (!hit) { bottom(exiled); this.logEvent('keyword', 'Cascade found nothing cheaper.'); return; }
       this.logEvent('keyword', `Cascade hits ${hit.name} \u2014 casting it for free.`);
       hit.zone = 'exile';
       this.zones[pid].exile.push(hit);
+      bottom(exiled);
+      /* A spell with targets has them chosen first: the caster is asked,
+         and the spell is cast once they answer. */
+      const ha = hit.analysis();
+      const specs = ha ? spellTargetSpecs(ha) : [];
+      if (specs.length) {
+        const options = specs.map(spec => this._legalTargetsFor(spec, pid, hit.id));
+        if (specs.some((spec, i) => !options[i].length && !(spec && spec.upTo))) {
+          this.logEvent('keyword', `${hit.name} has nothing to target.`);
+          bottom([hit]);
+          return;
+        }
+        const first = ((ha.abilities || []).find(x => x.kind === 'spell') || {}).effects || [];
+        this.queueChoice({ type: 'pickTarget', playerId: pid, purpose: 'cascadeCast', objId: hit.id, specs, options,
+          count: specs.length, sourceId: hit.id, sourceName: hit.name, sourceCard: hit.card, op: (first[0] || {}).op,
+          prompt: `Cascade: choose ${specs.length === 1 ? 'a target' : 'targets'} for ${hit.name}` });
+        return;
+      }
       // cascade is itself the permission to cast from exile
-      this.castSpell(pid, hit.id, { free: true, targets: [], costOverride: '', alternative: 'cascade' });
+      this._castCascaded(pid, hit, []);
+    }
+
+    /** Cast what cascade found, for free; if it is not cast, it goes to the bottom too. */
+    _castCascaded(pid, hit, targets) {
+      if (!hit || hit.zone !== 'exile') return;
+      const ok = this.castSpell(pid, hit.id, { free: true, targets, costOverride: '', alternative: 'cascade' });
+      if (!ok && hit.zone === 'exile') this.moveObject(hit, 'library', { toBottom: true });
     }
 
     /** Everything the attack declaration triggers (CR 508.1). */
@@ -11182,10 +11234,13 @@
           const card = this.obj(e.cardId);
           const host = src;
           if (!card || card.zone !== 'exile' || !host || card.encodedOn !== host.id) break;
+          const tg = this._askSpellTargets(ctx.controller, card, 'cipherT');
+          if (tg === SUSPEND) return SUSPEND;
+          if (!tg) break;
           const dup = this._register(new GObj(card.card, ctx.controller, 'exile'));
           dup.isCopy = true;
           this.zones[ctx.controller].exile.push(dup);
-          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
           const st = this.stack.find(x => x.objId === dup.id);
           if (ok && st) {
             st.isCopy = true;
@@ -14026,10 +14081,14 @@
             const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
-            if (r) r.marks[slot + 'done' + k] = true;
             const want = yes === null ? true : !!yes;
-            if (!want) continue;
-            const ok = this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: [], auto: true });
+            if (!want) { if (r) r.marks[slot + 'done' + k] = true; continue; }
+            // a spell cast as this resolves still chooses its targets (Goblin Dark-Dwellers' Shock)
+            const tg = this._askSpellTargets(ctx.controller, c, 'fct' + k);
+            if (tg === SUSPEND) return SUSPEND;
+            if (r) r.marks[slot + 'done' + k] = true;
+            if (tg === null) continue;
+            const ok = this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
             if (!ok) continue;
             if (r) r.marks[slot + 'n']++;
             const it = this.stack.find(st => st.objId === c.id);
@@ -14104,8 +14163,10 @@
             const yes = me.isBot ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: `Discover: cast ${hit.name} without paying its mana cost? If you don't, it goes into your hand.` }, 'disc');
             if (yes === SUSPEND) return SUSPEND;
+            const tg = yes === false ? null : this._askSpellTargets(ctx.controller, hit, 'discT');
+            if (tg === SUSPEND) return SUSPEND;
             this._lastDiscovered = { id: hit.id, mv: (hit.card && hit.card.cmc) || 0 };
-            if (yes === false || !this.castSpell(ctx.controller, hit.id, { free: true, alternative: 'resolution', targets: [], auto: true })) {
+            if (!tg || !this.castSpell(ctx.controller, hit.id, { free: true, alternative: 'resolution', targets: tg, auto: true })) {
               if (hit.zone === 'exile') this.moveObject(hit, 'hand');
             }
           }
@@ -16723,6 +16784,13 @@
           // the first one picked resolves last, so it goes in at the bottom
           wanted.forEach((id, k) => { const item = byId.get(id); if (item) this.stack[slots[k]] = item; });
           this.logEvent('rules', `${this.player(playerId).name} orders their triggers.`);
+          break;
+        }
+        // targets for the spell cascade found, which is cast now
+        case 'pickTarget': {
+          if (ch.purpose !== 'cascadeCast') break;
+          const tg = ((data && data.targets) || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t));
+          this._castCascaded(playerId, this.obj(ch.objId), tg);
           break;
         }
         case 'payOrCounter': {

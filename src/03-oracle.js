@@ -4678,6 +4678,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Goblin Dark-Dwellers, Memory Plunder: "you may cast target instant or
+       sorcery card with mana value 3 or less from your graveyard without
+       paying its mana cost. If that spell would be put into your graveyard,
+       exile it instead." — now, as this resolves */
+    { re: /^(?:You may )?cast (?:up to one )?target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from (your|a|an opponent'?s|that player'?s|target opponent'?s) graveyard without paying its mana cost\.(?: If that (?:spell|card) would be put into (?:your|a|its owner'?s|a player'?s) graveyard,? exile it instead\.)?$/i,
+      make: (m) => {
+        const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard' },
+          /^your/i.test(m[3]) ? { controller: 'you' } : /opponent|that player/i.test(m[3]) ? { controller: 'opponent' } : {},
+          m[2] ? { maxMv: +m[2] } : {});
+        return [{ op: 'castFree', from: 'targets', upTo: 1, exileAfter: /exile it instead/i.test(m[0]), targets: [spec] }];
+      } },
     // Singularity Rupture: "Destroy all creatures, then any number of target players each mill half their library, rounded down."
     { re: /^Destroy all creatures, then any number of target players each mill half their library, rounded (down|up)\.?$/i,
       make: (m) => [{ op: 'destroyAll', what: 'creature' },

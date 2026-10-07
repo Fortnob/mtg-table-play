@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13769,
-  "gainedCards": 1442,
-  "linesNeeded": 15169,
+  "needed": 13759,
+  "gainedCards": 1443,
+  "linesNeeded": 15156,
   "linesGained": 1776,
   "gained": {
-   "all": 1442,
+   "all": 1443,
    "top2000": 52,
    "stdTop": 12
   },
@@ -128,8 +128,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 226,
-   "lines": 199,
+   "score": 224,
+   "lines": 197,
    "cards": [
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
@@ -1093,25 +1093,6 @@
     "Thief's Knife",
     "Warrior's Sword",
     "Sage's Nouliths"
-   ]
-  },
-  {
-   "what": "MayCastTargetCardEffect",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Torrential Gearhulk",
-    "Vohar, Vodalian Desecrator",
-    "Memory Plunder",
-    "Arcane Heist",
-    "Impulsivity",
-    "Chandra, Acolyte of Flame",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "The Dawning Archaic",
-    "Goblin Dark-Dwellers",
-    "Quistis Trepe",
-    "Daring Waverider",
-    "Seifer Almasy"
    ]
   },
   {
@@ -3187,23 +3168,6 @@
    ]
   },
   {
-   "what": "MutatesSourceTriggeredAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Nethroi, Apex of Death",
-    "Auspicious Starrix",
-    "Souvenir Snatcher",
-    "Insatiable Hemophage",
-    "Archipelagore",
-    "Illuna, Apex of Wishes",
-    "Mindleecher",
-    "Everquill Phoenix",
-    "Vadrok, Apex of Thunder",
-    "Huntmaster Liger"
-   ]
-  },
-  {
    "what": "OpponentsTurnCondition.instance",
    "score": 10,
    "lines": 10,
@@ -3719,6 +3683,22 @@
    ]
   },
   {
+   "what": "MutatesSourceTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Nethroi, Apex of Death",
+    "Auspicious Starrix",
+    "Souvenir Snatcher",
+    "Insatiable Hemophage",
+    "Archipelagore",
+    "Illuna, Apex of Wishes",
+    "Mindleecher",
+    "Everquill Phoenix",
+    "Huntmaster Liger"
+   ]
+  },
+  {
    "what": "boost for nextTurn",
    "score": 9,
    "lines": 9,
@@ -4145,6 +4125,21 @@
     "Domesticated Hydra",
     "Nemesis of Mortals",
     "Vitality Hunter"
+   ]
+  },
+  {
+   "what": "MayCastTargetCardEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Vohar, Vodalian Desecrator",
+    "Arcane Heist",
+    "Chandra, Acolyte of Flame",
+    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
+    "Quistis Trepe",
+    "Chandra, Flame's Catalyst",
+    "Toshiro Umezawa",
+    "Sins of the Past"
    ]
   },
   {
@@ -7412,8 +7407,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 230,
-   "cards": 215,
+   "score": 231,
+   "cards": 216,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7425,8 +7420,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 194,
-   "cards": 167,
+   "score": 192,
+   "cards": 165,
    "names": [
     "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
@@ -8109,19 +8104,6 @@
    ]
   },
   {
-   "what": "MayCastTargetCardEffect",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Torrential Gearhulk",
-    "Memory Plunder",
-    "Arcane Heist",
-    "Impulsivity",
-    "Chandra, Acolyte of Flame",
-    "Goblin Dark-Dwellers"
-   ]
-  },
-  {
    "what": "amount from a count",
    "score": 13,
    "cards": 13,
@@ -8686,19 +8668,6 @@
    ]
   },
   {
-   "what": "MutatesSourceTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Nethroi, Apex of Death",
-    "Auspicious Starrix",
-    "Souvenir Snatcher",
-    "Insatiable Hemophage",
-    "Archipelagore",
-    "Illuna, Apex of Wishes"
-   ]
-  },
-  {
    "what": "Zone.GRAVEYARD",
    "score": 10,
    "cards": 10,
@@ -8979,6 +8948,19 @@
     "Vault 87: Forced Evolution",
     "Merieke Ri Berit",
     "Helm of Possession"
+   ]
+  },
+  {
+   "what": "MutatesSourceTriggeredAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Nethroi, Apex of Death",
+    "Auspicious Starrix",
+    "Souvenir Snatcher",
+    "Insatiable Hemophage",
+    "Archipelagore",
+    "Illuna, Apex of Wishes"
    ]
   },
   {
@@ -10465,6 +10447,19 @@
    ]
   },
   {
+   "what": "ChancellorAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Sphinx of Foresight",
+    "Chancellor of the Spires",
+    "Chancellor of the Forge",
+    "Chancellor of the Tangle",
+    "Chancellor of the Dross",
+    "Providence"
+   ]
+  },
+  {
    "what": "BoostSourceEffect p/t",
    "score": 6,
    "cards": 6,
@@ -11036,6 +11031,18 @@
    ]
   },
   {
+   "what": "MayCastTargetCardEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Arcane Heist",
+    "Chandra, Acolyte of Flame",
+    "Quistis Trepe",
+    "Toshiro Umezawa",
+    "Sins of the Past"
+   ]
+  },
+  {
    "what": "BecomesCreatureAllEffect",
    "score": 5,
    "cards": 5,
@@ -11141,18 +11148,6 @@
     "Battlefront Krushok",
     "Rocksteady, Crash Courser",
     "Yuan Shao, the Indecisive"
-   ]
-  },
-  {
-   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Planewide Celebration",
-    "Unite the Coalition",
-    "Cosmium Confluence",
-    "Riveteers Confluence",
-    "Obscura Confluence"
    ]
   }
  ]
