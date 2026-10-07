@@ -10892,7 +10892,8 @@
           // "Its controller creates two Treasure tokens" — An Offer You Can't Refuse
           const owner = e.who === 'targetController' ? (this._lastAffectedController() || me)
             // Pain Distributor: the player the trigger is about
-            : e.who === 'triggerPlayer' ? triggerPlayer()
+            // (Vraska, the Cutting Glare: "They create a Treasure" — whoever's permanent it destroyed)
+            : e.who === 'triggerPlayer' ? (triggerPlayer() || this._lastAffectedController())
             // "Target player creates a Treasure token."
             : e.who === 'target' ? firstPlayer()
             : e.who === 'opponents' || e.who === 'each' ? null : me;

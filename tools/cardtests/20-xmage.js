@@ -8257,4 +8257,16 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.eq(T.g.powerOf(bear), 4);
   });
+
+  test('Vraska, the Cutting Glare: the destroyed permanent\'s controller gets the Treasure', (mk, t) => {
+    t.auto('Vraska, the Cutting Glare');
+    const T = mk();
+    for (let i = 0; i < 6; i++) T.bf('A', 'Swamp');
+    const g = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g.id }] }));
+    T.put('A', 'Vraska, the Cutting Glare', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(g.zone, 'graveyard');
+    t.eq(T.bfOf('B').filter(o => o.name === 'Treasure').length, 1);
+  });
 };
