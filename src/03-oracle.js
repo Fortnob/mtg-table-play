@@ -840,7 +840,10 @@
     { re: /^Destroy (target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'destroy', targets: [targetSpec(m[1])] }) },
     { re: /^Destroy (X|\d+) (target [a-z0-9 '-]+?)s\.?$/i,
-      make: (m) => ({ op: 'destroy', count: num(m[1]), targets: [targetSpec(m[2])] }) },
+      make: (m) => (m[1] === 'X'
+        // "Destroy X target artifacts": X of them, the X paid
+        ? { op: 'destroy', targets: [Object.assign(targetSpec(m[2]), { multi: { count: 'X', exact: true } })] }
+        : { op: 'destroy', targets: Array.from({ length: +m[1] }, () => targetSpec(m[2])) }) },
     { re: /^Destroy (target [a-z0-9 '-]+?)\. It can't be regenerated\.?$/i,
       make: (m) => ({ op: 'destroy', noRegen: true, targets: [targetSpec(m[1])] }) },
     { re: /^Exile (target [a-z0-9 '-]+?)\.?$/i,
@@ -3356,10 +3359,28 @@
     if (anyN && !/divided|damage/i.test(s)) {
       const one = s.replace(anyN[0], (anyN[1] ? 'another ' : '') + 'target ' + anyN[2] + anyN[3].replace(/s$/, '') + (anyN[4] || '').replace(/\bthey control\b/, 'it controls').replace(/\btheir owners?'?s?\b/, "its owner's"))
         .replace(/\bto their owners'? hands?\b/i, "to its owner's hand");
-      const inner = parseEffectSentence(one, 1);
-      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && (inner.targets || []).length === 1 && inner.targets[0].type !== 'player') {
-        inner.anyFrom = Object.assign({}, inner.targets[0], { upTo: true });
-        delete inner.targets;
+      const inner = parseEffectSentence(oneOfThem(one, s.indexOf(anyN[0]) === 0), 1);
+      const holder = inner && inner.op !== 'manual' && !hasManualStep(inner) && sharedTarget(inner);
+      if (holder && holder.targets[0].type !== 'player') {
+        holder.anyFrom = Object.assign({}, holder.targets[0], { upTo: true });
+        delete holder.targets;
+        inner.text = s;
+        return inner;
+      }
+    }
+    /* "Tap X target creatures", "Up to X target creatures phase out": the
+       sentence read for one target, and that target made a variable number
+       of them — X of them, or up to X (the X paid) */
+    const xN = !depth && s.match(/\b(up to )?X target ((?:[a-z]+ )*?)(creatures|artifacts|enchantments|lands|permanents|planeswalkers|cards)( [^,.]*)?/i);
+    if (xN && !/divided|\bwhere X\b|\beach of\b/i.test(s)) {
+      const atStart = s.indexOf(xN[0]) === 0;
+      let one = s.replace(xN[0], 'target ' + xN[2] + xN[3].replace(/s$/, '') + (xN[4] || '').replace(/\bthey control\b/, 'it controls'))
+        .replace(/\bto their owners'? hands?\b/i, "to its owner's hand");
+      const inner = parseEffectSentence(oneOfThem(one, atStart), 1);
+      const holder = inner && inner.op !== 'manual' && !hasManualStep(inner) && sharedTarget(inner);
+      if (holder && holder.targets[0].type !== 'player') {
+        holder.targets = [Object.assign({}, holder.targets[0], { multi: { count: 'X', exact: !xN[1] } })];
+        delete holder.targets[0].upTo;
         inner.text = s;
         return inner;
       }
@@ -3861,6 +3882,29 @@
     let t = String(part).trim().replace(/[.,]$/, '');
     if (!t) return '';
     return t.charAt(0).toUpperCase() + t.slice(1) + '.';
+  }
+
+  /* "Any number of target creatures each get +1/+1 and gain indestructible"
+     said of one of them: "Target creature gets +1/+1 and gains …" */
+  /* "Target creature gets +1/+1 and gains indestructible" read as two
+     effects aimed at the same target: the first keeps the target, the rest
+     act on what it touched. Returns the effect holding the one target. */
+  function sharedTarget(inner) {
+    if (!inner) return null;
+    if ((inner.targets || []).length === 1) return inner;
+    if (inner.op !== 'sequence') return null;
+    const list = inner.list || [];
+    const key = (e) => JSON.stringify((e.targets || [])[0] || null);
+    if (!list.length || list.some(e => (e.targets || []).length !== 1 || key(e) !== key(list[0]))) return null;
+    for (const e of list.slice(1)) { delete e.targets; e.scope = 'lastGroup'; }
+    return list[0];
+  }
+
+  function oneOfThem(one, atStart) {
+    if (!atStart) return one;
+    return one.replace(/^(target [a-z ',]+?) (?:each )?(get|gain|phase|become|have|can't)\b/i, (x, a, v) => a + ' ' + (/can't/i.test(v) ? v : v === 'have' ? 'has' : v + 's'))
+      .replace(/ and (get|gain|have) /, (x, v) => ' and ' + (v === 'have' ? 'has' : v + 's') + ' ')
+      .replace(/^t/, 'T');
   }
 
   /** Every X in an effect made the number a "where X is …" names; how many there were. */
@@ -5523,6 +5567,14 @@
       const st = parseStatic(line, out);
       if (st) { out.abilities.push(st); if (st.auto) autoLines++; continue; }
 
+      // Strive: "This spell costs {1}{U} more to cast for each target beyond the first."
+      const strive = !out.isPermanent && line.match(/^(?:This spell|CARDNAME) costs ((?:\{[^}]+\})+) more to cast for each target beyond the first\.?$/i);
+      if (strive) {
+        out.strive = strive[1];
+        out.abilities.push({ kind: 'castModifier', keyword: 'Strive', arg: strive[1], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       /* A line about what the spell costs is read by the cost machinery,
          not by the effect vocabulary — on an instant as much as on a
          permanent, so this comes before the "the line is the spell" case. */
@@ -5673,6 +5725,29 @@
       });
     }
 
+    /* Strive: "any number of target creatures", each beyond the first paid
+       for — the targets chosen as it is cast, a variable number of them */
+    if (out.strive) {
+      for (const ab of out.abilities) {
+        if (ab.kind !== 'spell') continue;
+        const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.anyFrom) { e.targets = [Object.assign({}, e.anyFrom, { multi: { count: 'any', min: 1, perExtra: out.strive } })]; delete e.targets[0].upTo; delete e.anyFrom; } walk(e.list); } };
+        // (the strive spell's group, read as it resolves, is now its targets)
+        walk(ab.effects);
+      }
+      // a strive cost with nothing it can count (Fireball's divided damage) stays with a person
+      if (!out.abilities.some(ab => ab.kind === 'spell' && JSON.stringify(ab.effects || []).includes('"perExtra"'))) out._keywordManual = true;
+    }
+    /* "X target creatures" counts the X paid for a spell; anywhere else
+       (an ability, a trigger, "where X is …") it is left for a person */
+    for (const ab of out.abilities) {
+      const multi = [];
+      // inside a mode the targets are asked for as it resolves, one at a time: not there
+      const walk = (list, deep) => { for (const e of list || []) { if (!e) continue; for (const t of e.targets || []) if (t && t.multi) multi.push(deep ? { count: 'deep' } : t.multi);
+        walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, true); } };
+      walk(ab.effects, false);
+      if (multi.some(mm => mm.count === 'X' ? !(ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) : mm.count !== 'any') ||
+          (ab.kind !== 'spell' && /\bX target\b/.test(ab.text || ''))) { ab.auto = false; out._keywordManual = true; }
+    }
     // Escalate: the "choose one or more" modes, bought as the spell is cast
     if (out.escalate) {
       const sp = out.abilities.find(ab => ab.kind === 'spell' && (ab.effects || []).length === 1 && ab.effects[0].op === 'modal' && !ab.effects[0].spree);

@@ -2851,6 +2851,17 @@
         const left = Math.max(0, spare);
         opts.x = this.d >= 4 ? left : Math.min(left, 1 + Math.floor(this.rand() * 3));
         if (opts.x <= 0 && !(choice.a.isPermanent)) return false;
+        /* "X target creatures": X of them, so X is no more than there are
+           worth pointing at, and the targets are picked again for it */
+        const mt = g._multiOf(choice.a);
+        if (mt && mt.spec.multi.count === 'X') {
+          const all = this.chooseTargets(choice.o, choice.a, { multiN: opts.x });
+          if (!all) return false;
+          const got = all.length - mt.fixed;
+          if (got <= 0) return false;
+          if (mt.spec.multi.exact) opts.x = Math.min(opts.x, got);
+          opts.targets = all.slice(0, mt.fixed + opts.x);
+        }
       }
       // a Treasure is only cracked once the spell is really going to be cast
       if (!g.couldPay(this.pid, String(choice.costStr || '').replace(/\{X\}/g, ''), this.manaSources()) && !this._crackFor(choice.costStr)) return false;
@@ -3208,6 +3219,17 @@
       for (const e of (effects || [])) {
         if (e.op === 'modal') continue;              // its targets are asked for once a mode is chosen
         for (const spec of (e.targets || [])) {
+          /* "X target creatures", strive: as many as X allows (or, for strive,
+             the one it must have) */
+          if (spec && spec.multi) {
+            const want = spec.multi.count === 'X' ? (opts.multiN || 0) : Math.max(1, spec.multi.min || 0);
+            for (let k = 0; k < want; k++) {
+              const t = this.pickTarget(spec, e, source, { taken: targets });
+              if (!t || targets.some(x => x.kind === t.kind && x.id === t.id)) break;
+              targets.push(t);
+            }
+            continue;
+          }
           let t = null;
           if (opts.forceObject && isHarmful(e) && (spec.type !== 'player')) t = { kind: 'object', id: opts.forceObject.id };
           else t = this.pickTarget(spec, e, source, { taken: targets });

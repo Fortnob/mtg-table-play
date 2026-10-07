@@ -2196,7 +2196,7 @@
     _newTargetsForCopy(copy, playerId, sub) {
       const have = copy.targets || [];
       if (!have.length) return null;
-      const specs = this._specsOf(copy).slice(0, have.length);
+      const specs = this._specsOf(copy, have.length).slice(0, have.length);
       if (specs.length !== have.length) return null;
       const options = specs.map((sp, i) => {
         const list = this._legalTargetsFor(sp, playerId, copy.obj ? copy.obj.id : null)
@@ -2349,7 +2349,7 @@
     }
 
     /** The target specs of a spell or ability, in the order its targets were chosen. */
-    _specsOf(item) {
+    _specsOf(item, n) {
       const specs = [];
       const walk = (list) => {
         for (const e of (list || [])) {
@@ -2359,7 +2359,22 @@
         }
       };
       walk(item && item.effects);
-      return specs;
+      return this._fitSpecs(specs, n == null ? (item && item.targets ? item.targets.length : null) : n);
+    }
+    /* "X target creatures": one spec standing for however many targets
+       were chosen for it — repeated to fill the targets beyond the fixed ones */
+    _fitSpecs(specs, n) {
+      const i = specs.findIndex(sp => sp && sp.multi);
+      if (i < 0 || n == null) return specs;
+      const k = Math.max(0, n - (specs.length - 1));
+      return specs.slice(0, i).concat(Array.from({ length: k }, () => specs[i]), specs.slice(i + 1));
+    }
+    /** The variable-count target of a spell, if it has one: the spec, and how many fixed targets come before it. */
+    _multiOf(a) {
+      if (!a) return null;
+      const specs = this._specsOf({ effects: this._cardSpellEffects(a) }, null);
+      const i = specs.findIndex(sp => sp && sp.multi);
+      return i < 0 ? null : { spec: specs[i], before: i, fixed: specs.length - 1 };
     }
     _targetStillLegal(t, item, i) {
       if (t.kind === 'player') { const p = this.player(t.id); return p && !p.hasLost; }
@@ -2898,6 +2913,16 @@
       const fits = (x) => words === 'permanent' ? !!x.analysis() : this._cardFitsWords(x, words);
       return this.battlefield.filter(x => x !== src && !x.phasedOut && x.controller === src.controller && fits(x))
         .concat(((this.zones[src.controller] || {}).graveyard || []).filter(fits));
+    }
+    /** What casting a spell would cost with these choices, strive's extra targets counted (for the table's cost button). */
+    castCostFor(playerId, objId, opts) {
+      const o = this.obj(objId);
+      if (!o) return '';
+      let cost = this.castCost(o, opts || {});
+      const mt = this._multiOf(o.analysis());
+      const got = mt ? Math.max(0, ((opts || {}).targets || []).length - mt.fixed) : 0;
+      if (mt && mt.spec.multi.perExtra && got > 1) cost += mt.spec.multi.perExtra.repeat(got - 1);
+      return cost;
     }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
@@ -4064,6 +4089,22 @@
           if (!pool.length) return this.fail(`No creature with power ${ex.n} or greater to sacrifice.`);
           pool.sort((x, y) => this.powerOf(x) - this.powerOf(y));
           chose.casualty = pool[0];
+        }
+      }
+      /* "X target creatures", strive: how many targets the variable one got,
+         checked against X, and strive's price for each beyond the first */
+      const mt = !o.isCopy && this._multiOf(a);
+      if (mt) {
+        const got = Math.max(0, (opts.targets || []).length - mt.fixed);
+        const mm = mt.spec.multi;
+        const legalN = this._legalTargetsFor(mt.spec, playerId, o.id).length;
+        if (mm.count === 'X') {
+          const x = opts.x || 0;
+          if (mm.exact && got !== Math.min(x, legalN)) return this.fail(`Choose exactly ${Math.min(x, legalN)} target${Math.min(x, legalN) === 1 ? '' : 's'} (X is ${x}).`);
+          if (!mm.exact && got > x) return this.fail(`Choose no more than ${x} target${x === 1 ? '' : 's'} (X is ${x}).`);
+        } else if (mm.count === 'any') {
+          if (got < Math.min(mm.min || 0, legalN)) return this.fail(`Choose at least ${mm.min} target${mm.min === 1 ? '' : 's'}.`);
+          if (mm.perExtra && got > 1) cost += mm.perExtra.repeat(got - 1);
         }
       }
       /* What the generic questions bought (CR 702.56, 702.47, 702.78):
@@ -8531,11 +8572,15 @@
         const flat = [];
         for (const x of (ctx.effects || [])) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
         const aimed = flat.filter(x => x.targets && x.targets.length && !x.askTargets);
-        const total = aimed.reduce((k, x) => k + x.targets.length, 0);
+        // a variable-count target takes whatever the fixed ones leave
+        const fixedAll = aimed.reduce((k, x) => k + x.targets.filter(sp => !(sp && sp.multi)).length, 0);
+        const varN = Math.max(0, ctx.targets.length - fixedAll);
+        const sizeOf = (x) => x.targets.reduce((k, sp) => k + (sp && sp.multi ? varN : 1), 0);
+        const total = aimed.reduce((k, x) => k + sizeOf(x), 0);
         if (aimed.length > 1 && total === ctx.targets.length && aimed.includes(e)) {
           let off = 0;
-          for (const x of aimed) { if (x === e) break; off += x.targets.length; }
-          const mine = ctx.targets.slice(off, off + e.targets.length);
+          for (const x of aimed) { if (x === e) break; off += sizeOf(x); }
+          const mine = ctx.targets.slice(off, off + sizeOf(e));
           targets = mine.filter(t => targets.some(r => r.kind === t.kind && r.id === t.id));
           sliced = true;
         }
@@ -12761,6 +12806,7 @@
           for (const ef of (item.effects || (item.obj ? this._cardSpellEffects(item.obj.analysis()) : []))) {
             for (const sp of (ef.targets || [])) specs.push(sp);
           }
+          specs.splice(0, specs.length, ...this._fitSpecs(specs.slice(), (item.targets || []).length));
           if (!specs.length || !(item.targets || []).length) { this.logEvent('rules', `${item.name} has no target to change.`); break; }
           if (e.single && item.targets.length !== 1) { this.logEvent('rules', `${item.name} has more than one target.`); break; }
           const options = specs.slice(0, item.targets.length).map(sp => this._legalTargetsFor(sp, item.controller)

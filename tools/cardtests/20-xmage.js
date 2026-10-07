@@ -4177,4 +4177,34 @@ module.exports = (test) => {
     T.activate('A', r, r.analysis().manaAbilities.length + acts.findIndex(x => x.door === 0));
     t.eq(r.face, 0, 'Funeral Room unlocked');
   });
+
+  test('X target creatures: Winter Blast-style tapping takes exactly X targets', (mk, t) => {
+    const card = { id: 'probe-x-tap', name: 'Probe Tapper', type_line: 'Sorcery', mana_cost: '{X}{U}', cmc: 1, colors: ['U'], layout: 'normal',
+      oracle_text: 'Tap X target creatures.' };
+    const T = mk();
+    const a = T.bf('B', 'Grizzly Bears'), b = T.bf('B', 'Craw Wurm'), c = T.bf('B', 'Llanowar Elves');
+    const o = T.g._register(new (engine().rules.GObj)(card, 'A', 'hand'));
+    T.g.zones.A.hand.push(o);
+    T.mana('A', '2U');
+    t.no(T.g.castSpell('A', o.id, { x: 2, targets: [{ kind: 'object', id: a.id }] }), 'one target for X = 2 is refused');
+    t.ok(T.g.castSpell('A', o.id, { x: 2, targets: [{ kind: 'object', id: a.id }, { kind: 'object', id: b.id }] }), 'two is right');
+    T.resolve();
+    t.ok(a.tapped && b.tapped, 'both tapped');
+    t.no(c.tapped);
+  });
+
+  test("Strive: Ajani's Presence costs {2}{W} more for each target beyond the first", (mk, t) => {
+    t.auto("Ajani's Presence");
+    const T = mk();
+    const x = T.bf('A', 'Grizzly Bears'), y = T.bf('A', 'Llanowar Elves');
+    const ap = T.hand('A', "Ajani's Presence");
+    t.eq(T.g.castCostFor('A', ap.id, { targets: [{ kind: 'object', id: x.id }, { kind: 'object', id: y.id }] }), '{W}{2}{W}');
+    T.mana('A', 'W');
+    t.no(T.g.castSpell('A', ap.id, { targets: [{ kind: 'object', id: x.id }, { kind: 'object', id: y.id }] }), 'not enough for two');
+    T.mana('A', '2WW');
+    t.ok(T.g.castSpell('A', ap.id, { targets: [{ kind: 'object', id: x.id }, { kind: 'object', id: y.id }] }), 'enough for two');
+    T.resolve();
+    t.eq(T.g.powerOf(x), 3); t.eq(T.g.powerOf(y), 2);
+    t.ok(T.g.hasKw(y, 'indestructible'));
+  });
 };

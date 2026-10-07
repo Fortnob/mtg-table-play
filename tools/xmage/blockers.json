@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15763,
+  "needed": 15738,
   "gainedCards": 1610,
-  "linesNeeded": 17810,
-  "linesGained": 2052,
+  "linesNeeded": 17737,
+  "linesGained": 2049,
   "gained": {
    "all": 1610,
    "top2000": 52,
@@ -110,27 +110,27 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 339,
-   "lines": 321,
+   "score": 332,
+   "lines": 317,
    "cards": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
     "Metalwork Colossus",
     "Reforge the Soul",
-    "Shigeki, Jukai Visionary",
     "Emrakul, the Promised End",
     "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
     "Kogla and Yidaro",
     "Temporal Mastery",
     "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass"
+    "Bloodsoaked Insight // Sanguine Morass",
+    "Metamorphosis Fanatic"
    ]
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 309,
-   "lines": 267,
+   "score": 268,
+   "lines": 229,
    "cards": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -141,9 +141,9 @@
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Comet Storm",
     "Heliod's Intervention",
-    "March of Swirling Mist",
     "Galadriel's Dismissal",
-    "Lazotep Quarry"
+    "Lazotep Quarry",
+    "Likeness Looter"
    ]
   },
   {
@@ -414,8 +414,8 @@
   },
   {
    "what": "Ability.modes.setChooseText",
-   "score": 36,
-   "lines": 33,
+   "score": 35,
+   "lines": 32,
    "cards": [
     "Rankle, Master of Pranks",
     "Drown in Dreams",
@@ -428,7 +428,7 @@
     "Will of the Temur",
     "Moxite Refinery",
     "Szat's Will",
-    "Klauth's Will"
+    "SOLDIER Military Program"
    ]
   },
   {
@@ -524,25 +524,6 @@
     "Drain Life",
     "Murdock's Crusade",
     "Atalya, Samite Master"
-   ]
-  },
-  {
-   "what": "second use of a later target",
-   "score": 32,
-   "lines": 32,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Scroll of Isildur",
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Ajani's Presence",
-    "Rabid Attack",
-    "Out Cold",
-    "Vivien, Arkbow Ranger",
-    "Sea Hag // Aquatic Ingress"
    ]
   },
   {
@@ -760,6 +741,25 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 26,
+   "lines": 26,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Scroll of Isildur",
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Out Cold",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown"
+   ]
+  },
+  {
    "what": "DynamicManaAbility shape",
    "score": 26,
    "lines": 26,
@@ -776,25 +776,6 @@
     "Sand Silos",
     "Saprazzan Cove",
     "Hollow Trees"
-   ]
-  },
-  {
-   "what": "StriveAbility",
-   "score": 25,
-   "lines": 19,
-   "cards": [
-    "Twinflame",
-    "Call the Coppercoats",
-    "Solidarity of Heroes",
-    "Setessan Tactics",
-    "Ajani's Presence",
-    "Harness by Force",
-    "Consign to Dust",
-    "Rouse the Mob",
-    "Polymorphous Rush",
-    "Aerial Formation",
-    "Kiora's Dismissal",
-    "Silence the Believers"
    ]
   },
   {
@@ -1074,25 +1055,6 @@
    ]
   },
   {
-   "what": "Ability.setRuleAtTheTop",
-   "score": 22,
-   "lines": 19,
-   "cards": [
-    "Open the Way",
-    "See Double",
-    "Display of Power",
-    "Officious Interrogation",
-    "Malicious Affliction",
-    "Ertai's Scorn",
-    "Even the Score",
-    "Choreographed Sparks",
-    "Discontinuity",
-    "Brush Off",
-    "Take for a Ride",
-    "Redemptor Dreadnought"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -1128,6 +1090,25 @@
     "Wall of Resurgence",
     "Kenku Artificer",
     "Relive the Past"
+   ]
+  },
+  {
+   "what": "Ability.setRuleAtTheTop",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Open the Way",
+    "See Double",
+    "Display of Power",
+    "Malicious Affliction",
+    "Ertai's Scorn",
+    "Even the Score",
+    "Choreographed Sparks",
+    "Discontinuity",
+    "Brush Off",
+    "Take for a Ride",
+    "Redemptor Dreadnought",
+    "Stormwing Entity"
    ]
   },
   {
@@ -7915,13 +7896,26 @@
     "Magus of the Arena",
     "Nova Pentacle"
    ]
+  },
+  {
+   "what": "ConditionalRequirementEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Frodo Baggins",
+    "Seton's Desire",
+    "Enkira, Hostile Scavenger",
+    "Stone-Tongue Basilisk",
+    "Reckless Cohort",
+    "Marauding Maulhorn"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4426,
-   "cards": 3883,
+   "score": 4434,
+   "cards": 3888,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7946,8 +7940,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 264,
-   "cards": 225,
+   "score": 231,
+   "cards": 192,
    "names": [
     "Curse of the Swine",
     "The Mycosynth Gardens",
@@ -7959,8 +7953,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 224,
-   "cards": 212,
+   "score": 222,
+   "cards": 210,
    "names": [
     "Excalibur, Sword of Eden",
     "Cavern-Hoard Dragon",
@@ -7972,15 +7966,15 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 186,
-   "cards": 177,
+   "score": 190,
+   "cards": 178,
    "names": [
     "Mizzix's Mastery",
+    "March of Swirling Mist",
     "Eldritch Immunity",
     "Winds of Abandon",
     "Alchemist's Talent",
-    "Liliana, Death's Majesty",
-    "Wand of Wonder"
+    "Liliana, Death's Majesty"
    ]
   },
   {
@@ -8140,19 +8134,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
-   "score": 29,
-   "cards": 26,
-   "names": [
-    "Rankle, Master of Pranks",
-    "Drown in Dreams",
-    "Will of the Jeskai",
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 28,
    "cards": 19,
@@ -8163,6 +8144,32 @@
     "The Earth King",
     "Hermes, Overseer of Elpis",
     "Persistent Marshstalker"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 28,
+   "cards": 25,
+   "names": [
+    "Rankle, Master of Pranks",
+    "Drown in Dreams",
+    "Will of the Jeskai",
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 27,
+   "cards": 15,
+   "names": [
+    "Priest of Forgotten Gods",
+    "Call the Coppercoats",
+    "Singularity Rupture",
+    "Court of Cunning",
+    "Stonespeaker Crystal",
+    "Tinybones Joins Up"
    ]
   },
   {
@@ -8296,19 +8303,6 @@
    ]
   },
   {
-   "what": "target count 0",
-   "score": 22,
-   "cards": 13,
-   "names": [
-    "Priest of Forgotten Gods",
-    "Singularity Rupture",
-    "Court of Cunning",
-    "Stonespeaker Crystal",
-    "Tinybones Joins Up",
-    "Wheel and Deal"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 22,
    "cards": 22,
@@ -8413,6 +8407,19 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 18,
+   "cards": 18,
+   "names": [
+    "Ms. Bumbleflower",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Out Cold"
+   ]
+  },
+  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 17,
    "cards": 14,
@@ -8449,19 +8456,6 @@
     "Staff of the Death Magus",
     "Staff of the Sun Magus",
     "Exuberant Fuseling"
-   ]
-  },
-  {
-   "what": "second use of a later target",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Ms. Bumbleflower",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Rabid Attack",
-    "Out Cold",
-    "Sea Hag // Aquatic Ingress"
    ]
   },
   {
@@ -11098,6 +11092,17 @@
    ]
   },
   {
+   "what": "ReturnToHandFromBattlefieldSourceCost",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Shigeki, Jukai Visionary",
+    "Maze's End",
+    "Gossamer Chains",
+    "Cycle of Life"
+   ]
+  },
+  {
    "what": "RegenerateTargetEffect",
    "score": 7,
    "cards": 7,
@@ -11734,19 +11739,6 @@
     "Ancient Lumberknot",
     "The Kingpin of Crime",
     "Belligerent Brontodon"
-   ]
-  },
-  {
-   "what": "ExileUntilSourceLeavesEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Summon: Ixion",
-    "Werefox Bodyguard",
-    "Trapped in the Screen",
-    "Turncoat Kunoichi",
-    "Detention Chariot",
-    "Driftgloom Coyote"
    ]
   }
  ]
