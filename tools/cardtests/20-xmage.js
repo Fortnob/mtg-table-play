@@ -8671,4 +8671,57 @@ module.exports = (test) => {
     T2.resolve();
     t.eq(T2.life('B'), 17, 'discover cast the Bolt at B');
   });
+
+  test('Jaya, Fiery Negotiator: of the two exiled, only the one chosen may be played this turn', (mk, t) => {
+    const T = mk();
+    const bolt = T.top('A', 'Lightning Bolt');
+    const bear = T.top('A', 'Grizzly Bears');
+    const jaya = T.bf('A', 'Jaya, Fiery Negotiator');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Lightning Bolt').id] }));
+    T.activate('A', jaya, 1);
+    T.resolve();
+    t.eq(bolt.zone, 'exile');
+    t.eq(bolt.impulseBy, 'A', 'the Bolt may be played');
+    t.no(bear.impulseBy, 'the Bears may not');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 17);
+  });
+
+  test('Thor, God of Thunder: an instant, sorcery or Equipment from the graveyard, playable until the end of your next turn', (mk, t) => {
+    t.auto('Thor, God of Thunder');
+    const T = mk();
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bolt.id }] }));
+    T.put('A', 'Thor, God of Thunder', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(bolt.zone, 'exile');
+    t.eq(bolt.impulseBy, 'A');
+    t.ok(bolt.impulseUntil > T.g.turn, 'into the next turn of its own');
+  });
+
+  test('Silkwrap only exiles a creature an opponent controls', (mk, t) => {
+    t.auto('Silkwrap');
+    const ab = engine().oracle.analyze(card('Silkwrap')).abilities.find(a => a.kind === 'triggered');
+    const spec = ab.effects.find(e => e.targets).targets[0];
+    t.eq(spec.controller, 'opponent');
+    t.eq(spec.maxMv, 3);
+  });
+
+  test('Renegade Bull: exile an instant from your graveyard as it attacks, and cast a copy of it free', (mk, t) => {
+    t.auto('Renegade Bull');
+    const T = mk();
+    const bull = T.bf('A', 'Renegade Bull');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bolt.id }] }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('declareAttackers', () => [{ attackerId: bull.id, defenderId: 'B' }]);
+    const life = T.life('B');
+    T.toMain('A', 'endCombat');
+    t.eq(bolt.zone, 'exile', 'the card stays exiled');
+    t.ok(T.life('B') <= life - 3, 'the copy was cast at B');
+    t.no(T.zone('A', 'graveyard').some(o => o.name === 'Lightning Bolt'), 'and the copy left nothing behind');
+  });
 };

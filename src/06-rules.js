@@ -14265,12 +14265,59 @@
         }
         /* "You may play that card this turn", "…those cards…": what the
            sentence before exiled may be played, for the turn or a bit longer. */
+        /* "…and copy it. You may cast the copy without paying its mana
+           cost": a copy of the card just exiled (or, for "the exiled card",
+           the one this permanent keeps in exile), cast now for nothing. A
+           copy of a permanent card becomes a token as it resolves. */
+        case 'castCopy': {
+          const recent = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
+          let c = this.obj(recent[recent.length - 1] || this._lastExiled);
+          if ((!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
+            const kept = this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id);
+            c = kept[kept.length - 1] || null;
+          }
+          if (!c || !c.card) break;
+          const ca = c.analysis();
+          if (!ca || ca.isLand) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast a copy of ${c.name} without paying its mana cost?` }, 'ccopy');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes === false) break;
+          const tg = this._askSpellTargets(ctx.controller, c, 'ccopyT');
+          if (tg === SUSPEND) return SUSPEND;
+          if (!tg) break;
+          const dup = this._register(new GObj(c.card, ctx.controller, 'exile'));
+          dup.isCopy = true;
+          if (ca.isPermanent) dup.isToken = true;
+          this.zones[ctx.controller].exile.push(dup);
+          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
+          const st = this.stack.find(x => x.objId === dup.id);
+          if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`); }
+          else { this._removeFromZone(dup); dup.zone = null; }
+          break;
+        }
+        /* "Exile the top two cards of your library. Choose one of them." —
+           the one chosen is what "that card" means from here on */
+        case 'chooseExiled': {
+          const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
+            .filter((id, i, a) => a.indexOf(id) === i && this.obj(id) && this.obj(id).zone === 'exile');
+          let pick = ids[0] || null;
+          if (ids.length > 1) {
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+              cards: ids.map(id => { const c = this.obj(id); return { id, name: c.name, card: c.card }; }),
+              prompt: 'Choose one of the exiled cards.' }, 'chooseExiled');
+            if (got === SUSPEND) return SUSPEND;
+            if (got && ids.includes(got[0])) pick = got[0];
+          }
+          this._lastExiledList = pick ? [pick] : [];
+          this._lastExiled = pick;
+          break;
+        }
         case 'impulseLast': {
           const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : [this._lastExiled]).filter(Boolean);
           // "until your next end step": this turn's, if it is yours and that step is still to come
           const mineNow = this.activePlayer && this.activePlayer.id === ctx.controller && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
-          const until = e.duration === 'nextTurn' ? this.turn + 1 : e.duration === 'exiled' ? 99999
-            : e.duration === 'nextEnd' ? (mineNow ? this.turn : this.turn + 1) : this.turn;
+          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' ? 99999
+            : e.duration === 'nextEnd' ? (mineNow ? this.turn : this._endOfNextTurnOf(ctx.controller)) : this.turn;
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;

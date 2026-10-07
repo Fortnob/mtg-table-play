@@ -1811,6 +1811,7 @@
     { re: /^(?:It|CARDNAME) deals X damage to (any target|target [a-z ]+?), where X is the number of ([A-Za-z ]+?) you control\.?$/,
       make: (m) => { const t = tgt(m[1]); const c = countOf(m[2] + ' you control'); return t && c ? { op: 'damage', n: c, targets: [t] } : null; } },
     { re: /^You may play (?:that card|it|those cards|them|the exiled cards?) this turn\.?$/i, make: () => ({ op: 'impulseLast', duration: 'eot' }) },
+    { re: /^Choose (?:one of them|one of those cards|one of the exiled cards|a card exiled this way)\.?$/i, make: () => ({ op: 'chooseExiled' }) },
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
     // Inti: "You may play that card until your next end step."
@@ -2307,6 +2308,13 @@
       make: (m) => ({ op: 'destroy', noRegen: /can'?t be regenerated/i.test(m[0]), targets: [targetSpec(m[1])] }) },
     { re: /^Exile (target (?:[a-z-]+, )+(?:or )?[a-z-]+)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1])] }) },
+    // Thor, God of Thunder: "Exile target Equipment, instant, or sorcery card from your graveyard."
+    { re: /^(Exile|Return) (target (?:[a-z-]+, )+or [a-z-]+ cards?) from your graveyard( to your hand)?\.?$/i,
+      make: (m) => {
+        if (/^exile$/i.test(m[1]) === !!m[3]) return null;
+        const spec = Object.assign(targetSpec(m[2], 'graveyard'), { controller: 'you' });
+        return spec.unknown ? null : { op: /^exile$/i.test(m[1]) ? 'exile' : 'regrowth', targets: [spec] };
+      } },
     { re: /^Exile (target [a-z-]+ or [a-z-]+)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1])] }) },
     { re: /^Return (?:up to one )?(target (?:[a-z-]+, )+(?:or )?[a-z-]+) to (?:its|their) owner'?s hand\.?$/i,
@@ -3181,7 +3189,7 @@
         let scope = null;
         const upTo = who.match(/^(any number of|up to (one|two)) /i);
         if (/target /i.test(who)) {
-          const t = tgt(who.replace(/^(?:any number of|up to (?:one|two)) /i, '').replace(/creatures/, 'creature'));
+          const t = tgt(who.replace(/^(?:any number of|up to (?:one|two)) /i, '').replace(/creatures\b/, 'creature'));
           if (!t) return null;
           if (upTo && /any number/i.test(upTo[1])) {
             // picked as it resolves, or (strive) as it is cast; what follows is about that group
@@ -4329,6 +4337,19 @@
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
     if (withClause && !known) spec.unknown = true;
+    /* …and every word of it: "with mana value 3 or less from a graveyard
+       and copy it" is more than the mana value */
+    if (withClause && known) {
+      let left = withClause.toLowerCase();
+      for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more))?/g,
+        /with power (?:\d+|x) or (?:less|greater|more)/g, /with toughness \d+ or (?:less|greater|more)/g,
+        new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g,
+        /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
+      // "target creature with flying an opponent controls"
+      const lc = left.match(/\s(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)\s*$/);
+      if (lc) { left = left.slice(0, lc.index); if (!spec.controller) spec.controller = /^you control/.test(lc[1]) ? 'you' : 'opponent'; }
+      if (/[a-z]/.test(left.replace(/\b(?:and|or)\b/g, ''))) spec.unknown = true;
+    }
     let rest = orig.slice(0, orig.length - withClause.length);
     // who controls it
     const ctl = rest.match(/\s+(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)$/i);
@@ -4404,6 +4425,8 @@
       // "an instant or sorcery card" is a card in a graveyard or a hand, never a permanent
       spec.cardTypes = ['instant', 'sorcery'].filter(t => p.includes(t)).concat(permTypes);
       if ((zone || 'battlefield') === 'battlefield') spec.unknown = true;
+      // Thor: "Equipment, instant, or sorcery card" is any one of them, not all at once
+      if (spec.subtypes && /\bor\b/.test(p)) spec.typeOrSubtype = true;
     }
     return spec;
   }
@@ -4438,10 +4461,15 @@
     if (spec.type === 'planeswalker' && !a.isPlaneswalker) return false;
     if (spec.type === 'battle' && !a.isBattle) return false;
     if (spec.anyOf && !spec.anyOf.some(w => w === 'permanent' || w === 'player' || isType(w))) return false;
-    if (spec.cardTypes && spec.cardTypes.length && !spec.cardTypes.some(isType)) return false;
+    const hasSub = () => spec.subtypes.some(st => (a.subtypes || []).some(t => t.toLowerCase() === st));
+    if (spec.typeOrSubtype) {
+      if (!(spec.cardTypes || []).some(isType) && !hasSub()) return false;
+    } else {
+      if (spec.cardTypes && spec.cardTypes.length && !spec.cardTypes.some(isType)) return false;
+      if (spec.subtypes && !hasSub()) return false;
+    }
     if (spec.notType && spec.notType.some(isType)) return false;
     if (spec.notSubtype && (a.subtypes || []).some(t => t.toLowerCase() === spec.notSubtype)) return false;
-    if (spec.subtypes && !spec.subtypes.some(st => (a.subtypes || []).some(t => t.toLowerCase() === st))) return false;
     if (spec.nonlegendary && (a.supertypes || []).includes('Legendary')) return false;
     if (spec.legendary && !(a.supertypes || []).includes('Legendary')) return false;
     if (spec.nonbasic && (a.supertypes || []).includes('Basic')) return false;
@@ -5352,6 +5380,23 @@
         const cost = /life$/i.test(theyMay[2]) ? { life: parseInt(theyMay[2], 10) } : theyMay[2];
         effects.push({ op: 'unlessPays', who: 'target', cost, then: inner.effects, text: s + ' ' + next });
         if (!inner.auto) auto = false;
+        i++;
+        continue;
+      }
+
+      /* "Exile target instant card from a graveyard and copy it. You may
+         cast the copy without paying its mana cost." — Narset, Wondrous
+         Crucible; Isochron Scepter's "You may copy the exiled card. If you
+         do, you may cast the copy without paying its mana cost." */
+      const copyIt = s.match(/^(?:(.+?)(?:,| and) )?(?:you may )?copy (it|that card|the exiled card)\.$/i);
+      const castCopy = copyIt && next.match(/^(?:If you do, )?you may cast the copy without paying its mana cost\.$/i);
+      if (castCopy) {
+        if (copyIt[1]) {
+          const pre = parseSentenceList(splitSentences(U.titleCase(copyIt[1].charAt(0)) + copyIt[1].slice(1) + '.'));
+          if (!pre.auto) auto = false;
+          effects.push(...pre.effects);
+        }
+        effects.push({ op: 'castCopy', of: /exiled/i.test(copyIt[2]) ? 'exiled' : 'last', text: s + ' ' + next });
         i++;
         continue;
       }
