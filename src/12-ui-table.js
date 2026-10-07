@@ -1824,7 +1824,17 @@
           uses.push({ label: MTG.oracle.abilityLabel(ab, o), cost, loyalty: ab.kind === 'loyalty',
             text, fn: () => this.activate(o, a, idx, ab) });
         });
-        if (!o.tapped) a.manaAbilities.forEach((ab, i) => {
+        a.manaAbilities.forEach((ab, i) => {
+          const xs = this._abilityX(o, ab);
+          if (o.tapped && !xs) return;
+          // a storage land's counters come off a number at a time: that one asks how many
+          if (xs) {
+            const c = ab.cost || {};
+            uses.push({ label: MTG.oracle.abilityLabel(ab, o), cost: c.mana || '',
+              text: MTG.oracle.named ? MTG.oracle.named(String(ab.text || '').replace(/^[^:]*:\s*/, ''), o) : ab.text,
+              fn: () => this.activate(o, a, i, ab) });
+            return;
+          }
           uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: i }) });
         });
         // prepared: a copy of the spell printed with it, cast from here
@@ -2029,16 +2039,71 @@
       return o && o.card ? o.card.name : 'something';
     }
 
-    activate(o, a, index, ab) {
+    /**
+     * @this {MTG.TableInstance}
+     * @param {any} o @param {any} a @param {number} index @param {any} ab
+     * @param {number=} x the X of its cost, once chosen
+     */
+    activate(o, a, index, ab, x) {
+      this.closePopover();
+      // an ability whose cost has an X (mana, or counters taken off) asks for it first
+      const asks = x == null ? this._abilityX(o, ab) : null;
+      if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, 0, asks.max, asks.max,
+        (n) => this.activate(o, a, index, ab, n), o.card);
+      const more = x != null ? { x } : {};
       const specs = [];
       for (const e of (ab.effects || [])) for (const s of (e.targets || [])) specs.push(s);
-      this.closePopover();
-      if (!specs.length) return this.send({ kind: 'activate', objId: o.id, index, targets: [] });
+      if (!specs.length) return this.send({ kind: 'activate', objId: o.id, index, targets: [], ...more });
       this.startTargeting({
         need: specs.length, specs, label: `${o.card.name}: choose ${specs.length === 1 ? 'a target' : specs.length + ' targets'}`,
         source: o.id, cardName: o.card.name,
-        onDone: (targets) => this.send({ kind: 'activate', objId: o.id, index, targets }),
+        onDone: (targets) => this.send({ kind: 'activate', objId: o.id, index, targets, ...more }),
       });
+    }
+
+    /**
+     * The X an ability's cost asks for, if any: "{X}: ..." pays X mana, and a
+     * storage land's "Remove X storage counters" takes that many off. Returns
+     * { label, sub, max } or null.
+     * @this {MTG.TableInstance}
+     */
+    _abilityX(o, ab) {
+      const c = (ab && ab.cost) || {};
+      const rc = c.removeCounters;
+      if (rc && (rc.n === 'X' || rc.n === 'any')) {
+        const kind = String(rc.kind || '').replace(/\s+counters?$/i, '').trim();
+        const have = Number((o.counters || {})[kind]) || 0;
+        return { label: `remove how many ${kind} counters?`, sub: `It has ${have}.`, max: have };
+      }
+      if (/\{X\}/.test(String(c.mana || ''))) {
+        const fixed = MTG.mana.cmc(String(c.mana).replace(/\{X\}/g, ''));
+        const max = Math.max(0, this.manaHere() - fixed - (c.tap && !o.tapped && this._makesMana(o) ? 1 : 0));
+        return { label: 'choose X', sub: `You can afford up to ${max}.`, max };
+      }
+      return null;
+    }
+    /** Whether tapping this permanent for its own cost also takes a mana source away. */
+    _makesMana(o) {
+      const a = this.analysis(o);
+      return !!(a && a.manaAbilities && a.manaAbilities.length);
+    }
+
+    /** A number to pick, between min and max: a stepper, then on with it. @this {MTG.TableInstance} */
+    _askNumber(title, sub, min, max, start, onDone, card) {
+      let n = U.clamp(start, min, max);
+      const key = 'num:' + title;
+      this.asking = { base: key, get key() { return key + ':' + n; }, build: () => this.panel(title, escapeHtml(sub || ''),
+        el('div', { class: 'x-pick' }, [
+          el('button', { type: 'button', class: 'btn', text: '\u2212', disabled: n <= min, onclick: () => { n = Math.max(min, n - 1); this.render(); }, 'aria-label': 'Fewer' }),
+          el('div', { class: 'x-val', text: String(n) }),
+          el('button', { type: 'button', class: 'btn', text: '+', disabled: n >= max, onclick: () => { n = Math.min(max, n + 1); this.render(); }, 'aria-label': 'More' }),
+          max > min + 1 ? el('button', { type: 'button', class: 'btn xs ghost', text: `max (${max})`, onclick: () => { n = max; this.render(); } }) : null,
+        ].filter(Boolean)),
+        [
+          { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
+          { label: 'Activate', cls: 'primary', fn: () => { this.asking = null; this.render(); onDone(n); } },
+        ], { card }) };
+      this.render();
     }
 
     startTargeting(t) {

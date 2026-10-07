@@ -393,7 +393,7 @@ declare namespace MTG {
       /** generic questions answered as the spell is cast (replicate, splice), by purpose */
       choices?: Record<string, ChooseAnswer>;
     }
-    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[] }
+    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number }
     | { kind: 'mana'; objId: Id; index?: number; choice?: string | null }
     | { kind: 'declareAttackers'; declarations: AttackDeclaration[] }
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }
