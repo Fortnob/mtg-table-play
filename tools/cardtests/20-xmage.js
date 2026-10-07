@@ -5528,4 +5528,39 @@ module.exports = (test) => {
     t.no(T.g.couldBlock(bear, sp, 'B'));
     t.ok(T.g.couldBlock(bird, sp, 'B'));
   });
+
+  test('Duneblast: keep up to one creature, destroy the rest', (mk, t) => {
+    t.auto('Duneblast');
+    const T = mk();
+    const mine = T.bf('A', 'Gutsplitter Gang');
+    const a2 = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', { picks: [mine.id] });
+    T.mana('A', 'WBG4');
+    T.cast('A', T.hand('A', 'Duneblast'));
+    T.resolve();
+    t.eq(mine.zone, 'battlefield');
+    t.eq(a2.zone, 'graveyard'); t.eq(theirs.zone, 'graveyard');
+  });
+
+  test('Divine Reckoning: each player keeps one of their own', (mk, t) => {
+    t.auto('Divine Reckoning');
+    const T = mk();
+    const a1 = T.bf('A', 'Gutsplitter Gang'), a2 = T.bf('A', 'Grizzly Bears');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Llanowar Elves');
+    T.answer('choose', { picks: [a1.id] }); T.answer('choose', { picks: [b2.id] });
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Divine Reckoning'));
+    T.resolve();
+    t.eq([a1, a2, b1, b2].map(o => o.zone).join(), 'battlefield,graveyard,graveyard,battlefield');
+  });
+
+  test('Citywide Bust: creatures with toughness 4 or greater', (mk, t) => {
+    t.auto('Citywide Bust');
+    const T = mk();
+    const big = T.bf('B', 'Gutsplitter Gang'), bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'WW1');
+    T.cast('A', T.hand('A', 'Citywide Bust'));
+    t.eq(big.zone, 'graveyard'); t.eq(bear.zone, 'battlefield');
+  });
 };

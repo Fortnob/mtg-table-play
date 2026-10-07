@@ -1463,6 +1463,15 @@
   const CHOOSE_PURPOSES = {
     /* "Choose a creature type": the options come most-ours first */
     creatureType() { return { picks: [0] }; },
+    /* Duneblast: keep our best creature (or our own best, when each player keeps one) */
+    keepCreatures(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const mine = pool.filter(o => o.controller === this.pid);
+      const from = mine.length ? mine : pool;
+      const best = from.sort((a, b) => this.permanentValue(b) - this.permanentValue(a)).slice(0, s.max || 1);
+      return { picks: best.length >= (s.min || 0) ? best.map(o => o.id) : pool.slice(0, s.min).map(o => o.id) };
+    },
     /* Fire Prophecy: the cards we want least go to the bottom */
     handToBottom(s) {
       const g = this.game;

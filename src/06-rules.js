@@ -10077,6 +10077,8 @@
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "an X/X token, where X is that spell's mana value": the size, worked out now
           const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) } : {};
+          // Grismold: "each player creates a 1/1 green Plant creature token"
+          if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
           this._createToken(owner.id, Object.assign({}, e, { n: many }, sized));
           break;
         }
@@ -10085,8 +10087,10 @@
           const owner = e.who === 'targetController' ? (this._lastAffectedController() || me)
             // "Target player creates a Treasure token."
             : e.who === 'target' ? firstPlayer()
-            : e.who === 'opponents' ? null : me;
+            : e.who === 'opponents' || e.who === 'each' ? null : me;
           if (e.who === 'target' && !owner) break;
+          // Marching Duodrone: "each player creates a Treasure token"
+          if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createNamedToken(p.id, Object.assign({}, e, { n: n(e.n) || 1 })); break; }
           // "a Treasure for each creature that died this turn" may be none at all
           const many = e.n && typeof e.n === 'object' ? n(e.n) : (n(e.n) || 1);
           if (many <= 0) break;
@@ -13109,6 +13113,35 @@
           this.logEvent('control', `${p.name} gains control of ${x.name}.`);
           break;
         }
+        // Door to Nothingness
+        case 'loseGameTarget': {
+          const p = firstPlayer();
+          if (p && !p.hasLost) { this.playerLoses(p, `${src ? src.name : 'a card'} said so`); this.checkStateBasedActions(); }
+          break;
+        }
+        /* Duneblast: "Choose up to one creature. Destroy the rest." Divine
+           Reckoning: each player keeps one of their own. The choosing is
+           not targeting. */
+        case 'keepDestroyRest': {
+          const creatures = () => this.battlefield.filter(o => !o.phasedOut && this.characteristics(o).isCreature);
+          const keep = new Set();
+          const choosers = e.who === 'each' ? this._turnOrderFrom(ctx.controller) : [me];
+          for (const p of choosers) {
+            const pool = creatures().filter(o => e.who !== 'each' || o.controller === p.id);
+            if (!pool.length) continue;
+            const want = Math.min(pool.length, e.n || 1);
+            const got = this._choose({ playerId: p.id, purpose: 'keepCreatures', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+              min: e.who === 'each' ? want : 0, max: want, prompt: `Choose ${e.who === 'each' ? '' : 'up to '}${want === 1 ? 'a creature' : want + ' creatures'} to keep.` }, 'keep' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            for (const id of ((got && got.picks) || []).slice(0, want)) keep.add(id);
+          }
+          for (const o of creatures()) {
+            if (keep.has(o.id) || this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
+            this.moveObject(o, 'graveyard');
+          }
+          this.logEvent('destroy', 'The rest are destroyed.');
+          break;
+        }
         // Terminus: every creature to the bottom of its owner's library
         case 'bottomAll': {
           for (const o of this._scopeList(e.scope, ctx.controller, src).slice()) this.moveObject(o, 'library', { toBottom: true });
@@ -14164,6 +14197,7 @@
         if (sc.maxPower != null && pw > sc.maxPower) return false;
       }
       // "with toughness 1 or less", the same way
+      if (sc.minToughness != null && (inLayers ? (parseInt(oa.toughness, 10) || 0) : this.toughnessOf(o)) < sc.minToughness) return false;
       if (sc.maxToughness != null) {
         const tg = inLayers
           ? (parseInt(oa.toughness, 10) || 0) + (Number(o.counters['+1/+1']) || 0) - (Number(o.counters['-1/-1']) || 0)

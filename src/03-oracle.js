@@ -864,6 +864,24 @@
       make: (m) => ({ op: 'damage', n: +m[1], toDefenderOf: 'triggerObject' }) },
     { re: /^(?:It|That creature) deals damage equal to its power to the player or planeswalker it'?s attacking\.?$/i,
       make: () => ({ op: 'damage', n: { ofTrigger: 'power' }, fromTrigger: true, toDefenderOf: 'triggerObject' }) },
+    // Hex: "Destroy six target creatures."
+    { re: /^Destroy (two|three|four|five|six) target ([a-z ]+?)s\.?$/i,
+      make: (m) => { const t = tgt('target ' + m[2]); return t ? { op: 'destroy', targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, t, { distinct: true })) } : null; } },
+    // Door to Nothingness
+    { re: /^Target (player|opponent) loses the game\.?$/i, make: (m) => ({ op: 'loseGameTarget', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Marching Duodrone, Grismold: "each player creates a Treasure token"
+    { re: /^Each player creates (a|an|one|two|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: num(m[1]), who: 'each' }) },
+    { re: /^Each player creates (.+)$/i,
+      make: (m) => { const inner = parseTokenSentence('Create ' + m[1]); return inner ? Object.assign(inner, { who: 'each' }) : null; } },
+    // Into the Fire: "2 damage to each creature, planeswalker, and battle"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature, planeswalker, and battle\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'all', what: 'permanent', anyOf: ['creature', 'planeswalker', 'battle'] } }) },
+    // Kaya's Guile: "Exile all opponents' graveyards."
+    { re: /^Exile all opponents'? graveyards\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'opponents' }) },
+    // Memnarch: "Target permanent becomes an artifact in addition to its other types." — for good
+    { re: /^(target [a-z ]+?) becomes an? (artifact|enchantment|creature|land) in addition to its other types\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'addTypes', types: [U.titleCase(m[2])], targets: [t] } : null; } },
     // Burning Inquiry: "Each player draws three cards, then discards three cards at random."
     { re: /^Each player draws (a|one|two|three|\d+) cards?, then discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => [{ op: 'draw', n: num(m[1]), who: 'each' }, { op: 'discard', n: num(m[2]), who: 'each', random: true }] },
@@ -2825,7 +2843,7 @@
     /* ===== combat restrictions ===== */
     /* Sundering Eruption: "Creatures without flying can't block this turn"
        — a group, not a target */
-    { re: /^((?:All |Each )?(?:other )?(?:[a-z]+ )*?creatures(?: [a-z' ]+?)?) can'?t (block|attack|attack or block) this turn\.?$/i,
+    { re: /^((?:All |Each )?(?:other )?(?:[a-z]+ )*?creatures(?: [a-z0-9' ]+?)?) can'?t (block|attack|attack or block) this turn\.?$/i,
       make: (m) => {
         if (/^(?:target|it|that|those|they)\b/i.test(m[1])) return null;
         // Orim's Chant: plain "creatures can't attack this turn" has a rule of its own
@@ -3603,12 +3621,15 @@
     if (tpt) spec.maxPtSum = +tpt[1];
     const pot = p.match(/with power or toughness (\d+) or less$/);
     if (pot) spec.maxPowerOrToughness = +pot[1];
+    // Repel Calamity: "with power or toughness 4 or greater"
+    const pog = p.match(/with power or toughness (\d+) or (?:greater|more)$/);
+    if (pog) spec.minPowerOrToughness = +pog[1];
     const mx = p.match(/with (?:mana value|converted mana cost) (\d+)$/);
     if (mx) spec.mv = +mx[1];
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
       spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.noCounters ||
-      spec.maxPtSum != null || spec.maxPowerOrToughness != null;
+      spec.maxPtSum != null || spec.maxPowerOrToughness != null || spec.minPowerOrToughness != null;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
     if (withClause && !known) spec.unknown = true;
@@ -3758,6 +3779,7 @@
     if (spec.maxPower != null && pow() > spec.maxPower) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
+    if (spec.minPowerOrToughness != null && pow() < spec.minPowerOrToughness && tou() < spec.minPowerOrToughness) return false;
     if (spec.minPower != null && pow() < spec.minPower) return false;
     if (spec.maxToughness != null && tou() > spec.maxToughness) return false;
     if (spec.minToughness != null && tou() < spec.minToughness) return false;
@@ -3947,6 +3969,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Duneblast, Mount Doom: "Choose up to one creature. Destroy the rest."; Divine Reckoning: each player's own
+    { re: /^Choose up to (one|two|three) creatures?(?:, then|\. Destroy) (?:destroy )?the rest\.?$/i,
+      make: (m) => [{ op: 'keepDestroyRest', n: num(m[1]), who: 'you' }] },
+    { re: /^Each player chooses (a|one|two) creatures? they control\. Destroy the rest\.?$/i,
+      make: (m) => [{ op: 'keepDestroyRest', n: num(m[1]), who: 'each' }] },
     // Peer into the Abyss: two halves, rounded up
     { re: /^Target player draws cards equal to half the number of cards in their library and loses half their life\. Round up each time\.?$/i,
       make: () => [{ op: 'draw', who: 'target', n: { halfLibrary: 'target', up: true }, targets: [{ type: 'player' }] },
@@ -6966,6 +6993,10 @@
     for (let pass = 0; pass < 2; pass++) {
       if ((m = rest.match(/ with power (\d+) or (greater|more|less)$/i))) {
         if (/less/i.test(m[2])) sc.maxPower = +m[1]; else sc.minPower = +m[1];
+        rest = rest.slice(0, m.index);
+      } else if ((m = rest.match(/ with toughness (\d+) or (greater|more|less)$/i))) {
+        // Citywide Bust: "with toughness 4 or greater"
+        if (/less/i.test(m[2])) sc.maxToughness = +m[1]; else sc.minToughness = +m[1];
         rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with (?:mana value|converted mana cost) (\d+) or (less|greater|more)$/i))) {
         if (/less/i.test(m[2])) sc.maxMv = +m[1]; else sc.minMv = +m[1];

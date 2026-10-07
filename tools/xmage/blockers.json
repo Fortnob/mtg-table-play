@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14995,
-  "gainedCards": 1527,
-  "linesNeeded": 16688,
-  "linesGained": 1928,
+  "needed": 14980,
+  "gainedCards": 1526,
+  "linesNeeded": 16671,
+  "linesGained": 1926,
   "gained": {
-   "all": 1527,
+   "all": 1526,
    "top2000": 51,
    "stdTop": 12
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 72,
+  "verifyFail": 71,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5465,
-   "lines": 4709,
+   "score": 5461,
+   "lines": 4705,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -1611,25 +1611,6 @@
    ]
   },
   {
-   "what": "AddCardTypeTargetEffect",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Mech Hangar",
-    "Depthshaker Titan",
-    "Peacewalker Colossus",
-    "Chandra, Spark Hunter",
-    "Tough Cookie",
-    "Memnarch",
-    "Guidelight Matrix",
-    "Kolodin, Triumph Caster",
-    "Ashnod's Transmogrant",
-    "Tezzeret, Agent of Bolas",
-    "Workshop Elders",
-    "Stone by Sunlight"
-   ]
-  },
-  {
    "what": "DamageTargetEffect amount",
    "score": 16,
    "lines": 16,
@@ -1744,25 +1725,6 @@
    ]
   },
   {
-   "what": "CreateTokenAllEffect",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Descent into Avernus",
-    "Akroan Horse",
-    "Slaughter Specialist",
-    "Kibo, Uktabi Prince",
-    "Marching Duodrone",
-    "Grismold, the Dreadsower",
-    "Tribute to Horobi // Echo of Death's Wail",
-    "Elephant-Mandrill",
-    "Edge Rover",
-    "Pursued Whale",
-    "Rasputin, the Oneiromancer",
-    "Elephant Resurgence"
-   ]
-  },
-  {
    "what": "ExileTargetCost",
    "score": 15,
    "lines": 6,
@@ -1862,6 +1824,25 @@
     "Night Revelers",
     "Beasts of Bogardan",
     "Wu Admiral"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Mech Hangar",
+    "Depthshaker Titan",
+    "Peacewalker Colossus",
+    "Chandra, Spark Hunter",
+    "Tough Cookie",
+    "Guidelight Matrix",
+    "Kolodin, Triumph Caster",
+    "Ashnod's Transmogrant",
+    "Tezzeret, Agent of Bolas",
+    "Workshop Elders",
+    "Stone by Sunlight",
+    "Tezzeret the Schemer"
    ]
   },
   {
@@ -2803,6 +2784,22 @@
     "Kiora, the Tide's Fury",
     "Emporium Thopterist",
     "Wingsteed Trainer"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Descent into Avernus",
+    "Akroan Horse",
+    "Slaughter Specialist",
+    "Kibo, Uktabi Prince",
+    "Tribute to Horobi // Echo of Death's Wail",
+    "Edge Rover",
+    "Pursued Whale",
+    "Rasputin, the Oneiromancer",
+    "Elephant Resurgence"
    ]
   },
   {
@@ -5968,20 +5965,6 @@
    ]
   },
   {
-   "what": "fight targets",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Savage Stomp",
-    "Temur Charm",
-    "Longstalk Brawl",
-    "Hunt the Weak",
-    "Invasion of Muraganda // Primordial Plasm",
-    "Struggle for Skemfar",
-    "Hunt the Hunter"
-   ]
-  },
-  {
    "what": "AttacksWhileSaddledTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -6873,19 +6856,6 @@
    ]
   },
   {
-   "what": "ExileGraveyardAllPlayersEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Phyrexian Scriptures",
-    "Kaya's Guile",
-    "Calamity's Wake",
-    "Sanctifier en-Vec",
-    "Silent Gravestone",
-    "Ultimate Nullification"
-   ]
-  },
-  {
    "what": "AttacksIfAbleAllEffect",
    "score": 6,
    "lines": 6,
@@ -6986,6 +6956,19 @@
     "Jasmine Boreal of the Seven",
     "Fang-Druid Summoner",
     "Rise from the Wreck"
+   ]
+  },
+  {
+   "what": "fight targets",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Savage Stomp",
+    "Longstalk Brawl",
+    "Hunt the Weak",
+    "Invasion of Muraganda // Primordial Plasm",
+    "Struggle for Skemfar",
+    "Hunt the Hunter"
    ]
   },
   {
@@ -7707,13 +7690,25 @@
     "God-Eternal Rhonas",
     "God-Eternal Kefnet"
    ]
+  },
+  {
+   "what": "keyword ParadigmAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Improvisation Capstone",
+    "Germination Practicum",
+    "Decorum Dissertation",
+    "Restoration Seminar",
+    "Echocasting Symposium"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4369,
-   "cards": 3829,
+   "score": 4365,
+   "cards": 3825,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8944,19 +8939,6 @@
    ]
   },
   {
-   "what": "CreateTokenAllEffect",
-   "score": 11,
-   "cards": 8,
-   "names": [
-    "Descent into Avernus",
-    "Slaughter Specialist",
-    "Kibo, Uktabi Prince",
-    "Marching Duodrone",
-    "Grismold, the Dreadsower",
-    "Elephant-Mandrill"
-   ]
-  },
-  {
    "what": "BeginningOfPostcombatMainTriggeredAbility",
    "score": 11,
    "cards": 8,
@@ -9908,6 +9890,18 @@
    ]
   },
   {
+   "what": "CreateTokenAllEffect",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Descent into Avernus",
+    "Slaughter Specialist",
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Elephant Resurgence"
+   ]
+  },
+  {
    "what": "keyword AftermathAbility",
    "score": 8,
    "cards": 5,
@@ -10208,19 +10202,6 @@
     "Rune of Mortality",
     "Rune of Speed",
     "Giant's Amulet"
-   ]
-  },
-  {
-   "what": "AddCardTypeTargetEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Peacewalker Colossus",
-    "Tough Cookie",
-    "Memnarch",
-    "Ashnod's Transmogrant",
-    "Workshop Elders",
-    "Stone by Sunlight"
    ]
   },
   {
@@ -10681,6 +10662,19 @@
     "Etched Champion",
     "Devoted Caretaker",
     "Pristine Angel"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Peacewalker Colossus",
+    "Tough Cookie",
+    "Ashnod's Transmogrant",
+    "Workshop Elders",
+    "Stone by Sunlight",
+    "Animating Faerie // Bring to Life"
    ]
   },
   {
