@@ -8478,4 +8478,25 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'library').length, l0 - Math.floor(l0 / 2));
     t.eq(T.zone('A', 'library').length, a0, 'not the caster');
   });
+
+  test('Phyrexian mana paid with life costs life', (mk, t) => {
+    const T = mk();
+    const g = T.bf('B', 'Hill Giant');
+    T.mana('A', '1');
+    T.cast('A', T.hand('A', 'Dismember'), { targets: [g.id] });
+    T.resolve();
+    t.eq(T.life('A'), 16, 'two Phyrexian pips, 4 life');
+    t.eq(g.zone, 'graveyard');
+  });
+
+  test('Platinum Emperion: no life can be paid', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Platinum Emperion');
+    const g = T.bf('B', 'Hill Giant');
+    T.mana('A', '1');
+    let refused = false;
+    try { T.cast('A', T.hand('A', 'Dismember'), { targets: [g.id] }); } catch (e) { refused = true; }
+    t.ok(refused, 'Dismember cannot be paid for with life');
+    t.eq(T.life('A'), 20);
+  });
 };

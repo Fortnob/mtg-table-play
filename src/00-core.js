@@ -585,6 +585,8 @@ class ManaPool {
       while (generic > 0 && avail[c] > 0) { avail[c]--; spend[c]++; generic--; }
     }
     if (generic > 0) return null;
+    // Phyrexian mana paid with life: no more than the life that can be paid
+    if (spend.life && opts.lifeLimit != null && spend.life > opts.lifeLimit) return null;
     return spend;
   }
   pay(cost, opts) {

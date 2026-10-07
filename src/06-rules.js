@@ -2927,7 +2927,7 @@
       /* Bolas's Citadel: life equal to the mana value, instead of mana */
       if (leave && leave.payLife) {
         const mv = MANA.cmc(a.manaCost || '');
-        if (p.life < mv) return { ok: false, reason: 'Not enough life.' };
+        if (p.life < mv || (mv > 0 && this._lifeFrozen(p))) return { ok: false, reason: 'Not enough life.' };
         return { ok: true, cost: '', lifeInstead: mv };
       }
       if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: '' };
@@ -2962,6 +2962,22 @@
       return new Set(ctl).size === ctl.length;
     }
     /** What paying for a spell took from the pool, kept while it is being cast (converge, sunburst). */
+    /* What a payment took, and the life Phyrexian mana was paid with (it
+       used to be free) */
+    _spendPlan(p, plan) {
+      if (plan && plan.life > 0) this.changeLife(p, -plan.life, 'cost');
+      return this._noteSpent(plan);
+    }
+    /** How much life this player can pay right now: none while their life total can't change (CR 119.8). */
+    _lifePayable(p) {
+      if (!p) return 0;
+      if (this._lifeFrozen(p)) return 0;
+      return Math.max(0, p.life);
+    }
+    _lifeFrozen(p) {
+      return !!p && ((p.lifeLocked && p.lifeLocked.until === p.id && this._protectionLive(p.lifeLocked)) ||
+        this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')));
+    }
     _noteSpent(plan) {
       if (plan && this._spentAcc) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) this._spentAcc[c] = (this._spentAcc[c] || 0) + (plan[c] || 0);
       return plan;
@@ -3386,7 +3402,7 @@
           if (this._thingCostBlocked(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn }, o, null)) return;
           if (alt.exileFromHand && this._discardPool(playerId, alt.exileFromHand, o).length < (alt.exileFromHand.n || 1)) return;
           const me = this.player(playerId);
-          if (alt.life && (!me || me.life < alt.life)) return;
+          if (alt.life && (!me || me.life < alt.life || this._lifeFrozen(me))) return;
           out.push({ kind: 'cast', via: 'alt' + i, cost: alt.mana || '', alt, label: alt.label });
         });
       }
@@ -5716,6 +5732,7 @@
       if (cost.life != null && cost.spellLife) {
         const k = cost.life === 'X' ? ((opts && opts.x) || 0) : cost.life;
         if (p && p.life < k) return 'Not enough life.';
+        if (p && k > 0 && this._lifeFrozen(p)) return "Your life total can't change, so you can't pay life.";
       }
       return null;
     }
@@ -6006,6 +6023,8 @@
       const p = this.player(playerId);
       if (cost.life && p.life <= cost.life && this.config.rulesEnforcement === 'full')
         return this.fail('Not enough life.');
+      // Platinum Emperion: life can't be paid while it can't change (CR 119.8)
+      if ((cost.life || cost.lifeFrom) && this._lifeFrozen(p)) return this.fail("Your life total can't change, so you can't pay life.");
       const lifeFrom = cost.lifeFrom === 'commanderColors' ? this._commanderColors(playerId).size : 0;
       if (lifeFrom && p.life < lifeFrom) return this.fail('Not enough life.');
       // `free` skips payment the same way it does for a spell, which is what
@@ -6109,8 +6128,9 @@
 
     /** Try to pay `cost`; may auto-tap lands. Returns true on success. */
     payMana(playerId, cost, opts) {
-      opts = opts || {};
+      opts = Object.assign({}, opts || {});
       const p = this.player(playerId);
+      if (p && opts.lifeLimit == null) opts.lifeLimit = this._lifePayable(p);
       if (!cost || !MANA.parse(cost).length) return true;
       // Unexpected Potential, Emissary's Ploy: mana spent as though it were any colour
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
@@ -6137,6 +6157,7 @@
       opts = Object.assign({ auto: true }, opts || {});
       const p = this.player(playerId);
       if (!p) return false;
+      if (opts.lifeLimit == null) opts.lifeLimit = this._lifePayable(p);
       if (!cost || !MANA.parse(cost).length) return true;
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
       const wasFor = this._payingFor;
@@ -6163,7 +6184,7 @@
     _payManaInner(p, playerId, cost, opts) {
       const need = opts.x ? cost.replace(/\{X\}/g, '{' + opts.x + '}') : cost;
 
-      if (p.pool.canPay(need, opts)) { this._noteSpent(p.pool.pay(need, opts)); return true; }
+      if (p.pool.canPay(need, opts)) { this._spendPlan(p, p.pool.pay(need, opts)); return true; }
       if (opts.fromPool) return false;
 
       // auto-tap: find a set of untapped mana sources that covers the cost
@@ -6173,7 +6194,7 @@
           const s = this.obj(id);
           if (s && !s.tapped) this._tapForBestMana(playerId, s, need);
         }
-        if (p.pool.canPay(need, opts)) { this._noteSpent(p.pool.pay(need, opts)); return true; }
+        if (p.pool.canPay(need, opts)) { this._spendPlan(p, p.pool.pay(need, opts)); return true; }
       }
       if (!MTG.settings.autoTapLands && !opts.auto) return false;
 
@@ -6182,7 +6203,7 @@
       for (const { obj, ability, symbol } of plan) {
         this._activateManaDirect(playerId, obj, ability, symbol);
       }
-      if (p.pool.canPay(need, opts)) { this._noteSpent(p.pool.pay(need, opts)); return true; }
+      if (p.pool.canPay(need, opts)) { this._spendPlan(p, p.pool.pay(need, opts)); return true; }
       return false;
     }
 
@@ -12197,7 +12218,7 @@
             if (!pay.discard) { this._spliceNext(e.then); break; }
           }
           if (pay.life != null && !pay.mana) {
-            if (me.life <= pay.life && this.config.rulesEnforcement === 'full') { this._spliceNext(e.otherwise); break; }
+            if ((me.life <= pay.life && this.config.rulesEnforcement === 'full') || (pay.life > 0 && this._lifeFrozen(me))) { this._spliceNext(e.otherwise); break; }
             this.changeLife(me, -pay.life, 'cost');
             this._spliceNext(e.then);
             break;
@@ -12270,7 +12291,7 @@
           }
           const affordable = typeof cost === 'string'
             ? this.couldPay(payer.id, cost)
-            : payer.life > (cost.life || 0);
+            : payer.life > (cost.life || 0) && !((cost.life || 0) > 0 && this._lifeFrozen(payer));
           if (!affordable) {
             this.logEvent('rules', `${payer.name} cannot pay ${typeof cost === 'string' ? cost : cost.life + ' life'}.`);
             this._spliceNext(e.then);
