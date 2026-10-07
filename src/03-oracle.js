@@ -548,6 +548,15 @@
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
+    /* Foot Chopper: "create a 1/1 Ninja token, then attach this Equipment
+       to it" — "it" is the token just made */
+    {
+      let made = false;
+      walk(effects, (e) => {
+        if (e.op === 'createToken' || e.op === 'createNamedToken') made = true;
+        else if (made && e.op === 'attachSelf' && (e.scope === 'triggerObject' || e.scope === 'lastTarget') && !(e.targets || []).length) e.scope = 'madeToken';
+      });
+    }
     // "Whenever this creature attacks, it endures 1": in its own trigger, "it" is itself
     if (scope === 'self') walk(effects, (e) => { if (e.op === 'endure' && e.scope === 'triggerObject') e.scope = 'self'; });
     // "Untap it." in a trigger about another permanent: that one, not this

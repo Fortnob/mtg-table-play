@@ -6631,4 +6631,14 @@ module.exports = (test) => {
     t.eq(de.counters['+1/+1'] || 0, 0);
     t.ok(T.bfOf('A').some(o => /Spirit/.test(o.name) && T.g.powerOf(o) === 3), 'a 3/3 Spirit');
   });
+
+  test('Foot Chopper: a Ninja token, and the Equipment on it', (mk, t) => {
+    t.auto('Foot Chopper');
+    const T = mk();
+    const fc = T.put('A', 'Foot Chopper', 'battlefield', { etb: true });
+    T.resolve();
+    const ninja = T.bfOf('A').find(o => /Ninja/.test(o.name));
+    t.ok(ninja, 'a Ninja');
+    t.eq(fc.attachedTo, ninja && ninja.id, 'attached to it');
+  });
 };

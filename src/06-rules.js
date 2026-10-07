@@ -12853,7 +12853,9 @@
           // "attach this Equipment to it": the creature the trigger is about
           const tid = e.scope === 'triggerObject' ? (ctx.triggerData || {}).objectId
             // "manifest dread, then attach this Equipment to that creature"
-            : e.scope === 'thatObject' ? this._lastPut : null;
+            : e.scope === 'thatObject' ? this._lastPut
+            // Foot Chopper: "create a 1/1 Ninja token, then attach this Equipment to it"
+            : e.scope === 'madeToken' ? (this._madeThisResolution || []).slice(-1)[0] : null;
           const host = tid ? this.obj(tid) : firstObj();
           if (host && host.zone !== 'battlefield') break;
           if (!src || !host) break;
