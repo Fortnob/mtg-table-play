@@ -1056,13 +1056,18 @@
     { re: /^Activate (?:this ability )?only once each turn\.?$/i, make: () => ({ op: 'activateOnly', perTurn: 1 }) },
     { re: /^Activate (?:this ability )?no more than (twice|three times|four times) each turn\.?$/i,
       make: (m) => ({ op: 'activateOnly', perTurn: /twice/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 4 }) },
-    { re: /^Activate (?:this ability )?only during (?:your turn|combat|your upkeep)\.?$/i, make: () => ({ op: 'noop' }) },
+    /* "Activate only during your turn" (any time in it, not only as a
+       sorcery), "only during combat", "only during your upkeep" */
+    { re: /^Activate (?:this ability )?only during (your turn|combat|your upkeep)\.?$/i,
+      make: (m) => ({ op: 'activateOnly', when: /turn/i.test(m[1]) ? 'yourTurn' : /combat/i.test(m[1]) ? 'combat' : 'yourUpkeep' }) },
+    // Vivi Ornitier, Nimbleclaw Adept: two restrictions at once
+    { re: /^Activate (?:this ability )?only (during your turn|as a sorcery) and only once each turn\.?$/i,
+      make: (m) => Object.assign({ op: 'activateOnly', perTurn: 1 }, /turn/i.test(m[1]) ? { when: 'yourTurn' } : {}) },
     { re: /^Cast (?:CARDNAME|this spell) only (?:before|during|after) [^.]*\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Until end of turn, you don'?t lose this mana as steps and phases end\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^You may choose new targets for (?:the|that) cop(?:y|ies)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^(?:Then )?shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
     { re: /^If you do, .*$/i, make: (m) => ({ op: 'manual', text: m[0] }) },
-    { re: /^Activate only during your turn\.?$/i, make: () => ({ op: 'noop' }) },
     /* Restrictions that belong to the ability above them, and that the
        engine can actually keep: a window in the turn, or something you
        have to control. */
@@ -2593,6 +2598,19 @@
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to each of up to (two|three) other targets\.?$/i,
       make: (m) => ({ op: 'damageSplit', amounts: [+m[1]].concat(Array.from({ length: num(m[3]) }, () => +m[2])),
         targets: [{ type: 'any', filter: 'any target', zone: 'battlefield' }].concat(Array.from({ length: num(m[3]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true }))) }) },
+    // Earthquake's kin: "2 damage to each creature without flying and each player"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to (each creature (?:with|without) [a-z ]+?) and each (player|opponent)\.?$/i,
+      make: (m) => {
+        const sc = massScopeOf(m[2]);
+        return sc ? [{ op: 'damage', n: num(m[1]), scope: sc }, { op: 'damage', n: num(m[1]), each: m[3].toLowerCase() }] : null;
+      } },
+    // Runeflare Trap: "damage to target player equal to the number of cards in that player's hand"
+    { re: /^(?:CARDNAME|This creature|It) deals damage to (target (?:player|opponent)) equal to the number of cards in (?:that player'?s|their) hand\.?$/i,
+      make: (m) => ({ op: 'damage', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // "{1}{U}: This creature gets +1/+0 until end of turn and can't be blocked this turn."
+    { re: /^(?:CARDNAME|This creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and can'?t be blocked this turn\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' },
+        { op: 'restrict', flag: 'unblockable', scope: 'self' }] }) },
     // Arc Trail: "2 damage to any target and 1 damage to any other target" — two different targets
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to any other target\.?$/i,
       make: (m) => ({ op: 'damageSplit', amounts: [+m[1], +m[2]],
@@ -5374,7 +5392,7 @@
         const ab = {
           kind: isManaAbility(effects) ? 'mana' : 'activated', cost, text: line,
           effects, auto: parsed.auto && costIsAutomatable(cost),
-          sorcerySpeed: /Activate only as a sorcery|Activate only during your turn|and only as a sorcery/i.test(line),
+          sorcerySpeed: /Activate only as a sorcery|and only as a sorcery/i.test(line),
         };
         /* "{1}{B}: Return this card from your graveyard to the battlefield
            tapped." An ability that works from the graveyard and nowhere
@@ -7541,6 +7559,9 @@
         make: (m) => ({ op: 'blocksExtra', n: m[1] ? num(m[1]) : 1 }), auto: true },
       { re: /^(?:CARDNAME|This creature) can block any number of creatures\.?$/i,
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
+      // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
+        make: (m) => ({ op: 'evasion', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t attack unless defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'attackRequires', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^CARDNAME can'?t be countered\.?$/i, eff: { op: 'cantBeCountered' }, auto: true },

@@ -4772,4 +4772,36 @@ module.exports = (test) => {
     t.eq(elf.zone, 'graveyard');
     t.eq(T.zone('B', 'hand').length, 0, 'B discarded');
   });
+
+  test('Bouncing Beebles: unblockable while the defender controls an artifact', (mk, t) => {
+    t.auto('Bouncing Beebles');
+    const T = mk();
+    const bb = T.bf('A', 'Bouncing Beebles');
+    const wall = T.bf('B', 'Wall of Stone');
+    t.ok(T.g.couldBlock(wall, bb, 'B'), 'no artifact: it can be blocked');
+    T.bf('B', 'Ornithopter');
+    t.no(T.g.couldBlock(wall, bb, 'B'), 'with an artifact it cannot');
+  });
+
+  test('Breath of Darigaaz: 1 damage to each creature without flying and each player', (mk, t) => {
+    t.auto('Breath of Darigaaz');
+    const T = mk();
+    const elf = T.bf('B', 'Llanowar Elves');
+    const bird = T.bf('B', 'Birds of Paradise');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Breath of Darigaaz'));
+    t.eq(elf.zone, 'graveyard');
+    t.eq(bird.zone, 'battlefield', 'flying spared');
+    t.eq(T.life('A'), 19); t.eq(T.life('B'), 19);
+  });
+
+  test('Activate only during your turn: any time in it, never in theirs', (mk, t) => {
+    t.auto('Vivi Ornitier');
+    const T = mk();
+    const v = T.bf('A', 'Vivi Ornitier');
+    const ab = v.analysis().manaAbilities[0];
+    t.no(T.g._activationBlocked(v, ab, 'A'), 'my turn');
+    T.nextTurn('B');
+    t.ok(T.g._activationBlocked(v, ab, 'A'), 'their turn');
+  });
 };

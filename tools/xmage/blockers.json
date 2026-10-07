@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15469,
-  "gainedCards": 1598,
-  "linesNeeded": 17278,
-  "linesGained": 2025,
+  "needed": 15430,
+  "gainedCards": 1588,
+  "linesNeeded": 17234,
+  "linesGained": 2015,
   "gained": {
-   "all": 1598,
+   "all": 1588,
    "top2000": 53,
    "stdTop": 12
   },
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 77,
+  "verifyFail": 74,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -26,7 +26,7 @@
    "x": 3,
    "it": 31,
    "opponent": 70,
-   "condition": 24,
+   "condition": 25,
    "subtype": 9
   }
  },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5558,
-   "lines": 4796,
+   "score": 5556,
+   "lines": 4794,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 949,
-   "lines": 802,
+   "score": 945,
+   "lines": 801,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -67,7 +67,7 @@
     "Myr Battlesphere",
     "Caged Sun",
     "Mesmeric Orb",
-    "Vivi Ornitier"
+    "Luminous Broodmoth"
    ]
   },
   {
@@ -375,25 +375,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 37,
-   "lines": 37,
-   "cards": [
-    "Bilbo's Ring",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Yuan-Ti Malison",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "June, Bounty Hunter",
-    "Nimble Brigand"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 34,
    "lines": 25,
@@ -451,25 +432,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 33,
-   "lines": 33,
-   "cards": [
-    "Invert Polarity",
-    "Nazgûl",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Fallaji Wayfarer",
-    "Aether Spike",
-    "Intellect Devourer",
-    "Swallowed by Leviathan",
-    "The Tabernacle at Pendrell Vale",
-    "Myr Superion",
-    "Hogaak, Arisen Necropolis",
-    "Seven Dwarves"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 32,
    "lines": 20,
@@ -505,6 +467,44 @@
     "Drain Life",
     "Murdock's Crusade",
     "Atalya, Samite Master"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 32,
+   "lines": 32,
+   "cards": [
+    "Bilbo's Ring",
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Yuan-Ti Malison",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "June, Bounty Hunter",
+    "Nimble Brigand"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 31,
+   "lines": 31,
+   "cards": [
+    "Invert Polarity",
+    "Nazgûl",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Intellect Devourer",
+    "Swallowed by Leviathan",
+    "The Tabernacle at Pendrell Vale",
+    "Myr Superion",
+    "Hogaak, Arisen Necropolis",
+    "Seven Dwarves"
    ]
   },
   {
@@ -1112,25 +1112,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Invigorating Hot Spring",
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Nimbleclaw Adept",
-    "Akul the Unrepentant",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Thunderhead Gunner",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg"
-   ]
-  },
-  {
    "what": "custom cost",
    "score": 20,
    "lines": 20,
@@ -1424,6 +1405,25 @@
    ]
   },
   {
+   "what": "(verify) condition the card does not print",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Nimbleclaw Adept",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "The Chief Warg",
+    "Graverobber Spider",
+    "Painwracker Oni",
+    "Fires of Victory"
+   ]
+  },
+  {
    "what": "PreventAllDamageToAllEffect",
    "score": 17,
    "lines": 14,
@@ -1515,25 +1515,6 @@
     "Tezzeret, Agent of Bolas",
     "Workshop Elders",
     "Stone by Sunlight"
-   ]
-  },
-  {
-   "what": "DamageTargetEffect amount",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Hobgoblin Bandit Lord",
-    "Noise Marine",
-    "Mana Cannons",
-    "Niv-Mizzet, Guildpact",
-    "Anathemancer",
-    "Monstrous Emergence",
-    "Runeflare Trap",
-    "Moonveil Regent",
-    "Voracious Dragon",
-    "Close Encounter",
-    "Lightning Storm",
-    "Pyre-Sledge Arsonist"
    ]
   },
   {
@@ -1800,22 +1781,22 @@
    ]
   },
   {
-   "what": "DamageEverythingEffect with a filter",
+   "what": "DamageTargetEffect amount",
    "score": 16,
    "lines": 16,
    "cards": [
-    "Earthquake",
-    "Delete",
-    "Rolling Earthquake",
-    "Hurricane",
-    "Molten Disaster",
-    "Squall Line",
-    "Breath of Darigaaz",
-    "Volcanic Spray",
-    "Flamebreak",
-    "Hammerfist Giant",
-    "Time Bomb",
-    "Warmonger"
+    "Hobgoblin Bandit Lord",
+    "Noise Marine",
+    "Mana Cannons",
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Lightning Storm",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt"
    ]
   },
   {
@@ -2305,25 +2286,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "The Council of Four",
-    "Alandra, Sky Dreamer",
-    "Minn, Wily Illusionist",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Krang, the All-Powerful",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Otter-Penguin",
-    "Private Eye",
-    "Foggy Swamp Spirit Keeper",
-    "Moon Girl and Devil Dinosaur"
-   ]
-  },
-  {
    "what": "TargetsPermanentPredicate",
    "score": 14,
    "lines": 14,
@@ -2516,6 +2478,25 @@
    "cards": [
     "Halo Fountain",
     "Crackleburr"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "The Council of Four",
+    "Alandra, Sky Dreamer",
+    "Minn, Wily Illusionist",
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Krang, the All-Powerful",
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper",
+    "Moon Girl and Devil Dinosaur",
+    "Jaded Analyst"
    ]
   },
   {
@@ -2753,25 +2734,6 @@
     "Jailbreak Scheme",
     "Caught in the Crossfire",
     "Unfortunate Accident"
-   ]
-  },
-  {
-   "what": "limited ability with a condition",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Instill Energy",
-    "Nature's Chosen",
-    "Hired Claw",
-    "Chittering Skitterling",
-    "Licia, Sanguine Tribune",
-    "Gate to Phyrexia",
-    "Scientist Supreme of A.I.M.",
-    "Snowslope Hunter",
-    "Ebon Praetor",
-    "Battlefield Scrounger",
-    "Security Detail",
-    "Sawback Manticore"
    ]
   },
   {
@@ -5026,19 +4988,19 @@
    ]
   },
   {
-   "what": "ScryTriggeredAbility",
+   "what": "limited ability with a condition",
    "score": 9,
    "lines": 9,
    "cards": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Galadriel of Lothlórien",
-    "Celeborn the Wise",
-    "Legolas, Counter of Kills",
-    "Elminster",
-    "Council's Deliberation",
-    "Glorfindel, Dauntless Rescuer",
-    "Nimrodel Watcher"
+    "Nature's Chosen",
+    "Hired Claw",
+    "Chittering Skitterling",
+    "Gate to Phyrexia",
+    "Scientist Supreme of A.I.M.",
+    "Ebon Praetor",
+    "Battlefield Scrounger",
+    "Security Detail",
+    "Sawback Manticore"
    ]
   },
   {
@@ -5654,6 +5616,21 @@
     "Brand",
     "Aura Thief",
     "Gruul Charm"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Elvish Mariner",
+    "Elrond, Master of Healing",
+    "Galadriel of Lothlórien",
+    "Celeborn the Wise",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Council's Deliberation",
+    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {
@@ -6347,6 +6324,20 @@
     "Benalish Commander",
     "Fungal Behemoth",
     "Roiling Horror"
+   ]
+  },
+  {
+   "what": "DamageEverythingEffect with a filter",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Delete",
+    "Rolling Earthquake",
+    "Flamebreak",
+    "Time Bomb",
+    "Borrowing the East Wind",
+    "Thunder of Hooves",
+    "Blockbuster"
    ]
   },
   {
@@ -7722,19 +7713,6 @@
    ]
   },
   {
-   "what": "CardsInTargetHandCount.instance",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Vicious Shadows",
-    "Tibalt, the Fiend-Blooded",
-    "Sudden Impact",
-    "Gerrard Capashen",
-    "Toil // Trouble",
-    "Storm Seeker"
-   ]
-  },
-  {
    "what": "static ability in HAND",
    "score": 6,
    "lines": 6,
@@ -7850,13 +7828,26 @@
     "Barrin's Spite",
     "Retribution"
    ]
+  },
+  {
+   "what": "PutOnLibrarySourceEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Champion of Stray Souls",
+    "Soaring Hope",
+    "Thalakos Mistfolk",
+    "Fencer Clique",
+    "Saprazzan Outrigger",
+    "Wayward Soul"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4432,
-   "cards": 3886,
+   "score": 4431,
+   "cards": 3885,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7868,8 +7859,8 @@
   },
   {
    "what": "custom ability",
-   "score": 710,
-   "cards": 593,
+   "score": 706,
+   "cards": 592,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7877,6 +7868,19 @@
     "Kaya's Ghostform",
     "Scrap Trawler",
     "Forsaken Monument"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 225,
+   "cards": 213,
+   "names": [
+    "Excalibur, Sword of Eden",
+    "Cavern-Hoard Dragon",
+    "Metalwork Colossus",
+    "Reforge the Soul",
+    "Hagra Mauling // Hagra Broodpit",
+    "Not of This World"
    ]
   },
   {
@@ -7890,19 +7894,6 @@
     "Grasp of Fate",
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass"
-   ]
-  },
-  {
-   "what": "(cast modifier line)",
-   "score": 224,
-   "cards": 212,
-   "names": [
-    "Excalibur, Sword of Eden",
-    "Cavern-Hoard Dragon",
-    "Metalwork Colossus",
-    "Reforge the Soul",
-    "Hagra Mauling // Hagra Broodpit",
-    "Not of This World"
    ]
   },
   {
@@ -7920,8 +7911,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 170,
-   "cards": 158,
+   "score": 171,
+   "cards": 159,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7946,8 +7937,8 @@
   },
   {
    "what": "AlternativeCostSourceAbility",
-   "score": 59,
-   "cards": 56,
+   "score": 60,
+   "cards": 57,
    "names": [
     "Sephara, Sky's Blade",
     "Daze",
@@ -8062,19 +8053,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 29,
-   "cards": 29,
-   "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Yuan-Ti Malison"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 28,
    "cards": 19,
@@ -8179,9 +8157,22 @@
    ]
   },
   {
+   "what": "ConditionalRestrictionEffect",
+   "score": 24,
+   "cards": 24,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Yuan-Ti Malison"
+   ]
+  },
+  {
    "what": "InfoEffect",
-   "score": 25,
-   "cards": 25,
+   "score": 23,
+   "cards": 23,
    "names": [
     "Invert Polarity",
     "Liesa, Shroud of Dusk",
@@ -8270,19 +8261,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 21,
-   "cards": 21,
-   "names": [
-    "Invigorating Hot Spring",
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Nimbleclaw Adept",
-    "Akul the Unrepentant",
-    "Butterbur, Bree Innkeeper"
-   ]
-  },
-  {
    "what": "becomes a creature for custom",
    "score": 19,
    "cards": 16,
@@ -8319,6 +8297,19 @@
     "Setessan Tactics",
     "Rabid Attack",
     "Out Cold"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 18,
+   "cards": 18,
+   "names": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Nimbleclaw Adept",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Oak Street Innkeeper"
    ]
   },
   {
@@ -8527,19 +8518,6 @@
     "Sway of Illusion",
     "Scuttling Sentinel",
     "Tidal Visionary"
-   ]
-  },
-  {
-   "what": "DamageEverythingEffect with a filter",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Earthquake",
-    "Delete",
-    "Rolling Earthquake",
-    "Hurricane",
-    "Squall Line",
-    "Breath of Darigaaz"
    ]
   },
   {
@@ -9588,19 +9566,6 @@
    ]
   },
   {
-   "what": "limited ability with a condition",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Nature's Chosen",
-    "Hired Claw",
-    "Chittering Skitterling",
-    "Gate to Phyrexia",
-    "Scientist Supreme of A.I.M.",
-    "Snowslope Hunter"
-   ]
-  },
-  {
    "what": "conditional with an otherwise",
    "score": 10,
    "cards": 10,
@@ -9803,19 +9768,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Otter-Penguin",
-    "Private Eye",
-    "Foggy Swamp Spirit Keeper"
-   ]
-  },
-  {
    "what": "OpponentControlsPermanentCondition",
    "score": 9,
    "cards": 9,
@@ -9956,6 +9908,19 @@
     "Skeleton Scavengers",
     "Nivmagus Elemental",
     "Murderous Betrayal"
+   ]
+  },
+  {
+   "what": "limited ability with a condition",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Nature's Chosen",
+    "Hired Claw",
+    "Chittering Skitterling",
+    "Gate to Phyrexia",
+    "Scientist Supreme of A.I.M.",
+    "Ebon Praetor"
    ]
   },
   {
@@ -10376,6 +10341,19 @@
     "G'raha Tia, Scion Reborn",
     "Krile Baldesion",
     "Baron Strucker, HYDRA Overlord"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Alandra, Sky Dreamer",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Private Eye",
+    "Foggy Swamp Spirit Keeper",
+    "Moon Girl and Devil Dinosaur"
    ]
   },
   {
@@ -11131,6 +11109,19 @@
     "Tower Worker",
     "Petalmane Baku",
     "Priest of Yawgmoth"
+   ]
+  },
+  {
+   "what": "DamageEverythingEffect with a filter",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Delete",
+    "Rolling Earthquake",
+    "Flamebreak",
+    "Time Bomb",
+    "Borrowing the East Wind",
+    "Thunder of Hooves"
    ]
   },
   {

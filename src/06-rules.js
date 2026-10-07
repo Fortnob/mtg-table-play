@@ -5172,6 +5172,10 @@
         if (!mine || !before) return 'Only during your turn, before attackers are declared.';
       }
       if (only.when === 'upkeep' && this.step !== 'upkeep') return 'Only during upkeep.';
+      // "only during your turn": any time in it; "only during combat"; "only during your upkeep"
+      if (only.when === 'yourTurn' && !(this.activePlayer && this.activePlayer.id === playerId)) return 'Only during your turn.';
+      if (only.when === 'combat' && !(this.phase && this.phase.id === 'combat')) return 'Only during combat.';
+      if (only.when === 'yourUpkeep' && !(this.step === 'upkeep' && this.activePlayer && this.activePlayer.id === playerId)) return 'Only during your upkeep.';
       if (only.when === 'endstep' && this.step !== 'end') return 'Only during the end step.';
       if (only.when === 'mainphase' && !this.isMain) return 'Only during a main phase.';
       if (only.cond && !this._condMet(only.cond, { controller: playerId, obj: o })) {
@@ -6198,6 +6202,9 @@
       const ev = this._staticOp(attacker, 'evasion');
       if (ev && ev.minBlockerPower != null && this.powerOf(blocker) < ev.minBlockerPower) return false;
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
+      // Bouncing Beebles: unblockable while the defending player controls an artifact
+      if (ev && ev.defenderControls && this.battlefield.some(x => x.controller === blocker.controller && !x.phasedOut &&
+        this._cardFitsWords(x, ev.defenderControls))) return false;
       /* Delney: "creatures you control with power 2 or less can't be
          blocked by creatures with power 3 or greater"; Champion of Lambholt:
          "creatures with power less than this creature's power can't block
