@@ -6572,4 +6572,17 @@ module.exports = (test) => {
     T.bf('A', 'Forest'); T.bf('A', 'Forest');
     t.eq(T.g.powerOf(ar), 3); t.eq(T.g.toughnessOf(ar), 3);
   });
+
+  test('Defang: the enchanted creature deals no damage at all', (mk, t) => {
+    t.auto('Defang');
+    const T = mk();
+    const ps = T.bf('B', 'Prodigal Sorcerer');
+    const df = T.bf('A', 'Defang');
+    df.attachedTo = ps.id; ps.attachments.push(df.id); T.g.bumpBoard();
+    T.g.dealDamageToPlayer(T.player('A'), 1, ps, false);
+    t.eq(T.life('A'), 20, 'noncombat prevented');
+    const giant = T.bf('B', 'Hill Giant');
+    T.g.dealDamageToPlayer(T.player('A'), 3, giant, false);
+    t.eq(T.life('A'), 17, 'others still hurt');
+  });
 };

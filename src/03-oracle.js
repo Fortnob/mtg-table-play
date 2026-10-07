@@ -7602,6 +7602,9 @@
     // Grounded: "Enchanted creature loses flying."
     { re: /^(Enchanted creature|Equipped creature) loses (flying|first strike|trample|deathtouch|lifelink|vigilance|reach|haste|menace|defender|hexproof|indestructible)\.?$/i,
       make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 6, scope, lose: [U.titleCase(m[2].toLowerCase())] } : null; } },
+    // Defang, Muzzle: "Prevent all damage that would be dealt by enchanted creature."
+    { re: /^Prevent all damage that would be dealt by (enchanted creature|equipped creature|CARDNAME|this creature)\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 6, scope: /^(?:CARDNAME|this creature)$/i.test(m[1]) ? { self: true, what: 'creature' } : scopeOf(m[1]), flag: 'noDamageAll' }) },
     // Sandskin, Candletrap: combat damage prevented to and/or by what this enchants
     { re: /^Prevent all combat damage that would be dealt (to and dealt by|by|to) (enchanted creature|equipped creature)\.?$/i,
       make: (m) => {

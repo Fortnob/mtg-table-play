@@ -6869,7 +6869,7 @@
         // Weight Advantage: "assigns combat damage equal to its toughness rather than its power"
         const power = this._dealsByToughness(o) ? this.toughnessOf(o) : this.powerOf(o);
         if (power <= 0) continue;
-        if (this._hasFlag(o, 'noDamage')) continue;
+        if (this._hasFlag(o, 'noDamage') || this._hasFlag(o, 'noDamageAll')) continue;
 
         if (o.attacking) {
           const blockers = o.blockOrder.map(bid => this.obj(bid)).filter(b => b && b.zone === 'battlefield' && b.blocking.includes(o.id));
@@ -15173,6 +15173,8 @@
     _damagePrevented(target, isCombat, source, amount) {
       // "damage can't be prevented"
       if (this._noPrevention(isCombat)) return false;
+      // Defang: "Prevent all damage that would be dealt by enchanted creature."
+      if (source && source.zone === 'battlefield' && this._hasFlag(source, 'noDamageAll')) return true;
       // "prevent all combat damage that would be dealt to this creature"
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
       // Glacial Chasm: "Prevent all damage that would be dealt to you."
