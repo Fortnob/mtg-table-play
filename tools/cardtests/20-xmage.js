@@ -8427,4 +8427,19 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, h0 + 2);
     t.eq(T.zone('A', 'graveyard').filter(o => o.name !== 'In the Presence of Ages').length, 2);
   });
+
+  test('Look, reveal one, the rest to the bottom in a random order', (mk, t) => {
+    const T = mk();
+    const card = { id: 'probe-look2', name: 'Probe Look Two', type_line: 'Sorcery', mana_cost: '{G}', cmc: 1, colors: ['G'], layout: 'normal',
+      oracle_text: 'Look at the top three cards of your library. You may reveal a creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.', keywords: [] };
+    for (const n of ['Island', 'Grizzly Bears', 'Swamp']) T.top('A', n);
+    const o = T.put('A', 'Island', 'hand'); o.card = card;
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', 'G');
+    T.cast('A', o);
+    T.resolve();
+    const lib = T.zone('A', 'library');
+    t.ok(T.zone('A', 'hand').some(x => x.name === 'Grizzly Bears'));
+    t.eq(lib.slice(-2).map(x => x.name).sort().join(), 'Island,Swamp', 'the other two at the bottom');
+  });
 };
