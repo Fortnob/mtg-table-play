@@ -834,8 +834,19 @@
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
-    { re: /^Exile (up to one )?(target [a-z0-9 '-]+?|another target [a-z0-9 '-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
-      make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^another /i, '')), m[1] ? { upTo: true } : {})] }) },
+    { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
+      make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
+        /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
+    // Ixalan's Binding's kin, en masse: "exile all artifacts your opponents control until this … leaves"
+    { re: /^Exile (all|each) ([a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
+      make: (m) => {
+        const words = /^each$/i.test(m[1]) ? m[2].replace(/^([a-z]+(?: [a-z]+)??) ?(permanent|creature|artifact|enchantment|land)\b/i, (x) => x + 's') : m[2];
+        const sc = scopeOf(words);
+        return sc ? { op: 'exileAllUntilLeaves', scope: sc } : null;
+      } },
+    // Oubliette: "target creature phases out until this enchantment leaves the battlefield"
+    { re: /^(target [a-z ]+?) phases out until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
+      make: (m) => ({ op: 'phaseOutUntilLeaves', targets: [targetSpec(m[1])] }) },
     { re: /^Return the exiled cards? to the battlefield under (?:its owner'?s|their owners'?|your) control\.?$/i,
       make: () => ({ op: 'returnExiled' }) },
     { re: /^Return (?:that card|the exiled card) to the battlefield under (?:its owner'?s|your) control\.?$/i,

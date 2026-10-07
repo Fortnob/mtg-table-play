@@ -4461,4 +4461,15 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, h0 + 3, 'knowledge on a tie');
   });
+
+  test('Temporary Lockdown: cheap permanents held in exile until it leaves', (mk, t) => {
+    t.auto('Temporary Lockdown');
+    const T = mk();
+    const ring = T.bf('B', 'Sol Ring'), elf = T.bf('B', 'Llanowar Elves'), wurm = T.bf('B', 'Craw Wurm');
+    const tl = T.put('A', 'Temporary Lockdown', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(ring, 'exile'); t.zone(elf, 'exile'); t.zone(wurm, 'battlefield');
+    T.g.moveObject(tl, 'graveyard');
+    t.zone(ring, 'battlefield', 'back when it leaves');
+  });
 };

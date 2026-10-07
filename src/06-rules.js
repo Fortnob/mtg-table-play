@@ -11436,6 +11436,29 @@
           }
           break;
         }
+        // "exile all … until this leaves": each of them held by this
+        case 'exileAllUntilLeaves': {
+          if (!src || src.zone !== 'battlefield') break;
+          for (const o of this._scopeList(e.scope, ctx.controller, src)) {
+            if (o === src) continue;
+            this.moveObject(o, 'exile');
+            o.exiledBy = src.id;
+          }
+          break;
+        }
+        // Oubliette: out of the game while this stays, back when it goes
+        case 'phaseOutUntilLeaves': {
+          if (!src || src.zone !== 'battlefield') break;
+          for (const t of targets) {
+            const o = t.kind === 'object' && this.obj(t.id);
+            if (!o || o.zone !== 'battlefield') continue;
+            o.phasedOut = true; o.phasedOutBy = 'held:' + src.id; o.phasedTurn = this.turn;
+            for (const id of (o.attachments || [])) { const at = this.obj(id); if (at) { at.phasedOut = true; at.phasedOutBy = 'held:' + src.id; } }
+            this.logEvent('rules', `${o.name} phases out.`);
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'returnExiled': {
           const jailer = src || (ctx.objId && this.obj(ctx.objId));
           if (!jailer) break;
@@ -14567,6 +14590,8 @@
     /** Let go of everything this permanent was keeping in exile. */
     _releaseExiled(jailer) {
       if (!jailer) return;
+      // and what it phased out comes back in
+      for (const o of this.battlefield) if (o.phasedOut && o.phasedOutBy === 'held:' + jailer.id) { o.phasedOut = false; o.phasedOutBy = null; }
       for (const o of Array.from(this.objects.values())) {
         if (o.exiledBy !== jailer.id || o.zone !== 'exile') continue;
         o.exiledBy = null;

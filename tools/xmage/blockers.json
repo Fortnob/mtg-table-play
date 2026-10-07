@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15625,
+  "needed": 15619,
   "gainedCards": 1612,
-  "linesNeeded": 17475,
+  "linesNeeded": 17466,
   "linesGained": 2044,
   "gained": {
    "all": 1612,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5585,
-   "lines": 4817,
+   "score": 5581,
+   "lines": 4813,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -4327,23 +4327,6 @@
    ]
   },
   {
-   "what": "ExileUntilSourceLeavesEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Summon: Ixion",
-    "Mardu Siegebreaker",
-    "Aang's Iceberg",
-    "Werefox Bodyguard",
-    "Trapped in the Screen",
-    "Assimilation Aegis",
-    "Trial of a Time Lord",
-    "Turncoat Kunoichi",
-    "Detention Chariot",
-    "Driftgloom Coyote"
-   ]
-  },
-  {
    "what": "DoubleCountersTargetEffect",
    "score": 10,
    "lines": 10,
@@ -7349,6 +7332,19 @@
    ]
   },
   {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Summon: Ixion",
+    "Assimilation Aegis",
+    "Trial of a Time Lord",
+    "Turncoat Kunoichi",
+    "Detention Chariot",
+    "Driftgloom Coyote"
+   ]
+  },
+  {
    "what": "OneOrMoreDiceRolledTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -7895,8 +7891,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4440,
-   "cards": 3894,
+   "score": 4438,
+   "cards": 3892,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8849,6 +8845,19 @@
    ]
   },
   {
+   "what": "WaterbendCost",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Waterbender Ascension",
+    "Waterbending Lesson",
+    "Katara, Bending Prodigy",
+    "Aang's Iceberg",
+    "Yue, the Moon Spirit",
+    "North Pole Patrol"
+   ]
+  },
+  {
    "what": "PayEnergyCost",
    "score": 13,
    "cards": 13,
@@ -9051,19 +9060,6 @@
     "The Long Reach of Night // Animus of Night's Reach",
     "Exoskeletal Armor",
     "Accumulated Knowledge"
-   ]
-  },
-  {
-   "what": "WaterbendCost",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Waterbender Ascension",
-    "Waterbending Lesson",
-    "Katara, Bending Prodigy",
-    "Yue, the Moon Spirit",
-    "North Pole Patrol",
-    "Watery Grasp"
    ]
   },
   {
@@ -11710,16 +11706,16 @@
    ]
   },
   {
-   "what": "ExileUntilSourceLeavesEffect",
+   "what": "SourceEnteredThisTurnCondition.TRUE",
    "score": 6,
    "cards": 6,
    "names": [
-    "Summon: Ixion",
-    "Werefox Bodyguard",
-    "Trapped in the Screen",
-    "Turncoat Kunoichi",
-    "Detention Chariot",
-    "Driftgloom Coyote"
+    "Moon-Circuit Hacker",
+    "Shardmage's Rescue",
+    "Kaito Shizuki",
+    "Crew Captain",
+    "Keldon Strike Team",
+    "Fungus Elemental"
    ]
   }
  ]
