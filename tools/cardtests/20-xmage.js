@@ -8465,4 +8465,17 @@ module.exports = (test) => {
     T.resolve();
     t.eq(elf.zone, 'graveyard');
   });
+
+  test('Singularity Rupture: creatures die, then each chosen player mills half', (mk, t) => {
+    t.auto('Singularity Rupture');
+    const T = mk();
+    const g = T.bf('B', 'Hill Giant');
+    const l0 = T.zone('B', 'library').length, a0 = T.zone('A', 'library').length;
+    T.mana('A', '3UBB');
+    T.cast('A', T.hand('A', 'Singularity Rupture'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(g.zone, 'graveyard');
+    t.eq(T.zone('B', 'library').length, l0 - Math.floor(l0 / 2));
+    t.eq(T.zone('A', 'library').length, a0, 'not the caster');
+  });
 };

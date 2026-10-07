@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13864,
+  "needed": 13863,
   "gainedCards": 1449,
-  "linesNeeded": 15278,
+  "linesNeeded": 15277,
   "linesGained": 1786,
   "gained": {
    "all": 1449,
@@ -431,25 +431,6 @@
    ]
   },
   {
-   "what": "target count 0",
-   "score": 30,
-   "lines": 18,
-   "cards": [
-    "Priest of Forgotten Gods",
-    "Call the Coppercoats",
-    "Singularity Rupture",
-    "Court of Cunning",
-    "Riverchurn Monument",
-    "Communal Brewing",
-    "Tinybones Joins Up",
-    "Wheel and Deal",
-    "Jace, Memory Adept",
-    "Officious Interrogation",
-    "Ral Zarek, Guest Lecturer",
-    "Hollow Marauder"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 30,
    "lines": 30,
@@ -708,6 +689,25 @@
     "Tragic Trajectory",
     "Hazardroot Herbalist",
     "Gideon's Phalanx"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 23,
+   "lines": 17,
+   "cards": [
+    "Priest of Forgotten Gods",
+    "Call the Coppercoats",
+    "Court of Cunning",
+    "Riverchurn Monument",
+    "Communal Brewing",
+    "Tinybones Joins Up",
+    "Wheel and Deal",
+    "Jace, Memory Adept",
+    "Officious Interrogation",
+    "Ral Zarek, Guest Lecturer",
+    "Hollow Marauder",
+    "Cabal Conditioning"
    ]
   },
   {
@@ -7629,19 +7629,6 @@
    ]
   },
   {
-   "what": "target count 0",
-   "score": 26,
-   "cards": 14,
-   "names": [
-    "Priest of Forgotten Gods",
-    "Call the Coppercoats",
-    "Singularity Rupture",
-    "Court of Cunning",
-    "Tinybones Joins Up",
-    "Wheel and Deal"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 26,
    "cards": 17,
@@ -7781,6 +7768,19 @@
     "Scrappy Bruiser",
     "Fire Giant's Fury",
     "Act of Heroism"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 19,
+   "cards": 13,
+   "names": [
+    "Priest of Forgotten Gods",
+    "Call the Coppercoats",
+    "Court of Cunning",
+    "Tinybones Joins Up",
+    "Wheel and Deal",
+    "Jace, Memory Adept"
    ]
   },
   {

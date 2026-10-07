@@ -10838,6 +10838,8 @@
             : e.who === 'targetController' ? [this._lastAffectedController() || this.player((ctx.triggerData || {}).objController)]
             // Flint Golem: "defending player" — whoever this creature is attacking
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
+            // Singularity Rupture: each player aimed at
+            : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           // "…from among the milled cards": what this mill put there
           this._lastMilled = [];

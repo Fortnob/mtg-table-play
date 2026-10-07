@@ -4595,6 +4595,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Singularity Rupture: "Destroy all creatures, then any number of target players each mill half their library, rounded down."
+    { re: /^Destroy all creatures, then any number of target players each mill half their library, rounded (down|up)\.?$/i,
+      make: (m) => [{ op: 'destroyAll', what: 'creature' },
+        { op: 'mill', who: 'targets', n: { halfLibrary: 'each', up: /up/i.test(m[1]) }, targets: [1, 2, 3, 4].map(() => ({ type: 'player', upTo: true, distinct: true })) }] },
     /* In the Presence of Ages, Benefaction of Rhonas: "You may put a creature
        card and/or a land card from among them into your hand. Put the rest
        into your graveyard." — one of each kind, at most */
