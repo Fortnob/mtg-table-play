@@ -2722,6 +2722,9 @@
      * printed cost the table should honour rather than a footnote to read.
      */
     altUsesFor(playerId, objId) {
+      return this._namedWords(this._altUsesForRaw(playerId, objId), this._nameHint(objId));
+    }
+    _altUsesForRaw(playerId, objId) {
       const o = this.obj(objId);
       const a = o && o.analysis();
       const out = [];
@@ -2895,7 +2898,7 @@
         acts.forEach((ab, i) => {
           if (!ab.fromGraveyard) return;
           out.push({ kind: 'cast', via: 'ability:' + i, ability: i, cost: (ab.cost && ab.cost.mana) || '',
-            label: truncate(ab.text || MTG.oracle.abilityLabel(ab), 90) });
+            label: truncate(MTG.oracle.named(ab.text, o) || MTG.oracle.abilityLabel(ab, o), 90) });
         });
       }
       /* Another way to pay, printed on the card itself: a commander on the
@@ -3182,8 +3185,8 @@
         if (ab.kind !== 'triggered' || ab.event !== 'cycleSelf') return;
         this.pendingTriggers.push({
           id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
-          controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
-          effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
+          controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
+          effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional,
           triggerData: { event: 'cycleSelf', objectId: o.id },
         });
       });
@@ -3239,6 +3242,9 @@
     }
 
     extraCostsFor(objId) {
+      return this._namedWords(this._extraCostsForRaw(objId), this._nameHint(objId));
+    }
+    _extraCostsForRaw(objId) {
       const o = this.obj(objId);
       const a = o && o.analysis();
       const out = [];
@@ -3891,8 +3897,8 @@
           if (ab.kind !== 'triggered' || ab.event !== 'castSelf') return;
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
-            controller: playerId, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
-            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
+            controller: playerId, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
+            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional,
             triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
           });
         });
@@ -4570,9 +4576,9 @@
 
       const item = {
         id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
-        controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 60)}`,
+        controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 60)}`,
         targets: (opts.targets || []).map(normTarget),
-        effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab),
+        effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
         x: opts.x || 0,
       };
       this.stack.push(item);
@@ -4581,7 +4587,7 @@
         const x = t.kind === 'object' && this.obj(t.id);
         if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, playerId });
       }
-      this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab), 80)}`);
+      this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab, o), 80)}`);
       this._crimeCheck(playerId, item.targets);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -7400,8 +7406,8 @@
           if (ab.kind !== 'triggered' || ab.event !== 'selfToGraveyard') return;
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
-            controller: o.owner, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
-            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
+            controller: o.owner, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
+            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional,
             triggerData: { event: 'selfToGraveyard', objectId: o.id },
           });
         });
@@ -7517,8 +7523,8 @@
           if (c <= before || c > after) continue;
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
-            controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
-            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab),
+            controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
+            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
           });
         }
       }
@@ -7629,8 +7635,8 @@
         for (let k = 0; k < times; k++) {
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
-            controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab), 50)}`,
-            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab), optional: ab.optional,
+            controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
+            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional,
             triggerData: Object.assign({}, tData),
           });
         }
@@ -10254,13 +10260,29 @@
           let want = Math.min(n(e.count) || 1, modes.length);
           // the Will cycle: both modes, with a commander on the battlefield
           if (e.countIf && this._condMet(e.countIf.cond, ctx)) want = Math.min(e.countIf.count, modes.length);
+          /* "Choose one that hasn't been chosen (this turn)": the modes this
+             permanent has used are kept on it */
+          let usable = modes.map((m, i) => i);
+          let usedModes = null;
+          if (e.notChosen && src) {
+            const key = e.notChosen === 'turn' ? 't' + this.turn : 'ever';
+            if (!src._usedModes || src._usedModes.key !== key) src._usedModes = { key, list: [] };
+            usedModes = src._usedModes.list;
+            usable = usable.filter(i => !usedModes.includes(i));
+            if (!usable.length) { this.logEvent('rules', `${src.name}: every mode has been chosen.`); break; }
+          }
           const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: want,
             repeatable: !!e.repeatable,
-            options: modes.map((m, i) => ({ i, label: truncate(m.label || m.text || ('Mode ' + (i + 1)), 90) })),
+            options: usable.map(i => ({ i, label: truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90) })),
             prompt: e.prompt || `Choose ${want === 1 ? 'one' : want}.` });
           if (picked === SUSPEND) return SUSPEND;
           const order = (picked || []).slice(0, e.repeatable ? want : modes.length);
-          const chosen = (order.length ? order : modes.map((m, i) => i).slice(0, want));
+          let chosen = (order.length ? order : usable.slice(0, want));
+          if (usedModes) {
+            chosen = chosen.filter(i => usable.includes(i));
+            if (!chosen.length) chosen = usable.slice(0, 1);
+            usedModes.push(...chosen);
+          }
           const run = [];
           for (const i of chosen) { const m = modes[i]; if (m) run.push(...(m.effects || [])); }
           this._spliceNext(run);
@@ -13157,7 +13179,29 @@
     }
 
     /* ---------- choices ---------- */
+    /** Whose name "CARDNAME" is when nothing says: the object of whatever is resolving. */
+    _nameHint(id) {
+      const o = (id && this.obj(id)) || (this.resolving && this.resolving.ctx && this.resolving.ctx.obj) || null;
+      return o || 'this';
+    }
+    /* A question, a stack item or any other words shown to players: every
+       "CARDNAME" in them made the name of the object they are about */
+    _namedWords(x, who) {
+      if (typeof x === 'string') return x.includes('CARDNAME') ? MTG.oracle.named(x, who) : x;
+      if (Array.isArray(x)) return x.map(y => this._namedWords(y, who));
+      if (!x || typeof x !== 'object') return x;
+      let out = x;
+      for (const k of ['prompt', 'label', 'text', 'name', 'abilityText', 'sourceName', 'note', 'options', 'items', 'modes', 'triggers']) {
+        if (x[k] == null) continue;
+        const v = this._namedWords(x[k], who);
+        if (v !== x[k]) { if (out === x) out = Object.assign(Array.isArray(x) ? [] : {}, x); out[k] = v; }
+      }
+      return out;
+    }
     queueChoice(ch) {
+      if (ch && JSON.stringify(ch, (k, v) => (k === 'sourceCard' || k === 'card' ? undefined : v)).includes('CARDNAME')) {
+        ch = this._namedWords(ch, this._nameHint(ch.sourceId || ch.objId));
+      }
       this.choiceQueue = this.choiceQueue || [];
       this.choiceQueue.push(ch);
       if (!this.pendingChoice) this._nextChoice();
@@ -13927,6 +13971,8 @@
       return (a.isLand ? 1 : 0) + (a.mv || 0) * 0.3 + (a.isCreature ? 1 : 0);
     }
     logEvent(type, text) {
+      // never the parser's "CARDNAME": the name of whatever is resolving
+      if (typeof text === 'string' && text.includes('CARDNAME')) text = MTG.oracle.named(text, this._nameHint());
       const entry = { t: Date.now(), turn: this.turn, type, text };
       this.log.push(entry);
       if (this.log.length > 4000) this.log.splice(0, 1000);
@@ -14393,7 +14439,7 @@
           cardId: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW.id : s.obj.card.id) : null,
           card: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW : s.obj.card) : null,
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
-        })),
+        })).map(s => this._namedWords(s, this._nameHint(s.objId))),
         battlefield: this.battlefield.map(o => ser(o, false)),
         players: this.players.map(p => ({
           id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,

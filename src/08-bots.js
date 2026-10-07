@@ -3077,7 +3077,7 @@
       const effects = ab.effects || [];
       const flat = flatEffects(effects);
       if (!flat.length || flat.some(e => e.op === 'manual')) return null;
-      const label = MTG.oracle.abilityLabel ? MTG.oracle.abilityLabel(ab) : (ab.text || '');
+      const label = MTG.oracle.abilityLabel ? MTG.oracle.abilityLabel(ab, o) : (ab.text || '');
 
       // equipment: onto the best creature that is not already carrying it
       if (flat.some(e => e.op === 'attachSelf')) {

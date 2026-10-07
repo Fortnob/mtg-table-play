@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16213,
+  "needed": 16205,
   "gainedCards": 1688,
-  "linesNeeded": 18381,
+  "linesNeeded": 18373,
   "linesGained": 2163,
   "gained": {
    "all": 1688,
@@ -1434,23 +1434,6 @@
    ]
   },
   {
-   "what": "Ability.setModeTag",
-   "score": 19,
-   "lines": 10,
-   "cards": [
-    "Silent Hallcreeper",
-    "Breeches, Eager Pillager",
-    "Gandalf the Grey",
-    "The Vision",
-    "Captive Audience",
-    "Henrika Domnathi // Henrika, Infernal Seer",
-    "Demonic Pact",
-    "Kargan Intimidator",
-    "Three Bowls of Porridge",
-    "Sol'Kanar the Tainted"
-   ]
-  },
-  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 19,
    "lines": 10,
@@ -1873,17 +1856,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setLimitUsageByOnce",
-   "score": 16,
-   "lines": 4,
-   "cards": [
-    "Monument to Endurance",
-    "Teval's Judgment",
-    "Vindictive Lich",
-    "Survivor's Med Kit"
-   ]
-  },
-  {
    "what": "CompositeCost",
    "score": 16,
    "lines": 13,
@@ -2292,6 +2264,19 @@
     "Sage of the Falls",
     "Redcap Raiders",
     "Archdemon of Unx"
+   ]
+  },
+  {
+   "what": "Ability.setModeTag",
+   "score": 15,
+   "lines": 6,
+   "cards": [
+    "Silent Hallcreeper",
+    "Gandalf the Grey",
+    "Captive Audience",
+    "Henrika Domnathi // Henrika, Infernal Seer",
+    "Kargan Intimidator",
+    "Sol'Kanar the Tainted"
    ]
   },
   {
@@ -4082,21 +4067,6 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
-   ]
-  },
-  {
-   "what": "AllianceAbility",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Gala Greeters",
-    "Devilish Valet",
-    "Rose Room Treasurer",
-    "Galadriel, Light of Valinor",
-    "Lita, Little Orphan Amphibian",
-    "The Neutrinos",
-    "Sizzling Soloist",
-    "Elegant Entourage"
    ]
   },
   {
@@ -7668,6 +7638,16 @@
    ]
   },
   {
+   "what": "Ability.modes.setLimitUsageByOnce",
+   "score": 6,
+   "lines": 3,
+   "cards": [
+    "Teval's Judgment",
+    "Vindictive Lich",
+    "Survivor's Med Kit"
+   ]
+  },
+  {
    "what": "DevotionCount.W",
    "score": 6,
    "lines": 3,
@@ -8035,6 +8015,19 @@
     "Flood the Engine",
     "Enchanted River's Grasp",
     "Infinite Coursework"
+   ]
+  },
+  {
+   "what": "BecomesTargetControllerTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Unsettled Mariner",
+    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
+    "Parnesse, the Subtle Brush",
+    "Amulet of Safekeeping",
+    "Dormant Gomazoa",
+    "Leovold, Emissary of Trest"
    ]
   }
  ],
@@ -8690,17 +8683,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setLimitUsageByOnce",
-   "score": 16,
-   "cards": 4,
-   "names": [
-    "Monument to Endurance",
-    "Teval's Judgment",
-    "Vindictive Lich",
-    "Survivor's Med Kit"
-   ]
-  },
-  {
    "what": "TargetStackObject",
    "score": 16,
    "cards": 13,
@@ -8711,19 +8693,6 @@
     "Green Slime",
     "Louisoix's Sacrifice",
     "Consign to Memory"
-   ]
-  },
-  {
-   "what": "Ability.setModeTag",
-   "score": 16,
-   "cards": 7,
-   "names": [
-    "Silent Hallcreeper",
-    "Breeches, Eager Pillager",
-    "Gandalf the Grey",
-    "The Vision",
-    "Demonic Pact",
-    "Three Bowls of Porridge"
    ]
   },
   {
@@ -9247,6 +9216,16 @@
     "Ishgard, the Holy See // Faith & Grief",
     "Runaway Trash-Bot",
     "Master Skald"
+   ]
+  },
+  {
+   "what": "Ability.setModeTag",
+   "score": 12,
+   "cards": 3,
+   "names": [
+    "Silent Hallcreeper",
+    "Gandalf the Grey",
+    "Sol'Kanar the Tainted"
    ]
   },
   {
@@ -9887,19 +9866,6 @@
     "Necroplasm",
     "The Filigree Sylex",
     "Powder Keg"
-   ]
-  },
-  {
-   "what": "AllianceAbility",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Gala Greeters",
-    "Devilish Valet",
-    "Rose Room Treasurer",
-    "Galadriel, Light of Valinor",
-    "Lita, Little Orphan Amphibian",
-    "Sizzling Soloist"
    ]
   },
   {
@@ -11887,6 +11853,32 @@
     "Carnival // Carnage",
     "First Volley",
     "Unleash Shell"
+   ]
+  },
+  {
+   "what": "keyword RecoverAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Garza's Assassin",
+    "Grim Harvest",
+    "Icefall",
+    "Controvert",
+    "Resize",
+    "Sun's Bounty"
+   ]
+  },
+  {
+   "what": "keyword ProvokeAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Goblin Grappler",
+    "Krosan Vorine",
+    "Feral Throwback",
+    "Brontotherium",
+    "Crested Craghorn",
+    "Swooping Talon"
    ]
   }
  ]

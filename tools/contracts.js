@@ -311,6 +311,19 @@ const NetToGuest = union('t', NET_TO_GUEST, 'message to a guest');
 /* ============================================================
    Checks beyond shape: what has to agree with what
    ============================================================ */
+/* Words a player reads never carry the parser's "CARDNAME": every path
+   to a string that does. Cards themselves are printed data and are left out. */
+function placeholderIn(v, p, out, depth) {
+  if ((depth || 0) > 40 || out.length > 20) return;
+  if (typeof v === 'string') { if (v.includes('CARDNAME')) out.push(p); return; }
+  if (!v || typeof v !== 'object') return;
+  if (Array.isArray(v)) { v.forEach((x, i) => placeholderIn(x, `${p}[${i}]`, out, (depth || 0) + 1)); return; }
+  for (const k of Object.keys(v)) {
+    if (k === 'card' || k === 'sourceCard') continue;
+    placeholderIn(v[k], `${p}.${k}`, out, (depth || 0) + 1);
+  }
+}
+
 function run(schema, value, root) { const out = []; schema(value, root, out); return out; }
 
 /** Everything that cannot cross the wire as JSON and come back the same. */
@@ -367,6 +380,9 @@ function checkView(view, viewer, game) {
   const json = [];
   jsonProblems(view, 'view', json);
   for (const x of json) bad('view.json', x.path, x.msg);
+  const named = [];
+  placeholderIn(view, 'view', named);
+  for (const at of named) bad('view.words', at, 'shows the placeholder "CARDNAME" where the name should be');
   if (viewer !== undefined && view.you !== viewer) bad('view.sense', 'view.you', `made for ${show(viewer)} but says ${show(view.you)}`);
   const pids = new Set(view.players.map(p => p.id));
   for (const k of ['activePlayer', 'priorityPlayer', 'monarch', 'initiative'])

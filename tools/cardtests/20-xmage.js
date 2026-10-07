@@ -3498,4 +3498,32 @@ module.exports = (test) => {
     T.resolve();
     t.ok(T.player('B').hasLost, 'B has lost');
   });
+
+  test("Monument to Endurance: a mode once a turn, the next one offered", (mk, t) => {
+    t.auto('Monument to Endurance');
+    const T = mk();
+    T.bf('A', 'Monument to Endurance');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    T.answer('mode', () => ({ modes: [0] }));
+    T.answer('mode', (ch) => { t.no(ch.options.some(o => o.i === 0), 'the draw is used up'); return { modes: [ch.options[0].i] }; });
+    T.answer('discard', () => ({}));
+    T.hand('A', 'Forest'); T.hand('A', 'Mountain');
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1);
+  });
+
+  test('Words shown to players carry names, not the parser placeholder', (mk, t) => {
+    const T = mk();
+    const cd = T.hand('A', 'Collective Defiance');
+    const ex = T.g.extraCostsFor(cd.id);
+    t.no(JSON.stringify(ex).includes('CARDNAME'), 'the escalate mode labels');
+    t.ok(JSON.stringify(ex).includes('Collective Defiance deals 4 damage'), 'named');
+    T.bf('A', 'Haliya, Guided by Light');
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    T.resolve();
+    t.no(T.g.log.some(l => String(l.text).includes('CARDNAME')), 'the log');
+    t.ok(T.g.log.some(l => /Whenever Haliya, Guided by Light or another/.test(l.text)), 'the trigger names Haliya');
+  });
 };

@@ -3513,6 +3513,14 @@
   };
 
   function parseModal(cleaned) {
+    /* Monument to Endurance: "choose one that hasn't been chosen (this turn)" —
+       each mode once, for good or until the turn ends */
+    const nc = cleaned.match(/^Choose one that hasn'?t been chosen( this turn)?(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
+    if (nc) {
+      const inner = parseModal('Choose one \u2014 ' + nc[2]);
+      if (inner) inner.effects[0].notChosen = nc[1] ? 'turn' : 'ever';
+      return inner;
+    }
     const m = cleaned.match(/^Choose ([a-z ]+?)(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
     if (!m) return null;
     const word = m[1].trim().toLowerCase().replace(/^(one|two|three|four) or more$/, '$1 or more');
@@ -7063,8 +7071,23 @@
     return bits.join(', ');
   }
 
-  /** What to write on the button for an ability that came without prose. */
-  function abilityLabel(ab) {
+  /**
+   * Rules text as a player reads it: the "CARDNAME" the reading puts in for
+   * a card's own name made the name of the object it is on now (a copy's
+   * name, a face's), or the card's.
+   */
+  function named(text, who) {
+    if (text == null || !/CARDNAME/.test(text)) return text;
+    const nm = typeof who === 'string' ? who : who && (who.name || (who.card && who.card.name));
+    return String(text).replace(/CARDNAME/g, nm || 'this');
+  }
+
+  /** What to write on the button for an ability; given the object, with its name in it. */
+  function abilityLabel(ab, who) {
+    const t = abilityLabelRaw(ab);
+    return who === undefined ? t : named(t, who);
+  }
+  function abilityLabelRaw(ab) {
     if (!ab) return '';
     if (ab.text) return ab.text;
     const parts = [];
@@ -7097,7 +7120,7 @@
 
   MTG.oracle = {
     analyze, normalizePunct, faceDownAnalysis,
-    abilityLabel, describeEffects, condOf,
+    abilityLabel, named, describeEffects, condOf,
     parseTypeLine, scopeOf,
     parseCost,
     parseEffects,
