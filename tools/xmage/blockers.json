@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15316,
-  "gainedCards": 1577,
-  "linesNeeded": 17094,
-  "linesGained": 2003,
+  "needed": 15263,
+  "gainedCards": 1557,
+  "linesNeeded": 17030,
+  "linesGained": 1979,
   "gained": {
-   "all": 1577,
-   "top2000": 53,
+   "all": 1557,
+   "top2000": 52,
    "stdTop": 12
   },
   "compare": {
@@ -25,7 +25,7 @@
    "group": 27,
    "x": 3,
    "it": 31,
-   "opponent": 70,
+   "opponent": 72,
    "condition": 25,
    "subtype": 9
   }
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5533,
-   "lines": 4771,
+   "score": 5521,
+   "lines": 4759,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 942,
-   "lines": 798,
+   "score": 941,
+   "lines": 797,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 290,
-   "lines": 260,
+   "score": 289,
+   "lines": 259,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -262,11 +262,10 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 66,
-   "lines": 63,
+   "score": 61,
+   "lines": 58,
    "cards": [
     "Resourceful Defense",
-    "Ulvenwald Tracker",
     "Tidus, Yuna's Guardian",
     "Contest of Claws",
     "Cosmic Hunger",
@@ -274,9 +273,10 @@
     "Fall of Gil-galad",
     "Iroh, Tea Master",
     "Phantom Blade",
-    "Domri Rade",
     "Friendly Rivalry",
-    "Allies at Last"
+    "Allies at Last",
+    "Burning Sun's Avatar",
+    "Fall of the Hammer"
    ]
   },
   {
@@ -616,25 +616,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 29,
-   "lines": 29,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time"
-   ]
-  },
-  {
    "what": "EmpowerJaceEffect",
    "score": 29,
    "lines": 29,
@@ -670,6 +651,25 @@
     "Gornog, the Red Reaper",
     "Firkraag, Cunning Instigator",
     "Meriadoc Brandybuck"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 28,
+   "lines": 28,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Wall of Tears",
+    "Aether Membrane",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry"
    ]
   },
   {
@@ -1093,25 +1093,6 @@
    ]
   },
   {
-   "what": "custom cost",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Sunforger",
-    "Shelob, Dread Weaver",
-    "Captain America, First Avenger",
-    "Baba Lysaga, Night Witch",
-    "Phyrexian Dreadnought",
-    "Fabrication Foundry",
-    "Wonderscape Sage",
-    "Araumi of the Dead Tide",
-    "Clay Golem",
-    "Necron Overlord",
-    "The Book of Vile Darkness",
-    "Synthesis Pod"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 20,
    "lines": 20,
@@ -1183,6 +1164,25 @@
     "Runic Repetition",
     "Nyla, Shirshu Sleuth",
     "Blade of the Swarm"
+   ]
+  },
+  {
+   "what": "custom cost",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Sunforger",
+    "Shelob, Dread Weaver",
+    "Captain America, First Avenger",
+    "Baba Lysaga, Night Witch",
+    "Phyrexian Dreadnought",
+    "Fabrication Foundry",
+    "Wonderscape Sage",
+    "Araumi of the Dead Tide",
+    "Clay Golem",
+    "The Book of Vile Darkness",
+    "Synthesis Pod",
+    "Emrakul's Evangel"
    ]
   },
   {
@@ -1641,25 +1641,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 16,
-   "lines": 13,
-   "cards": [
-    "Resourceful Defense",
-    "Zurgo Stormrender",
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Costume Closet",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger",
-    "Extractor Demon"
-   ]
-  },
-  {
    "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
    "score": 16,
    "lines": 7,
@@ -1920,6 +1901,25 @@
     "Auriok Windwalker",
     "Swordsman, Sharp Scoundrel",
     "Kor Outfitter"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 15,
+   "lines": 12,
+   "cards": [
+    "Resourceful Defense",
+    "Zurgo Stormrender",
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Costume Closet",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -3605,24 +3605,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToSourceEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Gideon, Ally of Zendikar",
-    "Gideon of the Trials",
-    "Gideon Jura",
-    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
-    "Gideon, Martial Paragon",
-    "Gideon, the Oathsworn",
-    "Cho-Manno, Revolutionary",
-    "Sevinne, the Chronoclasm",
-    "Dawn Elemental",
-    "Trained Pronghorn"
-   ]
-  },
-  {
    "what": "scope:snow",
    "score": 11,
    "lines": 11,
@@ -4196,23 +4178,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAtLeastOneTargetEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Irresistible Prey",
-    "Enlarge",
-    "Compelled Duel",
-    "King Harald's Revenge",
-    "Deadly Allure",
-    "Disturbed Slumber",
-    "Satyr Piper",
-    "Emergent Growth",
-    "Vengeant Earth",
-    "Elemental Uprising"
-   ]
-  },
-  {
    "what": "IsStepCondition.getMyUpkeep",
    "score": 10,
    "lines": 10,
@@ -4322,19 +4287,6 @@
     "Teferi's Ageless Insight",
     "Alhammarret's Archive",
     "Bard, King of Dale"
-   ]
-  },
-  {
-   "what": "keyword AftermathAbility",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Dusk // Dawn",
-    "Indulge // Excess",
-    "Rags // Riches",
-    "Failure // Comply",
-    "Prepare // Fight",
-    "Reduce // Rubble"
    ]
   },
   {
@@ -5112,6 +5064,18 @@
    ]
   },
   {
+   "what": "keyword AftermathAbility",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Dusk // Dawn",
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Reduce // Rubble"
+   ]
+  },
+  {
    "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
    "score": 8,
    "lines": 5,
@@ -5689,6 +5653,21 @@
    ]
   },
   {
+   "what": "MustBeBlockedByAtLeastOneTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Irresistible Prey",
+    "Enlarge",
+    "King Harald's Revenge",
+    "Deadly Allure",
+    "Disturbed Slumber",
+    "Satyr Piper",
+    "Vengeant Earth",
+    "Elemental Uprising"
+   ]
+  },
+  {
    "what": "(constructor: assignment)",
    "score": 8,
    "lines": 8,
@@ -5970,20 +5949,6 @@
     "Misery's Shadow",
     "Garruk, Veiled Butcher",
     "Corpseweaver Prodigy"
-   ]
-  },
-  {
-   "what": "ZoneChangeAllTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Disciple of the Vault",
-    "Kothophed, Soul Hoarder",
-    "Myth Unbound",
-    "Tameshi, Reality Architect",
-    "Justice, Vance Astrovik",
-    "Stormfront Riders",
-    "Urza's Miter"
    ]
   },
   {
@@ -7270,6 +7235,19 @@
    ]
   },
   {
+   "what": "PreventAllDamageToSourceEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Gideon Jura",
+    "Gideon, the Oathsworn",
+    "Cho-Manno, Revolutionary",
+    "Sevinne, the Chronoclasm",
+    "Dawn Elemental"
+   ]
+  },
+  {
    "what": "RemoveVariableCountersSourceCost",
    "score": 6,
    "lines": 6,
@@ -7487,6 +7465,19 @@
     "Stone-Tongue Basilisk",
     "Reckless Cohort",
     "Marauding Maulhorn"
+   ]
+  },
+  {
+   "what": "ZoneChangeAllTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Kothophed, Soul Hoarder",
+    "Myth Unbound",
+    "Tameshi, Reality Architect",
+    "Justice, Vance Astrovik",
+    "Stormfront Riders",
+    "Urza's Miter"
    ]
   },
   {
@@ -7818,8 +7809,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4413,
-   "cards": 3867,
+   "score": 4403,
+   "cards": 3857,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7831,8 +7822,8 @@
   },
   {
    "what": "custom ability",
-   "score": 704,
-   "cards": 590,
+   "score": 703,
+   "cards": 589,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7883,8 +7874,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 171,
-   "cards": 159,
+   "score": 170,
+   "cards": 158,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7948,15 +7939,15 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 52,
-   "cards": 52,
+   "score": 48,
+   "cards": 48,
    "names": [
-    "Ulvenwald Tracker",
     "Contest of Claws",
     "Cosmic Hunger",
     "Incremental Blight",
     "Fall of Gil-galad",
-    "Iroh, Tea Master"
+    "Iroh, Tea Master",
+    "Phantom Blade"
    ]
   },
   {
@@ -8129,19 +8120,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 23,
-   "cards": 23,
-   "names": [
-    "Wall of Tears",
-    "Djeru's Resolve",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Dissection Practice"
-   ]
-  },
-  {
    "what": "ModifiedPredicate.instance",
    "score": 22,
    "cards": 19,
@@ -8191,6 +8169,19 @@
     "Medomai the Ageless",
     "Dog Umbra",
     "June, Bounty Hunter"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 22,
+   "cards": 22,
+   "names": [
+    "Wall of Tears",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Scrappy Bruiser",
+    "Dissection Practice",
+    "Fire Giant's Fury"
    ]
   },
   {
@@ -8566,19 +8557,6 @@
    ]
   },
   {
-   "what": "custom cost",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Sunforger",
-    "Baba Lysaga, Night Witch",
-    "Phyrexian Dreadnought",
-    "Fabrication Foundry",
-    "Wonderscape Sage",
-    "Araumi of the Dead Tide"
-   ]
-  },
-  {
    "what": "BecomePreparedSourceEffect",
    "score": 14,
    "cards": 8,
@@ -8681,6 +8659,19 @@
    ]
   },
   {
+   "what": "custom cost",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Sunforger",
+    "Baba Lysaga, Night Witch",
+    "Phyrexian Dreadnought",
+    "Fabrication Foundry",
+    "Wonderscape Sage",
+    "Araumi of the Dead Tide"
+   ]
+  },
+  {
    "what": "ShuffleIntoLibraryTargetEffect",
    "score": 13,
    "cards": 13,
@@ -8717,6 +8708,19 @@
     "Fog of War",
     "Hindervines",
     "Snag"
+   ]
+  },
+  {
+   "what": "MayCastTargetCardEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Torrential Gearhulk",
+    "Memory Plunder",
+    "Arcane Heist",
+    "Impulsivity",
+    "Chandra, Acolyte of Flame",
+    "Goblin Dark-Dwellers"
    ]
   },
   {
@@ -8909,19 +8913,6 @@
     "Chandra's Pyreling",
     "Thor, Guardian of Midgard",
     "Asgardian Inspiration"
-   ]
-  },
-  {
-   "what": "MayCastTargetCardEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Torrential Gearhulk",
-    "Memory Plunder",
-    "Arcane Heist",
-    "Impulsivity",
-    "Goblin Dark-Dwellers",
-    "Quistis Trepe"
    ]
   },
   {
@@ -9125,6 +9116,19 @@
     "Luminarch Ascension",
     "Goblin Spymaster",
     "Predatory Advantage"
+   ]
+  },
+  {
+   "what": "WinGameSourceControllerEffect",
+   "score": 11,
+   "cards": 8,
+   "names": [
+    "Twenty-Toed Toad",
+    "Liliana's Contract",
+    "Helix Pinnacle",
+    "Mortal Combat",
+    "Happily Ever After",
+    "Near-Death Experience"
    ]
   },
   {
@@ -9384,19 +9388,6 @@
    ]
   },
   {
-   "what": "WinGameSourceControllerEffect",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Twenty-Toed Toad",
-    "Liliana's Contract",
-    "Helix Pinnacle",
-    "Mortal Combat",
-    "Near-Death Experience",
-    "Battle of Wits"
-   ]
-  },
-  {
    "what": "ManaValueEqualToCountersSourceCountPredicate",
    "score": 10,
    "cards": 7,
@@ -9564,19 +9555,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAtLeastOneTargetEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Irresistible Prey",
-    "Enlarge",
-    "Compelled Duel",
-    "King Harald's Revenge",
-    "Deadly Allure",
-    "Disturbed Slumber"
-   ]
-  },
-  {
    "what": "keyword PowerUpAbility",
    "score": 10,
    "cards": 10,
@@ -9623,19 +9601,6 @@
     "Teferi's Ageless Insight",
     "Alhammarret's Archive",
     "Bard, King of Dale"
-   ]
-  },
-  {
-   "what": "keyword AftermathAbility",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Dusk // Dawn",
-    "Indulge // Excess",
-    "Rags // Riches",
-    "Failure // Comply",
-    "Prepare // Fight",
-    "Reduce // Rubble"
    ]
   },
   {
@@ -10116,6 +10081,18 @@
    ]
   },
   {
+   "what": "keyword AftermathAbility",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Dusk // Dawn",
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Reduce // Rubble"
+   ]
+  },
+  {
    "what": "EntersBattlefieldOpponentTriggeredAbility",
    "score": 8,
    "cards": 5,
@@ -10326,19 +10303,6 @@
     "Glorious Sunrise",
     "Path of Annihilation",
     "Orochi Merge-Keeper"
-   ]
-  },
-  {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Zurgo Stormrender",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Costume Closet",
-    "Genku, Future Shaper",
-    "Angelic Sleuth"
    ]
   },
   {
@@ -10628,6 +10592,19 @@
    ]
   },
   {
+   "what": "MustBeBlockedByAtLeastOneTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Irresistible Prey",
+    "Enlarge",
+    "King Harald's Revenge",
+    "Deadly Allure",
+    "Disturbed Slumber",
+    "Satyr Piper"
+   ]
+  },
+  {
    "what": "DealsDamageToACreatureTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -10888,6 +10865,19 @@
     "Serra Avatar",
     "Soul of Eternity",
     "Ajani, Wise Counselor"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Zurgo Stormrender",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Costume Closet",
+    "Genku, Future Shaper",
+    "Angelic Sleuth"
    ]
   },
   {

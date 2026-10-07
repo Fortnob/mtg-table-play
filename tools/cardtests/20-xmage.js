@@ -5014,4 +5014,49 @@ module.exports = (test) => {
     t.ok(T.g.couldBlock(wall, y, 'B'), 'with company');
     T.g.combat.attackers = [];
   });
+
+  test('Feral Lightning: three Elementals, exiled at the next end step', (mk, t) => {
+    t.auto('Feral Lightning');
+    const T = mk();
+    T.mana('A', 'RRR3');
+    T.cast('A', T.hand('A', 'Feral Lightning'));
+    t.eq(T.bfOf('A').filter(o => /Elemental/.test(o.name)).length, 3);
+    T.nextTurn('B');
+    t.eq(T.bfOf('A').filter(o => /Elemental/.test(o.name)).length, 0, 'gone at the end step');
+  });
+
+  test('Path of Peace: the destroyed creature\'s owner gains 4 life', (mk, t) => {
+    t.auto('Path of Peace');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'W3');
+    T.cast('A', T.hand('A', 'Path of Peace'), { targets: [bear] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(T.life('B'), 24);
+  });
+
+  test('Clash of Titans: two different creatures fight', (mk, t) => {
+    t.auto('Clash of Titans');
+    const T = mk();
+    const ogre = T.bf('A', 'Gutsplitter Gang');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'RR3');
+    const ct = T.hand('A', 'Clash of Titans');
+    t.no(T.g.castSpell('A', ct.id, { targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: bear.id }] }), 'not the same creature twice');
+    T.cast('A', ct, { targets: [ogre, bear] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(ogre.damage, 2);
+  });
+
+  test('Disciple of the Vault: an artifact to the graveyard, an opponent loses 1', (mk, t) => {
+    t.auto('Disciple of the Vault');
+    const T = mk();
+    T.bf('A', 'Disciple of the Vault');
+    const orn = T.bf('A', 'Ornithopter');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [orn] });
+    T.resolve();
+    t.eq(T.life('B'), 19);
+  });
 };

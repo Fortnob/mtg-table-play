@@ -802,6 +802,13 @@
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Target player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
+    { re: /^Target opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
+      make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
+    { re: /^Each player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
+      make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'each' }) },
+    // Path of Peace: "Destroy target creature. Its owner gains 4 life."
+    { re: /^Its owner gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
+      make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'targetOwner' }) },
 
     { re: /^You gain life equal to the life lost this way\.?$/i, make: () => ({ op: 'gainLife', n: 'lastLifeLost', who: 'you' }) },
     { re: /^You gain (?:that much|the same amount of) life\.?$/i, make: () => ({ op: 'gainLife', n: 'lastLifeLost', who: 'you' }) },
@@ -1177,6 +1184,9 @@
       make: (m) => ({ op: 'fightSelf', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
     { re: /^Target creature you control fights target creature you don'?t control\.?$/i,
       make: () => ({ op: 'fight', targets: [{ type: 'creature', controller: 'you' }, { type: 'creature', controller: 'opponent' }] }) },
+    // Domri Rade, Clash of Titans: two targets, the second never the first
+    { re: /^(Target creature(?: you control)?) fights (another target creature|target creature an opponent controls)\.?$/i,
+      make: (m) => ({ op: 'fight', targets: [targetSpec(m[1]), Object.assign(targetSpec(m[2].replace(/^another /i, '')), { distinct: true })] }) },
     /* "Target creature deals damage to itself equal to its power." */
     { re: /^Target creature deals damage to itself equal to its power\.?$/i,
       make: () => ({ op: 'selfBite', targets: [{ type: 'creature' }] }) },
@@ -1423,6 +1433,20 @@
     { re: /^Prevent all combat damage that would be dealt to and dealt by (CARDNAME|this creature|target creature) this turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', targets: [{ type: 'creature' }], flags: ['noDamage', 'noDamageTaken'] }
         : { op: 'flagEot', scope: 'self', flags: ['noDamage', 'noDamageTaken'] }) },
+    // Gideon: "Prevent all damage that would be dealt to him this turn."
+    { re: /^Prevent all damage that would be dealt to (?:him|her|it|CARDNAME|this creature) this turn\.?$/i,
+      make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
+    // Compelled Duel: "gets +3/+3 until end of turn and must be blocked this turn if able"
+    { re: /^(Target creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and must be blocked this turn if able\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [targetSpec(m[1])] },
+        { op: 'restrict', flag: 'lure', scope: 'lastTarget' }] }) },
+    // Wave of Reckoning: "Each creature deals damage to itself equal to its power."
+    { re: /^Each creature deals damage to itself equal to its power\.?$/i, make: () => ({ op: 'selfDamageAll' }) },
+    /* Chandra, Flamecaller: "Exile them at the beginning of the next end
+       step" — the tokens this just made, each of them */
+    { re: /^(Exile|Sacrifice) them at the beginning of the next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'made', name: m[1] + ' them at end of turn',
+        effects: [/^exile/i.test(m[1]) ? { op: 'exile', scope: 'thatObject' } : { op: 'sacrificeThat' }] }) },
     // Farrel's Zealot, Laccolith Titan: "This creature assigns no combat damage this turn."
     { re: /^(?:CARDNAME|This creature|It) assigns no combat damage this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamage'] }) },
@@ -3660,10 +3684,10 @@
       const inner = parseEffectSentence(s.replace(/\btwice X\b/g, 'X'), 1);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: 2 })) { inner.text = s; return inner; }
     }
-    // Duelist's Heritage: "have target attacking creature gain double strike"
-    const hv = !depth && s.match(/^Have (target [a-z ]+?) gain (.+)$/i);
+    // Duelist's Heritage: "have target attacking creature gain double strike"; "have target player mill two cards"
+    const hv = !depth && s.match(/^Have (target [a-z ]+?) (gain|mill|draw|lose|discard|sacrifice) (.+)$/i);
     if (hv) {
-      const inner = parseEffectSentence(U.titleCase(hv[1].charAt(0)) + hv[1].slice(1) + ' gains ' + hv[2], 1);
+      const inner = parseEffectSentence(U.titleCase(hv[1].charAt(0)) + hv[1].slice(1) + ' ' + hv[2].toLowerCase() + 's ' + hv[3], 1);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return inner; }
     }
     /* "…and you may return up to one target creature card": the half of a

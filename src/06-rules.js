@@ -9290,6 +9290,9 @@
             const p = this._lastAffectedController();
             if (p) this.changeLife(p, cnt);
           } else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, cnt); }
+          else if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this.changeLife(p, cnt); }
+          // Path of Peace: "Its owner gains 4 life"
+          else if (e.who === 'targetOwner') { const p = this._lastAffected && this.player(this._lastAffected.owner); if (p) this.changeLife(p, cnt); }
           else this.changeLife(me, cnt);
           break;
         }
@@ -9427,6 +9430,12 @@
           if (e.scope === 'attached') {
             const x = src && src.attachedTo && this.obj(src.attachedTo);
             if (x) { this.moveObject(x, 'exile'); this._lastExiled = x.id; }
+            break;
+          }
+          /* "Exile it at the beginning of the next end step": the object a
+             delayed note was taken about, or what the trigger is about */
+          if ((e.scope === 'thatObject' || e.scope === 'triggerObject') && !(e.targets && e.targets.length)) {
+            applyToScope(e, (x) => { if (x.zone === 'battlefield') { this.moveObject(x, 'exile'); this._lastExiled = x.id; this.logEvent('exile', `${x.name} is exiled.`); } });
             break;
           }
           this._noteLastAffected(targets);
@@ -11320,6 +11329,7 @@
             this._fireEnters(copy);
             // the copy is what any later sentence is talking about
             this._lastCopy = copy;
+            (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
           }
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
@@ -11364,7 +11374,12 @@
 
         /* ===== leave a note for later (CR 603.7) ===== */
         case 'delayed': {
-          const objId = e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id)
+          // "Exile them at the beginning of the next end step": a note for each token just made
+          if (e.subject === 'made') {
+            for (const id of (this._madeThisResolution || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
+          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id)
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
           this.scheduleDelayed({
             event: e.event || 'eachEndStep',
@@ -12896,6 +12911,15 @@
           if (k) src.effects.push({ p: k, t: 0, until: 'eot' });
           this.logEvent('rules', `${src.name} enlists ${x.name} (+${k}/+0).`);
           this.bumpBoard();
+          break;
+        }
+        // Wave of Reckoning: every creature hits itself with its own power
+        case 'selfDamageAll': {
+          for (const o of this.battlefield.slice()) {
+            if (o.phasedOut || !this.characteristics(o).isCreature) continue;
+            const k = this.powerOf(o);
+            if (k > 0) this.dealDamageToObject(o, k, o);
+          }
           break;
         }
         // Weapon Rack: counters moved off this onto the target
