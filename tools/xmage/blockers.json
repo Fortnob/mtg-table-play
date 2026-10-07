@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16618,
+  "needed": 16610,
   "gainedCards": 1765,
-  "linesNeeded": 18877,
+  "linesNeeded": 18866,
   "linesGained": 2272,
   "gained": {
    "all": 1765,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5735,
-   "lines": 4916,
+   "score": 5723,
+   "lines": 4913,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1029,
-   "lines": 840,
+   "score": 1025,
+   "lines": 839,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 437,
-   "lines": 407,
+   "score": 436,
+   "lines": 406,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -4228,21 +4228,6 @@
    ]
   },
   {
-   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Eerie Interlude",
-    "Morningtide's Light",
-    "Guardian of Ghirapur",
-    "Skyskipper Duo",
-    "Ennis, Debate Moderator",
-    "Blizzard Strix",
-    "Roll-Roll-Roll-Roll",
-    "Wiccan, Rising Magician"
-   ]
-  },
-  {
    "what": "CastAsThoughItHadFlashAllEffect",
    "score": 11,
    "lines": 8,
@@ -6264,6 +6249,18 @@
    ]
   },
   {
+   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Eerie Interlude",
+    "Morningtide's Light",
+    "Blizzard Strix",
+    "Roll-Roll-Roll-Roll",
+    "Wiccan, Rising Magician"
+   ]
+  },
+  {
    "what": "EntersBattlefieldOpponentTriggeredAbility",
    "score": 8,
    "lines": 5,
@@ -6801,20 +6798,6 @@
     "Torture Chamber",
     "Molten Hydra",
     "Essence Bottle"
-   ]
-  },
-  {
-   "what": "ExileTargetForSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Admonition Angel",
-    "Quintorius, Loremaster",
-    "Koh, the Face Stealer",
-    "Chaos Shrine's Black Crystal",
-    "Profane Procession // Tomb of the Dusk Rose",
-    "Promise of Tomorrow",
-    "Bag of Devouring"
    ]
   },
   {
@@ -7674,6 +7657,20 @@
    ]
   },
   {
+   "what": "ExileTargetForSourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Admonition Angel",
+    "Quintorius, Loremaster",
+    "Koh, the Face Stealer",
+    "Chaos Shrine's Black Crystal",
+    "Profane Procession // Tomb of the Dusk Rose",
+    "Promise of Tomorrow",
+    "Bag of Devouring"
+   ]
+  },
+  {
    "what": "CollectEvidenceCost",
    "score": 7,
    "lines": 7,
@@ -8120,8 +8117,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4497,
-   "cards": 3915,
+   "score": 4486,
+   "cards": 3913,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8133,8 +8130,8 @@
   },
   {
    "what": "custom ability",
-   "score": 763,
-   "cards": 616,
+   "score": 759,
+   "cards": 615,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8159,8 +8156,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 223,
-   "cards": 214,
+   "score": 222,
+   "cards": 213,
    "names": [
     "Mizzix's Mastery",
     "Eldritch Immunity",
@@ -10366,19 +10363,6 @@
    ]
   },
   {
-   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Eerie Interlude",
-    "Guardian of Ghirapur",
-    "Skyskipper Duo",
-    "Blizzard Strix",
-    "Roll-Roll-Roll-Roll",
-    "Wiccan, Rising Magician"
-   ]
-  },
-  {
    "what": "MaxManaValueControlledCreatureOrPlaneswalkerPredicate.instance",
    "score": 9,
    "cards": 3,
@@ -11788,6 +11772,17 @@
     "Ashiok, Sculptor of Fears",
     "Gilt-Leaf Archdruid",
     "Tezzeret, Master of Metal"
+   ]
+  },
+  {
+   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Eerie Interlude",
+    "Blizzard Strix",
+    "Roll-Roll-Roll-Roll",
+    "Wiccan, Rising Magician"
    ]
   },
   {

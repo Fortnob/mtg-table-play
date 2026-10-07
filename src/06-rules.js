@@ -5437,7 +5437,9 @@
         // decayed (CR 702.147): "when it attacks, sacrifice it at end of combat"
         if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
         this.combat.attackers.push(o.id);
-        this._fire('attacks', o.controller, { attacker: o, source: o });
+        // "defending player": the one it attacks, or the one whose planeswalker it attacks
+        this._fire('attacks', o.controller, { attacker: o, source: o,
+          player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
         this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
       }
@@ -9387,6 +9389,26 @@
           this.noPreventTurn = this.turn;
           this.logEvent('rules', "Damage can't be prevented this turn.");
           break;
+        // Wound Reflection: each opponent loses again what they lost this turn
+        case 'woundReflection':
+          for (const q of this.opponentsOf(ctx.controller)) { const k = q.lifeLostThisTurn || 0; if (k > 0) this.changeLife(q, -k); }
+          break;
+        /* Syphon Mind: "Each other player discards a card. You draw a card
+           for each card discarded this way." */
+        case 'syphonMind': {
+          let k = 0;
+          for (const q of this.opponentsOf(ctx.controller)) {
+            const hand = this.zones[q.id].hand;
+            if (!hand.length) continue;
+            const got = this._choose({ playerId: q.id, purpose: 'discardFromHand', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: 1, max: 1, prompt: 'Discard a card.' }, 'syph' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            const c = got && got.picks.length ? this.obj(got.picks[0]) : hand[0];
+            if (c && c.zone === 'hand') { this._discardNow(q.id, [c]); k++; }
+          }
+          if (k) this._drawCards(me, k);
+          break;
+        }
         // Insurrection: every creature, untapped and yours until end of turn
         case 'threatenAll': {
           const ts = this._stampNew();
@@ -11208,6 +11230,9 @@
            greater". What was exiled is remembered for the sentence after. */
         case 'exileTop': {
           const who = e.who === 'each' ? this.players.filter(x => !x.hasLost)
+            : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            // Ulamog: "defending player exiles the top twenty cards"
+            : e.who === 'defending' ? [triggerPlayer()].filter(Boolean)
             : e.who === 'target' ? [firstPlayer() || me]
             : e.who === 'triggerPlayer' ? [triggerPlayer() || me] : [me];
           const out = [];

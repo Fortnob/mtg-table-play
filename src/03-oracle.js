@@ -820,6 +820,16 @@
       make: (m) => ({ op: 'destroy', noRegen: true, targets: [targetSpec(m[1])] }) },
     { re: /^Exile (target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1])] }) },
+    // Solitude: "Exile up to one other target creature."
+    { re: /^(Exile|Destroy) up to one (other |another )?target ([a-z0-9 '-]+?)\.?$/i,
+      make: (m) => ({ op: m[1].toLowerCase(), targets: [Object.assign(targetSpec('target ' + m[3]), { upTo: true }, m[2] ? { another: true } : {})] }) },
+    // Ulamog: "Defending player exiles the top twenty cards of their library."
+    { re: /^(Defending player|Target player|Each opponent) exiles the top (\w+) cards of their library\.?$/i,
+      make: (m) => (typeof num(m[2]) === 'number' ? Object.assign({ op: 'exileTop', n: num(m[2]),
+        who: /defending/i.test(m[1]) ? 'defending' : /each/i.test(m[1]) ? 'opponents' : 'target' },
+        /^target/i.test(m[1]) ? { targets: [{ type: 'player' }] } : {}) : null) },
+    // Wound Reflection: "each opponent loses life equal to the life they lost this turn"
+    { re: /^Each opponent loses life equal to the life they lost this turn\.?$/i, make: () => ({ op: 'woundReflection' }) },
     /* "Exile two target permanents", "destroy up to three target
        artifacts", "return up to two target creatures to their owners'
        hands": the same effect pointed at a list. */
@@ -3196,6 +3206,9 @@
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
   const COMBO_RULES = [
+    // Syphon Mind: "Each other player discards a card. You draw a card for each card discarded this way."
+    { re: /^Each (?:other player|opponent) discards a card\. You draw a card for each card discarded this way\.?$/i,
+      make: () => [{ op: 'syphonMind' }] },
     // Hydroid Krasis: "you gain half X life and draw half X cards. Round down each time."
     { re: /^You gain half X life and draw half X cards\. Round (down|up) each time\.?$/i,
       make: (m) => [{ op: 'gainLife', who: 'you', n: { half: 'X', up: /up/i.test(m[1]) } }, { op: 'draw', who: 'you', n: { half: 'X', up: /up/i.test(m[1]) } }] },

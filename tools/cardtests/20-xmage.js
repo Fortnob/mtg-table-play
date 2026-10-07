@@ -2925,6 +2925,44 @@ module.exports = (test) => {
     t.eq(T.life('B'), 14);
   });
 
+  test('Ulamog, the Ceaseless Hunger: the defending player exiles twenty', (mk, t) => {
+    t.auto('Ulamog, the Ceaseless Hunger');
+    const T = mk();
+    const u = T.bf('A', 'Ulamog, the Ceaseless Hunger');
+    u.summoningSick = false;
+    for (let i = 0; i < 25; i++) T.top('B', 'Island');
+    const before = T.zone('B', 'library').length;
+    T.answer('declareAttackers', () => [{ attackerId: u.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(before - T.zone('B', 'library').length, 20);
+  });
+
+  test('Solitude exiles another creature and its controller gains its power', (mk, t) => {
+    t.auto('Solitude');
+    const T = mk();
+    const w = T.bf('B', 'Craw Wurm');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Solitude'));
+    T.resolve();
+    t.zone(w, 'exile'); t.eq(T.life('B'), 26);
+  });
+
+  test('Syphon Mind: a card for each card discarded', (mk, t) => {
+    t.auto('Syphon Mind');
+    const T = mk();
+    T.hand('B', 'Island');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const sm = T.hand('A', 'Syphon Mind');
+    const before = T.zone('A', 'hand').length;
+    T.mana('A', '3B');
+    T.cast('A', sm);
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, 0);
+    t.eq(T.zone('A', 'hand').length, before, 'cast one, drew one');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();
