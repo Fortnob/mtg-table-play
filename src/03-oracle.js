@@ -1508,7 +1508,7 @@
     /* What a creature is, for the rest of the turn: Turn to Frog, Ovinize,
        Animate Land, Merfolk Trickster's "It loses all abilities until end of
        turn". Each part in its layer (becomesEff). */
-    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
+    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|creatures target (?:player|opponent) controls|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
       make: (m) => {
         if (!/until end of turn/i.test(m[0])) return null;
         const eff = becomesEff(m[2]);
@@ -1616,6 +1616,9 @@
     /* Myr Retriever and Junk Diver: never itself */
     { re: /^Return another target ([a-z ]+?) card from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec('another target ' + m[1]), { zone: 'graveyard', controller: 'you' })] }) },
+    // Blacksmith's Skill: "If it's an artifact creature, it gets +2/+2 until end of turn."
+    { re: /^If it'?s an? (artifact creature|creature|artifact|land|enchantment), it gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'ifLastWas', ofTarget: true, filter: m[1].toLowerCase(), then: [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', scope: 'lastTarget' }] }) },
     /* Essence Flux */
     { re: /^If it'?s an? ([A-Z][a-z]+|creature|artifact), put a \+1\/\+1 counter on it\.?$/,
       make: (m) => ({ op: 'ifLastWas', filter: m[1].toLowerCase(), then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'lastTarget' }] }) },
@@ -7727,6 +7730,9 @@
     if ((mm0 = rest.match(/ that(?:'s| is| are)(?: not|n'?t) historic$/i))) { sc.notHistoric = true; rest = rest.slice(0, mm0.index); }
     /* "Creatures you control of the chosen type": whatever this permanent
        was told as it entered */
+    // Crippling Fear: "Creatures that aren't of the chosen type"
+    const notChosen = rest.match(/ that (?:aren'?t|are not|isn'?t|is not) of the chosen type$/i);
+    if (notChosen) { sc.notChosenType = true; rest = rest.slice(0, notChosen.index); }
     const chosen = rest.match(/ of the chosen (type|colou?r)\b/i);
     if (chosen) {
       if (/type/i.test(chosen[1])) sc.chosenType = true; else sc.chosenColor = true;
@@ -7980,6 +7986,8 @@
       const sc = scopeOf(s.replace(/^each /i, 'all '));
       if (!sc || sc.self || sc.attached) return null;
       out.scope = sc;
+      // Sudden Spoiling: "creatures target player controls"
+      if (sc.who === 'target') out.targets = [{ type: 'player', opponent: /target opponent/i.test(s) }];
     }
     return out;
   }

@@ -15253,6 +15253,9 @@
       if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||
           (oa.keywordSet && oa.keywordSet.has('changeling'))))) return false;
       if (sc.chosenColor && !(src && src.chosenColor && (oa.colors || []).includes(src.chosenColor))) return false;
+      // Crippling Fear: everything not of the chosen type
+      if (sc.notChosenType && src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||
+          (oa.keywordSet && oa.keywordSet.has('changeling')))) return false;
       // a conspiracy's chosen name, and what the draft noted (src/07-draft.js)
       if (sc.chosenName && !this._chosenNameOf(src, o)) return false;
       if (sc.noted && !this._isNoted(o, oa, pid, sc.noted)) return false;

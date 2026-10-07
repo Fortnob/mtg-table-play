@@ -7606,4 +7606,42 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(bear, 'double strike'));
     t.ok(!T.g.hasKw(other, 'double strike'));
   });
+
+  test('Crippling Fear: -3/-3 to all but the chosen type', (mk, t) => {
+    t.auto('Crippling Fear');
+    const T = mk();
+    const elf = T.bf('A', 'Llanowar Elves'), giant = T.bf('B', 'Hill Giant'), troll = T.bf('B', 'Craw Wurm');
+    T.answer('mode', (ch) => ({ modes: [Math.max(0, (ch.options || []).findIndex(o => /^Elf$/i.test(o.label)))] }));
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'Crippling Fear'));
+    T.resolve();
+    t.eq(elf.zone, 'battlefield', 'the Elf is spared');
+    t.eq(giant.zone, 'graveyard');
+    t.eq(T.g.powerOf(troll), 3);
+  });
+
+  test('Sudden Spoiling: that player\'s creatures are 0/2 with no abilities', (mk, t) => {
+    t.auto('Sudden Spoiling');
+    const T = mk();
+    const s = T.bf('B', 'Serra Angel'), mine = T.bf('A', 'Serra Angel');
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Sudden Spoiling'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.g.powerOf(s), 0); t.eq(T.g.toughnessOf(s), 2); t.ok(!T.g.hasKw(s, 'flying'));
+    t.eq(T.g.powerOf(mine), 4);
+  });
+
+  test("Blacksmith's Skill: +2/+2 only for an artifact creature", (mk, t) => {
+    t.auto("Blacksmith's Skill");
+    const T = mk();
+    const golem = T.bf('A', 'Bronze Sable'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', "Blacksmith's Skill"), { targets: [golem.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(golem), 4); t.ok(T.g.hasKw(golem, 'indestructible'));
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', "Blacksmith's Skill"), { targets: [bear.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(bear), 2, 'not an artifact');
+  });
 };

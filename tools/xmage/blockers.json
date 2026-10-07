@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14146,
+  "needed": 14142,
   "gainedCards": 1486,
-  "linesNeeded": 15620,
+  "linesNeeded": 15616,
   "linesGained": 1847,
   "gained": {
    "all": 1486,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5183,
-   "lines": 4523,
+   "score": 5180,
+   "lines": 4520,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -5597,19 +5597,6 @@
    ]
   },
   {
-   "what": "ChooseCreatureTypeEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Crippling Fear",
-    "Pact of the Serpent",
-    "Kindred Summons",
-    "Haunting Voyage",
-    "Kindred Charge",
-    "Tribal Forcemage"
-   ]
-  },
-  {
    "what": "ExileTopXMayPlayUntilEffect.withTextOptions",
    "score": 6,
    "lines": 6,
@@ -6721,6 +6708,18 @@
    ]
   },
   {
+   "what": "ChooseCreatureTypeEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Pact of the Serpent",
+    "Kindred Summons",
+    "Haunting Voyage",
+    "Kindred Charge",
+    "Tribal Forcemage"
+   ]
+  },
+  {
    "what": "DealsDamageToYouAllTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7464,8 +7463,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4159,
-   "cards": 3694,
+   "score": 4156,
+   "cards": 3691,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -10372,19 +10371,6 @@
    ]
   },
   {
-   "what": "ChooseCreatureTypeEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Crippling Fear",
-    "Pact of the Serpent",
-    "Kindred Summons",
-    "Haunting Voyage",
-    "Kindred Charge",
-    "Tribal Forcemage"
-   ]
-  },
-  {
    "what": "discard trigger for a kind of card",
    "score": 6,
    "cards": 6,
@@ -11157,6 +11143,18 @@
    "names": [
     "Halo Fountain",
     "Crackleburr"
+   ]
+  },
+  {
+   "what": "ChooseCreatureTypeEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Pact of the Serpent",
+    "Kindred Summons",
+    "Haunting Voyage",
+    "Kindred Charge",
+    "Tribal Forcemage"
    ]
   },
   {
