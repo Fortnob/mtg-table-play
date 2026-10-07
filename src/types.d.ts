@@ -273,7 +273,7 @@ declare namespace MTG {
   interface DeclareAttackersChoice extends ChoiceBase { type: 'declareAttackers'; candidates: Id[]; defenders: Defender[] }
   interface DeclareBlockersChoice extends ChoiceBase { type: 'declareBlockers'; attackers: Id[]; candidates: Id[] }
   interface DiscardChoice extends ChoiceBase { type: 'discard' | 'discardToHandSize'; count: number; candidates?: Id[]; optional?: boolean }
-  interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean }
+  interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean; /** Doomfall: the chosen permanent is exiled, not sacrificed */ exileInstead?: boolean }
   interface ScryChoice extends ChoiceBase { type: 'scry' | 'surveil'; count: number; cards: ChoiceCard[] }
   interface ArrangeChoice extends ChoiceBase { type: 'arrange'; count?: number; cards: ChoiceCard[]; look?: boolean }
   interface OrderTriggersChoice extends ChoiceBase { type: 'orderTriggers'; cards: Array<{ id: Id; name?: string; card?: Card | null }> }

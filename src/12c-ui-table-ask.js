@@ -73,7 +73,7 @@
         if (ch.type === 'discard' || ch.type === 'discardToHandSize')
           return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : 'Click a card in your hand.');
         if (ch.type === 'sacrifice')
-          return set('ask', escapeHtml(ch.prompt || 'Sacrifice'), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : 'Click one of your permanents.');
+          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : 'Click one of your permanents.');
         // a generic question answered on the board alone: what to click, and how the picks stand
         if (ch.type === 'choose') {
           const s = this.chooseSpec(ch);
