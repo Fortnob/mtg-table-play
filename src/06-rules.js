@@ -14008,6 +14008,15 @@
           break;
         }
         // Geist of Saint Traft: the token just made goes as combat ends
+        // Siege-Gang Lieutenant: the tokens just made gain haste
+        case 'grantMade': {
+          for (const id of (this._madeThisResolution || [])) {
+            const x = this.obj(id);
+            if (x && x.zone === 'battlefield') x.effects.push({ keywords: e.keywords, until: e.until || null });
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'exileMadeEoc': {
           for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.exileAtEndOfCombat = true; }
           break;
@@ -15122,7 +15131,8 @@
     _scopeHit(sc, o, oa, pid, src, inLayers) {
       if (sc.other && src && src.id === o.id) return false;
       // Backgrounds: "Commander creatures you own"
-      if (sc.commander && !(o.isCommander && o.owner === pid)) return false;
+      // Falthis: "Commanders you control" — whoever owns them
+      if (sc.commander && !(o.isCommander && (sc.commander === 'control' || o.owner === pid))) return false;
       // "other creatures you control named Hare Apparent"
       if (sc.name && o.name !== sc.name) return false;
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
@@ -15167,6 +15177,22 @@
       if (sc.notColor && (oa.colors || []).includes(sc.notColor)) return false;
       // "multicolored permanents", "black or green permanents"
       if (sc.multicolored && (oa.colors || []).length < 2) return false;
+      if (sc.colorless && (oa.colors || []).length) return false;
+      if (sc.faceDown && !o.faceDown) return false;
+      if (sc.monocolored && (oa.colors || []).length !== 1) return false;
+      // Bothersome Quasit: "goaded creatures"
+      if (sc.goaded && o.goadedBy == null) return false;
+      // Evil Boros Charm: "unblocked attacking creatures", once blockers are declared
+      if (sc.unblocked && !this._unblockedAttackers(o.controller).includes(o)) return false;
+      if (sc.equipped || sc.enchanted || sc.modified) {
+        const on = (o.attachments || []).map(id => this.obj(id)).filter(Boolean);
+        const eq = on.some(at => (at.analysis() || {}).isEquipment), au = on.some(at => (at.analysis() || {}).isAura);
+        if (sc.equipped && !eq) return false;
+        if (sc.enchanted && !au) return false;
+        // Guardians of Oboro: counters on it, or an Equipment or Aura of its controller's on it
+        if (sc.modified && !Object.values(o.counters || {}).some(v => Number(v) > 0) &&
+          !on.some(at => at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura))) return false;
+      }
       if (sc.colorAny && !sc.colorAny.some(c => (oa.colors || []).includes(c))) return false;
       const mv = (o.card && o.card.cmc) || 0;
       if (sc.maxMv != null && mv > sc.maxMv) return false;

@@ -7164,4 +7164,50 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('B', 'graveyard').length, 0); t.eq(T.zone('A', 'graveyard').length, 2, 'its own Island stays, and the Crystal');
   });
+
+  test('Swarm Surge: colorless creatures also gain first strike', (mk, t) => {
+    t.auto('Swarm Surge');
+    const T = mk();
+    const orn = T.bf('A', 'Ornithopter'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Swarm Surge'));
+    t.eq(T.g.powerOf(bear), 4);
+    t.ok(T.g.hasKw(orn, 'first strike'), 'the colourless one');
+    t.ok(!T.g.hasKw(bear, 'first strike'), 'not the green one');
+  });
+
+  test('Falthis: commanders you control, whatever they are', (mk, t) => {
+    t.auto('Falthis, Shadowcat Familiar');
+    const T = mk();
+    T.bf('A', 'Falthis, Shadowcat Familiar');
+    const cmd = T.bf('A', 'Grizzly Bears'), other = T.bf('A', 'Hill Giant');
+    cmd.isCommander = true;
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(cmd, 'deathtouch'), 'the commander');
+    t.ok(!T.g.hasKw(other, 'deathtouch'), 'not another creature');
+  });
+
+  test('Joraga Bard: "you may have Ally creatures you control gain vigilance"', (mk, t) => {
+    t.auto('Joraga Bard');
+    const T = mk();
+    const ally = T.bf('A', 'Kazandu Blademaster'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Joraga Bard'));
+    T.resolve();
+    t.ok(T.g.hasKw(ally, 'vigilance'), 'the Ally');
+    t.ok(!T.g.hasKw(bear, 'vigilance'), 'not the Bears');
+  });
+
+  test('Siege-Gang Lieutenant: those tokens gain haste, nothing else does', (mk, t) => {
+    t.auto('Siege-Gang Lieutenant');
+    const T = mk();
+    T.bf('A', 'Siege-Gang Lieutenant').isCommander = true;
+    const old = T.bf('A', 'Goblin Piker');
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    const gobs = T.bfOf('A').filter(o => o.isToken);
+    t.eq(gobs.length, 2);
+    t.ok(gobs.every(o => T.g.hasKw(o, 'haste')), 'the new tokens');
+    t.ok(!T.g.hasKw(old, 'haste'), 'not the Goblin already there');
+  });
 };

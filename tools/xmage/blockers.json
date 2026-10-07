@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14272,
-  "gainedCards": 1492,
-  "linesNeeded": 15779,
+  "needed": 14258,
+  "gainedCards": 1493,
+  "linesNeeded": 15760,
   "linesGained": 1858,
   "gained": {
-   "all": 1492,
+   "all": 1493,
    "top2000": 52,
    "stdTop": 12
   },
@@ -27,15 +27,15 @@
    "it": 32,
    "opponent": 72,
    "condition": 22,
-   "subtype": 9
+   "subtype": 3
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5223,
-   "lines": 4548,
+   "score": 5222,
+   "lines": 4547,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -91,8 +91,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 302,
-   "lines": 284,
+   "score": 301,
+   "lines": 283,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 134,
-   "lines": 125,
+   "score": 133,
+   "lines": 124,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -677,25 +677,6 @@
     "Nalia de'Arnise",
     "Galea, Kindler of Hope",
     "Isu the Abominable"
-   ]
-  },
-  {
-   "what": "ModifiedPredicate.instance",
-   "score": 24,
-   "lines": 21,
-   "cards": [
-    "Kodama of the West Tree",
-    "Goro-Goro, Disciple of Ryusei",
-    "Red XIII, Proud Warrior",
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Araña, Heart of the Spider",
-    "Jugan Defends the Temple // Remnant of the Rising Star",
-    "SP//dr, Piloted by Peni",
-    "Kami of Celebration",
-    "Arna Kennerüd, Skycaptain",
-    "Iron Man, Armored Avenger",
-    "One with the Kami"
    ]
   },
   {
@@ -1322,6 +1303,25 @@
     "Safe Haven",
     "Ashiok's Erasure",
     "Parallax Tide"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Kodama of the West Tree",
+    "Akki Battle Squad",
+    "Thundering Raiju",
+    "Araña, Heart of the Spider",
+    "Jugan Defends the Temple // Remnant of the Rising Star",
+    "SP//dr, Piloted by Peni",
+    "Kami of Celebration",
+    "Arna Kennerüd, Skycaptain",
+    "One with the Kami",
+    "Silver Sable, Mercenary Leader",
+    "Expanding Ooze",
+    "Akki Ember-Keeper"
    ]
   },
   {
@@ -3309,23 +3309,6 @@
     "Essence Sliver",
     "Noble Purpose",
     "Five-Alarm Fire"
-   ]
-  },
-  {
-   "what": "scope:colorless",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "It That Heralds the End",
-    "Kozilek, the Broken Reality",
-    "Gruesome Slaughter",
-    "Ruination Guide",
-    "Tide Drifter",
-    "Dominator Drone",
-    "Dust Stalker",
-    "Eldrazi Aggressor",
-    "Reaver Drone",
-    "Skitterskin"
    ]
   },
   {
@@ -5402,20 +5385,6 @@
    ]
   },
   {
-   "what": "attack trigger with its own text",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Cultivator of Blades",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent"
-   ]
-  },
-  {
    "what": "DealsCombatDamageTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -6408,6 +6377,19 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
+   ]
+  },
+  {
+   "what": "attack trigger with its own text",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Conqueror's Galleon // Conqueror's Foothold",
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental",
+    "Shrouded Serpent"
    ]
   },
   {
@@ -7494,6 +7476,18 @@
     "Path of the Schemer",
     "Path of the Enigma"
    ]
+  },
+  {
+   "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Planewide Celebration",
+    "Unite the Coalition",
+    "Cosmium Confluence",
+    "Riveteers Confluence",
+    "Obscura Confluence"
+   ]
   }
  ],
  "sole": [
@@ -7525,8 +7519,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 226,
-   "cards": 211,
+   "score": 225,
+   "cards": 210,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7577,8 +7571,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 82,
-   "cards": 82,
+   "score": 81,
+   "cards": 81,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -7797,19 +7791,6 @@
    ]
   },
   {
-   "what": "ModifiedPredicate.instance",
-   "score": 22,
-   "cards": 19,
-   "names": [
-    "Kodama of the West Tree",
-    "Goro-Goro, Disciple of Ryusei",
-    "Red XIII, Proud Warrior",
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Araña, Heart of the Spider"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 22,
    "cards": 22,
@@ -7988,6 +7969,19 @@
     "The Haunt of Hightower",
     "Yuma, Proud Protector",
     "Compost"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Kodama of the West Tree",
+    "Akki Battle Squad",
+    "Thundering Raiju",
+    "Araña, Heart of the Spider",
+    "SP//dr, Piloted by Peni",
+    "Kami of Celebration"
    ]
   },
   {
@@ -8274,6 +8268,19 @@
    ]
   },
   {
+   "what": "words:mv",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Delivery Moogle",
+    "Bygone Bishop",
+    "Collected Company"
+   ]
+  },
+  {
    "what": "MayCastTargetCardEffect",
    "score": 13,
    "cards": 13,
@@ -8437,19 +8444,6 @@
     "Turn the Earth",
     "Wand of Vertebrae",
     "Cathartic Parting"
-   ]
-  },
-  {
-   "what": "words:mv",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Delivery Moogle",
-    "Bygone Bishop",
-    "Collected Company",
-    "Recruitment Officer"
    ]
   },
   {
@@ -9724,19 +9718,6 @@
    ]
   },
   {
-   "what": "scope:colorless",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Gruesome Slaughter",
-    "Ruination Guide",
-    "Tide Drifter",
-    "Dominator Drone",
-    "Dust Stalker",
-    "Eldrazi Aggressor"
-   ]
-  },
-  {
    "what": "MustBeBlockedByAtLeastOneTargetEffect",
    "score": 8,
    "cards": 8,
@@ -9921,6 +9902,17 @@
     "Fumulus, the Infestation",
     "Thraximundar",
     "Mortician Beetle"
+   ]
+  },
+  {
+   "what": "cost reduction shape",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Morophon, the Boundless",
+    "Golden-Tail Trainer",
+    "Edgewalker",
+    "Ragemonger"
    ]
   },
   {
@@ -10234,19 +10226,6 @@
    ]
   },
   {
-   "what": "attack trigger with its own text",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Cultivator of Blades",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental"
-   ]
-  },
-  {
    "what": "BoostEnchantedEffect p/t",
    "score": 7,
    "cards": 7,
@@ -10489,16 +10468,6 @@
     "Gifts Ungiven",
     "Realms Uncharted",
     "Elemental Teachings"
-   ]
-  },
-  {
-   "what": "cost reduction shape",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Morophon, the Boundless",
-    "Edgewalker",
-    "Ragemonger"
    ]
   },
   {
@@ -10880,6 +10849,19 @@
     "Lightning Shrieker",
     "Blitz Hellion",
     "Krovikan Horror"
+   ]
+  },
+  {
+   "what": "attack trigger with its own text",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Conqueror's Galleon // Conqueror's Foothold",
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental",
+    "Shrouded Serpent"
    ]
   },
   {
@@ -11294,6 +11276,15 @@
    "names": [
     "Scourge of the Throne",
     "Godo, Bandit Warlord"
+   ]
+  },
+  {
+   "what": "SpellCounteredControllerTriggeredAbility",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Baral, Chief of Compliance",
+    "Lullmage Mentor"
    ]
   }
  ]

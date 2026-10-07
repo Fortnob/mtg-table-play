@@ -1075,6 +1075,14 @@
         if (!kws.every(k => kwKnown(k))) return null;
         return { op: 'grantLast', keywords: kws, until: /until end of turn/i.test(m[0]) ? 'eot' : null, plural: /^They/i.test(m[0]) };
       } },
+    // Siege-Gang Lieutenant: "Those tokens gain haste until end of turn." — the ones just made
+    { re: /^(?:That token|Those tokens) gains? ([a-z, ']+?)(?: until end of turn)?\.?$/i,
+      make: (m) => {
+        if (!KW_LIST.test(m[1])) return null;
+        const kws = keywordList(m[1]);
+        if (!kws.every(k => kwKnown(k))) return null;
+        return { op: 'grantMade', keywords: kws, until: /until end of turn/i.test(m[0]) ? 'eot' : null };
+      } },
     /* "Exile enchanted creature." */
     { re: /^Exile enchanted (?:creature|permanent)\.?$/i,
       make: () => ({ op: 'exile', scope: 'attached' }) },
@@ -4036,7 +4044,7 @@
       if (/^non-[A-Z]/.test(w)) { spec.notSubtype = w.slice(4).toLowerCase(); continue; }
       // a creature type or other subtype is printed with a capital: "target Goblin"
       if (/^[A-Z][a-z'-]+$/.test(w) && w !== 'CARDNAME') {
-        (spec.subtypes = spec.subtypes || []).push(lw.replace(/ves$/, 'f').replace(/s$/, ''));
+        (spec.subtypes = spec.subtypes || []).push(singularType(lw));
         continue;
       }
       spec.unknown = true;
@@ -7617,6 +7625,18 @@
     }
     const words = rest.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
     if (!words.length) return null;
+    /* Ingris Stingerquill: "Then creatures you control gain haste" — the
+       sequencing word is not part of what is meant. "Those tokens", though,
+       means the ones just made, not every token. */
+    if (/^then$/i.test(words[0])) words.shift();
+    // Golden Demise: "instead only creatures your opponents control"
+    if (words.length && /^only$/i.test(words[0])) words.shift();
+    // Joraga Bard: "you may have Ally creatures you control gain vigilance"
+    if (words.length > 1 && /^have$/i.test(words[0])) words.shift();
+    if (words.length && /^(?:those|these|that|have)$/i.test(words[0])) return null;
+    // Secret Plans: "Face-down creatures you control"
+    if (words.length && /^face-down$/i.test(words[0])) { sc.faceDown = true; words.shift(); }
+    if (!words.length) return null;
     if (/^other$/i.test(words[0])) { sc.other = true; words.shift(); }
     if (!words.length) return null;
     /* The noun at the end says what kind of thing: "creatures",
@@ -7637,11 +7657,14 @@
       // Lord of Atlantis: "Other Merfolk" — a plural that is the word itself, and a few irregular ones
       const SAME = { merfolk: 'merfolk', kithkin: 'kithkin', moonfolk: 'moonfolk', kor: 'kor', samurai: 'samurai', fish: 'fish',
         sheep: 'sheep', mice: 'mouse', fungi: 'fungus', sphinxes: 'sphinx', octopuses: 'octopus', foxes: 'fox' };
-      if (SAME[w.toLowerCase()] && words.length <= 2 && /^[A-Z]/.test(w)) {
+      // Falthis: "Commanders you control have menace" — whatever kind of permanent they are
+      if (/^commanders$/i.test(w) && words.length === 1) {
+        sc.commander = sc.who === 'you' ? 'control' : true; sc.what = 'permanent'; words.pop();
+      } else if (SAME[w.toLowerCase()] && words.length <= 2 && /^[A-Z]/.test(w)) {
         sc.subtype = SAME[w.toLowerCase()]; sc.what = 'permanent'; words.pop();
       } else {
       if (!/^[A-Z][a-z'-]+s$/.test(w) || words.length > 2) return null;
-      sc.subtype = w.toLowerCase().replace(/ves$/, 'f').replace(/s$/, '');
+      sc.subtype = singularType(w);
       sc.what = 'permanent';
       words.pop();
       }
@@ -7659,6 +7682,12 @@
     for (const w of words) {
       const lw = w.toLowerCase();
       if (lw === 'multicolored') { sc.multicolored = true; continue; }
+      // Bastion Protector: "Commander creatures you control"
+      if (lw === 'commander') { sc.commander = sc.who === 'you' ? 'control' : true; continue; }
+      /* Guardians of Oboro: "modified creatures"; Kor Blademaster: "equipped
+         creatures"; Swarm Surge: "colorless creatures"; Bothersome Quasit:
+         "goaded creatures"; Evil Boros Charm: "unblocked attacking creatures" */
+      if (/^(?:modified|equipped|enchanted|colorless|monocolored|goaded|unblocked)$/.test(lw)) { sc[lw] = true; continue; }
       if (lw === 'tapped' || lw === 'untapped' || lw === 'attacking' || lw === 'blocking') sc[lw] = true;
       else if (lw === 'nontoken') sc.nontoken = true;
       else if (lw === 'token') sc.token = true;
@@ -8790,7 +8819,7 @@
       // Iroas, Losheel: "Prevent all (combat) damage that would be dealt to attacking (artifact) creatures you control."
       { re: /^Prevent all (combat )?damage that would be dealt to attacking (artifact )?creatures you control\.?$/i,
         make: (m) => {
-          const scope = Object.assign({ who: 'you', what: 'creature', attacking: true }, m[2] ? { cardTypes: ['artifact'] } : {});
+          const scope = Object.assign({ who: 'you', what: 'creature', attacking: true }, m[2] ? { alsoType: ['artifact'] } : {});
           const list = [{ op: 'continuous', layer: 6, scope, flag: 'noDamageTaken' }];
           if (!m[1]) list.push({ op: 'continuous', layer: 6, scope: Object.assign({}, scope), flag: 'noNoncombatTaken' });
           return list.length === 1 ? list[0] : { op: 'sequence', list };
@@ -8960,6 +8989,19 @@
   const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
   function romanValue(r) { return ROMAN[String(r).trim().toUpperCase()] || 0; }
 
+  /* A creature type in the plural, back to the singular: "Elves" is an
+     Elf, "Allies" an Ally, "Heroes" a Hero, but "Detectives" a Detective
+     and "Faeries" a Faerie. */
+  const PLURAL_TYPES = { elves: 'elf', wolves: 'wolf', werewolves: 'werewolf', dwarves: 'dwarf', thieves: 'thief',
+    mice: 'mouse', fungi: 'fungus', heroes: 'hero', faeries: 'faerie', zombies: 'zombie', pixies: 'pixie',
+    octopuses: 'octopus', cyclopes: 'cyclops', oxen: 'ox', djinn: 'djinn', efreet: 'efreet' };
+  function singularType(w) {
+    const lw = String(w).trim().toLowerCase();
+    if (PLURAL_TYPES[lw]) return PLURAL_TYPES[lw];
+    if (/ies$/.test(lw)) return lw.replace(/ies$/, 'y');
+    if (/(?:x|ch|sh|ss)es$/.test(lw)) return lw.replace(/es$/, '');
+    return lw.replace(/([^s])s$/, '$1');
+  }
   function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
   /* ---------------- exported ---------------- */
