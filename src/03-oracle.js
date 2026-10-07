@@ -1704,6 +1704,13 @@
     // Mount Doom: "Choose up to two creatures, then destroy the rest."
     { re: /^Choose up to (one|two|three) creatures, then destroy the rest\.?$/i,
       make: (m) => ({ op: 'keepRest', who: 'all', chooser: 'you', n: num(m[1]), upTo: true, filter: 'creature', rest: 'creature', destroy: true }) },
+    // Simic Ascendancy: "put that many growth counters on this enchantment"
+    { re: /^Put that many ([a-z]+|\+1\/\+1) counters on (?:this enchantment|this creature|this artifact|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'self' }) },
+    // Shalai and Hallar: "deals that much damage to target opponent"
+    { re: /^(?:CARDNAME|This creature|This enchantment|It) deals that much damage to (target opponent|target player|any target|each opponent)\.?$/i,
+      make: (m) => (/each opponent/i.test(m[1]) ? { op: 'damage', n: 'triggerAmount', each: 'opponent' }
+        : { op: 'damage', n: 'triggerAmount', targets: [targetSpec(m[1])] }) },
     // Baleful Mastery: "an opponent draws a card" — the one you choose
     { re: /^An opponent draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'anOpponent', n: num(m[1]) }) },
     // Whip of Erebos: "If it would leave the battlefield, exile it instead of putting it anywhere else."
@@ -5619,6 +5626,9 @@
        once for each counter */
     { re: /^When(?:ever)? an? \+1\/\+1 counter is put on (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
       extra: { counterKind: '+1/+1', perAmount: true } },
+    // Simic Ascendancy, Animation Module: "one or more +1/+1 counters are put on a creature you control"
+    { re: /^When(?:ever)? one or more \+1\/\+1 counters are put on (a|another) (creature|permanent) you control(?:,| )/i, event: 'countersPut',
+      filt: (m) => ({ words: m[2].toLowerCase(), who: 'you', other: /another/i.test(m[1]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? you put one or more \+1\/\+1 counters on (?:a|another) creature you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },

@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14616,
-  "gainedCards": 1523,
-  "linesNeeded": 16214,
-  "linesGained": 1903,
+  "needed": 14591,
+  "gainedCards": 1516,
+  "linesNeeded": 16184,
+  "linesGained": 1894,
   "gained": {
-   "all": 1523,
-   "top2000": 53,
+   "all": 1516,
+   "top2000": 52,
    "stdTop": 12
   },
   "compare": {
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 927,
-   "lines": 789,
+   "score": 913,
+   "lines": 781,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -357,8 +357,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 39,
-   "lines": 39,
+   "score": 38,
+   "lines": 38,
    "cards": [
     "Pain for All",
     "Take the Bait",
@@ -2274,25 +2274,6 @@
    ]
   },
   {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Generous Patron",
-    "Nest of Scarabs",
-    "Rikku, Resourceful Guardian",
-    "Hapatra, Vizier of Poisons",
-    "Obelisk Spider",
-    "Earth Kingdom General",
-    "Casey Jones, Back Alley Brute",
-    "Omarthis, Ghostfire Initiate",
-    "The Great Goblin",
-    "Kros, Defense Contractor",
-    "Kate Stewart",
-    "Ant-Man, Colony Commander"
-   ]
-  },
-  {
    "what": "ExpendTriggeredAbility",
    "score": 13,
    "lines": 13,
@@ -2709,6 +2690,25 @@
     "Feast of Flesh",
     "Kjeldoran War Cry",
     "Mind Burst"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Generous Patron",
+    "Nest of Scarabs",
+    "Rikku, Resourceful Guardian",
+    "Hapatra, Vizier of Poisons",
+    "Obelisk Spider",
+    "Earth Kingdom General",
+    "Omarthis, Ghostfire Initiate",
+    "The Great Goblin",
+    "Kros, Defense Contractor",
+    "Kate Stewart",
+    "Ant-Man, Colony Commander",
+    "Inspired Tethermage"
    ]
   },
   {
@@ -4691,21 +4691,6 @@
    ]
   },
   {
-   "what": "DiscardOneOrMoreCardsTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Magmakin Artillerist",
-    "Captain Howler, Sea Scourge",
-    "Marauding Mako",
-    "Scrounging Skyray",
-    "Doctor Doom, King of Latveria",
-    "Urza, Powerstone Prodigy",
-    "Mishra, Excavation Prodigy",
-    "Spider-Man, New Champion"
-   ]
-  },
-  {
    "what": "(verify) condition lost",
    "score": 8,
    "lines": 8,
@@ -6562,19 +6547,6 @@
    ]
   },
   {
-   "what": "RemoveVariableCountersSourceCost",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Hourglass of the Lost",
-    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
-    "Geistflame Reservoir",
-    "Brain in a Jar",
-    "Blademane Baku",
-    "Mercadian Lift"
-   ]
-  },
-  {
    "what": "NoAbilityPredicate.instance",
    "score": 6,
    "lines": 6,
@@ -7591,6 +7563,30 @@
     "Spider-Verse",
     "Council of Reeds"
    ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Neheb, Dreadhorde Champion",
+    "Bladewing, Deathless Tyrant",
+    "Jaya's Phoenix",
+    "Storrev, Devkarin Lich",
+    "Garruk's Harbinger"
+   ]
+  },
+  {
+   "what": "LoseAllAbilitiesAttachedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Unable to Scream",
+    "Observed Stasis",
+    "Flood the Engine",
+    "Enchanted River's Grasp",
+    "Infinite Coursework"
+   ]
   }
  ],
  "sole": [
@@ -7609,8 +7605,8 @@
   },
   {
    "what": "custom ability",
-   "score": 696,
-   "cards": 588,
+   "score": 683,
+   "cards": 581,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -9194,6 +9190,19 @@
    ]
   },
   {
+   "what": "TargetPermanentOrPlayer",
+   "score": 9,
+   "cards": 6,
+   "names": [
+    "Ardenn, Intrepid Archaeologist",
+    "Animation Module",
+    "Mutated Cultist",
+    "Skyship Plunderer",
+    "Powerful Broker",
+    "Price of Betrayal"
+   ]
+  },
+  {
    "what": "CastAsThoughItHadFlashIfConditionAbility",
    "score": 9,
    "cards": 6,
@@ -9692,18 +9701,6 @@
    ]
   },
   {
-   "what": "TargetPermanentOrPlayer",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Ardenn, Intrepid Archaeologist",
-    "Mutated Cultist",
-    "Skyship Plunderer",
-    "Powerful Broker",
-    "Price of Betrayal"
-   ]
-  },
-  {
    "what": "CardsDrawnThisTurnDynamicValue.instance",
    "score": 8,
    "cards": 5,
@@ -9831,19 +9828,6 @@
    ]
   },
   {
-   "what": "DiscardOneOrMoreCardsTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Magmakin Artillerist",
-    "Captain Howler, Sea Scourge",
-    "Marauding Mako",
-    "Scrounging Skyray",
-    "Doctor Doom, King of Latveria",
-    "Urza, Powerstone Prodigy"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 8,
    "cards": 8,
@@ -9867,19 +9851,6 @@
     "Wings of Velis Vel",
     "Atomic Microsizer",
     "Sorceress Queen"
-   ]
-  },
-  {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Generous Patron",
-    "Nest of Scarabs",
-    "Hapatra, Vizier of Poisons",
-    "Earth Kingdom General",
-    "Casey Jones, Back Alley Brute",
-    "The Great Goblin"
    ]
   },
   {
@@ -10312,6 +10283,19 @@
     "Costume Closet",
     "Genku, Future Shaper",
     "Angelic Sleuth"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Generous Patron",
+    "Nest of Scarabs",
+    "Hapatra, Vizier of Poisons",
+    "Earth Kingdom General",
+    "The Great Goblin",
+    "Kros, Defense Contractor"
    ]
   },
   {
@@ -11419,6 +11403,19 @@
     "Kudzu",
     "Steam Vines",
     "Spirit Shackle"
+   ]
+  },
+  {
+   "what": "CantBlockCreaturesSourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Zurgo Bellstriker",
+    "Sunweb",
+    "Hinterland Drake",
+    "Cyclops Tyrant",
+    "Gibbering Hyenas",
+    "Orcish Veteran"
    ]
   }
  ]

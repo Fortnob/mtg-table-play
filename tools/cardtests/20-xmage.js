@@ -168,8 +168,9 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, before + 1, 'drew from the granted trigger');
   });
 
-  test('XMage: Brash Taunter sends the damage it is dealt to an opponent', (mk, t) => {
-    generated(t, 'Brash Taunter');
+  test('Brash Taunter sends the damage it is dealt to an opponent', (mk, t) => {
+    // read by the text parser now ("it deals that much damage to target opponent")
+    t.auto('Brash Taunter');
     const T = mk();
     const bt = T.bf('A', 'Brash Taunter');
     T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
@@ -6250,5 +6251,21 @@ module.exports = (test) => {
     T.resolve();
     t.eq(a1.zone, 'battlefield'); t.eq(a2.zone, 'battlefield');
     t.eq(b1.zone, 'graveyard'); t.eq(b2.zone, 'graveyard');
+  });
+
+  test('Simic Ascendancy: growth counters for the +1/+1 counters your creatures get', (mk, t) => {
+    t.auto('Simic Ascendancy');
+    const T = mk();
+    const sa = T.bf('A', 'Simic Ascendancy');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'GU1');
+    T.activate('A', sa, 0, { targets: [bear.id] });
+    T.resolve();
+    t.eq(sa.counters.growth || 0, 1);
+    T.g.addCounters(bear, '+1/+1', 2); T.resolve();
+    t.eq(sa.counters.growth || 0, 3, 'that many');
+    T.g.addCounters(theirs, '+1/+1', 1); T.resolve();
+    t.eq(sa.counters.growth || 0, 3, "not the opponent's");
   });
 };
