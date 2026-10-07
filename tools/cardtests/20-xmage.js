@@ -5253,4 +5253,67 @@ module.exports = (test) => {
     t.ok(legal.includes(T.stackItem(b2).id), 'the Bolt at me');
     t.no(legal.includes(T.stackItem(b1).id), 'not the Shock at my Bears');
   });
+
+  test('Baird: {1} for each creature attacking its controller', (mk, t) => {
+    t.auto('Baird, Steward of Argive');
+    const T = mk();
+    T.bf('B', 'Baird, Steward of Argive');
+    const b1 = T.bf('A', 'Grizzly Bears'); b1.summoningSick = false;
+    const b2 = T.bf('A', 'Grizzly Bears'); b2.summoningSick = false;
+    const seen = {};
+    T.answer('declareAttackers', (ch, g) => {
+      g.player('A').pool.add('C', 1);
+      seen.two = g.declareAttackers('A', [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }]);
+      return [{ attackerId: b1.id, defenderId: 'B' }];
+    });
+    T.toMain('A', 'endCombat');
+    t.no(seen.two, 'two attackers need {2}');
+    t.eq(T.life('B'), 18, 'one attacker, {1} paid');
+  });
+
+  test('Roil Elemental: control lasts as long as it is yours', (mk, t) => {
+    t.auto('Roil Elemental');
+    const T = mk();
+    const re = T.bf('A', 'Roil Elemental');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.put('A', 'Forest', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(bear.controller, 'A');
+    T.mana('B', 'R');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    T.g.moveObject(re, 'graveyard'); T.g.checkStateBasedActions();
+    t.eq(bear.controller, 'B', 'back once the Elemental is gone');
+  });
+
+  test('Brass Squire: an Equipment moved onto a creature', (mk, t) => {
+    t.auto('Brass Squire');
+    const T = mk();
+    const sq = T.bf('A', 'Brass Squire');
+    const sword = T.bf('A', 'Bonesplitter');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.activate('A', sq, 0, { targets: [sword, bear] });
+    t.eq(sword.attachedTo, bear.id);
+    t.eq(T.g.powerOf(bear), 4);
+  });
+
+  test('Raise the Past: creature cards of mana value 2 or less only', (mk, t) => {
+    t.auto('Raise the Past');
+    const T = mk();
+    const bear = T.grave('A', 'Grizzly Bears');
+    const big = T.grave('A', 'Gutsplitter Gang');
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Raise the Past'));
+    t.eq(bear.zone, 'battlefield');
+    t.eq(big.zone, 'graveyard');
+  });
+
+  test('Beacon of Immortality: life doubled', (mk, t) => {
+    t.auto('Beacon of Immortality');
+    const T = mk();
+    T.mana('A', 'W5');
+    T.cast('A', T.hand('A', 'Beacon of Immortality'), { targets: ['A'] });
+    t.eq(T.life('A'), 40);
+  });
 };

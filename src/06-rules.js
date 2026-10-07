@@ -6159,15 +6159,25 @@
         if (!o || !this.canAttack(o)) return this.fail('Illegal attacker.');
         if (!legalDef.has(d.defenderId)) return this.fail('Illegal defender.');
       }
-      // "creatures can't attack you unless their controller pays {2} for each"
-      const taxed = declarations.filter(d => {
-        const def = this.player(d.defenderId);
-        if (!def) return false;
-        return this.battlefield.some(o => o.controller === def.id && (o.analysis() || { abilities: [] })
-          .abilities.some(ab => (ab.effects || []).some(ef => ef.op === 'attackTax')));
-      });
+      /* "creatures can't attack you unless their controller pays {2} for
+         each" — and Baird's {1}, and planeswalkers of yours where it says so */
+      const taxFor = (d) => {
+        let def = this.player(d.defenderId), walker = false;
+        if (!def) { const pw = this.obj(d.defenderId); def = pw && this.player(pw.controller); walker = true; }
+        if (!def) return 0;
+        let k = 0;
+        for (const o of this.battlefield) {
+          if (o.controller !== def.id || o.phasedOut) continue;
+          for (const ab of ((o.analysis() || { abilities: [] }).abilities || [])) for (const ef of (ab.effects || [])) {
+            if (!ef || ef.op !== 'attackTax' || (walker && !ef.walkers)) continue;
+            k += parseInt(String(ef.amount || '{2}').replace(/[{}]/g, ''), 10) || 0;
+          }
+        }
+        return k;
+      };
+      const taxed = declarations.filter(d => taxFor(d) > 0);
       if (taxed.length && this.config.rulesEnforcement === 'full') {
-        const per = 2 * taxed.length;
+        const per = taxed.reduce((k, d) => k + taxFor(d), 0);
         if (!this.payMana(playerId, '{' + per + '}', { auto: true }))
           return this.fail(`Attacking costs {${per}} and you cannot pay it.`);
         this.logEvent('rules', `${this.player(playerId).name} pays {${per}} to attack.`);
@@ -6894,6 +6904,14 @@
         for (const x of statics) {
           if (!this._contApplies(x, o, null)) continue;
           if (x.ts > bestTs) { best = x.ef.control === 'you' ? x.src.controller : x.ef.control; bestTs = x.ts; }
+        }
+        // "for as long as you control this": over once it leaves or changes hands
+        if ((o.effects || []).some(e => e && e.control != null && e.whileSrc)) {
+          o.effects = o.effects.filter(e => {
+            if (!e || e.control == null || !e.whileSrc) return true;
+            const s0 = this.obj(e.whileSrc);
+            return !!(s0 && s0.zone === 'battlefield' && s0.controller === e.control);
+          });
         }
         (o.effects || []).forEach((e, i) => {
           if (!e || e.control == null) return;
@@ -9016,6 +9034,8 @@
       };
       const n = (v) => {
         if (v === 'X') return ctx.x || (src && src.chosenX) || 0;
+        // Storm Herd: "your life total"
+        if (v && typeof v === 'object' && v.lifeTotal) return Math.max(0, (me && me.life) || 0) * (v.mult || 1);
         // Fists of Flame: "for each card you've drawn this turn"
         if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
         // "twice X"
@@ -10307,7 +10327,9 @@
             if (!x || x.zone !== 'battlefield') continue;
             /* A control effect in layer 2, as new as anything on the table:
                Threaten's ends with the turn, Dominate's lasts. */
-            x.effects.push({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() });
+            x.effects.push(Object.assign({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() },
+              // Kellogg: "for as long as you control this creature"
+              e.whileSrc && src ? { whileSrc: src.id } : {}));
             if (e.untap) x.tapped = false;
             this.logEvent('control', `${me.name} gains control of ${x.name}.`);
           }
@@ -13004,6 +13026,25 @@
           this.bumpBoard();
           break;
         }
+        // Brass Squire: an Equipment of yours onto a creature of yours
+        case 'attachEquipment': {
+          const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+          const [eq, host] = objs;
+          if (!eq || !host || eq.zone !== 'battlefield' || host.zone !== 'battlefield' || eq === host) break;
+          const old = eq.attachedTo && this.obj(eq.attachedTo);
+          if (old) old.attachments = (old.attachments || []).filter(id => id !== eq.id);
+          eq.attachedTo = host.id;
+          host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
+          this.bumpBoard();
+          break;
+        }
+        // Beacon of Immortality
+        case 'doubleLife': {
+          const p = firstPlayer();
+          if (p && !p.hasLost && p.life > 0) this.changeLife(p, p.life);
+          break;
+        }
         // Wave of Reckoning: every creature hits itself with its own power
         case 'selfDamageAll': {
           for (const o of this.battlefield.slice()) {
@@ -13752,6 +13793,7 @@
           const from = e.yours ? [me] : this.players;
           for (const p of from) {
             for (const c of this.zones[p.id].graveyard) {
+              if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > e.maxMv) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);
             }
           }

@@ -806,6 +806,18 @@
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^Each player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'each' }) },
+    // Brass Squire: "Attach target Equipment you control to target creature you control."
+    { re: /^Attach target Equipment you control to target creature you control\.?$/i,
+      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
+    // Beacon of Immortality: "Double target player's life total."
+    { re: /^Double target player'?s life total\.?$/i, make: () => ({ op: 'doubleLife', targets: [{ type: 'player' }] }) },
+    // Geode Rager: "goad each creature target player controls"
+    { re: /^Goad each creature (target player|target opponent|that player) controls\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'goad', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
+        : { op: 'goad', scope: { who: 'target', what: 'creature', thatPlayer: true } }) },
+    // Kellogg, Merieke Ri Berit: "for as long as you control this creature"
+    { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
+      make: (m) => ({ op: 'gainControl', until: null, whileSrc: true, targets: [targetSpec(m[1])] }) },
     // Tyrannize, Wit's End: "Target player discards their hand."
     { re: /^(Target player|Target opponent|Each player|Each opponent) discards (?:their|his or her) hand\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'discard', n: 'all', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
@@ -2014,6 +2026,10 @@
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
     { re: /^Untap all attacking creatures\.?$/i, make: () => ({ op: 'untapAttacking' }) },
     /* Splendid Reclamation, Aftermath Analyst, Lumra */
+    // Primevals' Glorious Rebirth, Raise the Past: "all legendary permanent cards", "with mana value 2 or less"
+    { re: /^[Rr]eturn all ((?:legendary|nonlegendary|historic) (?:permanent|creature|artifact) |(?:creature|artifact|enchantment|permanent) )cards with (?:mana value|converted mana cost) (\d+) or less from your graveyard to the battlefield\.?$|^[Rr]eturn all (legendary (?:permanent|creature|artifact)) cards from your graveyard to the battlefield\.?$/,
+      make: (m) => (m[3] ? { op: 'massReanimate', filter: m[3].toLowerCase(), yours: true }
+        : { op: 'massReanimate', filter: m[1].trim().toLowerCase(), maxMv: +m[2], yours: true }) },
     { re: /^(?:Then )?[Rr]eturn all ((?:land|creature|artifact|enchantment|permanent|nonland permanent)(?: (?:and\/or|and) (?:land|creature|artifact|enchantment))?) cards from your graveyard to the battlefield( tapped)?(?: under your control)?\.?$/,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ (?:and\/or|and) /g, ' or '), yours: true, tapped: !!m[2] }) },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
@@ -3348,6 +3364,8 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
+    // Storm Herd: "where X is your life total"
+    if (/^your life total$/i.test(p)) return done({ lifeTotal: 'you' });
     // "the amount of mana spent to cast this spell / that spell / it / her"
     if ((m = p.match(/^the amount of mana spent to cast (this spell|that spell|it|her|him|CARDNAME|this creature)$/i)))
       return done({ manaSpent: true, of: spentOf(m[1]), mult: 1 });
@@ -3730,6 +3748,16 @@
       const inner = k && parseEffectSentence(wx[1] + '.', 0);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) { inner.text = s; return inner; }
     }
+    /* Dawnsire: "deals 100 damage to up to one target creature" — read with
+       "target", and the one target made optional */
+    if (!depth && /\bup to one target\b/i.test(s) && (s.match(/\btarget\b/gi) || []).length === 1) {
+      const inner = parseEffectSentence(s.replace(/\bup to one target\b/i, 'target'), 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && (inner.targets || []).length === 1) {
+        inner.targets = [Object.assign({}, inner.targets[0], { upTo: true })];
+        inner.text = s;
+        return inner;
+      }
+    }
     /* Cinder Strike: "It deals 4 damage to that creature instead if this
        spell's additional cost was paid" — the same as "If …, … instead" */
     const lateIf = !depth && s.match(/^(.+?) instead if (.+?)\.?$/i);
@@ -3739,8 +3767,8 @@
       if (inner && inner.op === 'noop' && (inner.insteadOf || inner.insteadRider)) { inner.text = s; return inner; }
     }
     /* Pest Infestation, Heliod's Intervention: "twice X" — read with X, then doubled */
-    if (!depth && /\btwice X\b/.test(s) && !/\bwhere X\b/.test(s)) {
-      const inner = parseEffectSentence(s.replace(/\btwice X\b/g, 'X'), 1);
+    if (!depth && /\b(?:twice|two times) X\b/.test(s) && !/\bwhere X\b/.test(s)) {
+      const inner = parseEffectSentence(s.replace(/\b(?:twice|two times) X\b/g, 'X'), 1);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: 2 })) { inner.text = s; return inner; }
     }
     // Duelist's Heritage: "have target attacking creature gain double strike"; "have target player mill two cards"
@@ -3766,7 +3794,8 @@
       s.match(/^(.*?\b)an? ((?:[a-z]+ )?(?:creature|artifact|enchantment|land|planeswalker|permanent)) (you control)\b(.*)$/i);
     if (pick) {
       const again = parseEffectSentence(pick[1] + 'target ' + pick[2] + ' ' + pick[3] + pick[4], 1);
-      const helps = again && ((again.op === 'counters' && /^\+/.test(String(again.kind || ''))) ||
+      // a counter that helps: +1/+1, or a keyword one (Titan of Industry's shield counter)
+      const helps = again && ((again.op === 'counters' && /^(?:\+|shield|flying|indestructible|lifelink|deathtouch|trample|vigilance|first strike|double strike|hexproof|menace|reach|haste)/.test(String(again.kind || ''))) ||
         again.op === 'pump' || again.op === 'grantKeyword' || again.op === 'untap');
       if (helps && (again.targets || []).length === 1 && !again.scope) {
         const spec = again.targets[0];
@@ -7709,6 +7738,9 @@
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
+      // Ghostly Prison, Baird: any generic amount, and planeswalkers as well
+      { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
+        make: (m) => ({ op: 'attackTax', amount: '{' + m[2] + '}', walkers: !!m[1] }), auto: true },
       /* "This creature can't attack or block unless you control another
          artifact": a condition the engine checks as attackers and
          blockers are chosen */
