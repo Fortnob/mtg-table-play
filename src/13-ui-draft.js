@@ -609,6 +609,8 @@
     let deck = MTG.draft.autoBuildLimited(pool, {
       deckSize: fmt.deckMin || 40, basicCards: basics, formatId, name: 'Limited deck', pregame: false,
     });
+    // the conspiracies drafted, so the deck's size can allow for one kept before the game (Advantageous Proclamation)
+    deck.draftedConspiracies = (pool || []).filter(MTG.draft.isConspiracy).map(c => c.name);
 
     // Commander draft: choose a commander out of the pool
     if (fmt.commander) {

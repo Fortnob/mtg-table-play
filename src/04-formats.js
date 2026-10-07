@@ -174,7 +174,9 @@
     /* Conspiracies kept from a draft: Advantageous Proclamation lets the
        deck be five cards smaller; Sovereign's Realm plays without basics. */
     const plots = (deck.conspiracies || []).map(c => U.normName((c && (c.name || (c.card && c.card.name))) || c || ''));
-    if (plots.some(n => n.startsWith('advantageous proclamation'))) min = Math.max(0, min - 5);
+    // while the deck is built the conspiracies are not chosen yet: one that was drafted is enough to allow for it
+    const drafted = (deck.draftedConspiracies || []).map(n => U.normName(String(n)));
+    if (plots.concat(drafted).some(n => n.startsWith('advantageous proclamation'))) min = Math.max(0, min - 5);
     const realm = plots.some(n => n.startsWith("sovereign's realm") || n.startsWith('sovereigns realm'));
     const noun = fmt.commander ? 'cards including the commander' : 'cards';
 
