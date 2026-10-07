@@ -9202,6 +9202,8 @@
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
+          // Flourishing Defenses: only that kind of counter
+          if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // Secrets of the Dead: "a spell from your graveyard"
           if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
           // Nalfeshnee: "a spell from exile"
@@ -9864,6 +9866,8 @@
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
         if (v === 'lastLifeLost') return this._lastLifeLost || 0;
+        // Rug of Smothering: the spells that player has cast this turn
+        if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return ((p && p.spellsCastThisTurn) || 0) * (v.mult || 1); }
         // Sunfall: how many the sweep just before took
         if (v === 'lastSweep') return this._lastSweep || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
@@ -10125,6 +10129,12 @@
           // Pain for All: the enchanted creature deals it
           if (e.fromAttached) { const host = src && src.attachedTo && this.obj(src.attachedTo); if (!host || host.zone !== 'battlefield') break; dsrc = host; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // Hydra Omnivore: every opponent but the one it hit
+          if (e.eachOtherOpponent) {
+            const hit = triggerPlayer();
+            for (const p of this.opponentsOf(ctx.controller)) if (!p.hasLost && (!hit || p.id !== hit.id)) this.dealDamageToPlayer(p, cnt, dsrc);
+            break;
+          }
           // Vengeful Ancestor: the creature the trigger is about, to whoever controls it
           if (e.toTriggerObjController) {
             const td = ctx.triggerData || {};
@@ -10173,7 +10183,14 @@
               if (/creatures? you control/.test(e.each) && o.controller !== ctx.controller) continue;
               this.dealDamageToObject(o, cnt, dsrc);
             }
-            if (/opponent/.test(e.each.replace(/creatures? your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(p, cnt, dsrc);
+            /* Typhoon: "equal to the number of Islands that player controls" —
+               counted for each opponent in turn */
+            const perPlayer = e.n && typeof e.n === 'object' && e.n.scope && e.n.scope.thatPlayer;
+            if (/opponent/.test(e.each.replace(/creatures? your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) {
+              let k = cnt;
+              if (perPlayer) { const was = this._thatPlayer; this._thatPlayer = p.id; k = n(e.n); this._thatPlayer = was; }
+              if (k > 0) this.dealDamageToPlayer(p, k, dsrc);
+            }
             if (/^player/.test(e.each) || /each player/.test(e.each)) for (const p of this.players) this.dealDamageToPlayer(p, cnt, dsrc);
             if (/planeswalker/.test(e.each)) for (const o of this.battlefield.slice()) { const a = o.analysis(); if (a && a.isPlaneswalker) this.dealDamageToObject(o, cnt, dsrc); }
           } else if (e.scope && typeof e.scope === 'object') {

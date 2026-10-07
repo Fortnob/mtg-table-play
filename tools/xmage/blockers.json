@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14024,
-  "gainedCards": 1479,
-  "linesNeeded": 15469,
+  "needed": 14007,
+  "gainedCards": 1480,
+  "linesNeeded": 15449,
   "linesGained": 1830,
   "gained": {
-   "all": 1479,
+   "all": 1480,
    "top2000": 52,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5163,
-   "lines": 4503,
+   "score": 5160,
+   "lines": 4500,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 887,
-   "lines": 761,
+   "score": 886,
+   "lines": 760,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 125,
-   "lines": 116,
+   "score": 121,
+   "lines": 112,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -180,8 +180,8 @@
     "Den of the Bugbear",
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Sakashima's Student",
-    "Baloth Prime",
-    "Altered Ego"
+    "Altered Ego",
+    "Copy Artifact"
    ]
   },
   {
@@ -607,25 +607,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 25,
-   "lines": 25,
-   "cards": [
-    "Mirri, Weatherlight Duelist",
-    "Might of the Meek",
-    "The Irencrag",
-    "Tail Swipe",
-    "Bilbo's Gambit",
-    "Winding Canyons",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "The Destined Warrior",
-    "Tragic Trajectory",
-    "Hazardroot Herbalist"
-   ]
-  },
-  {
    "what": "DisturbAbility.makeBackAbility",
    "score": 25,
    "lines": 25,
@@ -709,6 +690,25 @@
     "Dawnhand Eulogist",
     "Contested Game Ball",
     "Torch the Tower"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Mirri, Weatherlight Duelist",
+    "The Irencrag",
+    "Tail Swipe",
+    "Bilbo's Gambit",
+    "Winding Canyons",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "The Destined Warrior",
+    "Tragic Trajectory",
+    "Hazardroot Herbalist",
+    "Gideon's Phalanx"
    ]
   },
   {
@@ -4918,20 +4918,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Cryogen Relic",
-    "Sewer-veillance Cam",
-    "Experimental Synthesizer",
-    "Wernog, Rider's Chaplain",
-    "Mouser Foundry",
-    "Raving Oni-Slave",
-    "Sundering Titan"
-   ]
-  },
-  {
    "what": "ModifiedPredicate.instance",
    "score": 7,
    "lines": 7,
@@ -6965,18 +6951,6 @@
    ]
   },
   {
-   "what": "DamageEachOtherOpponentThatMuchEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Hydra Omnivore",
-    "Vincent, Vengeful Atoner",
-    "Kosei, Penitent Warlord",
-    "Amarant Coral",
-    "Grenzo's Ruffians"
-   ]
-  },
-  {
    "what": "counter of a non-spell",
    "score": 5,
    "lines": 5,
@@ -7418,13 +7392,37 @@
     "Second Chance",
     "Wormfang Manta"
    ]
+  },
+  {
+   "what": "DifferentManaValuesInGraveCondition.FIVE",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tainted Indulgence",
+    "Aven Heartstabber",
+    "Sanguine Spy",
+    "Snooping Newsie",
+    "Syndicate Infiltrator"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"tapCreatures\"]",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Saheeli, Filigree Master",
+    "Raff, Weatherlight Stalwart",
+    "Tidal Terror",
+    "Gravelgill Scoundrel",
+    "Civil Servant"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4145,
-   "cards": 3677,
+   "score": 4143,
+   "cards": 3675,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7501,15 +7499,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 74,
-   "cards": 74,
+   "score": 71,
+   "cards": 71,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
     "Estrid's Invocation",
     "Flesh Duplicate",
     "Sakashima's Student",
-    "Baloth Prime"
+    "Altered Ego"
    ]
   },
   {
@@ -7721,19 +7719,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 22,
-   "cards": 22,
-   "names": [
-    "Might of the Meek",
-    "The Irencrag",
-    "Tail Swipe",
-    "Bilbo's Gambit",
-    "Winding Canyons",
-    "Frodo, Sauron's Bane"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 21,
    "cards": 15,
@@ -7757,6 +7742,19 @@
     "Plate Armor",
     "Leather Armor",
     "Nightmare Lash"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 21,
+   "cards": 21,
+   "names": [
+    "The Irencrag",
+    "Tail Swipe",
+    "Bilbo's Gambit",
+    "Winding Canyons",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver"
    ]
   },
   {
@@ -9822,19 +9820,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Cryogen Relic",
-    "Sewer-veillance Cam",
-    "Experimental Synthesizer",
-    "Wernog, Rider's Chaplain",
-    "Mouser Foundry",
-    "Raving Oni-Slave"
-   ]
-  },
-  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 7,
    "cards": 7,
@@ -11194,6 +11179,18 @@
     "Iymrith, Desert Doom",
     "Leyline Immersion",
     "Radagast, Wizard of Wilds"
+   ]
+  },
+  {
+   "what": "GreenManaAbility with arguments",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Scaled Nurturer",
+    "Jade Orb of Dragonkind",
+    "Gilanra, Caller of Wirewood",
+    "Chocobo Camp",
+    "Black Tom Cassidy"
    ]
   }
  ]

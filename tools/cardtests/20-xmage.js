@@ -8031,4 +8031,57 @@ module.exports = (test) => {
     a.attackedTurn = T.g.turn; T.g.bumpBoard();
     t.ok(T.g.hasKw(a, 'indestructible'));
   });
+
+  test('Fanatic of Mogis: damage to each opponent equal to devotion to red', (mk, t) => {
+    t.auto('Fanatic of Mogis');
+    const T = mk();
+    T.bf('A', 'Goblin Guide');
+    T.mana('A', '3R');
+    T.cast('A', T.hand('A', 'Fanatic of Mogis'));
+    T.resolve();
+    t.eq(T.life('B'), 20 - T.g.devotionOf('A', 'R'));
+    t.ok(T.g.devotionOf('A', 'R') >= 2);
+  });
+
+  test('Baloth Prime: enters tapped with six stun counters', (mk, t) => {
+    t.auto('Baloth Prime');
+    const T = mk();
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Baloth Prime'));
+    T.resolve();
+    const b = T.bfOf('A').find(o => o.name === 'Baloth Prime');
+    t.ok(b.tapped); t.eq(b.counters.stun, 6);
+  });
+
+  test('Rug of Smothering: each spell costs its caster a life per spell this turn', (mk, t) => {
+    t.auto('Rug of Smothering');
+    const T = mk();
+    T.bf('A', 'Rug of Smothering');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('A'), 17, '1 then 2');
+  });
+
+  test('Flourishing Defenses: a token for each -1/-1 counter', (mk, t) => {
+    t.auto('Flourishing Defenses');
+    const T = mk();
+    T.bf('A', 'Flourishing Defenses');
+    const g = T.bf('B', 'Hill Giant');
+    T.g.addCounters(g, '-1/-1', 2);
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 2);
+  });
+
+  test('Typhoon: each opponent takes as much as the Islands they control', (mk, t) => {
+    t.auto('Typhoon');
+    const T = mk();
+    T.bf('B', 'Island'); T.bf('B', 'Island'); T.bf('A', 'Island');
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Typhoon'));
+    T.resolve();
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
+  });
 };

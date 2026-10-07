@@ -1088,6 +1088,18 @@
       make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
     // Engulfing Flames: "It can't be regenerated this turn."
     { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
+    // Fanatic of Mogis: "it deals damage to each opponent equal to your devotion to red"
+    { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, each: 'opponent' } : null; } },
+    // Might of the Meek: "It also gets +1/+0 until end of turn if you control a Mouse."
+    { re: /^It also gets ([+-]\d+)\/([+-]\d+) until end of turn if (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[3]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'lastTarget' }] } : null; } },
+    // Rug of Smothering: "they lose 1 life for each spell they've cast this turn"
+    { re: /^They lose (one|two|\d+) life for each spell they'?ve cast this turn\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: { triggerPlayerSpells: true, mult: num(m[1]) } }) },
+    // Hydra Omnivore: "it deals that much damage to each other opponent"
+    { re: /^(?:It|CARDNAME|This creature) deals that much damage to each other opponent\.?$/i,
+      make: () => ({ op: 'damage', n: 'triggerAmount', eachOtherOpponent: true }) },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -5878,7 +5890,10 @@
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
     { re: /^Whenever (?:this creature|CARDNAME) attacks a player,? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
-    { re: /^When (?:this creature|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
+    { re: /^When (?:this (?:creature|artifact|enchantment|permanent|land)|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
+    // Flourishing Defenses: "Whenever a -1/-1 counter is put on a creature" — once for each counter
+    { re: /^Whenever an? ([+\-0-9/a-z]+) counter is put on a creature,? /i, event: 'countersPut',
+      filt: () => ({ words: 'creature' }), extraOf: (m) => ({ counterKind: m[1].toLowerCase(), perAmount: true }) },
     // Tavern Scoundrel, Zndrsplt: winning and losing coin flips
     { re: /^Whenever you win a coin flip,? /i, event: 'youWinFlip' },
     { re: /^Whenever you lose a coin flip,? /i, event: 'youLoseFlip' },
@@ -9018,7 +9033,10 @@
       { re: /^If ([^,.]+), (?:CARDNAME|this creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
       // the vivid lands: tapped, and with counters the card-level scan found
-      { re: /^(?:CARDNAME|This (?:land|artifact|permanent)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|\d+) [a-z]+ counters? on it\.?$/i,
+      // Traxos: "CARDNAME enters tapped and doesn't untap during your untap step."
+      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) enters tapped and doesn'?t untap during your untap step\.?$/i,
+        eff: { op: 'sequence', list: [{ op: 'etbTapped' }, { op: 'continuous', layer: 6, scope: { self: true }, flag: 'noUntap' }] }, auto: true },
+      { re: /^(?:CARDNAME|This (?:land|artifact|permanent|creature)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|six|seven|eight|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'etbTapped' }, auto: true },
       // Converge
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent|enchantment)) enters(?: the battlefield)? with (?:an?|two|three) [+\-0-9/a-z]+ counters? on it for each (?:colou?r of )?mana spent to cast it\.?$/i,
@@ -9118,6 +9136,12 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."
+      { re: /^During your turn, commanders you control have ([a-z ,]+)\.?$/i,
+        make: (m) => {
+          const kws = keywordList(m[1]);
+          return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', commander: 'control' }, grant: kws, cond: { kind: 'yourTurn' } } : null;
+        }, auto: true },
       // On Wings of Gold: "Creatures you control that are Zombies and/or tokens get +1/+1 and have flying."
       { re: /^Creatures you control that are ([A-Z][a-z]+?)s and\/or tokens get \+(\d+)\/\+(\d+) and have ([a-z ,]+)\.?$/,
         make: (m) => {
