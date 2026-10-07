@@ -5065,7 +5065,7 @@
 
       if (isMana) {
         // mana abilities do not use the stack (CR 605.3a)
-        this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name + ' mana', manaChoice: opts.manaChoice, x: opts.x });
+        this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name + ' mana', manaChoice: opts.manaChoice, x: opts.x, manaSplit: opts.manaSplit });
         this._payThingCosts(playerId, ab.cost, o, opts, null);
         this.emit('sfx', 'mana');
         this.touch();
@@ -9002,10 +9002,13 @@
             const k = n(e.n);
             if (k <= 0) break;
             const [a0, b0] = e.choices;
-            // inside a mana ability nothing waits: all of the colour being paid for
+            /* inside a mana ability nothing waits: the split the player sent
+               with it (manaSplit: how many of the second colour), else all of
+               the colour being paid for */
             if (!this.resolving) {
-              const c0 = ctx.manaChoice && b0[0] === ctx.manaChoice ? b0[0] : a0[0];
-              for (let j = 0; j < k; j++) me.pool.add(c0);
+              let second = ctx.manaSplit != null ? Math.max(0, Math.min(k, Number(ctx.manaSplit) || 0))
+                : (ctx.manaChoice && b0[0] === ctx.manaChoice ? k : 0);
+              for (let j = 0; j < k; j++) me.pool.add(j < k - second ? a0[0] : b0[0]);
               break;
             }
             const opts = [];

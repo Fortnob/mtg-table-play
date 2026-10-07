@@ -4359,6 +4359,10 @@ module.exports = (test) => {
     t.ok(T.g.activateAbility('A', f.id, i, { x: 2, manaChoice: 'W' }), 'activated');
     t.eq(T.player('A').pool.W || 0, 2);
     t.eq(f.counters.storage || 0, 0);
+    f.counters.storage = 3; T.mana('A', '1');
+    t.ok(T.g.activateAbility('A', f.id, i, { x: 3, manaSplit: 1 }), 'split as asked');
+    t.eq(T.player('A').pool.G || 0, 2, 'two of the first colour');
+    t.eq(T.player('A').pool.W || 0, 3, 'and one more of the second');
   });
 
   /* ----- borrowing: a new card read through an old one with the same words ----- */
