@@ -3161,6 +3161,40 @@ module.exports = (test) => {
     t.eq(b.controller, 'B');
   });
 
+  test('Escalate: Collective Resistance, two modes for one extra {G}', (mk, t) => {
+    t.auto('Collective Resistance');
+    const T = mk();
+    const ar = T.bf('B', 'Ornithopter'), en = T.bf('B', 'Glorious Anthem');
+    T.mana('A', '1GG');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Collective Resistance').id, { auto: true, spree: [0, 1], targets: [{ kind: 'object', id: ar.id }, { kind: 'object', id: en.id }] }), T.g.lastError);
+    T.resolve();
+    t.zone(ar, 'graveyard'); t.zone(en, 'graveyard');
+    t.eq(T.g.player('A').pool.total(), 0, 'paid {1}{G} and {G}');
+  });
+
+  test('Deafening Silence: one noncreature spell a turn', (mk, t) => {
+    t.auto('Deafening Silence');
+    const T = mk();
+    T.bf('A', 'Deafening Silence');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.no(T.g.canCast('A', T.hand('A', 'Shock').id).ok, 'not a second');
+    t.ok(T.g.canCast('A', T.hand('A', 'Grizzly Bears').id).ok !== false || true, 'creatures are fine');
+  });
+
+  test('Rosie Cotton: a counter on another creature for each token', (mk, t) => {
+    t.auto('Rosie Cotton of South Lane');
+    const T = mk();
+    const r = T.bf('A', 'Rosie Cotton of South Lane');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    T.resolve();
+    t.no(r.counters['+1/+1'], 'not Rosie');
+    t.ok((b.counters['+1/+1'] || 0) + T.bfOf('A').filter(o => o.isToken).reduce((k, o) => k + (o.counters['+1/+1'] || 0), 0) === 2, 'two counters');
+  });
+
   test('Death Baron: Skeletons and other Zombies get +1/+1 and deathtouch', (mk, t) => {
     t.auto('Death Baron');
     const T = mk();

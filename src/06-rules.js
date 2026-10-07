@@ -2466,6 +2466,17 @@
       if (!midway && (!this.priorityPlayer || this.priorityPlayer.id !== playerId)) return { ok: false, reason: 'You do not have priority.' };
       const hush = this._castBlocked(playerId);
       if (hush) return { ok: false, reason: hush };
+      /* Deafening Silence, Rule of Law: "Each player can't cast more than one
+         (noncreature) spell each turn." */
+      for (const s0 of this.battlefield) {
+        if (s0.phasedOut) continue;
+        const lim = this._staticOp(s0, 'spellLimit');
+        if (!lim) continue;
+        if (lim.who === 'opponents' && s0.controller === playerId) continue;
+        if (lim.noncreature && a.isCreature) continue;
+        const cast = (p.spellObjsThisTurn || []).filter(x => !lim.noncreature || !(O.analyze(x.card, x.face) || {}).isCreature).length;
+        if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : ''}spells this turn.` };
+      }
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
@@ -3236,7 +3247,9 @@
       }
       /* Spree: the modes are the extra costs, and at least one is bought. */
       if (a.spreeModes && a.spreeModes.length) {
-        out.push(a.spreeOne
+        out.push(a.spreeEscalate
+          ? { kind: 'spree', cost: '', modes: a.spreeModes.slice(), escalate: a.spreeEscalate, label: 'Escalate ' + a.spreeEscalate + ' (choose one or more; each beyond the first costs that)' }
+          : a.spreeOne
           ? { kind: 'spree', cost: '', modes: a.spreeModes.slice(), one: true, label: 'Tiered (choose one)' }
           : { kind: 'spree', cost: '', modes: a.spreeModes.slice(), label: 'Spree (choose one or more)' });
       }
@@ -3651,7 +3664,10 @@
           if (!picked.length) picked = [0];
           // tiered: one mode and one only
           if (ex.one) picked = picked.slice(0, 1);
+          picked = [...new Set(picked)];
           for (const i of picked) cost += ex.modes[i].cost;
+          // escalate: its cost once for each mode beyond the first
+          if (ex.escalate) cost += ex.escalate.repeat(Math.max(0, picked.length - 1));
           chose.spree = picked;
         } else if (ex.kind === 'casualty' && opts.casualty) {
           /* The sacrifice is part of the cost, so it happens now. The
@@ -5694,7 +5710,8 @@
         }
         if (d.attackerIds.length > 1) {
           const ba = b.analysis();
-          const extra = this._staticOp(b, 'blocksExtra');
+          // Brave the Sands: "each creature you control can block an additional creature each combat"
+          const extra = this._staticOp(b, 'blocksExtra') || (this._anyStaticOf(b.controller, 'groupBlocksExtra') ? { n: 1 } : null);
           const canMulti = (extra && d.attackerIds.length <= (extra.n || 1) + 1) ||
             (ba && /can block an additional|can block any number/i.test(ba.oracleText || ''));
           if (!canMulti && this.config.rulesEnforcement === 'full')

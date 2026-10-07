@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16550,
-  "gainedCards": 1767,
-  "linesNeeded": 18781,
+  "needed": 16538,
+  "gainedCards": 1768,
+  "linesNeeded": 18765,
   "linesGained": 2270,
   "gained": {
-   "all": 1767,
-   "top2000": 52,
+   "all": 1768,
+   "top2000": 53,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5697,
-   "lines": 4902,
+   "score": 5693,
+   "lines": 4901,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1022,
-   "lines": 836,
+   "score": 1018,
+   "lines": 835,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -3514,22 +3514,6 @@
    ]
   },
   {
-   "what": "keyword EscalateAbility",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Collective Resistance",
-    "Collective Effort",
-    "Collective Defiance",
-    "Collective Brutality",
-    "Borrowed Hostility",
-    "Blessed Alliance",
-    "Savage Alliance",
-    "Borrowed Grace",
-    "Borrowed Malevolence"
-   ]
-  },
-  {
    "what": "NextSpellCastHasAbilityEffect",
    "score": 12,
    "lines": 9,
@@ -6288,21 +6272,6 @@
    ]
   },
   {
-   "what": "CantCastMoreThanOneSpellEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Archon of Emeria",
-    "Rule of Law",
-    "Eidolon of Rhetoric",
-    "High Noon",
-    "Arcane Laboratory",
-    "Moderation",
-    "Colfenor's Plans",
-    "Yawgmoth's Agenda"
-   ]
-  },
-  {
    "what": "filter:historic",
    "score": 8,
    "lines": 8,
@@ -7978,16 +7947,6 @@
    ]
   },
   {
-   "what": "CanBlockAdditionalCreatureAllEffect",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Brave the Sands",
-    "High Ground",
-    "Cenn's Tactician"
-   ]
-  },
-  {
    "what": "AdditionalCombatPhaseEffect",
    "score": 6,
    "lines": 3,
@@ -8097,13 +8056,52 @@
     "Kestia, the Cultivator",
     "Feast of Dreams"
    ]
+  },
+  {
+   "what": "FirstSpellOpponentsTurnTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Wavebreak Hippocamp",
+    "Alela, Cunning Conqueror",
+    "Nymris, Oona's Trickster",
+    "Blightwing Bandit",
+    "Stinging Lionfish",
+    "Arena Trickster"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Tinder Wall",
+    "Guardian of the Gateless",
+    "Serene Master",
+    "Goblin Snowman",
+    "Wall of Corpses",
+    "Whip Vine"
+   ]
+  },
+  {
+   "what": "SacrificeAllControllerEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Emrakul, the World Anew",
+    "The Apprentice's Folly",
+    "Hellcarver Demon",
+    "Day of the Dragons",
+    "Yukora, the Prisoner",
+    "Death Pit Offering"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4466,
-   "cards": 3908,
+   "score": 4464,
+   "cards": 3909,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8115,8 +8113,8 @@
   },
   {
    "what": "custom ability",
-   "score": 756,
-   "cards": 612,
+   "score": 752,
+   "cards": 611,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -9969,19 +9967,6 @@
    ]
   },
   {
-   "what": "keyword EscalateAbility",
-   "score": 10,
-   "cards": 7,
-   "names": [
-    "Collective Resistance",
-    "Collective Effort",
-    "Collective Brutality",
-    "Borrowed Hostility",
-    "Blessed Alliance",
-    "Borrowed Grace"
-   ]
-  },
-  {
    "what": "OneOrMoreLeaveWithoutDyingTriggeredAbility",
    "score": 10,
    "cards": 1,
@@ -10359,6 +10344,19 @@
     "Zimone, Mystery Unraveler",
     "Teething Wurmlet",
     "Vito, Fanatic of Aclazotz"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Archon of Emeria",
+    "Spider-Woman, Stunning Savior",
+    "Frozen Aether",
+    "Root Maze",
+    "Kismet",
+    "Loxodon Gatekeeper"
    ]
   },
   {
@@ -11415,19 +11413,6 @@
    ]
   },
   {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Spider-Woman, Stunning Savior",
-    "Frozen Aether",
-    "Root Maze",
-    "Kismet",
-    "Loxodon Gatekeeper",
-    "Orb of Dreams"
-   ]
-  },
-  {
    "what": "only to its controller's graveyard",
    "score": 8,
    "cards": 8,
@@ -11948,6 +11933,19 @@
     "Invoke the Winds",
     "Jace, Ingenious Mind-Mage",
     "Sorin, Vampire Lord"
+   ]
+  },
+  {
+   "what": "token ability PhyrexianMiteToken",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Crawling Chorus",
+    "Mite Overseer",
+    "Charge of the Mites",
+    "Infested Fleshcutter",
+    "Basilica Shepherd",
+    "Indoctrination Attendant"
    ]
   }
  ]

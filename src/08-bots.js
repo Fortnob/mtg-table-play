@@ -2819,7 +2819,8 @@
             const picked = [];
             let left = spare;
             for (const r of ranked) {
-              const c = MTG.mana.cmc(r.m.cost || '');
+              // escalate: each mode beyond the first costs the escalate cost
+              const c = MTG.mana.cmc(r.m.cost || '') + (ex.escalate && picked.length ? MTG.mana.cmc(ex.escalate) : 0);
               if (c <= left && (r.v > 0 || !picked.length)) { picked.push(r.m.i); left -= c; }
             }
             if (!picked.length) return false;

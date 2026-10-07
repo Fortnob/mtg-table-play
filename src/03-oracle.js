@@ -2400,6 +2400,9 @@
     { re: /^Discard your hand\.?$/i, make: () => ({ op: 'discardHand' }) },
     // "Put a +1/+1 counter on target creature. It phases out." — the spell's own target
     { re: /^It phases out\.?$/i, make: () => ({ op: 'phaseOut' }) },
+    // Rosie Cotton: "put a +1/+1 counter on target creature you control other than CARDNAME"
+    { re: /^Put an? ([+\-0-9/]+) counter on target creature you control other than (?:CARDNAME|[A-Z][\w ,'-]+)\.?$/,
+      make: (m) => ({ op: 'counters', kind: m[1], n: 1, targets: [Object.assign(targetSpec('target creature you control'), { another: true })] }) },
     // Stomp, Skullcrack: "Damage can't be prevented this turn."
     { re: /^Damage can'?t be prevented this turn\.?$/i, make: () => ({ op: 'noPreventionTurn' }) },
     // Skullcrack: "Players can't gain life this turn."
@@ -5224,6 +5227,15 @@
         autoLines++;
         continue;
       }
+      /* Escalate (CR 702.120): the cost of each mode beyond the first —
+         the modes are chosen and paid for as the spell is cast */
+      const esc = !out.isPermanent && line.match(/^Escalate ((?:\{[^}]+\})+)$/i);
+      if (esc) {
+        out.escalate = esc[1];
+        out.abilities.push({ kind: 'castModifier', keyword: 'Escalate', arg: esc[1], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       // Fuse (CR 702.102): both halves of a split card cast together from hand, which the table offers
       if (!out.isPermanent && /^Fuse$/i.test(line)) {
         out.abilities.push({ kind: 'castModifier', keyword: 'Fuse', text: line, auto: true, effects: [] });
@@ -5335,6 +5347,17 @@
         effects: [{ op: 'modal', spree: true, count: spreeModes.length,
           modes: spreeModes.map(m => ({ label: m.label, effects: m.effects, auto: m.auto })) }],
       });
+    }
+
+    // Escalate: the "choose one or more" modes, bought as the spell is cast
+    if (out.escalate) {
+      const sp = out.abilities.find(ab => ab.kind === 'spell' && (ab.effects || []).length === 1 && ab.effects[0].op === 'modal' && !ab.effects[0].spree);
+      const md = sp && sp.effects[0];
+      if (md && (md.modes || []).length > 1) {
+        md.spree = true;
+        out.spreeModes = md.modes.map((m, i) => ({ i, cost: '', label: m.label }));
+        out.spreeEscalate = out.escalate;
+      }
     }
 
     if (pawModes.length) {
@@ -6678,6 +6701,11 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Deafening Silence, Rule of Law, Eidolon of Rhetoric
+      { re: /^Each player can'?t cast more than one (noncreature )?spell each turn\.?$/i,
+        make: (m) => ({ op: 'spellLimit', n: 1, noncreature: !!m[1] }), auto: true },
+      // Brave the Sands
+      { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
       // Iroas, Losheel: "Prevent all (combat) damage that would be dealt to attacking (artifact) creatures you control."
