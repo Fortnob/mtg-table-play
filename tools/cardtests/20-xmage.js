@@ -6388,4 +6388,44 @@ module.exports = (test) => {
     t.ok(T.g._hasSubtype(w, 'Bear'));
     t.no(T.g.hasKw(w, 'defender'), 'not a Wall now');
   });
+
+  test('Ostrich-Horse: a land from the milled cards, or else a counter', (mk, t) => {
+    t.auto('Ostrich-Horse');
+    const T = mk();
+    for (const n of ['Forest', 'Grizzly Bears', 'Grizzly Bears']) T.top('A', n);
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', 'G2');
+    const oh = T.hand('A', 'Ostrich-Horse');
+    T.cast('A', oh);
+    T.resolve();
+    t.ok(T.zone('A', 'hand').some(c => c.name === 'Forest'), 'took the Forest');
+    t.eq(oh.counters['+1/+1'] || 0, 0, 'no counter');
+    const T2 = mk();
+    for (const n of ['Grizzly Bears', 'Grizzly Bears', 'Grizzly Bears']) T2.top('A', n);
+    T2.mana('A', 'G2');
+    const oh2 = T2.hand('A', 'Ostrich-Horse');
+    T2.cast('A', oh2);
+    T2.resolve();
+    t.eq(oh2.counters['+1/+1'] || 0, 1, 'no land: a counter');
+  });
+
+  test('Sulam Djinn: -2/-2 while green is the most common colour', (mk, t) => {
+    t.auto('Sulam Djinn');
+    const T = mk();
+    const sd = T.bf('A', 'Sulam Djinn');
+    t.eq(T.g.powerOf(sd), 4, 'green leads (6/6 printed)');
+    T.bf('B', 'Goblin Piker'); T.bf('B', 'Goblin Piker');
+    t.eq(T.g.powerOf(sd), 6, 'red leads now');
+  });
+
+  test('Dwarven Song: any number of creatures become red', (mk, t) => {
+    t.auto('Dwarven Song');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [b1.id, b2.id] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Dwarven Song'));
+    T.resolve();
+    t.eq(JSON.stringify(b1.analysis().colors), '["R"]'); t.eq(JSON.stringify(b2.analysis().colors), '["R"]');
+  });
 };

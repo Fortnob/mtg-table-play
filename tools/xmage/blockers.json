@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14514,
+  "needed": 14498,
   "gainedCards": 1516,
-  "linesNeeded": 16092,
+  "linesNeeded": 16076,
   "linesGained": 1894,
   "gained": {
    "all": 1516,
@@ -5047,21 +5047,6 @@
    ]
   },
   {
-   "what": "mill then something else",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Blanchwood Prowler",
-    "Ainok Wayfarer",
-    "Patient Naturalist",
-    "Fallaji Archaeologist",
-    "Ostrich-Horse",
-    "Airlift Chaplain",
-    "Ravenous Gigamole",
-    "Tomakul Scrapsmith"
-   ]
-  },
-  {
    "what": "opponent or planeswalker",
    "score": 8,
    "lines": 8,
@@ -6938,19 +6923,6 @@
    ]
   },
   {
-   "what": "at least some of any number",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Touch of Darkness",
-    "Heaven's Gate",
-    "Corpseweft",
-    "Sea Kings' Blessing",
-    "Sylvan Paradise",
-    "Dwarven Song"
-   ]
-  },
-  {
    "what": "CastOnlyIfConditionIsTrueAbility",
    "score": 6,
    "lines": 6,
@@ -7555,6 +7527,30 @@
     "Glimmer Seeker",
     "Acrobatic Cheerleader",
     "Rootwise Survivor"
+   ]
+  },
+  {
+   "what": "effect:missing",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Dream Devourer",
+    "Bohn, Beguiling Balladeer",
+    "Corpseberry Cultivator",
+    "Evidence Examiner",
+    "Surveillance Monitor"
+   ]
+  },
+  {
+   "what": "CountersControllerCount",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Aang, Airbending Master",
+    "Ezuri, Claw of Progress",
+    "Katara, Waterbending Master",
+    "Atreus, Impulsive Son",
+    "Kratos, Stoic Father"
    ]
   }
  ],
@@ -9940,19 +9936,6 @@
    ]
   },
   {
-   "what": "mill then something else",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Blanchwood Prowler",
-    "Ainok Wayfarer",
-    "Patient Naturalist",
-    "Fallaji Archaeologist",
-    "Ostrich-Horse",
-    "Airlift Chaplain"
-   ]
-  },
-  {
    "what": "ExchangeControlTargetEffect",
    "score": 8,
    "cards": 8,
@@ -11385,6 +11368,19 @@
     "Alms Beast",
     "Steadfast Armasaur",
     "Sworn Defender"
+   ]
+  },
+  {
+   "what": "DiscardedByOpponentTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Ajani's Last Stand",
+    "Guerrilla Tactics",
+    "Metrognome",
+    "Quagnoth",
+    "Mangara's Blessing",
+    "Sand Golem"
    ]
   }
  ]

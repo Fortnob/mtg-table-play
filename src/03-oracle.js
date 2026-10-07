@@ -1724,6 +1724,10 @@
     { re: /^Target spell or permanent becomes (white|blue|black|red|green|colorless)\.?$/i,
       make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { setColors: /colorless/i.test(m[1]) ? [] : [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]] },
         targets: [{ type: 'spellOrPermanent' }], spellsToo: true }) },
+    // Dwarven Song: "One or more target creatures become red until end of turn."
+    { re: /^(?:One or more|Any number of) target creatures become (white|blue|black|red|green) until end of turn\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: 'eot', eff: { setColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]] },
+        anyFrom: { type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true } }) },
     // Spiritmonger: "This creature becomes the color of your choice until end of turn."
     { re: /^(?:This creature|CARDNAME) becomes the colou?r of your choice until end of turn\.?$/i,
       make: () => ({ op: 'chooseColorFor', scope: 'self' }) },
@@ -4836,6 +4840,19 @@
           i++;
           continue;
         }
+        /* Ostrich-Horse: "You may put a land card from among them into your
+           hand. If you don't, put a +1/+1 counter on this creature." */
+        {
+          // "from among them" right after a mill is the milled cards
+          const mayText = /\bmills? \w+ cards?\.?$/i.test(sentences[i - 1] || '') ? may[1].replace(/from among them\b/i, 'from among the milled cards') : may[1];
+          const inner = parseSentenceList(splitSentences(U.titleCase(mayText.charAt(0)) + mayText.slice(1) + '.'));
+          if (inner.auto && inner.effects.length === 1 && inner.effects[0].op === 'takeFromMilled') {
+            effects.push(Object.assign({}, inner.effects[0], { optional: true, otherwise: elsePart.effects, text: s + ' ' + next }));
+            if (!elsePart.auto) auto = false;
+            i++;
+            continue;
+          }
+        }
         /* Chandra, Torch of Defiance: "You may cast that card. If you don't,
            CARDNAME deals 2 damage to each opponent." */
         if (/^cast (?:that card|it|the exiled card)$/i.test(may[1])) {
@@ -5272,6 +5289,9 @@
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
     // Geistwave: "If you controlled that permanent"
     [/^you controlled that (?:permanent|creature|artifact|enchantment|land)$/i, () => ({ kind: 'lastWasYours' })],
+    // Sulam Djinn: "as long as green is the most common color among all permanents or is tied for most common"
+    [/^(white|blue|black|red|green) is the most common colou?r among all permanents(?: or is tied for most common)?$/i,
+      (m) => ({ kind: 'mostCommonColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Glistening Sphere: "Activate only if an opponent has three or more poison counters"
     // Mistform Wall: "as long as it's a Wall"
     [/^(?:it'?s|this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],

@@ -7663,6 +7663,12 @@
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
         case 'lastWasYours': return !!me && !!this._lastAffected && this._lastAffected.controller === me.id;
+        case 'mostCommonColor': {
+          const k = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+          for (const o of this.battlefield) { if (o.phasedOut) continue; for (const c of ((o.analysis() || {}).colors || [])) if (k[c] != null) k[c]++; }
+          const top = Math.max(...Object.values(k));
+          return top > 0 && k[cond.color] === top;
+        }
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
         case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
@@ -10317,16 +10323,19 @@
           const pool = (this._lastMilled || []).map(id => this.obj(id))
             .filter(o => o && o.zone === 'graveyard' && o.owner === ctx.controller &&
               (!e.filter || e.filter === 'any' || this._cardFitsWords(o, e.filter)));
-          if (!pool.length) break;
+          if (!pool.length) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
           const want = Math.min(n(e.n) || 1, pool.length);
           const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: want,
             cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
             optional: e.optional !== false, prompt: e.prompt || `Choose ${want === 1 ? 'a card' : want + ' cards'} to put into your hand.` });
           if (picked === SUSPEND) return SUSPEND;
+          let took = 0;
           for (const id of (picked || []).slice(0, want)) {
             const o = this.obj(id);
-            if (o && pool.includes(o)) { this.moveObject(o, 'hand'); this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`); }
+            if (o && pool.includes(o)) { this.moveObject(o, 'hand'); took++; this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`); }
           }
+          // Ostrich-Horse: "If you don't, put a +1/+1 counter on this creature."
+          if (!took && e.otherwise) this._spliceNext(e.otherwise);
           break;
         }
         case 'createToken': {
