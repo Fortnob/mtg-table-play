@@ -124,6 +124,14 @@
         return n;
       };
 
+      /* A die or a coin: what came up floats off the player who rolled or
+         flipped, a beat after the sound, so it reads as the result. */
+      let luckAt = 0;
+      const luck = (e, text) => {
+        const at = 260 + 380 * luckAt++;
+        setTimeout(() => { const orb = t.orbFor && t.orbFor(e.player); if (orb && t.float) t.float(orb, text, 'fx-luck', 0.5); }, at);
+      };
+
       let hitsVoiced = 0;
       for (const e of evs) {
         switch (e.type) {
@@ -286,8 +294,8 @@
             add(won || !seated ? 'win' : 'lose', {}, 10, 'gameOver', 0, 120);
             break;
           }
-          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); break;
-          case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); break;
+          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); luck(e, `\u{1F3B2} d${e.sides}: ${e.result}`); break;
+          case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); luck(e, `\u{1FA99} ${e.result === 'heads' ? 'Heads' : 'Tails'}`); break;
           case 'control': add('steal', { pan: pan(e.to) }, 6, 'control', 100); break;
           case 'cue': add(e.name, { pan: pan(e.player) }, 5, 'cue', 90); break;
           default: break;

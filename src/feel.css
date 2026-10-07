@@ -167,3 +167,6 @@
 :root[data-reduce-motion] .feel-burst, :root[data-reduce-motion] .feel-ripple { display: none; }
 :root[data-phone] .feel-spark { width: calc(var(--feel-s, 60px) * .7); height: calc(var(--feel-s, 60px) * .7); }
 :root[data-phone] .cv.feel-cast::after { box-shadow: 0 0 0 2px var(--feel-c1), 0 0 16px 4px var(--feel-c1); }
+
+/* a die roll or a coin flip: the result, floating off the player */
+.fx-float.fx-luck { color: #fff3c4; text-shadow: 0 0 10px rgba(246,200,110,.8), 0 2px 4px rgba(0,0,0,.9); font-weight: 800; white-space: nowrap; }
