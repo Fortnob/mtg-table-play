@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14629,
+  "needed": 14628,
   "gainedCards": 1523,
-  "linesNeeded": 16229,
+  "linesNeeded": 16228,
   "linesGained": 1903,
   "gained": {
    "all": 1523,
@@ -53,21 +53,21 @@
   },
   {
    "what": "custom ability",
-   "score": 931,
-   "lines": 790,
+   "score": 927,
+   "lines": 789,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
     "Midnight Clock",
     "Forbidden Orchard",
-    "Kaya's Ghostform",
     "Scrap Trawler",
     "Forsaken Monument",
     "The Gitrog Monster",
     "Myr Battlesphere",
     "Caged Sun",
     "Mesmeric Orb",
-    "Kambal, Profiteering Mayor"
+    "Kambal, Profiteering Mayor",
+    "Coveted Jewel"
    ]
   },
   {
@@ -7612,15 +7612,15 @@
   },
   {
    "what": "custom ability",
-   "score": 700,
-   "cards": 589,
+   "score": 696,
+   "cards": 588,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
     "Forbidden Orchard",
-    "Kaya's Ghostform",
     "Scrap Trawler",
-    "Forsaken Monument"
+    "Forsaken Monument",
+    "The Gitrog Monster"
    ]
   },
   {

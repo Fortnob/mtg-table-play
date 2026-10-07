@@ -6192,4 +6192,30 @@ module.exports = (test) => {
     t.eq(T.life('B'), 18);
     t.eq(cb.counters['+1/+1'] || 0, 1);
   });
+
+  test("Kaya's Ghostform: back when it dies, and when it's exiled", (mk, t) => {
+    t.auto("Kaya's Ghostform");
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const kg = T.bf('A', "Kaya's Ghostform");
+    kg.attachedTo = bear.id; bear.attachments.push(kg.id); T.g.bumpBoard();
+    T.g.moveObject(bear, 'graveyard');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(bear.zone, 'battlefield', 'back after dying');
+    const kg2 = T.bf('A', "Kaya's Ghostform");
+    kg2.attachedTo = bear.id; bear.attachments.push(kg2.id); T.g.bumpBoard();
+    T.g.moveObject(bear, 'exile');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(bear.zone, 'battlefield', 'back after exile');
+  });
+
+  test('An Aura that waits for its creature to die does not answer to exile', (mk, t) => {
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const aura = T.bf('A', 'Angelic Destiny');
+    aura.attachedTo = bear.id; bear.attachments.push(aura.id); T.g.bumpBoard();
+    T.g.moveObject(bear, 'exile');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(aura.zone, 'graveyard', 'exiled, not died: the Aura is not returned');
+  });
 };

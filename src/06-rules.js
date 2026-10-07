@@ -8425,7 +8425,11 @@
       } else if (vanishes) {
         // gone, wherever it was sent
       } else if (toZone === 'hand') this.zones[o.owner].hand.push(o);
-      else if (toZone === 'exile') { this.zones[o.owner].exile.push(o); if (from === 'battlefield') this.emit('sfx', 'exile', { player: o.owner }); }
+      else if (toZone === 'exile') {
+        this.zones[o.owner].exile.push(o);
+        if (from === 'battlefield') this.emit('sfx', 'exile', { player: o.owner });
+        if (from === 'battlefield' && heldBy.length) this._fire('equippedDies', null, { object: o, attachedIds: heldBy, objController: lastCtrl, exiledFromBattlefield: true });
+      }
       else if (toZone === 'command') this.zones[o.owner].command.push(o);
       else if (toZone === 'library') {
         const z = this.zones[o.owner].library;
@@ -8744,6 +8748,8 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // Kaya's Ghostform: exile counts only for "dies or is put into exile"
+          if (data.exiledFromBattlefield && !ab.orExiled) continue;
           // "leave the battlefield without dying", "is exiled from the battlefield"
           if (ab.notDying && data.toZone === 'graveyard') continue;
           if (ab.toZoneOnly && data.toZone !== ab.toZoneOnly) continue;
@@ -12431,7 +12437,7 @@
         case 'returnTriggerCard': {
           const td = ctx.triggerData || {};
           // what this resolution just exiled comes first ("Exile target creature. Return it …")
-          let x = this._lastExiled && this.obj(this._lastExiled);
+          let x = !e.triggerOnly && this._lastExiled && this.obj(this._lastExiled);
           if (!x || x.zone !== 'exile') x = td.objectId && this.obj(td.objectId);
           if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
           this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });

@@ -5545,6 +5545,8 @@
     { re: /^At the beginning of each player'?s upkeep(?:,| )/i, event: 'eachUpkeep' },
     { re: /^When(?:ever)? equipped creature dies(?:,| )/i, event: 'equippedDies' },
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
+    // Kaya's Ghostform: "When enchanted permanent dies or is put into exile"
+    { re: /^When(?:ever)? enchanted (?:creature|permanent) dies or is put into exile(?:,| )/i, event: 'equippedDies', extra: { orExiled: true } },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|this enchantment|~|CARDNAME) enters(?: the battlefield)?(?:,| )/i, event: 'etb', self: true },
     { re: /^When(?:ever)? (?:this creature|this permanent|~|CARDNAME) dies(?:,| )/i, event: 'dies', self: true },
     // (before "attacks", which would read the rest as the effect)
@@ -6152,6 +6154,11 @@
            targeted, "it" is the creature the trigger is about, this one or
            the one that set it off, not a target that was never chosen */
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
+        /* Kaya's Ghostform: "return that card to the battlefield under your
+           control" is the enchanted card that just left, not one held in exile */
+        if (trig.event === 'equippedDies') {
+          for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }
+        }
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
