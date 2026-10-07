@@ -7844,4 +7844,55 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('B', 'graveyard').length, g0 + 2);
   });
+
+  test('Galvanize: 3 damage, or 5 after two draws, at the one target', (mk, t) => {
+    t.auto('Galvanize');
+    const T = mk();
+    const w = T.bf('B', 'Craw Wurm');
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Galvanize'), { targets: [w.id] });
+    T.resolve();
+    t.eq(w.damage, 3);
+    T.player('A').drawnThisTurn = 2;
+    const w2 = T.bf('B', 'Craw Wurm');
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Galvanize'), { targets: [w2.id] });
+    T.resolve();
+    t.eq(w2.zone, 'graveyard', '5 damage kills the 6/4');
+  });
+
+  test('Serra Avatar: power and toughness are its controller\'s life total', (mk, t) => {
+    t.auto('Serra Avatar');
+    const T = mk();
+    const s = T.bf('A', 'Serra Avatar');
+    t.eq(T.g.powerOf(s), T.life('A')); t.eq(T.g.toughnessOf(s), T.life('A'));
+  });
+
+  test('Defend the Hearth: combat damage to players is prevented, not to creatures', (mk, t) => {
+    t.auto('Defend the Hearth');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'); bear.summoningSick = false;
+    const wall = T.bf('A', 'Hill Giant');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'declareBlockers');
+    if (T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Defend the Hearth'));
+    T.resolve();
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 20);
+    void wall;
+  });
+
+  test('Polliwallop: twice its power', (mk, t) => {
+    t.auto('Polliwallop');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Polliwallop'), { targets: [bear.id, giant.id] });
+    T.resolve();
+    t.eq(giant.zone, 'graveyard', '4 damage to the 3/3');
+  });
 };

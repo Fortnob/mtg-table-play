@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14091,
-  "gainedCards": 1481,
-  "linesNeeded": 15550,
+  "needed": 14067,
+  "gainedCards": 1483,
+  "linesNeeded": 15514,
   "linesGained": 1835,
   "gained": {
-   "all": 1481,
+   "all": 1483,
    "top2000": 53,
    "stdTop": 12
   },
@@ -148,8 +148,8 @@
   },
   {
    "what": "custom condition",
-   "score": 209,
-   "lines": 185,
+   "score": 207,
+   "lines": 183,
    "cards": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -558,25 +558,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 28,
-   "lines": 28,
-   "cards": [
-    "Bilbo's Ring",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "June, Bounty Hunter",
-    "Nimble Brigand",
-    "Slippery Scoundrel"
-   ]
-  },
-  {
    "what": "CaseAbility",
    "score": 27,
    "lines": 18,
@@ -593,6 +574,25 @@
     "Case of the Gorgon's Kiss",
     "Case of the Burning Masks",
     "Case of the Lost Witness"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 27,
+   "lines": 27,
+   "cards": [
+    "Bilbo's Ring",
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola"
    ]
   },
   {
@@ -1299,20 +1299,6 @@
     "Afterburner Expert",
     "Rangers' Aetherhive",
     "Marvel Boy, Noh-Varr"
-   ]
-  },
-  {
-   "what": "DiscardAndDrawThatManyEffect",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
-    "Celes, Rune Knight",
-    "Cavalier of Flame",
-    "The Elder Dragon War",
-    "Illuminate History",
-    "Leave // Chance",
-    "Colossus of the Blood Age"
    ]
   },
   {
@@ -2344,6 +2330,16 @@
     "Flockchaser Phantom",
     "Sloppity Bilepiper",
     "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "DiscardAndDrawThatManyEffect",
+   "score": 12,
+   "lines": 3,
+   "cards": [
+    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+    "Celes, Rune Knight",
+    "Colossus of the Blood Age"
    ]
   },
   {
@@ -3677,22 +3673,6 @@
    ]
   },
   {
-   "what": "SourceEnteredThisTurnCondition.TRUE",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Moon-Circuit Hacker",
-    "Shardmage's Rescue",
-    "Kaito Shizuki",
-    "Zurgo and Ojutai",
-    "Thrasta, Tempest's Roar",
-    "Drownyard Behemoth",
-    "Crew Captain",
-    "Keldon Strike Team",
-    "Fungus Elemental"
-   ]
-  },
-  {
    "what": "FilterPermanentThisOrAnother",
    "score": 9,
    "lines": 9,
@@ -4426,21 +4406,6 @@
    ]
   },
   {
-   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Chocobo Kick",
-    "Animist's Might",
-    "Polliwallop",
-    "Huatli, Dinosaur Knight",
-    "Punishing Punch",
-    "Devouring Tendrils",
-    "Thing Swing",
-    "Compel Brutality"
-   ]
-  },
-  {
    "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
    "score": 8,
    "lines": 8,
@@ -4764,21 +4729,6 @@
     "Esgaroth Garrison",
     "Patient Instructor",
     "Long Lake Nuisance"
-   ]
-  },
-  {
-   "what": "DrewTwoOrMoreCardsCondition.instance",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Galvanize",
-    "Foggy Swamp Hunters",
-    "Messenger Hawk",
-    "Evangel of Synthesis",
-    "Eyekite",
-    "Gnarled Sage",
-    "Spinehorn Minotaur",
-    "Trench Stalker"
    ]
   },
   {
@@ -7433,6 +7383,42 @@
     "Strength from the Fallen",
     "Goldenhide Ox"
    ]
+  },
+  {
+   "what": "or of NamePredicate",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Forging the Tyrite Sword",
+    "Shield of Kaldra",
+    "Dragonstorm Forecaster",
+    "Bogbrew Witch",
+    "Liu Bei, Lord of Shu"
+   ]
+  },
+  {
+   "what": "activated with 0 effects in its constructor",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Voyager Staff",
+    "Emil, Vastlands Roamer",
+    "Geometric Nexus",
+    "Chromium, the Mutable",
+    "Kianne, Dean of Substance // Imbraham, Dean of Theory"
+   ]
+  },
+  {
+   "what": "CanBlockAdditionalCreatureEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Entangler",
+    "Valor Made Real",
+    "Entourage of Trest",
+    "Give No Ground",
+    "Foriysian Totem"
+   ]
   }
  ],
  "sole": [
@@ -7451,8 +7437,8 @@
   },
   {
    "what": "custom ability",
-   "score": 674,
-   "cards": 575,
+   "score": 675,
+   "cards": 576,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7464,8 +7450,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 225,
-   "cards": 210,
+   "score": 229,
+   "cards": 214,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7775,19 +7761,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 21,
-   "cards": 21,
-   "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Sword Coast Serpent // Capsizing Wave",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "June, Bounty Hunter"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 21,
    "cards": 21,
@@ -7810,6 +7783,19 @@
     "Uthros Research Craft",
     "Inspirit, Flagship Vessel",
     "Synthesizer Labship"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 20,
+   "cards": 20,
+   "names": [
+    "Thieves' Tools",
+    "Security Bypass",
+    "Sword Coast Serpent // Capsizing Wave",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nimble Brigand"
    ]
   },
   {
@@ -8111,6 +8097,19 @@
    ]
   },
   {
+   "what": "owner of a permanent",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Sword of Hearth and Home",
+    "Sanctum of Eternity",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance"
+   ]
+  },
+  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 13,
    "cards": 10,
@@ -8275,19 +8274,6 @@
     "Elsha of the Infinite",
     "Errant and Giada",
     "Galea, Kindler of Hope"
-   ]
-  },
-  {
-   "what": "owner of a permanent",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Sword of Hearth and Home",
-    "Sanctum of Eternity",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Tel-Jilad Stylus",
-    "Conjured Currency"
    ]
   },
   {
@@ -9676,19 +9662,6 @@
    ]
   },
   {
-   "what": "DrewTwoOrMoreCardsCondition.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Galvanize",
-    "Foggy Swamp Hunters",
-    "Messenger Hawk",
-    "Evangel of Synthesis",
-    "Eyekite",
-    "Gnarled Sage"
-   ]
-  },
-  {
    "what": "BecomesBasicLandTargetEffect",
    "score": 8,
    "cards": 8,
@@ -10369,19 +10342,6 @@
     "Uthros Psionicist",
     "Highspire Bell-Ringer",
     "Nahiri, Storm of Stone"
-   ]
-  },
-  {
-   "what": "SourceEnteredThisTurnCondition.TRUE",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Moon-Circuit Hacker",
-    "Shardmage's Rescue",
-    "Kaito Shizuki",
-    "Crew Captain",
-    "Keldon Strike Team",
-    "Fungus Elemental"
    ]
   },
   {
@@ -11211,6 +11171,30 @@
     "From Father to Son",
     "The Final Days",
     "Secrets of the Key"
+   ]
+  },
+  {
+   "what": "OneOrMoreDiceRolledTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Vexing Puzzlebox",
+    "Brazen Dwarf",
+    "Vrondiss, Rage of Ancients",
+    "Feywild Trickster",
+    "Farideh, Devil's Chosen"
+   ]
+  },
+  {
+   "what": "WardAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Saruman, the White Hand",
+    "Coppercoat Vanguard",
+    "Iymrith, Desert Doom",
+    "Leyline Immersion",
+    "Radagast, Wizard of Wilds"
    ]
   }
  ]

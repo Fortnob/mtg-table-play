@@ -7993,6 +7993,7 @@
         case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
+        case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
           const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[ctx.abilityIndex];
@@ -11093,7 +11094,7 @@
           const biter = objs[0];
           if (!biter) { this.logEvent('rules', 'Nothing to deal the damage.'); break; }
           if (e.counterFirst && !this._doneHere('ctr')) this.addCounters(biter, e.counterFirst, 1);
-          const amount = this.powerOf(biter);
+          const amount = this.powerOf(biter) * (e.mult || 1);      // Punishing Punch: twice its power
           if (e.toPlayer) {
             const pt = targets.find(t => t.kind === 'player');
             const who = pt ? this.player(pt.id) : this.opponentsOf(ctx.controller)[0];
@@ -15663,6 +15664,8 @@
       for (const pv of this.prevention) {
         if (pv.combatOnly && !isCombat) continue;
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
+        // Defend the Hearth: "to players" — not to permanents
+        if (pv.to === 'players' && !(target && target.pool)) continue;
         // Obscuring Haze: "by creatures your opponents control"
         if (pv.fromOpponentCreatures && !(source && source.controller !== pv.who && (this.characteristics(source) || {}).isCreature)) continue;
         // Galadhrim Ambush: only what non-Elf creatures deal

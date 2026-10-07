@@ -577,7 +577,7 @@
     const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
-    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower']
+    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower', 'noRegen']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
     // Revenge of Ravens: "that creature's controller loses 1 life" — the one the trigger is about
@@ -1063,6 +1063,18 @@
     { re: /^(?:It|That creature) deals that much damage to any (other )?target(?: that isn'?t an? ([A-Z][a-z]+))?\.?$/,
       make: (m) => ({ op: 'damage', n: 'triggerAmount', fromTrigger: true,
         targets: [Object.assign(targetSpec('any target'), m[2] ? { notSubtype: m[2].toLowerCase() } : {}, m[1] ? { another: true } : {})] }) },
+    // Defend the Hearth: "Prevent all combat damage that would be dealt to players this turn."
+    { re: /^Prevent all combat damage that would be dealt to players this turn\.?$/i,
+      make: () => ({ op: 'preventDamage', combatOnly: true, to: 'players' }) },
+    // The Elder Dragon War: "Discard any number of cards, then draw that many cards."
+    { re: /^Discard any number of cards, then draw that many cards\.?$/i, make: () => ({ op: 'discardUpToDraw', n: 99 }) },
+    // Mindstab Thrull: "Defending player discards two cards."
+    { re: /^Defending player discards (a|one|two|three|\d+) cards?\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'defending' }) },
+    // Punishing Punch: "deals damage equal to twice its power to target creature an opponent controls"
+    { re: /^Target creature you control deals damage equal to twice its power to (target creature(?: or planeswalker)?(?: you don'?t control| an opponent controls)?)\.?$/i,
+      make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
+    // Engulfing Flames: "It can't be regenerated this turn."
+    { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
     // Revenge of Ravens: "that creature's controller loses 1 life and you gain 1 life"
     { re: /^That creature'?s controller loses (one|two|three|\d+) life( and you gain (one|two|three|\d+) life)?\.?$/i,
       make: (m) => [{ op: 'loseLife', who: 'triggerObjController', n: num(m[1]) }].concat(m[2] ? [{ op: 'gainLife', who: 'you', n: num(m[3]) }] : []) },
@@ -3054,6 +3066,9 @@
     { re: /^([A-Za-z]+) spells you cast cost \{(\d+)\} less to cast\.?$/i,
       make: (m) => ({ op: 'taxSpells', amount: -(+m[2]), filter: m[1].toLowerCase(), who: 'you' }) },
     // Renata, Called to the Hunt: "CARDNAME's power is equal to your devotion to green."
+    // Serra Avatar: "CARDNAME's power and toughness are each equal to your life total."
+    { re: /^(?:CARDNAME|This creature)'?s power and toughness are each equal to your life total\.?$/i,
+      make: () => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { life: 1 }, t: { life: 1 } } }) },
     // Necrogoyf: "CARDNAME's power is equal to the number of creature cards in all graveyards."
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: null, keepToughness: true } }) },
@@ -5521,6 +5536,10 @@
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
     // Blowfly Infestation: "it had a -1/-1 counter on it" — the creature that died, as it last was
     [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
+    // Crew Captain: "it entered this turn"
+    [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
+    // Messenger Hawk: "you've drawn two or more cards this turn"
+    [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
     [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
     // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
