@@ -7994,6 +7994,7 @@
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
+        case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'anyGraveyardAtLeast': return this.players.some(p => ((this.zones[p.id] || {}).graveyard || []).length >= (cond.n || 1));
         case 'spellsCastOfKind': return !!me && (me.spellObjsThisTurn || []).filter(x => this._cardFitsWords(x, cond.words)).length >= (cond.n || 1);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
@@ -9201,6 +9202,8 @@
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
+          // Secrets of the Dead: "a spell from your graveyard"
+          if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
           // Nalfeshnee: "a spell from exile"
           if (ab.fromExileOnly && !(data.spell && data.spell.fromZone === 'exile')) continue;
           // "attacks a player": not a planeswalker or a battle
@@ -9861,6 +9864,8 @@
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
         if (v === 'lastLifeLost') return this._lastLifeLost || 0;
+        // Sunfall: how many the sweep just before took
+        if (v === 'lastSweep') return this._lastSweep || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
         // Station: the power of the creature tapped to pay for it
         if (v && typeof v === 'object' && v.ofTapped) return Math.max(0, ((ctx.tapped || [])[0] || {})[v.ofTapped] || 0);
@@ -15360,6 +15365,9 @@
       if (sc.multicolored && (oa.colors || []).length < 2) return false;
       if (sc.colorless && (oa.colors || []).length) return false;
       if (sc.faceDown && !o.faceDown) return false;
+      // On Wings of Gold: "that are Zombies and/or tokens"
+      if (sc.subtypeOrToken && !o.isToken && !(oa.subtypes || []).some(t => t.toLowerCase() === sc.subtypeOrToken) &&
+          !(oa.keywordSet && oa.keywordSet.has('changeling'))) return false;
       // Halvar: "that are enchanted or equipped"
       if (sc.enchantedOrEquipped && !(o.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return aa && (aa.isAura || aa.isEquipment); })) return false;
       if (sc.monocolored && (oa.colors || []).length !== 1) return false;

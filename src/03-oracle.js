@@ -928,6 +928,9 @@
     { re: /^Attach target Equipment to target creature\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', filter: 'Equipment', subtypes: ['equipment'] }, { type: 'creature' }] }) },
     // Hellrider: "deals 1 damage to the player or planeswalker it's attacking"
+    // Raid Bombardment: "this enchantment deals 1 damage to the player or planeswalker that creature is attacking"
+    { re: /^(?:CARDNAME|This (?:enchantment|artifact|creature)) deals (\d+) damage to the player or planeswalker (?:that creature is|it'?s) attacking\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], toDefenderOf: 'triggerObject' }) },
     { re: /^(?:CARDNAME|This creature) deals (\d+) damage to the player or planeswalker it'?s attacking\.?$/i,
       make: (m) => ({ op: 'damage', n: +m[1], toDefenderOf: 'triggerObject' }) },
     { re: /^(?:It|That creature) deals damage equal to its power to the player or planeswalker it'?s attacking\.?$/i,
@@ -1085,6 +1088,15 @@
       make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
     // Engulfing Flames: "It can't be regenerated this turn."
     { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
+    // Hungering Hydra: "put that many +1/+1 counters on it"
+    { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
+    // Malakir Bloodwitch: "Each opponent loses life equal to the number of Vampires you control."
+    { re: /^Each opponent loses life equal to (the number of .+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
+    // Invigorating Surge: "Put a +1/+1 counter on target creature you control, then double the number of +1/+1 counters on that creature."
+    { re: /^Put (a|one|two|three) \+1\/\+1 counters? on (target creature(?: you control)?), then double the number of \+1\/\+1 counters on (?:it|that creature)\.?$/i,
+      make: (m) => [{ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: [targetSpec(m[2])] }, { op: 'doubleCounters', kind: '+1/+1', scope: 'lastTarget' }] },
     // Revenge of Ravens: "that creature's controller loses 1 life and you gain 1 life"
     { re: /^That creature'?s controller loses (one|two|three|\d+) life( and you gain (one|two|three|\d+) life)?\.?$/i,
       make: (m) => [{ op: 'loseLife', who: 'triggerObjController', n: num(m[1]) }].concat(m[2] ? [{ op: 'gainLife', who: 'you', n: num(m[3]) }] : []) },
@@ -1201,6 +1213,9 @@
        it (CR 701.52). */
     { re: /^Incubate (one|two|three|four|five|\d+|X)\.?$/i,
       make: (m) => ({ op: 'createNamedToken', token: 'Incubator', n: 1, withCounters: num(m[1]) }) },
+    // Sunfall: "Incubate X, where X is the number of creatures exiled this way."
+    { re: /^Incubate X, where X is the number of (?:creatures|permanents) (?:exiled|destroyed) this way\.?$/i,
+      make: () => ({ op: 'createNamedToken', token: 'Incubator', n: 1, withCounters: 'lastSweep' }) },
     /* Unearth-style: it gets itself back. */
     { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with a finality counter on (?:it|him|her|them))?\.?$/i,
       make: (m) => (m[2] ? { op: 'returnSelfFromGrave', tapped: !!m[1], counter: 'finality' } : { op: 'returnSelfFromGrave', tapped: !!m[1] }) },
@@ -5562,6 +5577,8 @@
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
     [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
+    // Agent Frank Horrigan: "it attacked this turn"
+    [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Messenger Hawk: "you've drawn two or more cards this turn"
@@ -5905,8 +5922,10 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     // Revenge of Ravens: "Whenever a creature attacks you or a planeswalker you control"
-    { re: /^Whenever a creature attacks you( or a planeswalker you control)?,? /i, event: 'permAttacks',
-      filt: () => ({ words: 'creature', who: 'opponent' }), extraOf: (m) => ({ attacksYou: m[1] ? 'orWalker' : 'you' }) },
+    { re: /^Whenever a creature( with power (\d+) or greater)? attacks you( or a planeswalker you control)?,? /i, event: 'permAttacks',
+      filt: (m) => Object.assign({ words: 'creature', who: 'opponent' }, m[2] ? { minPower: +m[2] } : {}), extraOf: (m) => ({ attacksYou: m[3] ? 'orWalker' : 'you' }) },
+    // Secrets of the Dead: "Whenever you cast a spell from your graveyard"
+    { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
     // Tome of Legends: "Whenever your commander enters or attacks"
     { re: /^Whenever your commander enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: true }) },
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
@@ -6148,7 +6167,7 @@
     { re: /^Whenever a player plays a land,? /i, event: 'anyPlayLand' },
     { re: /^Whenever an opponent plays a land,? /i, event: 'opponentPlaysLand' },
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
-    { re: /^Whenever you attack with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    { re: /^Whenever you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+?)s?,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: m[1] }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
@@ -7617,6 +7636,9 @@
           delete e.itWord;
           if (before.some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
         }
+        // Champions from Beyond: "Whenever you attack with eight or more creatures, those creatures get +4/+4"
+        if (ab.event === 'youAttack' && e.scope === 'lastGroup' && !effs.some(x => x && (x.targets || []).length))
+          e.scope = { who: 'you', what: 'creature', attacking: true };
         // Vrestin: "Whenever you attack with one or more Insects, put a +1/+1 counter on each of them"
         if (ab.attackersOfType && e.scope === 'eachTarget' && !effs.some(x => x && (x.targets || []).length))
           e.scope = { who: 'you', what: 'creature', attacking: true, subtype: ab.attackersOfType.toLowerCase() };
@@ -9096,6 +9118,13 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // On Wings of Gold: "Creatures you control that are Zombies and/or tokens get +1/+1 and have flying."
+      { re: /^Creatures you control that are ([A-Z][a-z]+?)s and\/or tokens get \+(\d+)\/\+(\d+) and have ([a-z ,]+)\.?$/,
+        make: (m) => {
+          const kws = keywordList(m[4]);
+          if (!kws.length || !kws.every(kwKnown)) return null;
+          return { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', subtypeOrToken: m[1].toLowerCase() }, pt: { p: +m[2], t: +m[3] }, grant: kws };
+        }, auto: true },
       // Toxrill, the Corrosive: "Creatures you don't control get -1/-1 for each slime counter on them."
       { re: /^Creatures you don'?t control get -1\/-1 for each ([a-z]+) counter on them\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'opponents', what: 'creature' },

@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 14046,
-  "gainedCards": 1483,
-  "linesNeeded": 15489,
-  "linesGained": 1835,
+  "needed": 14024,
+  "gainedCards": 1479,
+  "linesNeeded": 15469,
+  "linesGained": 1830,
   "gained": {
-   "all": 1483,
-   "top2000": 53,
+   "all": 1479,
+   "top2000": 52,
    "stdTop": 12
   },
   "compare": {
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5166,
-   "lines": 4506,
+   "score": 5163,
+   "lines": 4503,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 889,
-   "lines": 763,
+   "score": 887,
+   "lines": 761,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 274,
-   "lines": 244,
+   "score": 273,
+   "lines": 243,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -3085,20 +3085,6 @@
    ]
   },
   {
-   "what": "spell from a zone",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Sunbird's Invocation",
-    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
-    "Gale, Waterdeep Prodigy",
-    "Taigam, Ojutai Master",
-    "Goliath Daydreamer",
-    "Harness the Storm",
-    "Devoted Grafkeeper // Departed Soulkeeper"
-   ]
-  },
-  {
    "what": "chapter lambda .setTargetAdjuster",
    "score": 10,
    "lines": 7,
@@ -3478,6 +3464,19 @@
     "Duelist of the Mind",
     "Niko Aris",
     "Thundering Djinn"
+   ]
+  },
+  {
+   "what": "spell from a zone",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Sunbird's Invocation",
+    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
+    "Gale, Waterdeep Prodigy",
+    "Taigam, Ojutai Master",
+    "Goliath Daydreamer",
+    "Harness the Storm"
    ]
   },
   {
@@ -7424,8 +7423,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4148,
-   "cards": 3680,
+   "score": 4145,
+   "cards": 3677,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7437,8 +7436,8 @@
   },
   {
    "what": "custom ability",
-   "score": 673,
-   "cards": 574,
+   "score": 671,
+   "cards": 572,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7476,8 +7475,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 163,
-   "cards": 151,
+   "score": 162,
+   "cards": 150,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7864,6 +7863,19 @@
    ]
   },
   {
+   "what": "DisturbAbility.makeBackAbility",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Lunarch Veteran // Luminous Phantom",
+    "Malevolent Hermit // Benevolent Geist",
+    "Mischievous Catgeist // Catlike Curiosity",
+    "Twinblade Geist // Twinblade Invocation",
+    "Lantern Bearer // Lanterns' Lift",
+    "Chaplain of Alms // Chapel Shieldgeist"
+   ]
+  },
+  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 17,
    "cards": 17,
@@ -7926,19 +7938,6 @@
     "Sweet-Gum Recluse",
     "Drannith Ruins",
     "Ruins of Oran-Rief"
-   ]
-  },
-  {
-   "what": "DisturbAbility.makeBackAbility",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Lunarch Veteran // Luminous Phantom",
-    "Malevolent Hermit // Benevolent Geist",
-    "Mischievous Catgeist // Catlike Curiosity",
-    "Twinblade Geist // Twinblade Invocation",
-    "Lantern Bearer // Lanterns' Lift",
-    "Chaplain of Alms // Chapel Shieldgeist"
    ]
   },
   {

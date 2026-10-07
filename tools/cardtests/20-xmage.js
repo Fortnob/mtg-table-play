@@ -7979,4 +7979,56 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers');
     t.eq(ins.counters['+1/+1'], 1); t.ok(!bear.counters['+1/+1']);
   });
+
+  test('Hungering Hydra: as many counters as the damage dealt to it', (mk, t) => {
+    t.auto('Hungering Hydra');
+    const T = mk();
+    const h = T.bf('A', 'Hungering Hydra');
+    h.counters['+1/+1'] = 3;
+    T.mana('B', 'R');
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: [h.id] });
+    T.resolve();
+    t.eq(h.counters['+1/+1'], 5);
+  });
+
+  test('Sunfall: the Incubator gets a counter for each creature exiled', (mk, t) => {
+    t.auto('Sunfall');
+    const T = mk();
+    T.bf('A', 'Grizzly Bears'); T.bf('B', 'Hill Giant'); T.bf('B', 'Gray Ogre');
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Sunfall'));
+    T.resolve();
+    const inc = T.bfOf('A').find(o => o.name === 'Incubator');
+    t.ok(inc); t.eq(inc.counters['+1/+1'], 3);
+  });
+
+  test('Malakir Bloodwitch: drains for each Vampire', (mk, t) => {
+    t.auto('Malakir Bloodwitch');
+    const T = mk();
+    T.bf('A', 'Vampire Nighthawk');
+    T.mana('A', '3BB');
+    T.cast('A', T.hand('A', 'Malakir Bloodwitch'));
+    T.resolve();
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 22);
+  });
+
+  test('On Wings of Gold: Zombies and tokens, nothing else', (mk, t) => {
+    t.auto('On Wings of Gold');
+    const T = mk();
+    T.bf('A', 'On Wings of Gold');
+    const z = T.bf('A', 'Walking Corpse'), b = T.bf('A', 'Grizzly Bears');
+    t.ok(T.g.hasKw(z, 'flying')); t.eq(T.g.powerOf(z), 3);
+    t.ok(!T.g.hasKw(b, 'flying'));
+  });
+
+  test('Agent Frank Horrigan: indestructible once it has attacked', (mk, t) => {
+    t.auto('Agent Frank Horrigan');
+    const T = mk();
+    const a = T.bf('A', 'Agent Frank Horrigan');
+    t.ok(!T.g.hasKw(a, 'indestructible'));
+    a.attackedTurn = T.g.turn; T.g.bumpBoard();
+    t.ok(T.g.hasKw(a, 'indestructible'));
+  });
 };
