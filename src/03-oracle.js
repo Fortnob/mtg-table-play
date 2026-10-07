@@ -3455,7 +3455,22 @@
   /* Idioms that span more than one sentence. Matched against the whole
      cleaned text before it is split up, because splitting them loses the link
      between the halves ("You may discard a card. If you do, draw a card."). */
+  /* Voting (CR 701.38): each player, starting with you, votes for one of two
+     words; the words with the votes decide what happens */
+  const voteBody = (t) => {
+    const pe = parseSentenceList(splitSentences(t.charAt(0).toUpperCase() + t.slice(1).replace(/\.?$/, '.')));
+    return pe.auto && pe.effects.length ? pe.effects : null;
+  };
   const COMBO_RULES = [
+    // Plea for Power, Tyrant's Choice: "If A gets more votes, …. If B gets more votes or the vote is tied, …."
+    { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. If \1 gets more votes, (.+?)\. If \2 gets more votes or the vote is tied, (.+?)\.?$/i,
+      make: (m) => { const a = voteBody(m[3]), b = voteBody(m[4]); return a && b ? [{ op: 'vote', choices: [m[1], m[2]], mode: 'most', thenA: a, thenB: b, tieB: true }] : null; } },
+    // Tivit, Capital Punishment: "For each A vote, …. For each B vote, …."
+    { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. For each \1 vote, (.+?)\. For each \2 vote, (.+?)\.?$/i,
+      make: (m) => { const a = voteBody(m[3]), b = voteBody(m[4]); return a && b ? [{ op: 'vote', choices: [m[1], m[2]], mode: 'each', thenA: a, thenB: b }] : null; } },
+    // Council's Judgment
+    { re: /^Starting with you, each player votes for an? (nonland permanent|creature|permanent) you don'?t control\. (Exile|Destroy) each (?:permanent|creature) with the most votes or tied for most votes\.?$/i,
+      make: (m) => [{ op: 'voteObjects', words: m[1].toLowerCase(), notYours: true, then: m[2].toLowerCase() }] },
     // Syphon Mind: "Each other player discards a card. You draw a card for each card discarded this way."
     { re: /^Each (?:other player|opponent) discards a card\. You draw a card for each card discarded this way\.?$/i,
       make: () => [{ op: 'syphonMind' }] },

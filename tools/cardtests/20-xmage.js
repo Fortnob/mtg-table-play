@@ -4436,4 +4436,29 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
     t.eq(T.life('B'), 11);
   });
+
+  test("Voting: Council's Judgment exiles the permanents tied for most votes", (mk, t) => {
+    t.auto("Council's Judgment");
+    const T = mk();
+    const w = T.bf('B', 'Craw Wurm'), b = T.bf('B', 'Grizzly Bears'), e = T.bf('B', 'Llanowar Elves');
+    T.answer('choose', () => ({ picks: [w.id] }));
+    T.answer('choose', () => ({ picks: [b.id] }));
+    T.mana('A', '1WW');
+    T.cast('A', T.hand('A', "Council's Judgment"));
+    T.resolve();
+    t.zone(w, 'exile'); t.zone(b, 'exile'); t.zone(e, 'battlefield');
+  });
+
+  test('Voting: Plea for Power draws three on a tie', (mk, t) => {
+    t.auto('Plea for Power');
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.answer('choose', () => ({ picks: [0] }));
+    T.answer('choose', () => ({ picks: [1] }));
+    T.mana('A', '3U');
+    const h0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Plea for Power'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 3, 'knowledge on a tie');
+  });
 };

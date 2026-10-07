@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15630,
+  "needed": 15625,
   "gainedCards": 1612,
-  "linesNeeded": 17480,
+  "linesNeeded": 17475,
   "linesGained": 2044,
   "gained": {
    "all": 1612,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5590,
-   "lines": 4822,
+   "score": 5585,
+   "lines": 4817,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7895,8 +7895,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4445,
-   "cards": 3899,
+   "score": 4440,
+   "cards": 3894,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",

@@ -2904,6 +2904,12 @@
       if (mt && mt.spec.multi.perExtra && got > 1) cost += mt.spec.multi.perExtra.repeat(got - 1);
       return cost;
     }
+    /** The players still in, in turn order, starting with this one (voting goes round this way). */
+    _turnOrderFrom(pid) {
+      const live = this.players.filter(p => !p.hasLost);
+      const i = Math.max(0, live.findIndex(p => p.id === pid));
+      return live.slice(i).concat(live.slice(0, i));
+    }
     /** One coin flipped by a player: the result told and shown, and the win or loss seen by triggers. */
     _flipOne(p) {
       const won = this.rng.chance(0.5);
@@ -12535,6 +12541,54 @@
           host.attachments = (host.attachments || []).concat(src.id);
           this.bumpBoard();
           this.logEvent('rules', `${src.name} returns attached to ${host.name}.`);
+          break;
+        }
+        /* Voting: each player, starting with this one, votes for one of the
+           two words (a generic question); the most votes, or each vote, decides */
+        case 'vote': {
+          const order = this._turnOrderFrom(ctx.controller);
+          const counts = [0, 0];
+          for (const p of order) {
+            const got = this._choose({ playerId: p.id, purpose: 'vote', kind: 'options', min: 1, max: 1,
+              options: e.choices.map((c, i) => ({ i, label: U.titleCase(c) })),
+              prompt: `${src ? src.name + ': ' : ''}vote for ${e.choices[0]} or ${e.choices[1]}.` }, 'vote' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            const pick = got && got.picks.length ? got.picks[0] : 0;
+            counts[pick]++;
+            if (!this._doneHere('voted' + p.id)) this.logEvent('rules', `${p.name} votes for ${e.choices[pick]}.`);
+          }
+          const run = [];
+          if (e.mode === 'each') {
+            for (let k = 0; k < counts[0]; k++) run.push(...e.thenA);
+            for (let k = 0; k < counts[1]; k++) run.push(...e.thenB);
+          } else if (counts[0] > counts[1]) run.push(...e.thenA);
+          else if (counts[1] > counts[0] || e.tieB) run.push(...e.thenB);
+          this.logEvent('rules', `The vote: ${e.choices[0]} ${counts[0]}, ${e.choices[1]} ${counts[1]}.`);
+          if (run.length) this._spliceNext(run);
+          break;
+        }
+        // Council's Judgment: each player votes for a permanent; the most-voted go
+        case 'voteObjects': {
+          const pool = this.battlefield.filter(x => !x.phasedOut && this._cardFitsWords(x, e.words) && !(e.notYours && x.controller === ctx.controller));
+          if (!pool.length) break;
+          const votes = new Map();
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            const got = this._choose({ playerId: p.id, purpose: 'voteObject', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 1, max: 1, prompt: `${src ? src.name + ': ' : ''}vote for a permanent.` }, 'vo' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            const id = got && got.picks.length ? got.picks[0] : pool[0].id;
+            votes.set(id, (votes.get(id) || 0) + 1);
+            const x = this.obj(id);
+            if (!this._doneHere('voted' + p.id)) this.logEvent('rules', `${p.name} votes for ${x ? x.name : 'a permanent'}.`);
+          }
+          const top = Math.max(...votes.values());
+          for (const [id, k] of votes) {
+            if (k !== top) continue;
+            const x = this.obj(id);
+            if (!x || x.zone !== 'battlefield') continue;
+            if (e.then === 'destroy') { if (!this.hasKw(x, 'indestructible')) this.moveObject(x, 'graveyard'); }
+            else this.moveObject(x, 'exile');
+          }
           break;
         }
         // "Exile this card": wherever it is (Bridge from Below, in a graveyard)

@@ -1465,6 +1465,25 @@
     creatureType() { return { picks: [0] }; },
     /* Culling Ritual: "{B} or {G} for each …" — all of the first colour */
     manaSplit() { return { picks: [0] }; },
+    /* Voting: our own spell, the word that does most for us; theirs, the
+       word that does least for them */
+    vote(s) {
+      const e = this._resolvingEffect();
+      if (!e || e.op !== 'vote') return null;
+      const item = this.game.resolving && this.game.resolving.ctx;
+      const mine = item && item.controller === this.pid;
+      const w = [this._modeWorth(e.thenA || []), this._modeWorth(e.thenB || [])];
+      return { picks: [mine ? (w[0] >= w[1] ? 0 : 1) : (w[0] <= w[1] ? 0 : 1)] };
+    },
+    /* Council's Judgment: the most dangerous thing that isn't ours */
+    voteObject(s) {
+      const g = this.game;
+      const items = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const theirs = items.filter(o => o.controller !== this.pid);
+      const pool = theirs.length ? theirs : items;
+      pool.sort((a, b) => (theirs.length ? this.permanentValue(b) - this.permanentValue(a) : this.permanentValue(a) - this.permanentValue(b)));
+      return pool.length ? { picks: [pool[0].id] } : null;
+    },
     /* Read ahead: from the start */
     readAhead() { return { picks: [0] }; },
     /* Devour: tokens are fodder; real creatures stay */
