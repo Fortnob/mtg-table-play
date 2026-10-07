@@ -8298,6 +8298,8 @@
         p.drawnThisTurn = (p.drawnThisTurn || 0) + 1;
         if (!silent) {
           this._fire('youDraw', p.id, { object: o, nth: p.drawnThisTurn });
+          // Spiteful Visions: "whenever a player draws a card"
+          this._fire('anyDraw', null, { object: o, player: p.id, drawer: p.id });
           for (const other of this.players) {
             if (other.id === p.id || other.hasLost) continue;
             this._fire('opponentDraw', other.id, { object: o, drawer: p.id, nth: p.drawnThisTurn,
@@ -11082,12 +11084,29 @@
             (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
             (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
-            (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack'));
-          if (!able && (pay.removeCounter || pay.blight || pay.exileSelf || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+            (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
+            (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1));
+          if (!able && (pay.removeCounter || pay.blight || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
+          // Masked Vandal: "you may exile a creature card from your graveyard. If you do, …"
+          if (pay.exileGrave) {
+            const pool = this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter));
+            const want = pay.exileGrave.n || 1;
+            let picks = pool.slice(0, want);
+            if (pool.length > want) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'exileFromGraveyard', kind: 'objects', zone: 'graveyard',
+                items: this._chooseItems(pool), min: want, max: want, prompt: `Exile ${want === 1 ? 'a card' : want + ' cards'} from your graveyard.` }, 'eg');
+              if (got === SUSPEND) return SUSPEND;
+              picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard').slice(0, want);
+            }
+            if (picks.length < want) { this._spliceNext(e.otherwise); break; }
+            for (const c of picks) this.moveObject(c, 'exile');
+            this._spliceNext(e.then);
+            break;
+          }
           // "you may exile it. If you do, …": this card, wherever it went
           if (pay.exileSelf) {
             if (src && src.zone !== 'exile') { this.moveObject(src, 'exile'); this.logEvent('exile', `${src.name} is exiled.`); }
@@ -15332,6 +15351,8 @@
       if (!spec.targetsYour) return true;
       return (item.targets || []).some(t => {
         if (t.kind === 'player') return !!spec.orYou && t.id === controllerId;
+        // Dawn Charm: "a spell that targets you" — the player only
+        if (spec.targetsYour === 'you') return false;
         const x = t.kind === 'object' && this.obj(t.id);
         return x && x.zone === 'battlefield' && x.controller === controllerId && (spec.targetsYour !== 'creature' || (x.analysis() || {}).isCreature);
       });

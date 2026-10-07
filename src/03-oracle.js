@@ -1668,6 +1668,9 @@
         colorWords: (m[3].match(/\b(white|blue|black|red|green|colorless)\b/gi) || []), subtypes: m[4],
         keywords: m[5] ? keywordList(m[5]) : [] }) },
     /* the sentences after a counterspell, about the spell it countered */
+    // Cityscape Leveler: "Its controller creates a tapped Powerstone token."
+    { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: num(m[1]), who: 'targetController', tapped: true }) },
     { re: /^Its controller creates (a|an|one|two|three|four|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', who: 'targetController', n: num(m[1]),
         token: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }) },
@@ -2011,8 +2014,8 @@
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
     { re: /^Untap all attacking creatures\.?$/i, make: () => ({ op: 'untapAttacking' }) },
     /* Splendid Reclamation, Aftermath Analyst, Lumra */
-    { re: /^(?:Then )?[Rr]eturn all ((?:land|creature|artifact|enchantment|permanent|nonland permanent)(?: and\/or (?:land|creature|artifact|enchantment))?) cards from your graveyard to the battlefield( tapped)?(?: under your control)?\.?$/,
-      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ and\/or /g, ' or '), yours: true, tapped: !!m[2] }) },
+    { re: /^(?:Then )?[Rr]eturn all ((?:land|creature|artifact|enchantment|permanent|nonland permanent)(?: (?:and\/or|and) (?:land|creature|artifact|enchantment))?) cards from your graveyard to the battlefield( tapped)?(?: under your control)?\.?$/,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ (?:and\/or|and) /g, ' or '), yours: true, tapped: !!m[2] }) },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
     { re: /^When you do, (.+)$/i,
@@ -2678,6 +2681,9 @@
         const list = [{ op: m[1].toLowerCase(), scope: sc }, { op: 'removeFromCombat', scope: sc }];
         return /^You may/i.test(m[0]) ? { op: 'may', then: list } : { op: 'sequence', list };
       } },
+    // Ezuri, Renegade Leader: "Regenerate another target Elf."
+    { re: /^Regenerate another (target [A-Za-z0-9 ,'-]+?)\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'regenerate', targets: [Object.assign(t, { another: true })] } : null; } },
     { re: /^Regenerate (target [a-z0-9 ,'-]+?|this creature|it)\.?$/i,
       make: (m) => ({ op: 'regenerate',
         targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
@@ -2768,6 +2774,16 @@
     { re: /^(?:CARDNAME|This creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and can'?t be blocked this turn\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' },
         { op: 'restrict', flag: 'unblockable', scope: 'self' }] }) },
+    // Jaya's Immolating Inferno: "X damage to each of up to three targets"
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each of up to (two|three|four) targets\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), targets: Array.from({ length: num(m[2]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true, distinct: true })) }) },
+    // Vraska's Fall: "…sacrifices a creature or planeswalker of their choice and gets a poison counter."
+    { re: /^Each opponent sacrifices an? ([a-z ]+?) of their choice and gets (a|one|two|\d+) poison counters?\.?$/i,
+      make: (m) => { const sac = parseEffectSentence('Each opponent sacrifices a ' + m[1] + '.', 1);
+        return sac && sac.op !== 'manual' ? [sac, { op: 'poison', n: num(m[2]), who: 'opponents' }] : null; } },
+    // Hydra's Growth: "double the number of +1/+1 counters on enchanted creature"
+    { re: /^Double the number of ([+\-0-9/a-z]+) counters on enchanted creature\.?$/i,
+      make: (m) => ({ op: 'doubleCounters', kind: m[1].toLowerCase(), scope: 'attached' }) },
     // Arc Trail: "2 damage to any target and 1 damage to any other target" — two different targets
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to any other target\.?$/i,
       make: (m) => ({ op: 'damageSplit', amounts: [+m[1], +m[2]],
@@ -2945,6 +2961,9 @@
     // Rebuff the Wicked: "Counter target spell that targets a permanent you control."
     { re: /^Counter target spell that targets an? (permanent|creature) you control\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', targetsYour: m[1].toLowerCase() }] }) },
+    // Dawn Charm: "Counter target spell that targets you."
+    { re: /^Counter target spell that targets you\.?$/i,
+      make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', targetsYour: 'you', orYou: true }] }) },
     // Siren Stormtamer: "Counter target spell or ability that targets you or a creature you control."
     { re: /^Counter target spell or ability that targets (you or )?an? (permanent|creature) you control\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true,
@@ -4051,6 +4070,8 @@
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
     // Academy Rector: "When this creature dies, you may exile it. If you do, …"
     { re: /^exile (?:it|this card|CARDNAME)$/i, make: () => ({ exileSelf: true }) },
+    { re: /^exile (a|an|one|two|three) ([a-z ]*?)cards? from your graveyard$/i,
+      make: (m) => ({ exileGrave: { n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' } }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and (\d+) life$/i, make: (m) => ({ mana: m[1], life: +m[2] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and discard a card$/i, make: (m) => ({ mana: m[1], discard: 1, filter: 'card' }) },
@@ -5180,6 +5201,8 @@
     { re: /^When(?:ever)? an opponent casts a spell(?:,| )/i, event: 'opponentCastSpell' },
     { re: /^When(?:ever)? you gain life(?:,| )/i, event: 'youGainLife' },
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
+    // Spiteful Visions: "Whenever a player draws a card"
+    { re: /^When(?:ever)? a player draws a card(?:,| )/i, event: 'anyDraw' },
     { re: /^At the beginning of your upkeep(?:,| )/i, event: 'yourUpkeep' },
     { re: /^At the beginning of each upkeep(?:,| )/i, event: 'eachUpkeep' },
     { re: /^At the beginning of your end step(?:,| )/i, event: 'yourEndStep' },
@@ -7813,7 +7836,7 @@
       { re: /^If an? (white|blue|black|red|green) source would deal damage to you, prevent (\d+) of that damage\.?$/i,
         make: (m) => ({ op: 'preventSomeFromColor', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()], n: +m[2] }), auto: true },
       // Psychic Impetus: "Enchanted creature gets +2/+2 and is goaded."
-      { re: /^Enchanted creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
+      { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
       { re: /^The "legend rule" doesn'?t apply\.?$/i, eff: { op: 'noLegendRule', all: true }, auto: true },

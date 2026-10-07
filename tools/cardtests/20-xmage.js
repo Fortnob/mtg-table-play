@@ -5205,4 +5205,52 @@ module.exports = (test) => {
     t.no(lb.attachedTo, 'off again');
     t.ok(T.g.characteristics(lb).isCreature, 'a creature again');
   });
+
+  test('Spiteful Visions: whoever draws takes 1 damage', (mk, t) => {
+    t.auto('Spiteful Visions');
+    const T = mk();
+    T.bf('A', 'Spiteful Visions');
+    T.top('B', 'Island'); T.top('B', 'Island');
+    T.mana('B', 'U');
+    T.nextTurn('B');
+    t.eq(T.life('B'), 18, 'the draw step: two draws, two damage');
+  });
+
+  test('Masked Vandal: exile a creature card from the graveyard, then an artifact goes', (mk, t) => {
+    t.auto('Masked Vandal');
+    const T = mk();
+    T.grave('A', 'Grizzly Bears');
+    const orn = T.bf('B', 'Ornithopter');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: orn.id }] });
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Masked Vandal'));
+    T.resolve();
+    t.eq(orn.zone, 'exile');
+    t.eq(T.zone('A', 'graveyard').length, 0, 'the Bears were exiled to pay');
+  });
+
+  test("Vraska's Fall: a sacrifice and a poison counter", (mk, t) => {
+    t.auto("Vraska's Fall");
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', "Vraska's Fall"));
+    t.eq(bear.zone, 'graveyard');
+    t.eq(T.player('B').poison, 1);
+  });
+
+  test('Dawn Charm: a spell that targets you, not one at your creature', (mk, t) => {
+    t.auto('Dawn Charm');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const b1 = T.hand('A', 'Shock'), b2 = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'RR');
+    T.cast('A', b1, { targets: [bear], resolve: false });
+    T.cast('A', b2, { targets: ['B'], resolve: false });
+    const spec = { type: 'spell', zone: 'stack', filter: 'spell', targetsYour: 'you', orYou: true };
+    const legal = T.g._legalTargetsFor(spec, 'B').map(x => x.id);
+    t.ok(legal.includes(T.stackItem(b2).id), 'the Bolt at me');
+    t.no(legal.includes(T.stackItem(b1).id), 'not the Shock at my Bears');
+  });
 };

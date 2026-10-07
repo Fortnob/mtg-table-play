@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15182,
+  "needed": 15162,
   "gainedCards": 1553,
-  "linesNeeded": 16929,
+  "linesNeeded": 16902,
   "linesGained": 1972,
   "gained": {
    "all": 1553,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 74,
+  "verifyFail": 73,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5498,
-   "lines": 4742,
+   "score": 5497,
+   "lines": 4741,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 935,
-   "lines": 794,
+   "score": 933,
+   "lines": 792,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -110,8 +110,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 289,
-   "lines": 259,
+   "score": 288,
+   "lines": 258,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -703,25 +703,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 26,
-   "lines": 26,
-   "cards": [
-    "Ms. Bumbleflower",
-    "Scroll of Isildur",
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Setessan Tactics",
-    "Rabid Attack",
-    "Out Cold",
-    "Vivien, Arkbow Ranger",
-    "Sea Hag // Aquatic Ingress",
-    "Involuntary Cooldown"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 26,
    "lines": 26,
@@ -738,6 +719,25 @@
     "Stall for Time",
     "Loyal Sentry",
     "Mindbender Spores"
+   ]
+  },
+  {
+   "what": "second use of a later target",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Ms. Bumbleflower",
+    "Scroll of Isildur",
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Setessan Tactics",
+    "Rabid Attack",
+    "Out Cold",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown"
    ]
   },
   {
@@ -846,25 +846,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 23,
-   "lines": 20,
-   "cards": [
-    "Meren of Clan Nel Toth",
-    "Vraska's Fall",
-    "Otharri, Suns' Glory",
-    "Toph, Earthbending Master",
-    "Ichor Rats",
-    "The Wise Mothman",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Screeching Scorchbeast",
-    "Tato Farmer",
-    "Zuko, Firebending Master",
-    "Minthara, Merciless Soul"
-   ]
-  },
-  {
    "what": "DiscardAndDrawThatManyEffect",
    "score": 23,
    "lines": 14,
@@ -957,6 +938,25 @@
     "Evolved Spinoderm",
     "Reluctant Dounguard",
     "Encumbered Reejerey"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 22,
+   "lines": 19,
+   "cards": [
+    "Meren of Clan Nel Toth",
+    "Otharri, Suns' Glory",
+    "Toph, Earthbending Master",
+    "Ichor Rats",
+    "The Wise Mothman",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Screeching Scorchbeast",
+    "Tato Farmer",
+    "Zuko, Firebending Master",
+    "Minthara, Merciless Soul",
+    "Ezuri, Claw of Progress"
    ]
   },
   {
@@ -1669,25 +1669,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Cityscape Leveler",
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker",
-    "Shield Mare",
-    "Bartered Cow",
-    "Brine Comber // Brinebound Gift",
-    "Esper Sojourners",
-    "Bant Sojourners"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 16,
    "lines": 16,
@@ -2283,6 +2264,25 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker",
+    "Warped Tusker",
+    "Shield Mare",
+    "Bartered Cow",
+    "Brine Comber // Brinebound Gift",
+    "Esper Sojourners",
+    "Bant Sojourners",
+    "Grixis Sojourners"
+   ]
+  },
+  {
    "what": "attacks you, or its controller",
    "score": 14,
    "lines": 14,
@@ -2862,22 +2862,6 @@
    ]
   },
   {
-   "what": "variable loyalty",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Ugin, the Spirit Dragon",
-    "Chandra, Hope's Beacon",
-    "Jeska, Thrice Reborn",
-    "Jace, the Perfected Mind",
-    "Ashiok, Nightmare Weaver",
-    "Huatli, Warrior Poet",
-    "Chandra, Chill of Compliance",
-    "Nissa, Genesis Mage",
-    "Angrath, Minotaur Pirate"
-   ]
-  },
-  {
    "what": "WinGameSourceControllerEffect",
    "score": 12,
    "lines": 9,
@@ -3410,24 +3394,6 @@
    ]
   },
   {
-   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Brilliant Restoration",
-    "Primevals' Glorious Rebirth",
-    "Raise the Past",
-    "Zombie Apocalypse",
-    "Redress Fate",
-    "Archangel Elspeth",
-    "Knights' Charge",
-    "Angel of Glory's Rise",
-    "Fix What's Broken",
-    "Triumphant Reckoning",
-    "Return of the Nightstalkers"
-   ]
-  },
-  {
    "what": "ActivateIfConditionManaAbility",
    "score": 11,
    "lines": 11,
@@ -3722,6 +3688,20 @@
     "Edgewalker",
     "Samut, the Driving Force",
     "Ragemonger"
+   ]
+  },
+  {
+   "what": "variable loyalty",
+   "score": 10,
+   "lines": 7,
+   "cards": [
+    "Ugin, the Spirit Dragon",
+    "Jace, the Perfected Mind",
+    "Ashiok, Nightmare Weaver",
+    "Huatli, Warrior Poet",
+    "Chandra, Chill of Compliance",
+    "Nissa, Genesis Mage",
+    "Angrath, Minotaur Pirate"
    ]
   },
   {
@@ -4341,6 +4321,22 @@
    ]
   },
   {
+   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Primevals' Glorious Rebirth",
+    "Raise the Past",
+    "Zombie Apocalypse",
+    "Archangel Elspeth",
+    "Knights' Charge",
+    "Angel of Glory's Rise",
+    "Fix What's Broken",
+    "Triumphant Reckoning",
+    "Return of the Nightstalkers"
+   ]
+  },
+  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 9,
    "lines": 9,
@@ -4401,22 +4397,6 @@
     "Expedited Inheritance",
     "Death Pits of Rath",
     "Kazarov, Sengir Pureblood"
-   ]
-  },
-  {
-   "what": "(verify) targets 3, printed 0",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Inferno Titan",
-    "Myojin of Roaring Blades",
-    "Magic Missile",
-    "Mogg Mob",
-    "Arc Lightning",
-    "Flames of the Firebrand",
-    "Ral, Caller of Storms",
-    "Gandalf, Spark Starter",
-    "Gang of Devils"
    ]
   },
   {
@@ -5206,6 +5186,21 @@
    ]
   },
   {
+   "what": "(verify) targets 3, printed 0",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Inferno Titan",
+    "Magic Missile",
+    "Mogg Mob",
+    "Arc Lightning",
+    "Flames of the Firebrand",
+    "Ral, Caller of Storms",
+    "Gandalf, Spark Starter",
+    "Gang of Devils"
+   ]
+  },
+  {
    "what": "ReturnFromGraveyardAtRandomEffect",
    "score": 8,
    "lines": 8,
@@ -5806,20 +5801,6 @@
    "lines": 1,
    "cards": [
     "Thousand Moons Smithy // Barracks of the Thousand"
-   ]
-  },
-  {
-   "what": "RegenerateTargetEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Mad Auntie",
-    "Sporeback Troll",
-    "Regenerate",
-    "Gaze of the Gorgon",
-    "Baron Sengir"
    ]
   },
   {
@@ -6607,19 +6588,6 @@
     "Haunting Voyage",
     "Kindred Charge",
     "Tribal Forcemage"
-   ]
-  },
-  {
-   "what": "DoIfCostPaid with [\"exile\"]",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Masked Vandal",
-    "Cavalier of Thorns",
-    "Aphemia, the Cacophony",
-    "Aegis Sculptor",
-    "Skywarp Skaab",
-    "Forgotten Harvest"
    ]
   },
   {
@@ -7566,19 +7534,6 @@
    ]
   },
   {
-   "what": "DamageTargetControllerEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Ravaging Blaze",
-    "Repulsor Blast",
-    "Heated Argument",
-    "Agonizing Demise",
-    "Illuminate",
-    "Word of Blasting"
-   ]
-  },
-  {
    "what": "TargetPermanentSameController",
    "score": 6,
    "lines": 6,
@@ -7774,6 +7729,33 @@
     "Millikin",
     "Deranged Assistant"
    ]
+  },
+  {
+   "what": "CreateXXTokenExiledEffectManaValueEffect",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Skyclave Apparition",
+    "Severance Priest"
+   ]
+  },
+  {
+   "what": "AttacksFirstTimeTriggeredAbility",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Scourge of the Throne",
+    "Godo, Bandit Warlord"
+   ]
+  },
+  {
+   "what": "SpellCounteredControllerTriggeredAbility",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Baral, Chief of Compliance",
+    "Lullmage Mentor"
+   ]
   }
  ],
  "sole": [
@@ -7792,8 +7774,8 @@
   },
   {
    "what": "custom ability",
-   "score": 700,
-   "cards": 589,
+   "score": 698,
+   "cards": 587,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7805,8 +7787,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 230,
-   "cards": 215,
+   "score": 232,
+   "cards": 217,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7857,8 +7839,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 96,
-   "cards": 96,
+   "score": 97,
+   "cards": 97,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8655,19 +8637,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Cityscape Leveler",
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker"
-   ]
-  },
-  {
    "what": "prevent damage by some permanents",
    "score": 13,
    "cards": 13,
@@ -8870,6 +8839,19 @@
     "Bygone Bishop",
     "Collected Company",
     "Recruitment Officer"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker",
+    "Warped Tusker"
    ]
   },
   {
@@ -9600,32 +9582,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Vraska's Fall",
-    "Otharri, Suns' Glory",
-    "Ichor Rats",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Vault 12: The Necropolis"
-   ]
-  },
-  {
-   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Brilliant Restoration",
-    "Primevals' Glorious Rebirth",
-    "Raise the Past",
-    "Zombie Apocalypse",
-    "Knights' Charge",
-    "Angel of Glory's Rise"
-   ]
-  },
-  {
    "what": "DrawNthCardTriggeredAbility",
    "score": 9,
    "cards": 9,
@@ -10215,6 +10171,19 @@
    ]
   },
   {
+   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Primevals' Glorious Rebirth",
+    "Raise the Past",
+    "Zombie Apocalypse",
+    "Knights' Charge",
+    "Angel of Glory's Rise",
+    "Fix What's Broken"
+   ]
+  },
+  {
    "what": "granting a mana ability",
    "score": 8,
    "cards": 8,
@@ -10225,6 +10194,19 @@
     "Glorious Sunrise",
     "Path of Annihilation",
     "Orochi Merge-Keeper"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Otharri, Suns' Glory",
+    "Ichor Rats",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink"
    ]
   },
   {
@@ -10672,19 +10654,6 @@
     "Necrogen Rotpriest",
     "Flensing Raptor",
     "Slaughter Singer"
-   ]
-  },
-  {
-   "what": "RegenerateTargetEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Dawn Charm",
-    "Ezuri, Renegade Leader",
-    "Mad Auntie",
-    "Sporeback Troll",
-    "Regenerate",
-    "Gaze of the Gorgon"
    ]
   },
   {
@@ -11613,6 +11582,19 @@
     "Vow of Torment",
     "Vow of Wildness",
     "Vow of Flight"
+   ]
+  },
+  {
+   "what": "ReturnToBattlefieldUnderOwnerControlTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Return to Action",
+    "Infuse with Vitality",
+    "Pain 101",
+    "Perigee Beckoner",
+    "Molten Firebird",
+    "Ivory Gargoyle"
    ]
   }
  ]
