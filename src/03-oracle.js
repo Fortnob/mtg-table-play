@@ -4314,6 +4314,8 @@
     [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
+    // Vengevine: "if it's the second creature spell you cast this turn"
+    [/^it'?s the (second|third) creature spell you(?:'ve)? cast this turn$/i, (m) => ({ kind: 'nthCreatureSpell', n: /second/i.test(m[1]) ? 2 : 3 })],
     // Bridge from Below: "if this card is in your graveyard" — where it works from
     [/^(?:this card|CARDNAME) is in your graveyard$/i, () => ({ kind: 'selfInGraveyard' })],
     // Jace, Wielder of Mysteries: "if your library has no cards in it"

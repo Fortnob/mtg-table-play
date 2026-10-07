@@ -7011,6 +7011,15 @@
         }
         case 'controlNotOwned': return !!me && this.battlefield.filter(x => x.controller === me.id && x.owner !== me.id && !x.phasedOut).length >= (cond.n || 1);
         case 'selfInGraveyard': return !!src && src.zone === 'graveyard';
+        case 'nthCreatureSpell': {
+          if (!me) return false;
+          const list = (me.spellObjsThisTurn || []).filter(x => (x.analysis() || {}).isCreature);
+          // the spell that set the trigger off counts, though it is noted just after
+          const td = ctx && ctx.triggerData;
+          const it = td && td.objectId && this.obj(td.objectId);
+          const plus = it && !list.includes(it) && (it.analysis() || {}).isCreature ? 1 : 0;
+          return list.length + plus === cond.n;
+        }
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15803,
+  "needed": 15802,
   "gainedCards": 1610,
-  "linesNeeded": 17885,
+  "linesNeeded": 17884,
   "linesGained": 2055,
   "gained": {
    "all": 1610,
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 975,
-   "lines": 816,
+   "score": 974,
+   "lines": 815,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -7948,8 +7948,8 @@
   },
   {
    "what": "custom ability",
-   "score": 729,
-   "cards": 600,
+   "score": 728,
+   "cards": 599,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",

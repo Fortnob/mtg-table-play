@@ -4079,4 +4079,26 @@ module.exports = (test) => {
     T2.cast('A', p2); T2.resolve();
     t.zone(p2, 'graveyard');
   });
+
+  test('Bloodghast comes back from the graveyard as a land enters', (mk, t) => {
+    t.auto('Bloodghast');
+    const T = mk();
+    const bg = T.grave('A', 'Bloodghast');
+    T.answer('confirm', () => ({ yes: true }));
+    T.playLand('A', T.hand('A', 'Swamp'));
+    T.resolve();
+    t.zone(bg, 'battlefield');
+  });
+
+  test('Vengevine returns on the second creature spell of the turn', (mk, t) => {
+    t.auto('Vengevine');
+    const T = mk();
+    const v = T.grave('A', 'Vengevine');
+    T.answer('confirm', () => ({ yes: true }));
+    T.mana('A', 'GG');
+    T.cast('A', T.hand('A', 'Llanowar Elves')); T.resolve();
+    t.zone(v, 'graveyard', 'not on the first');
+    T.cast('A', T.hand('A', 'Llanowar Elves')); T.resolve();
+    t.zone(v, 'battlefield');
+  });
 };
