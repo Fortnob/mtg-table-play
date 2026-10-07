@@ -3137,6 +3137,33 @@
     /* Dawn's Truce, Veil of Summer: the player as well as their things,
        for the rest of the turn. */
     { re: /^You gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou' }) },
+    /* "You may play that card this turn", "Until the end of your next turn,
+       you may play those cards", "You may cast that card for as long as it
+       remains exiled, and mana of any type can be spent to cast that spell",
+       "You may cast that card without paying its mana cost" — what was
+       just exiled, playable as it says */
+    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|spells from among (?:them|those cards))(.*)$/i,
+      make: (m) => {
+        let rest = m[3].trim().replace(/\.$/, '');
+        const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
+        if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
+        let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : 'next') : null;
+        const take = (re, f) => { const x = rest.match(re); if (x) { rest = (rest.slice(0, x.index) + rest.slice(x.index + x[0].length)).trim(); f(x); } };
+        take(/^,?\s*without paying (?:its|their) mana costs?/i, () => { e.free = true; });
+        take(/^,?\s*this turn/i, () => { dur = 'eot'; });
+        take(/^,?\s*until end of turn/i, () => { dur = 'eot'; });
+        take(/^,?\s*until the end of your next turn/i, () => { dur = 'next'; });
+        take(/^,?\s*for as long as (?:it|that card|they|those cards) remains? exiled/i, () => { dur = 'exiled'; });
+        take(/^,?\s*without paying (?:its|their) mana costs?/i, () => { e.free = true; });
+        take(/^,?\s*(?:and|,) (?:you may spend mana as though it were mana of any (?:color|type)|mana of any type can be spent) to cast (?:it|that spell|those spells|them)/i, () => { e.anyMana = true; });
+        if (rest) return null;
+        if (!dur) {
+          // no time given: during this resolution, for nothing (CR 608.2g)
+          return e.free ? { op: 'castFree' } : null;
+        }
+        e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : 'nextTurn';
+        return e;
+      } },
     // Quicksmith Spy: "target artifact you control gains '{T}: Draw a card' for as long as you control this creature"
     { re: /^(target [a-z ]+?) gains "([^"]+)" for as long as you control (?:this creature|CARDNAME|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => (grantableText(m[2]) ? { op: 'grantAbility', ability: m[2], duration: 'whileControl', targets: [targetSpec(m[1])] } : null) },

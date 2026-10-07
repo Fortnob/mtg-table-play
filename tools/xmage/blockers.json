@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13792,
-  "gainedCards": 1440,
-  "linesNeeded": 15197,
+  "needed": 13769,
+  "gainedCards": 1442,
+  "linesNeeded": 15169,
   "linesGained": 1776,
   "gained": {
-   "all": 1440,
+   "all": 1442,
    "top2000": 52,
    "stdTop": 12
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5125,
-   "lines": 4465,
+   "score": 5099,
+   "lines": 4445,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -47,7 +47,7 @@
     "Veyran, Voice of Duality",
     "Isochron Scepter",
     "Inkshield",
-    "Urza, Lord High Artificer"
+    "Etali, Primal Conqueror // Etali, Primal Sickness"
    ]
   },
   {
@@ -413,8 +413,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 32,
-   "lines": 29,
+   "score": 30,
+   "lines": 27,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -5350,19 +5350,6 @@
    ]
   },
   {
-   "what": "ExileTopXMayPlayUntilEffect.withTextOptions",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Glimpse the Impossible",
-    "Gwen Stacy // Ghost-Spider",
-    "Chandra, Heart of Fire",
-    "Yasmin Khan",
-    "Act on Impulse",
-    "Wiccan, Young Avenger"
-   ]
-  },
-  {
    "what": "subject:owner",
    "score": 6,
    "lines": 6,
@@ -7382,13 +7369,25 @@
     "Kavu Runner",
     "Skittish Kavu"
    ]
+  },
+  {
+   "what": "AttachedToPredicate",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Seedling Charm",
+    "Simic Guildmage",
+    "Bride's Gown",
+    "Groom's Finery",
+    "Piety Charm"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4120,
-   "cards": 3649,
+   "score": 4097,
+   "cards": 3632,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7633,19 +7632,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 25,
-   "cards": 22,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Feline Sovereign",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 24,
    "cards": 15,
@@ -7656,6 +7642,19 @@
     "The Earth King",
     "Choco, Seeker of Paradise",
     "Prodigy's Prototype"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 23,
+   "cards": 20,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Feline Sovereign",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver"
    ]
   },
   {
@@ -10953,6 +10952,18 @@
    ]
   },
   {
+   "what": "keyword DemonstrateAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Incarnation Technique",
+    "Replication Technique",
+    "Creative Technique",
+    "Healing Technique",
+    "Excavation Technique"
+   ]
+  },
+  {
    "what": "OneOrMoreDiceRolledTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -11142,18 +11153,6 @@
     "Cosmium Confluence",
     "Riveteers Confluence",
     "Obscura Confluence"
-   ]
-  },
-  {
-   "what": "AttachToSourceTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Armory Automaton",
-    "Amy Rose",
-    "Sokka, Swordmaster",
-    "Kazuul's Toll Collector",
-    "Shagrat, Loot Bearer"
    ]
   }
  ]

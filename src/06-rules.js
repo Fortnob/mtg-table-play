@@ -468,6 +468,8 @@
     }
     /** "You may spend mana as though it were mana of any color to cast …": the cost, with its colours made generic. */
     _anyColorCost(pid, o, cost) {
+      // Hostage Taker: "mana of any type can be spent to cast that spell"
+      if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
         if (e.chosenName && !this._chosenNameOf(src, o)) return false;
         if (e.chosenMv && !(src.conspiracy.mv != null && ((o.card && o.card.cmc) || 0) === src.conspiracy.mv)) return false;
@@ -1234,7 +1236,7 @@
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
         const elsewhere = z.library.slice(0, 1).concat(z.graveyard)
           .filter(o => this._playFromRule(playerId, o, 'land'));
-        for (const o of z.hand.concat(impulsed, elsewhere)) {
+        for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere)) {
           const a = o.analysis();
           if ((a && a.isLand) || this.landBack(o)) out.push({ kind: 'land', objId: o.id });
         }
@@ -1892,11 +1894,12 @@
       this._dealtThisWay = [];
       this._madeThisResolution = [];
       this._exiledNow = [];
+      this._resExiled = [];
       this._returnedNow = [];
       this._lastAffected = null; this._lastAffectedAll = null;
       this._lastCopy = null;
       this._lastPut = null;
-      this._lastExiled = null;
+      this._lastExiled = null; this._lastExiledList = null;
       this._chosenCard = null;
       this.passedInSuccession.clear();
       this.emit('sfx', 'resolve');
@@ -2359,11 +2362,21 @@
       this.logEvent('rules', `${p.name} dredges ${n}, returning ${o.name}.`);
     }
 
+    /** The turn number on which "the end of your next turn" falls for this player. */
+    _endOfNextTurnOf(pid) {
+      const live = this.players.filter(p => !p.hasLost);
+      const n = live.length || 1;
+      const act = this.activePlayer ? live.findIndex(p => p.id === this.activePlayer.id) : 0;
+      const me = live.findIndex(p => p.id === pid);
+      if (me < 0) return this.turn + 1;
+      const ahead = (me - act + n) % n;
+      return this.turn + (ahead === 0 ? n : ahead);
+    }
     /** May this player play this exiled card right now (impulse or free)? */
     _mayPlayFromExile(playerId, o) {
       if (!o || o.zone !== 'exile' || o.owner === playerId) return false;
       return (o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) ||
-        (o.freeCastBy === playerId && o.freeCastTurn === this.turn);
+        (o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)));
     }
     /** Cards in other players' exile that this player may play. */
     _borrowedExile(playerId) {
@@ -3423,7 +3436,7 @@
         const ab = (a.abilities || []).find(x => x.kind === 'castModifier' && /^overload$/i.test(x.keyword || '') && x.arg);
         if (ab) out.push({ kind: 'cast', via: 'overload', cost: ab.arg, overload: true, label: 'Overload ' + ab.arg });
       }
-      if (o.zone === 'exile' && o.freeCastBy === playerId && o.freeCastTurn === this.turn && !a.isLand) {
+      if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand) {
         out.push({ kind: 'cast', via: 'free', cost: '', label: 'Cast it for free' });
       }
       /* Cards waiting in exile: plotted, or put there by warp. */
@@ -8810,6 +8823,8 @@
       this._removeFromZone(o);
       this.bumpBoard();
       o.zone = toZone;
+      // every card a resolution exiles, from anywhere: "you may play that card" points back at them
+      if (toZone === 'exile' && this.resolving) (this._resExiled = this._resExiled || []).push(o.id);
       // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
       if (toZone === 'battlefield') o.enteredFrom = from;
 
@@ -13025,12 +13040,33 @@
           this.logEvent('rules', `${me.name} will cast ${x.name}.`);
           break;
         }
+        /* "You may play that card this turn", "Until the end of your next
+           turn, you may play those cards", "You may cast that card for as
+           long as it remains exiled, and mana of any type can be spent to
+           cast that spell", "…without paying its mana cost": what this
+           resolution exiled, playable for as long as it says */
+        case 'mayPlayExiled': {
+          const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
+            .filter((id, i, a) => a.indexOf(id) === i);
+          for (const id of ids) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'exile') continue;
+            const pid = e.who === 'owner' ? c.owner : ctx.controller;
+            const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(pid);
+            // (a land "played without paying its mana cost" is simply played)
+            if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; }
+            else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; }
+            if (e.anyMana) c.impulseAnyMana = pid;
+            if (e.faceUpForThem) c.faceDownExile = false;
+          }
+          break;
+        }
         case 'markImpulse': {
           // "until end of turn, you may cast that card" — about what was just exiled
           const x = this._lastExiled && this.obj(this._lastExiled);
           if (!x) break;
           x.impulseBy = ctx.controller;
-          x.impulseUntil = e.duration === 'eot' ? this.turn : this.turn + 1;
+          x.impulseUntil = e.duration === 'eot' ? this.turn : this._endOfNextTurnOf(ctx.controller);
           break;
         }
 
@@ -13914,7 +13950,7 @@
         case 'impulse': {
           const cnt = n(e.n) || 1;
           // "You may play them": for as long as they stay exiled
-          const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this.turn + 1;
+          const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(ctx.controller);
           const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           this._lastExiledList = [];
           for (let i = 0; i < cnt; i++) {
@@ -13973,7 +14009,7 @@
             pool = e.from === 'hand' ? this.zones[ctx.controller].hand.map(c => c.id)
               : e.from === 'targets' ? targets.filter(t => t.kind === 'object').map(t => t.id)
               : e.from === 'looked' ? (this._looked || []).slice()
-              : (this._lastExiledList || []).slice();
+              : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             if (r) { r.marks[slot] = pool; r.marks[slot + 'n'] = 0; }
           }
           const most = e.upTo == null ? Infinity : n(e.upTo);

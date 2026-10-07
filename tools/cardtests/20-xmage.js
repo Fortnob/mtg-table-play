@@ -8594,4 +8594,36 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(a), p0 + 1);
     t.ok(a.analysis().abilities.some(x => x.granted && x.kind === 'activated'));
   });
+
+  test('Hostage Taker: the exiled card can be cast with any mana while it stays exiled', (mk, t) => {
+    t.auto('Hostage Taker');
+    const T = mk();
+    const g = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g.id }] }));
+    T.put('A', 'Hostage Taker', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(g.zone, 'exile');
+    T.nextTurn('A'); T.toMain('A');
+    T.mana('A', '3U');
+    T.cast('A', g);
+    T.resolve();
+    t.eq(g.zone, 'battlefield'); t.eq(g.controller, 'A');
+  });
+
+  test('Act on Impulse: the three exiled cards are playable this turn only', (mk, t) => {
+    t.auto('Act on Impulse');
+    const T = mk();
+    for (const n of ['Grizzly Bears', 'Forest', 'Shock']) T.top('A', n);
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Act on Impulse'));
+    T.resolve();
+    const ex = T.zone('A', 'exile');
+    t.eq(ex.length, 3);
+    t.ok(ex.every(o => o.impulseBy === 'A' && o.impulseUntil === T.g.turn));
+    const shock = ex.find(o => o.name === 'Shock');
+    T.mana('A', 'R');
+    T.cast('A', shock, { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.eq(T.life('B'), 18);
+  });
 };
