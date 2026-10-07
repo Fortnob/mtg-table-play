@@ -2532,6 +2532,11 @@
       const ctl = (targets || []).filter(t => t.kind === 'object').map(t => (this.obj(t.id) || {}).controller).filter(Boolean);
       return new Set(ctl).size === ctl.length;
     }
+    /** What paying for a spell took from the pool, kept while it is being cast (converge, sunburst). */
+    _noteSpent(plan) {
+      if (plan && this._spentAcc) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) this._spentAcc[c] = (this._spentAcc[c] || 0) + (plan[c] || 0);
+      return plan;
+    }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
       const c = o && o.card;
@@ -3708,7 +3713,11 @@
         // what taps for convoke is not there to tap for mana
         const held = plan ? plan.tap.filter(x => !x.tapped) : [];
         for (const x of held) x.tapped = true;
+        this._spentAcc = {};
         const paid = this.payMana(playerId, cost, Object.assign({}, opts, { forSpell: o }));
+        // converge: how many colours of mana went into it
+        o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
+        this._spentAcc = null;
         for (const x of held) x.tapped = false;
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
         if (reduces) this._payReduction(playerId, o, plan);
@@ -4270,6 +4279,7 @@
         // "enters with X +1/+1 counters" resolves against the X actually paid
         const raw = a.entersWithCounters.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
+          : (raw && typeof raw === 'object' && raw.colorsSpent) ? (o.colorsSpent || 0)
           : (raw && typeof raw === 'object' && raw.per) ? this.countPermanents(o.controller, { per: raw.per })
           : (parseInt(raw, 10) || 0);
         if (n > 0) {
@@ -5049,7 +5059,7 @@
     _payManaInner(p, playerId, cost, opts) {
       const need = opts.x ? cost.replace(/\{X\}/g, '{' + opts.x + '}') : cost;
 
-      if (p.pool.canPay(need, opts)) { p.pool.pay(need, opts); return true; }
+      if (p.pool.canPay(need, opts)) { this._noteSpent(p.pool.pay(need, opts)); return true; }
       if (opts.fromPool) return false;
 
       // auto-tap: find a set of untapped mana sources that covers the cost
@@ -5059,7 +5069,7 @@
           const s = this.obj(id);
           if (s && !s.tapped) this._tapForBestMana(playerId, s, need);
         }
-        if (p.pool.canPay(need, opts)) { p.pool.pay(need, opts); return true; }
+        if (p.pool.canPay(need, opts)) { this._noteSpent(p.pool.pay(need, opts)); return true; }
       }
       if (!MTG.settings.autoTapLands && !opts.auto) return false;
 
@@ -5068,7 +5078,7 @@
       for (const { obj, ability, symbol } of plan) {
         this._activateManaDirect(playerId, obj, ability, symbol);
       }
-      if (p.pool.canPay(need, opts)) { p.pool.pay(need, opts); return true; }
+      if (p.pool.canPay(need, opts)) { this._noteSpent(p.pool.pay(need, opts)); return true; }
       return false;
     }
 
@@ -8122,6 +8132,7 @@
         // "half X, rounded down"; "half their life, rounded up"
         // Blood Money: "for each nontoken creature destroyed this way"
         if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
+        if (v && typeof v === 'object' && v.colorsSpent) return ((src && src.colorsSpent) || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         if (v && typeof v === 'object' && v.halfLife) {
@@ -8137,7 +8148,8 @@
           const stItem = st && this.stack.find(x => x.id === st.id);
           const id = (ctx.triggerData || {}).objectId || (stItem && stItem.objId);
           const o = id && this.obj(id);
-          if (!o) return 0;
+          // Shadowheart: "that creature" is the one sacrificed to pay for it
+          if (!o) return (((ctx.sacrificed || [])[0] || {})[v.ofTrigger]) || 0;
           const gone = o.zone !== 'battlefield' && o._lastPower != null;
           if (v.ofTrigger === 'power') return gone ? o._lastPower : this.powerOf(o);
           if (v.ofTrigger === 'toughness') return gone ? o._lastToughness : this.toughnessOf(o);

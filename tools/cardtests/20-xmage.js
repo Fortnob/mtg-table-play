@@ -3291,4 +3291,64 @@ module.exports = (test) => {
       colors: ['U'], layout: 'normal', oracle_text: 'You may have this creature enter as a copy of a creature you control, except it has haste.' };
     t.ok(engine().oracle.analyze(card).abilities[0].effects[0].addText.includes('Haste'));
   });
+
+  test('Crystalline Crawler: a counter for each colour spent', (mk, t) => {
+    t.auto('Crystalline Crawler');
+    const T = mk();
+    T.mana('A', 'WUBR');
+    const c = T.hand('A', 'Crystalline Crawler');
+    T.cast('A', c);
+    T.resolve();
+    t.eq(c.counters['+1/+1'], 4);
+  });
+
+  test('Crystalline Crawler: colourless mana adds nothing', (mk, t) => {
+    const T = mk();
+    T.mana('A', 'GGCC');
+    const c = T.hand('A', 'Crystalline Crawler');
+    T.cast('A', c);
+    T.resolve();
+    t.eq(c.counters['+1/+1'] || 0, 1);
+  });
+
+  test('Painful Truths: draws and loses one for each colour spent', (mk, t) => {
+    t.auto('Painful Truths');
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.mana('A', 'UBR');
+    const hand0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Painful Truths'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + 3);
+    t.eq(T.life('A'), 17);
+  });
+
+  test('Camaraderie: gain X and draw X, X the creatures you control', (mk, t) => {
+    t.auto('Camaraderie');
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Llanowar Elves');
+    T.mana('A', '4GW');
+    const hand0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Camaraderie'));
+    T.resolve();
+    t.eq(T.life('A'), 22);
+    t.eq(T.zone('A', 'hand').length, hand0 + 2);
+  });
+
+  test("Shadowheart: draws as many as the sacrificed creature's power", (mk, t) => {
+    t.auto('Shadowheart, Dark Justiciar');
+    const T = mk();
+    for (let i = 0; i < 8; i++) T.top('A', 'Island');
+    const sh = T.bf('A', 'Shadowheart, Dark Justiciar');
+    sh.summoningSick = false;
+    const w = T.bf('A', 'Craw Wurm');
+    T.mana('A', '1B');
+    const hand0 = T.zone('A', 'hand').length;
+    T.answer('sacrifice', () => ({ cardIds: [w.id] }));
+    const idx = sh.analysis().manaAbilities.length + sh.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    T.activate('A', sh, idx, { sacrificeIds: [w.id] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + 6);
+  });
 };

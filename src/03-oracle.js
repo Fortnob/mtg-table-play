@@ -66,6 +66,8 @@
     'Soulbond',
     // counters for creature cards of its type revealed from hand
     'Amplify',
+    // a counter for each colour of mana spent to cast it
+    'Sunburst',
     // it can't block, and goes at end of combat after it attacks
     'Decayed',
   ]);
@@ -2863,6 +2865,8 @@
     if ((m = p.match(/^card in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
+    // Converge: "where X is the number of colors of mana spent to cast this spell"
+    if (/^colou?rs? of mana spent to cast (?:this spell|it|CARDNAME)$/i.test(p)) return { colorsSpent: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creature that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // "for each land card in your graveyard"
@@ -3226,6 +3230,15 @@
     if (!depth && / also /.test(s)) {
       const again = parseEffectSentence(s.replace(/ also /, ' '), 1);
       if (again) return again;
+    }
+    /* "You draw X cards and lose X life, where X is the number of colors of
+       mana spent to cast this spell": the sentence read with X in it, and
+       every X then made the number the rider names. */
+    const wx = !depth && s.match(/^(.+?), where X is ([^,]+?)\.?$/);
+    if (wx && !/\bwhere X\b/.test(wx[1])) {
+      const k = amountOf(wx[2]);
+      const inner = k && parseEffectSentence(wx[1] + '.', 0);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) { inner.text = s; return inner; }
     }
     /* "…and you may return up to one target creature card": the half of a
        compound sentence that is a choice of its own. */
@@ -3705,7 +3718,34 @@
     return t.charAt(0).toUpperCase() + t.slice(1) + '.';
   }
 
+  /** Every X in an effect made the number a "where X is …" names; how many there were. */
+  function fillX(eff, k) {
+    let used = 0;
+    const sub = (o) => {
+      if (!o || typeof o !== 'object') return;
+      for (const key of Object.keys(o)) {
+        if (key === 'text') continue;
+        if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
+        else if (typeof o[key] === 'object') sub(o[key]);
+      }
+    };
+    sub(eff);
+    return used;
+  }
+
   function parseCompound(sentence) {
+    /* "You gain X life and draw X cards, where X is …": both halves read
+       with X in them, and the rider fills in both. */
+    const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/);
+    if (wx && !/where X/.test(wx[1])) {
+      const k = amountOf(wx[2]);
+      const both = k && parseCompound(wx[1] + '.');
+      if (both && both.every(x => x.op !== 'manual' && !hasManualStep(x))) {
+        const used = both.map(x => fillX(x, k));
+        if (used.some(Boolean)) return both;
+      }
+      return null;
+    }
     for (const sep of COMPOUND_SEPS) {
       const parts = sentence.split(sep);
       if (parts.length !== 2) continue;
@@ -5540,6 +5580,10 @@
       const c = condOf(etbIf[3]);
       if (c) out.entersWithCounters = { kind: etbIf[2].trim(), n: num(etbIf[1]), cond: c };
     }
+    /* Converge, sunburst: a counter for each colour of mana spent to cast it */
+    const conv = text.match(/enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each colou?r of mana spent to cast it/i);
+    if (conv && !out.entersWithCounters) out.entersWithCounters = { kind: conv[1], n: { colorsSpent: true } };
+    if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     let etbm = text.match(/enters with (a|an|one|two|three|four|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
     etbm = text.match(/enters(?: tapped)? with (a|an|one|two|three|\d+) ([a-z ]+?) counters?/i);
@@ -6682,6 +6726,9 @@
       // the vivid lands: tapped, and with counters the card-level scan found
       { re: /^(?:CARDNAME|This (?:land|artifact|permanent)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'etbTapped' }, auto: true },
+      // Converge
+      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent|enchantment)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each colou?r of mana spent to cast it\.?$/i,
+        eff: { op: 'noop' }, auto: true },
       { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each time it was kicked\.?$/i,
         eff: { op: 'noop' }, auto: true },
       { re: /^If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|them)\.?$/i,

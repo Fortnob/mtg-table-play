@@ -4,28 +4,28 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 16483,
-  "gainedCards": 1768,
-  "linesNeeded": 18706,
-  "linesGained": 2270,
+  "needed": 16385,
+  "gainedCards": 1739,
+  "linesNeeded": 18589,
+  "linesGained": 2231,
   "gained": {
-   "all": 1768,
+   "all": 1739,
    "top2000": 53,
-   "stdTop": 12
+   "stdTop": 11
   },
   "compare": {
    "same": 0,
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 79,
+  "verifyFail": 78,
   "overrides": {
    "drain": 62,
    "count": 42,
    "group": 27,
    "x": 5,
    "it": 99,
-   "opponent": 67,
+   "opponent": 68,
    "condition": 24,
    "subtype": 9
   }
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5693,
-   "lines": 4901,
+   "score": 5676,
+   "lines": 4884,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -53,8 +53,8 @@
   },
   {
    "what": "custom ability",
-   "score": 1018,
-   "lines": 835,
+   "score": 1017,
+   "lines": 834,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -167,8 +167,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 212,
-   "lines": 191,
+   "score": 202,
+   "lines": 181,
    "cards": [
     "Sakashima of a Thousand Faces",
     "Ulamog, the Defiler",
@@ -471,8 +471,8 @@
   },
   {
    "what": "Ability.modes.setChooseText",
-   "score": 37,
-   "lines": 34,
+   "score": 36,
+   "lines": 33,
    "cards": [
     "Rankle, Master of Pranks",
     "Drown in Dreams",
@@ -481,11 +481,11 @@
     "Aetheric Amplifier",
     "Inscription of Abundance",
     "Will of the Abzan",
-    "Will of the Sultai",
     "See Double",
     "Will of the Temur",
     "Moxite Refinery",
-    "Szat's Will"
+    "Szat's Will",
+    "Klauth's Will"
    ]
   },
   {
@@ -1075,25 +1075,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 23,
-   "lines": 14,
-   "cards": [
-    "Allosaurus Shepherd",
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Jolrael, Mwonvuli Recluse",
-    "March of the World Ooze",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Graaz, Unstoppable Juggernaut",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration",
-    "Archon of the Wild Rose",
-    "Oko, the Trickster"
-   ]
-  },
-  {
    "what": "EerieAbility",
    "score": 23,
    "lines": 17,
@@ -1186,6 +1167,25 @@
     "Curie, Emergent Intelligence",
     "Narset, Jeskai Waymaster",
     "Moonshae Pixie // Pixie Dust"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 22,
+   "lines": 13,
+   "cards": [
+    "Allosaurus Shepherd",
+    "Dollmaker's Shop // Porcelain Gallery",
+    "March of the World Ooze",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Graaz, Unstoppable Juggernaut",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration",
+    "Archon of the Wild Rose",
+    "Oko, the Trickster",
+    "Inkfathom Witch"
    ]
   },
   {
@@ -1740,24 +1740,6 @@
     "Ethersworn Shieldmage",
     "Divine Light",
     "Inner Sanctum"
-   ]
-  },
-  {
-   "what": "TargetControlledLandPermanent",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Earthbender Ascension",
-    "Toph, Hardheaded Teacher",
-    "Toph, Earthbending Master",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "The Boulder, Ready to Rumble",
-    "Rockalanche",
-    "Toph, Greatest Earthbender",
-    "Earth Rumble",
-    "Earthshape",
-    "Beifong's Bounty Hunters",
-    "Bumi's Feast Lecture"
    ]
   },
   {
@@ -2465,25 +2447,6 @@
    ]
   },
   {
-   "what": "keyword SunburstAbility",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Pentad Prism",
-    "Etched Oracle",
-    "Engineered Explosives",
-    "Suntouched Myr",
-    "Clearwater Goblet",
-    "Solarion",
-    "Suncrusher",
-    "Skyreach Manta",
-    "Infused Arrows",
-    "Opaline Bracers",
-    "Lunar Avenger",
-    "Spinal Parasite"
-   ]
-  },
-  {
    "what": "token statement MutagenToken",
    "score": 15,
    "lines": 15,
@@ -2777,6 +2740,21 @@
    ]
   },
   {
+   "what": "TargetControlledLandPermanent",
+   "score": 14,
+   "lines": 8,
+   "cards": [
+    "Earthbender Ascension",
+    "Toph, Hardheaded Teacher",
+    "Toph, Earthbending Master",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Toph, Greatest Earthbender",
+    "Earth Rumble",
+    "Earthshape",
+    "Bumi's Feast Lecture"
+   ]
+  },
+  {
    "what": "UntapAllEffect",
    "score": 14,
    "lines": 14,
@@ -2812,25 +2790,6 @@
     "Thantis, the Warweaver",
     "Blood Reckoning",
     "Slumbering Dragon"
-   ]
-  },
-  {
-   "what": "amount from a count",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Lathiel, the Bounteous Dawn",
-    "Ureni, the Song Unending",
-    "Elusive Otter // Grove's Bounty",
-    "Broodlord",
-    "Quirion Beastcaller",
-    "Ghired's Belligerence",
-    "Impact Resonance",
-    "Monstrous Onslaught",
-    "Undercity Upheaval",
-    "Ravenous Gigantotherium",
-    "Hail of Arrows",
-    "Volcanic Wind"
    ]
   },
   {
@@ -3016,23 +2975,6 @@
    ]
   },
   {
-   "what": "ColorsOfManaSpentToCastCount",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Painful Truths",
-    "Together as One",
-    "Unified Front",
-    "Radiant Flames",
-    "Sweep the Skies",
-    "Brilliant Spectrum",
-    "Arcane Omens",
-    "Infuse with the Elements",
-    "Kaleidoscorch",
-    "Roilmage's Trick"
-   ]
-  },
-  {
    "what": "CardsDrawnThisTurnDynamicValue.instance",
    "score": 13,
    "lines": 7,
@@ -3156,6 +3098,25 @@
     "Orochi Merge-Keeper",
     "Lotus Ring",
     "Mul Daya Channelers"
+   ]
+  },
+  {
+   "what": "amount from a count",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Lathiel, the Bounteous Dawn",
+    "Ureni, the Song Unending",
+    "Elusive Otter // Grove's Bounty",
+    "Broodlord",
+    "Quirion Beastcaller",
+    "Ghired's Belligerence",
+    "Impact Resonance",
+    "Monstrous Onslaught",
+    "Undercity Upheaval",
+    "Ravenous Gigantotherium",
+    "Hail of Arrows",
+    "Volcanic Wind"
    ]
   },
   {
@@ -3553,22 +3514,6 @@
     "Ishgard, the Holy See // Faith & Grief",
     "Runaway Trash-Bot",
     "Master Skald"
-   ]
-  },
-  {
-   "what": "MagecraftAbility",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Ashling, Flame Dancer",
-    "Deekah, Fractal Theorist",
-    "Quandrix Apprentice",
-    "Jadzi, Oracle of Arcavios // Journey to the Oracle",
-    "Zaffai, Thunder Conductor",
-    "Lorehold Apprentice",
-    "Prismari Apprentice",
-    "Elemental Expressionist",
-    "Symmetry Sage"
    ]
   },
   {
@@ -4213,6 +4158,21 @@
    ]
   },
   {
+   "what": "MagecraftAbility",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Ashling, Flame Dancer",
+    "Quandrix Apprentice",
+    "Jadzi, Oracle of Arcavios // Journey to the Oracle",
+    "Zaffai, Thunder Conductor",
+    "Lorehold Apprentice",
+    "Prismari Apprentice",
+    "Elemental Expressionist",
+    "Symmetry Sage"
+   ]
+  },
+  {
    "what": "AllianceAbility",
    "score": 11,
    "lines": 8,
@@ -4753,20 +4713,6 @@
    ]
   },
   {
-   "what": "TargetPermanentOrPlayer",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Ardenn, Intrepid Archaeologist",
-    "Animation Module",
-    "Ayara, Widow of the Realm // Ayara, Furnace Queen",
-    "Mutated Cultist",
-    "Skyship Plunderer",
-    "Powerful Broker",
-    "Price of Betrayal"
-   ]
-  },
-  {
    "what": "TalionTheKindlyLordPredicate.instance",
    "score": 10,
    "lines": 1,
@@ -4944,23 +4890,6 @@
    ]
   },
   {
-   "what": "SacrificeCostCreaturesPower.instance",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Dina, Soul Steeper",
-    "Shadowheart, Dark Justiciar",
-    "Dina, Essence Brewer",
-    "Ob Nixilis of the Black Oath",
-    "Wick, the Whorled Mind",
-    "Vish Kal, Blood Arbiter",
-    "Atogatog",
-    "Blood-Chin Fanatic",
-    "Ichor Explosion",
-    "Call for Blood"
-   ]
-  },
-  {
    "what": "keyword CompanionAbility",
    "score": 10,
    "lines": 10,
@@ -4975,23 +4904,6 @@
     "Obosh, the Preypiercer",
     "Umori, the Collector",
     "Lutri, the Spellchaser"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Repulsive Mutation",
-    "Tyvar, the Pummeler",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Pathbreaker Ibex",
-    "Orcish Siegemaster",
-    "Bighorner Rancher",
-    "Essence Harvest",
-    "Peema Aether-Seer",
-    "Rubblebelt Rioters",
-    "Bouncer's Beatdown"
    ]
   },
   {
@@ -5512,6 +5424,19 @@
     "Doctor Octopus, Master Planner",
     "Krang, Master Mind",
     "Damia, Sage of Stone"
+   ]
+  },
+  {
+   "what": "TargetPermanentOrPlayer",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Ardenn, Intrepid Archaeologist",
+    "Animation Module",
+    "Mutated Cultist",
+    "Skyship Plunderer",
+    "Powerful Broker",
+    "Price of Betrayal"
    ]
   },
   {
@@ -6329,6 +6254,21 @@
    ]
   },
   {
+   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Repulsive Mutation",
+    "Tyvar, the Pummeler",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Pathbreaker Ibex",
+    "Orcish Siegemaster",
+    "Bighorner Rancher",
+    "Peema Aether-Seer",
+    "Rubblebelt Rioters"
+   ]
+  },
+  {
    "what": "LoseLifeTriggeredAbility",
    "score": 8,
    "lines": 8,
@@ -6622,21 +6562,6 @@
     "Monstrous War-Leech",
     "Mwonvuli Ooze",
     "Roiling Horror"
-   ]
-  },
-  {
-   "what": "AllyEntersBattlefieldTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Ondu Cleric",
-    "Kabira Evangel",
-    "Halimar Excavator",
-    "Hagra Diabolist",
-    "Murasa Pyromancer",
-    "Munda, Ambush Leader",
-    "Tajuru Archer",
-    "Bala Ged Thief"
    ]
   },
   {
@@ -7164,6 +7089,20 @@
    ]
   },
   {
+   "what": "SacrificeCostCreaturesPower.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Dina, Soul Steeper",
+    "Ob Nixilis of the Black Oath",
+    "Wick, the Whorled Mind",
+    "Vish Kal, Blood Arbiter",
+    "Atogatog",
+    "Ichor Explosion",
+    "Call for Blood"
+   ]
+  },
+  {
    "what": "DamageCantBePreventedEffect",
    "score": 7,
    "lines": 7,
@@ -7234,20 +7173,6 @@
    ]
   },
   {
-   "what": "AttackingCreatureCount",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Jazal Goldmane",
-    "Mishra, Claimed by Gix",
-    "Veteran's Armaments",
-    "Rubblebelt Raiders",
-    "Strength in Numbers",
-    "Tears of Rage",
-    "Cleaving Skyrider"
-   ]
-  },
-  {
    "what": "(verify) optional where the card is not",
    "score": 7,
    "lines": 7,
@@ -7273,20 +7198,6 @@
     "Reef Roads",
     "Wild Roads",
     "Foul Roads"
-   ]
-  },
-  {
-   "what": "ShrinesYouControlCount.WHERE_X",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Sanctum of Stone Fangs",
-    "Honden of Infinite Rage",
-    "Sanctum of Calm Waters",
-    "Go-Shintai of Ancient Wars",
-    "Go-Shintai of Lost Wisdom",
-    "Southern Air Temple",
-    "Northern Air Temple"
    ]
   },
   {
@@ -7469,6 +7380,20 @@
     "Curse of Thirst",
     "Curse of the Pierced Heart",
     "Curse of Oblivion"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Ondu Cleric",
+    "Kabira Evangel",
+    "Hagra Diabolist",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer",
+    "Bala Ged Thief"
    ]
   },
   {
@@ -8095,13 +8020,63 @@
     "Yukora, the Prisoner",
     "Death Pit Offering"
    ]
+  },
+  {
+   "what": "TapSourceEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Witch-king of Angmar",
+    "Dragon Turtle",
+    "Bloodsworn Squire // Bloodsworn Knight",
+    "Devouring Sugarmaw // Have for Dinner",
+    "Civilized Scholar // Homicidal Brute",
+    "Ravenous Vampire"
+   ]
+  },
+  {
+   "what": "gain for nextTurn",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Emeria's Call // Emeria, Shattered Skyclave",
+    "Venat, Heart of Hydaelyn // Hydaelyn, the Mothercrystal",
+    "Dihada, Binder of Wills",
+    "Vivien, Champion of the Wilds",
+    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
+    "Karvanista, Loyal Lupari // Lupari Shield"
+   ]
+  },
+  {
+   "what": "(constructor: local method addSubType)",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Weathered Sentinels",
+    "Thran Portal",
+    "Stenn, Paranoid Partisan",
+    "Phabine, Boss's Confidant"
+   ]
+  },
+  {
+   "what": "GainAbilityAllEffect.withForceQuotes",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Inspiring Leader",
+    "Jubilant Skybonder",
+    "Cloakwood Hermit",
+    "Dungeon Delver",
+    "Acolyte of Bahamut",
+    "Scion of Halaster"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4465,
-   "cards": 3910,
+   "score": 4452,
+   "cards": 3897,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -8113,8 +8088,8 @@
   },
   {
    "what": "custom ability",
-   "score": 753,
-   "cards": 612,
+   "score": 752,
+   "cards": 611,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -8139,8 +8114,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 221,
-   "cards": 212,
+   "score": 222,
+   "cards": 213,
    "names": [
     "Excalibur, Sword of Eden",
     "Metalwork Colossus",
@@ -8165,8 +8140,8 @@
   },
   {
    "what": "custom condition",
-   "score": 168,
-   "cards": 150,
+   "score": 170,
+   "cards": 152,
    "names": [
     "Veil of Summer",
     "Archaeomancer's Map",
@@ -8178,8 +8153,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 135,
-   "cards": 126,
+   "score": 127,
+   "cards": 118,
    "names": [
     "Chameleon, Master of Disguise",
     "Sakashima the Impostor",
@@ -8346,19 +8321,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
-   "score": 30,
-   "cards": 27,
-   "names": [
-    "Rankle, Master of Pranks",
-    "Drown in Dreams",
-    "Will of the Jeskai",
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 30,
    "cards": 30,
@@ -8369,6 +8331,19 @@
     "Medomai the Ageless",
     "Dog Umbra",
     "Yuan-Ti Malison"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 29,
+   "cards": 26,
+   "names": [
+    "Rankle, Master of Pranks",
+    "Drown in Dreams",
+    "Will of the Jeskai",
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance"
    ]
   },
   {
@@ -8411,6 +8386,19 @@
    ]
   },
   {
+   "what": "keyword PartnerWithAbility",
+   "score": 27,
+   "cards": 27,
+   "names": [
+    "Alphinaud Leveilleur",
+    "Pippin, Warden of Isengard",
+    "Brallin, Skyshark Rider",
+    "Toothy, Imaginary Friend",
+    "Merry, Warden of Isengard",
+    "Chakram Retriever"
+   ]
+  },
+  {
    "what": "CreateRoleAttachedTargetEffect",
    "score": 26,
    "cards": 26,
@@ -8421,19 +8409,6 @@
     "Witch's Mark",
     "Twisted Fealty",
     "Spellbook Vendor"
-   ]
-  },
-  {
-   "what": "keyword PartnerWithAbility",
-   "score": 26,
-   "cards": 26,
-   "names": [
-    "Alphinaud Leveilleur",
-    "Pippin, Warden of Isengard",
-    "Brallin, Skyshark Rider",
-    "Toothy, Imaginary Friend",
-    "Merry, Warden of Isengard",
-    "Chakram Retriever"
    ]
   },
   {
@@ -9132,32 +9107,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Allosaurus Shepherd",
-    "Jolrael, Mwonvuli Recluse",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Tanazir Quandrix"
-   ]
-  },
-  {
-   "what": "ColorsOfManaSpentToCastCount",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Painful Truths",
-    "Together as One",
-    "Unified Front",
-    "Radiant Flames",
-    "Sweep the Skies",
-    "Brilliant Spectrum"
-   ]
-  },
-  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 13,
    "cards": 4,
@@ -9218,19 +9167,6 @@
     "Coalstoke Gearhulk",
     "From the Catacombs",
     "Zoraline, Cosmos Caller"
-   ]
-  },
-  {
-   "what": "keyword SunburstAbility",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Pentad Prism",
-    "Etched Oracle",
-    "Suntouched Myr",
-    "Clearwater Goblet",
-    "Solarion",
-    "Suncrusher"
    ]
   },
   {
@@ -9361,6 +9297,19 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 12,
+   "cards": 9,
+   "names": [
+    "Allosaurus Shepherd",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration"
+   ]
+  },
+  {
    "what": "CardsDrawnThisTurnDynamicValue.instance",
    "score": 12,
    "cards": 6,
@@ -9462,19 +9411,6 @@
     "The Long Reach of Night // Animus of Night's Reach",
     "Exoskeletal Armor",
     "Accumulated Knowledge"
-   ]
-  },
-  {
-   "what": "amount from a count",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Lathiel, the Bounteous Dawn",
-    "Ureni, the Song Unending",
-    "Elusive Otter // Grove's Bounty",
-    "Quirion Beastcaller",
-    "Ghired's Belligerence",
-    "Impact Resonance"
    ]
   },
   {
@@ -9746,6 +9682,19 @@
    ]
   },
   {
+   "what": "amount from a count",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Lathiel, the Bounteous Dawn",
+    "Ureni, the Song Unending",
+    "Elusive Otter // Grove's Bounty",
+    "Quirion Beastcaller",
+    "Ghired's Belligerence",
+    "Impact Resonance"
+   ]
+  },
+  {
    "what": "custom value",
    "score": 11,
    "cards": 11,
@@ -9985,6 +9934,19 @@
    "cards": 1,
    "names": [
     "Dour Port-Mage"
+   ]
+  },
+  {
+   "what": "ManaValueEqualToCountersSourceCountPredicate",
+   "score": 10,
+   "cards": 7,
+   "names": [
+    "Blast Zone",
+    "Engineered Explosives",
+    "Ratchet Bomb",
+    "Necroplasm",
+    "The Filigree Sylex",
+    "Powder Keg"
    ]
   },
   {
@@ -10279,32 +10241,6 @@
     "Failure // Comply",
     "Prepare // Fight",
     "Reduce // Rubble"
-   ]
-  },
-  {
-   "what": "ManaValueEqualToCountersSourceCountPredicate",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Blast Zone",
-    "Ratchet Bomb",
-    "Necroplasm",
-    "The Filigree Sylex",
-    "Powder Keg",
-    "Wave of Terror"
-   ]
-  },
-  {
-   "what": "TargetPermanentOrPlayer",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Ardenn, Intrepid Archaeologist",
-    "Ayara, Widow of the Realm // Ayara, Furnace Queen",
-    "Mutated Cultist",
-    "Skyship Plunderer",
-    "Powerful Broker",
-    "Price of Betrayal"
    ]
   },
   {
@@ -11037,6 +10973,18 @@
    ]
   },
   {
+   "what": "TargetPermanentOrPlayer",
+   "score": 8,
+   "cards": 5,
+   "names": [
+    "Ardenn, Intrepid Archaeologist",
+    "Mutated Cultist",
+    "Skyship Plunderer",
+    "Powerful Broker",
+    "Price of Betrayal"
+   ]
+  },
+  {
    "what": "SourceDealsDamageToThisTriggeredAbility",
    "score": 8,
    "cards": 5,
@@ -11179,19 +11127,6 @@
    ]
   },
   {
-   "what": "SacrificeCostCreaturesPower.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Dina, Soul Steeper",
-    "Shadowheart, Dark Justiciar",
-    "Dina, Essence Brewer",
-    "Ob Nixilis of the Black Oath",
-    "Atogatog",
-    "Blood-Chin Fanatic"
-   ]
-  },
-  {
    "what": "granting a mana ability",
    "score": 8,
    "cards": 8,
@@ -11202,19 +11137,6 @@
     "Glorious Sunrise",
     "Path of Annihilation",
     "Orochi Merge-Keeper"
-   ]
-  },
-  {
-   "what": "TargetControlledLandPermanent",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Toph, Hardheaded Teacher",
-    "The Boulder, Ready to Rumble",
-    "Rockalanche",
-    "Toph, Greatest Earthbender",
-    "Earth Rumble",
-    "Earthshape"
    ]
   },
   {
@@ -11478,19 +11400,6 @@
    ]
   },
   {
-   "what": "AllyEntersBattlefieldTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Ondu Cleric",
-    "Kabira Evangel",
-    "Halimar Excavator",
-    "Hagra Diabolist",
-    "Murasa Pyromancer",
-    "Munda, Ambush Leader"
-   ]
-  },
-  {
    "what": "attack trigger with its own text",
    "score": 8,
    "cards": 8,
@@ -11741,19 +11650,6 @@
    ]
   },
   {
-   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Repulsive Mutation",
-    "Tyvar, the Pummeler",
-    "Pathbreaker Ibex",
-    "Orcish Siegemaster",
-    "Essence Harvest",
-    "Peema Aether-Seer"
-   ]
-  },
-  {
    "what": "ControllerLifeCount.instance",
    "score": 7,
    "cards": 7,
@@ -11832,32 +11728,6 @@
    ]
   },
   {
-   "what": "AttackingCreatureCount",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Jazal Goldmane",
-    "Mishra, Claimed by Gix",
-    "Veteran's Armaments",
-    "Rubblebelt Raiders",
-    "Strength in Numbers",
-    "Tears of Rage"
-   ]
-  },
-  {
-   "what": "ShrinesYouControlCount.WHERE_X",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Sanctum of Stone Fangs",
-    "Honden of Infinite Rage",
-    "Sanctum of Calm Waters",
-    "Go-Shintai of Ancient Wars",
-    "Go-Shintai of Lost Wisdom",
-    "Southern Air Temple"
-   ]
-  },
-  {
    "what": "LookLibraryAndPickControllerEffect shape",
    "score": 7,
    "cards": 7,
@@ -11897,19 +11767,6 @@
    ]
   },
   {
-   "what": "MagecraftAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Deekah, Fractal Theorist",
-    "Quandrix Apprentice",
-    "Zaffai, Thunder Conductor",
-    "Lorehold Apprentice",
-    "Prismari Apprentice",
-    "Elemental Expressionist"
-   ]
-  },
-  {
    "what": "keyword CraftAbility",
    "score": 7,
    "cards": 7,
@@ -11946,6 +11803,123 @@
     "Infested Fleshcutter",
     "Basilica Shepherd",
     "Indoctrination Attendant"
+   ]
+  },
+  {
+   "what": "AttacksWhileSaddledTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Calamity, Galloping Inferno",
+    "Fortune, Loyal Steed",
+    "Bounding Felidar",
+    "Lagorin, Soul of Alacria",
+    "Autarch Mammoth",
+    "Giant Beaver"
+   ]
+  },
+  {
+   "what": "FilterPermanentThisOrAnother",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Esoteric Duplicator",
+    "Experiment Twelve",
+    "Printlifter Ooze",
+    "Pyrotechnic Performer",
+    "Kingpin, Wilson Fisk",
+    "True Identity"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Curse of Unbinding",
+    "Torment of Scarabs",
+    "Cruel Reality",
+    "Curse of Surveillance",
+    "Curse of Thirst",
+    "Curse of the Pierced Heart"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Ondu Cleric",
+    "Kabira Evangel",
+    "Hagra Diabolist",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Sigiled Sword of Valeron",
+    "Spider-Suit",
+    "Inner Demon",
+    "Dub",
+    "Raven Wings",
+    "Call to Serve"
+   ]
+  },
+  {
+   "what": "BoostEnchantedEffect p/t",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Alpha Status",
+    "Gleam of Authority",
+    "Blessing of the Nephilim",
+    "Disturbing Conversion",
+    "Aspect of Wolf",
+    "So Tiny"
+   ]
+  },
+  {
+   "what": "GainAbilityWithAttachmentEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "The Dominion Bracelet",
+    "Surestrike Trident",
+    "Blinding Powder",
+    "Heartseeker",
+    "Leonin Bola",
+    "Shuriken"
+   ]
+  },
+  {
+   "what": "boost for nextTurn",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Sorin, Solemn Visitor",
+    "All-Seeing Arbiter",
+    "Behold the Unspeakable // Vision of the Unspeakable",
+    "Mu Yanling, Sky Dancer",
+    "Mouth of the Storm",
+    "Mu Yanling, Celestial Wind"
+   ]
+  },
+  {
+   "what": "opponent or planeswalker",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Mogg Maniac",
+    "Rakdos's Return",
+    "Stensia Banquet",
+    "Goblin Lyre",
+    "Gruesome Scourger",
+    "Final Strike"
    ]
   }
  ]
