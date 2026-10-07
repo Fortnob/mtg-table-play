@@ -283,6 +283,8 @@
         cost.returnOwn = { n: WORDN(m[1]), filter: w.toLowerCase(), untapped: /untapped/i.test(p) || undefined };
         continue;
       }
+      // Blight N: N -1/-1 counters on a creature you control, as the price
+      if ((m = p.match(/^Blight (\d+)$/i))) { cost.blight = +m[1]; continue; }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
@@ -2671,6 +2673,12 @@
     // Chandra's Outrage: "…to target creature and 2 damage to that creature's controller"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target [a-z ]+?) and (\d+) damage to (?:that (?:creature|permanent|planeswalker|artifact)'s|its) controller\.?$/i,
       make: (m) => { const a = tgt(m[2]); return a ? [{ op: 'damage', n: +m[1], targets: [a] }, { op: 'damage', n: +m[3], toAffectedController: true }] : null; } },
+    /* Blight N: N -1/-1 counters on a creature that player controls, of
+       their choice ("Whenever this creature attacks, blight 1") */
+    { re: /^(?:You )?blight (\d+)\.?$/i, make: (m) => ({ op: 'blight', n: +m[1], who: 'you' }) },
+    { re: /^(Target opponent|Target player|Each opponent|Each player) blights? (\d+)\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'blight', n: +m[2], who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
+        : { op: 'blight', n: +m[2], who: /opponent/i.test(m[1]) ? 'opponents' : 'each' }) },
     // Chronosavant, Unstable Hulk: "You skip your next turn."
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -3595,6 +3603,14 @@
       const inner = k && parseEffectSentence(wx[1] + '.', 0);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) { inner.text = s; return inner; }
     }
+    /* Cinder Strike: "It deals 4 damage to that creature instead if this
+       spell's additional cost was paid" — the same as "If …, … instead" */
+    const lateIf = !depth && s.match(/^(.+?) instead if (.+?)\.?$/i);
+    if (lateIf) {
+      const inner = parseEffectSentence('If ' + lateIf[2] + ', ' + lateIf[1].charAt(0).toLowerCase() + lateIf[1].slice(1) + ' instead.', 1);
+      // the rider is folded into the sentence before it, as "If …, … instead" is
+      if (inner && inner.op === 'noop' && (inner.insteadOf || inner.insteadRider)) { inner.text = s; return inner; }
+    }
     /* Pest Infestation, Heliod's Intervention: "twice X" — read with X, then doubled */
     if (!depth && /\btwice X\b/.test(s) && !/\bwhere X\b/.test(s)) {
       const inner = parseEffectSentence(s.replace(/\btwice X\b/g, 'X'), 1);
@@ -3920,6 +3936,7 @@
     { re: /^sacrifice (a|an|one|two|three|\d+) ([-a-z ]+?)$/i,
       make: (m) => ({ sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
+    { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and (\d+) life$/i, make: (m) => ({ mana: m[1], life: +m[2] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and discard a card$/i, make: (m) => ({ mana: m[1], discard: 1, filter: 'card' }) },
@@ -4049,6 +4066,8 @@
     const m = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME),\s*(you may )?(.+?)\.?$/i);
     if (!m) return undefined;
     const what = m[2].trim();
+    // Plumb the Forbidden: a second sentence about the price is more than a price
+    if (/\.\s/.test(what)) return null;
     const optional = !!m[1];
     /* "Pay 5 life or pay {2}", "sacrifice a creature, discard a card, or
        pay 4 life": a choice of prices, made as the spell is cast. Each one
@@ -4069,6 +4088,7 @@
   function oneAdditionalCost(what, optional) {
     let k;
     if ((k = what.match(/^pay ((?:\{[^}]+\})+)$/i))) return { mana: k[1], optional };
+    if ((k = what.match(/^blight (\d+)$/i))) return { blight: +k[1], optional };
     if ((k = what.match(/^reveal (?:a|an) ([A-Za-z -]+?) card from your hand$/i))) return { reveal: { filter: k[1].trim() }, optional };
     if ((k = what.match(/^tap (a|an|one|two|three) untapped ([A-Za-z -]+?) you control$/i))) {
       return { tapCreatures: { n: num(k[1]), filter: k[2].trim().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') }, optional };
@@ -4103,7 +4123,7 @@
     /\s+and\s+(?=(?:you|each|target|that|all|they|it)\b)/i,
     // Combat Celebrant: "…and after this phase, there is an additional combat phase"
     /\s+and\s+(?=after this phase\b)/i,
-    /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add)s?\b)/i,
+    /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add|blight)s?\b)/i,
   ];
   const SUBJECTS = /^(Target player|Target opponent|Target creature'?s? controller|Each opponent|Each player|That player|You)\b/i;
 
@@ -4226,7 +4246,10 @@
 
       // "You may X. If you do, Y."
       const may = s.match(/^You may (.+?)\.$/i);
-      const ifDo = next.match(/^If you do,?\s*(.+)$/i);
+      /* "When you do" (a reflexive trigger, CR 603.12) is read as "if you
+         do": what follows happens once the choice is made and paid for */
+      // (not "If you don't", which is its own sentence)
+      const ifDo = next.match(/^(?:If|When) you do(?![a-z'’]),?\s*(.+)$/i);
       /* "You may sacrifice another creature. If you do, you gain X life and
          draw X cards, where X is that creature's power." The sacrifice is
          asked for as the ability resolves, and X is read off what went. */
@@ -4457,6 +4480,11 @@
         if (prev && prev.who === 'target' && prev.targets) {
           for (const x of e.insteadOf.effects) if (x.who === 'triggerPlayer' && x.op === prev.op && !x.targets) { x.who = 'target'; x.targets = prev.targets; }
         }
+        /* Cinder Strike: "…to target creature. It deals 4 damage to that
+           creature instead if …" — in a spell, "that creature" is the target */
+        if (prev && prev.op === 'damage' && (prev.targets || []).length === 1 && prev.targets[0].type !== 'player') {
+          for (const x of e.insteadOf.effects) if (x.op === 'damage' && x.toTriggerObject && !x.targets) { delete x.toTriggerObject; x.targets = prev.targets; }
+        }
         if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
         // with nothing before it on this line, the line before this one is what it replaces
         else out.push(e);
@@ -4487,6 +4515,9 @@
       if (e && e.counterExileRider) {
         for (let i = out.length - 1; i >= 0; i--) {
           if (out[i].op === 'counterSpell') { out[i].exileIt = true; break; }
+          // Syncopate: the counter sits inside "unless its controller pays {X}"
+          const inner = out[i].op === 'unlessPays' && (out[i].then || []).find(x => x && x.op === 'counterSpell');
+          if (inner) { inner.exileIt = true; break; }
         }
         continue;
       }
@@ -4678,6 +4709,8 @@
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
     // paid for on the way down
     [/^(?:CARDNAME|this spell|it) was kicked$/i, () => ({ kind: 'kicked', n: 1 })],
+    // an optional additional cost, paid, is counted as the spell's kicker
+    [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
     [/^(?:CARDNAME|this spell|it) was kicked (\w+) or more times$/i, (m) => ({ kind: 'kicked', n: num(m[1]) })],
     [/^(?:CARDNAME|this spell|it) wasn'?t kicked$/i, () => ({ kind: 'kicked', n: 0, cmp: 'atMost' })],
     [/^(?:CARDNAME|this spell|it) was bought back$/i, () => ({ kind: 'boughtBack' })],

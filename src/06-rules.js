@@ -2829,7 +2829,7 @@
         const why = a.additionalCost.choice.every(c => this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, c), o, null) ||
           (c.reveal && !this._discardPool(playerId, c.reveal, o).length));
         if (why) return { ok: false, reason: 'None of the additional costs can be paid.' };
-      } else if (a.additionalCost) {
+      } else if (a.additionalCost && !a.additionalCost.optional) {
         const why = this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, a.additionalCost), o, null);
         if (why) return { ok: false, reason: why };
       }
@@ -3704,6 +3704,13 @@
         else if (decides) opts.additionalChoice = this._easiestChoice(playerId, add.choice, ok);
         else return ask('additionalChoice', `${o.name}: which additional cost will you pay?`, ok.map(i => add.choice[i].label), ok);
       }
+      /* "As an additional cost to cast this spell, you may blight 1": paid or
+         not, decided before anything is paid */
+      if (add && add.optional && !add.choice && !opts.skipAdditional && opts.payAdditional == null) {
+        if (this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) opts.payAdditional = false;
+        else if (decides) opts.payAdditional = true;
+        else return ask('payAdditional', `${o.name}: pay the additional cost?`, ['Pay it', "Don't pay it"], [true, false]);
+      }
       /* Bargain (CR 702.166): an artifact, enchantment or token sacrificed
          as the spell is cast, for a better spell. */
       if (a && a.keywordSet && a.keywordSet.has('bargain') && opts.bargain === undefined) {
@@ -4062,6 +4069,9 @@
       const extras = this.extraCostsFor(objId);
       const chose = { kicked: 0, boughtBack: false, entwined: false,
         offspring: false, squad: 0, casualty: null, spree: null };
+      // an optional additional cost, paid: "if this spell's additional cost was paid" reads it as kicked
+      const optAdd = a && a.additionalCost && a.additionalCost.optional && !a.additionalCost.choice;
+      if (optAdd && opts.payAdditional && !opts.skipAdditional) chose.kicked = Math.max(chose.kicked, 1);
       for (const ex of extras) {
         if (ex.kind === 'kicker' && opts.kick) { cost += ex.cost; chose.kicked = 1; }
         else if (ex.kind === 'multikicker' && opts.kick) {
@@ -4289,7 +4299,7 @@
         this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard }, o, opts, item);
       }
       /* The rest of the price: life, and anything to be given up. */
-      if (a && a.additionalCost && !opts.skipAdditional) {
+      if (a && a.additionalCost && !opts.skipAdditional && !(optAdd && !opts.payAdditional)) {
         const add = addPick || a.additionalCost;
         if (add.life != null) {
           const k = add.life === 'X' ? (opts.x || 0) : add.life;
@@ -5130,6 +5140,35 @@
       return true;
     }
 
+    /** The creatures a player could blight. */
+    _blightPool(pid) {
+      return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this.characteristics(x).isCreature);
+    }
+    /** The creature that minds blighting least: one that survives it, and is worth least. */
+    _blightPick(pool, n) {
+      const live = pool.filter(x => this.toughnessOf(x) > n);
+      return this._cheapestFirst(live.length ? live : pool)[0];
+    }
+    _blightOn(o, n, pid) {
+      if (!o) return;
+      this.addCounters(o, '-1/-1', n);
+      this.logEvent('counters', `${(this.player(pid) || {}).name || 'A player'} blights ${n}: ${o.name}.`);
+      this.bumpBoard();
+    }
+    /** Blight as an effect: the player picks one of their creatures (a generic question). */
+    _blightNow(pid, n, key) {
+      const pool = this._blightPool(pid);
+      if (!pool.length) return false;
+      let x = pool[0];
+      if (pool.length > 1) {
+        const got = this._choose({ playerId: pid, purpose: 'blight', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+          min: 1, max: 1, n, prompt: `Blight ${n}: put ${n === 1 ? 'a -1/-1 counter' : n + ' -1/-1 counters'} on a creature you control.` }, key);
+        if (got === SUSPEND) return SUSPEND;
+        x = (got && got.picks.length && this.obj(got.picks[0])) || this._blightPick(pool, n);
+      }
+      this._blightOn(x, n, pid);
+      return true;
+    }
     /** Why a spell with "Cast this spell only …" can't be cast now, or null. */
     _castWindowShut(w, pid) {
       const mine = !!(this.activePlayer && this.activePlayer.id === pid);
@@ -5277,6 +5316,7 @@
         if (this._exileCostPool(pid, cost.exile, self).length < need) return 'Not enough cards in your graveyard.';
       }
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
+      if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
         const back = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
@@ -5359,6 +5399,17 @@
               cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
               prompt: `Exile ${need === 1 ? 'a card' : need + ' cards'} from your graveyard to pay the cost.` });
           }
+        }
+      }
+      // Blight N as a price: the counters go on one creature of yours
+      if (cost.blight) {
+        const pool = this._blightPool(pid);
+        const named = opts.blightId && pool.find(x => x.id === opts.blightId);
+        if (named || (pool.length && (auto || pool.length === 1))) this._blightOn(named || this._blightPick(pool, cost.blight), cost.blight, pid);
+        else if (pool.length) {
+          ask({ type: 'pickCard', count: 1, purpose: 'blightCost', n: cost.blight, candidates: pool.map(x => x.id),
+            cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
+            prompt: `Blight ${cost.blight}: put ${cost.blight === 1 ? 'a -1/-1 counter' : cost.blight + ' -1/-1 counters'} on a creature you control.` });
         }
       }
       if (cost.returnOwn) {
@@ -10945,12 +10996,20 @@
           const able = (!pay.mana || this.couldPay(ctx.controller, pay.mana, this.manaSources(ctx.controller))) &&
             (pay.life == null || me.life > pay.life || this.config.rulesEnforcement !== 'full') &&
             (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
-            (!pay.discard || this.zones[ctx.controller].hand.length > 0);
-          if (!able && (pay.removeCounter || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+            (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
+            (!pay.blight || this._blightPool(ctx.controller).length > 0);
+          if (!able && (pay.removeCounter || pay.blight || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
+          // "You may blight 1. If you do, …"
+          if (pay.blight) {
+            const r = this._doneHere('mbDone') ? true : this._blightNow(ctx.controller, pay.blight, 'mb');
+            if (r === SUSPEND) { if (this.resolving && this.resolving.marks) delete this.resolving.marks[this.resolving.index + ':mbDone']; return SUSPEND; }
+            this._spliceNext(r ? e.then : e.otherwise);
+            break;
+          }
           /* Two prices at once: the simple halves are paid here, once. */
           if (pay.removeCounter || (pay.mana && (pay.life != null || pay.discard))) {
             if (!this._doneHere('paid')) {
@@ -11022,7 +11081,9 @@
             else this._spliceNext(e.then);
             break;
           }
-          const cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');
+          let cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');
+          // Syncopate, Power Sink: "unless its controller pays {X}" — the X this was cast with
+          if (typeof cost === 'string' && /\{X\}/.test(cost)) cost = cost.replace(/\{X\}/g, '{' + (n('X') || 0) + '}');
           if (e.costFromPower && this.powerOf(src) <= 0) { this._spliceNext(e.then); break; }
           const affordable = typeof cost === 'string'
             ? this.couldPay(payer.id, cost)
@@ -12784,6 +12845,23 @@
           this.bumpBoard();
           break;
         }
+        // Blight N: each player named picks a creature of theirs for the counters
+        case 'blight': {
+          const who = e.who === 'target' ? [firstPlayer()] : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
+          let stop = false;
+          for (const p of who) {
+            if (!p || p.hasLost) continue;
+            const r0 = this.resolving;
+            const mk = r0 ? r0.index + ':blDone' + p.id : null;
+            if (mk && r0.marks && r0.marks[mk]) continue;
+            const r = this._blightNow(p.id, n(e.n), 'bl' + p.id);
+            if (r === SUSPEND) { stop = true; break; }
+            if (mk) { r0.marks = r0.marks || {}; r0.marks[mk] = true; }
+          }
+          if (stop) return SUSPEND;
+          break;
+        }
         // "You skip your next turn."
         case 'skipTurn': {
           const p = e.who === 'target' ? firstPlayer() : me;
@@ -14529,7 +14607,7 @@
             this._tapForCost(playerId, ids.map(id => this.obj(id)), ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null);
             ids = [];
           }
-          if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost') {
+          if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost' || ch.purpose === 'blightCost') {
             const pool = (ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
             ids = ids.filter(id => (ch.candidates || []).includes(id)).slice(0, ch.count || 1);
             for (const o of this._cheapestFirst(pool)) { if (ids.length >= (ch.count || 1)) break; if (!ids.includes(o.id)) ids.push(o.id); }
@@ -14546,6 +14624,7 @@
               continue;
             }
             if (ch.purpose === 'returnCost') { if (o.zone === 'battlefield') this.moveObject(o, 'hand'); continue; }
+            if (ch.purpose === 'blightCost') { if (o.zone === 'battlefield') this._blightOn(o, ch.n || 1, playerId); continue; }
             if (ch.purpose === 'landFromHand') { this.moveObject(o, 'battlefield', { controller: playerId }); this.logEvent('land', `${this.player(playerId).name} puts ${o.name} onto the battlefield.`); }
             else if (ch.purpose === 'exileFromHand') { this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s hand.`); }
             else if (ch.purpose === 'discardFromHand') { this.moveObject(o, 'graveyard'); this.logEvent('discard', `${this.player(o.owner).name} discards ${o.name}.`); this._afterDiscard(o.owner, o); }
@@ -15725,7 +15804,24 @@
       }
     };
     walk(effects);
-    return specs;
+    if (specs.length) return specs;
+    /* Nothing aimed at the top: the targets sit inside a branch ("Counter
+       target spell unless its controller pays {3}", "If …, it deals 4
+       damage to that creature instead"). They are still chosen as the
+       spell is cast; of two branches, which are alternatives, the one
+       asking for more. */
+    const deep = (list) => {
+      let out = [];
+      for (const e of (list || [])) {
+        if (!e) continue;
+        if (e.op === 'sequence') { out = out.concat(deep(e.list)); continue; }
+        if ((e.targets || []).length) { out = out.concat(e.targets); continue; }
+        const a = deep(e.then), b = deep(e.otherwise);
+        out = out.concat(a.length >= b.length ? a : b);
+      }
+      return out;
+    };
+    return deep(effects);
   }
   /* "X target creatures": one spec standing for however many targets were
      chosen for it — repeated to fill the targets beyond the fixed ones */

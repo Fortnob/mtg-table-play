@@ -1463,6 +1463,13 @@
   const CHOOSE_PURPOSES = {
     /* "Choose a creature type": the options come most-ours first */
     creatureType() { return { picks: [0] }; },
+    /* Blight: a creature that survives the counters and is worth least */
+    blight(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const pick = pool.length && g._blightPick(pool, s.n || 1);
+      return pick ? { picks: [pick.id] } : null;
+    },
     /* Enlist: the strongest creature that stayed home, if it adds much */
     enlist(s) {
       const g = this.game;

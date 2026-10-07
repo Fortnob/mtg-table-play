@@ -4838,4 +4838,86 @@ module.exports = (test) => {
     T.mana('A', 'W1');
     t.no(T.g._castWindowShut(ds.analysis().castWindow, 'A'), 'attacked, in the declare attackers step');
   });
+
+  test('Blight: you may blight 2, and if you do, two Goblins (Sourbread Auntie)', (mk, t) => {
+    t.auto('Sourbread Auntie');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.answer('choose', (ch) => ({ picks: [ch.items.find(x => x.id === bear.id) ? bear.id : ch.items[0].id] }));
+    T.mana('A', 'RR2');
+    T.cast('A', T.hand('A', 'Sourbread Auntie'));
+    t.eq(bear.zone, 'graveyard', 'the Bears took two -1/-1 counters');
+    t.eq(T.bfOf('A').filter(o => /Goblin/.test(o.name)).length, 2);
+  });
+
+  test("Blight as an optional additional cost: Requiting Hex gains 2 life when it's paid", (mk, t) => {
+    t.auto('Requiting Hex');
+    const T = mk();
+    const elk = T.bf('A', 'Gutsplitter Gang');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Requiting Hex'), { targets: [bear], payAdditional: true });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(elk.counters['-1/-1'] || 0, 1, 'blighted');
+    t.eq(T.life('A'), 22);
+  });
+
+  test('Blight as an optional additional cost: not paid, no life', (mk, t) => {
+    const T = mk();
+    const elk = T.bf('A', 'Gutsplitter Gang');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Requiting Hex'), { targets: [bear], payAdditional: false });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(elk.counters['-1/-1'] || 0, 0);
+    t.eq(T.life('A'), 20);
+  });
+
+  test('Blight 1 as an activation cost (Sting-Slinger)', (mk, t) => {
+    t.auto('Sting-Slinger');
+    const T = mk();
+    const ss = T.bf('A', 'Sting-Slinger'); ss.summoningSick = false;
+    T.mana('A', 'R1');
+    T.activate('A', ss, 0);
+    t.eq(ss.counters['-1/-1'] || 0, 1, 'the only creature to blight');
+    t.eq(T.life('B'), 18);
+  });
+
+  test("Gutsplitter Gang: don't blight, lose 3 life", (mk, t) => {
+    t.auto('Gutsplitter Gang');
+    const T = mk();
+    T.bf('A', 'Gutsplitter Gang');
+    T.answer('confirm', { yes: false });
+    T.nextTurn('A');
+    t.eq(T.life('A'), 17);
+  });
+
+  test('Cinder Strike: 4 damage instead when the blight was paid, to the one target', (mk, t) => {
+    t.auto('Cinder Strike');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const big = T.bf('B', 'Gutsplitter Gang');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Cinder Strike'), { targets: [big], payAdditional: true });
+    t.eq(big.damage, 4);
+    t.eq(bear.zone, 'battlefield', 'a 1/1 after blight 1');
+    t.eq(bear.counters['-1/-1'] || 0, 1);
+  });
+
+  test('Syncopate: a target inside "unless" is still asked for as it is cast', (mk, t) => {
+    t.auto('Syncopate');
+    const T = mk();
+    const specs = engine().rules.spellTargetSpecs(engine().oracle.analyze(card('Syncopate')));
+    t.eq(specs.length, 1, 'one target, for the table to ask');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    T.mana('B', 'U1');
+    T.answer('confirm', { yes: false });
+    T.cast('B', T.hand('B', 'Syncopate'), { x: 1, targets: [T.stackTarget(bolt)] });
+    t.eq(bolt.zone, 'exile', 'countered and exiled');
+    t.eq(T.life('B'), 20);
+  });
 };

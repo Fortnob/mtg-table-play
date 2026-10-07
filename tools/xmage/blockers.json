@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 15424,
-  "gainedCards": 1588,
-  "linesNeeded": 17228,
-  "linesGained": 2015,
+  "needed": 15392,
+  "gainedCards": 1578,
+  "linesNeeded": 17189,
+  "linesGained": 2008,
   "gained": {
-   "all": 1588,
+   "all": 1578,
    "top2000": 53,
    "stdTop": 12
   },
@@ -34,8 +34,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5556,
-   "lines": 4794,
+   "score": 5552,
+   "lines": 4790,
    "cards": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -91,10 +91,11 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 330,
-   "lines": 315,
+   "score": 328,
+   "lines": 310,
    "cards": [
     "Excalibur, Sword of Eden",
+    "Plumb the Forbidden",
     "Cavern-Hoard Dragon",
     "Metalwork Colossus",
     "Reforge the Soul",
@@ -104,8 +105,7 @@
     "Kogla and Yidaro",
     "Temporal Mastery",
     "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass",
-    "Metamorphosis Fanatic"
+    "Bloodsoaked Insight // Sanguine Morass"
    ]
   },
   {
@@ -490,8 +490,8 @@
   },
   {
    "what": "InfoEffect",
-   "score": 31,
-   "lines": 31,
+   "score": 30,
+   "lines": 30,
    "cards": [
     "Invert Polarity",
     "Nazgûl",
@@ -2362,25 +2362,6 @@
    ]
   },
   {
-   "what": "BlightCost",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Scuzzback Scrounger",
-    "Dawnhand Dissident",
-    "Boggart Mischief",
-    "Gristle Glutton",
-    "Champion of the Weird",
-    "Sourbread Auntie",
-    "Warren Torchmaster",
-    "Blighted Blackthorn",
-    "Spiral into Solitude",
-    "Evershrike's Gift",
-    "Dream Seizer",
-    "Sting-Slinger"
-   ]
-  },
-  {
    "what": "BoostSourceEffect p/t",
    "score": 14,
    "lines": 14,
@@ -4153,23 +4134,6 @@
    ]
   },
   {
-   "what": "OutlawPredicate.instance",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Shoot the Sheriff",
-    "Vihaan, Goldwaker",
-    "At Knifepoint",
-    "Hellspur Posse Boss",
-    "Vial Smasher, Gleeful Grenadier",
-    "Rakish Crew",
-    "Dead Before Sunrise",
-    "Charred Graverobber",
-    "Take the Fall",
-    "Mine Raider"
-   ]
-  },
-  {
    "what": "GainLifeEffect amount",
    "score": 10,
    "lines": 10,
@@ -4825,6 +4789,22 @@
     "Kingpin, Wilson Fisk",
     "True Identity",
     "Pine Walker"
+   ]
+  },
+  {
+   "what": "OutlawPredicate.instance",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Shoot the Sheriff",
+    "Vihaan, Goldwaker",
+    "At Knifepoint",
+    "Hellspur Posse Boss",
+    "Vial Smasher, Gleeful Grenadier",
+    "Rakish Crew",
+    "Dead Before Sunrise",
+    "Charred Graverobber",
+    "Mine Raider"
    ]
   },
   {
@@ -7839,13 +7819,26 @@
     "Doorman",
     "Joven's Tools"
    ]
+  },
+  {
+   "what": "token ability HeartwoodToken",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Aerid Konstrari",
+    "Heartwood Crafter // Soul Tether",
+    "Woodwork Prodigy // Soul Tether",
+    "Konstrari Improviser // Soul Tether",
+    "Tenured Tethermage",
+    "Hungering Puppetbeast"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4431,
-   "cards": 3885,
+   "score": 4429,
+   "cards": 3883,
    "names": [
     "Ripples of Undeath",
     "Thespian's Stage",
@@ -7870,15 +7863,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 225,
+   "score": 228,
    "cards": 213,
    "names": [
     "Excalibur, Sword of Eden",
+    "Plumb the Forbidden",
     "Cavern-Hoard Dragon",
     "Metalwork Colossus",
     "Reforge the Soul",
-    "Hagra Mauling // Hagra Broodpit",
-    "Not of This World"
+    "Hagra Mauling // Hagra Broodpit"
    ]
   },
   {
@@ -8064,6 +8057,19 @@
    ]
   },
   {
+   "what": "Ability.modes.setChooseText",
+   "score": 28,
+   "cards": 25,
+   "names": [
+    "Rankle, Master of Pranks",
+    "Will of the Jeskai",
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance",
+    "Will of the Abzan"
+   ]
+  },
+  {
    "what": "target count 0",
    "score": 27,
    "cards": 15,
@@ -8074,19 +8080,6 @@
     "Court of Cunning",
     "Stonespeaker Crystal",
     "Tinybones Joins Up"
-   ]
-  },
-  {
-   "what": "Ability.modes.setChooseText",
-   "score": 27,
-   "cards": 24,
-   "names": [
-    "Rankle, Master of Pranks",
-    "Will of the Jeskai",
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance",
-    "Will of the Abzan"
    ]
   },
   {
@@ -8168,19 +8161,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 23,
-   "cards": 23,
-   "names": [
-    "Invert Polarity",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Aether Spike",
-    "Swallowed by Leviathan",
-    "The Tabernacle at Pendrell Vale"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 23,
    "cards": 23,
@@ -8204,6 +8184,19 @@
     "Akki Battle Squad",
     "Thundering Raiju",
     "Araña, Heart of the Spider"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 22,
+   "cards": 22,
+   "names": [
+    "Invert Polarity",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Aether Spike",
+    "Swallowed by Leviathan",
+    "The Tabernacle at Pendrell Vale"
    ]
   },
   {
@@ -9332,19 +9325,6 @@
    ]
   },
   {
-   "what": "BlightCost",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Scuzzback Scrounger",
-    "Boggart Mischief",
-    "Gristle Glutton",
-    "Sourbread Auntie",
-    "Warren Torchmaster",
-    "Blighted Blackthorn"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 11,
    "cards": 11,
@@ -9665,6 +9645,19 @@
     "Kjeldoran Knight",
     "Wall of Shields",
     "Benalish Infantry"
+   ]
+  },
+  {
+   "what": "AssignNoCombatDamageSourceEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Goblin Vandal",
+    "Laccolith Whelp",
+    "Ophidian",
+    "Dwarven Vigilantes",
+    "Lim-Dûl's Paladin",
+    "Farrel's Zealot"
    ]
   },
   {
@@ -10127,19 +10120,6 @@
     "Desert Nomads",
     "Wall of Putrid Flesh",
     "Argothian Pixies"
-   ]
-  },
-  {
-   "what": "AssignNoCombatDamageSourceEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Goblin Vandal",
-    "Laccolith Whelp",
-    "Ophidian",
-    "Dwarven Vigilantes",
-    "Farrel's Zealot",
-    "Laccolith Titan"
    ]
   },
   {
@@ -11661,16 +11641,29 @@
    ]
   },
   {
-   "what": "OutlawPredicate.instance",
+   "what": "CastAsThoughItHadFlashAllEffect",
    "score": 6,
    "cards": 6,
    "names": [
-    "Shoot the Sheriff",
-    "Vial Smasher, Gleeful Grenadier",
-    "Dead Before Sunrise",
-    "Charred Graverobber",
-    "Take the Fall",
-    "Mine Raider"
+    "Tidal Barracuda",
+    "Quick Sliver",
+    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
+    "Vernal Equinox",
+    "Cherished Hatchling",
+    "Rootwater Shaman"
+   ]
+  },
+  {
+   "what": "subject:anyCounter",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Felisa, Fang of Silverquill",
+    "Village Pillagers",
+    "Puca's Covenant",
+    "Cleopatra, Exiled Pharaoh",
+    "Shadow Urchin",
+    "Buzzard-Wasp Colony"
    ]
   }
  ]
