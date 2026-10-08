@@ -3896,6 +3896,7 @@
     /* "Counter that spell": the spell already targeted (Stubborn Denial's
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     /* Tribute to the World Tree: "…if its power is 3 or greater. Otherwise,
        put two +1/+1 counters on it." — the other branch of the sentence before */
     { re: /^Otherwise, (.+)$/i,
@@ -6655,6 +6656,9 @@
     { re: /^Whenever you create or sacrifice a token(?:,| )/i, event: 'youCreateToken', also: 'youSacToken' },
     { re: /^Whenever you create (?:a|one or more) tokens?(?:,| )/i, event: 'youCreateToken' },
     { re: /^Whenever you sacrifice a token(?:,| )/i, event: 'youSacToken' },
+    // Kira, Glyph Keeper: "for the first time each turn"
+    { re: /^When(?:ever)? (?:this creature|CARDNAME|this permanent) becomes the target of a spell or ability for the first time each turn,? /i,
+      event: 'becomesTarget', self: true, extra: { firstTargetEachTurn: true } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) attacks or becomes the target of a spell(?:,| )/i,
       event: 'attacks', also: 'becomesTarget', self: true, extra: { bySpellOnly: true } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
@@ -6880,6 +6884,12 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
+    // Tale of Katara and Toph: "for the first time during each of your turns"
+    { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped for the first time during each of your turns,? /i,
+      event: 'becomesTapped', self: true, extra: { yourTurnOnly: true, firstTapEachTurn: true } },
+    // Interface Ace, Dionus: "during your turn"
+    { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped during your turn,? /i,
+      event: 'becomesTapped', self: true, extra: { yourTurnOnly: true } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped(?:,| )/i, event: 'becomesTapped', self: true },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes untapped(?:,| )/i, event: 'becomesUntapped', self: true },
     { re: /^When(?:ever)? (?:this permanent|this creature|~|CARDNAME) leaves the battlefield(?:,| )/i, event: 'ltb', self: true },

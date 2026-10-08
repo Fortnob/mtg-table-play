@@ -9843,4 +9843,34 @@ module.exports = (test) => {
     T4.g._runEffects([{ op: 'proliferate' }], { controller: 'A', obj: b4, name: 'test' });
     t.eq(b4.counters['+1/+1'], 3, 'proliferated twice');
   });
+
+  test('Kira: the first spell each turn that targets a creature of yours is countered, the second is not', (mk, t) => {
+    t.auto('Kira, Great Glass-Spinner');
+    const T = mk();
+    T.bf('A', 'Kira, Great Glass-Spinner');
+    const bear = T.bf('A', 'Centaur Courser');
+    T.mana('A', 'RR');
+    const s1 = T.hand('A', 'Shock'), s2 = T.hand('A', 'Shock');
+    T.cast('A', s1, { targets: [bear] });
+    T.settle(); T.resolve();
+    t.eq(bear.damage || 0, 0, 'the first Shock was countered');
+    t.eq(s1.zone, 'graveyard');
+    T.cast('A', s2, { targets: [bear] });
+    T.settle(); T.resolve();
+    t.eq(bear.damage, 2, 'the second one lands');
+  });
+
+  test('Tale of Katara and Toph: a counter the first time each creature becomes tapped on your turn', (mk, t) => {
+    t.auto('Tale of Katara and Toph');
+    const T = mk();
+    T.bf('A', 'Tale of Katara and Toph');
+    const elf = T.bf('A', 'Llanowar Elves'); elf.summoningSick = false;
+    T.g.tapForMana('A', elf.id, 0);
+    T.settle(); T.resolve();
+    t.eq(elf.counters['+1/+1'], 1, 'first tap: a counter');
+    elf.tapped = false;
+    T.g.tapForMana('A', elf.id, 0);
+    T.settle(); T.resolve();
+    t.eq(elf.counters['+1/+1'], 1, 'second tap this turn: none');
+  });
 };

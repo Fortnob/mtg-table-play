@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13121,
+  "needed": 13113,
   "gainedCards": 1368,
-  "linesNeeded": 14288,
+  "linesNeeded": 14279,
   "linesGained": 1655,
   "gained": {
    "all": 1368,
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 845,
-   "lines": 734,
+   "score": 842,
+   "lines": 731,
    "cards": [
     "Trouble in Pairs",
     "Midnight Clock",
@@ -5233,19 +5233,6 @@
    ]
   },
   {
-   "what": "targeted trigger pointing at the spell",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Frost Titan",
-    "Reality Smasher",
-    "Forsaken Wastes",
-    "Black Bolt, Inhuman King",
-    "Lava Runner",
-    "Retromancer"
-   ]
-  },
-  {
    "what": "DynamicManaAbility shape",
    "score": 6,
    "lines": 6,
@@ -6046,18 +6033,6 @@
    ]
   },
   {
-   "what": "BecomesTargetSourceFirstTimeTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Kira, Great Glass-Spinner",
-    "Angelic Cub",
-    "Glyph Keeper",
-    "Shimmering Glasskite",
-    "Jetting Glasskite"
-   ]
-  },
-  {
    "what": "SpellCostReductionSourceEffect",
    "score": 5,
    "lines": 5,
@@ -6366,6 +6341,18 @@
     "Gideon, Champion of Justice",
     "Killmonger, Ruthless Usurper",
     "Renewing Dawn"
+   ]
+  },
+  {
+   "what": "targeted trigger pointing at the spell",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Reality Smasher",
+    "Forsaken Wastes",
+    "Black Bolt, Inhuman King",
+    "Lava Runner",
+    "Retromancer"
    ]
   },
   {
@@ -7180,6 +7167,17 @@
     "Horobi, Death's Wail",
     "Cowardice"
    ]
+  },
+  {
+   "what": "LoseAllAbilitiesTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Azure Beastbinder",
+    "Abigale, Eloquent First-Year",
+    "The Wondrous Wasp",
+    "Invasion of Muraganda // Primordial Plasm"
+   ]
   }
  ],
  "sole": [
@@ -7198,8 +7196,8 @@
   },
   {
    "what": "custom ability",
-   "score": 646,
-   "cards": 559,
+   "score": 644,
+   "cards": 557,
    "names": [
     "Midnight Clock",
     "Scrap Trawler",
@@ -9976,19 +9974,6 @@
    ]
   },
   {
-   "what": "targeted trigger pointing at the spell",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Frost Titan",
-    "Reality Smasher",
-    "Forsaken Wastes",
-    "Black Bolt, Inhuman King",
-    "Lava Runner",
-    "Retromancer"
-   ]
-  },
-  {
    "what": "filter:snow",
    "score": 6,
    "cards": 6,
@@ -10518,18 +10503,6 @@
    ]
   },
   {
-   "what": "BecomesTargetSourceFirstTimeTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Kira, Great Glass-Spinner",
-    "Angelic Cub",
-    "Glyph Keeper",
-    "Shimmering Glasskite",
-    "Jetting Glasskite"
-   ]
-  },
-  {
    "what": "BecomePreparedSourceEffect",
    "score": 5,
    "cards": 5,
@@ -10806,6 +10779,18 @@
    ]
   },
   {
+   "what": "targeted trigger pointing at the spell",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Reality Smasher",
+    "Forsaken Wastes",
+    "Black Bolt, Inhuman King",
+    "Lava Runner",
+    "Retromancer"
+   ]
+  },
+  {
    "what": "RemoveCounterSourceEffect",
    "score": 5,
    "cards": 5,
@@ -10959,6 +10944,18 @@
     "Gearshift Ace",
     "Veteran Motorist",
     "Reckless Velocitaur"
+   ]
+  },
+  {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Cryoshatter",
+    "Relic Putrescence",
+    "Darksteel Garrison",
+    "Kudzu",
+    "Steam Vines"
    ]
   }
  ]

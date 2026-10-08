@@ -4843,7 +4843,7 @@
          permanent the spell points at is told. */
       for (const t of item.targets || []) {
         const x = t.kind === 'object' && this.obj(t.id);
-        if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, bySpell: true, playerId });
+        if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, bySpell: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
       }
       this._fire('opponentCastSpell', null, Object.assign({ except: playerId }, castData));
       this._crimeCheck(playerId, item.targets);
@@ -5692,7 +5692,7 @@
       this._payThingCosts(playerId, ab.cost, o, opts, item);
       for (const t of item.targets || []) {
         const x = t.kind === 'object' && this.obj(t.id);
-        if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, playerId });
+        if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
       }
       this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab, o), 80)}`);
       this._crimeCheck(playerId, item.targets);
@@ -7263,6 +7263,11 @@
     /* Protection from a quality, printed or granted ("equipped creature has
        protection from black and from green"): does it shield o from this
        source? */
+    /** How many times this permanent has become a target this turn, counting this one. */
+    _targetedNth(x) {
+      if (!x._targeted || x._targeted.turn !== this.turn) x._targeted = { turn: this.turn, n: 0 };
+      return ++x._targeted.n;
+    }
     /** Aven Mindcensor: how far down their library a player's search reaches. */
     _searchReach(pid) {
       let k = Infinity;
@@ -9961,6 +9966,10 @@
             const at = (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(Boolean);
             if (!at.some(x => x.attacking === o.attachedTo)) continue;
           }
+          // Tale of Katara and Toph: the first time it becomes tapped this turn
+          if (ab.firstTapEachTurn && data.nth !== 1) continue;
+          // Kira: only the first time it is targeted this turn
+          if (ab.firstTargetEachTurn && data.nth !== 1) continue;
           // Mangara: an opponent's attack, with that many creatures coming at you or your planeswalkers
           if (ab.minAttackingYou) {
             if (data.playerId === o.controller) continue;
@@ -16813,7 +16822,9 @@
     _markTapped(o) {
       if (!o || o.tapped) return;
       o.tapped = true;
-      this._fire('becomesTapped', o.controller, { source: o, object: o });
+      if (!o._tappedTurn || o._tappedTurn.turn !== this.turn) o._tappedTurn = { turn: this.turn, n: 0 };
+      o._tappedTurn.n++;
+      this._fire('becomesTapped', o.controller, { source: o, object: o, nth: o._tappedTurn.n });
     }
 
     /**
