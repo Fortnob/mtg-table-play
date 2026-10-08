@@ -2693,6 +2693,9 @@
       make: (m) => Object.assign({ op: 'poison', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: /opponent/i.test(m[1]) ? 'opponent' : 'player' }] } : {}) },
     { re: /^You gain life equal to the damage dealt this way\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: 'lastDamage' }) },
+    // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
+    { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
     // Flame Spill, Ravenous Tyrannosaurus: what the damage before this had left over goes on to the controller
     { re: /^(?:The )?[Ee]xcess damage is dealt to (?:that creature'?s|that permanent'?s|its) controller instead\.?$/, make: () => ({ op: 'excessToController' }) },
     { re: /^Create a number of (tapped )?(Treasure|Clue|Food|Blood) tokens equal to (.+?)\.?$/i,
@@ -9174,6 +9177,9 @@
       { re: /^Whenever you tap an? (land|Forest|Island|Swamp|Mountain|Plains|basic land) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Pariah, Empyrial Archangel, Pariah's Shield: "All damage that would be dealt to you is dealt to this creature instead."
+      { re: /^All damage that would be dealt to you is dealt to (this creature|CARDNAME|enchanted creature|equipped creature) instead\.?$/i,
+        make: (m) => ({ op: 'redirectYourDamage', to: /enchanted|equipped/i.test(m[1]) ? 'attached' : 'self' }), auto: true },
       // Mana Flare, Heartbeat of Spring: every player's lands, for whoever taps them
       { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', filter: m[1].toLowerCase() },

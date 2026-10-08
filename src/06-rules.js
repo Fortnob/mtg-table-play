@@ -8635,6 +8635,20 @@
     /* ---------- damage & life ---------- */
     dealDamageToObject(o, amount, source, isCombat) {
       if (amount <= 0) return 0;
+      /* the en-Kor: "the next 1 damage that would be dealt to this creature
+         this turn is dealt to target creature you control instead" */
+      const shields = (o.redirectNext || []).filter(x => x.turn === this.turn && x.n > 0);
+      for (const sh of shields) {
+        if (amount <= 0) break;
+        const to = this.obj(sh.to);
+        if (!to || to.zone !== 'battlefield' || to === o) { sh.n = 0; continue; }
+        const part = Math.min(sh.n, amount);
+        sh.n -= part; amount -= part;
+        this.logEvent('damage', `${part} damage to ${o.name} is dealt to ${to.name} instead.`);
+        this.dealDamageToObject(to, part, source, isCombat);
+      }
+      if (shields.length) o.redirectNext = (o.redirectNext || []).filter(x => x.turn === this.turn && x.n > 0);
+      if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat);
       if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
       // the Phantoms: "prevent that damage. Remove a +1/+1 counter from this creature."
@@ -8708,6 +8722,16 @@
 
     dealDamageToPlayer(p, amount, source, combat) {
       if (!p || amount <= 0) return 0;
+      // Pariah, Empyrial Archangel: "all damage that would be dealt to you is dealt to this creature instead"
+      for (const r of this.battlefield) {
+        if (r.controller !== p.id || r.phasedOut) continue;
+        const e = this._staticOp(r, 'redirectYourDamage');
+        if (!e) continue;
+        const to = e.to === 'attached' ? (r.attachedTo && this.obj(r.attachedTo)) : r;
+        if (!to || to.zone !== 'battlefield' || !(this.characteristics(to) || {}).isCreature) continue;
+        this.logEvent('damage', `Damage to ${p.name} is dealt to ${to.name} instead.`);
+        return this.dealDamageToObject(to, amount, source, combat);
+      }
       amount = this._damageAmount(amount, source, p.id, combat, true);
       if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
       if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
@@ -14418,7 +14442,8 @@
           const words = (l) => (l.length ? l.map(c => c.name).join(', ') : 'nothing');
           const pick = this._choose({ playerId: chooser, purpose: 'pileChoice', kind: 'options', min: 1, max: 1, compact: true,
             forPlayer: ctx.controller,
-            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(c => c.id) }, { label: `Pile 2: ${words(two)}`, ids: two.map(c => c.id) }],
+            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(c => c.id), cards: one.map(c => c.card || null) },
+              { label: `Pile 2: ${words(two)}`, ids: two.map(c => c.id), cards: two.map(c => c.card || null) }],
             prompt: `Which pile goes into ${me.name}'s hand?` }, 'pileChoice');
           if (pick === SUSPEND) return SUSPEND;
           const chosen = pick && pick.picks && pick.picks[0] === 1 ? two : one;
@@ -14446,7 +14471,8 @@
           const words = (l) => (l.length ? l.map(o => o.name).join(', ') : 'nothing');
           const pick = this._choose({ playerId: tp.id, purpose: 'pileChoice', kind: 'options', min: 1, max: 1, compact: true,
             forPlayer: tp.id, harmful: true,
-            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(o => o.id) }, { label: `Pile 2: ${words(two)}`, ids: two.map(o => o.id) }],
+            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(o => o.id), cards: one.map(o => o.card || null) },
+              { label: `Pile 2: ${words(two)}`, ids: two.map(o => o.id), cards: two.map(o => o.card || null) }],
             prompt: e.then === 'sacrifice' ? 'Which pile do you sacrifice?' : 'Which pile is destroyed?' }, 'ppChoice');
           if (pick === SUSPEND) return SUSPEND;
           const chosen = (pick && pick.picks && pick.picks[0] === 1 ? two : one).filter(o => o.zone === 'battlefield');
@@ -14464,6 +14490,14 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // the en-Kor: a shield on this creature that sends the next damage to the target
+        case 'redirectNextDamage': {
+          const to = firstObj();
+          if (!src || src.zone !== 'battlefield' || !to) break;
+          (src.redirectNext = src.redirectNext || []).push({ n: n(e.n) || 1, to: to.id, turn: this.turn });
+          this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${src.name} this turn goes to ${to.name} instead.`);
+          break;
+        }
         // "End the turn." — once this has finished resolving
         case 'endTheTurn':
           this._endTheTurn = this.turn;

@@ -318,7 +318,7 @@ declare namespace MTG {
     purpose?: string | null;
     kind: 'objects' | 'players' | 'options' | 'number';
     items?: Array<{ id: Id; name?: string; card?: Card | null; [k: string]: any }> | null;
-    options?: Array<{ label: string; i?: number; cost?: string; card?: Card | null; weight?: number; [k: string]: any }> | null;
+    options?: Array<{ label: string; i?: number; cost?: string; card?: Card | null; weight?: number; ids?: string[]; cards?: Array<Card | null>; [k: string]: any }> | null;
     number?: { min: number; max: number; step: number };
     min?: number;
     max?: number;
@@ -337,7 +337,7 @@ declare namespace MTG {
     /** objects or players to pick from (their ids are the picks) */
     items?: Array<{ id: Id; name?: string; card?: Card | null; [k: string]: any }> | null;
     /** options to pick from (their indexes are the picks) */
-    options?: Array<{ label: string; i?: number; cost?: string; card?: Card | null; weight?: number; [k: string]: any }> | null;
+    options?: Array<{ label: string; i?: number; cost?: string; card?: Card | null; weight?: number; ids?: string[]; cards?: Array<Card | null>; [k: string]: any }> | null;
     number?: { min: number; max: number; step: number };
     min?: number;
     max?: number;

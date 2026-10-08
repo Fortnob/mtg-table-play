@@ -156,7 +156,8 @@ const choice = (fields) => obj(Object.assign({}, common, fields));
 const Defender = obj({ kind: lit('player', 'object'), id, name: str });
 /* the generic question (src/06a-choice.js, docs/choices.md) */
 const ChooseItem = obj({ id, name: opt(maybe(str)), card: opt(maybe(Card)) });
-const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weight: opt(num) });
+/* ids and cards: a pile of cards an option stands for (Fact or Fiction's piles), cards in the same order as ids */
+const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weight: opt(num), ids: opt(arr(id)), cards: opt(arr(maybe(Card))) });
 const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
 const ChooseConstraint = obj({ kind: lit('distinct', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
   with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str) });

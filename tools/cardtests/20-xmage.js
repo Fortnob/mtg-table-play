@@ -8795,6 +8795,8 @@ module.exports = (test) => {
     t.eq(split && split.playerId, 'B', 'the opponent separates them');
     t.eq(split && split.purpose, 'pileSplit');
     t.eq(choice && choice.playerId, 'A', 'and A chooses');
+    t.eq(choice && choice.options[0].cards.length, 1, 'each pile shows its cards');
+    t.eq(choice && choice.options[1].cards.map(c => c.name).sort().join(), choice.options[1].ids.map(id => T.g.obj(id).name).sort().join(), 'in the order of their ids');
     const bolt = top.find(o => o.name === 'Lightning Bolt');
     t.eq(bolt.zone, 'graveyard', 'the Bolt pile was not taken');
     t.eq(top.filter(o => o.zone === 'hand').length, 4, 'the other four were');
@@ -8850,5 +8852,25 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Lacerate Flesh'), { targets: [elf] });
     t.eq(elf.zone, 'graveyard');
     t.eq(mine() - blood, 3, 'three Blood tokens for the three left over');
+  });
+
+  test('Damage redirected: Empyrial Archangel takes what would hit you, an en-Kor passes its next damage on', (mk, t) => {
+    t.auto('Empyrial Archangel');
+    t.auto('Nomads en-Kor');
+    t.auto('Pariah');
+    const T = mk();
+    const angel = T.bf('B', 'Empyrial Archangel');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 20, 'B took nothing');
+    t.eq(angel.damage, 3, 'the Archangel took it');
+    const T2 = mk();
+    const nomads = T2.bf('A', 'Nomads en-Kor');
+    const wall = T2.bf('A', 'Grizzly Bears');
+    T2.activate('A', nomads, 0, { targets: [wall] });
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Shock'), { targets: [nomads] });
+    t.eq(nomads.zone, 'graveyard', 'one of the two stayed, enough for a 2/1');
+    t.eq(wall.damage, 1, 'and one went to the Bears');
   });
 };
