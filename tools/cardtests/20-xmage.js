@@ -8923,4 +8923,26 @@ module.exports = (test) => {
     t.eq(T2.life('B'), 17);
     t.eq(bolt.zone, 'exile', 'and is exiled after');
   });
+
+  test("Thespian's Stage becomes a copy of a land and keeps the ability; Mirage Mirror only until end of turn", (mk, t) => {
+    t.auto("Thespian's Stage");
+    t.auto('Mirage Mirror');
+    t.auto('Protean Thaumaturge');
+    const T = mk();
+    const stage = T.bf('A', "Thespian's Stage");
+    const forest = T.bf('B', 'Forest');
+    T.mana('A', '2');
+    T.activate('A', stage, stage.analysis().manaAbilities.length + 0, { targets: [forest] });
+    t.eq(stage.name, 'Forest', 'it is a Forest now');
+    t.ok(stage.analysis().abilities.some(ab => /becomes a copy/i.test(ab.text || '')), 'and still has the copying ability');
+    const T2 = mk();
+    const mirror = T2.bf('A', 'Mirage Mirror');
+    const bear = T2.bf('B', 'Grizzly Bears');
+    T2.mana('A', '2');
+    T2.activate('A', mirror, 0, { targets: [bear] });
+    t.eq(mirror.name, 'Grizzly Bears');
+    t.no(mirror.analysis().abilities.some(ab => /becomes a copy/i.test(ab.text || '')), 'a plain copy keeps nothing of its own');
+    T2.toMain('B', 'main');
+    t.eq(mirror.name, 'Mirage Mirror', 'back to itself after the turn');
+  });
 };

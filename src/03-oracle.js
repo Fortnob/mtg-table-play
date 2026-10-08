@@ -3120,6 +3120,20 @@
       make: (m) => ({ op: 'etbTappedUnlessLands', n: num(m[1]) }) },
     { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you control an? ((?:basic )?[A-Za-z]+)(?: or an? ([A-Za-z]+))?\.?$/i,
       make: (m) => ({ op: 'etbTappedUnlessType', types: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }) },
+    /* Thespian's Stage, Mirage Mirror, Protean Thaumaturge, Artisan of
+       Forms: "This land becomes a copy of target land, except it has this
+       ability"; "(you may have) this creature become a copy of another
+       target creature (until end of turn)" */
+    { re: /^(You may have |Have )?(?:This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of ((?:up to one )?(?:another )?target [a-z ,]+?)(, except it has this ability)?( until end of turn)?\.?$/i,
+      make: (m) => {
+        // "become" after "have", "becomes" on its own
+        if (/ become a copy/i.test(m[0]) !== !!m[1]) return null;
+        const spec = targetSpec(m[2].replace(/^up to one /i, ''));
+        if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
+        if (/^up to one/i.test(m[2])) spec.upTo = true;
+        const e = Object.assign({ op: 'becomeCopy', targets: [spec] }, m[4] ? { eot: true } : {}, m[3] ? { keepThis: true } : {});
+        return /^you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
+      } },
     /* Shifting Woodland: "This land becomes a copy of target permanent card
        in your graveyard until end of turn." */
     { re: /^(?:This land|CARDNAME|This permanent) becomes a copy of (target [a-z ]+? card in your graveyard) until end of turn\.?$/i,

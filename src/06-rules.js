@@ -13845,8 +13845,14 @@
           src.printedCard = src.printedCard || src.card;
           src.copyOf = t.card;
           src.card = t.card;
-          src.face = 0;
+          src.face = t.face || 0;
           if (e.eot) src.copyUntilTurn = this.turn;
+          // "except it has this ability": the line that made it a copy stays with it
+          src.effects = (src.effects || []).filter(x => !x.keepsCopyLine);
+          if (e.keepThis) {
+            const keep = (O.analyze(src.printedCard) || { abilities: [] }).abilities.filter(ab => JSON.stringify(ab.effects || []).includes('"keepThis":true'));
+            if (keep.length) src.effects.push({ grantAbilities: keep, until: e.eot ? 'eot' : null, keepsCopyLine: true });
+          }
           src._chr = null;
           this.bumpBoard();
           this.logEvent('rules', `${src.printedCard.name} becomes a copy of ${t.name}${e.eot ? ' until end of turn' : ''}.`);

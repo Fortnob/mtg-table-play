@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13680,
+  "needed": 13670,
   "gainedCards": 1441,
-  "linesNeeded": 15064,
+  "linesNeeded": 15052,
   "linesGained": 1772,
   "gained": {
    "all": 1441,
@@ -33,10 +33,9 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5063,
-   "lines": 4421,
+   "score": 5049,
+   "lines": 4413,
    "cards": [
-    "Thespian's Stage",
     "Opposition Agent",
     "Tibalt's Trickery",
     "Torment of Hailfire",
@@ -47,7 +46,8 @@
     "Veyran, Voice of Duality",
     "Isochron Scepter",
     "Inkshield",
-    "Etali, Primal Conqueror // Etali, Primal Sickness"
+    "Etali, Primal Conqueror // Etali, Primal Sickness",
+    "Ashaya, Soul of the Wild"
    ]
   },
   {
@@ -128,10 +128,9 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 224,
-   "lines": 197,
+   "score": 220,
+   "lines": 196,
    "cards": [
-    "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
     "Grasp of Fate",
     "Crackle with Power",
@@ -142,7 +141,8 @@
     "Kozilek's Command",
     "Ruthless Technomancer",
     "Sepulchral Primordial",
-    "Silkguard"
+    "Silkguard",
+    "Chthonian Nightmare"
    ]
   },
   {
@@ -1594,18 +1594,6 @@
     "Widow's Bite",
     "Atlantis Attacks",
     "Helicarrier Strike"
-   ]
-  },
-  {
-   "what": "Ability.setModeTag",
-   "score": 14,
-   "lines": 5,
-   "cards": [
-    "Silent Hallcreeper",
-    "Gandalf the Grey",
-    "Henrika Domnathi // Henrika, Infernal Seer",
-    "Kargan Intimidator",
-    "Sol'Kanar the Tainted"
    ]
   },
   {
@@ -7363,20 +7351,32 @@
     "Demon's Herald",
     "Sphinx's Herald"
    ]
+  },
+  {
+   "what": "CantAttackIfDefenderControlsPermanent",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Veteran Brawlers",
+    "Goblin Mutant",
+    "Branded Brawlers",
+    "Orgg",
+    "Mogg Jailer"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4068,
-   "cards": 3612,
+   "score": 4056,
+   "cards": 3606,
    "names": [
-    "Thespian's Stage",
     "Tibalt's Trickery",
     "Torment of Hailfire",
     "Incubation Druid",
     "Sphere of Safety",
-    "Shared Animosity"
+    "Shared Animosity",
+    "Springheart Nantuko"
    ]
   },
   {
@@ -7407,15 +7407,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 192,
-   "cards": 165,
+   "score": 188,
+   "cards": 164,
    "names": [
-    "The Mycosynth Gardens",
     "Agadeem's Awakening // Agadeem, the Undercrypt",
     "Grasp of Fate",
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
-    "Comet Storm"
+    "Comet Storm",
+    "Lazotep Quarry"
    ]
   },
   {
@@ -8041,6 +8041,19 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Allosaurus Shepherd",
+    "Biomass Mutation",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration"
+   ]
+  },
+  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 13,
    "cards": 4,
@@ -8179,29 +8192,6 @@
     "TARDIS",
     "Crackling Spellslinger",
     "Dark Apostle"
-   ]
-  },
-  {
-   "what": "Ability.setModeTag",
-   "score": 12,
-   "cards": 3,
-   "names": [
-    "Silent Hallcreeper",
-    "Gandalf the Grey",
-    "Sol'Kanar the Tainted"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Allosaurus Shepherd",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration"
    ]
   },
   {
@@ -11136,6 +11126,18 @@
     "Cosmium Confluence",
     "Riveteers Confluence",
     "Obscura Confluence"
+   ]
+  },
+  {
+   "what": "AttachToSourceTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Armory Automaton",
+    "Amy Rose",
+    "Sokka, Swordmaster",
+    "Kazuul's Toll Collector",
+    "Shagrat, Loot Bearer"
    ]
   }
  ]
