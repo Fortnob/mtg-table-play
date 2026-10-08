@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13071,
+  "needed": 13068,
   "gainedCards": 1370,
-  "linesNeeded": 14230,
+  "linesNeeded": 14227,
   "linesGained": 1655,
   "gained": {
    "all": 1370,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4773,
-   "lines": 4275,
+   "score": 4769,
+   "lines": 4274,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -147,10 +147,9 @@
   },
   {
    "what": "custom condition",
-   "score": 186,
-   "lines": 168,
+   "score": 182,
+   "lines": 167,
    "cards": [
-    "Liberator, Urza's Battlethopter",
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
     "Nasty End",
@@ -161,7 +160,8 @@
     "Elanor Gardner",
     "Lux Artillery",
     "Lilypad Village",
-    "Éowyn, Shieldmaiden"
+    "Éowyn, Shieldmaiden",
+    "Rith, Liberated Primeval"
    ]
   },
   {
@@ -2557,20 +2557,6 @@
    ]
   },
   {
-   "what": "damage affecting the defending player",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Kediss, Emberclaw Familiar",
-    "Angel of Destiny",
-    "Strixhaven Stadium",
-    "Cosima, God of the Voyage // The Omenkeel",
-    "Edward Kenway",
-    "Rogue Class",
-    "Etrata, Deadly Fugitive"
-   ]
-  },
-  {
    "what": "keyword CompleatedAbility",
    "score": 10,
    "lines": 7,
@@ -4685,6 +4671,19 @@
     "Vivien, Champion of the Wilds",
     "Kytheon, Hero of Akros // Gideon, Battle-Forged",
     "Karvanista, Loyal Lupari // Lupari Shield"
+   ]
+  },
+  {
+   "what": "damage affecting the defending player",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Angel of Destiny",
+    "Strixhaven Stadium",
+    "Cosima, God of the Voyage // The Omenkeel",
+    "Edward Kenway",
+    "Rogue Class",
+    "Etrata, Deadly Fugitive"
    ]
   },
   {
@@ -7177,8 +7176,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3862,
-   "cards": 3520,
+   "score": 3858,
+   "cards": 3519,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7242,15 +7241,15 @@
   },
   {
    "what": "custom condition",
-   "score": 144,
-   "cards": 135,
+   "score": 140,
+   "cards": 134,
    "names": [
-    "Liberator, Urza's Battlethopter",
     "Sting, the Glinting Dagger",
     "Nasty End",
     "Queen Marchesa",
     "Diamond City",
-    "Blitzball"
+    "Blitzball",
+    "Elanor Gardner"
    ]
   },
   {
@@ -10171,15 +10170,6 @@
    ]
   },
   {
-   "what": "damage affecting the defending player",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Kediss, Emberclaw Familiar",
-    "Edward Kenway"
-   ]
-  },
-  {
    "what": "AttacksFirstTimeTriggeredAbility",
    "score": 5,
    "cards": 2,
@@ -10948,6 +10938,18 @@
     "Impatience",
     "Keldon Twilight",
     "Krovikan Vampire"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect.withCantBePrevented",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Urza's Rage",
+    "Arrow Storm",
+    "Flames of the Blood Hand",
+    "Lightning Surge",
+    "Pinpoint Avalanche"
    ]
   }
  ]

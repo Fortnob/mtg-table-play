@@ -10167,4 +10167,35 @@ module.exports = (test) => {
     t.eq(T2.life('A'), 18, 'two life for the {B}');
     t.eq(T2.g.player('A').pool.total(), 3, 'and the Ritual resolves');
   });
+
+  test('Hunter\'s Insight draws for the chosen creature\'s combat damage; Kediss spreads a commander\'s; Liberator grows', (mk, t) => {
+    t.auto("Hunter's Insight");
+    t.auto('Kediss, Emberclaw Familiar');
+    t.auto("Liberator, Urza's Battlethopter");
+    const T = mk();
+    const cc = T.bf('A', 'Centaur Courser'); cc.summoningSick = false;
+    const other = T.bf('A', 'Grizzly Bears'); other.summoningSick = false;
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', "Hunter's Insight"), { targets: [cc] });
+    const hand = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [cc, other].map(x => ({ attackerId: x.id, defenderId: 'B' })));
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, hand + 3, 'three cards for the Courser\'s three, none for the Bears');
+    const T2 = mk({ players: ['A', 'B', 'C'] });
+    T2.bf('A', 'Kediss, Emberclaw Familiar');
+    const cmd = T2.bf('A', 'Grizzly Bears'); cmd.isCommander = true; cmd.summoningSick = false;
+    T2.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }]);
+    T2.answer('declareBlockers', () => []);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.life('B'), 18, 'B takes the commander\'s 2');
+    t.eq(T2.life('C'), 18, 'and C takes 2 from Kediss');
+    const T3 = mk();
+    const lib = T3.bf('A', "Liberator, Urza's Battlethopter");
+    T3.mana('A', '2G');
+    T3.cast('A', T3.hand('A', 'Centaur Courser'));
+    T3.settle(); T3.resolve();
+    t.eq(lib.counters['+1/+1'], 1, 'three mana spent, more than its power of 1');
+  });
 };

@@ -5009,6 +5009,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Hunter's Insight: "Choose target creature you control. Whenever that creature deals combat damage
+       to a player or planeswalker this turn, draw that many cards." */
+    { re: /^Choose target creature you control\. Whenever that creature deals combat damage to a player or planeswalker this turn, draw that many cards\.$/i,
+      make: () => [{ op: 'getEmblem', thisTurn: true, name: 'Until end of turn', linkTarget: true,
+        targets: [targetSpec('target creature you control')],
+        emblemText: 'Whenever the chosen creature deals combat damage to a player or planeswalker this turn, draw that many cards.',
+        abilities: [{ kind: 'triggered', event: 'yourCreatureCombatDamage', also: 'creatureCombatDamageWalker', self: false, optional: false, auto: true, condition: null,
+          objectIdIs: '$tgt', text: 'Whenever the chosen creature deals combat damage to a player or planeswalker, draw that many cards.',
+          effects: [{ op: 'draw', n: 'triggerAmount', who: 'you' }] }] }] },
     /* Ad Nauseam: "Reveal the top card of your library and put that card into your hand. You lose life
        equal to its mana value. You may repeat this process any number of times." */
     { re: /^Reveal the top card of your library and put that card into your hand\. You lose life equal to its mana value\. You may repeat this process any number of times\.$/i,
@@ -6277,6 +6286,8 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Liberator: "if the amount of mana spent to cast that spell is greater than CARDNAME's power"
+    [/^the amount of mana spent to cast (that spell|this spell|it) is greater than (?:CARDNAME|this creature)'?s power$/i, (m) => ({ kind: 'manaSpentOverPower', of: spentOf(m[1]) })],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     // the depletion lands: "if there are no depletion counters on this land"
@@ -6778,6 +6789,8 @@
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks?(?:,| )', 'i'),
       event: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
+    // Kediss: "Whenever a commander you control deals combat damage to an opponent"
+    { re: /^Whenever a commander you control deals combat damage to an opponent,? /i, event: 'yourCreatureCombatDamage', extra: { commanderOnly: true } },
     { re: /^When(?:ever)? a creature you control deals combat damage to an opponent,? /i, event: 'yourCreatureCombatDamage' },
     // Magda: "Whenever a Dwarf you control becomes tapped"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes tapped,? ', 'i'),

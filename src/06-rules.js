@@ -7674,6 +7674,9 @@
           const t = this.obj(as.targetId);
           if (!t || t.zone !== 'battlefield') continue;
           got = this.dealDamageToObject(t, as.amount, as.source, true) || 0;
+          // Hunter's Insight: combat damage to a planeswalker, told apart from damage to a player
+          if (got > 0 && as.source && (t.analysis() || {}).isPlaneswalker)
+            this._fire('creatureCombatDamageWalker', as.source.controller, { source: as.source, object: as.source, amount: got, walker: t });
         }
         if (got > 0 && this.hasKw(as.source, 'lifelink')) this.changeLife(as.source.controller, got, 'lifelink');
       }
@@ -8445,6 +8448,10 @@
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
+        case 'manaSpentOverPower': {
+          const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
+          return !!x && !!src && (x.manaSpent || 0) > this.powerOf(src);
+        }
         case 'manaSpentAtLeast': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
           if (!x) return false;
@@ -10016,6 +10023,10 @@
           }
           // Tale of Katara and Toph: the first time it becomes tapped this turn
           if (ab.firstTapEachTurn && data.nth !== 1) continue;
+          // Kediss: only a commander dealing it
+          if (ab.commanderOnly && !(data.object && data.object.isCommander)) continue;
+          // Hunter's Insight: only the creature chosen
+          if (ab.objectIdIs && !(data.object && data.object.id === ab.objectIdIs)) continue;
           // Kira: only the first time it is targeted this turn
           if (ab.firstTargetEachTurn && data.nth !== 1) continue;
           // Mangara: an opponent's attack, with that many creatures coming at you or your planeswalkers
@@ -11321,6 +11332,13 @@
           };
           // abilities written out for it (a translated card), or else its words, read like any card's
           if (e.abilities) card._script = { abilities: e.abilities };
+          // Hunter's Insight: the emblem's words point at the creature chosen
+          if (e.linkTarget && e.abilities) {
+            const tg = firstObj();
+            if (!tg) break;
+            card._script = { abilities: JSON.parse(JSON.stringify(e.abilities).replace(/"\$tgt"/g, JSON.stringify(tg.id))) };
+            card.id += ':' + tg.id;
+          }
           // Massacre Girl: the emblem's words point at the permanent that made it
           if (e.exceptSource && e.abilities) {
             const sid = src ? src.id : '-';
