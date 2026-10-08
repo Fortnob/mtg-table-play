@@ -103,6 +103,8 @@
     'Morph', 'Megamorph', 'Disguise',
     // discarded, and cast from there instead
     'Madness',
+    // the first card drawn in a turn, revealed and cast for its miracle cost
+    'Miracle',
     // a creature that can arrive as an Aura instead
     'Bestow',
     // cheap and fast, and gone by the end of the turn

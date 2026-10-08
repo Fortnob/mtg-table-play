@@ -11185,4 +11185,27 @@ module.exports = (test) => {
       { controller: 'A', obj: box, name: 'Box', kind: 'ability', triggerData: { player: 'A', playerId: 'A' } });
     t.eq(T3.g.zones.A.hand.length, 2, 'two back'); t.no(T3.g.zones.A.hand.some(o => o.name === 'Craw Wurm'), 'new cards');
   });
+
+  test('Miracle: the first card drawn this turn, cast for its miracle cost', (mk, t) => {
+    t.auto('Terminus'); t.auto('Reforge the Soul');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const term = T.top('A', 'Terminus');
+    T.mana('A', 'W');
+    T.g.player('A').drawnThisTurn = 0;
+    T.answer('confirm', (ch) => { t.ok(/Miracle/.test(ch.prompt), 'offered: ' + ch.prompt); return { yes: true }; });
+    T.g.drawCards('A', 1);
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'library', 'Terminus resolved for {W}');
+    t.eq(term.zone, 'graveyard');
+    const T2 = mk();
+    const t2 = T2.top('A', 'Terminus');
+    T2.mana('A', 'W');
+    T2.g.player('A').drawnThisTurn = 1;
+    let offered = false;
+    T2.answer('confirm', () => { offered = true; return { yes: true }; });
+    T2.g.drawCards('A', 1);
+    T2.settle();
+    t.no(offered, 'not the first card this turn'); t.eq(t2.zone, 'hand');
+  });
 };

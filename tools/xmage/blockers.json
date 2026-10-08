@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12597,
-  "gainedCards": 1352,
-  "linesNeeded": 13768,
+  "needed": 12584,
+  "gainedCards": 1353,
+  "linesNeeded": 13751,
   "linesGained": 1619,
   "gained": {
-   "all": 1352,
+   "all": 1353,
    "top2000": 52,
    "stdTop": 10
   },
@@ -90,27 +90,27 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 274,
-   "lines": 265,
+   "score": 255,
+   "lines": 249,
    "cards": [
     "Plumb the Forbidden",
-    "Reforge the Soul",
     "Emrakul, the Promised End",
     "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
     "Kogla and Yidaro",
-    "Temporal Mastery",
     "Chandra's Incinerator",
     "Bloodsoaked Insight // Sanguine Morass",
-    "Metamorphosis Fanatic",
     "Wash Away",
-    "Rottenmouth Viper"
+    "Rottenmouth Viper",
+    "Spirit Water Revival",
+    "Hour of Revelation",
+    "Scion of Draco"
    ]
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 243,
-   "lines": 213,
+   "score": 242,
+   "lines": 212,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -7081,8 +7081,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3706,
-   "cards": 3454,
+   "score": 3707,
+   "cards": 3455,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7107,15 +7107,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 207,
-   "cards": 201,
+   "score": 189,
+   "cards": 186,
    "names": [
     "Plumb the Forbidden",
-    "Reforge the Soul",
     "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
     "Kogla and Yidaro",
-    "Temporal Mastery"
+    "Hour of Revelation",
+    "Drag to the Roots"
    ]
   },
   {

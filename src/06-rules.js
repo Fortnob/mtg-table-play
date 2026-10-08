@@ -3909,6 +3909,33 @@
       });
     }
 
+    /**
+     * Miracle (CR 702.94): the first card a player draws in a turn may be
+     * revealed and cast for its miracle cost. With {X} in the cost, X is as
+     * much as can be paid.
+     */
+    _miracleCost(playerId, o) {
+      const a = o && o.analysis();
+      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^miracle$/i.test(x.keyword || '') && x.arg);
+      if (!ab) return null;
+      const src = this.manaSources(playerId);
+      if (!/\{X\}/.test(ab.arg)) return this.couldPay(playerId, ab.arg, src) ? { cost: ab.arg, x: 0 } : null;
+      for (let x = 20; x >= 0; x--) {
+        const c = ab.arg.replace(/\{X\}/g, x ? '{' + x + '}' : '');
+        if (this.couldPay(playerId, c, src)) return { cost: c, x };
+      }
+      return null;
+    }
+    _offerMiracle(playerId, o) {
+      if (!o || o.zone !== 'hand') return;
+      const m = this._miracleCost(playerId, o);
+      if (!m) return;
+      this.queueChoice({
+        type: 'confirm', playerId, purpose: 'miracle', objId: o.id, cost: m.cost,
+        prompt: `Miracle: reveal ${o.name} and cast it for ${m.cost || '{0}'}${m.x ? ` (X = ${m.x})` : ''}?`,
+      });
+    }
+
     /** Exploit (CR 702.131): as it enters, you may sacrifice a creature. */
     _exploitOnEnter(o) {
       const a = o.analysis();
@@ -10136,6 +10163,8 @@
         z.hand.push(o);
         drawnNow++;
         p.drawnThisTurn = (p.drawnThisTurn || 0) + 1;
+        // Miracle (CR 702.94): the first card drawn this turn may be cast for its miracle cost
+        if (!silent && p.drawnThisTurn === 1) this._offerMiracle(p.id, o);
         if (!silent) {
           this._fire('youDraw', p.id, { object: o, nth: p.drawnThisTurn });
           // Spiteful Visions: "whenever a player draws a card"
@@ -18102,7 +18131,7 @@
      * Cast a card for nothing, in the middle of something else resolving: no
      * timing check, no mana, no targets chosen up front.
      */
-    _castFree(playerId, o) {
+    _castFree(playerId, o, how) {
       const a = o.analysis();
       const p = this.player(playerId);
       if (!a || !p) return false;
@@ -18112,13 +18141,14 @@
       o.controller = playerId;
       const item = {
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
-        targets: [], x: 0, effects: a.isPermanent ? null : this._cardSpellEffects(a),
-        auto: a.autoCoverage >= 0.999, fromZone, via: 'free',
+        targets: [], x: (how && how.x) || 0, effects: a.isPermanent ? null : this._cardSpellEffects(a),
+        auto: a.autoCoverage >= 0.999, fromZone, via: (how && how.via) || 'free',
       };
       this.stack.push(item);
       this.stormCount++;
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
-      this.logEvent('cast', `${p.name} casts ${o.name} without paying its mana cost.`);
+      // (Miracle: for its miracle cost)
+      this.logEvent('cast', `${p.name} casts ${o.name} ${(how && how.how) || 'without paying its mana cost'}.`);
       this.emit('stack:add', item);
       const castData = { spell: item, object: o, stackId: item.id, playerId };
       this._fire('anyCastSpell', null, castData);
@@ -19122,6 +19152,16 @@
             const o = this.obj(ch.objId);
             if (!o || !(data && data.yes)) break;
             this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [] });
+            break;
+          }
+          // Miracle: pay the miracle cost and cast it; its targets are chosen as it resolves
+          if (ch.purpose === 'miracle') {
+            const o = this.obj(ch.objId);
+            if (!o || o.zone !== 'hand' || !(data && data.yes)) break;
+            const m = this._miracleCost(playerId, o);
+            if (!m || (m.cost && !this.payMana(playerId, m.cost, { auto: true }))) break;
+            o.chosenX = m.x;
+            this._castFree(playerId, o, { x: m.x, via: 'miracle', how: `for its miracle cost (${m.cost || '{0}'})` });
             break;
           }
           if (ch.purpose !== 'payToUntap') break;
