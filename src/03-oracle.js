@@ -38,7 +38,7 @@
     // evasion, combat and static keywords the rules engine enforces
     'Flying', 'First strike', 'Double strike', 'Deathtouch', 'Lifelink', 'Menace',
     'Reach', 'Trample', 'Vigilance', 'Haste', 'Defender', 'Indestructible',
-    'Hexproof', 'Shroud', 'Flash', 'Fear', 'Intimidate', 'Skulk', 'Horsemanship', 'Landwalk',
+    'Hexproof', 'Shroud', 'Flash', 'Fear', 'Intimidate', 'Skulk', 'Horsemanship', 'Landwalk', 'Banding',
     'Shadow', 'Changeling', 'Devoid', 'Protection', 'Ward', 'Infect',
     // triggered / replacement keywords the engine now runs
     'Prowess', 'Exalted', 'Battle cry', 'Melee', 'Mentor', 'Training', 'Evolve',
@@ -10357,6 +10357,12 @@
       { re: /^[A-Za-z ,]*spells? you cast costs? \{\d+\} less to cast\.?$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
+      // Banding: the keyword alone, or after another ("Flying; banding")
+      { re: /^(?:(flying|first strike|vigilance|trample|haste|reach|defender|horsemanship|fear); )?banding$/i,
+        make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'noop', keywordLine: m[1] }] } : { op: 'noop' }), auto: true },
+      // "Bands with other legendary creatures", "bands with other Dinosaurs"
+      { re: /^(?:(flying|first strike|vigilance|trample|haste|reach); )?[Bb]ands with other ([A-Za-z ]+?)\.?$/,
+        make: (m) => ({ op: 'bandsWithOther', words: m[2].toLowerCase().replace(/ies$/, 'y').replace(/s$/, '') }), auto: true },
       { re: /^Double team$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Ascend$/i, eff: { op: 'ascend' }, auto: true },
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,

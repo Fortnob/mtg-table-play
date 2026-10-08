@@ -10379,4 +10379,32 @@ module.exports = (test) => {
     t.eq(T2.g.powerOf(cc), 0, 'base power 0');
     t.eq(T2.g.toughnessOf(cc), 3, 'toughness untouched');
   });
+
+  test('Banding: a band is blocked as one, and the side with banding places the other side\'s damage', (mk, t) => {
+    t.auto('Benalish Hero');
+    const T = mk();
+    const hero = T.bf('A', 'Benalish Hero'), bear = T.bf('A', 'Grizzly Bears');
+    hero.summoningSick = false; bear.summoningSick = false;
+    const cc = T.bf('B', 'Centaur Courser');
+    T.answer('declareAttackers', () => [{ attackerId: hero.id, defenderId: 'B', band: 'x' }, { attackerId: bear.id, defenderId: 'B', band: 'x' }]);
+    T.answer('declareBlockers', () => [{ blockerId: cc.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20, 'blocking one blocked the band: nothing got through');
+    t.eq(cc.zone, 'graveyard', 'the Courser takes 1 + 2');
+    t.eq(hero.zone, 'battlefield', 'the attacker with banding put the Courser\'s 3 on one creature');
+    t.eq(bear.zone, 'graveyard');
+    const T2 = mk();
+    const at = T2.bf('A', 'Centaur Courser'); at.summoningSick = false;
+    const h2 = T2.bf('B', 'Benalish Hero'), b2 = T2.bf('B', 'Grizzly Bears');
+    T2.answer('declareAttackers', () => [{ attackerId: at.id, defenderId: 'B' }]);
+    T2.answer('declareBlockers', () => [{ blockerId: h2.id, attackerIds: [at.id] }, { blockerId: b2.id, attackerIds: [at.id] }]);
+    T2.toMain('A', 'endCombat');
+    t.eq([h2.zone, b2.zone].filter(z => z === 'graveyard').length, 1, 'the defender with banding lost only one blocker');
+    t.eq(at.zone, 'graveyard', 'and the Courser died to 1 + 2');
+    const T3 = mk();
+    const x1 = T3.bf('A', 'Grizzly Bears'), x2 = T3.bf('A', 'Centaur Courser');
+    x1.summoningSick = false; x2.summoningSick = false;
+    t.ok(T3.g._bandProblem([x1, x2], [{ defenderId: 'B' }, { defenderId: 'B' }]), 'two creatures without banding cannot band');
+    t.no(T3.g._bandProblem([x1, T3.bf('A', 'Benalish Hero')], [{ defenderId: 'B' }, { defenderId: 'B' }]), 'one with banding and one without can');
+  });
 };

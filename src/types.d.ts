@@ -92,6 +92,8 @@ declare namespace MTG {
     } | null;
     /** Alchemy: the card's intensity, for a card that has one */
     intensity?: number | null;
+    /** banding: attackers with the same band id attack as one band */
+    band?: string | null;
     /** soulbond: the id of the creature it is paired with */
     pairedWith?: Id | null;
     note?: string | null;
@@ -392,7 +394,7 @@ declare namespace MTG {
 
   /* ---------------- intents ---------------- */
 
-  interface AttackDeclaration { attackerId: Id; defenderId: Id }
+  interface AttackDeclaration { attackerId: Id; defenderId: Id; /** banding: attackers given the same label attack as one band */ band?: string }
   interface BlockDeclaration { blockerId: Id; attackerIds: Id[] }
 
   type Intent =

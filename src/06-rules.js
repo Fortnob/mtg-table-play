@@ -7134,7 +7134,23 @@
           }
         }
       }
+      /* Banding (CR 702.22c): attackers given the same `band` label attack as one band —
+         all at the same defender, and no more than one of them without banding (or
+         "bands with other …" when every other one is of that kind) */
+      const bands = new Map();
+      for (const d of declarations) if (d.band != null && d.band !== '') { const k = String(d.band); if (!bands.has(k)) bands.set(k, []); bands.get(k).push(d); }
+      for (const [k, ds] of bands) {
+        if (ds.length < 2) continue;
+        const why = this._bandProblem(ds.map(d => this.obj(d.attackerId)).filter(Boolean), ds);
+        if (why) {
+          if (!(this.player(playerId) || {}).isBot) return this.fail(why);
+          bands.delete(k);
+        }
+      }
       this.pendingChoice = null;
+      for (const o of this.battlefield) if (o.controller === playerId) o.bandId = null;
+      for (const [k, ds] of bands) if (ds.length >= 2) for (const d of ds) { const o = this.obj(d.attackerId); if (o) o.bandId = 'band:' + this.turn + ':' + k; }
+      if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
       // goad only compels the one combat it was aimed at (CR 701.38)
       // (Vengeful Ancestor still sees it as goaded as it attacks)
       for (const id of ch.candidates) { const o = this.obj(id); if (o) { if (o.goadedBy != null) o._goadedAttack = this.turn; o.goadedBy = null; } }
@@ -7391,6 +7407,26 @@
       }
       if (sub.scope) return this._scopeList(sub.scope, ctx.controller, src);
       return [];
+    }
+    /** Banding, or "bands with other …": a creature that can lead or join a band. */
+    _hasBanding(o) {
+      return !!o && (this.hasKw(o, 'banding') || !!this._staticOp(o, 'bandsWithOther'));
+    }
+    /** Why these attackers can't form a band, or null (CR 702.22c, 702.22d). */
+    _bandProblem(list, ds) {
+      if (new Set(ds.map(d => d.defenderId)).size > 1) return 'A band attacks one player or planeswalker together.';
+      const plain = list.filter(o => !this.hasKw(o, 'banding'));
+      if (plain.length <= 1) return null;
+      // "bands with other legendary creatures": every creature in the band has it, or is of that kind
+      const bw = list.map(o => this._staticOp(o, 'bandsWithOther')).find(Boolean);
+      if (bw && list.every(o => this._staticOp(o, 'bandsWithOther') || this._cardFitsWords(o, bw.words))) return null;
+      return 'Only one creature in a band can be without banding.';
+    }
+    /** Where damage does the least harm: an indestructible one, else one it does not kill, else the biggest. */
+    _bandingSoak(list, power, deathtouch) {
+      const room = (x) => this.toughnessOf(x) - x.damage;
+      const safe = list.find(x => this.hasKw(x, 'indestructible')) || (!deathtouch && list.slice().sort((x, y) => room(y) - room(x)).find(x => room(x) > power));
+      return safe || list.slice().sort((x, y) => room(y) - room(x))[0];
     }
     /** How many times this permanent has become a target this turn, counting this one. */
     _targetedNth(x) {
@@ -7662,6 +7698,16 @@
           return this.fail(`${o.name} must block ${drawn[0].name} if able.`);
         }
       }
+      /* Banding (CR 702.22h): a creature blocking any creature in a band blocks every creature in it */
+      declarations = declarations.map(d => {
+        const ids = d.attackerIds.slice();
+        for (const aid of d.attackerIds) {
+          const at = this.obj(aid);
+          if (!at || !at.bandId) continue;
+          for (const x of this.combat.attackers.map(id => this.obj(id))) if (x && x.bandId === at.bandId && !ids.includes(x.id)) ids.push(x.id);
+        }
+        return ids.length === d.attackerIds.length ? d : Object.assign({}, d, { attackerIds: ids });
+      });
       this.pendingChoice = null;
       for (const d of declarations) {
         const b = this.obj(d.blockerId);
@@ -7742,6 +7788,11 @@
             // unblocked: damage to the defender
             const d = o.attacking;
             assignments.push({ source: o, targetKind: this.player(d) ? 'player' : 'object', targetId: d, amount: power, a });
+          } else if (blockers.some(b => this._hasBanding(b)) && !this.hasKw(o, 'trample')) {
+            /* Banding (CR 702.22j): with a creature with banding among its blockers, the defending
+               player divides this attacker's damage among them as they like — where it kills least */
+            const pick = this._bandingSoak(blockers, power, this.hasKw(o, 'deathtouch'));
+            assignments.push({ source: o, targetKind: 'object', targetId: pick.id, amount: power, a });
           } else {
             // assign in order; lethal to each before moving on (CR 510.1c)
             let left = power;
@@ -7760,7 +7811,23 @@
           }
         } else if (o.blocking.length) {
           const targets = o.blocking.map(aid => this.obj(aid)).filter(x => x && x.zone === 'battlefield');
-          if (targets.length) {
+          if (targets.length > 1 && targets.some(x => x.bandId) && targets.some(x => this._hasBanding(x))) {
+            /* Banding (CR 702.22k): blocking a band with banding in it, the attacking player
+               divides this blocker's damage among the band — where it kills least */
+            const pick = this._bandingSoak(targets, power, this.hasKw(o, 'deathtouch'));
+            assignments.push({ source: o, targetKind: 'object', targetId: pick.id, amount: power, a });
+          } else if (targets.length > 1 && targets.some(x => x.bandId)) {
+            // blocking a band without banding: as many of them as the damage kills, one after another
+            let left = power;
+            const order = targets.slice().sort((x, y) => (this.toughnessOf(x) - x.damage) - (this.toughnessOf(y) - y.damage));
+            for (const x of order) {
+              if (left <= 0) break;
+              const need = this.hasKw(o, 'deathtouch') ? 1 : Math.max(1, this.toughnessOf(x) - x.damage);
+              const give = x === order[order.length - 1] ? left : Math.min(left, need);
+              assignments.push({ source: o, targetKind: 'object', targetId: x.id, amount: give, a });
+              left -= give;
+            }
+          } else if (targets.length) {
             assignments.push({ source: o, targetKind: 'object', targetId: targets[0].id, amount: power, a });
           }
         }
@@ -19452,6 +19519,8 @@
         })(),
         // Alchemy: what has been done to the card perpetually, added up for the table
         perpetual: secret(o) ? null : this._perpetualSummary(o),
+        // banding: the band an attacker is in, while it attacks (attackers with the same id are one band)
+        band: o.attacking && o.bandId ? o.bandId : null,
         // Alchemy: a card with an intensity shows it
         intensity: secret(o) ? null : (o.intensity != null ? o.intensity : ((O.analyze(o.card, o.face) || {}).startingIntensity != null ? O.analyze(o.card, o.face).startingIntensity : null)),
         // a hidden agenda its owner can still choose to turn face up

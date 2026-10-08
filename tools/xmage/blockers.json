@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12898,
+  "needed": 12865,
   "gainedCards": 1374,
-  "linesNeeded": 14149,
+  "linesNeeded": 14118,
   "linesGained": 1654,
   "gained": {
    "all": 1374,
@@ -1869,25 +1869,6 @@
    ]
   },
   {
-   "what": "keyword FlyingAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Eradicator Valkyrie",
-    "Niv-Mizzet, Guildpact",
-    "Niv-Mizzet, Supreme",
-    "Teeka's Dragon",
-    "Dust Elemental",
-    "Mesa Pegasus",
-    "Kjeldoran Skyknight",
-    "Bayou Dragonfly",
-    "Teremko Griffin",
-    "Knight of Sursi",
-    "Kjeldoran Skycaptain",
-    "Nalathni Dragon"
-   ]
-  },
-  {
    "what": "ReparteeAbility",
    "score": 13,
    "lines": 13,
@@ -1904,25 +1885,6 @@
     "Inkling Mascot",
     "Inkshape Demonstrator",
     "Rehearsed Debater"
-   ]
-  },
-  {
-   "what": "keyword BandingAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Benalish Hero",
-    "Kjeldoran Warrior",
-    "Shield Bearer",
-    "Kjeldoran Knight",
-    "Wall of Shields",
-    "Benalish Infantry",
-    "Timber Wolves",
-    "Kjeldoran Escort",
-    "Camel",
-    "Mishra's War Machine",
-    "Ayesha Tanaka",
-    "Icatian Phalanx"
    ]
   },
   {
@@ -2763,6 +2725,23 @@
     "Cleaving Reaper",
     "Ashen Ghoul",
     "Coffin Puppets"
+   ]
+  },
+  {
+   "what": "keyword FlyingAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Eradicator Valkyrie",
+    "Niv-Mizzet, Guildpact",
+    "Niv-Mizzet, Supreme",
+    "Teeka's Dragon",
+    "Dust Elemental",
+    "Kjeldoran Skyknight",
+    "Bayou Dragonfly",
+    "Knight of Sursi",
+    "Kjeldoran Skycaptain",
+    "Phobian Phantasm"
    ]
   },
   {
@@ -5137,32 +5116,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledEffect.withForceQuotes",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Mishra, Tamer of Mak Fawa",
-    "Cathedral of Serra",
-    "Adventurers' Guildhouse",
-    "Mountain Stronghold",
-    "Unholy Citadel",
-    "Seafarer's Quay"
-   ]
-  },
-  {
-   "what": "keyword TrampleAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Thrasta, Tempest's Roar",
-    "Varchild's War-Riders",
-    "Gorilla Berserkers",
-    "Giant Solifuge",
-    "War Elephant",
-    "Noble Elephant"
-   ]
-  },
-  {
    "what": "DynamicManaAbility shape",
    "score": 6,
    "lines": 6,
@@ -7149,13 +7102,45 @@
     "Atreus, Impulsive Son",
     "Kratos, Stoic Father"
    ]
+  },
+  {
+   "what": "DiscardOneOrMoreCardsTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Captain Howler, Sea Scourge",
+    "Doctor Doom, King of Latveria",
+    "Urza, Powerstone Prodigy",
+    "Mishra, Excavation Prodigy"
+   ]
+  },
+  {
+   "what": "keyword BoastAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Broadside Bombardiers",
+    "Sigurd, Jarl of Ravensthorpe",
+    "Baron Helmut Zemo",
+    "Arni Brokenbrow"
+   ]
+  },
+  {
+   "what": "EnchantedCreatureColorCondition",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Helm of the Ghastlord",
+    "Gift of the Deity",
+    "Favorable Destiny"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3854,
-   "cards": 3512,
+   "score": 3858,
+   "cards": 3516,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -8331,19 +8316,6 @@
    ]
   },
   {
-   "what": "keyword FlyingAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Eradicator Valkyrie",
-    "Teeka's Dragon",
-    "Dust Elemental",
-    "Mesa Pegasus",
-    "Kjeldoran Skyknight",
-    "Bayou Dragonfly"
-   ]
-  },
-  {
    "what": "scope:snow",
    "score": 10,
    "cards": 10,
@@ -8367,19 +8339,6 @@
     "Kang the Conqueror",
     "Abomination, Terrifying Titan",
     "Brawn, Amadeus Cho"
-   ]
-  },
-  {
-   "what": "keyword BandingAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Benalish Hero",
-    "Kjeldoran Warrior",
-    "Shield Bearer",
-    "Kjeldoran Knight",
-    "Wall of Shields",
-    "Benalish Infantry"
    ]
   },
   {
@@ -8937,6 +8896,19 @@
     "Akuta, Born of Ash",
     "Death Spark",
     "Nether Spirit"
+   ]
+  },
+  {
+   "what": "keyword FlyingAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Eradicator Valkyrie",
+    "Teeka's Dragon",
+    "Dust Elemental",
+    "Kjeldoran Skyknight",
+    "Bayou Dragonfly",
+    "Knight of Sursi"
    ]
   },
   {
@@ -10905,15 +10877,15 @@
    ]
   },
   {
-   "what": "GainAbilityControlledEffect.withForceQuotes",
+   "what": "TargetActivatedAbility",
    "score": 5,
    "cards": 5,
    "names": [
-    "Cathedral of Serra",
-    "Adventurers' Guildhouse",
-    "Mountain Stronghold",
-    "Unholy Citadel",
-    "Seafarer's Quay"
+    "Interdict",
+    "Brown Ouphe",
+    "Ayesha Tanaka",
+    "Rust",
+    "Ouphe Vandals"
    ]
   },
   {
@@ -10926,6 +10898,18 @@
     "Nightsky Mimic",
     "Shorecrasher Mimic",
     "Riverfall Mimic"
+   ]
+  },
+  {
+   "what": "SacrificeTargetCost",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Behemoth's Herald",
+    "Angel's Herald",
+    "Dragon's Herald",
+    "Demon's Herald",
+    "Sphinx's Herald"
    ]
   }
  ]

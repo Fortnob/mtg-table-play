@@ -115,6 +115,7 @@ const ObjectView = obj({
   perpetual: opt(maybe(obj({ pt: arr(num), keywords: arr(str), costDelta: num, text: arr(str), basePt: opt(arr(num)),
     lose: opt(arr(str)), spendAny: opt(bool), types: opt(arr(str)) }))),
   intensity: opt(maybe(num)),
+  band: opt(maybe(str)),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({
@@ -246,7 +247,7 @@ const ANSWERS = {
 };
 
 /* ---- intents: what the table (or a guest) sends ---- */
-const Declaration = obj({ attackerId: id, defenderId: id }, { closed: true });
+const Declaration = obj({ attackerId: id, defenderId: id, band: opt(str) }, { closed: true });
 const Block = obj({ blockerId: id, attackerIds: arr(id, { min: 1 }) }, { closed: true });
 const closed = (f) => obj(Object.assign({ kind: str }, f), { closed: true });
 const onObj = closed({ objId: id });
