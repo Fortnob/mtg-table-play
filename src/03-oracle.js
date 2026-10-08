@@ -2693,6 +2693,12 @@
       make: (m) => Object.assign({ op: 'poison', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: /opponent/i.test(m[1]) ? 'opponent' : 'player' }] } : {}) },
     { re: /^You gain life equal to the damage dealt this way\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: 'lastDamage' }) },
+    // Yawgmoth's Will, Gaea's Will: "Until end of turn, you may play lands and cast spells from your graveyard."
+    { re: /^Until end of turn, you may (play lands and cast spells|cast spells|play lands) from your graveyard\.?$/i,
+      make: (m) => ({ op: 'playFromThisTurn', zone: 'graveyard', what: /play lands and/i.test(m[1]) ? 'any' : /cast/i.test(m[1]) ? 'spell' : 'land' }) },
+    // Yawgmoth's Will: "If a card would be put into your graveyard from anywhere this turn, exile that card instead."
+    { re: /^If a card would be put into your graveyard from anywhere this turn, exile (?:that card|it) instead\.?$/i,
+      make: () => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'gyExileTurn', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile', who: 'all', owner: 'you' } }) },
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
@@ -9218,6 +9224,8 @@
           if (m[2] && !cond) return { op: 'manual' };
           return Object.assign({ op: 'castSelfFromGraveyard' }, m[1] ? { exile: true } : {}, cond ? { cond } : {});
         }, auto: true },
+      // Eternal Scourge, Misthollow Griffin: "You may cast this card from exile."
+      { re: /^You may cast (?:this card|CARDNAME) from exile\.?$/i, eff: { op: 'castSelfFromGraveyard', exile: true, exileOnly: true }, auto: true },
       /* Changeling Outcast */
       { re: /^(?:This creature|CARDNAME) can'?t block and can'?t be blocked\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'cantBlock' }, { op: 'continuous', layer: 6, scope: { self: true }, grant: ['Unblockable'] }] }), auto: true },

@@ -3247,6 +3247,10 @@
       if (!z || !o || o.owner !== playerId) return null;
       const where = o.zone === 'library' ? (z.library[0] === o ? 'top' : null) : o.zone === 'graveyard' ? 'graveyard' : null;
       if (!where) return null;
+      // Yawgmoth's Will: leave for the rest of this turn
+      const grant = ((this.player(playerId) || {}).playFromGrants || [])
+        .find(g => g.turn === this.turn && g.zone === where && (g.what === 'any' || g.what === kind));
+      if (grant) return { op: 'playFrom', zone: where, what: grant.what };
       for (const src of this.battlefield) {
         if (src.controller !== playerId || src.phasedOut) continue;
         const a = src.analysis();
@@ -3440,8 +3444,8 @@
         if (o.graveCastBy === playerId && o.graveCastTurn === this.turn) {
           out.push({ kind: 'cast', via: 'granted', cost: a.manaCost || '', label: 'Cast it from your graveyard' });
         }
-        const self = (a.abilities || []).find(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard'));
-        const rule = self && self.effects.find(x => x.op === 'castSelfFromGraveyard');
+        const self = (a.abilities || []).find(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && !x.exileOnly));
+        const rule = self && self.effects.find(x => x.op === 'castSelfFromGraveyard' && !x.exileOnly);
         if (rule && (!rule.cond || this._condMet(rule.cond, { controller: playerId, obj: o })) && !out.some(u => u.via === 'granted')) {
           out.push({ kind: 'cast', via: 'selfGrave', cost: a.manaCost || '', label: 'Cast it from your graveyard' });
         }
@@ -7390,7 +7394,8 @@
 
     /** The replacement effects in play right now, gathered like continuous ones. */
     _replacements() {
-      if (this._repCache && this._repEpoch === this._boardKey) return this._repCache;
+      if (this._repCache && this._repEpoch === this._boardKey && this._repTurn === this.turn) return this._repCache;
+      this._repTurn = this.turn;
       const list = [];
       for (const src of this.battlefield) {
         const a = src.analysis();
@@ -7401,6 +7406,9 @@
           }
         }
       }
+      // Yawgmoth's Will: replacements a spell left behind for the rest of the turn
+      this._floatingReps = (this._floatingReps || []).filter(f => f.turn === this.turn);
+      for (const f of this._floatingReps) list.push({ ef: f.ef, src: f.src });
       this._repCache = list;
       this._repEpoch = this._boardKey;
       return list;
@@ -14490,6 +14498,20 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // Yawgmoth's Will: play from the graveyard for the rest of the turn
+        case 'playFromThisTurn': {
+          me.playFromGrants = (me.playFromGrants || []).filter(g => g.turn === this.turn)
+            .concat([{ turn: this.turn, zone: e.zone || 'graveyard', what: e.what || 'any' }]);
+          this.bumpBoard();
+          break;
+        }
+        // "…this turn, exile that card instead": a replacement that lasts until the turn ends
+        case 'floatingReplace': {
+          (this._floatingReps = this._floatingReps || []).push({ turn: this.turn, ef: e.ef,
+            src: { id: this._uid('rep'), controller: ctx.controller, owner: ctx.controller, name: (src && src.name) || ctx.name || 'An effect' } });
+          this._repCache = null;
+          break;
+        }
         // the en-Kor: a shield on this creature that sends the next damage to the target
         case 'redirectNextDamage': {
           const to = firstObj();

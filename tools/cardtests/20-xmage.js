@@ -8873,4 +8873,33 @@ module.exports = (test) => {
     t.eq(nomads.zone, 'graveyard', 'one of the two stayed, enough for a 2/1');
     t.eq(wall.damage, 1, 'and one went to the Bears');
   });
+
+  test("Yawgmoth's Will: spells and lands from the graveyard this turn, and what would go there is exiled", (mk, t) => {
+    t.auto("Yawgmoth's Will");
+    const T = mk();
+    const bolt = T.grave('A', 'Lightning Bolt');
+    const land = T.grave('A', 'Mountain');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', "Yawgmoth's Will"));
+    t.ok(T.g.playLand('A', land.id), 'a land from the graveyard');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 17);
+    t.eq(bolt.zone, 'exile', 'and the Bolt is exiled rather than going back');
+    T.toMain('B', 'main');
+    const shock = T.grave('A', 'Shock');
+    t.no(T.g.canCast('A', shock.id).ok, 'only for that turn');
+  });
+
+  test('Eternal Scourge can be cast from exile, but not from the graveyard', (mk, t) => {
+    t.auto('Eternal Scourge');
+    const T = mk();
+    const sc = T.grave('A', 'Eternal Scourge');
+    T.mana('A', '3');
+    t.no(T.g.altUsesFor('A', sc.id).some(u => u.via === 'selfGrave'), 'not from the graveyard');
+    T.g.moveObject(sc, 'exile');
+    t.ok(T.g.altUsesFor('A', sc.id).some(u => u.via === 'selfGrave'), 'from exile');
+    T.cast('A', sc, { via: 'selfGrave' });
+    t.eq(sc.zone, 'battlefield');
+  });
 };
