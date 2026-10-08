@@ -7845,6 +7845,8 @@
       if (ef.self && !(ev.object && ev.object.id === src.id)) return false;
       if (ef.duringYourTurn && !(this.activePlayer && this.activePlayer.id === src.controller)) return false;
       if (ef.fromZone && ev.from && ev.from !== ef.fromZone) return false;
+      // Kumano: only a creature this one dealt damage to this turn
+      if (ef.damagedBySelf && !(ev.object && ev.object._damagedBy && ev.object._damagedBy.turn === this.turn && ev.object._damagedBy.ids.includes(src.id))) return false;
       // "one or more creature tokens", "one or more Treasure tokens"
       if (ef.event === 'createToken' && ef.tokenWhat &&
         !new RegExp('\\b' + ef.tokenWhat + '\\b', 'i').test(ev.tokenTypes || '')) return false;
@@ -12502,7 +12504,8 @@
             // Varragoth: "Target player searches their library for a card"
             : e.who === 'target' ? (firstPlayer() || me) : me;
           if (!this._doneHere('searched')) this._searched(seeker.id);
-          const z = this.zones[seeker.id];
+          // Bribery: a search of an opponent's library, for the searcher
+          const z = this.zones[e.libOf === 'target' ? ((firstPlayer() || seeker).id) : seeker.id];
           const want = String(e.filter || 'any').toLowerCase();
           const mvOf = (c) => (c.card && c.card.cmc) || 0;
           const matches = (c) => {

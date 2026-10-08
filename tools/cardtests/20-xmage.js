@@ -9892,4 +9892,30 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Grizzly Bears'));
     t.eq(T2.g.battlefield.filter(o => o.name === 'Grizzly Bears').length, 1, 'the second spell, Bears, for {G}');
   });
+
+  test('Frostwielder: a creature it dealt damage to this turn is exiled instead of dying; others die as usual', (mk, t) => {
+    t.auto('Frostwielder');
+    const T = mk();
+    const fw = T.bf('A', 'Frostwielder'); fw.summoningSick = false;
+    const elf = T.bf('B', 'Llanowar Elves');
+    const other = T.bf('B', 'Elvish Mystic');
+    T.activate('A', fw, 0, { targets: [elf] });
+    T.settle(); T.resolve();
+    t.eq(elf.zone, 'exile', 'exiled, not in the graveyard');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [other] });
+    t.eq(other.zone, 'graveyard', 'one it never hurt dies as usual');
+  });
+
+  test('Bribery: a creature from the opponent\'s library, onto the battlefield under our control', (mk, t) => {
+    t.auto('Bribery');
+    const T = mk();
+    const big = T.top('B', 'Colossal Dreadmaw');
+    T.answer('pickCard', () => ({ cardIds: [big.id] }));
+    T.mana('A', '3UU');
+    T.cast('A', T.hand('A', 'Bribery'), { targets: ['B'] });
+    t.eq(big.zone, 'battlefield', 'the Dreadmaw is on the battlefield');
+    t.eq(big.controller, 'A', 'under A\'s control');
+    t.eq(big.owner, 'B', 'still B\'s card');
+  });
 };

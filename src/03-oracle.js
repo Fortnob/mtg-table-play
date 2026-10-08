@@ -698,6 +698,13 @@
   function parseSearch(sentence) {
     let s = String(sentence).trim().replace(/\.$/, '');
     const e = { op: 'tutor' };
+    // Bribery: "Search target opponent's library for a creature card and put that card onto the battlefield under your control"
+    const theirs = s.match(/^Search target opponent'?s library for /i);
+    if (theirs) {
+      e.libOf = 'target'; e.targets = [{ type: 'player', opponent: true }];
+      s = 'Search your library for ' + s.slice(theirs[0].length).replace(/\. Then that player shuffles$/i, '');
+      if (!/onto the battlefield under your control/i.test(s)) return null;
+    }
     let m = s.match(/^(?:(You may )?[Ss]earch your library|Its controller (may )?search(?:es)? their library|That player (may )?search(?:es)? their library) for /i);
     if (!m) return null;
     if (m[1] || m[2] || m[3]) e.optional = true;
@@ -765,6 +772,7 @@
   const EFFECT_RULES = [
     /* --- searching a library, in all the shapes it gets printed in --- */
     { re: /^(?:You may )?[Ss]earch your library for .+$/, make: (m) => parseSearch(m[0]) },
+    { re: /^Search target opponent'?s library for .+$/i, make: (m) => parseSearch(m[0]) },
     { re: /^Its controller (?:may )?search(?:es)? their library for .+$/i, make: (m) => parseSearch(m[0]) },
     { re: /^That player (?:may )?search(?:es)? their library for .+$/i, make: (m) => parseSearch(m[0]) },
 
@@ -9544,6 +9552,10 @@
       make: () => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile' }) },
     { re: /^If a creature would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dieExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
+    // Kumano, Frostwielder: "If a creature dealt damage by this creature this turn would die, exile it instead."
+    { re: /^If a creature dealt damage by (?:this creature|CARDNAME) this turn would die, exile it instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgBySelfExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile',
+        toZone: 'graveyard', fromZone: 'battlefield', damagedBySelf: true }) },
     { re: /^If a creature dealt damage this way would die this turn, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
     { re: /^(Permanents|Creatures|Artifacts|Lands) you control enter (?:the battlefield )?tapped\.?$/i,
