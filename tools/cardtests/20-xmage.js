@@ -10627,4 +10627,16 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Suspend'), { targets: [cc] });
     t.eq(cc.zone, 'exile'); t.eq(cc.counters.time, 2); t.eq(cc.suspendedBy, 'B', 'its owner will cast it');
   });
+
+  test('Consume Spirit: only black mana pays for X', (mk, t) => {
+    t.auto('Consume Spirit');
+    const T = mk();
+    T.mana('A', 'BBGG');
+    t.no(T.g.castSpell('A', T.hand('A', 'Consume Spirit').id, { x: 2, targets: [{ kind: 'player', id: 'B' }], fromPool: true }), 'green mana does not pay X');
+    const T2 = mk();
+    T2.mana('A', 'BBBG');
+    t.ok(T2.g.castSpell('A', T2.hand('A', 'Consume Spirit').id, { x: 2, targets: [{ kind: 'player', id: 'B' }], fromPool: true }), 'three black and one green: ' + T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(T2.life('B'), 18);
+  });
 };

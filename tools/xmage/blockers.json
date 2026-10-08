@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12770,
+  "needed": 12767,
   "gainedCards": 1373,
-  "linesNeeded": 14002,
+  "linesNeeded": 13998,
   "linesGained": 1653,
   "gained": {
    "all": 1373,
@@ -374,25 +374,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 32,
-   "lines": 23,
-   "cards": [
-    "Season of Gathering",
-    "Biophagus",
-    "Season of the Burrow",
-    "Crypt Rats",
-    "Season of the Bold",
-    "Guildmages' Forum",
-    "Animal Attendant",
-    "Consume Spirit",
-    "Sphere of the Suns",
-    "Drain Life",
-    "Murdock's Crusade",
-    "Atalya, Samite Master"
-   ]
-  },
-  {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
    "score": 30,
    "lines": 27,
@@ -409,6 +390,25 @@
     "Kastral, the Windcrested",
     "Descendants' Fury",
     "Olivia, Opulent Outlaw"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 28,
+   "lines": 19,
+   "cards": [
+    "Season of Gathering",
+    "Biophagus",
+    "Season of the Burrow",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant",
+    "Sphere of the Suns",
+    "Drain Life",
+    "Murdock's Crusade",
+    "Atalya, Samite Master",
+    "Soul Burn",
+    "Anavolver"
    ]
   },
   {
@@ -7304,19 +7304,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 26,
-   "cards": 17,
-   "names": [
-    "Season of Gathering",
-    "Biophagus",
-    "Season of the Burrow",
-    "Crypt Rats",
-    "Season of the Bold",
-    "Guildmages' Forum"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 24,
    "cards": 15,
@@ -7353,6 +7340,19 @@
     "Eclipsed Realms",
     "Frontier Siege",
     "Sin, Unending Cataclysm"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 23,
+   "cards": 14,
+   "names": [
+    "Season of Gathering",
+    "Biophagus",
+    "Season of the Burrow",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant"
    ]
   },
   {

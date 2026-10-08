@@ -6486,7 +6486,7 @@
            for mana to pay the rest of it (Mind Stone's "{1}, {T}"). */
         const wasTapped = o.tapped;
         if (cost.tap) o.tapped = true;
-        const paid = this.payMana(playerId, abMana, Object.assign({}, opts, { forAbility: o }));
+        const paid = this.payMana(playerId, abMana, Object.assign({}, opts, { forAbility: o }, ab.xColor ? { xColor: ab.xColor } : {}));
         if (cost.tap) o.tapped = wasTapped;
         if (!paid) return this.fail(`Not enough mana (${cost.mana}).`);
       }
@@ -6589,6 +6589,11 @@
       if (this._spendsAnyColor(playerId)) cost = String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // K'rrik: each {B} may be paid with 2 life instead, which is what a Phyrexian {B/P} is
       if (this._anyStaticOf(playerId, 'blackAsLife')) cost = String(cost).replace(/\{B\}/g, '{B/P}');
+      /* Crypt Rats, Drain Life: "Spend only black mana on X." — X paid in that colour */
+      {
+        const xc = opts.xColor || (opts.forSpell && ((opts.forSpell.analysis && opts.forSpell.analysis()) || {}).xColor) || null;
+        if (xc && opts.x) { cost = String(cost).replace(/\{X\}/g, ('{' + xc + '}').repeat(opts.x)); opts = Object.assign({}, opts, { x: 0 }); }
+      }
       /* Mana that may only be spent on certain spells waits apart from the
          pool; it is lent to a payment it is allowed to pay for, and what is
          not used goes back to waiting. */
@@ -6619,6 +6624,11 @@
       if (this._spendsAnyColor(playerId)) cost = String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // K'rrik: each {B} may be paid with 2 life instead, which is what a Phyrexian {B/P} is
       if (this._anyStaticOf(playerId, 'blackAsLife')) cost = String(cost).replace(/\{B\}/g, '{B/P}');
+      /* Crypt Rats, Drain Life: "Spend only black mana on X." — X paid in that colour */
+      {
+        const xc = opts.xColor || (opts.forSpell && ((opts.forSpell.analysis && opts.forSpell.analysis()) || {}).xColor) || null;
+        if (xc && opts.x) { cost = String(cost).replace(/\{X\}/g, ('{' + xc + '}').repeat(opts.x)); opts = Object.assign({}, opts, { x: 0 }); }
+      }
       const wasFor = this._payingFor;
       this._payingFor = opts.forSpell || null;
       const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
@@ -16393,6 +16403,8 @@
           this.bumpBoard();
           break;
         }
+        // "Spend only black mana on X.": a rule about paying, already applied as it was cast
+        case 'xColorOnly': break;
         /* Alchemy: "Choose a creature card in your hand" — remembered for "it" in the next sentence */
         case 'chooseCardIn': {
           const z = (this.zones[me.id] || {})[e.zone] || [];

@@ -871,6 +871,9 @@
         return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
       } },
     // Alchemy: "This creature intensifies by 1", "Cards you own named CARDNAME intensify by 1", "All Chorus cards you own intensify by 1"
+    // Crypt Rats, Drain Life: "Spend only black mana on X."
+    { re: /^Spend only (white|blue|black|red|green) mana on X\.?$/i,
+      make: (m) => ({ op: 'xColorOnly', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }) },
     /* Scent of Ivy, the Seers: "Reveal any number of green cards in your hand." — counted for what follows */
     { re: /^Reveal any number of ((?:other )?[a-z]+) cards in your hand\.?$/i,
       make: (m) => ({ op: 'revealAnyFromHand', filter: m[1].replace(/^other /i, '').toLowerCase() }) },
@@ -7727,6 +7730,9 @@
            this ability, printed in the same breath; it is kept with the
            ability rather than run as one of its effects. */
         const only = parsed.effects.filter(e => e.op === 'activateOnly');
+        // Crypt Rats: "Spend only black mana on X." — a rule about paying, kept with the ability
+        const xOnly = parsed.effects.find(e => e.op === 'xColorOnly');
+        if (xOnly) parsed.effects = parsed.effects.filter(e => e.op !== 'xColorOnly');
         const spend = parsed.effects.find(e => e.op === 'spendOnly');
         const effects = parsed.effects.filter(e => e.op !== 'activateOnly' && e.op !== 'spendOnly');
         const ab = {
@@ -7737,6 +7743,7 @@
         /* "{1}{B}: Return this card from your graveyard to the battlefield
            tapped." An ability that works from the graveyard and nowhere
            else, offered there the way flashback is. */
+        if (xOnly) ab.xColor = xOnly.color;
         if ((cost.exile && cost.exile.fromGraveyard) ||
             /\b(?:this card|CARDNAME) from your graveyard\b/i.test(m[2])) ab.fromGraveyard = true;
         for (const o of only.concat(onceFirst ? [onceFirst] : [])) {
@@ -8995,6 +9002,9 @@
       if (!ab.attacksEnchanted) continue;
       for (const e of ab.effects || []) if (e.op === 'counters' && e.scope === 'self' && !(e.targets || []).length) e.scope = 'triggerObject';
     }
+    // Consume Spirit: "Spend only black mana on X." as a line of its own is the spell's
+    const xcol = text.match(/(?:^|\n)Spend only (white|blue|black|red|green) mana on X\./i);
+    if (xcol) out.xColor = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[xcol[1].toLowerCase()];
     // Alchemy: "Starting intensity N" — a number the card keeps, perpetually raised
     const si = text.match(/(?:^|\n)Starting intensity (\d+)/i);
     if (si) out.startingIntensity = +si[1];
