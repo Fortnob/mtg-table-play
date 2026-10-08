@@ -11136,6 +11136,8 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // "… minus four": never less than zero
+        if (v && typeof v === 'object' && v.floorZero) return Math.max(0, n(Object.assign({}, v, { floorZero: false })));
         if (v === 'X') return ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0;
         // Storm Herd: "your life total"
         if (v && typeof v === 'object' && v.lifeTotal) return Math.max(0, (me && me.life) || 0) * (v.mult || 1);

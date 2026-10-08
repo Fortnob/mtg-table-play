@@ -4794,7 +4794,8 @@
     // Proft's Eidetic Memory: "the number of cards you've drawn this turn minus one"
     const mi = !pl && !pl0 && p.match(/^(.+?) minus (one|two|three|\d+)$/i);
     if (mi) { p = mi[1]; plus = -num(mi[2]); if (typeof plus !== 'number' || isNaN(plus)) return null; }
-    const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }) : v);
+    // (a number taken away never goes below zero)
+    const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }, plus < 0 ? { floorZero: true } : {}) : v);
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))

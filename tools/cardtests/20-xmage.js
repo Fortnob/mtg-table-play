@@ -11386,4 +11386,17 @@ module.exports = (test) => {
     T3.settle(); T3.resolve(); T3.settle(); T3.resolve();
     t.eq(T3.g.zones.A.hand.length, hand + 2, 'Rancor and the Reverie itself');
   });
+
+  test('Ivory Tower: "minus four" never goes below zero', (mk, t) => {
+    t.auto('Ivory Tower');
+    const T = mk();
+    const it = T.bf('A', 'Ivory Tower');
+    const run = () => T.g._runEffects(it.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: it, name: 'Tower', kind: 'ability' });
+    T.hand('A', 'Island');
+    run();
+    t.eq(T.life('A'), 20, 'one card: nothing, not a loss');
+    for (let i = 0; i < 5; i++) T.hand('A', 'Island');
+    run();
+    t.eq(T.life('A'), 22, 'six cards: two life');
+  });
 };
