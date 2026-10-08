@@ -9810,4 +9810,37 @@ module.exports = (test) => {
     t.eq(T3.zone('A', 'hand').length, ha, 'A draws nothing outside the draw step');
     t.eq(T3.zone('B', 'hand').length, hb + 2, 'B draws both');
   });
+
+  test('Divine Visitation makes Angels; Norn\'s Annex taxes attackers {W/P}; Tekuthal proliferates twice and pays in counters', (mk, t) => {
+    t.auto('Divine Visitation');
+    t.auto("Norn's Annex");
+    t.auto('Tekuthal, Inquiry Dominus');
+    const T = mk();
+    T.bf('A', 'Divine Visitation');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const angels = T.g.battlefield.filter(o => o.controller === 'A' && o.isToken);
+    t.eq(angels.length, 2, 'two tokens');
+    t.ok(angels.every(o => o.name === 'Angel' && T.g.powerOf(o) === 4 && T.g.hasKw(o, 'flying') && T.g.hasKw(o, 'vigilance')), 'both 4/4 flying vigilance Angels');
+    const T2 = mk();
+    T2.bf('B', "Norn's Annex");
+    const at = T2.bf('A', 'Grizzly Bears'); at.summoningSick = false;
+    T2.answer('declareAttackers', () => [{ attackerId: at.id, defenderId: 'B' }]);
+    T2.answer('declareBlockers', () => []);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.life('A'), 18, 'two life paid for {W/P}');
+    t.eq(T2.life('B'), 18, 'and the Bears got in');
+    const T3 = mk();
+    const tk = T3.bf('A', 'Tekuthal, Inquiry Dominus'); tk.summoningSick = false;
+    const b1 = T3.bf('A', 'Grizzly Bears'); b1.counters['+1/+1'] = 3;
+    T3.mana('A', '1UU');
+    T3.activate('A', tk, 0);
+    t.eq(b1.counters['+1/+1'] || 0, 0, 'three counters removed from the Bears');
+    t.eq(tk.counters.indestructible, 1, 'an indestructible counter');
+    const T4 = mk();
+    T4.bf('A', 'Tekuthal, Inquiry Dominus');
+    const b4 = T4.bf('A', 'Grizzly Bears'); b4.counters['+1/+1'] = 1;
+    T4.g._runEffects([{ op: 'proliferate' }], { controller: 'A', obj: b4, name: 'test' });
+    t.eq(b4.counters['+1/+1'], 3, 'proliferated twice');
+  });
 };

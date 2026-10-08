@@ -220,9 +220,11 @@
        used, in front of an ordinary cost. */
     const lab = String(str).match(/^(Boast|Exhaust|Renew|Power-up)\s*(?:\u2014|--|-)\s*(.+)$/i);
     if (lab) { cost.label = lab[1].toLowerCase(); str = lab[2]; }
+    // "from among other artifacts, creatures, and planeswalkers you control" is one part of the price
+    str = String(str).replace(/from among [a-z ,]+? you control/i, (x) => x.replace(/,/g, '\u0001'));
     const parts = str.split(/,\s*(?![^{]*\})/);
     for (let p of parts) {
-      p = p.trim();
+      p = p.replace(/\u0001/g, ',').trim();
       if (!p) continue;
       p = p.replace(/^Pay\s+(?=\{)/i, '');       // "Pay {2}" is just {2}
       // "Pay eight {E}": energy, counted in words
@@ -312,6 +314,14 @@
       if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact) you control$/i))) {
         cost.removeCounterFrom = { filter: m[2].toLowerCase(), kind: m[1] ? '+1/+1' : null };
         continue;
+      }
+      // Tekuthal: "Remove three counters from among other artifacts, creatures, and planeswalkers you control"
+      if ((m = p.match(/^Remove (two|three|four|five|\d+) counters from among (other )?([a-z, ]+?) you control$/i))) {
+        const kinds = m[3].replace(/,? and /g, ', ').split(/,\s*/).map(w => w.trim().replace(/s$/, '')).filter(Boolean);
+        if (kinds.every(k => /^(?:artifact|creature|planeswalker|permanent|land|enchantment)$/i.test(k))) {
+          cost.removeCounterFrom = { filter: kinds.join(' or ').toLowerCase(), kind: null, n: WORDN(m[1].toLowerCase()), other: !!m[2] };
+          continue;
+        }
       }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
@@ -9877,8 +9887,8 @@
             { op: 'cantAttackYou', scope: Object.assign({}, scope), walkers: true }] } : null;
         }, auto: true },
       // Ghostly Prison, Baird: any generic amount, and planeswalkers as well
-      { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
-        make: (m) => ({ op: 'attackTax', amount: '{' + m[2] + '}', walkers: !!m[1] }), auto: true },
+      { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+|[WUBRG]\/P)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
+        make: (m) => ({ op: 'attackTax', amount: '{' + m[2].toUpperCase() + '}', walkers: !!m[1] }), auto: true },
       // Sphere of Safety: "… pays {X} for each of those creatures, where X is the number of enchantments you control."
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{X\} for each (?:creature they control that'?s attacking you|of those creatures), where X is (.+?)\.?$/i,
         make: (m) => { const per = amountOf(m[2]); return per != null && typeof per === 'object' ? { op: 'attackTax', amount: '{0}', per, walkers: !!m[1] } : null; }, auto: true },
@@ -10047,6 +10057,11 @@
         make: () => ({ op: 'stateTrigger', noCounter: 'ice', label: 'no ice counters',
           effects: [{ op: 'sacSelfThen', then: [{ op: 'createToken', n: 1, pt: '20/20', colorWords: ['black'], subtypes: 'Avatar', addTypes: [],
             legendary: true, name: 'Marit Lage', keywords: ['Flying', 'Indestructible'] }] }] }), auto: true },
+      // Divine Visitation
+      { re: /^If one or more creature tokens would be created under your control, that many 4\/4 white Angel creature tokens with flying and vigilance are created instead\.?$/i,
+        eff: { op: 'tokensBecomeAngels' }, auto: true },
+      // Tekuthal, Inquiry Dominus
+      { re: /^If you would proliferate, proliferate twice instead\.?$/i, eff: { op: 'proliferateTwice' }, auto: true },
       // Notion Thief
       { re: /^If an opponent would draw a card except the first one they draw in each of their draw steps, instead that player skips that draw and you draw a card\.?$/i,
         eff: { op: 'stealDraws' }, auto: true },

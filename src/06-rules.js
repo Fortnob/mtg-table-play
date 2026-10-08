@@ -5763,8 +5763,8 @@
       return o;
     }
     /** Permanents of a player's with a counter to remove for a cost: the least valuable first. */
-    _counterCostPool(pid, spec) {
-      return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._cardFitsWords(x, spec.filter || 'permanent') &&
+    _counterCostPool(pid, spec, self) {
+      return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(spec.other && x === self) && this._cardFitsWords(x, spec.filter || 'permanent') &&
         (spec.kind ? Number(x.counters[spec.kind]) > 0 : Object.values(x.counters || {}).some(v => Number(v) > 0))));
     }
     /** Collect evidence: the mana value there is to exile from a graveyard. */
@@ -5804,7 +5804,7 @@
         if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
-          candidates: this._counterCostPool(pid, c.removeCounterFrom).map(x => x.id) });
+          candidates: this._counterCostPool(pid, c.removeCounterFrom, self).map(x => x.id) });
         if (c.blight) out.push({ kind: 'blight', label: 'Blight ' + c.blight, key: 'blightId', need: 1,
           candidates: this._blightPool(pid).map(x => x.id) });
         if (c.behold) out.push({ kind: 'behold', label: 'Behold a ' + c.behold.filter, key: 'beholdIds', need: c.behold.n || 1,
@@ -6083,7 +6083,8 @@
       if (cost.exileOwn && !this.battlefield.some(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter))) return `No ${cost.exileOwn.filter} of yours to exile.`;
       if (cost.process && this._processPool(pid).length < cost.process) return 'No card an opponent owns in exile.';
       if (cost.mill && this.zones[pid].library.length < cost.mill) return 'Not enough cards in your library to mill.';
-      if (cost.removeCounterFrom && !this._counterCostPool(pid, cost.removeCounterFrom).length) return 'No counter to remove.';
+      if (cost.removeCounterFrom && this._counterCostPool(pid, cost.removeCounterFrom, self)
+        .reduce((k, x) => k + Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0), 0) < (cost.removeCounterFrom.n || 1)) return 'No counter to remove.';
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
@@ -6208,8 +6209,8 @@
       // Void Attendant: one card an opponent owns, from exile to its owner's graveyard
       if (cost.process) for (const c of this._processPool(pid).slice(0, cost.process)) this.moveObject(c, 'graveyard');
       // Fain: a counter off a creature of yours
-      if (cost.removeCounterFrom) {
-        const pool = this._counterCostPool(pid, cost.removeCounterFrom);
+      for (let rc = 0; cost.removeCounterFrom && rc < (cost.removeCounterFrom.n || 1); rc++) {
+        const pool = this._counterCostPool(pid, cost.removeCounterFrom, self);
         const x = (opts.counterFromId && pool.find(o => o.id === opts.counterFromId)) || pool[0];
         if (x) {
           const k = cost.removeCounterFrom.kind || (opts.counterKind && Number(x.counters[opts.counterKind]) > 0 ? opts.counterKind : null) ||
@@ -7053,17 +7054,21 @@
       }
       /* "creatures can't attack you unless their controller pays {2} for
          each" — and Baird's {1}, and planeswalkers of yours where it says so */
+      const symTax = new Map();
       const taxFor = (d) => {
         let def = this.player(d.defenderId), walker = false;
         if (!def) { const pw = this.obj(d.defenderId); def = pw && this.player(pw.controller); walker = true; }
         if (!def) return 0;
         let k = 0;
+        symTax.set(d, '');
         for (const o of this.battlefield) {
           if (o.controller !== def.id || o.phasedOut) continue;
           for (const ab of ((o.analysis() || { abilities: [] }).abilities || [])) for (const ef of (ab.effects || [])) {
             if (!ef || ef.op !== 'attackTax' || (walker && !ef.walkers)) continue;
             // Elephant Grass: only nonblack creatures pay
             if (ef.scope) { const at = this.obj(d.attackerId); if (!at || !this._scopeHit(ef.scope, at, at.analysis() || {}, o.controller, o)) continue; }
+            // Norn's Annex: a Phyrexian symbol, paid as itself (mana or 2 life)
+            if (/^\{[WUBRG]\/P\}$/.test(String(ef.amount || ''))) { symTax.set(d, symTax.get(d) + ef.amount); k += 1; continue; }
             k += ef.per != null ? Math.max(0, Number(this._countValue(ef.per, o.controller, o)) || 0)
               : parseInt(String(ef.amount || '{2}').replace(/[{}]/g, ''), 10) || 0;
           }
@@ -7072,10 +7077,12 @@
       };
       const taxed = declarations.filter(d => taxFor(d) > 0);
       if (taxed.length && this.config.rulesEnforcement === 'full') {
-        const per = taxed.reduce((k, d) => k + taxFor(d), 0);
-        if (!this.payMana(playerId, '{' + per + '}', { auto: true }))
-          return this.fail(`Attacking costs {${per}} and you cannot pay it.`);
-        this.logEvent('rules', `${this.player(playerId).name} pays {${per}} to attack.`);
+        let generic = 0, syms = '';
+        for (const d of taxed) { const k = taxFor(d); const s = symTax.get(d) || ''; syms += s; generic += k - (s.match(/\{/g) || []).length; }
+        const bill = (generic > 0 || !syms ? '{' + generic + '}' : '') + syms;
+        if (!this.payMana(playerId, bill, { auto: true }))
+          return this.fail(`Attacking costs ${bill} and you cannot pay it.`);
+        this.logEvent('rules', `${this.player(playerId).name} pays ${bill} to attack.`);
       }
 
       // must-attack creatures
@@ -12427,16 +12434,20 @@
              never your own. Each one chosen gets one more of every kind. */
           const BAD = new Set(['-1/-1', 'stun', 'time', 'doom', 'age', 'fade', 'decay', 'hit', 'bounty', 'slime', 'blight', 'ice', 'rust', 'wage']);
           let n2 = 0;
-          for (const x of this.battlefield) {
-            const kinds = Object.keys(x.counters || {}).filter(k => x.counters[k] > 0);
-            if (!kinds.length) continue;
-            const bad = kinds.filter(k => BAD.has(k)).length, good = kinds.length - bad;
-            const mine = x.controller === ctx.controller;
-            if (mine ? bad > good : bad === 0) continue;
-            for (const k of kinds) { x.counters[k]++; n2++; }
+          // Tekuthal: "proliferate twice instead", and twice again for each more of them
+          const twice = this.battlefield.filter(x => !x.phasedOut && x.controller === ctx.controller && this._staticOp(x, 'proliferateTwice')).length;
+          for (let rep = 0; rep < (1 << Math.min(twice, 4)); rep++) {
+            for (const x of this.battlefield) {
+              const kinds = Object.keys(x.counters || {}).filter(k => x.counters[k] > 0);
+              if (!kinds.length) continue;
+              const bad = kinds.filter(k => BAD.has(k)).length, good = kinds.length - bad;
+              const mine = x.controller === ctx.controller;
+              if (mine ? bad > good : bad === 0) continue;
+              for (const k of kinds) { x.counters[k]++; n2++; }
+            }
+            for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller) { p.poison++; n2++; }
+            this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
           }
-          for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller) { p.poison++; n2++; }
-          this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
           this.logEvent('proliferate', `Proliferate adds ${n2} counter${n2 === 1 ? '' : 's'}.`);
           break;
         }
@@ -17144,6 +17155,11 @@
         tokenTypes: ['Creature'].concat(e.addTypes || [], [String(e.subtypes || '')]).join(' ') });
       if (ev.cancelled) return;
       n = ev.n;
+      // Divine Visitation: whatever creature tokens they were to be, they are 4/4 Angels
+      if (this._anyStaticOf(controller, 'tokensBecomeAngels')) {
+        e = Object.assign({}, e, { pt: '4/4', colorWords: ['white'], subtypes: 'Angel', addTypes: [], keywords: ['Flying', 'Vigilance'],
+          grantedText: '', name: null, legendary: false, snow: false });
+      }
       this._tokenExtras(controller, ev, n);
       if (n <= 0) {
         this.logEvent('token', `${this.player(controller).name} creates no tokens.`);
