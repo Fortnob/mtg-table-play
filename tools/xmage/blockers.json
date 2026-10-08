@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12438,
+  "needed": 12437,
   "gainedCards": 1352,
-  "linesNeeded": 13570,
+  "linesNeeded": 13569,
   "linesGained": 1612,
   "gained": {
    "all": 1352,
@@ -90,8 +90,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 230,
-   "lines": 203,
+   "score": 229,
+   "lines": 202,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -104,7 +104,7 @@
     "Fangs of Kalonia",
     "Spectacular Showdown",
     "Boseiju, Who Shelters All",
-    "Spider-Sense"
+    "Edgar Markov"
    ]
   },
   {
@@ -7106,8 +7106,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 137,
-   "cards": 128,
+   "score": 136,
+   "cards": 127,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",

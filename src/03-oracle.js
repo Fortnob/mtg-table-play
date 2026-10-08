@@ -3950,6 +3950,9 @@
     { re: /^(?:They|That player) loses? (\d+) life and you put an? ([+-]\d\/[+-]\d) counter on up to one target creature (?:they|that player) controls?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'loseLife', who: 'triggerPlayer', n: +m[1] },
         { op: 'counters', kind: m[2], n: 1, askTargets: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', controller: 'triggerPlayer', upTo: true }] }] }) },
+    // Spider-Sense: "Counter target instant spell, sorcery spell, or triggered ability."
+    { re: /^Counter target instant spell, sorcery spell, or triggered ability\.?$/i,
+      make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'instant or sorcery', abilities: true, abilityKind: 'triggered' }] }) },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."

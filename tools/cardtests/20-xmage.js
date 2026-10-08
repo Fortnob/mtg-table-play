@@ -11626,4 +11626,16 @@ module.exports = (test) => {
     T4.settle();
     t.eq(T4.life('B'), 19); t.eq(bb.counters['-1/-1'], 1);
   });
+
+  test('Spider-Sense counters an instant', (mk, t) => {
+    t.auto('Spider-Sense');
+    const T = mk();
+    T.mana('A', 'R');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), T.g.lastError);
+    const st = T.g.stack[T.g.stack.length - 1];
+    T.mana('A', '1UU');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Spider-Sense').id, { targets: [{ kind: 'stack', id: st.id }] }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.life('B'), 20, 'the Bolt was countered');
+  });
 };
