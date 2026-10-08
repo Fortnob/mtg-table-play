@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12547,
-  "gainedCards": 1348,
-  "linesNeeded": 13704,
+  "needed": 12537,
+  "gainedCards": 1349,
+  "linesNeeded": 13689,
   "linesGained": 1612,
   "gained": {
-   "all": 1348,
+   "all": 1349,
    "top2000": 51,
    "stdTop": 10
   },
@@ -109,8 +109,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 230,
-   "lines": 224,
+   "score": 215,
+   "lines": 209,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
@@ -7077,8 +7077,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3708,
-   "cards": 3456,
+   "score": 3710,
+   "cards": 3458,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7102,19 +7102,6 @@
    ]
   },
   {
-   "what": "(cast modifier line)",
-   "score": 169,
-   "cards": 166,
-   "names": [
-    "Plumb the Forbidden",
-    "Hagra Mauling // Hagra Broodpit",
-    "Not of This World",
-    "Hour of Revelation",
-    "Drag to the Roots",
-    "Price of Fame"
-   ]
-  },
-  {
    "what": "Ability.setTargetAdjuster",
    "score": 162,
    "cards": 150,
@@ -7125,6 +7112,19 @@
     "Kozilek's Command",
     "Ruthless Technomancer",
     "Silkguard"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 158,
+   "cards": 155,
+   "names": [
+    "Plumb the Forbidden",
+    "Hagra Mauling // Hagra Broodpit",
+    "Not of This World",
+    "Hour of Revelation",
+    "Drag to the Roots",
+    "Price of Fame"
    ]
   },
   {

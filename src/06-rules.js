@@ -3571,6 +3571,12 @@
            0/0 Elemental creature with haste (the land is chosen as it resolves) */
         const awk = o.zone === 'hand' && k === 'awaken' && String(arg).match(/^(\d+)\s*[\u2014-]\s*((?:\{[^}]+\})+)/);
         if (awk) out.push({ kind: 'cast', via: 'awaken', cost: awk[2], awaken: +awk[1], label: 'Awaken ' + arg });
+        /* Emerge (CR 702.119): sacrifice a creature and pay the emerge cost
+           less that creature's mana value */
+        if (o.zone === 'hand' && arg && k === 'emerge' &&
+            this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
+          out.push({ kind: 'cast', via: 'emerge', cost: arg, label: 'Emerge ' + arg });
+        }
         // Surge: the other cost, once you have cast another spell this turn (CR 702.117)
         if (o.zone === 'hand' && arg && k === 'surge' && ((this.player(playerId) || {}).spellsCastThisTurn || 0) >= 1) {
           out.push({ kind: 'cast', via: 'surge', cost: arg, label: 'Surge ' + arg });
@@ -4222,6 +4228,18 @@
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
       }
+      /* Emerge: which creature is sacrificed, chosen with the cast */
+      if (opts.via === 'emerge' && opts.emergeWith === undefined) {
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature);
+        if (!pool.length) return 'Emerge needs a creature of yours to sacrifice.';
+        const mv = (x) => (x.card && x.card.cmc) || 0;
+        if (decides || pool.length === 1) opts.emergeWith = pool.slice().sort((x, y) => mv(y) - mv(x) || this._cardValue(x) - this._cardValue(y))[0].id;
+        else {
+          const list = pool.slice().sort((x, y) => mv(y) - mv(x)).slice(0, 12);
+          return ask('emergeWith', `${o.name}: emerge — which creature will you sacrifice?`,
+            list.map(x => `Sacrifice ${x.name} (mana value ${mv(x)})`), list.map(x => x.id));
+        }
+      }
       /* Read ahead: which chapter the Saga starts at, chosen with the cast */
       if (a && a.readAhead > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
         const opts2 = Array.from({ length: a.readAhead }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
@@ -4532,6 +4550,7 @@
          from somewhere it would not normally be cast from, and a rule
          about where it goes afterwards. */
       let via = null;
+      let emergeSac = null;
       o._webSlinging = false;
       o._surged = false;
       if (opts.via) {
@@ -4548,6 +4567,13 @@
         if (via && via.via === 'surge') o._surged = true;
         if (!via) return this.fail('That card cannot be cast that way from here.');
         if (opts.costOverride == null) cost = via.cost;
+        // Emerge: the sacrificed creature's mana value off the emerge cost
+        if (via.via === 'emerge') {
+          const sac = opts.emergeWith && this.obj(opts.emergeWith);
+          if (!sac || sac.zone !== 'battlefield' || sac.controller !== playerId) return this.fail('Emerge needs a creature of yours to sacrifice.');
+          if (opts.costOverride == null) cost = this._addGeneric(cost, -((sac.card && sac.card.cmc) || 0));
+          emergeSac = sac;
+        }
         /* Harmonize: tap a creature you control to take its power off the
            generic part, when the mana alone will not do. */
         if (via.harmonize && opts.costOverride == null) {
@@ -4767,6 +4793,11 @@
       o.kickedTimes = chose.kicked || 0;
       // who was promised the gift, if anybody: the permanent remembers it as it enters
       o.giftTo = (a && a.gift && opts.gift) || null;
+      // Emerge: the creature goes as the spell is cast
+      if (emergeSac && emergeSac.zone === 'battlefield') {
+        this._sacrificeNow(playerId, [emergeSac], null);
+        this.logEvent('rules', `${p.name} sacrifices ${emergeSac.name} to emerge ${o.name}.`);
+      }
       // the bargain is paid as the spell is cast
       let bargained = false;
       if (opts.bargain) {

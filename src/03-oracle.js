@@ -103,6 +103,8 @@
     'Surge',
     // cast for more, and a land of yours wakes up as a creature
     'Awaken',
+    // a creature sacrificed, and its mana value off the cost
+    'Emerge',
     // face down for three, and up again for the printed cost
     'Morph', 'Megamorph', 'Disguise',
     // discarded, and cast from there instead

@@ -11257,4 +11257,18 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.ok(b2.tapped); t.eq(b2.counters.stun, 4, 'twice X');
   });
+
+  test('Emerge: a creature sacrificed and its mana value off the cost', (mk, t) => {
+    t.auto('Elder Deep-Fiend');
+    const T = mk();
+    const wurm = T.bf('A', 'Craw Wurm'), bear = T.bf('A', 'Grizzly Bears');
+    const edf = T.hand('A', 'Elder Deep-Fiend');
+    t.ok(T.g.altUsesFor('A', edf.id).some(u => u.via === 'emerge'), 'emerge offered');
+    T.answer('mode', (ch) => ({ modes: [ch.options.findIndex(o => /Craw Wurm/.test(o.label))] }));
+    T.mana('A', 'UU');
+    t.ok(T.g.castSpell('A', edf.id, { via: 'emerge' }), T.g.lastError);
+    T.settle();
+    t.eq(wurm.zone, 'graveyard', 'the Wurm was sacrificed'); t.eq(bear.zone, 'battlefield');
+    t.ok(T.g.stack.some(s => s.obj && s.obj.id === edf.id) || edf.zone === 'battlefield', 'cast for {5}{U}{U} less six: {U}{U}');
+  });
 };
