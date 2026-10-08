@@ -8667,6 +8667,12 @@
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         // Twenty-Toed Toad: every counter on it, of whatever kind
+        // Kazuul: the attacker the trigger is about is attacking you (or a planeswalker of yours)
+        case 'youDefend': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          const d = x && this._defenderOf(x);
+          return !!d && !!me && d.id === me.id;
+        }
         // Charismatic Conqueror: the permanent the trigger is about came in untapped
         case 'triggerObjUntapped': { const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId); return !!x && x.zone === 'battlefield' && !x.tapped; }
         case 'selfCountersTotal': return !!src && Object.values(src.counters || {}).reduce((k, v) => k + (Number(v) || 0), 0) >= cond.n;
@@ -12601,7 +12607,10 @@
         case 'setBaseAll': {
           const p = n(e.p), t = n(e.t);
           for (const x of this.creaturesOf(ctx.controller, 'yourCreatures')) {
-            x.effects.push(Object.assign({ setPt: { p, t }, until: 'eot' }, e.allTypes ? { keywords: ['Changeling'] } : {}));
+            // Allosaurus Shepherd: each Elf, which becomes a Dinosaur as well
+            if (e.subtype && !this._hasCreatureType(x, e.subtype)) continue;
+            x.effects.push(Object.assign({ setPt: { p, t }, until: 'eot' }, e.allTypes ? { keywords: ['Changeling'] } : {},
+              e.addSubtype ? { addSubtypes: [e.addSubtype] } : {}));
           }
           this.bumpBoard();
           this.logEvent('rules', `${me.name}'s creatures are ${p}/${p === t ? p : t} until end of turn.`);
@@ -13600,7 +13609,9 @@
             const item = t && this.stack.find(s => s.id === t.id);
             return item && this.player(item.controller);
           };
+          const tdObj = e.who === 'triggerObjController' && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           const payer = e.who === 'you' ? me
+            : tdObj ? this.player(tdObj.controller)
             : e.who === 'triggerPlayer' ? (triggerPlayer() || this.opponentsOf(ctx.controller)[0])
             : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
             : (firstPlayer() || onStack() || triggerPlayer() || this.opponentsOf(ctx.controller)[0]);
@@ -14018,6 +14029,24 @@
           if (!kws.length) break;
           for (const o of mine) o.effects.push({ keywords: kws.slice(), until: 'eot' });
           this.logEvent('rules', `${me.name}'s creatures gain ${kws.join(', ').toLowerCase()} until end of turn.`);
+          this.bumpBoard();
+          break;
+        }
+        // Perpetual Timepiece: cards from your graveyard shuffled into your library
+        case 'shuffleFromGraveyard': {
+          const pool = this.zones[ctx.controller].graveyard.slice();
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'shuffleBack', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: 0, max: Math.min(e.max || 1, pool.length), optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}shuffle cards from your graveyard into your library.` }, 'sfg');
+          if (got === SUSPEND) return SUSPEND;
+          const z = this.zones[ctx.controller];
+          for (const id of (got && got.picks) || []) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'graveyard') continue;
+            this._removeFromZone(x); x.zone = 'library'; z.library.push(x);
+          }
+          this.rng.shuffle(z.library);
           this.bumpBoard();
           break;
         }
@@ -14732,7 +14761,10 @@
         case 'permanentFromHand': {
           const who = e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
           for (const p of who) {
-            const pool = this.zones[p.id].hand.filter(o => this._matchesCategory(o, e.filter === 'any' ? '' : e.filter));
+            // Anticausal Vestige: "with mana value less than or equal to the number of lands you control"
+            const mvCap = e.maxMv != null ? n(e.maxMv) : null;
+            const pool = this.zones[p.id].hand.filter(o => this._matchesCategory(o, e.filter === 'any' ? '' : e.filter) &&
+              (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap));
             if (!pool.length) continue;
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
             const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: true,

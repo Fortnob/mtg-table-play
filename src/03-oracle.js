@@ -2027,6 +2027,14 @@
         return { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] };
       } },
     /* "Those creatures gain flying until your next turn" */
+    // For the Common Good: "Then tokens you control gain indestructible until your next turn."
+    { re: /^(?:Then )?(Tokens you control|[A-Z][a-z]+ creatures you control) gain ([a-z ,]+?) until (your next turn|end of turn)\.?$/,
+      make: (m) => {
+        const kws = keywordList(m[2]);
+        const sc = scopeOf(m[1].charAt(0).toLowerCase() + m[1].slice(1));
+        if (!kws.length || !kws.every(kwKnown) || !sc) return null;
+        return { op: 'grantKeyword', keywords: kws, duration: /next/i.test(m[3]) ? 'nextTurn' : 'eot', scope: sc };
+      } },
     { re: /^(Those creatures|They|It|CARDNAME|Creatures you control|Target creature(?: you control)?) gains? ([a-z ,]+?) until your next turn\.?$/i,
       make: (m) => {
         const kws = keywordList(m[2]);
@@ -3856,7 +3864,7 @@
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1].replace(/^another /i, ''))] : null,
         self: /CARDNAME|this creature/i.test(m[1]),
         grant: m[2] ? m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
-    { re: /^Create (two|three|\d+) tokens that are copies of (target [a-z0-9 '-]+?)(?:, except they (?:have|gain) ([a-z, ']+))?\.?$/i,
+    { re: /^Create (two|three|\d+|X) tokens that are copies of (target [a-z0-9 '-]+?)(?:, except they (?:have|gain) ([a-z, ']+))?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), targets: [targetSpec(m[2])],
         grant: m[3] ? m[3].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
 
@@ -3890,6 +3898,13 @@
     { re: /^You win the game\.?$/i, make: () => ({ op: 'winGame' }) },
     // Kambal, Profiteering Mayor: "for each of them, create a tapped token that's a copy of it."
     { re: /^For each of them, create a( tapped)? token that'?s a copy of it\.?$/i, make: (m) => ({ op: 'copyBatch', tapped: !!m[1] }) },
+    // Perpetual Timepiece: "Shuffle any number of target cards from your graveyard into your library."
+    { re: /^Shuffle (any number of target cards|target card|up to (?:one|two|three) target cards?) from your graveyard into your library\.?$/i,
+      make: (m) => ({ op: 'shuffleFromGraveyard',
+        max: /any number/i.test(m[1]) ? 99 : /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1 }) },
+    // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
+    { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[2] ? { tapped: true } : {}); } },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -4170,6 +4185,9 @@
     // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
     { re: /^Until end of turn, creatures you control have base power and toughness (X|\d+)\/(X|\d+)( and gain all creature types)?\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2], allTypes: !!m[3] }) },
+    // Allosaurus Shepherd: "Until end of turn, each Elf creature you control has base power and toughness 5/5 and becomes a Dinosaur in addition to its other creature types."
+    { re: /^Until end of turn, each ([A-Z][a-z]+) creature you control has base power and toughness (\d+)\/(\d+)(?: and becomes an? ([A-Z][a-z]+) in addition to its other creature types)?\.?$/,
+      make: (m) => Object.assign({ op: 'setBaseAll', p: +m[2], t: +m[3], subtype: m[1] }, m[4] ? { addSubtype: m[4] } : {}) },
     // All Is Dust: "Each player sacrifices all permanents they control that are one or more colors."
     { re: /^Each player sacrifices all permanents they control that are one or more colou?rs\.?$/i, make: () => ({ op: 'sacrificeColored' }) },
     // Fell the Mighty: "Destroy all creatures with power greater than target creature's power."
@@ -6405,13 +6423,15 @@
       }
 
       // "... unless <someone> pays <cost>."
-      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|this creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
+      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
         // Painful Quandary: "…unless they discard a card"
         s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i);
       if (unless) {
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
         const cost = /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         effects.push({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
+            // Kazuul: "unless that creature's controller pays {3}" — the attacker's
+            : /^that creature'?s controller$/i.test(unless[2]) ? 'triggerObjController'
             : /that player|target player|they/i.test(unless[2]) ? 'target' : 'spellController',
           cost, then: inner.effects, text: s });
         if (!inner.auto) auto = false;
@@ -6923,6 +6943,8 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Kazuul, Tyrant of the Cliffs: "if you're the defending player" — the attacker the trigger is about attacks you
+    [/^you'?re the defending player$/i, () => ({ kind: 'youDefend' })],
     // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
     [/^it(?:'?s not| isn'?t) an? (creature|land|artifact|enchantment|planeswalker)(?: card)?$/i, (m) => ({ kind: 'not', cond: { kind: 'itIs', filter: m[1].toLowerCase() } })],
     // Lily Bowen, Eagle of Deliverance: "its power is 2 or less", "that creature's power is 2 or less", "that creature has power 4 or greater"
