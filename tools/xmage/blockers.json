@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13343,
+  "needed": 13320,
   "gainedCards": 1389,
-  "linesNeeded": 14610,
+  "linesNeeded": 14581,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4868,
-   "lines": 4310,
+   "score": 4864,
+   "lines": 4306,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -166,8 +166,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 120,
-   "lines": 111,
+   "score": 118,
+   "lines": 109,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -2429,21 +2429,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Breach the Multiverse",
-    "Hope Estheim",
-    "Fascination",
-    "Invasion of Amonkhet // Lazotep Convert",
-    "Flotsam // Jetsam",
-    "Pestilent Cauldron // Restorative Burst",
-    "Path of the Schemer",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "ManaValueLessThanControlledLandCountPredicate.instance",
    "score": 11,
    "lines": 2,
@@ -2860,40 +2845,6 @@
    ]
   },
   {
-   "what": "ControllerGainedLifeCount.instance",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Sorin of House Markov // Sorin, Ravenous Neonate",
-    "Blossoming Bogbeast",
-    "Defiling Daemogoth",
-    "Midnight Snack",
-    "Accomplished Alchemist",
-    "Gumdrop Poisoner // Tempt with Treats",
-    "Essence Pulse",
-    "Fortifying Draught",
-    "Nightmare's Thirst",
-    "Germinate Recruits"
-   ]
-  },
-  {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Nighthowler",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Invigorating Falls",
-    "Rune Snag",
-    "Life Burst",
-    "Feast of Flesh",
-    "Kjeldoran War Cry",
-    "Mind Burst"
-   ]
-  },
-  {
    "what": "PermanentsEnterBattlefieldTappedEffect",
    "score": 10,
    "lines": 10,
@@ -3095,6 +3046,19 @@
    ]
   },
   {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 9,
+   "lines": 6,
+   "cards": [
+    "Breach the Multiverse",
+    "Fascination",
+    "Invasion of Amonkhet // Lazotep Convert",
+    "Flotsam // Jetsam",
+    "Path of the Schemer",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
    "what": "CreateTokenAllEffect",
    "score": 9,
    "lines": 6,
@@ -3131,19 +3095,6 @@
     "Skyship Plunderer",
     "Powerful Broker",
     "Price of Betrayal"
-   ]
-  },
-  {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Proft's Eidetic Memory",
-    "Elenda and Azor",
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Niko Aris",
-    "Thundering Djinn"
    ]
   },
   {
@@ -3317,6 +3268,22 @@
     "Emissary of Soulfire",
     "Voltstorm Angel",
     "Janjeet Sentry"
+   ]
+  },
+  {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Nighthowler",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge",
+    "Rune Snag",
+    "Life Burst",
+    "Feast of Flesh",
+    "Kjeldoran War Cry",
+    "Mind Burst"
    ]
   },
   {
@@ -3681,6 +3648,18 @@
    ]
   },
   {
+   "what": "CardsDrawnThisTurnDynamicValue.instance",
+   "score": 8,
+   "lines": 5,
+   "cards": [
+    "Proft's Eidetic Memory",
+    "Knowledge Is Power",
+    "Duelist of the Mind",
+    "Niko Aris",
+    "Thundering Djinn"
+   ]
+  },
+  {
    "what": "SagesReveriePredicate.instance",
    "score": 8,
    "lines": 2,
@@ -3889,21 +3868,6 @@
     "General Jarkeld",
     "Dwarven Armory",
     "Lesser Werewolf"
-   ]
-  },
-  {
-   "what": "BecomesMonstrousSourceTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Death Kiss",
-    "Alpha Deathclaw",
-    "Shipbreaker Kraken",
-    "Stormbreath Dragon",
-    "Polukranos, World Eater",
-    "Grim Giganotosaurus",
-    "Vitality Hunter",
-    "Sealock Monster"
    ]
   },
   {
@@ -4526,6 +4490,20 @@
    ]
   },
   {
+   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Death Kiss",
+    "Alpha Deathclaw",
+    "Shipbreaker Kraken",
+    "Polukranos, World Eater",
+    "Grim Giganotosaurus",
+    "Vitality Hunter",
+    "Sealock Monster"
+   ]
+  },
+  {
    "what": "words: non-subtype",
    "score": 7,
    "lines": 7,
@@ -4878,16 +4856,6 @@
     "Six",
     "Wrenn and Six",
     "Deeproot Historian"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue.TOUGHNESS_CONTROLLED_CREATURES",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Last March of the Ents",
-    "Huatli, the Sun's Heart",
-    "Glint Weaver"
    ]
   },
   {
@@ -6069,18 +6037,6 @@
    ]
   },
   {
-   "what": "TargetControlledLandPermanent",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Toph, Hardheaded Teacher",
-    "Toph, Earthbending Master",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Earthshape",
-    "Bumi's Feast Lecture"
-   ]
-  },
-  {
    "what": "targeted by FilterSpell",
    "score": 5,
    "lines": 5,
@@ -6364,18 +6320,6 @@
     "Glimmer Seeker",
     "Acrobatic Cheerleader",
     "Rootwise Survivor"
-   ]
-  },
-  {
-   "what": "CountersControllerCount",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Aang, Airbending Master",
-    "Ezuri, Claw of Progress",
-    "Katara, Waterbending Master",
-    "Atreus, Impulsive Son",
-    "Kratos, Stoic Father"
    ]
   },
   {
@@ -7278,13 +7222,57 @@
     "Gilt-Leaf Archdruid",
     "Tezzeret, Master of Metal"
    ]
+  },
+  {
+   "what": "AnotherTargetPredicate",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Saheeli, Sublime Artificer",
+    "Shuri, Wakandan Inventor",
+    "Band Together",
+    "True Polymorph"
+   ]
+  },
+  {
+   "what": "SourceDealsNoncombatDamageToOpponentTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Chandra's Incinerator",
+    "Virtue of Courage // Embereth Blaze",
+    "Fear of Burning Alive",
+    "Thor, Guardian of Midgard"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Repulsive Mutation",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Bighorner Rancher",
+    "Peema Aether-Seer"
+   ]
+  },
+  {
+   "what": "(constructor: local method addSubType)",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Weathered Sentinels",
+    "Thran Portal",
+    "Stenn, Paranoid Partisan",
+    "Phabine, Boss's Confidant"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3930,
-   "cards": 3537,
+   "score": 3927,
+   "cards": 3534,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7361,8 +7349,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 72,
-   "cards": 72,
+   "score": 70,
+   "cards": 70,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8473,19 +8461,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Nighthowler",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Invigorating Falls",
-    "Rune Snag"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 10,
    "cards": 10,
@@ -8629,6 +8604,19 @@
    ]
   },
   {
+   "what": "AddCountersPlayersEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Otharri, Suns' Glory",
+    "Toph, Earthbending Master",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Ezuri, Claw of Progress",
+    "Vault 12: The Necropolis"
+   ]
+  },
+  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 9,
    "cards": 9,
@@ -8642,16 +8630,16 @@
    ]
   },
   {
-   "what": "ControllerGainedLifeCount.instance",
+   "what": "CardsInAllGraveyardsCount",
    "score": 9,
    "cards": 9,
    "names": [
-    "Blossoming Bogbeast",
-    "Defiling Daemogoth",
-    "Midnight Snack",
-    "Accomplished Alchemist",
-    "Gumdrop Poisoner // Tempt with Treats",
-    "Essence Pulse"
+    "Nighthowler",
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Exoskeletal Armor",
+    "Accumulated Knowledge",
+    "Rune Snag",
+    "Life Burst"
    ]
   },
   {
@@ -8901,18 +8889,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Breach the Multiverse",
-    "Hope Estheim",
-    "Fascination",
-    "Flotsam // Jetsam",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "CreateTokenAllEffect",
    "score": 8,
    "cards": 5,
@@ -8946,18 +8922,6 @@
     "Defiler of Instinct",
     "Defiler of Faith",
     "Defiler of Flesh"
-   ]
-  },
-  {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Proft's Eidetic Memory",
-    "Elenda and Azor",
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Thundering Djinn"
    ]
   },
   {
@@ -9324,6 +9288,17 @@
    ]
   },
   {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Breach the Multiverse",
+    "Fascination",
+    "Flotsam // Jetsam",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
    "what": "cost reduction shape",
    "score": 7,
    "cards": 4,
@@ -9332,6 +9307,17 @@
     "Golden-Tail Trainer",
     "Edgewalker",
     "Ragemonger"
+   ]
+  },
+  {
+   "what": "CardsDrawnThisTurnDynamicValue.instance",
+   "score": 7,
+   "cards": 4,
+   "names": [
+    "Proft's Eidetic Memory",
+    "Knowledge Is Power",
+    "Duelist of the Mind",
+    "Thundering Djinn"
    ]
   },
   {
@@ -9369,19 +9355,6 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Patrician Geist"
-   ]
-  },
-  {
-   "what": "AddCountersPlayersEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Otharri, Suns' Glory",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink",
-    "Megaton's Fate"
    ]
   },
   {
@@ -9808,16 +9781,6 @@
     "Six",
     "Wrenn and Six",
     "Deeproot Historian"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue.TOUGHNESS_CONTROLLED_CREATURES",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Last March of the Ents",
-    "Huatli, the Sun's Heart",
-    "Glint Weaver"
    ]
   },
   {
@@ -11057,6 +11020,30 @@
     "Hapatra's Mark",
     "Suncleanser",
     "Blitz Leech"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"tapCreatures\"]",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Saheeli, Filigree Master",
+    "Raff, Weatherlight Stalwart",
+    "Tidal Terror",
+    "Gravelgill Scoundrel",
+    "Civil Servant"
+   ]
+  },
+  {
+   "what": "DynamicManaAbility shape",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Selvala, Eager Trailblazer",
+    "Haruspex",
+    "Tower Worker",
+    "Petalmane Baku",
+    "Loot, the Nexus"
    ]
   }
  ]

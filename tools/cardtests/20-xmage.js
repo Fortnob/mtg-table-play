@@ -9428,4 +9428,19 @@ module.exports = (test) => {
     t.eq(bear.zone, 'battlefield', 'back');
     t.eq(bear.controller, 'B');
   });
+
+  test('Amounts: life gained this turn, the greatest toughness, colours and basic land types among yours', (mk, t) => {
+    t.auto('Blossoming Bogbeast');
+    t.auto('Last March of the Ents');
+    const T = mk();
+    const v = (x) => T.g._countValue(x, 'A', null);
+    T.g.changeLife('A', 3);
+    t.eq(v({ playerStat: 'lifeGainedThisTurn' }), 3);
+    T.bf('A', 'Colossal Dreadmaw');
+    t.eq(v({ greatestToughness: { who: 'you', what: 'creature' } }), 6);
+    T.bf('A', 'Forest'); T.bf('A', 'Island');
+    t.eq(v({ per: 'basic land types among lands', who: 'you' }), 2, 'domain two');
+    T.bf('A', 'Llanowar Elves');
+    t.eq(v({ per: 'colors among permanents', who: 'you' }), 1, 'green only');
+  });
 };

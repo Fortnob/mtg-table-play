@@ -4353,6 +4353,19 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
+    // Celestine: "the amount of life you gained this turn"; Elenda and Azor: "the number of cards you've drawn this turn"
+    if (/^the amount of life you(?:'ve)? gained this turn$/i.test(p)) return done({ playerStat: 'lifeGainedThisTurn' });
+    if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
+    if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
+    if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });
+    // Resolute Archangel: "your starting life total"
+    if (/^your starting life total$/i.test(p)) return done({ startingLife: true });
+    // Last March of the Ents: "the greatest toughness among creatures you control"
+    if ((m = p.match(/^the greatest toughness among ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ greatestToughness: sc }); }
+    // Nighthowler: "the number of creature cards in all graveyards"
+    if ((m = p.match(/^the number of ([a-z]+) cards in all graveyards$/i))) return done({ cardsInAllGraveyards: m[1].toLowerCase() });
+    // Balor: "the number of cards in their hand" — the player the trigger is about
+    if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Arachnogenesis: "the number of creatures attacking you"

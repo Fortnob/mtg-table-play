@@ -2727,6 +2727,22 @@
       if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
       // Summon: Bahamut: "the total mana value of other permanents you control"
       if (v.spellsCastThisTurn) return (((this.player(pid) || {}).spellsCastThisTurn) || 0) * mult;
+      // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
+      if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
+      if (v.startingLife) return ((this.config && this.config.startingLife) || 20) * mult;
+      if (v.greatestToughness) {
+        let best = 0;
+        for (const o of this._scopeList(v.greatestToughness, pid, src, null, inLayers)) best = Math.max(best, this.toughnessOf(o));
+        return best * mult;
+      }
+      if (v.cardsInAllGraveyards) {
+        let k = 0;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
+        return k * mult;
+      }
+      // "the number of colors among permanents you control", "basic land types among lands you control"
+      if (/^colou?rs among permanents$/i.test(String(v.per || ''))) return this._colorsAmongYours(pid).length * mult;
+      if (/^basic land types among lands$/i.test(String(v.per || ''))) return this._domainOf(pid) * mult;
       if (v.totalMvOf) {
         let sum = 0;
         for (const o of this._scopeList(v.totalMvOf, pid, src, null, inLayers)) if (o !== src || !v.totalMvOf.other) sum += (o.card && o.card.cmc) || 0;
@@ -10390,7 +10406,10 @@
         }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
-        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn)) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.playerStat || v.startingLife ||
+          v.greatestToughness || v.cardsInAllGraveyards || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+        // Balor: "the number of cards in their hand"
+        if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
