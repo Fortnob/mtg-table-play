@@ -10871,4 +10871,47 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(gb.zone, 'battlefield', 'the Bears enter');
   });
+
+  test('Comet Storm: a target and one more for each kick; Inkshield makes Inklings from prevented damage', (mk, t) => {
+    t.auto('Comet Storm'); t.auto('Inkshield');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '3RR');
+    t.no(T.g.castSpell('A', T.hand('A', 'Comet Storm').id, { x: 2, targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: bear.id }] }), 'two targets need a kick');
+    T.cast('A', T.hand('A', 'Comet Storm'), { x: 2, kick: 1, targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: bear.id }] });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), 18, 'two to the player'); t.eq(bear.zone, 'graveyard', 'two to the Bears');
+    const T2 = mk();
+    const ogre = T2.bf('B', 'Gray Ogre');
+    T2.mana('A', '3WB');
+    T2.cast('A', T2.hand('A', 'Inkshield'));
+    T2.settle(); T2.resolve();
+    T2.g.dealDamageToPlayer(T2.g.player('A'), 2, ogre, true);
+    t.eq(T2.life('A'), 20, 'prevented');
+    t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 2, 'two Inklings');
+  });
+
+  test('Chain Lightning and Chain of Vapor: the one hit may pay to copy it back', (mk, t) => {
+    t.auto('Chain Lightning'); t.auto('Chain of Vapor'); t.auto('Chain of Acid'); t.auto('Chain of Smog');
+    const T = mk();
+    T.mana('B', 'RR');
+    let asked = 0;
+    T.answer('confirm', (ch) => { asked++; return { yes: asked === 1 && ch.playerId === 'B' }; });
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'player', id: 'A' }] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Chain Lightning'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.life('B'), 17, 'B was hit'); t.eq(T.life('A'), 17, 'and copied it back at A');
+    const T2 = mk();
+    const bear = T2.bf('B', 'Grizzly Bears'), isl = T2.bf('B', 'Island');
+    const mine = T2.bf('A', 'Llanowar Elves');
+    let n2 = 0;
+    T2.answer('confirm', (ch) => { n2++; return { yes: n2 === 1 }; });
+    T2.answer('choose', { picks: [isl.id] });
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: mine.id }] }));
+    T2.mana('A', 'U');
+    T2.cast('A', T2.hand('A', 'Chain of Vapor'), { targets: [bear.id] });
+    T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
+    t.eq(bear.zone, 'hand'); t.eq(isl.zone, 'graveyard', 'the land paid for it'); t.eq(mine.zone, 'hand', 'the copy bounced the Elves');
+  });
 };

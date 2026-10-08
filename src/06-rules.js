@@ -4602,6 +4602,8 @@
         } else if (mm.count === 'any') {
           if (got < Math.min(mm.min || 0, legalN)) return this.fail(`Choose at least ${mm.min} target${mm.min === 1 ? '' : 's'}.`);
           if (mm.perExtra && got > 1) cost += mm.perExtra.repeat(got - 1);
+          // Comet Storm: one target, and another for each time it was kicked
+          if (mm.perKick && got > 1 + (chose.kicked || 0)) return this.fail(`Choose no more than ${1 + (chose.kicked || 0)} targets (one, and one for each kick).`);
         }
       }
       // Arc Trail: "any other target" — not one this spell already aims at
@@ -13914,6 +13916,58 @@
         }
         // "Choose target creature you control.": the target, for the sentences after
         case 'chooseTarget': this._noteLastAffected(targets); break;
+        /* Chain Lightning, Chain of Vapor: the player it hit (or whose permanent
+           it hit) may pay to copy it, and choose a new target for the copy */
+        case 'chainCopy': {
+          const r = this.resolving;
+          if (!r || ctx.kind !== 'spell' || !ctx.obj) break;
+          const slot = r.index + ':chain';
+          r.marks = r.marks || {};
+          const st = r.marks[slot] || (r.marks[slot] = {});
+          if (!st.decided) {
+            const t0 = (ctx.targets || [])[0];
+            let who = null;
+            if (t0 && t0.kind === 'player') who = this.player(t0.id);
+            else if (t0 && t0.kind === 'object') {
+              const x = this.obj(t0.id);
+              const la = this._lastAffected && this._lastAffected.id === t0.id ? this._lastAffected : null;
+              who = this.player(la ? la.controller : x && x.zone === 'battlefield' ? x.controller : x && x.owner);
+            }
+            if (!who || who.hasLost) break;
+            const lands = this.battlefield.filter(x => !x.phasedOut && x.controller === who.id && (x.analysis() || {}).isLand);
+            const hand = this.zones[who.id].hand;
+            const can = e.cost === 'none' ? true : e.cost === 'sacLand' ? lands.length > 0 : e.cost === 'discard' ? hand.length > 0
+              : this.couldPay(who.id, e.cost);
+            if (!can) { st.decided = true; break; }
+            const price = e.cost === 'none' ? '' : e.cost === 'sacLand' ? 'sacrifice a land to ' : e.cost === 'discard' ? 'discard a card to ' : `pay ${e.cost} to `;
+            const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'chainCopy', costKind: e.cost === 'none' || /^\{/.test(e.cost) ? 'mana' : e.cost,
+              prompt: `${ctx.name || 'Spell'}: ${price}copy it and choose a new target?` }, 'chain');
+            if (yes === SUSPEND) return SUSPEND;
+            if (!yes) { st.decided = true; break; }
+            let paid = e.cost === 'none';
+            if (e.cost === 'sacLand' || e.cost === 'discard') {
+              const pool = e.cost === 'sacLand' ? lands : hand.slice();
+              const got = this._choose({ playerId: who.id, purpose: 'chainPay', kind: 'objects', zone: e.cost === 'sacLand' ? 'battlefield' : 'hand',
+                items: this._chooseItems(pool), min: 1, max: 1, prefer: 'worst',
+                prompt: e.cost === 'sacLand' ? 'Sacrifice a land.' : 'Discard a card.' }, 'chainpay');
+              if (got === SUSPEND) return SUSPEND;
+              const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+              if (x && e.cost === 'sacLand' && x.zone === 'battlefield') { this._sacrificeNow(who.id, [x]); paid = true; }
+              else if (x && e.cost === 'discard' && x.zone === 'hand') { this._discardNow(who.id, [x]); paid = true; }
+            } else if (!paid) paid = this.payMana(who.id, e.cost, { auto: true });
+            st.decided = true;
+            st.who = who.id;
+            st.paid = !!paid;
+          }
+          if (!st.paid) break;
+          if (!st.copy) {
+            st.copy = this._copyOnStack(ctx, st.who).id;
+            this.logEvent('copy', `${this.player(st.who).name} copies ${ctx.name || 'the spell'}.`);
+          }
+          const copy = this.stack.find(x => x.id === st.copy);
+          if (copy && this._newTargetsForCopy(copy, st.who, 'chnt') === SUSPEND) return SUSPEND;
+          break;
+        }
         // Tempting offer: each opponent may; you do it again for each who does
         case 'temptingOffer': {
           const took = [];
@@ -15303,7 +15357,8 @@
 
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
-            fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null });
+            fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
+            tokenPer: e.tokenPer || null });
           this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'} is prevented this turn${e.to === 'you' ? ` to ${me.name}` : ''}.`);
           break;
 
@@ -18125,6 +18180,8 @@
         /* Circle of Protection: "the next time a red source of your choice
            would deal damage to you this turn": that source, once */
         if (pv.sourceId && !(source && source.id === pv.sourceId)) continue;
+        // Inkshield: a token for each 1 damage prevented this way
+        if (pv.tokenPer && (Number(amount) || 0) > 0) this._createToken(pv.who, Object.assign({}, pv.tokenPer, { n: Number(amount) || 0 }));
         if (pv.once) {
           this.prevention.splice(this.prevention.indexOf(pv), 1);
           const k = Number(amount) || 0;

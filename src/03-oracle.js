@@ -5311,6 +5311,33 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* The Chain spells (Chain Lightning, Chain of Vapor, Chain of Acid,
+       Chain of Plasma, Chain of Smog): "Then that player or that permanent's
+       controller may pay {R}{R}. If the player does, they may copy this spell
+       and may choose a new target for that copy." */
+    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?(?:that player or that permanent'?s controller|that permanent'?s controller|that creature'?s controller|that player) may (pay ((?:\{[^}]+\})+)|sacrifice a land(?: of their choice)?|discard a card|copy this spell and may choose a new target for that copy)\.(?:\s+If the player does, they may copy this spell and may choose a new target for that copy\.)?$/i,
+      make: (m) => {
+        const bare = /^copy/i.test(m[2]);
+        if (!bare && !/If the player does/i.test(m[0])) return null;
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : null;
+        if (!pre || !pre.auto || !pre.effects.length) return null;
+        const cost = bare ? 'none' : m[3] ? m[3] : /sacrifice/i.test(m[2]) ? 'sacLand' : 'discard';
+        return [...pre.effects, { op: 'chainCopy', cost }];
+      } },
+    /* Inkshield: "Prevent all combat damage that would be dealt to you this
+       turn. For each 1 damage prevented this way, create a 2/1 white and
+       black Inkling creature token with flying." */
+    { re: /^Prevent all combat damage that would be dealt to you this turn\. For each 1 damage prevented this way, (create an? [^.]+ tokens? with [a-z ]+|create an? [^.]+ tokens?)\.$/i,
+      make: (m) => {
+        const tok = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.'));
+        if (!tok.auto || tok.effects.length !== 1 || tok.effects[0].op !== 'createToken') return null;
+        const per = Object.assign({}, tok.effects[0]); delete per.op; delete per.text;
+        return [{ op: 'preventDamage', combatOnly: true, to: 'you', tokenPer: per }];
+      } },
+    /* Comet Storm: "Choose any target, then choose another target for each
+       time this spell was kicked. CARDNAME deals X damage to each of them." */
+    { re: /^Choose any target, then choose another target for each time this spell was kicked\. CARDNAME deals X damage to each of them\.$/i,
+      make: () => [{ op: 'damage', n: 'X', targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'any', min: 1, perKick: true } }] }] },
     /* Tempting offer (Tempt with Discovery, Vengeance, Bunnies, Immortality,
        Glory, Reflections; Tempting Contract): "A. Each opponent may A. For
        each opponent who does, A." — each opponent is asked, those who take
