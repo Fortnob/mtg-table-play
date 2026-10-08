@@ -3424,6 +3424,9 @@
             const what = ef.what || 'any';
             if (what !== 'any' && what !== kind) continue;
             if (ef.filter && !this._cardFitsWords(o, ef.filter)) continue;
+            // Crystal Skull: one filter for the lands, another for the spells
+            const kf = kind === 'land' ? ef.landFilter : ef.spellFilter;
+            if (kf && !this._cardFitsWords(o, kf)) continue;
             if (ef.duringYourTurn && (!this.activePlayer || this.activePlayer.id !== playerId)) continue;
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
@@ -6317,7 +6320,7 @@
       for (const x of list) {
         if (!x || x.zone !== 'battlefield') continue;
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
-          mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice() });
+          mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary });
         this.moveObject(x, 'graveyard');
       }
       if (!snaps.length) return;
@@ -8448,6 +8451,11 @@
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
+        case 'sacrificedWas': {
+          const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
+          if (!sn) return false;
+          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).some(t => t.toLowerCase() === cond.what);
+        }
         case 'manaSpentOverPower': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
           return !!x && !!src && (x.manaSpent || 0) > this.powerOf(src);
@@ -18368,6 +18376,8 @@
         if (w === 'multicolored') return colors.length > 1;
         if (w === 'monocolored') return colors.length === 1;
         if (w === 'permanent') return !!a.isPermanent;
+        // historic: legendary, an artifact, or a Saga
+        if (w === 'historic') return !!a.isLegendary || !!a.isArtifact || (a.subtypes || []).includes('Saga');
         if (w === 'token' || w === 'tokens') return !!o.isToken;
         // Wing Shards: "an attacking creature"; Stoneshaker Shaman: "an untapped land"
         if (w === 'attacking') return !!o.attacking;

@@ -10231,4 +10231,33 @@ module.exports = (test) => {
     t.eq(clock.zone, 'exile', 'twelve: it goes');
     t.eq(T3.zone('A', 'hand').length, 7, 'seven new cards');
   });
+
+  test('Nasty End draws three for a legendary sacrifice, two otherwise; Crystal Skull casts historic spells from the top', (mk, t) => {
+    t.auto('Nasty End');
+    t.auto('Crystal Skull, Isu Spyglass');
+    const T = mk();
+    T.bf('A', 'Isamaru, Hound of Konda');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Nasty End'), { auto: true });
+    t.eq(T.zone('A', 'hand').length, h + 3, 'three for Isamaru');
+    const T2 = mk();
+    T2.bf('A', 'Grizzly Bears');
+    for (let i = 0; i < 4; i++) T2.top('A', 'Island');
+    const h2 = T2.zone('A', 'hand').length;
+    T2.mana('A', '1B');
+    T2.cast('A', T2.hand('A', 'Nasty End'), { auto: true });
+    t.eq(T2.zone('A', 'hand').length, h2 + 2, 'two for the Bears');
+    const T3 = mk();
+    T3.bf('A', 'Crystal Skull, Isu Spyglass');
+    const isa = T3.top('A', 'Isamaru, Hound of Konda');
+    T3.mana('A', 'W');
+    t.ok(T3.g.castSpell('A', isa.id, { auto: true }), 'a legendary creature from the top: ' + T3.g.lastError);
+    const T4 = mk();
+    T4.bf('A', 'Crystal Skull, Isu Spyglass');
+    const bear = T4.top('A', 'Grizzly Bears');
+    T4.mana('A', '1G');
+    t.no(T4.g.castSpell('A', bear.id, { auto: true }), 'but not a plain Bear');
+  });
 };

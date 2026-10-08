@@ -3113,6 +3113,12 @@
         if (!cond) return null;
         return { op: 'noop', insteadRider: { op: 'damage', cond, n: +m[2] } };
       } },
+    // Nasty End: "If the sacrificed creature was legendary, draw three cards instead."
+    { re: /^If (.+?), draw (two|three|four|five|six|\d+) cards instead\.?$/i,
+      make: (m) => {
+        const cond = condOf(m[1]);
+        return cond ? { op: 'noop', insteadRider: { op: 'draw', cond, n: num(m[2]) } } : null;
+      } },
     { re: /^If (.+?), (?:you )?(?:instead )?(?:draw|gain) .*instead\.?$/i, make: () => null },
     { re: /^Untap that (?:land|permanent|creature|artifact)\.?$/i, make: () => ({ op: 'untap', scope: 'lastAffected' }) },
     /* Scute Swarm: "If you control six or more lands, create a token that's
@@ -6296,6 +6302,8 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Nasty End: "the sacrificed creature was legendary"
+    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment))$/i, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
     // Liberator: "if the amount of mana spent to cast that spell is greater than CARDNAME's power"
     [/^the amount of mana spent to cast (that spell|this spell|it) is greater than (?:CARDNAME|this creature)'?s power$/i, (m) => ({ kind: 'manaSpentOverPower', of: spentOf(m[1]) })],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
@@ -10435,6 +10443,10 @@
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       { re: /^(During your turn, )?you may play lands from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'land', duringYourTurn: !!m[1] }), auto: true },
+      // Crystal Skull: "You may play historic lands and cast historic spells"; Traveling Chocobo: "play lands and cast Bird spells"
+      { re: /^(During your turn, )?you may play ((?:[a-z]+ )?)lands and cast ((?:[A-Za-z]+ )?)spells from the top of your library\.?$/i,
+        make: (m) => (m[2] || m[3]) ? { op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
+          landFilter: (m[2] || '').trim().toLowerCase() || null, spellFilter: (m[3] || '').trim().toLowerCase() || null } : null, auto: true },
       { re: /^(During your turn, )?you may play lands and cast spells from the top of your library\.?(?: If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?)?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
           payLife: /pay life equal/i.test(m[0]) }), auto: true },
