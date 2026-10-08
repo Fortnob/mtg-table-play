@@ -88,6 +88,32 @@
   }
 
   /** A list of ids from the wire, or undefined: strings only, and not too many. */
+  /* Alchemy's conjure makes a card out of nothing, by name, in the middle of
+     the game, when there is no time to ask Scryfall. The names the decks
+     can conjure are fetched as the game is set up, and again for what those
+     can conjure in turn; the rules read them through MTG.cardLookup. */
+  const conjured = new Map();
+  const CONJURE_RE = /\bconjure (?:a|an|one|two|three|four|five|six|seven|eight|X|\d+) cards? named ([^,.]+?) (?:into|onto|on top)/gi;
+  const conjureNames = (cards) => {
+    const out = new Set();
+    for (const c of cards) {
+      if (!c) continue;
+      const text = [c.oracle_text || ''].concat((c.card_faces || []).map(f => f.oracle_text || '')).join('\n');
+      for (const m of text.matchAll(CONJURE_RE)) for (const n of m[1].split(/\s+or\s+/)) out.add(n.trim());
+    }
+    return [...out].filter(n => n && !conjured.has(U.normName(n)));
+  };
+  async function prefetchConjured(cards) {
+    let names = conjureNames(cards);
+    for (let depth = 0; names.length && depth < 3; depth++) {
+      let got = [];
+      try { got = ((await MTG.scry.collection(names.map(name => ({ name })))).cards || []).filter(Boolean); } catch (e) { got = []; }
+      for (const c of got) conjured.set(U.normName(c.name), c);
+      names = conjureNames(got);
+    }
+    if (conjured.size && !MTG.cardLookup) MTG.cardLookup = (name) => conjured.get(U.normName(name)) || null;
+  }
+
   const idList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 60) : undefined);
   /* What a person chose to pay a cost the table would otherwise pick for
      them: graveyard cards for evidence, a Food or three cards to forage,
@@ -2963,6 +2989,10 @@
           });
         }
 
+        // the cards Alchemy decks conjure, at hand before they are needed
+        busy.text('Getting the table ready…');
+        await prefetchConjured([].concat(...this.roster.filter(r => r.deck).map(r =>
+          r.deck.main.map(e => e.card).concat((r.deck.sideboard || []).map(e => e.card), r.deck.commanders || []))));
         const g = new MTG.rules.Game({
           formatId: this.formatId,
           startingLife: this.rules.startingLife,

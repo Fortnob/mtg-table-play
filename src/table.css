@@ -267,6 +267,10 @@
 .cv-perpetual { position: absolute; left: 50%; bottom: 30%; translate: -50% 0; z-index: 3; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .085)/1.5 var(--font); padding: 0 .6em; border-radius: 99px; pointer-events: auto;
   color: #f3eaff; background: linear-gradient(180deg, #9b6be0, #6a3fb3); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.cv-intensity { position: absolute; right: 6%; top: 12%; z-index: 3; pointer-events: auto; white-space: nowrap;
+  font: 700 calc(var(--w, 90px) * .1)/1.5 var(--font); padding: 0 .5em; border-radius: 99px;
+  color: #fff4e0; background: linear-gradient(180deg, #e0773a, #a8441a); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.hslot .cv-intensity { right: auto; left: 4%; top: 24%; }
 .hslot .cv-perpetual { left: 4%; top: 12%; bottom: auto; translate: none; max-width: 40%; font-size: calc(var(--w, 90px) * .1); }
 .cv-chosen { position: absolute; left: 50%; top: 22%; translate: -50% 0; z-index: 3; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .085)/1.5 var(--font); padding: 0 .6em; border-radius: 99px; pointer-events: auto;

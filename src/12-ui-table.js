@@ -523,7 +523,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null)].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -533,6 +533,8 @@
         const d = perpetualWords(o.perpetual);
         if (d.short) n.appendChild(el('div', { class: 'cv-mark cv-perpetual', text: '∞ ' + d.short, title: 'Perpetually: ' + d.long.join('; ') }));
       }
+      // Alchemy: how intense it is now
+      if (o.intensity != null) n.appendChild(el('div', { class: 'cv-mark cv-intensity', text: '◆ ' + o.intensity, title: `Intensity ${o.intensity}` }));
       if (o.zone !== 'battlefield') return;
       const a = this.analysis(o);
       if (o.power != null && o.toughness != null) {
