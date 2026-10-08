@@ -9553,4 +9553,35 @@ module.exports = (test) => {
     T3.toMain('A', 'endCombat');
     t.eq(T3.zone('B', 'hand').length, hand + 1, 'B drew');
   });
+
+  test('Defiler of Vigor: 2 life instead of a {G} for a green permanent spell, asked as it is cast', (mk, t) => {
+    t.auto('Defiler of Vigor');
+    const T = mk();
+    T.bf('A', 'Defiler of Vigor');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [0] }; });
+    T.mana('A', '1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.g.castSpell('A', bear.id, { auto: true, targets: [] });
+    T.settle(); T.resolve();
+    t.eq(asked && asked.purpose, 'defiler', 'the offer is a generic question');
+    t.eq(bear.zone, 'battlefield', 'cast with {1} and 2 life');
+    t.eq(T.life('A'), 18);
+  });
+
+  test('Sickening Shoal for free: exile a black card from hand, and X is its mana value', (mk, t) => {
+    t.auto('Sickening Shoal');
+    t.auto('Disrupting Shoal');
+    const T = mk();
+    const big = T.bf('B', 'Colossal Dreadmaw');
+    const shoal = T.hand('A', 'Sickening Shoal');
+    const fodder = T.hand('A', 'Murder');
+    T.answer('pickCard', () => ({ cardIds: [fodder.id] }));
+    const use = T.g.altUsesFor('A', shoal.id).find(u => u.alt && u.alt.exileFromHand);
+    t.ok(use, 'the exile-a-card cost is offered');
+    T.g.castSpell('A', shoal.id, { via: use.via, alternative: use.alternative || use.via, targets: [{ kind: 'object', id: big.id }], auto: true });
+    T.settle(); T.resolve();
+    t.eq(fodder.zone, 'exile');
+    t.eq(T.g.toughnessOf(big), 3, 'X = 3: -3/-3 on a 6/6');
+  });
 };

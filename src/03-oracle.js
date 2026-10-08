@@ -2782,6 +2782,8 @@
     { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
     // Veil of Summer: "Spells you control can't be countered this turn."
     { re: /^Spells you control can'?t be countered this turn\.?$/i, make: () => ({ op: 'uncounterableTurn' }) },
+    // Disrupting Shoal: "Counter target spell if its mana value is X."
+    { re: /^Counter target spell if its mana value is (X|\d+)\.?$/i, make: (m) => ({ op: 'counterSpell', ifMv: /x/i.test(m[1]) ? 'X' : +m[1], targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }) },
     // Veil of Summer: "You and permanents you control gain hexproof from blue and from black until end of turn."
     { re: /^You and permanents you control gain hexproof from (white|blue|black|red|green)(?: and from (white|blue|black|red|green))? until end of turn\.?$/i,
       make: (m) => ({ op: 'hexproofFromTurn', q: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }) },
@@ -5374,6 +5376,9 @@
       else if ((k = part.match(/^pay (\d+) life$/i))) alt.life = +k[1];
       else if ((k = part.match(/^exile (a|an|one|two) ([a-z ]+?) cards? from your hand$/i)))
         alt.exileFromHand = { n: num(k[1]), filter: k[2].trim() };
+      // the Shoals: "exile a blue card with mana value X from your hand" — X is that card's
+      else if ((k = part.match(/^exile an? ([a-z]+) card with mana value X from your hand$/i)))
+        alt.exileFromHand = { n: 1, filter: k[1].trim(), mvIsX: true };
       else if ((k = part.match(/^sacrifice (a|an|one|two|three) ([A-Za-z ]+?)s?$/i)))
         alt.sacrifice = { n: num(k[1]), filter: k[2].trim().toLowerCase() };
       else if ((k = part.match(/^discard (a|an|one|two) ([a-z ]*?)cards?$/i)))
@@ -7694,6 +7699,17 @@
         }
       }
 
+      /* The Defilers: "As an additional cost to cast green permanent spells,
+         you may pay 2 life. Those spells cost {G} less to cast if you paid
+         life this way. This effect reduces only the amount of green mana you
+         pay." — a standing offer on other spells, not this one's cost */
+      const defiler = line.match(/^As an additional cost to cast (white|blue|black|red|green) permanent spells, you may pay (\d+) life\. Those spells cost \{([WUBRG])\} less to cast if you paid life this way\. This effect reduces only the amount of \w+ mana you pay\.?$/i);
+      if (defiler) {
+        out.abilities.push({ kind: 'static', text: line, auto: true,
+          effects: [{ op: 'defilerCost', words: defiler[1].toLowerCase() + ' permanent', life: +defiler[2], symbol: defiler[3].toUpperCase() }] });
+        autoLines++;
+        continue;
+      }
       /* An extra price for casting the spell: kept on the analysis, where
          casting reads it, and paid by the table rather than by hand. */
       const extraCost = parseAdditionalCost(line);
@@ -9921,7 +9937,6 @@
           const kw = { op: 'continuous', layer: 6, scope, grant: ['Hexproof From ' + U.titleCase(m[4])] };
           return m[2] ? { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true }, pt: { p: +m[2], t: +m[3] } }, kw] } : kw;
         }, auto: true },
-      // Veil of Summer: "Spells you control can't be countered this turn."
       // Pilot tokens, Cloudspire Captain: "This token saddles Mounts and crews Vehicles as though its power were 2 greater."
       { re: /^(?:This token|This creature|CARDNAME) (?:saddles Mounts and )?crews Vehicles(?: and saddles Mounts)? as though its power were (\d+) greater\.?$/i,
         make: (m) => ({ op: 'crewBonus', n: +m[1] }), auto: true },

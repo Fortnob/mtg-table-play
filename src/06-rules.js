@@ -4123,6 +4123,17 @@
           items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
           prompt: `${o.name}: devour ${a.devour} — sacrifice any number of creatures as it enters.` }) === 'asked') return 'asked';
       }
+      /* The Defilers: pay 2 life for one less coloured mana — a generic
+         question (purpose defiler), asked with the cast */
+      if (!o.isCopy && !opts.free && !(opts.choices && opts.choices.defiler)) {
+        const dfl = this._defilerFor(playerId, o);
+        const p0 = this.player(playerId);
+        if (dfl && MANA.parse(String(chk.cost || '')).includes(dfl.symbol) && this._lifePayable(p0) >= dfl.life) {
+          if (this._castChoose(playerId, o, opts, { purpose: 'defiler', kind: 'options', min: 1, max: 1, compact: true,
+            options: [{ label: `Pay ${dfl.life} life: {${dfl.symbol}} less` }, { label: "Don't pay life" }], life: p0.life, n: dfl.life,
+            prompt: `${o.name}: pay ${dfl.life} life to cast it for {${dfl.symbol}} less?` }) === 'asked') return 'asked';
+        }
+      }
       /* Replicate, splice onto Arcane and conspire are generic questions:
          asked one after another, each knowing what the last one added. */
       if (!o.isCopy) {
@@ -4546,6 +4557,18 @@
         }
         if (tTax) cost = this._addGeneric(cost || '', tTax);
       }
+      // The Defilers: paid in life, one less mana of that colour
+      const dfl = !opts.free && ((((opts.choices || {}).defiler || {}).picks || [])[0] === 0) ? this._defilerFor(playerId, o) : null;
+      if (dfl) {
+        const syms = MANA.parse(cost || '');
+        const at = syms.indexOf(dfl.symbol);
+        if (at >= 0 && this._lifePayable(p) >= dfl.life) {
+          syms.splice(at, 1);
+          cost = syms.map(x => '{' + x + '}').join('');
+          this.changeLife(p, -dfl.life, 'cost');
+          this.logEvent('life', `${p.name} pays ${dfl.life} life for ${o.name}.`);
+        }
+      }
       this._payFlags = {};
       /* Convoke, improvise and delve are paid for, not given: with what the
          player chose (checked before any mana goes), or the cheapest there
@@ -4688,10 +4711,20 @@
         if (alt.exileFromHand) {
           const pool = this._discardPool(playerId, alt.exileFromHand, o);
           const need = Math.min(pool.length, alt.exileFromHand.n || 1);
+          // the Shoals: X is the mana value of the card exiled
+          const setX = (c) => { if (alt.exileFromHand.mvIsX && c) { item.x = (c.card && c.card.cmc) || 0; o.chosenX = item.x; } };
           if (p.isBot || pool.length === need) {
-            for (const c of this._cheapestFirst(pool).slice(0, need)) this.moveObject(c, 'exile');
+            let pick = this._cheapestFirst(pool).slice(0, need);
+            if (alt.exileFromHand.mvIsX) {
+              // a bot: the card that matches the spell it targets, else the biggest
+              const st = (item.targets || []).find(t => t.kind === 'stack');
+              const want = st && ((this.stack.find(x => x.id === st.id) || {}).obj || {}).card;
+              const byMv = pool.slice().sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0));
+              pick = [(want && byMv.find(c => (c.card.cmc || 0) === (want.cmc || 0))) || byMv[0]].filter(Boolean);
+            }
+            for (const c of pick) { this.moveObject(c, 'exile'); setX(c); }
           } else if (need) {
-            this.queueChoice({ type: 'pickCard', playerId, count: need, purpose: 'exileCost',
+            this.queueChoice({ type: 'pickCard', playerId, count: need, purpose: 'exileCost', stackId: item.id, setX: !!alt.exileFromHand.mvIsX,
               candidates: pool.map(x => x.id), cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
               prompt: `Exile ${need === 1 ? 'a' : need} ${alt.exileFromHand.filter} card${need === 1 ? '' : 's'} from your hand.` });
           }
@@ -4909,6 +4942,15 @@
       }
     }
 
+    /** A Defiler whose offer fits this spell: { symbol, life }, or null. */
+    _defilerFor(pid, o) {
+      for (const x of this.battlefield) {
+        if (x.controller !== pid || x.phasedOut) continue;
+        const e = this._staticOp(x, 'defilerCost');
+        if (e && this._cardFitsWords(o, e.words)) return e;
+      }
+      return null;
+    }
     /** Twinning Staff: "If you would copy a spell one or more times, instead copy it that many times plus an additional time." */
     _extraCopies(pid, item) {
       if (!item || item.kind !== 'spell') return 0;
@@ -11026,6 +11068,8 @@
             const ia = item.obj && item.obj.analysis();
             // Pyroblast: "if it's blue" is checked as it resolves
             if (e.ifColor && !((ia && ia.colors) || []).includes(e.ifColor)) { this.logEvent('counter', `${item.name} is not the right colour.`); continue; }
+            // Disrupting Shoal: "if its mana value is X"
+            if (e.ifMv != null && ((item.obj && item.obj.card && item.obj.card.cmc) || 0) !== n(e.ifMv)) { this.logEvent('counter', `${item.name} has another mana value.`); continue; }
             // an ability on the stack is countered whatever its source says about spells (Stifle)
             const proof = item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
               (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item));
@@ -17556,7 +17600,12 @@
           for (const id of ids.slice(0, ch.count || 1)) {
             const o = this.obj(id);
             if (!o) continue;
-            if (ch.purpose === 'exileCost') { this.moveObject(o, 'exile'); continue; }
+            if (ch.purpose === 'exileCost') {
+              this.moveObject(o, 'exile');
+              // the Shoals: X is the exiled card's mana value
+              if (ch.setX) { const st = this.stack.find(x => x.id === ch.stackId); if (st) { st.x = (o.card && o.card.cmc) || 0; if (st.obj) st.obj.chosenX = st.x; } }
+              continue;
+            }
             if (ch.purpose === 'moxDiamond') {
               if (o.zone === 'hand' && (ch.candidates || []).includes(o.id)) {
                 this.moveObject(o, 'graveyard'); this._afterDiscard(playerId, o);
