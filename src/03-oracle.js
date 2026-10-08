@@ -3936,6 +3936,8 @@
         if (!then.auto) return null;
         return { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: m[1].toLowerCase() }, then: then.effects };
       } },
+    // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
+    { re: /^Copy (?:that ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // Thousand-Year Storm: "copy it for each other instant and sorcery spell you've cast before it this turn"
@@ -6309,6 +6311,14 @@
   }
 
   const TRIGGER_PATTERNS = [
+    /* Rings of Brighthearth, Rowan Kenrith, Kurkesh, Chandra's Regulator,
+       Illusionist's Bracers: an ability activated (one that uses the stack) */
+    { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
+    { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
+      event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
+    { re: /^Whenever you activate a loyalty ability(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
+      filt: (m) => (m[1] ? { words: m[1].toLowerCase() } : { words: 'permanent' }), extra: { loyaltyOnly: true } },
+    { re: /^Whenever an ability of equipped creature is activated, if it isn'?t a mana ability,? /i, event: 'anyActivateAbility', extra: { ofEnchanted: true } },
     // Zhur-Taa Druid, Forbidden Orchard: "Whenever you tap this creature for mana"
     { re: /^Whenever you tap (?:this (?:creature|land|artifact|permanent)|CARDNAME) for mana,? /i, event: 'tapForMana', self: true },
     // Manabarbs, Burning Earth, Vorinclex: "Whenever a player (an opponent) taps a land for mana"

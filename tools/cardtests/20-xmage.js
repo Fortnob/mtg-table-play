@@ -9209,4 +9209,16 @@ module.exports = (test) => {
     t.eq(card.zone, 'graveyard');
     t.eq(T.life('B'), 17);
   });
+
+  test('Rings of Brighthearth copies an activated ability for {2}', (mk, t) => {
+    t.auto('Rings of Brighthearth');
+    const T = mk();
+    T.bf('A', 'Rings of Brighthearth');
+    const pinger = T.bf('A', 'Prodigal Pyromancer');
+    pinger.summoningSick = false;
+    T.answer('confirm', () => ({ yes: true }));
+    T.mana('A', '2');
+    T.activate('A', pinger, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 18, 'pinged twice');
+  });
 };

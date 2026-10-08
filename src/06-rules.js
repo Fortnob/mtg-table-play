@@ -5507,6 +5507,11 @@
       }
       this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab, o), 80)}`);
       this._crimeCheck(playerId, item.targets);
+      // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
+      if (!opts.copyOf) {
+        this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
+        this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
+      }
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
       this._resetPriority();
@@ -9524,6 +9529,8 @@
           // "their second card each turn", "except the first one they draw in each of their draw steps"
           if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
+          // "whenever you activate a loyalty ability"
+          if (ab.loyaltyOnly && !data.loyalty) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only

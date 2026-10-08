@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13625,
+  "needed": 13619,
   "gainedCards": 1441,
-  "linesNeeded": 14992,
+  "linesNeeded": 14982,
   "linesGained": 1771,
   "gained": {
    "all": 1441,
@@ -1155,23 +1155,6 @@
     "Painwracker Oni",
     "Fires of Victory",
     "Gutwrencher Oni"
-   ]
-  },
-  {
-   "what": "ActivateAbilityTriggeredAbility",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Rings of Brighthearth",
-    "Illusionist's Bracers",
-    "Battlemage's Bracers",
-    "The Enigma Jewel // Locus of Enlightenment",
-    "Adrenaline Jockey",
-    "Kurkesh, Onakke Ancient",
-    "Rangers' Refueler",
-    "Afterburner Expert",
-    "Rangers' Aetherhive",
-    "Marvel Boy, Noh-Varr"
    ]
   },
   {
@@ -7136,6 +7119,18 @@
    ]
   },
   {
+   "what": "ActivateAbilityTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Adrenaline Jockey",
+    "Rangers' Refueler",
+    "Afterburner Expert",
+    "Rangers' Aetherhive",
+    "Marvel Boy, Noh-Varr"
+   ]
+  },
+  {
    "what": "ExertCreatureControllerTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7354,8 +7349,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3984,
-   "cards": 3582,
+   "score": 3985,
+   "cards": 3583,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7678,6 +7673,19 @@
    ]
   },
   {
+   "what": "EmpowerJaceEffect",
+   "score": 20,
+   "cards": 20,
+   "names": [
+    "Fatehold Charm",
+    "Theorist's Sanctum",
+    "Way of the Necromancer",
+    "Way of the Paradox",
+    "Countersculpt",
+    "Way of the Mentor"
+   ]
+  },
+  {
    "what": "target count 0",
    "score": 19,
    "cards": 13,
@@ -7714,19 +7722,6 @@
     "Excava, the Risen Past",
     "Banishing Slash",
     "Quag Feast"
-   ]
-  },
-  {
-   "what": "EmpowerJaceEffect",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "Fatehold Charm",
-    "Theorist's Sanctum",
-    "Way of the Necromancer",
-    "Countersculpt",
-    "Way of the Mentor",
-    "Vraska's Final Mercy"
    ]
   },
   {
@@ -7870,19 +7865,6 @@
     "Magus Lucea Kane",
     "Rainbow Vale",
     "Undiscovered Paradise"
-   ]
-  },
-  {
-   "what": "ActivateAbilityTriggeredAbility",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Rings of Brighthearth",
-    "Illusionist's Bracers",
-    "Battlemage's Bracers",
-    "Adrenaline Jockey",
-    "Kurkesh, Onakke Ancient",
-    "Afterburner Expert"
    ]
   },
   {
@@ -11132,6 +11114,18 @@
     "Fin Fang Foom",
     "Hawkeye, Bowslinger",
     "Ring of Immortals"
+   ]
+  },
+  {
+   "what": "not attacking",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Domineering Will",
+    "Arcades Sabboth",
+    "Ruthless Instincts",
+    "Alarum",
+    "Unlikely Alliance"
    ]
   }
  ]
