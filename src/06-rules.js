@@ -3108,6 +3108,7 @@
         const lim = this._staticOp(s0, 'spellLimit');
         if (!lim) continue;
         if (lim.who === 'opponents' && s0.controller === playerId) continue;
+        if (lim.who === 'enchantedPlayer' && s0.attachedTo !== playerId) continue;
         if (lim.noncreature && a.isCreature) continue;
         const cast = (p.spellObjsThisTurn || []).filter(x => !lim.noncreature || !(O.analyze(x.card, x.face) || {}).isCreature).length;
         if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : ''}spells this turn.` };
@@ -9330,6 +9331,7 @@
         const e = this._staticOp(o, 'noLifeGain');
         if (!e) continue;
         if (e.who === 'opponents' && o.controller === p.id) continue;
+        if (e.who === 'enchantedPlayer' && o.attachedTo !== p.id) continue;
         return true;
       }
       return false;
@@ -10002,7 +10004,9 @@
           if (ab.castByYou && data.playerId !== o.controller) continue;
           // "the upkeep of enchanted creature's controller", "enchanted player's upkeep"
           if (ab.enchantedController) { const host = o.attachedTo && this.obj(o.attachedTo); if (!host || data.playerId !== host.controller) continue; }
-          if (ab.enchantedPlayer && data.playerId !== o.attachedTo) continue;
+          if (ab.enchantedPlayer && (data.playerId != null ? data.playerId : data.drawer != null ? data.drawer : data.player) !== o.attachedTo) continue;
+          // "Whenever a creature attacks enchanted player"
+          if (ab.attacksEnchanted && (!o.attachedTo || data.player !== o.attachedTo || !this.player(data.defenderId))) continue;
           // battalion: this and at least so many others attacking
           if (ab.minAttackers && ((this.combat && this.combat.attackers) || []).length < ab.minAttackers) continue;
           // Hermes: "with one or more Birds"
@@ -10433,7 +10437,9 @@
       const triggerPlayer = () => {
         const d = ctx.triggerData || {};
         // "choose an opponent. That player …": the one chosen, when there was a choice
-        return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId) || null;
+        return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId) ||
+          // a Curse: "that player" is the one it enchants
+          (src && src.attachedTo && this.player(src.attachedTo)) || null;
       };
       // "each creature that player controls": who "that player" is, for the group words
       // (or, with no player in it, the controller of what it targets: Public Execution)
@@ -10864,7 +10870,8 @@
         case 'gainLife': {
           const cnt = n(e.n);
           if (e.who === 'targetController') {
-            const p = this._lastAffectedController();
+            // Curse of the Forsaken: "its controller" — of the creature the trigger is about
+            const p = this._lastAffectedController() || this.player((ctx.triggerData || {}).objController);
             if (p) this.changeLife(p, cnt);
           } else if (e.who === 'target') { const p = firstPlayer(); if (p) this.changeLife(p, cnt); }
           // Laquatus's Champion: the player the trigger is about
@@ -16671,6 +16678,7 @@
       if (sc.name && o.name !== sc.name) return false;
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
+      if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
       const isType = (t) => {
         if (t === 'permanent') return true;
         if (t === 'creature' && !inLayers) return !!this.characteristics(o).isCreature;
@@ -18111,6 +18119,7 @@
       const owner = ctrl || x.controller;
       if (f.who === 'you' && src && owner !== src.controller) return false;
       if (f.who === 'opponent' && src && owner === src.controller) return false;
+      if (f.who === 'enchantedPlayer' && !(src && src.attachedTo && owner === src.attachedTo)) return false;
       if (f.nontoken && x.isToken) return false;
       if (f.token && !x.isToken) return false;
       if (f.words && !this._cardFitsWords(x, f.words)) return false;

@@ -1075,6 +1075,8 @@
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (target creature(?: you control)?) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [targetSpec(m[2])] } : null; } },
     // Tyrannize, Wit's End: "Target player discards their hand."
+    // Curse of Obsession: "that player discards their hand"
+    { re: /^That player discards (?:their|his or her) hand\.?$/i, make: () => ({ op: 'discard', n: 'all', who: 'triggerPlayer' }) },
     { re: /^(Target player|Target opponent|Each player|Each opponent) discards (?:their|his or her) hand\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'discard', n: 'all', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
         : { op: 'discard', n: 'all', who: /opponent/i.test(m[1]) ? 'opponents' : 'each' }) },
@@ -3421,6 +3423,9 @@
       make: () => ({ op: 'noLifeGain', who: 'all' }) },
     { re: /^Your opponents can'?t gain life\.?$/i,
       make: () => ({ op: 'noLifeGain', who: 'opponents' }) },
+    // Grievous Wound
+    { re: /^Enchanted (?:player|opponent) can'?t gain life\.?$/i,
+      make: () => ({ op: 'noLifeGain', who: 'enchantedPlayer' }) },
     { re: /^You control enchanted creature\.?$/i,
       make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }) },
     { re: /^([A-Za-z]+) spells you cast cost \{(\d+)\} less to cast\.?$/i,
@@ -6475,6 +6480,8 @@
     if (/ of the chosen type\b/i.test(p)) { f.chosenType = true; p = p.replace(/ of the chosen type\b/i, ''); }
     const who = (q) => {
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
+      // the Curses: "a creature enchanted player controls"
+      if (/ enchanted (?:player|opponent) controls$/.test(q)) { f.who = 'enchantedPlayer'; return q.replace(/ enchanted (?:player|opponent) controls$/, ''); }
       if (/ (?:an opponent controls|your opponents control|you don'?t control)$/.test(q)) {
         f.who = 'opponent'; return q.replace(/ (?:an opponent controls|your opponents control|you don'?t control)$/, '');
       }
@@ -6565,6 +6572,7 @@
       event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackingYou: num(m[1]) }) },
     // the curses of Commander 2017: "Whenever enchanted player is attacked"
     { re: /^Whenever enchanted player is attacked,? /i, event: 'anyPlayerAttacks', extra: { enchantedAttacked: true } },
+    { re: /^Whenever a creature attacks enchanted (?:player|opponent),? /i, event: 'permAttacks', extra: { attacksEnchanted: true } },
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
     // Baral, Lullmage Mentor
@@ -6789,7 +6797,14 @@
     /* curses and auras on someone else's creature: that player's upkeep */
     { re: /^At the beginning of the upkeep of enchanted (?:creature|permanent|artifact|land|planeswalker)'s controller,? /i,
       event: 'eachUpkeep', extra: { enchantedController: true } },
-    { re: /^At the beginning of enchanted player's upkeep,? /i, event: 'eachUpkeep', extra: { enchantedPlayer: true } },
+    { re: /^At the beginning of enchanted (?:player|opponent)'s upkeep,? /i, event: 'eachUpkeep', extra: { enchantedPlayer: true } },
+    // the Curses: what the enchanted player does, and what is done to them
+    { re: /^At the beginning of enchanted (?:player|opponent)'s draw step,? /i, event: 'eachDrawStep', extra: { enchantedPlayer: true } },
+    { re: /^At the beginning of enchanted (?:player|opponent)'s end step,? /i, event: 'eachEndStep', extra: { enchantedPlayer: true } },
+    { re: /^Whenever enchanted (?:player|opponent) draws a card,? /i, event: 'anyDraw', extra: { enchantedPlayer: true } },
+    { re: /^Whenever enchanted (?:player|opponent) casts (?:a|an) ([a-zA-Z ,-]*?)spell,? /i,
+      event: 'anyCastSpell', extra: { enchantedPlayer: true }, filt: (m) => spellFilter(m[1]) },
+    { re: /^Whenever enchanted (?:player|opponent) is dealt damage,? /i, event: 'playerDealtDamage', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of each player's end step,? /i, event: 'eachEndStep' },
     { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
     // Wrathful Raptors: "Whenever a Dinosaur you control is dealt damage"
@@ -8581,6 +8596,11 @@
       }
       if (!out.auraSpec) out.auraSpec = targetSpec('creature');
     }
+    // Curse of Predation: "Whenever a creature attacks enchanted player, put a +1/+1 counter on it" — "it" is the attacker
+    for (const ab of out.abilities) {
+      if (!ab.attacksEnchanted) continue;
+      for (const e of ab.effects || []) if (e.op === 'counters' && e.scope === 'self' && !(e.targets || []).length) e.scope = 'triggerObject';
+    }
     out.producesMana = out.manaAbilities.length > 0 || (card.produced_mana || []).length > 0;
     out.producedColors = card.produced_mana || deriveProduced(out);
     return out;
@@ -8659,7 +8679,10 @@
       rest = rest.replace(/ of the chosen (?:type|colou?r)\b/i, '');
     }
     // who controls them
-    const W = rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls)$/i);
+    // Curse of Death's Hold: "Creatures enchanted player controls"
+    const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
+    if (WE) { sc.who = 'enchantedPlayer'; rest = rest.slice(0, WE.index); }
+    const W = !WE && rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls)$/i);
     if (W) {
       sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player)/i.test(W[1]) ? 'target' : 'opponents';
       // Cavern-Hoard Dragon: "for each artifact that player controls"
@@ -10067,6 +10090,9 @@
       // Deafening Silence, Rule of Law, Eidolon of Rhetoric
       { re: /^Each player can'?t cast more than one (noncreature )?spell each turn\.?$/i,
         make: (m) => ({ op: 'spellLimit', n: 1, noncreature: !!m[1] }), auto: true },
+      // Curse of Exhaustion
+      { re: /^Enchanted (?:player|opponent) can'?t cast more than one spell each turn\.?$/i,
+        make: () => ({ op: 'spellLimit', n: 1, who: 'enchantedPlayer' }), auto: true },
       // Brave the Sands
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
