@@ -2967,6 +2967,14 @@
          when it could normally be cast (CR 608.2g). */
       const midway = opts === 'cascade' || opts === 'resolution';
       // Drannith Magistrate: nothing from anywhere but the hand
+      // Void Winnower: "Your opponents can't cast spells with even mana values."
+      for (const q of this.opponentsOf(playerId)) {
+        const vw = this._anyStaticOf(q.id, 'opponentsCantCastParity');
+        if (!vw) continue;
+        const e0 = this._staticOp(vw, 'opponentsCantCastParity');
+        const mv = (o.card && o.card.cmc) || 0;
+        if ((mv % 2 === 0) === !!e0.even) return { ok: false, reason: `${vw.name}: you can't cast spells with ${e0.even ? 'even' : 'odd'} mana values.` };
+      }
       if (o.zone !== 'hand' && this.opponentsOf(playerId).some(q => this._anyStaticOf(q.id, 'onlyFromHand')))
         return { ok: false, reason: 'An opponent stops spells cast from anywhere but your hand.' };
       if (!midway && (!this.priorityPlayer || this.priorityPlayer.id !== playerId)) return { ok: false, reason: 'You do not have priority.' };
@@ -2994,7 +3002,7 @@
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
-      const instantSpeed = midway || a.isInstant || a.has('flash') || this._flashFor(playerId, o);
+      const instantSpeed = midway || (!this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || this._flashFor(playerId, o)));
       // Saproling Symbiosis: flash, for {2} more
       let flashTax = '';
       if (!instantSpeed) {
@@ -3177,7 +3185,7 @@
         if (!priority) return { code: 'priority', text: 'Waiting for priority.' };
         return null;
       }
-      const instantSpeed = a.isInstant || a.has('flash') || this._flashFor(playerId, o);
+      const instantSpeed = !this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || this._flashFor(playerId, o));
       if (!instantSpeed) {
         const what = a.isCreature ? 'Creatures' : a.isSorcery ? 'Sorceries' : 'Cards like this';
         if (!yours) return { code: 'timing', text: `${what} are cast on your own turn (or it needs flash).` };
@@ -3248,9 +3256,17 @@
 
     /* "You may cast spells as though they had flash": a permanent of
        yours that says so, or a spell that said so this turn. */
+    /** Teferi, Time Raveler: an opponent of this player lets them cast spells only as sorceries. */
+    _sorceryOnly(playerId) {
+      return this.opponentsOf(playerId).some(q => this._anyStaticOf(q.id, 'opponentsSorcerySpeed'));
+    }
     _flashFor(playerId, o) {
       const p = this.player(playerId);
       if (p && p.flashTurn === this.turn) return true;
+      // Teferi, Time Raveler +1: until your next turn
+      const fu = p && p.flashUntil;
+      if (fu && (this.turn === fu.setTurn || !this.activePlayer || this.activePlayer.id !== p.id) &&
+          (!fu.filter || this._cardFitsWords(o, fu.filter))) return true;
       for (const src of this.battlefield) {
         if (src.controller !== playerId || src.phasedOut) continue;
         const e = this._staticOp(src, 'flashGrant');
@@ -6913,6 +6929,13 @@
       if (blocker.tapped || blocker.phasedOut) return false;
       if (ba.abilities.some(x => (x.effects || []).some(e => e.op === 'cantBlock'))) return false;
       if (this._hasFlag(blocker, 'cantBlock')) return false;
+      // Void Winnower: "Your opponents can't block with creatures with even mana values."
+      for (const q of this.opponentsOf(blocker.controller)) {
+        const vw = this._anyStaticOf(q.id, 'opponentsCantBlockParity');
+        if (!vw) continue;
+        const e0 = this._staticOp(vw, 'opponentsCantBlockParity');
+        if ((((blocker.card && blocker.card.cmc) || 0) % 2 === 0) === !!e0.even) return false;
+      }
       // decayed: "it can't block"
       if (this.hasKw(blocker, 'decayed')) return false;
       if ((blocker.effects || []).some(e => e && e.cantBlockId === attacker.id)) return false;
@@ -12729,6 +12752,11 @@
             card = Object.assign({}, card, { id: card.id + ':as:' + U.hash(line + pw + '/' + tg + cols.join('')),
               type_line: line, power: pw, toughness: tg, colors: cols, card_faces: null });
           }
+          // Adagia: "except it's legendary"
+          if (e.addLegendary && !/\bLegendary\b/.test(String(card.type_line || ''))) {
+            const line = 'Legendary ' + String(card.type_line || '');
+            card = Object.assign({}, card, { id: card.id + ':legend:' + U.hash(line), type_line: line, card_faces: null });
+          }
           // "except it's an artifact in addition to its other types"
           for (const t of (e.addTypes || [])) {
             if (new RegExp('\\b' + t + '\\b').test(String(card.type_line || ''))) continue;
@@ -14563,6 +14591,10 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
+        case 'flashUntilNextTurn':
+          me.flashUntil = { setTurn: this.turn, filter: e.filter || null };
+          break;
         // Flare of Fortitude: "until end of turn, your life total can't change"
         case 'lifeLockTurn':
           me.lifeLocked = { setTurn: this.turn, until: me.id, eot: this.turn };

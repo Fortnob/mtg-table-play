@@ -1730,7 +1730,7 @@
       make: (m) => ({ op: 'drain', n: num(m[1]), who: 'opponents' }) },
 
     // --- copying a spell ---
-    { re: /^Copy target (instant or sorcery|instant|sorcery) spell( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
+    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
         m[2] ? { controller: 'you' } : {})] }) },
     /* Strionic Resonator, Lithoform Engine: an ability copied on the stack.
@@ -2717,6 +2717,12 @@
         const e = { op: 'changeTargetToSelf', single, targets: [spec] };
         return /^You may/i.test(m[0]) ? { op: 'may', then: [e] } : e;
       } },
+    // Balefire Dragon: "it deals that much damage to each creature that player controls"
+    { re: /^(?:It|CARDNAME|This creature) deals (that much|\d+) damage to each creature that player controls\.?$/i,
+      make: (m) => ({ op: 'damage', n: /that much/i.test(m[1]) ? 'triggerAmount' : +m[1], scope: { who: 'target', thatPlayer: true, what: 'creature' } }) },
+    // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
+    { re: /^Until your next turn, you may cast (sorcery|creature|instant and sorcery|noncreature) spells as though they had flash\.?$/i,
+      make: (m) => ({ op: 'flashUntilNextTurn', filter: m[1].toLowerCase().replace(' and ', ' or ') }) },
     // Portal to Phyrexia: "It's a Phyrexian in addition to its other types."
     { re: /^(?:It'?s|That creature is) an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => ({ op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
@@ -3892,6 +3898,9 @@
     { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
+    // Adagia, Windswept Bastion: "Create a token that's a copy of target artifact or enchantment you control, except it's legendary."
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
     // Feldon of the Third Path: "…a copy of target creature card in your graveyard, except it's an artifact in addition to its other types."
     { re: /^Create a token that'?s a copy of target (creature|artifact|permanent|creature or artifact) card in your graveyard(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [],
@@ -8693,6 +8702,14 @@
         if (!scope || scope.self || scope.attached) return null;
         return { op: 'continuous', layer: 4, scope, addTypes: ['Creature'], setPt: { mv: true } };
       } },
+    // Song of the Dryads: "Enchanted permanent is a colorless Forest land."
+    { re: /^(Enchanted (?:permanent|creature|land)) is an? colorless (Plains|Island|Swamp|Mountain|Forest) land\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        const t = U.titleCase(m[2]);
+        return { op: 'continuous', layer: 4, scope, setTypes: ['Land'], setSubtypes: [t], setMana: [MANA.COLOR_OF_BASIC[t]], setColors: [] };
+      } },
     /* Imprisoned in the Moon */
     { re: /^(Enchanted (?:permanent|creature|land)) is an? colorless land with "\{T\}: Add \{C\}\.?" and loses all other card types and abilities\.?$/i,
       make: (m) => {
@@ -9300,6 +9317,11 @@
       // Electro, Ashling: "You don't lose unspent red mana as steps and phases end."
       { re: /^You don'?t lose unspent (red|blue|black|white|green) mana as steps and phases end\.?$/i,
         make: (m) => ({ op: 'keepMana', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }), auto: true },
+      // Void Winnower: "Your opponents can't cast spells with even mana values." "…can't block with creatures with even mana values."
+      { re: /^Your opponents can'?t cast spells with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantCastParity', even: /even/i.test(m[1]) }), auto: true },
+      { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },
+      // Teferi, Time Raveler: "Each opponent can cast spells only any time they could cast a sorcery."
+      { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
