@@ -1812,6 +1812,8 @@
       make: (m) => { const t = tgt(m[1]); const c = countOf(m[2] + ' you control'); return t && c ? { op: 'damage', n: c, targets: [t] } : null; } },
     { re: /^You may play (?:that card|it|those cards|them|the exiled cards?) this turn\.?$/i, make: () => ({ op: 'impulseLast', duration: 'eot' }) },
     { re: /^Choose (?:one of them|one of those cards|one of the exiled cards|a card exiled this way)\.?$/i, make: () => ({ op: 'chooseExiled' }) },
+    // Time Stop, Sundial of the Infinite, Ultima (CR 723)
+    { re: /^End the turn\.?$/i, make: () => ({ op: 'endTheTurn' }) },
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
     // Inti: "You may play that card until your next end step."
@@ -6134,6 +6136,11 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Zhur-Taa Druid, Forbidden Orchard: "Whenever you tap this creature for mana"
+    { re: /^Whenever you tap (?:this (?:creature|land|artifact|permanent)|CARDNAME) for mana,? /i, event: 'tapForMana', self: true },
+    // Manabarbs, Burning Earth, Vorinclex: "Whenever a player (an opponent) taps a land for mana"
+    { re: /^Whenever a player taps an? ([a-z ]+?) for mana,? (?!that player adds)/i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }) },
+    { re: /^Whenever an opponent taps an? ([a-z ]+?) for mana,? /i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }), extra: { toOpponent: true } },
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
@@ -9123,6 +9130,17 @@
       { re: /^Whenever you tap an? (land|Forest|Island|Swamp|Mountain|Plains|basic land) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Mana Flare, Heartbeat of Spring: every player's lands, for whoever taps them
+      { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that land produced)\.?$/i,
+        make: (m) => Object.assign({ op: 'extraManaOnTap', filter: m[1].toLowerCase() },
+          /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Badgermole Cub: "Whenever you tap a creature for mana, add an additional {G}"; Kinnan: "a nonland permanent"
+      { re: /^Whenever you tap an? (creature|nonland permanent|artifact|permanent) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that (?:creature|permanent|artifact) produced)\.?$/i,
+        make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
+          /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Mana Reflection, Nyxbloom Ancient: "If you tap a permanent for mana, it produces twice as much of that mana instead."
+      { re: /^If you tap an? (permanent|land|basic land) for mana, it produces (twice|three times) as much of that mana instead\.?$/i,
+        make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), times: /twice/i.test(m[2]) ? 2 : 3 }), auto: true },
       { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: c } : { op: 'manual' }; }, auto: true },
       { re: /^Equip (legendary creature|commander|Knight|Samurai|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,

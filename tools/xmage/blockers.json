@@ -1,12 +1,12 @@
 {
- "generated": "2026-10-07",
+ "generated": "2026-10-08",
  "stats": {
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13750,
+  "needed": 13727,
   "gainedCards": 1443,
-  "linesNeeded": 15144,
+  "linesNeeded": 15119,
   "linesGained": 1774,
   "gained": {
    "all": 1443,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5095,
-   "lines": 4444,
+   "score": 5086,
+   "lines": 4441,
    "cards": [
     "Thespian's Stage",
     "Opposition Agent",
@@ -52,13 +52,12 @@
   },
   {
    "what": "custom ability",
-   "score": 878,
-   "lines": 752,
+   "score": 869,
+   "lines": 749,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
     "Midnight Clock",
-    "Forbidden Orchard",
     "Scrap Trawler",
     "Forsaken Monument",
     "Myr Battlesphere",
@@ -66,7 +65,8 @@
     "Mesmeric Orb",
     "Kambal, Profiteering Mayor",
     "Coveted Jewel",
-    "Hedge Shredder"
+    "Hedge Shredder",
+    "Carpet of Flowers"
    ]
   },
   {
@@ -727,25 +727,6 @@
     "Crack in Time",
     "Staff of the Flame Magus",
     "Staff of the Wild Magus"
-   ]
-  },
-  {
-   "what": "TapForManaAllTriggeredManaAbility",
-   "score": 22,
-   "lines": 16,
-   "cards": [
-    "Badgermole Cub",
-    "Kinnan, Bonder Prodigy",
-    "Leyline of Abundance",
-    "Mana Flare",
-    "Roxanne, Starfall Savant",
-    "Heartbeat of Spring",
-    "Dictate of Karametra",
-    "Lavaleaper",
-    "Barbflare Gremlin",
-    "Zhur-Taa Ancient",
-    "Overabundance",
-    "Vernal Bloom"
    ]
   },
   {
@@ -4097,6 +4078,21 @@
    ]
   },
   {
+   "what": "TapForManaAllTriggeredManaAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Roxanne, Starfall Savant",
+    "Barbflare Gremlin",
+    "Overabundance",
+    "Vernal Bloom",
+    "Gauntlet of Might",
+    "Keeper of Progenitus",
+    "Snowfall",
+    "Winter's Night"
+   ]
+  },
+  {
    "what": "WardAbility",
    "score": 8,
    "lines": 8,
@@ -5330,19 +5326,6 @@
    ]
   },
   {
-   "what": "TapForManaAllTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Manabarbs",
-    "War's Toll",
-    "Burning Earth",
-    "Storm Cauldron",
-    "Scald",
-    "Sanctimony"
-   ]
-  },
-  {
    "what": "filter:anyCounter",
    "score": 6,
    "lines": 6,
@@ -6444,18 +6427,6 @@
    ]
   },
   {
-   "what": "EndTurnEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Sundial of the Infinite",
-    "Time Stop",
-    "Ultima",
-    "Glorious End",
-    "Discontinuity"
-   ]
-  },
-  {
    "what": "ToughnessGreaterThanPowerPredicate.instance",
    "score": 5,
    "lines": 5,
@@ -7374,13 +7345,37 @@
     "Groom's Finery",
     "Piety Charm"
    ]
+  },
+  {
+   "what": "RemoveAllCountersSourceEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Witherscale Wurm",
+    "Blood Hound",
+    "Force Bubble",
+    "Energy Vortex",
+    "Discordant Spirit"
+   ]
+  },
+  {
+   "what": "TargetActivatedAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Interdict",
+    "Brown Ouphe",
+    "Ayesha Tanaka",
+    "Rust",
+    "Ouphe Vandals"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4097,
-   "cards": 3632,
+   "score": 4088,
+   "cards": 3629,
    "names": [
     "Thespian's Stage",
     "Tibalt's Trickery",
@@ -7392,15 +7387,15 @@
   },
   {
    "what": "custom ability",
-   "score": 667,
-   "cards": 568,
+   "score": 658,
+   "cards": 565,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
-    "Forbidden Orchard",
     "Scrap Trawler",
     "Forsaken Monument",
-    "Myr Battlesphere"
+    "Myr Battlesphere",
+    "Caged Sun"
    ]
   },
   {
@@ -7638,22 +7633,9 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 23,
-   "cards": 20,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Feline Sovereign",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver"
-   ]
-  },
-  {
    "what": "InfoEffect",
-   "score": 23,
-   "cards": 23,
+   "score": 24,
+   "cards": 24,
    "names": [
     "Invert Polarity",
     "Liesa, Shroud of Dusk",
@@ -7664,16 +7646,16 @@
    ]
   },
   {
-   "what": "TapForManaAllTriggeredManaAbility",
-   "score": 21,
-   "cards": 15,
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 23,
+   "cards": 20,
    "names": [
-    "Badgermole Cub",
-    "Kinnan, Bonder Prodigy",
-    "Leyline of Abundance",
-    "Mana Flare",
-    "Heartbeat of Spring",
-    "Dictate of Karametra"
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Feline Sovereign",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver"
    ]
   },
   {
@@ -7793,6 +7775,19 @@
    ]
   },
   {
+   "what": "Ability.setRuleAtTheTop",
+   "score": 17,
+   "cards": 14,
+   "names": [
+    "Open the Way",
+    "Malicious Affliction",
+    "Ertai's Scorn",
+    "Even the Score",
+    "Discontinuity",
+    "Brush Off"
+   ]
+  },
+  {
    "what": "OrTriggeredAbility halves differ",
    "score": 17,
    "cards": 17,
@@ -7855,19 +7850,6 @@
     "Green Slime",
     "Louisoix's Sacrifice",
     "Consign to Memory"
-   ]
-  },
-  {
-   "what": "Ability.setRuleAtTheTop",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Open the Way",
-    "Malicious Affliction",
-    "Ertai's Scorn",
-    "Even the Score",
-    "Brush Off",
-    "Take for a Ride"
    ]
   },
   {
@@ -9829,6 +9811,19 @@
     "Murasa Pyromancer",
     "Munda, Ambush Leader",
     "Tajuru Archer"
+   ]
+  },
+  {
+   "what": "TapForManaAllTriggeredManaAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Barbflare Gremlin",
+    "Overabundance",
+    "Vernal Bloom",
+    "Gauntlet of Might",
+    "Keeper of Progenitus",
+    "Snowfall"
    ]
   },
   {

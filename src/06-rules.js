@@ -1946,6 +1946,8 @@
     }
 
     _afterResolve(item) {
+      // Time Stop, Sundial of the Infinite: the turn ends as this finishes resolving
+      if (this._endTheTurn === this.turn) { this._endTheTurnNow(item); return; }
       // spells that are not permanents go to the graveyard
       if (item.kind === 'spell' && item.obj) {
         const a = item.obj.analysis();
@@ -1985,6 +1987,40 @@
       }
       this.checkStateBasedActions();
       this._resetPriority();
+    }
+
+    /**
+     * Ending the turn (CR 723): everything on the stack is exiled, this
+     * included, nothing waiting to trigger is put on the stack, combat is
+     * over, and the turn goes straight to its cleanup step, where the
+     * player whose turn it is discards to their hand size and damage wears
+     * off.
+     */
+    _endTheTurnNow(item) {
+      this._endTheTurn = null;
+      const gone = (it) => {
+        if (!it || it.kind !== 'spell' || !it.obj || it.obj.zone !== 'stack') return;
+        if (it.isCopy) it.obj.zone = null;
+        else this.moveObject(it.obj, 'exile');
+      };
+      gone(item);
+      for (const it of this.stack.splice(0)) gone(it);
+      this.pendingTriggers = [];
+      if (this.combat) {
+        for (const id of (this.combat.attackers || []).concat(this.combat.blockers || [])) {
+          const o = this.obj(id);
+          if (o) { o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = []; }
+        }
+        this.combat.attackers = []; this.combat.blockers = [];
+      }
+      this._phaseQueue = null; this._resumePhase = null;
+      this._extraPhases = (this._extraPhases || []).filter(x => x.turn !== this.turn);
+      this.logEvent('rules', 'The turn ends.');
+      this.checkStateBasedActions();
+      if (this.over) return;
+      this.phaseIndex = PHASES.findIndex(ph => ph.id === 'ending');
+      this.stepIndex = 0;
+      this._advanceStep();
     }
 
     _resolveSpell(item) {
@@ -6308,7 +6344,12 @@
       const after = p.pool.snapshot();
       const made = {};
       for (const c of MANA.COLORS.concat('C')) made[c] = Math.max(0, (after[c] || 0) - (before[c] || 0));
-      if (ab.cost && ab.cost.tap) this._extraManaOnTap(playerId, o, made);
+      if (ab.cost && ab.cost.tap) {
+        this._extraManaOnTap(playerId, o, made);
+        // Zhur-Taa Druid, Manabarbs: triggers on being tapped for mana
+        this._fire('tapForMana', playerId, { source: o, object: o, objController: o.controller, player: playerId, playerId });
+        this._fire('anyTapForMana', null, { object: o, objController: o.controller, player: playerId, playerId });
+      }
       if (!ab.spendOnly) return;
       const paying = this._payingFor;
       /* Path of Ancestry: the mana is anybody's to spend, but remembers
@@ -6412,9 +6453,29 @@
       const oa = o.analysis();
       if (!oa) return;
       const p = this.player(playerId);
+      /* Mana Reflection, Nyxbloom Ancient: it produces twice (three times)
+         as much instead — a replacement, so before anything adds to it, and
+         two of them multiply */
+      let factor = 1;
       for (const src of this.battlefield) {
         const e = this._staticOp(src, 'extraManaOnTap');
-        if (!e) continue;
+        if (!e || !e.times) continue;
+        if (e.who === 'you' && playerId !== src.controller) continue;
+        if (e.filter && !this._cardFitsWords(o, e.filter)) continue;
+        factor *= e.times;
+      }
+      if (factor > 1) {
+        const more = [];
+        for (const c of Object.keys(made)) {
+          const k = (made[c] || 0) * (factor - 1);
+          for (let i = 0; i < k; i++) { p.pool.add(c); more.push(c); }
+          made[c] = (made[c] || 0) * factor;
+        }
+        if (more.length) this.logEvent('mana', `${o.name} produces ${factor === 2 ? 'twice' : factor + ' times'} as much: ${more.map(x => '{' + x + '}').join('')} more.`);
+      }
+      for (const src of this.battlefield) {
+        const e = this._staticOp(src, 'extraManaOnTap');
+        if (!e || e.times) continue;
         if (e.scope === 'attached' ? src.attachedTo !== o.id : false) continue;
         if (e.who === 'you' && o.controller !== src.controller) continue;
         if (e.filter && !this._cardFitsWords(o, e.filter)) continue;
@@ -14295,6 +14356,10 @@
           else { this._removeFromZone(dup); dup.zone = null; }
           break;
         }
+        // "End the turn." — once this has finished resolving
+        case 'endTheTurn':
+          this._endTheTurn = this.turn;
+          break;
         /* "Exile the top two cards of your library. Choose one of them." —
            the one chosen is what "that card" means from here on */
         case 'chooseExiled': {

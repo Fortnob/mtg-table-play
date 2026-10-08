@@ -464,6 +464,8 @@
         return sub(e.then) + sub(e.effects) + sub(e.otherwise) * 0.3;
       case 'flipCoin': return (sub(e.then) + sub(e.otherwise)) * 0.5;
       case 'continuous': return continuousWorth(e);
+      // ending the turn throws away the rest of it: never something to do on a whim
+      case 'endTheTurn': return -3;
       default: return 0.15;
     }
   }

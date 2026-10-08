@@ -8724,4 +8724,61 @@ module.exports = (test) => {
     t.ok(T.life('B') <= life - 3, 'the copy was cast at B');
     t.no(T.zone('A', 'graveyard').some(o => o.name === 'Lightning Bolt'), 'and the copy left nothing behind');
   });
+
+  test('Mana Reflection doubles what a land makes; two of them, four times as much', (mk, t) => {
+    t.auto('Mana Reflection');
+    const T = mk();
+    T.bf('A', 'Mana Reflection');
+    const f = T.bf('A', 'Forest');
+    T.g.tapForMana('A', f.id, 0);
+    t.eq(T.g.player('A').pool.total(), 2);
+    T.bf('A', 'Mana Reflection');
+    const f2 = T.bf('A', 'Forest');
+    T.g.tapForMana('A', f2.id, 0);
+    t.eq(T.g.player('A').pool.total(), 6);
+  });
+
+  test('Mana Flare: every player gets one more of what their land made', (mk, t) => {
+    t.auto('Mana Flare');
+    t.auto('Badgermole Cub');
+    const T = mk();
+    T.bf('A', 'Mana Flare');
+    const m = T.bf('B', 'Mountain');
+    T.g.tapForMana('B', m.id, 0);
+    t.eq(T.g.player('B').pool.total(), 2, 'B, from A\'s Mana Flare');
+  });
+
+  test('Manabarbs and Zhur-Taa Druid: tapping for mana triggers', (mk, t) => {
+    t.auto('Manabarbs');
+    t.auto('Zhur-Taa Druid');
+    const T = mk();
+    T.bf('A', 'Manabarbs');
+    const druid = T.bf('B', 'Zhur-Taa Druid');
+    druid.summoningSick = false; druid.entered = -1;
+    T.g.tapForMana('B', druid.id, 0);
+    T.resolve(); T.resolve();
+    t.eq(T.life('A'), 19, 'the Druid hit A');
+    const m = T.bf('B', 'Mountain');
+    T.g.tapForMana('B', m.id, 0);
+    T.resolve();
+    t.eq(T.life('B'), 19, 'Manabarbs hit B for the Mountain, not for the Druid');
+  });
+
+  test('Time Stop ends the turn: what is on the stack is exiled and the next player\'s turn begins', (mk, t) => {
+    t.auto('Time Stop');
+    t.auto('Sundial of the Infinite');
+    const T = mk();
+    const turn = T.g.turn;
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+    const stop = T.hand('A', 'Time Stop');
+    T.mana('A', 'UU4');
+    T.cast('A', stop);
+    T.resolve();
+    t.eq(stop.zone, 'exile', 'Time Stop itself is exiled');
+    t.eq(bolt.zone, 'exile', 'and the Bolt under it');
+    t.eq(T.life('B'), 20);
+    t.ok(T.g.turn > turn, 'the turn is over');
+  });
 };
