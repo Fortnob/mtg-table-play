@@ -1514,6 +1514,9 @@
     // Oubliette: "target creature phases out until this enchantment leaves the battlefield"
     { re: /^(target [a-z ]+?) phases out until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'phaseOutUntilLeaves', targets: [targetSpec(m[1])] }) },
+    // Vohar, Dire Fleet Daredevil: "If that spell would be put into your graveyard, exile it instead."
+    { re: /^If that (?:spell|card) would be put into (?:your|a|its owner'?s) graveyard, exile it instead\.?$/i,
+      make: () => ({ op: 'noop', exileAfterCastRider: true }) },
     // Oubliette: "Tap that creature as it phases in this way."
     { re: /^Tap that creature as it phases in this way\.?$/i, make: () => ({ op: 'noop', phaseTapRider: true }) },
     { re: /^Return the exiled cards? to the battlefield under (?:its owner'?s|their owners'?|your) control\.?$/i,
@@ -4246,6 +4249,9 @@
     { re: /^Copy (?:that ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // the Commander storms: "copy it for each time you've cast your commander from the command zone this game"
+    { re: /^Copy (?:it|this spell) for each time you'?ve cast your commander from the command zone this game\.?$/i,
+      make: () => ({ op: 'copyThatSpell', n: { commanderCasts: true } }) },
     // Thousand-Year Storm: "copy it for each other instant and sorcery spell you've cast before it this turn"
     { re: /^Copy (?:it|that spell) for each other (instant and sorcery|instant or sorcery|noncreature)? ?spell you'?ve cast before it this turn\.?$/i,
       make: (m) => ({ op: 'copyThatSpell', n: { castBefore: (m[1] || 'spell').replace(' and ', ' or ') } }) },
@@ -6307,6 +6313,13 @@
       if (e && e.sameForAttacker) {
         if (!out.length) return null;
         out.push({ op: 'asPlayer', who: 'attackingOpponent', effects: JSON.parse(JSON.stringify(out)) });
+        continue;
+      }
+      // Vohar: the spell cast this way is exiled rather than put into a graveyard
+      if (e && e.exileAfterCastRider) {
+        const prev = out.slice().reverse().find(x => x && /^(?:mayCastFromGraveyard|mayPlayExiled)$/.test(x.op));
+        if (!prev) return null;
+        prev.exileAfter = true;
         continue;
       }
       // Oubliette: it comes back tapped

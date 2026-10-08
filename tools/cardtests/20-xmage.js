@@ -10471,4 +10471,29 @@ module.exports = (test) => {
     T2.toMain('A', 'end');
     t.eq(T2.life('B'), 20 - 3 * 2, 'two combat phases of three damage each');
   });
+
+  test('Fury Storm copies once for each commander cast; a spell cast with Mission Briefing is exiled afterwards', (mk, t) => {
+    t.auto('Fury Storm');
+    t.auto('Mission Briefing');
+    const T = mk();
+    T.g.player('A').commanderCasts = { x1: 2 };
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'], resolve: false });
+    T.mana('A', '2RR');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('confirm', { yes: false });
+    T.cast('A', T.hand('A', 'Fury Storm'), { targets: [T.g.stack[T.g.stack.length - 1] && { kind: 'stack', id: T.g.stack[T.g.stack.length - 1].id }] });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), 20 - 3 * 3, 'the Bolt and two copies of it');
+    const T2 = mk();
+    const opt = T2.grave('A', 'Opt');
+    T2.top('A', 'Island'); T2.top('A', 'Island'); T2.top('A', 'Island');
+    T2.answer('choose', () => ({ picks: [opt.id] }));
+    T2.mana('A', 'UU');
+    T2.cast('A', T2.hand('A', 'Mission Briefing'));
+    T2.mana('A', 'U');
+    t.ok(T2.g.castSpell('A', opt.id, { auto: true, via: 'granted' }), 'Opt cast from the graveyard: ' + T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(opt.zone, 'exile', 'and exiled, not back in the graveyard');
+  });
 };

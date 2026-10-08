@@ -9694,6 +9694,12 @@
       const from = o.zone;
       // out of exile, an adventure is over
       if (from === 'exile' && toZone !== 'exile') o.adventureBy = null;
+      /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
+         graveyard; the leave lasts only until the card goes somewhere other than the stack */
+      if (o._exileFromStack) {
+        if (from === 'stack' && toZone === 'graveyard') toZone = 'exile';
+        if (toZone !== 'stack') o._exileFromStack = false;
+      }
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null;
       if (!opts.noReplace) {
@@ -10941,6 +10947,11 @@
         }
         // Alchemy: a card's intensity
         if (v && typeof v === 'object' && v.intensity) return this._intensityOf(src) * (v.mult || 1);
+        // the Commander storms: how many times you've cast your commander from the command zone
+        if (v && typeof v === 'object' && v.commanderCasts) {
+          const cc = (me && me.commanderCasts) || {};
+          return Object.values(cc).reduce((k, x) => k + (Number(x) || 0), 0) * (v.mult || 1);
+        }
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
@@ -14187,6 +14198,14 @@
         case 'mayPlayExiled': {
           const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i);
+          // Mission Briefing: "choose an instant or sorcery card in your graveyard. You may cast it this turn."
+          const gy = !ids.length && this._lastAffected && this.obj(this._lastAffected.id);
+          if (gy && gy.zone === 'graveyard') {
+            gy.graveCastBy = ctx.controller; gy.graveCastTurn = this.turn;
+            if (e.exileAfter) gy._exileFromStack = true;
+            this.logEvent('rules', `${me.name} may cast ${gy.name} from the graveyard this turn.`);
+            break;
+          }
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
@@ -14197,6 +14216,7 @@
             else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; }
             if (e.anyMana) c.impulseAnyMana = pid;
             if (e.faceUpForThem) c.faceDownExile = false;
+            if (e.exileAfter) c._exileFromStack = true;
           }
           break;
         }
@@ -16555,6 +16575,7 @@
             const c = t.kind === 'object' && this.obj(t.id);
             if (!c || c.zone !== 'graveyard') continue;
             c.graveCastBy = ctx.controller; c.graveCastTurn = this.turn;
+            if (e.exileAfter) c._exileFromStack = true;
             this.logEvent('rules', `${me.name} may cast ${c.name} from the graveyard this turn.`);
           }
           break;
