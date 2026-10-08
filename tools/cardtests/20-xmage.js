@@ -11481,4 +11481,26 @@ module.exports = (test) => {
     T5.settle(); T5.resolve();
     t.eq(T5.g.zones.A.hand.length, h5 + 1, 'one draw, for the Bolt only');
   });
+
+  test('Thrasios; "This ability costs {1} less to activate for each …"; Rooftop Storm', (mk, t) => {
+    t.auto('Thrasios, Triton Hero'); t.auto('Voldaren Estate'); t.auto('Diary of Dreams'); t.auto('Rooftop Storm');
+    const T = mk();
+    const ve = T.bf('A', 'Voldaren Estate');
+    T.bf('A', 'Vampire Nighthawk'); T.bf('A', 'Bloodghast');
+    const ab = ve.analysis().abilities.find(a => a.kind === 'activated');
+    t.eq(T.g._abilityMana(ve, ab, []), '{3}', '{5} less two Vampires');
+    const dd = T.bf('A', 'Diary of Dreams'); dd.counters.page = 3;
+    const ab2 = dd.analysis().abilities.filter(a => a.kind === 'activated').find(a => /costs/.test(a.text));
+    t.eq(T.g._abilityMana(dd, ab2, []), '{2}', '{5} less three page counters');
+    const T2 = mk();
+    const th = T2.bf('A', 'Thrasios, Triton Hero');
+    const land = T2.top('A', 'Forest');
+    T2.answer('scry', () => ({ keep: [land.id], bottom: [] }));
+    T2.g._runEffects(th.analysis().abilities.find(a => a.kind === 'activated').effects, { controller: 'A', obj: th, name: 'Thrasios', kind: 'ability' });
+    T2.settle();
+    t.eq(land.zone, 'battlefield'); t.ok(land.tapped);
+    const T3 = mk();
+    T3.bf('A', 'Rooftop Storm');
+    t.eq(T3.g.canCast('A', T3.hand('A', 'Gravecrawler').id).cost, '', 'Zombies for nothing');
+  });
 };

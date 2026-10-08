@@ -3939,6 +3939,9 @@
     // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
     { re: /^When you next cast a creature spell this turn, that creature enters with an additional \+1\/\+1 counter on it\.?$/i,
       make: () => ({ op: 'nextCreatureCounter', n: 1 }) },
+    // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
+    { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
+      make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -5398,6 +5401,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Thrasios, Triton Hero: "Scry 1, then reveal the top card of your
+       library. If it's a land card, put it onto the battlefield tapped.
+       Otherwise, draw a card." */
+    { re: /^Scry (\d+), then reveal the top card of your library\. If it'?s a land card, put it onto the battlefield( tapped)?\. Otherwise, draw a card\.$/i,
+      make: (m) => [{ op: 'scry', n: +m[1] }, { op: 'topLandOrDraw', tapped: !!m[2] }] },
     // Kwain: "Each player may draw a card, then each player who drew a card this way gains 1 life."
     { re: /^Each player may draw a card, then each player who drew a card this way gains (\d+) life\.$/i,
       make: (m) => [{ op: 'eachMay', draw: 1, gain: +m[1] }] },
@@ -10937,6 +10945,9 @@
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
         }, auto: true },
+      // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
+      { re: /^You may pay \{0\} rather than pay the mana cost for ((?:[A-Z][a-z]+ )?(?:creature |artifact |enchantment )?)spells you cast\.?$/,
+        make: (m) => ({ op: 'freeSpells', filter: (m[1] || 'card').trim().toLowerCase() || 'card' }), auto: true },
       // Lier, Disciple of the Drowned: "Spells can't be countered."
       { re: /^Spells can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all' }, auto: true },
       // Lier: "Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost."

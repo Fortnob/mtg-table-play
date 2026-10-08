@@ -6569,6 +6569,8 @@
         // Belt of Giant Strength: {X} less, X the power of the creature it targets
         if (ab.equipDiscount && ab.equipDiscount.targetPower) d -= Math.max(0, this.powerOf(tObj));
       }
+      // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control"
+      for (const e of (ab.effects || [])) if (e && e.abilityDiscount) d -= e.abilityDiscount.amount * this._countValue(e.abilityDiscount.per, o.controller, o);
       // Crown of Gondor: {3} less if you're the monarch; Plate Armor: {1} less for each other Equipment
       if (ab.equipDiscount && !ab.equipDiscount.targetPower) {
         const ed = ab.equipDiscount;
@@ -14316,6 +14318,15 @@
           const down = !!(got && got.picks && got.picks[0] === 1);
           x.effects.push({ p: down ? -k : k, t: down ? -k : k, until: 'eot' });
           this.bumpBoard();
+          break;
+        }
+        // Thrasios: the top card, onto the battlefield if it is a land; otherwise a card drawn
+        case 'topLandOrDraw': {
+          const top = this.zones[ctx.controller].library[0];
+          if (!top) break;
+          this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
+          if ((top.analysis() || {}).isLand) { this.moveObject(top, 'battlefield', { controller: ctx.controller }); if (e.tapped) top.tapped = true; }
+          else this._drawCards(me, 1);
           break;
         }
         // Mordenkainen: hand and library change places
