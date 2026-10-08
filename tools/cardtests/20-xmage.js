@@ -10678,4 +10678,20 @@ module.exports = (test) => {
     t.eq(theirs.zone, 'graveyard', 'a 3/3 Bears deals 3 to the Courser');
     t.eq(mine.zone, 'graveyard', 'and takes 3 back');
   });
+
+  test('Snow permanents counted: Frost Bite deals 3 with three of them', (mk, t) => {
+    t.auto('Frost Bite');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.bf('A', 'Snow-Covered Mountain');
+    const cc = T.bf('B', 'Centaur Courser');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Frost Bite'), { targets: [cc] });
+    t.eq(cc.zone, 'graveyard', 'three damage');
+    const T2 = mk();
+    T2.bf('A', 'Mountain'); T2.bf('A', 'Mountain'); T2.bf('A', 'Snow-Covered Mountain');
+    const c2 = T2.bf('B', 'Centaur Courser');
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Frost Bite'), { targets: [c2] });
+    t.eq(c2.damage, 2, 'only two without three snow permanents');
+  });
 };

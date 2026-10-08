@@ -17555,6 +17555,7 @@
       if (sc.basic && !(oa.supertypes || []).includes('Basic')) return false;
       if (sc.nonbasic && (oa.supertypes || []).includes('Basic')) return false;
       if (sc.legendary && !(oa.supertypes || []).includes('Legendary')) return false;
+      if (sc.snow && !(oa.supertypes || []).includes('Snow')) return false;
       if (sc.nonlegendary && (oa.supertypes || []).includes('Legendary')) return false;
       if (sc.nontoken && o.isToken) return false;
       if (sc.token && !o.isToken) return false;

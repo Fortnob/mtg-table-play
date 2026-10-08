@@ -9240,6 +9240,8 @@
       // Phylath: "for each basic land you control"
       else if (lw === 'basic') sc.basic = true;
       else if (lw === 'legendary') sc.legendary = true;
+      // Blizzard Brawl: "snow permanents"
+      else if (lw === 'snow') sc.snow = true;
       else if (lw === 'nonlegendary') sc.nonlegendary = true;
       // "artifact creatures": a creature that is an artifact as well
       else if (/^(?:artifact|enchantment|land|creature)$/.test(lw) && sc.what && !sc.anyOf) (sc.alsoType = sc.alsoType || []).push(lw);
