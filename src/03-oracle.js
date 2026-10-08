@@ -5235,6 +5235,16 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Tail Swipe, Blizzard Brawl, Longstalk Brawl: "Choose target creature you control and target creature you
+       don't control. [Something for the creature you control.] Then those creatures fight each other." */
+    { re: /^Choose target creature you control and target creature you don'?t control\. (?:If ([^,]+), the creature you control gets ([+-]\d+)\/([+-]\d+)(?: and gains ([a-z ]+))? until end of turn|Put an? ([+\-0-9/a-z]+) counter on the creature you control if ([^.]+?))\. Then those creatures fight each other\.$/i,
+      make: (m) => {
+        const cond = condOf(m[1] || m[6]);
+        if (!cond) return null;
+        const pre = m[5] ? { cond, counter: m[5].toLowerCase() } : { cond, p: +m[2], t: +m[3], keywords: m[4] ? keywordList(m[4]) : [] };
+        if ((pre.keywords || []).some(k => !kwKnown(k))) return null;
+        return [{ op: 'fightPair', pre, targets: [targetSpec('target creature you control'), targetSpec("target creature you don't control")] }];
+      } },
     /* Delay: "Counter target spell. If the spell is countered this way, exile it with three time counters on it
        instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." */
     { re: /^Counter target spell\. If the spell is countered this way, exile it with (two|three|four|five) time counters on it instead of putting it into its owner'?s graveyard\. If it doesn'?t have suspend, it gains suspend\.$/i,

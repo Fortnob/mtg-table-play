@@ -12457,6 +12457,25 @@
           this.emit('sfx', 'damage');
           break;
         }
+        /* Tail Swipe: something for the creature you control first, if the condition holds, then the fight */
+        case 'fightPair': {
+          const [x, y] = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id));
+          const pre = e.pre || {};
+          if (x && x.zone === 'battlefield' && (!pre.cond || this._condMet(pre.cond, ctx))) {
+            if (pre.counter) this.addCounters(x, pre.counter, 1);
+            else {
+              x.effects.push(Object.assign({ p: pre.p || 0, t: pre.t || 0, until: 'eot' }, (pre.keywords || []).length ? { keywords: pre.keywords } : {}));
+              x._chr = null;
+            }
+            this.bumpBoard();
+          }
+          if (!x || !y || x.zone !== 'battlefield' || y.zone !== 'battlefield') break;
+          this.dealDamageToObject(y, this.powerOf(x), x);
+          this.dealDamageToObject(x, this.powerOf(y), y);
+          this.logEvent('fight', `${x.name} fights ${y.name}.`);
+          this.emit('sfx', 'damage');
+          break;
+        }
         case 'fight': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           if (objs.length < 2) { this.logEvent('rules', 'Fight needs two creatures.'); break; }

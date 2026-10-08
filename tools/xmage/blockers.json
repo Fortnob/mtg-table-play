@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12757,
+  "needed": 12755,
   "gainedCards": 1373,
-  "linesNeeded": 13969,
+  "linesNeeded": 13967,
   "linesGained": 1651,
   "gained": {
    "all": 1373,
@@ -557,12 +557,11 @@
   },
   {
    "what": "AddContinuousEffectToGame",
-   "score": 24,
-   "lines": 24,
+   "score": 23,
+   "lines": 23,
    "cards": [
     "Mirri, Weatherlight Duelist",
     "The Irencrag",
-    "Tail Swipe",
     "Bilbo's Gambit",
     "Winding Canyons",
     "Frodo, Sauron's Bane",
@@ -571,7 +570,8 @@
     "The Destined Warrior",
     "Tragic Trajectory",
     "Hazardroot Herbalist",
-    "Gideon's Phalanx"
+    "Gideon's Phalanx",
+    "Send to Sleep"
    ]
   },
   {
@@ -7358,15 +7358,15 @@
   },
   {
    "what": "AddContinuousEffectToGame",
-   "score": 21,
-   "cards": 21,
+   "score": 20,
+   "cards": 20,
    "names": [
     "The Irencrag",
-    "Tail Swipe",
     "Bilbo's Gambit",
     "Winding Canyons",
     "Frodo, Sauron's Bane",
-    "Regal Sliver"
+    "Regal Sliver",
+    "Join the Dead"
    ]
   },
   {

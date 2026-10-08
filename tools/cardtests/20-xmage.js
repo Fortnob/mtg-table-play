@@ -10668,4 +10668,14 @@ module.exports = (test) => {
     T2.g._runEffects([{ op: 'selfFromGraveyard', to: 'battlefield', transformed: true }], { controller: 'A', obj: c, name: 'test' });
     t.eq(c.zone, 'battlefield'); t.eq(c.face, 1, 'Scrounged Scythe');
   });
+
+  test('Tail Swipe: +1/+1 in a main phase, then the two creatures fight', (mk, t) => {
+    t.auto('Tail Swipe');
+    const T = mk();
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Centaur Courser');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Tail Swipe'), { targets: [mine, theirs] });
+    t.eq(theirs.zone, 'graveyard', 'a 3/3 Bears deals 3 to the Courser');
+    t.eq(mine.zone, 'graveyard', 'and takes 3 back');
+  });
 };
