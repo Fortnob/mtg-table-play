@@ -5354,6 +5354,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Praetor's Grasp: "Search target opponent's library for a card and exile
+       it face down. Then that player shuffles. You may look at and play that
+       card for as long as it remains exiled." */
+    { re: /^Search target opponent'?s library for a card and exile it face down\. Then that player shuffles\. You may (?:look at and )?play that card for as long as it remains exiled\.$/i,
+      make: () => [{ op: 'tutor', n: 1, filter: 'any', libOf: 'target', to: 'exilePlayable', targets: [targetSpec('target opponent')], prompt: "Search their library for a card." }] },
+    // Moonsilver Key: "Search your library for an artifact card with a mana ability or a basic land card, reveal it, put it into your hand, then shuffle."
+    { re: /^Search your library for an artifact card with a mana ability or a basic land card, reveal it, put it into your hand, then shuffle\.$/i,
+      make: () => [{ op: 'tutor', n: 1, filter: 'artifact or basic land', manaArtifactOrBasic: true, to: 'hand', prompt: 'Search your library for an artifact with a mana ability or a basic land.' }] },
+    /* Teferi's Puzzle Box: "that player puts the cards in their hand on the
+       bottom of their library in any order, then draws that many cards." */
+    { re: /^That player puts the cards in their hand on the bottom of their library in any order, then draws that many cards\.$/i,
+      make: () => [{ op: 'handToBottomRedraw' }] },
     /* Odric, Lunarch Marshal: "creatures you control gain first strike until
        end of turn if a creature you control has first strike. The same is
        true for flying, …" */

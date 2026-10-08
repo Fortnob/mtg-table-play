@@ -13065,6 +13065,8 @@
             }
             // "an instant card or a card with flash"
             if (e.instantOrFlash) return !!(ca && (ca.isInstant || (ca.keywordSet && ca.keywordSet.has('flash'))));
+            // Moonsilver Key: "an artifact card with a mana ability or a basic land card"
+            if (e.manaArtifactOrBasic) return !!(ca && (ca.isBasicLand || (ca.isArtifact && (ca.manaAbilities || []).length)));
             if (want === 'any' || want === '') return true;
             if (want === 'basic land') return !!(ca && ca.isBasicLand);
             if (e.named) return (c.card.name || '').toLowerCase() === String(e.named).toLowerCase();
@@ -13133,6 +13135,11 @@
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
             if (where === 'battlefield') { this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; this._lastPut = c.id; }
             else if (where === 'graveyard') this.moveObject(c, 'graveyard', { controller: seeker.id });
+            // Praetor's Grasp: face down in exile, for the searcher to look at and play
+            else if (where === 'exilePlayable') {
+              this.moveObject(c, 'exile');
+              c.faceDownExile = true; c.impulseBy = seeker.id; c.impulseUntil = 99999;
+            }
             else if (where === 'top' || where === 'bottom') {
               // shuffle first, then put it where the card says (CR 701.19)
               this.rng.shuffle(z.library);
@@ -14040,6 +14047,16 @@
           for (const o of mine) o.effects.push({ keywords: kws.slice(), until: 'eot' });
           this.logEvent('rules', `${me.name}'s creatures gain ${kws.join(', ').toLowerCase()} until end of turn.`);
           this.bumpBoard();
+          break;
+        }
+        // Teferi's Puzzle Box: the hand to the bottom, and as many drawn
+        case 'handToBottomRedraw': {
+          const p = triggerPlayer() || me;
+          const z = this.zones[p.id];
+          const hand = this.rng.shuffle(z.hand.slice());
+          for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+          this._drawCards(p, hand.length);
+          this.logEvent('rules', `${p.name} puts ${hand.length} card${hand.length === 1 ? '' : 's'} on the bottom and draws as many.`);
           break;
         }
         // Perpetual Timepiece: cards from your graveyard shuffled into your library

@@ -11159,4 +11159,30 @@ module.exports = (test) => {
     t.eq(T2.g.zones.A.hand.length, ha + 1, 'B has more cards: draw');
     t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Treasure').length, 0, 'lands are level: no Treasure');
   });
+
+  test("Praetor's Grasp, Moonsilver Key, Teferi's Puzzle Box", (mk, t) => {
+    t.auto("Praetor's Grasp"); t.auto('Moonsilver Key'); t.auto("Teferi's Puzzle Box");
+    const T = mk();
+    const wurm = T.top('B', 'Craw Wurm');
+    T.answer('pickCard', (ch) => ({ cardIds: [wurm.id] }));
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', "Praetor's Grasp"), { targets: [{ kind: 'player', id: 'B' }] });
+    T.settle(); T.resolve();
+    t.eq(wurm.zone, 'exile'); t.eq(wurm.impulseBy, 'A', 'A may play it'); t.ok(wurm.faceDownExile, 'face down');
+    const T2 = mk();
+    const key = T2.bf('A', 'Moonsilver Key');
+    const ring = T2.top('A', 'Sol Ring'), bear = T2.top('A', 'Grizzly Bears');
+    T2.answer('pickCard', (ch) => { t.ok(ch.cards.some(c => c.id === ring.id), 'Sol Ring offered'); t.no(ch.cards.some(c => c.id === bear.id), 'not the Bears'); return { cardIds: [ring.id] }; });
+    T2.mana('A', '1');
+    const la = key.analysis(), idx = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T2.g.activateAbility('A', key.id, idx, {}), T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(ring.zone, 'hand');
+    const T3 = mk();
+    const box = T3.bf('A', "Teferi's Puzzle Box");
+    T3.hand('A', 'Grizzly Bears'); T3.hand('A', 'Craw Wurm');
+    T3.g._runEffects(box.analysis().abilities.find(a => a.kind === 'triggered').effects,
+      { controller: 'A', obj: box, name: 'Box', kind: 'ability', triggerData: { player: 'A', playerId: 'A' } });
+    t.eq(T3.g.zones.A.hand.length, 2, 'two back'); t.no(T3.g.zones.A.hand.some(o => o.name === 'Craw Wurm'), 'new cards');
+  });
 };
