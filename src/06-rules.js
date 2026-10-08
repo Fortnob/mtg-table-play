@@ -6538,6 +6538,14 @@
         const ed = this._staticOp(tObj, 'equipDiscountIfTargeted');
         if (ed && (!ed.yours || o.controller === tObj.controller)) d -= Number(ed.amount) || 0;
         if (ab.discountPerTargetColor) d -= ab.discountPerTargetColor * (((this.characteristics(tObj) || {}).colors || tObj.analysis().colors || []).length);
+        // Belt of Giant Strength: {X} less, X the power of the creature it targets
+        if (ab.equipDiscount && ab.equipDiscount.targetPower) d -= Math.max(0, this.powerOf(tObj));
+      }
+      // Crown of Gondor: {3} less if you're the monarch; Plate Armor: {1} less for each other Equipment
+      if (ab.equipDiscount && !ab.equipDiscount.targetPower) {
+        const ed = ab.equipDiscount;
+        if (ed.cond) { if (this._condMet(ed.cond, { controller: o.controller, obj: o })) d -= ed.n; }
+        else if (ed.per) d -= ed.n * this._countValue(ed.per, o.controller, o);
       }
       for (const src of this.battlefield) {
         if (src.phasedOut) continue;

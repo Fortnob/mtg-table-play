@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12513,
+  "needed": 12509,
   "gainedCards": 1349,
-  "linesNeeded": 13665,
+  "linesNeeded": 13660,
   "linesGained": 1612,
   "gained": {
    "all": 1349,
@@ -317,25 +317,6 @@
    ]
   },
   {
-   "what": "keyword EquipAbility",
-   "score": 36,
-   "lines": 36,
-   "cards": [
-    "Dancer's Chakrams",
-    "Mjölnir, Hammer of Thor",
-    "Luxior, Giada's Gift",
-    "Machinist's Arsenal",
-    "Robe of the Archmagi",
-    "Gavel of the Righteous",
-    "Astrologian's Planisphere",
-    "Crown of Gondor",
-    "Pact Weapon",
-    "My Precious // Allure of Power",
-    "Samurai's Katana",
-    "Reaper's Scythe"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .add)",
    "score": 32,
    "lines": 32,
@@ -352,6 +333,25 @@
     "Self-Destruct",
     "You Look Upon the Tarrasque",
     "Jhoira's Timebug"
+   ]
+  },
+  {
+   "what": "keyword EquipAbility",
+   "score": 31,
+   "lines": 31,
+   "cards": [
+    "Dancer's Chakrams",
+    "Mjölnir, Hammer of Thor",
+    "Luxior, Giada's Gift",
+    "Machinist's Arsenal",
+    "Robe of the Archmagi",
+    "Gavel of the Righteous",
+    "Astrologian's Planisphere",
+    "Pact Weapon",
+    "My Precious // Allure of Power",
+    "Samurai's Katana",
+    "Reaper's Scythe",
+    "Blue Mage's Cane"
    ]
   },
   {
@@ -7519,19 +7519,6 @@
    ]
   },
   {
-   "what": "keyword EquipAbility",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Robe of the Archmagi",
-    "Crown of Gondor",
-    "Belt of Giant Strength",
-    "Plate Armor",
-    "Leather Armor",
-    "Nightmare Lash"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 15,
    "cards": 15,
@@ -7886,6 +7873,19 @@
     "Colfenor, the Last Yew",
     "Havi, the All-Father",
     "Slurrk, All-Ingesting"
+   ]
+  },
+  {
+   "what": "keyword EquipAbility",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Robe of the Archmagi",
+    "Nightmare Lash",
+    "Transmogrant's Crown",
+    "Team Pennant",
+    "Demonmail Hauberk",
+    "Bloodthorn Flail"
    ]
   },
   {
@@ -9399,6 +9399,19 @@
    ]
   },
   {
+   "what": "(verify) optional where the card is not",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Thirst for Discovery",
+    "Arm-Mounted Anchor",
+    "Reclaim the Wastes",
+    "Practical Research",
+    "Nissa Revane",
+    "Steamcore Scholar"
+   ]
+  },
+  {
    "what": "HasOnlySingleTargetPermanentPredicate",
    "score": 6,
    "cards": 6,
@@ -10099,18 +10112,6 @@
     "Gilanra, Caller of Wirewood",
     "Chocobo Camp",
     "Black Tom Cassidy"
-   ]
-  },
-  {
-   "what": "(verify) optional where the card is not",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Thirst for Discovery",
-    "Reclaim the Wastes",
-    "Practical Research",
-    "Nissa Revane",
-    "Steamcore Scholar"
    ]
   },
   {

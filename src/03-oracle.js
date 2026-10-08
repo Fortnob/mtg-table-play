@@ -10899,6 +10899,20 @@
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
       { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+)\} less to activate for each colou?r of the creature it targets\.?$/i,
         make: (m) => ({ op: 'equip', cost: m[1], perTargetColor: +m[2] }), auto: true },
+      /* Crown of Gondor, Plate Armor, Belt of Giant Strength: "Equip {4}. This
+         ability costs {3} less to activate if you're the monarch", "… {1}
+         less … for each other Equipment you control", "… {X} less …, where X
+         is the power of the creature it targets" */
+      { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+|X)\} less to activate(?: (if [^.]+)| (for each [^.]+)|, where X is the power of the creature it targets)\.?$/i,
+        make: (m) => {
+          const discount = { n: m[2] === 'X' ? 0 : +m[2] };
+          if (m[3]) { const c = condOf(m[3].replace(/^if /i, '')); if (!c) return null; discount.cond = c; }
+          else if (m[4]) { const k = countOf(m[4].replace(/^for each /i, '')); if (!k) return null; discount.per = k; }
+          else discount.targetPower = true;
+          return { op: 'equip', cost: m[1], discount };
+        }, auto: true },
+      // Leather Armor: "Equip {0}. Activate only once each turn."
+      { re: /^Equip ((?:\{[^}]+\})+)\. Activate only once each turn\.?$/i, make: (m) => ({ op: 'equip', cost: m[1], once: true }), auto: true },
       // Dwarven Mauler: "Equip abilities you activate that target this creature cost {2} less to activate."
       { re: /^Equip abilities you activate that target (?:this creature|CARDNAME) cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'equipDiscountIfTargeted', amount: +m[1], yours: true }), auto: true },
@@ -11235,6 +11249,16 @@
         const spec = { type: 'creature', controller: 'you' };
         return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
           discountPerTargetColor: eff.perTargetColor, effects: [{ op: 'attachSelf', targets: [spec] }] };
+      }
+      if (eff.op === 'equip' && eff.once) {
+        const spec = { type: 'creature', controller: 'you' };
+        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
+          effects: [{ op: 'attachSelf', targets: [spec] }, { op: 'activateOnly', perTurn: 1 }] };
+      }
+      if (eff.op === 'equip' && eff.discount) {
+        const spec = { type: 'creature', controller: 'you' };
+        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
+          equipDiscount: eff.discount, effects: [{ op: 'attachSelf', targets: [spec] }] };
       }
       /* "Equip {2}" is an activated ability with a target, not a footnote:
          pay the cost at sorcery speed and the Equipment moves. */

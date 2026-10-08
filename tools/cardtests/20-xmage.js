@@ -11330,4 +11330,17 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq([b1, b2, ring].filter(x => x.tapped).length, 2, 'two tapped to help pay {4}');
   });
+
+  test('Equip discounts: Plate Armor per Equipment, Belt of Giant Strength by the target power', (mk, t) => {
+    t.auto('Plate Armor'); t.auto('Belt of Giant Strength'); t.auto('Leather Armor');
+    const T = mk();
+    const pa = T.bf('A', 'Plate Armor'); T.bf('A', 'Bonesplitter'); T.bf('A', 'Leather Armor');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ab = pa.analysis().abilities.find(a => a.kind === 'activated' && /^Equip/.test(a.text));
+    t.eq(T.g._abilityMana(pa, ab, [{ kind: 'object', id: bear.id }]), '{1}', '{3} less two');
+    const belt = T.bf('A', 'Belt of Giant Strength');
+    const wurm = T.bf('A', 'Craw Wurm');
+    const ab2 = belt.analysis().abilities.find(a => a.kind === 'activated' && /^Equip/.test(a.text));
+    t.eq(T.g._abilityMana(belt, ab2, [{ kind: 'object', id: wurm.id }]), '{4}', '{10} less six');
+  });
 };
