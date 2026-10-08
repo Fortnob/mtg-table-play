@@ -10329,7 +10329,10 @@
           /* Imp's Mischief: with no trigger, "that spell" is the spell it targets */
           const st = !(ctx.triggerData || {}).objectId && targets.find(t => t.kind === 'stack');
           const stItem = st && this.stack.find(x => x.id === st.id);
-          const id = (ctx.triggerData || {}).objectId || (stItem && stItem.objId);
+          // with neither, "its mana value" is what the effect acted on: the target, or what was just exiled or put
+          const tgObj = targets.find(t => t.kind === 'object');
+          const id = (ctx.triggerData || {}).objectId || (stItem && stItem.objId) || (tgObj && tgObj.id) ||
+            (this._lastAffected && this._lastAffected.id) || this._lastExiled || this._lastPut;
           const o = id && this.obj(id);
           // Shadowheart: "that creature" is the one sacrificed to pay for it
           if (!o) return (((ctx.sacrificed || [])[0] || {})[v.ofTrigger]) || 0;
