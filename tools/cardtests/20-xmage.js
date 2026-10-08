@@ -9635,4 +9635,58 @@ module.exports = (test) => {
     t.eq(T3.life('A'), 20, 'and did nothing');
     t.ok(loot.zone === 'hand' || loot.zone === 'graveyard', 'Baral drew a card');
   });
+
+  test('Talon Gates from the hand; Cloud Key and Serra\'s Emissary choose a card type', (mk, t) => {
+    t.auto('Talon Gates of Madara');
+    t.auto('Cloud Key');
+    t.auto("Serra's Emissary");
+    const T = mk();
+    const gates = T.hand('A', 'Talon Gates of Madara');
+    T.mana('A', '4');
+    t.ok(T.g.cycleCard('A', gates.id, { auto: true, channel: true }), 'put onto the battlefield: ' + T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(gates.zone, 'battlefield', 'the Gates are on the battlefield');
+    const T2 = mk();
+    const key = T2.bf('A', 'Cloud Key');
+    key.chosenCardType = 'Instant';
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Strike'), { targets: ['B'] });
+    t.eq(T2.life('B'), 17, 'Lightning Strike cast for {R} with the Key on instants');
+    const T3 = mk();
+    const em = T3.bf('A', "Serra's Emissary");
+    em.chosenCardType = 'Instant';
+    const bear = T3.bf('A', 'Grizzly Bears');
+    t.no(T3.g._legalTargetsFor({ type: 'any' }, 'B', T3.hand('B', 'Lightning Bolt').id).some(x => x.id === 'A' || x.id === bear.id), 'neither A nor the Bears can be targeted by an instant');
+    T3.mana('B', 'R');
+    T3.g.dealDamageToPlayer(T3.g.player('A'), 3, T3.hand('B', 'Shock'), false);
+    t.eq(T3.life('A'), 20, 'and damage from one is prevented');
+    T3.g.dealDamageToPlayer(T3.g.player('A'), 2, T3.bf('B', 'Grizzly Bears'), false);
+    t.eq(T3.life('A'), 18, 'a creature still hurts');
+  });
+
+  test('Web-slinging: cast it cheaply by returning a tapped creature; Spiders-Man knows it was', (mk, t) => {
+    t.auto('Spider-Man, Web-Slinger');
+    t.auto('Spiders-Man, Heroic Horde');
+    const T = mk();
+    const sm = T.hand('A', 'Spider-Man, Web-Slinger');
+    t.no(T.g.altUsesFor('A', sm.id).some(u => u.alt && u.alt.webSlinging), 'no tapped creature: not offered');
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.tapped = true;
+    const use = T.g.altUsesFor('A', sm.id).find(u => u.alt && u.alt.webSlinging);
+    t.ok(use, 'offered with a tapped creature');
+    T.mana('A', 'W');
+    t.ok(T.g.castSpell('A', sm.id, { via: use.via, auto: true }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'hand', 'the Bears went back');
+    t.eq(sm.zone, 'battlefield');
+    const T2 = mk();
+    const horde = T2.hand('A', 'Spiders-Man, Heroic Horde');
+    const b2 = T2.bf('A', 'Grizzly Bears'); b2.tapped = true;
+    const u2 = T2.g.altUsesFor('A', horde.id).find(u => u.alt && u.alt.webSlinging);
+    T2.mana('A', '4GG');
+    t.ok(T2.g.castSpell('A', horde.id, { via: u2.via, auto: true }), T2.g.lastError);
+    T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
+    t.eq(T2.life('A'), 23, 'three life for being web-slung');
+    t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && /Spider/.test(o.name) && o.isToken).length, 2, 'and two Spiders');
+  });
 };

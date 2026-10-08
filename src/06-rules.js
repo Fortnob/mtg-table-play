@@ -2067,6 +2067,8 @@
         o.wasCast = this.turn;
         // the Myojin: "if you cast it from your hand"
         o.castFromZone = item.fromZone || null;
+        // Spiders-Man: "if they were cast using web-slinging"
+        o.webSlung = o._webSlinging ? this.turn : null;
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
@@ -2682,7 +2684,8 @@
             if (who === 'opponents' && src.controller === pid) continue;
             const words = e.op === 'costMod' ? e.words : String(e.filter || '').trim();
             if (words && words !== 'spell' && !this._cardFitsWords(o, words)) continue;
-            if (e.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
+            if (e.chosenType && !(src.chosenCardType ? this._cardTypesOf(o).includes(src.chosenCardType)
+              : src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Brago's Favor: the chosen name; Hymn of the Wilds: the first such spell each turn
             if (e.chosenName && !this._chosenNameOf(src, o)) continue;
             if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
@@ -3647,7 +3650,7 @@
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
         out.push({ kind: 'cycle', channel: true, cost,
-          label: a.channel.exile ? 'Exile for mana' : 'Channel ' + (cost || '{0}') });
+          label: a.channel.exile ? 'Exile for mana' : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
       }
       /* Overload (CR 702.96): pay more and every "target" becomes "each". */
       if (o.zone === 'hand' && a.overloadEffects) {
@@ -3981,13 +3984,13 @@
           this._runManaAbility(playerId, o, { effects: a.channel.effects }, { controller: playerId, obj: o, name: o.name });
           return true;
         }
-      } else {
+      } else if (!a.channel.keep) {
         this.moveObject(o, 'graveyard');
         this._afterDiscard(playerId, o);
       }
       const item = {
         id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
-        controller: playerId, name: `${o.name} \u2014 channel`,
+        controller: playerId, name: `${o.name} \u2014 ${a.channel.keep ? 'from the hand' : 'channel'}`,
         targets: (opts.targets || []).map(normTarget),
         effects: a.channel.effects, auto: true, abilityText: 'Channel',
       };
@@ -4412,12 +4415,14 @@
          from somewhere it would not normally be cast from, and a rule
          about where it goes afterwards. */
       let via = null;
+      o._webSlinging = false;
       if (opts.via) {
         via = this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via);
         if (via && (via.via === 'evoke' || via.via === 'dash')) o._via = via.via;
         if (via && via.faceDown) o.faceDown = true;      // it goes on the stack face down
         if (via && via.via === 'bestow') o._bestowing = true;
         if (via && via.via === 'warp') o._via = 'warp';
+        o._webSlinging = !!(via && via.alt && via.alt.webSlinging);
         // remembered until it has entered: time counters, or the smaller body
         if (via && via.via === 'impending') o._impendingN = (a.impending || {}).n || 0;
         if (via && via.via === 'prototype') o.prototyped = true;
@@ -5480,6 +5485,17 @@
         }
         const best = values.slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0))[0];
         values = [best].concat(values.filter(v => v !== best)); labels = values.map(String);
+      } else if (rule.what === 'cardType') {
+        field = 'chosenCardType';
+        /* the likeliest answer first: a discount wants the type most common in
+           its controller's library, anything else the type the opponents play most */
+        const own = ((o.analysis() || {}).abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'costMod' && e.who === 'you' && e.amount < 0));
+        const pool = own ? ((this.zones[p.id] || {}).library || [])
+          : [].concat(...this.opponentsOf(p.id).map(q => ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))));
+        const counts = new Map();
+        for (const c of pool) for (const t of this._cardTypesOf(c)) counts.set(t, (counts.get(t) || 0) + 1);
+        values = (rule.types || []).slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0));
+        labels = values.slice();
       }
       if (!values.length) return;
       o[field] = values[0];
@@ -5487,7 +5503,7 @@
       this.logEvent('rules', `${o.name}: ${labels[0]} is chosen.`);
       if (!p.isBot && values.length > 1) {
         this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseValue', objId: o.id, field, values,
-          options: labels.map((label, i) => ({ i, label })), prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : 'a player'}.` });
+          options: labels.map((label, i) => ({ i, label })), prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : rule.what === 'cardType' ? 'a card type' : 'a player'}.` });
       }
     }
     _chooseColorFor(o) {
@@ -6056,7 +6072,7 @@
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
         const back = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
-          !(cost.returnOwn.untapped && x.tapped));
+          !(cost.returnOwn.untapped && x.tapped) && !(cost.returnOwn.tapped && !x.tapped));
         if (back.length < (cost.returnOwn.n || 1)) return `No ${cost.returnOwn.filter} to return.`;
       }
       if (cost.tapCreatures && cost.tapCreatures.totalPower != null) {
@@ -6204,7 +6220,7 @@
       }
       if (cost.returnOwn) {
         const pool = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
-          !(cost.returnOwn.untapped && x.tapped));
+          !(cost.returnOwn.untapped && x.tapped) && !(cost.returnOwn.tapped && !x.tapped));
         const need = Math.min(cost.returnOwn.n || 1, pool.length);
         if (pool.length && (auto || pool.length === need)) for (const x of this._cheapestFirst(pool).slice(0, need)) this.moveObject(x, 'hand');
         else if (pool.length) {
@@ -7223,6 +7239,32 @@
     /* Protection from a quality, printed or granted ("equipped creature has
        protection from black and from green"): does it shield o from this
        source? */
+    /** Serra's Emissary: the card types a player and their creatures have protection from. */
+    _protCardTypes(pid) {
+      const out = [];
+      for (const x of this.battlefield) {
+        if (x.phasedOut || x.controller !== pid || !x.chosenCardType) continue;
+        if (this._staticOp(x, 'protChosenCardType')) out.push(x.chosenCardType);
+      }
+      return out;
+    }
+    /** The card types of a card or permanent, capitalised: what it is now on the battlefield, as printed elsewhere. */
+    _cardTypesOf(x) {
+      if (!x) return [];
+      const c = x.zone === 'battlefield' ? this.characteristics(x) : (x.analysis && x.analysis());
+      if (!c) return [];
+      const out = [];
+      if (c.isArtifact) out.push('Artifact');
+      if (c.isBattle) out.push('Battle');
+      if (c.isCreature) out.push('Creature');
+      if (c.isEnchantment) out.push('Enchantment');
+      if (c.isInstant) out.push('Instant');
+      if (c.isLand) out.push('Land');
+      if (c.isPlaneswalker) out.push('Planeswalker');
+      if (c.isSorcery) out.push('Sorcery');
+      if (/\bKindred\b|\bTribal\b/.test((x.card && x.card.type_line) || '')) out.push('Kindred');
+      return out;
+    }
     _protectedFrom(o, source) {
       if (!o || !source) return false;
       const a = o.analysis();
@@ -7238,6 +7280,10 @@
         const at = this.obj(id);
         const r = at && this._staticOp(at, 'protChosenColor');
         if (r && r.attached && at.chosenColor) args.push(CN[at.chosenColor]);
+      }
+      // Serra's Emissary: creatures you control have protection from the chosen card type
+      if (o.zone === 'battlefield' && c && c.isCreature) {
+        for (const t of this._protCardTypes(o.controller)) if (this._cardTypesOf(source).includes(t)) return true;
       }
       // Commander's Plate: every colour outside its controller's commanders' colour identity
       const CNAME = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
@@ -8529,6 +8575,7 @@
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
+        case 'castWebSlinging': { const x = ctx.obj; return !!(x && x.webSlung != null && x.webSlung === x.wasCast); }
         case 'anyControlsColor': return this.battlefield.some(o => !o.phasedOut && ((O.analyze(o.card, o.face) || {}).colors || []).includes(cond.color));
         // Veil of Summer: "if an opponent has cast a blue or black spell this turn"
         case 'opponentCastColor': return !!me && this.opponentsOf(me.id).some(p => (p.spellObjsThisTurn || []).some(x => {
@@ -9147,6 +9194,9 @@
       }
       amount = this._damageAmount(amount, source, p.id, combat, true);
       if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
+      if (source && !this._noPrevention(combat) && this._protCardTypes(p.id).some(t => this._cardTypesOf(source).includes(t))) {
+        this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
+      }
       if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
       // the Spheres: "If a red source would deal damage to you, prevent 2 of that damage."
       if (source && !this._noPrevention(combat)) {
@@ -14104,9 +14154,10 @@
         case 'selfFromGraveyard': {
           // "return CARDNAME to its owner's hand" said of a permanent: it goes back from the battlefield
           if (src && src.zone === 'battlefield' && e.to === 'hand') { this.moveObject(src, 'hand'); break; }
-          if (!src || src.zone !== 'graveyard') break;
+          if (!src || src.zone !== (e.from || 'graveyard')) break;
           this.moveObject(src, e.to === 'battlefield' ? 'battlefield' : 'hand',
             e.to === 'battlefield' ? { controller: ctx.controller } : undefined);
+          if (e.tapped && src.zone === 'battlefield') src.tapped = true;
           break;
         }
 
@@ -18069,7 +18120,9 @@
       const out = [];
       /* "You have hexproof" keeps a player off the list of things an
          opponent's spell may point at (CR 702.11e). */
+      const tsrc = sourceId && this.obj(sourceId);
       const players = () => this.players.filter(p => !p.hasLost && !this._protected(p))
+        .filter(p => !tsrc || !this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)))
         .filter(p => p.id === controllerId || (!this._anyStaticOf(p.id, 'playerHexproof') && p.hexproofTurn !== this.turn))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))

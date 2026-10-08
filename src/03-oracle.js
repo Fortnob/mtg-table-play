@@ -6315,6 +6315,7 @@
     // Betor: "creatures you control have total toughness 10 or greater"
     [/^creatures you control have total toughness (\d+) or greater$/i, (m) => ({ kind: 'totalToughness', n: +m[1] })],
     // Knight of Grace: "any player controls a black permanent"
+    [/^(?:it|they|he|she|CARDNAME) (?:was|were) cast using web-slinging$/i, () => ({ kind: 'castWebSlinging' })],
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
@@ -7271,6 +7272,15 @@
         continue;
       }
 
+      /* Talon Gates of Madara: "{4}: Put this card from your hand onto the battlefield." An
+         ability used from the hand that keeps the card, through channel's door. */
+      const hpb = line.match(/^((?:\{[^}]+\})+):\s*Put (?:this card|CARDNAME) from your hand onto the battlefield( tapped)?\.?$/i);
+      if (hpb) {
+        out.channel = { cost: hpb[1], keep: true, effects: [{ op: 'selfFromGraveyard', from: 'hand', to: 'battlefield', tapped: !!hpb[2] }] };
+        out.abilities.push({ kind: 'castModifier', keyword: 'Put onto the battlefield', arg: hpb[1], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       /* "Exile this card from your hand: Add {R}." The Spirit Guides: a
          mana ability that works from the hand, the card itself the cost. */
       const guide = line.match(/^Exile (?:this card|CARDNAME) from your hand:\s*([\s\S]+)$/i);
@@ -7714,6 +7724,15 @@
       const susX = line.match(/^Suspend X\s*[\u2014-]\s*((?:\{[^}]+\})+)\.\s*X can'?t be 0\.?$/i);
       if (susX) {
         out.abilities.push({ kind: 'castModifier', keyword: 'Suspend', arg: 'X\u2014' + susX[1], text: line, auto: true });
+        autoLines++;
+        continue;
+      }
+      /* Web-slinging {W}: cast it for that, returning a tapped creature you control to its owner's hand */
+      const web = line.match(/^Web-slinging ((?:\{[^}]+\})+)$/i);
+      if (web) {
+        (out.altCosts = out.altCosts || []).push({ cond: null, mana: web[1], webSlinging: true,
+          returnOwn: { n: 1, filter: 'creature', tapped: true }, label: 'Web-slinging ' + web[1] });
+        out.abilities.push({ kind: 'castModifier', keyword: 'Web-slinging', arg: web[1], text: line, auto: true, effects: [] });
         autoLines++;
         continue;
       }
@@ -9595,6 +9614,16 @@
         make: (m) => ({ op: 'chooseOnEnter', what: /opponent/i.test(m[1]) ? 'opponent' : 'player' }), auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number between (\d+) and (\d+)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'number', min: +m[1], max: +m[2] }), auto: true },
+      /* Cloud Key, Stenn, Umori, Serra's Emissary, Arachne: a card type, chosen as it enters */
+      { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? (?:look at an opponent'?s hand, then )?choose (a card type(?: other than ([a-z]+)(?: or ([a-z]+))?)?|artifact, creature, enchantment, instant, or sorcery)\.?$/i,
+        make: (m) => {
+          const all = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'];
+          const types = /^artifact,/i.test(m[1]) ? ['Artifact', 'Creature', 'Enchantment', 'Instant', 'Sorcery']
+            : all.filter(t => ![m[2], m[3]].some(x => x && x.toLowerCase() === t.toLowerCase()));
+          return { op: 'chooseOnEnter', what: 'cardType', types };
+        }, auto: true },
+      // Serra's Emissary: "You and creatures you control have protection from the chosen card type."
+      { re: /^You and creatures you control have protection from the chosen card type\.?$/i, eff: { op: 'protChosenCardType' }, auto: true },
       { re: /^Activated abilities of sources with the chosen name can'?t be activated( unless they'?re mana abilities)?\.?$/i,
         make: (m) => ({ op: 'nameLockAbilities', manaOk: !!m[1] }), auto: true },
       { re: /^Spells with the chosen name can'?t be cast\.?$/i, eff: { op: 'nameLockSpells' }, auto: true },
