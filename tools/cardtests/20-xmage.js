@@ -10532,4 +10532,17 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Scent of Jasmine'));
     t.eq(T2.life('A'), 24, 'four life for two white cards');
   });
+
+  test('Monstrosity X: Hydra Broodmaster gets X counters and X X/X Hydras', (mk, t) => {
+    t.auto('Hydra Broodmaster');
+    const T = mk();
+    const hb = T.bf('A', 'Hydra Broodmaster'); hb.summoningSick = false;
+    T.mana('A', '6G');
+    T.activate('A', hb, 0, { x: 3 });
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(hb.counters['+1/+1'], 3, 'three counters');
+    const hy = T.g.battlefield.filter(o => o.isToken && o.controller === 'A');
+    t.eq(hy.length, 3, 'three Hydras');
+    t.ok(hy.every(o => T.g.powerOf(o) === 3), 'each 3/3');
+  });
 };

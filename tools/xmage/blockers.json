@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31819,
   "skippedLayout": 21,
-  "needed": 12798,
+  "needed": 12796,
   "gainedCards": 1373,
-  "linesNeeded": 14052,
+  "linesNeeded": 14047,
   "linesGained": 1653,
   "gained": {
    "all": 1373,
@@ -3454,21 +3454,6 @@
     "Keeper of Progenitus",
     "Snowfall",
     "Winter's Night"
-   ]
-  },
-  {
-   "what": "keyword MonstrosityAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Maester Seymour",
-    "Hydra Broodmaster",
-    "Death Kiss",
-    "Polukranos, World Eater",
-    "Grim Giganotosaurus",
-    "Domesticated Hydra",
-    "Nemesis of Mortals",
-    "Vitality Hunter"
    ]
   },
   {
@@ -7121,6 +7106,17 @@
     "Eladamri's Vineyard",
     "Cheering Crowd"
    ]
+  },
+  {
+   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Chocobo Kick",
+    "Huatli, Dinosaur Knight",
+    "Devouring Tendrils",
+    "Compel Brutality"
+   ]
   }
  ],
  "sole": [
@@ -10326,6 +10322,18 @@
    ]
   },
   {
+   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Alpha Deathclaw",
+    "Shipbreaker Kraken",
+    "Polukranos, World Eater",
+    "Vitality Hunter",
+    "Sealock Monster"
+   ]
+  },
+  {
    "what": "attacks you, or its controller",
    "score": 5,
    "cards": 5,
@@ -10887,18 +10895,6 @@
     "Frantic Inventory",
     "Take Inventory",
     "Compound Fracture"
-   ]
-  },
-  {
-   "what": "keyword RippleAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Surging Dementia",
-    "Surging Aether",
-    "Surging Flame",
-    "Surging Sentinels",
-    "Surging Might"
    ]
   }
  ]

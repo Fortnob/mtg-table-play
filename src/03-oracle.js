@@ -3224,7 +3224,7 @@
     { re: /^Look at the top card of your library\.?$/i, make: () => ({ op: 'lookTop', n: 1 }) },
     // Mishra's Bauble: "Look at the top card of target player's library."
     { re: /^Look at the top card of target player'?s library\.?$/i, make: () => ({ op: 'lookTop', n: 1, who: 'target', targets: [{ type: 'player' }] }) },
-    { re: /^Monstrosity (\d+)\.?$/i, make: (m) => ({ op: 'monstrosity', n: +m[1] }) },
+    { re: /^Monstrosity (\d+|X)\.?$/i, make: (m) => ({ op: 'monstrosity', n: m[1] === 'X' ? 'X' : +m[1] }) },
     { re: /^(?:It|CARDNAME|This creature) explores\.?$/i, make: () => ({ op: 'explore', n: 1 }) },
     { re: /^(?:It|CARDNAME|This creature) explores, then it explores again\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'explore', n: 1 }, { op: 'explore', n: 1 }] }) },

@@ -10846,7 +10846,7 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
-        if (v === 'X') return ctx.x || (src && src.chosenX) || 0;
+        if (v === 'X') return ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0;
         // Storm Herd: "your life total"
         if (v && typeof v === 'object' && v.lifeTotal) return Math.max(0, (me && me.life) || 0) * (v.mult || 1);
         // Fists of Flame: "for each card you've drawn this turn"
@@ -11820,6 +11820,8 @@
           const k = Math.max(0, n(e.n) || 0);
           this.addCounters(src, '+1/+1', k);
           src.monstrous = true;
+          // "When this creature becomes monstrous, … X …": the X it became monstrous with
+          src.monstrousX = k;
           this.logEvent('rules', `${src.name} becomes monstrous (${k} counters).`);
           this._fire('becomesMonstrous', src.controller, { object: src, source: src });
           break;
