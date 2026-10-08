@@ -10302,4 +10302,34 @@ module.exports = (test) => {
     T3.cast('A', cc);
     t.eq(cc.zone, 'battlefield', 'the Courser cast for {1}{G}');
   });
+
+  test('Alchemy: Bellowsbreath Ogre deals its intensity and intensifies; double team conjures a duplicate once; choose a card in hand', (mk, t) => {
+    t.auto('Bellowsbreath Ogre');
+    t.auto('Veteran Charger');
+    const T = mk();
+    const og = T.bf('A', 'Bellowsbreath Ogre'); og.summoningSick = false;
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('declareAttackers', () => [{ attackerId: og.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.g._intensityOf(og), 2, 'intensity 1, then 2');
+    t.eq(T.life('B'), 20 - 1 - T.g.powerOf(og), 'one from its intensity, and its combat damage');
+    const T2 = mk();
+    const gh = T2.bf('A', 'Gnoll Hunting Party'); gh.summoningSick = false;
+    const h = T2.zone('A', 'hand').length;
+    T2.answer('declareAttackers', () => [{ attackerId: gh.id, defenderId: 'B' }]);
+    T2.answer('declareBlockers', () => []);
+    T2.toMain('A', 'endCombat');
+    const dup = T2.zone('A', 'hand').find(c => c.name === 'Gnoll Hunting Party');
+    t.ok(dup, 'a duplicate in hand');
+    t.eq(T2.zone('A', 'hand').length, h + 1);
+    t.no(T2.g.hasKw(gh, 'double team'), 'it lost double team');
+    t.ok(dup && (dup.effects || []).some(e => e.perpetual && (e.loseKeywords || []).includes('Double Team')), 'and so did the duplicate');
+    const T3 = mk();
+    const bear = T3.hand('A', 'Grizzly Bears');
+    T3.mana('A', '2G');
+    T3.cast('A', T3.hand('A', 'Veteran Charger'));
+    T3.settle(); T3.resolve();
+    t.eq(T3.g._perpetualSummary(bear).pt[0], 2, 'the Bears in hand perpetually +2/+2');
+  });
 };

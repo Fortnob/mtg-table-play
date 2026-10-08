@@ -854,6 +854,22 @@
         if (!sub || !mod) return null;
         return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
       } },
+    // Alchemy: "This creature intensifies by 1", "Cards you own named CARDNAME intensify by 1", "All Chorus cards you own intensify by 1"
+    { re: /^(?:Then )?(?:CARDNAME|This (?:creature|spell|card|enchantment|artifact|permanent|land)) intensifies by (\d+)\.?$/i,
+      make: (m) => ({ op: 'intensify', n: +m[1], who: 'self' }) },
+    { re: /^(?:Then )?(?:All )?cards you own named CARDNAME intensify by (\d+)\.?$/i,
+      make: (m) => ({ op: 'intensify', n: +m[1], who: 'named' }) },
+    { re: /^(?:Then )?(?:All |Each )?([A-Z][a-z]+) cards you own intensify by (\d+)\.?$/,
+      make: (m) => ({ op: 'intensify', n: +m[2], who: 'subtype', subtype: m[1] }) },
+    /* Alchemy: "Choose a creature card in your hand." — the card the next sentence is about
+       ("It perpetually gets +2/+2.") */
+    { re: /^Choose (a|an|up to one) ((?:[A-Za-z]+ )*?)card in your (hand|graveyard)((?: with mana value \d+ or (?:greater|less))?)\.?$/i,
+      make: (m) => {
+        const e = { op: 'chooseCardIn', zone: m[3].toLowerCase(), filter: m[2].trim().toLowerCase() || 'card', optional: /up to/i.test(m[1]) || undefined };
+        const mv = m[4].match(/(\d+) or (greater|less)/i);
+        if (mv) { if (/less/i.test(mv[2])) e.maxMv = +mv[1]; else e.minMv = +mv[1]; }
+        return e;
+      } },
     /* Alchemy: "Seek a creature card." "Seek two nonland cards with mana value 3 or less." */
     { re: /^Seek (a|an|one|two|three|four|five|X) ((?:[A-Za-z]+ )*?)cards?((?: with mana value (?:\d+|X)(?: or (?:less|greater))?)?)\.?$/i,
       make: (m) => {
@@ -4563,6 +4579,8 @@
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
+    // Alchemy: "this spell's intensity", "CARDNAME's intensity", "its intensity"
+    if (/^(?:its|CARDNAME'?s|this (?:creature|spell|card|enchantment|artifact|permanent|land)'?s) intensity$/i.test(p)) return done({ intensity: true });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
     // Celestine: "the amount of life you gained this turn"; Elenda and Azor: "the number of cards you've drawn this turn"
@@ -6415,6 +6433,8 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Alchemy: "this card's intensity is 3 or more"
+    [/^(?:this card'?s|CARDNAME'?s|its|this (?:creature|spell|enchantment)'?s) intensity is (\d+) or (more|greater|less)$/i, (m) => ({ kind: 'intensityAtLeast', n: +m[1], less: /less/i.test(m[2]) })],
     // Progenitor Mimic: "if this creature isn't a token"
     [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
@@ -8854,6 +8874,16 @@
       if (!ab.attacksEnchanted) continue;
       for (const e of ab.effects || []) if (e.op === 'counters' && e.scope === 'self' && !(e.targets || []).length) e.scope = 'triggerObject';
     }
+    // Alchemy: "Starting intensity N" — a number the card keeps, perpetually raised
+    const si = text.match(/(?:^|\n)Starting intensity (\d+)/i);
+    if (si) out.startingIntensity = +si[1];
+    /* Alchemy, double team: "When this creature attacks, if it's not a token, conjure a
+       duplicate of it into your hand. Then both cards perpetually lose double team." */
+    if (/(?:^|\n)Double team\b/i.test(text) || (out.keywordSet && out.keywordSet.has('double team'))) {
+      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, optional: false, auto: true,
+        condition: [{ kind: 'selfIsToken', not: true }, { kind: 'selfHasKeyword', keyword: 'double team' }],
+        text: 'Double team', effects: [{ op: 'doubleTeam' }] });
+    }
     out.producesMana = out.manaAbilities.length > 0 || (card.produced_mana || []).length > 0;
     out.producedColors = card.produced_mana || deriveProduced(out);
     return out;
@@ -10292,6 +10322,8 @@
          parse. */
       { re: /^[A-Za-z ,]*spells? you cast costs? \{\d+\} less to cast\.?$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
+      { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
+      { re: /^Double team$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Ascend$/i, eff: { op: 'ascend' }, auto: true },
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },

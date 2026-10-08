@@ -7297,6 +7297,21 @@
     /* Protection from a quality, printed or granted ("equipped creature has
        protection from black and from green"): does it shield o from this
        source? */
+    /** Alchemy: a card's intensity — what it started with, and what intensifying added. */
+    _intensityOf(o) {
+      if (!o) return 0;
+      if (o.intensity != null) return o.intensity;
+      const a = O.analyze(o.card, o.face) || {};
+      return a.startingIntensity || 0;
+    }
+    /** Every object a player owns or controls, in every zone. */
+    _allObjectsOf(pid) {
+      const z = this.zones[pid] || {};
+      const out = this.battlefield.filter(x => x.owner === pid || x.controller === pid);
+      for (const k of ['hand', 'library', 'graveyard', 'exile', 'command']) out.push(...(z[k] || []));
+      for (const it of this.stack) if (it.obj && it.obj.owner === pid) out.push(it.obj);
+      return out;
+    }
     /** A card by its name, from whatever card library is loaded (Alchemy's conjure). */
     _cardByName(name) {
       const f = MTG.cardLookup;
@@ -8530,6 +8545,8 @@
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
+        case 'intensityAtLeast': { const k = this._intensityOf(src); return cond.less ? k <= cond.n : k >= cond.n; }
+        case 'selfHasKeyword': return !!src && src.zone === 'battlefield' && this.hasKw(src, cond.keyword);
         case 'selfIsToken': return !!src && (!!src.isToken) !== !!cond.not;
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
@@ -10820,6 +10837,8 @@
           if (v.countersOnSelf === '*') return Object.values(pile || {}).reduce((acc, k) => acc + (Number(k) || 0), 0) * (v.mult || 1);
           return ((pile && Number(pile[v.countersOnSelf])) || 0) * (v.mult || 1);
         }
+        // Alchemy: a card's intensity
+        if (v && typeof v === 'object' && v.intensity) return this._intensityOf(src) * (v.mult || 1);
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
@@ -16133,6 +16152,50 @@
           this.bumpBoard();
           break;
         }
+        /* Alchemy: intensify — the card's intensity, kept with it wherever it goes, goes up */
+        case 'intensify': {
+          const list = [];
+          if (e.who === 'self') { if (src) list.push(src); }
+          else {
+            const all = this._allObjectsOf(ctx.controller);
+            for (const x of all) {
+              if (x.owner !== ctx.controller) continue;
+              if (e.who === 'named' ? (src && x.card && src.card && x.card.name === src.card.name)
+                : ((x.analysis() || {}).subtypes || []).includes(e.subtype)) list.push(x);
+            }
+          }
+          for (const x of list) x.intensity = this._intensityOf(x) + n(e.n);
+          if (list.length) this.logEvent('rules', `${list.length === 1 ? list[0].name : list.length + ' cards'} intensif${list.length === 1 ? 'ies' : 'y'} by ${n(e.n)}.`);
+          this.bumpBoard();
+          break;
+        }
+        /* Alchemy, double team: a duplicate into the hand, and neither keeps double team */
+        case 'doubleTeam': {
+          if (!src || src.isToken) break;
+          const dup = this._conjure(src.owner, src.card, 'hand', {});
+          for (const x of [src, dup]) if (x) (x.effects = x.effects || []).push({ perpetual: true, until: null, ts: this._stampNew(), loseKeywords: ['Double Team'] });
+          src._chr = null;
+          this.bumpBoard();
+          break;
+        }
+        /* Alchemy: "Choose a creature card in your hand" — remembered for "it" in the next sentence */
+        case 'chooseCardIn': {
+          const z = (this.zones[me.id] || {})[e.zone] || [];
+          const pool = z.filter(c => c !== src && this._seekFits(c, e));
+          this._lastAffected = null;
+          if (!pool.length) break;
+          let pick = null;
+          if (pool.length === 1 && !e.optional) pick = pool[0];
+          else {
+            const got = this._choose({ playerId: me.id, purpose: 'chooseCardIn', kind: 'objects', zone: e.zone,
+              items: this._chooseItems(pool), min: e.optional ? 0 : 1, max: 1, prefer: 'best',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(e.filter) ? 'an' : 'a'} ${e.filter === 'card' ? '' : e.filter + ' '}card in your ${e.zone}.` }, 'cci');
+            if (got === SUSPEND) return SUSPEND;
+            pick = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x)) || null;
+          }
+          if (pick) this._noteLastAffected([{ kind: 'object', id: pick.id }]);
+          break;
+        }
         /* Alchemy, seek: a card at random from the library, of the kind asked for, into the hand */
         case 'seek': {
           const lib = this.zones[me.id].library;
@@ -19338,6 +19401,8 @@
         })(),
         // Alchemy: what has been done to the card perpetually, added up for the table
         perpetual: secret(o) ? null : this._perpetualSummary(o),
+        // Alchemy: a card with an intensity shows it
+        intensity: secret(o) ? null : (o.intensity != null ? o.intensity : ((O.analyze(o.card, o.face) || {}).startingIntensity != null ? O.analyze(o.card, o.face).startingIntensity : null)),
         // a hidden agenda its owner can still choose to turn face up
         agenda: !!(o.conspiracy && o.conspiracy.hidden && o.owner === playerId),
         // soulbond: the creature it is paired with
