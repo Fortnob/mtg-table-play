@@ -2780,6 +2780,15 @@
     // The Celestus: "If it's night, it becomes day. Otherwise, it becomes night."
     { re: /^If it'?s night, it becomes day\. Otherwise, it becomes night\.?$/i, make: () => ({ op: 'flipDayNight' }) },
     { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
+    // Veil of Summer: "Spells you control can't be countered this turn."
+    { re: /^Spells you control can'?t be countered this turn\.?$/i, make: () => ({ op: 'uncounterableTurn' }) },
+    // Veil of Summer: "You and permanents you control gain hexproof from blue and from black until end of turn."
+    { re: /^You and permanents you control gain hexproof from (white|blue|black|red|green)(?: and from (white|blue|black|red|green))? until end of turn\.?$/i,
+      make: (m) => ({ op: 'hexproofFromTurn', q: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }) },
+    // Veil of Summer: "Draw a card if an opponent has cast a blue or black spell this turn."
+    { re: /^Draw a card if an opponent has cast an? (white|blue|black|red|green)(?: or (white|blue|black|red|green))? spell this turn\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'opponentCastColor', colors: [m[1], m[2]].filter(Boolean).map(x => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[x.toLowerCase()]) },
+        then: [{ op: 'draw', n: 1, who: 'you' }] }) },
     // Angel's Grace: "You can't lose the game this turn and your opponents can't win the game this turn."
     { re: /^You can'?t lose the game this turn and your opponents can'?t win the game this turn\.?$/i, make: () => ({ op: 'cantLoseTurn' }) },
     // Angel's Grace: "Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead."
@@ -6274,6 +6283,8 @@
     [/^that player has more cards in hand than you$/i, () => ({ kind: 'thatPlayerMoreCards' })],
     // Betor: "creatures you control have total toughness 10 or greater"
     [/^creatures you control have total toughness (\d+) or greater$/i, (m) => ({ kind: 'totalToughness', n: +m[1] })],
+    // Knight of Grace: "any player controls a black permanent"
+    [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
     // Feywild Caretaker: "you have the initiative"
@@ -6503,6 +6514,8 @@
     { re: /^Whenever day becomes night or night becomes day,? /i, event: 'becomesDay' },
     // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
     { re: /^Whenever you expend (\d+),? /i, event: 'youExpend', extraOf: (m) => ({ expendN: +m[1] }) },
+    // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
+    { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
     // Aeon Chronicler, Detritivore: "Whenever a time counter is removed from this card while it's exiled"
     { re: /^Whenever a time counter is removed from (?:this card|CARDNAME) while it'?s exiled,? /i, event: 'timeCounterRemoved', self: true },
     // Ordeal of Nylea: "When you sacrifice this Aura" — seen as it goes
@@ -7934,7 +7947,10 @@
     }
 
     // Scryfall's own keyword list catches things our line parser missed
+    const onlyFrom = (card.keywords || []).some(x => /^hexproof from$/i.test(x)) && !/(?:^|\n)Hexproof(?! from)\b/.test(String(card.oracle_text || ''));
     for (const k of (card.keywords || [])) {
+      // Knight of Grace: "Hexproof from black" is not hexproof
+      if (/^hexproof from$/i.test(k) || (onlyFrom && /^hexproof$/i.test(k))) continue;
       if (!out.keywords.some(x => x.keyword.toLowerCase() === k.toLowerCase()))
         out.keywords.push({ keyword: U.titleCase(k), arg: null, text: k });
     }
@@ -8363,6 +8379,7 @@
       // "can't be blocked" granted as a word the table reads; "annihilator 2", "afflict 1": the keyword with its number
       if (/^unblockable$/i.test(w) || IMPLEMENTED_LOWER.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return true;
       const pm = w.match(/^protection from (.+)$/i);
+      if (/^hexproof from (?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*$/i.test(w)) return true;
       if (pm) return PROT_Q.test(pm[1].trim()) || pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
       return false;
     };
@@ -9878,6 +9895,22 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+)\} less to activate for each colou?r of the creature it targets\.?$/i,
+        make: (m) => ({ op: 'equip', cost: m[1], perTargetColor: +m[2] }), auto: true },
+      // Dwarven Mauler: "Equip abilities you activate that target this creature cost {2} less to activate."
+      { re: /^Equip abilities you activate that target (?:this creature|CARDNAME) cost \{(\d+)\} less to activate\.?$/i,
+        make: (m) => ({ op: 'equipDiscountIfTargeted', amount: +m[1], yours: true }), auto: true },
+      // Knight of Grace: "Hexproof from black"; Knight of Autumn's cousins: "Hexproof from white and from black"
+      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*)$/i,
+        make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },
+      // Dragonfire Blade: "Equipped creature gets +2/+2 and has hexproof from monocolored."
+      { re: /^(Equipped|Enchanted) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has hexproof from (white|blue|black|red|green|monocolored|multicolored)\.?$/i,
+        make: (m) => {
+          const scope = { attached: true };
+          const kw = { op: 'continuous', layer: 6, scope, grant: ['Hexproof From ' + U.titleCase(m[4])] };
+          return m[2] ? { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true }, pt: { p: +m[2], t: +m[3] } }, kw] } : kw;
+        }, auto: true },
+      // Veil of Summer: "Spells you control can't be countered this turn."
       // Pilot tokens, Cloudspire Captain: "This token saddles Mounts and crews Vehicles as though its power were 2 greater."
       { re: /^(?:This token|This creature|CARDNAME) (?:saddles Mounts and )?crews Vehicles(?: and saddles Mounts)? as though its power were (\d+) greater\.?$/i,
         make: (m) => ({ op: 'crewBonus', n: +m[1] }), auto: true },
@@ -10139,6 +10172,13 @@
       const eff = r.make ? r.make(m) : r.eff;
       // a rule that matched the words but could not read them: try the next one
       if (!eff) continue;
+      /* Dragonfire Blade: "Equip {4}. This ability costs {1} less to
+         activate for each color of the creature it targets." */
+      if (eff.op === 'equip' && eff.perTargetColor) {
+        const spec = { type: 'creature', controller: 'you' };
+        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
+          discountPerTargetColor: eff.perTargetColor, effects: [{ op: 'attachSelf', targets: [spec] }] };
+      }
       /* "Equip {2}" is an activated ability with a target, not a footnote:
          pay the cost at sorcery speed and the Equipment moves. */
       if (eff.op === 'equip' || eff.op === 'fortify' || eff.op === 'reconfigure') {

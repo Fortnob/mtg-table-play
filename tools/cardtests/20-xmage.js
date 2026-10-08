@@ -9501,4 +9501,24 @@ module.exports = (test) => {
     t.eq(ac.counters.time, 1, 'a counter came off');
     t.ok(T.zone('A', 'hand').length >= hand + 2, 'drew for the counter (and the draw step)');
   });
+
+  test('Hexproof from black: Knight of Grace can be Shocked but not Murdered; it is not plain hexproof', (mk, t) => {
+    t.auto('Knight of Grace');
+    t.auto('Dragonfire Blade');
+    const T = mk();
+    const k = T.bf('B', 'Knight of Grace');
+    t.no(T.g.hasKw(k, 'hexproof'), 'no plain hexproof');
+    const shock = T.hand('A', 'Shock');
+    const murder = T.hand('A', 'Murder');
+    const legal = (o) => T.g._legalTargetsFor(spellTargetSpec(o), 'A', o.id).some(x => x.id === k.id);
+    function spellTargetSpec(o) { const a = o.analysis(); return a.abilities.find(x => x.kind === 'spell').effects.find(e => e.targets).targets[0]; }
+    t.ok(legal(shock), 'a red spell may target it');
+    t.no(legal(murder), 'a black one may not');
+    const T2 = mk();
+    const blade = T2.bf('A', 'Dragonfire Blade');
+    const elf = T2.bf('A', 'Llanowar Elves');
+    T2.mana('A', '3');
+    T2.activate('A', blade, blade.analysis().abilities.findIndex(ab => /^Equip/i.test(ab.text || '')), { targets: [elf] });
+    t.eq(blade.attachedTo, elf.id, 'equipped a green creature for {3}');
+  });
 };

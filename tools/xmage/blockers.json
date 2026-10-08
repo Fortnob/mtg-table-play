@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13214,
-  "gainedCards": 1366,
-  "linesNeeded": 14409,
+  "needed": 13203,
+  "gainedCards": 1367,
+  "linesNeeded": 14392,
   "linesGained": 1655,
   "gained": {
-   "all": 1366,
+   "all": 1367,
    "top2000": 52,
    "stdTop": 10
   },
@@ -147,10 +147,9 @@
   },
   {
    "what": "custom condition",
-   "score": 190,
-   "lines": 169,
+   "score": 186,
+   "lines": 168,
    "cards": [
-    "Veil of Summer",
     "Liberator, Urza's Battlethopter",
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -161,7 +160,8 @@
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
-    "Lilypad Village"
+    "Lilypad Village",
+    "Éowyn, Shieldmaiden"
    ]
   },
   {
@@ -298,25 +298,6 @@
    ]
   },
   {
-   "what": "keyword EquipAbility",
-   "score": 43,
-   "lines": 37,
-   "cards": [
-    "Dragonfire Blade",
-    "Dancer's Chakrams",
-    "Mjölnir, Hammer of Thor",
-    "Luxior, Giada's Gift",
-    "Machinist's Arsenal",
-    "Robe of the Archmagi",
-    "Gavel of the Righteous",
-    "Astrologian's Planisphere",
-    "Crown of Gondor",
-    "Pact Weapon",
-    "My Precious // Allure of Power",
-    "Samurai's Katana"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 42,
    "lines": 42,
@@ -333,6 +314,25 @@
     "Osgir, the Reconstructor",
     "Wayta, Trainer Prodigy",
     "Prototype Portal"
+   ]
+  },
+  {
+   "what": "keyword EquipAbility",
+   "score": 36,
+   "lines": 36,
+   "cards": [
+    "Dancer's Chakrams",
+    "Mjölnir, Hammer of Thor",
+    "Luxior, Giada's Gift",
+    "Machinist's Arsenal",
+    "Robe of the Archmagi",
+    "Gavel of the Righteous",
+    "Astrologian's Planisphere",
+    "Crown of Gondor",
+    "Pact Weapon",
+    "My Precious // Allure of Power",
+    "Samurai's Katana",
+    "Reaper's Scythe"
    ]
   },
   {
@@ -4017,19 +4017,6 @@
    ]
   },
   {
-   "what": "(constructor: assignment)",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Banewhip Punisher",
-    "Ammit Eternal",
-    "Knight of Grace",
-    "Knight of Malice",
-    "Suq'Ata Firewalker",
-    "Bull Elephant"
-   ]
-  },
-  {
    "what": "opponent or planeswalker",
    "score": 8,
    "lines": 8,
@@ -7205,6 +7192,17 @@
     "Shelldock Isle",
     "Howltooth Hollow"
    ]
+  },
+  {
+   "what": "EntersBattlefieldFromGraveyardTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Oscorp Industries",
+    "Canoptek Tomb Sentinel",
+    "Triarch Praetorian",
+    "Treacherous Pit-Dweller"
+   ]
   }
  ],
  "sole": [
@@ -7223,8 +7221,8 @@
   },
   {
    "what": "custom ability",
-   "score": 652,
-   "cards": 562,
+   "score": 653,
+   "cards": 563,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7275,15 +7273,15 @@
   },
   {
    "what": "custom condition",
-   "score": 148,
-   "cards": 136,
+   "score": 144,
+   "cards": 135,
    "names": [
-    "Veil of Summer",
     "Liberator, Urza's Battlethopter",
     "Sting, the Glinting Dagger",
     "Nasty End",
     "Queen Marchesa",
-    "Diamond City"
+    "Diamond City",
+    "Blitzball"
    ]
   },
   {
@@ -7495,19 +7493,6 @@
    ]
   },
   {
-   "what": "keyword EquipAbility",
-   "score": 22,
-   "cards": 16,
-   "names": [
-    "Dragonfire Blade",
-    "Robe of the Archmagi",
-    "Crown of Gondor",
-    "Belt of Giant Strength",
-    "Plate Armor",
-    "Leather Armor"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 21,
    "cards": 21,
@@ -7716,6 +7701,19 @@
    ]
   },
   {
+   "what": "keyword EquipAbility",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Robe of the Archmagi",
+    "Crown of Gondor",
+    "Belt of Giant Strength",
+    "Plate Armor",
+    "Leather Armor",
+    "Nightmare Lash"
+   ]
+  },
+  {
    "what": "ConditionalRestrictionEffect",
    "score": 15,
    "cards": 15,
@@ -7751,6 +7749,19 @@
     "Warkite Marauder",
     "Sensational Spider-Man",
     "Coastline Marauders"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Flow State",
+    "Tomb Tyrant",
+    "Cloud, Planet's Champion",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot"
    ]
   },
   {
@@ -7866,19 +7877,6 @@
     "Aang's Iceberg",
     "Yue, the Moon Spirit",
     "North Pole Patrol"
-   ]
-  },
-  {
-   "what": "CompoundCondition",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Flow State",
-    "Tomb Tyrant",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot",
-    "Defenders of Humanity"
    ]
   },
   {
@@ -10101,19 +10099,6 @@
    ]
   },
   {
-   "what": "(constructor: assignment)",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Banewhip Punisher",
-    "Ammit Eternal",
-    "Knight of Grace",
-    "Knight of Malice",
-    "Suq'Ata Firewalker",
-    "Bull Elephant"
-   ]
-  },
-  {
    "what": "filter:snow",
    "score": 6,
    "cards": 6,
@@ -10596,6 +10581,18 @@
     "Liliana's Influence",
     "Invasion of Vryn // Overloaded Mage-Ring",
     "Izzet Guildmage"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Neheb, Dreadhorde Champion",
+    "Bladewing, Deathless Tyrant",
+    "Jaya's Phoenix",
+    "Storrev, Devkarin Lich",
+    "Garruk's Harbinger"
    ]
   },
   {

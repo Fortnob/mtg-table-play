@@ -2480,6 +2480,21 @@
       }
       return seen.size;
     }
+    /** Hexproof from a quality (Knight of Grace, Veil of Summer): does this source have one of them? */
+    _hexproofFromHit(o, source) {
+      if (!o || !source) return false;
+      const qs = [];
+      const e = this._staticOp(o, 'hexproofFrom');
+      if (e && e.q) qs.push(...e.q);
+      const c = this.characteristics(o);
+      for (const k of ((c && c.keywords) || [])) { const m = String(k).match(/^hexproof from (.+)$/i); if (m) qs.push(...m[1].toLowerCase().split(/,? and from /)); }
+      for (const k of ((o.analysis() || {}).keywords || [])) { const m = String(k.keyword || '').match(/^hexproof from (.+)$/i); if (m && k.arg == null) qs.push(...m[1].toLowerCase().split(/,? and from /)); }
+      if (!qs.length) return false;
+      const sa = source.analysis() || {};
+      const n = (sa.colors || []).length;
+      return qs.some(q => (q === 'monocolored' ? n === 1 : q === 'multicolored' ? n > 1 : q === 'colorless' ? n === 0
+        : q === 'artifacts' ? !!sa.isArtifact : this._matchesProtection(q, source)));
+    }
     /** Worship, Angel's Grace: is damage kept from taking this player below 1 life? */
     _lifeFloorFor(p) {
       if (p.lifeFloorTurn === this.turn) return true;
@@ -2540,6 +2555,7 @@
         if (t.zone && o.zone !== t.zone) return false;
         if (o.zone === 'battlefield') {
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
+          if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
           if (this.hasKw(o, 'shroud')) return false;
           // protection from a quality the spell or ability's source has
           if (item.obj && this._protectedFrom(o, item.obj)) return false;
@@ -6228,7 +6244,7 @@
      * The mana an ability costs right now. Power-up: the permanent's own
      * mana cost comes off it if the permanent entered this turn.
      */
-    _abilityMana(o, ab) {
+    _abilityMana(o, ab, targets) {
       const c = (ab && ab.cost) || {};
       let mana = c.mana || '';
       if (c.label === 'power-up' && o && o.entered === this.turn && mana) {
@@ -6244,14 +6260,25 @@
         }
         mana = (generic > 0 ? '{' + generic + '}' : '') + rest.map(x => '{' + x + '}').join('');
       }
-      return this._abilityCostMods(o, ab, mana);
+      return this._abilityCostMods(o, ab, mana, targets);
     }
 
     /** Training Grounds, Suppression Field: standing changes to what an activated ability costs. */
-    _abilityCostMods(o, ab, mana) {
+    _abilityCostMods(o, ab, mana, targets) {
       if (!o || !ab) return mana;
       let d = 0, minOne = false;
       const oa = o.analysis() || {};
+      /* An equip ability that is cheaper for what it targets: Dragonfire
+         Blade's "{1} less for each color of the creature it targets", and the
+         creature's own "Equip abilities you activate that target this
+         creature cost {2} less" (Dwarven Mauler) */
+      const t0 = (targets || []).find(t => t && (t.kind === 'object' || typeof t === 'string'));
+      const tObj = t0 && this.obj(typeof t0 === 'string' ? t0 : t0.id);
+      if (tObj && /^Equip\b/i.test(ab.text || '')) {
+        const ed = this._staticOp(tObj, 'equipDiscountIfTargeted');
+        if (ed && (!ed.yours || o.controller === tObj.controller)) d -= Number(ed.amount) || 0;
+        if (ab.discountPerTargetColor) d -= ab.discountPerTargetColor * (((this.characteristics(tObj) || {}).colors || tObj.analysis().colors || []).length);
+      }
       for (const src of this.battlefield) {
         if (src.phasedOut) continue;
         const sa = src.analysis();
@@ -6304,7 +6331,7 @@
       if (lifeFrom && p.life < lifeFrom) return this.fail('Not enough life.');
       // `free` skips payment the same way it does for a spell, which is what
       // relaxed tables and alternative costs rely on
-      const abMana = this._abilityMana(o, ab);
+      const abMana = this._abilityMana(o, ab, opts.targets);
       if (abMana && !opts.free) {
         /* A permanent that taps as part of the cost cannot also be tapped
            for mana to pay the rest of it (Mind Stone's "{1}, {T}"). */
@@ -8445,6 +8472,13 @@
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
+        // (printed colours: asked from inside the layers, it must not ask for characteristics again)
+        case 'anyControlsColor': return this.battlefield.some(o => !o.phasedOut && ((O.analyze(o.card, o.face) || {}).colors || []).includes(cond.color));
+        // Veil of Summer: "if an opponent has cast a blue or black spell this turn"
+        case 'opponentCastColor': return !!me && this.opponentsOf(me.id).some(p => (p.spellObjsThisTurn || []).some(x => {
+          const xa = O.analyze(x.card, x.face) || {};
+          return (xa.colors || []).some(c => (cond.colors || []).includes(c));
+        }));
         case 'itMv': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && (t.kind === 'object' || t.kind === 'stack'));
           const td = (ctx && ctx.triggerData) || {};
@@ -11112,6 +11146,8 @@
             me.dungeonsCompleted = (me.dungeonsCompleted || []).concat(me.dungeon.name);
             this.logEvent('rules', `${me.name} completes ${me.dungeon.name}.`);
             me.dungeon = null;
+            // Sefris, Varis: "whenever you complete a dungeon"
+            this._fire('youCompleteDungeon', me.id, { playerId: me.id });
           }
           break;
         case 'energy': {
@@ -14977,6 +15013,15 @@
         // The Celestus: night becomes day, and anything else becomes night
         case 'flipDayNight': this.setDayNight(this.isDay === false, src ? src.name : null); break;
         case 'setDayNight': this.setDayNight(!!e.day, src ? src.name : null); break;
+        // Veil of Summer
+        case 'uncounterableTurn': me.uncounterableTurn = this.turn; break;
+        case 'hexproofFromTurn': {
+          const kws = (e.q || []).map(q => 'Hexproof From ' + U.titleCase(q));
+          for (const o of this.battlefield) if (o.controller === ctx.controller && !o.phasedOut) { o.effects.push({ keywords: kws.slice(), until: 'eot' }); o._chr = null; }
+          me.hexproofFromTurn = { turn: this.turn, q: (e.q || []).slice() };
+          this.bumpBoard();
+          break;
+        }
         // Angel's Grace
         case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
         case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;
@@ -16573,6 +16618,8 @@
     _uncounterable(item) {
       if (!item) return false;
       if (item.uncounterable) return true;
+      // Veil of Summer: "Spells you control can't be countered this turn."
+      if (item.kind === 'spell' && ((this.player(item.controller) || {}).uncounterableTurn === this.turn)) return true;
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'uncounterable');
         if (!e) continue;
@@ -17980,6 +18027,8 @@
         if (zone === 'battlefield' && this.hasKw(o, 'shroud')) continue;
         // protection: not by a spell or ability from a source with that quality (CR 702.16b)
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && s0 !== o && this._protectedFrom(o, s0)) continue; }
+        // hexproof from a quality: not by an opponent's spell or ability with it (CR 702.11d)
+        if (zone === 'battlefield' && sourceId && o.controller !== controllerId) { const s0 = this.obj(sourceId); if (s0 && this._hexproofFromHit(o, s0)) continue; }
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
       if (spec.type === 'any') out.push(...players());
