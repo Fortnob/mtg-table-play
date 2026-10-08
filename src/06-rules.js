@@ -3577,6 +3577,8 @@
             this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
           out.push({ kind: 'cast', via: 'emerge', cost: arg, label: 'Emerge ' + arg });
         }
+        // Cleave (CR 702.148): for the cleave cost, without the words in square brackets
+        if (o.zone === 'hand' && arg && k === 'cleave' && a.cleaveEffects) out.push({ kind: 'cast', via: 'cleave', cost: arg, cleave: true, label: 'Cleave ' + arg });
         // Surge: the other cost, once you have cast another spell this turn (CR 702.117)
         if (o.zone === 'hand' && arg && k === 'surge' && ((this.player(playerId) || {}).spellsCastThisTurn || 0) >= 1) {
           out.push({ kind: 'cast', via: 'surge', cost: arg, label: 'Surge ' + arg });
@@ -4526,6 +4528,8 @@
         let specs = a && a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a);
         if (opts.fuse && this._fusable(o)) specs = specs.concat(spellTargetSpecs(MTG.oracle.analyze(o.card, 1)));
         const viaUse = opts.via ? this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via) : null;
+        // Cleave: the targets of the words left once the brackets are gone
+        if (viaUse && viaUse.cleave && a.cleaveEffects) specs = effectSpecs(a.cleaveEffects);
         // overload: "each" instead of "target" — nothing is aimed at
         if (!(viaUse && viaUse.overload) && !(a && a.isPermanent && !a.isAura && !(opts.targets || []).length)) {
           this._specX = opts.x || 0;
@@ -4830,7 +4834,8 @@
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
         controller: playerId, name: o.name, cost,
         targets: (opts.targets || []).map(normTarget), x: opts.x || 0,
-        effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects : this._cardSpellEffects(a))
+        effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects
+          : via && via.cleave && a.cleaveEffects ? a.cleaveEffects : this._cardSpellEffects(a))
           // Awaken: the land's part comes after the spell's own words
           .concat(via && via.awaken ? [{ op: 'awakenLand', n: via.awaken, askTargets: true,
             targets: [{ type: 'land', filter: 'land you control', zone: 'battlefield', controller: 'you' }] }] : []) : null,

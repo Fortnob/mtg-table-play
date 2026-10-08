@@ -11271,4 +11271,24 @@ module.exports = (test) => {
     t.eq(wurm.zone, 'graveyard', 'the Wurm was sacrificed'); t.eq(bear.zone, 'battlefield');
     t.ok(T.g.stack.some(s => s.obj && s.obj.id === edf.id) || edf.zone === 'battlefield', 'cast for {5}{U}{U} less six: {U}{U}');
   });
+
+  test('Cleave: the words in brackets are gone when cast for the cleave cost', (mk, t) => {
+    t.auto('Fierce Retribution'); t.auto('Dig Up');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const fr = T.hand('A', 'Fierce Retribution');
+    T.mana('A', '1W');
+    t.no(T.g.castSpell('A', fr.id, { targets: [bear.id] }), 'normally only an attacking creature');
+    T.mana('A', '5W');
+    t.ok(T.g.castSpell('A', fr.id, { via: 'cleave', targets: [bear.id] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'graveyard', 'any creature, cleaved');
+    const T2 = mk();
+    const ring = T2.top('A', 'Sol Ring');
+    T2.answer('pickCard', (ch) => { t.ok(ch.cards.some(c => c.id === ring.id), 'any card'); return { cardIds: [ring.id] }; });
+    T2.mana('A', '1BBG');
+    t.ok(T2.g.castSpell('A', T2.hand('A', 'Dig Up').id, { via: 'cleave' }), T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(ring.zone, 'hand');
+  });
 };

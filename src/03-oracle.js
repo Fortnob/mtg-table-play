@@ -8674,6 +8674,20 @@
       }
     }
 
+    /* Cleave (CR 702.148): the same spell with the words in square brackets
+       taken out, read now so casting it that way has something to run */
+    const clv = out.abilities.find(x => x.kind === 'castModifier' && /^cleave$/i.test(x.keyword || '') && x.arg);
+    if (clv) {
+      const whole = out.abilities.filter(x => x.kind === 'spell').map(x => x.text).join(' ')
+        .replace(/\s*\[[^\]]*\]/g, '').replace(/\s+([,.])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+      const parsed = whole ? parseEffects(whole) : null;
+      if (parsed && parsed.auto && parsed.effects.length) {
+        out.cleaveEffects = parsed.effects;
+        clv.auto = true;
+        autoLines++;
+      }
+    }
+
     /* A Class card is a stack of levels: everything printed after
        "{1}{W}: Level 2" belongs to level 2 and does nothing before you
        have paid for it (CR 716.2). The lines come in printed order, so the
