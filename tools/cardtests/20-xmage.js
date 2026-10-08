@@ -9873,4 +9873,23 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(elf.counters['+1/+1'], 1, 'second tap this turn: none');
   });
+
+  test('Conduit of Ruin: the first creature spell each turn is cheaper; Highspire Bell-Ringer: the second spell', (mk, t) => {
+    t.auto('Conduit of Ruin');
+    t.auto('Highspire Bell-Ringer');
+    const T = mk();
+    T.bf('A', 'Conduit of Ruin');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Centaur Courser'));
+    t.eq(T.g.battlefield.filter(o => o.name === 'Centaur Courser').length, 1, 'Courser for {G}');
+    T.mana('A', 'G');
+    t.no(T.g.castSpell('A', T.hand('A', 'Grizzly Bears').id, {}), 'the second creature costs full');
+    const T2 = mk();
+    T2.bf('A', 'Highspire Bell-Ringer');
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Shock'), { targets: ['B'] });
+    T2.mana('A', 'G');
+    T2.cast('A', T2.hand('A', 'Grizzly Bears'));
+    t.eq(T2.g.battlefield.filter(o => o.name === 'Grizzly Bears').length, 1, 'the second spell, Bears, for {G}');
+  });
 };

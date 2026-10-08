@@ -5454,6 +5454,13 @@
      of other spells, which the engine adds up as each spell is cast. */
   function parseCostMod(line) {
     let s = String(line).trim().replace(/\.$/, '');
+    // Conduit of Ruin, Monk Class: "The first creature spell you cast each turn", "The second spell you cast each turn"
+    const nth = s.match(/^The (first|second) ((?:[a-z]+ (?:or [a-z]+ )?)?)spell you cast each turn costs \{(\d+)\} less to cast$/i);
+    if (nth) {
+      const words = nth[2].trim().toLowerCase();
+      if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|legendary creature|noncreature|planeswalker|land)$/.test(words)) return null;
+      return { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+nth[3]), nthEachTurn: /second/i.test(nth[1]) ? 2 : 1 };
+    }
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
     if (each) {

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13113,
-  "gainedCards": 1368,
-  "linesNeeded": 14279,
+  "needed": 13107,
+  "gainedCards": 1369,
+  "linesNeeded": 14271,
   "linesGained": 1655,
   "gained": {
-   "all": 1368,
+   "all": 1369,
    "top2000": 52,
    "stdTop": 10
   },
@@ -3568,21 +3568,6 @@
    ]
   },
   {
-   "what": "ConditionalCostModificationEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Alisaie Leveilleur",
-    "Paladin Class",
-    "Momo, Friendly Flier",
-    "Uthros Psionicist",
-    "Monk Class",
-    "Highspire Bell-Ringer",
-    "Raging Battle Mouse",
-    "Nahiri, Storm of Stone"
-   ]
-  },
-  {
    "what": "keyword MonstrosityAbility",
    "score": 8,
    "lines": 8,
@@ -7071,6 +7056,17 @@
    ]
   },
   {
+   "what": "ConditionalCostModificationEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Alisaie Leveilleur",
+    "Paladin Class",
+    "Momo, Friendly Flier",
+    "Nahiri, Storm of Stone"
+   ]
+  },
+  {
    "what": "AllianceAbility",
    "score": 4,
    "lines": 4,
@@ -7235,8 +7231,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 153,
-   "cards": 141,
+   "score": 154,
+   "cards": 142,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -9662,19 +9658,6 @@
    ]
   },
   {
-   "what": "ConditionalCostModificationEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Alisaie Leveilleur",
-    "Momo, Friendly Flier",
-    "Uthros Psionicist",
-    "Highspire Bell-Ringer",
-    "Raging Battle Mouse",
-    "Nahiri, Storm of Stone"
-   ]
-  },
-  {
    "what": "HasOnlySingleTargetPermanentPredicate",
    "score": 6,
    "cards": 6,
@@ -10956,6 +10939,18 @@
     "Darksteel Garrison",
     "Kudzu",
     "Steam Vines"
+   ]
+  },
+  {
+   "what": "trigger with two effects in its constructor",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Thrasher Brute",
+    "Charging Cinderhorn",
+    "Impatience",
+    "Keldon Twilight",
+    "Krovikan Vampire"
    ]
   }
  ]

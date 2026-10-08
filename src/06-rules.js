@@ -2694,6 +2694,8 @@
             // Brago's Favor: the chosen name; Hymn of the Wilds: the first such spell each turn
             if (e.chosenName && !this._chosenNameOf(src, o)) continue;
             if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
+            // Monk Class: the second spell this turn (counting the ones already cast)
+            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!words || words === 'spell' || this._cardFitsWords(x, words))).length !== e.nthEachTurn - 1) continue;
             // Goreclaw: "with power 4 or greater", as printed on the card being cast
             if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
             // Defense Grid: only on a turn that isn't the caster's
