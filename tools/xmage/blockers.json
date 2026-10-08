@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13046,
-  "gainedCards": 1372,
-  "linesNeeded": 14198,
+  "needed": 12954,
+  "gainedCards": 1373,
+  "linesNeeded": 14182,
   "linesGained": 1654,
   "gained": {
-   "all": 1372,
+   "all": 1373,
    "top2000": 53,
    "stdTop": 10
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4760,
-   "lines": 4271,
+   "score": 4758,
+   "lines": 4269,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -71,8 +71,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 786,
-   "lines": 786,
+   "score": 704,
+   "lines": 704,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -90,8 +90,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 275,
-   "lines": 266,
+   "score": 274,
+   "lines": 265,
    "cards": [
     "Plumb the Forbidden",
     "Reforge the Soul",
@@ -1942,25 +1942,6 @@
     "Mishra's War Machine",
     "Ayesha Tanaka",
     "Icatian Phalanx"
-   ]
-  },
-  {
-   "what": "ConjureCardEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Rusko, Clockmaker",
-    "Euru, Acorn Scrounger",
-    "Overcooked",
-    "Sanguine Brushstroke",
-    "Toralf's Disciple",
-    "Dragonfly Pilot",
-    "Shoreline Scout",
-    "Swarm Saboteur",
-    "Expedition Supplier",
-    "Kiora, the Tide's Fury",
-    "Emporium Thopterist",
-    "Wingsteed Trainer"
    ]
   },
   {
@@ -7165,13 +7146,24 @@
     "Thraximundar",
     "Mortician Beetle"
    ]
+  },
+  {
+   "what": "AttacksAloneAttachedTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Bilbo's Ring",
+    "Sigil of Valor",
+    "Reaper's Talisman",
+    "S.H.I.E.L.D. Spy Kit"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3859,
-   "cards": 3517,
+   "score": 3857,
+   "cards": 3515,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7196,8 +7188,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 207,
-   "cards": 201,
+   "score": 206,
+   "cards": 200,
    "names": [
     "Plumb the Forbidden",
     "Reforge the Soul",
@@ -7403,6 +7395,19 @@
    ]
   },
   {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 24,
+   "cards": 21,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Feline Sovereign",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver"
+   ]
+  },
+  {
    "what": "AsEntersBattlefieldAbility",
    "score": 24,
    "cards": 24,
@@ -7413,19 +7418,6 @@
     "Eclipsed Realms",
     "Frontier Siege",
     "Sin, Unending Cataclysm"
-   ]
-  },
-  {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 23,
-   "cards": 20,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Feline Sovereign",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver"
    ]
   },
   {
@@ -8409,19 +8401,6 @@
     "Kjeldoran Knight",
     "Wall of Shields",
     "Benalish Infantry"
-   ]
-  },
-  {
-   "what": "ConjureCardEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Rusko, Clockmaker",
-    "Overcooked",
-    "Sanguine Brushstroke",
-    "Toralf's Disciple",
-    "Dragonfly Pilot",
-    "Swarm Saboteur"
    ]
   },
   {
@@ -10944,6 +10923,18 @@
     "Flash of Defiance",
     "Kavu Runner",
     "Skittish Kavu"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledEffect.withForceQuotes",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Cathedral of Serra",
+    "Adventurers' Guildhouse",
+    "Mountain Stronghold",
+    "Unholy Citadel",
+    "Seafarer's Quay"
    ]
   }
  ]

@@ -470,6 +470,8 @@
     _anyColorCost(pid, o, cost) {
       // Hostage Taker: "mana of any type can be spent to cast that spell"
       if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // Alchemy: "perpetually gains 'You may spend mana as though it were mana of any color to cast this spell'"
+      if (o && (o.effects || []).some(e => e && e.perpetual && e.spendAny)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
         if (e.chosenName && !this._chosenNameOf(src, o)) return false;
         if (e.chosenMv && !(src.conspiracy.mv != null && ((o.card && o.card.cmc) || 0) === src.conspiracy.mv)) return false;
@@ -2656,6 +2658,9 @@
          spell's own "costs {1} less for each…"), then convoke and its kin */
       const delta = this._costDelta(o, o.controller || o.owner);
       if (delta) mana = this._addGeneric(mana, delta);
+      // Alchemy: "perpetually gains 'This spell costs {1} less to cast'"
+      const pd = (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
+      if (pd) mana = this._addGeneric(mana, pd);
       // Andradite Leech: "Black spells you cast cost {B} more to cast"
       mana += this._costExtraSymbols(o, o.controller || o.owner);
 
@@ -7292,6 +7297,74 @@
     /* Protection from a quality, printed or granted ("equipped creature has
        protection from black and from green"): does it shield o from this
        source? */
+    /** A card by its name, from whatever card library is loaded (Alchemy's conjure). */
+    _cardByName(name) {
+      const f = MTG.cardLookup;
+      let c = null;
+      try { c = (f && f(name)) || null; } catch (err) { c = null; }
+      const db = MTG.cardDb;
+      if (!c && db && db.has && db.has() && db.idx && db.idx.byNameCard) c = db.idx.byNameCard(name);
+      return c || null;
+    }
+    /** Conjure: a new card, owned by its conjurer, put into a zone. */
+    _conjure(pid, card, to, e) {
+      const o = this._register(new GObj(card, pid, 'outside'));
+      o.owner = pid; o.controller = pid; o.conjured = true;
+      if (to === 'battlefield') {
+        this.moveObject(o, 'battlefield', { controller: pid });
+        if (e && e.tapped) o.tapped = true;
+      } else if (to === 'library' || to === 'top' || to === 'topRandom') {
+        const lib = this.zones[pid].library;
+        o.zone = 'library';
+        if (to === 'top') lib.unshift(o);
+        else if (to === 'topRandom') lib.splice(Math.floor(this.rng.next() * (Math.min(lib.length, (e && e.depth) || 1) + 1)), 0, o);
+        else lib.push(o);
+      } else {
+        o.zone = to === 'graveyard' ? 'graveyard' : to === 'exile' ? 'exile' : 'hand';
+        this.zones[pid][o.zone].push(o);
+      }
+      this.logEvent('rules', `${this.player(pid).name} conjures ${card.name}${to === 'battlefield' ? ' onto the battlefield' : to === 'hand' ? ' into their hand' : to === 'graveyard' ? ' into their graveyard' : ' into their library'}.`);
+      return o;
+    }
+    /** Seek: whether a card in the library is the kind asked for. */
+    _seekFits(c, e) {
+      const mv = (c.card && c.card.cmc) || 0;
+      if (e.maxMv != null && mv > e.maxMv) return false;
+      if (e.minMv != null && mv < e.minMv) return false;
+      if (e.mv != null && mv !== e.mv) return false;
+      return !e.filter || e.filter === 'card' || this._cardFitsWords(c, e.filter);
+    }
+    /** Perpetually: the cards a perpetual change is made to. */
+    _perpetualSubjects(e, ctx, src, targets, firstObj) {
+      const me = this.player(ctx.controller);
+      const sub = e.subject || {};
+      if (sub.self) return src ? [src] : [];
+      if (sub.targets) return targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+      if (sub.last) {
+        const ids = (this._lastAffectedAll && this._lastAffectedAll.length > 1 && sub.plural) ? this._lastAffectedAll.map(x => x.id)
+          : (this._lastSeeked && this._lastSeeked.length && sub.plural) ? this._lastSeeked
+          : this._lastAffected ? [this._lastAffected.id] : [];
+        return ids.map(id => this.obj(id)).filter(Boolean);
+      }
+      if (sub.triggerObject) { const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId); return x ? [x] : []; }
+      if (sub.zone) {
+        const owners = sub.who === 'opponents' ? this.opponentsOf(ctx.controller).map(p => p.id) : sub.who === 'each' ? this.players.map(p => p.id) : [ctx.controller];
+        let pool = [];
+        for (const pid of owners) {
+          const z = sub.zone === 'battlefield' ? this.battlefield.filter(x => x.controller === pid) : ((this.zones[pid] || {})[sub.zone] || []);
+          pool = pool.concat(z.filter(x => !sub.filter || sub.filter === 'card' || this._cardFitsWords(x, sub.filter)));
+        }
+        if (sub.other && src) pool = pool.filter(x => x !== src);
+        if (sub.random) {
+          const out = [];
+          for (let i = 0; i < sub.random && pool.length; i++) out.push(pool.splice(Math.floor(this.rng.next() * pool.length), 1)[0]);
+          return out;
+        }
+        return pool;
+      }
+      if (sub.scope) return this._scopeList(sub.scope, ctx.controller, src);
+      return [];
+    }
     /** How many times this permanent has become a target this turn, counting this one. */
     _targetedNth(x) {
       if (!x._targeted || x._targeted.turn !== this.turn) x._targeted = { turn: this.turn, n: 0 };
@@ -8457,6 +8530,7 @@
         case 'libraryEmpty': return !!me && !((this.zones[me.id] || {}).library || []).length;
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
+        case 'selfIsToken': return !!src && (!!src.isToken) !== !!cond.not;
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
@@ -9052,6 +9126,25 @@
      */
     characteristics(o) {
       if (!o) return null;
+      /* A condition on a permanent's own standing rule that asks about that
+         permanent ("as long as you control a creature with power 4 or
+         greater", said by a 4/4) would ask forever: the inner question is
+         answered from the printed card and its counters. */
+      const busy = this._chrStack || (this._chrStack = new Set());
+      if (busy.has(o.id)) return this._printedCharacteristics(o);
+      busy.add(o.id);
+      try { return this._characteristics(o); } finally { busy.delete(o.id); }
+    }
+    /** What a permanent is with nothing applied to it but its counters. */
+    _printedCharacteristics(o) {
+      const a = O.analyze(o.card, o.face) || {};
+      let p = parseInt(a.power, 10); if (isNaN(p)) p = 0;
+      let t = parseInt(a.toughness, 10); if (isNaN(t)) t = 0;
+      const plus = Number((o.counters || {})['+1/+1']) || 0, minus = Number((o.counters || {})['-1/-1']) || 0;
+      return { power: p + plus - minus, toughness: t + plus - minus, keywords: new Set(a.keywordSet || []), flags: new Set(),
+        addSubtypes: [], setSubtypes: null, setMana: null, grantMana: [], addTypes: [], abilitiesLost: false, isCreature: !!a.isCreature };
+    }
+    _characteristics(o) {
       const a = o.analysis();
       if (!a) return null;
       const lb = o.zone === 'battlefield' && !this._layerBusy ? this._layerBoard(o) : null;
@@ -9582,7 +9675,8 @@
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         o.tapped = false; o.damage = 0; o.counters = {};
-        o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];
+        // Alchemy: what was done to it perpetually stays with the card, wherever it goes
+        o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
@@ -16017,6 +16111,64 @@
           this.logEvent('wipe', `${k} permanent${k === 1 ? '' : 's'} with mana value ${want} destroyed.`);
           break;
         }
+        /* Alchemy, perpetually: a change that stays with the card across zones —
+           +N/+N, keywords, a base power and toughness, types, an ability's words, a cost */
+        case 'perpetual': {
+          const list = this._perpetualSubjects(e, ctx, src, targets, firstObj);
+          if (list === SUSPEND) return SUSPEND;
+          const mod = e.mod || {};
+          for (const x of list) {
+            if (!x) continue;
+            const ent = Object.assign({ perpetual: true, until: null, ts: this._stampNew() }, JSON.parse(JSON.stringify(mod)));
+            // "+X/+X, where X is …": the number as it is now
+            if (mod.pX != null) { ent.p = n(mod.pX); delete ent.pX; }
+            if (mod.tX != null) { ent.t = n(mod.tX); delete ent.tX; }
+            (x.effects = x.effects || []).push(ent);
+            x._chr = null; x._dyn = null; x._dynKey = null;
+          }
+          if (list.length) {
+            this._noteLastAffected(list.map(x => ({ kind: 'object', id: x.id })));
+            this.logEvent('rules', `${list.length === 1 ? list[0].name : list.length + ' cards'} perpetually ${e.text ? String(e.text).replace(/^.*?perpetually\s+/i, '').replace(/\.$/, '') : 'changes'}.`);
+          }
+          this.bumpBoard();
+          break;
+        }
+        /* Alchemy, seek: a card at random from the library, of the kind asked for, into the hand */
+        case 'seek': {
+          const lib = this.zones[me.id].library;
+          const k = Math.max(0, n(e.n == null ? 1 : e.n));
+          const got = [];
+          for (let i = 0; i < k; i++) {
+            const pool = lib.filter(c => this._seekFits(c, e) && !got.includes(c));
+            if (!pool.length) break;
+            const c = pool[Math.floor(this.rng.next() * pool.length)];
+            got.push(c);
+            this.moveObject(c, 'hand');
+          }
+          this._lastSeeked = got.map(c => c.id);
+          if (got.length) this._noteLastAffected(got.map(c => ({ kind: 'object', id: c.id })));
+          else this._lastAffected = null;
+          this.logEvent('draw', got.length ? `${me.name} seeks ${got.length} card${got.length === 1 ? '' : 's'}.` : `${me.name} seeks, and finds nothing.`);
+          if (!got.length && e.otherwise) this._spliceNext(e.otherwise);
+          break;
+        }
+        /* Alchemy, conjure: a card made from nothing, into a zone */
+        case 'conjure': {
+          const made = [];
+          const k = Math.max(0, n(e.n == null ? 1 : e.n));
+          const names = e.names || (e.name ? [e.name] : []);
+          for (const nm of names) {
+            let card = null;
+            if (nm === '$self') card = src && src.card;
+            else if (nm === '$that') { const x = this._lastAffected && this.obj(this._lastAffected.id); card = (x && x.card) || (this._lastAffected && this._lastAffected.card) || null; }
+            else card = this._cardByName(nm);
+            if (!card) { this.logEvent('rules', `There is no card named ${nm} to conjure.`); continue; }
+            for (let i = 0; i < k; i++) made.push(this._conjure(me.id, card, e.to || 'hand', e));
+          }
+          if ((e.to === 'library' || e.shuffle) && made.length) this.rng.shuffle(this.zones[me.id].library);
+          if (made.length) this._noteLastAffected(made.filter(Boolean).map(c => ({ kind: 'object', id: c.id })));
+          break;
+        }
         /* Demonic Consultation: a name, six cards gone, then cards revealed until that name comes up */
         case 'consultation': {
           const lib = this.zones[me.id].library;
@@ -17769,7 +17921,7 @@
       const leave = (o) => {
         this._removeFromZone(o);
         o.zone = 'exile';
-        o.tapped = false; o.damage = 0; o.effects = []; o.attacking = null; o.blocking = []; o.blockedBy = [];
+        o.tapped = false; o.damage = 0; o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.faceDown = false; o.controller = o.owner; o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null;
         if (o.printedCard) { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
         this.zones[o.owner].exile.push(o);
@@ -18479,6 +18631,12 @@
         const host = s0 && s0.attachedTo;
         return this._legalTargetsFor(Object.assign({}, spec, { notAttached: false }), controllerId, sourceId).filter(t => t.id !== host);
       }
+      // Callidus Assassin: "with the same name as this creature"
+      if (spec.sameNameAsSource && sourceId) {
+        const s0 = this.obj(sourceId);
+        return this._legalTargetsFor(Object.assign({}, spec, { sameNameAsSource: false }), controllerId, sourceId)
+          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && !!s0 && x.name === s0.name; });
+      }
       // "another target creature" is never the creature asking (CR 115.5)
       if (spec.another && sourceId) {
         return this._legalTargetsFor(Object.assign({}, spec, { another: false }), controllerId).filter(t => t.id !== sourceId);
@@ -19133,6 +19291,24 @@
       return !!top && !!(this._playFromRule(ownerId, top, 'land') || this._playFromRule(ownerId, top, 'spell') || this._playFromRule(ownerId, top, 'any'));
     }
 
+    /** The perpetual changes on a card, added up: { pt: [p, t], basePt, keywords, lose, costDelta, spendAny, types, text } or null. */
+    _perpetualSummary(o) {
+      const list = (o.effects || []).filter(e => e && e.perpetual);
+      if (!list.length) return null;
+      const out = { pt: [0, 0], keywords: [], costDelta: 0, text: [] };
+      for (const e of list) {
+        out.pt[0] += Number(e.p) || 0; out.pt[1] += Number(e.t) || 0;
+        if (e.setPt) out.basePt = [e.setPt.p, e.setPt.t];
+        for (const k of e.keywords || []) if (!out.keywords.includes(k)) out.keywords.push(k);
+        if ((e.loseKeywords || []).length) out.lose = (out.lose || []).concat(e.loseKeywords);
+        if (e.costDelta) out.costDelta += e.costDelta;
+        if (e.spendAny) out.spendAny = true;
+        if ((e.addTypes || []).length || (e.addSubtypes || []).length) out.types = (out.types || []).concat(e.addTypes || [], e.addSubtypes || []);
+        if (e.grantText) out.text.push(e.grantText);
+      }
+      return out;
+    }
+
     viewFor(playerId) {
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
@@ -19157,8 +19333,11 @@
           if (o.chosenName) c.name = o.chosenName;
           if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
           if (o.chosenNumber != null) c.number = o.chosenNumber;
+          if (o.chosenCardType) c.cardType = o.chosenCardType;
           return Object.keys(c).length ? c : null;
         })(),
+        // Alchemy: what has been done to the card perpetually, added up for the table
+        perpetual: secret(o) ? null : this._perpetualSummary(o),
         // a hidden agenda its owner can still choose to turn face up
         agenda: !!(o.conspiracy && o.conspiracy.hidden && o.owner === playerId),
         // soulbond: the creature it is paired with

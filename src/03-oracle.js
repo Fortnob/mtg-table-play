@@ -769,7 +769,112 @@
     return after ? { op: 'sequence', list: [e, after] } : e;
   }
 
+  /* ---------------- Alchemy: perpetually, seek, conjure ---------------- */
+  /** Who a perpetual change is made to: "it", "CARDNAME", "target creature", "creature cards in your hand", … */
+  function perpSubject(phrase) {
+    const p = String(phrase).trim();
+    let m;
+    if (/^(?:it|that card|that creature|that permanent|the conjured card|the card|the duplicate|that spell|the exiled card|the chosen card)$/i.test(p)) return { last: true };
+    if (/^(?:they|those cards|those creatures|them|each of them|both cards)$/i.test(p)) return { last: true, plural: true };
+    if (/^(?:CARDNAME|this creature|this card|this permanent|this artifact|this enchantment|this land)$/i.test(p)) return { self: true };
+    if ((m = p.match(/^((?:another )?target .+?) (?:in your graveyard)$/i))) {
+      const sp = targetSpec(m[1].replace(/ cards?$/i, ''), 'graveyard');
+      return sp && !sp.unknown ? { targets: [Object.assign(sp, { controller: 'you' })] } : null;
+    }
+    if ((m = p.match(/^(?:another )?target /i))) { const sp = targetSpec(p); return sp && !sp.unknown ? { targets: [sp] } : null; }
+    if ((m = p.match(/^(a|one|two|three) random ((?:[a-z]+ )*?)cards? in (your|each opponent'?s|target opponent'?s) (hand|graveyard|library)$/i)))
+      return { zone: m[4].toLowerCase(), filter: m[2].trim().toLowerCase() || null, random: num(m[1]), who: /opponent/i.test(m[3]) ? 'opponents' : 'you' };
+    if ((m = p.match(/^(?:each |all |the )?(other )?((?:[A-Za-z]+ )*?)cards? (?:in your (hand|graveyard|library)|you own in exile)$/i)))
+      return { zone: (m[3] || 'exile').toLowerCase(), filter: m[2].trim().toLowerCase() || null, other: !!m[1] };
+    if ((m = p.match(/^(?:each |all )?((?:[A-Za-z]+ )*?)cards? in (?:your opponents'?|each opponent'?s) hands?$/i)))
+      return { zone: 'hand', filter: m[1].trim().toLowerCase() || null, who: 'opponents' };
+    if (/ you control$/i.test(p)) { const sc = scopeOf(p); return sc ? { scope: sc } : null; }
+    return null;
+  }
+  /** What a perpetual change is: "gets +1/+1", "gains flying", "gains '…'", "has base power and toughness 1/1", "becomes a Dragon …". */
+  function perpPredicate(verb, rest) {
+    const v = verb.toLowerCase().replace(/s$/, '');
+    let r = String(rest).trim().replace(/\.$/, ''), m;
+    const mod = {};
+    if (v === 'get') {
+      if ((m = r.match(/^([+-]\d+)\/([+-]\d+)(?: and gains? (.+))?$/))) {
+        mod.p = +m[1]; mod.t = +m[2];
+        if (m[3]) { const more = perpPredicate('gains', m[3]); if (!more) return null; Object.assign(mod, more); }
+        return mod;
+      }
+      if ((m = r.match(/^\+X\/\+X, where X is (.+)$/i))) { const a = amountOf(m[1]); if (a == null) return null; mod.pX = a; mod.tX = a; return mod; }
+      if ((m = r.match(/^\+X\/\+0, where X is (.+)$/i))) { const a = amountOf(m[1]); if (a == null) return null; mod.pX = a; return mod; }
+      return null;
+    }
+    if (v === 'gain' || v === 'ha') {
+      if (v === 'ha') {
+        if ((m = r.match(/^base power and toughness (\d+)\/(\d+)$/i))) return { setPt: { p: +m[1], t: +m[2] } };
+        return null;
+      }
+      const q = r.match(/^"([^"]+)"$/);
+      if (q) {
+        const t = q[1].trim();
+        let k;
+        if ((k = t.match(/^This spell costs \{(\d+)\} (less|more) to cast\.?$/i))) return { costDelta: (+k[1]) * (/less/i.test(k[2]) ? -1 : 1) };
+        if (/^(?:You may spend mana as though it were mana of any colou?r to cast this spell|Mana of any type can be spent to cast this spell)\.?$/i.test(t)) return { spendAny: true };
+        return grantableText(t) ? { grantText: t } : null;
+      }
+      // keywords, perhaps with an ability's words after them: 'flying and "…"'
+      const kq = r.match(/^([a-z ,]+?),? and "([^"]+)"$/i);
+      if (kq) {
+        const kws = keywordList(kq[1]);
+        if (!kws.length || !kws.every(kwKnown) || !grantableText(kq[2])) return null;
+        return { keywords: kws, grantText: kq[2] };
+      }
+      const kws = keywordList(r);
+      if (!kws.length || !kws.every(kwKnown)) return null;
+      return { keywords: kws };
+    }
+    if (v === 'lose') {
+      const kws = keywordList(r);
+      return kws.length && kws.every(kwKnown) ? { loseKeywords: kws } : null;
+    }
+    if (v === 'become') {
+      if ((m = r.match(/^an? ((?:[A-Z][A-Za-z'-]* ?)+?)(?: (artifact|enchantment|creature))? in addition to (?:its|their) other types$/))) {
+        const subs = m[1].trim().split(/\s+/);
+        return Object.assign({ addSubtypes: subs }, m[2] ? { addTypes: [U.titleCase(m[2])] } : {});
+      }
+      if ((m = r.match(/^an? (artifact|enchantment) in addition to (?:its|their) other types$/i))) return { addTypes: [U.titleCase(m[1])] };
+      return null;
+    }
+    return null;
+  }
+
   const EFFECT_RULES = [
+    /* Alchemy: "It perpetually gets +1/+1." "Creature cards in your hand perpetually gain flying." */
+    { re: /^(.+?) perpetually (gets?|gains?|has|have|loses?|becomes?) (.+?)\.?$/i,
+      make: (m) => {
+        const sub = perpSubject(m[1]);
+        const mod = sub && perpPredicate(m[2], m[3]);
+        if (!sub || !mod) return null;
+        return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
+      } },
+    /* Alchemy: "Seek a creature card." "Seek two nonland cards with mana value 3 or less." */
+    { re: /^Seek (a|an|one|two|three|four|five|X) ((?:[A-Za-z]+ )*?)cards?((?: with mana value (?:\d+|X)(?: or (?:less|greater))?)?)\.?$/i,
+      make: (m) => {
+        const e = { op: 'seek', n: num(m[1]), filter: m[2].trim().toLowerCase() || 'card' };
+        const mv = m[3].match(/with mana value (\d+)(?: or (less|greater))?/i);
+        if (mv) { if (!mv[2]) e.mv = +mv[1]; else if (/less/i.test(mv[2])) e.maxMv = +mv[1]; else e.minMv = +mv[1]; }
+        else if (/X/.test(m[3])) return null;
+        return e;
+      } },
+    /* Alchemy: "Conjure a card named Lightning Bolt into your hand." */
+    { re: /^Conjure (a|an|one|two|three|four|five|six|seven|eight|X|\d+) cards? named ([^,.]+?) (into your hand|onto the battlefield(?: tapped)?|into your library|into your graveyard|on top of your library|into the top (\w+) cards of your library at random)(?:, then shuffle)?\.?$/i,
+      make: (m) => {
+        const to = /hand/i.test(m[3]) ? 'hand' : /battlefield/i.test(m[3]) ? 'battlefield' : /graveyard/i.test(m[3]) ? 'graveyard'
+          : /on top/i.test(m[3]) ? 'top' : /top \w+ cards/i.test(m[3]) ? 'topRandom' : 'library';
+        return { op: 'conjure', n: num(m[1]), name: m[2].trim(), to, tapped: /tapped/i.test(m[3]) || undefined,
+          depth: m[4] ? num(m[4]) : undefined };
+      } },
+    // "Conjure a duplicate of it into your hand", "…of CARDNAME …"
+    { re: /^Conjure (a|two|three) duplicates? of (it|that card|that creature|CARDNAME|this creature|this card) (into your hand|onto the battlefield|into your library|into your graveyard)\.?$/i,
+      make: (m) => ({ op: 'conjure', n: num(m[1]), names: [/^(?:CARDNAME|this creature|this card)$/i.test(m[2]) ? '$self' : '$that'],
+        to: /hand/i.test(m[3]) ? 'hand' : /battlefield/i.test(m[3]) ? 'battlefield' : /graveyard/i.test(m[3]) ? 'graveyard' : 'library' }) },
     /* --- searching a library, in all the shapes it gets printed in --- */
     { re: /^(?:You may )?[Ss]earch your library for .+$/, make: (m) => parseSearch(m[0]) },
     { re: /^Search target opponent'?s library for .+$/i, make: (m) => parseSearch(m[0]) },
@@ -3929,6 +4034,9 @@
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Callidus Assassin: "destroy up to one other target creature with the same name as this creature"
+    { re: /^Destroy up to one other target creature with the same name as (?:this creature|CARDNAME)\.?$/i,
+      make: () => ({ op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, another: true, sameNameAsSource: true }] }) },
     // Mesmeric Orb: "that permanent's controller mills a card"
     { re: /^That permanent'?s controller mills (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'mill', n: num(m[1]), who: 'targetController' }) },
@@ -6307,6 +6415,8 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Progenitor Mimic: "if this creature isn't a token"
+    [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
     [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment))$/i, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
     // Liberator: "if the amount of mana spent to cast that spell is greater than CARDNAME's power"
@@ -7466,7 +7576,12 @@
       if (m && /"/.test(m[1])) m = null;
       if (m && /\{|Sacrifice|Discard|Pay \d+ life|Remove|Exile|Tap an? |Tap \w+ untapped|Return|Put an? [-+]\d\/[-+]\d counter on this/i.test(m[1]) && !/^(?:When|Whenever|At|As|If)\b/.test(m[1])) {
         const cost = parseCost(m[1]);
-        const parsed = parseEffects(m[2]);
+        /* Skinshifter: "Choose one. Activate only once each turn." — the footnote sits between
+           the choice and its modes; it belongs to the ability, not to a mode */
+        let body = m[2], onceFirst = null;
+        const pre = body.match(/^(Choose (?:one|two)[^.\n]*\.)\s*Activate (?:this ability )?only once each turn\.\s*/i);
+        if (pre) { body = pre[1] + '\n' + body.slice(pre[0].length); onceFirst = { perTurn: 1 }; }
+        const parsed = parseEffects(body);
         /* "Activate only if you control five or more lands" is a footnote on
            this ability, printed in the same breath; it is kept with the
            ability rather than run as one of its effects. */
@@ -7483,7 +7598,7 @@
            else, offered there the way flashback is. */
         if ((cost.exile && cost.exile.fromGraveyard) ||
             /\b(?:this card|CARDNAME) from your graveyard\b/i.test(m[2])) ab.fromGraveyard = true;
-        for (const o of only) {
+        for (const o of only.concat(onceFirst ? [onceFirst] : [])) {
           ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null,
             o.perTurn ? { perTurn: o.perTurn } : null);
           if (o.anyPlayer) ab.anyPlayer = true;

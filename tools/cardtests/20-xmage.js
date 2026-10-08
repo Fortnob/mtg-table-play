@@ -10275,4 +10275,31 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Metalwork Colossus'));
     t.eq(T2.g.battlefield.filter(o => o.name === 'Metalwork Colossus').length, 1, 'eleven less five');
   });
+
+  const MTG_EFFECTS = (text) => engine().oracle.analyze({ id: 'alc:' + text, name: 'Alchemy test', type_line: 'Sorcery', oracle_text: text, keywords: [], layout: 'normal', mana_cost: '', cmc: 0, colors: [] }).abilities.find(a => a.kind === 'spell').effects;
+
+  test('Alchemy: seek a creature, it perpetually gets +1/+1 and keeps it across zones; conjure; a perpetual cost change', (mk, t) => {
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.g._runEffects(MTG_EFFECTS('Seek a creature card. It perpetually gets +1/+1.'), { controller: 'A', name: 'test' });
+    t.eq(bear.zone, 'hand', 'the only creature was found');
+    T.mana('A', '1G');
+    T.cast('A', bear);
+    t.eq(T.g.powerOf(bear), 3, 'a 3/3 on the battlefield');
+    T.g.moveObject(bear, 'hand');
+    T.mana('A', '1G');
+    T.cast('A', bear);
+    t.eq(T.g.powerOf(bear), 3, 'still 3/3 after going back to hand and being cast again');
+    t.ok(T.g._perpetualSummary(bear) && T.g._perpetualSummary(bear).pt[0] === 1, 'the summary shows +1/+1');
+    const T2 = mk();
+    T2.g._runEffects(MTG_EFFECTS('Conjure two cards named Lightning Bolt into your hand.'), { controller: 'A', name: 'test' });
+    t.eq(T2.zone('A', 'hand').filter(c => c.name === 'Lightning Bolt').length, 2, 'two Bolts conjured');
+    const T3 = mk();
+    const cc = T3.hand('A', 'Centaur Courser');
+    T3.g._runEffects(MTG_EFFECTS('Creature cards in your hand perpetually gain "This spell costs {1} less to cast."'), { controller: 'A', name: 'test' });
+    T3.mana('A', '1G');
+    T3.cast('A', cc);
+    t.eq(cc.zone, 'battlefield', 'the Courser cast for {1}{G}');
+  });
 };
