@@ -12089,7 +12089,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* A rule about building the deck, not about playing the game — the
        deck builder reads it, the table has nothing to do. */
     { re: /^CARDNAME can be your commander\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^A deck can have any number of cards named CARDNAME\.?$/i, make: () => ({ op: 'noop' }) },
+    { re: /^A deck can have (?:any number of|up to (?:seven|nine|\d+)) cards named CARDNAME\.?$/i, make: () => ({ op: 'noop' }) },
     /* The Leylines: free, if you drew one (CR 103.6). */
     { re: /^If (?:CARDNAME|this card) is in your opening hand, you may begin the game with it on the battlefield\.?$/i,
       make: () => ({ op: 'leyline' }) },
@@ -12566,6 +12566,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Steel Hellkite
+    { re: /^Destroy each nonland permanent with mana value X whose controller was dealt combat damage by (?:this creature|CARDNAME) this turn\.?$/i,
+      make: () => ({ op: 'destroyHitByMv', mv: 'X' }) },
     /* Tribute to the World Tree: "…if its power is 3 or greater. Otherwise,
        put two +1/+1 counters on it." — the other branch of the sentence before */
     { re: /^Otherwise, (.+)$/i,
@@ -13638,6 +13641,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Ad Nauseam: "Reveal the top card of your library and put that card into your hand. You lose life
+       equal to its mana value. You may repeat this process any number of times." */
+    { re: /^Reveal the top card of your library and put that card into your hand\. You lose life equal to its mana value\. You may repeat this process any number of times\.$/i,
+      make: () => [{ op: 'revealLoseLoop' }] },
     /* Scapeshift: "Sacrifice any number of lands. Search your library for up to that many land cards,
        put them onto the battlefield tapped, then shuffle." */
     { re: /^Sacrifice any number of lands\. Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle\.$/i,
@@ -15027,6 +15034,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^creatures you control have total toughness (\d+) or greater$/i, (m) => ({ kind: 'totalToughness', n: +m[1] })],
     // Knight of Grace: "any player controls a black permanent"
     [/^(?:it|they|he|she|CARDNAME) (?:was|were) cast using web-slinging$/i, () => ({ kind: 'castWebSlinging' })],
+    // Gandalf, Galadriel, Faramir: "if you chose a creature other than CARDNAME as your Ring-bearer"
+    [/^you chose a creature other than (?:CARDNAME|this creature) as your Ring-bearer$/i, () => ({ kind: 'ringBearerNotSelf' })],
+    // Dúnedain Rangers: "if you don't control a Ring-bearer"
+    [/^you don'?t control a Ring-bearer$/i, () => ({ kind: 'noRingBearer' })],
+    // Frodo: "if CARDNAME is your Ring-bearer"
+    [/^(?:CARDNAME|this creature) is your Ring-bearer$/i, () => ({ kind: 'selfRingBearer' })],
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
@@ -15267,6 +15280,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Whenever a creature attacks enchanted (?:player|opponent),? /i, event: 'permAttacks', extra: { attacksEnchanted: true } },
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
+    // The Lord of the Rings: the Ring tempting you, and the Ring-bearer you name
+    { re: /^Whenever the Ring tempts you,? /i, event: 'youRingTempted' },
+    { re: /^Whenever you choose a creature as your Ring-bearer,? /i, event: 'youChooseRingBearer' },
     // Baral, Lullmage Mentor
     { re: /^Whenever a spell or ability you control counters a spell,? /i, event: 'youCounterSpell' },
     // Aeon Chronicler, Detritivore: "Whenever a time counter is removed from this card while it's exiled"
@@ -27755,6 +27771,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (as.targetKind === 'player') {
           const p = this.player(as.targetId);
           got = this.dealDamageToPlayer(p, as.amount, as.source, true) || 0;
+          // Steel Hellkite: who this creature has hit this turn
+          if (got > 0 && as.source) {
+            if (!as.source._hitPlayers || as.source._hitPlayers.turn !== this.turn) as.source._hitPlayers = { turn: this.turn, ids: [] };
+            if (!as.source._hitPlayers.ids.includes(p.id)) as.source._hitPlayers.ids.push(p.id);
+          }
         } else {
           const t = this.obj(as.targetId);
           if (!t || t.zone !== 'battlefield') continue;
@@ -28726,6 +28747,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
+        case 'ringBearerNotSelf': { const td = ctx.triggerData || {}; return !!td.bearerId && !!ctx.obj && td.bearerId !== ctx.obj.id; }
+        case 'noRingBearer': { const rb = me && this.obj(me.ringBearer); return !(rb && rb.zone === 'battlefield' && rb.controller === me.id); }
+        case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield');
         case 'castWebSlinging': { const x = ctx.obj; return !!(x && x.webSlung != null && x.webSlung === x.wasCast); }
         case 'anyControlsColor': return this.battlefield.some(o => !o.phasedOut && ((O.analyze(o.card, o.face) || {}).colors || []).includes(cond.color));
         // Veil of Summer: "if an opponent has cast a blue or black spell this turn"
@@ -30009,6 +30033,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         amount: data.amount,
         // who controlled the permanent it is about (Bereavement: "its controller discards")
         objController: data.objController,
+        // the Ring: who was named Ring-bearer as it tempted
+        bearerId: data.bearerId,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -34662,6 +34688,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             this.logEvent('rules', `The Ring tempts ${p.name} (level ${p.ringLevel}); no Ring-bearer.`);
           }
           this.bumpBoard();
+          // "Whenever the Ring tempts you", "whenever you choose a creature as your Ring-bearer"
+          this._fire('youRingTempted', p.id, { playerId: p.id, bearerId: p.ringBearer });
+          if (p.ringBearer) this._fire('youChooseRingBearer', p.id, { playerId: p.id, bearerId: p.ringBearer, object: this.obj(p.ringBearer) });
           break;
         }
 
@@ -36002,6 +36031,49 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           applyToScope(e, (o) => { o.destroyAtEndOfCombat = this.turn; });
           break;
         // Rabid Elephant: +N/+N for each creature blocking it
+        // Steel Hellkite: each nonland permanent of mana value X controlled by a player it hit this turn
+        case 'destroyHitByMv': {
+          const hit = (src && src._hitPlayers && src._hitPlayers.turn === this.turn) ? src._hitPlayers.ids : [];
+          const want = n(e.mv);
+          const list = this.battlefield.filter(x => !x.phasedOut && hit.includes(x.controller) && !(x.analysis() || {}).isLand &&
+            ((x.card && x.card.cmc) || 0) === want && !this.hasKw(x, 'indestructible'));
+          this._leavingTogether = list;
+          let k = 0;
+          for (const x of list) {
+            if (x.zone !== 'battlefield' || this._totemArmor(x) || this._regenerated(x)) continue;
+            this.moveObject(x, 'graveyard'); k++;
+          }
+          this._leavingTogether = null;
+          this.logEvent('wipe', `${k} permanent${k === 1 ? '' : 's'} with mana value ${want} destroyed.`);
+          break;
+        }
+        /* Ad Nauseam: a card into the hand and its mana value in life, again and again
+           for as long as its controller says so */
+        case 'revealLoseLoop': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'adn' + (r ? r.index : 0);
+          const st = (r && r.marks[slot]) || { step: 0 };
+          if (r) r.marks[slot] = st;
+          for (; st.step < 500;) {
+            if (st.step > 0) {
+              const got = this._choose({ playerId: me.id, purpose: 'adNauseam', kind: 'options', min: 1, max: 1, compact: true,
+                options: [{ label: 'Reveal another', key: 'go' }, { label: 'Stop', key: 'stop' }],
+                life: me.life, hand: this.zones[me.id].hand.length,
+                prompt: `${ctx.name || 'Ad Nauseam'}: reveal another card? You are at ${me.life} life.` }, slot + 'q' + st.step);
+              if (got === SUSPEND) return SUSPEND;
+              if (((got && got.picks) || [])[0] === 1) break;
+            }
+            const top = this.zones[me.id].library[0];
+            if (!top) break;
+            this.moveObject(top, 'hand');
+            const mv = (top.card && top.card.cmc) || 0;
+            this.logEvent('reveal', `${me.name} reveals ${top.name} and puts it into their hand${mv ? `, losing ${mv} life` : ''}.`);
+            if (mv) this.changeLife(me, -mv);
+            st.step++;
+          }
+          break;
+        }
         /* Scapeshift: "Sacrifice any number of lands" — chosen as it resolves
            (a bot gives up all of them, which is what the card is for) */
         case 'sacrificeAnyNumber': {
@@ -44100,6 +44172,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   const CHOOSE_PURPOSES = {
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Ad Nauseam: keep going while there is life to spare and the hand is not yet full */
+    adNauseam(s) { return { picks: [(s.life || 0) > 8 && (s.hand || 0) < 12 ? 0 : 1] }; },
     /* The Defilers: life for mana while life is plentiful */
     defiler(s) { return { picks: [(s.life || 0) > (s.n || 2) + 8 ? 0 : 1] }; },
     /* Torment of Hailfire: pay in life while it is plentiful, then in cards, then in permanents */
