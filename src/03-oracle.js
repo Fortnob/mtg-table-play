@@ -1833,6 +1833,17 @@
     /* Threefold Thunderhulk: "equal to its power" */
     { re: /^Create a number of (.+? creature tokens?(?: with [a-z ,]+)?) equal to (?:its|CARDNAME'?s|this creature'?s) power\.?$/i,
       make: (m) => { const t = parseTokenSentence('Create two ' + m[1].replace(/\btoken\b/, 'tokens')); return t ? Object.assign(t, { n: { ofSelf: 'power' } }) : null; } },
+    // Windswift Slice: "equal to the amount of excess damage dealt this way", and any other amount read whole
+    { re: /^Create a number of (.+? creature tokens?(?: with [a-z ,]+)?) equal to (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        if (!k) return null;
+        const t = parseTokenSentence('Create two ' + m[1].replace(/\btoken\b/, 'tokens'));
+        return t ? Object.assign(t, { n: k }) : null;
+      } },
+    // Bottle-Cap Blast: "If excess damage was dealt to a permanent this way, create that many tapped Treasure tokens."
+    { re: /^If excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))? this way, create that many (tapped )?(Treasure|Clue|Food|Blood) tokens\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'lastExcess' }, then: [{ op: 'createNamedToken', token: m[2], n: 'lastExcess', tapped: !!m[1] }] }) },
     /* Chart a Course */
     { re: /^Then discard (a card|two cards) unless (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: { kind: 'not', cond: c }, then: [{ op: 'discard', n: /two/i.test(m[1]) ? 2 : 1, who: 'you' }] } : null; } },
@@ -2682,6 +2693,8 @@
       make: (m) => Object.assign({ op: 'poison', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: /opponent/i.test(m[1]) ? 'opponent' : 'player' }] } : {}) },
     { re: /^You gain life equal to the damage dealt this way\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: 'lastDamage' }) },
+    // Flame Spill, Ravenous Tyrannosaurus: what the damage before this had left over goes on to the controller
+    { re: /^(?:The )?[Ee]xcess damage is dealt to (?:that creature'?s|that permanent'?s|its) controller instead\.?$/, make: () => ({ op: 'excessToController' }) },
     { re: /^Create a number of (tapped )?(Treasure|Clue|Food|Blood) tokens equal to (.+?)\.?$/i,
       make: (m) => {
         const k = amountOf(m[3]);
@@ -4190,6 +4203,8 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
+    // Razor Rings, Windswift Slice: "the (amount of) excess damage dealt (to that creature) this way"
+    if (/^(?:the (?:amount of )?excess damage dealt(?: to (?:that|the|a) (?:creature|permanent|planeswalker))?(?: this way)?|that excess damage|that much excess damage)$/i.test(p)) return done('lastExcess');
     // Ovika: "the mana value of that spell"
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
@@ -5831,6 +5846,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    // Torch the Witness, Bottle-Cap Blast: "if excess damage was dealt (to a creature) this way"
+    [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is tapped$/i, () => ({ kind: 'selfTapped' })],
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],

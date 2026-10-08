@@ -1896,6 +1896,7 @@
       if (!item) { this._resetPriority(); return; }
       this._lastLifeLost = 0;   // "gain life equal to the life lost this way" counts within one resolution
       this._lastDamageDealt = 0;
+      this._lastExcess = 0;
       this._dealtThisWay = [];
       this._madeThisResolution = [];
       this._exiledNow = [];
@@ -8232,6 +8233,7 @@
         case 'selfTapped': return !!src && !!src.tapped;
         case 'selfAttacking': return !!src && !!src.attacking;
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
+        case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
         case 'notTheirTurn': {
           const d = (ctx && ctx.triggerData) || {};
@@ -8654,6 +8656,9 @@
       const a = o.analysis();
       // protection prevents damage too (CR 702.16e), unless damage can't be prevented
       if (a && source && this._protectedFrom(o, source) && !this._noPrevention(isCombat)) return;
+      // excess damage (CR 120.4a): whatever was more than it took to be lethal
+      const excess = Math.max(0, amount - this._lethalLeft(o, source));
+      if (excess > 0) { this._lastExcess = (this._lastExcess || 0) + excess; o._excessTurn = this.turn; }
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
@@ -8682,6 +8687,15 @@
       this.emit('sfx', 'damage', { player: o.controller, size: amount });
       this.emit('damage', { object: o, amount, source });
       return amount;
+    }
+
+    /** How much more damage would be lethal (CR 120.4a): toughness less damage already marked, 1 from a deathtouch source, loyalty or defence for a planeswalker or battle. */
+    _lethalLeft(o, source) {
+      const a = this.characteristics(o) || o.analysis() || {};
+      if (a.isPlaneswalker) return Math.max(0, Number(o.counters.loyalty) || 0);
+      if (a.isBattle) return Math.max(0, Number(o.counters.defense) || 0);
+      const left = Math.max(0, this.toughnessOf(o) - (o.damage || 0));
+      return source && this.hasKw(source, 'deathtouch') ? Math.min(1, left) : left;
     }
 
     /* Fiery Emancipation, Torbran, Gratuitous Violence: what a source
@@ -10082,6 +10096,8 @@
         if (v && typeof v === 'object' && v.ofTapped) return Math.max(0, ((ctx.tapped || [])[0] || {})[v.ofTapped] || 0);
         // "you gain life equal to the damage dealt this way"
         if (v === 'lastDamage') return this._lastDamageDealt || 0;
+        // "the excess damage dealt this way"
+        if (v === 'lastExcess') return this._lastExcess || 0;
         // "loses that much life": the amount the trigger was about
         if (v === 'triggerAmount') return Number((ctx.triggerData || {}).amount) || 0;
         if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v) * (v.mult || 1);
@@ -10405,9 +10421,25 @@
             // "4 damage to each creature you don't control"
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.dealDamageToObject(o, cnt, dsrc);
           } else {
+            /* "Excess damage is dealt to that creature's controller instead":
+               what is lethal to the creature, and the rest to its controller */
+            const rn = this.resolving;
+            const nx = rn && rn.effects[rn.index + 1];
+            const spill = !!(nx && nx.op === 'excessToController');
             for (const t of (e.fromTarget ? targets.slice(1) : targets)) {
               if (t.kind === 'player') this.dealDamageToPlayer(this.player(t.id), cnt, dsrc);
-              else { const o = this.obj(t.id); if (o) this.dealDamageToObject(o, cnt, dsrc); }
+              else {
+                const o = this.obj(t.id);
+                if (!o) continue;
+                if (!spill || o.zone !== 'battlefield') { this.dealDamageToObject(o, cnt, dsrc); continue; }
+                const first = Math.min(cnt, this._lethalLeft(o, dsrc));
+                const owner = this.player(o.controller);
+                if (first > 0) this.dealDamageToObject(o, first, dsrc);
+                if (cnt - first > 0 && owner) {
+                  this._lastExcess = (this._lastExcess || 0) + (cnt - first);
+                  this.dealDamageToPlayer(owner, cnt - first, dsrc);
+                }
+              }
             }
           }
           if (e.noRegen) {
@@ -14430,6 +14462,8 @@
           this.logEvent('destroy', `${words(chosen)} ${chosen.length === 1 ? 'is' : 'are'} destroyed.`);
           break;
         }
+        // settled by the damage before it
+        case 'excessToController': break;
         // "End the turn." — once this has finished resolving
         case 'endTheTurn':
           this._endTheTurn = this.turn;

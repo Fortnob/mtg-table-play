@@ -8831,4 +8831,24 @@ module.exports = (test) => {
     t.eq(bear.zone, 'graveyard');
     t.eq(elf.zone, 'graveyard');
   });
+
+  test('Excess damage: Flame Spill carries it on to the controller, Lacerate Flesh counts it', (mk, t) => {
+    t.auto('Flame Spill');
+    t.auto('Lacerate Flesh');
+    t.auto('Reverent Hoplite');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Flame Spill'), { targets: [bear] });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(T.life('B'), 18, 'two of the four went on to B');
+    const elf = T.bf('B', 'Llanowar Elves');
+    elf.damage = 0;
+    T.mana('A', 'R4');
+    const mine = () => T.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length;
+    const blood = mine();
+    T.cast('A', T.hand('A', 'Lacerate Flesh'), { targets: [elf] });
+    t.eq(elf.zone, 'graveyard');
+    t.eq(mine() - blood, 3, 'three Blood tokens for the three left over');
+  });
 };
