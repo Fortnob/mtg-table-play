@@ -10449,4 +10449,26 @@ module.exports = (test) => {
     t.no(cj.flipped, 'unflipped in the hand');
     t.eq(cj.face, 0);
   });
+
+  test('Oubliette phases a creature out until it leaves, and it comes back tapped; Godo untaps itself and its Samurai', (mk, t) => {
+    t.auto('Oubliette');
+    t.auto('Godo, Bandit Warlord');
+    const T = mk();
+    const cc = T.bf('B', 'Centaur Courser');
+    T.mana('A', '1BB');
+    const ob = T.hand('A', 'Oubliette');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: cc.id }] }));
+    T.cast('A', ob);
+    T.settle(); T.resolve();
+    t.ok(cc.phasedOut, 'phased out');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Disenchant'), { targets: [ob] });
+    t.no(cc.phasedOut, 'back when Oubliette goes');
+    t.ok(cc.tapped, 'and tapped');
+    const T2 = mk();
+    const godo = T2.bf('A', 'Godo, Bandit Warlord'); godo.summoningSick = false;
+    for (let i = 0; i < 2; i++) { T2.answer('declareAttackers', () => [{ attackerId: godo.id, defenderId: 'B' }]); T2.answer('declareBlockers', () => []); }
+    T2.toMain('A', 'end');
+    t.eq(T2.life('B'), 20 - 3 * 2, 'two combat phases of three damage each');
+  });
 };

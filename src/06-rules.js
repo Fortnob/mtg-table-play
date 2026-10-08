@@ -8640,6 +8640,12 @@
         // double team, until it has been used: both cards perpetually lose it
         case 'doubleTeamLive': return !!src && !(src.effects || []).some(e => e && e.perpetual && (e.loseKeywords || []).includes('Double Team'));
         case 'selfHasKeyword': return !!src && src.zone === 'battlefield' && this.hasKw(src, cond.keyword);
+        case 'attackingMostLife': {
+          const d = src && src.attacking && this.player(src.attacking);
+          if (!d) return false;
+          const top = Math.max(...this.players.filter(q => !q.hasLost).map(q => q.life));
+          return d.life >= top;
+        }
         case 'selfIsToken': return !!src && (!!src.isToken) !== !!cond.not;
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
@@ -14232,6 +14238,7 @@
             const o = t.kind === 'object' && this.obj(t.id);
             if (!o || o.zone !== 'battlefield') continue;
             o.phasedOut = true; o.phasedOutBy = 'held:' + src.id; o.phasedTurn = this.turn;
+            o._tapOnPhaseIn = !!e.tapIn;
             for (const id of (o.attachments || [])) { const at = this.obj(id); if (at) { at.phasedOut = true; at.phasedOutBy = 'held:' + src.id; } }
             this.logEvent('rules', `${o.name} phases out.`);
           }
@@ -18701,7 +18708,11 @@
     _releaseExiled(jailer) {
       if (!jailer) return;
       // and what it phased out comes back in
-      for (const o of this.battlefield) if (o.phasedOut && o.phasedOutBy === 'held:' + jailer.id) { o.phasedOut = false; o.phasedOutBy = null; }
+      for (const o of this.battlefield) if (o.phasedOut && o.phasedOutBy === 'held:' + jailer.id) {
+        o.phasedOut = false; o.phasedOutBy = null;
+        // Oubliette: "Tap that creature as it phases in this way."
+        if (o._tapOnPhaseIn) { o.tapped = true; o._tapOnPhaseIn = false; }
+      }
       for (const o of Array.from(this.objects.values())) {
         if (o.exiledBy !== jailer.id || o.zone !== 'exile') continue;
         o.exiledBy = null;

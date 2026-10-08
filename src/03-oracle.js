@@ -1514,6 +1514,8 @@
     // Oubliette: "target creature phases out until this enchantment leaves the battlefield"
     { re: /^(target [a-z ]+?) phases out until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'phaseOutUntilLeaves', targets: [targetSpec(m[1])] }) },
+    // Oubliette: "Tap that creature as it phases in this way."
+    { re: /^Tap that creature as it phases in this way\.?$/i, make: () => ({ op: 'noop', phaseTapRider: true }) },
     { re: /^Return the exiled cards? to the battlefield under (?:its owner'?s|their owners'?|your) control\.?$/i,
       make: () => ({ op: 'returnExiled' }) },
     { re: /^Return (?:that card|the exiled card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
@@ -3049,6 +3051,9 @@
       make: (m) => ({ op: 'extraCombat', count: num(m[1]), withMain: !!m[2] }) },
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
     { re: /^Untap all attacking creatures\.?$/i, make: () => ({ op: 'untapAttacking' }) },
+    // Godo, Bandit Warlord: "untap it and all Samurai you control"
+    { re: /^Untap (?:it|CARDNAME|this creature) and all ([A-Z][a-z]+|creatures) you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc ? { op: 'sequence', list: [{ op: 'untap', scope: 'self' }, { op: 'untapAll', scope: sc }] } : null; } },
     /* Splendid Reclamation, Aftermath Analyst, Lumra */
     // Knights' Charge: "Return all Knight creature cards from your graveyard to the battlefield."
     { re: /^Return all ([A-Z][a-z]+) creature cards from your graveyard to the battlefield( tapped)?\.?$/,
@@ -6304,6 +6309,13 @@
         out.push({ op: 'asPlayer', who: 'attackingOpponent', effects: JSON.parse(JSON.stringify(out)) });
         continue;
       }
+      // Oubliette: it comes back tapped
+      if (e && e.phaseTapRider) {
+        const prev = out.slice().reverse().find(x => x && x.op === 'phaseOutUntilLeaves');
+        if (!prev) return null;
+        prev.tapIn = true;
+        continue;
+      }
       if (e && e.counterExileRider) {
         for (let i = out.length - 1; i >= 0; i--) {
           const put = (x) => { if (e.counterExileRider === true) x.exileIt = true; else x.counterTo = e.counterExileRider; };
@@ -6529,6 +6541,8 @@
     [/^(?:CARDNAME|this \w+) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', counter: m[2], n: num(m[1]) })],
     [/^(?:CARDNAME|this \w+) has counters on it$/i, () => ({ kind: 'selfCounters', n: 1 })],
     // the Kamigawa flip cards: "if there are two or more ki counters on this creature"
+    // Scourge of the Throne, dethrone: "it's attacking the player with the most life or tied for most life"
+    [/^(?:it'?s|CARDNAME is|this creature is) attacking the player with the most life or tied for most life$/i, () => ({ kind: 'attackingMostLife' })],
     [/^there are (\w+) or more ([+\-0-9/a-z]+) counters on (?:this creature|this permanent|CARDNAME|it)$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', counter: m[2].toLowerCase(), n: num(m[1]) } : null)],
     [/^you attacked with (\w+) or more creatures this turn$/i, (m) => ({ kind: 'attackedWith', n: num(m[1]) })],
     [/^you control a legendary creature$/i, () => ({ kind: 'controlLegend' })],
