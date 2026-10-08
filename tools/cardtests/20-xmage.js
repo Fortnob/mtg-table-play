@@ -11291,4 +11291,21 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(ring.zone, 'hand');
   });
+
+  test('Overload reads the targeted words over everything they could have aimed at', (mk, t) => {
+    t.auto('Blustersquall'); t.auto('Eldritch Immunity');
+    const T = mk();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Savannah Lions'), mine = T.bf('A', 'Llanowar Elves');
+    T.mana('A', '3U');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Blustersquall').id, { via: 'overload' }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.ok(b1.tapped && b2.tapped, 'theirs tapped'); t.no(mine.tapped, 'mine untouched');
+    const T2 = mk();
+    const e1 = T2.bf('A', 'Grizzly Bears'), e2 = T2.bf('A', 'Llanowar Elves');
+    T2.mana('A', '4C');
+    t.ok(T2.g.castSpell('A', T2.hand('A', 'Eldritch Immunity').id, { via: 'overload' }), T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.ok(T2.g.hasKw(e1, 'protection from each color') || [...T2.g.characteristics(e1).keywords].some(k => /protection/.test(k)), 'protected');
+    t.ok([...T2.g.characteristics(e2).keywords].some(k => /protection/.test(k)), 'both');
+  });
 };

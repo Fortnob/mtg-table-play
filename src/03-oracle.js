@@ -8671,6 +8671,22 @@
         out.overloadEffects = parsed.effects;
         ovl.auto = true;
         autoLines++;
+      } else {
+        /* Eldritch Immunity, Blustersquall, Counterflux: the targeted reading,
+           with each target turned into everything it could have been */
+        const sp = out.abilities.filter(x => x.kind === 'spell');
+        const flat = [];
+        const walk = (l) => { for (const e of l || []) { if (!e) continue; if (e.op === 'sequence') walk(e.list); else flat.push(e); } };
+        for (const ab of sp) walk(ab.effects);
+        const aimed = flat.filter(e => (e.targets || []).length);
+        if (sp.length && sp.every(ab => ab.auto) && aimed.length && aimed.every(e => e.targets.length === 1 && e.targets[0] && e.targets[0].type !== 'player' && e.targets[0].type !== 'any')) {
+          const clone = JSON.parse(JSON.stringify(sp.map(ab => ab.effects).reduce((k, l) => k.concat(l), [])));
+          const conv = (l) => { for (const e of l || []) { if (!e) continue; if (e.op === 'sequence') conv(e.list); else if ((e.targets || []).length) { e.eachOf = e.targets[0]; delete e.targets; } } };
+          conv(clone);
+          out.overloadEffects = clone;
+          ovl.auto = true;
+          autoLines++;
+        }
       }
     }
 

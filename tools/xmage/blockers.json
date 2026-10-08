@@ -4,7 +4,7 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12537,
+  "needed": 12533,
   "gainedCards": 1349,
   "linesNeeded": 13689,
   "linesGained": 1612,
@@ -90,21 +90,21 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 237,
-   "lines": 207,
+   "score": 230,
+   "lines": 203,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
     "March of Swirling Mist",
-    "Eldritch Immunity",
     "Winds of Abandon",
     "Alchemist's Talent",
     "Fighter Class",
     "Wand of Wonder",
     "Fangs of Kalonia",
     "Spectacular Showdown",
-    "Boseiju, Who Shelters All"
+    "Boseiju, Who Shelters All",
+    "Spider-Sense"
    ]
   },
   {
@@ -7129,15 +7129,15 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 144,
-   "cards": 132,
+   "score": 137,
+   "cards": 128,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
-    "Eldritch Immunity",
     "Winds of Abandon",
     "Alchemist's Talent",
-    "Fighter Class"
+    "Fighter Class",
+    "Wand of Wonder"
    ]
   },
   {

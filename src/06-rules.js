@@ -10908,6 +10908,22 @@
         targets = got.picks.map(id => ({ kind: 'object', id }));
         this._noteLastAffected(targets);
       }
+      /* Overload: every one of the things the target could have been — no
+         targeting, so hexproof and the like do not matter */
+      if (e.eachOf && !(e.targets && e.targets.length)) {
+        const spec = e.eachOf;
+        if (spec.type === 'spell' || spec.zone === 'stack') {
+          targets = this.stack.filter(st => st.kind === 'spell' && st.id !== ctx.id && this._spellMatches(st, spec, ctx.controller))
+            .map(st => ({ kind: 'stack', id: st.id }));
+        } else {
+          targets = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
+            MTG.oracle.matchesSpec(spec, o, o.analysis(), ctx.controller, this._specCtx())).map(o => ({ kind: 'object', id: o.id }));
+        }
+        if (!targets.length) return null;
+        sliced = true;
+        this._noteLastAffected(targets);
+        this._lastGroup = targets.filter(t => t.kind === 'object').map(t => t.id);
+      }
       /* "For each opponent, exile up to one target nonland permanent that
          player controls": up to one of each opponent's, picked as it resolves */
       if (e.perOpponentFrom && !(e.targets && e.targets.length)) {
