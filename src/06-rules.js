@@ -1142,7 +1142,10 @@
         return;
       }
       // Jin-Gitaxias, Core Augur: "each opponent's maximum hand size is reduced by seven"
-      const maxHand = Math.max(0, ap.maxHandSize + this._handSizeMod(ap.id));
+      // Necrodominance: "your maximum hand size is five"
+      const setTo = this._anyStaticOf(ap.id, 'handSizeSet');
+      const base = setTo ? (Number(this._staticOp(setTo, 'handSizeSet').n) || 0) : ap.maxHandSize;
+      const maxHand = Math.max(0, base + this._handSizeMod(ap.id));
       if (hand.length > maxHand && !ap.isBot) {
         this.pendingChoice = {
           type: 'discardToHandSize', playerId: ap.id,
@@ -16974,7 +16977,8 @@
         // players
         for (const p of this.players) {
           if (p.hasLost) continue;
-          if (p.life <= 0) { this.playerLoses(p, 'life'); repeat = true; }
+          // Phyrexian Unlife: "You don't lose the game for having 0 or less life."
+          if (p.life <= 0 && !this._anyStaticOf(p.id, 'noLoseForLife')) { this.playerLoses(p, 'life'); repeat = true; }
           else if (p.poison >= 10) { this.playerLoses(p, 'poison'); repeat = true; }
           else if (p.drewFromEmpty) { this.playerLoses(p, 'deck'); repeat = true; }
           else if (this.config.commanderDamage) {

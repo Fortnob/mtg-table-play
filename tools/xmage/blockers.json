@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13285,
+  "needed": 13283,
   "gainedCards": 1389,
-  "linesNeeded": 14524,
+  "linesNeeded": 14501,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4863,
-   "lines": 4305,
+   "score": 4861,
+   "lines": 4303,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -166,8 +166,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 118,
-   "lines": 109,
+   "score": 114,
+   "lines": 105,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -175,12 +175,12 @@
     "Echoing Deeps",
     "Flesh Duplicate",
     "Xantcha, Sleeper Agent",
-    "Den of the Bugbear",
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Sakashima's Student",
     "Altered Ego",
     "Copy Artifact",
-    "Dawn of a New Age"
+    "Dawn of a New Age",
+    "Vizier of Many Faces"
    ]
   },
   {
@@ -950,25 +950,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Gideon of the Trials",
-    "Bombur, Gentle Dreamer",
-    "Fall from Favor",
-    "Alirios, Enraptured",
-    "Moonhold",
-    "Steel Dromedary",
-    "Stunning Strike",
-    "Scorching Lava",
-    "River Delta",
-    "Land Cap",
-    "Lava Tubes",
-    "Merseine"
-   ]
-  },
-  {
    "what": "keyword StationLevelAbility",
    "score": 18,
    "lines": 6,
@@ -1723,6 +1704,25 @@
     "Infinite Coursework",
     "Unquenchable Thirst",
     "Cocoon"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Gideon of the Trials",
+    "Bombur, Gentle Dreamer",
+    "Fall from Favor",
+    "Alirios, Enraptured",
+    "Moonhold",
+    "Steel Dromedary",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Merseine",
+    "Cocoon",
+    "Venarian Gold",
+    "Walking Dream"
    ]
   },
   {
@@ -4243,18 +4243,6 @@
    ]
   },
   {
-   "what": "(constructor: statement:loop)",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Lair of the Hydra",
-    "Mind Grind",
-    "Marath, Will of the Wild",
-    "Apocalypse Chime",
-    "City in a Bottle"
-   ]
-  },
-  {
    "what": "granting a loyalty ability",
    "score": 7,
    "lines": 7,
@@ -4518,20 +4506,6 @@
     "Blinkmoth Infusion",
     "Jiang Yanggu, Never Alone",
     "Battle Cry"
-   ]
-  },
-  {
-   "what": "DontLoseByZeroOrLessLifeEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Pact Weapon",
-    "Phyrexian Unlife",
-    "Marina Vendrell's Grimoire",
-    "Transcendence",
-    "Lich's Tomb",
-    "Lich",
-    "Soul Echo"
    ]
   },
   {
@@ -4900,6 +4874,18 @@
     "Day of the Dragons",
     "Yukora, the Prisoner",
     "Death Pit Offering"
+   ]
+  },
+  {
+   "what": "(constructor: statement:loop)",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Lair of the Hydra",
+    "Mind Grind",
+    "Marath, Will of the Wild",
+    "Apocalypse Chime",
+    "City in a Bottle"
    ]
   },
   {
@@ -6145,18 +6131,6 @@
    ]
   },
   {
-   "what": "LoseAllAbilitiesAttachedEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Unable to Scream",
-    "Observed Stasis",
-    "Flood the Engine",
-    "Enchanted River's Grasp",
-    "Infinite Coursework"
-   ]
-  },
-  {
    "what": "or of AbilityPredicate",
    "score": 5,
    "lines": 5,
@@ -6190,18 +6164,6 @@
     "Runechanter's Pike",
     "Drach'Nyen",
     "Civic Saber"
-   ]
-  },
-  {
-   "what": "hand size other than none",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Necrodominance",
-    "Midnight Oil",
-    "Recycle",
-    "Null Profusion",
-    "Inspired Idea"
    ]
   },
   {
@@ -7237,13 +7199,46 @@
     "Fire Lord Zuko",
     "Sun Warriors"
    ]
+  },
+  {
+   "what": "MillCardsCost",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "The Warring Triad",
+    "Sinister Concoction",
+    "Rot Farm Skeleton",
+    "Deep Spawn"
+   ]
+  },
+  {
+   "what": "ControlsPermanentsControllerTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Endrek Sahr, Master Breeder",
+    "Goblins of the Flarg",
+    "Ronom Serpent",
+    "Endangered Armodon"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Luminarch Ascension",
+    "Goblin Spymaster",
+    "Predatory Advantage",
+    "Discordant Spirit"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3930,
-   "cards": 3537,
+   "score": 3933,
+   "cards": 3540,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7320,15 +7315,15 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 70,
-   "cards": 70,
+   "score": 68,
+   "cards": 68,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
     "Flesh Duplicate",
-    "Den of the Bugbear",
     "Sakashima's Student",
-    "Altered Ego"
+    "Altered Ego",
+    "Copy Artifact"
    ]
   },
   {
@@ -8096,6 +8091,19 @@
    ]
   },
   {
+   "what": "RemoveCounterSourceEffect",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Archfiend of the Dross",
+    "Bristlebane Battler",
+    "Creakwood Safewright",
+    "Celestial Convergence",
+    "Reluctant Dounguard",
+    "Encumbered Reejerey"
+   ]
+  },
+  {
    "what": "prevent damage by some permanents",
    "score": 12,
    "cards": 12,
@@ -8293,6 +8301,19 @@
     "Lightning Crafter",
     "Boggart Mob",
     "Unstoppable Ash"
+   ]
+  },
+  {
+   "what": "TapEnchantedEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Stuck in Summoner's Sanctum",
+    "Flood the Engine",
+    "Stop Cold",
+    "Enchanted River's Grasp",
+    "Tractor Beam",
+    "Hold for Questioning"
    ]
   },
   {
@@ -9485,19 +9506,6 @@
    ]
   },
   {
-   "what": "RemoveCounterSourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Archfiend of the Dross",
-    "Bristlebane Battler",
-    "Creakwood Safewright",
-    "Celestial Convergence",
-    "Reluctant Dounguard",
-    "Encumbered Reejerey"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 7,
    "cards": 7,
@@ -9625,19 +9633,6 @@
     "Heartseeker",
     "Leonin Bola",
     "Shuriken"
-   ]
-  },
-  {
-   "what": "TapEnchantedEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Stuck in Summoner's Sanctum",
-    "Tractor Beam",
-    "Hold for Questioning",
-    "Weakstone's Subjugation",
-    "Malfunction",
-    "Unquenchable Thirst"
    ]
   },
   {
@@ -10608,6 +10603,18 @@
    ]
   },
   {
+   "what": "WardAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Saruman, the White Hand",
+    "Coppercoat Vanguard",
+    "Hall of Storm Giants",
+    "Leyline Immersion",
+    "Radagast, Wizard of Wilds"
+   ]
+  },
+  {
    "what": "GreenManaAbility with arguments",
    "score": 5,
    "cards": 5,
@@ -11001,18 +11008,6 @@
     "Wormfang Newt",
     "Wormfang Turtle",
     "Temporal Firestorm"
-   ]
-  },
-  {
-   "what": "GainLifeFirstTimeTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Vanguard Seraph",
-    "Attended Healer",
-    "Cleric of Life's Bond",
-    "Leech Collector // Bloodletting",
-    "Deathless Knight"
    ]
   }
  ]

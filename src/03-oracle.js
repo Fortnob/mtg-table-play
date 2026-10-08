@@ -3213,7 +3213,7 @@
       make: (m) => ({ op: 'counters', kind: m[1].trim(), n: -1, scope: 'self' }) },
     { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you control (two|three|one|\d+) or fewer other lands\.?$/i,
       make: (m) => ({ op: 'etbTappedUnlessLands', n: num(m[1]) }) },
-    { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you control an? ((?:basic )?[A-Za-z]+)(?: or an? ([A-Za-z]+))?\.?$/i,
+    { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you control an? ((?:basic )?[A-Za-z]+)(?: or (?:an? )?([A-Za-z]+))?\.?$/i,
       make: (m) => ({ op: 'etbTappedUnlessType', types: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }) },
     /* Thespian's Stage, Mirage Mirror, Protean Thaumaturge, Artisan of
        Forms: "This land becomes a copy of target land, except it has this
@@ -9848,6 +9848,20 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Necrodominance: "Your maximum hand size is five."
+      { re: /^Your maximum hand size is (\w+)\.?$/i, make: (m) => (typeof num(m[1]) === 'number' ? { op: 'handSizeSet', n: num(m[1]) } : null), auto: true },
+      // Phyrexian Unlife, Transcendence: "You don't lose the game for having 0 or less life."
+      { re: /^You don'?t lose the game for having 0 or less life\.?$/i, eff: { op: 'noLoseForLife' }, auto: true },
+      // Lair of the Hydra: "If you control two or more other lands, this land enters tapped."
+      { re: /^If you control (two|three|four) or more other lands, (?:this land|CARDNAME) enters(?: the battlefield)? tapped\.?$/i,
+        make: (m) => ({ op: 'etbTappedUnlessLands', n: num(m[1]) - 1 }), auto: true },
+      // River Delta: "This land doesn't untap during your untap step if it has a depletion counter on it."
+      { re: /^(?:This land|CARDNAME) doesn'?t untap during your untap step if it has an? ([a-z]+) counter on it\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { self: true }, flag: 'noUntap', cond: { kind: 'selfCounters', counter: m[1].toLowerCase(), n: 1 } }), auto: true },
+      // Stop Cold: "Enchanted creature loses all abilities and doesn't untap during its controller's untap step."
+      { re: /^(Enchanted (?:creature|permanent|artifact)) loses all abilities and doesn'?t untap during its controller'?s untap step\.?$/i,
+        make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope, loseAll: true },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, scope), flag: 'noUntap' }] } : null; }, auto: true },
       // Anvil of Bogardan: "Players have no maximum hand size."
       { re: /^Players have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize', all: true }, auto: true },
       // Sphere of Law: "If a red source would deal damage to you, prevent 2 of that damage."
