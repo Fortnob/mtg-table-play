@@ -8764,6 +8764,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'Sunburst',
     // it can't block, and goes at end of combat after it attacks
     'Decayed',
+    // exiled as it resolves, and a free copy at the start of each of your first main phases
+    'Paradigm',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -8797,6 +8799,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'Surge',
     // cast for more, and a land of yours wakes up as a creature
     'Awaken',
+    // a creature sacrificed, and its mana value off the cost
+    'Emerge',
     // face down for three, and up again for the printed cost
     'Morph', 'Megamorph', 'Disguise',
     // discarded, and cast from there instead
@@ -8840,9 +8844,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'Replicate', 'Splice', 'Conspire',
     /* another player may pay part of it (CR 702.132): an offer, and with
        nobody making it the spell is cast as printed */
-    'Assist']);
+    'Assist',
+    // {1} less to cast for each opponent
+    'Undaunted']);
 
-  const CAST_KEYWORDS = new Set(['Flash', 'Split second', 'Convoke', 'Improvise', 'Delve', 'Affinity',
+  const CAST_KEYWORDS = new Set(['Flash', 'Split second', 'Convoke', 'Improvise', 'Delve', 'Affinity', 'Undaunted',
     'Kicker', 'Multikicker', 'Entwine', 'Escalate', 'Overload', 'Buyback', 'Flashback',
     'Aftermath', 'Jump-start', 'Retrace', 'Madness', 'Miracle', 'Foretell', 'Disturb',
     'Evoke', 'Prowl', 'Surge', 'Spectacle', 'Awaken', 'Bestow', 'Emerge', 'Casualty',
@@ -8860,7 +8866,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   const KEYWORD_PATTERNS = [
     // simple flags, matched as whole comma-separated clauses
-    /^(Increment|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
+    /^(Increment|Undaunted|Paradigm|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway|Amplify)\s+\d+$/i,
     // parameterised keywords with a cost
@@ -8927,6 +8933,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       p = p.replace(/\u0001/g, ',').trim();
       if (!p) continue;
       p = p.replace(/^Pay\s+(?=\{)/i, '');       // "Pay {2}" is just {2}
+      /* Waterbend {4}: mana, where tapping an artifact or creature you
+         control pays for {1} of it */
+      const wbend = p.match(/^Waterbend ((?:\{[^}]+\})+)$/i);
+      if (wbend) { cost.mana += wbend[1]; cost.waterbend = true; continue; }
       // "Pay eight {E}": energy, counted in words
       const en = p.match(/^Pay (one|two|three|four|five|six|seven|eight|nine|ten|\d+) \{E\}$/i);
       if (en) { cost.energy = (cost.energy || 0) + num(en[1]); continue; }
@@ -12124,6 +12134,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* Rishkar's Expertise */
     { re: /^You may cast a(?:n)? ([a-z ]*?)(?:spell|card) with (?:mana value|converted mana cost) (\d+|X) or less from your hand without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: m[2] === 'X' ? 'X' : +m[2] }) },
+    // Yue, the Moon Spirit: "You may cast a noncreature spell from your hand without paying its mana cost."
+    { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: null }) },
+    // Watery Grasp: "Enchanted creature's owner shuffles it into their library."
+    { re: /^Enchanted (?:creature|permanent)'?s owner shuffles it into their library\.?$/i, make: () => ({ op: 'toLibrary', where: 'shuffle', attached: true }) },
+    // Katara, Water Tribe's Hope: "Creatures you control have base power and toughness X/X until end of turn."
+    { re: /^Creatures you control have base power and toughness (X|\d+)\/(X|\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2] }) },
     /* Malakir Rebirth: a creature that comes back once */
     { re: /^Until end of turn, (target creature|that creature) gains "When this creature dies, return it to the battlefield tapped under its owner'?s control\."\.?$/i,
       make: (m) => ({ op: 'grantDiesReturn', tapped: true, targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : undefined, scope: /^that/i.test(m[1]) ? 'lastTarget' : undefined }) },
@@ -12631,6 +12649,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'loseLife', who: 'opponents', n: countSpec(m[2], num(m[1])) }) },
     { re: /^Draw a card for each ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
+    // Sage's Reverie: "Draw a card for each Aura you control that's attached to a creature."
+    { re: /^Draw a card for each ((?:Aura|Equipment) you control that'?s attached to a creature)\.?$/i,
+      make: (m) => { const k = countOf(m[1]); return k ? { op: 'draw', who: 'you', n: k } : null; } },
     { re: /^Draw cards? equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
     { re: /^You gain life equal to the number of ([-a-z' ]+?) you control\.?$/i,
@@ -13407,6 +13428,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const p = String(phrase || '').trim();
     const k = mult == null ? 1 : mult;
     let m;
+    // Sage's Reverie: "Aura you control that's attached to a creature"
+    if ((m = p.match(/^(Aura|Equipment)s? you control that(?:'s| are) attached to (?:a )?creatures?$/i)))
+      return { per: m[1].toLowerCase(), who: 'you', attachedToCreature: true, mult: k };
     if ((m = p.match(/^card in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
@@ -13461,7 +13485,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Liliana, the Last Hope: "two plus the number of Zombies you control"
     const pl0 = !pl && p.match(/^(one|two|three|four|five|\d+) plus (.+)$/i);
     if (pl0) { p = pl0[2]; plus = num(pl0[1]); if (typeof plus !== 'number') return null; }
-    const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }) : v);
+    // Proft's Eidetic Memory: "the number of cards you've drawn this turn minus one"
+    const mi = !pl && !pl0 && p.match(/^(.+?) minus (one|two|three|\d+)$/i);
+    if (mi) { p = mi[1]; plus = -num(mi[2]); if (typeof plus !== 'number' || isNaN(plus)) return null; }
+    // (a number taken away never goes below zero)
+    const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }, plus < 0 ? { floorZero: true } : {}) : v);
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
@@ -14061,6 +14089,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Containment Construct: "you may exile that card from your graveyard.
+       If you do, you may play that card this turn." */
+    { re: /^You may exile that card from your graveyard\. If you do, you may play that card this turn\.$/i,
+      make: () => [{ op: 'may', then: [{ op: 'exileTriggerCardPlayable' }] }] },
     /* Praetor's Grasp: "Search target opponent's library for a card and exile
        it face down. Then that player shuffles. You may look at and play that
        card for as long as it remains exiled." */
@@ -15662,6 +15694,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Proft's Eidetic Memory: "you've drawn more than one card this turn"
+    [/^you'?ve drawn more than (one|two|three) cards? this turn$/i, (m) => ({ kind: 'drawnAtLeast', n: num(m[1]) + 1 })],
     // Battle Angels of Tyr: "that player has more cards in hand / controls more lands / has more life than each other player"
     [/^that player (has more cards in hand|controls more lands|has more life) than each other player$/i,
       (m) => ({ kind: 'triggerPlayerMost', stat: /hand/i.test(m[1]) ? 'hand' : /lands/i.test(m[1]) ? 'lands' : 'life' })],
@@ -17362,6 +17396,36 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (parsed && parsed.auto && parsed.effects.length) {
         out.overloadEffects = parsed.effects;
         ovl.auto = true;
+        autoLines++;
+      } else {
+        /* Eldritch Immunity, Blustersquall, Counterflux: the targeted reading,
+           with each target turned into everything it could have been */
+        const sp = out.abilities.filter(x => x.kind === 'spell');
+        const flat = [];
+        const walk = (l) => { for (const e of l || []) { if (!e) continue; if (e.op === 'sequence') walk(e.list); else flat.push(e); } };
+        for (const ab of sp) walk(ab.effects);
+        const aimed = flat.filter(e => (e.targets || []).length);
+        if (sp.length && sp.every(ab => ab.auto) && aimed.length && aimed.every(e => e.targets.length === 1 && e.targets[0] && e.targets[0].type !== 'player' && e.targets[0].type !== 'any')) {
+          const clone = JSON.parse(JSON.stringify(sp.map(ab => ab.effects).reduce((k, l) => k.concat(l), [])));
+          const conv = (l) => { for (const e of l || []) { if (!e) continue; if (e.op === 'sequence') conv(e.list); else if ((e.targets || []).length) { e.eachOf = e.targets[0]; delete e.targets; } } };
+          conv(clone);
+          out.overloadEffects = clone;
+          ovl.auto = true;
+          autoLines++;
+        }
+      }
+    }
+
+    /* Cleave (CR 702.148): the same spell with the words in square brackets
+       taken out, read now so casting it that way has something to run */
+    const clv = out.abilities.find(x => x.kind === 'castModifier' && /^cleave$/i.test(x.keyword || '') && x.arg);
+    if (clv) {
+      const whole = out.abilities.filter(x => x.kind === 'spell').map(x => x.text).join(' ')
+        .replace(/\s*\[[^\]]*\]/g, '').replace(/\s+([,.])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+      const parsed = whole ? parseEffects(whole) : null;
+      if (parsed && parsed.auto && parsed.effects.length) {
+        out.cleaveEffects = parsed.effects;
+        clv.auto = true;
         autoLines++;
       }
     }
@@ -19547,6 +19611,20 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
       { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+)\} less to activate for each colou?r of the creature it targets\.?$/i,
         make: (m) => ({ op: 'equip', cost: m[1], perTargetColor: +m[2] }), auto: true },
+      /* Crown of Gondor, Plate Armor, Belt of Giant Strength: "Equip {4}. This
+         ability costs {3} less to activate if you're the monarch", "… {1}
+         less … for each other Equipment you control", "… {X} less …, where X
+         is the power of the creature it targets" */
+      { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+|X)\} less to activate(?: (if [^.]+)| (for each [^.]+)|, where X is the power of the creature it targets)\.?$/i,
+        make: (m) => {
+          const discount = { n: m[2] === 'X' ? 0 : +m[2] };
+          if (m[3]) { const c = condOf(m[3].replace(/^if /i, '')); if (!c) return null; discount.cond = c; }
+          else if (m[4]) { const k = countOf(m[4].replace(/^for each /i, '')); if (!k) return null; discount.per = k; }
+          else discount.targetPower = true;
+          return { op: 'equip', cost: m[1], discount };
+        }, auto: true },
+      // Leather Armor: "Equip {0}. Activate only once each turn."
+      { re: /^Equip ((?:\{[^}]+\})+)\. Activate only once each turn\.?$/i, make: (m) => ({ op: 'equip', cost: m[1], once: true }), auto: true },
       // Dwarven Mauler: "Equip abilities you activate that target this creature cost {2} less to activate."
       { re: /^Equip abilities you activate that target (?:this creature|CARDNAME) cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'equipDiscountIfTargeted', amount: +m[1], yours: true }), auto: true },
@@ -19883,6 +19961,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const spec = { type: 'creature', controller: 'you' };
         return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
           discountPerTargetColor: eff.perTargetColor, effects: [{ op: 'attachSelf', targets: [spec] }] };
+      }
+      if (eff.op === 'equip' && eff.once) {
+        const spec = { type: 'creature', controller: 'you' };
+        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
+          effects: [{ op: 'attachSelf', targets: [spec] }, { op: 'activateOnly', perTurn: 1 }] };
+      }
+      if (eff.op === 'equip' && eff.discount) {
+        const spec = { type: 'creature', controller: 'you' };
+        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
+          equipDiscount: eff.discount, effects: [{ op: 'attachSelf', targets: [spec] }] };
       }
       /* "Equip {2}" is an activated ability with a target, not a footnote:
          pay the cost at sorcery speed and the Equipment moves. */
@@ -21893,6 +21981,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (hits) { this.changeLife(ap, -hits); ap.rad = Math.max(0, ap.rad - hits); }
             this.logEvent('rules', `${ap.name}'s rad counters: ${milled} milled, ${hits} life lost (${ap.rad} rad left).`);
           }
+          // Paradigm: a free copy of each, if its owner wants one
+          if (this.phase.id === 'precombat') {
+            for (const o of ((this.zones[this.activePlayer.id] || {}).exile || [])) {
+              if (o.paradigmBy !== this.activePlayer.id) continue;
+              this.queueChoice({ type: 'confirm', playerId: this.activePlayer.id, purpose: 'paradigm', objId: o.id,
+                prompt: `Paradigm: cast a copy of ${o.name} without paying its mana cost?` });
+            }
+          }
           if (this.phase.id === 'precombat') this._fire('yourMain1', this.activePlayer.id);
           if (this.phase.id === 'precombat') this._fire('eachMain1', null, { playerId: this.activePlayer.id });
           // "at the beginning of your second main phase"
@@ -22321,7 +22417,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (x.sorcerySpeed && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return false;
-          if (!this.couldPay(playerId, this._abilityMana(o, x), purse)) return false;
+          if (!this.couldPay(playerId, this._abilityMana(o, x), purse) && !(c.waterbend && this._waterbendPlan(playerId, o, x, this._abilityMana(o, x)))) return false;
           const specs = (x.targets || []).map(spec => ({ targets: [spec] })).concat(x.effects || []);
           return this._targetsAvailable(specs, playerId);
         };
@@ -22948,6 +23044,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           item.obj.reboundBy = item.controller;
           item.obj.reboundTurn = this.turn;
           this.logEvent('rules', `${item.name} is exiled with rebound.`);
+        }
+        // Paradigm: exiled, and the first of its name copied at each of your first main phases
+        else if (a && a.keywordSet && a.keywordSet.has('paradigm') && !item.countered && !item.isCopy) {
+          const o = item.obj;
+          this.moveObject(o, 'exile');
+          const had = ((this.zones[item.controller] || {}).exile || []).some(x => x !== o && x.paradigmBy === item.controller && x.name === o.name);
+          if (!had) o.paradigmBy = item.controller;
+          this.logEvent('rules', `${item.name} is exiled (paradigm).`);
         }
         else if (item.adventure && !item.countered && !item.isCopy) {
           // "on an adventure": exiled, and its owner may cast the creature from there (CR 715.4)
@@ -23645,6 +23749,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const a = o.analysis();
       if (!a) return 0;
       let d = 0;
+      // Undaunted (CR 702.125): {1} less for each opponent
+      if (a.keywordSet && a.keywordSet.has('undaunted')) d -= this.opponentsOf(pid).filter(q => !q.hasLost).length;
       // an emblem's cost change counts too (Saheeli, Filigree Master)
       for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
@@ -24517,6 +24623,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
            0/0 Elemental creature with haste (the land is chosen as it resolves) */
         const awk = o.zone === 'hand' && k === 'awaken' && String(arg).match(/^(\d+)\s*[\u2014-]\s*((?:\{[^}]+\})+)/);
         if (awk) out.push({ kind: 'cast', via: 'awaken', cost: awk[2], awaken: +awk[1], label: 'Awaken ' + arg });
+        /* Emerge (CR 702.119): sacrifice a creature and pay the emerge cost
+           less that creature's mana value */
+        if (o.zone === 'hand' && arg && k === 'emerge' &&
+            this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
+          out.push({ kind: 'cast', via: 'emerge', cost: arg, label: 'Emerge ' + arg });
+        }
+        // Cleave (CR 702.148): for the cleave cost, without the words in square brackets
+        if (o.zone === 'hand' && arg && k === 'cleave' && a.cleaveEffects) out.push({ kind: 'cast', via: 'cleave', cost: arg, cleave: true, label: 'Cleave ' + arg });
         // Surge: the other cost, once you have cast another spell this turn (CR 702.117)
         if (o.zone === 'hand' && arg && k === 'surge' && ((this.player(playerId) || {}).spellsCastThisTurn || 0) >= 1) {
           out.push({ kind: 'cast', via: 'surge', cost: arg, label: 'Surge ' + arg });
@@ -25168,6 +25282,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
       }
+      /* Emerge: which creature is sacrificed, chosen with the cast */
+      if (opts.via === 'emerge' && opts.emergeWith === undefined) {
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature);
+        if (!pool.length) return 'Emerge needs a creature of yours to sacrifice.';
+        const mv = (x) => (x.card && x.card.cmc) || 0;
+        if (decides || pool.length === 1) opts.emergeWith = pool.slice().sort((x, y) => mv(y) - mv(x) || this._cardValue(x) - this._cardValue(y))[0].id;
+        else {
+          const list = pool.slice().sort((x, y) => mv(y) - mv(x)).slice(0, 12);
+          return ask('emergeWith', `${o.name}: emerge — which creature will you sacrifice?`,
+            list.map(x => `Sacrifice ${x.name} (mana value ${mv(x)})`), list.map(x => x.id));
+        }
+      }
       /* Read ahead: which chapter the Saga starts at, chosen with the cast */
       if (a && a.readAhead > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
         const opts2 = Array.from({ length: a.readAhead }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
@@ -25454,6 +25580,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         let specs = a && a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a);
         if (opts.fuse && this._fusable(o)) specs = specs.concat(spellTargetSpecs(MTG.oracle.analyze(o.card, 1)));
         const viaUse = opts.via ? this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via) : null;
+        // Cleave: the targets of the words left once the brackets are gone
+        if (viaUse && viaUse.cleave && a.cleaveEffects) specs = effectSpecs(a.cleaveEffects);
         // overload: "each" instead of "target" — nothing is aimed at
         if (!(viaUse && viaUse.overload) && !(a && a.isPermanent && !a.isAura && !(opts.targets || []).length)) {
           this._specX = opts.x || 0;
@@ -25478,6 +25606,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
          from somewhere it would not normally be cast from, and a rule
          about where it goes afterwards. */
       let via = null;
+      let emergeSac = null;
       o._webSlinging = false;
       o._surged = false;
       if (opts.via) {
@@ -25494,6 +25623,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (via && via.via === 'surge') o._surged = true;
         if (!via) return this.fail('That card cannot be cast that way from here.');
         if (opts.costOverride == null) cost = via.cost;
+        // Emerge: the sacrificed creature's mana value off the emerge cost
+        if (via.via === 'emerge') {
+          const sac = opts.emergeWith && this.obj(opts.emergeWith);
+          if (!sac || sac.zone !== 'battlefield' || sac.controller !== playerId) return this.fail('Emerge needs a creature of yours to sacrifice.');
+          if (opts.costOverride == null) cost = this._addGeneric(cost, -((sac.card && sac.card.cmc) || 0));
+          emergeSac = sac;
+        }
         /* Harmonize: tap a creature you control to take its power off the
            generic part, when the mana alone will not do. */
         if (via.harmonize && opts.costOverride == null) {
@@ -25713,6 +25849,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       o.kickedTimes = chose.kicked || 0;
       // who was promised the gift, if anybody: the permanent remembers it as it enters
       o.giftTo = (a && a.gift && opts.gift) || null;
+      // Emerge: the creature goes as the spell is cast
+      if (emergeSac && emergeSac.zone === 'battlefield') {
+        this._sacrificeNow(playerId, [emergeSac], null);
+        this.logEvent('rules', `${p.name} sacrifices ${emergeSac.name} to emerge ${o.name}.`);
+      }
       // the bargain is paid as the spell is cast
       let bargained = false;
       if (opts.bargain) {
@@ -25745,7 +25886,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
         controller: playerId, name: o.name, cost,
         targets: (opts.targets || []).map(normTarget), x: opts.x || 0,
-        effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects : this._cardSpellEffects(a))
+        effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects
+          : via && via.cleave && a.cleaveEffects ? a.cleaveEffects : this._cardSpellEffects(a))
           // Awaken: the land's part comes after the spell's own words
           .concat(via && via.awaken ? [{ op: 'awakenLand', n: via.awaken, askTargets: true,
             targets: [{ type: 'land', filter: 'land you control', zone: 'battlefield', controller: 'you' }] }] : []) : null,
@@ -27446,6 +27588,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const ed = this._staticOp(tObj, 'equipDiscountIfTargeted');
         if (ed && (!ed.yours || o.controller === tObj.controller)) d -= Number(ed.amount) || 0;
         if (ab.discountPerTargetColor) d -= ab.discountPerTargetColor * (((this.characteristics(tObj) || {}).colors || tObj.analysis().colors || []).length);
+        // Belt of Giant Strength: {X} less, X the power of the creature it targets
+        if (ab.equipDiscount && ab.equipDiscount.targetPower) d -= Math.max(0, this.powerOf(tObj));
+      }
+      // Crown of Gondor: {3} less if you're the monarch; Plate Armor: {1} less for each other Equipment
+      if (ab.equipDiscount && !ab.equipDiscount.targetPower) {
+        const ed = ab.equipDiscount;
+        if (ed.cond) { if (this._condMet(ed.cond, { controller: o.controller, obj: o })) d -= ed.n; }
+        else if (ed.per) d -= ed.n * this._countValue(ed.per, o.controller, o);
       }
       for (const src of this.battlefield) {
         if (src.phasedOut) continue;
@@ -27479,6 +27629,27 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       return cut > 0 ? this._addGeneric(mana, -cut) : mana;
     }
 
+    /**
+     * Waterbend: the artifacts and creatures to tap, each paying {1}, so
+     * that what is left of the cost can be paid with mana — the fewest that
+     * will do, cheapest first. Null when even all of them would not.
+     */
+    _waterbendPlan(playerId, o, ab, mana) {
+      const src = this.manaSources(playerId);
+      const need = String(mana || '').replace(/\{X\}/g, '');
+      if (this.couldPay(playerId, need, src)) return { tap: [], mana: need };
+      const generic = MANA.parse(need).filter(s => /^\d+$/.test(s)).reduce((k, s) => k + (+s), 0);
+      const pool = this.battlefield.filter(x => x.controller === playerId && !x.tapped && !x.phasedOut &&
+        !(x === o && ab.cost && ab.cost.tap) && ((x.analysis() || {}).manaAbilities || []).length === 0 &&
+        (((x.analysis() || {}).isArtifact) || (this.characteristics(x) || {}).isCreature))
+        .sort((x, y) => this._cardValue(x) - this._cardValue(y));
+      for (let k = 1; k <= Math.min(generic, pool.length); k++) {
+        const left = this._addGeneric(need, -k);
+        if (this.couldPay(playerId, left, src)) return { tap: pool.slice(0, k), mana: left };
+      }
+      return null;
+    }
+
     _payAbilityCost(playerId, o, ab, opts) {
       const cost = ab.cost || {};
       const thing = this._thingCostBlocked(playerId, cost, o, opts);
@@ -27499,7 +27670,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (lifeFrom && p.life < lifeFrom) return this.fail('Not enough life.');
       // `free` skips payment the same way it does for a spell, which is what
       // relaxed tables and alternative costs rely on
-      const abMana = this._abilityMana(o, ab, opts.targets);
+      let abMana = this._abilityMana(o, ab, opts.targets);
+      // Waterbend: tap artifacts and creatures for {1} each when the mana alone will not do
+      if (cost.waterbend && abMana && !opts.free) {
+        const full = /\{X\}/.test(abMana) ? abMana.replace(/\{X\}/g, opts.x ? '{' + opts.x + '}' : '') : abMana;
+        const plan = this._waterbendPlan(playerId, o, ab, full);
+        if (plan && plan.tap.length) {
+          for (const x of plan.tap) this._markTapped(x);
+          this.logEvent('rules', `${p.name} waterbends, tapping ${plan.tap.map(x => x.name).join(', ')}.`);
+          abMana = plan.mana || '';
+          opts = Object.assign({}, opts, { x: 0 });
+        }
+      }
       if (abMana && !opts.free) {
         /* A permanent that taps as part of the cost cannot also be tapped
            for mana to pay the rest of it (Mind Stone's "{1}, {T}"). */
@@ -31818,6 +32000,22 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         targets = got.picks.map(id => ({ kind: 'object', id }));
         this._noteLastAffected(targets);
       }
+      /* Overload: every one of the things the target could have been — no
+         targeting, so hexproof and the like do not matter */
+      if (e.eachOf && !(e.targets && e.targets.length)) {
+        const spec = e.eachOf;
+        if (spec.type === 'spell' || spec.zone === 'stack') {
+          targets = this.stack.filter(st => st.kind === 'spell' && st.id !== ctx.id && this._spellMatches(st, spec, ctx.controller))
+            .map(st => ({ kind: 'stack', id: st.id }));
+        } else {
+          targets = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
+            MTG.oracle.matchesSpec(spec, o, o.analysis(), ctx.controller, this._specCtx())).map(o => ({ kind: 'object', id: o.id }));
+        }
+        if (!targets.length) return null;
+        sliced = true;
+        this._noteLastAffected(targets);
+        this._lastGroup = targets.filter(t => t.kind === 'object').map(t => t.id);
+      }
       /* "For each opponent, exile up to one target nonland permanent that
          player controls": up to one of each opponent's, picked as it resolves */
       if (e.perOpponentFrom && !(e.targets && e.targets.length)) {
@@ -31972,6 +32170,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // "… minus four": never less than zero
+        if (v && typeof v === 'object' && v.floorZero) return Math.max(0, n(Object.assign({}, v, { floorZero: false })));
         if (v === 'X') return ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0;
         // Storm Herd: "your life total"
         if (v && typeof v === 'object' && v.lifeTotal) return Math.max(0, (me && me.life) || 0) * (v.mult || 1);
@@ -35100,6 +35300,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           else this.moveObject(x, 'hand');
           break;
         }
+        // Containment Construct: the discarded card, exiled and playable this turn
+        case 'exileTriggerCardPlayable': {
+          const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          if (!x || x.zone !== 'graveyard') break;
+          this.moveObject(x, 'exile');
+          x.impulseBy = ctx.controller; x.impulseUntil = this.turn;
+          this.logEvent('rules', `${me.name} exiles ${x.name} and may play it this turn.`);
+          break;
+        }
         // Cultivator Colossus: a land from hand, a card, and again — until you stop or run out
         case 'putDrawRepeat': {
           const pool = this.zones[ctx.controller].hand.filter(o => this._matchesCategory(o, e.filter));
@@ -36599,6 +36808,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
 
         case 'toLibrary': {
+          // Watery Grasp: the creature this is attached to
+          if (e.attached) { const x = src && src.attachedTo && this.obj(src.attachedTo); targets = x ? [{ kind: 'object', id: x.id }] : []; }
           this._noteLastAffected(targets);
           for (const t of targets) {
             if (t.kind !== 'object') continue;
@@ -39231,6 +39442,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         else if (spec.who !== 'any' && o.controller !== pid) continue;
         const a = o.analysis();
         if (!a) continue;
+        // Sage's Reverie: only those attached to a creature
+        if (spec.attachedToCreature) { const h = o.attachedTo && this.obj(o.attachedTo); if (!h || !(this.characteristics(h) || {}).isCreature) continue; }
         const hit = wants.some(want => want === 'permanent' ||
           (a.types || []).some(x => x.toLowerCase() === want) ||
           (a.subtypes || []).some(x => x.toLowerCase() === want));
@@ -40129,6 +40342,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             const o = this.obj(ch.objId);
             if (!o || !(data && data.yes)) break;
             this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [] });
+            break;
+          }
+          // Paradigm: a copy of the exiled card, cast for nothing (it is not a card)
+          if (ch.purpose === 'paradigm') {
+            const o = this.obj(ch.objId);
+            if (!o || o.zone !== 'exile' || !(data && data.yes)) break;
+            const dup = this._register(new GObj(o.card, playerId, 'exile'));
+            dup.isCopy = true;
+            this.zones[playerId].exile.push(dup);
+            this._castFree(playerId, dup, { how: `(a copy of ${o.name}) without paying its mana cost` });
+            this.stack[this.stack.length - 1].isCopy = true;
             break;
           }
           // Miracle: pay the miracle cost and cast it; its targets are chosen as it resolves
