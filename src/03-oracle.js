@@ -4709,6 +4709,16 @@
     { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : { op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield' }) },
+    // Teval, the Balanced Scale: "Then you may return a land card from your graveyard to the battlefield tapped."
+    { re: /^(?:Then )?[Yy]ou may return (a|an|one) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
+      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : { op: 'graveyardPick', n: 1, upTo: true,
+        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield', tapped: !!m[4] }) },
+    // Domri, Anarch of Bolas: "Creature spells you cast this turn can't be countered."
+    { re: /^(Creature |Instant and sorcery |Noncreature )?spells you cast this turn can'?t be countered\.?$/i,
+      make: (m) => ({ op: 'uncounterableTurn', words: (m[1] || '').trim().toLowerCase().replace(/ and /, ' or ') || null }) },
+    // Aetherspouts: "For each attacking creature, its owner puts it on their choice of the top or bottom of their library."
+    { re: /^For each attacking creature, its owner puts it on their choice of the top or bottom of their library\.?$/i,
+      make: () => ({ op: 'attackersTopOrBottom' }) },
     /* "Until end of turn, creatures you control gain trample" is the same
        sentence with its time at the front. */
     { re: /^Until end of turn, (.+?) (gain|gains|get|gets) (.+?)\.?$/i,
@@ -5401,6 +5411,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Final Parting: "Search your library for two cards. Put one into your
+       hand and the other into your graveyard. Then shuffle." */
+    { re: /^Search your library for two cards\. Put one into your hand and the other into your graveyard\. Then shuffle\.$/i,
+      make: () => [{ op: 'tutor', n: 2, filter: 'any', to: 'handGrave', prompt: 'Search your library for two cards.' }] },
     /* Thrasios, Triton Hero: "Scry 1, then reveal the top card of your
        library. If it's a land card, put it onto the battlefield tapped.
        Otherwise, draw a card." */
@@ -11195,6 +11209,8 @@
         eff: { op: 'smallCantBlock' }, auto: true },
       // Frenzied Baloth: "Combat damage can't be prevented."
       { re: /^Combat damage can'?t be prevented\.?$/i, eff: { op: 'noCombatPrevention' }, auto: true },
+      // Questing Beast: "Combat damage that would be dealt by creatures you control can't be prevented."
+      { re: /^Combat damage that would be dealt by creatures you control can'?t be prevented\.?$/i, eff: { op: 'noCombatPreventionYours' }, auto: true },
       // Woe Strider: "This creature escapes with two +1/+1 counters on it."
       { re: /^(?:CARDNAME|This creature) escapes with (a|an|one|two|three|four|five|\d+) ([+\-0-9/a-z]+) counters? on it\.?$/i,
         make: (m) => ({ op: 'escapesWith', n: num(m[1]), kind: m[2].toLowerCase() }), auto: true },

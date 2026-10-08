@@ -11540,4 +11540,35 @@ module.exports = (test) => {
     const ab = b2.analysis().abilities.find(a => a.kind === 'activated');
     t.ok(T2.g._equipAnyTime('A', ab), 'equip any time');
   });
+
+  test('Teval, Domri, Final Parting, Questing Beast', (mk, t) => {
+    for (const c of ['Teval, the Balanced Scale', 'Domri, Anarch of Bolas', 'Final Parting', 'Questing Beast']) t.auto(c);
+    const T = mk();
+    const tv = T.bf('A', 'Teval, the Balanced Scale');
+    const f = T.grave('A', 'Forest');
+    T.answer('pickCard', (ch) => ({ cardIds: [f.id] }));
+    T.g._runEffects(tv.analysis().abilities.find(a => a.kind === 'triggered' && /attacks/.test(a.text)).effects, { controller: 'A', obj: tv, name: 'Teval', kind: 'ability' });
+    T.settle();
+    t.eq(f.zone, 'battlefield'); t.ok(f.tapped, 'tapped');
+    const T2 = mk();
+    T2.g._runEffects([{ op: 'uncounterableTurn', words: 'creature' }], { controller: 'A', name: 'Domri', kind: 'ability' });
+    T2.mana('A', '1G');
+    const bear = T2.hand('A', 'Grizzly Bears');
+    T2.g.castSpell('A', bear.id, {});
+    const item = T2.g.stack.find(s => s.obj === bear);
+    t.ok(T2.g._uncounterable(item), "the creature spell can't be countered");
+    const T3 = mk();
+    const a1 = T3.top('A', 'Craw Wurm'), a2 = T3.top('A', 'Lightning Bolt');
+    T3.answer('pickCard', (ch) => ({ cardIds: [a1.id, a2.id] }));
+    T3.answer('pickCard', (ch) => ({ cardIds: [a2.id] }));
+    T3.mana('A', '3BB');
+    T3.cast('A', T3.hand('A', 'Final Parting'));
+    T3.settle(); T3.resolve();
+    t.eq(a2.zone, 'hand'); t.eq(a1.zone, 'graveyard');
+    const T4 = mk();
+    const qb = T4.bf('A', 'Questing Beast');
+    T4.g.prevention.push({ to: 'players', who: 'B', until: 'eot' });
+    T4.g.dealDamageToPlayer(T4.g.player('B'), 4, qb, true);
+    t.eq(T4.life('B'), 16, "combat damage from A's creature isn't prevented");
+  });
 };

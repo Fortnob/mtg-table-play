@@ -11858,7 +11858,25 @@
             const c = this.obj(id);
             if (!c) continue;
             this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: ctx.controller });
+            // Teval: "to the battlefield tapped"
+            if (e.tapped && c.zone === 'battlefield') c.tapped = true;
           }
+          break;
+        }
+        // Domri: spells of this kind its controller casts this turn can't be countered
+        case 'uncounterableTurn': (me.uncounterableKinds = me.uncounterableKinds || []).push({ turn: this.turn, words: e.words || null }); break;
+        // Aetherspouts: each attacker's owner picks top or bottom of their library for it
+        case 'attackersTopOrBottom': {
+          const list = (this.combat.attackers || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield');
+          const where = [];
+          for (const x of list) {
+            const got = this._choose({ playerId: x.owner, purpose: 'topOrBottom', kind: 'options', min: 1, max: 1,
+              options: [{ i: 0, label: 'Top of the library' }, { i: 1, label: 'Bottom of the library' }],
+              prompt: `Put ${x.name} on the top or the bottom of your library?` }, 'atb:' + x.id);
+            if (got === SUSPEND) return SUSPEND;
+            where.push([x, !!(got && got.picks && got.picks[0] === 1)]);
+          }
+          for (const [x, bottom] of where) if (x.zone === 'battlefield') this.moveObject(x, 'library', bottom ? { toBottom: true } : {});
           break;
         }
         case 'counterSpell': {
@@ -13303,6 +13321,15 @@
           /* Cultivate: one of them onto the battlefield, the other into
              your hand — and which is which is the searcher's call. */
           let toField = new Set();
+          // Final Parting: one into your hand and the other into your graveyard, the searcher's call
+          if (dest === 'handGrave' && taken.length > 1) {
+            const which = this._ask({ type: 'pickCard', playerId: seeker.id, count: 1,
+              cards: taken.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: 'Choose the card to put into your hand (the other goes to your graveyard).' }, 'hg');
+            if (which === SUSPEND) return SUSPEND;
+            const keep = (which || [])[0] || taken[0].id;
+            for (const c of taken) toField.add(c.id === keep ? 'hand:' + c.id : 'grave:' + c.id);
+          }
           if (dest === 'split' && taken.length) {
             const k = Math.min((e.split && e.split.battlefield) || 1, taken.length);
             if (taken.length > k) {
@@ -13328,7 +13355,8 @@
             const i = z.library.indexOf(c);
             if (i >= 0) z.library.splice(i, 1);
             if (c.zone === 'graveyard' && e.alsoGraveyard) { this.moveObject(c, dest === 'battlefield' ? 'battlefield' : 'hand', { controller: seeker.id }); continue; }
-            const where = dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
+            const where = dest === 'handGrave' ? (toField.has('grave:' + c.id) ? 'graveyard' : 'hand')
+              : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
             if (where === 'battlefield') { this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; this._lastPut = c.id; }
@@ -18434,6 +18462,9 @@
       if (item.uncounterable) return true;
       // Veil of Summer: "Spells you control can't be countered this turn."
       if (item.kind === 'spell' && ((this.player(item.controller) || {}).uncounterableTurn === this.turn)) return true;
+      // Domri, Anarch of Bolas: "Creature spells you cast this turn can't be countered."
+      if (item.kind === 'spell' && ((this.player(item.controller) || {}).uncounterableKinds || []).some(u => u.turn === this.turn &&
+          (!u.words || (item.obj && this._cardFitsWords(item.obj, u.words))))) return true;
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'uncounterable');
         if (!e) continue;
@@ -18694,6 +18725,8 @@
     _damagePrevented(target, isCombat, source, amount) {
       // "damage can't be prevented"
       if (this._noPrevention(isCombat)) return false;
+      // Questing Beast: combat damage from its controller's creatures
+      if (isCombat && source && this._anyStaticOf(source.controller, 'noCombatPreventionYours') && (this.characteristics(source) || {}).isCreature) return false;
       // Defang: "Prevent all damage that would be dealt by enchanted creature."
       if (source && source.zone === 'battlefield' && this._hasFlag(source, 'noDamageAll')) return true;
       // "prevent all combat damage that would be dealt to this creature"
