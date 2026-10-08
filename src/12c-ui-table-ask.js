@@ -958,7 +958,10 @@
         /* "target spell with mana value X": the X is the one chosen for this
            cast, so only what matches it lights up */
         const xNow = steps.x || 0;
-        specs.push(...MTG.rules.spellTargetSpecs(part).map(s => {
+        // cleave: the words in brackets taken out, so the targets are the wider ones the engine checks
+        const read = via === 'cleave' && part.cleaveEffects && MTG.rules.effectSpecs
+          ? MTG.rules.effectSpecs(part.cleaveEffects) : MTG.rules.spellTargetSpecs(part);
+        specs.push(...read.map(s => {
           if (!s || !['mv', 'maxMv', 'minMv'].some(k => s[k] === 'X')) return s;
           const c = Object.assign({}, s);
           for (const k of ['mv', 'maxMv', 'minMv']) if (c[k] === 'X') c[k] = xNow;
