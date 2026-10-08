@@ -10496,4 +10496,22 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(opt.zone, 'exile', 'and exiled, not back in the graveyard');
   });
+
+  test('Cabal Therapy names a card and takes every copy from the hand; Cranial Extraction from everywhere', (mk, t) => {
+    t.auto('Cabal Therapy');
+    t.auto('Cranial Extraction');
+    const T = mk();
+    const b1 = T.hand('B', 'Lightning Bolt'), b2 = T.hand('B', 'Lightning Bolt'), other = T.hand('B', 'Opt');
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'Lightning Bolt')] }));
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Cabal Therapy'), { targets: ['B'] });
+    t.eq(b1.zone, 'graveyard'); t.eq(b2.zone, 'graveyard');
+    t.eq(other.zone, 'hand', 'Opt kept');
+    const T2 = mk();
+    const g1 = T2.grave('B', 'Opt'), h1 = T2.hand('B', 'Opt'), l1 = T2.top('B', 'Opt');
+    T2.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'Opt')] }));
+    T2.mana('A', '3B');
+    T2.cast('A', T2.hand('A', 'Cranial Extraction'), { targets: ['B'] });
+    t.ok([g1, h1, l1].every(c => c.zone === 'exile'), 'every Opt exiled');
+  });
 };

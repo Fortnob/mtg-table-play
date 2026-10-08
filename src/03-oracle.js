@@ -871,6 +871,14 @@
         return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
       } },
     // Alchemy: "This creature intensifies by 1", "Cards you own named CARDNAME intensify by 1", "All Chorus cards you own intensify by 1"
+    /* Cabal Therapy, Cranial Extraction: "Choose a nonland card name." — named as it resolves,
+       for the sentences after it ("cards with that name") */
+    { re: /^Choose a (nonland |nonartifact, nonland |creature )?card name\.?$/i,
+      make: (m) => ({ op: 'chooseName', nonland: /nonland/i.test(m[1] || ''), nonartifact: /nonartifact/i.test(m[1] || ''), creature: /creature/i.test(m[1] || '') || undefined }) },
+    { re: /^Target (player|opponent) reveals their hand and discards all cards with (?:that|the chosen) name\.?$/i,
+      make: (m) => ({ op: 'discardNamed', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    { re: /^Search target (player|opponent)'?s graveyard, hand, and library for (?:all|any number of) cards with (?:that|the chosen) name and exile them\.?$/i,
+      make: (m) => ({ op: 'exileChosenNameEverywhere', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     /* Kamigawa flip cards: "flip it", "you may flip it", "flip this creature" — it turns
        round to its other half and stays that way while it is on the battlefield */
     { re: /^(you may )?flip (?:it|CARDNAME|this creature)\.?$/i,

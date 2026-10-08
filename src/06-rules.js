@@ -16405,6 +16405,58 @@
           if (made.length) this._noteLastAffected(made.filter(Boolean).map(c => ({ kind: 'object', id: c.id })));
           break;
         }
+        /* "Choose a nonland card name": offered from the cards in the game, the likeliest first —
+           those of the player it is aimed at, the most copies first */
+        case 'chooseName': {
+          const aim = firstPlayer();
+          const seen = new Map();
+          const add = (c, w) => {
+            if (!c || !c.card) return;
+            const ca = O.analyze(c.card, 0) || {};
+            if (e.nonland && ca.isLand) return;
+            if (e.nonartifact && ca.isArtifact) return;
+            if (e.creature && !ca.isCreature) return;
+            const k = c.card.name;
+            if (!seen.has(k)) seen.set(k, { w: 0, card: c.card });
+            seen.get(k).w += w;
+          };
+          for (const q of this.players) {
+            const z = this.zones[q.id] || {};
+            const w = aim ? (q.id === aim.id ? 3 : 1) : (q.id === me.id ? 1 : 3);
+            for (const k of ['hand', 'library', 'graveyard', 'exile']) for (const c of (z[k] || [])) add(c, w);
+          }
+          for (const x of this.battlefield) add(x, x.controller === (aim || {}).id ? 3 : 1);
+          const names = [...seen].sort((a, b) => b[1].w - a[1].w || a[0].localeCompare(b[0])).slice(0, 60);
+          if (!names.length) break;
+          const got = this._choose({ playerId: me.id, purpose: 'chooseCardName', kind: 'options', min: 1, max: 1,
+            options: names.map(([k, v]) => ({ label: k, key: k, card: v.card })),
+            prompt: `${ctx.name || 'Name a card'}: choose a card name.` }, 'nameIt');
+          if (got === SUSPEND) return SUSPEND;
+          this._chosenNameNow = names[((got && got.picks) || [])[0] || 0][0];
+          this.logEvent('rules', `${me.name} names ${this._chosenNameNow}.`);
+          break;
+        }
+        // Cabal Therapy: every card with that name, from that player's hand
+        case 'discardNamed': {
+          const p = firstPlayer(); const nm = this._chosenNameNow;
+          if (!p || !nm) break;
+          const hits = this.zones[p.id].hand.filter(c => c.card && c.card.name === nm);
+          this.logEvent('reveal', `${p.name} reveals their hand.`);
+          for (const c of hits) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+          this.logEvent('discard', `${p.name} discards ${hits.length} card${hits.length === 1 ? '' : 's'} named ${nm}.`);
+          break;
+        }
+        // Cranial Extraction: every card with that name, from graveyard, hand and library
+        case 'exileChosenNameEverywhere': {
+          const p = firstPlayer(); const nm = this._chosenNameNow;
+          if (!p || !nm) break;
+          const z = this.zones[p.id];
+          let k = 0;
+          for (const zn of ['graveyard', 'hand', 'library']) for (const c of z[zn].slice()) if (c.card && c.card.name === nm) { this.moveObject(c, 'exile'); k++; }
+          this.rng.shuffle(z.library);
+          this.logEvent('exile', `${k} card${k === 1 ? '' : 's'} named ${nm} exiled from ${p.name}'s graveyard, hand and library.`);
+          break;
+        }
         /* Demonic Consultation: a name, six cards gone, then cards revealed until that name comes up */
         case 'consultation': {
           const lib = this.zones[me.id].library;
