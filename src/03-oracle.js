@@ -2834,6 +2834,10 @@
     { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2] }) },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
+    // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
+    { re: /^Destroy (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.?$/i, make: () => ({ op: 'destroy', scope: 'self' }) },
+    // Combust: "The damage can't be prevented."
+    { re: /^The damage can'?t be prevented\.?$/i, make: () => ({ op: 'noop', noPreventRider: true }) },
     // Mirelurk Queen and the Fallout cards: "target player gets two rad counters"
     { re: /^(?:Target player|Each opponent|Target opponent|You) gets? (a|an|one|two|three|four|five|\d+|X) rad counters?\.?$/i,
       make: (m) => ({ op: 'rad', n: num(m[1]), who: /^target/i.test(m[0]) ? 'target' : /^each opponent/i.test(m[0]) ? 'opponents' : 'you',
@@ -6341,6 +6345,13 @@
         const prev = out.slice().reverse().find(x => x && /^(?:mayCastFromGraveyard|mayPlayExiled)$/.test(x.op));
         if (!prev) return null;
         prev.exileAfter = true;
+        continue;
+      }
+      // Combust: the damage just dealt can't be prevented
+      if (e && e.noPreventRider) {
+        const prev = out.slice().reverse().find(x => x && x.op === 'damage');
+        if (!prev) return null;
+        prev.noPrevent = true;
         continue;
       }
       // Oubliette: it comes back tapped

@@ -10579,4 +10579,19 @@ module.exports = (test) => {
     T3.g._runEffects(MTG_EFFECTS('You get an experience counter.'), { controller: 'A', name: 'test' });
     t.eq(T3.g.player('A').experience, 1);
   });
+
+  test('Combust\'s damage gets past a prevention shield; Lethal Vapors destroys itself', (mk, t) => {
+    t.auto('Combust');
+    const T = mk();
+    const sa = T.bf('B', 'Serra Angel');
+    sa.preventShield = 10;
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Combust'), { targets: [sa] });
+    t.eq(sa.zone, 'graveyard', 'five damage, not prevented');
+    const T2 = mk();
+    const lv = T2.bf('A', 'Lethal Vapors');
+    t.ok(T2.g.activateAbility('A', lv.id, 0, {}), T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(lv.zone, 'graveyard', 'Lethal Vapors destroyed');
+  });
 };

@@ -11274,6 +11274,11 @@
           break;
         }
         case 'damage': {
+          // Combust: "The damage can't be prevented." — for this damage only
+          if (e.noPrevent && !e._inNoPrevent) {
+            this._noPreventNow = (this._noPreventNow || 0) + 1;
+            try { return this._runEffect(Object.assign({}, e, { _inNoPrevent: true }), ctx); } finally { this._noPreventNow--; }
+          }
           const cnt = n(e.n);
           // Chandra's Outrage: "…and 2 damage to that creature's controller" — noted before it dies
           if (!e.toAffectedController && targets.some(t => t.kind === 'object')) this._noteLastAffected(targets);
@@ -11421,6 +11426,11 @@
           break;
         }
         case 'destroy':
+          // "Destroy this enchantment."
+          if (e.scope === 'self') {
+            if (src && src.zone === 'battlefield' && !this.hasKw(src, 'indestructible') && !this._totemArmor(src) && !this._regenerated(src)) this.moveObject(src, 'graveyard');
+            break;
+          }
           if (e.scope === 'attached') {
             const x = src && src.attachedTo && this.obj(src.attachedTo);
             if (x && !this.hasKw(x, 'indestructible') && !this._totemArmor(x) && !(!e.noRegen && this._regenerated(x))) this.moveObject(x, 'graveyard');
@@ -17825,6 +17835,7 @@
     /** Stomp, Skullcrack: "Damage can't be prevented this turn"; Frenzied Baloth: combat damage, while it's here. */
     _noPrevention(isCombat) {
       if (this.noPreventTurn === this.turn) return true;
+      if (this._noPreventNow) return true;
       // Sunspine Lynx: "Damage can't be prevented."
       if (this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noPreventionAll'))) return true;
       return !!isCombat && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'noCombatPrevention'));
