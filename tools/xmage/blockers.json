@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12767,
+  "needed": 12761,
   "gainedCards": 1373,
-  "linesNeeded": 13998,
+  "linesNeeded": 13990,
   "linesGained": 1653,
   "gained": {
    "all": 1373,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4727,
-   "lines": 4238,
+   "score": 4724,
+   "lines": 4235,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -2703,23 +2703,6 @@
    ]
   },
   {
-   "what": "IsStepCondition.getMyUpkeep",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Scourglass",
-    "Magus of the Mirror",
-    "Mirror Universe",
-    "Clockwork Steed",
-    "Clockwork Beast",
-    "Energy Vortex",
-    "Clockwork Avian",
-    "Cyclopean Tomb",
-    "Clockwork Swarm",
-    "Life Matrix"
-   ]
-  },
-  {
    "what": "ConditionalContinuousEffect without a condition",
    "score": 10,
    "lines": 10,
@@ -3184,6 +3167,22 @@
     "Resistance Fighter",
     "Songstitcher",
     "Kry Shield"
+   ]
+  },
+  {
+   "what": "IsStepCondition.getMyUpkeep",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Scourglass",
+    "Magus of the Mirror",
+    "Mirror Universe",
+    "Clockwork Steed",
+    "Clockwork Beast",
+    "Energy Vortex",
+    "Clockwork Avian",
+    "Cyclopean Tomb",
+    "Clockwork Swarm"
    ]
   },
   {
@@ -4487,18 +4486,6 @@
     "Day of the Dragons",
     "Yukora, the Prisoner",
     "Death Pit Offering"
-   ]
-  },
-  {
-   "what": "(constructor: statement:loop)",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Lair of the Hydra",
-    "Mind Grind",
-    "Marath, Will of the Wild",
-    "Apocalypse Chime",
-    "City in a Bottle"
    ]
   },
   {
@@ -7105,13 +7092,24 @@
     "Tajuru Paragon",
     "Veteran Adventurer"
    ]
+  },
+  {
+   "what": "SpellsCostReductionControllerEffect.setDuration",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Ballad of the Black Flag",
+    "Armor Wars",
+    "Spellbinding Soprano",
+    "Urza, Planeswalker"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3845,
-   "cards": 3500,
+   "score": 3844,
+   "cards": 3499,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -10118,18 +10116,6 @@
    ]
   },
   {
-   "what": "(constructor: statement:loop)",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Lair of the Hydra",
-    "Mind Grind",
-    "Marath, Will of the Wild",
-    "Apocalypse Chime",
-    "City in a Bottle"
-   ]
-  },
-  {
    "what": "TargetController.ACTIVE.getControllerPredicate",
    "score": 5,
    "cards": 5,
@@ -10879,6 +10865,14 @@
    "cards": 1,
    "names": [
     "Opal Palace"
+   ]
+  },
+  {
+   "what": "PadeemConsulOfInnovationPredicate.instance",
+   "score": 4,
+   "cards": 1,
+   "names": [
+    "Padeem, Consul of Innovation"
    ]
   }
  ]

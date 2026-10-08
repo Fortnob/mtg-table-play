@@ -10639,4 +10639,17 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(T2.life('B'), 18);
   });
+
+  test('"It gains" an ability for good: Can\'t Stay Away\'s returned creature is exiled when it dies', (mk, t) => {
+    t.auto("Can't Stay Away");
+    const T = mk();
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', '1WB');
+    T.cast('A', T.hand('A', "Can't Stay Away"), { targets: [bear] });
+    t.eq(bear.zone, 'battlefield');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'exile', 'exiled by the ability it gained');
+  });
 };

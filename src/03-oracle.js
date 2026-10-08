@@ -1144,6 +1144,12 @@
       make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    // Olivia, Crimson Bride: "It gains '…'" — the creature the sentence before was about, for good
+    { re: /^(?:It|That creature|That permanent) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'lastTarget' } : null) },
+    // Katara, Ruthless Technomancer: "X can't be 0." — said of an ability's X; nothing to do as it resolves
+    { re: /^X can'?t be 0\.?$/i, make: () => ({ op: 'noop' }) },
+    // Noble Benefactor: "Then each player who searched their library this way shuffles."
+    { re: /^Then each player who searched (?:their|a) library this way shuffles\.?$/i, make: () => ({ op: 'noop' }) },
     // Summon: Primal Odin's "that player loses the game" — the player the trigger is about
     { re: /^That player loses the game\.?$/i, make: () => ({ op: 'loseGameTarget', who: 'triggerPlayer' }) },
     // Zul Ashur: "You may cast target Zombie creature card from your graveyard this turn."
