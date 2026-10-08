@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12623,
-  "gainedCards": 1354,
-  "linesNeeded": 13799,
-  "linesGained": 1621,
+  "needed": 12613,
+  "gainedCards": 1352,
+  "linesNeeded": 13786,
+  "linesGained": 1619,
   "gained": {
-   "all": 1354,
+   "all": 1352,
    "top2000": 52,
    "stdTop": 10
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4591,
-   "lines": 4177,
+   "score": 4577,
+   "lines": 4172,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -1133,25 +1133,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Hobgoblin Bandit Lord",
-    "Mana Cannons",
-    "Niv-Mizzet, Guildpact",
-    "Anathemancer",
-    "Monstrous Emergence",
-    "Moonveil Regent",
-    "Voracious Dragon",
-    "Close Encounter",
-    "Lightning Storm",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt",
-    "Galvanic Bombardment"
-   ]
-  },
-  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 15,
    "lines": 15,
@@ -1438,6 +1419,25 @@
     "Nissa, Vastwood Seer // Nissa, Sage Animist",
     "Crystal Fragments // Summon: Alexander",
     "Huatli, Poet of Unity // Roar of the Fifth People"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Hobgoblin Bandit Lord",
+    "Mana Cannons",
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt",
+    "Galvanic Bombardment",
+    "Blazing Effigy"
    ]
   },
   {
@@ -2234,24 +2234,6 @@
    ]
   },
   {
-   "what": "AdditiveDynamicValue",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "Road Rage",
-    "The Archimandrite",
-    "Desert's Due",
-    "Lost Order of Jarkeld",
-    "Muscle Burst",
-    "Flame Burst"
-   ]
-  },
-  {
    "what": "(layout flip)",
    "score": 11,
    "lines": 11,
@@ -2506,6 +2488,23 @@
     "Rustler Rampage",
     "One Last Job",
     "Caught in the Crossfire"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "The Archimandrite",
+    "Desert's Due",
+    "Lost Order of Jarkeld",
+    "Muscle Burst",
+    "Flame Burst"
    ]
   },
   {
@@ -6853,17 +6852,6 @@
    ]
   },
   {
-   "what": "keyword BoastAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Broadside Bombardiers",
-    "Sigurd, Jarl of Ravensthorpe",
-    "Baron Helmut Zemo",
-    "Arni Brokenbrow"
-   ]
-  },
-  {
    "what": "EnchantedCreatureColorCondition",
    "score": 4,
    "lines": 4,
@@ -7028,17 +7016,6 @@
    ]
   },
   {
-   "what": "ExileTargetIfDiesEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Combustion Technique",
-    "Smite the Deathless",
-    "Blitz of the Thunder-Raptor",
-    "Unnatural Aggression"
-   ]
-  },
-  {
    "what": "ShuffleHandIntoLibraryDrawThatManySourceEffect",
    "score": 4,
    "lines": 4,
@@ -7080,13 +7057,35 @@
     "The Super Hero Civil War",
     "Stromgald Spy"
    ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Alena, Kessig Trapper",
+    "Tetsuo, Imperial Champion",
+    "Pummeler for Hire",
+    "Impetuous Protege"
+   ]
+  },
+  {
+   "what": "VehiclesBecomeArtifactCreatureEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Armed and Armored",
+    "Start Your Engines",
+    "Push the Limit",
+    "The Thanos-Copter"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3741,
-   "cards": 3462,
+   "score": 3729,
+   "cards": 3459,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -8149,19 +8148,6 @@
    ]
   },
   {
-   "what": "AdditiveDynamicValue",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "Road Rage"
-   ]
-  },
-  {
    "what": "Zone.GRAVEYARD",
    "score": 10,
    "cards": 10,
@@ -8341,6 +8327,19 @@
     "Daredevil Dragster",
     "The Wretched",
     "Joven's Ferrets"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Desert's Due"
    ]
   },
   {

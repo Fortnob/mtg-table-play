@@ -2528,7 +2528,8 @@
     /** Worship, Angel's Grace: is damage kept from taking this player below 1 life? */
     _lifeFloorFor(p) {
       if (p.lifeFloorTurn === this.turn) return true;
-      return this.battlefield.some(x => {
+      // (Serra the Benevolent's emblem as well as a permanent)
+      return this._withEmblems(this.battlefield).some(x => {
         if (x.controller !== p.id || x.phasedOut) return false;
         const e = this._staticOp(x, 'lifeFloor');
         return !!e && (!e.cond || this._condMet(e.cond, { controller: p.id, obj: x }));
@@ -3687,6 +3688,11 @@
       // Six: on your turn, a nonland permanent card in your graveyard has retrace
       if (o.zone === 'graveyard' && o.owner === playerId && a.isPermanent && !a.isLand && this.activePlayer && this.activePlayer.id === playerId &&
           this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
+        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
+      }
+      // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
+      if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
+          this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
       /* The Transformers: cast converted, back face up, for the More Than Meets the Eye cost */
@@ -14015,6 +14021,17 @@
           this.bumpBoard();
           break;
         }
+        // Mordenkainen: hand and library change places
+        case 'exchangeHandLibrary': {
+          const z = this.zones[ctx.controller];
+          const hand = z.hand.slice(), lib = z.library.slice();
+          for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+          for (const o of lib) { this._removeFromZone(o); o.zone = 'hand'; z.hand.push(o); }
+          this.rng.shuffle(z.library);
+          this.logEvent('rules', `${me.name} exchanges hand (${hand.length}) and library (${lib.length}).`);
+          this.bumpBoard();
+          break;
+        }
         // Hedge Shredder: the land cards that went to the graveyard together come back
         case 'batchToBattlefield': {
           const td = ctx.triggerData || {};
@@ -14639,6 +14656,8 @@
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
+            // Chandra, Dressed to Kill: only the red ones
+            if (e.color && !(((c.analysis() || {}).colors) || []).includes(e.color)) continue;
             const pid = e.who === 'owner' ? c.owner : ctx.controller;
             const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(pid);
             // (a land "played without paying its mana cost" is simply played)

@@ -631,7 +631,7 @@
     const probe = analyze({ id: 'emblemprobe:' + U.hash(text), name: 'Emblem', type_line: 'Emblem',
       oracle_text: text, keywords: [], layout: 'emblem' });
     // standing rules the engine asks of a player's emblems as well as their permanents
-    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod'];
+    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
@@ -3890,6 +3890,11 @@
     { re: /^You win the game\.?$/i, make: () => ({ op: 'winGame' }) },
     // Kambal, Profiteering Mayor: "for each of them, create a tapped token that's a copy of it."
     { re: /^For each of them, create a( tapped)? token that'?s a copy of it\.?$/i, make: (m) => ({ op: 'copyBatch', tapped: !!m[1] }) },
+    // Mordenkainen: "Exchange your hand and library, then shuffle."
+    { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
+    // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
+    { re: /^(?:If it'?s (white|blue|black|red|green), you may cast it|You may cast (white|blue|black|red|green) spells from among them) this turn\.?$/i,
+      make: (m) => ({ op: 'mayPlayExiled', castOnly: true, duration: 'eot', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[(m[1] || m[2]).toLowerCase()] }) },
     // Hedge Shredder: "put them onto the battlefield tapped" — the cards the trigger was about
     { re: /^Put them onto the battlefield( tapped)?(?: under your control)?\.?$/i, make: (m) => ({ op: 'batchToBattlefield', tapped: !!m[1], filter: 'land' }) },
     // Twenty-Toed Toad: "you win the game if there are twenty or more counters on it or …"
@@ -4728,6 +4733,9 @@
     let plus = 0;
     const pl = p.match(/^(.+?) plus (one|two|three|four|five|\d+)$/i);
     if (pl) { p = pl[1]; plus = num(pl[2]); if (typeof plus !== 'number') return null; }
+    // Liliana, the Last Hope: "two plus the number of Zombies you control"
+    const pl0 = !pl && p.match(/^(one|two|three|four|five|\d+) plus (.+)$/i);
+    if (pl0) { p = pl0[2]; plus = num(pl0[1]); if (typeof plus !== 'number') return null; }
     const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }) : v);
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
@@ -6915,6 +6923,8 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
+    [/^it(?:'?s not| isn'?t) an? (creature|land|artifact|enchantment|planeswalker)(?: card)?$/i, (m) => ({ kind: 'not', cond: { kind: 'itIs', filter: m[1].toLowerCase() } })],
     // Lily Bowen, Eagle of Deliverance: "its power is 2 or less", "that creature's power is 2 or less", "that creature has power 4 or greater"
     [/^(?:its|that (?:creature|permanent)'?s) power (?:is|was) (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     [/^that (?:creature|permanent) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
@@ -10755,6 +10765,8 @@
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
       // Six: "During your turn, nonland permanent cards in your graveyard have retrace."
       { re: /^During your turn, nonland permanent cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceNonlandPermanents' }, auto: true },
+      // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
+      { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality
       { re: /^If you casting or copying an instant or sorcery spell causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'castInstantSorcery' }, auto: true },

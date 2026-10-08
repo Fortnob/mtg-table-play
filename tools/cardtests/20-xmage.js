@@ -11068,4 +11068,40 @@ module.exports = (test) => {
     t.ok(T2.g.hasKw(b2, 'flying') && T2.g.hasKw(b2, 'vigilance'), 'the Bears fly and have vigilance');
     t.no(T2.g.hasKw(b2, 'trample'), 'nobody has trample');
   });
+
+  test('Emblems: Wrenn and Six, Liliana the Last Hope, Tezzeret Cruel Captain, Serra; Chandra Dressed to Kill', (mk, t) => {
+    for (const c of ['Wrenn and Six', 'Liliana, the Last Hope', 'Tezzeret, Cruel Captain', 'Serra the Benevolent', 'Chandra, Dressed to Kill']) t.auto(c);
+    const ult = (T, name) => {
+      const pw = T.bf('A', name);
+      const ab = pw.analysis().abilities.filter(a => a.kind === 'loyalty').slice(-1)[0];
+      T.g._runEffects(ab.effects, { controller: 'A', obj: pw, name, kind: 'ability' });
+      T.settle();
+      return T.g._emblems().filter(o => o.controller === 'A').slice(-1)[0];
+    };
+    const T = mk();
+    t.ok(ult(T, 'Wrenn and Six'), 'an emblem');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    t.ok(T.g.altUsesFor('A', bolt.id).some(u => u.via === 'retrace'), 'retrace for the Bolt');
+    const T2 = mk();
+    const em = ult(T2, 'Liliana, the Last Hope');
+    T2.bf('A', 'Gravecrawler');
+    T2.g._runEffects(em.analysis().abilities[0].effects, { controller: 'A', obj: em, name: 'emblem', kind: 'ability' });
+    t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 3, 'two plus one Zombie');
+    const T3 = mk();
+    const em3 = ult(T3, 'Tezzeret, Cruel Captain');
+    const ring = T3.bf('A', 'Sol Ring');
+    T3.g._runEffects(em3.analysis().abilities[0].effects, { controller: 'A', obj: em3, name: 'emblem', kind: 'ability', targets: [{ kind: 'object', id: ring.id }] });
+    t.ok(T3.g.characteristics(ring).isCreature, 'the Sol Ring is a creature'); t.eq(T3.g.powerOf(ring), 3, '0/0 with three counters');
+    const T4 = mk();
+    ult(T4, 'Serra the Benevolent');
+    T4.bf('A', 'Grizzly Bears');
+    T4.g.player('A').life = 3;
+    T4.g.dealDamageToPlayer(T4.g.player('A'), 5, null, false);
+    t.eq(T4.life('A'), 1, 'stays at 1');
+    const T5 = mk();
+    const ch = T5.bf('A', 'Chandra, Dressed to Kill');
+    const bolt5 = T5.top('A', 'Lightning Bolt');
+    T5.g._runEffects(ch.analysis().abilities.find(a => a.kind === 'loyalty' && /Exile the top card/.test(a.text)).effects, { controller: 'A', obj: ch, name: 'Chandra', kind: 'ability' });
+    t.eq(bolt5.zone, 'exile'); t.eq(bolt5.impulseBy, 'A', 'red: castable');
+  });
 };
