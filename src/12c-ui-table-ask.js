@@ -425,6 +425,25 @@
       /* Two or three short answers are buttons and nothing more: "No" and
          "Yes", or a ballot. */
       const opts = s.options || [];
+      /* Fact or Fiction, Liliana of the Veil: each pile is a row of its
+         cards, and a button under it takes that pile. */
+      if (s.kind === 'options' && one && opts.length && opts.every(o => Array.isArray(o.ids))) {
+        const body = el('div', { class: 'piles-pick' });
+        opts.forEach((o, k) => {
+          const cards = o.ids.map((id, i) => (o.cards && o.cards[i]) || ((this.objIn(id) || {}).card) || null);
+          const row = el('div', { class: 'pick-row' });
+          for (const c of cards) row.appendChild(this.pickTile(c, {}));
+          if (!cards.length) row.appendChild(el('div', { class: 'pp-empty', text: 'Nothing' }));
+          body.appendChild(el('div', { class: 'pp-pile' }, [
+            el('div', { class: 'pp-head' }, [
+              el('span', { class: 'pp-name', text: `Pile ${k + 1}` + (cards.length ? ` (${cards.length})` : '') }),
+              el('button', { type: 'button', class: 'btn primary sm', text: 'Choose this pile', onclick: () => this.chooseSend(ch, { picks: [k] }) }),
+            ]),
+            row,
+          ]));
+        });
+        return this.panel(title, sub0, body, [], { wide: true, card });
+      }
       if (s.kind === 'options' && one && s.min === 1 && (s.compact ||
           (opts.length <= 3 && opts.every(o => String(o.label || '').length <= 24 && !o.cost && !o.card)))) {
         return this.panel(title, sub0, null, opts.map((o, k) => ({

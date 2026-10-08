@@ -779,6 +779,14 @@
 .extra-choose { display: flex; flex-direction: column; gap: 6px; padding: 8px 14px; border-radius: 12px;
   background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.14); }
 .extra-choose .pick-row { max-height: calc(34 * var(--vh)); padding: 12px 4px 14px; }
+/* piles to choose between (Fact or Fiction): one row of cards each */
+.piles-pick { display: flex; flex-direction: column; gap: 10px; }
+.pp-pile { border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: 10px; padding: 8px 10px 0; }
+.pp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pp-name { font-weight: 600; }
+.pp-pile .pick-row { max-height: calc(30 * var(--vh)); padding: 8px 4px 10px; gap: 10px; }
+.pp-pile .pick-tile { width: clamp(72px, min(calc(9 * var(--vw)), calc(18 * var(--vh))), 140px); }
+.pp-empty { opacity: .6; padding: 18px 0; }
 .extra-choose .pick-tile { width: clamp(84px, calc(9 * var(--vw)), 120px); }
 .extra-choose .x-pick { justify-content: flex-start; gap: 12px; }
 .extra-choose .x-val { font-size: 30px; min-width: 44px; }
