@@ -14224,7 +14224,8 @@
           if (!pool.length) break;
           const want = n(e.n);
           const legal = pool.filter(o => {
-            if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > e.maxMv) return false;
+            // Genesis Wave, Loot: "with mana value X or less", "…less than or equal to the number of lands you control"
+            if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > (typeof e.maxMv === 'number' ? e.maxMv : n(e.maxMv))) return false;
             // Star Charter: "a creature card with power 3 or less"
             if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
             // "a creature or land card": words, read the way a search reads them

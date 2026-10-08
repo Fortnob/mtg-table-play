@@ -10849,4 +10849,26 @@ module.exports = (test) => {
     T3.settle(); T3.resolve();
     t.eq(T3.g.battlefield.filter(o => o.isToken && o.name === 'Grizzly Bears').length, 1, 'one copy when declined');
   });
+
+  test('Genesis Wave puts permanents with mana value X or less; Loot digs for a creature', (mk, t) => {
+    t.auto('Genesis Wave'); t.auto('Loot, Exuberant Explorer');
+    const T = mk();
+    const fo = T.top('A', 'Forest'), wurm = T.top('A', 'Craw Wurm'), bear = T.top('A', 'Grizzly Bears');
+    T.answer('pickCard', (ch) => { t.no(ch.cards.some(c => c.id === wurm.id), 'the Wurm costs too much'); return { cardIds: [bear.id, fo.id] }; });
+    T.mana('A', '3GGG');
+    T.cast('A', T.hand('A', 'Genesis Wave'), { x: 3 });
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'battlefield'); t.eq(fo.zone, 'battlefield'); t.eq(wurm.zone, 'graveyard');
+    const T2 = mk();
+    const loot = T2.bf('A', 'Loot, Exuberant Explorer'); loot.summoningSick = false; loot.tapped = false;
+    T2.bf('A', 'Forest'); T2.bf('A', 'Forest');
+    const cc = T2.top('A', 'Centaur Courser'), gb = T2.top('A', 'Grizzly Bears');
+    T2.answer('confirm', { yes: true });
+    T2.answer('pickCard', (ch) => { t.no(ch.cards.some(c => c.id === cc.id), 'mana value above the land count'); return { cardIds: [gb.id] }; });
+    T2.mana('A', '4GG');
+    const la = loot.analysis(), ab = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty').length - 1;
+    t.ok(T2.g.activateAbility('A', loot.id, ab, {}), T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(gb.zone, 'battlefield', 'the Bears enter');
+  });
 };

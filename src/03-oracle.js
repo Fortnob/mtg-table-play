@@ -3457,9 +3457,29 @@
 
 
     /* ===== the sentences that come up most often across the whole card pool ===== */
-    { re: /^Put the rest on the bottom of your library in (?:a random|any) order\.?$/i,
+    { re: /^Put the rest on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
       make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
+    // Genesis Wave: "Reveal the top X cards of your library."
+    { re: /^Reveal the top (X|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? of your library\.?$/i,
+      make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0, reveal: true }) },
+    /* Loot, Exuberant Explorer; Genesis Wave: "You may reveal a creature card
+       with mana value less than or equal to the number of lands you control
+       from among them and put it onto the battlefield", "You may put any
+       number of permanent cards with mana value X or less from among them
+       onto the battlefield", "Put a creature card from among them onto the
+       battlefield" */
+    { re: /^(You may )?(?:reveal |put )?(an?|any number of) ([-a-z ]*?)cards?(?: with mana value (X|\d+) or less| with mana value less than or equal to ([a-z ]+?))? from among them (?:and put (?:it|that card) )?onto the battlefield( tapped)?\.?$/i,
+      make: (m) => {
+        let cap = null;
+        if (m[4]) cap = /^x$/i.test(m[4]) ? 'X' : +m[4];
+        else if (m[5]) { cap = amountOf(m[5]); if (cap == null) return null; }
+        return Object.assign({ op: 'takeFromLooked', n: /any number/i.test(m[2]) ? 99 : 1, filter: (m[3] || '').trim().toLowerCase() || 'any',
+          to: 'battlefield', tapped: !!m[6], optional: !!m[1] || /any number/i.test(m[2]), mustTake: !m[1] && !/any number/i.test(m[2]), rest: 'keep' },
+          cap != null ? { maxMv: cap } : {});
+      } },
+    // Genesis Wave: "Then put all cards revealed this way that weren't put onto the battlefield into your graveyard."
+    { re: /^(?:Then )?put all (?:other )?cards revealed this way that weren'?t put onto the battlefield into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
     // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
     { re: /^You may put an? ([-a-z ]*?)card from among them onto the battlefield( tapped)?\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
