@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13283,
-  "gainedCards": 1389,
-  "linesNeeded": 14501,
+  "needed": 13273,
+  "gainedCards": 1390,
+  "linesNeeded": 14482,
   "linesGained": 1681,
   "gained": {
-   "all": 1389,
+   "all": 1390,
    "top2000": 52,
    "stdTop": 10
   },
@@ -90,8 +90,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 297,
-   "lines": 279,
+   "score": 296,
+   "lines": 278,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -469,25 +469,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 29,
-   "lines": 20,
-   "cards": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Prodigy's Prototype",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance",
-    "Witch-king, Sky Scourge"
-   ]
-  },
-  {
    "what": "EmpowerJaceEffect",
    "score": 29,
    "lines": 29,
@@ -504,6 +485,25 @@
     "Way of the Healer",
     "Vraska's Final Mercy",
     "Theorist's Proxy"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 28,
+   "lines": 19,
+   "cards": [
+    "Anim Pakal, Thousandth Moon",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge",
+    "Jocasta, Automaton Avenger"
    ]
   },
   {
@@ -1028,25 +1028,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe",
-    "Back on Track",
-    "Absorbing Man",
-    "Suit Up"
-   ]
-  },
-  {
    "what": "AttachEffect",
    "score": 17,
    "lines": 8,
@@ -1097,6 +1078,25 @@
     "Painwracker Oni",
     "Fires of Victory",
     "Gutwrencher Oni"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction",
+    "Cloudspire Skycycle",
+    "Hellish Sideswipe",
+    "Absorbing Man",
+    "Suit Up",
+    "Okiba Salvage"
    ]
   },
   {
@@ -3135,22 +3135,6 @@
     "Blossoming Calm",
     "Gilded Light",
     "Gruul Spellbreaker"
-   ]
-  },
-  {
-   "what": "token ability PilotSaddleCrewToken",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Defend the Rider",
-    "Valor's Flagship",
-    "Country Roads",
-    "Rocky Roads",
-    "Reef Roads",
-    "Wild Roads",
-    "Cloudspire Coordinator",
-    "Roadside Assistance",
-    "Foul Roads"
    ]
   },
   {
@@ -7232,6 +7216,17 @@
     "Predatory Advantage",
     "Discordant Spirit"
    ]
+  },
+  {
+   "what": "TargetSpellOrPermanent",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Commit // Memory",
+    "Eight-and-a-Half-Tails",
+    "Blind Seer",
+    "Illusion // Reality"
+   ]
   }
  ],
  "sole": [
@@ -7484,15 +7479,15 @@
   },
   {
    "what": "attack with a kind of creature",
-   "score": 25,
-   "cards": 16,
+   "score": 24,
+   "cards": 15,
    "names": [
     "Anim Pakal, Thousandth Moon",
     "Ainok Strike Leader",
     "Alibou, Ancient Witness",
     "The Earth King",
     "Choco, Seeker of Paradise",
-    "Prodigy's Prototype"
+    "Fangorn, Tree Shepherd"
    ]
   },
   {
@@ -7639,19 +7634,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 17,
    "cards": 17,
@@ -7714,6 +7696,19 @@
     "Nimble Brigand",
     "Slippery Scoundrel",
     "Waterlogged Hulk // Watertight Gondola"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction"
    ]
   },
   {
@@ -8531,6 +8526,19 @@
    ]
   },
   {
+   "what": "ConjureCardEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Rusko, Clockmaker",
+    "Overcooked",
+    "Sanguine Brushstroke",
+    "Toralf's Disciple",
+    "Dragonfly Pilot",
+    "Swarm Saboteur"
+   ]
+  },
+  {
    "what": "TargetPermanentOrPlayer",
    "score": 9,
    "cards": 6,
@@ -8606,6 +8614,19 @@
     "Glamer Gifter",
     "Wings of Velis Vel",
     "Atomic Microsizer"
+   ]
+  },
+  {
+   "what": "scope:alts",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Eidolon of Countless Battles",
+    "Paladin Danse, Steel Maverick",
+    "Doctor Doom",
+    "Beyond the Quiet",
+    "Born to Drive",
+    "Tend the Sprigs"
    ]
   },
   {
@@ -8843,16 +8864,16 @@
    ]
   },
   {
-   "what": "ConjureCardEffect",
+   "what": "DraftFromSpellbookEffect",
    "score": 9,
    "cards": 9,
    "names": [
-    "Rusko, Clockmaker",
-    "Overcooked",
-    "Sanguine Brushstroke",
-    "Toralf's Disciple",
-    "Swarm Saboteur",
-    "Expedition Supplier"
+    "Key to the Archive",
+    "Emmara, Voice of the Conclave",
+    "Cursebound Witch",
+    "Experimental Pilot",
+    "Slimefoot, Thallid Transplant",
+    "Boseiju Pathlighter"
    ]
   },
   {
@@ -9004,19 +9025,6 @@
     "Obelisk Spider",
     "Earth Kingdom General",
     "The Great Goblin"
-   ]
-  },
-  {
-   "what": "scope:alts",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Eidolon of Countless Battles",
-    "Paladin Danse, Steel Maverick",
-    "Doctor Doom",
-    "Beyond the Quiet",
-    "Tend the Sprigs",
-    "Focus Fire"
    ]
   },
   {
@@ -9264,19 +9272,6 @@
     "Thelonite Monk",
     "Grixis Illusionist",
     "Graceful Antelope"
-   ]
-  },
-  {
-   "what": "DraftFromSpellbookEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Key to the Archive",
-    "Emmara, Voice of the Conclave",
-    "Cursebound Witch",
-    "Slimefoot, Thallid Transplant",
-    "Boseiju Pathlighter",
-    "Tireless Angler"
    ]
   },
   {
@@ -10047,6 +10042,19 @@
     "Jaws of Stone",
     "Meteor Shower",
     "Serra's Hymn"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldTappedUnlessAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Country Roads",
+    "Horned Loch-Whale // Lagoon Breach",
+    "Rocky Roads",
+    "Reef Roads",
+    "Wild Roads",
+    "Foul Roads"
    ]
   },
   {
@@ -10996,18 +11004,6 @@
     "Stronghold Arena",
     "Lightkeeper of Emeria",
     "Spell Contortion"
-   ]
-  },
-  {
-   "what": "OneShotNonTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Boltbender",
-    "Amy Pond",
-    "Wormfang Newt",
-    "Wormfang Turtle",
-    "Temporal Firestorm"
    ]
   }
  ]

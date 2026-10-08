@@ -7085,7 +7085,10 @@
     /* Where each line's abilities start, and how much of it was read: a
        generated script can then stand in for just the lines that were not. */
     const lineMarks = [];
-    for (const line of lines) {
+    for (const line0 of lines) {
+      /* A token's own standing rule: "This token's power and toughness are
+         …", "This token can't block" say what "This creature …" says */
+      const line = /^This token(?:'s)?\b/.test(line0) && !/^[^.]*:/.test(line0) ? line0.replace(/^This token/, 'This creature') : line0;
       lineMarks.push({ text: line, ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines });
       totalLines++;
       /* "12+ | {G}, {T}: Add {G} for each creature you control." (station)
@@ -9741,6 +9744,13 @@
       /* Prepared (the prepare cards): while it is, its controller may cast
          a copy of the card's spell, which unprepares it */
       { re: /^(?:CARDNAME|This creature) enters prepared\.?$/i, eff: { op: 'etbPrepared' }, auto: true },
+      // Realm of Koh's Spirit: "This creature can't block or be blocked by non-Spirit creatures."
+      { re: /^(?:CARDNAME|This creature) can'?t block or be blocked by non-([A-Z][a-z]+) creatures\.?$/,
+        make: (m) => ({ op: 'sequence', list: [{ op: 'evasion', notBy: { type: 'creature', zone: 'battlefield', notSubtype: m[1].toLowerCase() } },
+          { op: 'blockOnly', subtype: m[1].toLowerCase() }] }), auto: true },
+      // Whip of Erebos tokens, Realmbreaker: "If this creature would leave the battlefield, exile it instead of putting it anywhere else."
+      { re: /^If (?:this (?:creature|permanent|token|artifact)|CARDNAME) would leave the battlefield, exile it instead of putting it anywhere else\.?$/i,
+        eff: { op: 'leaveExileSelf' }, auto: true },
       /* "This creature can't be blocked by white creatures", "... by artifact creatures" */
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by ((?:white|blue|black|red|green|artifact|legendary|nonartifact|colorless|multicolored|nonblack|nonwhite)(?: or (?:white|blue|black|red|green))?) creatures\.?$/i,
         make: (m) => {
@@ -9848,6 +9858,9 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Pilot tokens, Cloudspire Captain: "This token saddles Mounts and crews Vehicles as though its power were 2 greater."
+      { re: /^(?:This token|This creature|CARDNAME) (?:saddles Mounts and )?crews Vehicles(?: and saddles Mounts)? as though its power were (\d+) greater\.?$/i,
+        make: (m) => ({ op: 'crewBonus', n: +m[1] }), auto: true },
       // Necrodominance: "Your maximum hand size is five."
       { re: /^Your maximum hand size is (\w+)\.?$/i, make: (m) => (typeof num(m[1]) === 'number' ? { op: 'handSizeSet', n: num(m[1]) } : null), auto: true },
       // Phyrexian Unlife, Transcendence: "You don't lose the game for having 0 or less life."

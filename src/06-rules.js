@@ -5910,12 +5910,18 @@
       return /^(?:card|cards)$/i.test(f) ? yard : yard.filter(c => this._cardFitsWords(c, f));
     }
     /** The untapped permanents "Tap an untapped creature you control" could tap. */
+    /** What a creature counts for when it crews or saddles: its power, and more for a Pilot token ("as though its power were 2 greater"). */
+    _crewPowerOf(x) {
+      if (!x) return 0;
+      const e = this._staticOp(x, 'crewBonus');
+      return Math.max(0, this.powerOf(x) + ((e && Number(e.n)) || 0));
+    }
     /** Crew and saddle: the fewest, least useful creatures that add up to the power wanted. */
     _crewPick(pool, need) {
       const order = this._tapCostOrder(pool);
       const out = [];
       let sum = 0;
-      for (const x of order) { if (sum >= need) break; out.push(x); sum += Math.max(0, this.powerOf(x)); }
+      for (const x of order) { if (sum >= need) break; out.push(x); sum += this._crewPowerOf(x); }
       return sum >= need ? out : null;
     }
     _tapCostPool(pid, spec, self, selfTaps) {
@@ -5971,7 +5977,7 @@
       }
       if (cost.tapCreatures && cost.tapCreatures.totalPower != null) {
         const pool = this._tapCostPool(pid, cost.tapCreatures, self, cost.tap);
-        if (pool.reduce((k, x) => k + Math.max(0, this.powerOf(x)), 0) < cost.tapCreatures.totalPower)
+        if (pool.reduce((k, x) => k + this._crewPowerOf(x), 0) < cost.tapCreatures.totalPower)
           return `Not enough power among your untapped creatures (${cost.tapCreatures.totalPower} needed).`;
       } else if (cost.tapCreatures) {
         const need = this._costCount(cost.tapCreatures.n, opts);
@@ -6127,7 +6133,7 @@
         const pool = this._tapCostPool(pid, cost.tapCreatures, self, false);
         const want = cost.tapCreatures.totalPower;
         const named = (opts.tapCostIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean);
-        const sum = (l) => l.reduce((k, x) => k + Math.max(0, this.powerOf(x)), 0);
+        const sum = (l) => l.reduce((k, x) => k + this._crewPowerOf(x), 0);
         if (named.length && sum(named) >= want) this._tapForCost(pid, named, item);
         else {
           const auto2 = this._crewPick(pool, want);
@@ -7086,6 +7092,9 @@
       if (ev && ev.onlyBy && !ev.onlyBy.some(k => this.hasKw(blocker, k))) return false;
       // Dream Prowler: unblockable while it attacks alone
       if (ev && ev.attackingAlone && (this.combat.attackers || []).length === 1 && this.combat.attackers[0] === attacker.id) return false;
+      // Realm of Koh's Spirit: "can't block non-Spirit creatures"
+      const bo = this._staticOp(blocker, 'blockOnly');
+      if (bo && bo.subtype && !this._hasCreatureType(attacker, bo.subtype)) return false;
       // Goblin Mutant: "can't block creatures with power 3 or greater"
       const bpl = this._staticOp(blocker, 'blockPowerLimit');
       if (bpl && this.powerOf(attacker) >= bpl.min) return false;
@@ -9228,7 +9237,7 @@
           if (from === 'battlefield' && toZone === 'graveyard' && (Number((o.counters || {}).finality) || 0) > 0) toZone = 'exile';
         }
         // Whip of Erebos: "if it would leave the battlefield, exile it instead"
-        if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && o.leaveExile) toZone = 'exile';
+        if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && (o.leaveExile || this._staticOp(o, 'leaveExileSelf'))) toZone = 'exile';
       }
       /* A mutated pile is several cards; each of them goes where the
          permanent went (CR 702.140f). */
@@ -17428,8 +17437,8 @@
             ids = ids.filter(id => pool.some(x => x.id === id)).slice(0, ch.count || 1);
             if (ch.totalPower != null) {
               // crew: whatever was chosen, topped up until the power is there
-              let sum = ids.reduce((k, id) => k + Math.max(0, this.powerOf(this.obj(id))), 0);
-              for (const x of this._tapCostOrder(pool)) { if (sum >= ch.totalPower) break; if (!ids.includes(x.id)) { ids.push(x.id); sum += Math.max(0, this.powerOf(x)); } }
+              let sum = ids.reduce((k, id) => k + this._crewPowerOf(this.obj(id)), 0);
+              for (const x of this._tapCostOrder(pool)) { if (sum >= ch.totalPower) break; if (!ids.includes(x.id)) { ids.push(x.id); sum += this._crewPowerOf(x); } }
             } else
             for (const x of this._tapCostOrder(pool)) { if (ids.length >= (ch.count || 1)) break; if (!ids.includes(x.id)) ids.push(x.id); }
             this._tapForCost(playerId, ids.map(id => this.obj(id)), ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null);
