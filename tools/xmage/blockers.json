@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13301,
+  "needed": 13292,
   "gainedCards": 1389,
-  "linesNeeded": 14549,
+  "linesNeeded": 14532,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -109,8 +109,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 253,
-   "lines": 223,
+   "score": 252,
+   "lines": 222,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -4758,20 +4758,6 @@
    ]
   },
   {
-   "what": "BecomesTargetAttachedTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Crystallization",
-    "Fractured Loyalty",
-    "Ice Cage",
-    "Illusionary Armor",
-    "Spinal Graft",
-    "Sleeping Potion",
-    "Spectral Prison"
-   ]
-  },
-  {
    "what": "DesertControlledOrGraveyardCondition.instance",
    "score": 7,
    "lines": 7,
@@ -5006,19 +4992,6 @@
     "Turncoat Kunoichi",
     "Detention Chariot",
     "Driftgloom Coyote"
-   ]
-  },
-  {
-   "what": "OneOrMoreDiceRolledTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Vexing Puzzlebox",
-    "Wyll, Blade of Frontiers",
-    "Brazen Dwarf",
-    "Vrondiss, Rage of Ancients",
-    "Feywild Trickster",
-    "Farideh, Devil's Chosen"
    ]
   },
   {
@@ -6845,18 +6818,6 @@
    ]
   },
   {
-   "what": "ExertCreatureControllerTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Rohirrim Chargers",
-    "Battlefield Scavenger",
-    "Trueheart Twins",
-    "Resolute Survivors",
-    "Vizier of the True"
-   ]
-  },
-  {
    "what": "DamageTargetEffect.withCantBePrevented",
    "score": 5,
    "lines": 5,
@@ -7246,13 +7207,46 @@
     "Earthshape",
     "Bumi's Feast Lecture"
    ]
+  },
+  {
+   "what": "TheRingTemptsYouTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Nazgûl",
+    "Sauron, the Dark Lord",
+    "Sméagol, Helpful Guide",
+    "Ringwraiths"
+   ]
+  },
+  {
+   "what": "AirbendTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Appa, Steadfast Guardian",
+    "Aang, Airbending Master",
+    "Appa, Loyal Sky Bison",
+    "Whirlwind Technique"
+   ]
+  },
+  {
+   "what": "copy with changes",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Increasing Vengeance",
+    "Double Major",
+    "Choreographed Sparks",
+    "Aziza, Mage Tower Captain"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3928,
-   "cards": 3535,
+   "score": 3930,
+   "cards": 3537,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -9177,6 +9171,19 @@
    ]
   },
   {
+   "what": "keyword ExertAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Battlefield Scavenger",
+    "Trueheart Twins",
+    "Oketra's Avenger",
+    "Resolute Survivors"
+   ]
+  },
+  {
    "what": "CantAttackBlockAttachedEffect",
    "score": 8,
    "cards": 8,
@@ -9699,19 +9706,6 @@
     "Doomsday Specter",
     "Thrull Surgeon",
     "Mind Warp"
-   ]
-  },
-  {
-   "what": "BecomesTargetAttachedTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Crystallization",
-    "Fractured Loyalty",
-    "Ice Cage",
-    "Illusionary Armor",
-    "Spinal Graft",
-    "Sleeping Potion"
    ]
   },
   {
@@ -10630,18 +10624,6 @@
    ]
   },
   {
-   "what": "OneOrMoreDiceRolledTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Vexing Puzzlebox",
-    "Brazen Dwarf",
-    "Vrondiss, Rage of Ancients",
-    "Feywild Trickster",
-    "Farideh, Devil's Chosen"
-   ]
-  },
-  {
    "what": "GreenManaAbility with arguments",
    "score": 5,
    "cards": 5,
@@ -11023,6 +11005,18 @@
     "Stronghold Arena",
     "Lightkeeper of Emeria",
     "Spell Contortion"
+   ]
+  },
+  {
+   "what": "OneShotNonTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Boltbender",
+    "Amy Pond",
+    "Wormfang Newt",
+    "Wormfang Turtle",
+    "Temporal Firestorm"
    ]
   }
  ]

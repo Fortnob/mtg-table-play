@@ -11196,6 +11196,8 @@
           const t0 = e.targets && e.targets.length ? targets.find(t => t.kind === 'object') : null;
           const who = t0 ? this.obj(t0.id) : src;
           if (t0 && !(who && who.zone === 'battlefield')) break;
+          // Wildgrowth Walker: "whenever a creature you control explores"
+          if (who) this._fire('youExplore', who.controller, { object: who, objController: who.controller });
           const top = z.library[0];
           const ta = top.analysis();
           if (!this._doneHere('exploreReveal')) this.logEvent('rules', `${who ? who.name : me.name} explores: ${top.name}.`);
@@ -12078,6 +12080,8 @@
           if (!src || src.zone !== 'battlefield') break;
           src.noUntapNext = true;
           src.exertedTurn = this.turn;
+          // Battlefield Scavenger: "whenever you exert a creature"
+          this._fire('youExert', src.controller, { object: src, objController: src.controller });
           this.logEvent('rules', `${src.name} is exerted.`);
           break;
         // Wound Reflection: each opponent loses again what they lost this turn

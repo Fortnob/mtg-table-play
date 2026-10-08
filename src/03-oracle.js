@@ -6486,6 +6486,14 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Crystallization, Illusionary Armor: "When enchanted creature becomes the target of a spell or ability"
+    { re: /^When(?:ever)? enchanted creature becomes the target of a spell or ability,? /i, event: 'becomesTarget', extra: { ofEnchanted: true } },
+    // Brazen Dwarf: "Whenever you roll one or more dice"
+    { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll' },
+    // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"
+    { re: /^Whenever a creature you control explores,? /i, event: 'youExplore' },
+    // Battlefield Scavenger: "Whenever you exert a creature"
+    { re: /^Whenever you exert a creature,? /i, event: 'youExert' },
     // The Celestus, Sunstreak Phoenix: "Whenever day becomes night or night becomes day"
     { re: /^Whenever day becomes night or night becomes day,? /i, event: 'becomesDay' },
     // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
