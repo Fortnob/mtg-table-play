@@ -11424,4 +11424,23 @@ module.exports = (test) => {
     T3.toMain('B');
     t.eq(cmd.zone, 'command', 'back at the end step');
   });
+
+  test('Liesa exiles dying opponents\' creatures; Bruvac doubles their mills; Winding Constrictor adds a counter', (mk, t) => {
+    t.auto('Liesa, Forgotten Archangel'); t.auto('Bruvac the Grandiloquent'); t.auto('Winding Constrictor');
+    const T = mk();
+    T.bf('A', 'Liesa, Forgotten Archangel');
+    const theirs = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Llanowar Elves');
+    T.g.moveObject(theirs, 'graveyard'); T.g.moveObject(mine, 'graveyard');
+    t.eq(theirs.zone, 'exile', 'theirs exiled'); t.eq(mine.zone, 'graveyard', 'mine dies');
+    const T2 = mk();
+    T2.bf('A', 'Bruvac the Grandiloquent');
+    const lib = T2.g.zones.B.library.length;
+    T2.g._runEffects([{ op: 'mill', n: 2, who: 'opponents' }], { controller: 'A', name: 'mill', kind: 'spell' });
+    t.eq(T2.g.zones.B.library.length, lib - 4, 'twice as many');
+    const T3 = mk();
+    T3.bf('A', 'Winding Constrictor');
+    const ring = T3.bf('A', 'Sol Ring');
+    T3.g.addCounters(ring, 'charge', 1);
+    t.eq(ring.counters.charge, 2, 'one more on an artifact');
+  });
 };

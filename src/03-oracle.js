@@ -10353,6 +10353,19 @@
       make: () => ({ op: 'replace', id: 'dmgdoubleOpp', event: 'damage', who: 'any', how: 'double', toOpponent: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
+    // Liesa, Forgotten Archangel, Gisa, Stone of Erech: "If a creature an opponent controls would die, exile it instead."
+    { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
+      make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+        how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'] }, m[1] ? { nontoken: true } : {}) },
+    // Bruvac the Grandiloquent: "If an opponent would mill one or more cards, they mill twice that many cards instead."
+    { re: /^If an opponent would mill one or more cards, they mill twice that many cards instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'millDouble', event: 'mill', who: 'opponents', how: 'double' }) },
+    // Winding Constrictor: "If you would get one or more counters, you get that many plus one of each of those kinds of counters instead."
+    { re: /^If you would get one or more counters, you get that many plus one of each of those kinds of counters instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Player', event: 'counters', who: 'you', players: true, playerOnly: true, how: 'add', n: 1 }) },
+    // Winding Constrictor: "If one or more counters would be put on an artifact or creature you control, that many plus one of each of those kinds of counters are put on that permanent instead."
+    { re: /^If one or more counters would be put on an artifact or creature you control, that many plus one of each of those kinds of counters are put on that permanent instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1AC', event: 'counters', who: 'you', how: 'add', n: 1, whatAny: ['artifact', 'creature'] }) },
     // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
     { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },

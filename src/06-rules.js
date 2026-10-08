@@ -8239,6 +8239,10 @@
       if (who === 'opponents' && ev.controller === src.controller) return false;
       // Lae'zel: "on a creature or planeswalker you control or on yourself"
       if (ef.onYours && ev.controller !== src.controller) return false;
+      // Winding Constrictor: counters on you, not on your permanents
+      if (ef.playerOnly && !ev.player) return false;
+      // Valentin: "a nontoken creature"
+      if (ef.nontoken && ev.object && ev.object.isToken) return false;
       if (ef.what && ev.object) {
         const a = ev.object.analysis && ev.object.analysis();
         if (!a) return false;
