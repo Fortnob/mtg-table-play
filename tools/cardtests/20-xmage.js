@@ -8902,4 +8902,25 @@ module.exports = (test) => {
     T.cast('A', sc, { via: 'selfGrave' });
     t.eq(sc.zone, 'battlefield');
   });
+
+  test('High Tide: Islands make one more blue for the rest of the turn; Past in Flames: flashback for this turn', (mk, t) => {
+    t.auto('High Tide');
+    t.auto('Past in Flames');
+    t.auto('Forsaken Monument');
+    const T = mk();
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'High Tide'));
+    const isl = T.bf('A', 'Island');
+    T.g.tapForMana('A', isl.id, 0);
+    t.eq(T.g.player('A').pool.total(), 2, 'two blue from one Island');
+    const T2 = mk();
+    const bolt = T2.grave('A', 'Lightning Bolt');
+    T2.mana('A', 'R4');
+    T2.cast('A', T2.hand('A', 'Past in Flames'));
+    t.ok(T2.g.altUsesFor('A', bolt.id).some(u => u.via === 'flashback'), 'the Bolt has flashback');
+    T2.mana('A', 'R');
+    T2.cast('A', bolt, { via: 'flashback', targets: ['B'] });
+    t.eq(T2.life('B'), 17);
+    t.eq(bolt.zone, 'exile', 'and is exiled after');
+  });
 };

@@ -2693,6 +2693,9 @@
       make: (m) => Object.assign({ op: 'poison', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: /opponent/i.test(m[1]) ? 'opponent' : 'player' }] } : {}) },
     { re: /^You gain life equal to the damage dealt this way\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: 'lastDamage' }) },
+    // High Tide, Bubbling Muck: "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}."
+    { re: /^Until end of turn, whenever a player taps an? (Island|Swamp|Mountain|Forest|Plains|land) for mana, that player adds an additional (\{[WUBRGC]\})\.?$/i,
+      make: (m) => ({ op: 'extraManaThisTurn', filter: m[1].toLowerCase(), symbols: MANA.parse(m[2]) }) },
     // Yawgmoth's Will, Gaea's Will: "Until end of turn, you may play lands and cast spells from your graveyard."
     { re: /^Until end of turn, you may (play lands and cast spells|cast spells|play lands) from your graveyard\.?$/i,
       make: (m) => ({ op: 'playFromThisTurn', zone: 'graveyard', what: /play lands and/i.test(m[1]) ? 'any' : /cast/i.test(m[1]) ? 'spell' : 'land' }) },
@@ -4732,6 +4735,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Past in Flames: "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost."
+    { re: /^Each (instant and sorcery|instant|sorcery) card in your graveyard gains flashback until end of turn\. The flashback cost is equal to its mana cost\.$/i,
+      make: (m) => [{ op: 'flashbackThisTurn', filter: /and/i.test(m[1]) ? 'instant or sorcery' : m[1].toLowerCase() }] },
     /* Liliana of the Veil: "Separate all permanents target player controls
        into two piles. That player sacrifices all permanents in the pile of
        their choice." Do or Die: "…creatures… Destroy all creatures in the
@@ -9190,6 +9196,9 @@
       { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Forsaken Monument: "Whenever you tap a permanent for {C}, add an additional {C}."
+      { re: /^Whenever you tap an? (permanent|land|artifact|creature) for (\{[WUBRGC]\}), add an additional \2\.?$/i,
+        make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), symbols: MANA.parse(m[2]), ifMade: MANA.parse(m[2])[0] }), auto: true },
       // Badgermole Cub: "Whenever you tap a creature for mana, add an additional {G}"; Kinnan: "a nonland permanent"
       { re: /^Whenever you tap an? (creature|nonland permanent|artifact|permanent) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that (?:creature|permanent|artifact) produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },

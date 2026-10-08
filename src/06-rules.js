@@ -3301,6 +3301,11 @@
       if (spell && o.prepared && o.zone === 'battlefield' && o.controller === playerId) {
         out.push({ kind: 'cast', via: 'prepared', cost: spell.mana_cost || '', label: 'Cast a copy of ' + spell.name + ' ' + (spell.mana_cost || '') });
       }
+      // Past in Flames: flashback until end of turn, for its mana cost
+      if (o.zone === 'graveyard' && o.owner === playerId && o.flashbackTurn === this.turn && !a.isLand &&
+          !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^flashback$/i.test(ab.keyword || '') && ab.arg)) {
+        out.push({ kind: 'cast', via: 'flashback', cost: a.manaCost || '', after: 'exile', label: 'Flashback ' + (a.manaCost || '') });
+      }
       /* Aftermath: the right half of a split card in your graveyard, for its
          own cost, exiled after (CR 702.127) */
       if (o.zone === 'graveyard' && o.owner === playerId && this._aftermathHalf(o)) {
@@ -6485,6 +6490,8 @@
         if (e.who === 'you' && o.controller !== src.controller) continue;
         if (e.filter && !this._cardFitsWords(o, e.filter)) continue;
         if (e.scope !== 'attached' && !e.filter && !oa.isLand) continue;
+        // Forsaken Monument: only when it made that kind of mana
+        if (e.ifMade && !(made[e.ifMade] > 0)) continue;
         let syms = e.symbols || [];
         if (e.chosen) syms = src.chosenColor ? [src.chosenColor] : [];
         if (e.sameType) {
@@ -6495,6 +6502,13 @@
         if (e.anyColor) syms = [this._preferredColor(p) || 'G'];
         for (const sym of syms) p.pool.add(sym);
         if (syms.length) this.logEvent('mana', `${src.name} adds ${syms.map(x => '{' + x + '}').join('')}.`);
+      }
+      // High Tide: more mana for the rest of the turn, from a spell that has gone
+      for (const f of (this._floatingMana || [])) {
+        if (f.turn !== this.turn) continue;
+        if (f.filter && !this._cardFitsWords(o, f.filter)) continue;
+        for (const sym of f.symbols || []) p.pool.add(sym);
+        if ((f.symbols || []).length) this.logEvent('mana', `${f.name} adds ${(f.symbols || []).map(x => '{' + x + '}').join('')}.`);
       }
     }
 
@@ -14498,6 +14512,19 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // High Tide: "until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}"
+        case 'extraManaThisTurn':
+          this._floatingMana = (this._floatingMana || []).filter(f => f.turn === this.turn)
+            .concat([{ turn: this.turn, filter: e.filter, symbols: (e.symbols || []).slice(), name: (src && src.name) || ctx.name || 'An effect' }]);
+          break;
+        // Past in Flames: the instants and sorceries in your graveyard now gain flashback for this turn
+        case 'flashbackThisTurn':
+          for (const c of this.zones[ctx.controller].graveyard) {
+            if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
+            c.flashbackTurn = this.turn;
+          }
+          this.logEvent('rules', `${me.name}'s ${e.filter || 'card'}s in the graveyard gain flashback until end of turn.`);
+          break;
         // Yawgmoth's Will: play from the graveyard for the rest of the turn
         case 'playFromThisTurn': {
           me.playFromGrants = (me.playFromGrants || []).filter(g => g.turn === this.turn)
