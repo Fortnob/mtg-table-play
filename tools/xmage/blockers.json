@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12865,
+  "needed": 12854,
   "gainedCards": 1374,
-  "linesNeeded": 14118,
+  "linesNeeded": 14106,
   "linesGained": 1654,
   "gained": {
    "all": 1374,
@@ -2222,25 +2222,6 @@
     "Barbed-Back Wurm",
     "Master of Arms",
     "Flowstone Salamander"
-   ]
-  },
-  {
-   "what": "LicidAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Tempting Licid",
-    "Dominating Licid",
-    "Transmogrifying Licid",
-    "Nurturing Licid",
-    "Convulsing Licid",
-    "Corrupting Licid",
-    "Enraging Licid",
-    "Calming Licid",
-    "Stinging Licid",
-    "Leeching Licid",
-    "Quickening Licid",
-    "Gliding Licid"
    ]
   },
   {
@@ -7134,6 +7115,17 @@
     "Gift of the Deity",
     "Favorable Destiny"
    ]
+  },
+  {
+   "what": "BeginningOfCombatTriggeredAbility for OPPONENT",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Champions of Minas Tirith",
+    "Web of Inertia",
+    "Fight or Flight",
+    "Sentinel of the Eternal Watch"
+   ]
   }
  ],
  "sole": [
@@ -8177,19 +8169,6 @@
     "Rune of Protection: Artifacts",
     "Rune of Protection: Lands",
     "Circle of Protection: Shadow"
-   ]
-  },
-  {
-   "what": "LicidAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Tempting Licid",
-    "Dominating Licid",
-    "Nurturing Licid",
-    "Convulsing Licid",
-    "Corrupting Licid",
-    "Enraging Licid"
    ]
   },
   {
@@ -10910,6 +10889,18 @@
     "Dragon's Herald",
     "Demon's Herald",
     "Sphinx's Herald"
+   ]
+  },
+  {
+   "what": "boost for custom",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Ghosthelm Courier",
+    "Flamestick Courier",
+    "Everglove Courier",
+    "Frightshroud Courier",
+    "Pearlspear Courier"
    ]
   }
  ]

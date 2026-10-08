@@ -5685,6 +5685,15 @@
       }
 
       // unlocking a Room's door is a special action: no stack (CR 116.2m)
+      // the Licids: ending the effect is a special action, with no stack
+      if (ab.special === 'endLicid') {
+        const host = o.attachedTo && this.obj(o.attachedTo);
+        if (host) host.attachments = (host.attachments || []).filter(x => x !== o.id);
+        o.attachedTo = null; o.licid = false; o._chr = null;
+        this.logEvent('rules', `${o.name} is a creature again.`);
+        this.bumpBoard(); this.touch();
+        return true;
+      }
       if (ab.special === 'unlock') {
         this._unlockDoor(o, ab.door);
         this.touch();
@@ -5971,6 +5980,9 @@
          ever, for this permanent. */
       // Reconfigure's second use: only while it is attached
       if (ab && ab.onlyAttached && !o.attachedTo) return 'It is not attached to anything.';
+      // the Licids: the ability it loses while it is an Aura, and the way back only then
+      if (ab && ab.licidStart && o.licid) return 'It has lost that ability.';
+      if (ab && ab.licidEnd && !o.licid) return 'There is no effect to end.';
       // Arrest, Null Rod, Koma: "its activated abilities can't be activated"
       if (o && o.zone === 'battlefield' && this._hasFlag(o, 'cantActivate')) return "Its activated abilities can't be activated.";
       const label = ab && ab.cost && ab.cost.label;
@@ -9344,7 +9356,7 @@
         addTypes: s && s.changed ? (a.types || []).filter(x => !(s.base.types || []).includes(x)) : [],
         abilitiesLost: !!(s && s.lost),
         // bestowed and attached, it is an Aura rather than a creature
-        isCreature: !!a.isCreature && !(o.bestowed && o.attachedTo) &&
+        isCreature: !!a.isCreature && !(o.bestowed && o.attachedTo) && !(o.licid && o.attachedTo) &&
           // reconfigure: an Equipment creature attached to something is not a creature (CR 702.151b)
           !(o.attachedTo && a.isEquipment && a.keywordSet && a.keywordSet.has('reconfigure')) };
       // worked out while a granted ability was being looked up, it is only half the answer
@@ -9775,6 +9787,7 @@
         o.tapped = false; o.damage = 0; o.counters = {};
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
+        o.licid = false; o.bandId = null;
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
@@ -16237,6 +16250,19 @@
           this.bumpBoard();
           break;
         }
+        /* The Licids: it stops being a creature and becomes an Aura on the target */
+        case 'becomeLicid': {
+          const host = firstObj();
+          if (!src || src.zone !== 'battlefield' || !host || host.zone !== 'battlefield' || host === src) break;
+          if (src.attacking || (src.blocking || []).length) this._removeFromCombat ? this._removeFromCombat(src) : null;
+          src.licid = true;
+          src.attachedTo = host.id;
+          host.attachments = (host.attachments || []).concat(src.id);
+          src._chr = null;
+          this.logEvent('rules', `${src.name} becomes an Aura on ${host.name}.`);
+          this.bumpBoard();
+          break;
+        }
         /* Alchemy: empower Jace N — loyalty counters on a Jace token, made if there is none */
         case 'empowerJace': {
           let jace = this.battlefield.find(x => x.controller === me.id && x.isToken && x.name === 'Jace' && !x.phasedOut);
@@ -17956,6 +17982,14 @@
           }
           /* A bestowed creature whose host has gone does not die with it:
              it stands up and is a creature again (CR 702.103c). */
+          // a Licid whose creature has gone is an Aura on nothing (CR 704.5m)
+          if (o.licid && !o.attachedTo && o.zone === 'battlefield') {
+            o.licid = false;
+            this.logEvent('sba', `${o.name} is put into the graveyard (what it enchanted is gone).`);
+            this.moveObject(o, 'graveyard');
+            repeat = true;
+            continue;
+          }
           if (o.bestowed && !o.attachedTo && o.zone === 'battlefield') {
             o.bestowed = false;
             this.logEvent('rules', `${o.name} is no longer bestowed and becomes a creature.`);
@@ -17981,7 +18015,7 @@
               o.lastAttachedTo = o.attachedTo;
               o.attachedTo = null;
               repeat = true;
-              if (a.isAura && !o.bestowed) {
+              if ((a.isAura || o.licid) && !o.bestowed) {
                 this.logEvent('sba', `${o.name} is put into the graveyard (${gone ? 'what it enchanted is gone' : 'it can\'t enchant ' + host.name}).`);
                 this.moveObject(o, 'graveyard');
                 continue;
@@ -18066,6 +18100,9 @@
         if (!ha.isCreature) return false;
       } else if ((a.subtypes || []).includes('Fortification')) {
         if (!ha.isLand) return false;
+      } else if (o.licid) {
+        // a Licid enchants a creature
+        if (!this.characteristics(host).isCreature) return false;
       }
       // the Wards: "This effect doesn't remove this Aura."
       if (this._staticOp(o, 'keepDespiteProtection')) return true;

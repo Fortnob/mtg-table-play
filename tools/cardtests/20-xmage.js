@@ -10407,4 +10407,32 @@ module.exports = (test) => {
     t.ok(T3.g._bandProblem([x1, x2], [{ defenderId: 'B' }, { defenderId: 'B' }]), 'two creatures without banding cannot band');
     t.no(T3.g._bandProblem([x1, T3.bf('A', 'Benalish Hero')], [{ defenderId: 'B' }, { defenderId: 'B' }]), 'one with banding and one without can');
   });
+
+  test('Licids: become an Aura on a creature, give it their ability, and can be turned back', (mk, t) => {
+    t.auto('Gliding Licid');
+    const T = mk();
+    const lic = T.bf('A', 'Gliding Licid'); lic.summoningSick = false;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'U');
+    T.activate('A', lic, 0, { targets: [bear] });
+    T.settle(); T.resolve();
+    t.eq(lic.attachedTo, bear.id, 'attached to the Bears');
+    t.no(T.g.characteristics(lic).isCreature, 'no longer a creature');
+    t.ok(T.g.hasKw(bear, 'flying'), 'the Bears fly');
+    t.no(T.g.activateAbility('A', lic.id, 0, { targets: [{ kind: 'object', id: bear.id }] }), 'the first ability is lost');
+    T.mana('A', 'U');
+    t.ok(T.g.activateAbility('A', lic.id, 1, {}), 'pay {U} to end it: ' + T.g.lastError);
+    t.eq(lic.attachedTo, null);
+    t.ok(T.g.characteristics(lic).isCreature, 'a creature again');
+    t.no(T.g.hasKw(bear, 'flying'));
+    const T2 = mk();
+    const l2 = T2.bf('A', 'Gliding Licid'); l2.summoningSick = false;
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', 'U');
+    T2.activate('A', l2, 0, { targets: [b2] });
+    T2.settle(); T2.resolve();
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Shock'), { targets: [b2] });
+    t.eq(l2.zone, 'graveyard', 'when the creature it enchants dies, the Licid goes too');
+  });
 };

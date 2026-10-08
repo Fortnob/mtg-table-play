@@ -7610,6 +7610,18 @@
         autoLines++;
         continue;
       }
+      /* The Licids: "{1}{W}, {T}: This creature loses this ability and becomes an Aura enchantment with
+         enchant creature. Attach it to target creature. You may pay {W} to end this effect." — two
+         abilities: the one that turns it into an Aura, and the special action that turns it back */
+      const licid = line.match(/^((?:\{[^}]+\})+), \{T\}: (?:This creature|CARDNAME) loses this ability and becomes an Aura enchantment with enchant creature\. Attach it to target creature\. You may pay ((?:\{[^}]+\})+) to end this effect\.?$/i);
+      if (licid) {
+        out.abilities.push({ kind: 'activated', cost: parseCost(licid[1] + ', {T}'), text: line, auto: true, licidStart: true,
+          effects: [{ op: 'becomeLicid', targets: [targetSpec('target creature')] }] });
+        out.abilities.push({ kind: 'activated', cost: parseCost(licid[2]), text: 'You may pay ' + licid[2] + ' to end this effect.', auto: true,
+          licidEnd: true, special: 'endLicid', effects: [] });
+        autoLines++;
+        continue;
+      }
       /* "Exile this card from your hand: Add {R}." The Spirit Guides: a
          mana ability that works from the hand, the card itself the cost. */
       const guide = line.match(/^Exile (?:this card|CARDNAME) from your hand:\s*([\s\S]+)$/i);
