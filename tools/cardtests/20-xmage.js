@@ -9264,4 +9264,25 @@ module.exports = (test) => {
     sh.grantedFlashback = true;
     t.eq(T2.g._costDelta(sh, 'A'), -2, 'a spell from the graveyard costs {2} less');
   });
+
+  test('Skyclave Apparition: what it exiled comes back as an X/X Illusion for its owner; Chromatic Orrery pays any colour', (mk, t) => {
+    t.auto('Skyclave Apparition');
+    t.auto('Chromatic Orrery');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.put('A', 'Skyclave Apparition', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(bear.zone, 'exile');
+    const sky = T.g.battlefield.find(o => o.name === 'Skyclave Apparition');
+    T.g.moveObject(sky, 'graveyard');
+    T.resolve();
+    const tok = T.g.battlefield.find(o => o.isToken && o.controller === 'B');
+    t.ok(tok && T.g.powerOf(tok) === 2 && T.g.toughnessOf(tok) === 2, 'B gets a 2/2 Illusion');
+    const T2 = mk();
+    T2.bf('A', 'Chromatic Orrery');
+    T2.mana('A', 'G');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T2.life('B'), 17, 'green paid for red');
+  });
 };

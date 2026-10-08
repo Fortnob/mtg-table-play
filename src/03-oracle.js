@@ -942,6 +942,9 @@
       make: (m) => { const t = tgt('target ' + m[2]); return t ? { op: 'destroy', targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, t, { distinct: true })) } : null; } },
     // Door to Nothingness
     { re: /^Target (player|opponent) loses the game\.?$/i, make: (m) => ({ op: 'loseGameTarget', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Skyclave Apparition: "the exiled card's owner creates an X/X blue Illusion creature token, where X is the mana value of the exiled card"
+    { re: /^[Tt]he exiled card'?s owner creates an X\/X (white|blue|black|red|green|colorless) ([A-Z][a-z]+) creature token, where X is the mana value of the exiled card\.?$/,
+      make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
     // Summon: Primal Odin's "that player loses the game" — the player the trigger is about
@@ -4322,6 +4325,8 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
+    // Arachnogenesis: "the number of creatures attacking you"
+    if (/^the number of creatures attacking you$/i.test(p)) return done({ scope: { who: 'all', what: 'creature', attacking: true, attackingYou: true }, mult: 1 });
     // Summon: Bahamut: "the total mana value of other permanents you control"
     if ((m = p.match(/^the total mana value of ((?:other )?[a-z ]+? you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ totalMvOf: sc }); }
     // Razor Rings, Windswift Slice: "the (amount of) excess damage dealt (to that creature) this way"
@@ -9403,6 +9408,9 @@
           fromZones: ['graveyard', 'exile'] }), auto: true },
       // Doc Aurlock: "Plotting cards from your hand costs {2} less."
       { re: /^Plotting cards from your hand costs \{(\d+)\} less\.?$/i, make: (m) => ({ op: 'plotCostMod', amount: -(+m[1]) }), auto: true },
+      // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
+      { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
+        make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },
       // Teferi, Time Raveler: "Each opponent can cast spells only any time they could cast a sorcery."
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."

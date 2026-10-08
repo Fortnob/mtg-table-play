@@ -2441,6 +2441,14 @@
       const ahead = (me - act + n) % n;
       return this.turn + (ahead === 0 ? n : ahead);
     }
+    /** Chromatic Orrery, Mycosynth Lattice: may this player spend mana as though it were any colour? */
+    _spendsAnyColor(pid) {
+      return this.battlefield.some(x => {
+        if (x.phasedOut) return false;
+        const e = this._staticOp(x, 'spendAnyColorAll');
+        return !!e && (e.who === 'all' || x.controller === pid);
+      });
+    }
     /** How many card types there are among the cards in these graveyards ('all', 'you', 'opponents'). */
     _typesAmongGraveyards(pid, whose) {
       const TYPES = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Tribal', 'Land', 'Planeswalker', 'Sorcery'];
@@ -6329,6 +6337,8 @@
       if (!cost || !MANA.parse(cost).length) return true;
       // Unexpected Potential, Emissary's Ploy: mana spent as though it were any colour
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
+      // Chromatic Orrery: any mana pays for any colour, spells and abilities alike
+      if (this._spendsAnyColor(playerId)) cost = String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       /* Mana that may only be spent on certain spells waits apart from the
          pool; it is lent to a payment it is allowed to pay for, and what is
          not used goes back to waiting. */
@@ -6355,6 +6365,8 @@
       if (opts.lifeLimit == null) opts.lifeLimit = this._lifePayable(p);
       if (!cost || !MANA.parse(cost).length) return true;
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
+      // Chromatic Orrery: any mana pays for any colour, spells and abilities alike
+      if (this._spendsAnyColor(playerId)) cost = String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       const wasFor = this._payingFor;
       this._payingFor = opts.forSpell || null;
       const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
@@ -9108,7 +9120,12 @@
       this.bumpBoard();
       o.zone = toZone;
       // every card a resolution exiles, from anywhere: "you may play that card" points back at them
-      if (toZone === 'exile' && this.resolving) (this._resExiled = this._resExiled || []).push(o.id);
+      if (toZone === 'exile' && this.resolving) {
+        (this._resExiled = this._resExiled || []).push(o.id);
+        // Skyclave Apparition: "the exiled card" is what this permanent's own ability exiled
+        const ro = this.resolving.ctx && this.resolving.ctx.obj;
+        if (ro && ro !== o && ro.id) (ro._exiledHere = ro._exiledHere || []).push(o.id);
+      }
       // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
       if (toZone === 'battlefield') o.enteredFrom = from;
 
@@ -14707,6 +14724,18 @@
           this.logEvent('rules', `${c.name} is exiled and becomes plotted.`);
           break;
         }
+        // Skyclave Apparition: for each card it exiled, its owner gets an X/X token
+        case 'tokenForExiled': {
+          const ids = (src && src._exiledHere) || [];
+          for (const id of ids) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'exile') continue;
+            const x = (c.card && c.card.cmc) || 0;
+            this._createToken(c.owner, { n: 1, pt: x + '/' + x, colorWords: [e.color], subtypes: e.subtype, keywords: [] });
+          }
+          if (src) src._exiledHere = [];
+          break;
+        }
         // The Last Agni Kai
         case 'keepManaColorTurn': me.keepColorTurn = { color: e.color, turn: this.turn }; break;
         case 'addManaExcessOf': {
@@ -16222,6 +16251,8 @@
       if (sc.tapped && !o.tapped) return false;
       if (sc.untapped && o.tapped) return false;
       if (sc.attacking && !o.attacking) return false;
+      // Arachnogenesis: "creatures attacking you" — you, or a planeswalker of yours
+      if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;
       if (sc.withCounter && !(Number(o.counters[sc.withCounter]) > 0)) return false;
       if (sc.withAnyCounter && !Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
