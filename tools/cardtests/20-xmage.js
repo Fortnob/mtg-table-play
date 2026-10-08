@@ -10914,4 +10914,23 @@ module.exports = (test) => {
     T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
     t.eq(bear.zone, 'hand'); t.eq(isl.zone, 'graveyard', 'the land paid for it'); t.eq(mine.zone, 'hand', 'the copy bounced the Elves');
   });
+
+  test("Ugin's -X exiles coloured permanents; Heliod's Intervention asks for X targets; Rankle chooses any number", (mk, t) => {
+    t.auto('Ugin, the Spirit Dragon'); t.auto("Heliod's Intervention"); t.auto('Rankle, Master of Pranks');
+    const T = mk();
+    const ugin = T.bf('A', 'Ugin, the Spirit Dragon');
+    if (!ugin.counters.loyalty) ugin.counters.loyalty = 7;
+    const bear = T.bf('B', 'Grizzly Bears'), thop = T.bf('B', 'Ornithopter'), wurm = T.bf('B', 'Craw Wurm');
+    t.ok(T.g.activateAbility('A', ugin.id, 1, { x: 3 }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'exile'); t.eq(thop.zone, 'battlefield', 'colourless stays'); t.eq(wurm.zone, 'battlefield', 'too costly');
+    const T2 = mk();
+    const r1 = T2.bf('B', 'Sol Ring'), r2 = T2.bf('B', 'Mind Stone');
+    T2.answer('mode', (ch) => ({ modes: [0] }));
+    T2.answer('pickTarget', (ch) => { t.eq(ch.count, 2, 'two targets for X=2'); return { targets: [{ kind: 'object', id: r1.id }, { kind: 'object', id: r2.id }] }; });
+    T2.mana('A', '2WW');
+    T2.cast('A', T2.hand('A', "Heliod's Intervention"), { x: 2 });
+    T2.settle(); T2.resolve();
+    t.eq(r1.zone, 'graveyard'); t.eq(r2.zone, 'graveyard');
+  });
 };

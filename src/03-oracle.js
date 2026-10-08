@@ -3203,7 +3203,14 @@
     { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
-    { re: /^(?:[Yy]ou may )?[Pp]ut up to (two|three|four) ([-a-z, ]*?)cards from your hand onto the battlefield( tapped)?\.?$/i,
+    // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
+    { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,
+      make: (m) => Object.assign({ op: /^exile/i.test(m[1]) ? 'exileAll' : 'destroyAll', what: m[2].toLowerCase(), maxMv: 'X', noRegen: false }, m[3] ? { colored: true } : {}) },
+    // Ugin: "You gain 7 life, draw seven cards, then put up to seven permanent cards from your hand onto the battlefield."
+    { re: /^You gain (\d+) life, draw (\w+) cards, then put up to (\w+) permanent cards from your hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'gainLife', who: 'you', n: +m[1] }, { op: 'draw', who: 'you', n: num(m[2]) },
+        { op: 'permanentFromHand', n: num(m[3]), filter: 'any', who: 'you' }] }) },
+    { re: /^(?:[Yy]ou may )?[Pp]ut up to (two|three|four|five|six|seven) ([-a-z, ]*?)cards from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}) },
     /* Lively Dirge: "Return up to two creature cards with total mana value 4
        or less from your graveyard to the battlefield." Chosen, not targeted. */
@@ -5763,6 +5770,8 @@
     one: 1, two: 2, three: 3, four: 4,
     'one or more': 1, 'one or both': 1, 'two or more': 2,
     'up to one': 1, 'up to two': 2, 'up to three': 3, 'up to four': 4,
+    // Rankle: "choose any number —" (read as one or more)
+    'any number': 1,
   };
 
   function parseModal(cleaned) {
@@ -5811,7 +5820,7 @@
     }
     return {
       effects: [Object.assign({ op: 'modal', count, repeatable, modes: out, text: cleaned },
-        /or more$/.test(word) ? { max: out.length } : {},
+        /or more$|^any number$/.test(word) ? { max: out.length } : {},
         commanderCount ? { countIf: { cond: { kind: 'controlCommander' }, count: commanderCount } } : otherCount ? { countIf: otherCount } : {})],
       auto: out.every(x => x.auto),
     };
@@ -8578,7 +8587,8 @@
     for (const ab of out.abilities) {
       const multi = [];
       // inside a mode the targets are asked for as it resolves, one at a time: not there
-      const walk = (list, deep) => { for (const e of list || []) { if (!e) continue; for (const t of e.targets || []) if (t && t.multi) multi.push(deep ? { count: 'deep' } : t.multi);
+      // (X targets inside a mode are asked for as it resolves, X of them, when X was paid)
+      const walk = (list, deep) => { for (const e of list || []) { if (!e) continue; for (const t of e.targets || []) if (t && t.multi) multi.push(deep && t.multi.count !== 'X' ? { count: 'deep' } : t.multi);
         walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, true); } };
       walk(ab.effects, false);
       // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)

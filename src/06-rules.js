@@ -10837,17 +10837,29 @@
             const it = td.objectId && this.obj(td.objectId);
             return Object.assign({}, spec, { mvBelowTrigger: false, maxMv: ((it && it.card && it.card.cmc) || 0) - 1 });
           });
+        /* Heliod's Intervention: "Destroy X target artifacts" inside a mode —
+           X of them (as many as there are), asked for now */
+        let askSpecs = e.targets;
+        const xm = aimed.findIndex(sp => sp && sp.multi && sp.multi.count === 'X');
+        if (xm >= 0) {
+          const one = Object.assign({}, aimed[xm], { distinct: true });
+          delete one.multi;
+          const k = Math.min(Math.max(0, ctx.x || (src && src.chosenX) || 0), this._legalTargetsFor(one, ctx.controller, src ? src.id : null).length);
+          aimed.splice(xm, 1, ...Array.from({ length: k }, () => one));
+          askSpecs = aimed;
+        }
         const options = aimed.map(spec => this._legalTargetsFor(spec, ctx.controller, src ? src.id : null));
         // nothing legal to point at: the effect simply does not happen
-        if (options.every(list => list.length)) {
+        if (aimed.length && options.every(list => list.length)) {
           const picked = this._ask({
-            type: 'pickTarget', playerId: ctx.controller, specs: e.targets,
-            options, count: e.targets.length, sourceId: src ? src.id : null,
+            type: 'pickTarget', playerId: ctx.controller, specs: askSpecs,
+            options, count: askSpecs.length, sourceId: src ? src.id : null,
             prompt: (ctx.name ? ctx.name + ': ' : '') +
-              (e.targets.length === 1 ? 'choose a target' : 'choose targets'),
+              (askSpecs.length === 1 ? 'choose a target' : 'choose targets'),
           }, 'tgt');
           if (picked === SUSPEND) return SUSPEND;
           targets = (picked || []).map(normTarget);
+          if (xm >= 0) targets = targets.filter((t, i) => targets.findIndex(u => u.kind === t.kind && u.id === t.id) === i);
           // "controlled by different players": a second one under the same player isn't a target
           if (e.targets.some(sp => sp && sp.differentControllers)) {
             const seenCtl = new Set();
@@ -12233,6 +12245,8 @@
             if (e.withoutCounter && (x.counters[e.withoutCounter] || 0) > 0) return false;
             if (e.maxMv != null && ((x.card && x.card.cmc) || 0) > cap(e.maxMv)) return false;
             if (e.minMv != null && ((x.card && x.card.cmc) || 0) < cap(e.minMv)) return false;
+            // Ugin: "that's one or more colors"
+            if (e.colored && !(((x.analysis() || {}).colors) || []).length) return false;
             if (e.minPower != null && this.powerOf(x) < (e.minPower === 'chosen' ? ((src && src.chosenNumber) || 0) : e.minPower)) return false;
             if (e.maxPower != null && this.powerOf(x) > e.maxPower) return false;
             if (e.op === 'destroyAll' && this.hasKw(x, 'indestructible')) return false;
