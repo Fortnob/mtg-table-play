@@ -9176,4 +9176,37 @@ module.exports = (test) => {
     t.eq(T3.life('B'), 13, 'B at the Tree\'s toughness');
     t.eq(T3.g.toughnessOf(tree), 20, 'and the Tree at B\'s life');
   });
+
+  test('Isochron Scepter imprints an instant and casts copies of it', (mk, t) => {
+    t.auto('Isochron Scepter');
+    t.auto('Panoptic Mirror');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.answer('pickCard', () => ({ cardIds: [bolt.id] }));
+    T.mana('A', '2');
+    const sc = T.hand('A', 'Isochron Scepter');
+    T.cast('A', sc);
+    t.eq(bolt.zone, 'exile', 'the Bolt is under the Scepter');
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', '2');
+    T.activate('A', sc, 0);
+    t.eq(T.life('B'), 17, 'a copy hit B');
+    t.eq(bolt.zone, 'exile', 'the card stays put');
+  });
+
+  test('Torment of Hailfire: each time, the opponent picks life, a permanent or a card', (mk, t) => {
+    t.auto('Torment of Hailfire');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    const card = T.hand('B', 'Shock');
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'sac')] }));
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'discard')] }));
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'life')] }));
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', 'Torment of Hailfire'), { x: 3 });
+    t.eq(bear.zone, 'graveyard');
+    t.eq(card.zone, 'graveyard');
+    t.eq(T.life('B'), 17);
+  });
 };

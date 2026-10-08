@@ -1463,6 +1463,15 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Torment of Hailfire: pay in life while it is plentiful, then in cards, then in permanents */
+    torment(s) {
+      const opts = s.options || [];
+      const at = (key) => opts.findIndex(o => o.key === key);
+      if (at('life') >= 0 && (s.life || 0) > (s.n || 3) * 2 + 2) return { picks: [at('life')] };
+      if (at('discard') >= 0) return { picks: [at('discard')] };
+      if (at('sac') >= 0) return { picks: [at('sac')] };
+      return { picks: [Math.max(0, at('life'))] };
+    },
     /* Fact or Fiction, splitting an opponent's cards: the best one alone
        against the rest; splitting our own: as evenly as value allows */
     pileSplit(s) {

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13629,
+  "needed": 13625,
   "gainedCards": 1441,
-  "linesNeeded": 15001,
+  "linesNeeded": 14992,
   "linesGained": 1771,
   "gained": {
    "all": 1441,
@@ -33,21 +33,21 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4973,
-   "lines": 4385,
+   "score": 4959,
+   "lines": 4377,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
-    "Torment of Hailfire",
     "Incubation Druid",
     "Sphere of Safety",
     "Shared Animosity",
     "Springheart Nantuko",
     "Veyran, Voice of Duality",
-    "Isochron Scepter",
     "Inkshield",
     "Etali, Primal Conqueror // Etali, Primal Sickness",
-    "Beseech the Mirror"
+    "Beseech the Mirror",
+    "Tainted Pact",
+    "Tempt with Discovery"
    ]
   },
   {
@@ -7354,15 +7354,15 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3993,
-   "cards": 3585,
+   "score": 3984,
+   "cards": 3582,
    "names": [
     "Tibalt's Trickery",
-    "Torment of Hailfire",
     "Incubation Druid",
     "Sphere of Safety",
     "Shared Animosity",
-    "Springheart Nantuko"
+    "Springheart Nantuko",
+    "Veyran, Voice of Duality"
    ]
   },
   {
@@ -7497,8 +7497,8 @@
   },
   {
    "what": "Ability.setCostAdjuster",
-   "score": 35,
-   "cards": 35,
+   "score": 38,
+   "cards": 38,
    "names": [
     "Voldaren Estate",
     "Hylda's Crown of Winter",

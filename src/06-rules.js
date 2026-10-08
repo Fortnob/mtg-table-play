@@ -14529,6 +14529,13 @@
           if ((!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
             const kept = this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id);
             c = kept[kept.length - 1] || null;
+            // Panoptic Mirror: "a card exiled with this artifact" — which one, if there are several
+            if (e.pickExiled && kept.length > 1) {
+              const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+                cards: kept.map(x => ({ id: x.id, name: x.name, card: x.card })), prompt: 'Copy which exiled card?' }, 'ccopyPick');
+              if (got === SUSPEND) return SUSPEND;
+              c = this.obj((got || [])[0]) || c;
+            }
           }
           if (!c || !c.card) break;
           const ca = c.analysis();
@@ -14753,6 +14760,50 @@
           for (const c of rest) this.moveObject(c, e.restTo);
           this.rng.shuffle(lib);
           if (picked.length) this.logEvent('rules', `${opp ? opp.name : me.name} chooses ${chosen.map(c => c.name).join(', ') || 'nothing'}.`);
+          break;
+        }
+        /* Torment of Hailfire: X times over, each opponent loses 3 life
+           unless they sacrifice a nonland permanent or discard a card —
+           their choice each time */
+        case 'tormentRepeat': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'torm' + (r ? r.index : 0);
+          const st = (r && r.marks[slot]) || { step: 0 };
+          if (r) r.marks[slot] = st;
+          const opps = this.opponentsOf(ctx.controller);
+          const total = Math.max(0, n(e.n)) * opps.length;
+          for (; st.step < total && st.step < 2000; st.step++) {
+            const p = opps[st.step % opps.length];
+            if (!p || p.hasLost) continue;
+            const perms = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && !(o.analysis() || {}).isLand);
+            const hand = this.zones[p.id].hand;
+            const opts = [{ label: `Lose ${e.life} life`, key: 'life' }];
+            if (perms.length) opts.push({ label: 'Sacrifice a nonland permanent', key: 'sac' });
+            if (hand.length) opts.push({ label: 'Discard a card', key: 'discard' });
+            let pick = opts[0];
+            if (opts.length > 1) {
+              const got = this._choose({ playerId: p.id, purpose: 'torment', kind: 'options', min: 1, max: 1, compact: true, options: opts,
+                life: p.life, n: e.life, prompt: `${src ? src.name : 'Torment'}: lose ${e.life} life, sacrifice a nonland permanent, or discard a card?` }, slot + 'c' + st.step);
+              if (got === SUSPEND) return SUSPEND;
+              pick = opts[(got && got.picks && got.picks[0]) || 0] || opts[0];
+            }
+            if (pick.key === 'sac') {
+              const got = perms.length === 1 ? { picks: [perms[0].id] } : this._choose({ playerId: p.id, purpose: 'sacrifice', kind: 'objects',
+                items: this._chooseItems(perms), min: 1, max: 1, prefer: 'worst', prompt: 'Sacrifice a nonland permanent.' }, slot + 's' + st.step);
+              if (got === SUSPEND) return SUSPEND;
+              const o = this.obj(((got && got.picks) || [])[0]) || perms[0];
+              this._sacrificeNow(p.id, [o]);
+            } else if (pick.key === 'discard') {
+              const got = hand.length === 1 ? { picks: [hand[0].id] } : this._choose({ playerId: p.id, purpose: 'discard', kind: 'objects', zone: 'hand',
+                items: this._chooseItems(hand), min: 1, max: 1, prefer: 'worst', prompt: 'Discard a card.' }, slot + 'd' + st.step);
+              if (got === SUSPEND) return SUSPEND;
+              const c = this.obj(((got && got.picks) || [])[0]) || hand[0];
+              if (c && c.zone === 'hand') { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); this.logEvent('discard', `${p.name} discards ${c.name}.`); }
+            } else {
+              this.changeLife(p, -e.life, 'effect');
+            }
+          }
           break;
         }
         // "End the turn." — once this has finished resolving
@@ -15789,7 +15840,9 @@
         }
         /* Chrome Mox: a card from your hand, exiled under it */
         case 'imprintFromHand': {
-          const pool = this.zones[ctx.controller].hand.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          const mvOf = (c) => (c.card && c.card.cmc) || 0;
+          const pool = this.zones[ctx.controller].hand.filter(c => this._cardFitsWords(c, e.filter || 'card') &&
+            (e.maxMv == null || mvOf(c) <= n(e.maxMv)) && (e.mv == null || mvOf(c) === n(e.mv)));
           if (!pool.length || !src) break;
           const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
             cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })), prompt: `Exile a card from your hand with ${src.name}?` }, 'imp');
@@ -15798,6 +15851,8 @@
           if (!c || c.zone !== 'hand') break;
           this.moveObject(c, 'exile');
           src.imprinted = c.id;
+          // "the exiled card", "a card exiled with this artifact"
+          c.exiledBy = src.id;
           this.logEvent('rules', `${me.name} exiles ${c.name} with ${src.name}.`);
           break;
         }

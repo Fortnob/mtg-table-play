@@ -2726,6 +2726,12 @@
     // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
     { re: /^Until your next turn, you may cast (sorcery|creature|instant and sorcery|noncreature) spells as though they had flash\.?$/i,
       make: (m) => ({ op: 'flashUntilNextTurn', filter: m[1].toLowerCase().replace(' and ', ' or ') }) },
+    /* Isochron Scepter, Elite Arcanist, Panoptic Mirror: "(you may) exile an
+       instant card with mana value 2 or less from your hand" — kept with
+       this permanent, for "the exiled card" later */
+    { re: /^(You may )?[Ee]xile an? ((?:instant|sorcery|instant or sorcery|nonland|creature|artifact) card)(?: with mana value (\d+|X)( or less)?)? from your hand\.?$/,
+      make: (m) => Object.assign({ op: 'imprintFromHand', filter: m[2].replace(/ card$/, ''), optional: !!m[1] },
+        m[3] ? (m[4] ? { maxMv: /x/i.test(m[3]) ? 'X' : +m[3] } : { mv: /x/i.test(m[3]) ? 'X' : +m[3] }) : {}) },
     // Tree of Perdition: "Exchange target opponent's life total with this creature's toughness."
     { re: /^Exchange target opponent'?s life total with (?:this creature|CARDNAME)'?s toughness\.?$/i,
       make: () => ({ op: 'exchangeLifeToughness', targets: [{ type: 'player', opponent: true }] }) },
@@ -4821,6 +4827,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Torment of Hailfire: "Repeat the following process X times. Each
+       opponent loses 3 life unless that player sacrifices a nonland
+       permanent of their choice or discards a card." */
+    { re: /^Repeat the following process (X|\w+) times\. Each opponent loses (\d+) life unless that player sacrifices a nonland permanent of their choice or discards a card\.$/i,
+      make: (m) => {
+        const k = /^x$/i.test(m[1]) ? 'X' : num(m[1]);
+        return k == null ? null : [{ op: 'tormentRepeat', n: k, life: +m[2] }];
+      } },
     // Commandeer: "Gain control of target noncreature spell. You may choose new targets for it."
     { re: /^Gain control of (target (?:noncreature |instant or sorcery |creature )?spell)\.(?: You may choose new targets for it\.)?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? [{ op: 'stealSpell', newTargets: /new targets/i.test(m[0]), targets: [spec] }] : null; } },
@@ -5546,7 +5560,7 @@
          cast the copy without paying its mana cost." — Narset, Wondrous
          Crucible; Isochron Scepter's "You may copy the exiled card. If you
          do, you may cast the copy without paying its mana cost." */
-      const copyIt = s.match(/^(?:(.+?)(?:,| and) )?(?:you may )?copy (it|that card|the exiled card)\.$/i);
+      const copyIt = s.match(/^(?:(.+?)(?:,| and) )?(?:you may )?copy (it|that card|the exiled card|a card exiled with (?:this artifact|this creature|CARDNAME))\.$/i);
       const castCopy = copyIt && next.match(/^(?:If you do, )?you may cast the copy without paying its mana cost\.$/i);
       if (castCopy) {
         if (copyIt[1]) {
@@ -5555,6 +5569,7 @@
           effects.push(...pre.effects);
         }
         effects.push({ op: 'castCopy', of: /exiled/i.test(copyIt[2]) ? 'exiled' : 'last', text: s + ' ' + next });
+        if (/^you may copy a card exiled/i.test(s)) effects[effects.length - 1].pickExiled = true;
         i++;
         continue;
       }
