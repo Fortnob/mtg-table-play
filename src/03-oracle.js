@@ -6206,11 +6206,30 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Lily Bowen, Eagle of Deliverance: "its power is 2 or less", "that creature's power is 2 or less", "that creature has power 4 or greater"
+    [/^(?:its|that (?:creature|permanent)'?s) power (?:is|was) (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    [/^that (?:creature|permanent) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Angrath: "it has mana value 3 or less"
+    [/^it has mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Deathbringer Liege: "it's tapped"
+    [/^it'?s (tapped|untapped)$/i, (m) => ({ kind: 'itTapped', tapped: /^tapped$/i.test(m[1]) })],
+    // Star Charter: "you gained or lost life this turn"
+    [/^you gained or lost life this turn$/i, () => ({ kind: 'lifeChangedThisTurn' })],
+    // Trystan, Walltop Sentries: "there is an Elf card in your graveyard", "there's a Lesson card in your graveyard"
+    [/^there(?: is|'s) an? ([A-Z][a-z]+|creature|land|artifact|enchantment|instant|sorcery) card in your graveyard$/, (m) => ({ kind: 'graveyard', what: m[1].toLowerCase(), n: 1 })],
+    // Ebony Owl Netsuke: "that player has four or more cards in hand"
+    [/^that player has (\w+) or more cards in hand$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'thatPlayerHand', n: num(m[1]) } : null)],
+    // Host of the Hereafter, Archfiend of the Dross, Deadly Grub: "it had counters on it", "it has no oil counters on it", "it had no time counters on it"
+    [/^it (?:had|has) counters on it$/i, () => ({ kind: 'itHadCounters' })],
+    [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Transpose, Otterball Antics: "this spell was cast from your hand", "…from anywhere other than your hand"
+    [/^this spell was cast from your hand$/i, () => ({ kind: 'castFromHand' })],
+    [/^this spell was cast from anywhere other than your hand$/i, () => ({ kind: 'castFromHand', not: true })],
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
     [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
       (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
-    [/^an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
+    [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
     // Battle Cry Goblin: "you attacked with creatures with total power 6 or greater this combat"
     [/^you attacked with creatures with total power (\d+) or greater this combat$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],

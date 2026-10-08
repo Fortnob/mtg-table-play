@@ -8414,6 +8414,29 @@
           return !!(it && (it.attacking || it._wasAttacking));
         }
         case 'noMonarch': return !this.players.some(p => p.monarch && !p.hasLost);
+        case 'itPower': case 'itTapped': {
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const td = (ctx && ctx.triggerData) || {};
+          const it = (tg && this.obj(tg.id)) || (td.objectId && this.obj(td.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id));
+          if (!it) return false;
+          if (cond.kind === 'itTapped') return !!it.tapped === !!cond.tapped;
+          const pw = it.zone === 'battlefield' ? this.powerOf(it) : (it._lkiPower != null ? it._lkiPower : parseInt((it.card && it.card.power) || '0', 10) || 0);
+          return cond.cmp === 'atLeast' ? pw >= cond.n : pw <= cond.n;
+        }
+        case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
+        case 'thatPlayerHand': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.player || td.playerId || td.drawer);
+          return !!p && this.zones[p.id].hand.length >= (cond.n || 0);
+        }
+        case 'itHadCounters': {
+          const td = (ctx && ctx.triggerData) || {};
+          const it = (td.objectId && this.obj(td.objectId)) || src;
+          if (!it) return false;
+          const pile = it.zone === 'battlefield' ? it.counters : (it._diedCounters || {});
+          return Object.values(pile || {}).some(v => Number(v) > 0);
+        }
+        case 'castFromHand': return !!ctx && ((ctx.fromZone === 'hand') !== !!cond.not);
         case 'thatPlayerMoreCards': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -8451,8 +8474,11 @@
         // Ordeal of Nylea: the creature the trigger is about, or the one this Aura is on
         case 'itCounters': {
           const td = (ctx && ctx.triggerData) || {};
-          const it = (td.objectId && this.obj(td.objectId)) || (src && src.attachedTo && this.obj(src.attachedTo)) || null;
-          return !!it && (Number((it.counters || {})[cond.counter]) || 0) >= (cond.n || 1);
+          const it = (td.objectId && this.obj(td.objectId)) || (src && src.attachedTo && this.obj(src.attachedTo)) || src || null;
+          if (!it) return false;
+          const pile = it.zone === 'battlefield' ? (it.counters || {}) : (it._diedCounters || it.counters || {});
+          const have = Number(pile[cond.counter]) || 0;
+          return cond.cmp === 'atMost' ? have <= (cond.n || 0) : have >= (cond.n || 1);
         }
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
         case 'notTheirTurn': {

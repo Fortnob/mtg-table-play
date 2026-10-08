@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13407,
-  "gainedCards": 1407,
-  "linesNeeded": 14715,
-  "linesGained": 1713,
+  "needed": 13374,
+  "gainedCards": 1403,
+  "linesNeeded": 14675,
+  "linesGained": 1705,
   "gained": {
-   "all": 1407,
+   "all": 1403,
    "top2000": 52,
    "stdTop": 10
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4876,
-   "lines": 4318,
+   "score": 4870,
+   "lines": 4312,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 864,
-   "lines": 747,
+   "score": 861,
+   "lines": 744,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -90,8 +90,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 298,
-   "lines": 280,
+   "score": 297,
+   "lines": 279,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -147,8 +147,8 @@
   },
   {
    "what": "custom condition",
-   "score": 191,
-   "lines": 170,
+   "score": 190,
+   "lines": 169,
    "cards": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -356,8 +356,8 @@
   },
   {
    "what": "ConditionalAsThoughEffect",
-   "score": 34,
-   "lines": 25,
+   "score": 33,
+   "lines": 24,
    "cards": [
     "The Reality Chip",
     "Augur of Autumn",
@@ -629,25 +629,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 24,
-   "lines": 24,
-   "cards": [
-    "Bilbo's Ring",
-    "Thieves' Tools",
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "Nimble Brigand",
-    "Slippery Scoundrel",
-    "Waterlogged Hulk // Watertight Gondola",
-    "Become the Pilot"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 23,
    "lines": 17,
@@ -664,25 +645,6 @@
     "Ral Zarek, Guest Lecturer",
     "Hollow Marauder",
     "Cabal Conditioning"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 23,
-   "lines": 14,
-   "cards": [
-    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
-    "Treasure Map // Treasure Cove",
-    "Spirit Water Revival",
-    "Edgar, Charmed Groom // Edgar Markov's Coffin",
-    "Bruce Banner // The Incredible Hulk",
-    "Blizzard Brawl",
-    "Hostile Hostel // Creeping Inn",
-    "Cursed Recording",
-    "Jet's Brainwashing",
-    "Dawnhand Eulogist",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {
@@ -705,6 +667,25 @@
    ]
   },
   {
+   "what": "ConditionalRestrictionEffect",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Bilbo's Ring",
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola",
+    "Become the Pilot",
+    "Queen Mother Ramonda"
+   ]
+  },
+  {
    "what": "RemoveCounterSourceEffect",
    "score": 22,
    "lines": 19,
@@ -721,6 +702,25 @@
     "Evolved Spinoderm",
     "Reluctant Dounguard",
     "Encumbered Reejerey"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 22,
+   "lines": 13,
+   "cards": [
+    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+    "Treasure Map // Treasure Cove",
+    "Spirit Water Revival",
+    "Edgar, Charmed Groom // Edgar Markov's Coffin",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Hostile Hostel // Creeping Inn",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend",
+    "Ludevic's Test Subject // Ludevic's Abomination"
    ]
   },
   {
@@ -1754,23 +1754,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 13,
-   "lines": 10,
-   "cards": [
-    "Resourceful Defense",
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger",
-    "Dual Nature"
-   ]
-  },
-  {
    "what": "UnlockThisDoorTriggeredAbility",
    "score": 13,
    "lines": 4,
@@ -2134,6 +2117,22 @@
     "Flockchaser Phantom",
     "Sloppity Bilepiper",
     "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 12,
+   "lines": 9,
+   "cards": [
+    "Resourceful Defense",
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Genku, Future Shaper",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -3834,21 +3833,6 @@
    ]
   },
   {
-   "what": "WardAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Saruman, the White Hand",
-    "Coppercoat Vanguard",
-    "Iymrith, Desert Doom",
-    "Hall of Storm Giants",
-    "Leyline Immersion",
-    "Paladin's Arms",
-    "Thorin Oakenshield",
-    "Radagast, Wizard of Wilds"
-   ]
-  },
-  {
    "what": "keyword MonstrosityAbility",
    "score": 8,
    "lines": 8,
@@ -4446,6 +4430,20 @@
    ]
   },
   {
+   "what": "WardAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Saruman, the White Hand",
+    "Coppercoat Vanguard",
+    "Hall of Storm Giants",
+    "Leyline Immersion",
+    "Paladin's Arms",
+    "Thorin Oakenshield",
+    "Radagast, Wizard of Wilds"
+   ]
+  },
+  {
    "what": "(verify) optional where the card is not",
    "score": 7,
    "lines": 7,
@@ -4611,20 +4609,6 @@
     "Blinkmoth Infusion",
     "Jiang Yanggu, Never Alone",
     "Battle Cry"
-   ]
-  },
-  {
-   "what": "BecomePreparedSourceEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Emeritus of Ideation // Ancestral Recall",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Yavimaya Bloomsage // Channel",
-    "Kirol, History Buff // Pack a Punch",
-    "Woodwork Prodigy // Soul Tether",
-    "Stingerquill Voxmancer // Vicious Verse",
-    "Paradox Shaper // Omit Variables"
    ]
   },
   {
@@ -5305,6 +5289,19 @@
    ]
   },
   {
+   "what": "BecomePreparedSourceEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Emeritus of Ideation // Ancestral Recall",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Kirol, History Buff // Pack a Punch",
+    "Woodwork Prodigy // Soul Tether",
+    "Stingerquill Voxmancer // Vicious Verse",
+    "Paradox Shaper // Omit Variables"
+   ]
+  },
+  {
    "what": "NoAbilityPredicate.instance",
    "score": 6,
    "lines": 6,
@@ -5639,19 +5636,6 @@
     "Deem Inferior",
     "Trickster's Stratagem",
     "Happy Hogan, Bodyguard"
-   ]
-  },
-  {
-   "what": "several cards from one graveyard",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Spellweaver Helix",
-    "Kaya, Orzhov Usurper",
-    "Soul-Shackled Zombie",
-    "Pestilent Cauldron // Restorative Burst",
-    "Serene Remembrance",
-    "Push // Pull"
    ]
   },
   {
@@ -7286,13 +7270,24 @@
     "Ransom Note",
     "Pyramids"
    ]
+  },
+  {
+   "what": "GainControlAllControlledTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Emrakul, the World Anew",
+    "Ashiok, Sculptor of Fears",
+    "Gilt-Leaf Archdruid",
+    "Tezzeret, Master of Metal"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3931,
-   "cards": 3538,
+   "score": 3927,
+   "cards": 3534,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7304,8 +7299,8 @@
   },
   {
    "what": "custom ability",
-   "score": 656,
-   "cards": 566,
+   "score": 653,
+   "cards": 563,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7317,8 +7312,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 228,
-   "cards": 213,
+   "score": 227,
+   "cards": 212,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7356,8 +7351,8 @@
   },
   {
    "what": "custom condition",
-   "score": 149,
-   "cards": 137,
+   "score": 148,
+   "cards": 136,
    "names": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -7498,19 +7493,6 @@
    ]
   },
   {
-   "what": "ConditionalAsThoughEffect",
-   "score": 26,
-   "cards": 20,
-   "names": [
-    "The Reality Chip",
-    "Augur of Autumn",
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Captain Mar-Vell, Space-Born"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 26,
    "cards": 17,
@@ -7534,6 +7516,19 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
+   ]
+  },
+  {
+   "what": "ConditionalAsThoughEffect",
+   "score": 25,
+   "cards": 19,
+   "names": [
+    "The Reality Chip",
+    "Augur of Autumn",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Captain Mar-Vell, Space-Born"
    ]
   },
   {
@@ -7706,19 +7701,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Thieves' Tools",
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nimble Brigand",
-    "Slippery Scoundrel"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 17,
    "cards": 17,
@@ -7768,6 +7750,19 @@
     "Sweet-Gum Recluse",
     "Drannith Ruins",
     "Ruins of Oran-Rief"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola"
    ]
   },
   {
@@ -8637,19 +8632,6 @@
    ]
   },
   {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Blizzard Brawl",
-    "Cursed Recording",
-    "Jet's Brainwashing",
-    "Dawnhand Eulogist"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 9,
    "cards": 9,
@@ -9069,6 +9051,19 @@
     "Shang-Chi, Master of Kung Fu",
     "Turtle Lair",
     "Overgrown Zealot"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Torch the Tower"
    ]
   },
   {
@@ -10709,18 +10704,6 @@
    ]
   },
   {
-   "what": "WardAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Saruman, the White Hand",
-    "Coppercoat Vanguard",
-    "Iymrith, Desert Doom",
-    "Leyline Immersion",
-    "Radagast, Wizard of Wilds"
-   ]
-  },
-  {
    "what": "GreenManaAbility with arguments",
    "score": 5,
    "cards": 5,
@@ -10874,18 +10857,6 @@
     "Battlefront Krushok",
     "Rocksteady, Crash Courser",
     "Yuan Shao, the Indecisive"
-   ]
-  },
-  {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger"
    ]
   },
   {
@@ -11066,6 +11037,30 @@
     "Justice, Vance Astrovik",
     "Stormfront Riders",
     "Urza's Miter"
+   ]
+  },
+  {
+   "what": "RemoveAllCountersPermanentTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Vampire Hexmage",
+    "Purging Stormbrood // Absorb Essence",
+    "Hapatra's Mark",
+    "Suncleanser",
+    "Blitz Leech"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid with [\"tapCreatures\"]",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Saheeli, Filigree Master",
+    "Raff, Weatherlight Stalwart",
+    "Tidal Terror",
+    "Gravelgill Scoundrel",
+    "Civil Servant"
    ]
   }
  ]

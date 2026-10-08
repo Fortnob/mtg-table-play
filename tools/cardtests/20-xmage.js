@@ -9395,4 +9395,21 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Desculpting Blast'), { targets: [b2] });
     t.eq(T2.g.battlefield.filter(o => o.isToken).length, before + 1, 'it was attacking: a Drone');
   });
+
+  test('More conditions: life changed this turn, a card type in your graveyard, a power ceiling', (mk, t) => {
+    t.auto('Star Charter');
+    t.auto('Walltop Sentries');
+    t.auto('Writ of Passage');
+    const T = mk();
+    const c = (cond, extra) => T.g._condMet(cond, Object.assign({ controller: 'A' }, extra || {}));
+    t.no(c({ kind: 'lifeChangedThisTurn' }));
+    T.g.changeLife('A', 2);
+    t.ok(c({ kind: 'lifeChangedThisTurn' }), 'gained life');
+    t.no(c({ kind: 'graveyard', what: 'elf', n: 1 }));
+    T.grave('A', 'Llanowar Elves');
+    t.ok(c({ kind: 'graveyard', what: 'elf', n: 1 }), 'an Elf card');
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.ok(c({ kind: 'itPower', n: 2, cmp: 'atMost' }, { targets: [{ kind: 'object', id: bear.id }] }), 'power 2 or less');
+    t.no(c({ kind: 'itPower', n: 3, cmp: 'atLeast' }, { targets: [{ kind: 'object', id: bear.id }] }));
+  });
 };
