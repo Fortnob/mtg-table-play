@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13668,
+  "needed": 13662,
   "gainedCards": 1442,
-  "linesNeeded": 15049,
+  "linesNeeded": 15040,
   "linesGained": 1772,
   "gained": {
    "all": 1442,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 5034,
-   "lines": 4410,
+   "score": 5022,
+   "lines": 4404,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -901,25 +901,6 @@
    ]
   },
   {
-   "what": "TargetStackObject",
-   "score": 19,
-   "lines": 16,
-   "cards": [
-    "Spellskite",
-    "Wyll's Reversal",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice",
-    "Consign to Memory",
-    "Deny the Witch",
-    "Radiant Performer",
-    "Katara's Reversal",
-    "Sister of Silence",
-    "Mister Fantastic",
-    "Mizzium Meddler"
-   ]
-  },
-  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -1711,6 +1692,25 @@
     "Esper Sojourners",
     "Bant Sojourners",
     "Grixis Sojourners"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Wyll's Reversal",
+    "Tale's End",
+    "Green Slime",
+    "Louisoix's Sacrifice",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Katara's Reversal",
+    "Sister of Silence",
+    "Mister Fantastic",
+    "Diplomatic Escort",
+    "Teferi's Response"
    ]
   },
   {
@@ -6203,15 +6203,6 @@
    ]
   },
   {
-   "what": "NumberOfTargetsPredicate",
-   "score": 5,
-   "lines": 2,
-   "cards": [
-    "Hydroelectric Specimen // Hydroelectric Laboratory",
-    "Spinerock Tyrant"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .addCost)",
    "score": 5,
    "lines": 2,
@@ -7363,13 +7354,25 @@
     "Orgg",
     "Mogg Jailer"
    ]
+  },
+  {
+   "what": "boost for custom",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Ghosthelm Courier",
+    "Flamestick Courier",
+    "Everglove Courier",
+    "Frightshroud Courier",
+    "Pearlspear Courier"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 4041,
-   "cards": 3603,
+   "score": 4032,
+   "cards": 3600,
    "names": [
     "Tibalt's Trickery",
     "Torment of Hailfire",
@@ -7831,19 +7834,6 @@
     "Scarblade's Malice",
     "Desperate Measures",
     "Felonious Rage"
-   ]
-  },
-  {
-   "what": "TargetStackObject",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Spellskite",
-    "Wyll's Reversal",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice",
-    "Consign to Memory"
    ]
   },
   {
@@ -8366,6 +8356,19 @@
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Mirror Room // Fractured Realm"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Wyll's Reversal",
+    "Tale's End",
+    "Green Slime",
+    "Louisoix's Sacrifice",
+    "Consign to Memory",
+    "Deny the Witch"
    ]
   },
   {
@@ -9245,6 +9248,19 @@
    ]
   },
   {
+   "what": "ConditionalAnyColorManaAbility shape",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Resonating Lute",
+    "Crucible of the Spirit Dragon",
+    "Thieving Varmint",
+    "Shang-Chi, Master of Kung Fu",
+    "Turtle Lair",
+    "Overgrown Zealot"
+   ]
+  },
+  {
    "what": "GainAbilityControllerEffect",
    "score": 8,
    "cards": 8,
@@ -9561,19 +9577,6 @@
     "Skitterbeam Battalion",
     "Compy Swarm",
     "Joo Dee, One of Many"
-   ]
-  },
-  {
-   "what": "ConditionalAnyColorManaAbility shape",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Resonating Lute",
-    "Crucible of the Spirit Dragon",
-    "Thieving Varmint",
-    "Turtle Lair",
-    "Overgrown Zealot",
-    "Intrepid Stablemaster"
    ]
   },
   {
@@ -10745,15 +10748,6 @@
    ]
   },
   {
-   "what": "NumberOfTargetsPredicate",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Hydroelectric Specimen // Hydroelectric Laboratory",
-    "Spinerock Tyrant"
-   ]
-  },
-  {
    "what": "ProliferateEffect args",
    "score": 5,
    "cards": 2,
@@ -11138,6 +11132,18 @@
     "Sokka, Swordmaster",
     "Kazuul's Toll Collector",
     "Shagrat, Loot Bearer"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Alena, Kessig Trapper",
+    "Traverse Eternity",
+    "Tetsuo, Imperial Champion",
+    "Pummeler for Hire",
+    "Impetuous Protege"
    ]
   }
  ]

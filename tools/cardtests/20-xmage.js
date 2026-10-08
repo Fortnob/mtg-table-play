@@ -8976,4 +8976,32 @@ module.exports = (test) => {
     const tok = T.g.battlefield.find(o => o.isToken);
     t.ok(tok && T.g.powerOf(tok) === 4 && T.g.hasKw(tok, 'haste'), 'a 4/4 with haste');
   });
+
+  test('Spellskite takes the Bolt; Narset holds an opponent to one card a turn; Thousand-Year Elixir lets the new creature tap', (mk, t) => {
+    t.auto('Spellskite');
+    t.auto('Narset, Parter of Veils');
+    t.auto('Thousand-Year Elixir');
+    const T = mk();
+    const skite = T.bf('B', 'Spellskite');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.mana('B', 'U');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    T.activate('B', skite, 0, { targets: [{ kind: 'stack', id: item.id }] });
+    t.eq(bear.damage, 0, 'the Bears were spared');
+    t.eq(skite.damage, 3, 'the Spellskite took it');
+    const T2 = mk();
+    T2.bf('B', 'Narset, Parter of Veils');
+    T2.g.drawCards('A', 1);
+    const hand = T2.zone('A', 'hand').length;
+    T2.g.drawCards('A', 2);
+    t.eq(T2.zone('A', 'hand').length, hand, 'no second card this turn');
+    const T3 = mk();
+    T3.bf('A', 'Thousand-Year Elixir');
+    const elves = T3.bf('A', 'Llanowar Elves');
+    elves.summoningSick = true;
+    t.ok(T3.g.tapForMana('A', elves.id, 0), 'the Elves tap for mana the turn they arrive');
+  });
 };

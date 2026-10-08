@@ -2705,6 +2705,18 @@
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
+    /* Spellskite: "Change a target of target spell or ability to this
+       creature." Hydroelectric Specimen: "change the target of target instant
+       or sorcery spell with a single target to this creature" */
+    { re: /^(?:You may )?[Cc]hange (?:a|the) target of (target (?:spell or ability|instant or sorcery spell|spell)(?: with a single target)?) to (?:this creature|CARDNAME|this permanent)\.?$/,
+      make: (m) => {
+        const single = /single target/i.test(m[1]);
+        const spec = /spell or ability/i.test(m[1]) ? { type: 'spell', zone: 'stack', filter: 'spell or ability', abilities: true }
+          : targetSpec(m[1].replace(/ with a single target$/i, ''));
+        if (!spec || spec.unknown) return null;
+        const e = { op: 'changeTargetToSelf', single, targets: [spec] };
+        return /^You may/i.test(m[0]) ? { op: 'may', then: [e] } : e;
+      } },
     // Flame Spill, Ravenous Tyrannosaurus: what the damage before this had left over goes on to the controller
     { re: /^(?:The )?[Ee]xcess damage is dealt to (?:that creature'?s|that permanent'?s|its) controller instead\.?$/, make: () => ({ op: 'excessToController' }) },
     { re: /^Create a number of (tapped )?(Treasure|Clue|Food|Blood) tokens equal to (.+?)\.?$/i,
@@ -9246,6 +9258,11 @@
         make: (m) => Object.assign({ op: 'etbAsCopy', what: 'creature', eot: true }, m[1] ? { haste: true } : {}), auto: true },
       { re: /^Creatures you control can boast twice during each of your turns rather than once\.?$/i, eff: { op: 'boastTwice' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
+      // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
+      { re: /^(Each opponent|Each player|Your opponents) can'?t draw more than one card each turn\.?$/i,
+        make: (m) => ({ op: 'drawLimitOne', who: /player/i.test(m[1]) ? 'each' : 'opponents' }), auto: true },
+      // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
+      { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       { re: /^You may cast ([A-Z][a-z]+|creature|artifact|enchantment|instant|sorcery) spells without paying their mana costs\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: m[1].toLowerCase() }), auto: true },

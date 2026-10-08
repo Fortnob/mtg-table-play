@@ -238,15 +238,6 @@
         effects: [{ op: 'damage', n: 2, targets: [{ type: 'any' }], exileInstead: true }],
       }],
     },
-    "spellskite": {
-      abilities: [{
-        kind: 'activated', auto: false,
-        cost: { mana: '{U/P}', tap: false, other: [] },
-        text: '{U/P}: Change a target of target spell or ability to this creature.',
-        effects: [{ op: 'manual', text: 'Change a target of target spell or ability to this creature.' }],
-      }],
-      keepKeywords: true,
-    },
     "scavenging ooze": {
       abilities: [{
         kind: 'activated', auto: true, cost: { mana: '{G}', tap: false, other: [] },

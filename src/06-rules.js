@@ -1348,7 +1348,7 @@
           const specs = (x.targets || []).map(spec => ({ targets: [spec] })).concat(x.effects || []);
           return this._targetsAvailable(specs, playerId);
         };
-        if (a.isCreature && o.summoningSick && !this.hasKw(o, 'haste')) {
+        if (a.isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)) {
           // only abilities that do not tap it survive summoning sickness
           if (!acts.some(x => !(x.cost && x.cost.tap))) continue;
         }
@@ -1541,7 +1541,7 @@
         if (o.controller !== playerId || o.tapped || o.phasedOut) continue;
         const a = o.analysis();
         if (!a || !this.manaAbilitiesOf(o).length) continue;
-        if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste')) continue;
+        if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)) continue;
         have++;
       }
       return have;
@@ -1583,7 +1583,7 @@
         if (!a) continue;
         const abs = this.manaAbilitiesOf(o).filter(ab => this._manaCostPayable(playerId, o, ab) && !(ab.cost && ab.cost.mana));
         if (!abs.length) continue;
-        if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste')) continue;
+        if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)) continue;
         /* the colours it could make right now, not the ones printed on it:
            an Exotic Orchard makes nothing an opponent's lands cannot */
         const cols = new Set();
@@ -2429,6 +2429,19 @@
       if (me < 0) return this.turn + 1;
       const ahead = (me - act + n) % n;
       return this.turn + (ahead === 0 ? n : ahead);
+    }
+    /** Thousand-Year Elixir: its controller's creatures use their abilities as though they had haste. */
+    _hasteForAbilities(o) {
+      return !!o && this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'activateAsHaste'));
+    }
+    /** Narset, Parter of Veils: may this player draw another card this turn? */
+    _drawLimited(p) {
+      if (!p || !((p.drawnThisTurn || 0) >= 1)) return false;
+      return this.battlefield.some(x => {
+        if (x.phasedOut) return false;
+        const e = this._staticOp(x, 'drawLimitOne');
+        return !!e && (e.who === 'each' || x.controller !== p.id);
+      });
     }
     /** May this player play this exiled card right now (impulse or free)? */
     _mayPlayFromExile(playerId, o) {
@@ -6017,7 +6030,7 @@
 
     /** Which permanents to tap for a cost first: the ones that would do least today. */
     _tapCostOrder(pool) {
-      const idle = (x) => (this.characteristics(x).isCreature && x.summoningSick && !this.hasKw(x, 'haste')) ? 0 : 1;
+      const idle = (x) => (this.characteristics(x).isCreature && x.summoningSick && !this.hasKw(x, 'haste') && !this._hasteForAbilities(x)) ? 0 : 1;
       return pool.slice().sort((x, y) => idle(x) - idle(y) || this._cardValue(x) - this._cardValue(y));
     }
     _tapForCost(pid, list, item) {
@@ -6127,7 +6140,7 @@
       if (cost.tap) {
         if (o.tapped) return this.fail(`${o.name} is already tapped.`);
         const a = o.analysis();
-        if (a && a.isCreature && o.summoningSick && !this.hasKw(o, 'haste'))
+        if (a && a.isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o))
           return this.fail(`${o.name} has summoning sickness.`);
       }
       if (cost.untap && o.tapped === false) return this.fail(`${o.name} is not tapped.`);
@@ -6227,7 +6240,7 @@
         const ab = extra[abilityIndex || 0] || extra[0];
         if (!ab) return this.fail(`${o.name} has no mana ability.`);
         if (ab.cost && ab.cost.tap && o.tapped) return this.fail(`${o.name} is already tapped.`);
-        if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && ab.cost && ab.cost.tap)
+        if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o) && ab.cost && ab.cost.tap)
           return this.fail(`${o.name} has summoning sickness.`);
         if (!this._activateManaDirect(playerId, o, ab, manaChoice)) return this.fail(`${o.name} cannot make mana right now.`);
         this.touch();
@@ -6289,7 +6302,7 @@
     _autoTapSources(playerId) {
       return this.battlefield.filter(o =>
         o.controller === playerId && !o.tapped && !o.phasedOut &&
-        this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste')));
+        this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)));
     }
 
     _payManaInner(p, playerId, cost, opts) {
@@ -9227,6 +9240,8 @@
         return k ? (1 << Math.min(k, 6)) - 1 : 0;
       };
       for (let i = 0; left > 0; i++) {
+        // Narset, Parter of Veils: no more than one card each turn
+        if (this._drawLimited(p)) { this.logEvent('draw', `${p.name} can't draw more than one card this turn.`); break; }
         left--;
         if (extras > 0) extras--;
         else { const ex = doubled(); if (ex) { left += ex; extras += ex; } }
@@ -14536,6 +14551,29 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // Spellskite: a target of that spell or ability becomes this, if this could be its target
+        case 'changeTargetToSelf': {
+          const t = targets.find(x => x.kind === 'stack');
+          const item = t && this.stack.find(x => x.id === t.id);
+          if (!item || !src || src.zone !== 'battlefield') break;
+          const tg = item.targets || [];
+          if (e.single && tg.length !== 1) break;
+          const specs = this._specsOf(item);
+          let done = false;
+          for (let i = 0; i < tg.length && !done; i++) {
+            if (tg[i].kind === 'object' && tg[i].id === src.id) { done = true; break; }
+            const spec = specs[i];
+            if (!spec) continue;
+            const legal = this._legalTargetsFor(spec, item.controller, item.objId || (item.obj && item.obj.id));
+            if (!legal.some(x => x.kind === 'object' && x.id === src.id)) continue;
+            const was = tg[i].kind === 'player' ? (this.player(tg[i].id) || {}).name : (this.obj(tg[i].id) || {}).name;
+            tg[i] = { kind: 'object', id: src.id };
+            item.targets = tg;
+            this.logEvent('rules', `${item.name} now targets ${src.name} instead of ${was || 'what it did'}.`);
+            done = true;
+          }
+          break;
+        }
         // High Tide: "until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}"
         case 'extraManaThisTurn':
           this._floatingMana = (this._floatingMana || []).filter(f => f.turn === this.turn)
