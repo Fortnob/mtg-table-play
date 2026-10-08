@@ -11240,4 +11240,21 @@ module.exports = (test) => {
     t.eq(T.g.zones.A.hand.length, hand - 1 + 2, 'drew two');
     t.ok(T.g.characteristics(land).isCreature, 'the Island is a creature'); t.eq(T.g.powerOf(land), 4); t.ok(T.g.hasKw(land, 'haste'));
   });
+
+  test('Sudden Setback (permanent or spell), Procrastinate', (mk, t) => {
+    t.auto('Sudden Setback'); t.auto('Procrastinate');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', (ch) => { t.eq(ch.playerId, 'B', 'the owner chooses'); return { picks: [1] }; });
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Sudden Setback'), { targets: [bear.id] });
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'library'); t.eq(T.g.zones.B.library.slice(-1)[0], bear, 'on the bottom');
+    const T2 = mk();
+    const b2 = T2.bf('B', 'Grizzly Bears');
+    T2.mana('A', '2UU');
+    T2.cast('A', T2.hand('A', 'Procrastinate'), { x: 2, targets: [b2.id] });
+    T2.settle(); T2.resolve();
+    t.ok(b2.tapped); t.eq(b2.counters.stun, 4, 'twice X');
+  });
 };

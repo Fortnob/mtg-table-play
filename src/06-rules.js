@@ -14867,6 +14867,8 @@
         /* "on the top or bottom of its owner's library": whoever chooses
            says which */
         case 'topOrBottom': {
+          // Sudden Setback: a spell goes the same way, off the stack
+          if (!firstObj() && targets.some(t => t.kind === 'stack')) return this._runEffect({ op: 'counterSpell', counterTo: 'topOrBottom' }, ctx);
           const x = firstObj();
           if (!x || x.zone !== 'battlefield') break;
           const chooser = e.ownerChooses ? x.owner : ctx.controller;
@@ -15106,6 +15108,8 @@
         }
         case 'selfToLibrary': {
           if (!src) break;
+          // Kogla and Yidaro: only if it is still in the graveyard it was discarded to
+          if (e.fromGraveyard && src.zone !== 'graveyard') break;
           const z = this.zones[src.owner].library;
           this._removeFromZone(src);
           src.zone = 'library';

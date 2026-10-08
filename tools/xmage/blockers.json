@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12559,
-  "gainedCards": 1353,
-  "linesNeeded": 13722,
-  "linesGained": 1619,
+  "needed": 12547,
+  "gainedCards": 1348,
+  "linesNeeded": 13704,
+  "linesGained": 1612,
   "gained": {
-   "all": 1353,
-   "top2000": 52,
+   "all": 1348,
+   "top2000": 51,
    "stdTop": 10
   },
   "compare": {
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4554,
-   "lines": 4167,
+   "score": 4553,
+   "lines": 4166,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -109,21 +109,21 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 233,
-   "lines": 227,
+   "score": 230,
+   "lines": 224,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
     "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
-    "Kogla and Yidaro",
     "Chandra's Incinerator",
     "Bloodsoaked Insight // Sanguine Morass",
     "Wash Away",
     "Rottenmouth Viper",
     "Spirit Water Revival",
     "Hour of Revelation",
-    "Scion of Draco"
+    "Scion of Draco",
+    "Drag to the Roots"
    ]
   },
   {
@@ -337,8 +337,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 35,
-   "lines": 35,
+   "score": 33,
+   "lines": 33,
    "cards": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -3011,22 +3011,6 @@
    ]
   },
   {
-   "what": "IsStepCondition.getMyUpkeep",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Scourglass",
-    "Magus of the Mirror",
-    "Mirror Universe",
-    "Clockwork Steed",
-    "Clockwork Beast",
-    "Energy Vortex",
-    "Clockwork Avian",
-    "Cyclopean Tomb",
-    "Clockwork Swarm"
-   ]
-  },
-  {
    "what": "filter:snow",
    "score": 9,
    "lines": 9,
@@ -3556,6 +3540,21 @@
     "Simic Basilisk",
     "Vampire Slayer",
     "Bellowing Fiend"
+   ]
+  },
+  {
+   "what": "IsStepCondition.getMyUpkeep",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Scourglass",
+    "Magus of the Mirror",
+    "Mirror Universe",
+    "Clockwork Steed",
+    "Clockwork Beast",
+    "Clockwork Avian",
+    "Cyclopean Tomb",
+    "Clockwork Swarm"
    ]
   },
   {
@@ -4365,19 +4364,6 @@
    ]
   },
   {
-   "what": "MultipliedValue of \"X\"",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Nuclear Fallout",
-    "Thassa's Intervention",
-    "Increasing Confusion",
-    "Stonesplitter Bolt",
-    "Procrastinate",
-    "Vicious Betrayal"
-   ]
-  },
-  {
    "what": "GainControlAllUntapGainHasteEffect",
    "score": 6,
    "lines": 6,
@@ -4609,19 +4595,6 @@
    ]
   },
   {
-   "what": "variable loyalty",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Jace, the Perfected Mind",
-    "Ashiok, Nightmare Weaver",
-    "Huatli, Warrior Poet",
-    "Chandra, Chill of Compliance",
-    "Nissa, Genesis Mage",
-    "Angrath, Minotaur Pirate"
-   ]
-  },
-  {
    "what": "BecomePreparedSourceEffect",
    "score": 6,
    "lines": 6,
@@ -4813,19 +4786,6 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
-   ]
-  },
-  {
-   "what": "TapEnchantedEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Honest Work",
-    "Enchanted River's Grasp",
-    "Infinite Coursework",
-    "Unquenchable Thirst",
-    "Cocoon",
-    "Venarian Gold"
    ]
   },
   {
@@ -5312,6 +5272,18 @@
    ]
   },
   {
+   "what": "MultipliedValue of \"X\"",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Nuclear Fallout",
+    "Thassa's Intervention",
+    "Increasing Confusion",
+    "Stonesplitter Bolt",
+    "Vicious Betrayal"
+   ]
+  },
+  {
    "what": "CantBeBlockedByMoreThanOneAttachedEffect",
    "score": 5,
    "lines": 5,
@@ -5634,6 +5606,18 @@
    ]
   },
   {
+   "what": "variable loyalty",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Jace, the Perfected Mind",
+    "Ashiok, Nightmare Weaver",
+    "Huatli, Warrior Poet",
+    "Nissa, Genesis Mage",
+    "Angrath, Minotaur Pirate"
+   ]
+  },
+  {
    "what": "SpellCostReductionSourceEffect",
    "score": 5,
    "lines": 5,
@@ -5882,6 +5866,18 @@
     "Geometric Nexus",
     "Chromium, the Mutable",
     "Kianne, Dean of Substance // Imbraham, Dean of Theory"
+   ]
+  },
+  {
+   "what": "TapEnchantedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Honest Work",
+    "Enchanted River's Grasp",
+    "Infinite Coursework",
+    "Unquenchable Thirst",
+    "Cocoon"
    ]
   },
   {
@@ -7107,15 +7103,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 171,
-   "cards": 168,
+   "score": 169,
+   "cards": 166,
    "names": [
     "Plumb the Forbidden",
     "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
-    "Kogla and Yidaro",
     "Hour of Revelation",
-    "Drag to the Roots"
+    "Drag to the Roots",
+    "Price of Fame"
    ]
   },
   {
@@ -7250,8 +7246,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 29,
-   "cards": 29,
+   "score": 28,
+   "cards": 28,
    "names": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -10071,18 +10067,6 @@
    ]
   },
   {
-   "what": "MultipliedValue of \"X\"",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Nuclear Fallout",
-    "Thassa's Intervention",
-    "Increasing Confusion",
-    "Stonesplitter Bolt",
-    "Procrastinate"
-   ]
-  },
-  {
    "what": "MeldEffect",
    "score": 5,
    "cards": 5,
@@ -10842,6 +10826,17 @@
     "Teysa, Envoy of Ghosts",
     "Contested War Zone",
     "Hixus, Prison Warden"
+   ]
+  },
+  {
+   "what": "CantAttackYouUnlessPayAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Summon: Yojimbo",
+    "Onakke Oathkeeper",
+    "Sivitri, Dragon Master",
+    "Forbidding Spirit"
    ]
   }
  ]

@@ -1525,8 +1525,8 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
-      make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
+    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
     // Palantír of Orthanc: "put an influence counter on CARDNAME and scry 2"
     { re: /^Put (a|an|one|two|three) ([a-z]+) counters? on (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) and (scry|surveil) (\d+)\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'counters', kind: m[2], n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), scope: 'self' }, { op: m[3].toLowerCase(), n: +m[4] }] }) },
@@ -1662,6 +1662,10 @@
       make: (m) => (m[1] ? { op: 'may', then: [{ op: 'transformSelf' }] } : { op: 'transformSelf' }) },
     { re: /^Shuffle (?:CARDNAME|this card|it) into (?:its|their) owner'?s library\.?$/i,
       make: () => ({ op: 'selfToLibrary', shuffle: true }) },
+    // Kogla and Yidaro: "Shuffle this card into your library from your graveyard, then draw a card."
+    { re: /^Shuffle (?:CARDNAME|this card) into your library from your graveyard(, then draw a card)?\.?$/i,
+      make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'selfToLibrary', shuffle: true, fromGraveyard: true }, { op: 'draw', who: 'you', n: 1 }] }
+        : { op: 'selfToLibrary', shuffle: true, fromGraveyard: true }) },
     { re: /^Return (?:CARDNAME|this card) from your graveyard to your hand\.?$/i,
       make: () => ({ op: 'selfFromGraveyard', to: 'hand' }) },
     { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield\.?$/i,
@@ -3236,6 +3240,9 @@
     { re: /^Put (target [a-z ]+?) on (?:the )?top or bottom of its owner'?s library\.?$/i,
       make: (m) => ({ op: 'topOrBottom', targets: [targetSpec(m[1])] }) },
     { re: /^(Target [a-z ]+?)'s owner puts it on (?:their choice of )?the top or bottom of their library\.?$/i,
+      make: (m) => ({ op: 'topOrBottom', ownerChooses: true, targets: [targetSpec(m[1])] }) },
+    // Moonsnare Prototype: "The owner of target nonland permanent puts it on their choice of the top or bottom of their library."
+    { re: /^The owner of (target [a-z ]+?) puts it on (?:their choice of )?the top or bottom of their library\.?$/i,
       make: (m) => ({ op: 'topOrBottom', ownerChooses: true, targets: [targetSpec(m[1])] }) },
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each' }) },
