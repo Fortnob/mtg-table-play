@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12533,
+  "needed": 12530,
   "gainedCards": 1349,
-  "linesNeeded": 13689,
+  "linesNeeded": 13684,
   "linesGained": 1612,
   "gained": {
    "all": 1349,
@@ -5414,18 +5414,6 @@
    ]
   },
   {
-   "what": "keyword UndauntedAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Curtains' Call",
-    "Divergent Transformations",
-    "Coastal Breach",
-    "Sublime Exhalation",
-    "Seeds of Renewal"
-   ]
-  },
-  {
    "what": "fixed control",
    "score": 5,
    "lines": 5,
@@ -7072,13 +7060,24 @@
     "Bess, Soul Nourisher",
     "Duskana, the Rage Mother"
    ]
+  },
+  {
+   "what": "CardLeftYourGraveyardThisTurnCondition.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Gau, Feral Youth",
+    "Relic Retriever",
+    "Primary Research",
+    "Living History"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3710,
-   "cards": 3458,
+   "score": 3711,
+   "cards": 3459,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",

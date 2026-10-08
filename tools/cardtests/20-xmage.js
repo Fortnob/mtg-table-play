@@ -11308,4 +11308,14 @@ module.exports = (test) => {
     t.ok(T2.g.hasKw(e1, 'protection from each color') || [...T2.g.characteristics(e1).keywords].some(k => /protection/.test(k)), 'protected');
     t.ok([...T2.g.characteristics(e2).keywords].some(k => /protection/.test(k)), 'both');
   });
+
+  test("Undaunted: {1} less for each opponent", (mk, t) => {
+    t.auto("Curtains' Call");
+    const T = mk();
+    const cc = T.hand('A', "Curtains' Call");
+    t.eq(T.g.castCost(cc), '{4}{B}', 'one opponent: one less');
+    const T3 = mk({ players: ['A', 'B', 'C'] });
+    const c3 = T3.hand('A', "Curtains' Call");
+    t.eq(T3.g.castCost(c3), '{3}{B}', 'two opponents: two less');
+  });
 };

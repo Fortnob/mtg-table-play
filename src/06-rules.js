@@ -2699,6 +2699,8 @@
       const a = o.analysis();
       if (!a) return 0;
       let d = 0;
+      // Undaunted (CR 702.125): {1} less for each opponent
+      if (a.keywordSet && a.keywordSet.has('undaunted')) d -= this.opponentsOf(pid).filter(q => !q.hasLost).length;
       // an emblem's cost change counts too (Saheeli, Filigree Master)
       for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
