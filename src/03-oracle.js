@@ -512,7 +512,8 @@
     const probe = analyze({ id: 'granted:' + U.hash(text), name: 'Granted', type_line: 'Creature',
       oracle_text: text, keywords: [], layout: 'token' });
     // triggered and activated abilities: the engine adds either to the permanent's own
-    return !!(probe && probe.fullyAutomated && probe.abilities.length &&
+    // …and mana abilities ("Lands you control have '{T}: Add one mana of any color'")
+    return !!(probe && probe.fullyAutomated && (probe.abilities.length || (probe.manaAbilities || []).length) &&
       probe.abilities.every(ab => ab.kind === 'triggered' || ab.kind === 'activated' ||
         // a standing rule that works through the card itself (enters with counters, enters tapped) can't be handed over
         (ab.kind === 'static' && !JSON.stringify(ab.effects || []).includes('"op":"noop"') && !(ab.effects || []).some(e => e && /^etb|^enchant$/.test(e.op || '')))));
@@ -8606,10 +8607,16 @@
       const w = words[words.length - 1];
       // Lord of Atlantis: "Other Merfolk" — a plural that is the word itself, and a few irregular ones
       const SAME = { merfolk: 'merfolk', kithkin: 'kithkin', moonfolk: 'moonfolk', kor: 'kor', samurai: 'samurai', fish: 'fish',
-        sheep: 'sheep', mice: 'mouse', fungi: 'fungus', sphinxes: 'sphinx', octopuses: 'octopus', foxes: 'fox' };
+        sheep: 'sheep', mice: 'mouse', fungi: 'fungus', sphinxes: 'sphinx', octopuses: 'octopus', foxes: 'fox', eldrazi: 'eldrazi' };
+      /* Brightcap Badger: "Each Fungus and Saproling you control", "Fungi and
+         Saprolings": a permanent of either creature type */
+      const two = words.length === 3 && /^(?:and|or|and\/or)$/i.test(words[1]) && /^[A-Z]/.test(words[0]) && /^[A-Z]/.test(words[2]);
+      const sing = (x) => SAME[x.toLowerCase()] || (/s$/.test(x) ? singularType(x) : x.toLowerCase());
       // Falthis: "Commanders you control have menace" — whatever kind of permanent they are
       if (/^commanders$/i.test(w) && words.length === 1) {
         sc.commander = sc.who === 'you' ? 'control' : true; sc.what = 'permanent'; words.pop();
+      } else if (two) {
+        sc.subtypeAny = [sing(words[0]), sing(words[2])]; sc.what = 'permanent'; words.length = 0;
       } else if (SAME[w.toLowerCase()] && words.length <= 2 && /^[A-Z]/.test(w)) {
         sc.subtype = SAME[w.toLowerCase()]; sc.what = 'permanent'; words.pop();
       } else {

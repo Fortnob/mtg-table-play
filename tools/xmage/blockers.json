@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13273,
-  "gainedCards": 1390,
-  "linesNeeded": 14482,
-  "linesGained": 1681,
+  "needed": 13227,
+  "gainedCards": 1366,
+  "linesNeeded": 14430,
+  "linesGained": 1655,
   "gained": {
-   "all": 1390,
+   "all": 1366,
    "top2000": 52,
    "stdTop": 10
   },
@@ -21,7 +21,7 @@
   "verifyFail": 57,
   "overrides": {
    "drain": 63,
-   "count": 43,
+   "count": 42,
    "group": 27,
    "x": 3,
    "it": 18,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4861,
-   "lines": 4303,
+   "score": 4860,
+   "lines": 4302,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -90,8 +90,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 296,
-   "lines": 278,
+   "score": 295,
+   "lines": 277,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -109,8 +109,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 252,
-   "lines": 222,
+   "score": 251,
+   "lines": 221,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -667,25 +667,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 23,
-   "lines": 23,
-   "cards": [
-    "Bilbo's Ring",
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "Nimble Brigand",
-    "Slippery Scoundrel",
-    "Waterlogged Hulk // Watertight Gondola",
-    "Become the Pilot",
-    "Queen Mother Ramonda"
-   ]
-  },
-  {
    "what": "RemoveCounterSourceEffect",
    "score": 22,
    "lines": 19,
@@ -721,6 +702,25 @@
     "Torch the Tower",
     "Heirloom Mirror // Inherited Fiend",
     "Ludevic's Test Subject // Ludevic's Abomination"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Bilbo's Ring",
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola",
+    "Become the Pilot",
+    "Queen Mother Ramonda"
    ]
   },
   {
@@ -1790,25 +1790,6 @@
     "Foggy Swamp Spirit Keeper",
     "Moon Girl and Devil Dinosaur",
     "Jaded Analyst"
-   ]
-  },
-  {
-   "what": "granting a mana ability",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Great Divide Guide",
-    "Rain of Filth",
-    "Brightcap Badger // Fungus Frolic",
-    "Glorious Sunrise",
-    "Song of Freyalise",
-    "Path of Annihilation",
-    "Summoning Materia",
-    "Petrified Hamlet",
-    "Huatli, Poet of Unity // Roar of the Fifth People",
-    "Orochi Merge-Keeper",
-    "Lotus Ring",
-    "Mul Daya Channelers"
    ]
   },
   {
@@ -2891,23 +2872,6 @@
    ]
   },
   {
-   "what": "AttachedToMatchesFilterCondition",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Tenza, Godo's Maul",
-    "Careful Cultivation",
-    "Maze's Mantle",
-    "Goblin Shrine",
-    "Armament of Nyx",
-    "Mishra's Domination",
-    "Veteran's Voice",
-    "Earthlore",
-    "Tourach's Gate",
-    "Krovikan Plague"
-   ]
-  },
-  {
    "what": "Zone.GRAVEYARD",
    "score": 10,
    "lines": 10,
@@ -3122,38 +3086,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Surge of Salvation",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier",
-    "Gor Muldrak, Amphinologist",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker"
-   ]
-  },
-  {
-   "what": "keyword ExhaustAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Rocketeer Boostbuggy",
-    "Spire Mechcycle",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer",
-    "Rangers' Refueler",
-    "Boom Scholar",
-    "Marshals' Pathcruiser"
-   ]
-  },
-  {
    "what": "subject:anyCounter",
    "score": 9,
    "lines": 9,
@@ -3327,6 +3259,22 @@
     "Mouth of the Storm",
     "Mu Yanling, Celestial Wind",
     "Wasp, Shrinking Savior"
+   ]
+  },
+  {
+   "what": "AttachedToMatchesFilterCondition",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Tenza, Godo's Maul",
+    "Maze's Mantle",
+    "Goblin Shrine",
+    "Armament of Nyx",
+    "Mishra's Domination",
+    "Veteran's Voice",
+    "Earthlore",
+    "Tourach's Gate",
+    "Krovikan Plague"
    ]
   },
   {
@@ -3697,6 +3645,21 @@
    ]
   },
   {
+   "what": "GainAbilityControllerEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Surge of Salvation",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Captain America, Super-Soldier",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
+   ]
+  },
+  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 8,
    "lines": 8,
@@ -3709,6 +3672,21 @@
     "Keeper of Progenitus",
     "Snowfall",
     "Winter's Night"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Riverchurn Monument",
+    "The Legend of Kuruk // Avatar Kuruk",
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Rangers' Refueler",
+    "Marshals' Pathcruiser"
    ]
   },
   {
@@ -4269,6 +4247,20 @@
    ]
   },
   {
+   "what": "granting a mana ability",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Great Divide Guide",
+    "Brightcap Badger // Fungus Frolic",
+    "Song of Freyalise",
+    "Petrified Hamlet",
+    "Huatli, Poet of Unity // Roar of the Fifth People",
+    "Orochi Merge-Keeper",
+    "Mul Daya Channelers"
+   ]
+  },
+  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "lines": 7,
@@ -4294,20 +4286,6 @@
     "Vronos, Masked Inquisitor",
     "Loki's Scepter",
     "Jump Scare"
-   ]
-  },
-  {
-   "what": "WardAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Saruman, the White Hand",
-    "Coppercoat Vanguard",
-    "Hall of Storm Giants",
-    "Leyline Immersion",
-    "Paladin's Arms",
-    "Thorin Oakenshield",
-    "Radagast, Wizard of Wilds"
    ]
   },
   {
@@ -5311,19 +5289,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldTappedUnlessAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Country Roads",
-    "Horned Loch-Whale // Lagoon Breach",
-    "Rocky Roads",
-    "Reef Roads",
-    "Wild Roads",
-    "Foul Roads"
-   ]
-  },
-  {
    "what": "TargetOpponentsChoicePermanent",
    "score": 6,
    "lines": 6,
@@ -6127,6 +6092,18 @@
    ]
   },
   {
+   "what": "WardAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Coppercoat Vanguard",
+    "Hall of Storm Giants",
+    "Leyline Immersion",
+    "Paladin's Arms",
+    "Thorin Oakenshield"
+   ]
+  },
+  {
    "what": "counter of a non-spell",
    "score": 5,
    "lines": 5,
@@ -6196,18 +6173,6 @@
     "Clandestine Meddler",
     "Absolving Lammasu",
     "Rune-Brand Juggler"
-   ]
-  },
-  {
-   "what": "AmassEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Sauron, Lord of the Rings",
-    "Summons of Saruman",
-    "Assault on Osgiliath",
-    "Gríma Wormtongue",
-    "Invade the City"
    ]
   },
   {
@@ -7227,6 +7192,28 @@
     "Blind Seer",
     "Illusion // Reality"
    ]
+  },
+  {
+   "what": "CastFromGraveyardSourceCondition.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Increasing Devotion",
+    "Increasing Savagery",
+    "From Father to Son",
+    "The Final Days"
+   ]
+  },
+  {
+   "what": "FaceVillainousChoiceOpponentsEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Ensnared by the Mara",
+    "Dr. Eggman",
+    "The Dalek Emperor",
+    "Sycorax Commander"
+   ]
   }
  ],
  "sole": [
@@ -7245,8 +7232,8 @@
   },
   {
    "what": "custom ability",
-   "score": 651,
-   "cards": 561,
+   "score": 652,
+   "cards": 562,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7258,8 +7245,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 227,
-   "cards": 212,
+   "score": 226,
+   "cards": 211,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7284,8 +7271,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 152,
-   "cards": 140,
+   "score": 151,
+   "cards": 139,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7439,6 +7426,19 @@
    ]
   },
   {
+   "what": "ConditionalAsThoughEffect",
+   "score": 26,
+   "cards": 20,
+   "names": [
+    "The Reality Chip",
+    "Augur of Autumn",
+    "Summoning Materia",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory"
+   ]
+  },
+  {
    "what": "(constructor: view.get)",
    "score": 26,
    "cards": 17,
@@ -7462,19 +7462,6 @@
     "Isperia the Inscrutable",
     "Cabal Therapist",
     "Spoils of the Vault"
-   ]
-  },
-  {
-   "what": "ConditionalAsThoughEffect",
-   "score": 25,
-   "cards": 19,
-   "names": [
-    "The Reality Chip",
-    "Augur of Autumn",
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Captain Mar-Vell, Space-Born"
    ]
   },
   {
@@ -7686,19 +7673,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nimble Brigand",
-    "Slippery Scoundrel",
-    "Waterlogged Hulk // Watertight Gondola"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 16,
    "cards": 16,
@@ -7748,6 +7722,19 @@
     "Magus Lucea Kane",
     "Rainbow Vale",
     "Undiscovered Paradise"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola"
    ]
   },
   {
@@ -8578,19 +8565,6 @@
    ]
   },
   {
-   "what": "granting a mana ability",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Great Divide Guide",
-    "Rain of Filth",
-    "Brightcap Badger // Fungus Frolic",
-    "Glorious Sunrise",
-    "Song of Freyalise",
-    "Path of Annihilation"
-   ]
-  },
-  {
    "what": "AddCountersPlayersEffect",
    "score": 9,
    "cards": 9,
@@ -8718,19 +8692,6 @@
     "Insatiable Hemophage",
     "Archipelagore",
     "Illuna, Apex of Wishes"
-   ]
-  },
-  {
-   "what": "AttachedToMatchesFilterCondition",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Tenza, Godo's Maul",
-    "Careful Cultivation",
-    "Maze's Mantle",
-    "Goblin Shrine",
-    "Armament of Nyx",
-    "Mishra's Domination"
    ]
   },
   {
@@ -9002,19 +8963,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Surge of Salvation",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Sigarda, Heron's Grace",
-    "Captain America, Super-Soldier",
-    "Blossoming Calm"
-   ]
-  },
-  {
    "what": "PutCounterOnPermanentTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -9129,6 +9077,19 @@
     "Kjeldoran Outpost",
     "Soldevi Excavations",
     "Balduvian Trading Post"
+   ]
+  },
+  {
+   "what": "AttachedToMatchesFilterCondition",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Tenza, Godo's Maul",
+    "Maze's Mantle",
+    "Goblin Shrine",
+    "Armament of Nyx",
+    "Mishra's Domination",
+    "Veteran's Voice"
    ]
   },
   {
@@ -9342,6 +9303,19 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Patrician Geist"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Surge of Salvation",
+    "Absolute Virtue",
+    "The Stasis Coffin",
+    "Captain America, Super-Soldier",
+    "Blossoming Calm",
+    "Gilded Light"
    ]
   },
   {
@@ -10045,19 +10019,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldTappedUnlessAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Country Roads",
-    "Horned Loch-Whale // Lagoon Breach",
-    "Rocky Roads",
-    "Reef Roads",
-    "Wild Roads",
-    "Foul Roads"
-   ]
-  },
-  {
    "what": "TargetOpponentsChoicePermanent",
    "score": 6,
    "cards": 6,
@@ -10611,18 +10572,6 @@
    ]
   },
   {
-   "what": "WardAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Saruman, the White Hand",
-    "Coppercoat Vanguard",
-    "Hall of Storm Giants",
-    "Leyline Immersion",
-    "Radagast, Wizard of Wilds"
-   ]
-  },
-  {
    "what": "GreenManaAbility with arguments",
    "score": 5,
    "cards": 5,
@@ -11004,6 +10953,42 @@
     "Stronghold Arena",
     "Lightkeeper of Emeria",
     "Spell Contortion"
+   ]
+  },
+  {
+   "what": "OneShotNonTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Boltbender",
+    "Amy Pond",
+    "Wormfang Newt",
+    "Wormfang Turtle",
+    "Temporal Firestorm"
+   ]
+  },
+  {
+   "what": "GainLifeFirstTimeTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Vanguard Seraph",
+    "Attended Healer",
+    "Cleric of Life's Bond",
+    "Leech Collector // Bloodletting",
+    "Deathless Knight"
+   ]
+  },
+  {
+   "what": "PlanCounterThresholdTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Doom Reigns Supreme",
+    "Claim the Kingdom",
+    "Construct a Cosmic Cube",
+    "Death to Our Enemies",
+    "Villainous Syndication"
    ]
   }
  ]

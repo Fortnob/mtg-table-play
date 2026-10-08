@@ -8736,6 +8736,7 @@
       }
       if (texts.length) {
         const extra = [];
+        const extraMana = [];
         texts.forEach((t, i) => {
           if (t[0] === '\u0002') {
             // written out: triggered and activated abilities alike
@@ -8748,8 +8749,11 @@
              "Creature tokens you control get +2/+2"): read as its own, so
              the layers count them from it */
           for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
+          // a mana ability handed over: "has '{T}: Add one mana of any color'"
+          for (const ab of ((ga && ga.manaAbilities) || [])) extraMana.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
         });
         out.abilities = base.abilities.concat(extra);
+        if (extraMana.length) out.manaAbilities = (base.manaAbilities || []).concat(extraMana);
       }
       o._dyn = out; o._dynKey = key; o._dynBase = base;
       return out;
@@ -16429,6 +16433,7 @@
       if (sc.notType && sc.notType.some(isType)) return false;
       if (sc.alsoType && !sc.alsoType.every(isType)) return false;
       if (sc.subtype && !(oa.subtypes || []).some(t => t.toLowerCase() === sc.subtype)) return false;
+      if (sc.subtypeAny && !(oa.subtypes || []).some(t => sc.subtypeAny.includes(t.toLowerCase()))) return false;
       // "Elves and Goblins you control": any one of several creature types
       if (sc.subtypes && !sc.subtypes.some(st => (oa.subtypes || []).some(t => t.toLowerCase() === st) ||
           (oa.keywordSet && oa.keywordSet.has('changeling')))) return false;

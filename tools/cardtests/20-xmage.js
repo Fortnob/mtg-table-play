@@ -9458,4 +9458,17 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
     t.eq(m.counters['+1/+1'] || 0, 1, 'not again for the fifth');
   });
+
+  test('A mana ability handed over in quotes: Esika gives other legendary creatures "{T}: Add one mana of any color"; a Pilot token crews for more', (mk, t) => {
+    t.auto('Esika, God of the Tree // The Prismatic Bridge');
+    t.auto('Defend the Rider');
+    const T = mk();
+    T.bf('A', 'Esika, God of the Tree // The Prismatic Bridge');
+    const leg = T.bf('A', 'Isamaru, Hound of Konda');
+    leg.summoningSick = false;
+    t.ok(leg.analysis().manaAbilities.length > 0, 'it has the mana ability');
+    t.ok(T.g.tapForMana('A', leg.id, 0), 'and taps for mana');
+    t.eq(T.g.player('A').pool.total(), 1);
+    t.ok(T.g.hasKw(leg, 'vigilance'), 'and vigilance');
+  });
 };
