@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12628,
+  "needed": 12625,
   "gainedCards": 1354,
-  "linesNeeded": 13804,
+  "linesNeeded": 13801,
   "linesGained": 1621,
   "gained": {
    "all": 1354,
@@ -52,11 +52,10 @@
   },
   {
    "what": "custom ability",
-   "score": 794,
-   "lines": 713,
+   "score": 784,
+   "lines": 712,
    "cards": [
     "Trouble in Pairs",
-    "Kambal, Profiteering Mayor",
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
@@ -66,7 +65,8 @@
     "The Skullspore Nexus",
     "Grenzo, Havoc Raiser",
     "Extraplanar Lens",
-    "Firemane Commando"
+    "Firemane Commando",
+    "Containment Construct"
    ]
   },
   {
@@ -128,10 +128,9 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 191,
-   "lines": 176,
+   "score": 187,
+   "lines": 175,
    "cards": [
-    "Agadeem's Awakening // Agadeem, the Undercrypt",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
     "Likeness Looter",
@@ -142,7 +141,8 @@
     "Tinybones, the Pickpocket",
     "Dance of the Manse",
     "Ink-Eyes, Servant of Oni",
-    "Doppelgang"
+    "Doppelgang",
+    "Windgrace's Judgment"
    ]
   },
   {
@@ -4243,16 +4243,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldOpponentTriggeredAbility",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Charismatic Conqueror",
-    "Sire of Stagnation",
-    "Faerie Artisans"
-   ]
-  },
-  {
    "what": "AttacksEachCombatStaticAbility",
    "score": 6,
    "lines": 3,
@@ -7079,6 +7069,17 @@
     "Mana Vapors",
     "Misstep"
    ]
+  },
+  {
+   "what": "SourceRemainsInZoneCondition",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "The Akroan War",
+    "Cytoplast Manipulator",
+    "The Super Hero Civil War",
+    "Stromgald Spy"
+   ]
   }
  ],
  "sole": [
@@ -7097,15 +7098,15 @@
   },
   {
    "what": "custom ability",
-   "score": 601,
-   "cards": 544,
+   "score": 591,
+   "cards": 543,
    "names": [
-    "Kambal, Profiteering Mayor",
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
     "Treasure Nabber",
-    "The Skullspore Nexus"
+    "The Skullspore Nexus",
+    "Grenzo, Havoc Raiser"
    ]
   },
   {
@@ -7123,15 +7124,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 166,
-   "cards": 151,
+   "score": 162,
+   "cards": 150,
    "names": [
-    "Agadeem's Awakening // Agadeem, the Undercrypt",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
     "Likeness Looter",
     "Kozilek's Command",
-    "Ruthless Technomancer"
+    "Ruthless Technomancer",
+    "Silkguard"
    ]
   },
   {
@@ -9385,16 +9386,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldOpponentTriggeredAbility",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Charismatic Conqueror",
-    "Sire of Stagnation",
-    "Faerie Artisans"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 6,
    "cards": 3,
@@ -10841,6 +10832,17 @@
    "cards": 1,
    "names": [
     "Sage's Reverie"
+   ]
+  },
+  {
+   "what": "CreaturesAreExiledOnDeathReplacementEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Liesa, Forgotten Archangel",
+    "Stone of Erech",
+    "Misery's Shadow",
+    "Corpseweaver Prodigy"
    ]
   }
  ]

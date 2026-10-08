@@ -10969,7 +10969,7 @@ module.exports = (test) => {
     t.eq(T4.g.battlefield.filter(o => o.controller === 'A').length, before + 3);
     const T5 = mk();
     const g1 = T5.grave('A', 'Grizzly Bears'), g2 = T5.grave('A', 'Grizzly Bears'), g3 = T5.grave('A', 'Sol Ring');
-    T5.answer('choose', (ch) => ({ picks: [g1.id, g2.id, g3.id] }));
+    T5.answer('choose', (ch) => { t.ok(ch.constraints.some(c => c.kind === 'distinct'), 'names must differ'); return { picks: [g1.id, g3.id] }; });
     T5.mana('A', 'WWBBBGG');
     T5.cast('A', T5.hand('A', 'Eerie Ultimatum'));
     T5.settle(); T5.resolve();
@@ -11022,5 +11022,32 @@ module.exports = (test) => {
     T3.g._runEffects([{ op: 'mill', n: 3, who: 'you' }], { controller: 'A', name: 'mill', kind: 'ability' });
     T3.settle(); T3.resolve();
     t.eq(f.zone, 'battlefield'); t.eq(i.zone, 'battlefield'); t.eq(b.zone, 'graveyard', 'only the lands'); t.ok(f.tapped, 'tapped');
+  });
+
+  test('Charismatic Conqueror: tap it or give a Vampire; Kambal copies the tokens that entered', (mk, t) => {
+    t.auto('Charismatic Conqueror'); t.auto('Kambal, Profiteering Mayor');
+    const T = mk();
+    T.bf('A', 'Charismatic Conqueror');
+    T.answer('confirm', (ch) => { t.eq(ch.playerId, 'B', 'the one whose permanent entered'); return { yes: false }; });
+    T.bf('B', 'Grizzly Bears', { etb: true });
+    T.settle(); T.resolve();
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 1, 'a Vampire');
+    const T2 = mk();
+    T2.bf('A', 'Kambal, Profiteering Mayor');
+    T2.g._runEffects([{ op: 'createToken', n: 2, pt: '1/1', colorWords: ['green'], subtypes: 'Saproling', keywords: [] }], { controller: 'B', name: 'tokens', kind: 'ability' });
+    T2.settle(); T2.resolve();
+    const mine = T2.g.battlefield.filter(o => o.controller === 'A' && o.isToken);
+    t.eq(mine.length, 2, 'a copy of each'); t.ok(mine.every(o => o.tapped), 'tapped');
+  });
+
+  test("Agadeem's Awakening: creature cards of different mana values, X or less", (mk, t) => {
+    t.auto("Agadeem's Awakening // Agadeem, the Undercrypt");
+    const T = mk();
+    const a = T.grave('A', 'Grizzly Bears'), b = T.grave('A', 'Llanowar Elves'), c = T.grave('A', 'Craw Wurm');
+    T.answer('choose', (ch) => { t.no(ch.items.some(x => x.id === c.id), 'the Wurm is above X'); return { picks: [a.id, b.id] }; });
+    T.mana('A', '3BBB');
+    T.cast('A', T.hand('A', "Agadeem's Awakening // Agadeem, the Undercrypt"), { x: 3 });
+    T.settle(); T.resolve();
+    t.eq(a.zone, 'battlefield'); t.eq(b.zone, 'battlefield'); t.eq(c.zone, 'graveyard');
   });
 };

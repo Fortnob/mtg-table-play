@@ -8659,6 +8659,8 @@
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         // Twenty-Toed Toad: every counter on it, of whatever kind
+        // Charismatic Conqueror: the permanent the trigger is about came in untapped
+        case 'triggerObjUntapped': { const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId); return !!x && x.zone === 'battlefield' && !x.tapped; }
         case 'selfCountersTotal': return !!src && Object.values(src.counters || {}).reduce((k, v) => k + (Number(v) || 0), 0) >= cond.n;
         case 'greatestMvArtifact': {
           const arts = this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isArtifact);
@@ -13880,11 +13882,12 @@
         }
         // Combustible Gearhulk: "target opponent may have you draw three cards. If the player doesn't, …"
         case 'opponentMayElse': {
-          const opp = firstPlayer() || this.opponentsOf(ctx.controller)[0];
+          const tdo = e.who === 'triggerObjController' && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          const opp = tdo ? this.player(tdo.controller) : (firstPlayer() || this.opponentsOf(ctx.controller)[0]);
           if (!opp) break;
           ctx.chosenPlayer = opp.id;
           const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'opponentMay', option: e.kind,
-            prompt: e.kind === 'gift' ? `${ctx.name ? ctx.name + ': ' : ''}${e.offer}?`
+            prompt: e.kind === 'gift' || e.kind === 'tapIt' ? `${ctx.name ? ctx.name + ': ' : ''}${e.offer}?${e.kind === 'tapIt' ? ` If you don't: ${truncate(e.elseText || '', 90)}` : ''}`
               : `${ctx.name ? ctx.name + ': ' : ''}let ${me.name} ${String(e.offer || '').replace(/^you /i, '')}? If you don't: ${truncate(e.elseText || '', 90)}` }, 'opm');
           if (yes === SUSPEND) return SUSPEND;
           this.logEvent('rules', `${opp.name} ${yes ? 'agrees' : 'declines'}.`);
@@ -13987,6 +13990,19 @@
           if (copy && this._newTargetsForCopy(copy, st.who, 'chnt') === SUSPEND) return SUSPEND;
           break;
         }
+        // Kambal: a copy of each permanent in the lot the trigger was about
+        case 'copyBatch': {
+          const td = ctx.triggerData || {};
+          const ids = td.batchIds || (td.objectId ? [td.objectId] : []);
+          for (const id of ids) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'battlefield') continue;
+            const before = new Set(this.battlefield.map(o => o.id));
+            this._runEffect({ op: 'copyPermanent', n: 1, _forced: x }, ctx);
+            if (e.tapped) for (const o of this.battlefield) if (!before.has(o.id) && o.controller === ctx.controller) o.tapped = true;
+          }
+          break;
+        }
         // Hedge Shredder: the land cards that went to the graveyard together come back
         case 'batchToBattlefield': {
           const td = ctx.triggerData || {};
@@ -14026,17 +14042,23 @@
         }
         // Eerie Ultimatum: any number of permanent cards, no two with the same name
         case 'returnDifferentNames': {
-          const pool = this.zones[ctx.controller].graveyard.filter(o => (o.analysis() || {}).isPermanent);
+          // Agadeem's Awakening: creature cards, each a different mana value, X or less
+          const mvOf = (o) => (o.card && o.card.cmc) || 0;
+          const cap = e.maxMv === 'X' ? (ctx.x || (src && src.chosenX) || 0) : null;
+          const pool = this.zones[ctx.controller].graveyard.filter(o => (o.analysis() || {}).isPermanent &&
+            (!e.filter || this._matchesCategory(o, e.filter)) && (cap == null || mvOf(o) <= cap));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'returnDifferentNames', kind: 'objects', zone: 'graveyard',
-            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}return any number of permanent cards with different names.` }, 'rdn');
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true, differentMv: !!e.differentMv,
+            constraints: [{ kind: 'distinct', key: e.differentMv ? 'mv' : 'name', label: e.differentMv ? 'mana value' : 'name' }],
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}return any number of ${e.filter || 'permanent'} cards with different ${e.differentMv ? 'mana values' : 'names'}.` }, 'rdn');
           if (got === SUSPEND) return SUSPEND;
           const seen = new Set();
           for (const id of (got && got.picks) || []) {
             const x = this.obj(id);
-            if (!x || x.zone !== 'graveyard' || seen.has(x.name)) continue;
-            seen.add(x.name);
+            const key = x && (e.differentMv ? mvOf(x) : x.name);
+            if (!x || x.zone !== 'graveyard' || seen.has(key)) continue;
+            seen.add(key);
             this.moveObject(x, 'battlefield', { controller: ctx.controller });
           }
           break;

@@ -3888,6 +3888,8 @@
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'reveal', n: num(m[1]), from: 'library' }) },
     { re: /^You win the game\.?$/i, make: () => ({ op: 'winGame' }) },
+    // Kambal, Profiteering Mayor: "for each of them, create a tapped token that's a copy of it."
+    { re: /^For each of them, create a( tapped)? token that'?s a copy of it\.?$/i, make: (m) => ({ op: 'copyBatch', tapped: !!m[1] }) },
     // Hedge Shredder: "put them onto the battlefield tapped" — the cards the trigger was about
     { re: /^Put them onto the battlefield( tapped)?(?: under your control)?\.?$/i, make: (m) => ({ op: 'batchToBattlefield', tapped: !!m[1], filter: 'land' }) },
     // Twenty-Toed Toad: "you win the game if there are twenty or more counters on it or …"
@@ -5326,6 +5328,17 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Charismatic Conqueror: "Whenever an artifact or creature an opponent
+       controls enters untapped, they may tap that permanent. If they don't,
+       you create a 1/1 white Vampire creature token with lifelink." (the
+       trigger words stop at "enters"; "untapped" is read here) */
+    { re: /^untapped, they may tap that permanent\. If they don'?t, ([\s\S]+)$/i,
+      make: (m) => {
+        const other = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1)));
+        if (!other.auto) return null;
+        return [{ op: 'ifCond', cond: { kind: 'triggerObjUntapped' }, then: [{ op: 'opponentMayElse', who: 'triggerObjController', kind: 'tapIt',
+          offer: 'tap that permanent', option: [{ op: 'tap', scope: 'triggerObject' }], otherwise: other.effects, elseText: m[1] }] }];
+      } },
     /* Descent into Avernus: "Then each player creates X Treasure tokens and
        this enchantment deals X damage to each player, where X is the number
        of descent counters on this enchantment." */
@@ -5371,6 +5384,11 @@
     // Eerie Ultimatum: "Return any number of permanent cards with different names from your graveyard to the battlefield."
     { re: /^Return any number of permanent cards with different names from your graveyard to the battlefield\.$/i,
       make: () => [{ op: 'returnDifferentNames' }] },
+    /* Agadeem's Awakening: "Return from your graveyard to the battlefield any
+       number of target creature cards that each have a different mana value
+       X or less." (picked as it resolves) */
+    { re: /^Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less\.$/i,
+      make: () => [{ op: 'returnDifferentNames', differentMv: true, filter: 'creature', maxMv: 'X' }] },
     // Crackle with Power: "CARDNAME deals five times X damage to each of up to X targets."
     { re: /^CARDNAME deals (two|three|four|five) times X damage to each of up to X targets\.$/i,
       make: (m) => [{ op: 'damage', n: { xTimes: num(m[1]) }, targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'X', exact: false } }] }] },
