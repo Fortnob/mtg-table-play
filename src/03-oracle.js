@@ -6201,6 +6201,11 @@
     [/^you control the creature with the greatest power or tied for the greatest power$/i, () => ({ kind: 'greatestPowerYours' })],
     // Canyon Crab: "you haven't cast a spell from your hand this turn"
     [/^you haven'?t cast a spell from your hand this turn$/i, () => ({ kind: 'noSpellFromHandThisTurn' })],
+    /* Druidic Satchel, Topple the Statue: "if it's a creature card", "if
+       it's an artifact", "if it's legendary" — what was just targeted,
+       revealed, milled or exiled */
+    [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
+      (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
     // Feywild Caretaker: "you have the initiative"

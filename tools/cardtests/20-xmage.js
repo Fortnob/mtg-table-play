@@ -9361,4 +9361,19 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
     t.no(c({ kind: 'noSpellFromHandThisTurn' }), 'a spell from hand now');
   });
+
+  test("\"If it's an artifact\" asks about the target; \"if it's a land card\" about the card just revealed", (mk, t) => {
+    t.auto('Topple the Statue');
+    t.auto('Feral Deceiver');
+    const T = mk();
+    const orni = T.bf('B', 'Ornithopter');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'W2');
+    T.cast('A', T.hand('A', 'Topple the Statue'), { targets: [orni] });
+    t.eq(orni.zone, 'graveyard', 'the artifact is destroyed');
+    T.mana('A', 'W2');
+    T.cast('A', T.hand('A', 'Topple the Statue'), { targets: [bear] });
+    t.eq(bear.zone, 'battlefield', 'the Bears only tapped');
+    t.ok(bear.tapped);
+  });
 };

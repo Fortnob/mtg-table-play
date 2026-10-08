@@ -1916,7 +1916,7 @@
       this._lastAffected = null; this._lastAffectedAll = null;
       this._lastCopy = null;
       this._lastPut = null;
-      this._lastExiled = null; this._lastExiledList = null;
+      this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
       this._chosenCard = null;
       this.passedInSuccession.clear();
       this.emit('sfx', 'resolve');
@@ -2440,6 +2440,19 @@
       if (me < 0) return this.turn + 1;
       const ahead = (me - act + n) % n;
       return this.turn + (ahead === 0 ? n : ahead);
+    }
+    /** One word of "it's a … card": a card type, "nonland", "legendary", "basic land". */
+    _itFits(o, w) {
+      const a = (o.zone === 'battlefield' ? o.analysis() : O.analyze(o.card, o.face)) || {};
+      const types = (a.types || []).map(t => t.toLowerCase());
+      const sup = (a.supertypes || []).map(t => t.toLowerCase());
+      return w.split(/\s+/).every(x => {
+        if (x === 'card' || !x) return true;
+        if (x === 'permanent') return types.some(t => ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'].includes(t));
+        if (x === 'legendary' || x === 'basic') return sup.includes(x);
+        if (x.startsWith('non')) return !types.includes(x.slice(3)) && !sup.includes(x.slice(3));
+        return types.includes(x);
+      });
     }
     /** Chromatic Orrery, Mycosynth Lattice: may this player spend mana as though it were any colour? */
     _spendsAnyColor(pid) {
@@ -8372,6 +8385,18 @@
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
+        /* "if it's a creature card": what was targeted, else the card just
+           revealed, milled, exiled or put somewhere */
+        case 'itIs': {
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const milled = (this._lastMilled || []).slice(-1)[0];
+          const id = (tg && tg.id) || this._lastRevealed || milled || this._lastExiled || this._lastPut;
+          const it = id && this.obj(id);
+          if (!it) return false;
+          const f = String(cond.filter || '');
+          if (/ or /.test(f)) return f.split(' or ').some(w => this._itFits(it, w.trim()));
+          return f.split(' and ').every(w => this._itFits(it, w.trim()));
+        }
         case 'enteredThisTurn': {
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
           return (by[cond.what] || 0) >= (cond.n || 1);
@@ -13120,6 +13145,8 @@
         case 'reveal': {
           const from = this.zones[ctx.controller][e.from === 'library' ? 'library' : 'hand'] || [];
           const shown = from.slice(0, n(e.n)).map(o => o.name);
+          // "Reveal the top card of your library. If it's a creature card, …"
+          if (from.length) this._lastRevealed = from[0].id;
           this.logEvent('reveal', `${me.name} reveals ${shown.join(', ') || 'nothing'}.`);
           break;
         }
