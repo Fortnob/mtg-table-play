@@ -8089,6 +8089,8 @@
       else if (who === 'opponentPutter') { if ((ev.putter || ev.controller) === src.controller) return false; }
       if (who === 'you' && ev.controller !== src.controller) return false;
       if (who === 'opponents' && ev.controller === src.controller) return false;
+      // Lae'zel: "on a creature or planeswalker you control or on yourself"
+      if (ef.onYours && ev.controller !== src.controller) return false;
       if (ef.what && ev.object) {
         const a = ev.object.analysis && ev.object.analysis();
         if (!a) return false;
@@ -14001,6 +14003,16 @@
             this._runEffect({ op: 'copyPermanent', n: 1, _forced: x }, ctx);
             if (e.tapped) for (const o of this.battlefield) if (!before.has(o.id) && o.controller === ctx.controller) o.tapped = true;
           }
+          break;
+        }
+        // Odric: each keyword any of your creatures has, all of them gain
+        case 'shareKeywords': {
+          const mine = this.battlefield.filter(o => !o.phasedOut && o.controller === ctx.controller && (this.characteristics(o) || {}).isCreature);
+          const kws = (e.keywords || []).filter(k => mine.some(o => this.hasKw(o, k))).map(k => U.titleCase(k));
+          if (!kws.length) break;
+          for (const o of mine) o.effects.push({ keywords: kws.slice(), until: 'eot' });
+          this.logEvent('rules', `${me.name}'s creatures gain ${kws.join(', ').toLowerCase()} until end of turn.`);
+          this.bumpBoard();
           break;
         }
         // Hedge Shredder: the land cards that went to the graveyard together come back

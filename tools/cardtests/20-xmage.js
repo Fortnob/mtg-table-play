@@ -11050,4 +11050,22 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(a.zone, 'battlefield'); t.eq(b.zone, 'battlefield'); t.eq(c.zone, 'graveyard');
   });
+
+  test("Lae'zel adds one of each kind; Odric shares keywords", (mk, t) => {
+    t.auto("Lae'zel, Vlaakith's Champion"); t.auto('Odric, Lunarch Marshal');
+    const T = mk();
+    T.bf('A', "Lae'zel, Vlaakith's Champion");
+    const bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1, 'A');
+    t.eq(bear.counters['+1/+1'], 2, 'one more');
+    T.g.addCounters(theirs, '+1/+1', 1, 'A');
+    t.eq(theirs.counters['+1/+1'], 1, 'not on theirs');
+    const T2 = mk();
+    const od = T2.bf('A', 'Odric, Lunarch Marshal');
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.bf('A', 'Serra Angel');
+    T2.g._runEffects(od.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: od, name: 'Odric', kind: 'ability' });
+    t.ok(T2.g.hasKw(b2, 'flying') && T2.g.hasKw(b2, 'vigilance'), 'the Bears fly and have vigilance');
+    t.no(T2.g.hasKw(b2, 'trample'), 'nobody has trample');
+  });
 };

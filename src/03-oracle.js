@@ -5328,6 +5328,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Odric, Lunarch Marshal: "creatures you control gain first strike until
+       end of turn if a creature you control has first strike. The same is
+       true for flying, …" */
+    { re: /^[Cc]reatures you control gain first strike until end of turn if a creature you control has first strike\. The same is true for ([a-z ,]+)\.$/i,
+      make: (m) => [{ op: 'shareKeywords', keywords: ['first strike'].concat(m[1].replace(/,? and /, ', ').split(/,\s*/).map(x => x.trim().toLowerCase()).filter(Boolean)) }] },
     /* Charismatic Conqueror: "Whenever an artifact or creature an opponent
        controls enters untapped, they may tap that permanent. If they don't,
        you create a 1/1 white Vampire creature token with lifelink." (the
@@ -10154,6 +10159,12 @@
     { re: /^If (?:a card|a card or token|one or more cards?) would be put into (a|your|an opponent'?s) graveyard from anywhere, (?:exile (?:it|them|that card) instead|instead exile (?:it|them))( with an? ([a-z]+) counter on (?:it|them))?\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'gyExile', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile',
         who: 'all', owner: /opponent/i.test(m[1]) ? 'opponents' : /your/i.test(m[1]) ? 'you' : null }, m[3] ? { withCounter: m[3].toLowerCase() } : {}) },
+    /* Lae'zel, Vlaakith's Champion: "If you would put one or more counters on
+       a creature or planeswalker you control or on yourself, put that many
+       plus one of each of those kinds of counters on that permanent or player
+       instead." */
+    { re: /^If you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one of each of those kinds of counters on that permanent or player instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Any', event: 'counters', who: 'putter', onYours: true, players: true, how: 'add', n: 1, whatAny: ['creature', 'planeswalker'] }) },
     /* Hardened Scales and friends: one more counter, or twice as many */
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
