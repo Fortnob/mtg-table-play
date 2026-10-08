@@ -1954,6 +1954,9 @@
         if (!scope) return null;
         return { op: 'sequence', list: [first, Object.assign({ op: 'flagEot', flags: ['mustBeBlockedTurn'] }, typeof scope === 'object' ? { scope } : { scope })] };
       } },
+    // Spurnmage Advocate: "Return two target cards from an opponent's graveyard to their hand."
+    { re: /^Return (one|two|three) target cards? from an opponent'?s graveyard to (?:their|its owner'?s) hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: Array.from({ length: num(m[1]) }, () => Object.assign(targetSpec('target card', 'graveyard'), { zone: 'graveyard', controller: 'opponent', distinct: true })) }) },
     // Pinnacle of Rage, Furious Reprisal: "CARDNAME deals 3 damage to each of two targets."
     { re: /^(?:CARDNAME|This spell) deals (\d+) damage to each of (two|three) targets\.?$/i,
       make: (m) => ({ op: 'damage', n: +m[1], targets: Array.from({ length: num(m[2]) }, () => ({ type: 'any', filter: 'any target', distinct: true })) }) },
@@ -4719,6 +4722,16 @@
       if (hasUnknownTarget(eff)) continue;
       eff.text = s;
       return eff;
+    }
+    /* "Another target creature you control gets +2/+0 and gains trample
+       until end of turn": the same as "Target creature …", never the source */
+    if (!depth && /^Another target /.test(s)) {
+      const again = parseEffectSentence(s.replace(/^Another target /, 'Target '), 1);
+      if (again && again.op !== 'manual') {
+        const mark = (e) => { if (!e || typeof e !== 'object') return; (e.targets || []).forEach(t => { if (t && t.type !== 'player') t.another = true; }); (e.list || []).forEach(mark); };
+        (Array.isArray(again) ? again : [again]).forEach(mark);
+        return again;
+      }
     }
     /* "You create a Treasure token" is "Create a Treasure token" said by
        somebody: read it without the subject. */

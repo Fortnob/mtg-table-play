@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13593,
-  "gainedCards": 1438,
-  "linesNeeded": 14935,
-  "linesGained": 1756,
+  "needed": 13563,
+  "gainedCards": 1416,
+  "linesNeeded": 14905,
+  "linesGained": 1734,
   "gained": {
-   "all": 1438,
-   "top2000": 53,
-   "stdTop": 11
+   "all": 1416,
+   "top2000": 52,
+   "stdTop": 10
   },
   "compare": {
    "same": 0,
@@ -21,7 +21,7 @@
   "verifyFail": 58,
   "overrides": {
    "drain": 62,
-   "count": 42,
+   "count": 43,
    "group": 27,
    "x": 3,
    "it": 18,
@@ -241,25 +241,6 @@
    ]
   },
   {
-   "what": "Target.setTargetTag",
-   "score": 59,
-   "lines": 56,
-   "cards": [
-    "Resourceful Defense",
-    "Tidus, Yuna's Guardian",
-    "Contest of Claws",
-    "Cosmic Hunger",
-    "Incremental Blight",
-    "Fall of Gil-galad",
-    "Iroh, Tea Master",
-    "Phantom Blade",
-    "Friendly Rivalry",
-    "Allies at Last",
-    "Burning Sun's Avatar",
-    "Bioshift"
-   ]
-  },
-  {
    "what": "AlternativeCostSourceAbility",
    "score": 58,
    "lines": 55,
@@ -276,6 +257,25 @@
     "Massacre",
     "Asmoranomardicadaistinaculdacar",
     "Hand of Emrakul"
+   ]
+  },
+  {
+   "what": "Target.setTargetTag",
+   "score": 58,
+   "lines": 55,
+   "cards": [
+    "Resourceful Defense",
+    "Tidus, Yuna's Guardian",
+    "Contest of Claws",
+    "Cosmic Hunger",
+    "Incremental Blight",
+    "Fall of Gil-galad",
+    "Iroh, Tea Master",
+    "Phantom Blade",
+    "Friendly Rivalry",
+    "Allies at Last",
+    "Burning Sun's Avatar",
+    "Bioshift"
    ]
   },
   {
@@ -1120,25 +1120,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Flow State",
-    "Sword of the Paruns",
-    "Tomb Tyrant",
-    "Cloud, Planet's Champion",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot",
-    "Defenders of Humanity",
-    "Lake-town Toymaker",
-    "Emergent Haunting",
-    "Trap Runner",
-    "Trade Caravan"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 17,
    "lines": 17,
@@ -1226,6 +1207,25 @@
     "Lightning Storm",
     "Pyre-Sledge Arsonist",
     "Electrostatic Bolt"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Flow State",
+    "Sword of the Paruns",
+    "Tomb Tyrant",
+    "Cloud, Planet's Champion",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity",
+    "Emergent Haunting",
+    "Trap Runner",
+    "Trade Caravan",
+    "Arcum's Sleigh"
    ]
   },
   {
@@ -2603,24 +2603,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Consulate Surveillance",
-    "Smelted Chargebug",
-    "Emissary of Soulfire",
-    "Conduit Goblin",
-    "Voltstorm Angel",
-    "Janjeet Sentry"
-   ]
-  },
-  {
    "what": "ConditionalReplacementEffect",
    "score": 11,
    "lines": 11,
@@ -3461,6 +3443,22 @@
     "Kingpin, Wilson Fisk",
     "True Identity",
     "Pine Walker"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Consulate Surveillance",
+    "Emissary of Soulfire",
+    "Voltstorm Angel",
+    "Janjeet Sentry"
    ]
   },
   {
@@ -4313,21 +4311,6 @@
     "Knight of Malice",
     "Suq'Ata Firewalker",
     "Bull Elephant"
-   ]
-  },
-  {
-   "what": "several cards from one graveyard",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Spellweaver Helix",
-    "Kaya, Orzhov Usurper",
-    "Soul-Shackled Zombie",
-    "Pestilent Cauldron // Restorative Burst",
-    "Pulsemage Advocate",
-    "Spurnmage Advocate",
-    "Serene Remembrance",
-    "Push // Pull"
    ]
   },
   {
@@ -5837,6 +5820,19 @@
    ]
   },
   {
+   "what": "several cards from one graveyard",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Spellweaver Helix",
+    "Kaya, Orzhov Usurper",
+    "Soul-Shackled Zombie",
+    "Pestilent Cauldron // Restorative Burst",
+    "Serene Remembrance",
+    "Push // Pull"
+   ]
+  },
+  {
    "what": "static ability in HAND",
    "score": 6,
    "lines": 6,
@@ -5886,19 +5882,6 @@
     "Impatience",
     "Keldon Twilight",
     "Krovikan Vampire"
-   ]
-  },
-  {
-   "what": "all from one opponent",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Deadeye Tracker",
-    "Lochmere Serpent",
-    "Nullmage Advocate",
-    "Misinformation",
-    "Shieldmage Advocate",
-    "Forcemage Advocate"
    ]
   },
   {
@@ -7011,6 +6994,18 @@
    ]
   },
   {
+   "what": "all from one opponent",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Deadeye Tracker",
+    "Lochmere Serpent",
+    "Misinformation",
+    "Shieldmage Advocate",
+    "Forcemage Advocate"
+   ]
+  },
+  {
    "what": "CrewsVehicleSourceTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7463,8 +7458,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 47,
-   "cards": 47,
+   "score": 46,
+   "cards": 46,
    "names": [
     "Contest of Claws",
     "Cosmic Hunger",
@@ -7877,19 +7872,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Flow State",
-    "Tomb Tyrant",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot",
-    "Defenders of Humanity"
-   ]
-  },
-  {
    "what": "two types at once",
    "score": 14,
    "cards": 14,
@@ -8015,6 +7997,19 @@
     "Aang's Iceberg",
     "Yue, the Moon Spirit",
     "North Pole Patrol"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Flow State",
+    "Tomb Tyrant",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity"
    ]
   },
   {
@@ -8733,19 +8728,6 @@
     "Accomplished Alchemist",
     "Gumdrop Poisoner // Tempt with Treats",
     "Essence Pulse"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Consulate Surveillance",
-    "Smelted Chargebug",
-    "Emissary of Soulfire"
    ]
   },
   {
@@ -9553,6 +9535,19 @@
     "Vial Smasher, Gleeful Grenadier",
     "Rakish Crew",
     "Charred Graverobber"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Consulate Surveillance",
+    "Emissary of Soulfire",
+    "Voltstorm Angel"
    ]
   },
   {
@@ -10422,19 +10417,6 @@
    ]
   },
   {
-   "what": "all from one opponent",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Deadeye Tracker",
-    "Lochmere Serpent",
-    "Nullmage Advocate",
-    "Misinformation",
-    "Shieldmage Advocate",
-    "Forcemage Advocate"
-   ]
-  },
-  {
    "what": "EquippedHasSubtypeCondition",
    "score": 6,
    "cards": 6,
@@ -11117,6 +11099,18 @@
     "Sentinel of Lost Lore",
     "Runic Repetition",
     "Blade of the Swarm"
+   ]
+  },
+  {
+   "what": "ConditionalRequirementEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Frodo Baggins",
+    "Seton's Desire",
+    "Stone-Tongue Basilisk",
+    "Reckless Cohort",
+    "Marauding Maulhorn"
    ]
   }
  ]

@@ -9301,4 +9301,11 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Pinnacle of Rage'), { targets: [a, b] });
     t.eq(a.zone, 'graveyard'); t.eq(b.zone, 'graveyard');
   });
+
+  test('Another target creature you control gets the pump, never the source; Spurnmage Advocate returns two cards to an opponent', (mk, t) => {
+    t.auto('Imperial Aerosaur');
+    t.auto('Spurnmage Advocate');
+    const ab = engine().oracle.analyze(card('Imperial Aerosaur')).abilities.find(a => a.kind === 'triggered');
+    t.ok(JSON.stringify(ab.effects).includes('"another":true'), 'another target');
+  });
 };
