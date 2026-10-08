@@ -6185,6 +6185,22 @@
     // H.E.R.B.I.E., Council of Reeds: "you've cast a noncreature spell this turn"
     [/^you'?ve cast an? (noncreature|creature|instant or sorcery|instant|sorcery|artifact|enchantment|multicolored) spell this turn$/i,
       (m) => ({ kind: 'spellsCastOfKind', n: 1, words: m[1].toLowerCase() })],
+    // Omnath, Belladonna Took: "this is the first time this ability has resolved this turn", "it's the second (third) time"
+    [/^this is the (first|second|third) time this ability has resolved this turn$/i, (m) => ({ kind: 'nthResolution', n: { first: 1, second: 2, third: 3 }[m[1].toLowerCase()] })],
+    [/^it'?s the (second|third) time$/i, (m) => ({ kind: 'nthResolution', n: { second: 2, third: 3 }[m[1].toLowerCase()] })],
+    // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
+    [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
+      (m) => ({ kind: 'enteredThisTurn', n: num(m[1].replace(/^an?$/i, 'one')), what: m[2].toLowerCase().replace(/s$/, '') })],
+    // Sméagol, Denethor: "a creature died under your control this turn"
+    [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
+    // Banishing Slash: "you control an artifact and an enchantment"
+    [/^you control an? ([a-z]+) and an? ([a-z]+)$/i, (m) => [{ kind: 'control', what: m[1].toLowerCase(), n: 1 }, { kind: 'control', what: m[2].toLowerCase(), n: 1 }]],
+    // Survival Cache: "you have more life than an opponent"
+    [/^you have more life than an opponent$/i, () => ({ kind: 'moreLifeThanAnOpponent' })],
+    // Thickest in the Thicket: "you control the creature with the greatest power or tied for the greatest power"
+    [/^you control the creature with the greatest power or tied for the greatest power$/i, () => ({ kind: 'greatestPowerYours' })],
+    // Canyon Crab: "you haven't cast a spell from your hand this turn"
+    [/^you haven'?t cast a spell from your hand this turn$/i, () => ({ kind: 'noSpellFromHandThisTurn' })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
     // Feywild Caretaker: "you have the initiative"

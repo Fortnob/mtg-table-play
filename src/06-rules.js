@@ -4699,6 +4699,8 @@
       if (p.spellsCastThisTurn === 1) this._fire('firstSpellEachTurn', playerId, castData);
       if (p.spellsCastThisTurn === 2) this._fire('anySecondSpell', null, castData);
       if (p.spellsCastThisTurn === 2) this._fire('opponentSecondSpell', null, Object.assign({ except: playerId }, castData));
+      // Canyon Crab: "a spell from your hand"
+      o._castFromHand = item.fromZone === 'hand';
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       /* "Whenever this creature becomes the target of a spell": each
@@ -8370,6 +8372,20 @@
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
+        case 'enteredThisTurn': {
+          const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
+          return (by[cond.what] || 0) >= (cond.n || 1);
+        }
+        case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
+        case 'moreLifeThanAnOpponent': return !!me && this.opponentsOf(me.id).some(p => !p.hasLost && p.life < me.life);
+        case 'greatestPowerYours': {
+          if (!me) return false;
+          const cs = this.battlefield.filter(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+          if (!cs.length) return false;
+          const best = Math.max(...cs.map(o => this.powerOf(o)));
+          return cs.some(o => o.controller === me.id && this.powerOf(o) === best);
+        }
+        case 'noSpellFromHandThisTurn': return !!me && !((me.spellObjsThisTurn || []).some(x => x && x._castFromHand));
         case 'hasInitiative': return !!(me && me.initiative);
         // Ordeal of Nylea: the creature the trigger is about, or the one this Aura is on
         case 'itCounters': {
@@ -9124,7 +9140,12 @@
         const wasA = o.analysis();
         const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         h.permanentsLeft++;
-        if (wasA && wasA.isCreature && toZone === 'graveyard') h.creaturesDied++;
+        if (wasA && wasA.isCreature && toZone === 'graveyard') {
+          h.creaturesDied++;
+          // Sméagol: "a creature died under your control this turn"
+          h.diedBy = h.diedBy || {};
+          h.diedBy[o.controller] = (h.diedBy[o.controller] || 0) + 1;
+        }
       }
       // what it was wearing, for "whenever equipped creature dies"
       const heldBy = from === 'battlefield' ? (o.attachments || []).slice() : [];
@@ -9336,6 +9357,14 @@
     }
     _fireEnters(o) {
       const a = o.analysis();
+      // Oath of Liliana, Raging Battle Mouse: what entered under whose control this turn
+      if (a) {
+        const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+        const by = ((h.enteredBy = h.enteredBy || {})[o.controller] = h.enteredBy[o.controller] || {});
+        by.permanent = (by.permanent || 0) + 1;
+        if (!a.isLand) by['nonland permanent'] = (by['nonland permanent'] || 0) + 1;
+        for (const t of ['creature', 'artifact', 'land']) if (a['is' + t[0].toUpperCase() + t.slice(1)]) by[t] = (by[t] || 0) + 1;
+      }
       this._soulbondOnEnter(o);
       this._fire('etb', o.controller, { object: o, source: o });
       if (a && a.isCreature) {

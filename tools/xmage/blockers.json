@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13500,
+  "needed": 13460,
   "gainedCards": 1404,
-  "linesNeeded": 14824,
+  "linesNeeded": 14779,
   "linesGained": 1713,
   "gained": {
    "all": 1404,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4921,
-   "lines": 4363,
+   "score": 4918,
+   "lines": 4360,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -147,8 +147,8 @@
   },
   {
    "what": "custom condition",
-   "score": 197,
-   "lines": 176,
+   "score": 194,
+   "lines": 173,
    "cards": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -204,8 +204,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 79,
-   "lines": 76,
+   "score": 78,
+   "lines": 75,
    "cards": [
     "Cloud Key",
     "Serra's Emissary",
@@ -215,10 +215,10 @@
     "Eclipsed Realms",
     "Frontier Siege",
     "Sower of Discord",
-    "Barrensteppe Siege",
     "Sin, Unending Cataclysm",
     "Greymond, Avacyn's Stalwart",
-    "Citadel Siege"
+    "Citadel Siege",
+    "Lifecraft Engine"
    ]
   },
   {
@@ -336,25 +336,6 @@
    ]
   },
   {
-   "what": "ConditionalAsThoughEffect",
-   "score": 36,
-   "lines": 27,
-   "cards": [
-    "The Reality Chip",
-    "Augur of Autumn",
-    "Forge Anew",
-    "Summoning Materia",
-    "The Blue Spirit",
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Serpent of the Pass",
-    "Captain Mar-Vell, Space-Born",
-    "Demon Wall",
-    "Quicksilver, Speedster"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .add)",
    "score": 36,
    "lines": 36,
@@ -374,9 +355,28 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
+   "what": "ConditionalAsThoughEffect",
    "score": 34,
-   "lines": 31,
+   "lines": 25,
+   "cards": [
+    "The Reality Chip",
+    "Augur of Autumn",
+    "Forge Anew",
+    "Summoning Materia",
+    "The Blue Spirit",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Serpent of the Pass",
+    "Captain Mar-Vell, Space-Born",
+    "Demon Wall",
+    "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 33,
+   "lines": 30,
    "cards": [
     "Rankle, Master of Pranks",
     "Will of the Jeskai",
@@ -838,25 +838,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Banishing Slash",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe",
-    "Back on Track"
-   ]
-  },
-  {
    "what": "(layout flip)",
    "score": 20,
    "lines": 20,
@@ -950,6 +931,25 @@
    ]
   },
   {
+   "what": "filter:alts",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Carnivorous Canopy",
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction",
+    "Cloudspire Skycycle",
+    "Hellish Sideswipe",
+    "Back on Track",
+    "Absorbing Man"
+   ]
+  },
+  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -1006,22 +1006,6 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
-   ]
-  },
-  {
-   "what": "AttachEffect",
-   "score": 18,
-   "lines": 9,
-   "cards": [
-    "The Aetherspark",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Hylderblade",
-    "Bound by Moonsilver",
-    "Detainment Spell",
-    "Bespoke Battlegarb",
-    "Concealed Weapon",
-    "Stasis Cell"
    ]
   },
   {
@@ -1098,6 +1082,21 @@
     "Safe Haven",
     "Ashiok's Erasure",
     "Parallax Tide"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 17,
+   "lines": 8,
+   "cards": [
+    "The Aetherspark",
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Hylderblade",
+    "Bound by Moonsilver",
+    "Detainment Spell",
+    "Concealed Weapon",
+    "Stasis Cell"
    ]
   },
   {
@@ -2508,15 +2507,6 @@
    ]
   },
   {
-   "what": "ControlsCreatureGreatestPowerCondition.instance",
-   "score": 11,
-   "lines": 2,
-   "cards": [
-    "Summon: Fenrir",
-    "Éomer of the Riddermark"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 11,
    "lines": 11,
@@ -3150,19 +3140,6 @@
    ]
   },
   {
-   "what": "MagecraftAbility",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Ashling, Flame Dancer",
-    "Jadzi, Oracle of Arcavios // Journey to the Oracle",
-    "Zaffai, Thunder Conductor",
-    "Prismari Apprentice",
-    "Elemental Expressionist",
-    "Symmetry Sage"
-   ]
-  },
-  {
    "what": "TargetPermanentOrPlayer",
    "score": 9,
    "lines": 6,
@@ -3215,22 +3192,6 @@
     "Guardians of Koilos",
     "Sentinel of the Pearl Trident",
     "Rona, Disciple of Gix"
-   ]
-  },
-  {
-   "what": "IfAbilityHasResolvedXTimesEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Nissa, Resurgent Animist",
-    "Omnath, Locus of Creation",
-    "Belladonna Took",
-    "Zimone, Mystery Unraveler",
-    "Teething Wurmlet",
-    "Vito, Fanatic of Aclazotz",
-    "Ashling the Pilgrim",
-    "Saint Traft and Rem Karolus",
-    "Nissa, Leyline Tamer"
    ]
   },
   {
@@ -4825,20 +4786,6 @@
    ]
   },
   {
-   "what": "CelebrationCondition.instance",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Raging Battle Mouse",
-    "Ash, Party Crasher",
-    "Pests of Honor",
-    "Armory Mice",
-    "Lady of Laughter",
-    "Gallant Pie-Wielder",
-    "Belligerent of the Ball"
-   ]
-  },
-  {
    "what": "Ability.withTargetPointerSet",
    "score": 7,
    "lines": 7,
@@ -6004,6 +5951,18 @@
    ]
   },
   {
+   "what": "IfAbilityHasResolvedXTimesEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Nissa, Resurgent Animist",
+    "Omnath, Locus of Creation",
+    "Zimone, Mystery Unraveler",
+    "Ashling the Pilgrim",
+    "Nissa, Leyline Tamer"
+   ]
+  },
+  {
    "what": "ChooseCreatureTypeEffect",
    "score": 5,
    "lines": 5,
@@ -6852,6 +6811,18 @@
    ]
   },
   {
+   "what": "MagecraftAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Jadzi, Oracle of Arcavios // Journey to the Oracle",
+    "Zaffai, Thunder Conductor",
+    "Prismari Apprentice",
+    "Elemental Expressionist",
+    "Symmetry Sage"
+   ]
+  },
+  {
    "what": "GainLifeFirstTimeTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -7299,13 +7270,35 @@
     "Captain's Hook",
     "Stitcher's Graft"
    ]
+  },
+  {
+   "what": "static ability in GRAVEYARD",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "The Indomitable",
+    "Dearly Departed",
+    "Viral Spawning",
+    "Retriever Phoenix"
+   ]
+  },
+  {
+   "what": "modal activated ability",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Bow of Nylea",
+    "Lobelia, Defender of Bag End",
+    "Ransom Note",
+    "Pyramids"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3968,
-   "cards": 3575,
+   "score": 3966,
+   "cards": 3573,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7369,8 +7362,8 @@
   },
   {
    "what": "custom condition",
-   "score": 153,
-   "cards": 141,
+   "score": 151,
+   "cards": 139,
    "names": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -7486,8 +7479,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 29,
-   "cards": 26,
+   "score": 28,
+   "cards": 25,
    "names": [
     "Cloud Key",
     "Temple of the Dragon Queen",
@@ -7498,22 +7491,9 @@
    ]
   },
   {
-   "what": "ConditionalAsThoughEffect",
-   "score": 28,
-   "cards": 22,
-   "names": [
-    "The Reality Chip",
-    "Augur of Autumn",
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Captain Mar-Vell, Space-Born"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
-   "score": 28,
-   "cards": 25,
+   "score": 27,
+   "cards": 24,
    "names": [
     "Rankle, Master of Pranks",
     "Will of the Jeskai",
@@ -7521,6 +7501,19 @@
     "Aetheric Amplifier",
     "Inscription of Abundance",
     "Will of the Abzan"
+   ]
+  },
+  {
+   "what": "ConditionalAsThoughEffect",
+   "score": 26,
+   "cards": 20,
+   "names": [
+    "The Reality Chip",
+    "Augur of Autumn",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Captain Mar-Vell, Space-Born"
    ]
   },
   {
@@ -7655,15 +7648,15 @@
   },
   {
    "what": "filter:alts",
-   "score": 19,
-   "cards": 19,
+   "score": 18,
+   "cards": 18,
    "names": [
     "Carnivorous Canopy",
     "Kari Zev's Expertise",
     "Opportunistic Dragon",
     "Excava, the Risen Past",
-    "Banishing Slash",
-    "Quag Feast"
+    "Quag Feast",
+    "Abuelo's Awakening"
    ]
   },
   {
@@ -8434,6 +8427,14 @@
    ]
   },
   {
+   "what": "delayed AddCounterNextSpellDelayedTriggeredAbility",
+   "score": 10,
+   "cards": 1,
+   "names": [
+    "Summon: Fenrir"
+   ]
+  },
+  {
    "what": "EntersBattlefieldEffect",
    "score": 10,
    "cards": 10,
@@ -8989,18 +8990,6 @@
    ]
   },
   {
-   "what": "MagecraftAbility",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Ashling, Flame Dancer",
-    "Zaffai, Thunder Conductor",
-    "Prismari Apprentice",
-    "Elemental Expressionist",
-    "Symmetry Sage"
-   ]
-  },
-  {
    "what": "MayPay2LifeForColorAbility",
    "score": 8,
    "cards": 5,
@@ -9047,19 +9036,6 @@
     "What Must Be Done",
     "Lost to Legend",
     "Tegan Jovanka"
-   ]
-  },
-  {
-   "what": "IfAbilityHasResolvedXTimesEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Nissa, Resurgent Animist",
-    "Omnath, Locus of Creation",
-    "Belladonna Took",
-    "Zimone, Mystery Unraveler",
-    "Teething Wurmlet",
-    "Vito, Fanatic of Aclazotz"
    ]
   },
   {
@@ -9553,19 +9529,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Hylderblade",
-    "Detainment Spell",
-    "Bespoke Battlegarb",
-    "Concealed Weapon"
-   ]
-  },
-  {
    "what": "AttacksWhileSaddledTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -9977,6 +9940,19 @@
    ]
   },
   {
+   "what": "ConditionalCostModificationEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Alisaie Leveilleur",
+    "Momo, Friendly Flier",
+    "Uthros Psionicist",
+    "Highspire Bell-Ringer",
+    "Raging Battle Mouse",
+    "Nahiri, Storm of Stone"
+   ]
+  },
+  {
    "what": "HasOnlySingleTargetPermanentPredicate",
    "score": 6,
    "cards": 6,
@@ -10091,6 +10067,19 @@
     "Giant Shark",
     "Deathgazer",
     "Dread Specter"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Assassin Gauntlet",
+    "Felidar Umbra",
+    "Hylderblade",
+    "Detainment Spell",
+    "Concealed Weapon",
+    "Stasis Cell"
    ]
   },
   {
@@ -10432,19 +10421,6 @@
    ]
   },
   {
-   "what": "CelebrationCondition.instance",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Ash, Party Crasher",
-    "Pests of Honor",
-    "Armory Mice",
-    "Lady of Laughter",
-    "Gallant Pie-Wielder",
-    "Belligerent of the Ball"
-   ]
-  },
-  {
    "what": "PreventDamageByTargetEffect",
    "score": 6,
    "cards": 6,
@@ -10608,6 +10584,18 @@
    ]
   },
   {
+   "what": "IfAbilityHasResolvedXTimesEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Nissa, Resurgent Animist",
+    "Omnath, Locus of Creation",
+    "Zimone, Mystery Unraveler",
+    "Ashling the Pilgrim",
+    "Nissa, Leyline Tamer"
+   ]
+  },
+  {
    "what": "ChooseCreatureTypeEffect",
    "score": 5,
    "cards": 5,
@@ -10725,18 +10713,6 @@
     "Dream-Thief's Bandana",
     "Predators' Hour",
     "Petty Larceny"
-   ]
-  },
-  {
-   "what": "ConditionalCostModificationEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Alisaie Leveilleur",
-    "Momo, Friendly Flier",
-    "Uthros Psionicist",
-    "Highspire Bell-Ringer",
-    "Nahiri, Storm of Stone"
    ]
   },
   {
@@ -10929,6 +10905,18 @@
     "Battlefront Krushok",
     "Rocksteady, Crash Courser",
     "Yuan Shao, the Indecisive"
+   ]
+  },
+  {
+   "what": "keyword WebSlingingAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Spider-Man, Brooklyn Visionary",
+    "Silk, Web Weaver",
+    "Spider-UK",
+    "Spider-Man, Web-Slinger",
+    "Amazing Spider-Girl"
    ]
   },
   {

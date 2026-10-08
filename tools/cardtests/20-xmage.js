@@ -9342,4 +9342,23 @@ module.exports = (test) => {
     t.ok(T.g.characteristics(hg).isCreature, 'an Ape now');
     t.eq(T.g.powerOf(hg), 4);
   });
+
+  test('Conditions about this turn: what entered and what died under your control, a spell from your hand', (mk, t) => {
+    t.auto('Canyon Crab');
+    t.auto('Banishing Slash');
+    const T = mk();
+    const c = (cond) => T.g._condMet(cond, { controller: 'A' });
+    t.no(c({ kind: 'enteredThisTurn', what: 'creature', n: 1 }), 'nothing yet');
+    T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    t.ok(c({ kind: 'enteredThisTurn', what: 'creature', n: 1 }), 'a creature entered');
+    t.no(c({ kind: 'enteredThisTurn', what: 'nonland permanent', n: 2 }), 'not two');
+    t.no(c({ kind: 'diedYoursThisTurn', n: 1 }));
+    const bear = T.g.battlefield.find(o => o.name === 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    t.ok(c({ kind: 'diedYoursThisTurn', n: 1 }), 'and died');
+    t.ok(c({ kind: 'noSpellFromHandThisTurn' }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.no(c({ kind: 'noSpellFromHandThisTurn' }), 'a spell from hand now');
+  });
 };
