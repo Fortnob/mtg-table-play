@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13633,
+  "needed": 13629,
   "gainedCards": 1441,
-  "linesNeeded": 15005,
+  "linesNeeded": 15001,
   "linesGained": 1771,
   "gained": {
    "all": 1441,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4982,
-   "lines": 4388,
+   "score": 4973,
+   "lines": 4385,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -1319,25 +1319,6 @@
     "Saving Grasp",
     "Scarab of the Unseen",
     "Obelisk of Undoing"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Nighthawk Scavenger",
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "Road Rage",
-    "The Archimandrite",
-    "Desert's Due",
-    "Lost Order of Jarkeld",
-    "Muscle Burst",
-    "Flame Burst"
    ]
   },
   {
@@ -2708,6 +2689,24 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Road Rage",
+    "The Archimandrite",
+    "Desert's Due",
+    "Lost Order of Jarkeld",
+    "Muscle Burst",
+    "Flame Burst"
    ]
   },
   {
@@ -7355,8 +7354,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 4002,
-   "cards": 3588,
+   "score": 3993,
+   "cards": 3585,
    "names": [
     "Tibalt's Trickery",
     "Torment of Hailfire",
@@ -7896,19 +7895,6 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Nighthawk Scavenger",
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt"
    ]
   },
   {
@@ -8607,6 +8593,19 @@
     "Colfenor, the Last Yew",
     "Slurrk, All-Ingesting",
     "Cass, Hand of Vengeance"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Road Rage"
    ]
   },
   {

@@ -2726,6 +2726,9 @@
     // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
     { re: /^Until your next turn, you may cast (sorcery|creature|instant and sorcery|noncreature) spells as though they had flash\.?$/i,
       make: (m) => ({ op: 'flashUntilNextTurn', filter: m[1].toLowerCase().replace(' and ', ' or ') }) },
+    // Tree of Perdition: "Exchange target opponent's life total with this creature's toughness."
+    { re: /^Exchange target opponent'?s life total with (?:this creature|CARDNAME)'?s toughness\.?$/i,
+      make: () => ({ op: 'exchangeLifeToughness', targets: [{ type: 'player', opponent: true }] }) },
     // Angel's Grace: "You can't lose the game this turn and your opponents can't win the game this turn."
     { re: /^You can'?t lose the game this turn and your opponents can'?t win the game this turn\.?$/i, make: () => ({ op: 'cantLoseTurn' }) },
     // Angel's Grace: "Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead."
@@ -3349,6 +3352,13 @@
     // Serra Avatar: "CARDNAME's power and toughness are each equal to your life total."
     { re: /^(?:CARDNAME|This creature)'?s power and toughness are each equal to your life total\.?$/i,
       make: () => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { life: 1 }, t: { life: 1 } } }) },
+    // Nighthawk Scavenger: "CARDNAME's power is equal to 1 plus the number of card types among cards in your opponents' graveyards."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to (?:(\d+|one) plus )?the number of card types among cards in (all graveyards|your graveyard|your opponents'? graveyards)\.?$/i,
+      make: (m) => {
+        const v = { typesInGraveyards: /all/i.test(m[2]) ? 'all' : /opponents/i.test(m[2]) ? 'opponents' : 'you' };
+        if (m[1]) v.plus = num(m[1]);
+        return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: v, t: null, keepToughness: true } };
+      } },
     // Necrogoyf: "CARDNAME's power is equal to the number of creature cards in all graveyards."
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: null, keepToughness: true } }) },
@@ -4811,6 +4821,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Commandeer: "Gain control of target noncreature spell. You may choose new targets for it."
+    { re: /^Gain control of (target (?:noncreature |instant or sorcery |creature )?spell)\.(?: You may choose new targets for it\.)?$/i,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? [{ op: 'stealSpell', newTargets: /new targets/i.test(m[0]), targets: [spec] }] : null; } },
     /* Intuition: "Search your library for three cards and reveal them. Target
        opponent chooses one. Put that card into your hand and the rest into
        your graveyard. Then shuffle." Gifts Ungiven the other way round. */

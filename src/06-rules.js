@@ -2439,6 +2439,17 @@
       const ahead = (me - act + n) % n;
       return this.turn + (ahead === 0 ? n : ahead);
     }
+    /** How many card types there are among the cards in these graveyards ('all', 'you', 'opponents'). */
+    _typesAmongGraveyards(pid, whose) {
+      const TYPES = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Tribal', 'Land', 'Planeswalker', 'Sorcery'];
+      const who = whose === 'all' ? this.players : whose === 'opponents' ? this.opponentsOf(pid) : [this.player(pid)].filter(Boolean);
+      const seen = new Set();
+      for (const p of who) for (const c of ((this.zones[p.id] || {}).graveyard || [])) {
+        const line = String((c.card && c.card.type_line) || '');
+        for (const t of TYPES) if (new RegExp('\\b' + t + '\\b').test(line)) seen.add(t === 'Tribal' ? 'Kindred' : t);
+      }
+      return seen.size;
+    }
     /** Worship, Angel's Grace: is damage kept from taking this player below 1 life? */
     _lifeFloorFor(p) {
       if (p.lifeFloorTurn === this.turn) return true;
@@ -8438,6 +8449,11 @@
           if ((allTypes && xt.length) || (xa.keywordSet && xa.keywordSet.has('changeling') && myTypes.length) || xt.some(t => myTypes.includes(t))) k++;
         }
         return k * (v.mult || 1);
+      }
+      // Tarmogoyf, Nighthawk Scavenger: the card types among cards in graveyards
+      if (typeof v === 'object' && (v.typesInGraveyards || /^card types among cards in /i.test(String(v.per || '')))) {
+        const whose = v.typesInGraveyards || (/all graveyards/i.test(v.per) ? 'all' : /opponents/i.test(v.per) ? 'opponents' : 'you');
+        return this._typesAmongGraveyards((src || o).controller, whose) * (v.mult || 1);
       }
       // Necrogoyf: creature cards in all graveyards
       if (typeof v === 'object' && v.cardsInAllGraveyards) {
@@ -14611,6 +14627,37 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // Commandeer: the spell is yours now, and you may point it somewhere else
+        case 'stealSpell': {
+          const t = targets.find(x => x.kind === 'stack');
+          const item = t && this.stack.find(x => x.id === t.id);
+          if (!item) break;
+          item.controller = ctx.controller;
+          if (item.obj) { item.obj.controller = ctx.controller; item.obj._chr = null; }
+          this.logEvent('control', `${me.name} gains control of ${item.name}.`);
+          if (e.newTargets && item.obj && (item.targets || []).length) {
+            const tg = this._askSpellTargets(ctx.controller, item.obj, 'stealT');
+            if (tg === SUSPEND) return SUSPEND;
+            if (tg && tg.length) item.targets = tg;
+          }
+          break;
+        }
+        // Tree of Perdition: their life total becomes its toughness, and its toughness their life total
+        case 'exchangeLifeToughness': {
+          const p = firstPlayer();
+          if (!p || !src || src.zone !== 'battlefield') break;
+          const life = p.life, tough = this.toughnessOf(src);
+          const pw = parseInt((src.card && src.card.power) || '0', 10) || 0;
+          if (life !== tough) {
+            this.changeLife(p, tough - life, 'exchange');
+            if (p.life === tough) {
+              src.effects.push({ setPt: { p: pw, t: life }, until: null });
+              src._chr = null; this.bumpBoard();
+              this.logEvent('rules', `${src.name} and ${p.name} exchange: ${p.name} is at ${tough} life, and its toughness is ${life}.`);
+            }
+          }
+          break;
+        }
         // Angel's Grace
         case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
         case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;

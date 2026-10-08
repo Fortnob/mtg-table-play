@@ -9149,4 +9149,31 @@ module.exports = (test) => {
     T2.g.playerLoses(T2.g.player('A'), 'life');
     t.no(T2.g.player('A').hasLost, 'and A cannot lose this turn');
   });
+
+  test('Tarmogoyf counts card types in all graveyards; Commandeer takes a spell and turns it; Tree of Perdition swaps', (mk, t) => {
+    t.auto('Nighthawk Scavenger');
+    t.auto('Commandeer');
+    t.auto('Tree of Perdition');
+    const T = mk();
+    const goyf = T.bf('A', 'Tarmogoyf');
+    T.grave('B', 'Lightning Bolt'); T.grave('A', 'Grizzly Bears'); T.grave('A', 'Forest');
+    t.eq(T.g.powerOf(goyf), 3, 'instant, creature, land');
+    t.eq(T.g.toughnessOf(goyf), 4);
+    const T2 = mk();
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: ['B'], resolve: false });
+    const item = T2.g.stack[T2.g.stack.length - 1];
+    T2.mana('B', 'UU5');
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'A' }] }));
+    T2.g.priorityIndex = T2.g.turnOrder.indexOf('B');
+    T2.cast('B', T2.hand('B', 'Commandeer'), { targets: [{ kind: 'stack', id: item.id }] });
+    t.eq(T2.life('A'), 17, 'B\'s Bolt now, at A');
+    t.eq(T2.life('B'), 20);
+    const T3 = mk();
+    const tree = T3.bf('A', 'Tree of Perdition');
+    tree.summoningSick = false;
+    T3.activate('A', tree, 0, { targets: ['B'] });
+    t.eq(T3.life('B'), 13, 'B at the Tree\'s toughness');
+    t.eq(T3.g.toughnessOf(tree), 20, 'and the Tree at B\'s life');
+  });
 };
