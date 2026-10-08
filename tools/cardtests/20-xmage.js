@@ -10744,4 +10744,42 @@ module.exports = (test) => {
     T5.mana('A', 'G');
     t.ok(T5.g.castSpell('A', T5.hand('A', 'Centaur Courser').id, { auto: true }), 'two artifacts tapped for improvise: ' + T5.g.lastError);
   });
+
+  test('For each opponent, up to one target: Grasp of Fate, Mass Mutiny, Dismantling Wave', (mk, t) => {
+    t.auto('Grasp of Fate'); t.auto('Mass Mutiny'); t.auto('Dismantling Wave'); t.auto('Sepulchral Primordial');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.bf('B', 'Island');
+    T.answer('choose', (ch) => { t.eq(ch.items.length, 1, 'only the nonland permanent'); return { picks: [bear.id] }; });
+    T.mana('A', '1WW');
+    T.cast('A', T.hand('A', 'Grasp of Fate'));
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(bear.zone, 'exile', 'held by Grasp of Fate');
+    const T2 = mk();
+    const b2 = T2.bf('B', 'Grizzly Bears'); b2.tapped = true;
+    T2.answer('choose', { picks: [b2.id] });
+    T2.mana('A', '3RR');
+    T2.cast('A', T2.hand('A', 'Mass Mutiny'));
+    T2.settle(); T2.resolve();
+    t.eq(b2.controller, 'A', 'taken'); t.no(b2.tapped, 'untapped');
+  });
+
+  test('Combustible Gearhulk and Risk Factor: the opponent picks; Palantír of Orthanc', (mk, t) => {
+    t.auto('Combustible Gearhulk'); t.auto('Risk Factor'); t.auto('Palantír of Orthanc');
+    const T = mk();
+    T.top('A', 'Craw Wurm'); T.top('A', 'Grizzly Bears'); T.top('A', 'Lightning Bolt');
+    T.answer('confirm', (ch) => { t.eq(ch.playerId, 'B', 'the opponent decides'); return { yes: false }; });
+    const life = T.g.player('B').life;
+    T.mana('A', '4RR');
+    T.cast('A', T.hand('A', 'Combustible Gearhulk'));
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.g.player('B').life, life - (6 + 2 + 1), 'damage equal to the milled mana values');
+    const T2 = mk();
+    T2.answer('confirm', { yes: true });
+    const hand = T2.g.zones.A.hand.length;
+    T2.mana('A', '2R');
+    T2.cast('A', T2.hand('A', 'Risk Factor'), { targets: ['B'] });
+    T2.settle(); T2.resolve();
+    t.eq(T2.g.player('B').life, 16, 'took the 4'); t.eq(T2.g.zones.A.hand.length, hand, 'no cards drawn');
+  });
 };

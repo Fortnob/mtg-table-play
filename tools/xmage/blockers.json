@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12731,
-  "gainedCards": 1373,
-  "linesNeeded": 13932,
-  "linesGained": 1651,
+  "needed": 12687,
+  "gainedCards": 1354,
+  "linesNeeded": 13867,
+  "linesGained": 1622,
   "gained": {
-   "all": 1373,
-   "top2000": 53,
+   "all": 1354,
+   "top2000": 52,
    "stdTop": 10
   },
   "compare": {
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4700,
-   "lines": 4223,
+   "score": 4690,
+   "lines": 4219,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -47,13 +47,13 @@
     "Chain of Vapor",
     "Mechanized Production",
     "Kodama of the East Tree",
-    "Combustible Gearhulk"
+    "Tataru Taru"
    ]
   },
   {
    "what": "custom ability",
-   "score": 810,
-   "lines": 717,
+   "score": 809,
+   "lines": 716,
    "cards": [
     "Trouble in Pairs",
     "Myr Battlesphere",
@@ -109,8 +109,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 245,
-   "lines": 215,
+   "score": 244,
+   "lines": 214,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -128,11 +128,10 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 220,
-   "lines": 196,
+   "score": 200,
+   "lines": 179,
    "cards": [
     "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Grasp of Fate",
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Comet Storm",
@@ -140,15 +139,16 @@
     "Likeness Looter",
     "Kozilek's Command",
     "Ruthless Technomancer",
-    "Sepulchral Primordial",
     "Silkguard",
-    "Chthonian Nightmare"
+    "Chthonian Nightmare",
+    "Tinybones, the Pickpocket",
+    "Dance of the Manse"
    ]
   },
   {
    "what": "custom condition",
-   "score": 176,
-   "lines": 164,
+   "score": 175,
+   "lines": 163,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -575,25 +575,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 23,
-   "lines": 23,
-   "cards": [
-    "Gathering Stone",
-    "Minsc & Boo, Timeless Heroes",
-    "Obsessive Pursuit",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Exuberant Fuseling",
-    "Mystic Barrier",
-    "Crack in Time",
-    "Staff of the Flame Magus",
-    "Staff of the Wild Magus"
-   ]
-  },
-  {
    "what": "ChooseACardNameEffect",
    "score": 23,
    "lines": 23,
@@ -689,6 +670,25 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Gathering Stone",
+    "Minsc & Boo, Timeless Heroes",
+    "Obsessive Pursuit",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Mystic Barrier",
+    "Crack in Time",
+    "Staff of the Flame Magus",
+    "Staff of the Wild Magus",
+    "Shrine of Loyal Legions"
+   ]
+  },
+  {
    "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 21,
    "lines": 21,
@@ -780,25 +780,6 @@
    ]
   },
   {
-   "what": "mana ability with more",
-   "score": 19,
-   "lines": 13,
-   "cards": [
-    "Primal Amulet // Primal Wellspring",
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Altar of the Pantheon",
-    "Magus Lucea Kane",
-    "Codie, Vociferous Codex",
-    "Foreboding Statue // Forsaken Thresher",
-    "Rainbow Vale",
-    "Undiscovered Paradise",
-    "Cryptex",
-    "Initiates of the Ebon Hand"
-   ]
-  },
-  {
    "what": "keyword JobSelectAbility",
    "score": 19,
    "lines": 19,
@@ -877,25 +858,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Genestealer Patriarch",
-    "Spring Splasher",
-    "Fear of Falling"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 17,
    "lines": 14,
@@ -946,6 +908,43 @@
     "Ethersworn Shieldmage",
     "Divine Light",
     "Inner Sanctum"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 17,
+   "lines": 11,
+   "cards": [
+    "Primal Amulet // Primal Wellspring",
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Sunken Palace",
+    "Altar of the Pantheon",
+    "Magus Lucea Kane",
+    "Codie, Vociferous Codex",
+    "Rainbow Vale",
+    "Undiscovered Paradise",
+    "Initiates of the Ebon Hand",
+    "Farrelite Priest"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "The Tarrasque",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Spring Splasher",
+    "Fear of Falling",
+    "Coveted Peacock"
    ]
   },
   {
@@ -2439,20 +2438,6 @@
    ]
   },
   {
-   "what": "chapter lambda .setTargetAdjuster",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Sheoldred // The True Scriptures",
-    "Battle at the Helvault",
-    "The Horus Heresy",
-    "The Parting of the Ways",
-    "Age of Ultron",
-    "Vault 13: Dweller's Journey",
-    "The Curse of Fenric"
-   ]
-  },
-  {
    "what": "DealsDamageToAnyTriggeredAbility",
    "score": 10,
    "lines": 4,
@@ -2857,22 +2842,6 @@
     "Kingpin, Wilson Fisk",
     "True Identity",
     "Pine Walker"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Consulate Surveillance",
-    "Emissary of Soulfire",
-    "Voltstorm Angel",
-    "Janjeet Sentry"
    ]
   },
   {
@@ -3378,6 +3347,21 @@
     "Rakish Crew",
     "Charred Graverobber",
     "Mine Raider"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Consulate Surveillance",
+    "Voltstorm Angel",
+    "Janjeet Sentry"
    ]
   },
   {
@@ -6998,6 +6982,17 @@
    ]
   },
   {
+   "what": "chapter lambda .setTargetAdjuster",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Battle at the Helvault",
+    "The Horus Heresy",
+    "Vault 13: Dweller's Journey",
+    "The Curse of Fenric"
+   ]
+  },
+  {
    "what": "EachSpellYouCastHasReplicateEffect",
    "score": 4,
    "lines": 4,
@@ -7089,8 +7084,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3833,
-   "cards": 3500,
+   "score": 3829,
+   "cards": 3499,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7102,8 +7097,8 @@
   },
   {
    "what": "custom ability",
-   "score": 617,
-   "cards": 548,
+   "score": 616,
+   "cards": 547,
    "names": [
     "Myr Battlesphere",
     "Kambal, Profiteering Mayor",
@@ -7115,8 +7110,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 206,
-   "cards": 200,
+   "score": 207,
+   "cards": 201,
    "names": [
     "Plumb the Forbidden",
     "Reforge the Soul",
@@ -7128,21 +7123,21 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 188,
-   "cards": 164,
+   "score": 174,
+   "cards": 153,
    "names": [
     "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Grasp of Fate",
     "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Comet Storm",
-    "Lazotep Quarry"
+    "Lazotep Quarry",
+    "Likeness Looter"
    ]
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 150,
-   "cards": 138,
+   "score": 149,
+   "cards": 137,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7154,8 +7149,8 @@
   },
   {
    "what": "custom condition",
-   "score": 134,
-   "cards": 131,
+   "score": 133,
+   "cards": 130,
    "names": [
     "Sting, the Glinting Dagger",
     "Queen Marchesa",
@@ -7387,19 +7382,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Gathering Stone",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Exuberant Fuseling"
-   ]
-  },
-  {
    "what": "DisturbAbility.makeBackAbility",
    "score": 17,
    "cards": 17,
@@ -7504,16 +7486,16 @@
    ]
   },
   {
-   "what": "mana ability with more",
+   "what": "OrTriggeredAbility halves differ",
    "score": 16,
-   "cards": 10,
+   "cards": 16,
    "names": [
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Magus Lucea Kane",
-    "Foreboding Statue // Forsaken Thresher",
-    "Rainbow Vale"
+    "Gathering Stone",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Crack in Time"
    ]
   },
   {
@@ -7604,6 +7586,19 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 14,
+   "cards": 8,
+   "names": [
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Sunken Palace",
+    "Magus Lucea Kane",
+    "Rainbow Vale",
+    "Undiscovered Paradise"
    ]
   },
   {
@@ -9073,19 +9068,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Consulate Surveillance",
-    "Emissary of Soulfire",
-    "Voltstorm Angel"
-   ]
-  },
-  {
    "what": "DontUntapInControllersNextUntapStepTargetEffect",
    "score": 7,
    "cards": 7,
@@ -9385,6 +9367,19 @@
    ]
   },
   {
+   "what": "RecruitEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Celebrate the Mountain-king",
+    "The Mountain-king's Return",
+    "Great Gilded Boat",
+    "Lake-town Lookout",
+    "Esgaroth Garrison",
+    "Patient Instructor"
+   ]
+  },
+  {
    "what": "DesertControlledOrGraveyardCondition.instance",
    "score": 7,
    "cards": 7,
@@ -9516,6 +9511,19 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
+   ]
+  },
+  {
+   "what": "PayEnergyCost",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Consulate Surveillance",
+    "Voltstorm Angel",
+    "Janjeet Sentry"
    ]
   },
   {
@@ -9880,19 +9888,6 @@
     "Ghirapur Guide",
     "Doorman",
     "Joven's Tools"
-   ]
-  },
-  {
-   "what": "RecruitEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "The Mountain-king's Return",
-    "Great Gilded Boat",
-    "Lake-town Lookout",
-    "Esgaroth Garrison",
-    "Patient Instructor",
-    "Long Lake Nuisance"
    ]
   },
   {

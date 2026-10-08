@@ -10793,6 +10793,28 @@
         targets = got.picks.map(id => ({ kind: 'object', id }));
         this._noteLastAffected(targets);
       }
+      /* "For each opponent, exile up to one target nonland permanent that
+         player controls": up to one of each opponent's, picked as it resolves */
+      if (e.perOpponentFrom && !(e.targets && e.targets.length)) {
+        const spec = e.perOpponentFrom;
+        const pool = this._legalTargetsFor(spec, ctx.controller, src ? src.id : null)
+          .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+        const whose = (x) => (x.zone === 'battlefield' ? x.controller : x.owner);
+        const picks = [];
+        for (const opp of this.opponentsOf(ctx.controller)) {
+          const theirs = pool.filter(x => whose(x) === opp.id);
+          if (!theirs.length) continue;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: spec.zone || 'battlefield',
+            items: this._chooseItems(theirs), min: 0, max: 1, optional: true, harmful: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose up to one ${spec.filter || 'target'} of ${opp.name}'s.` }, 'perOpp:' + opp.id);
+          if (got === SUSPEND) return SUSPEND;
+          if (got && got.picks.length) picks.push(...got.picks);
+        }
+        if (!picks.length) return null;
+        targets = picks.map(id => ({ kind: 'object', id }));
+        this._noteLastAffected(targets);
+        this._lastGroup = picks.slice();
+      }
       /* An effect that wants a target and has not been given one asks for it
          now. This is what a chosen mode needs: "choose one — destroy target
          artifact" has its target inside the mode, and the mode is not known
@@ -11057,6 +11079,8 @@
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.playerStat || v.startingLife ||
           v.greatestToughness || v.cardsInAllGraveyards || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+        // Combustible Gearhulk: the total mana value of the cards just milled
+        if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
         if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
         // domain: basic land types among lands you control
@@ -13830,6 +13854,18 @@
           if (x && x.zone === 'exile' && !x.isToken) this.moveObject(x, 'battlefield', { controller: me.id });
           if (land) this.moveObject(land, 'battlefield', { controller: me.id });
           this.rng.shuffle(this.zones[me.id].library);
+          break;
+        }
+        // Combustible Gearhulk: "target opponent may have you draw three cards. If the player doesn't, …"
+        case 'opponentMayElse': {
+          const opp = firstPlayer() || this.opponentsOf(ctx.controller)[0];
+          if (!opp) break;
+          ctx.chosenPlayer = opp.id;
+          const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'opponentMay', option: e.kind,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}let ${me.name} ${String(e.offer || '').replace(/^you /i, '')}? If you don't: ${truncate(e.elseText || '', 90)}` }, 'opm');
+          if (yes === SUSPEND) return SUSPEND;
+          this.logEvent('rules', `${opp.name} ${yes ? 'agrees' : 'declines'}.`);
+          this._spliceNext(yes ? e.option : e.otherwise);
           break;
         }
         // Archway of Innovation

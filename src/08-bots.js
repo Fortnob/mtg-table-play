@@ -2312,6 +2312,8 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      // Combustible Gearhulk: let them draw while life is short; take the damage otherwise
+      if (ch.purpose === 'opponentMay') return ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Chandra: cast the exiled card only if it can be paid for
       if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'payToUntap') {

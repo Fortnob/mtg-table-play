@@ -1519,8 +1519,11 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
-      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
+    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
+    // Palantír of Orthanc: "put an influence counter on CARDNAME and scry 2"
+    { re: /^Put (a|an|one|two|three) ([a-z]+) counters? on (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) and (scry|surveil) (\d+)\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'counters', kind: m[2], n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), scope: 'self' }, { op: m[3].toLowerCase(), n: +m[4] }] }) },
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
@@ -2951,6 +2954,12 @@
     /* ===== whoever set the trigger off ===== */
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerPlayer: true }) },
+    // Palantír of Orthanc: "that player loses life equal to the total mana value of those cards"
+    { re: /^That player loses life equal to the total mana value of those cards\.?$/i,
+      make: () => ({ op: 'loseLife', who: 'triggerPlayer', n: { milledMv: true } }) },
+    // Combustible Gearhulk: "this creature deals damage to that player equal to the total mana value of those cards" (the ones just milled)
+    { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the total mana value of those cards\.?$/i,
+      make: () => ({ op: 'damage', n: { milledMv: true }, toTriggerPlayer: true }) },
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the number of cards in their hand\.?$/i,
       make: () => ({ op: 'damage', n: { cardsInHand: 'triggerPlayer' }, toTriggerPlayer: true }) },
     { re: /^(?:They|That player) mills? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i,
@@ -5128,6 +5137,28 @@
       const again = parseEffectSentence(s.replace(/ also /, ' '), 1);
       if (again) return again;
     }
+    /* Grasp of Fate, Riptide Gearhulk, Mass Mutiny: "For each opponent,
+       exile up to one target nonland permanent that player controls" — the
+       sentence read for one target, and one picked for each opponent as it
+       resolves, among the things of theirs it could have targeted */
+    const perOpp = !depth && s.match(/^For each opponent, (?:you may )?(.+)$/i);
+    if (perOpp) {
+      const body = perOpp[1];
+      const onBf = body.match(/\bup to one target ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i);
+      const inGy = !onBf && body.match(/\bup to one target ([a-z ]+? card) from that player'?s graveyard\b/i);
+      if (onBf || inGy) {
+        let one = onBf ? body.replace(onBf[0], 'target ' + onBf[1]) : body.replace(inGy[0], 'target ' + inGy[1] + ' from a graveyard');
+        one = one.charAt(0).toUpperCase() + one.slice(1);
+        const inner = parseEffectSentence(oneOfThem(one, /^target /i.test(one)), 1);
+        const holder = inner && inner.op !== 'manual' && !hasManualStep(inner) && sharedTarget(inner);
+        if (holder && holder.targets[0].type !== 'player') {
+          holder.perOpponentFrom = Object.assign({}, holder.targets[0], { upTo: true });
+          delete holder.targets;
+          inner.text = s;
+          return inner;
+        }
+      }
+    }
     /* "Tap any number of target creatures", "Return any number of target
        lands you control to their owner's hand": the sentence read for one
        target, and the picking done as it resolves — any number of the
@@ -5247,6 +5278,21 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Combustible Gearhulk, Palantír of Orthanc, Risk Factor: "Target
+       opponent may have you draw three cards. If the player doesn't, …" —
+       the opponent picks which happens */
+    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?target opponent may have (you draw (?:a|one|two|three|four|five|\d+) cards?|CARDNAME deal (?:one|two|three|four|five|six|\d+) damage to them)\. If (?:the|that) player doesn'?t, ([\s\S]+?)\.?$/i,
+      make: (m) => {
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        const dmg = m[2].match(/deal (\S+) damage/i);
+        const option = dmg ? { effects: [{ op: 'damage', n: num(dmg[1]), toTriggerPlayer: true }], auto: true }
+          : parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        const rest = m[3].split(/,\s+then\s+|,\s+and\s+(?=that player\b)/i).map(x => x.charAt(0).toUpperCase() + x.slice(1).replace(/\.?$/, '.')).join(' ');
+        const other = parseSentenceList(splitSentences(rest));
+        if (!pre.auto || !option.auto || !other.auto) return null;
+        return [...pre.effects, { op: 'opponentMayElse', targets: [targetSpec('target opponent')], kind: dmg ? 'damage' : 'draw',
+          offer: m[2].replace(/CARDNAME/, 'it'), option: option.effects, otherwise: other.effects, elseText: m[3] }];
+      } },
     /* The Black Gate: "Choose a player with the most life or tied for most life. Target creature can't be blocked
        by creatures that player controls this turn." */
     { re: /^Choose a player with the most life or tied for most life\. (Target creature) can'?t be blocked by creatures that player controls this turn\.$/i,
