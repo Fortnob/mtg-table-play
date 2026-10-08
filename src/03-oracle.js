@@ -3406,6 +3406,9 @@
         if (m[1]) v.plus = num(m[1]);
         return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: v, t: null, keepToughness: true } };
       } },
+    // Aettir and Priwen: "Equipped creature has base power and toughness X/X, where X is your life total."
+    { re: /^(Equipped|Enchanted) creature has base power and toughness X\/X, where X is your life total\.?$/i,
+      make: () => ({ op: 'continuous', layer: 7, scope: { attached: true }, setPt: { p: { life: 1 }, t: { life: 1 } } }) },
     // Necrogoyf: "CARDNAME's power is equal to the number of creature cards in all graveyards."
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: null, keepToughness: true } }) },
@@ -6174,6 +6177,8 @@
     [/^you have (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     [/^(?:there are )?(\w+) or more card types (?:are )?among cards in your graveyard$/i,
       (m) => ({ kind: 'graveyardTypes', n: num(m[1]) })],
+    // Grave Researcher: "there are three or more creature cards in your graveyard"
+    [/^there are (\w+) or more ([a-z]+?) cards in your graveyard$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', what: m[2], n: num(m[1]) } : null)],
     [/^you have (\w+) or more ([a-z]+?) cards? in your graveyard$/i,
       (m) => ({ kind: 'graveyard', what: m[2], n: num(m[1]) })],
     // hand and life

@@ -9308,4 +9308,15 @@ module.exports = (test) => {
     const ab = engine().oracle.analyze(card('Imperial Aerosaur')).abilities.find(a => a.kind === 'triggered');
     t.ok(JSON.stringify(ab.effects).includes('"another":true'), 'another target');
   });
+
+  test('Aettir and Priwen sets the equipped creature to your life total; "three or more creature cards in your graveyard" is read', (mk, t) => {
+    t.auto('Aettir and Priwen');
+    t.auto('Grave Researcher // Reanimate');
+    const T = mk();
+    const eq = T.bf('A', 'Aettir and Priwen');
+    const bear = T.bf('A', 'Grizzly Bears');
+    eq.attachedTo = bear.id; bear.attachments = [eq.id]; T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 20);
+    t.eq(T.g.toughnessOf(bear), 20);
+  });
 };
