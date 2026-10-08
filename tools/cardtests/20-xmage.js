@@ -10118,4 +10118,53 @@ module.exports = (test) => {
     t.eq(lib[lib.length - 1], bolt, 'at the bottom');
     t.eq(T.life('B'), 20);
   });
+
+  test('Gisela doubles damage to opponents and halves it to us; Vigor turns damage into counters; Realmwalker casts from the top', (mk, t) => {
+    t.auto('Gisela, Blade of Goldnight');
+    t.auto('Vigor');
+    t.auto('Realmwalker');
+    const T = mk();
+    T.bf('A', 'Gisela, Blade of Goldnight');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 14, 'six to B');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 19, 'one to A: half of three rounded up is prevented');
+    const T2 = mk();
+    T2.bf('A', 'Vigor');
+    const bear = T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    t.eq(bear.zone, 'battlefield', 'the Bears live');
+    t.eq(bear.counters['+1/+1'], 3, 'with three counters');
+    const T3 = mk();
+    const rw = T3.bf('A', 'Realmwalker');
+    rw.chosenType = 'Bear';
+    const top = T3.top('A', 'Grizzly Bears');
+    T3.mana('A', '1G');
+    t.ok(T3.g.castSpell('A', top.id, { auto: true }), 'a Bear from the top: ' + T3.g.lastError);
+    const T4 = mk();
+    const rw4 = T4.bf('A', 'Realmwalker');
+    rw4.chosenType = 'Elf';
+    const top4 = T4.top('A', 'Grizzly Bears');
+    T4.mana('A', '1G');
+    t.no(T4.g.castSpell('A', top4.id, { auto: true }), 'not when the chosen type is Elf');
+  });
+
+  test('Caged Sun adds one more of the chosen colour from a land; K\'rrik pays {B} with 2 life', (mk, t) => {
+    t.auto('Caged Sun');
+    t.auto("K'rrik, Son of Yawgmoth");
+    const T = mk();
+    const cs = T.bf('A', 'Caged Sun'); cs.chosenColor = 'G';
+    const f = T.bf('A', 'Forest'), m = T.bf('A', 'Mountain');
+    T.g.tapForMana('A', f.id, 0);
+    t.eq(T.g.player('A').pool.total(), 2, 'the Forest makes two green');
+    T.g.tapForMana('A', m.id, 0);
+    t.eq(T.g.player('A').pool.total(), 3, 'the Mountain only its own red');
+    const T2 = mk();
+    T2.bf('A', "K'rrik, Son of Yawgmoth");
+    T2.cast('A', T2.hand('A', 'Dark Ritual'));
+    t.eq(T2.life('A'), 18, 'two life for the {B}');
+    t.eq(T2.g.player('A').pool.total(), 3, 'and the Ritual resolves');
+  });
 };

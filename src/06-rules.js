@@ -3425,6 +3425,10 @@
             if (what !== 'any' && what !== kind) continue;
             if (ef.filter && !this._cardFitsWords(o, ef.filter)) continue;
             if (ef.duringYourTurn && (!this.activePlayer || this.activePlayer.id !== playerId)) continue;
+            // Realmwalker: of the chosen creature type
+            if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
+            // Augur of Autumn, The Reality Chip: only while the condition holds
+            if (ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
             return ef;
           }
         }
@@ -6537,6 +6541,8 @@
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
       // Chromatic Orrery: any mana pays for any colour, spells and abilities alike
       if (this._spendsAnyColor(playerId)) cost = String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // K'rrik: each {B} may be paid with 2 life instead, which is what a Phyrexian {B/P} is
+      if (this._anyStaticOf(playerId, 'blackAsLife')) cost = String(cost).replace(/\{B\}/g, '{B/P}');
       /* Mana that may only be spent on certain spells waits apart from the
          pool; it is lent to a payment it is allowed to pay for, and what is
          not used goes back to waiting. */
@@ -6565,6 +6571,8 @@
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
       // Chromatic Orrery: any mana pays for any colour, spells and abilities alike
       if (this._spendsAnyColor(playerId)) cost = String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // K'rrik: each {B} may be paid with 2 life instead, which is what a Phyrexian {B/P} is
+      if (this._anyStaticOf(playerId, 'blackAsLife')) cost = String(cost).replace(/\{B\}/g, '{B/P}');
       const wasFor = this._payingFor;
       this._payingFor = opts.forSpell || null;
       const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
@@ -6786,6 +6794,8 @@
         if (e.scope !== 'attached' && !e.filter && !oa.isLand) continue;
         // Forsaken Monument: only when it made that kind of mana
         if (e.ifMade && !(made[e.ifMade] > 0)) continue;
+        // Caged Sun: only when it made mana of the chosen colour
+        if (e.ifMadeChosen && !(src.chosenColor && made[src.chosenColor] > 0)) continue;
         let syms = e.symbols || [];
         if (e.chosen) syms = src.chosenColor ? [src.chosenColor] : [];
         if (e.sameType) {
@@ -7866,6 +7876,10 @@
       if (ef.event === 'damage') {
         // "to an opponent or a permanent an opponent controls"
         if (ef.toOpponent && ev.victimController === src.controller) return false;
+        // Gisela: "to you or a permanent you control"
+        if (ef.toYou && ev.victimController !== src.controller) return false;
+        // a prevention is no prevention when damage can't be prevented
+        if (ef.prevention && this._noPrevention(ev.combat)) return false;
         // Fiendish Duo: "to an opponent" — the player, not their permanents
         if (ef.toPlayerOnly && !ev.toPlayer) return false;
         if (ef.noncombat && ev.combat) return false;
@@ -8631,6 +8645,7 @@
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
+        case 'selfAttachedToCreature': { const h = src && src.attachedTo && this.obj(src.attachedTo); return !!(h && h.zone === 'battlefield' && (this.characteristics(h) || {}).isCreature); }
         case 'ringBearerNotSelf': { const td = ctx.triggerData || {}; return !!td.bearerId && !!ctx.obj && td.bearerId !== ctx.obj.id; }
         case 'noRingBearer': { const rb = me && this.obj(me.ringBearer); return !(rb && rb.zone === 'battlefield' && rb.controller === me.id); }
         case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield');
@@ -9165,6 +9180,15 @@
       if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat);
       if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
+      // Vigor: damage to another creature of its controller's becomes +1/+1 counters
+      if (o.zone === 'battlefield' && !this._noPrevention(isCombat) && (this.characteristics(o) || {}).isCreature) {
+        const vg = this.battlefield.find(x => x !== o && !x.phasedOut && x.controller === o.controller && this._staticOp(x, 'vigorShield'));
+        if (vg) {
+          this.addCounters(o, '+1/+1', amount);
+          this.logEvent('damage', `${vg.name} prevents ${amount} damage to ${o.name} and puts that many +1/+1 counters on it.`);
+          return 0;
+        }
+      }
       // the Phantoms: "prevent that damage. Remove a +1/+1 counter from this creature."
       if (o.zone === 'battlefield' && this._hasFlag(o, 'phantom') && !this._noPrevention(isCombat)) {
         if (Number(o.counters['+1/+1']) > 0) {

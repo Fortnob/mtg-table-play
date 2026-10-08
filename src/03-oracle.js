@@ -6408,6 +6408,8 @@
     [/^you don'?t control a Ring-bearer$/i, () => ({ kind: 'noRingBearer' })],
     // Frodo: "if CARDNAME is your Ring-bearer"
     [/^(?:CARDNAME|this creature) is your Ring-bearer$/i, () => ({ kind: 'selfRingBearer' })],
+    // The Reality Chip, The Aetherspark: "CARDNAME is attached to a creature"
+    [/^(?:CARDNAME|this Equipment|this Aura) is attached to a creature$/i, () => ({ kind: 'selfAttachedToCreature' })],
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
@@ -9590,6 +9592,11 @@
     { re: /^If a source would deal damage to (a permanent or player|an opponent), it deals double that damage to that (?:permanent or player|player) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dmgdouble', event: 'damage', who: 'any', how: 'double' },
         /opponent/i.test(m[1]) ? { toOpponent: true, toPlayerOnly: true } : {}) },
+    // Gisela, Blade of Goldnight: double to opponents and theirs, half (rounded down) to you and yours
+    { re: /^If a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage to that player or permanent instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgdoubleOpp', event: 'damage', who: 'any', how: 'double', toOpponent: true }) },
+    { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
     { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },
@@ -9802,6 +9809,12 @@
       { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Caged Sun: "Whenever a land's ability causes you to add one or more mana of the chosen color, add an additional one mana of that color."
+      { re: /^Whenever a land'?s ability causes you to add one or more mana of the chosen colou?r, add an additional one mana of that colou?r\.?$/i,
+        eff: { op: 'extraManaOnTap', who: 'you', filter: 'land', chosen: true, ifMadeChosen: true }, auto: true },
+      // Gauntlet of Power: "Whenever a basic land is tapped for mana of the chosen color, its controller adds an additional one mana of that color."
+      { re: /^Whenever a basic land is tapped for mana of the chosen colou?r, its controller adds an additional one mana of that colou?r\.?$/i,
+        eff: { op: 'extraManaOnTap', filter: 'basic land', chosen: true, ifMadeChosen: true }, auto: true },
       // Forsaken Monument: "Whenever you tap a permanent for {C}, add an additional {C}."
       { re: /^Whenever you tap an? (permanent|land|artifact|creature) for (\{[WUBRGC]\}), add an additional \2\.?$/i,
         make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), symbols: MANA.parse(m[2]), ifMade: MANA.parse(m[2])[0] }), auto: true },
@@ -10150,6 +10163,11 @@
         make: () => ({ op: 'stateTrigger', noCounter: 'ice', label: 'no ice counters',
           effects: [{ op: 'sacSelfThen', then: [{ op: 'createToken', n: 1, pt: '20/20', colorWords: ['black'], subtypes: 'Avatar', addTypes: [],
             legendary: true, name: 'Marit Lage', keywords: ['Flying', 'Indestructible'] }] }] }), auto: true },
+      // K'rrik, Son of Yawgmoth
+      { re: /^For each \{B\} in a cost, you may pay 2 life rather than pay that mana\.?$/i, eff: { op: 'blackAsLife' }, auto: true },
+      // Vigor
+      { re: /^If damage would be dealt to another creature you control, prevent that damage\. Put a \+1\/\+1 counter on that creature for each 1 damage prevented this way\.?$/i,
+        eff: { op: 'vigorShield' }, auto: true },
       // Divine Visitation
       { re: /^If one or more creature tokens would be created under your control, that many 4\/4 white Angel creature tokens with flying and vigilance are created instead\.?$/i,
         eff: { op: 'tokensBecomeAngels' }, auto: true },
@@ -10396,6 +10414,18 @@
       { re: /^(During your turn, )?you may cast ((?:[a-z]+ )*?)spells(?: and ((?:[a-z]+ )*?)spells)? from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
           filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ') || null }), auto: true },
+      // Realmwalker: "You may cast creature spells of the chosen type from the top of your library."
+      { re: /^You may cast creature spells of the chosen type from the top of your library\.?$/i,
+        make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },
+      /* Augur of Autumn, The Reality Chip: "As long as …, you may (play lands and) cast … spells from the top
+         of your library." — the same leave, while the condition holds */
+      { re: /^As long as (.+?), you may (play lands and cast spells|cast ((?:[a-z]+ )*?)spells) from the top of your library\.?$/i,
+        make: (m) => {
+          const c = condOf(m[1].replace(/\bCARDNAME\b/g, 'CARDNAME'));
+          if (!c) return null;
+          return /^play lands/i.test(m[2]) ? { op: 'playFrom', zone: 'top', what: 'any', cond: c }
+            : { op: 'playFrom', zone: 'top', what: 'spell', filter: (m[3] || '').trim() || null, cond: c };
+        }, auto: true },
       { re: /^You may choose not to untap (?:CARDNAME|this creature|this artifact|this land) during your untap step\.?$/i,
         eff: { op: 'optionalUntap' }, auto: true },
       { re: /^Cumulative upkeep\s*[-\u2014]?\s*(?:Pay\s+)?((?:\{[^}]+\})+)\.?$/i,
