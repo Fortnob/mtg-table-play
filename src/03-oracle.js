@@ -2533,7 +2533,13 @@
 
 
     /* ===== what an aura or equipment is stuck to ===== */
-    { re: /^Tap (enchanted|equipped) creature\.?$/i, make: () => ({ op: 'tap', scope: 'attached' }) },
+    { re: /^Tap (enchanted|equipped) (?:creature|permanent|artifact|land)\.?$/i, make: () => ({ op: 'tap', scope: 'attached' }) },
+    // River Delta: "Remove a depletion counter from this land."
+    { re: /^Remove an? ([a-z+\-0-9/]+) counter from (?:this (?:land|artifact|enchantment|permanent|creature)|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: -1, scope: 'self' }) },
+    // Exhaust Vehicles: "This Vehicle becomes an artifact creature."
+    { re: /^This (?:Vehicle|artifact) becomes an artifact creature\.?$/i,
+      make: () => ({ op: 'becomes', duration: 'permanent', eff: { addTypes: ['Creature'] }, scope: 'self' }) },
     { re: /^Untap (enchanted|equipped) creature\.?$/i, make: () => ({ op: 'untap', scope: 'attached' }) },
     { re: /^Destroy (enchanted|equipped) creature\.?$/i, make: () => ({ op: 'destroy', scope: 'attached' }) },
     { re: /^Return (?:this (?:Equipment|Aura|artifact|creature|permanent|enchantment)|CARDNAME) to (?:its|their) owner'?s hand\.?$/i,
@@ -7377,6 +7383,13 @@
       }
       /* Exert (CR 701.43): "You may exert this creature as it attacks. When
          you do, …" — an attack trigger you may take, exerting it first */
+      // Vizier of the True: "You may exert this creature as it attacks." — and nothing more, the rest is other cards' business
+      if (/^You may exert (?:this creature|CARDNAME) as it attacks\.?$/i.test(line)) {
+        out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, optional: true, exert: true,
+          text: line, effects: [{ op: 'exertSelf' }], auto: true, condition: null });
+        autoLines++;
+        continue;
+      }
       const ex = line.match(/^(If (?:this creature|CARDNAME) hasn'?t been exerted this turn, )?[Yy]ou may exert (?:this creature|CARDNAME|it) as it attacks\. When you do, ([\s\S]+)$/);
       if (ex) {
         const parsed = parseEffects(ex[2].replace(/^(\w)/, (c) => c.toUpperCase()));
