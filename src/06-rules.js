@@ -12225,9 +12225,22 @@
           const x = e.scope === 'self' ? src
             : (targets[0] && targets[0].kind === 'object' && this.obj(targets[0].id)) || src;
           if (!who) break;
-          this._drawCards(who, count);
+          /* Draw, then discard as many — the player picks which (the draw is kept
+             across a pause for the question, so it happens once) */
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'conn' + (r ? r.index : 0);
+          if (!(r && r.marks[slot])) { this._drawCards(who, count); if (r) r.marks[slot] = true; }
           const hand = (this.zones[who.id] || {}).hand || [];
-          const toss = hand.slice(-count);
+          let toss = hand.slice(-count);
+          if (hand.length > count) {
+            const got = this._choose({ playerId: who.id, purpose: 'connive', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: Math.min(count, hand.length), max: Math.min(count, hand.length), prefer: 'worst',
+              prompt: `${x ? x.name : 'Connive'}: discard ${count === 1 ? 'a card' : count + ' cards'}. Each nonland card discarded is a +1/+1 counter.` }, slot + 'd');
+            if (got === SUSPEND) return SUSPEND;
+            const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && hand.includes(c));
+            if (picked.length === Math.min(count, hand.length)) toss = picked;
+          }
           let grew = 0;
           for (const c of toss) {
             const ca = c.analysis();
@@ -14167,15 +14180,6 @@
             army = this.battlefield[this.battlefield.length - 1];
           }
           if (army) this.addCounters(army, '+1/+1', n(e.n) || 1);
-          break;
-        }
-
-        case 'connive': {
-          const cnt = n(e.n) || 1;
-          this._drawCards(me, cnt);
-          this.queueChoice({ type: 'discard', playerId: ctx.controller,
-            count: Math.min(cnt, this.zones[ctx.controller].hand.length),
-            prompt: `Discard ${cnt} (connive).`, connive: src ? src.id : null });
           break;
         }
 

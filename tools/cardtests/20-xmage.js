@@ -10545,4 +10545,20 @@ module.exports = (test) => {
     t.eq(hy.length, 3, 'three Hydras');
     t.ok(hy.every(o => T.g.powerOf(o) === 3), 'each 3/3');
   });
+
+  test('Connive: draw, then the player chooses what to discard; a nonland card discarded is a counter', (mk, t) => {
+    t.auto("Raffine's Informant");
+    const T = mk();
+    const keep = T.hand('A', 'Lightning Bolt');
+    const land = T.hand('A', 'Mountain');
+    T.top('A', 'Opt');
+    T.answer('choose', (ch) => ({ picks: [ch.items.find(x => x.id === land.id).id] }));
+    T.mana('A', '1W');
+    const ri = T.hand('A', "Raffine's Informant");
+    T.cast('A', ri);
+    T.settle(); T.resolve();
+    t.eq(land.zone, 'graveyard', 'the Mountain chosen and discarded');
+    t.eq(keep.zone, 'hand', 'the Bolt kept');
+    t.no(ri.counters['+1/+1'], 'a land: no counter');
+  });
 };
