@@ -871,6 +871,10 @@
         return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
       } },
     // Alchemy: "This creature intensifies by 1", "Cards you own named CARDNAME intensify by 1", "All Chorus cards you own intensify by 1"
+    /* Kamigawa flip cards: "flip it", "you may flip it", "flip this creature" — it turns
+       round to its other half and stays that way while it is on the battlefield */
+    { re: /^(you may )?flip (?:it|CARDNAME|this creature)\.?$/i,
+      make: (m) => (m[1] ? { op: 'may', then: [{ op: 'flipSelf' }] } : { op: 'flipSelf' }) },
     /* Alchemy: "Empower Jace 3" — loyalty onto your Jace token, made first if you have none */
     { re: /^(?:Then )?[Ee]mpower Jace (\d+|X)(?:, where X is (.+?))?\.?$/,
       make: (m) => {
@@ -6524,6 +6528,8 @@
     [/^this spell was cast from (?:a|your) graveyard$/i, () => ({ kind: 'castFromGraveyard' })],
     [/^(?:CARDNAME|this \w+) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', counter: m[2], n: num(m[1]) })],
     [/^(?:CARDNAME|this \w+) has counters on it$/i, () => ({ kind: 'selfCounters', n: 1 })],
+    // the Kamigawa flip cards: "if there are two or more ki counters on this creature"
+    [/^there are (\w+) or more ([+\-0-9/a-z]+) counters on (?:this creature|this permanent|CARDNAME|it)$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', counter: m[2].toLowerCase(), n: num(m[1]) } : null)],
     [/^you attacked with (\w+) or more creatures this turn$/i, (m) => ({ kind: 'attackedWith', n: num(m[1]) })],
     [/^you control a legendary creature$/i, () => ({ kind: 'controlLegend' })],
     [/^you control another creature named (?:CARDNAME|.+)$/i,

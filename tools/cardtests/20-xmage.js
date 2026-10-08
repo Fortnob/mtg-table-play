@@ -9628,7 +9628,7 @@ module.exports = (test) => {
     T3.cast('A', bolt, { targets: ['A'], resolve: false });
     const item = T3.g.stack[T3.g.stack.length - 1];
     T3.mana('A', 'U');
-    T3.answer('confirm', () => true);
+    T3.answer('confirm', { yes: true });
     T3.cast('A', T3.hand('A', 'Remand'), { targets: [{ kind: 'stack', id: item.id }] });
     T3.settle(); T3.resolve();
     t.eq(bolt.zone, 'hand', 'the Bolt went back to its owner\'s hand');
@@ -10434,5 +10434,19 @@ module.exports = (test) => {
     T2.mana('A', 'R');
     T2.cast('A', T2.hand('A', 'Shock'), { targets: [b2] });
     t.eq(l2.zone, 'graveyard', 'when the creature it enchants dies, the Licid goes too');
+  });
+
+  test('Kamigawa flip cards: Callow Jushi flips at the end step with two ki counters, and flips back when it leaves', (mk, t) => {
+    t.auto('Callow Jushi // Jaraku the Interloper');
+    const T = mk();
+    const cj = T.bf('A', 'Callow Jushi // Jaraku the Interloper');
+    cj.counters.ki = 2;
+    T.answer('confirm', { yes: true });
+    T.nextTurn('B');
+    t.ok(cj.flipped, 'flipped');
+    t.eq(T.g.powerOf(cj), 3, 'Jaraku is a 3/4');
+    T.g.moveObject(cj, 'hand');
+    t.no(cj.flipped, 'unflipped in the hand');
+    t.eq(cj.face, 0);
   });
 };

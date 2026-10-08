@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12854,
-  "gainedCards": 1374,
-  "linesNeeded": 14106,
-  "linesGained": 1654,
+  "needed": 12843,
+  "gainedCards": 1373,
+  "linesNeeded": 14103,
+  "linesGained": 1653,
   "gained": {
-   "all": 1374,
+   "all": 1373,
    "top2000": 53,
    "stdTop": 10
   },
@@ -613,25 +613,6 @@
    ]
   },
   {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 22,
-   "lines": 13,
-   "cards": [
-    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
-    "Treasure Map // Treasure Cove",
-    "Spirit Water Revival",
-    "Edgar, Charmed Groom // Edgar Markov's Coffin",
-    "Bruce Banner // The Incredible Hulk",
-    "Blizzard Brawl",
-    "Hostile Hostel // Creeping Inn",
-    "Cursed Recording",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend",
-    "Ludevic's Test Subject // Ludevic's Abomination"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 22,
    "lines": 22,
@@ -686,6 +667,24 @@
     "Minthara, Merciless Soul",
     "Ezuri, Claw of Progress",
     "Katara, Waterbending Master"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 21,
+   "lines": 12,
+   "cards": [
+    "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+    "Treasure Map // Treasure Cove",
+    "Spirit Water Revival",
+    "Edgar, Charmed Groom // Edgar Markov's Coffin",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Hostile Hostel // Creeping Inn",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend",
+    "Ludevic's Test Subject // Ludevic's Abomination"
    ]
   },
   {
@@ -762,25 +761,6 @@
     "Tatsunari, Toad Rider",
     "Ant-Man, Elusive Avenger",
     "Exit Specialist"
-   ]
-  },
-  {
-   "what": "(layout flip)",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
-    "Budoka Gardener // Dokai, Weaver of Life",
-    "Nezumi Graverobber // Nighteyes the Desecrator",
-    "Nezumi Shortfang // Stabwhisker the Odious",
-    "Sasaya, Orochi Ascendant // Sasaya's Essence",
-    "Homura, Human Ascendant // Homura's Essence",
-    "Jushi Apprentice // Tomoya the Revealer",
-    "Bushi Tenderfoot // Kenzo the Hardhearted",
-    "Orochi Eggwatcher // Shidako, Broodmistress",
-    "Kitsune Mystic // Autumn-Tail, Kitsune Sage",
-    "Akki Lavarunner // Tok-Tok, Volcano Born",
-    "Kuon, Ogre Ascendant // Kuon's Essence"
    ]
   },
   {
@@ -2354,6 +2334,24 @@
     "Lost Order of Jarkeld",
     "Muscle Burst",
     "Flame Burst"
+   ]
+  },
+  {
+   "what": "(layout flip)",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
+    "Nezumi Graverobber // Nighteyes the Desecrator",
+    "Nezumi Shortfang // Stabwhisker the Odious",
+    "Sasaya, Orochi Ascendant // Sasaya's Essence",
+    "Homura, Human Ascendant // Homura's Essence",
+    "Bushi Tenderfoot // Kenzo the Hardhearted",
+    "Kitsune Mystic // Autumn-Tail, Kitsune Sage",
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Student of Elements // Tobita, Master of Winds",
+    "Initiate of Blood // Goka the Unjust",
+    "Erayo, Soratami Ascendant // Erayo's Essence"
    ]
   },
   {
@@ -7546,6 +7544,19 @@
    ]
   },
   {
+   "what": "mana ability with more",
+   "score": 16,
+   "cards": 10,
+   "names": [
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Sunken Palace",
+    "Magus Lucea Kane",
+    "Foreboding Statue // Forsaken Thresher",
+    "Rainbow Vale"
+   ]
+  },
+  {
    "what": "filter:alts",
    "score": 16,
    "cards": 16,
@@ -7595,19 +7606,6 @@
     "Rescue Retriever",
     "Blinding Fog",
     "Safe Passage"
-   ]
-  },
-  {
-   "what": "mana ability with more",
-   "score": 15,
-   "cards": 9,
-   "names": [
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Magus Lucea Kane",
-    "Rainbow Vale",
-    "Undiscovered Paradise"
    ]
   },
   {
@@ -8735,19 +8733,6 @@
    ]
   },
   {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Blizzard Brawl",
-    "Cursed Recording",
-    "Jet's Brainwashing",
-    "Torch the Tower"
-   ]
-  },
-  {
    "what": "LookLibraryAndPickControllerEffect shape",
    "score": 8,
    "cards": 8,
@@ -9073,6 +9058,19 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Patrician Geist"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {

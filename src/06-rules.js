@@ -9774,7 +9774,7 @@
         (o.effects || []).find(e => e.returnOnDeath);
       if (toZone !== 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
-        if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') o.face = 0;
+        if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') { o.face = 0; o.flipped = false; }
         // a split card's half is only what it is on the stack
         if (toZone !== 'stack' && from === 'stack' && o.card.layout === 'split') o.face = 0;
         // a Room's doors lock again as it leaves (CR 709.5d)
@@ -16247,6 +16247,14 @@
             this._noteLastAffected(list.map(x => ({ kind: 'object', id: x.id })));
             this.logEvent('rules', `${list.length === 1 ? list[0].name : list.length + ' cards'} perpetually ${e.text ? String(e.text).replace(/^.*?perpetually\s+/i, '').replace(/\.$/, '') : 'changes'}.`);
           }
+          this.bumpBoard();
+          break;
+        }
+        /* A Kamigawa flip card turns round to its other half (CR 710) */
+        case 'flipSelf': {
+          if (!src || src.zone !== 'battlefield' || src.flipped || !src.card || src.card.layout !== 'flip') break;
+          src.flipped = true; src.face = 1; src._chr = null; src._dyn = null; src._dynKey = null;
+          this.logEvent('rules', `${src.card.card_faces[0].name} flips into ${src.card.card_faces[1].name}.`);
           this.bumpBoard();
           break;
         }
