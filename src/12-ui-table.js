@@ -1900,7 +1900,7 @@
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */
       if (o.zone === 'hand') {
-        const alts = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cast' || u.kind === 'cycle');
+        const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot'].includes(u.kind));
         if (alts.length) {
           /* the ordinary cast, when it could be made right now: the engine's
              reason covers cost, and its timing is checked here because a card
@@ -1909,6 +1909,8 @@
           const normal = !this.whyNot(o.id) && (sorcerySpeed || a.isInstant || a.has('flash'));
           /** @type {Array<[string, () => void]>} */
           const items = alts.map(u => [u.label, () => (u.kind === 'cycle' ? this._cycleUse(o, a, u)
+            : u.kind === 'suspend' ? this._suspendUse(o, u)
+            : u.kind === 'plot' ? this.send({ kind: 'plot', objId: o.id })
             : u.via === 'morph' ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
             : this.castUse(o, a, u))]);
           if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
@@ -2267,6 +2269,20 @@
       return !!(a && a.manaAbilities && a.manaAbilities.length);
     }
 
+    /**
+     * Suspend, and Suspend X: X time counters, and X in the cost too, so
+     * ask how many (at least one, at most what the mana here pays for).
+     * @this {MTG.TableInstance}
+     */
+    _suspendUse(o, use) {
+      if (!use.xCost) return this.send({ kind: 'suspend', objId: o.id });
+      const fixed = MTG.mana.cmc(String(use.xCost).replace(/\{X\}/g, ''));
+      const per = (String(use.xCost).match(/\{X\}/g) || []).length || 1;
+      const max = Math.max(1, Math.floor((this.manaHere() - fixed) / per));
+      this._askNumber(`${o.card.name}: suspend with how many time counters?`, `X is both the time counters and the {X} in ${use.xCost}. You can afford up to ${max}.`,
+        1, max, max, (x) => this.send({ kind: 'suspend', objId: o.id, x }), o.card);
+    }
+
     /** A number to pick, between min and max: a stepper, then on with it. @this {MTG.TableInstance} */
     _askNumber(title, sub, min, max, start, onDone, card, explain) {
       let n = U.clamp(start, min, max);
@@ -2550,7 +2566,7 @@
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cycle') items.push([use.label, () => this._cycleUse(o, a, use)]);
           else if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);
-          else if (use.kind === 'suspend') items.push([use.label, () => this.send({ kind: 'suspend', objId: o.id })]);
+          else if (use.kind === 'suspend') items.push([use.label, () => this._suspendUse(o, use)]);
           else if (use.kind === 'transmute') items.push([use.label, () => this.send({ kind: 'transmute', objId: o.id })]);
           else if (use.kind === 'cast' && use.via === 'morph') items.push([use.label, () => this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })]);
           else if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
