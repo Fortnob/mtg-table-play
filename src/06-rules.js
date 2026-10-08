@@ -10023,6 +10023,12 @@
           }
           // Tale of Katara and Toph: the first time it becomes tapped this turn
           if (ab.firstTapEachTurn && data.nth !== 1) continue;
+          // Midnight Clock: only the counter that makes it twelve
+          if (ab.reachesN) {
+            const now = Number(((data.object || o).counters || {})[ab.counterKind]) || 0;
+            const k = Number(data.amount) || 1;
+            if (!(now >= ab.reachesN && now - k < ab.reachesN)) continue;
+          }
           // Kediss: only a commander dealing it
           if (ab.commanderOnly && !(data.object && data.object.isCommander)) continue;
           // Hunter's Insight: only the creature chosen
@@ -15995,6 +16001,56 @@
           }
           this._leavingTogether = null;
           this.logEvent('wipe', `${k} permanent${k === 1 ? '' : 's'} with mana value ${want} destroyed.`);
+          break;
+        }
+        /* Demonic Consultation: a name, six cards gone, then cards revealed until that name comes up */
+        case 'consultation': {
+          const lib = this.zones[me.id].library;
+          const names = [...new Set(lib.map(c => c.name))].sort((a, b) => {
+            const mv = (n0) => ((lib.find(c => c.name === n0) || {}).card || {}).cmc || 0;
+            return mv(b) - mv(a) || a.localeCompare(b);
+          });
+          if (!names.length) break;
+          const got = this._choose({ playerId: me.id, purpose: 'chooseCardName', kind: 'options', min: 1, max: 1,
+            options: names.map(n0 => ({ label: n0, key: n0, card: (lib.find(c => c.name === n0) || {}).card })),
+            prompt: `${ctx.name || 'Demonic Consultation'}: name a card.` }, 'consultName');
+          if (got === SUSPEND) return SUSPEND;
+          const name = names[((got && got.picks) || [])[0] || 0];
+          for (let i = 0; i < (e.skip || 0) && lib.length; i++) this.moveObject(lib[0], 'exile');
+          let found = null;
+          while (lib.length) {
+            const c = lib[0];
+            if (c.name === name) { found = c; this.moveObject(c, 'hand'); break; }
+            this.moveObject(c, 'exile');
+          }
+          this.logEvent('reveal', found ? `${me.name} names ${name}, and finds it.` : `${me.name} names ${name}; it never comes, and the library is gone.`);
+          break;
+        }
+        /* Tainted Pact: one card at a time, kept or passed over, until one is kept or a name repeats */
+        case 'taintedPact': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'tpact' + (r ? r.index : 0);
+          const st = (r && r.marks[slot]) || { step: 0, seen: [], cur: null };
+          if (r) r.marks[slot] = st;
+          const lib = this.zones[me.id].library;
+          for (; st.step < 500; st.step++) {
+            let c = st.cur && this.obj(st.cur);
+            if (!c) {
+              if (!lib.length) break;
+              c = lib[0];
+              this.moveObject(c, 'exile');
+              st.cur = c.id;
+              if (st.seen.includes(c.name)) { this.logEvent('reveal', `${me.name} exiles a second ${c.name}; the pact ends.`); break; }
+              st.seen.push(c.name);
+            }
+            const got = this._choose({ playerId: me.id, purpose: 'taintedPact', kind: 'options', min: 1, max: 1, compact: true,
+              options: [{ label: `Put ${c.name} into your hand`, key: 'take', card: c.card }, { label: 'Exile another', key: 'next' }],
+              cardId: c.id, prompt: `${ctx.name || 'Tainted Pact'}: keep ${c.name}?` }, slot + 'q' + st.step);
+            if (got === SUSPEND) return SUSPEND;
+            if ((((got && got.picks) || [])[0] || 0) === 0) { this.moveObject(c, 'hand'); this.logEvent('reveal', `${me.name} keeps ${c.name}.`); break; }
+            st.cur = null;
+          }
           break;
         }
         /* Ad Nauseam: a card into the hand and its mana value in life, again and again

@@ -10198,4 +10198,37 @@ module.exports = (test) => {
     T3.settle(); T3.resolve();
     t.eq(lib.counters['+1/+1'], 1, 'three mana spent, more than its power of 1');
   });
+
+  test('Demonic Consultation finds the named card past six exiled; Tainted Pact keeps the card chosen; Midnight Clock strikes twelve', (mk, t) => {
+    t.auto('Demonic Consultation');
+    t.auto('Tainted Pact');
+    t.auto('Midnight Clock');
+    const T = mk();
+    const bolt = T.top('A', 'Lightning Bolt');
+    for (let i = 0; i < 7; i++) T.top('A', 'Island');
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'Lightning Bolt')] }));
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Demonic Consultation'));
+    t.eq(bolt.zone, 'hand', 'the Bolt found');
+    t.eq(T.zone('A', 'exile').length, 7, 'six, and the Island revealed on the way');
+    const T2 = mk();
+    const opt = T2.top('A', 'Opt'), isl = T2.top('A', 'Island');
+    T2.answer('choose', () => ({ picks: [1] }));
+    T2.answer('choose', () => ({ picks: [0] }));
+    T2.mana('A', '1B');
+    T2.cast('A', T2.hand('A', 'Tainted Pact'));
+    t.eq(isl.zone, 'exile', 'the Island passed over');
+    t.eq(opt.zone, 'hand', 'Opt kept');
+    const T3 = mk();
+    const clock = T3.bf('A', 'Midnight Clock');
+    T3.hand('A', 'Island');
+    clock.counters.hour = 10;
+    T3.g.addCounters(clock, 'hour', 1);
+    T3.g._putTriggersOnStack(); T3.settle(); T3.resolve();
+    t.eq(clock.zone, 'battlefield', 'eleven: nothing yet');
+    T3.g.addCounters(clock, 'hour', 1);
+    T3.g._putTriggersOnStack(); T3.settle(); T3.resolve();
+    t.eq(clock.zone, 'exile', 'twelve: it goes');
+    t.eq(T3.zone('A', 'hand').length, 7, 'seven new cards');
+  });
 };

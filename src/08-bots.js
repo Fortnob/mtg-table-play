@@ -1473,6 +1473,14 @@
   const CHOOSE_PURPOSES = {
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Demonic Consultation: the name the engine offers first (the costliest card in the library) */
+    chooseCardName() { return { picks: [0] }; },
+    /* Tainted Pact: keep the first spell worth having, pass over lands */
+    taintedPact(s) {
+      const c = this.game.obj(s.cardId);
+      const a = c && c.analysis();
+      return { picks: [a && !a.isLand && ((c.card && c.card.cmc) || 0) >= 2 ? 0 : 1] };
+    },
     /* Hinder: an opponent's spell to the bottom, one of our own back on top */
     counterTopBottom(s) { return { picks: [s.ownerId === this.pid ? 0 : 1] }; },
     /* Ad Nauseam: keep going while there is life to spare and the hand is not yet full */

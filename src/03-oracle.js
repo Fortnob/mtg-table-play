@@ -5009,6 +5009,16 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Demonic Consultation: "Choose a card name. Exile the top six cards of your library, then reveal cards from
+       the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile
+       all other cards revealed this way." */
+    { re: /^Choose a card name\. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name\. Put that card into your hand and exile all other cards revealed this way\.$/i,
+      make: () => [{ op: 'consultation', skip: 6 }] },
+    /* Tainted Pact: "Exile the top card of your library. You may put that card into your hand unless it has the same
+       name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two
+       cards with the same name, whichever comes first." */
+    { re: /^Exile the top card of your library\. You may put that card into your hand unless it has the same name as another card exiled this way\. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first\.$/i,
+      make: () => [{ op: 'taintedPact' }] },
     /* Hunter's Insight: "Choose target creature you control. Whenever that creature deals combat damage
        to a player or planeswalker this turn, draw that many cards." */
     { re: /^Choose target creature you control\. Whenever that creature deals combat damage to a player or planeswalker this turn, draw that many cards\.$/i,
@@ -7007,6 +7017,10 @@
     { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
+    // Midnight Clock: "When the twelfth hour counter is put on this artifact"
+    { re: /^When the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) ([a-z]+) counter is put on (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME),? /i,
+      event: 'countersPut', self: true, extraOf: (m) => ({ counterKind: m[2].toLowerCase(),
+        reachesN: { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12 }[m[1].toLowerCase()] }) },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes crewed(?: for the first time each turn)?(?:,| )/i, event: 'becomesCrewed', self: true },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes saddled(?: for the first time each turn)?(?:,| )/i, event: 'becomesSaddled', self: true },
     { re: /^When(?:ever)? (?:one or more \+1\/\+1 counters are put on|you put one or more \+1\/\+1 counters on) (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
