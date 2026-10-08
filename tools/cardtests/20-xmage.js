@@ -9486,4 +9486,19 @@ module.exports = (test) => {
     t.eq(ord.zone, 'graveyard', 'sacrificed at three counters');
     t.ok(T.life('A') >= 30, 'and A gained 10 life');
   });
+
+  test('Suspend X: Aeon Chronicler goes into exile with X time counters, and draws as each comes off', (mk, t) => {
+    t.auto('Aeon Chronicler');
+    const T = mk();
+    const ac = T.hand('A', 'Aeon Chronicler');
+    T.mana('A', 'U5');
+    t.ok(T.g.suspendCard('A', ac.id, { x: 2 }), 'suspended for X = 2');
+    t.eq(ac.zone, 'exile');
+    t.eq(ac.counters.time, 2);
+    const hand = T.zone('A', 'hand').length;
+    T.toMain('B', 'main');
+    T.toMain('A', 'main');
+    t.eq(ac.counters.time, 1, 'a counter came off');
+    t.ok(T.zone('A', 'hand').length >= hand + 2, 'drew for the counter (and the draw step)');
+  });
 };

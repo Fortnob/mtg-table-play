@@ -6503,6 +6503,8 @@
     { re: /^Whenever day becomes night or night becomes day,? /i, event: 'becomesDay' },
     // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
     { re: /^Whenever you expend (\d+),? /i, event: 'youExpend', extraOf: (m) => ({ expendN: +m[1] }) },
+    // Aeon Chronicler, Detritivore: "Whenever a time counter is removed from this card while it's exiled"
+    { re: /^Whenever a time counter is removed from (?:this card|CARDNAME) while it'?s exiled,? /i, event: 'timeCounterRemoved', self: true },
     // Ordeal of Nylea: "When you sacrifice this Aura" — seen as it goes
     { re: /^When you sacrifice (?:this (?:Aura|enchantment|artifact|creature|permanent)|CARDNAME),? /i, event: 'youSacrifice', self: true },
     // Bone Miser: "Whenever you discard a creature (land) card"
@@ -6511,6 +6513,8 @@
     { re: /^Whenever (?:this creature|CARDNAME) phases in,? /i, event: 'phasesIn', self: true },
     /* Rings of Brighthearth, Rowan Kenrith, Kurkesh, Chandra's Regulator,
        Illusionist's Bracers: an ability activated (one that uses the stack) */
+    // Rangers' Refueler, Adrenaline Jockey: "Whenever you activate an exhaust ability (that isn't a mana ability)"
+    { re: /^Whenever you activate an exhaust ability(?: that isn'?t a mana ability)?,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'exhaust' } },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
@@ -7650,6 +7654,13 @@
         continue;
       }
 
+      // Aeon Chronicler: "Suspend X—{X}{3}{U}. X can't be 0." — as many time counters as X
+      const susX = line.match(/^Suspend X\s*[\u2014-]\s*((?:\{[^}]+\})+)\.\s*X can'?t be 0\.?$/i);
+      if (susX) {
+        out.abilities.push({ kind: 'castModifier', keyword: 'Suspend', arg: 'X\u2014' + susX[1], text: line, auto: true });
+        autoLines++;
+        continue;
+      }
       /* Another way to pay for it: offered by the engine as a way to cast
          the card, like flashback or evoke. */
       if (/rather than pay|without paying its mana cost/i.test(line) && !/^When|^Whenever|^At /i.test(line)) {

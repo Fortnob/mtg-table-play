@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13221,
+  "needed": 13214,
   "gainedCards": 1366,
-  "linesNeeded": 14424,
+  "linesNeeded": 14409,
   "linesGained": 1655,
   "gained": {
    "all": 1366,
@@ -4414,20 +4414,6 @@
    ]
   },
   {
-   "what": "CounterRemovedFromSourceWhileExiledTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Dinosaurs on a Spaceship",
-    "Watcher of Hours",
-    "Aeon Chronicler",
-    "Detritivore",
-    "Benalish Commander",
-    "Fungal Behemoth",
-    "Roiling Horror"
-   ]
-  },
-  {
    "what": "DiscardedByOpponentTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -6496,18 +6482,6 @@
    ]
   },
   {
-   "what": "keyword SuspendAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Aeon Chronicler",
-    "Detritivore",
-    "Benalish Commander",
-    "Fungal Behemoth",
-    "Roiling Horror"
-   ]
-  },
-  {
    "what": "MultikickerCount.instance",
    "score": 5,
    "lines": 5,
@@ -6685,18 +6659,6 @@
     "Endless Swarm",
     "Neverending Torment",
     "Undying Flames"
-   ]
-  },
-  {
-   "what": "ActivateAbilityTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Adrenaline Jockey",
-    "Rangers' Refueler",
-    "Afterburner Expert",
-    "Rangers' Aetherhive",
-    "Marvel Boy, Noh-Varr"
    ]
   },
   {
@@ -7209,6 +7171,39 @@
     "Gandalf, Wandering Wizard",
     "Guan Yu, Sainted Warrior",
     "Cerulean Sphinx"
+   ]
+  },
+  {
+   "what": "PutCardFromHandOrGraveyardOntoBattlefieldEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Bonny Pall, Clearcutter",
+    "Dread Tiller",
+    "Nahiri, the Lithomancer",
+    "Dakkon, Shadow Slayer"
+   ]
+  },
+  {
+   "what": "one choice of colour",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Wirewood Channeler",
+    "Brigid, Clachan's Heart // Brigid, Doun's Mind",
+    "Azor's Gateway // Sanctum of the Sun",
+    "Springjack Pasture"
+   ]
+  },
+  {
+   "what": "HideawayPlayEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Rabble Rousing",
+    "Evercoat Ursine",
+    "Shelldock Isle",
+    "Howltooth Hollow"
    ]
   }
  ],
@@ -10158,6 +10153,19 @@
    ]
   },
   {
+   "what": "keyword ExhaustAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rocketeer Boostbuggy",
+    "Spire Mechcycle",
+    "Invasion Submersible",
+    "Sita Varma, Masked Racer",
+    "Rangers' Refueler",
+    "Marshals' Pathcruiser"
+   ]
+  },
+  {
    "what": "SearchLibraryAndExileTargetEffect",
    "score": 6,
    "cards": 6,
@@ -10972,18 +10980,6 @@
     "Construct a Cosmic Cube",
     "Death to Our Enemies",
     "Villainous Syndication"
-   ]
-  },
-  {
-   "what": "DoIfAnyNumberCostPaid",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Intrepid Adversary",
-    "Tainted Adversary",
-    "Primal Adversary",
-    "Bloodthirsty Adversary",
-    "Spectral Adversary"
    ]
   }
  ]

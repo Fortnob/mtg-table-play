@@ -3495,9 +3495,10 @@
         }
         /* Suspend N—cost: exiled with a clock on it. */
         if (o.zone === 'hand' && arg && k === 'suspend') {
-          const sm = String(arg).match(/^(\d+)\s*[\u2014-]\s*((?:\{[^}]+\})+)$/);
-          if (sm) out.push({ kind: 'suspend', cost: sm[2], counters: +sm[1],
-            label: 'Suspend ' + sm[1] + ' ' + sm[2] });
+          const sm = String(arg).match(/^(\d+|X)\s*[\u2014-]\s*((?:\{[^}]+\})+)$/);
+          // Suspend X: X time counters, and X in the cost (offered at X = 1, the least it may be)
+          if (sm) out.push({ kind: 'suspend', cost: sm[1] === 'X' ? sm[2].replace(/\{X\}/g, '{1}') : sm[2], counters: sm[1] === 'X' ? 'X' : +sm[1],
+            xCost: sm[1] === 'X' ? sm[2] : null, label: 'Suspend ' + sm[1] + ' ' + sm[2] });
         }
         /* Transmute (CR 702.48): throw the card away to go and find one
            that costs the same. */
@@ -3721,13 +3722,26 @@
       const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'suspend');
       if (!use) return this.fail('That card cannot be suspended.');
       if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return this.fail('You do not have priority.');
-      if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts || {}))) {
-        return this.fail(`Not enough mana to suspend (${use.cost}).`);
+      /* Suspend X: X from the intent; without one, the most the player
+         could pay for. X can't be 0. */
+      let cost = use.cost, counters = use.counters;
+      if (use.xCost) {
+        let x = opts && opts.x != null ? Math.floor(+opts.x) : null;
+        if (x == null) {
+          x = 0;
+          for (let k = 1; k <= 20; k++) { if (this.canPayNow(playerId, use.xCost.replace(/\{X\}/g, '{' + k + '}'), {})) x = k; else break; }
+        }
+        if (!(x >= 1)) return this.fail("X can't be 0.");
+        cost = use.xCost.replace(/\{X\}/g, '{' + x + '}');
+        counters = x;
+      }
+      if (!this.payMana(playerId, cost, Object.assign({ auto: true }, opts || {}))) {
+        return this.fail(`Not enough mana to suspend (${cost}).`);
       }
       this.moveObject(o, 'exile');
-      o.counters.time = use.counters;
+      o.counters.time = counters;
       o.suspendedBy = playerId;
-      this.logEvent('rules', `${this.player(playerId).name} suspends ${o.name} with ${use.counters} time counters.`);
+      this.logEvent('rules', `${this.player(playerId).name} suspends ${o.name} with ${counters} time counters.`);
       this._resetPriority();
       return true;
     }
@@ -3737,6 +3751,8 @@
       for (const o of (this.zones[playerId] || {}).exile || []) {
         if (o.suspendedBy !== playerId || !o.counters.time) continue;
         o.counters.time--;
+        // Aeon Chronicler: "whenever a time counter is removed from this card while it's exiled"
+        this._fire('timeCounterRemoved', o.owner, { object: o, source: o });
         this.logEvent('rules', `${o.name}: ${o.counters.time} time counter${o.counters.time === 1 ? '' : 's'} left.`);
         if (o.counters.time > 0) continue;
         o.suspendedBy = null;
@@ -5584,7 +5600,8 @@
       this._crimeCheck(playerId, item.targets);
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
-        this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
+        this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
+          label: (ab.cost && ab.cost.label) || null });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
       }
       this.emit('sfx', 'cast');
@@ -9748,6 +9765,8 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "whenever you activate a loyalty ability"
           if (ab.loyaltyOnly && !data.loyalty) continue;
+          // "whenever you activate an exhaust ability"
+          if (ab.abilityLabel && data.label !== ab.abilityLabel) continue;
           // "whenever you expend 4": only that threshold
           if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
@@ -9866,13 +9885,14 @@
       /* Leaving the battlefield is seen from the battlefield (CR 603.10):
          a creature that dies sees its own death, and "whenever this or
          another creature dies" counts itself. */
-      if ((event === 'dies' || event === 'ltb' || event === 'permDies' || event === 'permLeaves' || (event === 'youSacrifice' && data.source)) && data.object) {
+      if ((event === 'dies' || event === 'ltb' || event === 'permDies' || event === 'permLeaves' || (event === 'youSacrifice' && data.source) ||
+          event === 'timeCounterRemoved') && data.object) {
         const o = data.object;
         const a = (o.zone !== 'battlefield' && o._lkiAnalysis) || o.analysis();
         if (a) for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
-          const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice') ? ab.self
+          const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice' || event === 'timeCounterRemoved') ? ab.self
             : !!(ab.objFilter && ab.objFilter.selfOk && this._objFits(o, Object.assign({}, ab.objFilter, { other: false, who: null }), o));
           if (!own) continue;
           if (this.pendingTriggers.some(t => t.objId === o.id && t.abilityIndex === i)) continue;
