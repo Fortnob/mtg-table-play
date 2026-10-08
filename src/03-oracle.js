@@ -4977,6 +4977,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Scapeshift: "Sacrifice any number of lands. Search your library for up to that many land cards,
+       put them onto the battlefield tapped, then shuffle." */
+    { re: /^Sacrifice any number of lands\. Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle\.$/i,
+      make: () => [{ op: 'sacrificeAnyNumber', filter: 'land' },
+        { op: 'tutor', n: { lastSacCount: true }, upTo: true, filter: 'land', to: 'battlefield', tapped: true, prompt: 'Search your library for up to that many land cards.' }] },
     /* Incubation Druid: "Add one mana of any type that a land you control
        could produce. If this creature has a +1/+1 counter on it, add three
        mana of that type instead." */
@@ -10338,6 +10343,13 @@
         make: (m) => (/^(?:\{E\})+$/i.test(m[1])
           ? { op: 'cumulativeUpkeep', energy: (m[1].match(/\{E\}/gi) || []).length }
           : { op: 'cumulativeUpkeep', cost: m[1] }), auto: true },
+      // Jötun Owl Keeper: "Cumulative upkeep {W} or {U}" — either for each age counter, which is a hybrid symbol each
+      { re: /^Cumulative upkeep\s*[-\u2014]?\s*\{([WUBRG])\} or \{([WUBRG])\}\.?$/i,
+        make: (m) => {
+          const pair = [m[1], m[2]].map(x => x.toUpperCase());
+          const canon = ['W/U', 'U/B', 'B/R', 'R/G', 'G/W', 'W/B', 'U/R', 'B/G', 'R/W', 'G/U'].find(h => h === pair.join('/') || h === pair.slice().reverse().join('/'));
+          return canon ? { op: 'cumulativeUpkeep', cost: '{' + canon + '}' } : null;
+        }, auto: true },
       { re: /^Cumulative upkeep\s*[-\u2014]?\s*Pay (\d+) life\.?$/i,
         make: (m) => ({ op: 'cumulativeUpkeep', life: +m[1] }), auto: true },
       { re: /^CARDNAME can't attack or block unless you pay/i, eff: { op: 'manual' }, auto: false },

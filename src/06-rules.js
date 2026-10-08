@@ -10645,6 +10645,8 @@
           if (v.countersOnSelf === '*') return Object.values(pile || {}).reduce((acc, k) => acc + (Number(k) || 0), 0) * (v.mult || 1);
           return ((pile && Number(pile[v.countersOnSelf])) || 0) * (v.mult || 1);
         }
+        // Scapeshift: "up to that many" — how many were just sacrificed
+        if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
         if (v && typeof v === 'object' && v.greatestMv) {
           let best = 0;
@@ -15892,6 +15894,23 @@
           applyToScope(e, (o) => { o.destroyAtEndOfCombat = this.turn; });
           break;
         // Rabid Elephant: +N/+N for each creature blocking it
+        /* Scapeshift: "Sacrifice any number of lands" — chosen as it resolves
+           (a bot gives up all of them, which is what the card is for) */
+        case 'sacrificeAnyNumber': {
+          this._lastSacrificed = [];
+          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'permanent'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'sacrificeAnyNumber', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice any number of ${e.filter || 'permanent'}s.` }, 'sacAny');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x));
+          if (picks.length) {
+            this._sacrificeNow(ctx.controller, picks);
+            this._fire('youSacrifice', ctx.controller, { count: picks.length });
+          }
+          break;
+        }
         // Shared Animosity: the attacker that triggered it, +1/+0 for each other attacker of a kind with it
         /* Curse of Opulence: the same again, done by the player attacking the
            enchanted player, if that player is an opponent of this one's controller */

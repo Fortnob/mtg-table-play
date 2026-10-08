@@ -9918,4 +9918,19 @@ module.exports = (test) => {
     t.eq(big.controller, 'A', 'under A\'s control');
     t.eq(big.owner, 'B', 'still B\'s card');
   });
+
+  test('Scapeshift: the lands chosen are sacrificed and that many come back from the library, tapped', (mk, t) => {
+    t.auto('Scapeshift');
+    const T = mk();
+    const lands = [T.bf('A', 'Forest'), T.bf('A', 'Forest'), T.bf('A', 'Forest')];
+    const m1 = T.top('A', 'Mountain'), m2 = T.top('A', 'Mountain');
+    T.answer('choose', (ch) => ({ picks: lands.slice(0, 2).map(x => x.id) }));
+    T.answer('pickCard', (ch) => ({ cardIds: [m1.id, m2.id] }));
+    T.mana('A', '2GG');
+    T.cast('A', T.hand('A', 'Scapeshift'));
+    t.eq(lands.filter(x => x.zone === 'graveyard').length, 2, 'two Forests sacrificed');
+    t.eq(lands[2].zone, 'battlefield', 'the third kept');
+    t.ok(m1.zone === 'battlefield' && m2.zone === 'battlefield', 'two Mountains found');
+    t.ok(m1.tapped && m2.tapped, 'tapped');
+  });
 };
