@@ -11318,4 +11318,16 @@ module.exports = (test) => {
     const c3 = T3.hand('A', "Curtains' Call");
     t.eq(T3.g.castCost(c3), '{3}{B}', 'two opponents: two less');
   });
+
+  test('Waterbend: artifacts and creatures tapped for {1} each', (mk, t) => {
+    t.auto('Waterbender Ascension'); t.auto('Katara, Water Tribe\'s Hope');
+    const T = mk();
+    const asc = T.bf('A', 'Waterbender Ascension');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Savannah Lions'), ring = T.bf('A', 'Ornithopter');
+    T.mana('A', '2');
+    const la = asc.analysis(), idx = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T.g.activateAbility('A', asc.id, idx, { targets: [{ kind: 'object', id: b1.id }] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq([b1, b2, ring].filter(x => x.tapped).length, 2, 'two tapped to help pay {4}');
+  });
 };

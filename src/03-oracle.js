@@ -237,6 +237,10 @@
       p = p.replace(/\u0001/g, ',').trim();
       if (!p) continue;
       p = p.replace(/^Pay\s+(?=\{)/i, '');       // "Pay {2}" is just {2}
+      /* Waterbend {4}: mana, where tapping an artifact or creature you
+         control pays for {1} of it */
+      const wbend = p.match(/^Waterbend ((?:\{[^}]+\})+)$/i);
+      if (wbend) { cost.mana += wbend[1]; cost.waterbend = true; continue; }
       // "Pay eight {E}": energy, counted in words
       const en = p.match(/^Pay (one|two|three|four|five|six|seven|eight|nine|ten|\d+) \{E\}$/i);
       if (en) { cost.energy = (cost.energy || 0) + num(en[1]); continue; }
@@ -3434,6 +3438,14 @@
     /* Rishkar's Expertise */
     { re: /^You may cast a(?:n)? ([a-z ]*?)(?:spell|card) with (?:mana value|converted mana cost) (\d+|X) or less from your hand without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: m[2] === 'X' ? 'X' : +m[2] }) },
+    // Yue, the Moon Spirit: "You may cast a noncreature spell from your hand without paying its mana cost."
+    { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: null }) },
+    // Watery Grasp: "Enchanted creature's owner shuffles it into their library."
+    { re: /^Enchanted (?:creature|permanent)'?s owner shuffles it into their library\.?$/i, make: () => ({ op: 'toLibrary', where: 'shuffle', attached: true }) },
+    // Katara, Water Tribe's Hope: "Creatures you control have base power and toughness X/X until end of turn."
+    { re: /^Creatures you control have base power and toughness (X|\d+)\/(X|\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2] }) },
     /* Malakir Rebirth: a creature that comes back once */
     { re: /^Until end of turn, (target creature|that creature) gains "When this creature dies, return it to the battlefield tapped under its owner'?s control\."\.?$/i,
       make: (m) => ({ op: 'grantDiesReturn', tapped: true, targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : undefined, scope: /^that/i.test(m[1]) ? 'lastTarget' : undefined }) },

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12530,
+  "needed": 12513,
   "gainedCards": 1349,
-  "linesNeeded": 13684,
+  "linesNeeded": 13665,
   "linesGained": 1612,
   "gained": {
    "all": 1349,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4553,
-   "lines": 4166,
+   "score": 4552,
+   "lines": 4165,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -337,8 +337,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 33,
-   "lines": 33,
+   "score": 32,
+   "lines": 32,
    "cards": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -910,24 +910,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Graaz, Unstoppable Juggernaut",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration",
-    "Archon of the Wild Rose",
-    "Oko, the Trickster",
-    "Inkfathom Witch",
-    "Oko's Hospitality"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 17,
    "lines": 17,
@@ -982,6 +964,23 @@
     "Let the Galaxy Burn",
     "The Fifth Doctor",
     "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 16,
+   "lines": 10,
+   "cards": [
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Graaz, Unstoppable Juggernaut",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration",
+    "Archon of the Wild Rose",
+    "Oko, the Trickster",
+    "Inkfathom Witch",
+    "Oko's Hospitality"
    ]
   },
   {
@@ -1647,25 +1646,6 @@
    ]
   },
   {
-   "what": "WaterbendCost",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Waterbender Ascension",
-    "Waterbending Lesson",
-    "Katara, Bending Prodigy",
-    "Aang's Iceberg",
-    "Yue, the Moon Spirit",
-    "North Pole Patrol",
-    "Watery Grasp",
-    "Water Tribe Rallier",
-    "Flexible Waterbender",
-    "Giant Koi",
-    "Geyser Leaper",
-    "Foggy Swamp Vinebender"
-   ]
-  },
-  {
    "what": "RevealLibraryPutIntoHandEffect",
    "score": 13,
    "lines": 13,
@@ -1876,25 +1856,6 @@
     "Sphinx's Approach",
     "Urborg Panther",
     "Kyscu Drake"
-   ]
-  },
-  {
-   "what": "CastFromHandForFreeEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Lady Octopus, Inspired Inventor",
-    "Maelstrom Archangel",
-    "Coveted Prize",
-    "Founding the Third Path",
-    "Epistolary Librarian",
-    "West Coast Expansion",
-    "Gandalf, Party Guest",
-    "Wildfire Eternal",
-    "Surtland Elementalist",
-    "Oracle of Bones",
-    "Omnispell Adept",
-    "Twinning Glass"
    ]
   },
   {
@@ -2197,6 +2158,24 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
+   ]
+  },
+  {
+   "what": "CastFromHandForFreeEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Lady Octopus, Inspired Inventor",
+    "Maelstrom Archangel",
+    "Coveted Prize",
+    "Founding the Third Path",
+    "Epistolary Librarian",
+    "West Coast Expansion",
+    "Gandalf, Party Guest",
+    "Wildfire Eternal",
+    "Surtland Elementalist",
+    "Oracle of Bones",
+    "Twinning Glass"
    ]
   },
   {
@@ -5390,18 +5369,6 @@
    ]
   },
   {
-   "what": "keyword ExhaustAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Riverchurn Monument",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Spire Mechcycle",
-    "Invasion Submersible",
-    "Sita Varma, Masked Racer"
-   ]
-  },
-  {
    "what": "VariableManaCostPredicate.instance",
    "score": 5,
    "lines": 5,
@@ -7071,13 +7038,35 @@
     "Primary Research",
     "Living History"
    ]
+  },
+  {
+   "what": "ConniveSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "M.O.D.O.K.",
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
+    "Obscura Interceptor",
+    "Psychic Pickpocket"
+   ]
+  },
+  {
+   "what": "GainAbilityAllEffect.withForceQuotes",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Cloakwood Hermit",
+    "Dungeon Delver",
+    "Acolyte of Bahamut",
+    "Scion of Halaster"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3711,
-   "cards": 3459,
+   "score": 3710,
+   "cards": 3458,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7683,19 +7672,6 @@
    ]
   },
   {
-   "what": "WaterbendCost",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Waterbender Ascension",
-    "Waterbending Lesson",
-    "Katara, Bending Prodigy",
-    "Aang's Iceberg",
-    "Yue, the Moon Spirit",
-    "North Pole Patrol"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 13,
    "cards": 13,
@@ -8296,19 +8272,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Biomass Mutation",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration",
-    "Archon of the Wild Rose"
-   ]
-  },
-  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "cards": 9,
@@ -8672,16 +8635,16 @@
    ]
   },
   {
-   "what": "CastFromHandForFreeEffect",
+   "what": "SetBasePowerToughnessAllEffect",
    "score": 8,
    "cards": 8,
    "names": [
-    "Maelstrom Archangel",
-    "Epistolary Librarian",
-    "West Coast Expansion",
-    "Gandalf, Party Guest",
-    "Wildfire Eternal",
-    "Surtland Elementalist"
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration",
+    "Archon of the Wild Rose",
+    "Oko, the Trickster"
    ]
   },
   {
@@ -9114,6 +9077,19 @@
     "Attentive Skywarden",
     "Invasion of Kamigawa // Rooftop Saboteurs",
     "Bilbo, Unexpected Adventurer"
+   ]
+  },
+  {
+   "what": "CastFromHandForFreeEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Maelstrom Archangel",
+    "Epistolary Librarian",
+    "West Coast Expansion",
+    "Gandalf, Party Guest",
+    "Wildfire Eternal",
+    "Surtland Elementalist"
    ]
   },
   {
@@ -10836,6 +10812,17 @@
     "Onakke Oathkeeper",
     "Sivitri, Dragon Master",
     "Forbidding Spirit"
+   ]
+  },
+  {
+   "what": "static ability in GRAVEYARD",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "The Indomitable",
+    "Dearly Departed",
+    "Viral Spawning",
+    "Retriever Phoenix"
    ]
   }
  ]

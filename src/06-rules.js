@@ -1375,7 +1375,7 @@
           if (x.sorcerySpeed && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return false;
-          if (!this.couldPay(playerId, this._abilityMana(o, x), purse)) return false;
+          if (!this.couldPay(playerId, this._abilityMana(o, x), purse) && !(c.waterbend && this._waterbendPlan(playerId, o, x, this._abilityMana(o, x)))) return false;
           const specs = (x.targets || []).map(spec => ({ targets: [spec] })).concat(x.effects || []);
           return this._targetsAvailable(specs, playerId);
         };
@@ -6571,6 +6571,27 @@
       return cut > 0 ? this._addGeneric(mana, -cut) : mana;
     }
 
+    /**
+     * Waterbend: the artifacts and creatures to tap, each paying {1}, so
+     * that what is left of the cost can be paid with mana — the fewest that
+     * will do, cheapest first. Null when even all of them would not.
+     */
+    _waterbendPlan(playerId, o, ab, mana) {
+      const src = this.manaSources(playerId);
+      const need = String(mana || '').replace(/\{X\}/g, '');
+      if (this.couldPay(playerId, need, src)) return { tap: [], mana: need };
+      const generic = MANA.parse(need).filter(s => /^\d+$/.test(s)).reduce((k, s) => k + (+s), 0);
+      const pool = this.battlefield.filter(x => x.controller === playerId && !x.tapped && !x.phasedOut &&
+        !(x === o && ab.cost && ab.cost.tap) && ((x.analysis() || {}).manaAbilities || []).length === 0 &&
+        (((x.analysis() || {}).isArtifact) || (this.characteristics(x) || {}).isCreature))
+        .sort((x, y) => this._cardValue(x) - this._cardValue(y));
+      for (let k = 1; k <= Math.min(generic, pool.length); k++) {
+        const left = this._addGeneric(need, -k);
+        if (this.couldPay(playerId, left, src)) return { tap: pool.slice(0, k), mana: left };
+      }
+      return null;
+    }
+
     _payAbilityCost(playerId, o, ab, opts) {
       const cost = ab.cost || {};
       const thing = this._thingCostBlocked(playerId, cost, o, opts);
@@ -6591,7 +6612,18 @@
       if (lifeFrom && p.life < lifeFrom) return this.fail('Not enough life.');
       // `free` skips payment the same way it does for a spell, which is what
       // relaxed tables and alternative costs rely on
-      const abMana = this._abilityMana(o, ab, opts.targets);
+      let abMana = this._abilityMana(o, ab, opts.targets);
+      // Waterbend: tap artifacts and creatures for {1} each when the mana alone will not do
+      if (cost.waterbend && abMana && !opts.free) {
+        const full = /\{X\}/.test(abMana) ? abMana.replace(/\{X\}/g, opts.x ? '{' + opts.x + '}' : '') : abMana;
+        const plan = this._waterbendPlan(playerId, o, ab, full);
+        if (plan && plan.tap.length) {
+          for (const x of plan.tap) this._markTapped(x);
+          this.logEvent('rules', `${p.name} waterbends, tapping ${plan.tap.map(x => x.name).join(', ')}.`);
+          abMana = plan.mana || '';
+          opts = Object.assign({}, opts, { x: 0 });
+        }
+      }
       if (abMana && !opts.free) {
         /* A permanent that taps as part of the cost cannot also be tapped
            for mana to pay the rest of it (Mind Stone's "{1}, {T}"). */
@@ -15707,6 +15739,8 @@
           break;
 
         case 'toLibrary': {
+          // Watery Grasp: the creature this is attached to
+          if (e.attached) { const x = src && src.attachedTo && this.obj(src.attachedTo); targets = x ? [{ kind: 'object', id: x.id }] : []; }
           this._noteLastAffected(targets);
           for (const t of targets) {
             if (t.kind !== 'object') continue;
