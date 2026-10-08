@@ -3070,7 +3070,7 @@ module.exports = (test) => {
     T.answer('declareBlockers', () => []);
     T.toMain('A', 'declareBlockers');
     t.ok(T.g.altUsesFor('A', f.id).some(u => u.via === 'sneak'), 'offered in the declare blockers step');
-    T.mana('A', '3W');
+    T.mana('A', '4WW');
     t.ok(T.g.castSpell('A', f.id, { auto: true, via: 'sneak', returnId: b.id }), T.g.lastError);
     T.resolve();
     t.zone(b, 'hand');
@@ -3889,7 +3889,7 @@ module.exports = (test) => {
     const T = mk();
     const a = T.grave('A', 'Sol Ring'), b = T.grave('A', 'Ornithopter'), c = T.grave('A', 'Grizzly Bears');
     T.answer('choose', (ch) => { t.no(ch.items.some(x => x.id === c.id), 'only artifacts offered'); return { picks: [a.id, b.id] }; });
-    T.mana('A', '3W');
+    T.mana('A', '4WW');
     T.cast('A', T.hand('A', 'Frantic Salvage'));
     T.resolve();
     t.zone(c, 'graveyard');
@@ -10356,5 +10356,27 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Shock'), { targets: ['B'] });
     T2.settle(); T2.resolve();
     t.eq(T2.life('A'), 23, 'nothing the second time');
+  });
+
+  test('Alchemy: Sworn to the Legion hands out double team; Baffling Defenses sets base power; each player seeks', (mk, t) => {
+    t.auto('Sworn to the Legion');
+    t.auto('Baffling Defenses');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    T.mana('A', '4WW');
+    T.cast('A', T.hand('A', 'Sworn to the Legion'));
+    T.settle(); T.resolve();
+    const h = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').filter(c => c.name === 'Grizzly Bears').length, 1, 'a duplicate Bears in hand');
+    t.eq(T.zone('A', 'hand').length, h + 1);
+    const T2 = mk();
+    const cc = T2.bf('B', 'Centaur Courser');
+    T2.mana('A', '1W');
+    T2.cast('A', T2.hand('A', 'Baffling Defenses'), { targets: [cc] });
+    t.eq(T2.g.powerOf(cc), 0, 'base power 0');
+    t.eq(T2.g.toughnessOf(cc), 3, 'toughness untouched');
   });
 };

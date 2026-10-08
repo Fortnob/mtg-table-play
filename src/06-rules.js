@@ -7353,13 +7353,25 @@
     _perpetualSubjects(e, ctx, src, targets, firstObj) {
       const me = this.player(ctx.controller);
       const sub = e.subject || {};
+      if (sub.self && sub.alsoTrigger) {
+        const td = ctx.triggerData || {};
+        const x = td.objectId && this.obj(td.objectId);
+        return [src, x].filter((y, i, arr) => y && arr.indexOf(y) === i);
+      }
       if (sub.self) return src ? [src] : [];
       if (sub.targets) return targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
       if (sub.last) {
         const ids = (this._lastAffectedAll && this._lastAffectedAll.length > 1 && sub.plural) ? this._lastAffectedAll.map(x => x.id)
           : (this._lastSeeked && this._lastSeeked.length && sub.plural) ? this._lastSeeked
           : this._lastAffected ? [this._lastAffected.id] : [];
-        return ids.map(id => this.obj(id)).filter(Boolean);
+        const got = ids.map(id => this.obj(id)).filter(Boolean);
+        if (got.length) return got;
+        /* "Whenever you cast a creature spell, it perpetually gains …": in a trigger, "it" is
+           the spell or permanent the trigger is about */
+        const td = ctx.triggerData || {};
+        const st = td.stackId && this.stack.find(x => x.id === td.stackId);
+        const x = (st && st.obj) || (td.objectId && this.obj(td.objectId));
+        return x ? [x] : [];
       }
       if (sub.triggerObject) { const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId); return x ? [x] : []; }
       if (sub.zone) {
@@ -8546,6 +8558,8 @@
         /* Adamant: "if at least three white mana was spent to cast this
            spell"; "if five or more mana was spent to cast that spell" */
         case 'intensityAtLeast': { const k = this._intensityOf(src); return cond.less ? k <= cond.n : k >= cond.n; }
+        // double team, until it has been used: both cards perpetually lose it
+        case 'doubleTeamLive': return !!src && !(src.effects || []).some(e => e && e.perpetual && (e.loseKeywords || []).includes('Double Team'));
         case 'selfHasKeyword': return !!src && src.zone === 'battlefield' && this.hasKw(src, cond.keyword);
         case 'selfIsToken': return !!src && (!!src.isToken) !== !!cond.not;
         case 'sacrificedWas': {
@@ -16218,6 +16232,17 @@
         }
         /* Alchemy, seek: a card at random from the library, of the kind asked for, into the hand */
         case 'seek': {
+          // Manor Guardian: every player seeks, each from their own library
+          if (e.each) {
+            for (const q of this.players) {
+              if (q.hasLost) continue;
+              const lq = this.zones[q.id].library;
+              const pool = lq.filter(c => this._seekFits(c, e));
+              if (pool.length) { const c = pool[Math.floor(this.rng.next() * pool.length)]; this.moveObject(c, 'hand'); }
+            }
+            this.logEvent('draw', 'Each player seeks a card.');
+            break;
+          }
           const lib = this.zones[me.id].library;
           const k = Math.max(0, n(e.n == null ? 1 : e.n));
           const got = [];

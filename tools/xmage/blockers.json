@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12902,
+  "needed": 12898,
   "gainedCards": 1374,
-  "linesNeeded": 14151,
+  "linesNeeded": 14149,
   "linesGained": 1654,
   "gained": {
    "all": 1374,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4756,
-   "lines": 4267,
+   "score": 4754,
+   "lines": 4265,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -71,8 +71,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 674,
-   "lines": 674,
+   "score": 672,
+   "lines": 672,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -7154,8 +7154,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3856,
-   "cards": 3514,
+   "score": 3854,
+   "cards": 3512,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",

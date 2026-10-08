@@ -777,6 +777,9 @@
     if (/^(?:it|that card|that creature|that permanent|the conjured card|the card|the duplicate|that spell|the exiled card|the chosen card)$/i.test(p)) return { last: true };
     if (/^(?:they|those cards|those creatures|them|each of them|both cards)$/i.test(p)) return { last: true, plural: true };
     if (/^(?:CARDNAME|this creature|this card|this permanent|this artifact|this enchantment|this land)$/i.test(p)) return { self: true };
+    // Leaf-Leap Guide: "CARDNAME and that creature"
+    if (/^(?:CARDNAME|this creature) and that (?:creature|card|permanent)$/i.test(p)) return { self: true, alsoTrigger: true };
+    // Baffling Defenses: "Target creature's base power" — handled with the predicate
     if ((m = p.match(/^((?:another )?target .+?) (?:in your graveyard)$/i))) {
       const sp = targetSpec(m[1].replace(/ cards?$/i, ''), 'graveyard');
       return sp && !sp.unknown ? { targets: [Object.assign(sp, { controller: 'you' })] } : null;
@@ -826,6 +829,8 @@
         if (!kws.length || !kws.every(kwKnown) || !grantableText(kq[2])) return null;
         return { keywords: kws, grantText: kq[2] };
       }
+      // Sworn to the Legion: "double team" — a keyword that is a triggered ability, handed over as its words
+      if (/^double team$/i.test(r)) return { grantText: 'Double team' };
       const kws = keywordList(r);
       if (!kws.length || !kws.every(kwKnown)) return null;
       return { keywords: kws };
@@ -846,6 +851,17 @@
   }
 
   const EFFECT_RULES = [
+    // Baffling Defenses: "Target creature's base power perpetually becomes 0."
+    { re: /^(target creature|CARDNAME|it)'?s base power perpetually becomes (\d+)\.?$/i,
+      make: (m) => { const sub = perpSubject(m[1]); return sub ? Object.assign({ op: 'perpetual', subject: sub, mod: { setPt: { p: +m[2] } } }, sub.targets ? { targets: sub.targets } : {}) : null; } },
+    // Manor Guardian: "each player seeks a nonland card with mana value 2 or less"
+    { re: /^Each player seeks (a|an|one|two) ((?:[A-Za-z]+ )*?)cards?((?: with mana value \d+ or (?:less|greater))?)\.?$/i,
+      make: (m) => {
+        const e = { op: 'seek', n: num(m[1]), filter: m[2].trim().toLowerCase() || 'card', each: true };
+        const mv = m[3].match(/with mana value (\d+) or (less|greater)/i);
+        if (mv) { if (/less/i.test(mv[2])) e.maxMv = +mv[1]; else e.minMv = +mv[1]; }
+        return e;
+      } },
     /* Alchemy: "It perpetually gets +1/+1." "Creature cards in your hand perpetually gain flying." */
     { re: /^(.+?) perpetually (gets?|gains?|has|have|loses?|becomes?) (.+?)\.?$/i,
       make: (m) => {
@@ -893,9 +909,18 @@
       make: (m) => {
         const to = /hand/i.test(m[3]) ? 'hand' : /battlefield/i.test(m[3]) ? 'battlefield' : /graveyard/i.test(m[3]) ? 'graveyard'
           : /on top/i.test(m[3]) ? 'top' : /top \w+ cards/i.test(m[3]) ? 'topRandom' : 'library';
-        return { op: 'conjure', n: num(m[1]), name: m[2].trim(), to, tapped: /tapped/i.test(m[3]) || undefined,
+        const nm = m[2].trim();
+        return { op: 'conjure', n: num(m[1]), name: /^CARDNAME$/.test(nm) ? '$self' : nm, to, tapped: /tapped/i.test(m[3]) || undefined,
           depth: m[4] ? num(m[4]) : undefined };
       } },
+    // Urza: "Conjure cards named Urza's Mine, Urza's Power Plant, and Urza's Tower into your library, then shuffle."
+    { re: /^Conjure cards named (.+?, (?:and )?.+?) (into your hand|into your library|onto the battlefield)(?:, then shuffle)?\.?$/i,
+      make: (m) => ({ op: 'conjure', n: 1, names: m[1].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean),
+        to: /hand/i.test(m[2]) ? 'hand' : /battlefield/i.test(m[2]) ? 'battlefield' : 'library' }) },
+    // "Conjure the Power Nine into your library"
+    { re: /^Conjure the Power Nine into your (library|hand)(?:, then shuffle)?\.?$/i,
+      make: (m) => ({ op: 'conjure', n: 1, names: ['Black Lotus', 'Ancestral Recall', 'Time Walk', 'Mox Pearl', 'Mox Sapphire', 'Mox Jet', 'Mox Ruby', 'Mox Emerald', 'Timetwister'],
+        to: /hand/i.test(m[1]) ? 'hand' : 'library' }) },
     // "Conjure a duplicate of it into your hand", "…of CARDNAME …"
     { re: /^Conjure (a|two|three) duplicates? of (it|that card|that creature|CARDNAME|this creature|this card) (into your hand|onto the battlefield|into your library|into your graveyard)\.?$/i,
       make: (m) => ({ op: 'conjure', n: num(m[1]), names: [/^(?:CARDNAME|this creature|this card)$/i.test(m[2]) ? '$self' : '$that'],
@@ -8890,7 +8915,7 @@
        duplicate of it into your hand. Then both cards perpetually lose double team." */
     if (/(?:^|\n)Double team\b/i.test(text) || (out.keywordSet && out.keywordSet.has('double team'))) {
       out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, optional: false, auto: true,
-        condition: [{ kind: 'selfIsToken', not: true }, { kind: 'selfHasKeyword', keyword: 'double team' }],
+        condition: [{ kind: 'selfIsToken', not: true }, { kind: 'doubleTeamLive' }],
         text: 'Double team', effects: [{ op: 'doubleTeam' }] });
     }
     out.producesMana = out.manaAbilities.length > 0 || (card.produced_mana || []).length > 0;
