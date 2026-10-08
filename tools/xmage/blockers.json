@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13511,
+  "needed": 13500,
   "gainedCards": 1404,
-  "linesNeeded": 14837,
+  "linesNeeded": 14824,
   "linesGained": 1713,
   "gained": {
    "all": 1404,
@@ -2066,25 +2066,6 @@
     "Inkling Mascot",
     "Inkshape Demonstrator",
     "Rehearsed Debater"
-   ]
-  },
-  {
-   "what": "becomes a creature and nothing else",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Mimic",
-    "Hidden Gibbons",
-    "Hidden Guerrillas",
-    "Hidden Ancients",
-    "Veiled Serpent",
-    "Veil of Birds",
-    "Opal Archangel",
-    "Opal Gargoyle",
-    "Opal Acrolith",
-    "Opal Guardian",
-    "Opal Caryatid",
-    "Opal Champion"
    ]
   },
   {
@@ -5073,19 +5054,6 @@
    ]
   },
   {
-   "what": "subject:owner",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Brainstealer Dragon",
-    "Thieving Amalgam",
-    "Shirei, Shizo's Caretaker",
-    "Edea, Possessed Sorceress",
-    "Nihiloor",
-    "Lurking Skirge"
-   ]
-  },
-  {
    "what": "filter:anyCounter",
    "score": 6,
    "lines": 6,
@@ -6045,6 +6013,18 @@
     "Haunting Voyage",
     "Kindred Charge",
     "Tribal Forcemage"
+   ]
+  },
+  {
+   "what": "subject:owner",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Brainstealer Dragon",
+    "Thieving Amalgam",
+    "Shirei, Shizo's Caretaker",
+    "Edea, Possessed Sorceress",
+    "Nihiloor"
    ]
   },
   {
@@ -7308,6 +7288,17 @@
     "Forgestoker Dragon",
     "Magistrate's Veto"
    ]
+  },
+  {
+   "what": "UnattachedTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Grafted Exoskeleton",
+    "Grafted Wargear",
+    "Captain's Hook",
+    "Stitcher's Graft"
+   ]
   }
  ],
  "sole": [
@@ -8203,19 +8194,6 @@
     "Melancholic Poet",
     "Forum Necroscribe",
     "Conciliator's Duelist"
-   ]
-  },
-  {
-   "what": "becomes a creature and nothing else",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Mimic",
-    "Hidden Gibbons",
-    "Hidden Guerrillas",
-    "Hidden Ancients",
-    "Veiled Serpent",
-    "Veil of Birds"
    ]
   },
   {
@@ -11095,6 +11073,18 @@
     "Sentinel of Lost Lore",
     "Runic Repetition",
     "Blade of the Swarm"
+   ]
+  },
+  {
+   "what": "ConditionalRequirementEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Frodo Baggins",
+    "Seton's Desire",
+    "Stone-Tongue Basilisk",
+    "Reckless Cohort",
+    "Marauding Maulhorn"
    ]
   }
  ]

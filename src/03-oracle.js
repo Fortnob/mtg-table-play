@@ -6055,6 +6055,8 @@
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
     [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
+    // the Hidden cycle: "if this permanent is an enchantment"
+    [/^(?:this permanent|this enchantment|this creature|CARDNAME) is an? (enchantment|creature|artifact|land)$/i, (m) => ({ kind: 'selfIs', what: 'type:' + m[1].toLowerCase() })],
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
     [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
     [/^you'?re the monarch$/i, () => ({ kind: 'monarch' })],
@@ -8201,6 +8203,9 @@
           e.scope = { who: 'you', what: 'creature', attacking: true, subtype: ab.attackersOfType.toLowerCase() };
         if (e.op === 'becomes' && e.scope === 'lastTarget' && !effs.some(x => x && (x.targets || []).length) &&
             i > 0 && effs[i - 1] && effs[i - 1].op === 'tutor' && effs[i - 1].to === 'battlefield' && effs[i - 1].n === 1) e.scope = 'thatObject';
+        // the Hidden cycle: "if this permanent is an enchantment, it becomes a 4/4 Ape creature" — "it" is itself
+        if (e.op === 'becomes' && e.scope === 'lastTarget' && i === 0 && !effs.some(x => x && (x.targets || []).length) &&
+            ab.condition && ab.condition.kind === 'selfIs') e.scope = 'self';
       });
     }
     for (const ab of out.abilities) {

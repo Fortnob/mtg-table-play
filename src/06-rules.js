@@ -8190,6 +8190,8 @@
           if (!src) return false;
           if (cond.what === 'monstrous') return !!src.monstrous;
           if (cond.what === 'nontoken') return !src.isToken;
+          // "if this permanent is an enchantment": what it is right now
+          if (String(cond.what).startsWith('type:')) return (src.analysis() && (src.analysis().types || []).some(t => t.toLowerCase() === cond.what.slice(5))) || false;
           const att = (src.attachments || []).map(id => this.obj(id)).filter(Boolean);
           const kinds = att.map(x => O.analyze(x.card, x.face) || {});
           if (cond.what === 'equipped') return kinds.some(k => (k.subtypes || []).includes('Equipment'));

@@ -9332,4 +9332,14 @@ module.exports = (test) => {
     T.g.player('A').initiative = true;
     t.ok(T.g._condMet({ kind: 'hasInitiative' }, { controller: 'A' }));
   });
+
+  test('Hidden Gibbons becomes a 4/4 Ape when an opponent casts an instant, while it is still an enchantment', (mk, t) => {
+    t.auto('Hidden Gibbons');
+    const T = mk();
+    const hg = T.bf('B', 'Hidden Gibbons');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.ok(T.g.characteristics(hg).isCreature, 'an Ape now');
+    t.eq(T.g.powerOf(hg), 4);
+  });
 };
