@@ -2932,6 +2932,9 @@
       const a = o.analysis();
       const cr = (a && a.costReduction) || {};
       let out = cr;
+      // Archway of Innovation: "The next spell you cast this turn has improvise."
+      const nk = (this.player(pid) || {}).nextSpellKeyword;
+      if (nk && nk.turn === this.turn && o.zone !== 'stack') { out = Object.assign({}, cr); out[nk.keyword] = true; }
       for (const src of this.battlefield) {
         if (src.controller !== pid || src.phasedOut) continue;
         const g = this._staticOp(src, 'grantCastKeyword');
@@ -3680,6 +3683,11 @@
           out.push({ kind: 'cast', via: 'ability:' + i, ability: i, cost: (ab.cost && ab.cost.mana) || '',
             label: truncate(MTG.oracle.named(ab.text, o) || MTG.oracle.abilityLabel(ab, o), 90) });
         });
+      }
+      // Six: on your turn, a nonland permanent card in your graveyard has retrace
+      if (o.zone === 'graveyard' && o.owner === playerId && a.isPermanent && !a.isLand && this.activePlayer && this.activePlayer.id === playerId &&
+          this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
+        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
       /* The Transformers: cast converted, back face up, for the More Than Meets the Eye cost */
       const mtm = o.zone === 'hand' && o.card.card_faces && o.card.card_faces.length > 1 ? (O.analyze(o.card, 0) || {}).mtmte : null;
@@ -4765,6 +4773,8 @@
       // Cavern of Souls: "that spell can't be countered"
       if (payFlags.uncounterable) item.uncounterable = true;
       if (p.nextSpellUncounterable === this.turn) { item.uncounterable = true; p.nextSpellUncounterable = null; }
+      // Archway of Innovation: the keyword was for this spell only
+      if (p.nextSpellKeyword && p.nextSpellKeyword.turn === this.turn) p.nextSpellKeyword = null;
       for (const rider of (payFlags.riders || [])) this._manaRider(rider, item, playerId);
       // floating mana with a promise attached keeps it for the next spell it pays for
       if (p.manaRiders && p.manaRiders.length && !opts.free) {
@@ -7303,6 +7313,8 @@
       // evasion
       const A = (k) => this.hasKw(attacker, k), B = (k) => this.hasKw(blocker, k);
       if (A('unblockable')) return false;
+      // The Black Gate: "can't be blocked by creatures that player controls this turn"
+      if ((attacker.effects || []).some(e => e && e.unblockableBy === blocker.controller)) return false;
       if (this._hasFlag(blocker, 'blocksFliersOnly') && !this.hasKw(attacker, 'flying')) return false;
       // Gingerbrute: "can't be blocked this turn except by creatures with haste"
       if (this._hasFlag(attacker, 'exceptByHaste') && !B('haste')) return false;
@@ -8644,6 +8656,12 @@
         // Gathering Place: "if this land entered this turn or if you control a basic land"
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        case 'greatestMvArtifact': {
+          const arts = this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isArtifact);
+          if (!arts.length || !me) return false;
+          const top = Math.max(...arts.map(x => (x.card && x.card.cmc) || 0));
+          return arts.some(x => x.controller === me.id && ((x.card && x.card.cmc) || 0) === top);
+        }
         case 'draftNoted': case 'firstUpkeep': case 'spellTargetsChosen': return this._draftCond(cond, me, src, ctx);
         // Boromir: "if no mana was spent to cast it"
         case 'triggerNoMana': {
@@ -13778,6 +13796,50 @@
         }
 
         /* the object a delayed note was taken about */
+        // The Black Gate: the player with the most life (an opponent where it is a tie) can't block it
+        case 'unblockableByMostLife': {
+          const live = this.players.filter(q => !q.hasLost);
+          const top = Math.max(...live.map(q => q.life));
+          const tied = live.filter(q => q.life === top);
+          const who = tied.find(q => q.id !== ctx.controller) || tied[0];
+          for (const x of targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean)) {
+            x.effects.push({ unblockableBy: who.id, until: 'eot' });
+            this.logEvent('rules', `${x.name} can't be blocked by creatures ${who.name} controls this turn.`);
+          }
+          break;
+        }
+        // Ezuri's Predation: a Beast for each of their creatures, and each fights one of them
+        case 'predation': {
+          const theirs = this.battlefield.filter(x => !x.phasedOut && x.controller !== ctx.controller && this.opponentsOf(ctx.controller).some(q => q.id === x.controller) && (this.characteristics(x) || {}).isCreature);
+          const before = new Set(this.battlefield.map(x => x.id));
+          this._createToken(ctx.controller, { n: theirs.length, pt: e.pt || '4/4', colorWords: ['green'], subtypes: 'Phyrexian Beast', keywords: [] });
+          const beasts = this.battlefield.filter(x => !before.has(x.id) && x.controller === ctx.controller);
+          for (let i = 0; i < Math.min(beasts.length, theirs.length); i++) {
+            const b = beasts[i], c = theirs[i];
+            if (b.zone !== 'battlefield' || c.zone !== 'battlefield') continue;
+            this.dealDamageToObject(c, this.powerOf(b), b);
+            this.dealDamageToObject(b, this.powerOf(c), c);
+          }
+          break;
+        }
+        // Sword of Hearth and Home: a creature of yours out and back, and a basic land with it
+        case 'hearthAndHome': {
+          const x = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).find(Boolean);
+          const land = this.zones[me.id].library.find(c => (c.analysis() || {}).isBasicLand);
+          if (x && x.zone === 'battlefield') this.moveObject(x, 'exile');
+          if (x && x.zone === 'exile' && !x.isToken) this.moveObject(x, 'battlefield', { controller: me.id });
+          if (land) this.moveObject(land, 'battlefield', { controller: me.id });
+          this.rng.shuffle(this.zones[me.id].library);
+          break;
+        }
+        // Archway of Innovation
+        case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword }; break;
+        // Ocelot Pride: a copy of each token of yours that entered this turn
+        case 'copyTokensEnteredThisTurn': {
+          const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn);
+          for (const tk of toks) this._runEffect({ op: 'copyPermanent', n: 1, _forced: tk }, ctx);
+          break;
+        }
         // Anzrag's Rampage: "Return it to your hand at the beginning of the next end step."
         case 'returnThatToHand': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
@@ -17781,6 +17843,12 @@
           !(e.maxPower != null && !(this.characteristics(o).isCreature && this.powerOf(o) <= e.maxPower))) extra++;
         // Isshin: a creature attacking
         else if (e.cause === 'attack' && ['attacks', 'permAttacks', 'youAttack'].includes(event)) extra++;
+        // Veyran: casting or copying an instant or sorcery spell
+        else if (e.cause === 'castInstantSorcery' && ['youCastSpell', 'anyCastSpell', 'youCopySpell', 'castSelf'].includes(event)) {
+          const sp = data.object || (data.spell && data.spell.obj);
+          const sa = sp && sp.analysis && sp.analysis();
+          if (sa && (sa.isInstant || sa.isSorcery) && (data.playerId == null || data.playerId === src.controller)) extra++;
+        }
       }
       return extra;
     }

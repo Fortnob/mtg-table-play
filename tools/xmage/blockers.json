@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12741,
+  "needed": 12731,
   "gainedCards": 1373,
-  "linesNeeded": 13942,
+  "linesNeeded": 13932,
   "linesGained": 1651,
   "gained": {
    "all": 1373,
@@ -33,12 +33,11 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4716,
-   "lines": 4227,
+   "score": 4700,
+   "lines": 4223,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
-    "Veyran, Voice of Duality",
     "Inkshield",
     "Etali, Primal Conqueror // Etali, Primal Sickness",
     "Beseech the Mirror",
@@ -47,7 +46,8 @@
     "Moraug, Fury of Akoum",
     "Chain of Vapor",
     "Mechanized Production",
-    "Kodama of the East Tree"
+    "Kodama of the East Tree",
+    "Combustible Gearhulk"
    ]
   },
   {
@@ -1077,25 +1077,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 15,
-   "lines": 12,
-   "cards": [
-    "Sword of Hearth and Home",
-    "Sanctum of Eternity",
-    "Coveted Falcon",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Tel-Jilad Stylus",
-    "Leave // Chance",
-    "Conjured Currency",
-    "The Neutrinos",
-    "Saving Grasp",
-    "Scarab of the Unseen",
-    "Obelisk of Undoing"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
    "score": 15,
    "lines": 15,
@@ -1845,22 +1826,6 @@
    ]
   },
   {
-   "what": "NextSpellCastHasAbilityEffect",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Archway of Innovation",
-    "Wand of the Worldsoul",
-    "Storm, Force of Nature",
-    "TARDIS",
-    "Crackling Spellslinger",
-    "Dark Apostle",
-    "Flockchaser Phantom",
-    "Sloppity Bilepiper",
-    "Smoldering Stagecoach"
-   ]
-  },
-  {
    "what": "DiscardAndDrawThatManyEffect",
    "score": 12,
    "lines": 3,
@@ -2242,6 +2207,24 @@
     "Relic Robber",
     "Vazi, Keen Negotiator",
     "Greener Pastures"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Sanctum of Eternity",
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency",
+    "The Neutrinos",
+    "Saving Grasp",
+    "Scarab of the Unseen",
+    "Obelisk of Undoing"
    ]
   },
   {
@@ -4315,16 +4298,6 @@
    ]
   },
   {
-   "what": "GainRetraceYourGraveyardEffect",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Six",
-    "Wrenn and Six",
-    "Deeproot Historian"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOpponentTriggeredAbility",
    "score": 6,
    "lines": 3,
@@ -4846,6 +4819,19 @@
     "Aberrant Mind Sorcerer",
     "Power of Persuasion",
     "Scion of Stygia"
+   ]
+  },
+  {
+   "what": "NextSpellCastHasAbilityEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Storm, Force of Nature",
+    "TARDIS",
+    "Crackling Spellslinger",
+    "Dark Apostle",
+    "Sloppity Bilepiper",
+    "Smoldering Stagecoach"
    ]
   },
   {
@@ -6397,14 +6383,6 @@
    ]
   },
   {
-   "what": "PadeemConsulOfInnovationPredicate.instance",
-   "score": 4,
-   "lines": 1,
-   "cards": [
-    "Padeem, Consul of Innovation"
-   ]
-  },
-  {
    "what": "DrawCardOpponentTriggeredAbility",
    "score": 4,
    "lines": 1,
@@ -7084,20 +7062,42 @@
     "Roll-Roll-Roll-Roll",
     "Wiccan, Rising Magician"
    ]
+  },
+  {
+   "what": "gain for whileControlled",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Aegis Angel",
+    "Tale of Tinúviel",
+    "Thancred Waters",
+    "Kyodai, Soul of Kamigawa"
+   ]
+  },
+  {
+   "what": "BecomesColorSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Miles Morales // Ultimate Spider-Man",
+    "Wild Mongrel",
+    "Repentant Vampire",
+    "Wayward Angel"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3849,
-   "cards": 3504,
+   "score": 3833,
+   "cards": 3500,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
-    "Veyran, Voice of Duality",
     "Inkshield",
     "Etali, Primal Conqueror // Etali, Primal Sickness",
-    "Beseech the Mirror"
+    "Beseech the Mirror",
+    "Tempt with Discovery"
    ]
   },
   {
@@ -7672,19 +7672,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 13,
-   "cards": 10,
-   "names": [
-    "Sword of Hearth and Home",
-    "Sanctum of Eternity",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Tel-Jilad Stylus",
-    "Leave // Chance"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 13,
    "cards": 10,
@@ -7810,19 +7797,6 @@
     "Apathy",
     "Slow Motion",
     "Unnatural Hunger"
-   ]
-  },
-  {
-   "what": "NextSpellCastHasAbilityEffect",
-   "score": 12,
-   "cards": 9,
-   "names": [
-    "Archway of Innovation",
-    "Wand of the Worldsoul",
-    "Storm, Force of Nature",
-    "TARDIS",
-    "Crackling Spellslinger",
-    "Dark Apostle"
    ]
   },
   {
@@ -8328,6 +8302,19 @@
     "Beyond the Quiet",
     "Born to Drive",
     "Tend the Sprigs"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Sanctum of Eternity",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency"
    ]
   },
   {
@@ -9424,16 +9411,6 @@
    ]
   },
   {
-   "what": "GainRetraceYourGraveyardEffect",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Six",
-    "Wrenn and Six",
-    "Deeproot Historian"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOpponentTriggeredAbility",
    "score": 6,
    "cards": 3,
@@ -9656,6 +9633,19 @@
     "Snow Fortress",
     "Giant Trap Door Spider",
     "Hunting Kavu"
+   ]
+  },
+  {
+   "what": "NextSpellCastHasAbilityEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Storm, Force of Nature",
+    "TARDIS",
+    "Crackling Spellslinger",
+    "Dark Apostle",
+    "Sloppity Bilepiper",
+    "Smoldering Stagecoach"
    ]
   },
   {
@@ -10836,19 +10826,27 @@
    ]
   },
   {
-   "what": "PadeemConsulOfInnovationPredicate.instance",
-   "score": 4,
-   "cards": 1,
-   "names": [
-    "Padeem, Consul of Innovation"
-   ]
-  },
-  {
    "what": "DrownInTheLochPredicate.instance",
    "score": 4,
    "cards": 1,
    "names": [
     "Drown in the Loch"
+   ]
+  },
+  {
+   "what": "AnyColorCardInYourGraveyardManaAbility",
+   "score": 4,
+   "cards": 1,
+   "names": [
+    "The Grey Havens"
+   ]
+  },
+  {
+   "what": "BecomesClassLevelTriggeredAbility",
+   "score": 4,
+   "cards": 1,
+   "names": [
+    "Druid Class"
    ]
   }
  ]

@@ -4142,6 +4142,11 @@
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Archway of Innovation: "The next spell you cast this turn has improvise."
+    { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
+    // Ocelot Pride: "Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it."
+    { re: /^Then if you have the city'?s blessing, for each token you control that entered this turn, create a token that'?s a copy of it\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'cityBlessing' }, then: [{ op: 'copyTokensEnteredThisTurn' }] }) },
     // Callidus Assassin: "destroy up to one other target creature with the same name as this creature"
     { re: /^Destroy up to one other target creature with the same name as (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, another: true, sameNameAsSource: true }] }) },
@@ -5242,6 +5247,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* The Black Gate: "Choose a player with the most life or tied for most life. Target creature can't be blocked
+       by creatures that player controls this turn." */
+    { re: /^Choose a player with the most life or tied for most life\. (Target creature) can'?t be blocked by creatures that player controls this turn\.$/i,
+      make: (m) => [{ op: 'unblockableByMostLife', targets: [targetSpec(m[1])] }] },
+    /* Ezuri's Predation: "For each creature your opponents control, create a 4/4 green Phyrexian Beast creature token.
+       Each of those tokens fights a different one of those creatures." */
+    { re: /^For each creature your opponents control, create a (\d+)\/(\d+) green Phyrexian Beast creature token\. Each of those tokens fights a different one of those creatures\.$/i,
+      make: (m) => [{ op: 'predation', pt: m[1] + '/' + m[2] }] },
+    /* Sword of Hearth and Home: "exile up to one target creature you own, then search your library for a basic land
+       card. Put both cards onto the battlefield under your control, then shuffle." */
+    { re: /^Exile up to one target creature you own, then search your library for a basic land card\. Put both cards onto the battlefield under your control, then shuffle\.$/i,
+      make: () => [{ op: 'hearthAndHome', targets: [Object.assign(targetSpec('target creature'), { upTo: true, owner: 'you' })] }] },
     /* Tail Swipe, Blizzard Brawl, Longstalk Brawl: "Choose target creature you control and target creature you
        don't control. [Something for the creature you control.] Then those creatures fight each other." */
     { re: /^Choose target creature you control and target creature you don'?t control\. (?:If ([^,]+), the creature you control gets ([+-]\d+)\/([+-]\d+)(?: and gains ([a-z ]+))? until end of turn|Put an? ([+\-0-9/a-z]+) counter on the creature you control if ([^.]+?))\. Then those creatures fight each other\.$/i,
@@ -6576,6 +6593,8 @@
     [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
     [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment))$/i, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
+    // Padeem: "you control the artifact with the greatest mana value or tied for the greatest mana value"
+    [/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i, () => ({ kind: 'greatestMvArtifact' })],
     // Liberator: "if the amount of mana spent to cast that spell is greater than CARDNAME's power"
     [/^the amount of mana spent to cast (that spell|this spell|it) is greater than (?:CARDNAME|this creature)'?s power$/i, (m) => ({ kind: 'manaSpentOverPower', of: spentOf(m[1]) })],
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
@@ -10499,6 +10518,11 @@
       { re: /^[A-Za-z ,]*spells? you cast costs? \{\d+\} less to cast\.?$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
+      // Six: "During your turn, nonland permanent cards in your graveyard have retrace."
+      { re: /^During your turn, nonland permanent cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceNonlandPermanents' }, auto: true },
+      // Veyran, Voice of Duality
+      { re: /^If you casting or copying an instant or sorcery spell causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'castInstantSorcery' }, auto: true },
       // Ground Seal: "Cards in graveyards can't be the targets of spells or abilities."
       { re: /^Cards in graveyards can'?t be the targets of spells or abilities\.?$/i, eff: { op: 'graveyardUntargetable' }, auto: true },
       // Mana Vortex, Drop of Honey: "When there are no lands on the battlefield, sacrifice this enchantment."
