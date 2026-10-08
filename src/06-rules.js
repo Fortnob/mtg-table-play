@@ -1014,9 +1014,7 @@
           o.noUntapNext = false;
           if (o.tapped) this.logEvent('step', `${o.name} does not untap.`);
         } else if (o.tapped) {
-          o.tapped = false; n++;
-          // "Whenever this artifact becomes untapped" waits for upkeep to be put on the stack
-          this._fire('becomesUntapped', o.controller, { source: o, object: o });
+          this._markUntapped(o); n++;
         }
         if (o.controller === ap.id) o.summoningSick = false;
       }
@@ -6436,7 +6434,7 @@
       if (cost.exert) o.noUntapNext = true;
       // Devoted Druid: "Put a -1/-1 counter on this creature" as the price
       if (cost.putCounters) this.addCounters(o, cost.putCounters.kind, cost.putCounters.n || 1, { noReplace: true });
-      if (cost.untap) o.tapped = false;
+      if (cost.untap) this._markUntapped(o);
       if (cost.life) this.changeLife(playerId, -cost.life, 'cost');
       if (lifeFrom) this.changeLife(playerId, -lifeFrom, 'cost');
       if (cost.sacSelf) {
@@ -6614,7 +6612,7 @@
       const cost = ab.cost || {};
       if (!this._manaCostPayable(playerId, o, ab)) return false;
       if (cost.tap) this._markTapped(o);
-      if (cost.untap) o.tapped = false;
+      if (cost.untap) this._markUntapped(o);
       if (cost.mana) { if (!this.player(playerId).pool.pay(cost.mana)) return false; }
       if (cost.life) this.changeLife(playerId, -cost.life, 'mana');
       this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name, manaChoice: symbol });
@@ -11240,7 +11238,7 @@
           if (!x || x.zone !== 'battlefield') break;
           const tap = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap ${x.name}? (No untaps it.)` }, 'tu');
           if (tap === SUSPEND) return SUSPEND;
-          if (tap) this._markTapped(x); else x.tapped = false;
+          if (tap) this._markTapped(x); else this._markUntapped(x);
           this.emit('sfx', tap ? 'tap' : 'untap');
           break;
         }
@@ -11526,12 +11524,12 @@
           else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) { this._markTapped(o); this.emit('sfx', 'tap'); } } }
           break;
         case 'untap':
-          if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { x.tapped = false; this.emit('sfx', 'untap'); } break; }
+          if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { this._markUntapped(x); this.emit('sfx', 'untap'); } break; }
           // "untap that land": whatever the effect before this one fetched
-          if (e.scope === 'lastAffected') { const x = this._lastAffected && this.obj(this._lastAffected.id); if (x && x.zone === 'battlefield') { x.tapped = false; this.emit('sfx', 'untap'); } break; }
-          if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { x.tapped = false; this.emit('sfx', 'untap'); } }
-          else if (e.scope === 'self' && src) { src.tapped = false; this.emit('sfx', 'untap'); }
-          else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) { o.tapped = false; this.emit('sfx', 'untap'); } } }
+          if (e.scope === 'lastAffected') { const x = this._lastAffected && this.obj(this._lastAffected.id); if (x && x.zone === 'battlefield') { this._markUntapped(x); this.emit('sfx', 'untap'); } break; }
+          if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { this._markUntapped(x); this.emit('sfx', 'untap'); } }
+          else if (e.scope === 'self' && src) { this._markUntapped(src); this.emit('sfx', 'untap'); }
+          else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) { this._markUntapped(o); this.emit('sfx', 'untap'); } } }
           break;
         /* "Untap up to three lands": no target, just your own, chosen as
            it resolves. */
@@ -11548,7 +11546,7 @@
             if (picked === SUSPEND) return SUSPEND;
             ids = (picked || []).filter(id => pool.some(o => o.id === id)).slice(0, want);
           }
-          for (const id of ids) { const o = this.obj(id); if (o) o.tapped = false; }
+          for (const id of ids) { const o = this.obj(id); if (o) this._markUntapped(o); }
           if (ids.length) { this.emit('sfx', 'untap'); this.logEvent('rules', `${me.name} untaps ${ids.length} ${e.filter || 'permanent'}${ids.length === 1 ? '' : 's'}.`); }
           break;
         }
@@ -11556,7 +11554,7 @@
           /* "Untap all Birds and Frogs you control": a group described the
              way a static ability describes one */
           if (e.scope && typeof e.scope === 'object') {
-            for (const o of this._scopeList(e.scope, ctx.controller, src)) o.tapped = false;
+            for (const o of this._scopeList(e.scope, ctx.controller, src)) this._markUntapped(o);
             this.emit('sfx', 'untap_all');
             break;
           }
@@ -11566,7 +11564,7 @@
             if (e.what === 'creatures' && !(a && a.isCreature)) continue;
             if (e.what === 'lands' && !(a && a.isLand)) continue;
             if (e.what === 'nonland' && a && a.isLand) continue;
-            o.tapped = false;
+            this._markUntapped(o);
           }
           this.emit('sfx', 'untap_all');
           break;
@@ -11886,7 +11884,7 @@
         case 'untapThose': {
           const ids = this._lastGroup || [];
           let n2 = 0;
-          for (const id of ids) { const x = this.obj(id); if (x && x.tapped) { x.tapped = false; n2++; } }
+          for (const id of ids) { const x = this.obj(id); if (x && x.tapped) { this._markUntapped(x); n2++; } }
           if (n2) this.logEvent('rules', `${n2} creature${n2 === 1 ? '' : 's'} untap.`);
           break;
         }
@@ -12083,7 +12081,7 @@
             x.effects.push(Object.assign({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() },
               // Kellogg: "for as long as you control this creature"
               e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {}));
-            if (e.untap) x.tapped = false;
+            if (e.untap) this._markUntapped(x);
             this.logEvent('control', `${me.name} gains control of ${x.name}.`);
           }
           this._refreshControl();
@@ -12388,7 +12386,7 @@
           const ts = this._stampNew();
           const all = this.battlefield.filter(x => !x.phasedOut && (this.characteristics(x) || {}).isCreature);
           for (const x of all) {
-            x.tapped = false;
+            this._markUntapped(x);
             if (x.controller !== ctx.controller) x.effects.push({ control: ctx.controller, until: 'eot', ts });
           }
           this._refreshControl();
@@ -12428,7 +12426,7 @@
             if (t.kind !== 'object') continue;
             const x = this.obj(t.id);
             if (!x) continue;
-            x.tapped = false;
+            this._markUntapped(x);
             x.effects.push({ keywords: ['Haste'], until: 'eot' });
           }
           break;
@@ -13451,7 +13449,7 @@
             if (got === SUSPEND) return SUSPEND;
             x = this.obj(((got && got.picks) || [])[0]) || pool[0];
           }
-          if (x && x.tapped) { x.tapped = false; this.logEvent('rules', `${p.name} untaps ${x.name}.`); }
+          if (x && x.tapped) { this._markUntapped(x); this.logEvent('rules', `${p.name} untaps ${x.name}.`); }
           break;
         }
         // Elesh Norn: out and back, the other face up — a new object
@@ -14120,13 +14118,13 @@
         case 'untapAttacking':
           for (const id of (this.combat.attackers || [])) {
             const o = this.obj(id);
-            if (o && o.controller === ctx.controller) o.tapped = false;
+            if (o && o.controller === ctx.controller) this._markUntapped(o);
           }
           this._lastGroup = (this.combat.attackers || []).slice();
           break;
         case 'untapAttackedThisTurn':
           for (const o of this.battlefield) {
-            if (o.controller === ctx.controller && o.attackedTurn === this.turn) o.tapped = false;
+            if (o.controller === ctx.controller && o.attackedTurn === this.turn) this._markUntapped(o);
           }
           break;
         /* "Look at the top card of your library. If it's a land card, you
@@ -14386,7 +14384,7 @@
           src.tapped = true;
           if (!p2 || p2.life <= life || src._forcedTapped) break;
           if (p2.isBot) {
-            if (p2.life > life * 4) { this.changeLife(p2, -life, 'cost'); src.tapped = false; }
+            if (p2.life > life * 4) { this.changeLife(p2, -life, 'cost'); this._markUntapped(src); }
             break;
           }
           this.queueChoice({
@@ -16899,6 +16897,20 @@
      * land becomes tapped" — City of Brass). Tapping something already
      * tapped is not an event.
      */
+    /**
+     * Untap a permanent, telling anything that watches for it ("whenever this
+     * creature becomes untapped", Mesmeric Orb's "whenever a permanent becomes
+     * untapped"). Untapping something already untapped is not an event.
+     */
+    _markUntapped(o) {
+      if (!o || !o.tapped) return false;
+      o.tapped = false;
+      if (o.zone === 'battlefield') {
+        this._fire('becomesUntapped', o.controller, { source: o, object: o });
+        this._fire('permUntaps', null, { object: o, objController: o.controller, player: o.controller });
+      }
+      return true;
+    }
     _markTapped(o) {
       if (!o || o.tapped) return;
       o.tapped = true;
@@ -17942,7 +17954,7 @@
           const p = this.player(playerId);
           if (!p || p.life <= life) break;
           this.changeLife(p, -life, 'cost');
-          o.tapped = false;
+          this._markUntapped(o);
           this.logEvent('rules', `${p.name} pays ${life} life; ${o.name} enters untapped.`);
           break;
         }
@@ -18507,7 +18519,7 @@
         case 'tap': if (o) { o.tapped = !o.tapped; this.emit('sfx', o.tapped ? 'tap' : 'untap'); this.logEvent('manual', `${p.name} ${o.tapped ? 'taps' : 'untaps'} ${o.name}.`); } break;
         case 'untapAll': {
           let n = 0;
-          for (const x of this.battlefield) if (x.controller === playerId && x.tapped) { x.tapped = false; n++; }
+          for (const x of this.battlefield) if (x.controller === playerId && x.tapped) { this._markUntapped(x); n++; }
           this.emit('sfx', 'untap_all'); this.logEvent('manual', `${p.name} untaps ${n} permanents.`); break;
         }
         case 'move': if (o) { this.moveObject(o, data.zone, { toBottom: data.toBottom }); this.logEvent('manual', `${p.name} moves ${o.name} to ${data.zone}.`); } break;

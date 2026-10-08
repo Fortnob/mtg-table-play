@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13088,
+  "needed": 13087,
   "gainedCards": 1370,
-  "linesNeeded": 14248,
+  "linesNeeded": 14247,
   "linesGained": 1655,
   "gained": {
    "all": 1370,
@@ -52,21 +52,21 @@
   },
   {
    "what": "custom ability",
-   "score": 838,
-   "lines": 730,
+   "score": 834,
+   "lines": 729,
    "cards": [
     "Trouble in Pairs",
     "Midnight Clock",
     "Scrap Trawler",
     "Myr Battlesphere",
     "Caged Sun",
-    "Mesmeric Orb",
     "Kambal, Profiteering Mayor",
     "Coveted Jewel",
     "Hedge Shredder",
     "Carpet of Flowers",
     "Laelia, the Blade Reforged",
-    "All Will Be One"
+    "All Will Be One",
+    "Treasure Nabber"
    ]
   },
   {
@@ -7191,15 +7191,15 @@
   },
   {
    "what": "custom ability",
-   "score": 640,
-   "cards": 556,
+   "score": 636,
+   "cards": 555,
    "names": [
     "Midnight Clock",
     "Scrap Trawler",
     "Myr Battlesphere",
     "Caged Sun",
-    "Mesmeric Orb",
-    "Kambal, Profiteering Mayor"
+    "Kambal, Profiteering Mayor",
+    "Coveted Jewel"
    ]
   },
   {

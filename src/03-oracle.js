@@ -3905,6 +3905,9 @@
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Mesmeric Orb: "that permanent's controller mills a card"
+    { re: /^That permanent'?s controller mills (a|one|two|three|\d+) cards?\.?$/i,
+      make: (m) => ({ op: 'mill', n: num(m[1]), who: 'targetController' }) },
     // Steel Hellkite
     { re: /^Destroy each nonland permanent with mana value X whose controller was dealt combat damage by (?:this creature|CARDNAME) this turn\.?$/i,
       make: () => ({ op: 'destroyHitByMv', mv: 'X' }) },
@@ -6920,6 +6923,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
+    // Mesmeric Orb: "Whenever a permanent becomes untapped"
+    { re: /^Whenever a permanent becomes untapped,? /i, event: 'permUntaps' },
     // Tale of Katara and Toph: "for the first time during each of your turns"
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped for the first time during each of your turns,? /i,
       event: 'becomesTapped', self: true, extra: { yourTurnOnly: true, firstTapEachTurn: true } },

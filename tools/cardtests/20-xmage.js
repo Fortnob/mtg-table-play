@@ -9991,4 +9991,25 @@ module.exports = (test) => {
     t.eq(T2.g.player('A').ringBearer, big.id, 'the Dreadmaw bears it');
     t.eq(T2.zone('A', 'hand').length, h2 + 1, 'Gandalf draws');
   });
+
+  test('Mesmeric Orb: each permanent that untaps, in the untap step or by an effect, mills its controller a card', (mk, t) => {
+    t.auto('Mesmeric Orb');
+    const T = mk();
+    T.bf('A', 'Mesmeric Orb');
+    const f1 = T.bf('B', 'Forest'), f2 = T.bf('B', 'Forest');
+    f1.tapped = true; f2.tapped = true;
+    const gy = T.zone('B', 'graveyard').length;
+    T.nextTurn('B');
+    t.eq(T.zone('B', 'graveyard').length, gy + 2, 'two untapped, two milled');
+    const T2 = mk();
+    T2.bf('A', 'Mesmeric Orb');
+    const elf = T2.bf('A', 'Llanowar Elves'); elf.tapped = true;
+    const g2 = T2.zone('A', 'graveyard').length;
+    T2.g._runEffects([{ op: 'untap', scope: 'lastTarget' }], { controller: 'A', name: 'test', targets: [{ kind: 'object', id: elf.id }] });
+    T2.mana('A', 'G');
+    T2.cast('A', T2.hand('A', 'Ornithopter'));
+    T2.settle(); T2.resolve();
+    t.ok(!elf.tapped, 'untapped by an effect');
+    t.eq(T2.zone('A', 'graveyard').length, g2 + 1, 'and A milled one');
+  });
 };
