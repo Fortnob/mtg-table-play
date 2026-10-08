@@ -508,7 +508,7 @@
           const cost = !o.cost ? '' : (paws
             ? '<span class="paw-cost">' + '<i class="pip pip-paw" title="paw print"></i>'.repeat(o.cost.length / 3) + '</span>'
             : MTG.mana.html(o.cost)) + ' ';
-          list.appendChild(el('button', {
+          const row = el('button', {
             type: 'button', class: 'mode-opt' + (n ? ' on' : '') + (can ? '' : ' off'), 'aria-pressed': n ? 'true' : 'false',
             onclick: () => { if (opts.onPick) opts.onPick(k); },
           }, [
@@ -516,7 +516,10 @@
             el('span', { class: 'mode-text', html: cost + richText(o.label || '') }),
             s.repeat && n ? el('span', { class: 'btn xs mode-less', role: 'button', text: '−', title: 'One fewer',
               onclick: (e) => { e.stopPropagation(); if (opts.onLess) opts.onLess(k); } }) : null,
-          ].filter(Boolean)));
+          ].filter(Boolean));
+          // a card named, a card offered (Demonic Consultation, a spellbook): shown on hover
+          if (o.card) UI.attachPreview(row, o.card, 0);
+          list.appendChild(row);
         });
         if (!searchable) return list;
         const box = el('input', { type: 'search', class: 'mode-search', placeholder: 'Search…', 'aria-label': 'Search the choices' });

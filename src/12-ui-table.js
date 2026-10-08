@@ -28,6 +28,26 @@
 'use strict';
 (function (MTG) {
   const { el, util: U } = MTG;
+  /**
+   * A card's perpetual changes (Alchemy) in words: a short badge and the
+   * full list for the tooltip.
+   * @param {any} p
+   */
+  function perpetualWords(p) {
+    const sign = (n) => (n >= 0 ? '+' + n : String(n));
+    const short = [], long = [];
+    if (p.basePt) { short.push(`${p.basePt[0]}/${p.basePt[1]}`); long.push(`base power and toughness ${p.basePt[0]}/${p.basePt[1]}`); }
+    if (p.pt && (p.pt[0] || p.pt[1])) { short.push(`${sign(p.pt[0])}/${sign(p.pt[1])}`); long.push(`gets ${sign(p.pt[0])}/${sign(p.pt[1])}`); }
+    for (const k of (p.keywords || [])) { short.push(U.titleCase(k)); long.push('has ' + k); }
+    for (const k of (p.lose || [])) long.push('loses ' + k);
+    if (p.costDelta) { short.push(p.costDelta < 0 ? `cost ${p.costDelta}` : `cost +${p.costDelta}`); long.push(p.costDelta < 0 ? `costs {${-p.costDelta}} less` : `costs {${p.costDelta}} more`); }
+    if ((p.types || []).length) long.push('is also ' + p.types.join(' '));
+    if (p.spendAny) long.push('mana of any type can be spent to cast it');
+    for (const t of (p.text || [])) long.push('"' + t + '"');
+    if (!short.length && long.length) short.push('changed');
+    return { short: short.join(' · '), long };
+  }
+
   /** The spell printed on a prepare card, as its own face (or null). */
   const preparedFace = (o) => {
     const c = o && o.card;
@@ -503,11 +523,17 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null)].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null)].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
-      if (hidden || o.zone !== 'battlefield') return;
+      if (hidden) return;
+      // Alchemy: a perpetual change shows wherever the card is, in hand too
+      if (o.perpetual) {
+        const d = perpetualWords(o.perpetual);
+        if (d.short) n.appendChild(el('div', { class: 'cv-mark cv-perpetual', text: '∞ ' + d.short, title: 'Perpetually: ' + d.long.join('; ') }));
+      }
+      if (o.zone !== 'battlefield') return;
       const a = this.analysis(o);
       if (o.power != null && o.toughness != null) {
         const base = a ? [parseInt(a.power, 10), parseInt(a.toughness, 10)] : [NaN, NaN];
@@ -547,7 +573,7 @@
         const c = o.chosen;
         const COLOUR = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
         const bits = [c.name && `Named: ${c.name}`, c.player && `Player: ${c.player}`, c.type && c.type,
-          c.color && (COLOUR[c.color] || c.color), c.number != null && `Number: ${c.number}`].filter(Boolean);
+          c.color && (COLOUR[c.color] || c.color), c.cardType && c.cardType, c.number != null && `Number: ${c.number}`].filter(Boolean);
         if (bits.length) n.appendChild(el('div', { class: 'cv-mark cv-chosen', text: bits.join(' \u00b7 '), title: 'Chosen as it entered: ' + bits.join(', ') }));
       }
       if (o.pairedWith) {
@@ -2097,6 +2123,18 @@
         const x = c.kind === 'object' ? this.objIn(c.id) : null;
         return x && x.controller === o.controller;
       })) return false;
+      // Secret Tunnel: shares a creature type with the one chosen before it
+      if (spec.sharesTypeWithPrev && t.chosen.length) {
+        const prev = t.chosen[t.chosen.length - 1];
+        const p = prev && prev.kind === 'object' ? this.objIn(prev.id) : null;
+        const subs = (x) => { const tl = String((x && x.card && x.card.type_line) || ''); return tl.includes('—') ? tl.split('—')[1].trim().split(/\s+/) : []; };
+        if (p && !subs(o).some(s => subs(p).includes(s))) return false;
+      }
+      // Callidus Assassin: one with the same name as the card aiming
+      if (spec.sameNameAsSource) {
+        const src = t.source ? this.objIn(t.source) : null;
+        if (src && src.card && o.card && src.card.name !== o.card.name) return false;
+      }
       /* Shroud, an opponent's hexproof, protection from what is aiming:
          not lit, since the engine would refuse it (CR 702.11, 702.16, 702.18) */
       if (o.zone === 'battlefield' && !this._canAimAt(o)) return false;
@@ -2500,6 +2538,10 @@
       if ((o.blocking || []).length) out.push(['info', 'Blocking ' + o.blocking.map(id => this.targetName({ kind: 'object', id })).join(', ')]);
       const atts = this.view.battlefield.filter(x => x.attachedTo === o.id);
       if (atts.length) out.push(['', 'With ' + atts.map(x => x.card.name).join(', ')]);
+      if (o.perpetual) {
+        const d = perpetualWords(o.perpetual);
+        if (d.long.length) out.push(['info', 'Perpetually: ' + d.long.join('; ')]);
+      }
       if (o.attachedTo) {
         const onPlayer = this.view.players.some(p => p.id === o.attachedTo);   // a Curse enchants a player
         out.push(['', (onPlayer ? 'Enchanting ' : 'Attached to ') + this.targetName({ kind: onPlayer ? 'player' : 'object', id: o.attachedTo })]);

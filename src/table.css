@@ -263,6 +263,11 @@
 .cv-prepared { position: absolute; left: 50%; top: 4%; translate: -50% 0; z-index: 3; pointer-events: none; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .095)/1.5 var(--font); letter-spacing: .06em; text-transform: uppercase; padding: 0 .6em; border-radius: 99px;
   color: #12202e; background: linear-gradient(180deg, #a7e3ff, #6cc6f0); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+/* Alchemy: perpetual changes, carried from zone to zone */
+.cv-perpetual { position: absolute; left: 50%; bottom: 30%; translate: -50% 0; z-index: 3; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 calc(var(--w, 90px) * .085)/1.5 var(--font); padding: 0 .6em; border-radius: 99px; pointer-events: auto;
+  color: #f3eaff; background: linear-gradient(180deg, #9b6be0, #6a3fb3); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.hslot .cv-perpetual { left: 4%; top: 12%; bottom: auto; translate: none; max-width: 40%; font-size: calc(var(--w, 90px) * .1); }
 .cv-chosen { position: absolute; left: 50%; top: 22%; translate: -50% 0; z-index: 3; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .085)/1.5 var(--font); padding: 0 .6em; border-radius: 99px; pointer-events: auto;
   color: #241a05; background: linear-gradient(180deg, var(--gold-hi), var(--gold-mid)); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
