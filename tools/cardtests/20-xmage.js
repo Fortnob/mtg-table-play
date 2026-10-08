@@ -9964,4 +9964,31 @@ module.exports = (test) => {
     t.eq(b3.zone, 'battlefield', 'the Courser (3) is not');
     t.eq(l.zone, 'battlefield', 'lands are spared');
   });
+
+  test('The Ring tempts you: Call of the Ring draws for 2 life; Gandalf only when another creature bears the Ring', (mk, t) => {
+    t.auto('Call of the Ring');
+    t.auto('Gandalf, Friend of the Shire');
+    const T = mk();
+    T.bf('A', 'Call of the Ring');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const hand = T.zone('A', 'hand').length;
+    T.g._runEffects([{ op: 'ringTempts' }], { controller: 'A', name: 'test' });
+    T.settle(); T.resolve();
+    t.eq(T.g.player('A').ringBearer, bear.id, 'the Bears bear the Ring');
+    t.eq(T.life('A'), 18, '2 life paid');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'a card drawn');
+    const T2 = mk();
+    const gf = T2.bf('A', 'Gandalf, Friend of the Shire');
+    const h2 = T2.zone('A', 'hand').length;
+    T2.g._runEffects([{ op: 'ringTempts' }], { controller: 'A', name: 'test' });
+    T2.settle(); T2.resolve();
+    t.eq(T2.g.player('A').ringBearer, gf.id, 'Gandalf is the only creature, so he bears it');
+    t.eq(T2.zone('A', 'hand').length, h2, 'and draws nothing');
+    const big = T2.bf('A', 'Colossal Dreadmaw');
+    T2.g.player('A').ringBearer = null;
+    T2.g._runEffects([{ op: 'ringTempts' }], { controller: 'A', name: 'test' });
+    T2.settle(); T2.resolve();
+    t.eq(T2.g.player('A').ringBearer, big.id, 'the Dreadmaw bears it');
+    t.eq(T2.zone('A', 'hand').length, h2 + 1, 'Gandalf draws');
+  });
 };

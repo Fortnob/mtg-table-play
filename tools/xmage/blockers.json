@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13094,
-  "gainedCards": 1369,
-  "linesNeeded": 14257,
+  "needed": 13088,
+  "gainedCards": 1370,
+  "linesNeeded": 14248,
   "linesGained": 1655,
   "gained": {
-   "all": 1369,
+   "all": 1370,
    "top2000": 52,
    "stdTop": 10
   },
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 842,
-   "lines": 731,
+   "score": 838,
+   "lines": 730,
    "cards": [
     "Trouble in Pairs",
     "Midnight Clock",
@@ -431,25 +431,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 30,
-   "lines": 30,
-   "cards": [
-    "Invert Polarity",
-    "Nazgûl",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Fallaji Wayfarer",
-    "Aether Spike",
-    "Intellect Devourer",
-    "Swallowed by Leviathan",
-    "The Tabernacle at Pendrell Vale",
-    "Myr Superion",
-    "Hogaak, Arisen Necropolis",
-    "Seven Dwarves"
-   ]
-  },
-  {
    "what": "ChooseACardNameEffect",
    "score": 30,
    "lines": 30,
@@ -523,6 +504,25 @@
     "Gornog, the Red Reaper",
     "Firkraag, Cunning Instigator",
     "Meriadoc Brandybuck"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 28,
+   "lines": 28,
+   "cards": [
+    "Invert Polarity",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Intellect Devourer",
+    "Swallowed by Leviathan",
+    "The Tabernacle at Pendrell Vale",
+    "Myr Superion",
+    "Hogaak, Arisen Necropolis",
+    "Haunt the Network",
+    "Beastie Beatdown"
    ]
   },
   {
@@ -5565,18 +5565,6 @@
    ]
   },
   {
-   "what": "TheRingTemptsYouEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Ringsight",
-    "One Ring to Rule Them All",
-    "Frodo, Adventurous Hobbit",
-    "The Ring Goes South",
-    "Dúnedain Rangers"
-   ]
-  },
-  {
    "what": "GodEternalDiesTriggeredAbility",
    "score": 5,
    "lines": 5,
@@ -6803,6 +6791,17 @@
    ]
   },
   {
+   "what": "TheRingTemptsYouEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Ringsight",
+    "One Ring to Rule Them All",
+    "Frodo, Adventurous Hobbit",
+    "The Ring Goes South"
+   ]
+  },
+  {
    "what": "GainControlAllControlledTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6877,17 +6876,6 @@
     "The Legend of Kyoshi // Avatar Kyoshi",
     "Earthshape",
     "Bumi's Feast Lecture"
-   ]
-  },
-  {
-   "what": "TheRingTemptsYouTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Nazgûl",
-    "Sauron, the Dark Lord",
-    "Sméagol, Helpful Guide",
-    "Ringwraiths"
    ]
   },
   {
@@ -7174,6 +7162,17 @@
     "The Wondrous Wasp",
     "Invasion of Muraganda // Primordial Plasm"
    ]
+  },
+  {
+   "what": "object effect on a player target",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Mirelurk Queen",
+    "The Master, Transcendent",
+    "Nightkin Ambusher",
+    "Decimator Web"
+   ]
   }
  ],
  "sole": [
@@ -7192,8 +7191,8 @@
   },
   {
    "what": "custom ability",
-   "score": 644,
-   "cards": 557,
+   "score": 640,
+   "cards": 556,
    "names": [
     "Midnight Clock",
     "Scrap Trawler",
@@ -7425,19 +7424,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Invert Polarity",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Fallaji Wayfarer",
-    "Aether Spike",
-    "Swallowed by Leviathan"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 24,
    "cards": 24,
@@ -7461,6 +7447,19 @@
     "Feline Sovereign",
     "Tifa, Martial Artist",
     "Orochi Soul-Reaver"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 23,
+   "cards": 23,
+   "names": [
+    "Invert Polarity",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Swallowed by Leviathan"
    ]
   },
   {
@@ -9319,6 +9318,19 @@
    ]
   },
   {
+   "what": "ScryTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Elvish Mariner",
+    "Elrond, Master of Healing",
+    "Galadriel of Lothlórien",
+    "Celeborn the Wise",
+    "Legolas, Counter of Kills",
+    "Elminster"
+   ]
+  },
+  {
    "what": "AttacksWhileSaddledTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -9798,19 +9810,6 @@
     "Najal, the Storm Runner",
     "Howl of the Horde",
     "Tzaangor Shaman"
-   ]
-  },
-  {
-   "what": "ScryTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Celeborn the Wise",
-    "Legolas, Counter of Kills",
-    "Elminster",
-    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {

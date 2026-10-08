@@ -8623,6 +8623,9 @@
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
+        case 'ringBearerNotSelf': { const td = ctx.triggerData || {}; return !!td.bearerId && !!ctx.obj && td.bearerId !== ctx.obj.id; }
+        case 'noRingBearer': { const rb = me && this.obj(me.ringBearer); return !(rb && rb.zone === 'battlefield' && rb.controller === me.id); }
+        case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield');
         case 'castWebSlinging': { const x = ctx.obj; return !!(x && x.webSlung != null && x.webSlung === x.wasCast); }
         case 'anyControlsColor': return this.battlefield.some(o => !o.phasedOut && ((O.analyze(o.card, o.face) || {}).colors || []).includes(cond.color));
         // Veil of Summer: "if an opponent has cast a blue or black spell this turn"
@@ -9906,6 +9909,8 @@
         amount: data.amount,
         // who controlled the permanent it is about (Bereavement: "its controller discards")
         objController: data.objController,
+        // the Ring: who was named Ring-bearer as it tempted
+        bearerId: data.bearerId,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -14559,6 +14564,9 @@
             this.logEvent('rules', `The Ring tempts ${p.name} (level ${p.ringLevel}); no Ring-bearer.`);
           }
           this.bumpBoard();
+          // "Whenever the Ring tempts you", "whenever you choose a creature as your Ring-bearer"
+          this._fire('youRingTempted', p.id, { playerId: p.id, bearerId: p.ringBearer });
+          if (p.ringBearer) this._fire('youChooseRingBearer', p.id, { playerId: p.id, bearerId: p.ringBearer, object: this.obj(p.ringBearer) });
           break;
         }
 

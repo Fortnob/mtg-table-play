@@ -3428,7 +3428,7 @@
     /* A rule about building the deck, not about playing the game — the
        deck builder reads it, the table has nothing to do. */
     { re: /^CARDNAME can be your commander\.?$/i, make: () => ({ op: 'noop' }) },
-    { re: /^A deck can have any number of cards named CARDNAME\.?$/i, make: () => ({ op: 'noop' }) },
+    { re: /^A deck can have (?:any number of|up to (?:seven|nine|\d+)) cards named CARDNAME\.?$/i, make: () => ({ op: 'noop' }) },
     /* The Leylines: free, if you drew one (CR 103.6). */
     { re: /^If (?:CARDNAME|this card) is in your opening hand, you may begin the game with it on the battlefield\.?$/i,
       make: () => ({ op: 'leyline' }) },
@@ -6373,6 +6373,12 @@
     [/^creatures you control have total toughness (\d+) or greater$/i, (m) => ({ kind: 'totalToughness', n: +m[1] })],
     // Knight of Grace: "any player controls a black permanent"
     [/^(?:it|they|he|she|CARDNAME) (?:was|were) cast using web-slinging$/i, () => ({ kind: 'castWebSlinging' })],
+    // Gandalf, Galadriel, Faramir: "if you chose a creature other than CARDNAME as your Ring-bearer"
+    [/^you chose a creature other than (?:CARDNAME|this creature) as your Ring-bearer$/i, () => ({ kind: 'ringBearerNotSelf' })],
+    // Dúnedain Rangers: "if you don't control a Ring-bearer"
+    [/^you don'?t control a Ring-bearer$/i, () => ({ kind: 'noRingBearer' })],
+    // Frodo: "if CARDNAME is your Ring-bearer"
+    [/^(?:CARDNAME|this creature) is your Ring-bearer$/i, () => ({ kind: 'selfRingBearer' })],
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
@@ -6613,6 +6619,9 @@
     { re: /^Whenever a creature attacks enchanted (?:player|opponent),? /i, event: 'permAttacks', extra: { attacksEnchanted: true } },
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
+    // The Lord of the Rings: the Ring tempting you, and the Ring-bearer you name
+    { re: /^Whenever the Ring tempts you,? /i, event: 'youRingTempted' },
+    { re: /^Whenever you choose a creature as your Ring-bearer,? /i, event: 'youChooseRingBearer' },
     // Baral, Lullmage Mentor
     { re: /^Whenever a spell or ability you control counters a spell,? /i, event: 'youCounterSpell' },
     // Aeon Chronicler, Detritivore: "Whenever a time counter is removed from this card while it's exiled"
