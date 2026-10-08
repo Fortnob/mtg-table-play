@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13308,
+  "needed": 13301,
   "gainedCards": 1389,
-  "linesNeeded": 14568,
+  "linesNeeded": 14549,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4864,
-   "lines": 4306,
+   "score": 4863,
+   "lines": 4305,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -2905,40 +2905,6 @@
     "Earthlore",
     "Tourach's Gate",
     "Krovikan Plague"
-   ]
-  },
-  {
-   "what": "BecomeDayAsEntersAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "The Celestus",
-    "Vadrik, Astral Archmage",
-    "Sunstreak Phoenix",
-    "Brimstone Vandal",
-    "Obsessive Astronomer",
-    "Component Collector",
-    "Gavony Dawnguard",
-    "Firmament Sage",
-    "Sunrise Cavalier",
-    "Celestus Sanctifier"
-   ]
-  },
-  {
-   "what": "BecomesDayOrNightTriggeredAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "The Celestus",
-    "Vadrik, Astral Archmage",
-    "Sunstreak Phoenix",
-    "Brimstone Vandal",
-    "Obsessive Astronomer",
-    "Component Collector",
-    "Gavony Dawnguard",
-    "Firmament Sage",
-    "Sunrise Cavalier",
-    "Celestus Sanctifier"
    ]
   },
   {
@@ -7258,13 +7224,35 @@
     "Gurgling Anointer",
     "Arcane Proxy"
    ]
+  },
+  {
+   "what": "SetBasePowerToughnessAttachedEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Wrecking Ball Arm",
+    "Octopus Umbra",
+    "Stasis Field",
+    "Coerced to Kill"
+   ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Toph, Hardheaded Teacher",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Earthshape",
+    "Bumi's Feast Lecture"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3927,
-   "cards": 3534,
+   "score": 3928,
+   "cards": 3535,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",

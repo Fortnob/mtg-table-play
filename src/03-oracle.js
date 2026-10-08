@@ -2776,6 +2776,9 @@
     // Tree of Perdition: "Exchange target opponent's life total with this creature's toughness."
     { re: /^Exchange target opponent'?s life total with (?:this creature|CARDNAME)'?s toughness\.?$/i,
       make: () => ({ op: 'exchangeLifeToughness', targets: [{ type: 'player', opponent: true }] }) },
+    // The Celestus: "If it's night, it becomes day. Otherwise, it becomes night."
+    { re: /^If it'?s night, it becomes day\. Otherwise, it becomes night\.?$/i, make: () => ({ op: 'flipDayNight' }) },
+    { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
     // Angel's Grace: "You can't lose the game this turn and your opponents can't win the game this turn."
     { re: /^You can'?t lose the game this turn and your opponents can'?t win the game this turn\.?$/i, make: () => ({ op: 'cantLoseTurn' }) },
     // Angel's Grace: "Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead."
@@ -6483,6 +6486,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // The Celestus, Sunstreak Phoenix: "Whenever day becomes night or night becomes day"
+    { re: /^Whenever day becomes night or night becomes day,? /i, event: 'becomesDay' },
     // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
     { re: /^Whenever you expend (\d+),? /i, event: 'youExpend', extraOf: (m) => ({ expendN: +m[1] }) },
     // Bone Miser: "Whenever you discard a creature (land) card"
@@ -9569,6 +9574,9 @@
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },
+      // The Celestus, Sunstreak Phoenix: "If it's neither day nor night, it becomes day as this creature enters."
+      { re: /^If it'?s neither day nor night, it becomes day as (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters\.?$/i,
+        eff: { op: 'dayOnEnter' }, auto: true },
       // Teferi, Time Raveler: "Each opponent can cast spells only any time they could cast a sorcery."
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."

@@ -9327,6 +9327,8 @@
             else if (!this.isDay) o.face = 1;
           }
         }
+        // The Celestus: "if it's neither day nor night, it becomes day as this enters"
+        if ((this.isDay === undefined || this.isDay === null) && this._staticOp(o, 'dayOnEnter')) this.setDayNight(true, o.name);
         o.echoDue = true;
         o.renowned = false;
         o.controller = opts.controller || o.controller || o.owner;
@@ -14928,6 +14930,9 @@
         case 'sacSelfThen':
           if (src && src.zone === 'battlefield') { this._sacrificeNow(ctx.controller, [src]); this._spliceNext(e.then || []); }
           break;
+        // The Celestus: night becomes day, and anything else becomes night
+        case 'flipDayNight': this.setDayNight(this.isDay === false, src ? src.name : null); break;
+        case 'setDayNight': this.setDayNight(!!e.day, src ? src.name : null); break;
         // Angel's Grace
         case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
         case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;
