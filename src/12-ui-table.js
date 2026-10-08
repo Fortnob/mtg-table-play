@@ -1021,6 +1021,10 @@
       } else if (done) {
         flags.push(['dungeon', `⛫ ${done} done`, `${done} dungeon${done === 1 ? '' : 's'} completed`]);
       }
+      // Curses: Auras that enchant this player
+      const curses = (v.battlefield || []).filter(o => o.attachedTo === p.id);
+      if (curses.length) flags.push(['bad', `⛧ ${curses.length === 1 ? curses[0].card.name : curses.length + ' curses'}`,
+        'Enchanted by ' + curses.map(o => o.card.name).join(', ')]);
       const cmdDmg = Object.entries(p.commanderDamage || {}).filter(([, n]) => n > 0);
       for (const [cid, n] of cmdDmg) {
         const o = this.objIn(cid);
@@ -2496,7 +2500,10 @@
       if ((o.blocking || []).length) out.push(['info', 'Blocking ' + o.blocking.map(id => this.targetName({ kind: 'object', id })).join(', ')]);
       const atts = this.view.battlefield.filter(x => x.attachedTo === o.id);
       if (atts.length) out.push(['', 'With ' + atts.map(x => x.card.name).join(', ')]);
-      if (o.attachedTo) out.push(['', 'Attached to ' + this.targetName({ kind: 'object', id: o.attachedTo })]);
+      if (o.attachedTo) {
+        const onPlayer = this.view.players.some(p => p.id === o.attachedTo);   // a Curse enchants a player
+        out.push(['', (onPlayer ? 'Enchanting ' : 'Attached to ') + this.targetName({ kind: onPlayer ? 'player' : 'object', id: o.attachedTo })]);
+      }
       if (o.controller !== o.owner) {
         const ow = this.view.players.find(p => p.id === o.owner);
         out.push(['info', `Owned by ${ow ? ow.name : 'someone else'}`]);

@@ -402,7 +402,8 @@ function checkView(view, viewer, game) {
   for (const [oid, seen] of all) if (seen.length > 1) bad('view.sense', `object ${oid}`, `is in two places at once: ${seen.map(s => s.where).join(' and ')}`);
   for (const o of view.battlefield || []) {
     if (o.zone !== 'battlefield') bad('view.sense', `battlefield ${o.id}`, `says its zone is ${show(o.zone)}`);
-    if (o.attachedTo && !(view.battlefield || []).some(x => x.id === o.attachedTo)) bad('view.sense', `battlefield ${o.id}.attachedTo`, `${o.attachedTo} is not on the battlefield`);
+    // a Curse enchants a player
+    if (o.attachedTo && !(view.battlefield || []).some(x => x.id === o.attachedTo) && !(view.players || []).some(p => p.id === o.attachedTo)) bad('view.sense', `battlefield ${o.id}.attachedTo`, `${o.attachedTo} is not on the battlefield`);
     if (o.controller && !pids.has(o.controller)) bad('view.sense', `battlefield ${o.id}.controller`, `${show(o.controller)} is nobody at the table`);
   }
   for (const p of view.players) {
