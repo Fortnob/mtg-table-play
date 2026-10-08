@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12584,
+  "needed": 12559,
   "gainedCards": 1353,
-  "linesNeeded": 13751,
+  "linesNeeded": 13722,
   "linesGained": 1619,
   "gained": {
    "all": 1353,
@@ -89,28 +89,9 @@
    ]
   },
   {
-   "what": "(cast modifier line)",
-   "score": 255,
-   "lines": 249,
-   "cards": [
-    "Plumb the Forbidden",
-    "Emrakul, the Promised End",
-    "Hagra Mauling // Hagra Broodpit",
-    "Not of This World",
-    "Kogla and Yidaro",
-    "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass",
-    "Wash Away",
-    "Rottenmouth Viper",
-    "Spirit Water Revival",
-    "Hour of Revelation",
-    "Scion of Draco"
-   ]
-  },
-  {
    "what": "(line not matched to XMage code)",
-   "score": 242,
-   "lines": 212,
+   "score": 237,
+   "lines": 207,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -124,6 +105,25 @@
     "Fangs of Kalonia",
     "Spectacular Showdown",
     "Boseiju, Who Shelters All"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 233,
+   "lines": 227,
+   "cards": [
+    "Plumb the Forbidden",
+    "Emrakul, the Promised End",
+    "Hagra Mauling // Hagra Broodpit",
+    "Not of This World",
+    "Kogla and Yidaro",
+    "Chandra's Incinerator",
+    "Bloodsoaked Insight // Sanguine Morass",
+    "Wash Away",
+    "Rottenmouth Viper",
+    "Spirit Water Revival",
+    "Hour of Revelation",
+    "Scion of Draco"
    ]
   },
   {
@@ -7081,8 +7081,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3707,
-   "cards": 3455,
+   "score": 3708,
+   "cards": 3456,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7107,8 +7107,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 189,
-   "cards": 186,
+   "score": 171,
+   "cards": 168,
    "names": [
     "Plumb the Forbidden",
     "Hagra Mauling // Hagra Broodpit",
@@ -7133,8 +7133,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 148,
-   "cards": 136,
+   "score": 144,
+   "cards": 132,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",

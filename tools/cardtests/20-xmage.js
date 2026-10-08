@@ -11208,4 +11208,36 @@ module.exports = (test) => {
     T2.settle();
     t.no(offered, 'not the first card this turn'); t.eq(t2.zone, 'hand');
   });
+
+  test('Surge: the other cost after another spell, and "if its surge cost was paid"', (mk, t) => {
+    t.auto('Reckless Bushwhacker'); t.auto('Boulder Salvo');
+    const T = mk();
+    const rb = T.hand('A', 'Reckless Bushwhacker');
+    t.no(T.g.altUsesFor('A', rb.id).some(u => u.via === 'surge'), 'no surge before another spell');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.settle(); T.resolve();
+    t.ok(T.g.altUsesFor('A', rb.id).some(u => u.via === 'surge'), 'surge offered');
+    T.mana('A', '1R');
+    t.ok(T.g.castSpell('A', rb.id, { via: 'surge' }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.g.powerOf(bear), 3, '+1/+0 for the surge'); t.ok(T.g.hasKw(bear, 'haste'));
+  });
+
+  test('Awaken: the spell, then a land of yours wakes up', (mk, t) => {
+    t.auto('Coastal Discovery');
+    const T = mk();
+    const land = T.bf('A', 'Island');
+    const cd = T.hand('A', 'Coastal Discovery');
+    const use = T.g.altUsesFor('A', cd.id).find(u => u.via === 'awaken');
+    t.ok(use, 'awaken offered'); t.eq(use.cost, '{5}{U}');
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: land.id }] }));
+    const hand = T.g.zones.A.hand.length;
+    T.mana('A', '5U');
+    t.ok(T.g.castSpell('A', cd.id, { via: 'awaken' }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(T.g.zones.A.hand.length, hand - 1 + 2, 'drew two');
+    t.ok(T.g.characteristics(land).isCreature, 'the Island is a creature'); t.eq(T.g.powerOf(land), 4); t.ok(T.g.hasKw(land, 'haste'));
+  });
 };

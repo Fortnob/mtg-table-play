@@ -3566,6 +3566,15 @@
           }
           out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
         }
+        /* Awaken N—{cost} (CR 702.113): cast for that cost, and the spell
+           also puts N +1/+1 counters on a land you control, which becomes a
+           0/0 Elemental creature with haste (the land is chosen as it resolves) */
+        const awk = o.zone === 'hand' && k === 'awaken' && String(arg).match(/^(\d+)\s*[\u2014-]\s*((?:\{[^}]+\})+)/);
+        if (awk) out.push({ kind: 'cast', via: 'awaken', cost: awk[2], awaken: +awk[1], label: 'Awaken ' + arg });
+        // Surge: the other cost, once you have cast another spell this turn (CR 702.117)
+        if (o.zone === 'hand' && arg && k === 'surge' && ((this.player(playerId) || {}).spellsCastThisTurn || 0) >= 1) {
+          out.push({ kind: 'cast', via: 'surge', cost: arg, label: 'Surge ' + arg });
+        }
         // Spectacle: the other cost, once an opponent has lost life this turn (CR 702.137)
         if (o.zone === 'hand' && arg && k === 'spectacle' && this.opponentsOf(playerId).some(q => (q.lifeLostThisTurn || 0) > 0)) {
           out.push({ kind: 'cast', via: 'spectacle', cost: arg, label: 'Spectacle ' + arg });
@@ -4524,6 +4533,7 @@
          about where it goes afterwards. */
       let via = null;
       o._webSlinging = false;
+      o._surged = false;
       if (opts.via) {
         via = this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via);
         if (via && (via.via === 'evoke' || via.via === 'dash')) o._via = via.via;
@@ -4534,6 +4544,8 @@
         // remembered until it has entered: time counters, or the smaller body
         if (via && via.via === 'impending') o._impendingN = (a.impending || {}).n || 0;
         if (via && via.via === 'prototype') o.prototyped = true;
+        // Surge: "if its surge cost was paid"
+        if (via && via.via === 'surge') o._surged = true;
         if (!via) return this.fail('That card cannot be cast that way from here.');
         if (opts.costOverride == null) cost = via.cost;
         /* Harmonize: tap a creature you control to take its power off the
@@ -4787,7 +4799,10 @@
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
         controller: playerId, name: o.name, cost,
         targets: (opts.targets || []).map(normTarget), x: opts.x || 0,
-        effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects : this._cardSpellEffects(a)) : null,
+        effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects : this._cardSpellEffects(a))
+          // Awaken: the land's part comes after the spell's own words
+          .concat(via && via.awaken ? [{ op: 'awakenLand', n: via.awaken, askTargets: true,
+            targets: [{ type: 'land', filter: 'land you control', zone: 'battlefield', controller: 'you' }] }] : []) : null,
         auto: a ? a.autoCoverage >= 0.999 : false,
         fromZone,
         kicked: chose.kicked, boughtBack: chose.boughtBack, entwined: chose.entwined,
@@ -8831,6 +8846,7 @@
           return cond.cmp === 'atMost' ? times <= (cond.n || 0) : times >= (cond.n == null ? 1 : cond.n);
         }
         case 'boughtBack': return !!(ctx && ctx.boughtBack);
+        case 'surgePaid': return !!(ctx && ((ctx.obj && ctx.obj._surged) || ctx.via === 'surge'));
         case 'altPaid': return !!(ctx && /^alt/.test(String(ctx.via || '')));
         case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
@@ -14175,6 +14191,17 @@
             seen.add(key);
             this.moveObject(x, 'battlefield', { controller: ctx.controller });
           }
+          break;
+        }
+        // Awaken: counters on the land, and it is a 0/0 Elemental creature with haste
+        case 'awakenLand': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          x.effects.push({ addTypes: ['Creature'], setCreatureTypes: ['Elemental'], setPt: { p: 0, t: 0 }, keywords: ['Haste'], until: null });
+          x._chr = null;
+          this.addCounters(x, '+1/+1', n(e.n) || 0);
+          this.logEvent('rules', `${x.name} awakens.`);
+          this.bumpBoard();
           break;
         }
         // Tempting offer: each opponent may; you do it again for each who does

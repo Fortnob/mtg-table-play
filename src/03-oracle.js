@@ -99,6 +99,10 @@
     'Evoke', 'Dash',
     // for less, once an opponent has lost life this turn
     'Spectacle',
+    // for less, once you have cast another spell this turn
+    'Surge',
+    // cast for more, and a land of yours wakes up as a creature
+    'Awaken',
     // face down for three, and up again for the printed cost
     'Morph', 'Megamorph', 'Disguise',
     // discarded, and cast from there instead
@@ -6960,6 +6964,8 @@
     // Battle Angels of Tyr: "that player has more cards in hand / controls more lands / has more life than each other player"
     [/^that player (has more cards in hand|controls more lands|has more life) than each other player$/i,
       (m) => ({ kind: 'triggerPlayerMost', stat: /hand/i.test(m[1]) ? 'hand' : /lands/i.test(m[1]) ? 'lands' : 'life' })],
+    // Crush of Tentacles, Reckless Bushwhacker: "if this spell's surge cost was paid", "if its surge cost was paid"
+    [/^(?:this spell'?s|its) surge cost was paid$/i, () => ({ kind: 'surgePaid' })],
     // Kazuul, Tyrant of the Cliffs: "if you're the defending player" — the attacker the trigger is about attacks you
     [/^you'?re the defending player$/i, () => ({ kind: 'youDefend' })],
     // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
