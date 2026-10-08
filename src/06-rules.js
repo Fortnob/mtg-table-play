@@ -13808,6 +13808,51 @@
             : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
             : (firstPlayer() || onStack() || triggerPlayer() || this.opponentsOf(ctx.controller)[0]);
           if (!payer) { this._spliceNext(e.then); break; }
+          /* Mogis: "…unless they sacrifice a creature of their choice" (Torment
+             of Scarabs: "…or discards a card") — a permanent (or a card)
+             picked is the price paid; none picked, and it happens */
+          /* Nicol Bolas, the Deceiver: "Each opponent loses 3 life unless that
+             player sacrifices …" — each opponent answers for themselves; every
+             answer is taken before anything happens */
+          const thenEach = (e.then || []).length === 1 && e.then[0] && e.then[0].who === 'opponents';
+          if (e.cost && e.cost.sacrifice && thenEach) {
+            const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+            const pay = [], hit = [];
+            for (const q of opps) {
+              const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === q.id && this._cardFitsWords(x, e.cost.sacrifice));
+              const hand = e.cost.orDiscard ? this.zones[q.id].hand.slice() : [];
+              if (!perms.length && !hand.length) { hit.push(q); continue; }
+              const got = this._choose({ playerId: q.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
+                items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
+                prompt: `Sacrifice a ${e.cost.sacrifice}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac:' + q.id);
+              if (got === SUSPEND) return SUSPEND;
+              const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+              if (x) pay.push({ q, x, perm: perms.includes(x) }); else hit.push(q);
+            }
+            for (const { q, x, perm } of pay) {
+              if (perm && x.zone === 'battlefield' && x.controller === q.id) this._sacrificeNow(q.id, [x], null);
+              else if (!perm && x.zone === 'hand' && x.owner === q.id) this._discardNow(q.id, [x]);
+              else hit.push(q);
+            }
+            const list = [];
+            for (const q of hit) list.push(Object.assign(JSON.parse(JSON.stringify(e.then[0])), { who: 'you', _as: q.id }));
+            this._spliceNext(list);
+            break;
+          }
+          if (e.cost && e.cost.sacrifice) {
+            const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, e.cost.sacrifice));
+            const hand = e.cost.orDiscard ? this.zones[payer.id].hand.slice() : [];
+            if (!perms.length && !hand.length) { this._spliceNext(e.then); break; }
+            const got = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
+              prompt: e.prompt || `Sacrifice a ${e.cost.sacrifice}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac');
+            if (got === SUSPEND) return SUSPEND;
+            const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+            if (x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x)) this._sacrificeNow(payer.id, [x], null);
+            else if (x && x.zone === 'hand' && x.owner === payer.id && e.cost.orDiscard) this._discardNow(payer.id, [x]);
+            else this._spliceNext(e.then);
+            break;
+          }
           /* Painful Quandary: "…unless they discard a card" — a card picked
              is the price paid; none picked, and it happens */
           if (e.cost && e.cost.discard) {

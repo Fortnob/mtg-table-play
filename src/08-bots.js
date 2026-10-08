@@ -1477,6 +1477,13 @@
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Mogis and kin: pay with the least of it once life is getting short */
+    unlessSacrifice(s) {
+      if (this.me.life > 10 || !(s.items || []).length) return { picks: [] };
+      const g = this.game;
+      const worth = (x) => { const o = g.obj(x.id); return o && o.zone === 'battlefield' ? this.permanentValue(o) : 1; };
+      return { picks: [(s.items || []).slice().sort((x, y) => worth(x) - worth(y))[0].id] };
+    },
     /* Liliana of the Dark Realms: shrink theirs, grow ours */
     pumpEitherWay(s) {
       const g = this.game, c = g && g.resolving && g.resolving.ctx;

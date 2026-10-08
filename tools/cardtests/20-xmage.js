@@ -11503,4 +11503,24 @@ module.exports = (test) => {
     T3.bf('A', 'Rooftop Storm');
     t.eq(T3.g.canCast('A', T3.hand('A', 'Gravecrawler').id).cost, '', 'Zombies for nothing');
   });
+
+  test('Unless they sacrifice: Mogis, Nicol Bolas the Deceiver (each opponent decides)', (mk, t) => {
+    t.auto('Mogis, God of Slaughter'); t.auto('Nicol Bolas, the Deceiver');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const nb = T.bf('A', 'Nicol Bolas, the Deceiver');
+    const bb = T.bf('B', 'Grizzly Bears');
+    T.bf('C', 'Llanowar Elves');
+    T.answer('choose', (ch) => ({ picks: ch.playerId === 'B' ? [bb.id] : [] }));
+    T.answer('choose', (ch) => ({ picks: ch.playerId === 'B' ? [bb.id] : [] }));
+    T.g._runEffects(nb.analysis().abilities.filter(a => a.kind === 'loyalty')[0].effects, { controller: 'A', obj: nb, name: 'Bolas', kind: 'ability' });
+    T.settle();
+    t.eq(bb.zone, 'graveyard', 'B sacrificed'); t.eq(T.life('B'), 20); t.eq(T.life('C'), 17, 'C declined and lost 3');
+    const T2 = mk();
+    const mo = T2.bf('A', 'Mogis, God of Slaughter');
+    T2.answer('choose', { picks: [] });
+    T2.bf('B', 'Grizzly Bears');
+    T2.g._runEffects(mo.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: mo, name: 'Mogis', kind: 'ability', triggerData: { player: 'B', playerId: 'B' } });
+    T2.settle();
+    t.eq(T2.life('B'), 18, 'two damage');
+  });
 };

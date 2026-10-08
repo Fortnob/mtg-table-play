@@ -6518,10 +6518,15 @@
       // "... unless <someone> pays <cost>."
       const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
         // Painful Quandary: "…unless they discard a card"
-        s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i);
+        s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i) ||
+        /* Mogis, Torment of Scarabs, Nicol Bolas: "…unless they sacrifice a
+           creature of their choice", "…unless that player sacrifices a nonland
+           permanent of their choice or discards a card" */
+        s.match(/^(.+?) unless (that player|they|target player|its controller) (sacrifices? an? ((?:non)?[a-z]+(?: (?:creature|permanent|artifact))?)(?: of their choice)?( or discards? a card)?)\.?$/i);
       if (unless) {
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
-        const cost = /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
+        const cost = /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
+          : /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         effects.push({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
             // Kazuul: "unless that creature's controller pays {3}" — the attacker's
             : /^that creature'?s controller$/i.test(unless[2]) ? 'triggerObjController'

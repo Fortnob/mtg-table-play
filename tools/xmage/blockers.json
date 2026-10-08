@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12462,
+  "needed": 12454,
   "gainedCards": 1349,
-  "linesNeeded": 13603,
+  "linesNeeded": 13594,
   "linesGained": 1612,
   "gained": {
    "all": 1349,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4522,
-   "lines": 4147,
+   "score": 4519,
+   "lines": 4144,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -1247,24 +1247,6 @@
     "Widow's Bite",
     "Atlantis Attacks",
     "Helicarrier Strike"
-   ]
-  },
-  {
-   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Tergrid, God of Fright // Tergrid's Lantern",
-    "Mogis, God of Slaughter",
-    "Rakdos, Patron of Chaos",
-    "Demanding Dragon",
-    "Starseer Mentor",
-    "Thornplate Intimidator",
-    "Tomb Blade",
-    "Carrionette",
-    "Rhystic Lightning",
-    "Rhystic Syphon",
-    "Flay"
    ]
   },
   {
@@ -4018,20 +4000,6 @@
    ]
   },
   {
-   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Curse of Unbinding",
-    "Torment of Scarabs",
-    "Cruel Reality",
-    "Curse of Surveillance",
-    "Curse of Thirst",
-    "Curse of the Pierced Heart",
-    "Curse of Oblivion"
-   ]
-  },
-  {
    "what": "AllyEntersBattlefieldTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -4257,6 +4225,19 @@
     "Day of the Dragons",
     "Yukora, the Prisoner",
     "Death Pit Offering"
+   ]
+  },
+  {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Rakdos, Patron of Chaos",
+    "Tomb Blade",
+    "Carrionette",
+    "Rhystic Lightning",
+    "Rhystic Syphon",
+    "Flay"
    ]
   },
   {
@@ -4656,6 +4637,19 @@
     "Dark Apostle",
     "Sloppity Bilepiper",
     "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Curse of Unbinding",
+    "Cruel Reality",
+    "Curse of Surveillance",
+    "Curse of Thirst",
+    "Curse of the Pierced Heart",
+    "Curse of Oblivion"
    ]
   },
   {
@@ -7061,8 +7055,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3686,
-   "cards": 3446,
+   "score": 3683,
+   "cards": 3443,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7074,15 +7068,15 @@
   },
   {
    "what": "custom ability",
-   "score": 582,
-   "cards": 540,
+   "score": 586,
+   "cards": 541,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
     "Treasure Nabber",
-    "The Skullspore Nexus",
-    "Grenzo, Havoc Raiser"
+    "Tergrid, God of Fright // Tergrid's Lantern",
+    "The Skullspore Nexus"
    ]
   },
   {
@@ -8023,19 +8017,6 @@
     "Delivery Moogle",
     "Collected Company",
     "Gandalf, Westward Voyager"
-   ]
-  },
-  {
-   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Mogis, God of Slaughter",
-    "Rakdos, Patron of Chaos",
-    "Demanding Dragon",
-    "Starseer Mentor",
-    "Thornplate Intimidator",
-    "Tomb Blade"
    ]
   },
   {
@@ -9083,19 +9064,6 @@
    ]
   },
   {
-   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Curse of Unbinding",
-    "Torment of Scarabs",
-    "Cruel Reality",
-    "Curse of Surveillance",
-    "Curse of Thirst",
-    "Curse of the Pierced Heart"
-   ]
-  },
-  {
    "what": "AllyEntersBattlefieldTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -9376,6 +9344,19 @@
    ]
   },
   {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rakdos, Patron of Chaos",
+    "Tomb Blade",
+    "Carrionette",
+    "Rhystic Lightning",
+    "Rhystic Syphon",
+    "Flay"
+   ]
+  },
+  {
    "what": "(verify) optional where the card is not",
    "score": 6,
    "cards": 6,
@@ -9594,6 +9575,19 @@
     "Dark Apostle",
     "Sloppity Bilepiper",
     "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Curse of Unbinding",
+    "Cruel Reality",
+    "Curse of Surveillance",
+    "Curse of Thirst",
+    "Curse of the Pierced Heart",
+    "Curse of Oblivion"
    ]
   },
   {
