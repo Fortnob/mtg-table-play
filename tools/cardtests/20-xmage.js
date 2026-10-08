@@ -8781,4 +8781,54 @@ module.exports = (test) => {
     t.eq(T.life('B'), 20);
     t.ok(T.g.turn > turn, 'the turn is over');
   });
+
+  test('Fact or Fiction: an opponent splits the five, you take a pile and the other goes to the graveyard', (mk, t) => {
+    t.auto('Fact or Fiction');
+    t.auto('Steam Augury');
+    const T = mk();
+    const top = ['Lightning Bolt', 'Grizzly Bears', 'Shock', 'Forest', 'Island'].reverse().map(nm => T.top('A', nm));
+    let split = null, choice = null;
+    T.answer('choose', (ch) => { split = ch; return { picks: [top.find(o => o.name === 'Lightning Bolt').id] }; });
+    T.answer('choose', (ch) => { choice = ch; return { picks: [1] }; });
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Fact or Fiction'));
+    t.eq(split && split.playerId, 'B', 'the opponent separates them');
+    t.eq(split && split.purpose, 'pileSplit');
+    t.eq(choice && choice.playerId, 'A', 'and A chooses');
+    const bolt = top.find(o => o.name === 'Lightning Bolt');
+    t.eq(bolt.zone, 'graveyard', 'the Bolt pile was not taken');
+    t.eq(top.filter(o => o.zone === 'hand').length, 4, 'the other four were');
+  });
+
+  test('Bots split piles the way people do: the best card alone', (mk, t) => {
+    const T = mk();
+    const top = ['Lightning Bolt', 'Forest', 'Island'].reverse().map(nm => T.top('A', nm));
+    T.mana('A', 'U3');
+    T.g.player('B').isBot = true;
+    const prev = T.g.player('A').isBot;
+    T.g.player('A').isBot = true;
+    T.cast('A', T.hand('A', 'Fact or Fiction'));
+    T.g.player('A').isBot = prev;
+    t.eq(top.filter(o => o.zone === 'hand').length + top.filter(o => o.zone === 'graveyard').length, 3, 'every card went somewhere');
+  });
+
+  test('Liliana of the Veil -6: you split their permanents, they sacrifice the pile they choose', (mk, t) => {
+    t.auto('Liliana of the Veil');
+    t.auto('Do or Die');
+    const T = mk();
+    const lili = T.bf('A', 'Liliana of the Veil');
+    lili.counters.loyalty = 6;
+    const bear = T.bf('B', 'Grizzly Bears');
+    const land = T.bf('B', 'Forest');
+    const elf = T.bf('B', 'Llanowar Elves');
+    let asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [land.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [1] }; });
+    T.activate('A', lili, 2, { targets: ['B'] });
+    t.eq(asked[0] && asked[0].playerId, 'A', 'A separates');
+    t.eq(asked[1] && asked[1].playerId, 'B', 'B chooses');
+    t.eq(land.zone, 'battlefield', 'the Forest pile stays');
+    t.eq(bear.zone, 'graveyard');
+    t.eq(elf.zone, 'graveyard');
+  });
 };

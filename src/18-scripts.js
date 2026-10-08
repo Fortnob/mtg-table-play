@@ -180,16 +180,6 @@
       keepKeywords: true,
     },
     /* --- text that talks about a pile, a choice or a name --- */
-    "fact or fiction": {
-      abilities: [{
-        kind: 'spell', auto: true,
-        text: 'Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the rest into your graveyard.',
-        effects: [
-          { op: 'lookAt', n: 5 },
-          { op: 'takeFromLooked', n: 5, to: 'hand', rest: 'graveyard', prompt: 'Choose the pile to keep.' },
-        ],
-      }],
-    },
     "birthing pod": {
       abilities: [{
         kind: 'activated', auto: true,

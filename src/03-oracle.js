@@ -4708,6 +4708,33 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Liliana of the Veil: "Separate all permanents target player controls
+       into two piles. That player sacrifices all permanents in the pile of
+       their choice." Do or Die: "…creatures… Destroy all creatures in the
+       pile of that player's choice. They can't be regenerated." */
+    { re: /^Separate all (permanents|creatures) target player controls into two piles\. (?:That player sacrifices all (?:permanents|creatures) in the pile of their choice|Destroy all (?:permanents|creatures) in the pile of that player'?s choice(\. They can'?t be regenerated)?)\.$/i,
+      make: (m) => [{ op: 'permPiles', filter: /creature/i.test(m[1]) ? 'creature' : 'permanent',
+        then: /sacrifices/i.test(m[0]) ? 'sacrifice' : 'destroy', noRegen: !!m[2], targets: [{ type: 'player' }] }] },
+    /* Fact or Fiction: "Reveal the top five cards of your library. An
+       opponent separates those cards into two piles. Put one pile into your
+       hand and the other into your graveyard." Steam Augury the other way
+       round: "…and separate them into two piles. An opponent chooses one of
+       those piles. Put that pile into your hand and the other into your
+       graveyard." */
+    { re: /^Reveal the top (\w+|X|X plus one) cards of your library(?:\. An opponent separates those cards into two piles\. Put one pile| and separate them into two piles\. An opponent chooses one of those piles\. Put that pile) into your hand and the other (into your graveyard|on the bottom of your library in any order)\.(?:\s+(.+))?$/i,
+      make: (m) => {
+        const k = /^X plus one$/i.test(m[1]) ? { plus: 1, of: 'X' } : /^X$/i.test(m[1]) ? 'X' : num(m[1]);
+        if (k == null || (typeof k !== 'number' && typeof k !== 'object' && k !== 'X')) return null;
+        const theySplit = /An opponent separates/i.test(m[0]);
+        const out = [{ op: 'piles', n: k, separator: theySplit ? 'opponent' : 'you', chooser: theySplit ? 'you' : 'opponent',
+          other: /bottom/i.test(m[2]) ? 'bottom' : 'graveyard' }];
+        if (m[3]) {
+          const rest = parseEffects(m[3]);
+          if (!rest.auto) return null;
+          out.push(...rest.effects);
+        }
+        return out;
+      } },
     /* Goblin Dark-Dwellers, Memory Plunder: "you may cast target instant or
        sorcery card with mana value 3 or less from your graveyard without
        paying its mana cost. If that spell would be put into your graveyard,

@@ -14356,6 +14356,80 @@
           else { this._removeFromZone(dup); dup.zone = null; }
           break;
         }
+        /* Fact or Fiction: the top cards revealed, one player splits them
+           into two piles, the other picks a pile; that one goes to hand and
+           the rest to the graveyard (or the bottom of the library) */
+        case 'piles': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'piles' + (r ? r.index : 0);
+          const lib = this.zones[ctx.controller].library;
+          let ids = r && r.marks[slot];
+          if (!ids) {
+            const k = e.n && typeof e.n === 'object' && e.n.of === 'X' ? (n('X') || 0) + (e.n.plus || 0) : n(e.n);
+            ids = lib.slice(0, Math.max(0, k || 0)).map(o => o.id);
+            if (r) r.marks[slot] = ids;
+            if (ids.length) this.logEvent('reveal', `${me.name} reveals ${ids.map(id => this.obj(id).name).join(', ')}.`);
+          }
+          const cards = ids.map(id => this.obj(id)).filter(c => c && c.zone === 'library');
+          if (!cards.length) break;
+          const opp = this.opponentsOf(ctx.controller).find(p => !p.hasLost) || me;
+          const sep = e.separator === 'opponent' ? opp.id : ctx.controller;
+          const chooser = e.chooser === 'opponent' ? opp.id : ctx.controller;
+          const split = cards.length < 2 ? { picks: cards.map(c => c.id) } : this._choose({ playerId: sep, purpose: 'pileSplit', kind: 'objects',
+            zone: 'library', panel: true, reveal: true, items: this._chooseItems(cards), min: 0, max: cards.length, optional: true,
+            forPlayer: ctx.controller, confirmLabel: 'These are one pile',
+            prompt: `Separate ${me.name}'s revealed cards into two piles: pick the cards for the first pile, and the rest are the second.` }, 'pileSplit');
+          if (split === SUSPEND) return SUSPEND;
+          const one = cards.filter(c => split && (split.picks || []).includes(c.id));
+          const two = cards.filter(c => !one.includes(c));
+          const words = (l) => (l.length ? l.map(c => c.name).join(', ') : 'nothing');
+          const pick = this._choose({ playerId: chooser, purpose: 'pileChoice', kind: 'options', min: 1, max: 1, compact: true,
+            forPlayer: ctx.controller,
+            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(c => c.id) }, { label: `Pile 2: ${words(two)}`, ids: two.map(c => c.id) }],
+            prompt: `Which pile goes into ${me.name}'s hand?` }, 'pileChoice');
+          if (pick === SUSPEND) return SUSPEND;
+          const chosen = pick && pick.picks && pick.picks[0] === 1 ? two : one;
+          const other = chosen === one ? two : one;
+          for (const c of chosen) this.moveObject(c, 'hand');
+          const rest = other.slice();
+          for (const c of rest) this.moveObject(c, e.other === 'bottom' ? 'library' : 'graveyard', e.other === 'bottom' ? { toBottom: true } : {});
+          this.logEvent('rules', `${me.name} puts ${words(chosen)} into their hand${rest.length ? ` and ${words(rest)} ${e.other === 'bottom' ? 'on the bottom of their library' : 'into their graveyard'}` : ''}.`);
+          break;
+        }
+        /* Liliana of the Veil, Do or Die: you split what the player
+           controls into two piles, and they choose the pile that goes */
+        case 'permPiles': {
+          const tp = firstPlayer() || me;
+          const pool = this.battlefield.filter(o => o.controller === tp.id && !o.phasedOut &&
+            (e.filter === 'permanent' || (this.characteristics(o) || {}).isCreature));
+          if (!pool.length) break;
+          const split = pool.length < 2 ? { picks: pool.map(o => o.id) } : this._choose({ playerId: ctx.controller, purpose: 'pileSplit', kind: 'objects',
+            zone: 'battlefield', panel: true, items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            forPlayer: tp.id, harmful: true, confirmLabel: 'These are one pile',
+            prompt: `Separate ${tp.name}'s ${e.filter}s into two piles: pick the ones for the first pile, and the rest are the second.` }, 'ppSplit');
+          if (split === SUSPEND) return SUSPEND;
+          const one = pool.filter(o => split && (split.picks || []).includes(o.id));
+          const two = pool.filter(o => !one.includes(o));
+          const words = (l) => (l.length ? l.map(o => o.name).join(', ') : 'nothing');
+          const pick = this._choose({ playerId: tp.id, purpose: 'pileChoice', kind: 'options', min: 1, max: 1, compact: true,
+            forPlayer: tp.id, harmful: true,
+            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(o => o.id) }, { label: `Pile 2: ${words(two)}`, ids: two.map(o => o.id) }],
+            prompt: e.then === 'sacrifice' ? 'Which pile do you sacrifice?' : 'Which pile is destroyed?' }, 'ppChoice');
+          if (pick === SUSPEND) return SUSPEND;
+          const chosen = (pick && pick.picks && pick.picks[0] === 1 ? two : one).filter(o => o.zone === 'battlefield');
+          if (e.then === 'sacrifice') { this._sacrificeNow(tp.id, chosen); break; }
+          this._leavingTogether = chosen;
+          for (const x of chosen) {
+            if (x.zone !== 'battlefield' || this.hasKw(x, 'indestructible')) continue;
+            if (this._totemArmor(x)) continue;
+            if (!e.noRegen && this._regenerated(x)) continue;
+            this.moveObject(x, 'graveyard');
+          }
+          this._leavingTogether = null;
+          this.logEvent('destroy', `${words(chosen)} ${chosen.length === 1 ? 'is' : 'are'} destroyed.`);
+          break;
+        }
         // "End the turn." — once this has finished resolving
         case 'endTheTurn':
           this._endTheTurn = this.turn;

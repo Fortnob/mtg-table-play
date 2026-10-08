@@ -1463,6 +1463,30 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Fact or Fiction, splitting an opponent's cards: the best one alone
+       against the rest; splitting our own: as evenly as value allows */
+    pileSplit(s) {
+      const g = this.game;
+      const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean)
+        .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : rateCard(o.card, { prior: 0 }) })).sort((a, b) => b.v - a.v);
+      if (!cards.length) return null;
+      if (s.forPlayer !== this.pid && !s.harmful) return { picks: [cards[0].o.id] };
+      const one = [], two = [];
+      let a = 0, b = 0;
+      for (const x of cards) { if (a <= b) { one.push(x.o.id); a += x.v; } else { two.push(x.o.id); b += x.v; } }
+      return { picks: one };
+    },
+    /* …and choosing a pile: the one worth more, to us or to them */
+    pileChoice(s) {
+      const g = this.game;
+      const worth = (opt) => ((opt && opt.ids) || []).map(id => g.obj(id)).filter(Boolean)
+        .reduce((t, o) => t + Math.max(0.5, o.zone === 'battlefield' ? this.permanentValue(o) : rateCard(o.card, { prior: 0 })), 0);
+      const v = (s.options || []).map(worth);
+      if (v.length < 2) return null;
+      // the pile worth more, unless it is the pile that goes (Liliana's piles)
+      const more = (s.forPlayer === this.pid) !== !!s.harmful;
+      return { picks: [(v[1] > v[0]) === more ? 1 : 0] };
+    },
     /* "Choose a creature type": the options come most-ours first */
     creatureType() { return { picks: [0] }; },
     /* Duneblast: keep our best creature (or our own best, when each player keeps one) */
