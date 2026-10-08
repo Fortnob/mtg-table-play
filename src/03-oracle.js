@@ -3905,6 +3905,9 @@
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Steel Hellkite
+    { re: /^Destroy each nonland permanent with mana value X whose controller was dealt combat damage by (?:this creature|CARDNAME) this turn\.?$/i,
+      make: () => ({ op: 'destroyHitByMv', mv: 'X' }) },
     /* Tribute to the World Tree: "…if its power is 3 or greater. Otherwise,
        put two +1/+1 counters on it." — the other branch of the sentence before */
     { re: /^Otherwise, (.+)$/i,
@@ -4977,6 +4980,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Ad Nauseam: "Reveal the top card of your library and put that card into your hand. You lose life
+       equal to its mana value. You may repeat this process any number of times." */
+    { re: /^Reveal the top card of your library and put that card into your hand\. You lose life equal to its mana value\. You may repeat this process any number of times\.$/i,
+      make: () => [{ op: 'revealLoseLoop' }] },
     /* Scapeshift: "Sacrifice any number of lands. Search your library for up to that many land cards,
        put them onto the battlefield tapped, then shuffle." */
     { re: /^Sacrifice any number of lands\. Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle\.$/i,

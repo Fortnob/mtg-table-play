@@ -9933,4 +9933,35 @@ module.exports = (test) => {
     t.ok(m1.zone === 'battlefield' && m2.zone === 'battlefield', 'two Mountains found');
     t.ok(m1.tapped && m2.tapped, 'tapped');
   });
+
+  test('Ad Nauseam: a card and its mana value in life, as many times as asked', (mk, t) => {
+    t.auto('Ad Nauseam');
+    const T = mk();
+    const c3 = T.top('A', 'Island'), c2 = T.top('A', 'Opt'), c1 = T.top('A', 'Grizzly Bears');
+    let asked = 0;
+    T.answer('choose', () => { asked++; return { picks: [0] }; });
+    T.answer('choose', () => { asked++; return { picks: [1] }; });
+    T.mana('A', '3BB');
+    T.cast('A', T.hand('A', 'Ad Nauseam'));
+    t.eq(c1.zone, 'hand'); t.eq(c2.zone, 'hand');
+    t.eq(c3.zone, 'library', 'stopped after two');
+    t.eq(T.life('A'), 17, 'two for the Bears, one for Opt');
+    t.eq(asked, 2, 'asked after each card');
+  });
+
+  test('Steel Hellkite: after it hits a player, {X} destroys their nonland permanents of mana value X', (mk, t) => {
+    t.auto('Steel Hellkite');
+    const T = mk();
+    const hk = T.bf('A', 'Steel Hellkite'); hk.summoningSick = false;
+    const b2 = T.bf('B', 'Grizzly Bears'), b3 = T.bf('B', 'Centaur Courser'), l = T.bf('B', 'Forest');
+    T.g._runEffects([{ op: 'destroyHitByMv', mv: 2 }], { controller: 'A', obj: hk, name: 'Steel Hellkite' });
+    t.eq(b2.zone, 'battlefield', 'not before it has hit B');
+    T.answer('declareAttackers', () => [{ attackerId: hk.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.g._runEffects([{ op: 'destroyHitByMv', mv: 2 }], { controller: 'A', obj: hk, name: 'Steel Hellkite' });
+    t.eq(b2.zone, 'graveyard', 'the Bears (2) are destroyed');
+    t.eq(b3.zone, 'battlefield', 'the Courser (3) is not');
+    t.eq(l.zone, 'battlefield', 'lands are spared');
+  });
 };

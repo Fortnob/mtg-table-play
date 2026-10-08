@@ -7647,6 +7647,11 @@
         if (as.targetKind === 'player') {
           const p = this.player(as.targetId);
           got = this.dealDamageToPlayer(p, as.amount, as.source, true) || 0;
+          // Steel Hellkite: who this creature has hit this turn
+          if (got > 0 && as.source) {
+            if (!as.source._hitPlayers || as.source._hitPlayers.turn !== this.turn) as.source._hitPlayers = { turn: this.turn, ids: [] };
+            if (!as.source._hitPlayers.ids.includes(p.id)) as.source._hitPlayers.ids.push(p.id);
+          }
         } else {
           const t = this.obj(as.targetId);
           if (!t || t.zone !== 'battlefield') continue;
@@ -15894,6 +15899,49 @@
           applyToScope(e, (o) => { o.destroyAtEndOfCombat = this.turn; });
           break;
         // Rabid Elephant: +N/+N for each creature blocking it
+        // Steel Hellkite: each nonland permanent of mana value X controlled by a player it hit this turn
+        case 'destroyHitByMv': {
+          const hit = (src && src._hitPlayers && src._hitPlayers.turn === this.turn) ? src._hitPlayers.ids : [];
+          const want = n(e.mv);
+          const list = this.battlefield.filter(x => !x.phasedOut && hit.includes(x.controller) && !(x.analysis() || {}).isLand &&
+            ((x.card && x.card.cmc) || 0) === want && !this.hasKw(x, 'indestructible'));
+          this._leavingTogether = list;
+          let k = 0;
+          for (const x of list) {
+            if (x.zone !== 'battlefield' || this._totemArmor(x) || this._regenerated(x)) continue;
+            this.moveObject(x, 'graveyard'); k++;
+          }
+          this._leavingTogether = null;
+          this.logEvent('wipe', `${k} permanent${k === 1 ? '' : 's'} with mana value ${want} destroyed.`);
+          break;
+        }
+        /* Ad Nauseam: a card into the hand and its mana value in life, again and again
+           for as long as its controller says so */
+        case 'revealLoseLoop': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'adn' + (r ? r.index : 0);
+          const st = (r && r.marks[slot]) || { step: 0 };
+          if (r) r.marks[slot] = st;
+          for (; st.step < 500;) {
+            if (st.step > 0) {
+              const got = this._choose({ playerId: me.id, purpose: 'adNauseam', kind: 'options', min: 1, max: 1, compact: true,
+                options: [{ label: 'Reveal another', key: 'go' }, { label: 'Stop', key: 'stop' }],
+                life: me.life, hand: this.zones[me.id].hand.length,
+                prompt: `${ctx.name || 'Ad Nauseam'}: reveal another card? You are at ${me.life} life.` }, slot + 'q' + st.step);
+              if (got === SUSPEND) return SUSPEND;
+              if (((got && got.picks) || [])[0] === 1) break;
+            }
+            const top = this.zones[me.id].library[0];
+            if (!top) break;
+            this.moveObject(top, 'hand');
+            const mv = (top.card && top.card.cmc) || 0;
+            this.logEvent('reveal', `${me.name} reveals ${top.name} and puts it into their hand${mv ? `, losing ${mv} life` : ''}.`);
+            if (mv) this.changeLife(me, -mv);
+            st.step++;
+          }
+          break;
+        }
         /* Scapeshift: "Sacrifice any number of lands" — chosen as it resolves
            (a bot gives up all of them, which is what the card is for) */
         case 'sacrificeAnyNumber': {

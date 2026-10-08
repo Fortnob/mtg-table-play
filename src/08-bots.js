@@ -1473,6 +1473,8 @@
   const CHOOSE_PURPOSES = {
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Ad Nauseam: keep going while there is life to spare and the hand is not yet full */
+    adNauseam(s) { return { picks: [(s.life || 0) > 8 && (s.hand || 0) < 12 ? 0 : 1] }; },
     /* The Defilers: life for mana while life is plentiful */
     defiler(s) { return { picks: [(s.life || 0) > (s.n || 2) + 8 ? 0 : 1] }; },
     /* Torment of Hailfire: pay in life while it is plentiful, then in cards, then in permanents */
