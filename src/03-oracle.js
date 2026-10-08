@@ -2954,6 +2954,16 @@
     /* ===== whoever set the trigger off ===== */
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerPlayer: true }) },
+    /* Terastodon, King Solomon's Frogs: "For each permanent put into a
+       graveyard this way, its controller creates a 3/3 green Elephant
+       creature token." — the last thing destroyed or exiled, one by one */
+    { re: /^For each (?:permanent|creature|land|artifact|enchantment|nonland permanent) (destroyed|put into a graveyard|exiled) this way, its controller (creates|draws|gains|loses) ([^.]+)\.?$/i,
+      make: (m) => {
+        const verb = m[2].toLowerCase().replace(/s$/, '');
+        const inner = parseSentenceList(splitSentences('You ' + verb + ' ' + m[3] + '.'));
+        if (!inner.auto || !inner.effects.every(x => x && /^(?:createToken|draw|gainLife|loseLife)$/.test(x.op))) return null;
+        return { op: 'eachMovedController', moved: /exile/i.test(m[1]) ? 'exile' : 'graveyard', then: inner.effects };
+      } },
     // Palantír of Orthanc: "that player loses life equal to the total mana value of those cards"
     { re: /^That player loses life equal to the total mana value of those cards\.?$/i,
       make: () => ({ op: 'loseLife', who: 'triggerPlayer', n: { milledMv: true } }) },
@@ -5141,9 +5151,9 @@
        exile up to one target nonland permanent that player controls" — the
        sentence read for one target, and one picked for each opponent as it
        resolves, among the things of theirs it could have targeted */
-    const perOpp = !depth && s.match(/^For each opponent, (?:you may )?(.+)$/i);
+    const perOpp = !depth && s.match(/^For each (opponent|player), (?:you may )?(.+)$/i);
     if (perOpp) {
-      const body = perOpp[1];
+      const body = perOpp[2];
       const onBf = body.match(/\bup to one target ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i);
       const inGy = !onBf && body.match(/\bup to one target ([a-z ]+? card) from that player'?s graveyard\b/i);
       if (onBf || inGy) {
@@ -5152,7 +5162,7 @@
         const inner = parseEffectSentence(oneOfThem(one, /^target /i.test(one)), 1);
         const holder = inner && inner.op !== 'manual' && !hasManualStep(inner) && sharedTarget(inner);
         if (holder && holder.targets[0].type !== 'player') {
-          holder.perOpponentFrom = Object.assign({}, holder.targets[0], { upTo: true });
+          holder.perOpponentFrom = Object.assign({}, holder.targets[0], { upTo: true }, /player/i.test(perOpp[1]) ? { everyPlayer: true } : {});
           delete holder.targets;
           inner.text = s;
           return inner;
@@ -5278,6 +5288,17 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Twinflame: "Choose any number of target creatures you control. For
+       each of them, create a token that's a copy of that creature, except it
+       has haste. Exile those tokens at the beginning of the next end step." */
+    { re: /^Choose any number of target creatures you control\. For each of them, create a token that'?s a copy of that creature, except it has haste\. Exile those tokens at the beginning of the next end step\.$/i,
+      make: () => [{ op: 'copyEachTarget', anyFrom: Object.assign(targetSpec('target creature you control'), { upTo: true }), grant: ['Haste'] },
+        { op: 'delayed', subject: 'made', event: 'eachEndStep', name: 'Exile the tokens at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }] },
+    /* Myr Battlesphere: "you may tap X untapped Myr you control. If you do,
+       this creature gets +X/+0 until end of turn and deals X damage to the
+       player or planeswalker it's attacking." */
+    { re: /^[Yy]ou may tap X untapped ([A-Z][a-z]+) you control\. If you do, (?:this creature|CARDNAME) gets \+X\/\+0 until end of turn and deals X damage to the player or planeswalker it'?s attacking\.$/,
+      make: (m) => [{ op: 'tapKinForPump', kind: m[1] }] },
     /* Combustible Gearhulk, Palantír of Orthanc, Risk Factor: "Target
        opponent may have you draw three cards. If the player doesn't, …" —
        the opponent picks which happens */

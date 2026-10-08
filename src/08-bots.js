@@ -1475,6 +1475,8 @@
     sacrificeAnyNumber(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Myr Battlesphere: every Myr that can help */
+    tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Demonic Consultation: the name the engine offers first (the costliest card in the library) */
     chooseCardName() { return { picks: [0] }; },
     /* Tainted Pact: keep the first spell worth having, pass over lands */

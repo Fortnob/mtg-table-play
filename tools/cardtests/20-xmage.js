@@ -10782,4 +10782,43 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(T2.g.player('B').life, 16, 'took the 4'); t.eq(T2.g.zones.A.hand.length, hand, 'no cards drawn');
   });
+
+  test('Terastodon: an Elephant for each permanent put into a graveyard; Martyr\'s Cry', (mk, t) => {
+    t.auto('Terastodon'); t.auto("Martyr's Cry");
+    const T = mk();
+    const ring = T.bf('B', 'Sol Ring'), isl = T.bf('B', 'Island');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ring.id }, { kind: 'object', id: isl.id }] }));
+    T.answer('confirm', { yes: true });
+    T.mana('A', '6GG');
+    T.cast('A', T.hand('A', 'Terastodon'));
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(ring.zone, 'graveyard'); t.eq(isl.zone, 'graveyard');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && o.isToken && o.name.includes('Elephant')).length, 2, 'two Elephants for B');
+    const T2 = mk();
+    T2.bf('B', 'Savannah Lions'); T2.bf('A', 'Savannah Lions');
+    const hb = T2.g.zones.B.hand.length;
+    T2.mana('A', '2WW');
+    T2.cast('A', T2.hand('A', "Martyr's Cry"));
+    T2.settle(); T2.resolve();
+    t.eq(T2.g.zones.B.hand.length, hb + 1, 'B draws for its Lions');
+  });
+
+  test('Twinflame (strive) copies each target with haste; Myr Battlesphere taps Myr for damage', (mk, t) => {
+    t.auto('Twinflame'); t.auto('Myr Battlesphere');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), lion = T.bf('A', 'Savannah Lions');
+    T.mana('A', '3RR');
+    T.cast('A', T.hand('A', 'Twinflame'), { targets: [bear.id, lion.id] });
+    T.settle(); T.resolve();
+    const toks = T.g.battlefield.filter(o => o.controller === 'A' && o.isToken);
+    t.eq(toks.length, 2, 'two copies');
+    t.ok(toks.every(o => T.g.hasKw(o, 'haste')), 'with haste');
+    const T2 = mk();
+    const bs = T2.bf('A', 'Myr Battlesphere');
+    T2.bf('A', 'Iron Myr'); T2.bf('A', 'Iron Myr');
+    T2.answer('choose', (ch) => { t.eq(ch.items.length, 2, 'the two untapped Myr'); return { picks: ch.items.map(x => x.id) }; });
+    T2.answer('declareAttackers', () => [{ attackerId: bs.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.life('B'), 20 - 2 - (4 + 2), 'two damage from the trigger, then 6 combat damage');
+  });
 };

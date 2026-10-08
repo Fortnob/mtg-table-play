@@ -10801,7 +10801,7 @@
           .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
         const whose = (x) => (x.zone === 'battlefield' ? x.controller : x.owner);
         const picks = [];
-        for (const opp of this.opponentsOf(ctx.controller)) {
+        for (const opp of (spec.everyPlayer ? this.players.filter(q => !q.hasLost) : this.opponentsOf(ctx.controller))) {
           const theirs = pool.filter(x => whose(x) === opp.id);
           if (!theirs.length) continue;
           const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: spec.zone || 'battlefield',
@@ -13866,6 +13866,48 @@
           if (yes === SUSPEND) return SUSPEND;
           this.logEvent('rules', `${opp.name} ${yes ? 'agrees' : 'declines'}.`);
           this._spliceNext(yes ? e.option : e.otherwise);
+          break;
+        }
+        /* Terastodon: "For each permanent put into a graveyard this way, its
+           controller creates a 3/3 green Elephant creature token." */
+        case 'eachMovedController': {
+          for (const w of (this._lastAffectedAll || [])) {
+            const x = this.obj(w.id);
+            const went = !x || (e.moved === 'exile' ? x.zone === 'exile' : x.zone === 'graveyard') || (x.isToken && x.zone !== 'battlefield');
+            const pc = this.player(w.controller);
+            if (!went || !pc || pc.hasLost) continue;
+            const sub = Object.assign({}, ctx, { controller: pc.id, targets: [], resolvedTargets: [] });
+            for (const f of e.then || []) this._runEffect(f, sub);
+          }
+          break;
+        }
+        // Twinflame: a hasty copy of each creature chosen
+        case 'copyEachTarget': {
+          for (const x of targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean)) {
+            if (x.zone !== 'battlefield') continue;
+            this._runEffect({ op: 'copyPermanent', n: 1, _forced: x, grant: e.grant || [] }, ctx);
+          }
+          break;
+        }
+        // Myr Battlesphere: tap any number of untapped Myr; +X/+0 and X damage to what it attacks
+        case 'tapKinForPump': {
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = this.battlefield.filter(x => !x.phasedOut && x.controller === ctx.controller && !x.tapped &&
+            (this.characteristics(x) || {}).isCreature && this._hasCreatureType(x, e.kind));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'tapKin', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}tap any number of untapped ${e.kind} you control.` }, 'tapk');
+          if (got === SUSPEND) return SUSPEND;
+          const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && !x.tapped && x.zone === 'battlefield');
+          if (!picked.length) break;
+          for (const x of picked) this._markTapped(x);
+          const k = picked.length;
+          src.effects.push({ p: k, t: 0, until: 'eot' });
+          const at = src.attacking && (this.player(src.attacking) || this.obj(src.attacking));
+          if (at && at.life != null) this.dealDamageToPlayer(at, k, src);
+          else if (at) this.dealDamageToObject(at, k, src);
+          this.bumpBoard();
           break;
         }
         // Archway of Innovation
