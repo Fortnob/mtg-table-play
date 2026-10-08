@@ -9471,4 +9471,19 @@ module.exports = (test) => {
     t.eq(T.g.player('A').pool.total(), 1);
     t.ok(T.g.hasKw(leg, 'vigilance'), 'and vigilance');
   });
+
+  test('Ordeal of Heliod: the third counter sacrifices it, and "when you sacrifice this Aura" fires', (mk, t) => {
+    t.auto('Ordeal of Heliod');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.summoningSick = false;
+    bear.counters['+1/+1'] = 2;
+    const ord = T.bf('A', 'Ordeal of Heliod');
+    ord.attachedTo = bear.id; bear.attachments = [ord.id];
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(ord.zone, 'graveyard', 'sacrificed at three counters');
+    t.ok(T.life('A') >= 30, 'and A gained 10 life');
+  });
 };

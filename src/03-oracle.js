@@ -6503,6 +6503,8 @@
     { re: /^Whenever day becomes night or night becomes day,? /i, event: 'becomesDay' },
     // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
     { re: /^Whenever you expend (\d+),? /i, event: 'youExpend', extraOf: (m) => ({ expendN: +m[1] }) },
+    // Ordeal of Nylea: "When you sacrifice this Aura" — seen as it goes
+    { re: /^When you sacrifice (?:this (?:Aura|enchantment|artifact|creature|permanent)|CARDNAME),? /i, event: 'youSacrifice', self: true },
     // Bone Miser: "Whenever you discard a creature (land) card"
     { re: /^Whenever you discard an? ((?:non)?(?:creature|land|artifact|enchantment|instant|sorcery)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: m[1].toLowerCase() }) },
     // Shimmering Efreet: "Whenever this creature phases in"

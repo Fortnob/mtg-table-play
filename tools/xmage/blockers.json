@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13227,
+  "needed": 13221,
   "gainedCards": 1366,
-  "linesNeeded": 14430,
+  "linesNeeded": 14424,
   "linesGained": 1655,
   "gained": {
    "all": 1366,
@@ -3750,21 +3750,6 @@
    ]
   },
   {
-   "what": "SacrificeSourceTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Ordeal of Nylea",
-    "Daemogoth Woe-Eater",
-    "Ordeal of Heliod",
-    "Ordeal of Thassa",
-    "Disturbing Mirth",
-    "Ordeal of Purphoros",
-    "Biolume Egg // Biolume Serpent",
-    "Ordeal of Erebos"
-   ]
-  },
-  {
    "what": "IsStepCondition",
    "score": 8,
    "lines": 8,
@@ -7214,6 +7199,17 @@
     "The Dalek Emperor",
     "Sycorax Commander"
    ]
+  },
+  {
+   "what": "ShuffleIntoLibrarySourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Lembas",
+    "Gandalf, Wandering Wizard",
+    "Guan Yu, Sainted Warrior",
+    "Cerulean Sphinx"
+   ]
   }
  ],
  "sole": [
@@ -8986,19 +8982,6 @@
     "Torsten, Founder of Benalia",
     "Glacial Revelation",
     "Lead the Stampede"
-   ]
-  },
-  {
-   "what": "SacrificeSourceTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Ordeal of Nylea",
-    "Daemogoth Woe-Eater",
-    "Ordeal of Heliod",
-    "Ordeal of Thassa",
-    "Disturbing Mirth",
-    "Ordeal of Purphoros"
    ]
   },
   {
@@ -10989,6 +10972,18 @@
     "Construct a Cosmic Cube",
     "Death to Our Enemies",
     "Villainous Syndication"
+   ]
+  },
+  {
+   "what": "DoIfAnyNumberCostPaid",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Intrepid Adversary",
+    "Tainted Adversary",
+    "Primal Adversary",
+    "Bloodthirsty Adversary",
+    "Spectral Adversary"
    ]
   }
  ]

@@ -6191,7 +6191,7 @@
       for (const x of list) if (x && x.isToken) this._fire('youSacToken', pid, { object: x });
       this.logEvent('sacrifice', `${this.player(pid).name} sacrifices ${snaps.map(s => s.name).join(', ')}.`);
       // one at a time, so "whenever you sacrifice an artifact" can see what went
-      for (const x of list) if (x) this._fire('youSacrifice', pid, { count: 1, object: x, objController: pid });
+      for (const x of list) if (x) this._fire('youSacrifice', pid, { count: 1, object: x, objController: pid, source: x });
     }
     /** Discard these as a cost. */
     _discardNow(pid, list, item) {
@@ -9866,13 +9866,13 @@
       /* Leaving the battlefield is seen from the battlefield (CR 603.10):
          a creature that dies sees its own death, and "whenever this or
          another creature dies" counts itself. */
-      if ((event === 'dies' || event === 'ltb' || event === 'permDies' || event === 'permLeaves') && data.object) {
+      if ((event === 'dies' || event === 'ltb' || event === 'permDies' || event === 'permLeaves' || (event === 'youSacrifice' && data.source)) && data.object) {
         const o = data.object;
         const a = (o.zone !== 'battlefield' && o._lkiAnalysis) || o.analysis();
         if (a) for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
-          const own = (event === 'dies' || event === 'ltb') ? ab.self
+          const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice') ? ab.self
             : !!(ab.objFilter && ab.objFilter.selfOk && this._objFits(o, Object.assign({}, ab.objFilter, { other: false, who: null }), o));
           if (!own) continue;
           if (this.pendingTriggers.some(t => t.objId === o.id && t.abilityIndex === i)) continue;
@@ -11242,7 +11242,11 @@
           this._fire('becomesMonstrous', src.controller, { object: src, source: src });
           break;
         }
-        case 'sacrificeSelf': if (src) this.moveObject(src, 'graveyard'); break;
+        // a sacrifice like any other: "whenever you sacrifice", and the Ordeals' "when you sacrifice this Aura", see it
+        case 'sacrificeSelf':
+          if (src && src.zone === 'battlefield') this._sacrificeNow(ctx.controller, [src]);
+          else if (src) this.moveObject(src, 'graveyard');
+          break;
         // Uro: "sacrifice it unless it escaped"
         case 'sacUnlessEscaped':
           if (src && src.zone === 'battlefield' && !(src.escapedTs != null && src.escapedTs === src.ts)) {
