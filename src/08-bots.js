@@ -1473,6 +1473,8 @@
   const CHOOSE_PURPOSES = {
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Hinder: an opponent's spell to the bottom, one of our own back on top */
+    counterTopBottom(s) { return { picks: [s.ownerId === this.pid ? 0 : 1] }; },
     /* Ad Nauseam: keep going while there is life to spare and the hand is not yet full */
     adNauseam(s) { return { picks: [(s.life || 0) > 8 && (s.hand || 0) < 12 ? 0 : 1] }; },
     /* The Defilers: life for mana while life is plentiful */

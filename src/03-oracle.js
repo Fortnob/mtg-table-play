@@ -1414,6 +1414,9 @@
       make: () => ({ op: 'graveyardToLibrary' }) },
     { re: /^Return (target [a-z0-9 '-]+?) to (its|their) owner's hand\.?$/i,
       make: (m) => ({ op: 'bounce', targets: [targetSpec(m[1])] }) },
+    // Scrap Trawler: "with lesser mana value" than the permanent the trigger is about
+    { re: /^Return to your hand (target [a-z]+ card) in your graveyard with lesser mana value\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you', mvBelowTrigger: true })] }) },
     { re: /^Return (target [a-z0-9 '-]+?) from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you' })] }) },
     { re: /^Counter (target spell|target creature spell|target noncreature spell|target instant or sorcery spell|target activated or triggered ability)\.?$/i,
@@ -1636,6 +1639,14 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
+    // Priest of Forgotten Gods: "Any number of target players each lose 2 life and sacrifice a creature of their choice."
+    { re: /^Any number of target players each lose (\d+) life and sacrifice (a|one) (creature|permanent) of their choice\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [
+        { op: 'loseLife', who: 'targets', n: +m[1], targets: [1, 2, 3, 4].map(() => ({ type: 'player', upTo: true, distinct: true })) },
+        { op: 'sacrificeChoice', who: 'targets', n: 1, filter: m[3].toLowerCase() }] }) },
+    // Priest of Forgotten Gods: "You add {B}{B} and draw a card."
+    { re: /^You add ((?:\{[WUBRGC]\})+) and draw (a|one|two) cards?\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'addMana', symbols: m[1].match(/[WUBRGC]/g) }, { op: 'draw', n: num(m[2]), who: 'you' }] }) },
     // Pick Your Poison: "Each opponent sacrifices a creature with flying of their choice."
     { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact)s? with (flying|reach|deathtouch|trample|haste|defender) of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase(), keyword: m[3].toLowerCase() }) },
@@ -2426,6 +2437,9 @@
       make: () => ({ op: 'asPlayer', who: 'attackingOpponent', effects: [{ op: 'untapAll', what: 'nonland' }] }) },
     { re: /^If that spell is countered this way, exile it instead of putting it into its owner'?s graveyard\.?$/i,
       make: () => ({ op: 'noop', counterExileRider: true }) },
+    // Hinder: "put that card on your choice of the top or bottom of its owner's library"
+    { re: /^If that spell is countered this way, put that card on your choice of the top or bottom of its owner'?s library instead of into that player'?s graveyard\.?$/i,
+      make: () => ({ op: 'noop', counterExileRider: 'topOrBottom' }) },
     // Remand, Memory Lapse, Spell Crumple: the countered spell goes somewhere else
     { re: /^If that spell is countered this way, put it (into its owner'?s hand|on top of its owner'?s library|on the bottom of its owner'?s library) instead of into that player'?s graveyard\.?$/i,
       make: (m) => ({ op: 'noop', counterExileRider: /hand/i.test(m[1]) ? 'hand' : /top/i.test(m[1]) ? 'top' : 'bottom' }) },
@@ -3085,6 +3099,10 @@
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature', upTo: true, filter: 'creature' }] }) },
     { re: /^Target creature can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature' }] }) },
+    // Secret Tunnel: "Two target creatures you control that share a creature type can't be blocked this turn."
+    { re: /^Two target creatures you control that share a creature type can'?t be blocked this turn\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'unblockable', targets: [targetSpec('target creature you control'),
+        Object.assign(targetSpec('target creature you control'), { distinct: true, sharesTypeWithPrev: true })] }) },
     { re: /^Target creature with power (\d+) or less can'?t be blocked this turn\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature', maxPower: +m[1] }] }) },
 
@@ -3950,6 +3968,14 @@
         return Object.assign({ op: 'loseLife', who, n: { halfLife: who, up: /up/i.test(m[2]) } },
           who === 'target' ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {});
       } },
+    /* Massacre Girl: "Whenever a creature dies this turn, each creature other than Massacre Girl gets
+       -1/-1 until end of turn." A turn-long trigger that names the card it came from */
+    { re: /^Whenever a creature dies this turn, each creature other than CARDNAME gets -(\d+)\/-(\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'getEmblem', thisTurn: true, name: 'Until end of turn', exceptSource: true,
+        emblemText: 'Whenever a creature dies this turn, each creature other than the one that made this gets -' + m[1] + '/-' + m[2] + ' until end of turn.',
+        abilities: [{ kind: 'triggered', event: 'anyCreatureDies', self: false, optional: false, auto: true, condition: null,
+          text: 'Whenever a creature dies, each creature other than the one that made this gets -' + m[1] + '/-' + m[2] + ' until end of turn.',
+          effects: [{ op: 'pump', p: -(+m[1]), t: -(+m[2]), duration: 'eot', scope: { who: 'all', what: 'creature', exceptId: '$src' } }] }] }) },
     // one sentence of a longer text: "Whenever a creature dies this turn, …"
     { re: /^(?:Until end of turn|This turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
@@ -6598,6 +6624,9 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Scrap Trawler: "Whenever this creature dies or another artifact you control is put into a graveyard from the battlefield"
+    { re: /^Whenever (?:this creature|CARDNAME) dies or (another [a-z ]+? you control) is put into a graveyard from the battlefield,? /i,
+      event: 'permDies', filt: (m) => subjectFilter('this creature or ' + m[1]) },
     // Chandra's Spitfire: "Whenever an opponent is dealt noncombat damage"
     { re: /^Whenever an opponent is dealt noncombat damage,? /i, event: 'playerDealtDamage', extra: { toOpponent: true, noncombatOnly: true } },
     // Sunhome Enforcer: "Whenever this creature deals combat damage" (to anything)
@@ -6923,6 +6952,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
+    // Laelia, the Blade Reforged: "Whenever one or more cards are put into exile from your library and/or your graveyard"
+    { re: /^Whenever one or more cards are put into exile from your library and\/or your graveyard,? /i, event: 'youExileFromLibGy', extra: { batch: true } },
     // Mesmeric Orb: "Whenever a permanent becomes untapped"
     { re: /^Whenever a permanent becomes untapped,? /i, event: 'permUntaps' },
     // Tale of Katara and Toph: "for the first time during each of your turns"
@@ -8282,6 +8313,10 @@
     if (etbIf && !out.entersWithCounters) {
       const c = condOf(etbIf[3]);
       if (c) out.entersWithCounters = { kind: etbIf[2].trim(), n: num(etbIf[1]), cond: c };
+    }
+    // Scarlet Spider: "If CARDNAME was cast using web-slinging, he enters with X +1/+1 counters on him, where X is the mana value of the returned creature."
+    if (/If CARDNAME was cast using web-slinging, (?:he|she|it|they) enters? with X \+1\/\+1 counters on (?:him|her|it|them), where X is the mana value of the returned creature\./i.test(text) && !out.entersWithCounters) {
+      out.entersWithCounters = { kind: '+1/+1', n: { returnedMv: true }, cond: { kind: 'castWebSlinging' } };
     }
     // Ardenvale Paladin: "If at least three white mana was spent to cast this spell, this creature enters with a +1/+1 counter on it."
     const ifEtb = text.match(/\bIf ([^,.]+), (?:CARDNAME|this creature) enters(?: the battlefield)? with (a|an|one|two|three|four|\d+) ([+\-0-9/a-z]+) counters? on it\./i);
@@ -10015,6 +10050,9 @@
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
       { re: /^If ([^,.]+), (?:CARDNAME|this creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
+      // Scarlet Spider: read with the card-level scan, which keeps the counters for it
+      { re: /^If CARDNAME was cast using web-slinging, (?:he|she|it|they) enters? with X \+1\/\+1 counters on (?:him|her|it|them), where X is the mana value of the returned creature\.?$/i,
+        eff: { op: 'noop' }, auto: true },
       // the vivid lands: tapped, and with counters the card-level scan found
       // Traxos: "CARDNAME enters tapped and doesn't untap during your untap step."
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) enters tapped and doesn'?t untap during your untap step\.?$/i,

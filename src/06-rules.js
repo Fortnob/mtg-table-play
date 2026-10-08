@@ -5278,6 +5278,7 @@
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
           : (raw && typeof raw === 'object' && raw.colorsSpent) ? (o.colorsSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.manaSpent) ? (o.manaSpent || 0) * (raw.mult || 1)
+          : (raw && typeof raw === 'object' && raw.returnedMv) ? (o._returnedMv || 0)
           : (raw && typeof raw === 'object' && raw.per) ? this.countPermanents(o.controller, { per: raw.per })
           // Diregraf Colossus: "for each Zombie card in your graveyard"
           : (raw && typeof raw === 'object' && raw.count) ? this._countValue(raw.count, o.controller, o)
@@ -5913,6 +5914,11 @@
         if (!legal.some(same)) return `${what} isn't a legal target for ${name}.`;
         // "any other target", "another target creature": not one already chosen
         if (sp.distinct && tg.slice(0, i).some(same)) return `${what} isn't a legal target for ${name}.`;
+        // Secret Tunnel: "two target creatures … that share a creature type"
+        if (sp.sharesTypeWithPrev && i > 0) {
+          const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
+          if (!a0 || !b0 || !this._shareCreatureType(a0, b0)) return `${what} doesn't share a creature type with the first target.`;
+        }
       }
       return null;
     }
@@ -6239,7 +6245,11 @@
         const pool = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
           !(cost.returnOwn.untapped && x.tapped) && !(cost.returnOwn.tapped && !x.tapped));
         const need = Math.min(cost.returnOwn.n || 1, pool.length);
-        if (pool.length && (auto || pool.length === need)) for (const x of this._cheapestFirst(pool).slice(0, need)) this.moveObject(x, 'hand');
+        if (pool.length && (auto || pool.length === need)) for (const x of this._cheapestFirst(pool).slice(0, need)) {
+          // Scarlet Spider: the mana value of what went back
+          if (self) self._returnedMv = (x.card && x.card.cmc) || 0;
+          this.moveObject(x, 'hand');
+        }
         else if (pool.length) {
           ask({ type: 'pickCard', count: need, purpose: 'returnCost', worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
@@ -9638,6 +9648,8 @@
       if (toZone === 'graveyard' && from !== 'battlefield') this._fire('cardToGraveyard', null, { object: o, objController: o.owner });
       // The Gitrog Monster: a card into a graveyard from anywhere, the battlefield as well
       if (toZone === 'graveyard' && !o.isToken) this._fire('cardToGraveyardAny', null, { object: o, objController: o.owner, fromZone: from, amount: 1 });
+      // Laelia: cards exiled from a library or graveyard, one trigger for the lot
+      if (toZone === 'exile' && (from === 'library' || from === 'graveyard')) this._fire('youExileFromLibGy', o.owner, { object: o, playerId: o.owner });
       // "if you descended this turn": a permanent card went to your graveyard
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
@@ -10451,7 +10463,13 @@
         const td = ctx.triggerData || {};
         const tp = ctx.chosenPlayer || td.drawer || td.player || td.deadController || td.playerId || '-';
         const aimed = e.targets.map(spec => (spec && spec.controller === 'triggerPlayer'
-          ? Object.assign({}, spec, { controller: undefined, controllerId: tp }) : spec));
+          ? Object.assign({}, spec, { controller: undefined, controllerId: tp }) : spec))
+          // Scrap Trawler: "with lesser mana value" than the one the trigger is about
+          .map(spec => {
+            if (!spec || !spec.mvBelowTrigger) return spec;
+            const it = td.objectId && this.obj(td.objectId);
+            return Object.assign({}, spec, { mvBelowTrigger: false, maxMv: ((it && it.card && it.card.cmc) || 0) - 1 });
+          });
         const options = aimed.map(spec => this._legalTargetsFor(spec, ctx.controller, src ? src.id : null));
         // nothing legal to point at: the effect simply does not happen
         if (options.every(list => list.length)) {
@@ -10943,6 +10961,8 @@
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Priest of Forgotten Gods: each player aimed at
+          else if (e.who === 'targets') { for (const p of new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))) this.changeLife(p, -cnt); }
           else if (e.who === 'targetController') { const o = firstObj(); const p = o && this.player(o.controller); if (p) this.changeLife(p, -cnt); }
           // Suture Priest: the controller of the creature the trigger is about
           else if (e.who === 'triggerObjController') {
@@ -11217,7 +11237,14 @@
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             item.countered = true;
             if (e.exileIt) item.exileIfCountered = true;
-            if (e.counterTo) item.counterTo = e.counterTo;
+            if (e.counterTo === 'topOrBottom') {
+              // Hinder: the counterer says which end of the library
+              const got = this._choose({ playerId: ctx.controller, purpose: 'counterTopBottom', kind: 'options', min: 1, max: 1, compact: true,
+                options: [{ label: 'Top of the library', key: 'top' }, { label: 'Bottom of the library', key: 'bottom' }],
+                ownerId: item.controller, prompt: `${ctx.name || 'Counter'}: put ${item.name} on the top or the bottom of its owner's library?` }, 'hinder' + item.id);
+              if (got === SUSPEND) return SUSPEND;
+              item.counterTo = ((got && got.picks) || [])[0] === 0 ? 'top' : 'bottom';
+            } else if (e.counterTo) item.counterTo = e.counterTo;
             this._fire('youCounterSpell', ctx.controller, { playerId: ctx.controller, stackId: item.id });
             /* "Its controller creates two Treasure tokens", "add mana equal
                to that spell's mana value": the sentences after a counter
@@ -11270,6 +11297,12 @@
           };
           // abilities written out for it (a translated card), or else its words, read like any card's
           if (e.abilities) card._script = { abilities: e.abilities };
+          // Massacre Girl: the emblem's words point at the permanent that made it
+          if (e.exceptSource && e.abilities) {
+            const sid = src ? src.id : '-';
+            card._script = { abilities: JSON.parse(JSON.stringify(e.abilities).replace(/"\$src"/g, JSON.stringify(sid))) };
+            card.id += ':' + sid;
+          }
           // Ob Nixilis Reignited, Chandra: an emblem for someone else
           const getters = e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(p => !p.hasLost)
             : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
@@ -11838,6 +11871,7 @@
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'you' ? [me].filter(Boolean)
             : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
+            : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             : [firstPlayer()].filter(Boolean);
           for (const p of who) {
             const pool = this.battlefield.filter(x => {
@@ -16800,6 +16834,8 @@
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
       if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
+      // Massacre Girl: "each creature other than <the one that made this>"
+      if (sc.exceptId && o.id === sc.exceptId) return false;
       const isType = (t) => {
         if (t === 'permanent') return true;
         if (t === 'creature' && !inLayers) return !!this.characteristics(o).isCreature;
@@ -17900,7 +17936,12 @@
               }
               continue;
             }
-            if (ch.purpose === 'returnCost') { if (o.zone === 'battlefield') this.moveObject(o, 'hand'); continue; }
+            if (ch.purpose === 'returnCost') {
+              const sp = ch.sourceId && this.obj(ch.sourceId);
+              if (sp) sp._returnedMv = (o.card && o.card.cmc) || 0;
+              if (o.zone === 'battlefield') this.moveObject(o, 'hand');
+              continue;
+            }
             if (ch.purpose === 'blightCost') { if (o.zone === 'battlefield') this._blightOn(o, ch.n || 1, playerId); continue; }
             if (ch.purpose === 'beholdCost') { this._beholdOne(playerId, o, !!ch.exile, this.obj(ch.sourceId)); continue; }
             if (ch.purpose === 'landFromHand') { this.moveObject(o, 'battlefield', { controller: playerId }); this.logEvent('land', `${this.player(playerId).name} puts ${o.name} onto the battlefield.`); }

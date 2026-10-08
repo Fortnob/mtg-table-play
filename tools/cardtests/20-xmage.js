@@ -10012,4 +10012,110 @@ module.exports = (test) => {
     t.ok(!elf.tapped, 'untapped by an effect');
     t.eq(T2.zone('A', 'graveyard').length, g2 + 1, 'and A milled one');
   });
+
+  test('Massacre Girl: each death this turn shrinks every other creature, and the chain runs on', (mk, t) => {
+    t.auto('Massacre Girl');
+    const T = mk();
+    const elf = T.bf('B', 'Llanowar Elves'), bear = T.bf('B', 'Grizzly Bears'), cc = T.bf('B', 'Centaur Courser');
+    T.mana('A', '3BB');
+    const mg = T.hand('A', 'Massacre Girl');
+    T.cast('A', mg);
+    for (let i = 0; i < 6; i++) { T.settle(); T.resolve(); }
+    t.eq(elf.zone, 'graveyard', 'the Elves die to the first -1/-1');
+    t.eq(bear.zone, 'graveyard', 'the Bears to the Elves dying');
+    t.eq(cc.zone, 'graveyard', 'the Courser to the Bears dying');
+    t.eq(mg.zone, 'battlefield', 'Massacre Girl herself is spared');
+  });
+
+  test('Priest of Forgotten Gods: the players aimed at lose 2 and sacrifice a creature; {B}{B} and a card', (mk, t) => {
+    t.auto('Priest of Forgotten Gods');
+    const T = mk();
+    const pr = T.bf('A', 'Priest of Forgotten Gods'); pr.summoningSick = false;
+    const f1 = T.bf('A', 'Llanowar Elves'), f2 = T.bf('A', 'Elvish Mystic');
+    const victim = T.bf('B', 'Grizzly Bears');
+    const hand = T.zone('A', 'hand').length;
+    T.activate('A', pr, 0, { targets: ['B'] });
+    T.settle(); T.resolve();
+    t.eq(f1.zone, 'graveyard'); t.eq(f2.zone, 'graveyard');
+    t.eq(T.life('B'), 18, 'B loses 2');
+    t.eq(victim.zone, 'graveyard', 'and sacrifices the Bears');
+    t.eq(T.g.player('A').pool.total(), 2, '{B}{B}');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'a card');
+    t.eq(T.life('A'), 20, 'A was not aimed at');
+  });
+
+  test('Secret Tunnel: two creatures that share a type become unblockable; two that do not are refused', (mk, t) => {
+    t.auto('Secret Tunnel');
+    const T = mk();
+    const st = T.bf('A', 'Secret Tunnel');
+    const e1 = T.bf('A', 'Llanowar Elves'), e2 = T.bf('A', 'Elvish Mystic'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '4');
+    t.no(T.g.activateAbility('A', st.id, 1, { targets: [{ kind: 'object', id: e1.id }, { kind: 'object', id: bear.id }] }), 'an Elf and a Bear share nothing');
+    t.ok(/share a creature type/.test(T.g.lastError || ''), T.g.lastError);
+    t.ok(T.g.activateAbility('A', st.id, 1, { targets: [{ kind: 'object', id: e1.id }, { kind: 'object', id: e2.id }] }), 'two Elves: ' + T.g.lastError);
+    T.settle(); T.resolve();
+    t.ok(T.g._hasFlag(e1, 'unblockable') && T.g._hasFlag(e2, 'unblockable'), 'both Elves unblockable');
+    t.no(T.g._hasFlag(bear, 'unblockable'));
+  });
+
+  test('Laelia: one counter for a batch of cards exiled from library or graveyard', (mk, t) => {
+    t.auto('Laelia, the Blade Reforged');
+    const T = mk();
+    const la = T.bf('A', 'Laelia, the Blade Reforged');
+    const cs = [T.top('A', 'Island'), T.top('A', 'Island'), T.grave('A', 'Opt')];
+    for (const c of cs) T.g.moveObject(c, 'exile');
+    T.g._putTriggersOnStack(); T.settle(); T.resolve();
+    t.eq(la.counters['+1/+1'], 1, 'one counter for the three');
+    T.g.moveObject(T.top('B', 'Island'), 'exile');
+    T.g._putTriggersOnStack(); T.settle(); T.resolve();
+    t.eq(la.counters['+1/+1'], 1, 'an opponent\'s card does not count');
+  });
+
+  test('Scrap Trawler: an artifact of lesser mana value back when it or another artifact goes to the graveyard', (mk, t) => {
+    t.auto('Scrap Trawler');
+    const T = mk();
+    const tr = T.bf('A', 'Scrap Trawler');
+    const stone = T.grave('A', 'Mind Stone'), ring = T.grave('A', 'Sol Ring');
+    const big = T.grave('A', 'Scrap Trawler');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.options && ch.options[0]) || []; return { targets: [{ kind: 'object', id: stone.id }] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [tr] });
+    T.settle(); T.resolve();
+    t.eq(tr.zone, 'graveyard');
+    t.eq(stone.zone, 'hand', 'Mind Stone (2) is back');
+    t.ok(offered && offered.length, 'asked');
+    t.no(offered && offered.some(o => o.id === big.id), 'another Trawler (3) is not lesser');
+  });
+
+  test('Scarlet Spider: web-slung, he enters with counters equal to the returned creature\'s mana value', (mk, t) => {
+    t.auto('Scarlet Spider, Ben Reilly');
+    const T = mk();
+    const ss = T.hand('A', 'Scarlet Spider, Ben Reilly');
+    const cc = T.bf('A', 'Centaur Courser'); cc.tapped = true;
+    const use = T.g.altUsesFor('A', ss.id).find(u => u.alt && u.alt.webSlinging);
+    T.mana('A', 'RG');
+    t.ok(T.g.castSpell('A', ss.id, { via: use.via, auto: true }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(cc.zone, 'hand');
+    t.eq(ss.counters['+1/+1'], 3, 'three counters for the Courser');
+  });
+
+  test('Hinder: the countered spell goes to the top or the bottom of the library, as chosen', (mk, t) => {
+    t.auto('Hinder');
+    const T = mk();
+    T.top('A', 'Island');
+    T.mana('A', 'R');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.answer('choose', () => ({ picks: [1] }));
+    T.mana('A', '1UU');
+    T.cast('A', T.hand('A', 'Hinder'), { targets: [{ kind: 'stack', id: item.id }] });
+    T.settle(); T.resolve();
+    t.eq(bolt.zone, 'library', 'into the library');
+    const lib = T.zone('A', 'library');
+    t.eq(lib[lib.length - 1], bolt, 'at the bottom');
+    t.eq(T.life('B'), 20);
+  });
 };
