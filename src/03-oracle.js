@@ -3942,6 +3942,14 @@
     // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
     { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
       make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
+    // Sire of Stagnation: "That player exiles the top two cards of their library and you draw two cards."
+    { re: /^(?:That player|They) exiles? the top (a|one|two|three|four|five|\d+) cards? of their library(?: and you draw (a|one|two|three|\d+) cards?)?\.?$/i,
+      make: (m) => (m[2] ? { op: 'sequence', list: [{ op: 'exileTop', n: num(m[1]), who: 'triggerPlayer' }, { op: 'draw', who: 'you', n: num(m[2]) }] }
+        : { op: 'exileTop', n: num(m[1]), who: 'triggerPlayer' }) },
+    // Persistent Constrictor: "They lose 1 life and you put a -1/-1 counter on up to one target creature they control."
+    { re: /^(?:They|That player) loses? (\d+) life and you put an? ([+-]\d\/[+-]\d) counter on up to one target creature (?:they|that player) controls?\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'loseLife', who: 'triggerPlayer', n: +m[1] },
+        { op: 'counters', kind: m[2], n: 1, askTargets: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', controller: 'triggerPlayer', upTo: true }] }] }) },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -7323,6 +7331,9 @@
     // Eidolon of the Great Revel: "a spell with mana value 3 or less"
     const lo = String(mv || '').match(/(\d+) or (?:less|fewer)/);
     if (lo) { if (/power \d/i.test(mv)) f.maxPower = +lo[1]; else f.maxMv = +lo[1]; }
+    // Kozilek's Unsealing: "with mana value 4, 5, or 6"
+    const list = String(mv || '').match(/mana value (\d+(?:, \d+)*,? or \d+)$/i);
+    if (list) { const ks = list[1].match(/\d+/g).map(Number); f.minMv = Math.min(...ks); f.maxMv = Math.max(...ks); }
     // Pollywog Prodigy: "with mana value less than this creature's power"
     if (/less than (?:this creature|CARDNAME)'?s power/i.test(String(mv || ''))) f.mvBelowSelfPower = true;
     return f;
@@ -7494,7 +7505,7 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     /* --- spells being cast, by whom and of what kind --- */
-    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
+    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power|\d+(?:, \d+)*,? or \d+))?, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell of the chosen type, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' of the chosen type') },
@@ -11115,6 +11126,9 @@
       // Curse of Exhaustion
       { re: /^Enchanted (?:player|opponent) can'?t cast more than one spell each turn\.?$/i,
         make: () => ({ op: 'spellLimit', n: 1, who: 'enchantedPlayer' }), auto: true },
+      // Ethersworn Canonist: "Each player who has cast a nonartifact spell this turn can't cast additional nonartifact spells."
+      { re: /^Each player who has cast a nonartifact spell this turn can'?t cast additional nonartifact spells\.?$/i,
+        eff: { op: 'spellLimit', n: 1, nonartifact: true }, auto: true },
       // Brave the Sands
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel

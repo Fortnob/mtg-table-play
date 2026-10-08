@@ -3163,8 +3163,11 @@
         if (lim.who === 'opponents' && s0.controller === playerId) continue;
         if (lim.who === 'enchantedPlayer' && s0.attachedTo !== playerId) continue;
         if (lim.noncreature && a.isCreature) continue;
-        const cast = (p.spellObjsThisTurn || []).filter(x => !lim.noncreature || !(O.analyze(x.card, x.face) || {}).isCreature).length;
-        if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : ''}spells this turn.` };
+        // Ethersworn Canonist: only nonartifact spells count, and only they are stopped
+        if (lim.nonartifact && a.isArtifact) continue;
+        const cast = (p.spellObjsThisTurn || []).filter(x => (!lim.noncreature || !(O.analyze(x.card, x.face) || {}).isCreature) &&
+          (!lim.nonartifact || !(O.analyze(x.card, x.face) || {}).isArtifact)).length;
+        if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : lim.nonartifact ? 'nonartifact ' : ''}spells this turn.` };
       }
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)

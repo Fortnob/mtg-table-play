@@ -11593,4 +11593,37 @@ module.exports = (test) => {
     const g2 = T.bf('B', 'Azorius Guildgate', { etb: true });
     t.ok(g2.tapped, "not the opponent's");
   });
+
+  test("Ethersworn Canonist, Kozilek's Unsealing, Sire of Stagnation, Persistent Constrictor", (mk, t) => {
+    for (const c of ['Ethersworn Canonist', "Kozilek's Unsealing", 'Sire of Stagnation', 'Persistent Constrictor']) t.auto(c);
+    const T = mk();
+    T.bf('B', 'Ethersworn Canonist');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), 'a second nonartifact spell');
+    T.mana('A', '1');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Sol Ring').id, {}), 'an artifact is fine: ' + T.g.lastError);
+    const T2 = mk();
+    T2.bf('A', "Kozilek's Unsealing");
+    T2.mana('A', '1GGG');
+    T2.cast('A', T2.hand('A', 'Centaur Courser'));
+    T2.settle(); T2.resolve();
+    t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 0, 'mana value 3: nothing');
+    T2.mana('A', '4GG');
+    T2.cast('A', T2.hand('A', 'Craw Wurm'));
+    T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
+    t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 2, 'mana value 6: two Spawn');
+    const T3 = mk();
+    const ss = T3.bf('A', 'Sire of Stagnation');
+    const lib = T3.g.zones.B.library.length, hand = T3.g.zones.A.hand.length;
+    T3.g._runEffects(ss.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: ss, name: 'Sire', kind: 'ability', triggerData: { playerId: 'B', player: 'B' } });
+    t.eq(T3.g.zones.B.library.length, lib - 2); t.eq(T3.g.zones.A.hand.length, hand + 2);
+    const T4 = mk();
+    const pc = T4.bf('A', 'Persistent Constrictor');
+    const bb = T4.bf('B', 'Grizzly Bears');
+    T4.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bb.id }] }));
+    T4.g._runEffects(pc.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: pc, name: 'Constrictor', kind: 'ability', triggerData: { playerId: 'B', player: 'B' } });
+    T4.settle();
+    t.eq(T4.life('B'), 19); t.eq(bb.counters['-1/-1'], 1);
+  });
 };
