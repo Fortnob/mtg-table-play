@@ -4845,6 +4845,10 @@
       o.adventureBy = null;
       o.controller = playerId;
       o.chosenX = opts.x || 0;
+      // Summon: Fenrir: this creature spell carries the counter it was promised
+      if (a && a.isCreature && p.nextCreatureCounter && p.nextCreatureCounter.turn === this.turn) {
+        o._enterPlusCounters = p.nextCreatureCounter.n; p.nextCreatureCounter = null;
+      }
       // "the amount of mana spent to cast this creature"
       o.manaSpent = opts.free ? 0 : MANA.cmc(String(cost || '').replace(/\{X\}/g, '')) + (opts.x || 0) * ((String(cost || '').match(/\{X\}/g) || []).length);
 
@@ -5436,6 +5440,8 @@
           this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
         }
       }
+      // Summon: Fenrir: "enters with an additional +1/+1 counter"
+      if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; this.addCounters(o, '+1/+1', k); }
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
@@ -14234,6 +14240,37 @@
           this.bumpBoard();
           break;
         }
+        // Hit the Mother Lode: a tapped Treasure for each point the discovered card fell short
+        case 'treasureDifference': {
+          const d = this._lastDiscovered;
+          const k = d ? (Number(e.n) || 0) - (d.mv || 0) : 0;
+          if (k > 0) this._createNamedToken(ctx.controller, { token: 'Treasure', n: k, tapped: true });
+          break;
+        }
+        // Hellkite Courser: a commander out for the turn, with haste, and back to the command zone
+        case 'commanderVisit': {
+          const pool = ((this.zones[ctx.controller] || {}).command || []).filter(x => x.isCommander && x.owner === ctx.controller);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'commanderVisit', kind: 'objects', zone: 'command',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}put a commander onto the battlefield until the next end step?` }, 'cmdv');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!x || x.zone !== 'command') break;
+          this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          x.effects.push({ keywords: ['Haste'], until: 'eot' });
+          this.scheduleDelayed({ event: 'eachEndStep', controller: ctx.controller, objId: x.id, sameTurnOk: true,
+            name: `Return ${x.name} to the command zone`, effects: [{ op: 'toCommandZone', scope: 'thatObject' }] });
+          this.logEvent('rules', `${me.name} puts ${x.name} onto the battlefield until the next end step.`);
+          break;
+        }
+        case 'toCommandZone': {
+          const x = (ctx.objId && this.obj(ctx.objId)) || ctx.obj;
+          if (x && x.zone === 'battlefield' && x.isCommander) this.moveObject(x, 'command');
+          break;
+        }
+        // Summon: Fenrir: the next creature spell this turn enters with a counter more
+        case 'nextCreatureCounter': me.nextCreatureCounter = { turn: this.turn, n: (me.nextCreatureCounter && me.nextCreatureCounter.turn === this.turn ? me.nextCreatureCounter.n : 0) + (Number(e.n) || 1) }; break;
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

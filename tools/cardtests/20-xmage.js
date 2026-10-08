@@ -11399,4 +11399,29 @@ module.exports = (test) => {
     run();
     t.eq(T.life('A'), 22, 'six cards: two life');
   });
+
+  test('Hit the Mother Lode, Summon: Fenrir, Hellkite Courser', (mk, t) => {
+    t.auto('Hit the Mother Lode'); t.auto('Summon: Fenrir'); t.auto('Hellkite Courser');
+    const T = mk();
+    T.g._lastDiscovered = { id: null, mv: 3 };
+    T.g._runEffects([{ op: 'treasureDifference', n: 10 }], { controller: 'A', name: 'Lode', kind: 'spell' });
+    const tr = T.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Treasure');
+    t.eq(tr.length, 7, 'ten minus three'); t.ok(tr.every(o => o.tapped), 'tapped');
+    const T2 = mk();
+    T2.g._runEffects([{ op: 'nextCreatureCounter', n: 1 }], { controller: 'A', name: 'Fenrir', kind: 'ability' });
+    T2.mana('A', '1G');
+    const bear = T2.hand('A', 'Grizzly Bears');
+    T2.cast('A', bear);
+    T2.settle(); T2.resolve();
+    t.eq(bear.counters['+1/+1'], 1, 'one more counter');
+    const T3 = mk();
+    const cmd = T3.put('A', 'Craw Wurm', 'command'); cmd.isCommander = true;
+    const hc = T3.bf('A', 'Hellkite Courser');
+    T3.answer('choose', { picks: [cmd.id] });
+    T3.g._runEffects(hc.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: hc, name: 'Courser', kind: 'ability' });
+    T3.settle();
+    t.eq(cmd.zone, 'battlefield'); t.ok(T3.g.hasKw(cmd, 'haste'));
+    T3.toMain('B');
+    t.eq(cmd.zone, 'command', 'back at the end step');
+  });
 };

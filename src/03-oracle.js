@@ -3936,6 +3936,9 @@
     // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
     { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[2] ? { tapped: true } : {}); } },
+    // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
+    { re: /^When you next cast a creature spell this turn, that creature enters with an additional \+1\/\+1 counter on it\.?$/i,
+      make: () => ({ op: 'nextCreatureCounter', n: 1 }) },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -5395,6 +5398,16 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Hit the Mother Lode: "Discover 10. If the discovered card's mana value
+       is less than 10, create a number of tapped Treasure tokens equal to the
+       difference." */
+    { re: /^Discover (\d+)\. If the discovered card'?s mana value is less than (\d+), create a number of tapped Treasure tokens equal to the difference\.$/i,
+      make: (m) => [{ op: 'discover', n: +m[1] }, { op: 'treasureDifference', n: +m[2] }] },
+    /* Hellkite Courser: "you may put a commander you own from the command
+       zone onto the battlefield. It gains haste. Return it to the command
+       zone at the beginning of the next end step." */
+    { re: /^(?:You may )?put a commander you own from the command zone onto the battlefield\. It gains haste\. Return it to the command zone at the beginning of the next end step\.$/i,
+      make: () => [{ op: 'commanderVisit' }] },
     /* Containment Construct: "you may exile that card from your graveyard.
        If you do, you may play that card this turn." */
     { re: /^You may exile that card from your graveyard\. If you do, you may play that card this turn\.$/i,
