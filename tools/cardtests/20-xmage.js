@@ -9114,4 +9114,39 @@ module.exports = (test) => {
     const orni = T2.bf('B', 'Ornithopter');
     t.ok(T2.g._protectedFrom(bear, orni), 'so an artifact creature cannot touch it');
   });
+
+  test('Gifts Ungiven: four different cards found, the opponent sends two to the graveyard and the rest come to hand', (mk, t) => {
+    t.auto('Gifts Ungiven');
+    t.auto('Intuition');
+    const T = mk();
+    const cards = ['Lightning Bolt', 'Shock', 'Grizzly Bears', 'Divination'].map(nm => T.top('A', nm));
+    let asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: cards.map(c => c.id) }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [cards[0].id, cards[2].id] }; });
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Gifts Ungiven'), { targets: ['B'] });
+    t.eq(asked[0] && asked[0].playerId, 'A');
+    t.eq(asked[1] && asked[1].playerId, 'B', 'B picks');
+    t.eq(cards.map(c => c.zone).join(), 'graveyard,hand,graveyard,hand');
+  });
+
+  test("Worship keeps you at 1 while you have a creature; Angel's Grace for a turn", (mk, t) => {
+    t.auto('Worship');
+    t.auto("Angel's Grace");
+    const T = mk();
+    T.bf('B', 'Worship');
+    T.bf('B', 'Grizzly Bears');
+    T.g.player('B').life = 3;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 1, 'down to 1, not 0');
+    const T2 = mk();
+    T2.mana('A', 'W');
+    T2.cast('A', T2.hand('A', "Angel's Grace"));
+    T2.g.player('A').life = 2;
+    T2.g.dealDamageToPlayer(T2.g.player('A'), 5, null);
+    t.eq(T2.life('A'), 1);
+    T2.g.playerLoses(T2.g.player('A'), 'life');
+    t.no(T2.g.player('A').hasLost, 'and A cannot lose this turn');
+  });
 };

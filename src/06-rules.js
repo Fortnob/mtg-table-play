@@ -2439,6 +2439,15 @@
       const ahead = (me - act + n) % n;
       return this.turn + (ahead === 0 ? n : ahead);
     }
+    /** Worship, Angel's Grace: is damage kept from taking this player below 1 life? */
+    _lifeFloorFor(p) {
+      if (p.lifeFloorTurn === this.turn) return true;
+      return this.battlefield.some(x => {
+        if (x.controller !== p.id || x.phasedOut) return false;
+        const e = this._staticOp(x, 'lifeFloor');
+        return !!e && (!e.cond || this._condMet(e.cond, { controller: p.id, obj: x }));
+      });
+    }
     /** Thousand-Year Elixir: its controller's creatures use their abilities as though they had haste. */
     _hasteForAbilities(o) {
       return !!o && this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'activateAsHaste'));
@@ -8842,7 +8851,9 @@
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
       const lossEv = this._replace({ kind: 'loseLife', n: amount, controller: p.id });
       // Platinum Emperion: the damage is dealt, but the life total stays
-      const lost = lossEv.cancelled || this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')) ? 0 : lossEv.n;
+      let lost = lossEv.cancelled || this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')) ? 0 : lossEv.n;
+      // Worship, Angel's Grace: damage that would take you below 1 leaves you at 1
+      if (lost > 0 && p.life - lost < 1 && this._lifeFloorFor(p)) lost = Math.max(0, p.life - 1);
       this._speedUp(p);
       p.life -= lost;
       p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + amount;
@@ -14600,6 +14611,9 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // Angel's Grace
+        case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
+        case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;
         // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
         case 'flashUntilNextTurn':
           me.flashUntil = { setTurn: this.turn, filter: e.filter || null };
@@ -14665,6 +14679,33 @@
           if (!src || src.zone !== 'battlefield' || !to) break;
           (src.redirectNext = src.redirectNext || []).push({ n: n(e.n) || 1, to: to.id, turn: this.turn });
           this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${src.name} this turn goes to ${to.name} instead.`);
+          break;
+        }
+        /* Intuition, Gifts Ungiven: you find and reveal the cards, an
+           opponent picks which of them go where */
+        case 'searchOppChooses': {
+          const lib = this.zones[ctx.controller].library;
+          const opp = firstPlayer() || this.opponentsOf(ctx.controller).find(p => !p.hasLost);
+          const most = Math.min(n(e.n), lib.length);
+          const got = most <= 0 ? { picks: [] } : this._choose({ playerId: ctx.controller, purpose: 'searchReveal', kind: 'objects', zone: 'library',
+            panel: true, items: this._chooseItems(lib), min: e.upTo ? 0 : most, max: most,
+            constraints: e.distinct ? [{ kind: 'distinct', key: 'name', reason: 'They must have different names.' }] : [],
+            prompt: `Search your library for ${e.upTo ? 'up to ' : ''}${n(e.n)} cards${e.distinct ? ' with different names' : ''} to reveal.` }, 'socFind');
+          if (got === SUSPEND) return SUSPEND;
+          const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'library');
+          if (picked.length) this.logEvent('reveal', `${me.name} reveals ${picked.map(c => c.name).join(', ')}.`);
+          const k = Math.min(n(e.k), picked.length);
+          const ch = !opp || picked.length <= k ? { picks: picked.map(c => c.id) } : this._choose({ playerId: opp.id, purpose: 'opponentPicks',
+            kind: 'objects', zone: 'library', panel: true, items: this._chooseItems(picked), min: k, max: k, forPlayer: ctx.controller,
+            prefer: e.chosenTo === 'hand' ? 'worst' : 'best',
+            prompt: `Choose ${k} of ${me.name}'s revealed cards: ${k === 1 ? 'it goes' : 'they go'} to their ${e.chosenTo}, and the rest to their ${e.restTo}.` }, 'socPick');
+          if (ch === SUSPEND) return SUSPEND;
+          const chosen = picked.filter(c => ((ch && ch.picks) || []).includes(c.id));
+          const rest = picked.filter(c => !chosen.includes(c));
+          for (const c of chosen) this.moveObject(c, e.chosenTo);
+          for (const c of rest) this.moveObject(c, e.restTo);
+          this.rng.shuffle(lib);
+          if (picked.length) this.logEvent('rules', `${opp ? opp.name : me.name} chooses ${chosen.map(c => c.name).join(', ') || 'nothing'}.`);
           break;
         }
         // "End the turn." — once this has finished resolving
@@ -16747,6 +16788,8 @@
       if (p.hasLost) return;
       // Platinum Angel: "You can't lose the game and your opponents can't win the game."
       if (this._anyStaticOf(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout') return;
+      // Angel's Grace: not this turn
+      if (p.cantLoseTurn === this.turn && reason !== 'concede' && reason !== 'timeout') return;
       p.hasLost = true;
       p.lossReason = reason;
       const words = {

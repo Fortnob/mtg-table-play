@@ -2726,6 +2726,10 @@
     // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
     { re: /^Until your next turn, you may cast (sorcery|creature|instant and sorcery|noncreature) spells as though they had flash\.?$/i,
       make: (m) => ({ op: 'flashUntilNextTurn', filter: m[1].toLowerCase().replace(' and ', ' or ') }) },
+    // Angel's Grace: "You can't lose the game this turn and your opponents can't win the game this turn."
+    { re: /^You can'?t lose the game this turn and your opponents can'?t win the game this turn\.?$/i, make: () => ({ op: 'cantLoseTurn' }) },
+    // Angel's Grace: "Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead."
+    { re: /^Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead\.?$/i, make: () => ({ op: 'lifeFloorTurn' }) },
     // Portal to Phyrexia: "It's a Phyrexian in addition to its other types."
     { re: /^(?:It'?s|That creature is) an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => ({ op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
@@ -4807,6 +4811,16 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Intuition: "Search your library for three cards and reveal them. Target
+       opponent chooses one. Put that card into your hand and the rest into
+       your graveyard. Then shuffle." Gifts Ungiven the other way round. */
+    { re: /^Search your library for (up to )?(\w+) cards( with different names)? and reveal them\. Target opponent chooses (\w+)(?: of those cards)?\. Put (?:that card|the chosen cards?) into your (hand|graveyard) and the rest into your (hand|graveyard)\. Then shuffle\.$/i,
+      make: (m) => {
+        const k = num(m[2]), c = num(m[4]);
+        if (typeof k !== 'number' || typeof c !== 'number') return null;
+        return [{ op: 'searchOppChooses', n: k, upTo: !!m[1], distinct: !!m[3], k: c, chosenTo: m[5].toLowerCase(), restTo: m[6].toLowerCase(),
+          targets: [{ type: 'player', opponent: true }] }];
+      } },
     // Past in Flames: "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost."
     { re: /^Each (instant and sorcery|instant|sorcery) card in your graveyard gains flashback until end of turn\. The flashback cost is equal to its mana cost\.$/i,
       make: (m) => [{ op: 'flashbackThisTurn', filter: /and/i.test(m[1]) ? 'instant or sorcery' : m[1].toLowerCase() }] },
@@ -9615,6 +9629,13 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // Worship, Ali from Cairo: "(If you control a creature,) damage that would reduce your life total to less than 1 reduces it to 1 instead."
+      { re: /^(?:If (.+?), )?[Dd]amage that would reduce your life total to less than 1 reduces it to 1 instead\.?$/,
+        make: (m) => {
+          const cond = m[1] ? condOf(m[1]) : null;
+          if (m[1] && !cond) return null;
+          return Object.assign({ op: 'lifeFloor' }, cond ? { cond } : {});
+        }, auto: true },
       // Bonehoard: "Equipped creature gets +X/+X, where X is the number of creature cards in all graveyards."
       { re: /^Equipped creature gets \+X\/\+X, where X is the number of ([a-z]+) cards in all graveyards\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' },
