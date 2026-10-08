@@ -1446,7 +1446,8 @@
             // no commander at all: it is simply mana of any colour
             if (cols.size) for (const c of cols) produces.add(c); else any = true;
           } else any = true;
-          amount += e.amount === 'X' ? 1 : (Number(e.amount) || 1);
+          // "two mana of different colors": the plan counts on one of whatever is wanted
+          amount += e.amount === 'X' || e.distinct ? 1 : (Number(e.amount) || 1);
         } else if (e.op === 'addManaChoice') {
           (e.choices || []).forEach(ch => ch.forEach(sym => { for (const c of MANA.COLORS.concat('C')) if (sym.includes(c)) produces.add(c); }));
           amount += Math.max(1, ...(e.choices || [[1]]).map(ch => ch.length));
@@ -11076,6 +11077,20 @@
           const pool = allowed.length ? allowed : MANA.COLORS;
           const pref = this._preferredColor(me);
           const color = ctx.manaChoice && pool.includes(ctx.manaChoice) ? ctx.manaChoice : (pool.includes(pref) ? pref : pool[0]);
+          // Firemind Vessel: "two mana of different colors" — the split asked for, else the colours most wanted
+          if (e.distinct) {
+            const want = Array.isArray(ctx.manaSplit) ? ctx.manaSplit.filter((c, i, a) => pool.includes(c) && a.indexOf(c) === i) : [];
+            const got = want.slice(0, amt);
+            if (!got.length) got.push(color);
+            while (got.length < amt) {
+              const next = this._preferredColor(me, got[got.length - 1]);
+              const c = !got.includes(next) && pool.includes(next) ? next : pool.find(x => !got.includes(x));
+              if (!c) break;
+              got.push(c);
+            }
+            for (const c of got) me.pool.add(c);
+            break;
+          }
           for (let i = 0; i < amt; i++) me.pool.add(color);
           break;
         }

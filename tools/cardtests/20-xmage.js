@@ -10594,4 +10594,15 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(lv.zone, 'graveyard', 'Lethal Vapors destroyed');
   });
+
+  test('Firemind Vessel adds two mana of different colours', (mk, t) => {
+    t.auto('Firemind Vessel');
+    const T = mk();
+    const fv = T.bf('A', 'Firemind Vessel'); fv.tapped = false;
+    T.g.tapForMana('A', fv.id, 0);
+    const snap = T.g.player('A').pool.snapshot();
+    const cols = Object.keys(snap).filter(k => snap[k] > 0);
+    t.eq(T.g.player('A').pool.total(), 2, 'two mana');
+    t.eq(cols.length, 2, 'of two colours: ' + JSON.stringify(snap));
+  });
 };

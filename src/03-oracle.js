@@ -959,6 +959,9 @@
       make: (m) => ({ op: 'addManaAny', amount: num(m[1]), sameColor: true }) },
     { re: /^Add (one|two|three|four|five|six|seven|eight|nine|ten|\d+) mana in any combination of colors\.?$/i,
       make: (m) => ({ op: 'addManaAny', amount: num(m[1]) }) },
+    // Firemind Vessel, Interplanar Beacon: "Add two mana of different colors."
+    { re: /^Add (two|three|four|five) mana of different colou?rs\.?$/i,
+      make: (m) => ({ op: 'addManaAny', amount: num(m[1]), distinct: true }) },
     // Sanctum Weaver: "Add X mana of any one color, where X is the number of enchantments you control."
     { re: /^Add X mana of any one colou?r, where X is the number of ([-a-zA-Z' ]+? you control)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
