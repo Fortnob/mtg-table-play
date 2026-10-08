@@ -10605,4 +10605,26 @@ module.exports = (test) => {
     t.eq(T.g.player('A').pool.total(), 2, 'two mana');
     t.eq(cols.length, 2, 'of two colours: ' + JSON.stringify(snap));
   });
+
+  test('Delay suspends the countered spell; Suspend suspends a creature', (mk, t) => {
+    t.auto('Delay');
+    t.auto('Suspend');
+    const T = mk();
+    T.mana('A', 'R');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.mana('A', '1U');
+    T.cast('A', T.hand('A', 'Delay'), { targets: [{ kind: 'stack', id: item.id }] });
+    T.settle(); T.resolve();
+    t.eq(bolt.zone, 'exile');
+    t.eq(bolt.counters.time, 3, 'three time counters');
+    t.eq(bolt.suspendedBy, 'A', 'suspended');
+    t.eq(T.life('B'), 20);
+    const T2 = mk();
+    const cc = T2.bf('B', 'Centaur Courser');
+    T2.mana('A', 'U');
+    T2.cast('A', T2.hand('A', 'Suspend'), { targets: [cc] });
+    t.eq(cc.zone, 'exile'); t.eq(cc.counters.time, 2); t.eq(cc.suspendedBy, 'B', 'its owner will cast it');
+  });
 };

@@ -1949,7 +1949,13 @@
         // permanent or not (CR 701.5a) — it never reaches the battlefield
         if (item.kind === 'spell' && item.obj && item.obj.zone === 'stack') {
           const to = item.counterTo;
-          if (to && !(item.obj.isCommander && MTG.settings.commanderToZone !== false))
+          // Delay: into exile with time counters, and suspended
+          if (to === 'suspend' && !(item.obj.isCommander && MTG.settings.commanderToZone !== false)) {
+            this.moveObject(item.obj, 'exile');
+            item.obj.counters.time = item.suspendTime || 3;
+            item.obj.suspendedBy = item.obj.owner;
+            this.logEvent('rules', `${item.obj.name} is exiled with ${item.obj.counters.time} time counters, suspended.`);
+          } else if (to && !(item.obj.isCommander && MTG.settings.commanderToZone !== false))
             this.moveObject(item.obj, to === 'hand' ? 'hand' : 'library', { toBottom: to === 'bottom' });
           else this.moveObject(item.obj, item.obj.isCommander && MTG.settings.commanderToZone !== false ? 'command'
             : item.exileIfCountered ? 'exile' : 'graveyard');
@@ -11558,7 +11564,8 @@
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             item.countered = true;
             if (e.exileIt) item.exileIfCountered = true;
-            if (e.counterTo === 'topOrBottom') {
+            if (e.counterTo === 'suspend') { item.counterTo = 'suspend'; item.suspendTime = e.timeCounters || 3; }
+            else if (e.counterTo === 'topOrBottom') {
               // Hinder: the counterer says which end of the library
               const got = this._choose({ playerId: ctx.controller, purpose: 'counterTopBottom', kind: 'options', min: 1, max: 1, compact: true,
                 options: [{ label: 'Top of the library', key: 'top' }, { label: 'Bottom of the library', key: 'bottom' }],
@@ -16461,6 +16468,19 @@
         case 'experience': {
           me.experience = (me.experience || 0) + Math.max(0, n(e.n));
           this.logEvent('counters', `${me.name} gets an experience counter (${me.experience}).`);
+          break;
+        }
+        // Suspend (the card): exiled with time counters, and suspended — its owner casts it when they run out
+        case 'exileSuspend': {
+          for (const t of targets) {
+            const x = t.kind === 'object' && this.obj(t.id);
+            if (!x || x.zone !== 'battlefield') continue;
+            if (x.isToken) { this.moveObject(x, 'exile'); continue; }
+            this.moveObject(x, 'exile');
+            x.counters.time = n(e.timeCounters);
+            x.suspendedBy = x.owner;
+            this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counters, suspended.`);
+          }
           break;
         }
         /* Scent of Ivy, the Seers: cards of a kind shown from the hand, how many is what counts */

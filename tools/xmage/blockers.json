@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12772,
+  "needed": 12770,
   "gainedCards": 1373,
-  "linesNeeded": 14004,
+  "linesNeeded": 14002,
   "linesGained": 1653,
   "gained": {
    "all": 1373,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4729,
-   "lines": 4240,
+   "score": 4727,
+   "lines": 4238,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7110,8 +7110,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3847,
-   "cards": 3502,
+   "score": 3845,
+   "cards": 3500,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
