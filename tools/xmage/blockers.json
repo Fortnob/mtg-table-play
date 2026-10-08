@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13605,
+  "needed": 13593,
   "gainedCards": 1438,
-  "linesNeeded": 14947,
+  "linesNeeded": 14935,
   "linesGained": 1756,
   "gained": {
    "all": 1438,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 60,
+  "verifyFail": 58,
   "overrides": {
    "drain": 62,
    "count": 42,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4936,
-   "lines": 4372,
+   "score": 4935,
+   "lines": 4371,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -4288,21 +4288,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAtLeastOneTargetEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Irresistible Prey",
-    "Enlarge",
-    "King Harald's Revenge",
-    "Deadly Allure",
-    "Disturbed Slumber",
-    "Satyr Piper",
-    "Vengeant Earth",
-    "Elemental Uprising"
-   ]
-  },
-  {
    "what": "DealsDamageToACreatureTriggeredAbility",
    "score": 8,
    "lines": 8,
@@ -7335,13 +7320,21 @@
    "cards": [
     "Moonsilver Key"
    ]
+  },
+  {
+   "what": "DiscardXTargetCost",
+   "score": 4,
+   "lines": 1,
+   "cards": [
+    "Gix, Yawgmoth Praetor"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3983,
-   "cards": 3584,
+   "score": 3982,
+   "cards": 3583,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -9320,19 +9313,6 @@
    ]
   },
   {
-   "what": "MustBeBlockedByAtLeastOneTargetEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Irresistible Prey",
-    "Enlarge",
-    "King Harald's Revenge",
-    "Deadly Allure",
-    "Disturbed Slumber",
-    "Satyr Piper"
-   ]
-  },
-  {
    "what": "DealsDamageToACreatureTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -11125,6 +11105,18 @@
     "Entourage of Trest",
     "Give No Ground",
     "Foriysian Totem"
+   ]
+  },
+  {
+   "what": "TargetCardInExile",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Pull from Eternity",
+    "Riftsweeper",
+    "Sentinel of Lost Lore",
+    "Runic Repetition",
+    "Blade of the Swarm"
    ]
   }
  ]

@@ -9285,4 +9285,20 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: ['B'] });
     t.eq(T2.life('B'), 17, 'green paid for red');
   });
+
+  test('Must be blocked this turn if able; Pinnacle of Rage hits two targets', (mk, t) => {
+    t.auto('Irresistible Prey');
+    t.auto('Joraga Invocation');
+    t.auto('Pinnacle of Rage');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Irresistible Prey'), { targets: [bear] });
+    t.ok(T.g._hasFlag(bear, 'mustBeBlockedTurn'), 'the Bears must be blocked');
+    const T2 = mk();
+    const a = T2.bf('B', 'Grizzly Bears'), b = T2.bf('B', 'Llanowar Elves');
+    T2.mana('A', 'RR4');
+    T2.cast('A', T2.hand('A', 'Pinnacle of Rage'), { targets: [a, b] });
+    t.eq(a.zone, 'graveyard'); t.eq(b.zone, 'graveyard');
+  });
 };

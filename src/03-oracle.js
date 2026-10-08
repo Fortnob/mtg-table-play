@@ -1938,6 +1938,25 @@
     // Gideon: "Prevent all damage that would be dealt to him this turn."
     { re: /^Prevent all damage that would be dealt to (?:him|her|it|CARDNAME|this creature) this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
+    // Irresistible Prey, Satyr Piper, Enlarge: "(Target creature|It|This creature) must be blocked this turn if able."
+    { re: /^(Target creature|It|That creature|CARDNAME|This creature) must be blocked this turn if able\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', flags: ['mustBeBlockedTurn'], targets: [targetSpec(m[1])] }
+        : /^(?:CARDNAME|this creature)$/i.test(m[1]) ? { op: 'flagEot', scope: 'self', flags: ['mustBeBlockedTurn'] }
+        : { op: 'flagEot', scope: 'lastTarget', flags: ['mustBeBlockedTurn'] }) },
+    /* Deadly Allure, Joraga Invocation: "… until end of turn and must be
+       blocked this turn if able" — whatever the first half does, and then that */
+    { re: /^(.+? until end of turn) and must be blocked this turn if able\.?$/i,
+      make: (m) => {
+        const first = parseEffectSentence(m[1] + '.', 1);
+        if (!first || first.op === 'manual' || Array.isArray(first)) return null;
+        const t = (first.targets || [])[0];
+        const scope = t ? 'lastTarget' : first.scope;
+        if (!scope) return null;
+        return { op: 'sequence', list: [first, Object.assign({ op: 'flagEot', flags: ['mustBeBlockedTurn'] }, typeof scope === 'object' ? { scope } : { scope })] };
+      } },
+    // Pinnacle of Rage, Furious Reprisal: "CARDNAME deals 3 damage to each of two targets."
+    { re: /^(?:CARDNAME|This spell) deals (\d+) damage to each of (two|three) targets\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], targets: Array.from({ length: num(m[2]) }, () => ({ type: 'any', filter: 'any target', distinct: true })) }) },
     // Compelled Duel: "gets +3/+3 until end of turn and must be blocked this turn if able"
     { re: /^(Target creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and must be blocked this turn if able\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [targetSpec(m[1])] },
