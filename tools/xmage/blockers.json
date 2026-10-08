@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12761,
+  "needed": 12757,
   "gainedCards": 1373,
-  "linesNeeded": 13990,
-  "linesGained": 1653,
+  "linesNeeded": 13969,
+  "linesGained": 1651,
   "gained": {
    "all": 1373,
    "top2000": 53,
@@ -26,15 +26,15 @@
    "x": 3,
    "it": 18,
    "opponent": 73,
-   "condition": 22
+   "condition": 23
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4724,
-   "lines": 4235,
+   "score": 4720,
+   "lines": 4231,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -1944,25 +1944,6 @@
    ]
   },
   {
-   "what": "keyword MoreThanMeetsTheEyeAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Slicer, Hired Muscle // Slicer, High-Speed Antagonist",
-    "Starscream, Power Hungry // Starscream, Seeker Leader",
-    "Ratchet, Field Medic // Ratchet, Rescue Racer",
-    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
-    "Optimus Prime, Hero // Optimus Prime, Autobot Leader",
-    "Megatron, Tyrant // Megatron, Destructive Force",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Jetfire, Ingenious Scientist // Jetfire, Air Guardian",
-    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
-    "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
-    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
-    "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 12,
    "lines": 12,
@@ -3361,21 +3342,6 @@
    ]
   },
   {
-   "what": "BeginningOfPostcombatMainTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Sphinx of the Second Sun",
-    "Florian, Voldaren Scion",
-    "Shadow of the Second Sun",
-    "Sorin of House Markov // Sorin, Ravenous Neonate",
-    "Tymna the Weaver",
-    "Belbe, Corrupted Observer",
-    "Brazen Cannonade",
-    "Megatron, Tyrant // Megatron, Destructive Force"
-   ]
-  },
-  {
    "what": "CreateTokenCopySourceEffect",
    "score": 8,
    "lines": 8,
@@ -3875,6 +3841,20 @@
     "Skirk Shaman",
     "Angelic Voices",
     "Elven Riders"
+   ]
+  },
+  {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Sorin of House Markov // Sorin, Ravenous Neonate",
+    "Tymna the Weaver",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade"
    ]
   },
   {
@@ -4937,19 +4917,6 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
-   ]
-  },
-  {
-   "what": "attack trigger with its own text",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent"
    ]
   },
   {
@@ -6215,6 +6182,18 @@
    ]
   },
   {
+   "what": "attack trigger with its own text",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental",
+    "Shrouded Serpent"
+   ]
+  },
+  {
    "what": "all from one opponent",
    "score": 5,
    "lines": 5,
@@ -7103,13 +7082,24 @@
     "Spellbinding Soprano",
     "Urza, Planeswalker"
    ]
+  },
+  {
+   "what": "ExileReturnBattlefieldNextEndStepTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Morningtide's Light",
+    "Blizzard Strix",
+    "Roll-Roll-Roll-Roll",
+    "Wiccan, Rising Magician"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3844,
-   "cards": 3499,
+   "score": 3847,
+   "cards": 3502,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -8686,6 +8676,19 @@
    ]
   },
   {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Edgar, Charmed Groom // Edgar Markov's Coffin",
+    "Bruce Banner // The Incredible Hulk",
+    "Blizzard Brawl",
+    "Jet's Brainwashing",
+    "Torch the Tower"
+   ]
+  },
+  {
    "what": "LookLibraryAndPickControllerEffect shape",
    "score": 8,
    "cards": 8,
@@ -9024,19 +9027,6 @@
     "Vault 12: The Necropolis",
     "Contaminated Drink",
     "Megaton's Fate"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Blizzard Brawl",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {
@@ -9753,19 +9743,6 @@
     "Lightning Shrieker",
     "Blitz Hellion",
     "Krovikan Horror"
-   ]
-  },
-  {
-   "what": "attack trigger with its own text",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Conqueror's Galleon // Conqueror's Foothold",
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent"
    ]
   },
   {
@@ -10677,6 +10654,18 @@
     "Blossom Prancer",
     "Rosecot Knight",
     "Pulsar Squadron Ace"
+   ]
+  },
+  {
+   "what": "attack trigger with its own text",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Woodvine Elemental",
+    "Shrouded Serpent"
    ]
   },
   {

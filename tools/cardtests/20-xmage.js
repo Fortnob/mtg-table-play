@@ -10652,4 +10652,20 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(bear.zone, 'exile', 'exiled by the ability it gained');
   });
+
+  test('More Than Meets the Eye casts the card converted; a creature returned "transformed" comes back on its back face', (mk, t) => {
+    const T = mk();
+    const r = T.hand('A', 'Ratchet, Field Medic // Ratchet, Rescue Racer');
+    const use = T.g.altUsesFor('A', r.id).find(u => u.via === 'mtmte');
+    t.ok(use, 'offered');
+    T.mana('A', '1W');
+    t.ok(T.g.castSpell('A', r.id, { via: 'mtmte', auto: true }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(r.zone, 'battlefield');
+    t.eq(r.face, 1, 'converted: Ratchet, Rescue Racer');
+    const T2 = mk();
+    const c = T2.grave('A', 'Harvest Hand // Scrounged Scythe');
+    T2.g._runEffects([{ op: 'selfFromGraveyard', to: 'battlefield', transformed: true }], { controller: 'A', obj: c, name: 'test' });
+    t.eq(c.zone, 'battlefield'); t.eq(c.face, 1, 'Scrounged Scythe');
+  });
 };

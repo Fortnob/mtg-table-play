@@ -3681,6 +3681,9 @@
             label: truncate(MTG.oracle.named(ab.text, o) || MTG.oracle.abilityLabel(ab, o), 90) });
         });
       }
+      /* The Transformers: cast converted, back face up, for the More Than Meets the Eye cost */
+      const mtm = o.zone === 'hand' && o.card.card_faces && o.card.card_faces.length > 1 ? (O.analyze(o.card, 0) || {}).mtmte : null;
+      if (mtm) out.push({ kind: 'cast', via: 'mtmte', cost: mtm, face: 1, label: 'More Than Meets the Eye ' + mtm });
       /* Another way to pay, printed on the card itself: a commander on the
          battlefield makes it free, a blue card and a life point pay for
          Force of Will. Offered only when it could actually be paid. */
@@ -4379,6 +4382,16 @@
         if (a0 && !a0.isPermanent && (opts.targets || []).length > 1 &&
           !this._differentControllersOk(this._cardSpellEffects(a0), (opts.targets || []).map(normTarget)))
           return this.fail('Those targets must be controlled by different players.');
+      }
+      // More Than Meets the Eye: the card cast converted, its back face up
+      if (opts.via === 'mtmte' && !opts._faceSet) {
+        const so = this.obj(objId);
+        if (!so || !so.card.card_faces) return this.fail('That card cannot be cast converted.');
+        const was = so.face || 0;
+        so.face = 1; so._chr = null;
+        const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true }));
+        if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
+        return ok;
       }
       // Aftermath: the right half, from the graveyard
       if (opts.via === 'aftermath' && !opts._faceSet) {
@@ -14639,6 +14652,8 @@
           // "return CARDNAME to its owner's hand" said of a permanent: it goes back from the battlefield
           if (src && src.zone === 'battlefield' && e.to === 'hand') { this.moveObject(src, 'hand'); break; }
           if (!src || src.zone !== (e.from || 'graveyard')) break;
+          // "…converted", "…transformed": its back face up
+          if (e.transformed && e.to === 'battlefield' && src.card.card_faces && src.card.card_faces.length > 1) { src.face = 1; src._chr = null; }
           this.moveObject(src, e.to === 'battlefield' ? 'battlefield' : 'hand',
             e.to === 'battlefield' ? { controller: ctx.controller } : undefined);
           if (e.tapped && src.zone === 'battlefield') src.tapped = true;

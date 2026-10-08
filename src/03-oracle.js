@@ -1645,6 +1645,12 @@
       make: () => ({ op: 'exileSelf' }) },
     { re: /^Transform (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|~)\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
+    // Optimus Prime: "return it to the battlefield converted under its owner's control"
+    { re: /^Return (?:it|CARDNAME|this card) to the battlefield (?:transformed|converted) under (?:its owner'?s|your) control\.?$/i,
+      make: () => ({ op: 'selfFromGraveyard', to: 'battlefield', transformed: true }) },
+    // the Transformers: "convert Ratchet" is to transform it
+    { re: /^(you may )?convert (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent)|~)\.?$/i,
+      make: (m) => (m[1] ? { op: 'may', then: [{ op: 'transformSelf' }] } : { op: 'transformSelf' }) },
     { re: /^Shuffle (?:CARDNAME|this card|it) into (?:its|their) owner'?s library\.?$/i,
       make: () => ({ op: 'selfToLibrary', shuffle: true }) },
     { re: /^Return (?:CARDNAME|this card) from your graveyard to your hand\.?$/i,
@@ -8158,6 +8164,14 @@
       const susX = line.match(/^Suspend X\s*[\u2014-]\s*((?:\{[^}]+\})+)\.\s*X can'?t be 0\.?$/i);
       if (susX) {
         out.abilities.push({ kind: 'castModifier', keyword: 'Suspend', arg: 'X\u2014' + susX[1], text: line, auto: true });
+        autoLines++;
+        continue;
+      }
+      /* The Transformers: "More Than Meets the Eye {1}{W}" — cast the card converted, its back face up, for that */
+      const mtm = line.match(/^More Than Meets the Eye ((?:\{[^}]+\})+)$/i);
+      if (mtm) {
+        out.mtmte = mtm[1];
+        out.abilities.push({ kind: 'castModifier', keyword: 'More Than Meets the Eye', arg: mtm[1], text: line, auto: true, effects: [] });
         autoLines++;
         continue;
       }
