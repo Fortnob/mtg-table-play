@@ -12399,9 +12399,14 @@
           const legal = z.library.filter(matches)
             .concat(e.alsoGraveyard ? z.graveyard.filter(matches) : []);
           const want_n = Math.min(n(e.n), legal.length);
+          // Opposition Agent: an opponent of the searcher makes the choices, and what is found goes to exile for them
+          const agentOf = (op) => this.battlefield.find(x => !x.phasedOut && x.controller !== seeker.id &&
+            this.opponentsOf(seeker.id).some(q => q.id === x.controller) && this._staticOp(x, op));
+          const ctlAgent = agentOf('controlSearches');
+          const exAgent = agentOf('searchExiles');
           let taken = [];
           if (want_n > 0) {
-            const picked = this._ask({ type: 'pickCard', playerId: seeker.id, count: want_n,
+            const picked = this._ask({ type: 'pickCard', playerId: ctlAgent ? ctlAgent.controller : seeker.id, count: want_n,
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               optional: true, fromLibrary: true,
               prompt: e.prompt || `Search your library${want === 'any' ? '' : ' for ' + want}.` }, 'tutor');
@@ -12432,6 +12437,16 @@
               toField = new Set((which || []).slice(0, k));
             }
             for (const c of taken) if (toField.size < k && !toField.has(c.id)) toField.add(c.id);
+          }
+          if (exAgent && taken.length) {
+            for (const c of taken) {
+              this.moveObject(c, 'exile');
+              c.impulseBy = exAgent.controller; c.impulseUntil = 99999; c.impulseAnyMana = exAgent.controller;
+            }
+            this.logEvent('search', `${exAgent.name}: ${seeker.name} exiles ${taken.map(c => c.name).join(', ')}, for ${this.player(exAgent.controller).name} to play.`);
+            this._lastSearched = taken.map(c => c.id);
+            this.rng.shuffle(z.library);
+            break;
           }
           for (const c of taken) {
             const i = z.library.indexOf(c);

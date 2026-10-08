@@ -9584,4 +9584,18 @@ module.exports = (test) => {
     t.eq(fodder.zone, 'exile');
     t.eq(T.g.toughnessOf(big), 3, 'X = 3: -3/-3 on a 6/6');
   });
+
+  test('Opposition Agent: the opponent\'s search is ours to make, and what they find is exiled for us to play', (mk, t) => {
+    t.auto('Opposition Agent');
+    const T = mk();
+    T.bf('B', 'Opposition Agent');
+    const bolt = T.top('A', 'Lightning Bolt');
+    let asked = null;
+    T.answer('pickCard', (ch) => { asked = ch; return { cardIds: [bolt.id] }; });
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Demonic Tutor'));
+    t.eq(asked && asked.playerId, 'B', 'B makes the choice');
+    t.eq(bolt.zone, 'exile', 'the Bolt is exiled, not put in A\'s hand');
+    t.eq(bolt.impulseBy, 'B', 'and B may play it');
+  });
 };

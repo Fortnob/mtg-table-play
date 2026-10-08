@@ -9937,6 +9937,11 @@
           const kw = { op: 'continuous', layer: 6, scope, grant: ['Hexproof From ' + U.titleCase(m[4])] };
           return m[2] ? { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true }, pt: { p: +m[2], t: +m[3] } }, kw] } : kw;
         }, auto: true },
+      // Opposition Agent: "You control your opponents while they're searching their libraries."
+      { re: /^You control your opponents while they'?re searching their libraries\.?$/i, eff: { op: 'controlSearches' }, auto: true },
+      // Opposition Agent: "While an opponent is searching their library, they exile each card they find. You may play those cards …"
+      { re: /^While an opponent is searching their library, they exile each card they find\. You may play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any colou?r to cast them\.?$/i,
+        eff: { op: 'searchExiles' }, auto: true },
       // Pilot tokens, Cloudspire Captain: "This token saddles Mounts and crews Vehicles as though its power were 2 greater."
       { re: /^(?:This token|This creature|CARDNAME) (?:saddles Mounts and )?crews Vehicles(?: and saddles Mounts)? as though its power were (\d+) greater\.?$/i,
         make: (m) => ({ op: 'crewBonus', n: +m[1] }), auto: true },
