@@ -10975,4 +10975,28 @@ module.exports = (test) => {
     T5.settle(); T5.resolve();
     t.eq(g1.zone, 'battlefield'); t.eq(g2.zone, 'graveyard', 'one of each name'); t.eq(g3.zone, 'battlefield');
   });
+
+  test('Twenty-Toed Toad wins with twenty counters; Meren reads experience; Planar Genesis falls back to a card', (mk, t) => {
+    t.auto('Twenty-Toed Toad'); t.auto('Meren of Clan Nel Toth'); t.auto('Planar Genesis');
+    const T = mk();
+    const toad = T.bf('A', 'Twenty-Toed Toad');
+    toad.counters['+1/+1'] = 19; toad.counters.charge = 1;
+    T.answer('declareAttackers', () => [{ attackerId: toad.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.ok(T.g.player('B').hasLost, 'twenty counters: A wins');
+    const T2 = mk();
+    const meren = T2.bf('A', 'Meren of Clan Nel Toth');
+    T2.g.player('A').experience = 2;
+    const bear = T2.grave('A', 'Grizzly Bears');
+    T2.g._runEffects(meren.analysis().abilities.find(a => a.kind === 'triggered' && /end step/.test(a.text)).effects,
+      { controller: 'A', obj: meren, name: 'Meren', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    t.eq(bear.zone, 'battlefield', 'mana value 2, two experience');
+    const T3 = mk();
+    T3.top('A', 'Grizzly Bears'); T3.top('A', 'Craw Wurm'); T3.top('A', 'Lightning Bolt'); T3.top('A', 'Sol Ring');
+    T3.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Sol Ring').id] }));
+    T3.mana('A', 'GU');
+    T3.cast('A', T3.hand('A', 'Planar Genesis'));
+    T3.settle(); T3.resolve();
+    t.ok(T3.g.zones.A.hand.some(o => o.name === 'Sol Ring'), 'no land: a card into hand');
+  });
 };

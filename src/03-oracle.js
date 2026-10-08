@@ -3888,6 +3888,8 @@
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'reveal', n: num(m[1]), from: 'library' }) },
     { re: /^You win the game\.?$/i, make: () => ({ op: 'winGame' }) },
+    // Twenty-Toed Toad: "you win the game if there are twenty or more counters on it or …"
+    { re: /^You win the game if (.+?)\.?$/i, make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'winGame' }] } : null; } },
     { re: /^You lose the game\.?$/i, make: () => ({ op: 'loseGame' }) },
     { re: /^Each opponent loses the game\.?$/i, make: () => ({ op: 'winGame' }) },
 
@@ -5322,6 +5324,21 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Planar Genesis: "Look at the top four cards of your library. You may
+       put a land card from among them onto the battlefield tapped. If you
+       don't, put a card from among them into your hand. Put the rest on the
+       bottom of your library in a random order." */
+    { re: /^Look at the top (\w+) cards of your library\. You may put an? ([a-z]+) card from among them onto the battlefield( tapped)?\. If you don'?t, put a card from among them into your hand\. Put the rest on the bottom of your library in a random order\.$/i,
+      make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 },
+        { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
+          otherwise: [{ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'keep' }] },
+        { op: 'restToBottom', random: true }] },
+    /* Meren of Clan Nel Toth: "choose target creature card in your graveyard.
+       If that card's mana value is less than or equal to the number of
+       experience counters you have, return it to the battlefield. Otherwise,
+       put it into your hand." */
+    { re: /^Choose target creature card in your graveyard\. If that card'?s mana value is less than or equal to the number of experience counters you have, return it to the battlefield\. Otherwise, put it into your hand\.$/i,
+      make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
     /* Traverse the Outlands: "Search your library for up to X basic land
        cards, where X is the greatest power among creatures you control. Put
        those cards onto the battlefield tapped, then shuffle." */
@@ -6756,6 +6773,15 @@
     [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
     [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment))$/i, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
+    // Twenty-Toed Toad: "there are twenty or more counters on it or you have twenty or more cards in hand"
+    [/^there are (\w+) or more counters on (?:it|CARDNAME|this (?:creature|artifact|permanent))(?: or you have (\w+) or more cards in hand)?$/i, (m) => {
+      const k = num(m[1]);
+      if (typeof k !== 'number') return null;
+      const one = { kind: 'selfCountersTotal', n: k };
+      if (!m[2]) return one;
+      const h = num(m[2]);
+      return typeof h === 'number' ? { kind: 'any', of: [one, { kind: 'hand', n: h, cmp: 'atLeast' }] } : null;
+    }],
     // Padeem: "you control the artifact with the greatest mana value or tied for the greatest mana value"
     [/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i, () => ({ kind: 'greatestMvArtifact' })],
     // Liberator: "if the amount of mana spent to cast that spell is greater than CARDNAME's power"

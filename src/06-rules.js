@@ -8658,6 +8658,8 @@
         // Gathering Place: "if this land entered this turn or if you control a basic land"
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        // Twenty-Toed Toad: every counter on it, of whatever kind
+        case 'selfCountersTotal': return !!src && Object.values(src.counters || {}).reduce((k, v) => k + (Number(v) || 0), 0) >= cond.n;
         case 'greatestMvArtifact': {
           const arts = this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isArtifact);
           if (!arts.length || !me) return false;
@@ -13980,6 +13982,15 @@
           }
           const copy = this.stack.find(x => x.id === st.copy);
           if (copy && this._newTargetsForCopy(copy, st.who, 'chnt') === SUSPEND) return SUSPEND;
+          break;
+        }
+        // Meren: to the battlefield if its mana value is within your experience; otherwise to hand
+        case 'experienceReturn': {
+          const x = firstObj();
+          if (!x || x.zone !== 'graveyard') break;
+          const mv = (x.card && x.card.cmc) || 0;
+          if (mv <= (me.experience || 0)) this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          else this.moveObject(x, 'hand');
           break;
         }
         // Cultivator Colossus: a land from hand, a card, and again — until you stop or run out
