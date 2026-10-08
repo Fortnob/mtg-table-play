@@ -10694,4 +10694,17 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Frost Bite'), { targets: [c2] });
     t.eq(c2.damage, 2, 'only two without three snow permanents');
   });
+
+  test('Ground Seal stops graveyard targets; Mana Vortex goes when there are no lands', (mk, t) => {
+    t.auto('Ground Seal');
+    const T = mk();
+    T.bf('B', 'Ground Seal');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'B');
+    t.no(T.g.castSpell('A', T.hand('A', 'Raise Dead').id, { targets: [{ kind: 'object', id: bear.id }] }), 'no graveyard target');
+    const T2 = mk();
+    const mv = T2.bf('A', 'Mana Vortex');
+    T2.g.checkStateBasedActions();
+    t.eq(mv.zone, 'graveyard', 'no lands: it is sacrificed');
+  });
 };

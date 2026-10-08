@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12746,
+  "needed": 12741,
   "gainedCards": 1373,
-  "linesNeeded": 13958,
+  "linesNeeded": 13942,
   "linesGained": 1651,
   "gained": {
    "all": 1373,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4719,
-   "lines": 4230,
+   "score": 4716,
+   "lines": 4227,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 815,
-   "lines": 722,
+   "score": 810,
+   "lines": 717,
    "cards": [
     "Trouble in Pairs",
     "Myr Battlesphere",
@@ -71,8 +71,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 670,
-   "lines": 670,
+   "score": 669,
+   "lines": 669,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -725,25 +725,6 @@
    ]
   },
   {
-   "what": "Ability.setRuleAtTheTop",
-   "score": 20,
-   "lines": 17,
-   "cards": [
-    "Open the Way",
-    "See Double",
-    "Display of Power",
-    "Malicious Affliction",
-    "Ertai's Scorn",
-    "Even the Score",
-    "Choreographed Sparks",
-    "Discontinuity",
-    "Brush Off",
-    "Take for a Ride",
-    "Redemptor Dreadnought",
-    "Stormwing Entity"
-   ]
-  },
-  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -912,6 +893,25 @@
     "Genestealer Patriarch",
     "Spring Splasher",
     "Fear of Falling"
+   ]
+  },
+  {
+   "what": "Ability.setRuleAtTheTop",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Open the Way",
+    "Malicious Affliction",
+    "Ertai's Scorn",
+    "Even the Score",
+    "Discontinuity",
+    "Brush Off",
+    "Take for a Ride",
+    "Redemptor Dreadnought",
+    "Stormwing Entity",
+    "Graveyard Shift",
+    "Crashing Tide",
+    "Mutual Destruction"
    ]
   },
   {
@@ -5659,18 +5659,6 @@
    ]
   },
   {
-   "what": "SurvivalAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Reluctant Role Model",
-    "Rip, Spawn Hunter",
-    "Glimmer Seeker",
-    "Acrobatic Cheerleader",
-    "Rootwise Survivor"
-   ]
-  },
-  {
    "what": "becomes a creature in a static ability",
    "score": 5,
    "lines": 5,
@@ -6912,6 +6900,17 @@
    ]
   },
   {
+   "what": "SurvivalAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Reluctant Role Model",
+    "Rip, Spawn Hunter",
+    "Glimmer Seeker",
+    "Rootwise Survivor"
+   ]
+  },
+  {
    "what": "AttacksAloneAttachedTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -7090,8 +7089,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3846,
-   "cards": 3501,
+   "score": 3849,
+   "cards": 3504,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7103,8 +7102,8 @@
   },
   {
    "what": "custom ability",
-   "score": 618,
-   "cards": 549,
+   "score": 617,
+   "cards": 548,
    "names": [
     "Myr Battlesphere",
     "Kambal, Profiteering Mayor",
@@ -7272,8 +7271,8 @@
   },
   {
    "what": "Ability.modes.setChooseText",
-   "score": 27,
-   "cards": 24,
+   "score": 28,
+   "cards": 25,
    "names": [
     "Rankle, Master of Pranks",
     "Will of the Jeskai",
@@ -7337,8 +7336,8 @@
   },
   {
    "what": "InfoEffect",
-   "score": 22,
-   "cards": 22,
+   "score": 23,
+   "cards": 23,
    "names": [
     "Invert Polarity",
     "Liesa, Shroud of Dusk",
@@ -9829,6 +9828,19 @@
    ]
   },
   {
+   "what": "ReturnToHandFromGraveyardAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Twilight Shepherd",
+    "No Rest for the Wicked",
+    "Gleancrawler",
+    "Underworld Cerberus",
+    "Fell Shepherd",
+    "Infernal Caretaker"
+   ]
+  },
+  {
    "what": "EquippedHasSubtypeCondition",
    "score": 6,
    "cards": 6,
@@ -10669,18 +10681,6 @@
     "Misinformation",
     "Shieldmage Advocate",
     "Forcemage Advocate"
-   ]
-  },
-  {
-   "what": "ReturnToHandFromGraveyardAllEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Twilight Shepherd",
-    "No Rest for the Wicked",
-    "Gleancrawler",
-    "Fell Shepherd",
-    "Infernal Caretaker"
    ]
   },
   {

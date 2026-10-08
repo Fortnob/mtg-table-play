@@ -10237,6 +10237,12 @@
           if (had && event === 'cardToGraveyardAny') had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           if (had) return;
         }
+        // the Collectors: "This ability triggers only once." — for as long as this object exists
+        if (ab.onceEver) {
+          o._onceEver = o._onceEver || {};
+          if (o._onceEver[i]) return;
+          o._onceEver[i] = true;
+        }
         // "This ability triggers only once each turn."
         if (ab.oncePerTurn) {
           o._onceTurn = o._onceTurn || {};
@@ -13772,6 +13778,12 @@
         }
 
         /* the object a delayed note was taken about */
+        // Anzrag's Rampage: "Return it to your hand at the beginning of the next end step."
+        case 'returnThatToHand': {
+          const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          if (x && x.zone === 'battlefield') { this.moveObject(x, 'hand'); this.logEvent('zone', `${x.name} returns to its owner's hand.`); }
+          break;
+        }
         case 'sacrificeThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone === 'battlefield') {
@@ -18192,6 +18204,14 @@
               triggerData: { event: 'state', objectId: o.id },
             });
           }
+          // Mana Vortex: "When there are no lands on the battlefield, sacrifice this enchantment."
+          const noneAll = this._staticOp(o, 'sacWhenNoneAtAll');
+          if (noneAll && o.zone === 'battlefield' && !this.battlefield.some(x => x !== o && !x.phasedOut && this._cardFitsWords(x, noneAll.what))) {
+            this.logEvent('sba', `${o.name} is sacrificed (there are no ${noneAll.what}s on the battlefield).`);
+            this.moveObject(o, 'graveyard');
+            repeat = true;
+            continue;
+          }
           const needs = this._staticOp(o, 'sacUnlessControl');
           if (needs && o.zone === 'battlefield') {
             const want = String(needs.what || '').toLowerCase();
@@ -19076,6 +19096,8 @@
         const host = s0 && s0.attachedTo;
         return this._legalTargetsFor(Object.assign({}, spec, { notAttached: false }), controllerId, sourceId).filter(t => t.id !== host);
       }
+      // Ground Seal: cards in graveyards can't be targeted
+      if ((spec.zone === 'graveyard') && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'graveyardUntargetable'))) return [];
       // Callidus Assassin: "with the same name as this creature"
       if (spec.sameNameAsSource && sourceId) {
         const s0 = this.obj(sourceId);

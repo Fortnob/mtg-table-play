@@ -3750,6 +3750,13 @@
     { re: /^(?:CARDNAME|This creature) can block only creatures with flying\.?$/i,
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true }, flag: 'blocksFliersOnly' }) },
     { re: /^This ability triggers only once each turn\.?$/i, make: () => ({ op: 'noop' }) },
+    // See Double: "This spell can't be copied." — copying it is something the engine never does to it
+    { re: /^This spell can'?t be copied\.?$/i, make: () => ({ op: 'noop' }) },
+    // Sontaran General, Sparkmage's Gambit: "Those creatures can't block this turn."
+    { re: /^Those creatures can'?t block this turn\.?$/i, make: () => ({ op: 'restrict', flag: 'cantBlock', scope: 'lastGroup' }) },
+    // Anzrag's Rampage, Zara: "Return it to your hand at the beginning of the next end step."
+    { re: /^Return (it|that creature|that card|that permanent) to (?:your|its owner'?s) hand at the beginning of the next end step\.?$/i,
+      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it to its owner\'s hand at end of turn', effects: [{ op: 'returnThatToHand' }] }) },
     { re: /^(?:Then )?[Vv]enture into the dungeon\.?$/, make: () => ({ op: 'venture' }) },
     { re: /^(?:Then )?[Vv]enture into Undercity\.?$/, make: () => ({ op: 'venture', undercity: true }) },
     { re: /^Each player loses (\d+|X) life\.?$/i, make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'each' }) },
@@ -7914,6 +7921,12 @@
           oncePerTurn = true;
           body = body.replace(/\s*This ability triggers only once each turn\.?$/i, '');
         }
+        // the Collectors: "This ability triggers only once." — once, ever, for this permanent
+        let onceEver = false;
+        if (/\s*This ability triggers only once\.?$/i.test(body)) {
+          onceEver = true;
+          body = body.replace(/\s*This ability triggers only once\.?$/i, '');
+        }
         /* "…you may draw that many cards. Do this only once each turn." The
            choice can only be taken once a turn, which for a "may" is the
            same as the ability only working once a turn. */
@@ -7951,7 +7964,7 @@
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
           text: line, effects: parsed.effects, auto: parsed.auto, condition,
           atLevel: lvlHit ? +lvlHit[1] : undefined,
-          objFilter: objFilter || undefined, oncePerTurn: oncePerTurn || undefined,
+          objFilter: objFilter || undefined, oncePerTurn: oncePerTurn || undefined, onceEver: onceEver || undefined,
           ...(trig.extra || {}), ...(trig.extraOf ? trig.extraOf(line.match(trig.re)) : {}),
           intervening: !condition && /if |unless /i.test(body.split('.')[0] || ''),
         });
@@ -10486,6 +10499,11 @@
       { re: /^[A-Za-z ,]*spells? you cast costs? \{\d+\} less to cast\.?$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
+      // Ground Seal: "Cards in graveyards can't be the targets of spells or abilities."
+      { re: /^Cards in graveyards can'?t be the targets of spells or abilities\.?$/i, eff: { op: 'graveyardUntargetable' }, auto: true },
+      // Mana Vortex, Drop of Honey: "When there are no lands on the battlefield, sacrifice this enchantment."
+      { re: /^When there are no ([a-z]+)s? on the battlefield, sacrifice (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME)\.?$/i,
+        make: (m) => ({ op: 'sacWhenNoneAtAll', what: m[1].toLowerCase() }), auto: true },
       // Banding: the keyword alone, or after another ("Flying; banding")
       { re: /^(?:(flying|first strike|vigilance|trample|haste|reach|defender|horsemanship|fear); )?banding$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'noop', keywordLine: m[1] }] } : { op: 'noop' }), auto: true },
