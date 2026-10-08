@@ -1046,6 +1046,7 @@
         p.poison ? ['bad', `☠ ${p.poison} poison`, 'Ten poison counters and they lose'] : null,
         p.energy ? ['', `⚡ ${p.energy}`, 'Energy'] : null,
         p.experience ? ['', `★ ${p.experience}`, 'Experience counters'] : null,
+        p.rad ? ['bad', `☢ ${p.rad} rad`, 'Rad counters: at the start of their precombat main phase they mill that many, and lose 1 life and 1 rad for each nonland card milled'] : null,
       ].filter(Boolean);
       // a dungeon: which room they are in, and how many they have finished
       const done = typeof p.dungeonsCompleted === 'number' ? p.dungeonsCompleted : (p.dungeonsCompleted || []).length;
