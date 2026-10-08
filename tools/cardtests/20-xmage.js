@@ -9004,4 +9004,37 @@ module.exports = (test) => {
     elves.summoningSick = true;
     t.ok(T3.g.tapForMana('A', elves.id, 0), 'the Elves tap for mana the turn they arrive');
   });
+
+  test('Ashaya makes creatures Forests that tap for green; Puresteel Paladin equips for nothing; Electro keeps red mana; Flare of Fortitude holds life', (mk, t) => {
+    t.auto('Ashaya, Soul of the Wild');
+    t.auto('Puresteel Paladin');
+    t.auto('Electro, Assaulting Battery');
+    t.auto('Flare of Fortitude');
+    const T = mk();
+    T.bf('A', 'Ashaya, Soul of the Wild');
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.summoningSick = false;
+    t.ok(bear.analysis().isLand, 'the Bears are a land');
+    t.ok(T.g.tapForMana('A', bear.id, 0), 'and tap for mana');
+    t.eq(T.g.player('A').pool.G, 1);
+    const T2 = mk();
+    T2.bf('A', 'Puresteel Paladin');
+    const sword = T2.bf('A', 'Bonesplitter');
+    T2.bf('A', 'Ornithopter'); T2.bf('A', 'Ornithopter');
+    const elf = T2.bf('A', 'Llanowar Elves');
+    const eq = sword.analysis().abilities.findIndex(ab => /^Equip/i.test(ab.text || ''));
+    T2.activate('A', sword, eq, { targets: [elf] });
+    t.eq(sword.attachedTo, elf.id, 'equipped with no mana at all');
+    const T3 = mk();
+    T3.bf('A', 'Electro, Assaulting Battery');
+    T3.g.player('A').pool.add('R'); T3.g.player('A').pool.add('G');
+    T3.toMain('A', 'beginCombat');
+    t.eq(T3.g.player('A').pool.R, 1, 'the red stays');
+    t.eq(T3.g.player('A').pool.G, 0, 'the green goes');
+    const T4 = mk();
+    T4.mana('A', 'WW2');
+    T4.cast('A', T4.hand('A', 'Flare of Fortitude'));
+    T4.g.changeLife('A', -5);
+    t.eq(T4.life('A'), 20, 'no change this turn');
+  });
 };

@@ -2717,6 +2717,23 @@
         const e = { op: 'changeTargetToSelf', single, targets: [spec] };
         return /^You may/i.test(m[0]) ? { op: 'may', then: [e] } : e;
       } },
+    // Portal to Phyrexia: "It's a Phyrexian in addition to its other types."
+    { re: /^(?:It'?s|That creature is) an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => ({ op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
+    // Ram Through: "If the creature you control has trample, excess damage is dealt to that creature's controller instead."
+    { re: /^If the creature you control has trample, excess damage is dealt to that creature'?s controller instead\.?$/i,
+      make: () => ({ op: 'excessToController', ifSourceHas: 'trample' }) },
+    // Flare of Fortitude: "Until end of turn, your life total can't change, and permanents you control gain hexproof and indestructible."
+    { re: /^Until end of turn, your life total can'?t change(?:, and (.+?))?\.?$/i,
+      make: (m) => {
+        const out = [{ op: 'lifeLockTurn' }];
+        if (m[1]) {
+          const rest = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' until end of turn.');
+          if (!rest.auto) return null;
+          out.push(...rest.effects);
+        }
+        return out.length === 1 ? out[0] : { op: 'sequence', list: out };
+      } },
     // Flame Spill, Ravenous Tyrannosaurus: what the damage before this had left over goes on to the controller
     { re: /^(?:The )?[Ee]xcess damage is dealt to (?:that creature'?s|that permanent'?s|its) controller instead\.?$/, make: () => ({ op: 'excessToController' }) },
     { re: /^Create a number of (tapped )?(Treasure|Clue|Food|Blood) tokens equal to (.+?)\.?$/i,
@@ -3875,6 +3892,11 @@
     { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
+    // Feldon of the Third Path: "…a copy of target creature card in your graveyard, except it's an artifact in addition to its other types."
+    { re: /^Create a token that'?s a copy of target (creature|artifact|permanent|creature or artifact) card in your graveyard(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
+      make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [],
+        targets: [Object.assign(targetSpec('target ' + m[1] + ' card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] },
+      m[2] ? { addTypes: [U.titleCase(m[2])] } : {}) },
     /* Bonehoard Dracosaur: "If you exiled a land card this way, create …" */
     { re: /^If you exiled an? (land|nonland|creature|noncreature|artifact|instant|sorcery|instant or sorcery) card this way, (.+?)\.?$/i,
       make: (m) => {
@@ -8658,6 +8680,13 @@
         if (/mana value/i.test(m[0])) ef.setPt = { mv: true };
         return ef;
       } },
+    // Ashaya, Soul of the Wild: "Nontoken creatures you control are Forest lands in addition to their other types."
+    { re: /^(.+?) (?:is|are) (?:an? )?(Plains|Island|Swamp|Mountain|Forest) lands? in addition to (?:its|their) other types\.?$/i,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached) return null;
+        return { op: 'continuous', layer: 4, scope, addTypes: ['Land'], addSubtypes: [U.titleCase(m[2])] };
+      } },
     { re: /^(.+?) (?:is|are) (?:an? )?(?:artifact )?creatures? with (?:base )?power and toughness each equal to (?:its|their) mana value\.?$/i,
       make: (m) => {
         const scope = eachScope(m[1]);
@@ -9261,6 +9290,16 @@
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
       { re: /^(Each opponent|Each player|Your opponents) can'?t draw more than one card each turn\.?$/i,
         make: (m) => ({ op: 'drawLimitOne', who: /player/i.test(m[1]) ? 'each' : 'opponents' }), auto: true },
+      // Puresteel Paladin: "Equipment you control have equip {0} as long as you control three or more artifacts."
+      { re: /^Equipment you control have equip \{0\}(?: as long as (.+?))?\.?$/i,
+        make: (m) => {
+          const cond = m[1] ? condOf(m[1]) : null;
+          if (m[1] && !cond) return null;
+          return Object.assign({ op: 'abilityCostMod', who: 'you', equip: true, setZero: true }, cond ? { cond } : {});
+        }, auto: true },
+      // Electro, Ashling: "You don't lose unspent red mana as steps and phases end."
+      { re: /^You don'?t lose unspent (red|blue|black|white|green) mana as steps and phases end\.?$/i,
+        make: (m) => ({ op: 'keepMana', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }), auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."

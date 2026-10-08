@@ -850,8 +850,17 @@
         if (p.poolKeepUntil === 'combat' && this.phase && this.phase.id === 'combat') continue;
         // "until end of turn, you don't lose this mana" (the pool is kept whole until the turn ends)
         if (p.poolKeepUntil === 'turn' && p.poolKeepTurn === this.turn) continue;
-        if (!p.pool.isEmpty()) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
+        // Electro: "You don't lose unspent red mana as steps and phases end."
+        const kept = {};
+        for (const x of this.battlefield) {
+          if (x.controller !== p.id || x.phasedOut) continue;
+          const e = this._staticOp(x, 'keepMana');
+          if (e && e.color) kept[e.color] = p.pool[e.color] || 0;
+        }
+        const keptAny = Object.values(kept).some(v => v > 0);
+        if (!p.pool.isEmpty() && !keptAny) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
         p.pool.clear();
+        for (const c of Object.keys(kept)) p.pool[c] = kept[c];
         p.restricted = [];
         p.manaRiders = [];
         p.poolKeepUntil = null;
@@ -1383,7 +1392,7 @@
         ? c.setMana.map(sym => tapFor([{ op: 'addMana', symbols: [sym] }]))
         : a.manaAbilities.slice();
       // land types it was given, beyond the ones it printed
-      if (c && a.isLand && !lost && !c.setMana && (c.addSubtypes || []).length) {
+      if (c && (a.isLand || c.isLand) && !lost && !c.setMana && (c.addSubtypes || []).length) {
         const have = new Set();
         for (const st of c.addSubtypes) {
           const sym = MANA.COLOR_OF_BASIC[st];
@@ -6115,6 +6124,9 @@
               if (!e || e.op !== 'abilityCostMod') continue;
               if (e.nonMana && ab.kind === 'mana') continue;
               if (e.equip && !/^Equip\b/i.test(ab.text || '')) continue;
+              if (e.cond && !this._condMet(e.cond, { controller: src.controller, obj: src })) continue;
+              // Puresteel Paladin: equip {0}
+              if (e.setZero && (e.who !== 'you' || o.controller === src.controller)) return '';
               if (e.loyalty && ab.kind !== 'loyalty') continue;
               if (e.who === 'you' && o.controller !== src.controller) continue;
               if (e.scope && e.scope.attached) { if (src.attachedTo !== o.id) continue; }
@@ -10489,7 +10501,7 @@
                what is lethal to the creature, and the rest to its controller */
             const rn = this.resolving;
             const nx = rn && rn.effects[rn.index + 1];
-            const spill = !!(nx && nx.op === 'excessToController');
+            const spill = !!(nx && nx.op === 'excessToController' && (!nx.ifSourceHas || (dsrc && this.hasKw(dsrc, nx.ifSourceHas))));
             for (const t of (e.fromTarget ? targets.slice(1) : targets)) {
               if (t.kind === 'player') this.dealDamageToPlayer(this.player(t.id), cnt, dsrc);
               else {
@@ -14551,6 +14563,11 @@
         }
         // settled by the damage before it
         case 'excessToController': break;
+        // Flare of Fortitude: "until end of turn, your life total can't change"
+        case 'lifeLockTurn':
+          me.lifeLocked = { setTurn: this.turn, until: me.id, eot: this.turn };
+          this.logEvent('rules', `${me.name}'s life total can't change this turn.`);
+          break;
         // Spellskite: a target of that spell or ability becomes this, if this could be its target
         case 'changeTargetToSelf': {
           const t = targets.find(x => x.kind === 'stack');
@@ -16098,7 +16115,7 @@
 
     /** Has this player protection from everything right now (The One Ring, Teferi's Protection)? */
     _protected(p) { return !!(p && p.protection && this._protectionLive(p.protection)); }
-    _protectionLive(pr) { return !!pr; }
+    _protectionLive(pr) { return !!pr && !(pr.eot != null && pr.eot !== this.turn); }
 
     /** Rebound: at your upkeep, each card you exiled with rebound may be cast for nothing. */
     _rebound(pid) {
