@@ -8279,6 +8279,8 @@
       if (who === 'opponents' && ev.controller === src.controller) return false;
       // Lae'zel: "on a creature or planeswalker you control or on yourself"
       if (ef.onYours && ev.controller !== src.controller) return false;
+      // Gond Gate: "Gates you control" — the words, as a card reads them
+      if (ef.words && ev.object && !this._cardFitsWords(ev.object, ef.words)) return false;
       // Winding Constrictor: counters on you, not on your permanents
       if (ef.playerOnly && !ev.player) return false;
       // Valentin: "a nontoken creature"

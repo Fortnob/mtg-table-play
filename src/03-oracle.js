@@ -7731,6 +7731,8 @@
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
     { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    // Horizon Explorer: "Whenever you attack a player" (read as any attack you make)
+    { re: /^Whenever you attack a player,? /i, event: 'youAttack' },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
     { re: /^When(?:ever)? (?:a|one or more) creatures? you control attacks?(?:,| )/i, event: 'yourCreatureAttacks' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes blocked(?:,| )/i, event: 'becomesBlocked', self: true },
@@ -10397,6 +10399,10 @@
       make: () => ({ op: 'replace', id: 'dmgdoubleOpp', event: 'damage', who: 'any', how: 'double', toOpponent: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
+    // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
+    { re: /^(Lands|Gates) you control enter untapped\.?$/i,
+      make: (m) => Object.assign({ op: 'replace', id: 'enterUntapped', event: 'enters', who: 'you', how: 'untapped', whatAny: ['land'] },
+        /gates/i.test(m[1]) ? { words: 'gate' } : {}) },
     // Liesa, Forgotten Archangel, Gisa, Stone of Erech: "If a creature an opponent controls would die, exile it instead."
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',

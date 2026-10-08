@@ -11583,4 +11583,14 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle(); T.resolve();
     t.eq(bear.zone, 'battlefield', 'cascaded into the Bears');
   });
+
+  test('Horizon Explorer: lands enter untapped', (mk, t) => {
+    t.auto('Horizon Explorer');
+    const T = mk();
+    T.bf('A', 'Horizon Explorer');
+    const gate = T.bf('A', 'Azorius Guildgate', { etb: true });
+    t.no(gate.tapped, 'the Guildgate enters untapped');
+    const g2 = T.bf('B', 'Azorius Guildgate', { etb: true });
+    t.ok(g2.tapped, "not the opponent's");
+  });
 };

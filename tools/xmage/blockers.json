@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12445,
-  "gainedCards": 1351,
-  "linesNeeded": 13581,
+  "needed": 12443,
+  "gainedCards": 1352,
+  "linesNeeded": 13575,
   "linesGained": 1612,
   "gained": {
-   "all": 1351,
+   "all": 1352,
    "top2000": 51,
    "stdTop": 10
   },
@@ -374,25 +374,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 28,
-   "lines": 19,
-   "cards": [
-    "Horizon Explorer",
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Karazikar, the Eye Tyrant",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Bitter Work",
-    "Long-Range Sensor",
-    "Gornog, the Red Reaper",
-    "Firkraag, Cunning Instigator",
-    "Meriadoc Brandybuck"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 28,
    "lines": 28,
@@ -534,6 +515,25 @@
     "Stall for Time",
     "Loyal Sentry",
     "Mindbender Spores"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 23,
+   "lines": 17,
+   "cards": [
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Bitter Work",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Meriadoc Brandybuck",
+    "Demonic Covenant",
+    "Attuma, Atlantean Warlord"
    ]
   },
   {
@@ -4156,16 +4156,6 @@
    ]
   },
   {
-   "what": "EnterUntappedAllEffect",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Horizon Explorer",
-    "Gond Gate",
-    "The Wandering Minstrel"
-   ]
-  },
-  {
    "what": "DamageAllEffect amount",
    "score": 6,
    "lines": 3,
@@ -7049,6 +7039,17 @@
     "Raving Oni-Slave",
     "Sundering Titan"
    ]
+  },
+  {
+   "what": "AttackIfAbleTargetRandomOpponentSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Ursine Monstrosity",
+    "Ruhan of the Fomori",
+    "Raving Dead",
+    "Knight Rampager"
+   ]
   }
  ],
  "sole": [
@@ -7813,19 +7814,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Bitter Work",
-    "Long-Range Sensor"
-   ]
-  },
-  {
    "what": "AddCardTypeSourceEffect",
    "score": 11,
    "cards": 11,
@@ -8016,6 +8004,19 @@
     "Delivery Moogle",
     "Collected Company",
     "Gandalf, Westward Voyager"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Bitter Work",
+    "Meriadoc Brandybuck"
    ]
   },
   {
