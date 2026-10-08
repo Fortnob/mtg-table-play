@@ -19406,7 +19406,13 @@
       const out = { pt: [0, 0], keywords: [], costDelta: 0, text: [] };
       for (const e of list) {
         out.pt[0] += Number(e.p) || 0; out.pt[1] += Number(e.t) || 0;
-        if (e.setPt) out.basePt = [e.setPt.p, e.setPt.t];
+        // a side the change does not set keeps what the card says (Baffling Defenses sets only power)
+        if (e.setPt) {
+          const a0 = O.analyze(o.card, o.face) || {};
+          const pp = parseInt(a0.power, 10), tt = parseInt(a0.toughness, 10);
+          const prev = out.basePt || [isNaN(pp) ? 0 : pp, isNaN(tt) ? 0 : tt];
+          out.basePt = [typeof e.setPt.p === 'number' ? e.setPt.p : prev[0], typeof e.setPt.t === 'number' ? e.setPt.t : prev[1]];
+        }
         for (const k of e.keywords || []) if (!out.keywords.includes(k)) out.keywords.push(k);
         if ((e.loseKeywords || []).length) out.lose = (out.lose || []).concat(e.loseKeywords);
         if (e.costDelta) out.costDelta += e.costDelta;

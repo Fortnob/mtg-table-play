@@ -84,7 +84,14 @@ declare namespace MTG {
     /** a hidden agenda of the viewer's that has not been turned face up */
     agenda?: boolean;
     /** what it chose as it entered */
-    chosen?: { type?: string; color?: string; name?: string; player?: string; number?: number } | null;
+    chosen?: { type?: string; color?: string; name?: string; player?: string; number?: number; cardType?: string } | null;
+    /** Alchemy: what has been done to the card perpetually, added up; null when nothing has */
+    perpetual?: {
+      pt: [number, number]; keywords: string[]; costDelta: number; text: string[];
+      basePt?: [number, number]; lose?: string[]; spendAny?: boolean; types?: string[];
+    } | null;
+    /** Alchemy: the card's intensity, for a card that has one */
+    intensity?: number | null;
     /** soulbond: the id of the creature it is paired with */
     pairedWith?: Id | null;
     note?: string | null;

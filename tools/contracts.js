@@ -111,6 +111,10 @@ const ObjectView = obj({
   attacking: maybe(id), blocking: opt(arr(id)), blockedBy: opt(arr(id)), blockOrder: opt(arr(id)),
   effects: opt(arr(S.plainObj)), isCommander: bool, note: opt(maybe(str)), entered: opt(maybe(num)),
   prepared: opt(bool), agenda: opt(bool), chosen: opt(maybe(S.plainObj)), pairedWith: opt(maybe(id)), power: maybe(num), toughness: maybe(num), keywords: arr(str),
+  // Alchemy: perpetual changes added up, and a card's intensity
+  perpetual: opt(maybe(obj({ pt: arr(num), keywords: arr(str), costDelta: num, text: arr(str), basePt: opt(arr(num)),
+    lose: opt(arr(str)), spendAny: opt(bool), types: opt(arr(str)) }))),
+  intensity: opt(maybe(num)),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({
