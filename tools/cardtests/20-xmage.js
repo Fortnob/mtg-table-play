@@ -10999,4 +10999,28 @@ module.exports = (test) => {
     T3.settle(); T3.resolve();
     t.ok(T3.g.zones.A.hand.some(o => o.name === 'Sol Ring'), 'no land: a card into hand');
   });
+
+  test('Descent into Avernus, Tataru Taru, Hedge Shredder', (mk, t) => {
+    t.auto('Descent into Avernus'); t.auto('Tataru Taru'); t.auto('Hedge Shredder');
+    const T = mk();
+    const d = T.bf('A', 'Descent into Avernus');
+    const run = (T0, o, re, extra) => T0.g._runEffects(o.analysis().abilities.find(a => a.kind === 'triggered' && re.test(a.text)).effects,
+      Object.assign({ controller: o.controller, obj: o, name: o.name, kind: 'ability' }, extra || {}));
+    run(T, d, /upkeep/);
+    const tr = (p) => T.g.battlefield.filter(o => o.controller === p && o.name === 'Treasure').length;
+    t.eq(tr('A'), 2); t.eq(tr('B'), 2); t.eq(T.life('A'), 18); t.eq(T.life('B'), 18);
+    const T2 = mk();
+    const tt = T2.bf('A', 'Tataru Taru');
+    T2.answer('confirm', (ch) => { t.eq(ch.playerId, 'B'); return { yes: true }; });
+    const ha = T2.g.zones.A.hand.length, hb = T2.g.zones.B.hand.length;
+    run(T2, tt, /enters/, { targets: [{ kind: 'player', id: 'B' }] });
+    T2.settle();
+    t.eq(T2.g.zones.A.hand.length, ha + 1); t.eq(T2.g.zones.B.hand.length, hb + 1, 'B took the card');
+    const T3 = mk();
+    T3.bf('A', 'Hedge Shredder');
+    const f = T3.top('A', 'Forest'), b = T3.top('A', 'Grizzly Bears'), i = T3.top('A', 'Island');
+    T3.g._runEffects([{ op: 'mill', n: 3, who: 'you' }], { controller: 'A', name: 'mill', kind: 'ability' });
+    T3.settle(); T3.resolve();
+    t.eq(f.zone, 'battlefield'); t.eq(i.zone, 'battlefield'); t.eq(b.zone, 'graveyard', 'only the lands'); t.ok(f.tapped, 'tapped');
+  });
 };

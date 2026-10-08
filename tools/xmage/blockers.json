@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12632,
+  "needed": 12628,
   "gainedCards": 1354,
-  "linesNeeded": 13809,
+  "linesNeeded": 13804,
   "linesGained": 1621,
   "gained": {
    "all": 1354,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4603,
-   "lines": 4180,
+   "score": 4599,
+   "lines": 4179,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -44,21 +44,20 @@
     "Moraug, Fury of Akoum",
     "Mechanized Production",
     "Kodama of the East Tree",
-    "Tataru Taru",
     "Marvin, Murderous Mimic",
     "Ugin, the Ineffable",
-    "Skrelv, Defector Mite"
+    "Skrelv, Defector Mite",
+    "Well of Lost Dreams"
    ]
   },
   {
    "what": "custom ability",
-   "score": 805,
-   "lines": 715,
+   "score": 794,
+   "lines": 713,
    "cards": [
     "Trouble in Pairs",
     "Kambal, Profiteering Mayor",
     "Coveted Jewel",
-    "Hedge Shredder",
     "Carpet of Flowers",
     "All Will Be One",
     "Treasure Nabber",
@@ -66,7 +65,8 @@
     "Chainer, Nightmare Adept",
     "The Skullspore Nexus",
     "Grenzo, Havoc Raiser",
-    "Extraplanar Lens"
+    "Extraplanar Lens",
+    "Firemane Commando"
    ]
   },
   {
@@ -2637,19 +2637,6 @@
     "Flotsam // Jetsam",
     "Path of the Schemer",
     "Halo-Charged Skaab"
-   ]
-  },
-  {
-   "what": "CreateTokenAllEffect",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Descent into Avernus",
-    "Kibo, Uktabi Prince",
-    "Edge Rover",
-    "Pursued Whale",
-    "Rasputin, the Oneiromancer",
-    "Elephant Resurgence"
    ]
   },
   {
@@ -5723,6 +5710,18 @@
    ]
   },
   {
+   "what": "CreateTokenAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Pursued Whale",
+    "Rasputin, the Oneiromancer",
+    "Elephant Resurgence"
+   ]
+  },
+  {
    "what": "BlocksIfAbleAllEffect",
    "score": 5,
    "lines": 5,
@@ -6338,14 +6337,6 @@
    "lines": 1,
    "cards": [
     "Opal Palace"
-   ]
-  },
-  {
-   "what": "DrawCardOpponentTriggeredAbility",
-   "score": 4,
-   "lines": 1,
-   "cards": [
-    "Tataru Taru"
    ]
   },
   {
@@ -7077,6 +7068,17 @@
     "Kargan Intimidator",
     "Sol'Kanar the Tainted"
    ]
+  },
+  {
+   "what": "DontUntapInPlayersNextUntapStepAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Icebreaker Kraken",
+    "Exhaustion",
+    "Mana Vapors",
+    "Misstep"
+   ]
   }
  ],
  "sole": [
@@ -7095,15 +7097,15 @@
   },
   {
    "what": "custom ability",
-   "score": 612,
-   "cards": 546,
+   "score": 601,
+   "cards": 544,
    "names": [
     "Kambal, Profiteering Mayor",
     "Coveted Jewel",
-    "Hedge Shredder",
     "Carpet of Flowers",
     "All Will Be One",
-    "Treasure Nabber"
+    "Treasure Nabber",
+    "The Skullspore Nexus"
    ]
   },
   {
@@ -8533,18 +8535,6 @@
     "Experimental Pilot",
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter"
-   ]
-  },
-  {
-   "what": "CreateTokenAllEffect",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Descent into Avernus",
-    "Kibo, Uktabi Prince",
-    "Edge Rover",
-    "Pursued Whale",
-    "Elephant Resurgence"
    ]
   },
   {
@@ -10843,6 +10833,14 @@
    "cards": 1,
    "names": [
     "Moonsilver Key"
+   ]
+  },
+  {
+   "what": "SagesReveriePredicate.instance",
+   "score": 4,
+   "cards": 1,
+   "names": [
+    "Sage's Reverie"
    ]
   }
  ]

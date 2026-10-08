@@ -2321,7 +2321,7 @@
       // the Chain spells: copy back for mana; not for a land or a card
       if (ch.purpose === 'chainCopy') return ch.costKind === 'mana';
       // Combustible Gearhulk: let them draw while life is short; take the damage otherwise
-      if (ch.purpose === 'opponentMay') return ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
+      if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Chandra: cast the exiled card only if it can be paid for
       if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'payToUntap') {

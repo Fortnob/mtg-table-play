@@ -3888,6 +3888,8 @@
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'reveal', n: num(m[1]), from: 'library' }) },
     { re: /^You win the game\.?$/i, make: () => ({ op: 'winGame' }) },
+    // Hedge Shredder: "put them onto the battlefield tapped" — the cards the trigger was about
+    { re: /^Put them onto the battlefield( tapped)?(?: under your control)?\.?$/i, make: (m) => ({ op: 'batchToBattlefield', tapped: !!m[1], filter: 'land' }) },
     // Twenty-Toed Toad: "you win the game if there are twenty or more counters on it or …"
     { re: /^You win the game if (.+?)\.?$/i, make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'winGame' }] } : null; } },
     { re: /^You lose the game\.?$/i, make: () => ({ op: 'loseGame' }) },
@@ -5324,6 +5326,20 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Descent into Avernus: "Then each player creates X Treasure tokens and
+       this enchantment deals X damage to each player, where X is the number
+       of descent counters on this enchantment." */
+    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?each player creates X Treasure tokens and (?:this enchantment|CARDNAME) deals X damage to each player, where X is ([^.]+)\.$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        if (k == null || !pre.auto) return null;
+        return [...pre.effects, { op: 'createNamedToken', token: 'Treasure', n: k, who: 'each' }, { op: 'damage', n: k, each: 'player' }];
+      } },
+    // Tataru Taru: "you draw a card and target opponent may draw a card."
+    { re: /^You draw a card and target opponent may draw a card\.$/i,
+      make: () => [{ op: 'draw', who: 'you', n: 1 }, { op: 'opponentMayElse', targets: [targetSpec('target opponent')], kind: 'gift',
+        offer: 'draw a card', option: [{ op: 'draw', who: 'target', n: 1 }], otherwise: [], elseText: 'nothing happens' }] },
     /* Planar Genesis: "Look at the top four cards of your library. You may
        put a land card from among them onto the battlefield tapped. If you
        don't, put a card from among them into your hand. Put the rest on the
@@ -6798,9 +6814,9 @@
     [/^(?:equipped|enchanted) creature is attacking$/i, () => ({ kind: 'attachedIs', attacking: true })],
     [/^it'?s your turn$/i, () => ({ kind: 'yourTurn' })],
     [/^it'?s the first combat phase of the turn$/i, () => ({ kind: 'firstCombat' })],
-    [/^it'?s not your turn$/i, () => ({ kind: 'notYourTurn' })],
-    // Scytheclaw Raptor: "if it's not their turn" — the player who set it off
-    [/^it'?s not their turn$/i, () => ({ kind: 'notTheirTurn' })],
+    [/^it(?:'?s not| isn'?t) your turn$/i, () => ({ kind: 'notYourTurn' })],
+    // Scytheclaw Raptor: "if it's not their turn" — the player who set it off; Tataru Taru: "it isn't that player's turn"
+    [/^it(?:'?s not| isn'?t) (?:their|that player'?s) turn$/i, () => ({ kind: 'notTheirTurn' })],
     // Scab-Clan Berserker: "if this creature is renowned"
     [/^(?:this creature|CARDNAME) is renowned$/i, () => ({ kind: 'selfRenowned' })],
     // counting the board

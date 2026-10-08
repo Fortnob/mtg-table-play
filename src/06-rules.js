@@ -10257,6 +10257,8 @@
           const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i);
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
           if (had && event === 'cardToGraveyardAny') had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
+          // Hedge Shredder: "put them onto the battlefield" — every card in the lot
+          if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
           if (had) return;
         }
         // the Collectors: "This ability triggers only once." — for as long as this object exists
@@ -13882,7 +13884,8 @@
           if (!opp) break;
           ctx.chosenPlayer = opp.id;
           const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'opponentMay', option: e.kind,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}let ${me.name} ${String(e.offer || '').replace(/^you /i, '')}? If you don't: ${truncate(e.elseText || '', 90)}` }, 'opm');
+            prompt: e.kind === 'gift' ? `${ctx.name ? ctx.name + ': ' : ''}${e.offer}?`
+              : `${ctx.name ? ctx.name + ': ' : ''}let ${me.name} ${String(e.offer || '').replace(/^you /i, '')}? If you don't: ${truncate(e.elseText || '', 90)}` }, 'opm');
           if (yes === SUSPEND) return SUSPEND;
           this.logEvent('rules', `${opp.name} ${yes ? 'agrees' : 'declines'}.`);
           this._spliceNext(yes ? e.option : e.otherwise);
@@ -13982,6 +13985,18 @@
           }
           const copy = this.stack.find(x => x.id === st.copy);
           if (copy && this._newTargetsForCopy(copy, st.who, 'chnt') === SUSPEND) return SUSPEND;
+          break;
+        }
+        // Hedge Shredder: the land cards that went to the graveyard together come back
+        case 'batchToBattlefield': {
+          const td = ctx.triggerData || {};
+          const ids = td.batchIds || (td.objectId ? [td.objectId] : []);
+          for (const id of ids) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'graveyard' || (e.filter && !this._cardFitsWords(x, e.filter))) continue;
+            this.moveObject(x, 'battlefield', { controller: ctx.controller });
+            if (e.tapped) x.tapped = true;
+          }
           break;
         }
         // Meren: to the battlefield if its mana value is within your experience; otherwise to hand
