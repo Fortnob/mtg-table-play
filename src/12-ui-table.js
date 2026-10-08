@@ -523,7 +523,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -577,6 +577,11 @@
         const bits = [c.name && `Named: ${c.name}`, c.player && `Player: ${c.player}`, c.type && c.type,
           c.color && (COLOUR[c.color] || c.color), c.cardType && c.cardType, c.number != null && `Number: ${c.number}`].filter(Boolean);
         if (bits.length) n.appendChild(el('div', { class: 'cv-mark cv-chosen', text: bits.join(' \u00b7 '), title: 'Chosen as it entered: ' + bits.join(', ') }));
+      }
+      // banding: attacking as one band with the others that share its label
+      if (o.band) {
+        const mates = this.view.battlefield.filter(x => x.band === o.band && x.id !== o.id).map(x => x.card.name);
+        n.appendChild(el('div', { class: 'cv-mark cv-paired cv-band', text: '⚑ Band', title: mates.length ? 'In a band with ' + mates.join(', ') : 'In a band' }));
       }
       if (o.pairedWith) {
         const mate = this.objIn(o.pairedWith);

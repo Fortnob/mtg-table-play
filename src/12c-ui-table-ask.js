@@ -59,6 +59,9 @@
             }))]);
             extra = { node: row, sig: plan.defenderId };
           }
+          // banding: the chosen attackers can go in together, as one band
+          const band = this._bandRow(ch);
+          if (band) extra = { node: extra ? el('div', {}, [extra.node, band.node]) : band.node, sig: (extra ? extra.sig : '') + '|' + band.sig };
           return set('combat', 'Choose attackers', 'Click your creatures to send them in, then press <b>Attack</b>.', extra);
         }
         if (ch.type === 'declareBlockers') {
@@ -1149,6 +1152,42 @@
         ], { card, wide: true });
       } };
       this.render();
+    },
+
+    /**
+     * Banding (CR 702.22): when any creature that could attack has it, a
+     * row under the banner bands the chosen attackers together, and says
+     * which bands there are. A band attacks one player, and has at most one
+     * creature without banding ("bands with other …" is the engine's to judge).
+     */
+    _bandRow(ch) {
+      const kws = (o) => ((o && o.keywords) || []).map(k => String(k).toLowerCase());
+      const bander = (o) => kws(o).some(k => k === 'banding' || k.startsWith('bands with other'));
+      const cands = (ch.candidates || []).map(id => this.objIn(id)).filter(Boolean);
+      if (!cands.some(bander)) return null;
+      const plan = this.attackPlan || { declarations: [] };
+      const decl = plan.declarations || [];
+      const loose = decl.filter(d => !d.band);
+      const bands = new Map();
+      for (const d of decl) if (d.band) { if (!bands.has(d.band)) bands.set(d.band, []); bands.get(d.band).push(d); }
+      const name = (d) => { const o = this.objIn(d.attackerId); return o && o.card ? o.card.name : 'a creature'; };
+      const make = () => {
+        if (loose.length < 2) return UI.error('Choose two or more attackers to band together.');
+        if (new Set(loose.map(d => d.defenderId)).size > 1) return UI.error('A band attacks one player: choose attackers going at the same one.');
+        if (loose.filter(d => !bander(this.objIn(d.attackerId))).length > 1) return UI.error('A band may have only one creature without banding.');
+        const label = 'band' + (bands.size + 1);
+        for (const d of loose) d.band = label;
+        this.render();
+      };
+      const clear = () => { for (const d of decl) delete d.band; this.render(); };
+      const node = el('div', { class: 'ab-chips band-row' }, [
+        el('span', { class: 'tiny', text: 'Banding:' }),
+        el('button', { type: 'button', class: 'ab-chip', text: loose.length >= 2 ? `Band these ${loose.length}` : 'Band the chosen attackers',
+          disabled: loose.length < 2, title: 'The chosen attackers not yet in a band attack together as one band', onclick: make }),
+        ...[...bands.entries()].map(([b, ds], i) => el('span', { class: 'ab-chip on', title: ds.map(name).join(', '), text: `Band ${i + 1}: ${ds.length}` })),
+        bands.size ? el('button', { type: 'button', class: 'ab-chip', text: 'Undo bands', onclick: clear }) : null,
+      ].filter(Boolean));
+      return { node, sig: JSON.stringify(decl.map(d => [d.attackerId, d.band || ''])) };
     },
 
     /** How many things could be chosen for this target right now. */
