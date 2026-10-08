@@ -7256,6 +7256,16 @@
     /* Protection from a quality, printed or granted ("equipped creature has
        protection from black and from green"): does it shield o from this
        source? */
+    /** Aven Mindcensor: how far down their library a player's search reaches. */
+    _searchReach(pid) {
+      let k = Infinity;
+      for (const x of this.battlefield) {
+        if (x.phasedOut || x.controller === pid || !this.opponentsOf(pid).some(q => q.id === x.controller)) continue;
+        const e = this._staticOp(x, 'searchTopN');
+        if (e) k = Math.min(k, e.n || 4);
+      }
+      return k;
+    }
     /** Serra's Emissary: the card types a player and their creatures have protection from. */
     _protCardTypes(pid) {
       const out = [];
@@ -9709,6 +9719,18 @@
       for (let i = 0; left > 0; i++) {
         // Narset, Parter of Veils: no more than one card each turn
         if (this._drawLimited(p)) { this.logEvent('draw', `${p.name} can't draw more than one card this turn.`); break; }
+        /* Notion Thief: any draw but the first in their own draw step is skipped, and the
+           Thief's controller draws instead (two Thieves facing each other stop somewhere) */
+        const firstOfStep = this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id && p._drawStepTurn !== this.turn;
+        const thief = !firstOfStep && (this._stealDepth || 0) < 4 && this.battlefield.find(x => !x.phasedOut && x.controller !== p.id &&
+          this.opponentsOf(p.id).some(q => q.id === x.controller) && this._staticOp(x, 'stealDraws'));
+        if (thief) {
+          left--;
+          this.logEvent('draw', `${thief.name}: ${p.name} skips a draw, and ${this.player(thief.controller).name} draws instead.`);
+          this._stealDepth = (this._stealDepth || 0) + 1;
+          try { this._drawCards(this.player(thief.controller), 1, silent); } finally { this._stealDepth--; }
+          continue;
+        }
         left--;
         if (extras > 0) extras--;
         else { const ex = doubled(); if (ex) { left += ex; extras += ex; } }
@@ -12432,8 +12454,9 @@
             if (!want || want === 'basic') return !!ca.isBasicLand;
             return (ca.subtypes || []).some(t => t.toLowerCase() === want);
           };
+          const reach = this._searchReach(ctx.controller);
           for (let i = 0; i < n(e.n); i++) {
-            const idx = z.library.findIndex(c => wanted(c.analysis()));
+            const idx = z.library.slice(0, reach).findIndex(c => wanted(c.analysis()));
             if (idx < 0) break;
             const [c] = z.library.splice(idx, 1);
             this.moveObject(c, 'battlefield', { controller: ctx.controller });
@@ -12487,7 +12510,7 @@
                card" is both words at once. */
             return this._cardFitsWords(c, want);
           };
-          const legal = z.library.filter(matches)
+          const legal = z.library.slice(0, this._searchReach(seeker.id)).filter(matches)
             .concat(e.alsoGraveyard ? z.graveyard.filter(matches) : []);
           const want_n = Math.min(n(e.n), legal.length);
           // Opposition Agent: an opponent of the searcher makes the choices, and what is found goes to exile for them
@@ -17308,6 +17331,17 @@
           }
           /* "When you control no Islands, sacrifice this" — an old way of
              writing a permanent that depends on your having the land. */
+          // Dark Depths: a state trigger, put on the stack once while it holds
+          const stt = this._staticOp(o, 'stateTrigger');
+          if (stt && o.zone === 'battlefield' && stt.noCounter && !(Number(o.counters[stt.noCounter]) > 0) &&
+              !this.pendingTriggers.concat(this.stack).some(x => x && x.objId === o.id && x.stateTrigger)) {
+            this.pendingTriggers.push({
+              id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, stateTrigger: true,
+              controller: o.controller, name: `${o.name} \u2014 ${stt.label || 'state trigger'}`, auto: true,
+              effects: stt.effects, abilityText: `When ${o.name} has ${stt.label || 'that'}`,
+              triggerData: { event: 'state', objectId: o.id },
+            });
+          }
           const needs = this._staticOp(o, 'sacUnlessControl');
           if (needs && o.zone === 'battlefield') {
             const want = String(needs.what || '').toLowerCase();

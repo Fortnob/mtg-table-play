@@ -10041,6 +10041,18 @@
           const kw = { op: 'continuous', layer: 6, scope, grant: ['Hexproof From ' + U.titleCase(m[4])] };
           return m[2] ? { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true }, pt: { p: +m[2], t: +m[3] } }, kw] } : kw;
         }, auto: true },
+      /* Dark Depths: a state trigger — it goes on the stack once whenever the land has no ice
+         counters, and not again while that one is waiting */
+      { re: /^When (?:CARDNAME|this land) has no ice counters on it, sacrifice it\. If you do, create Marit Lage, a legendary 20\/20 black Avatar creature token with flying and indestructible\.?$/i,
+        make: () => ({ op: 'stateTrigger', noCounter: 'ice', label: 'no ice counters',
+          effects: [{ op: 'sacSelfThen', then: [{ op: 'createToken', n: 1, pt: '20/20', colorWords: ['black'], subtypes: 'Avatar', addTypes: [],
+            legendary: true, name: 'Marit Lage', keywords: ['Flying', 'Indestructible'] }] }] }), auto: true },
+      // Notion Thief
+      { re: /^If an opponent would draw a card except the first one they draw in each of their draw steps, instead that player skips that draw and you draw a card\.?$/i,
+        eff: { op: 'stealDraws' }, auto: true },
+      // Aven Mindcensor: "If an opponent would search a library, that player searches the top four cards of that library instead."
+      { re: /^If an opponent would search a library, that player searches the top (two|three|four|five|\d+) cards of that library instead\.?$/i,
+        make: (m) => ({ op: 'searchTopN', n: num(m[1]) }), auto: true },
       // Opposition Agent: "You control your opponents while they're searching their libraries."
       { re: /^You control your opponents while they'?re searching their libraries\.?$/i, eff: { op: 'controlSearches' }, auto: true },
       // Opposition Agent: "While an opponent is searching their library, they exile each card they find. You may play those cards …"
