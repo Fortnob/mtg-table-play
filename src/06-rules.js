@@ -2645,6 +2645,8 @@
             if (e.offTurn && this.activePlayer && this.activePlayer.id === pid) continue;
             // Temur Battlecrier: during your turn, and so much for each of something
             if (e.yourTurn && !(this.activePlayer && this.activePlayer.id === pid)) continue;
+            // Doc Aurlock, Aven Interrupter: only spells cast from those zones
+            if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
             d += (Number(e.amount) || 0) * (e.per ? this._countValue(e.per, src.controller, src) : 1);
           }
         }
@@ -3420,7 +3422,14 @@
            one. Warp (CR 702.180): cheap now, exiled at end of turn, and
            castable again from there afterwards. */
         if (o.zone === 'hand' && arg && k === 'plot') {
-          out.push({ kind: 'plot', cost: arg, label: 'Plot ' + arg });
+          // Doc Aurlock: plotting costs less
+          let pc = arg;
+          for (const x of this.battlefield) {
+            if (x.controller !== playerId || x.phasedOut) continue;
+            const pm = this._staticOp(x, 'plotCostMod');
+            if (pm && pm.amount < 0) pc = this._addGeneric(pc, pm.amount) || '';
+          }
+          out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
         }
         // Spectacle: the other cost, once an opponent has lost life this turn (CR 702.137)
         if (o.zone === 'hand' && arg && k === 'spectacle' && this.opponentsOf(playerId).some(q => (q.lifeLostThisTurn || 0) > 0)) {
@@ -14683,6 +14692,19 @@
               this.logEvent('rules', `${src.name} and ${p.name} exchange: ${p.name} is at ${tough} life, and its toughness is ${life}.`);
             }
           }
+          break;
+        }
+        // Aven Interrupter: the spell leaves the stack for exile, plotted — its owner may cast it free on a later turn
+        case 'plotSpell': {
+          const t = targets.find(x => x.kind === 'stack');
+          const item = t && this.stack.find(x => x.id === t.id);
+          if (!item || item.kind !== 'spell' || !item.obj) break;
+          this.stack = this.stack.filter(x => x !== item);
+          if (item.isCopy) { item.obj.zone = null; break; }
+          const c = item.obj;
+          this.moveObject(c, 'exile');
+          c.plottedTurn = this.turn;
+          this.logEvent('rules', `${c.name} is exiled and becomes plotted.`);
           break;
         }
         // The Last Agni Kai

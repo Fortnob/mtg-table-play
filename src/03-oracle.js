@@ -4844,6 +4844,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Aven Interrupter: "Exile target spell. It becomes plotted."
+    { re: /^Exile (target spell)\. It becomes plotted\.$/i,
+      make: (m) => [{ op: 'plotSpell', targets: [targetSpec(m[1])] }] },
     /* Torment of Hailfire: "Repeat the following process X times. Each
        opponent loses 3 life unless that player sacrifices a nonland
        permanent of their choice or discards a card." */
@@ -9394,6 +9397,12 @@
       // Void Winnower: "Your opponents can't cast spells with even mana values." "…can't block with creatures with even mana values."
       { re: /^Your opponents can'?t cast spells with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantCastParity', even: /even/i.test(m[1]) }), auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },
+      // Doc Aurlock, Aven Interrupter: "Spells you cast (your opponents cast) from your graveyard (graveyards) or from exile cost {2} less (more) to cast."
+      { re: /^Spells (you|your opponents) cast from (?:your |their )?graveyards? or from exile cost \{(\d+)\} (less|more) to cast\.?$/i,
+        make: (m) => ({ op: 'taxSpells', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', amount: (/less/i.test(m[3]) ? -1 : 1) * +m[2],
+          fromZones: ['graveyard', 'exile'] }), auto: true },
+      // Doc Aurlock: "Plotting cards from your hand costs {2} less."
+      { re: /^Plotting cards from your hand costs \{(\d+)\} less\.?$/i, make: (m) => ({ op: 'plotCostMod', amount: -(+m[1]) }), auto: true },
       // Teferi, Time Raveler: "Each opponent can cast spells only any time they could cast a sorcery."
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."

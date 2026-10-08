@@ -9242,4 +9242,26 @@ module.exports = (test) => {
     T2.activate('A', zul, zul.analysis().abilities.findIndex(ab => ab.kind === 'activated'), { targets: [zom] });
     t.ok(T2.g.altUsesFor('A', zom.id).some(u => u.via === 'granted'), 'the Zombie may be cast from the graveyard');
   });
+
+  test('Aven Interrupter plots the spell it exiles and taxes casting from exile; Doc Aurlock discounts it', (mk, t) => {
+    t.auto('Aven Interrupter');
+    t.auto('Doc Aurlock, Grizzled Genius');
+    const T = mk();
+    T.mana('A', 'R');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'stack', id: item.id }] }));
+    T.mana('B', 'WW1');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    T.cast('B', T.hand('B', 'Aven Interrupter'));
+    t.eq(T.life('B'), 20, 'the Bolt never resolved');
+    t.eq(bolt.zone, 'exile');
+    t.eq(bolt.plottedTurn, T.g.turn, 'plotted');
+    const T2 = mk();
+    T2.bf('A', 'Doc Aurlock, Grizzled Genius');
+    const sh = T2.grave('A', 'Shock');
+    sh.grantedFlashback = true;
+    t.eq(T2.g._costDelta(sh, 'A'), -2, 'a spell from the graveyard costs {2} less');
+  });
 };
