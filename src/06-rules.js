@@ -10570,12 +10570,14 @@
         // a sequence is just more of this list: splice it in and carry on, so
         // anything inside it can suspend exactly like a top-level effect
         if (e.op === 'sequence') {
-          r.effects.splice(r.index, 1, ...(e.list || []));
+          r.effects.splice(r.index, 1, ...(e._as ? (e.list || []).map(x => Object.assign({}, x, { _as: e._as })) : (e.list || [])));
           continue;
         }
         let out;
+        // Tempting offer: what an opponent who took it does, done as that player
+        const ctxNow = e._as ? Object.assign({}, r.ctx, { controller: e._as }) : r.ctx;
         // who is doing it, for "if you would put one or more counters…"
-        try { this._putBy = r.ctx.controller; out = this._runEffect(e, r.ctx); }
+        try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
           r.manual.push({ op: 'manual', text: e.text || JSON.stringify(e) });
@@ -13908,6 +13910,25 @@
           if (at && at.life != null) this.dealDamageToPlayer(at, k, src);
           else if (at) this.dealDamageToObject(at, k, src);
           this.bumpBoard();
+          break;
+        }
+        // "Choose target creature you control.": the target, for the sentences after
+        case 'chooseTarget': this._noteLastAffected(targets); break;
+        // Tempting offer: each opponent may; you do it again for each who does
+        case 'temptingOffer': {
+          const took = [];
+          for (const opp of this.opponentsOf(ctx.controller)) {
+            const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'temptingOffer',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}tempting offer — ${String(e.offer || '').replace(/\btheir\b/g, 'your').replace(/\bthey\b/g, 'you')}? (${me.name} does it again if you do.)` }, 'tempt:' + opp.id);
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) took.push(opp);
+          }
+          if (!took.length) break;
+          this.logEvent('rules', `${took.map(q => q.name).join(', ')} ${took.length === 1 ? 'takes' : 'take'} the offer.`);
+          const list = [];
+          for (const opp of took) for (const x of e.theirs || []) list.push(Object.assign(JSON.parse(JSON.stringify(x)), { _as: opp.id }));
+          for (let i = 0; i < took.length; i++) for (const x of e.again || []) list.push(JSON.parse(JSON.stringify(x)));
+          this._spliceNext(list);
           break;
         }
         // Archway of Innovation

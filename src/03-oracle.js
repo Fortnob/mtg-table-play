@@ -4161,6 +4161,9 @@
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
+    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control)?)\.?$/i,
+      make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Ocelot Pride: "Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it."
@@ -5288,6 +5291,20 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Tempting offer (Tempt with Discovery, Vengeance, Bunnies, Immortality,
+       Glory, Reflections; Tempting Contract): "A. Each opponent may A. For
+       each opponent who does, A." — each opponent is asked, those who take
+       it do it themselves, and you do it again for each of them */
+    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?[Ee]ach opponent may ([^.]+)\. For each opponent who (?:does|searches a library this way), ((?:you )?[^.]+)\.(?: Then each player who searched a library this way shuffles\.)?$/,
+      make: (m) => {
+        const second = (x) => x.replace(/\btheir\b/g, 'your').replace(/\bthey control\b/g, 'you control').replace(/\bthey\b/g, 'you');
+        const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1) + '.';
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        const theirs = parseSentenceList(splitSentences(cap(second(m[2]))));
+        const again = parseSentenceList(splitSentences(cap(m[3].replace(/^you /i, ''))));
+        if (!pre.auto || !theirs.auto || !again.auto) return null;
+        return [...pre.effects, { op: 'temptingOffer', offer: m[2], theirs: theirs.effects, again: again.effects }];
+      } },
     /* Twinflame: "Choose any number of target creatures you control. For
        each of them, create a token that's a copy of that creature, except it
        has haste. Exile those tokens at the beginning of the next end step." */

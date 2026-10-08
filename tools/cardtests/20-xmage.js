@@ -10821,4 +10821,32 @@ module.exports = (test) => {
     T2.toMain('A', 'endCombat');
     t.eq(T2.life('B'), 20 - 2 - (4 + 2), 'two damage from the trigger, then 6 combat damage');
   });
+
+  test('Tempting offer: Tempt with Vengeance, Tempt with Discovery, Tempt with Reflections', (mk, t) => {
+    t.auto('Tempt with Vengeance'); t.auto('Tempt with Discovery'); t.auto('Tempt with Reflections'); t.auto('Tempting Contract');
+    const T = mk();
+    T.answer('confirm', (ch) => { t.eq(ch.playerId, 'B', 'the opponent is offered'); return { yes: true }; });
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Tempt with Vengeance'), { x: 2 });
+    T.settle(); T.resolve();
+    const el = (p) => T.g.battlefield.filter(o => o.controller === p && o.isToken).length;
+    t.eq(el('A'), 4, 'two, and two more for B taking it'); t.eq(el('B'), 2, 'B made two');
+    const T2 = mk();
+    T2.top('A', 'Forest'); T2.top('A', 'Forest'); T2.top('B', 'Island');
+    T2.answer('confirm', { yes: true });
+    T2.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => /Forest|Island/.test(c.name)).id] }));
+    const lands = (p) => T2.g.battlefield.filter(o => o.controller === p && (o.analysis() || {}).isLand).length;
+    const la = lands('A'), lb = lands('B');
+    T2.mana('A', '3G');
+    T2.cast('A', T2.hand('A', 'Tempt with Discovery'));
+    T2.settle(); T2.resolve();
+    t.eq(lands('A'), la + 2, 'A finds two lands'); t.eq(lands('B'), lb + 1, 'B finds one');
+    const T3 = mk();
+    const bear = T3.bf('A', 'Grizzly Bears');
+    T3.answer('confirm', { yes: false });
+    T3.mana('A', '4U');
+    T3.cast('A', T3.hand('A', 'Tempt with Reflections'), { targets: [bear.id] });
+    T3.settle(); T3.resolve();
+    t.eq(T3.g.battlefield.filter(o => o.isToken && o.name === 'Grizzly Bears').length, 1, 'one copy when declined');
+  });
 };
