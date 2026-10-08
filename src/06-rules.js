@@ -854,9 +854,11 @@
         const kept = {};
         for (const x of this.battlefield) {
           if (x.controller !== p.id || x.phasedOut) continue;
-          const e = this._staticOp(x, 'keepMana');
+          const e = this._staticOp(x, 'keepManaColor');
           if (e && e.color) kept[e.color] = p.pool[e.color] || 0;
         }
+        // The Last Agni Kai: one colour kept for the rest of this turn
+        if (p.keepColorTurn && p.keepColorTurn.turn === this.turn) kept[p.keepColorTurn.color] = p.pool[p.keepColorTurn.color] || 0;
         const keptAny = Object.values(kept).some(v => v > 0);
         if (!p.pool.isEmpty() && !keptAny) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
         p.pool.clear();
@@ -1905,7 +1907,7 @@
       if (!item) { this._resetPriority(); return; }
       this._lastLifeLost = 0;   // "gain life equal to the life lost this way" counts within one resolution
       this._lastDamageDealt = 0;
-      this._lastExcess = 0;
+      this._lastExcess = 0; this._excessOn = {};
       this._dealtThisWay = [];
       this._madeThisResolution = [];
       this._exiledNow = [];
@@ -2695,6 +2697,13 @@
         return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
       }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
+      // Summon: Bahamut: "the total mana value of other permanents you control"
+      if (v.totalMvOf) {
+        let sum = 0;
+        for (const o of this._scopeList(v.totalMvOf, pid, src, null, inLayers)) if (o !== src || !v.totalMvOf.other) sum += (o.card && o.card.cmc) || 0;
+        return sum * mult;
+      }
       // Prime Speaker Zegana: "the greatest power among other creatures you control"
       if (v.greatestPower) {
         let best = 0;
@@ -8780,7 +8789,10 @@
       if (a && source && this._protectedFrom(o, source) && !this._noPrevention(isCombat)) return;
       // excess damage (CR 120.4a): whatever was more than it took to be lethal
       const excess = Math.max(0, amount - this._lethalLeft(o, source));
-      if (excess > 0) { this._lastExcess = (this._lastExcess || 0) + excess; o._excessTurn = this.turn; }
+      if (excess > 0) {
+        this._lastExcess = (this._lastExcess || 0) + excess; o._excessTurn = this.turn;
+        (this._excessOn = this._excessOn || {})[o.id] = (this._excessOn[o.id] || 0) + excess;
+      }
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
@@ -10217,6 +10229,7 @@
         }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
+        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards)) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
@@ -14672,6 +14685,15 @@
           }
           break;
         }
+        // The Last Agni Kai
+        case 'keepManaColorTurn': me.keepColorTurn = { color: e.color, turn: this.turn }; break;
+        case 'addManaExcessOf': {
+          const t = targets.filter(x => x.kind === 'object')[e.targetIndex || 0];
+          const k = t ? ((this._excessOn || {})[t.id] || 0) : 0;
+          for (let i = 0; i < k; i++) me.pool.add(e.symbol || 'R');
+          if (k) this.logEvent('mana', `${me.name} adds ${k} {${e.symbol || 'R'}}.`);
+          break;
+        }
         // Angel's Grace
         case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
         case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;
@@ -15095,7 +15117,7 @@
         }
         // Door to Nothingness
         case 'loseGameTarget': {
-          const p = firstPlayer();
+          const p = e.who === 'triggerPlayer' ? triggerPlayer() : firstPlayer();
           if (p && !p.hasLost) { this.playerLoses(p, `${src ? src.name : 'a card'} said so`); this.checkStateBasedActions(); }
           break;
         }

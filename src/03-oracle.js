@@ -942,6 +942,19 @@
       make: (m) => { const t = tgt('target ' + m[2]); return t ? { op: 'destroy', targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, t, { distinct: true })) } : null; } },
     // Door to Nothingness
     { re: /^Target (player|opponent) loses the game\.?$/i, make: (m) => ({ op: 'loseGameTarget', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
+    { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    // Summon: Primal Odin's "that player loses the game" — the player the trigger is about
+    { re: /^That player loses the game\.?$/i, make: () => ({ op: 'loseGameTarget', who: 'triggerPlayer' }) },
+    // Zul Ashur: "You may cast target Zombie creature card from your graveyard this turn."
+    { re: /^You may cast (target [A-Za-z ]+? card) from your graveyard this turn\.?$/,
+      make: (m) => { const spec = targetSpec(m[1], 'graveyard'); return spec && !spec.unknown ? { op: 'mayCastFromGraveyard', targets: [Object.assign(spec, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // The Last Agni Kai: "Until end of turn, you don't lose unspent red mana as steps and phases end."
+    { re: /^Until end of turn, you don'?t lose unspent (red|blue|black|white|green) mana as steps and phases end\.?$/i,
+      make: (m) => ({ op: 'keepManaColorTurn', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }) },
+    // The Last Agni Kai: "If the creature the opponent controls is dealt excess damage this way, add that much {R}."
+    { re: /^If the creature (?:the opponent|an opponent) controls is dealt excess damage this way, add that much (\{[WUBRGC]\})\.?$/i,
+      make: (m) => ({ op: 'addManaExcessOf', targetIndex: 1, symbol: MANA.parse(m[1])[0] }) },
     // Marching Duodrone, Grismold: "each player creates a Treasure token"
     { re: /^Each player creates (a|an|one|two|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: num(m[1]), who: 'each' }) },
@@ -4309,6 +4322,8 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
+    // Summon: Bahamut: "the total mana value of other permanents you control"
+    if ((m = p.match(/^the total mana value of ((?:other )?[a-z ]+? you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ totalMvOf: sc }); }
     // Razor Rings, Windswift Slice: "the (amount of) excess damage dealt (to that creature) this way"
     if (/^(?:the (?:amount of )?excess damage dealt(?: to (?:that|the|a) (?:creature|permanent|planeswalker))?(?: this way)?|that excess damage|that much excess damage)$/i.test(p)) return done('lastExcess');
     // Ovika: "the mana value of that spell"
@@ -7070,7 +7085,9 @@
       const chap = line.match(/^([IVX]+(?:\s*,\s*[IVX]+)*)\s*[-\u2014]\s*(.+)$/);
       if (chap && out.isSaga) {
         const chapters = chap[1].split(/\s*,\s*/).map(romanValue).filter(Boolean);
-        const parsed = parseEffects(chap[2]);
+        // the Summons: "II — Zantetsuken — This creature gains …" — the chapter's name is flavour
+        const body = chap[2].replace(/^[A-Z][A-Za-z' ,-]{1,40} \u2014 (?=[A-Z])/, '');
+        const parsed = parseEffects(body);
         out.abilities.push({
           kind: 'chapter', chapters, text: line,
           effects: parsed.effects, auto: parsed.auto,
@@ -9373,7 +9390,7 @@
         }, auto: true },
       // Electro, Ashling: "You don't lose unspent red mana as steps and phases end."
       { re: /^You don'?t lose unspent (red|blue|black|white|green) mana as steps and phases end\.?$/i,
-        make: (m) => ({ op: 'keepMana', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }), auto: true },
+        make: (m) => ({ op: 'keepManaColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }), auto: true },
       // Void Winnower: "Your opponents can't cast spells with even mana values." "…can't block with creatures with even mana values."
       { re: /^Your opponents can'?t cast spells with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantCastParity', even: /even/i.test(m[1]) }), auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },

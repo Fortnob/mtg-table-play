@@ -9221,4 +9221,25 @@ module.exports = (test) => {
     T.activate('A', pinger, 0, { targets: ['B'] });
     t.eq(T.life('B'), 18, 'pinged twice');
   });
+
+  test('The Last Agni Kai turns excess into red mana that stays; Zul Ashur lets a Zombie be cast from the graveyard', (mk, t) => {
+    t.auto('The Last Agni Kai');
+    t.auto('Zul Ashur, Lich Lord');
+    t.auto('Summon: Bahamut');
+    const T = mk();
+    const big = T.bf('A', 'Colossal Dreadmaw');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'The Last Agni Kai'), { targets: [big, elf] });
+    t.eq(elf.zone, 'graveyard');
+    t.eq(T.g.player('A').pool.R, 5, 'six damage to a 1/1: five red');
+    T.toMain('A', 'beginCombat');
+    t.eq(T.g.player('A').pool.R, 5, 'and it stays through the turn');
+    const T2 = mk();
+    const zul = T2.bf('A', 'Zul Ashur, Lich Lord');
+    zul.summoningSick = false;
+    const zom = T2.grave('A', 'Gravecrawler');
+    T2.activate('A', zul, zul.analysis().abilities.findIndex(ab => ab.kind === 'activated'), { targets: [zom] });
+    t.ok(T2.g.altUsesFor('A', zom.id).some(u => u.via === 'granted'), 'the Zombie may be cast from the graveyard');
+  });
 };

@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13619,
-  "gainedCards": 1441,
-  "linesNeeded": 14982,
-  "linesGained": 1771,
+  "needed": 13610,
+  "gainedCards": 1438,
+  "linesNeeded": 14956,
+  "linesGained": 1756,
   "gained": {
-   "all": 1441,
+   "all": 1438,
    "top2000": 53,
-   "stdTop": 12
+   "stdTop": 11
   },
   "compare": {
    "same": 0,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4959,
-   "lines": 4377,
+   "score": 4952,
+   "lines": 4376,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -2534,21 +2534,6 @@
    ]
   },
   {
-   "what": "damage affecting the defending player",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Kediss, Emberclaw Familiar",
-    "Angel of Destiny",
-    "Vraska, Golgari Queen",
-    "Strixhaven Stadium",
-    "Cosima, God of the Voyage // The Omenkeel",
-    "Edward Kenway",
-    "Rogue Class",
-    "Etrata, Deadly Fugitive"
-   ]
-  },
-  {
    "what": "or of CastFromZonePredicate",
    "score": 11,
    "lines": 2,
@@ -2573,18 +2558,6 @@
    "cards": [
     "Summon: Fenrir",
     "Éomer of the Riddermark"
-   ]
-  },
-  {
-   "what": "LoseGameTargetPlayerEffect",
-   "score": 11,
-   "lines": 5,
-   "cards": [
-    "Summon: Primal Odin",
-    "Vorpal Sword",
-    "Phage the Untouchable",
-    "Ezio Auditore da Firenze",
-    "Hidetsugu Consumes All // Vessel of the All-Consuming"
    ]
   },
   {
@@ -2801,11 +2774,17 @@
    ]
   },
   {
-   "what": "DamagePlayersEffect amount",
+   "what": "damage affecting the defending player",
    "score": 10,
-   "lines": 1,
+   "lines": 7,
    "cards": [
-    "Summon: Bahamut"
+    "Kediss, Emberclaw Familiar",
+    "Angel of Destiny",
+    "Strixhaven Stadium",
+    "Cosima, God of the Voyage // The Omenkeel",
+    "Edward Kenway",
+    "Rogue Class",
+    "Etrata, Deadly Fugitive"
    ]
   },
   {
@@ -3606,21 +3585,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde",
-    "Tzaangor Shaman",
-    "Loki Laufeyson",
-    "Way of the Cryomancer"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
    "score": 9,
    "lines": 9,
@@ -4155,6 +4119,21 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman",
+    "Loki Laufeyson",
+    "Way of the Cryomancer"
+   ]
+  },
+  {
    "what": "GainControlAllEffect",
    "score": 8,
    "lines": 8,
@@ -4504,14 +4483,6 @@
     "Stranglehold",
     "Ugin's Nexus",
     "Gerrard's Hourglass Pendant"
-   ]
-  },
-  {
-   "what": "YouDontLoseManaEffect",
-   "score": 7,
-   "lines": 1,
-   "cards": [
-    "The Last Agni Kai"
    ]
   },
   {
@@ -7344,13 +7315,37 @@
    "cards": [
     "Padeem, Consul of Innovation"
    ]
+  },
+  {
+   "what": "DrawCardOpponentTriggeredAbility",
+   "score": 4,
+   "lines": 1,
+   "cards": [
+    "Tataru Taru"
+   ]
+  },
+  {
+   "what": "DrownInTheLochPredicate.instance",
+   "score": 4,
+   "lines": 1,
+   "cards": [
+    "Drown in the Loch"
+   ]
+  },
+  {
+   "what": "mana restriction CodsworthHandyHelperManaBuilder",
+   "score": 4,
+   "lines": 1,
+   "cards": [
+    "Codsworth, Handy Helper"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3985,
-   "cards": 3583,
+   "score": 3986,
+   "cards": 3584,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -8481,14 +8476,6 @@
    ]
   },
   {
-   "what": "DamagePlayersEffect amount",
-   "score": 10,
-   "cards": 1,
-   "names": [
-    "Summon: Bahamut"
-   ]
-  },
-  {
    "what": "keyword StationLevelAbility",
    "score": 10,
    "cards": 4,
@@ -8692,16 +8679,6 @@
     "Fated Clash",
     "Scarring Memories",
     "Illusion Spinners"
-   ]
-  },
-  {
-   "what": "LoseGameTargetPlayerEffect",
-   "score": 9,
-   "cards": 3,
-   "names": [
-    "Summon: Primal Odin",
-    "Vorpal Sword",
-    "Hidetsugu Consumes All // Vessel of the All-Consuming"
    ]
   },
   {
@@ -9958,16 +9935,6 @@
    ]
   },
   {
-   "what": "damage affecting the defending player",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Kediss, Emberclaw Familiar",
-    "Vraska, Golgari Queen",
-    "Edward Kenway"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 6,
    "cards": 3,
@@ -10679,6 +10646,15 @@
    ]
   },
   {
+   "what": "damage affecting the defending player",
+   "score": 5,
+   "cards": 2,
+   "names": [
+    "Kediss, Emberclaw Familiar",
+    "Edward Kenway"
+   ]
+  },
+  {
    "what": "ColorlessManaAbility with arguments",
    "score": 5,
    "cards": 2,
@@ -11126,6 +11102,30 @@
     "Ruthless Instincts",
     "Alarum",
     "Unlikely Alliance"
+   ]
+  },
+  {
+   "what": "BecomesColorOrColorsTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Scuttlemutt",
+    "Prismatic Lace",
+    "Quickchange",
+    "Swirling Spriggan",
+    "Prismwake Merrow"
+   ]
+  },
+  {
+   "what": "or of NamePredicate",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Forging the Tyrite Sword",
+    "Shield of Kaldra",
+    "Dragonstorm Forecaster",
+    "Bogbrew Witch",
+    "Liu Bei, Lord of Shu"
    ]
   }
  ]
