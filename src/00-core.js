@@ -207,6 +207,7 @@ MTG.bus = new Emitter();
 const LS_KEY = 'mtgtable.settings.v1';
 const defaultSettings = {
   playerName: '',
+  avatar: null,          // a profile picture: a small image as a data URL (src/10b-ui-avatar.js)
   volume: 0.5,
   muted: false,
   cardBack: 'classic',
@@ -267,7 +268,7 @@ MTG.setSetting = function (k, v) { MTG.settings[k] = v; MTG.saveSettings(); };
 MTG.resetSettings = function () {
   const keepArt = MTG.settings.artPreferences;
   const keepName = MTG.settings.playerName;
-  MTG.settings = Object.assign({}, defaultSettings, { artPreferences: keepArt, playerName: keepName });
+  MTG.settings = Object.assign({}, defaultSettings, { artPreferences: keepArt, playerName: keepName, avatar: MTG.settings.avatar || null });
   MTG.saveSettings();
 };
 

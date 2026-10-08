@@ -242,6 +242,29 @@ input[type=checkbox].switch:checked::after { left: 20px; background: linear-grad
 .portrait.lg .portrait-face { font-size: 28px; }
 .portrait-face.art-on { color: transparent; text-shadow: none; }
 .portrait-face::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 50% 35%, transparent 45%, rgba(0,0,0,.5) 100%); }
+.portrait-btn { padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; flex: none; }
+.portrait-btn:hover .portrait-ring, .portrait-btn:focus-visible .portrait-ring { filter: brightness(1.35); }
+.portrait-face[style*="data:image"] { background-size: cover; background-position: center; }
+/* the profile picture chooser */
+.av-picker { display: grid; gap: 14px; }
+.av-row { display: flex; align-items: center; gap: 14px; }
+.av-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 12px; max-height: calc(52 * var(--vh)); overflow: auto; padding: 4px; }
+.av-thumb { display: grid; justify-items: center; gap: 5px; padding: 6px 2px; border: 0; border-radius: 10px; background: none; color: inherit; cursor: pointer; }
+.av-thumb:hover, .av-thumb:focus-visible { background: rgba(255,255,255,.06); }
+.av-thumb-face { width: 68px; height: 68px; border-radius: 50%; background-repeat: no-repeat; background-color: #111;
+  box-shadow: 0 0 0 2px var(--gold-mid), 0 3px 10px rgba(0,0,0,.5); }
+.av-thumb:hover .av-thumb-face { box-shadow: 0 0 0 3px var(--gold-hi), 0 3px 12px rgba(0,0,0,.6); }
+.av-thumb-name { font-size: 11.5px; line-height: 1.2; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.av-crop { display: grid; justify-items: center; gap: 12px; }
+.av-stage { position: relative; width: min(300px, 70vw); aspect-ratio: 1; }
+.av-canvas { width: 100%; height: 100%; display: block; border-radius: 8px; cursor: grab; touch-action: none; }
+.av-canvas:active { cursor: grabbing; }
+.av-mask { position: absolute; inset: 0; border-radius: 8px; pointer-events: none;
+  background: radial-gradient(circle closest-side, transparent calc(100% - 1px), rgba(0,0,0,.62) 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+.av-mask::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 2px var(--gold-mid); }
+.av-zoom-row { display: flex; align-items: center; gap: 10px; width: min(300px, 70vw); }
+.av-zoom { flex: 1; }
+.av-name { width: 100%; max-width: 320px; margin-top: 6px; }
 .portrait-ring {
   position: absolute; inset: 0; border-radius: 50%; border: 2.5px solid transparent;
   background: conic-gradient(from 210deg, var(--gold-lo), var(--gold-hi), var(--gold-mid), var(--gold-lo), var(--gold-hi), var(--gold-lo)) border-box;

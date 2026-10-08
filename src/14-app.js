@@ -114,6 +114,43 @@
     if (conjured.size && !MTG.cardLookup) MTG.cardLookup = (name) => conjured.get(U.normName(name)) || null;
   }
 
+  /** A seat's profile picture (a data URL), or null: yours from the settings, the others' as they sent them. */
+  App.avatarFor = function (pid) {
+    const sess = App.session;
+    if (sess) {
+      const r = sess.roster.find(x => x.id === pid);
+      if (!r) return null;
+      return r.kind === 'local' ? (MTG.settings.avatar || null) : (r.avatar || null);
+    }
+    const m = (App.lobbyMembers || []).find(x => x.id === pid);
+    return m && UI.isAvatar(m.avatar) ? m.avatar : null;
+  };
+  /** Your name and profile picture, and telling whoever needs to know. */
+  App.chooseAvatar = function (after) {
+    const told = () => {
+      if (App.session && App.session.broadcastLobby) App.session.broadcastLobby();
+      if (App.table) App.table.render();
+      if (after) after();
+    };
+    UI.avatarPicker({
+      current: MTG.settings.avatar || null,
+      onSave: (data) => { MTG.setSetting('avatar', data || null); told(); },
+      name: App.myName,
+      onName: (name) => {
+        App.myName = name;
+        MTG.setSetting('playerName', name);
+        // your seat, and the game in progress, if this browser runs it
+        const sess = App.session;
+        const seat = sess && sess.seat && sess.seat('me');
+        if (seat) seat.name = name;
+        const p = sess && sess.game && sess.game.player('me');
+        if (p) { p.name = name; if (sess.pushState) sess.pushState(); }
+        told();
+      },
+    });
+  };
+  App.editProfile = () => App.chooseAvatar(() => { if (App.screen === 'lobby' && App.session) renderLobby(); });
+
   const idList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 60) : undefined);
   /* What a person chose to pay a cost the table would otherwise pick for
      them: graveyard cards for evidence, a Food or three cards to forage,
@@ -1378,11 +1415,14 @@
     });
     sections.push(group('you', 'You', null, [
       el('div', { class: 'opt-row you-row' }, [
-        UI.portrait(App.myName, null, { size: 'lg' }),
+        el('button', { type: 'button', class: 'portrait-btn', title: 'Change your profile picture', 'aria-label': 'Change your profile picture',
+          onclick: () => App.chooseAvatar(() => renderOptions()) }, [UI.portrait(App.myName, null, { size: 'lg', avatar: MTG.settings.avatar })]),
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'Display name' }),
           el('div', { class: 'opt-help', text: 'What other players at the table see.' }),
           nameInput,
+          el('button', { type: 'button', class: 'btn sm ghost', style: { marginTop: '8px' }, text: MTG.settings.avatar ? 'Change profile picture…' : 'Choose a profile picture…',
+            onclick: () => App.chooseAvatar(() => renderOptions()) }),
         ]),
       ]),
     ]));
@@ -1788,6 +1828,7 @@
     try {
       await net.join(code.trim(), {
         name: App.myName, token: MTG.clientToken(), autoPass: MTG.autoPassConfig(),
+        avatar: MTG.settings.avatar || null,
       });
       busy.close();
       App.session = null;             // clients have no engine
@@ -2034,7 +2075,10 @@
     }, [
       art,
       el('div', { class: 'seat-top' }, [
-        UI.portrait(r.name, key, { size: 'md' }),
+        r.kind === 'local'
+          ? el('button', { type: 'button', class: 'portrait-btn', title: 'Change your profile picture', 'aria-label': 'Change your profile picture',
+            onclick: () => App.chooseAvatar(() => renderLobby()) }, [UI.portrait(r.name, key, { size: 'md', avatar: MTG.settings.avatar })])
+          : UI.portrait(r.name, key, { size: 'md', avatar: r.avatar }),
         el('div', { class: 'seat-who' }, [
           el('div', { class: 'seat-name', text: r.name + (r.kind === 'local' ? ' (you)' : '') }),
           el('div', { class: 'seat-role' }, [
@@ -2476,6 +2520,7 @@
   }
 
   function renderClientLobbyData(payload) {
+    App.lobbyMembers = (payload && payload.members) || [];
     if (!App.clientLobbyBox) return;
     const box = App.clientLobbyBox;
     box.innerHTML = '';
@@ -2519,7 +2564,7 @@
       grid.appendChild(el('article', { class: 'seat-card ' + (r.kind === 'bot' ? 'bot' : 'remote') + (me ? ' mine' : '') }, [
         el('div', { class: 'seat-art', 'aria-hidden': 'true' }),
         el('div', { class: 'seat-top' }, [
-          UI.portrait(r.name, null, { size: 'md' }),
+          UI.portrait(r.name, null, { size: 'md', avatar: r.avatar }),
           el('div', { class: 'seat-who' }, [
             el('div', { class: 'seat-name', text: r.name + (me ? ' (you)' : '') }),
             el('div', { class: 'seat-role' }, [
@@ -2819,6 +2864,7 @@
               style: r.kind === 'bot' && seatPersonality(r) ? seatPersonality(r).label : null,
               deckName: r.deck ? r.deck.name : null,
               deckValid: r.deckValid ? r.deckValid.ok : null,
+              avatar: (r.kind === 'local' ? MTG.settings.avatar : r.avatar) || null,
             })),
           },
         };
@@ -3468,6 +3514,8 @@
       const seat = sess.addRemote(peerId, (payload && payload.name) || 'Player', payload && payload.token);
       // kept with the seat, because the game they are for may not exist yet
       if (payload && payload.autoPass && seat) seat.autoPass = payload.autoPass;
+      // their profile picture, if it is one (a small image, nothing else)
+      if (seat) seat.avatar = payload && UI.isAvatar(payload.avatar) ? payload.avatar : null;
       if (payload && payload.autoPass && seat && sess.game) sess.game.setAutoPass(seat.id, payload.autoPass);
       sess.broadcastLobby();
       // someone returning mid-game needs the whole picture, not the lobby

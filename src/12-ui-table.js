@@ -998,7 +998,8 @@
       orb.dataset.player = p.id;
       const art = orb.querySelector('.orb-art');
       const card = this.portraitCard(p);
-      const url = card ? (MTG.scry.imageUrl(card, 'art_crop', 0) || '') : '';
+      const chosen = MTG.app && MTG.app.avatarFor ? MTG.app.avatarFor(p.id) : null;
+      const url = chosen || (card ? (MTG.scry.imageUrl(card, 'art_crop', 0) || '') : '');
       if (art._url !== url) {
         art._url = url;
         art.style.backgroundImage = url ? 'url("' + url.replace(/"/g, '%22') + '")' : '';
@@ -1751,6 +1752,8 @@
         if (d) { this.attackPlan.defenderId = pid; this.render(); return; }
       }
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
+      // your own portrait, with nothing else to do: your name and picture
+      else if (pid === this.meId && !this.view.spectating && MTG.app && MTG.app.editProfile) MTG.app.editProfile();
     }
 
     /** @this {MTG.TableInstance} */

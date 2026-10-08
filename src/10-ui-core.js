@@ -76,6 +76,7 @@
       setTitle(t) { head.querySelector('h2').textContent = t; },
       button(label, fn, cls) {
         const b = el('button', { class: 'btn ' + (cls || ''), text: label, onclick: () => fn(api) });
+        foot.classList.remove('empty');
         foot.appendChild(b); return b;
       },
     };
@@ -873,7 +874,11 @@
     opts = opts || {};
     const face = el('span', { class: 'portrait-face', text: ((name || '?').trim()[0] || '?').toUpperCase() });
     face.style.setProperty('--seat-hue', opts.color || UI.avatarColor(name));
-    if (card) UI.setArt(face, card);
+    // a profile picture they chose, else the art of a card
+    if (opts.avatar && UI.isAvatar && UI.isAvatar(opts.avatar)) {
+      face.style.backgroundImage = 'url("' + opts.avatar + '")';
+      face.classList.add('art-on');
+    } else if (card) UI.setArt(face, card);
     return el('span', { class: 'portrait' + (opts.size ? ' ' + opts.size : ''), 'aria-hidden': 'true' }, [
       face, el('span', { class: 'portrait-ring' }),
     ]);
