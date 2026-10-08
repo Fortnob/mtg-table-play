@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13644,
+  "needed": 13641,
   "gainedCards": 1441,
-  "linesNeeded": 15015,
+  "linesNeeded": 15013,
   "linesGained": 1771,
   "gained": {
    "all": 1441,
@@ -3896,18 +3896,6 @@
    ]
   },
   {
-   "what": "SourceDealsDamageToThisTriggeredAbility",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Phyrexian Obliterator",
-    "Reaper of Sheoldred",
-    "Belltower Sphinx",
-    "Nested Ghoul",
-    "Crag Saurian"
-   ]
-  },
-  {
    "what": "CantAttackYouUnlessPayAllEffect",
    "score": 8,
    "lines": 5,
@@ -7356,6 +7344,14 @@
    "cards": [
     "Opposition Agent"
    ]
+  },
+  {
+   "what": "(constructor: call on callResult .toString)",
+   "score": 4,
+   "lines": 1,
+   "cards": [
+    "Opal Palace"
+   ]
   }
  ],
  "sole": [
@@ -9149,18 +9145,6 @@
     "Knowledge Is Power",
     "Duelist of the Mind",
     "Thundering Djinn"
-   ]
-  },
-  {
-   "what": "SourceDealsDamageToThisTriggeredAbility",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Phyrexian Obliterator",
-    "Reaper of Sheoldred",
-    "Belltower Sphinx",
-    "Nested Ghoul",
-    "Crag Saurian"
    ]
   },
   {
@@ -11137,6 +11121,18 @@
     "Relic Amulet",
     "Molten Hydra",
     "Essence Bottle"
+   ]
+  },
+  {
+   "what": "PreventNextDamageFromChosenSourceToTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Martyr's Cause",
+    "Circle of Despair",
+    "Samite Blessing",
+    "Charm Peddler",
+    "Sanctum Guardian"
    ]
   }
  ]

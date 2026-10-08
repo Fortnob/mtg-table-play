@@ -7079,6 +7079,11 @@
       if (s.includes('artifacts') && a.isArtifact) return true;
       if (s.includes('creatures') && a.isCreature) return true;
       if (s.includes('everything')) return true;
+      // Giver of Runes: "protection from colorless"; and from multicoloured or monocoloured
+      const n = (a.colors || []).length;
+      if (/\bcolou?rless\b/.test(s) && !n) return true;
+      if (/\bmulticolou?red\b/.test(s) && n > 1) return true;
+      if (/\bmonocolou?red\b/.test(s) && n === 1) return true;
       for (const st of a.subtypes) if (s.includes(st.toLowerCase())) return true;
       return false;
     }
@@ -8767,7 +8772,9 @@
       // "whenever this creature deals damage to a creature": the creature it hit is what the trigger is about
       if (source && source.zone === 'battlefield' && a && a.isCreature) this._fire('dealsDamageToCreature', source.controller, { source, object: o, amount, combat: !!isCombat });
       // "Whenever this creature is dealt damage" (enrage): the creature's own trigger
-      this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat });
+      this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat,
+        // Phyrexian Obliterator: whoever controls what dealt it
+        player: source ? source.controller : undefined });
       // Death Pits of Rath, Wrathful Raptors: "whenever a creature (you control) is dealt damage" — anyone's, as the words say
       this._fire('anyDealtDamage', null, { object: o, objController: o.controller, amount, combat: !!isCombat });
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${o.name}.`);
@@ -11064,14 +11071,16 @@
             const NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[ctx.chosenColor || (src && src.chosenColor)];
             kws = kws.map(k => (/^protection from the chosen colou?r$/i.test(k) ? (NAME ? 'Protection From ' + NAME : null) : k)).filter(Boolean);
           }
-          if (kws.some(k => /^protection from the colou?r of your choice$/i.test(k))) {
-            const COLORS = ['White', 'Blue', 'Black', 'Red', 'Green'];
+          // Giver of Runes: "protection from colorless or from the color of your choice"
+          const PRO_CHOICE = /^protection from (?:colou?rless or from )?the colou?r of your choice$/i;
+          if (kws.some(k => PRO_CHOICE.test(k))) {
+            const COLORS = ['White', 'Blue', 'Black', 'Red', 'Green'].concat(kws.some(k => /colou?rless or/i.test(k)) ? ['Colorless'] : []);
             const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'protectionColor',
               options: COLORS.map((c, i) => ({ i, label: c })), prompt: 'Protection from which colour?' }, 'protcol');
             if (picked === SUSPEND) return SUSPEND;
             const idx = Array.isArray(picked) ? picked[0] : picked;
             const col = COLORS[idx == null ? 0 : idx] || COLORS[0];
-            kws = kws.map(k => (/^protection from the colou?r of your choice$/i.test(k) ? 'Protection From ' + col : k));
+            kws = kws.map(k => (PRO_CHOICE.test(k) ? 'Protection From ' + col : k));
             this.logEvent('rules', `${me.name} chooses ${col.toLowerCase()}.`);
           }
           // "That token gains haste." with no end to it is for good

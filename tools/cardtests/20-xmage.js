@@ -9093,4 +9093,25 @@ module.exports = (test) => {
     t.eq(T3.g.battlefield.filter(o => o.name === 'Grizzly Bears').length, 2, 'two Bears');
     t.eq(T3.g.battlefield.filter(o => o.name === 'Grizzly Bears' && o.isToken).length, 1, 'one of them a token');
   });
+
+  test('Phyrexian Obliterator: whoever damages it sacrifices that many; Giver of Runes may choose colourless', (mk, t) => {
+    t.auto('Phyrexian Obliterator');
+    t.auto('Giver of Runes');
+    const T = mk();
+    T.bf('B', 'Phyrexian Obliterator');
+    const mine = ['Forest', 'Forest', 'Forest', 'Forest'].map(nm => T.bf('A', nm));
+    T.mana('A', 'R');
+    const ob = T.g.battlefield.find(o => o.name === 'Phyrexian Obliterator');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [ob] });
+    t.eq(mine.filter(o => o.zone === 'graveyard').length, 3, 'A sacrificed three permanents');
+    const T2 = mk();
+    const giver = T2.bf('A', 'Giver of Runes');
+    giver.summoningSick = false;
+    const bear = T2.bf('A', 'Grizzly Bears');
+    T2.answer('mode', (ch) => ({ modes: [ch.options.find(o => o.label === 'Colorless').i] }));
+    T2.activate('A', giver, 0, { targets: [bear] });
+    t.ok((bear.effects || []).some(x => (x.keywords || []).includes('Protection From Colorless')), 'protection from colourless');
+    const orni = T2.bf('B', 'Ornithopter');
+    t.ok(T2.g._protectedFrom(bear, orni), 'so an artifact creature cannot touch it');
+  });
 };

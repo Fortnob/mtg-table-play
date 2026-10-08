@@ -1800,6 +1800,9 @@
           { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastGroup' }] };
       } },
     /* Sheoldred, Whispering One: "that player" is the one whose upkeep it is */
+    // Phyrexian Obliterator: "that source's controller sacrifices that many permanents of their choice"
+    { re: /^(?:That source'?s controller|That player) sacrifices that many (permanents|creatures|lands)(?: of their choice)?\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', who: 'triggerPlayer', n: 'triggerAmount', filter: m[1].toLowerCase().replace(/s$/, '') }) },
     { re: /^[Tt]hat player sacrifices an? ([a-z ]+?) of their choice\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', who: 'triggerPlayer', n: 1, filter: m[1].toLowerCase() }) },
     { re: /^Activate only as an instant\.?$/i, make: () => ({ op: 'noop' }) },
@@ -6471,6 +6474,8 @@
     { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
     // Wrathful Raptors: "Whenever a Dinosaur you control is dealt damage"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' is dealt damage,? ', 'i'), event: 'anyDealtDamage', filt: (m) => subjectFilter(m[1]) },
+    // Phyrexian Obliterator: "Whenever a source deals damage to this creature" — that source's controller is "that player"
+    { re: /^Whenever a source deals damage to (?:this creature|~|CARDNAME),? /i, event: 'isDealtDamage', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat )?damage,? /i, event: 'isDealtDamage', self: true,
       extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
     { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
@@ -8082,14 +8087,14 @@
        "trample as long as …", "becomes blue" and other words that slipped
        into a keyword list are not keywords, and the line goes back to a
        person rather than granting nothing. */
-    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|the chosen colou?r|[a-z]+s)$/i;
+    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|colorless or from the colou?r of your choice|the chosen colou?r|[a-z]+s)$/i;
     const kwOk = (k) => {
       const w = String(k || '').trim();
       if (kwKnown(w)) return true;
       // "can't be blocked" granted as a word the table reads; "annihilator 2", "afflict 1": the keyword with its number
       if (/^unblockable$/i.test(w) || IMPLEMENTED_LOWER.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return true;
       const pm = w.match(/^protection from (.+)$/i);
-      if (pm) return pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
+      if (pm) return PROT_Q.test(pm[1].trim()) || pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
       return false;
     };
     for (const ab of out.abilities) {
