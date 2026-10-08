@@ -1324,7 +1324,7 @@
    * played (the strongest at the top of the ladder, something friendlier
    * further down), whose colours give enough cards to build with.
    */
-  async function chooseCommander(fmt, cfg, rng, colors) {
+  async function chooseCommander(fmt, cfg, rng, colors, avoid) {
     const legalKey = fmt.scryKey || 'commander';
     const q = `is:commander legal:${legalKey} -is:digital lang:en` + (colors ? ' ' + idToken(colors) : '');
     const pool = await searchPool(q, 700);
@@ -1333,6 +1333,8 @@
       const a = analyse(c);
       if (!a || !a.fullyAutomated) return false;
       if (!MTG.formats.canBeCommander(c, fmt)) return false;
+      // one already tried, whose colours turned up no cards to build with
+      if (avoid && avoid.includes(c.name)) return false;
       // a commander with no colours has a very thin pool of cards the bots can play
       return (c.color_identity || []).length > 0;
     });
@@ -1350,7 +1352,7 @@
   async function buildCommanderDeck(fmt, cfg, rng, opts, progress) {
     const legalKey = fmt.scryKey || 'commander';
     progress('Choosing a commander');
-    const cmd = await chooseCommander(fmt, cfg, rng, opts.colors || null);
+    const cmd = await chooseCommander(fmt, cfg, rng, opts.colors || null, opts._avoid);
     const commanders = [cmd];
     const mate = await findPartner(cmd, legalKey, cfg, rng);
     if (mate) { commanders.push(mate); progress('Finding a partner'); }
@@ -1396,7 +1398,13 @@
     ]);
     const ctx = { prior: 0.9, multiplayer: true, commander: true };
     const cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
-    if (cands.length < 30) throw new Error('Could not reach Scryfall to build a bot deck.');
+    if (cands.length < 30) {
+      /* No cards for these colours (offline, with nothing saved for them):
+         another commander, a couple of times, before giving up. */
+      const avoid = (opts._avoid || []).concat(commanders.map(c => c.name));
+      if (avoid.length <= 6) return buildCommanderDeck(fmt, cfg, rng, Object.assign({}, opts, { _avoid: avoid }), progress);
+      throw new Error('Could not reach Scryfall to build a bot deck.');
+    }
     const pers = PERSONALITIES[opts.personality] || null;
     for (const c of cands) {
       c.fit = c.r + planFit(c, plan) * (0.6 + cfg.skill * 0.6) * (pers && pers.deck.planFit || 1) + (c.roles.has('wipe') ? -0.4 : 0);
