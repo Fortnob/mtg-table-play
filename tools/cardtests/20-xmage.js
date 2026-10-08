@@ -8945,4 +8945,35 @@ module.exports = (test) => {
     T2.toMain('B', 'main');
     t.eq(mirror.name, 'Mirage Mirror', 'back to itself after the turn');
   });
+
+  test('The Scarab God makes a 4/4 black Zombie copy; Bonehoard Dracosaur asks what it exiled', (mk, t) => {
+    t.auto('The Scarab God');
+    t.auto('Bonehoard Dracosaur');
+    const T = mk();
+    const god = T.bf('A', 'The Scarab God');
+    const elves = T.grave('B', 'Llanowar Elves');
+    T.mana('A', 'UB2');
+    T.activate('A', god, 0, { targets: [elves] });
+    t.eq(elves.zone, 'exile');
+    const tok = T.g.battlefield.find(o => o.isToken && o.controller === 'A');
+    t.ok(tok, 'a token');
+    t.eq(tok && T.g.powerOf(tok), 4);
+    t.eq(tok && T.g.toughnessOf(tok), 4);
+    t.ok(tok && /Zombie/.test(tok.card.type_line) && !/Elf/.test(tok.card.type_line), 'a Zombie, not an Elf');
+    t.eq(tok && tok.card.colors.join(), 'B');
+    t.ok(tok && tok.analysis().manaAbilities.length, 'with the Elves\' mana ability');
+  });
+
+  test("God-Pharaoh's Gift: the card exiled as the cost is what the Zombie copies", (mk, t) => {
+    t.auto("God-Pharaoh's Gift");
+    const T = mk();
+    T.bf('A', "God-Pharaoh's Gift");
+    const e = T.grave('A', 'Llanowar Elves');
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('declareAttackers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(e.zone, 'exile');
+    const tok = T.g.battlefield.find(o => o.isToken);
+    t.ok(tok && T.g.powerOf(tok) === 4 && T.g.hasKw(tok, 'haste'), 'a 4/4 with haste');
+  });
 };

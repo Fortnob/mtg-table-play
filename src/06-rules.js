@@ -8255,6 +8255,9 @@
         case 'selfTapped': return !!src && !!src.tapped;
         case 'selfAttacking': return !!src && !!src.attacking;
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
+        // Bonehoard Dracosaur: "if you exiled a land card this way"
+        case 'exiledThisWay': return (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
+          .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
         case 'notTheirTurn': {
@@ -12675,7 +12678,12 @@
         }
 
         case 'copyPermanent': {
-          const source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
+          let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
+          // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
+          if (!source && e.scope === 'lastTarget') {
+            const ex = (this._resExiled || []).slice(-1)[0] || this._lastExiled;
+            source = ex ? this.obj(ex) : null;
+          }
           if (!source) break;
           const cnt = n(e.n) || 1;
           // "except the token isn't legendary" (Helm of the Host)
@@ -12683,6 +12691,16 @@
           if (e.nonLegendary && /\bLegendary\b/.test(String(card.type_line || ''))) {
             const line = String(card.type_line).replace(/\bLegendary\s+/g, '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
+          }
+          // The Scarab God: "except it's a 4/4 black Zombie" — that size, that colour, and that creature type instead of its own
+          if (e.setPt || e.setColor || e.setType) {
+            let line = String(card.type_line || '');
+            if (e.setType) line = line.replace(/\s*\u2014.*$/, '') + ' \u2014 ' + e.setType;
+            const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+            const cols = e.setColor ? (COL[e.setColor] ? [COL[e.setColor]] : []) : (card.colors || []);
+            const [pw, tg] = e.setPt ? e.setPt.split('/') : [card.power, card.toughness];
+            card = Object.assign({}, card, { id: card.id + ':as:' + U.hash(line + pw + '/' + tg + cols.join('')),
+              type_line: line, power: pw, toughness: tg, colors: cols, card_faces: null });
           }
           // "except it's an artifact in addition to its other types"
           for (const t of (e.addTypes || [])) {

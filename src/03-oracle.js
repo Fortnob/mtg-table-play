@@ -3846,6 +3846,11 @@
     /* Bloodforged Battle-Axe: "create a token that's a copy of this Equipment" */
     { re: /^Create a token that'?s a copy of (?:this (?:Equipment|artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, self: true, grant: [] }) },
+    /* The Scarab God, Lazotep Quarry: "Create a token that's a copy of it,
+       except it's a 4/4 black Zombie." */
+    { re: /^Create a token that'?s a copy of (it|that card|that creature|target [a-z ]+?), except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green|colorless) ([A-Z][a-z]+)\.?$/,
+      make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[2] + '/' + m[3], setColor: m[4], setType: m[5] },
+        /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : { scope: 'lastTarget' }) },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -3858,6 +3863,13 @@
     { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
+    /* Bonehoard Dracosaur: "If you exiled a land card this way, create …" */
+    { re: /^If you exiled an? (land|nonland|creature|noncreature|artifact|instant|sorcery|instant or sorcery) card this way, (.+?)\.?$/i,
+      make: (m) => {
+        const then = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        if (!then.auto) return null;
+        return { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: m[1].toLowerCase() }, then: then.effects };
+      } },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // Thousand-Year Storm: "copy it for each other instant and sorcery spell you've cast before it this turn"
