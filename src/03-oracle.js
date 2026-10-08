@@ -286,6 +286,8 @@
         cost.returnOwn = { n: WORDN(m[1]), filter: w.toLowerCase(), untapped: /untapped/i.test(p) || undefined };
         continue;
       }
+      // Millikin: "Mill a card" as the price
+      if ((m = p.match(/^Mill (a|one|two|three|four|five|\d+) cards?$/i))) { cost.mill = WORDN(m[1].toLowerCase()); continue; }
       // Blight N: N -1/-1 counters on a creature you control, as the price
       if ((m = p.match(/^Blight (\d+)$/i))) { cost.blight = +m[1]; continue; }
       // Bloomburrow: "Forage" — exile three cards from your graveyard or sacrifice a Food
@@ -2400,6 +2402,9 @@
         token: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }) },
     { re: /^If that spell is countered this way, exile it instead of putting it into its owner'?s graveyard\.?$/i,
       make: () => ({ op: 'noop', counterExileRider: true }) },
+    // Remand, Memory Lapse, Spell Crumple: the countered spell goes somewhere else
+    { re: /^If that spell is countered this way, put it (into its owner'?s hand|on top of its owner'?s library|on the bottom of its owner'?s library) instead of into that player'?s graveyard\.?$/i,
+      make: (m) => ({ op: 'noop', counterExileRider: /hand/i.test(m[1]) ? 'hand' : /top/i.test(m[1]) ? 'top' : 'bottom' }) },
     { re: /^(?:Its controller|That spell'?s controller|That player) may draw up to (one|two|three) cards? at the beginning of the next turn'?s upkeep\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, name: 'Draw up to ' + num(m[1]),
         effects: [{ op: 'drawUpTo', n: num(m[1]), who: 'targetController' }] }) },
@@ -4163,6 +4168,15 @@
         const sc = massScopeOf(m[1]);
         if (!sc || !KW_LIST.test(m[2])) return null;
         return { op: 'loseKeyword', keywords: keywordList(m[2]), duration: 'eot', scope: sc };
+      } },
+    /* Arcane Lighthouse: "Until end of turn, creatures your opponents control lose hexproof and
+       shroud and can't have hexproof or shroud." */
+    { re: /^Until end of turn, (.+?) lose ([a-z ]+?) and can'?t have ([a-z ]+?)\.?$/i,
+      make: (m) => {
+        const sc = massScopeOf(m[1]);
+        const a = keywordList(m[2].replace(/ and /g, ', ')), b = keywordList(m[3].replace(/ or /g, ', '));
+        if (!sc || !KW_LIST.test(m[2].replace(/ and /g, ', ')) || !a.length || a.join() !== b.join()) return null;
+        return { op: 'loseKeyword', keywords: a, cantHave: true, duration: 'eot', scope: sc };
       } },
     { re: /^You and target opponent each draw (a|one|two|three) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' },
@@ -6012,10 +6026,11 @@
          where the countered spell goes, so it travels with the counter. */
       if (e && e.counterExileRider) {
         for (let i = out.length - 1; i >= 0; i--) {
-          if (out[i].op === 'counterSpell') { out[i].exileIt = true; break; }
+          const put = (x) => { if (e.counterExileRider === true) x.exileIt = true; else x.counterTo = e.counterExileRider; };
+          if (out[i].op === 'counterSpell') { put(out[i]); break; }
           // Syncopate: the counter sits inside "unless its controller pays {X}"
           const inner = out[i].op === 'unlessPays' && (out[i].then || []).find(x => x && x.op === 'counterSpell');
-          if (inner) { inner.exileIt = true; break; }
+          if (inner) { put(inner); break; }
         }
         continue;
       }
@@ -6535,6 +6550,8 @@
       event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackingYou: num(m[1]) }) },
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
+    // Baral, Lullmage Mentor
+    { re: /^Whenever a spell or ability you control counters a spell,? /i, event: 'youCounterSpell' },
     // Aeon Chronicler, Detritivore: "Whenever a time counter is removed from this card while it's exiled"
     { re: /^Whenever a time counter is removed from (?:this card|CARDNAME) while it'?s exiled,? /i, event: 'timeCounterRemoved', self: true },
     // Ordeal of Nylea: "When you sacrifice this Aura" — seen as it goes

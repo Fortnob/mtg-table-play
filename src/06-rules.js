@@ -1934,7 +1934,10 @@
         // a countered spell goes to its owner's graveyard whatever it is,
         // permanent or not (CR 701.5a) — it never reaches the battlefield
         if (item.kind === 'spell' && item.obj && item.obj.zone === 'stack') {
-          this.moveObject(item.obj, item.obj.isCommander && MTG.settings.commanderToZone !== false ? 'command'
+          const to = item.counterTo;
+          if (to && !(item.obj.isCommander && MTG.settings.commanderToZone !== false))
+            this.moveObject(item.obj, to === 'hand' ? 'hand' : 'library', { toBottom: to === 'bottom' });
+          else this.moveObject(item.obj, item.obj.isCommander && MTG.settings.commanderToZone !== false ? 'command'
             : item.exileIfCountered ? 'exile' : 'graveyard');
         }
         this.checkStateBasedActions();
@@ -6047,6 +6050,7 @@
       }
       if (cost.exileOwn && !this.battlefield.some(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter))) return `No ${cost.exileOwn.filter} of yours to exile.`;
       if (cost.process && this._processPool(pid).length < cost.process) return 'No card an opponent owns in exile.';
+      if (cost.mill && this.zones[pid].library.length < cost.mill) return 'Not enough cards in your library to mill.';
       if (cost.removeCounterFrom && !this._counterCostPool(pid, cost.removeCounterFrom).length) return 'No counter to remove.';
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
@@ -6163,6 +6167,11 @@
         const named = (opts.exileIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)[0];
         const x = named || this._cheapestFirst(pool)[0];
         if (x) { if (item) item.exiledCost = { id: x.id, name: x.name, power: this.powerOf(x), mv: (x.card && x.card.cmc) || 0 }; this.moveObject(x, 'exile'); this.logEvent('exile', `${this.player(pid).name} exiles ${x.name}.`); }
+      }
+      // Millikin: cards off the top of the library as the price
+      if (cost.mill) {
+        for (let i = 0; i < cost.mill; i++) { const c = this.zones[pid].library[0]; if (c) this.moveObject(c, 'graveyard'); }
+        this.logEvent('rules', `${p.name} mills ${cost.mill} card${cost.mill === 1 ? '' : 's'}.`);
       }
       // Void Attendant: one card an opponent owns, from exile to its owner's graveyard
       if (cost.process) for (const c of this._processPool(pid).slice(0, cost.process)) this.moveObject(c, 'graveyard');
@@ -6825,7 +6834,7 @@
           if (!this._manaCostPayable(playerId, o, ab)) continue;
           // auto-tap spends taps, never permanents or cards: a source that
           // eats itself (or anything else) is only used when you say so
-          if (ab.cost && (ab.cost.sacSelf || ab.cost.sacrifice || ab.cost.discard ||
+          if (ab.cost && (ab.cost.sacSelf || ab.cost.sacrifice || ab.cost.discard || ab.cost.mill ||
               ab.cost.exile || ab.cost.removeCounters || (ab.cost.other || []).length)) continue;
           // mana that can only be spent on something else is not for this
           if (ab.spendOnly && !this._spendAllowed(ab.spendOnly, opts.forSpell, o)) continue;
@@ -8933,6 +8942,7 @@
         if (!e) return;
         const ts = this._effTs(e, i);
         if (e.keywords || e.loseKeywords || e.flag) six.push({ ts, grant: e.keywords, lose: e.loseKeywords, flag: e.flag });
+        if (e.cantHave) for (const k of e.cantHave) cantHave.add(String(k).toLowerCase());
         if (e.setPt) setting.push({ ts, set: e.setPt });
         if (e.p || e.t) modifying.push({ p: e.p, t: e.t });
         if (e.switchPt) switches++;
@@ -11076,6 +11086,8 @@
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             item.countered = true;
             if (e.exileIt) item.exileIfCountered = true;
+            if (e.counterTo) item.counterTo = e.counterTo;
+            this._fire('youCounterSpell', ctx.controller, { playerId: ctx.controller, stackId: item.id });
             /* "Its controller creates two Treasure tokens", "add mana equal
                to that spell's mana value": the sentences after a counter
                are about the spell it countered. */
@@ -11485,7 +11497,7 @@
           break;
         /* Shadowspear: "lose hexproof and indestructible until end of turn" */
         case 'loseKeyword':
-          applyToScope(e, (o) => o.effects.push({ loseKeywords: e.keywords, until: e.duration === 'eot' ? 'eot' : null }));
+          applyToScope(e, (o) => o.effects.push({ loseKeywords: e.keywords, cantHave: e.cantHave ? e.keywords : undefined, until: e.duration === 'eot' ? 'eot' : null }));
           this.bumpBoard();
           break;
         /* Command Beacon */

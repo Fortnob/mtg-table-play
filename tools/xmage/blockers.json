@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13168,
+  "needed": 13157,
   "gainedCards": 1368,
-  "linesNeeded": 14346,
+  "linesNeeded": 14336,
   "linesGained": 1655,
   "gained": {
    "all": 1368,
@@ -4768,19 +4768,6 @@
    ]
   },
   {
-   "what": "CounterTargetWithReplacementEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Memory Lapse",
-    "Remand",
-    "Lapse of Certainty",
-    "Hinder",
-    "Spell Crumple",
-    "Devious Cover-Up"
-   ]
-  },
-  {
    "what": "GainControlAllUntapGainHasteEffect",
    "score": 6,
    "lines": 6,
@@ -5588,30 +5575,12 @@
    ]
   },
   {
-   "what": "ColorlessManaAbility with arguments",
-   "score": 5,
-   "lines": 2,
-   "cards": [
-    "Millikin",
-    "Deranged Assistant"
-   ]
-  },
-  {
    "what": "AttacksFirstTimeTriggeredAbility",
    "score": 5,
    "lines": 2,
    "cards": [
     "Scourge of the Throne",
     "Godo, Bandit Warlord"
-   ]
-  },
-  {
-   "what": "SpellCounteredControllerTriggeredAbility",
-   "score": 5,
-   "lines": 2,
-   "cards": [
-    "Baral, Chief of Compliance",
-    "Lullmage Mentor"
    ]
   },
   {
@@ -7034,17 +7003,6 @@
    ]
   },
   {
-   "what": "MillCardsCost",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "The Warring Triad",
-    "Sinister Concoction",
-    "Rot Farm Skeleton",
-    "Deep Spawn"
-   ]
-  },
-  {
    "what": "ControlsPermanentsControllerTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -7185,6 +7143,50 @@
     "The Neutrinos",
     "Sizzling Soloist",
     "Elegant Entourage"
+   ]
+  },
+  {
+   "what": "LoseLifeTargetEffect amount",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Astarion, the Decadent",
+    "Emissary of Despair",
+    "Final Punishment",
+    "Burden of Greed"
+   ]
+  },
+  {
+   "what": "DiesOneOrMoreTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Chainsaw",
+    "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
+    "Rinoa, Angel Wing",
+    "Blood Spatter Analysis"
+   ]
+  },
+  {
+   "what": "attack with 3 or more",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Legion's Landing // Adanto, the First Fort",
+    "Phoenix Chick",
+    "Inniaz, the Gale Force",
+    "Ruby Collector"
+   ]
+  },
+  {
+   "what": "CantHaveCountersAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Solemnity",
+    "Blightbeetle",
+    "Darksteel Angel",
+    "Melira, Sylvok Outcast"
    ]
   }
  ],
@@ -9694,19 +9696,6 @@
    ]
   },
   {
-   "what": "CounterTargetWithReplacementEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Memory Lapse",
-    "Remand",
-    "Lapse of Certainty",
-    "Hinder",
-    "Spell Crumple",
-    "Devious Cover-Up"
-   ]
-  },
-  {
    "what": "ConditionalCostModificationEffect",
    "score": 6,
    "cards": 6,
@@ -10267,30 +10256,12 @@
    ]
   },
   {
-   "what": "ColorlessManaAbility with arguments",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Millikin",
-    "Deranged Assistant"
-   ]
-  },
-  {
    "what": "AttacksFirstTimeTriggeredAbility",
    "score": 5,
    "cards": 2,
    "names": [
     "Scourge of the Throne",
     "Godo, Bandit Warlord"
-   ]
-  },
-  {
-   "what": "SpellCounteredControllerTriggeredAbility",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Baral, Chief of Compliance",
-    "Lullmage Mentor"
    ]
   },
   {
@@ -10957,6 +10928,42 @@
     "Obstinate Baloth",
     "Loxodon Smiter",
     "Dodecapod"
+   ]
+  },
+  {
+   "what": "CopySourceSpellEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Sage of the Skies",
+    "Ancestral Communion",
+    "Mentor's Guidance",
+    "Social Snub",
+    "Lumaret's Favor"
+   ]
+  },
+  {
+   "what": "LookLibraryAndPickControllerEffect.withOtherwiseEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Contagious Vorrac",
+    "Adventure Awaits",
+    "Blossom Prancer",
+    "Rosecot Knight",
+    "Pulsar Squadron Ace"
+   ]
+  },
+  {
+   "what": "GiveManaAbilityAndCastSourceAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Emrakul, the Exigent Doom",
+    "Glamorous Outlaw",
+    "Shattered Seraph",
+    "Rakish Revelers",
+    "Masked Bandits"
    ]
   }
  ]
