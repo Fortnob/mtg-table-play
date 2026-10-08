@@ -1301,7 +1301,10 @@
 
     // --- counters ---
     { re: /^Put (a|one|two|three|\d+|X) \+1\/\+1 counters? on (?:up to one )?((?:another )?target creature|(?:another )?target creature you control|it|this creature|CARDNAME|each creature you control)\.?$/i,
-      make: (m) => ({ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: /target/.test(m[2]) ? [targetSpec(m[2])] : null, scope: /each/.test(m[2]) ? 'yourCreatures' : (/it|this|CARDNAME/.test(m[2]) ? 'self' : null) }) },
+      make: (m) => ({ op: 'counters', kind: '+1/+1', n: num(m[1]),
+        // "on up to one target creature": the target may be left out
+        targets: /target/.test(m[2]) ? [Object.assign(targetSpec(m[2]), / on up to one /i.test(m[0]) ? { upTo: true } : {})] : null,
+        scope: /each/.test(m[2]) ? 'yourCreatures' : (/it|this|CARDNAME/.test(m[2]) ? 'self' : null) }) },
     /* Qarsi Revenant: "Put a flying counter, a deathtouch counter, and a
        lifelink counter on target creature." — one target, several kinds */
     { re: /^Put ((?:an? (?:[a-z]+|first strike|double strike) counter,? )+and an? (?:[a-z]+|first strike|double strike) counter) on ((?:another )?target [a-z ]+)\.?$/i,
@@ -4722,6 +4725,15 @@
       if (hasUnknownTarget(eff)) continue;
       eff.text = s;
       return eff;
+    }
+    // "Up to one target creature gets +2/+0 and gains trample until end of turn": "Target …", and it may be left out
+    if (!depth && /^Up to one target /.test(s)) {
+      const again = parseEffectSentence(s.replace(/^Up to one target /, 'Target '), 1);
+      if (again && again.op !== 'manual') {
+        const mark = (e) => { if (!e || typeof e !== 'object') return; (e.targets || []).forEach(t => { if (t) t.upTo = true; }); (e.list || []).forEach(mark); };
+        (Array.isArray(again) ? again : [again]).forEach(mark);
+        return again;
+      }
     }
     /* "Another target creature you control gets +2/+0 and gains trample
        until end of turn": the same as "Target creature …", never the source */

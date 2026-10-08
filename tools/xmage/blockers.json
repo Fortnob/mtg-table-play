@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13563,
-  "gainedCards": 1416,
-  "linesNeeded": 14905,
-  "linesGained": 1734,
+  "needed": 13561,
+  "gainedCards": 1415,
+  "linesNeeded": 14900,
+  "linesGained": 1730,
   "gained": {
-   "all": 1416,
+   "all": 1415,
    "top2000": 52,
    "stdTop": 10
   },
@@ -5213,19 +5213,6 @@
    ]
   },
   {
-   "what": "TargetControlledLandPermanent",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Toph, Hardheaded Teacher",
-    "Toph, Earthbending Master",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Earth Rumble",
-    "Earthshape",
-    "Bumi's Feast Lecture"
-   ]
-  },
-  {
    "what": "MultipliedValue of \"X\"",
    "score": 6,
    "lines": 6,
@@ -6214,6 +6201,18 @@
     "Plagon, Lord of the Beach",
     "Catapult Fodder // Catapult Captain",
     "Immobilizer Eldrazi"
+   ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Toph, Hardheaded Teacher",
+    "Toph, Earthbending Master",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Earthshape",
+    "Bumi's Feast Lecture"
    ]
   },
   {
