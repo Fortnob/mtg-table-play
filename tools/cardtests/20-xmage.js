@@ -9521,4 +9521,36 @@ module.exports = (test) => {
     T2.activate('A', blade, blade.analysis().abilities.findIndex(ab => /^Equip/i.test(ab.text || '')), { targets: [elf] });
     t.eq(blade.attachedTo, elf.id, 'equipped a green creature for {3}');
   });
+
+  test('Twinning Staff adds a copy; Incubation Druid makes three with a counter; Mangara draws when attacked by two', (mk, t) => {
+    t.auto('Twinning Staff');
+    t.auto('Incubation Druid');
+    t.auto('Mangara, the Diplomat');
+    const T = mk();
+    T.bf('A', 'Twinning Staff');
+    const staff = T.g.battlefield.find(o => o.name === 'Twinning Staff');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.mana('A', '7');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.activate('A', staff, 0, { targets: [{ kind: 'stack', id: item.id }] });
+    t.eq(T.life('B'), 11, 'the Bolt and two copies: nine damage');
+    const T2 = mk();
+    T2.bf('A', 'Forest');
+    const dr = T2.bf('A', 'Incubation Druid');
+    dr.summoningSick = false;
+    dr.counters['+1/+1'] = 1;
+    T2.g.tapForMana('A', dr.id, 0);
+    t.eq(T2.g.player('A').pool.total(), 3, 'three green');
+    const T3 = mk();
+    T3.bf('B', 'Mangara, the Diplomat');
+    const a1 = T3.bf('A', 'Grizzly Bears'), a2 = T3.bf('A', 'Llanowar Elves');
+    a1.summoningSick = false; a2.summoningSick = false;
+    const hand = T3.zone('B', 'hand').length;
+    T3.answer('declareAttackers', () => [{ attackerId: a1.id, defenderId: 'B' }, { attackerId: a2.id, defenderId: 'B' }]);
+    T3.answer('declareBlockers', () => []);
+    T3.toMain('A', 'endCombat');
+    t.eq(T3.zone('B', 'hand').length, hand + 1, 'B drew');
+  });
 };

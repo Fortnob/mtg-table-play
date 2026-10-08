@@ -4924,6 +4924,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Incubation Druid: "Add one mana of any type that a land you control
+       could produce. If this creature has a +1/+1 counter on it, add three
+       mana of that type instead." */
+    { re: /^Add one mana of any type that a land you control could produce\. If this creature has an? ([+\-0-9/a-z]+) counter on it, add (two|three) mana of that type instead\.$/i,
+      make: (m) => [{ op: 'addManaAmong', from: 'yourLands', amount: 1, anyType: true, ifCounter: { counter: m[1].toLowerCase(), amount: num(m[2]) } }] },
     // Aven Interrupter: "Exile target spell. It becomes plotted."
     { re: /^Exile (target spell)\. It becomes plotted\.$/i,
       make: (m) => [{ op: 'plotSpell', targets: [targetSpec(m[1])] }] },
@@ -6514,6 +6519,9 @@
     { re: /^Whenever day becomes night or night becomes day,? /i, event: 'becomesDay' },
     // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
     { re: /^Whenever you expend (\d+),? /i, event: 'youExpend', extraOf: (m) => ({ expendN: +m[1] }) },
+    // Mangara, the Diplomat: "Whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control"
+    { re: /^Whenever an opponent attacks with creatures, if (two|three) or more of those creatures are attacking you(?: and\/or planeswalkers you control)?,? /i,
+      event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackingYou: num(m[1]) }) },
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
     // Aeon Chronicler, Detritivore: "Whenever a time counter is removed from this card while it's exiled"
@@ -9900,6 +9908,9 @@
       // Dwarven Mauler: "Equip abilities you activate that target this creature cost {2} less to activate."
       { re: /^Equip abilities you activate that target (?:this creature|CARDNAME) cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'equipDiscountIfTargeted', amount: +m[1], yours: true }), auto: true },
+      // Twinning Staff: "If you would copy a spell one or more times, instead copy it that many times plus an additional time. You may choose new targets for the additional copy."
+      { re: /^If you would copy a spell one or more times, instead copy it that many times plus an additional time\.(?: You may choose new targets for the additional copy\.)?$/i,
+        eff: { op: 'copyPlusOne' }, auto: true },
       // Knight of Grace: "Hexproof from black"; Knight of Autumn's cousins: "Hexproof from white and from black"
       { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*)$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },

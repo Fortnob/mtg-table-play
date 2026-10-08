@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13203,
+  "needed": 13200,
   "gainedCards": 1367,
-  "linesNeeded": 14392,
+  "linesNeeded": 14389,
   "linesGained": 1655,
   "gained": {
    "all": 1367,
@@ -33,12 +33,11 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4860,
-   "lines": 4302,
+   "score": 4852,
+   "lines": 4300,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
-    "Incubation Druid",
     "Sphere of Safety",
     "Shared Animosity",
     "Springheart Nantuko",
@@ -47,15 +46,15 @@
     "Etali, Primal Conqueror // Etali, Primal Sickness",
     "Beseech the Mirror",
     "Tainted Pact",
-    "Tempt with Discovery"
+    "Tempt with Discovery",
+    "Demonic Consultation"
    ]
   },
   {
    "what": "custom ability",
-   "score": 859,
-   "lines": 742,
+   "score": 855,
+   "lines": 741,
    "cards": [
-    "Mangara, the Diplomat",
     "Trouble in Pairs",
     "Midnight Clock",
     "Scrap Trawler",
@@ -66,7 +65,8 @@
     "Coveted Jewel",
     "Hedge Shredder",
     "Carpet of Flowers",
-    "Laelia, the Blade Reforged"
+    "Laelia, the Blade Reforged",
+    "All Will Be One"
    ]
   },
   {
@@ -7208,28 +7208,28 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3933,
-   "cards": 3540,
+   "score": 3925,
+   "cards": 3538,
    "names": [
     "Tibalt's Trickery",
-    "Incubation Druid",
     "Sphere of Safety",
     "Shared Animosity",
     "Springheart Nantuko",
-    "Veyran, Voice of Duality"
+    "Veyran, Voice of Duality",
+    "Inkshield"
    ]
   },
   {
    "what": "custom ability",
-   "score": 653,
-   "cards": 563,
+   "score": 649,
+   "cards": 562,
    "names": [
-    "Mangara, the Diplomat",
     "Midnight Clock",
     "Scrap Trawler",
     "Myr Battlesphere",
     "Caged Sun",
-    "Mesmeric Orb"
+    "Mesmeric Orb",
+    "Kambal, Profiteering Mayor"
    ]
   },
   {

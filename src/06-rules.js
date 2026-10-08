@@ -4909,6 +4909,11 @@
       }
     }
 
+    /** Twinning Staff: "If you would copy a spell one or more times, instead copy it that many times plus an additional time." */
+    _extraCopies(pid, item) {
+      if (!item || item.kind !== 'spell') return 0;
+      return this.battlefield.filter(o => o.controller === pid && !o.phasedOut && this._staticOp(o, 'copyPlusOne')).length;
+    }
     /** Storm: copy the spell once per spell cast before it this turn (CR 702.40). */
     _storm(item, a) {
       if (!a || !a.keywordSet.has('storm')) return;
@@ -4917,7 +4922,7 @@
       /* Each copy is its own object (CR 707.10), not the card: the card
          goes to the graveyard when the spell itself resolves, and a copy
          that resolves first must not take it along. */
-      for (let i = 0; i < copies; i++) {
+      for (let i = 0; i < copies + this._extraCopies(item.controller, item); i++) {
         const copy = this._copyOnStack(item, item.controller);
         copy.name = item.name + ' (storm copy)';
       }
@@ -9801,6 +9806,13 @@
           if (ab.loyaltyOnly && !data.loyalty) continue;
           // "whenever you activate an exhaust ability"
           if (ab.abilityLabel && data.label !== ab.abilityLabel) continue;
+          // Mangara: an opponent's attack, with that many creatures coming at you or your planeswalkers
+          if (ab.minAttackingYou) {
+            if (data.playerId === o.controller) continue;
+            const at = (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(Boolean)
+              .filter(x => x.attacking === o.controller || ((this.obj(x.attacking) || {}).controller === o.controller));
+            if (at.length < ab.minAttackingYou) continue;
+          }
           // "whenever you expend 4": only that threshold
           if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
@@ -10579,7 +10591,9 @@
           if (!cols.length) { this.logEvent('mana', `${src ? src.name : 'It'} makes no mana: there is no colour to choose.`); break; }
           const pref = this._preferredColor(me);
           const color = ctx.manaChoice && cols.includes(ctx.manaChoice) ? ctx.manaChoice : (cols.includes(pref) ? pref : cols[0]);
-          for (let i = 0; i < (Number(e.amount) || 1); i++) me.pool.add(color);
+          // Incubation Druid: three instead, with a +1/+1 counter on it
+          const amt = e.ifCounter && src && (Number((src.counters || {})[e.ifCounter.counter]) || 0) > 0 ? e.ifCounter.amount : (Number(e.amount) || 1);
+          for (let i = 0; i < amt; i++) me.pool.add(color);
           break;
         }
         /* Bloom Tender: one of each colour among your permanents. */
@@ -11789,7 +11803,7 @@
             // "for each other spell you've cast before it": none, and there is nothing to copy
             const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
             if (times <= 0) break;
-            for (let k = 0; k < times; k++) made.push(this._copyOnStack(item, ctx.controller).id);
+            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller).id);
             if (r) r.marks[slot] = made;
             this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}${made.length > 1 ? ' ' + made.length + ' times' : ''}.`);
             this.emit('sfx', 'cast');
@@ -12442,6 +12456,8 @@
             for (const item of sources) {
               if (!item) continue;
               made.push(this._copyOnStack(item, ctx.controller).id);
+              // Twinning Staff: one more
+              for (let k = this._extraCopies(ctx.controller, item); k > 0; k--) made.push(this._copyOnStack(item, ctx.controller).id);
               this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}.`);
             }
             if (r) r.marks[slot] = made;
