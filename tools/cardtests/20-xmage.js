@@ -11141,4 +11141,22 @@ module.exports = (test) => {
     t.eq(T4.g.powerOf(elf), 5, 'the Elf is 5/5'); t.eq(T4.g.powerOf(b4), 2, 'the Bears are not');
     t.ok(T4.g._hasCreatureType(elf, 'Dinosaur'), 'and a Dinosaur');
   });
+
+  test('Thunderfoot Baloth with your commander; Battle Angels of Tyr compares the player it hit', (mk, t) => {
+    t.auto('Thunderfoot Baloth'); t.auto('Battle Angels of Tyr');
+    const T = mk();
+    const bal = T.bf('A', 'Thunderfoot Baloth'), bear = T.bf('A', 'Grizzly Bears');
+    t.eq(T.g.powerOf(bal), 5, 'no commander yet'); t.eq(T.g.powerOf(bear), 2);
+    const cmd = T.bf('A', 'Llanowar Elves'); cmd.isCommander = true;
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(bal), 7); t.eq(T.g.powerOf(bear), 4); t.ok(T.g.hasKw(bear, 'trample'));
+    const T2 = mk();
+    const ang = T2.bf('A', 'Battle Angels of Tyr');
+    T2.hand('B', 'Island'); T2.hand('B', 'Island');
+    const ha = T2.g.zones.A.hand.length;
+    T2.g._runEffects(ang.analysis().abilities.find(a => a.kind === 'triggered').effects,
+      { controller: 'A', obj: ang, name: 'Angels', kind: 'ability', triggerData: { player: 'B', playerId: 'B' } });
+    t.eq(T2.g.zones.A.hand.length, ha + 1, 'B has more cards: draw');
+    t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Treasure').length, 0, 'lands are level: no Treasure');
+  });
 };

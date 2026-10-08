@@ -6943,6 +6943,9 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Battle Angels of Tyr: "that player has more cards in hand / controls more lands / has more life than each other player"
+    [/^that player (has more cards in hand|controls more lands|has more life) than each other player$/i,
+      (m) => ({ kind: 'triggerPlayerMost', stat: /hand/i.test(m[1]) ? 'hand' : /lands/i.test(m[1]) ? 'lands' : 'life' })],
     // Kazuul, Tyrant of the Cliffs: "if you're the defending player" — the attacker the trigger is about attacks you
     [/^you'?re the defending player$/i, () => ({ kind: 'youDefend' })],
     // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
@@ -10787,6 +10790,19 @@
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
       // Six: "During your turn, nonland permanent cards in your graveyard have retrace."
       { re: /^During your turn, nonland permanent cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceNonlandPermanents' }, auto: true },
+      /* Thunderfoot Baloth: "As long as you control your commander, this
+         creature gets +2/+2 and other creatures you control get +2/+2 and
+         have trample." */
+      { re: /^As long as ([^,]+), this creature gets ([+-]\d+)\/([+-]\d+) and other creatures you control get ([+-]\d+)\/([+-]\d+)(?: and have ([a-z ,]+))?\.?$/i,
+        make: (m) => {
+          const c = condOf(m[1]);
+          if (!c) return null;
+          const kws = m[6] ? keywordList(m[6]) : [];
+          if (m[6] && (!kws.length || !kws.every(kwKnown))) return null;
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
+            Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
+        }, auto: true },
       // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
       { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality

@@ -8667,6 +8667,16 @@
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         // Twenty-Toed Toad: every counter on it, of whatever kind
+        // Battle Angels of Tyr: the player it hit has more than every other player
+        case 'triggerPlayerMost': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.player || td.playerId || td.damagedPlayer);
+          if (!p) return false;
+          const stat = (q) => cond.stat === 'hand' ? this.zones[q.id].hand.length : cond.stat === 'life' ? q.life
+            : this.battlefield.filter(x => !x.phasedOut && x.controller === q.id && (x.analysis() || {}).isLand).length;
+          const mine = stat(p);
+          return this.players.filter(q => q !== p && !q.hasLost).every(q => stat(q) < mine);
+        }
         // Kazuul: the attacker the trigger is about is attacking you (or a planeswalker of yours)
         case 'youDefend': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
