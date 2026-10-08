@@ -10561,4 +10561,22 @@ module.exports = (test) => {
     t.eq(keep.zone, 'hand', 'the Bolt kept');
     t.no(ri.counters['+1/+1'], 'a land: no counter');
   });
+
+  test('Mutagen tokens; rad counters mill and cost life at the start of the main phase; experience counters', (mk, t) => {
+    const T = mk();
+    T.g._runEffects(MTG_EFFECTS('Create a Mutagen token.'), { controller: 'A', name: 'test' });
+    const mu = T.g.battlefield.find(o => o.name === 'Mutagen');
+    t.ok(mu && mu.isToken, 'a Mutagen');
+    const T2 = mk();
+    T2.g._runEffects(MTG_EFFECTS('Target player gets three rad counters.'), { controller: 'A', name: 'test', targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T2.g.player('B').rad, 3);
+    T2.top('B', 'Lightning Bolt'); T2.top('B', 'Island'); T2.top('B', 'Opt');
+    T2.nextTurn('B');
+    // B draws Opt; then mills the Island, the Bolt and a basic land from below
+    t.eq(T2.life('B'), 19, 'one nonland card milled: one life');
+    t.eq(T2.g.player('B').rad, 2, 'two rad counters left');
+    const T3 = mk();
+    T3.g._runEffects(MTG_EFFECTS('You get an experience counter.'), { controller: 'A', name: 'test' });
+    t.eq(T3.g.player('A').experience, 1);
+  });
 };

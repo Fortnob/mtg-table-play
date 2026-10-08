@@ -934,6 +934,19 @@
               if (sa && sa.isSaga && o.controller === this.activePlayer.id) this._advanceSaga(o, 1);
             }
           }
+          /* Rad counters (from Fallout): at the start of your precombat main phase, mill
+             that many; for each nonland card milled, lose 1 life and a rad counter */
+          if (this.phase.id === 'precombat' && (this.activePlayer.rad || 0) > 0) {
+            const ap = this.activePlayer, lib = this.zones[ap.id].library;
+            let hits = 0, milled = 0;
+            for (let i = 0; i < ap.rad && lib.length; i++) {
+              const c = lib[0];
+              this.moveObject(c, 'graveyard'); milled++;
+              if (!(c.analysis() || {}).isLand) hits++;
+            }
+            if (hits) { this.changeLife(ap, -hits); ap.rad = Math.max(0, ap.rad - hits); }
+            this.logEvent('rules', `${ap.name}'s rad counters: ${milled} milled, ${hits} life lost (${ap.rad} rad left).`);
+          }
           if (this.phase.id === 'precombat') this._fire('yourMain1', this.activePlayer.id);
           if (this.phase.id === 'precombat') this._fire('eachMain1', null, { playerId: this.activePlayer.id });
           // "at the beginning of your second main phase"
@@ -16413,6 +16426,18 @@
           if (made.length) this._noteLastAffected(made.filter(Boolean).map(c => ({ kind: 'object', id: c.id })));
           break;
         }
+        // rad counters on a player
+        case 'rad': {
+          const who = e.who === 'target' ? [firstPlayer()].filter(Boolean) : e.who === 'opponents' ? this.opponentsOf(ctx.controller) : [me];
+          for (const p of who) { p.rad = (p.rad || 0) + Math.max(0, n(e.n)); this.logEvent('counters', `${p.name} gets ${n(e.n)} rad counter${n(e.n) === 1 ? '' : 's'} (${p.rad}).`); }
+          break;
+        }
+        // experience counters
+        case 'experience': {
+          me.experience = (me.experience || 0) + Math.max(0, n(e.n));
+          this.logEvent('counters', `${me.name} gets an experience counter (${me.experience}).`);
+          break;
+        }
         /* Scent of Ivy, the Seers: cards of a kind shown from the hand, how many is what counts */
         case 'revealAnyFromHand': {
           const pool = this.zones[me.id].hand.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card'));
@@ -17949,6 +17974,7 @@
         Incubator: { type: 'Token Artifact — Incubator', text: '{2}: Transform this artifact.' },
         Shard: { type: 'Token Enchantment — Shard', text: '{2}, Sacrifice this enchantment: Scry 1, then draw a card.' },
         Lander: { type: 'Token Artifact — Lander', text: '{2}, {T}, Sacrifice this artifact: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' },
+        Mutagen: { type: 'Token Artifact — Mutagen', text: '{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature. Activate only as a sorcery.' },
       };
       /* Academy Manufactor: a Clue, Food or Treasure becomes one of each */
       if (['Clue', 'Food', 'Treasure'].includes(e.token) && !e._trio) {
@@ -19309,7 +19335,7 @@
           botPersonality: p.botPersonality || null,
           avatarColor: p.avatarColor, life: p.life, poison: p.poison, energy: p.energy,
           preventShield: p.preventShield || 0,
-          experience: p.experience, pool: p.pool.snapshot(), landsPlayed: p.landsPlayed,
+          experience: p.experience, rad: p.rad || 0, pool: p.pool.snapshot(), landsPlayed: p.landsPlayed,
           maxLands: p.maxLands, hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason,
           conceded: p.conceded, drewFromEmpty: p.drewFromEmpty,
           commanderDamage: Object.assign({}, p.commanderDamage),

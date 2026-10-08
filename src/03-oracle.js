@@ -2831,9 +2831,15 @@
        different cards — "a colorless Treasure artifact token with
        '{T}, Sacrifice this artifact: Add one mana of any color.'" is the
        same Treasure as "a Treasure token", and some arrive tapped. */
-    { re: /^Create (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2] }) },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
+    // Mirelurk Queen and the Fallout cards: "target player gets two rad counters"
+    { re: /^(?:Target player|Each opponent|Target opponent|You) gets? (a|an|one|two|three|four|five|\d+|X) rad counters?\.?$/i,
+      make: (m) => ({ op: 'rad', n: num(m[1]), who: /^target/i.test(m[0]) ? 'target' : /^each opponent/i.test(m[0]) ? 'opponents' : 'you',
+        targets: /^target/i.test(m[0]) ? [{ type: 'player', opponent: /opponent/i.test(m[0]) }] : undefined }) },
+    // Meren, Otharri: "you get an experience counter"
+    { re: /^(?:You )?get (a|an|one|two|three|\d+) experience counters?\.?$/i, make: (m) => ({ op: 'experience', n: num(m[1]) }) },
 
 
     /* ===== cost changes other spells feel ===== */

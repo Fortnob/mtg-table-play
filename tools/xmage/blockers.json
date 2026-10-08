@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31819,
   "skippedLayout": 21,
-  "needed": 12796,
+  "needed": 12781,
   "gainedCards": 1373,
-  "linesNeeded": 14047,
+  "linesNeeded": 14017,
   "linesGained": 1653,
   "gained": {
    "all": 1373,
@@ -412,25 +412,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 28,
-   "lines": 19,
-   "cards": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance",
-    "Witch-king, Sky Scourge",
-    "Jocasta, Automaton Avenger"
-   ]
-  },
-  {
    "what": "AttacksPlayerWithCreaturesTriggeredAbility",
    "score": 28,
    "lines": 19,
@@ -496,6 +477,25 @@
     "Ugin, Eye of the Storms",
     "Devourer of Destiny",
     "Reach of Shadows"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 26,
+   "lines": 17,
+   "cards": [
+    "Anim Pakal, Thousandth Moon",
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge",
+    "Jocasta, Automaton Avenger"
    ]
   },
   {
@@ -648,25 +648,6 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Voldaren Pariah // Abolisher of Bloodlines"
-   ]
-  },
-  {
-   "what": "AddCountersPlayersEffect",
-   "score": 21,
-   "lines": 18,
-   "cards": [
-    "Meren of Clan Nel Toth",
-    "Otharri, Suns' Glory",
-    "Toph, Earthbending Master",
-    "The Wise Mothman",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Screeching Scorchbeast",
-    "Tato Farmer",
-    "Zuko, Firebending Master",
-    "Minthara, Merciless Soul",
-    "Ezuri, Claw of Progress",
-    "Katara, Waterbending Master"
    ]
   },
   {
@@ -988,25 +969,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe",
-    "Absorbing Man",
-    "Suit Up",
-    "Okiba Salvage"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 16,
    "lines": 7,
@@ -1037,25 +999,6 @@
     "Let the Galaxy Burn",
     "The Fifth Doctor",
     "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
-   ]
-  },
-  {
-   "what": "words:mv",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "It That Heralds the End",
-    "Kozilek's Unsealing",
-    "Thryx, the Sudden Storm",
-    "Helga, Skittish Seer",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Delivery Moogle",
-    "Runadi, Behemoth Caller",
-    "Kalemne, Disciple of Iroas",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Gandalf, Westward Voyager",
-    "Krosan Drover"
    ]
   },
   {
@@ -1116,6 +1059,25 @@
    ]
   },
   {
+   "what": "filter:alts",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Cloudspire Skycycle",
+    "Hellish Sideswipe",
+    "Absorbing Man",
+    "Suit Up",
+    "Okiba Salvage",
+    "Fang Guardian"
+   ]
+  },
+  {
    "what": "owner of a permanent",
    "score": 15,
    "lines": 12,
@@ -1151,6 +1113,25 @@
     "Erosion",
     "Feedback",
     "Curse Artifact"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "It That Heralds the End",
+    "Kozilek's Unsealing",
+    "Thryx, the Sudden Storm",
+    "Helga, Skittish Seer",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Delivery Moogle",
+    "Runadi, Behemoth Caller",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Krosan Drover",
+    "Superior Foes of Spider-Man"
    ]
   },
   {
@@ -1208,44 +1189,6 @@
     "Pyre-Sledge Arsonist",
     "Electrostatic Bolt",
     "Galvanic Bombardment"
-   ]
-  },
-  {
-   "what": "token statement MutagenToken",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "The Ooze",
-    "Michelangelo, Weirdness to 11",
-    "Mutagen Man, Living Ooze",
-    "Raphael, the Muscle",
-    "Michelangelo, Mutant BFF",
-    "April O'Neil, Human Element",
-    "Roadkill Rodney",
-    "Mona Lisa, Ever Adaptable",
-    "Ooze Spill",
-    "Genghis Frog",
-    "Ray Fillet, Man Ray",
-    "Crustacean Commando"
-   ]
-  },
-  {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Reluctant Role Model",
-    "Shadow the Hedgehog",
-    "Archghoul of Thraben",
-    "Azlask, the Swelling Scourge",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Slurrk, All-Ingesting",
-    "Cass, Hand of Vengeance",
-    "The Ghoul, Gunslinger",
-    "Orah, Skyclave Hierophant"
    ]
   },
   {
@@ -1535,6 +1478,25 @@
     "Infernal Darkness",
     "Vexing Sphinx",
     "Jötun Grunt"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Reluctant Role Model",
+    "Shadow the Hedgehog",
+    "Archghoul of Thraben",
+    "Colfenor, the Last Yew",
+    "Havi, the All-Father",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger",
+    "Orah, Skyclave Hierophant",
+    "Polukranos Reborn // Polukranos, Engine of Ruin"
    ]
   },
   {
@@ -1900,22 +1862,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 12,
-   "lines": 9,
-   "cards": [
-    "Resourceful Defense",
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Genku, Future Shaper",
-    "Nikara, Lair Scavenger",
-    "Dual Nature"
-   ]
-  },
-  {
    "what": "DiscardAndDrawThatManyEffect",
    "score": 12,
    "lines": 3,
@@ -1957,6 +1903,25 @@
     "Eye of Ojer Taq // Apex Observatory",
     "Vesuvan Doppelganger",
     "Alhammarret, High Arbiter"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Otharri, Suns' Glory",
+    "The Wise Mothman",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Screeching Scorchbeast",
+    "Tato Farmer",
+    "Zuko, Firebending Master",
+    "Katara, Waterbending Master",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink",
+    "Megaton's Fate",
+    "Phyrexian Vatmother"
    ]
   },
   {
@@ -2201,6 +2166,21 @@
    "cards": [
     "The Soul Stone",
     "The Mind Stone"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 11,
+   "lines": 8,
+   "cards": [
+    "Resourceful Defense",
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Suki, Courageous Rescuer",
+    "Genku, Future Shaper",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -6977,17 +6957,6 @@
    ]
   },
   {
-   "what": "object effect on a player target",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Mirelurk Queen",
-    "The Master, Transcendent",
-    "Nightkin Ambusher",
-    "Decimator Web"
-   ]
-  },
-  {
    "what": "CantBeTargetedAttachedEffect",
    "score": 4,
    "lines": 4,
@@ -7117,13 +7086,35 @@
     "Devouring Tendrils",
     "Compel Brutality"
    ]
+  },
+  {
+   "what": "EachSpellYouCastHasReplicateEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Hatchery Sliver",
+    "Ian Chesterton",
+    "Djinn Illuminatus",
+    "Threefold Signal"
+   ]
+  },
+  {
+   "what": "keyword CraftAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "The Enigma Jewel // Locus of Enlightenment",
+    "Eye of Ojer Taq // Apex Observatory",
+    "Ore-Rich Stalactite // Cosmium Catalyst",
+    "Throne of the Grim Captain // The Grim Captain"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3839,
-   "cards": 3497,
+   "score": 3845,
+   "cards": 3500,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7550,16 +7541,16 @@
    ]
   },
   {
-   "what": "filter:alts",
+   "what": "ConditionalRestrictionEffect",
    "score": 16,
    "cards": 16,
    "names": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction"
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Nimble Brigand",
+    "Slippery Scoundrel"
    ]
   },
   {
@@ -7615,16 +7606,16 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
+   "what": "filter:alts",
    "score": 15,
    "cards": 15,
    "names": [
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nimble Brigand",
-    "Slippery Scoundrel",
-    "Waterlogged Hulk // Watertight Gondola"
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Cloudspire Skycycle"
    ]
   },
   {
@@ -7921,19 +7912,6 @@
     "Sylvan Messenger",
     "Elder Pine of Jukai",
     "Enshrined Memories"
-   ]
-  },
-  {
-   "what": "token statement MutagenToken",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Michelangelo, Weirdness to 11",
-    "Mutagen Man, Living Ooze",
-    "April O'Neil, Human Element",
-    "Roadkill Rodney",
-    "Mona Lisa, Ever Adaptable",
-    "Ooze Spill"
    ]
   },
   {
@@ -8348,19 +8326,6 @@
     "Sneaky Snacker",
     "Private Eye",
     "Foggy Swamp Spirit Keeper"
-   ]
-  },
-  {
-   "what": "AddCountersPlayersEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Otharri, Suns' Glory",
-    "Toph, Earthbending Master",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Ezuri, Claw of Progress",
-    "Vault 12: The Necropolis"
    ]
   },
   {
@@ -9054,6 +9019,19 @@
    ]
   },
   {
+   "what": "AddCountersPlayersEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Otharri, Suns' Glory",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink",
+    "Megaton's Fate"
+   ]
+  },
+  {
    "what": "ConditionalOneShotEffect.addEffect",
    "score": 7,
    "cards": 7,
@@ -9689,6 +9667,19 @@
     "Detainment Spell",
     "Concealed Weapon",
     "Stasis Cell"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Flopsie, Bumi's Buddy",
+    "Michelangelo, Mutant BFF",
+    "Familiar Ground",
+    "Battlefront Krushok",
+    "Rocksteady, Crash Courser",
+    "Yuan Shao, the Indecisive"
    ]
   },
   {
@@ -10382,18 +10373,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByMoreThanOneAllEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Flopsie, Bumi's Buddy",
-    "Familiar Ground",
-    "Battlefront Krushok",
-    "Rocksteady, Crash Courser",
-    "Yuan Shao, the Indecisive"
-   ]
-  },
-  {
    "what": "Ability.modes.setMayChooseSameModeMoreThanOnce",
    "score": 5,
    "cards": 5,
@@ -10895,6 +10874,18 @@
     "Frantic Inventory",
     "Take Inventory",
     "Compound Fracture"
+   ]
+  },
+  {
+   "what": "keyword RippleAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Surging Dementia",
+    "Surging Aether",
+    "Surging Flame",
+    "Surging Sentinels",
+    "Surging Might"
    ]
   }
  ]

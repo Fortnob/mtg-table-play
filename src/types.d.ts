@@ -140,6 +140,8 @@ declare namespace MTG {
     poison?: number;
     energy?: number;
     experience?: number;
+    /** Fallout: rad counters */
+    rad?: number;
     pool: ManaPoolView;
     landsPlayed: number;
     maxLands: number;
