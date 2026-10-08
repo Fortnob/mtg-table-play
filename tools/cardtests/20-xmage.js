@@ -10514,4 +10514,22 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Cranial Extraction'), { targets: ['B'] });
     t.ok([g1, h1, l1].every(c => c.zone === 'exile'), 'every Opt exiled');
   });
+
+  test('Scent of Ivy counts the green cards revealed; Scent of Jasmine gains 2 for each white one', (mk, t) => {
+    t.auto('Scent of Ivy');
+    t.auto('Scent of Jasmine');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.hand('A', 'Llanowar Elves'); T.hand('A', 'Giant Growth'); T.hand('A', 'Lightning Bolt');
+    T.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Scent of Ivy'), { targets: [bear] });
+    t.eq(T.g.powerOf(bear), 4, 'two green cards: +2/+2');
+    const T2 = mk();
+    T2.hand('A', 'Swords to Plowshares'); T2.hand('A', 'Serra Angel');
+    T2.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T2.mana('A', 'W');
+    T2.cast('A', T2.hand('A', 'Scent of Jasmine'));
+    t.eq(T2.life('A'), 24, 'four life for two white cards');
+  });
 };

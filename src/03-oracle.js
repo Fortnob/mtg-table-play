@@ -871,6 +871,9 @@
         return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
       } },
     // Alchemy: "This creature intensifies by 1", "Cards you own named CARDNAME intensify by 1", "All Chorus cards you own intensify by 1"
+    /* Scent of Ivy, the Seers: "Reveal any number of green cards in your hand." — counted for what follows */
+    { re: /^Reveal any number of ((?:other )?[a-z]+) cards in your hand\.?$/i,
+      make: (m) => ({ op: 'revealAnyFromHand', filter: m[1].replace(/^other /i, '').toLowerCase() }) },
     /* Cabal Therapy, Cranial Extraction: "Choose a nonland card name." — named as it resolves,
        for the sentences after it ("cards with that name") */
     { re: /^Choose a (nonland |nonartifact, nonland |creature )?card name\.?$/i,
@@ -4582,6 +4585,8 @@
     if ((m = p.match(/^card in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
+    // the Scents and Seers: "for each card revealed this way"
+    if (/^cards? revealed this way$/i.test(p)) return { revealedCount: true, mult: k };
     // Converge: "where X is the number of colors of mana spent to cast this spell"
     if ((m = p.match(/^colou?rs? of mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { colorsSpent: true, of: spentOf(m[1]), mult: k };
     // Verazol: "for each mana spent to cast it"
@@ -4636,6 +4641,8 @@
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
+    // the Scents and Seers: "the number of cards revealed this way"
+    if (/^the number of cards revealed this way$/i.test(p)) return done({ revealedCount: true, mult: 1 });
     // Alchemy: "this spell's intensity", "CARDNAME's intensity", "its intensity"
     if (/^(?:its|CARDNAME'?s|this (?:creature|spell|card|enchantment|artifact|permanent|land)'?s) intensity$/i.test(p)) return done({ intensity: true });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"

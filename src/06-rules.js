@@ -10947,6 +10947,8 @@
         }
         // Alchemy: a card's intensity
         if (v && typeof v === 'object' && v.intensity) return this._intensityOf(src) * (v.mult || 1);
+        // the Scents and Seers: how many cards were revealed
+        if (v && typeof v === 'object' && v.revealedCount) return (this._revealedCount || 0) * (v.mult || 1);
         // the Commander storms: how many times you've cast your commander from the command zone
         if (v && typeof v === 'object' && v.commanderCasts) {
           const cc = (me && me.commanderCasts) || {};
@@ -16403,6 +16405,20 @@
           }
           if ((e.to === 'library' || e.shuffle) && made.length) this.rng.shuffle(this.zones[me.id].library);
           if (made.length) this._noteLastAffected(made.filter(Boolean).map(c => ({ kind: 'object', id: c.id })));
+          break;
+        }
+        /* Scent of Ivy, the Seers: cards of a kind shown from the hand, how many is what counts */
+        case 'revealAnyFromHand': {
+          const pool = this.zones[me.id].hand.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card'));
+          this._revealedCount = 0;
+          if (!pool.length) break;
+          const got = this._choose({ playerId: me.id, purpose: 'revealAny', kind: 'objects', zone: 'hand',
+            items: this._chooseItems(pool), min: 0, max: pool.length,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}reveal any number of ${e.filter || ''} cards from your hand.` }, 'revAny');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).filter(id => pool.some(c => c.id === id));
+          this._revealedCount = picks.length;
+          this.logEvent('reveal', `${me.name} reveals ${picks.length} card${picks.length === 1 ? '' : 's'}: ${picks.map(id => (this.obj(id) || {}).name).join(', ')}.`);
           break;
         }
         /* "Choose a nonland card name": offered from the cards in the game, the likeliest first —
