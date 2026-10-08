@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13441,
-  "gainedCards": 1405,
-  "linesNeeded": 14756,
+  "needed": 13407,
+  "gainedCards": 1407,
+  "linesNeeded": 14715,
   "linesGained": 1713,
   "gained": {
-   "all": 1405,
+   "all": 1407,
    "top2000": 52,
    "stdTop": 10
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4900,
-   "lines": 4342,
+   "score": 4876,
+   "lines": 4318,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -71,8 +71,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 787,
-   "lines": 787,
+   "score": 786,
+   "lines": 786,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -90,8 +90,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 299,
-   "lines": 281,
+   "score": 298,
+   "lines": 280,
    "cards": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -109,8 +109,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 271,
-   "lines": 241,
+   "score": 264,
+   "lines": 234,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -147,8 +147,8 @@
   },
   {
    "what": "custom condition",
-   "score": 194,
-   "lines": 173,
+   "score": 191,
+   "lines": 170,
    "cards": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -159,9 +159,9 @@
     "The Chain Veil",
     "Diamond City",
     "Blitzball",
-    "Garna, Bloodfist of Keld",
     "Elanor Gardner",
-    "Lux Artillery"
+    "Lux Artillery",
+    "Lilypad Village"
    ]
   },
   {
@@ -931,25 +931,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Mutant Chain Reaction",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe",
-    "Back on Track",
-    "Absorbing Man"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -1063,6 +1044,25 @@
     "Infernal Darkness",
     "Vexing Sphinx",
     "Jötun Grunt"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction",
+    "Cloudspire Skycycle",
+    "Hellish Sideswipe",
+    "Back on Track",
+    "Absorbing Man",
+    "Suit Up"
    ]
   },
   {
@@ -1494,24 +1494,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 14,
-   "lines": 11,
-   "cards": [
-    "Resourceful Defense",
-    "Zurgo Stormrender",
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger",
-    "Dual Nature"
-   ]
-  },
-  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 14,
    "lines": 11,
@@ -1769,6 +1751,23 @@
     "Tayam, Luminous Enigma",
     "Overseer of Vault 76",
     "Chisei, Heart of Oceans"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 13,
+   "lines": 10,
+   "cards": [
+    "Resourceful Defense",
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -3805,21 +3804,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Betor, Kin to All",
-    "Éomer, Marshal of Rohan",
-    "Lita, Mechanical Engineer",
-    "Awakening",
-    "Preston Garvey, Minuteman",
-    "Blinkmoth Infusion",
-    "Jiang Yanggu, Never Alone",
-    "Battle Cry"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 8,
    "lines": 8,
@@ -4613,6 +4597,20 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Éomer, Marshal of Rohan",
+    "Lita, Mechanical Engineer",
+    "Awakening",
+    "Preston Garvey, Minuteman",
+    "Blinkmoth Infusion",
+    "Jiang Yanggu, Never Alone",
+    "Battle Cry"
    ]
   },
   {
@@ -7293,8 +7291,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3950,
-   "cards": 3557,
+   "score": 3931,
+   "cards": 3538,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7319,8 +7317,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 229,
-   "cards": 214,
+   "score": 228,
+   "cards": 213,
    "names": [
     "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
@@ -7345,8 +7343,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 161,
-   "cards": 149,
+   "score": 155,
+   "cards": 143,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7358,8 +7356,8 @@
   },
   {
    "what": "custom condition",
-   "score": 151,
-   "cards": 139,
+   "score": 149,
+   "cards": 137,
    "names": [
     "Veil of Summer",
     "Liberator, Urza's Battlethopter",
@@ -7579,15 +7577,15 @@
   },
   {
    "what": "keyword EquipAbility",
-   "score": 21,
-   "cards": 15,
+   "score": 22,
+   "cards": 16,
    "names": [
     "Dragonfire Blade",
     "Robe of the Archmagi",
+    "Crown of Gondor",
     "Belt of Giant Strength",
     "Plate Armor",
-    "Leather Armor",
-    "Nightmare Lash"
+    "Leather Armor"
    ]
   },
   {
@@ -7640,19 +7638,6 @@
     "Tinybones Joins Up",
     "Wheel and Deal",
     "Jace, Memory Adept"
-   ]
-  },
-  {
-   "what": "filter:alts",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "Carnivorous Canopy",
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Quag Feast",
-    "Abuelo's Awakening"
    ]
   },
   {
@@ -7731,6 +7716,19 @@
     "Dog Umbra",
     "Nimble Brigand",
     "Slippery Scoundrel"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Mutant Chain Reaction"
    ]
   },
   {
@@ -9897,19 +9895,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Zurgo Stormrender",
-    "Suki, Courageous Rescuer",
-    "Splinter, the Mentor",
-    "Genku, Future Shaper",
-    "Angelic Sleuth",
-    "Nikara, Lair Scavenger"
-   ]
-  },
-  {
    "what": "CounterTargetWithReplacementEffect",
    "score": 6,
    "cards": 6,
@@ -10676,18 +10661,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Betor, Kin to All",
-    "Éomer, Marshal of Rohan",
-    "Awakening",
-    "Blinkmoth Infusion",
-    "Battle Cry"
-   ]
-  },
-  {
    "what": "MeldEffect",
    "score": 5,
    "cards": 5,
@@ -10904,6 +10877,18 @@
    ]
   },
   {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Suki, Courageous Rescuer",
+    "Splinter, the Mentor",
+    "Genku, Future Shaper",
+    "Angelic Sleuth",
+    "Nikara, Lair Scavenger"
+   ]
+  },
+  {
    "what": "keyword WebSlingingAbility",
    "score": 5,
    "cards": 5,
@@ -11069,6 +11054,18 @@
     "Stone-Tongue Basilisk",
     "Reckless Cohort",
     "Marauding Maulhorn"
+   ]
+  },
+  {
+   "what": "ZoneChangeAllTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Kothophed, Soul Hoarder",
+    "Tameshi, Reality Architect",
+    "Justice, Vance Astrovik",
+    "Stormfront Riders",
+    "Urza's Miter"
    ]
   }
  ]

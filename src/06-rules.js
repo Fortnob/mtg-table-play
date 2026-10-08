@@ -8385,6 +8385,42 @@
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
+        case 'itMv': {
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && (t.kind === 'object' || t.kind === 'stack'));
+          const td = (ctx && ctx.triggerData) || {};
+          let it = tg && (tg.kind === 'stack' ? (this.stack.find(x => x.id === tg.id) || {}).obj : this.obj(tg.id));
+          if (!it) it = (this._lastAffected && this.obj(this._lastAffected.id)) || (td.objectId && this.obj(td.objectId)) || null;
+          if (!it || !it.card) return false;
+          const mv = it.card.cmc || 0;
+          return cond.cmp === 'atLeast' ? mv >= cond.n : mv <= cond.n;
+        }
+        case 'didThisWay': {
+          const ids = cond.how === 'milled' ? (this._lastMilled || []) : cond.how === 'revealed' ? [this._lastRevealed].filter(Boolean)
+            : cond.how === 'discarded' ? (this._lastDiscarded || [])
+            : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []));
+          const f = String(cond.filter || '');
+          return ids.some(id => { const c = this.obj(id); return c && (/ or /.test(f) ? f.split(' or ').some(w => this._itFits(c, w)) : this._itFits(c, f)); });
+        }
+        case 'attackedTotalPower': {
+          if (!me) return false;
+          const sum = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(o => o && o.controller === me.id)
+            .reduce((t, o) => t + Math.max(0, this.powerOf(o)), 0);
+          return sum >= (cond.n || 0);
+        }
+        case 'itWasAttacking': {
+          const td = (ctx && ctx.triggerData) || {};
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const it = (td.objectId && this.obj(td.objectId)) || (tg && this.obj(tg.id)) || (this._lastAffected && this.obj(this._lastAffected.id));
+          return !!(it && (it.attacking || it._wasAttacking));
+        }
+        case 'noMonarch': return !this.players.some(p => p.monarch && !p.hasLost);
+        case 'thatPlayerMoreCards': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.player || td.playerId || td.drawer);
+          return !!(p && me && this.zones[p.id].hand.length > this.zones[me.id].hand.length);
+        }
+        case 'totalToughness': return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature)
+          .reduce((t, o) => t + Math.max(0, this.toughnessOf(o)), 0) >= (cond.n || 0);
         /* "if it's a creature card": what was targeted, else the card just
            revealed, milled, exiled or put somewhere */
         case 'itIs': {
@@ -9205,6 +9241,8 @@
         // a Room's doors lock again as it leaves (CR 709.5d)
         if (from === 'battlefield' && o.card.layout === 'split') o.face = 0;
         o._diedCounters = Object.assign({}, o.counters);
+        // Garna, Desculpting Blast: "if it was attacking", asked after it has gone
+        o._wasAttacking = from === 'battlefield' && !!o.attacking;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         o.tapped = false; o.damage = 0; o.counters = {};

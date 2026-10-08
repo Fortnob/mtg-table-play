@@ -9376,4 +9376,23 @@ module.exports = (test) => {
     t.eq(bear.zone, 'battlefield', 'the Bears only tapped');
     t.ok(bear.tapped);
   });
+
+  test('More conditions: its mana value, a card exiled this way, an attacker that left', (mk, t) => {
+    t.auto('Fading Hope');
+    t.auto('Desculpting Blast');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'U');
+    const hand = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Fading Hope'), { targets: [bear] });
+    t.eq(bear.zone, 'hand', 'returned');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'the Bears are in hand');
+    const T2 = mk();
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    b2.attacking = 'B';
+    T2.mana('A', 'U1');
+    const before = T2.g.battlefield.filter(o => o.isToken).length;
+    T2.cast('A', T2.hand('A', 'Desculpting Blast'), { targets: [b2] });
+    t.eq(T2.g.battlefield.filter(o => o.isToken).length, before + 1, 'it was attacking: a Drone');
+  });
 };

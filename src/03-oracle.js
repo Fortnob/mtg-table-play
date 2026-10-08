@@ -6206,6 +6206,24 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
+    [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
+      (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
+    [/^an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
+      (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
+    // Battle Cry Goblin: "you attacked with creatures with total power 6 or greater this combat"
+    [/^you attacked with creatures with total power (\d+) or greater this combat$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],
+    // Zurgo Stormrender: "it was attacking"
+    [/^it was attacking$/i, () => ({ kind: 'itWasAttacking' })],
+    // Crown of Gondor: "there is no monarch"
+    [/^there is no monarch$/i, () => ({ kind: 'noMonarch' })],
+    // Nightpack Ambusher: "you didn't cast a spell this turn"
+    [/^you didn'?t cast a spell this turn$/i, () => ({ kind: 'spellsCast', n: 0, cmp: 'atMost' })],
+    // Sandstone Oracle: "that player has more cards in hand than you"
+    [/^that player has more cards in hand than you$/i, () => ({ kind: 'thatPlayerMoreCards' })],
+    // Betor: "creatures you control have total toughness 10 or greater"
+    [/^creatures you control have total toughness (\d+) or greater$/i, (m) => ({ kind: 'totalToughness', n: +m[1] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
     // Feywild Caretaker: "you have the initiative"
