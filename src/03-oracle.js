@@ -10950,6 +10950,12 @@
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
         }, auto: true },
+      // Bruenor Battlehammer, Forge Anew: "You may pay {0} rather than pay the equip cost of the first equip ability you activate each turn"
+      { re: /^You may pay \{0\} rather than pay the equip cost of the first equip ability you activate (each turn|during each of your turns)\.?$/i,
+        make: (m) => ({ op: 'firstEquipFree', yourTurn: /your turns/i.test(m[1]) }), auto: true },
+      // Leonin Shikari, Forge Anew: "(During your turn,) you may activate equip abilities any time you could cast an instant."
+      { re: /^(During your turn, )?you may activate equip abilities any time you could cast an instant\.?$/i,
+        make: (m) => ({ op: 'instantEquip', yourTurn: !!m[1] }), auto: true },
       // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
       { re: /^You may pay \{0\} rather than pay the mana cost for ((?:[A-Z][a-z]+ )?(?:creature |artifact |enchantment )?)spells you cast\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: (m[1] || 'card').trim().toLowerCase() || 'card' }), auto: true },

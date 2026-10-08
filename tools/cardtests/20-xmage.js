@@ -11523,4 +11523,21 @@ module.exports = (test) => {
     T2.settle();
     t.eq(T2.life('B'), 18, 'two damage');
   });
+
+  test('Bruenor: the first equip each turn for {0}; Leonin Shikari: equip at instant speed', (mk, t) => {
+    t.auto('Bruenor Battlehammer'); t.auto('Leonin Shikari');
+    const T = mk();
+    T.bf('A', 'Bruenor Battlehammer');
+    const bs = T.bf('A', 'Bonesplitter'), bear = T.bf('A', 'Grizzly Bears');
+    const la = bs.analysis(), idx = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T.g.activateAbility('A', bs.id, idx, { targets: [{ kind: 'object', id: bear.id }] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(bs.attachedTo, bear.id, 'equipped for nothing');
+    t.no(T.g.activateAbility('A', bs.id, idx, { targets: [{ kind: 'object', id: T.bf('A', 'Savannah Lions').id }] }), 'the second costs {1}');
+    const T2 = mk();
+    T2.bf('A', 'Leonin Shikari');
+    const b2 = T2.bf('A', 'Bonesplitter'), c2 = T2.bf('A', 'Grizzly Bears');
+    const ab = b2.analysis().abilities.find(a => a.kind === 'activated');
+    t.ok(T2.g._equipAnyTime('A', ab), 'equip any time');
+  });
 };

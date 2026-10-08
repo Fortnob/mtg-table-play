@@ -1380,7 +1380,7 @@
           if (c.untap && !o.tapped) return false;
           if (c.life && p.life <= c.life) return false;
           if (c.energy && (p.energy || 0) < c.energy) return false;
-          if (x.sorcerySpeed && !(this.isMain && this.stackEmpty &&
+          if (x.sorcerySpeed && !this._equipAnyTime(playerId, x) && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return false;
           if (!this.couldPay(playerId, this._abilityMana(o, x), purse) && !(c.waterbend && this._waterbendPlan(playerId, o, x, this._abilityMana(o, x)))) return false;
@@ -5810,7 +5810,7 @@
         return this.fail('A spell with split second is on the stack.');
       if (!isMana && (!this.priorityPlayer || this.priorityPlayer.id !== playerId))
         return this.fail('You do not have priority.');
-      if (ab.sorcerySpeed || ab.kind === 'loyalty') {
+      if ((ab.sorcerySpeed && !this._equipAnyTime(playerId, ab)) || ab.kind === 'loyalty') {
         if (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty)
           return this.fail('That ability is sorcery speed only.');
         if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return this.fail('One loyalty ability per turn.');
@@ -6554,6 +6554,7 @@
     /** Training Grounds, Suppression Field: standing changes to what an activated ability costs. */
     _abilityCostMods(o, ab, mana, targets) {
       if (!o || !ab) return mana;
+      if (this._freeEquipNow(o.controller, ab)) return '';
       let d = 0, minOne = false;
       const oa = o.analysis() || {};
       /* An equip ability that is cheaper for what it targets: Dragonfire
@@ -6630,6 +6631,25 @@
       return null;
     }
 
+    /** Leonin Shikari, Forge Anew: equip at instant speed (during your turn, for Forge Anew). */
+    _equipAnyTime(playerId, ab) {
+      if (!ab || !/^Equip\b/i.test(ab.text || '')) return false;
+      const s = this._anyStaticOf(playerId, 'instantEquip');
+      if (!s) return false;
+      const e = this._staticOp(s, 'instantEquip');
+      return !(e && e.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId));
+    }
+    /** Bruenor, Forge Anew: the first equip ability each turn may be paid with {0}. */
+    _freeEquipNow(playerId, ab) {
+      if (!ab || !/^Equip\b/i.test(ab.text || '')) return false;
+      const p = this.player(playerId);
+      if (!p || p.freeEquipTurn === this.turn) return false;
+      const s = this._anyStaticOf(playerId, 'firstEquipFree');
+      if (!s) return false;
+      const e = this._staticOp(s, 'firstEquipFree');
+      return !(e && e.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId));
+    }
+
     _payAbilityCost(playerId, o, ab, opts) {
       const cost = ab.cost || {};
       const thing = this._thingCostBlocked(playerId, cost, o, opts);
@@ -6650,7 +6670,10 @@
       if (lifeFrom && p.life < lifeFrom) return this.fail('Not enough life.');
       // `free` skips payment the same way it does for a spell, which is what
       // relaxed tables and alternative costs rely on
+      // Bruenor: the first equip each turn for {0} (the cost already reads as nothing)
+      const freeEquip = !opts.free && this._freeEquipNow(playerId, ab);
       let abMana = this._abilityMana(o, ab, opts.targets);
+      if (freeEquip) { this.player(playerId).freeEquipTurn = this.turn; abMana = ''; }
       // Waterbend: tap artifacts and creatures for {1} each when the mana alone will not do
       if (cost.waterbend && abMana && !opts.free) {
         const full = /\{X\}/.test(abMana) ? abMana.replace(/\{X\}/g, opts.x ? '{' + opts.x + '}' : '') : abMana;
