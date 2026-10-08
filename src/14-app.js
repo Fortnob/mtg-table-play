@@ -704,21 +704,28 @@
           panel.appendChild(field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
             q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster')));
         }
+        // how many boosters each player opens: three, as at any draft, unless you say otherwise
+        const packSel = el('select', { 'aria-label': 'Packs per player' }, [1, 2, 3, 4, 5, 6].map(n =>
+          el('option', { value: String(n), text: n === 3 ? '3 (standard)' : String(n), selected: n === (q.packs || 3) })));
+        packSel.addEventListener('change', () => { q.packs = parseInt(packSel.value, 10) || 3; saveQuick(q); });
+        const packsField = field('Packs each', packSel);
+        let source = null;
         if (style === 'booster' || style === 'commander') {
           const setSel = el('select', { 'aria-label': 'Set to draft' }, [el('option', { value: '', text: 'The newest set' })]);
           MTG.scry.draftableSets().then((sets) => {
             for (const st of sets.slice(0, 60)) setSel.appendChild(el('option', { value: st.code, text: st.name, selected: st.code === q.setCode }));
           }).catch(() => {});
           setSel.addEventListener('change', () => { q.setCode = setSel.value; saveQuick(q); });
-          panel.appendChild(field('Set', setSel));
+          source = field('Set', setSel);
         } else if (style === 'cube') {
           const cubeSel = el('select', { 'aria-label': 'Cube to draft' }, MTG.draft.recipes.map(r =>
             el('option', { value: r.id, text: r.name, selected: r.id === q.cubeId })));
           cubeSel.addEventListener('change', () => { q.cubeId = cubeSel.value; saveQuick(q); });
-          panel.appendChild(field('Cube', cubeSel));
+          source = field('Cube', cubeSel);
         } else if (style === 'chaos') {
-          panel.appendChild(field('Sets', chaosSetsSelect(q.chaosPool, (pool) => { q.chaosPool = pool; saveQuick(q); draw(); })));
+          source = field('Sets', chaosSetsSelect(q.chaosPool, (pool) => { q.chaosPool = pool; saveQuick(q); draw(); }));
         }
+        panel.appendChild(el('div', { class: 'quick-pair' }, [source, packsField].filter(Boolean)));
       }
 
       const go = el('button', {
@@ -739,7 +746,7 @@
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
-            collector: !!q.collector,
+            collector: !!q.collector, packs: q.packs || 3,
           });
         },
       });
@@ -1793,6 +1800,7 @@
         sess.packSize = cube.packSize || 15;
       }
       if (opts.collector && style !== 'cube') sess.setRule('collector', true);
+      if (opts.packs && opts.packs !== 3) sess.setRule('packs', U.clamp(Math.floor(opts.packs), 1, 8));
       const count = U.clamp(opts.opponents || 1, 1, Math.min(7, (sess.fmt.maxPlayers || 8) - 1));
       for (let i = 0; i < count; i++) sess.addBot(opts.difficulty || 5);
       const ready = sess.readyToStart();
