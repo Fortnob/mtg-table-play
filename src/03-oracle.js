@@ -855,6 +855,15 @@
         return Object.assign({ op: 'perpetual', subject: sub, mod }, sub.targets ? { targets: sub.targets } : {});
       } },
     // Alchemy: "This creature intensifies by 1", "Cards you own named CARDNAME intensify by 1", "All Chorus cards you own intensify by 1"
+    /* Alchemy: "Empower Jace 3" — loyalty onto your Jace token, made first if you have none */
+    { re: /^(?:Then )?[Ee]mpower Jace (\d+|X)(?:, where X is (.+?))?\.?$/,
+      make: (m) => {
+        if (m[1] === 'X') { const a = m[2] && amountOf(m[2]); return a != null ? { op: 'empowerJace', n: a } : null; }
+        return m[2] ? null : { op: 'empowerJace', n: +m[1] };
+      } },
+    /* Alchemy: "You get a one-time boon with '…'" — an emblem that goes once it has done its thing */
+    { re: /^You get an? (one|two|three)-time boon with "([^"]+)"\.?$/i,
+      make: (m) => (emblemText(m[2]) ? { op: 'getEmblem', emblemText: m[2], name: 'Boon', once: true, times: num(m[1]) } : null) },
     { re: /^(?:Then )?(?:CARDNAME|This (?:creature|spell|card|enchantment|artifact|permanent|land)) intensifies by (\d+)\.?$/i,
       make: (m) => ({ op: 'intensify', n: +m[1], who: 'self' }) },
     { re: /^(?:Then )?(?:All )?cards you own named CARDNAME intensify by (\d+)\.?$/i,

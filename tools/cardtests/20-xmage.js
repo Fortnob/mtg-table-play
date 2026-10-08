@@ -10332,4 +10332,29 @@ module.exports = (test) => {
     T3.settle(); T3.resolve();
     t.eq(T3.g._perpetualSummary(bear).pt[0], 2, 'the Bears in hand perpetually +2/+2');
   });
+
+  test('Alchemy: empower Jace makes the Jace token and adds loyalty; a one-time boon triggers once', (mk, t) => {
+    t.auto("Protege's Awakening");
+    const T = mk();
+    T.top('A', 'Island'); T.top('A', 'Island');
+    T.mana('A', '4U');
+    T.cast('A', T.hand('A', "Protege's Awakening"));
+    const jace = T.g.battlefield.find(o => o.name === 'Jace' && o.isToken);
+    t.ok(jace, 'a Jace token');
+    t.eq(jace && jace.counters.loyalty, 6, 'with six loyalty');
+    T.g._runEffects(MTG_EFFECTS('Empower Jace 2.'), { controller: 'A', name: 'test' });
+    t.eq(T.g.battlefield.filter(o => o.name === 'Jace').length, 1, 'still one Jace');
+    t.eq(jace.counters.loyalty, 8, 'now eight');
+    const T2 = mk();
+    T2.g._runEffects(MTG_EFFECTS('You get a one-time boon with "When you cast an instant or sorcery spell, you gain 3 life."'), { controller: 'A', name: 'test' });
+    t.eq(T2.zone('A', 'command').length, 1, 'the boon');
+    T2.mana('A', 'RR');
+    T2.cast('A', T2.hand('A', 'Shock'), { targets: ['B'] });
+    T2.settle(); T2.resolve();
+    t.eq(T2.life('A'), 23, 'three life');
+    t.eq(T2.zone('A', 'command').length, 0, 'and the boon is gone');
+    T2.cast('A', T2.hand('A', 'Shock'), { targets: ['B'] });
+    T2.settle(); T2.resolve();
+    t.eq(T2.life('A'), 23, 'nothing the second time');
+  });
 };

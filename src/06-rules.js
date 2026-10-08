@@ -10105,7 +10105,9 @@
           });
         }
         // "When you next cast …": the turn's emblem goes once it has triggered
-        if (o.card && o.card.once && o.zone === 'command') { this._removeFromZone(o); o.zone = null; this.bumpBoard(); }
+        // a two-time boon: once more before it goes
+        if (o.card && o.card.once && o.zone === 'command' && (o.timesLeft || o.card.times || 1) > 1) o.timesLeft = (o.timesLeft || o.card.times) - 1;
+        else if (o.card && o.card.once && o.zone === 'command') { this._removeFromZone(o); o.zone = null; this.bumpBoard(); }
       };
       // with the cards whose triggered abilities work from a graveyard (Nether Traitor)
       const graveOnes = [];
@@ -11499,6 +11501,8 @@
              card, so a saved game keeps them too. */
           if (e.thisTurn) card.untilEot = true;
           if (e.once) card.once = true;
+          // Alchemy: "a two-time boon"
+          if (e.times > 1) { card.times = e.times; card.id += ':x' + e.times; }
           if (e.onlyTarget) { const pl = firstPlayer(); card.onlyPlayer = pl ? pl.id : '-'; }
           this.zones[ctx.controller].command.push(em);
           this.logEvent('rules', `${me.name} gets an emblem: "${truncate(text, 90)}"`);
@@ -16150,6 +16154,22 @@
             this.logEvent('rules', `${list.length === 1 ? list[0].name : list.length + ' cards'} perpetually ${e.text ? String(e.text).replace(/^.*?perpetually\s+/i, '').replace(/\.$/, '') : 'changes'}.`);
           }
           this.bumpBoard();
+          break;
+        }
+        /* Alchemy: empower Jace N — loyalty counters on a Jace token, made if there is none */
+        case 'empowerJace': {
+          let jace = this.battlefield.find(x => x.controller === me.id && x.isToken && x.name === 'Jace' && !x.phasedOut);
+          if (!jace) {
+            const card = { id: 'token:jace-alchemy', name: 'Jace', layout: 'token', mana_cost: '', cmc: 0,
+              type_line: 'Token Planeswalker \u2014 Jace', oracle_text: '[\u22121]: Surveil 1.\n[\u22123]: Draw a card.',
+              colors: ['U'], color_identity: ['U'], keywords: [], loyalty: '0', rarity: 'common', set: 'tkn', set_name: 'Token',
+              collector_number: '0', image_uris: null, _isToken: true };
+            jace = this._register(new GObj(card, me.id, 'outside'));
+            jace.isToken = true;
+            this.moveObject(jace, 'battlefield', { controller: me.id });
+            this.logEvent('token', `${me.name} creates a Jace planeswalker token.`);
+          }
+          this.addCounters(jace, 'loyalty', Math.max(0, n(e.n)));
           break;
         }
         /* Alchemy: intensify — the card's intensity, kept with it wherever it goes, goes up */
