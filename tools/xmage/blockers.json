@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13058,
+  "needed": 13046,
   "gainedCards": 1372,
-  "linesNeeded": 14211,
+  "linesNeeded": 14198,
   "linesGained": 1654,
   "gained": {
    "all": 1372,
@@ -90,13 +90,10 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 295,
-   "lines": 277,
+   "score": 275,
+   "lines": 266,
    "cards": [
-    "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
-    "Cavern-Hoard Dragon",
-    "Metalwork Colossus",
     "Reforge the Soul",
     "Emrakul, the Promised End",
     "Hagra Mauling // Hagra Broodpit",
@@ -104,7 +101,10 @@
     "Kogla and Yidaro",
     "Temporal Mastery",
     "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass"
+    "Bloodsoaked Insight // Sanguine Morass",
+    "Metamorphosis Fanatic",
+    "Wash Away",
+    "Rottenmouth Viper"
    ]
   },
   {
@@ -6119,18 +6119,6 @@
    ]
   },
   {
-   "what": "GreatestAmongPermanentsValue",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Alena, Kessig Trapper",
-    "Traverse Eternity",
-    "Tetsuo, Imperial Champion",
-    "Pummeler for Hire",
-    "Impetuous Protege"
-   ]
-  },
-  {
    "what": "DamageEverythingEffect with a filter",
    "score": 5,
    "lines": 5,
@@ -7166,6 +7154,17 @@
     "Anti-Magic Aura",
     "Spectral Shield"
    ]
+  },
+  {
+   "what": "sacrifice trigger for ANY",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Zodiark, Umbral God",
+    "Fumulus, the Infestation",
+    "Thraximundar",
+    "Mortician Beetle"
+   ]
   }
  ],
  "sole": [
@@ -7197,15 +7196,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 226,
-   "cards": 211,
+   "score": 207,
+   "cards": 201,
    "names": [
-    "Excalibur, Sword of Eden",
     "Plumb the Forbidden",
-    "Cavern-Hoard Dragon",
-    "Metalwork Colossus",
     "Reforge the Soul",
-    "Hagra Mauling // Hagra Broodpit"
+    "Hagra Mauling // Hagra Broodpit",
+    "Not of This World",
+    "Kogla and Yidaro",
+    "Temporal Mastery"
    ]
   },
   {
@@ -10528,18 +10527,6 @@
    ]
   },
   {
-   "what": "GreatestAmongPermanentsValue",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Alena, Kessig Trapper",
-    "Traverse Eternity",
-    "Tetsuo, Imperial Champion",
-    "Pummeler for Hire",
-    "Impetuous Protege"
-   ]
-  },
-  {
    "what": "DamageEverythingEffect with a filter",
    "score": 5,
    "cards": 5,
@@ -10945,6 +10932,18 @@
     "Zombie Musher",
     "Legions of Lim-Dûl",
     "Rime Dryad"
+   ]
+  },
+  {
+   "what": "several colours in a scope",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Rise of the Hobgoblins",
+    "Glistening Deluge",
+    "Flash of Defiance",
+    "Kavu Runner",
+    "Skittish Kavu"
    ]
   }
  ]

@@ -4474,6 +4474,8 @@
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Arachnogenesis: "the number of creatures attacking you"
     if (/^the number of creatures attacking you$/i.test(p)) return done({ scope: { who: 'all', what: 'creature', attacking: true, attackingYou: true }, mult: 1 });
+    // Cavern-Hoard Dragon: "the greatest number of artifacts an opponent controls"
+    if ((m = p.match(/^the greatest number of ([a-z ]+?) an opponent controls$/i))) { const sc = scopeOf(m[1] + ' you control'); if (sc) return done({ maxAmongOpponents: sc }); }
     // Summon: Bahamut: "the total mana value of other permanents you control"
     if ((m = p.match(/^the total mana value of ((?:other )?[a-z ]+? you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ totalMvOf: sc }); }
     // Razor Rings, Windswift Slice: "the (amount of) excess damage dealt (to that creature) this way"
@@ -5592,6 +5594,9 @@
     if (m) return { amount: -1, x: /total/i.test(m[1]) ? 'totalPower' : 'greatestPower', scope: scopeOf(m[2]) };
     m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is the number of (.+)$/i);
     if (m) { const c = countOf(m[1].replace(/s\b/, '')) || countOf(m[1]); return c ? { amount: -1, per: c } : null; }
+    // Excalibur, Metalwork Colossus: "where X is the total mana value of … you control", and other amounts
+    m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is (.+)$/i);
+    if (m) { const a = amountOf(m[1]); return a && typeof a === 'object' ? { amount: -1, per: a } : null; }
     return null;
   }
 
@@ -8914,6 +8919,8 @@
     for (const w of words) {
       const lw = w.toLowerCase();
       if (lw === 'multicolored') { sc.multicolored = true; continue; }
+      // Excalibur: "historic permanents" — legendary, artifacts and Sagas
+      if (lw === 'historic') { sc.historic = true; continue; }
       // Bastion Protector: "Commander creatures you control"
       if (lw === 'commander') { sc.commander = sc.who === 'you' ? 'control' : true; continue; }
       /* Guardians of Oboro: "modified creatures"; Kor Blademaster: "equipped

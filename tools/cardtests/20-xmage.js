@@ -10260,4 +10260,19 @@ module.exports = (test) => {
     T4.mana('A', '1G');
     t.no(T4.g.castSpell('A', bear.id, { auto: true }), 'but not a plain Bear');
   });
+
+  test('Cavern-Hoard Dragon costs less by the artifacts an opponent has; Metalwork Colossus by its noncreature artifacts\' mana value', (mk, t) => {
+    t.auto('Cavern-Hoard Dragon');
+    t.auto('Metalwork Colossus');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.bf('B', 'Ornithopter');
+    T.mana('A', '4RR');
+    T.cast('A', T.hand('A', 'Cavern-Hoard Dragon'));
+    t.eq(T.g.battlefield.filter(o => o.name === 'Cavern-Hoard Dragon').length, 1, 'cast for three less');
+    const T2 = mk();
+    T2.bf('A', 'Mind Stone'); T2.bf('A', 'Mind Stone'); T2.bf('A', 'Sol Ring');
+    T2.mana('A', '6');
+    T2.cast('A', T2.hand('A', 'Metalwork Colossus'));
+    t.eq(T2.g.battlefield.filter(o => o.name === 'Metalwork Colossus').length, 1, 'eleven less five');
+  });
 };

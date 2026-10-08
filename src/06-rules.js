@@ -2773,6 +2773,12 @@
       // "the number of colors among permanents you control", "basic land types among lands you control"
       if (/^colou?rs among permanents$/i.test(String(v.per || ''))) return this._colorsAmongYours(pid).length * mult;
       if (/^basic land types among lands$/i.test(String(v.per || ''))) return this._domainOf(pid) * mult;
+      // Cavern-Hoard Dragon: the most any one opponent has
+      if (v.maxAmongOpponents) {
+        let best = 0;
+        for (const q of this.opponentsOf(pid)) best = Math.max(best, this._scopeList(v.maxAmongOpponents, q.id, src, null, inLayers).length);
+        return best * mult;
+      }
       if (v.totalMvOf) {
         let sum = 0;
         for (const o of this._scopeList(v.totalMvOf, pid, src, null, inLayers)) if (o !== src || !v.totalMvOf.other) sum += (o.card && o.card.cmc) || 0;
@@ -16940,6 +16946,7 @@
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
       if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
+      if (sc.historic && !(oa.isLegendary || oa.isArtifact || (oa.subtypes || []).includes('Saga'))) return false;
       // Massacre Girl: "each creature other than <the one that made this>"
       if (sc.exceptId && o.id === sc.exceptId) return false;
       const isType = (t) => {
