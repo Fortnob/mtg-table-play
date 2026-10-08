@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12505,
+  "needed": 12499,
   "gainedCards": 1349,
-  "linesNeeded": 13655,
+  "linesNeeded": 13647,
   "linesGained": 1612,
   "gained": {
    "all": 1349,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4552,
-   "lines": 4165,
+   "score": 4549,
+   "lines": 4162,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 779,
-   "lines": 710,
+   "score": 775,
+   "lines": 709,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -66,7 +66,7 @@
     "Grenzo, Havoc Raiser",
     "Extraplanar Lens",
     "Firemane Commando",
-    "Containment Construct"
+    "Wedding Ring"
    ]
   },
   {
@@ -2436,23 +2436,6 @@
    ]
   },
   {
-   "what": "AdditiveDynamicValue",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "The Archimandrite",
-    "Desert's Due",
-    "Lost Order of Jarkeld",
-    "Muscle Burst",
-    "Flame Burst"
-   ]
-  },
-  {
    "what": "AddCardSubTypeSourceEffect",
    "score": 10,
    "lines": 10,
@@ -2783,6 +2766,22 @@
    ]
   },
   {
+   "what": "AdditiveDynamicValue",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Ancestral Anger",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Desert's Due",
+    "Lost Order of Jarkeld",
+    "Muscle Burst",
+    "Flame Burst"
+   ]
+  },
+  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "lines": 9,
@@ -3101,26 +3100,6 @@
     "Legate Lanius, Caesar's Ace",
     "Malik, Grim Manipulator",
     "Vengeful Tracker"
-   ]
-  },
-  {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Proft's Eidetic Memory",
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Niko Aris",
-    "Thundering Djinn"
-   ]
-  },
-  {
-   "what": "SagesReveriePredicate.instance",
-   "score": 8,
-   "lines": 2,
-   "cards": [
-    "Sage's Reverie"
    ]
   },
   {
@@ -7028,6 +7007,17 @@
    ]
   },
   {
+   "what": "CardsDrawnThisTurnDynamicValue.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Knowledge Is Power",
+    "Duelist of the Mind",
+    "Niko Aris",
+    "Thundering Djinn"
+   ]
+  },
+  {
    "what": "ConniveSourceEffect",
    "score": 4,
    "lines": 4,
@@ -7059,13 +7049,24 @@
     "Elvish Vatkeeper",
     "Seedpod Caretaker"
    ]
+  },
+  {
+   "what": "GainsChoiceOfAbilitiesEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Gideon Blackblade",
+    "Manifold Mouse",
+    "Ballroom Brawlers",
+    "Gabriel Angelfire"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3711,
-   "cards": 3459,
+   "score": 3708,
+   "cards": 3456,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7077,8 +7078,8 @@
   },
   {
    "what": "custom ability",
-   "score": 586,
-   "cards": 541,
+   "score": 582,
+   "cards": 540,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -8796,17 +8797,6 @@
     "Golden-Tail Trainer",
     "Edgewalker",
     "Ragemonger"
-   ]
-  },
-  {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Proft's Eidetic Memory",
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Thundering Djinn"
    ]
   },
   {
@@ -10774,14 +10764,6 @@
    ]
   },
   {
-   "what": "SagesReveriePredicate.instance",
-   "score": 4,
-   "cards": 1,
-   "names": [
-    "Sage's Reverie"
-   ]
-  },
-  {
    "what": "CreaturesAreExiledOnDeathReplacementEffect",
    "score": 4,
    "cards": 4,
@@ -10823,6 +10805,28 @@
     "Dearly Departed",
     "Viral Spawning",
     "Retriever Phoenix"
+   ]
+  },
+  {
+   "what": "AnotherTargetPredicate",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Saheeli, Sublime Artificer",
+    "Shuri, Wakandan Inventor",
+    "Band Together",
+    "True Polymorph"
+   ]
+  },
+  {
+   "what": "ReturnCardChosenFromGraveyardEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Teval, the Balanced Scale",
+    "Blossoming Tortoise",
+    "Port of Karfell",
+    "Cruel Ultimatum"
    ]
   }
  ]

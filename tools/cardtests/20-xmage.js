@@ -11358,4 +11358,32 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(bear.counters['+1/+1'], 4, 'the copy resolved'); t.eq(gp.zone, 'exile', 'the card stays in exile');
   });
+
+  test("Containment Construct, Proft's Eidetic Memory, Sage's Reverie", (mk, t) => {
+    t.auto('Containment Construct'); t.auto("Proft's Eidetic Memory"); t.auto("Sage's Reverie");
+    const T = mk();
+    T.bf('A', 'Containment Construct');
+    const c = T.hand('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: true });
+    T.g._discardNow('A', [c]);
+    T.settle(); T.resolve();
+    t.eq(c.zone, 'exile'); t.eq(c.impulseBy, 'A', 'playable this turn');
+    const T2 = mk();
+    const pm = T2.bf('A', "Proft's Eidetic Memory");
+    const bear = T2.bf('A', 'Grizzly Bears');
+    T2.g.player('A').drawnThisTurn = 3;
+    const ab = pm.analysis().abilities.find(a => a.kind === 'triggered' && /combat/.test(a.text));
+    T2.g._runEffects(ab.effects, { controller: 'A', obj: pm, name: 'Proft', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    t.eq(bear.counters['+1/+1'], 2, 'three drawn, minus one');
+    const T3 = mk();
+    const b3 = T3.bf('A', 'Grizzly Bears');
+    T3.bf('A', 'Rancor', { }).attachedTo = b3.id;
+    const hand = T3.g.zones.A.hand.length;
+    const sr = T3.hand('A', "Sage's Reverie");
+    T3.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b3.id }] }));
+    T3.mana('A', '3W');
+    T3.cast('A', sr, { targets: [b3.id] });
+    T3.settle(); T3.resolve(); T3.settle(); T3.resolve();
+    t.eq(T3.g.zones.A.hand.length, hand + 2, 'Rancor and the Reverie itself');
+  });
 };

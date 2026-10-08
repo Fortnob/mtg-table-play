@@ -14264,6 +14264,15 @@
           else this.moveObject(x, 'hand');
           break;
         }
+        // Containment Construct: the discarded card, exiled and playable this turn
+        case 'exileTriggerCardPlayable': {
+          const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          if (!x || x.zone !== 'graveyard') break;
+          this.moveObject(x, 'exile');
+          x.impulseBy = ctx.controller; x.impulseUntil = this.turn;
+          this.logEvent('rules', `${me.name} exiles ${x.name} and may play it this turn.`);
+          break;
+        }
         // Cultivator Colossus: a land from hand, a card, and again — until you stop or run out
         case 'putDrawRepeat': {
           const pool = this.zones[ctx.controller].hand.filter(o => this._matchesCategory(o, e.filter));
@@ -18397,6 +18406,8 @@
         else if (spec.who !== 'any' && o.controller !== pid) continue;
         const a = o.analysis();
         if (!a) continue;
+        // Sage's Reverie: only those attached to a creature
+        if (spec.attachedToCreature) { const h = o.attachedTo && this.obj(o.attachedTo); if (!h || !(this.characteristics(h) || {}).isCreature) continue; }
         const hit = wants.some(want => want === 'permanent' ||
           (a.types || []).some(x => x.toLowerCase() === want) ||
           (a.subtypes || []).some(x => x.toLowerCase() === want));

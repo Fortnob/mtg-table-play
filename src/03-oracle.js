@@ -3955,6 +3955,9 @@
       make: (m) => ({ op: 'loseLife', who: 'opponents', n: countSpec(m[2], num(m[1])) }) },
     { re: /^Draw a card for each ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
+    // Sage's Reverie: "Draw a card for each Aura you control that's attached to a creature."
+    { re: /^Draw a card for each ((?:Aura|Equipment) you control that'?s attached to a creature)\.?$/i,
+      make: (m) => { const k = countOf(m[1]); return k ? { op: 'draw', who: 'you', n: k } : null; } },
     { re: /^Draw cards? equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
     { re: /^You gain life equal to the number of ([-a-z' ]+?) you control\.?$/i,
@@ -4731,6 +4734,9 @@
     const p = String(phrase || '').trim();
     const k = mult == null ? 1 : mult;
     let m;
+    // Sage's Reverie: "Aura you control that's attached to a creature"
+    if ((m = p.match(/^(Aura|Equipment)s? you control that(?:'s| are) attached to (?:a )?creatures?$/i)))
+      return { per: m[1].toLowerCase(), who: 'you', attachedToCreature: true, mult: k };
     if ((m = p.match(/^card in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
@@ -4785,6 +4791,9 @@
     // Liliana, the Last Hope: "two plus the number of Zombies you control"
     const pl0 = !pl && p.match(/^(one|two|three|four|five|\d+) plus (.+)$/i);
     if (pl0) { p = pl0[2]; plus = num(pl0[1]); if (typeof plus !== 'number') return null; }
+    // Proft's Eidetic Memory: "the number of cards you've drawn this turn minus one"
+    const mi = !pl && !pl0 && p.match(/^(.+?) minus (one|two|three|\d+)$/i);
+    if (mi) { p = mi[1]; plus = -num(mi[2]); if (typeof plus !== 'number' || isNaN(plus)) return null; }
     const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }) : v);
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
@@ -5385,6 +5394,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Containment Construct: "you may exile that card from your graveyard.
+       If you do, you may play that card this turn." */
+    { re: /^You may exile that card from your graveyard\. If you do, you may play that card this turn\.$/i,
+      make: () => [{ op: 'may', then: [{ op: 'exileTriggerCardPlayable' }] }] },
     /* Praetor's Grasp: "Search target opponent's library for a card and exile
        it face down. Then that player shuffles. You may look at and play that
        card for as long as it remains exiled." */
@@ -6986,6 +6999,8 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Proft's Eidetic Memory: "you've drawn more than one card this turn"
+    [/^you'?ve drawn more than (one|two|three) cards? this turn$/i, (m) => ({ kind: 'drawnAtLeast', n: num(m[1]) + 1 })],
     // Battle Angels of Tyr: "that player has more cards in hand / controls more lands / has more life than each other player"
     [/^that player (has more cards in hand|controls more lands|has more life) than each other player$/i,
       (m) => ({ kind: 'triggerPlayerMost', stat: /hand/i.test(m[1]) ? 'hand' : /lands/i.test(m[1]) ? 'lands' : 'life' })],
