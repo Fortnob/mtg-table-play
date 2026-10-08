@@ -6456,6 +6456,10 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Bone Miser: "Whenever you discard a creature (land) card"
+    { re: /^Whenever you discard an? ((?:non)?(?:creature|land|artifact|enchantment|instant|sorcery)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: m[1].toLowerCase() }) },
+    // Shimmering Efreet: "Whenever this creature phases in"
+    { re: /^Whenever (?:this creature|CARDNAME) phases in,? /i, event: 'phasesIn', self: true },
     /* Rings of Brighthearth, Rowan Kenrith, Kurkesh, Chandra's Regulator,
        Illusionist's Bracers: an ability activated (one that uses the stack) */
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
@@ -6584,13 +6588,13 @@
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
 
     /* --- one ability, two ways to set it off --- */
-    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet))\s+enters(?: the battlefield)?(?:,| )/i,
+    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role|Attraction|Contraption))\s+enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
     { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
     { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token))\s+(?:dies|is put into a graveyard from the battlefield)(?:,| )/i,
       event: 'dies', self: true },
-    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token))\s+leaves the battlefield(?:,| )/i,
+    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|enchantment|artifact|Class|Case|Siege|Room|Curse))\s+leaves the battlefield(?:,| )/i,
       event: 'ltb', self: true },
     { re: /^When(?:ever)? (?:CARDNAME|this creature|this permanent) is turned face up(?:,| )/i,
       event: 'turnedFaceUp', self: true },

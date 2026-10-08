@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13374,
-  "gainedCards": 1403,
-  "linesNeeded": 14675,
-  "linesGained": 1705,
+  "needed": 13347,
+  "gainedCards": 1389,
+  "linesNeeded": 14614,
+  "linesGained": 1681,
   "gained": {
-   "all": 1403,
+   "all": 1389,
    "top2000": 52,
    "stdTop": 10
   },
@@ -25,7 +25,7 @@
    "group": 27,
    "x": 3,
    "it": 18,
-   "opponent": 72,
+   "opponent": 73,
    "condition": 22
   }
  },
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 861,
-   "lines": 744,
+   "score": 860,
+   "lines": 743,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -109,8 +109,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 264,
-   "lines": 234,
+   "score": 253,
+   "lines": 223,
    "cards": [
     "Mizzix's Mastery",
     "Throne of Eldraine",
@@ -337,8 +337,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 36,
-   "lines": 36,
+   "score": 35,
+   "lines": 35,
    "cards": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -1066,25 +1066,6 @@
    ]
   },
   {
-   "what": "ReturnFromExileForSourceEffect",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Admonition Angel",
-    "Journey to Nowhere",
-    "Hoarding Dragon",
-    "Connecting the Dots",
-    "Prowling Geistcatcher",
-    "Parallax Wave",
-    "Wall of Nets",
-    "Bomat Courier",
-    "Promise of Tomorrow",
-    "Safe Haven",
-    "Ashiok's Erasure",
-    "Parallax Tide"
-   ]
-  },
-  {
    "what": "AttachEffect",
    "score": 17,
    "lines": 8,
@@ -1266,25 +1247,6 @@
    ]
   },
   {
-   "what": "second use of a later target",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Ajani, Sleeper Agent",
-    "Nissa, Steward of Elements",
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Vivien, Arkbow Ranger",
-    "Sea Hag // Aquatic Ingress",
-    "Involuntary Cooldown",
-    "Rowan, Fearless Sparkmage",
-    "Invasion of Kylem // Valor's Reach Tag Team",
-    "Sparkmage's Gambit",
-    "Join Forces",
-    "Wrap in Flames"
-   ]
-  },
-  {
    "what": "owner of a permanent",
    "score": 15,
    "lines": 12,
@@ -1437,6 +1399,25 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Ajani, Sleeper Agent",
+    "Nissa, Steward of Elements",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Vivien, Arkbow Ranger",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown",
+    "Rowan, Fearless Sparkmage",
+    "Sparkmage's Gambit",
+    "Join Forces",
+    "Wrap in Flames",
+    "Synchronized Strike"
+   ]
+  },
+  {
    "what": "BecomesCreatureAttachedEffect",
    "score": 15,
    "lines": 15,
@@ -1453,6 +1434,25 @@
     "Awaken the Ancient",
     "Crackling Emergence",
     "Mightstone's Animation"
+   ]
+  },
+  {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Admonition Angel",
+    "Hoarding Dragon",
+    "Connecting the Dots",
+    "Prowling Geistcatcher",
+    "Parallax Wave",
+    "Wall of Nets",
+    "Bomat Courier",
+    "Promise of Tomorrow",
+    "Safe Haven",
+    "Parallax Tide",
+    "Helvault",
+    "Parallax Nexus"
    ]
   },
   {
@@ -1790,21 +1790,6 @@
     "Foggy Swamp Spirit Keeper",
     "Moon Girl and Devil Dinosaur",
     "Jaded Analyst"
-   ]
-  },
-  {
-   "what": "discard trigger for a kind of card",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Bone Miser",
-    "Surly Badgersaur",
-    "Hashaton, Scarab's Fist",
-    "Mary Read and Anne Bonny",
-    "Green Goblin, Nemesis",
-    "Invasion of Kaldheim // Pyre of the World Tree",
-    "Oskar, Rubbish Reclaimer",
-    "Shipwreck Sifters"
    ]
   },
   {
@@ -2237,25 +2222,6 @@
    ]
   },
   {
-   "what": "CreateTokenTargetEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Bloodroot Apothecary",
-    "Verdant Command",
-    "Varchild, Betrayer of Kjeldor",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian",
-    "Thran Spider",
-    "Oath of the Grey Host",
-    "Hansk, Slayer Zealot",
-    "Relic Robber",
-    "Vazi, Keen Negotiator",
-    "Baffling End",
-    "Greener Pastures"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 12,
    "lines": 12,
@@ -2538,6 +2504,24 @@
     "Pristine Angel",
     "Spare from Evil",
     "Masked Gorgon"
+   ]
+  },
+  {
+   "what": "CreateTokenTargetEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Bloodroot Apothecary",
+    "Verdant Command",
+    "Varchild, Betrayer of Kjeldor",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host",
+    "Hansk, Slayer Zealot",
+    "Relic Robber",
+    "Vazi, Keen Negotiator",
+    "Greener Pastures"
    ]
   },
   {
@@ -4967,6 +4951,19 @@
    ]
   },
   {
+   "what": "discard trigger for a kind of card",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Bone Miser",
+    "Surly Badgersaur",
+    "Hashaton, Scarab's Fist",
+    "Mary Read and Anne Bonny",
+    "Oskar, Rubbish Reclaimer",
+    "Shipwreck Sifters"
+   ]
+  },
+  {
    "what": "filter:anyCounter",
    "score": 6,
    "lines": 6,
@@ -7286,8 +7283,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3927,
-   "cards": 3534,
+   "score": 3932,
+   "cards": 3539,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7299,8 +7296,8 @@
   },
   {
    "what": "custom ability",
-   "score": 653,
-   "cards": 563,
+   "score": 652,
+   "cards": 562,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -7338,8 +7335,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 155,
-   "cards": 143,
+   "score": 152,
+   "cards": 140,
    "names": [
     "Mizzix's Mastery",
     "March of Swirling Mist",
@@ -7455,8 +7452,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 30,
-   "cards": 30,
+   "score": 29,
+   "cards": 29,
    "names": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -8697,19 +8694,6 @@
    ]
   },
   {
-   "what": "CreateTokenTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Verdant Command",
-    "Dark Salvation",
-    "The Sentry, Golden Guardian",
-    "Thran Spider",
-    "Oath of the Grey Host",
-    "Hansk, Slayer Zealot"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 9,
    "cards": 9,
@@ -8837,19 +8821,6 @@
     "Slimefoot's Survey",
     "Nael, Avizoa Aeronaut",
     "Gurmag Nightwatch"
-   ]
-  },
-  {
-   "what": "ReturnFromExileForSourceEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Journey to Nowhere",
-    "Connecting the Dots",
-    "Parallax Wave",
-    "Bomat Courier",
-    "Safe Haven",
-    "Parallax Tide"
    ]
   },
   {
@@ -9171,6 +9142,19 @@
    ]
   },
   {
+   "what": "CreateTokenTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Verdant Command",
+    "Dark Salvation",
+    "The Sentry, Golden Guardian",
+    "Thran Spider",
+    "Oath of the Grey Host",
+    "Hansk, Slayer Zealot"
+   ]
+  },
+  {
    "what": "VoidCondition.instance",
    "score": 8,
    "cards": 8,
@@ -9220,6 +9204,19 @@
     "Akuta, Born of Ash",
     "Death Spark",
     "Nether Spirit"
+   ]
+  },
+  {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Connecting the Dots",
+    "Parallax Wave",
+    "Bomat Courier",
+    "Safe Haven",
+    "Parallax Tide",
+    "Helvault"
    ]
   },
   {
@@ -9518,6 +9515,19 @@
    ]
   },
   {
+   "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Furnace Reins",
+    "Rankle and Torbran",
+    "Deeproot Wayfinder",
+    "Attentive Skywarden",
+    "Invasion of Kamigawa // Rooftop Saboteurs",
+    "Bilbo, Unexpected Adventurer"
+   ]
+  },
+  {
    "what": "FilterPermanentThisOrAnother",
    "score": 7,
    "cards": 7,
@@ -9726,6 +9736,19 @@
    ]
   },
   {
+   "what": "DoUnlessAnyPlayerPaysEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Rhystic Tutor",
+    "Soul Strings",
+    "Rhystic Circle",
+    "Icy Prison",
+    "Wild Might",
+    "Rhystic Shield"
+   ]
+  },
+  {
    "what": "LookTargetHandChooseDiscardEffect",
    "score": 7,
    "cards": 7,
@@ -9835,19 +9858,6 @@
     "Sunbird's Invocation",
     "Gale, Waterdeep Prodigy",
     "Harness the Storm"
-   ]
-  },
-  {
-   "what": "discard trigger for a kind of card",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Bone Miser",
-    "Surly Badgersaur",
-    "Hashaton, Scarab's Fist",
-    "Mary Read and Anne Bonny",
-    "Green Goblin, Nemesis",
-    "Shipwreck Sifters"
    ]
   },
   {
@@ -10069,19 +10079,6 @@
     "Legolas, Counter of Kills",
     "Elminster",
     "Glorfindel, Dauntless Rescuer"
-   ]
-  },
-  {
-   "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Furnace Reins",
-    "Rankle and Torbran",
-    "Deeproot Wayfinder",
-    "Attentive Skywarden",
-    "Bilbo, Unexpected Adventurer",
-    "Aetherblade Agent // Gitaxian Mindstinger"
    ]
   },
   {
@@ -10316,19 +10313,6 @@
     "Rootwater Thief",
     "Denying Wind",
     "Supreme Inquisitor"
-   ]
-  },
-  {
-   "what": "DoUnlessAnyPlayerPaysEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Rhystic Tutor",
-    "Soul Strings",
-    "Rhystic Circle",
-    "Wild Might",
-    "Rhystic Shield",
-    "Nakaya Shade"
    ]
   },
   {
@@ -10572,6 +10556,18 @@
    ]
   },
   {
+   "what": "discard trigger for a kind of card",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Bone Miser",
+    "Surly Badgersaur",
+    "Hashaton, Scarab's Fist",
+    "Mary Read and Anne Bonny",
+    "Shipwreck Sifters"
+   ]
+  },
+  {
    "what": "ChooseCreatureTypeEffect",
    "score": 5,
    "cards": 5,
@@ -10629,6 +10625,18 @@
     "Kitt Kanto, Mayhem Diva",
     "Tooth Collector",
     "Urborg Stalker"
+   ]
+  },
+  {
+   "what": "CaseAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Case of the Ransacked Lab",
+    "Case of the Uneaten Feast",
+    "Case of the Shattered Pact",
+    "Case of the Crimson Pulse",
+    "Case of the Burning Masks"
    ]
   },
   {
@@ -11049,18 +11057,6 @@
     "Hapatra's Mark",
     "Suncleanser",
     "Blitz Leech"
-   ]
-  },
-  {
-   "what": "DoIfCostPaid with [\"tapCreatures\"]",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Saheeli, Filigree Master",
-    "Raff, Weatherlight Stalwart",
-    "Tidal Terror",
-    "Gravelgill Scoundrel",
-    "Civil Servant"
    ]
   }
  ]

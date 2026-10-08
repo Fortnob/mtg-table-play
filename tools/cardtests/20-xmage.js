@@ -9412,4 +9412,20 @@ module.exports = (test) => {
     t.ok(c({ kind: 'itPower', n: 2, cmp: 'atMost' }, { targets: [{ kind: 'object', id: bear.id }] }), 'power 2 or less');
     t.no(c({ kind: 'itPower', n: 3, cmp: 'atLeast' }, { targets: [{ kind: 'object', id: bear.id }] }));
   });
+
+  test('Journey to Nowhere gives back what it exiled when it leaves', (mk, t) => {
+    t.auto('Journey to Nowhere');
+    t.auto("Hunter's Talent");
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Journey to Nowhere'));
+    t.eq(bear.zone, 'exile');
+    const j = T.g.battlefield.find(o => o.name === 'Journey to Nowhere');
+    T.g.moveObject(j, 'graveyard');
+    T.resolve();
+    t.eq(bear.zone, 'battlefield', 'back');
+    t.eq(bear.controller, 'B');
+  });
 };

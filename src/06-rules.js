@@ -820,7 +820,11 @@
       // Phasing (CR 702.26): what has it and is phased in goes out as the rest come back
       const phasers = this.battlefield.filter(o => !o.phasedOut && o.controller === ap.id && this.hasKw(o, 'phasing'));
       for (const o of this.battlefield) {
-        if (o.phasedOut && o.phasedOutBy === ap.id && o.phasedTurn < this.turn) { o.phasedOut = false; o.phasedOutBy = null; }
+        if (o.phasedOut && o.phasedOutBy === ap.id && o.phasedTurn < this.turn) {
+          o.phasedOut = false; o.phasedOutBy = null;
+          // Shimmering Efreet: "whenever this creature phases in"
+          this._fire('phasesIn', o.controller, { source: o, object: o });
+        }
       }
       for (const o of phasers) {
         o.phasedOut = true; o.phasedOutBy = ap.id; o.phasedTurn = this.turn;
@@ -13590,6 +13594,14 @@
           const jailer = src || (ctx.objId && this.obj(ctx.objId));
           if (!jailer) break;
           this._releaseExiled(jailer);
+          // Journey to Nowhere: "return the exiled card" — what its own "exile target creature" took
+          for (const id of (jailer._exiledHere || [])) {
+            const o = this.obj(id);
+            if (!o || o.zone !== 'exile') continue;
+            this.moveObject(o, 'battlefield', { controller: o.owner });
+            this.logEvent('zone', `${o.name} returns from exile.`);
+          }
+          jailer._exiledHere = [];
           break;
         }
 
