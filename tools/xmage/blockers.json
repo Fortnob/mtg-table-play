@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12509,
+  "needed": 12505,
   "gainedCards": 1349,
-  "linesNeeded": 13660,
+  "linesNeeded": 13655,
   "linesGained": 1612,
   "gained": {
    "all": 1349,
@@ -5144,18 +5144,6 @@
    ]
   },
   {
-   "what": "keyword ParadigmAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Improvisation Capstone",
-    "Germination Practicum",
-    "Decorum Dissertation",
-    "Restoration Seminar",
-    "Echocasting Symposium"
-   ]
-  },
-  {
    "what": "token ability SoldierFirebendingToken",
    "score": 5,
    "lines": 5,
@@ -7060,13 +7048,24 @@
     "Acolyte of Bahamut",
     "Scion of Halaster"
    ]
+  },
+  {
+   "what": "TransformTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Progenitor Exarch",
+    "Waxing Moon",
+    "Elvish Vatkeeper",
+    "Seedpod Caretaker"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3710,
-   "cards": 3458,
+   "score": 3711,
+   "cards": 3459,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",

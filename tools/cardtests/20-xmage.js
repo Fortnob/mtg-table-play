@@ -11343,4 +11343,19 @@ module.exports = (test) => {
     const ab2 = belt.analysis().abilities.find(a => a.kind === 'activated' && /^Equip/.test(a.text));
     t.eq(T.g._abilityMana(belt, ab2, [{ kind: 'object', id: wurm.id }]), '{4}', '{10} less six');
   });
+
+  test('Paradigm: exiled as it resolves, then a free copy at each of your first main phases', (mk, t) => {
+    t.auto('Germination Practicum');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const gp = T.hand('A', 'Germination Practicum');
+    T.mana('A', '3GG');
+    T.cast('A', gp);
+    T.settle(); T.resolve();
+    t.eq(bear.counters['+1/+1'], 2); t.eq(gp.zone, 'exile', 'exiled'); t.eq(gp.paradigmBy, 'A');
+    T.answer('confirm', (ch) => { t.ok(/Paradigm/.test(ch.prompt), ch.prompt); return { yes: true }; });
+    T.toMain('B'); T.toMain('A');
+    T.settle(); T.resolve();
+    t.eq(bear.counters['+1/+1'], 4, 'the copy resolved'); t.eq(gp.zone, 'exile', 'the card stays in exile');
+  });
 };

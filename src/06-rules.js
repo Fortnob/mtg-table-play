@@ -947,6 +947,14 @@
             if (hits) { this.changeLife(ap, -hits); ap.rad = Math.max(0, ap.rad - hits); }
             this.logEvent('rules', `${ap.name}'s rad counters: ${milled} milled, ${hits} life lost (${ap.rad} rad left).`);
           }
+          // Paradigm: a free copy of each, if its owner wants one
+          if (this.phase.id === 'precombat') {
+            for (const o of ((this.zones[this.activePlayer.id] || {}).exile || [])) {
+              if (o.paradigmBy !== this.activePlayer.id) continue;
+              this.queueChoice({ type: 'confirm', playerId: this.activePlayer.id, purpose: 'paradigm', objId: o.id,
+                prompt: `Paradigm: cast a copy of ${o.name} without paying its mana cost?` });
+            }
+          }
           if (this.phase.id === 'precombat') this._fire('yourMain1', this.activePlayer.id);
           if (this.phase.id === 'precombat') this._fire('eachMain1', null, { playerId: this.activePlayer.id });
           // "at the beginning of your second main phase"
@@ -2002,6 +2010,14 @@
           item.obj.reboundBy = item.controller;
           item.obj.reboundTurn = this.turn;
           this.logEvent('rules', `${item.name} is exiled with rebound.`);
+        }
+        // Paradigm: exiled, and the first of its name copied at each of your first main phases
+        else if (a && a.keywordSet && a.keywordSet.has('paradigm') && !item.countered && !item.isCopy) {
+          const o = item.obj;
+          this.moveObject(o, 'exile');
+          const had = ((this.zones[item.controller] || {}).exile || []).some(x => x !== o && x.paradigmBy === item.controller && x.name === o.name);
+          if (!had) o.paradigmBy = item.controller;
+          this.logEvent('rules', `${item.name} is exiled (paradigm).`);
         }
         else if (item.adventure && !item.countered && !item.isCopy) {
           // "on an adventure": exiled, and its owner may cast the creature from there (CR 715.4)
@@ -19279,6 +19295,17 @@
             const o = this.obj(ch.objId);
             if (!o || !(data && data.yes)) break;
             this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [] });
+            break;
+          }
+          // Paradigm: a copy of the exiled card, cast for nothing (it is not a card)
+          if (ch.purpose === 'paradigm') {
+            const o = this.obj(ch.objId);
+            if (!o || o.zone !== 'exile' || !(data && data.yes)) break;
+            const dup = this._register(new GObj(o.card, playerId, 'exile'));
+            dup.isCopy = true;
+            this.zones[playerId].exile.push(dup);
+            this._castFree(playerId, dup, { how: `(a copy of ${o.name}) without paying its mana cost` });
+            this.stack[this.stack.length - 1].isCopy = true;
             break;
           }
           // Miracle: pay the miracle cost and cast it; its targets are chosen as it resolves
