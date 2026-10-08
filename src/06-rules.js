@@ -3725,6 +3725,12 @@
           this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
+      // Lier: each instant and sorcery card in your graveyard has flashback, for its mana cost
+      if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) && o.flashbackTurn !== this.turn &&
+          !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^flashback$/i.test(ab.keyword || '')) &&
+          this._anyStaticOf(playerId, 'grantFlashbackInstSorc') && !out.some(u => u.via === 'flashback')) {
+        out.push({ kind: 'cast', via: 'flashback', cost: a.manaCost || '', after: 'exile', label: 'Flashback ' + (a.manaCost || '') });
+      }
       // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
           this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
@@ -14275,6 +14281,43 @@
         }
         // Summon: Fenrir: the next creature spell this turn enters with a counter more
         case 'nextCreatureCounter': me.nextCreatureCounter = { turn: this.turn, n: (me.nextCreatureCounter && me.nextCreatureCounter.turn === this.turn ? me.nextCreatureCounter.n : 0) + (Number(e.n) || 1) }; break;
+        // Kwain, Will of the Jeskai: each player may; every answer first, then it happens
+        case 'eachMay': {
+          const order = this.players.filter(q => !q.hasLost);
+          const yes = [];
+          for (const q of order) {
+            const what = (e.discardHand ? 'discard your hand and ' : '') + `draw ${e.draw === 1 ? 'a card' : (e.draw || 1) + ' cards'}`;
+            const got = this._ask({ type: 'confirm', playerId: q.id, purpose: 'eachMay', prompt: `${ctx.name ? ctx.name + ': ' : ''}${what}?` }, 'em:' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            if (got) yes.push(q);
+          }
+          for (const q of yes) {
+            if (e.discardHand) this._discardNow(q.id, this.zones[q.id].hand.slice());
+            this._drawCards(q, e.draw || 1);
+            if (e.gain) this.changeLife(q, e.gain);
+          }
+          break;
+        }
+        // Scourge of Fleets: each opponent's creature with toughness X or less goes home
+        case 'bounceToughnessX': {
+          const k = Math.max(0, n(e.n));
+          this._runEffect({ op: 'bounceAll', what: 'creature', scope: { who: 'opponents', what: 'creature', maxToughness: k } }, ctx);
+          break;
+        }
+        // Liliana of the Dark Realms: +X/+X or -X/-X, chosen as it resolves
+        case 'pumpEitherWay': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const k = Math.max(0, n(e.n));
+          const got = this._choose({ playerId: ctx.controller, purpose: 'pumpEitherWay', kind: 'options', min: 1, max: 1,
+            options: [{ i: 0, label: `+${k}/+${k}` }, { i: 1, label: `-${k}/-${k}` }],
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}${x.name} gets +${k}/+${k} or -${k}/-${k}?` }, 'pew');
+          if (got === SUSPEND) return SUSPEND;
+          const down = !!(got && got.picks && got.picks[0] === 1);
+          x.effects.push({ p: down ? -k : k, t: down ? -k : k, until: 'eot' });
+          this.bumpBoard();
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

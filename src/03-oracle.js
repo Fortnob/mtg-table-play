@@ -5398,6 +5398,21 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Kwain: "Each player may draw a card, then each player who drew a card this way gains 1 life."
+    { re: /^Each player may draw a card, then each player who drew a card this way gains (\d+) life\.$/i,
+      make: (m) => [{ op: 'eachMay', draw: 1, gain: +m[1] }] },
+    // Will of the Jeskai, Wheel of Fortune kin: "Each player may discard their hand and draw five cards."
+    { re: /^Each player may discard their hand and draw (\w+) cards\.$/i,
+      make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]) }] },
+    /* Scourge of Fleets: "return each creature your opponents control with
+       toughness X or less to its owner's hand, where X is the number of
+       Islands you control" */
+    { re: /^Return each creature your opponents control with toughness X or less to its owner'?s hand, where X is ([^.]+)\.$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? [{ op: 'bounceToughnessX', n: k }] : null; } },
+    /* Liliana of the Dark Realms: "Target creature gets +X/+X or -X/-X until
+       end of turn, where X is the number of Swamps you control." */
+    { re: /^(Target creature) gets \+X\/\+X or -X\/-X until end of turn, where X is ([^.]+)\.$/i,
+      make: (m) => { const k = amountOf(m[2]); return k ? [{ op: 'pumpEitherWay', n: k, targets: [targetSpec(m[1])] }] : null; } },
     /* Hit the Mother Lode: "Discover 10. If the discovered card's mana value
        is less than 10, create a number of tapped Treasure tokens equal to the
        difference." */
@@ -7325,6 +7340,8 @@
     { re: /^When you sacrifice (?:this (?:Aura|enchantment|artifact|creature|permanent)|CARDNAME),? /i, event: 'youSacrifice', self: true },
     // Bone Miser: "Whenever you discard a creature (land) card"
     { re: /^Whenever you discard an? ((?:non)?(?:creature|land|artifact|enchantment|instant|sorcery)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: m[1].toLowerCase() }) },
+    // Bone Miser: "Whenever you discard a noncreature, nonland card"
+    { re: /^Whenever you discard an? (non(?:creature|land|artifact)), (non(?:creature|land|artifact)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: (m[1] + ' ' + m[2]).toLowerCase() }) },
     // Shimmering Efreet: "Whenever this creature phases in"
     { re: /^Whenever (?:this creature|CARDNAME) phases in,? /i, event: 'phasesIn', self: true },
     /* Rings of Brighthearth, Rowan Kenrith, Kurkesh, Chandra's Regulator,
@@ -10920,6 +10937,11 @@
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
         }, auto: true },
+      // Lier, Disciple of the Drowned: "Spells can't be countered."
+      { re: /^Spells can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all' }, auto: true },
+      // Lier: "Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost."
+      { re: /^Each instant and sorcery card in your graveyard has flashback\. The flashback cost is equal to that card'?s mana cost\.?$/i,
+        eff: { op: 'grantFlashbackInstSorc' }, auto: true },
       // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
       { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality

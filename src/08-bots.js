@@ -1477,6 +1477,13 @@
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Liliana of the Dark Realms: shrink theirs, grow ours */
+    pumpEitherWay(s) {
+      const g = this.game, c = g && g.resolving && g.resolving.ctx;
+      const t0 = c && (c.resolvedTargets || c.targets || [])[0];
+      const o = t0 && g.obj(t0.id);
+      return { picks: [o && o.controller === this.pid ? 0 : 1] };
+    },
     /* Cultivator Colossus: always another land */
     putFromHand(s) { return { picks: (s.items || []).slice(0, 1).map(x => x.id) }; },
     /* Eerie Ultimatum: one of each name */
