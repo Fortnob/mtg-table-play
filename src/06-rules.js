@@ -2726,6 +2726,7 @@
       if (v.opponents) return this.opponentsOf(pid).length * mult;
       if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
       // Summon: Bahamut: "the total mana value of other permanents you control"
+      if (v.spellsCastThisTurn) return (((this.player(pid) || {}).spellsCastThisTurn) || 0) * mult;
       if (v.totalMvOf) {
         let sum = 0;
         for (const o of this._scopeList(v.totalMvOf, pid, src, null, inLayers)) if (o !== src || !v.totalMvOf.other) sum += (o.card && o.card.cmc) || 0;
@@ -10389,7 +10390,7 @@
         }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
-        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards)) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn)) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
@@ -14889,6 +14890,10 @@
           if (k) this.logEvent('mana', `${me.name} adds ${k} {${e.symbol || 'R'}}.`);
           break;
         }
+        // Promise of Bunrei: "sacrifice this enchantment. If you do, …"
+        case 'sacSelfThen':
+          if (src && src.zone === 'battlefield') { this._sacrificeNow(ctx.controller, [src]); this._spliceNext(e.then || []); }
+          break;
         // Angel's Grace
         case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
         case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13347,
+  "needed": 13343,
   "gainedCards": 1389,
-  "linesNeeded": 14614,
+  "linesNeeded": 14610,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4870,
-   "lines": 4312,
+   "score": 4868,
+   "lines": 4310,
    "cards": [
     "Opposition Agent",
     "Tibalt's Trickery",
@@ -724,25 +724,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 22,
-   "lines": 19,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Kaito, Bane of Nightmares",
-    "Change of Fortune",
-    "Liliana's Standard Bearer",
-    "Blitzball Stadium",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Narset, Jeskai Waymaster",
-    "Moonshae Pixie // Pixie Dust"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -778,6 +759,25 @@
     "Minthara, Merciless Soul",
     "Ezuri, Claw of Progress",
     "Katara, Waterbending Master"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Kaito, Bane of Nightmares",
+    "Change of Fortune",
+    "Liliana's Standard Bearer",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Moonshae Pixie // Pixie Dust",
+    "Misty Knight, Hero for Hire"
    ]
   },
   {
@@ -1171,25 +1171,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Hobgoblin Bandit Lord",
-    "Noise Marine",
-    "Mana Cannons",
-    "Niv-Mizzet, Guildpact",
-    "Anathemancer",
-    "Monstrous Emergence",
-    "Moonveil Regent",
-    "Voracious Dragon",
-    "Close Encounter",
-    "Lightning Storm",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt"
-   ]
-  },
-  {
    "what": "CompoundCondition",
    "score": 16,
    "lines": 16,
@@ -1320,6 +1301,25 @@
     "Thunder Salvo",
     "Death's Approach",
     "Master's Councillors"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Hobgoblin Bandit Lord",
+    "Mana Cannons",
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Lightning Storm",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt",
+    "Galvanic Bombardment"
    ]
   },
   {
@@ -7283,8 +7283,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3932,
-   "cards": 3539,
+   "score": 3930,
+   "cards": 3537,
    "names": [
     "Tibalt's Trickery",
     "Incubation Druid",
@@ -7633,19 +7633,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 17,
-   "cards": 14,
-   "names": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Change of Fortune",
-    "Liliana's Standard Bearer",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 17,
    "cards": 14,
@@ -7721,6 +7708,19 @@
     "Scarblade's Malice",
     "Desperate Measures",
     "Felonious Rage"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Liliana's Standard Bearer",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant"
    ]
   },
   {
@@ -8246,19 +8246,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Hobgoblin Bandit Lord",
-    "Noise Marine",
-    "Mana Cannons",
-    "Anathemancer",
-    "Voracious Dragon",
-    "Pyre-Sledge Arsonist"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 11,
    "cards": 11,
@@ -8457,6 +8444,19 @@
     "Starseer Mentor",
     "Thornplate Intimidator",
     "Tomb Blade"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Hobgoblin Bandit Lord",
+    "Mana Cannons",
+    "Anathemancer",
+    "Voracious Dragon",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt"
    ]
   },
   {

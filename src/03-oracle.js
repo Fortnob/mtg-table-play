@@ -4353,6 +4353,8 @@
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     // Phyrexian Rebirth: "the number of creatures destroyed this way"
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
+    // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
+    if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Arachnogenesis: "the number of creatures attacking you"
     if (/^the number of creatures attacking you$/i.test(p)) return done({ scope: { who: 'all', what: 'creature', attacking: true, attackingYou: true }, mult: 1 });
     // Summon: Bahamut: "the total mana value of other permanents you control"
@@ -5624,6 +5626,18 @@
         const cost = /life$/i.test(theyMay[2]) ? { life: parseInt(theyMay[2], 10) } : theyMay[2];
         effects.push({ op: 'unlessPays', who: 'target', cost, then: inner.effects, text: s + ' ' + next });
         if (!inner.auto) auto = false;
+        i++;
+        continue;
+      }
+
+      /* Promise of Bunrei, Standstill: "sacrifice this enchantment. If you
+         do, create four 1/1 Spirit tokens" — only if it was still there to go */
+      const sacSelf = s.match(/^(?:Then )?sacrifice (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.$/i);
+      const sacDo = sacSelf && next.match(/^If you do,\s*(.+)$/i);
+      if (sacDo) {
+        const then = parseSentenceList(splitSentences(U.titleCase(sacDo[1].charAt(0)) + sacDo[1].slice(1)));
+        if (!then.auto) auto = false;
+        effects.push({ op: 'sacSelfThen', then: then.effects, text: s + ' ' + next });
         i++;
         continue;
       }
