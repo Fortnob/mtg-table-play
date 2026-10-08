@@ -9319,4 +9319,17 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bear), 20);
     t.eq(T.g.toughnessOf(bear), 20);
   });
+
+  test('Conditions: a noncreature spell cast this turn; the initiative; not the starting player', (mk, t) => {
+    t.auto('H.E.R.B.I.E., Lovable Robot');
+    t.auto('Feywild Caretaker');
+    const T = mk();
+    t.no(T.g._condMet({ kind: 'spellsCastOfKind', n: 1, words: 'noncreature' }, { controller: 'A' }), 'nothing cast yet');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.ok(T.g._condMet({ kind: 'spellsCastOfKind', n: 1, words: 'noncreature' }, { controller: 'A' }), 'a Bolt is a noncreature spell');
+    t.eq(T.g._condMet({ kind: 'notStartingPlayer' }, { controller: 'A' }), T.g.turnOrder[0] !== 'A');
+    T.g.player('A').initiative = true;
+    t.ok(T.g._condMet({ kind: 'hasInitiative' }, { controller: 'A' }));
+  });
 };

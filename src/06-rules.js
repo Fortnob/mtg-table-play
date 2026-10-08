@@ -8367,6 +8367,14 @@
         case 'exiledThisWay': return (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
+        case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
+        case 'hasInitiative': return !!(me && me.initiative);
+        // Ordeal of Nylea: the creature the trigger is about, or the one this Aura is on
+        case 'itCounters': {
+          const td = (ctx && ctx.triggerData) || {};
+          const it = (td.objectId && this.obj(td.objectId)) || (src && src.attachedTo && this.obj(src.attachedTo)) || null;
+          return !!it && (Number((it.counters || {})[cond.counter]) || 0) >= (cond.n || 1);
+        }
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
         case 'notTheirTurn': {
           const d = (ctx && ctx.triggerData) || {};
@@ -8391,6 +8399,8 @@
           if (!me) return false;
           const z = this.zones[cond.who === 'opponents' ? (this.opponentsOf(me.id)[0] || me).id : me.id];
           const list = (z && z.graveyard) || [];
+          // "instant and/or sorcery cards": either kind
+          if (cond.anyOf) return at(list.filter(o => cond.anyOf.some(w => this._matchesCategory(o, w))).length);
           return at(cond.what ? list.filter(o => this._matchesCategory(o, cond.what)).length : list.length);
         }
         case 'graveyardTypes': {

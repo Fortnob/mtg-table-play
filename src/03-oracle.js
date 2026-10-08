@@ -6177,6 +6177,19 @@
     [/^you have (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     [/^(?:there are )?(\w+) or more card types (?:are )?among cards in your graveyard$/i,
       (m) => ({ kind: 'graveyardTypes', n: num(m[1]) })],
+    // Dark Petition, spell mastery: "there are two or more instant and/or sorcery cards in your graveyard"
+    [/^there are (\w+) or more ([a-z]+) and\/or ([a-z]+) cards in your graveyard$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', anyOf: [m[2].toLowerCase(), m[3].toLowerCase()], n: num(m[1]) } : null)],
+    // H.E.R.B.I.E., Council of Reeds: "you've cast a noncreature spell this turn"
+    [/^you'?ve cast an? (noncreature|creature|instant or sorcery|instant|sorcery|artifact|enchantment|multicolored) spell this turn$/i,
+      (m) => ({ kind: 'spellsCastOfKind', n: 1, words: m[1].toLowerCase() })],
+    // Lonely End: "you weren't the starting player"
+    [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
+    // Feywild Caretaker: "you have the initiative"
+    [/^you have the initiative$/i, () => ({ kind: 'hasInitiative' })],
+    // Ordeal of Nylea: "it has three or more +1/+1 counters on it" — the creature the trigger is about, or the one this is on
+    [/^(?:it|enchanted creature|equipped creature) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'itCounters', n: num(m[1]), counter: m[2].toLowerCase() } : null)],
     // Grave Researcher: "there are three or more creature cards in your graveyard"
     [/^there are (\w+) or more ([a-z]+?) cards in your graveyard$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', what: m[2], n: num(m[1]) } : null)],
     [/^you have (\w+) or more ([a-z]+?) cards? in your graveyard$/i,
