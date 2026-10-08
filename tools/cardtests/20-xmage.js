@@ -9689,4 +9689,45 @@ module.exports = (test) => {
     t.eq(T2.life('A'), 23, 'three life for being web-slung');
     t.eq(T2.g.battlefield.filter(o => o.controller === 'A' && /Spider/.test(o.name) && o.isToken).length, 2, 'and two Spiders');
   });
+
+  test('Curse of Verbosity: both the curse\'s owner and the attacker draw; Shared Animosity; Sphere of Safety', (mk, t) => {
+    t.auto('Curse of Verbosity');
+    t.auto('Shared Animosity');
+    t.auto('Sphere of Safety');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const curse = T.bf('C', 'Curse of Verbosity');
+    curse.attachedTo = 'B';
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const ha = T.zone('A', 'hand').length, hc = T.zone('C', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('C', 'hand').length, hc + 1, 'the curse\'s controller drew');
+    t.eq(T.zone('A', 'hand').length, ha + 1, 'and so did the attacker');
+    const T2 = mk();
+    T2.bf('A', 'Shared Animosity');
+    const e1 = T2.bf('A', 'Llanowar Elves'), e2 = T2.bf('A', 'Elvish Mystic'), b2 = T2.bf('A', 'Grizzly Bears');
+    for (const x of [e1, e2, b2]) x.summoningSick = false;
+    T2.answer('declareAttackers', () => [e1, e2, b2].map(x => ({ attackerId: x.id, defenderId: 'B' })));
+    T2.answer('declareBlockers', () => []);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.life('B'), 20 - 2 - 2 - 2, 'each Elf +1/+0 for the other, the Bears alone');
+    const T3 = mk();
+    T3.bf('B', 'Sphere of Safety');
+    const at = T3.bf('A', 'Grizzly Bears'); at.summoningSick = false;
+    t.no(T3.g.declareAttackers('A', [{ attackerId: at.id, defenderId: 'B' }]), 'one enchantment: {1} a creature, and A has no mana');
+  });
+
+  test('A Curse cast on a player enchants that player, and its upkeep trigger works', (mk, t) => {
+    t.auto('Curse of the Bloody Tome');
+    const T = mk();
+    T.mana('A', '2U');
+    const curse = T.hand('A', 'Curse of the Bloody Tome');
+    T.cast('A', curse, { targets: ['B'] });
+    t.eq(curse.zone, 'battlefield', 'it stays');
+    t.eq(curse.attachedTo, 'B', 'on B');
+    const lib = T.zone('B', 'library').length;
+    T.nextTurn('B');
+    t.eq(T.zone('B', 'library').length, lib - 3, 'B milled two in their upkeep, and drew one');
+  });
 };

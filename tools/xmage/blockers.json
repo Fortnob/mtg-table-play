@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13146,
+  "needed": 13138,
   "gainedCards": 1368,
-  "linesNeeded": 14318,
+  "linesNeeded": 14310,
   "linesGained": 1655,
   "gained": {
    "all": 1368,
@@ -33,12 +33,10 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4845,
-   "lines": 4296,
+   "score": 4833,
+   "lines": 4293,
    "cards": [
     "Tibalt's Trickery",
-    "Sphere of Safety",
-    "Shared Animosity",
     "Springheart Nantuko",
     "Veyran, Voice of Duality",
     "Inkshield",
@@ -47,7 +45,9 @@
     "Tainted Pact",
     "Tempt with Discovery",
     "Demonic Consultation",
-    "Promise of Loyalty"
+    "Promise of Loyalty",
+    "Moraug, Fury of Akoum",
+    "Chain of Vapor"
    ]
   },
   {
@@ -3394,18 +3394,6 @@
     "Tireless Angler",
     "Ishkanah, Broodmother",
     "Faithful Disciple"
-   ]
-  },
-  {
-   "what": "EnchantedPlayerAttackedTriggeredAbility",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Curse of Opulence",
-    "Curse of Verbosity",
-    "Curse of Disturbance",
-    "Curse of Bounty",
-    "Curse of Vitality"
    ]
   },
   {
@@ -7183,20 +7171,31 @@
     "Dyadrine, Synthesis Amalgam",
     "Ardent Dustspeaker"
    ]
+  },
+  {
+   "what": "becomes the target, under anyone",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Shay Cormac",
+    "Willbreaker",
+    "Horobi, Death's Wail",
+    "Cowardice"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3925,
-   "cards": 3538,
+   "score": 3913,
+   "cards": 3535,
    "names": [
     "Tibalt's Trickery",
-    "Sphere of Safety",
-    "Shared Animosity",
     "Springheart Nantuko",
     "Veyran, Voice of Duality",
-    "Inkshield"
+    "Inkshield",
+    "Etali, Primal Conqueror // Etali, Primal Sickness",
+    "Beseech the Mirror"
    ]
   },
   {
@@ -8778,18 +8777,6 @@
     "Experimental Pilot",
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter"
-   ]
-  },
-  {
-   "what": "EnchantedPlayerAttackedTriggeredAbility",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Curse of Opulence",
-    "Curse of Verbosity",
-    "Curse of Disturbance",
-    "Curse of Bounty",
-    "Curse of Vitality"
    ]
   },
   {
@@ -10962,6 +10949,18 @@
     "Misinformation",
     "Shieldmage Advocate",
     "Forcemage Advocate"
+   ]
+  },
+  {
+   "what": "ReturnToHandFromGraveyardAllEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Twilight Shepherd",
+    "No Rest for the Wicked",
+    "Gleancrawler",
+    "Fell Shepherd",
+    "Infernal Caretaker"
    ]
   }
  ]

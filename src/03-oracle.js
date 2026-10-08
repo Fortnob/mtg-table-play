@@ -2400,6 +2400,10 @@
     { re: /^Its controller creates (a|an|one|two|three|four|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', who: 'targetController', n: num(m[1]),
         token: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }) },
+    { re: /^Each opponent attacking that player does the same\.?$/i, make: () => ({ op: 'noop', sameForAttacker: true }) },
+    // Curse of Bounty: "Each opponent attacking that player untaps all nonland permanents they control."
+    { re: /^Each opponent attacking that player untaps all nonland permanents they control\.?$/i,
+      make: () => ({ op: 'asPlayer', who: 'attackingOpponent', effects: [{ op: 'untapAll', what: 'nonland' }] }) },
     { re: /^If that spell is countered this way, exile it instead of putting it into its owner'?s graveyard\.?$/i,
       make: () => ({ op: 'noop', counterExileRider: true }) },
     // Remand, Memory Lapse, Spell Crumple: the countered spell goes somewhere else
@@ -3630,6 +3634,9 @@
     { re: /^(?:CARDNAME|This creature) deals (\d+) damage to itself\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toSelf2: true }) },
     // Abomination: "destroy that creature at end of combat"
     { re: /^Destroy that creature at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'triggerObject' }) },
+    // Shared Animosity: "it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it"
+    { re: /^It gets \+(\d+)\/\+(\d+) until end of turn for each other attacking creature that shares a creature type with it\.?$/i,
+      make: (m) => ({ op: 'pumpPerKinAttacker', p: +m[1], t: +m[2] }) },
     // Rabid Elephant: "it gets +2/+2 until end of turn for each creature blocking it"
     { re: /^(?:It|CARDNAME|This creature) gets \+(\d+)\/\+(\d+) until end of turn for each creature blocking it\.?$/i,
       make: (m) => ({ op: 'pumpPerBlocker', p: +m[1], t: +m[2] }) },
@@ -6024,6 +6031,13 @@
       }
       /* "If that spell is countered this way, exile it instead…" changes
          where the countered spell goes, so it travels with the counter. */
+      /* Curse of Opulence: "Each opponent attacking that player does the same." —
+         everything said so far, again, for the attacking player */
+      if (e && e.sameForAttacker) {
+        if (!out.length) return null;
+        out.push({ op: 'asPlayer', who: 'attackingOpponent', effects: JSON.parse(JSON.stringify(out)) });
+        continue;
+      }
       if (e && e.counterExileRider) {
         for (let i = out.length - 1; i >= 0; i--) {
           const put = (x) => { if (e.counterExileRider === true) x.exileIt = true; else x.counterTo = e.counterExileRider; };
@@ -6549,6 +6563,8 @@
     // Mangara, the Diplomat: "Whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control"
     { re: /^Whenever an opponent attacks with creatures, if (two|three) or more of those creatures are attacking you(?: and\/or planeswalkers you control)?,? /i,
       event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackingYou: num(m[1]) }) },
+    // the curses of Commander 2017: "Whenever enchanted player is attacked"
+    { re: /^Whenever enchanted player is attacked,? /i, event: 'anyPlayerAttacks', extra: { enchantedAttacked: true } },
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
     // Baral, Lullmage Mentor
@@ -9486,6 +9502,9 @@
     { re: /^((?:[A-Z][a-z]+ )?(?:creature |noncreature |instant and sorcery |green |blue |red |white |black |[a-z]+ and [a-z]+ )?spells?) you control can'?t be countered\.?$/i,
       make: (m) => ({ op: 'uncounterable', who: 'you', words: m[1].toLowerCase().replace(/ and /g, ' or ') }) },
     { re: /^(?:CARDNAME|This spell) can'?t be countered\.?$/i, make: () => ({ op: 'cantBeCountered' }) },
+    // Conqueror's Flail: only while it is attached to a creature
+    { re: /^As long as this Equipment is attached to a creature, your opponents can'?t cast spells during your turn\.?$/i,
+      make: () => ({ op: 'castRestrict', who: 'opponents', yourTurnOnly: true, whileAttached: true }) },
     /* Silence on a stick: Grand Abolisher, Voice of Victory, Kutzil */
     { re: /^(?:During your turn, )?[Yy]our opponents can'?t cast spells( during your turn)?( or activate abilities of artifacts, creatures, or enchantments)?\.?$/,
       make: (m) => ({ op: 'castRestrict', who: 'opponents', yourTurnOnly: !!m[1] || /^During/.test(m[0]), abilities: !!m[2] }) },
@@ -9837,6 +9856,9 @@
       // Ghostly Prison, Baird: any generic amount, and planeswalkers as well
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         make: (m) => ({ op: 'attackTax', amount: '{' + m[2] + '}', walkers: !!m[1] }), auto: true },
+      // Sphere of Safety: "… pays {X} for each of those creatures, where X is the number of enchantments you control."
+      { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{X\} for each (?:creature they control that'?s attacking you|of those creatures), where X is (.+?)\.?$/i,
+        make: (m) => { const per = amountOf(m[2]); return per != null && typeof per === 'object' ? { op: 'attackTax', amount: '{0}', per, walkers: !!m[1] } : null; }, auto: true },
       // Elephant Grass: "Nonblack creatures can't attack you unless…" — only those
       { re: /^((?:[A-Za-z]+ )?creatures(?: with [a-z0-9 ]+)?) can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'attackTax', amount: '{' + m[3] + '}', walkers: !!m[2], scope } : null; }, auto: true },

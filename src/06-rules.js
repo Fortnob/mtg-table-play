@@ -2115,7 +2115,12 @@
             this.logEvent('reanimate', `${this.player(item.controller).name} returns ${dead.name} with ${o.name}.`);
           }
         }
-        if (a.isAura || item.via === 'bestow') {
+        // a Curse: an Aura on a player, who is what it enchants
+        const tp = a.isAura && !(item.targets || []).some(x => x.kind === 'object') && (item.targets || []).find(x => x.kind === 'player');
+        if (tp && this.player(tp.id) && !this.player(tp.id).hasLost) {
+          o.attachedTo = tp.id;
+          this.logEvent('rules', `${o.name} enchants ${this.player(tp.id).name}.`);
+        } else if (a.isAura || item.via === 'bestow') {
           const t = (item.targets || []).find(x => x.kind === 'object');
           const host = t && this.obj(t.id);
           if (host && host.zone === 'battlefield') {
@@ -2813,6 +2818,16 @@
     }
 
     /** Is this card the creature type named (changelings are every type)? */
+    /** Do two permanents share a creature type? A changeling shares every one. */
+    _shareCreatureType(a, b) {
+      const ca = a.analysis(), cb = b.analysis();
+      if (!ca || !cb) return false;
+      const ta = (ca.subtypes || []).filter(t => this._isCreatureType(t)), tb = (cb.subtypes || []).filter(t => this._isCreatureType(t));
+      const cha = this.hasKw(a, 'changeling'), chb = this.hasKw(b, 'changeling');
+      if (cha && (chb || tb.length)) return true;
+      if (chb && ta.length) return true;
+      return ta.some(t => tb.some(u => u.toLowerCase() === t.toLowerCase()));
+    }
     _hasCreatureType(o, type) {
       const a = o.analysis();
       if (!a || !type) return false;
@@ -7048,7 +7063,8 @@
             if (!ef || ef.op !== 'attackTax' || (walker && !ef.walkers)) continue;
             // Elephant Grass: only nonblack creatures pay
             if (ef.scope) { const at = this.obj(d.attackerId); if (!at || !this._scopeHit(ef.scope, at, at.analysis() || {}, o.controller, o)) continue; }
-            k += parseInt(String(ef.amount || '{2}').replace(/[{}]/g, ''), 10) || 0;
+            k += ef.per != null ? Math.max(0, Number(this._countValue(ef.per, o.controller, o)) || 0)
+              : parseInt(String(ef.amount || '{2}').replace(/[{}]/g, ''), 10) || 0;
           }
         }
         return k;
@@ -9908,6 +9924,12 @@
           if (ab.loyaltyOnly && !data.loyalty) continue;
           // "whenever you activate an exhaust ability"
           if (ab.abilityLabel && data.label !== ab.abilityLabel) continue;
+          // the curses: enchanted player is attacked, by a creature attacking them (not their planeswalkers)
+          if (ab.enchantedAttacked) {
+            if (!o.attachedTo || !this.player(o.attachedTo)) continue;
+            const at = (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(Boolean);
+            if (!at.some(x => x.attacking === o.attachedTo)) continue;
+          }
           // Mangara: an opponent's attack, with that many creatures coming at you or your planeswalkers
           if (ab.minAttackingYou) {
             if (data.playerId === o.controller) continue;
@@ -15815,6 +15837,25 @@
           applyToScope(e, (o) => { o.destroyAtEndOfCombat = this.turn; });
           break;
         // Rabid Elephant: +N/+N for each creature blocking it
+        // Shared Animosity: the attacker that triggered it, +1/+0 for each other attacker of a kind with it
+        /* Curse of Opulence: the same again, done by the player attacking the
+           enchanted player, if that player is an opponent of this one's controller */
+        case 'asPlayer': {
+          const pid = (ctx.triggerData || {}).playerId;
+          if (!pid || pid === ctx.controller || !this.opponentsOf(ctx.controller).some(q => q.id === pid)) break;
+          const sub = Object.assign({}, ctx, { controller: pid });
+          for (const x of e.effects || []) this._runEffect(x, sub);
+          break;
+        }
+        case 'pumpPerKinAttacker': {
+          const tdk = ctx.triggerData || {};
+          const it = tdk.objectId && this.obj(tdk.objectId);
+          if (!it || it.zone !== 'battlefield') break;
+          const k = this.combat.attackers.map(id => this.obj(id)).filter(x => x && x !== it && x.zone === 'battlefield' && this._shareCreatureType(it, x)).length;
+          if (k) it.effects.push({ p: e.p * k, t: e.t * k, until: 'eot' });
+          this.bumpBoard();
+          break;
+        }
         case 'pumpPerBlocker': {
           if (!src || src.zone !== 'battlefield') break;
           const k = (src.blockedBy || []).length;
@@ -16747,6 +16788,7 @@
         if (!e) continue;
         if (abilities && !e.abilities) continue;
         if (e.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
+        if (e.whileAttached && !(o.attachedTo && this.obj(o.attachedTo))) continue;
         return `${o.name} stops that.`;
       }
       return null;
@@ -17287,7 +17329,13 @@
              battlefield, or to something it can no longer enchant goes to
              the graveyard (CR 704.5m). Equipment or a Fortification in the
              same state just comes off and stays (704.5n). */
-          if (o.attachedTo) {
+          // a Curse on a player stays as long as that player is in the game
+          const hostP = o.attachedTo && this.player(o.attachedTo);
+          if (hostP && hostP.hasLost) {
+            o.lastAttachedTo = o.attachedTo; o.attachedTo = null; repeat = true;
+            if (a.isAura) { this.logEvent('sba', `${o.name} is put into the graveyard (${hostP.name} has left the game).`); this.moveObject(o, 'graveyard'); continue; }
+          }
+          if (o.attachedTo && !hostP) {
             const host = this.obj(o.attachedTo);
             const gone = !host || host.zone !== 'battlefield';
             const illegal = !gone && !host.phasedOut && !this._attachLegal(o, a, host);
