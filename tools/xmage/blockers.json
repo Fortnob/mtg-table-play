@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13320,
+  "needed": 13308,
   "gainedCards": 1389,
-  "linesNeeded": 14581,
+  "linesNeeded": 14568,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -1847,25 +1847,6 @@
     "Stone by Sunlight",
     "Tezzeret the Schemer",
     "Thran Forge"
-   ]
-  },
-  {
-   "what": "ExpendTriggeredAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Trailtracker Scout",
-    "Wandertale Mentor",
-    "Teapot Slinger",
-    "Pyreswipe Hawk",
-    "Bakersbane Duo",
-    "Muerra, Trash Tactician",
-    "Roughshod Duo",
-    "Byway Barterer",
-    "Hoarder's Overflow",
-    "Bark-Knuckle Boxer",
-    "Brambleguard Veteran",
-    "Junkblade Bruiser"
    ]
   },
   {
@@ -7266,6 +7247,17 @@
     "Stenn, Paranoid Partisan",
     "Phabine, Boss's Confidant"
    ]
+  },
+  {
+   "what": "ManaValueLessThanOrEqualToSourcePowerPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Carmen, Cruel Skymarcher",
+    "Dreadhorde Arcanist",
+    "Gurgling Anointer",
+    "Arcane Proxy"
+   ]
   }
  ],
  "sole": [
@@ -8057,19 +8049,6 @@
     "Louisoix's Sacrifice",
     "Consign to Memory",
     "Deny the Witch"
-   ]
-  },
-  {
-   "what": "ExpendTriggeredAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Trailtracker Scout",
-    "Wandertale Mentor",
-    "Teapot Slinger",
-    "Pyreswipe Hawk",
-    "Bakersbane Duo",
-    "Muerra, Trash Tactician"
    ]
   },
   {
@@ -11044,6 +11023,18 @@
     "Tower Worker",
     "Petalmane Baku",
     "Loot, the Nexus"
+   ]
+  },
+  {
+   "what": "MultikickerCount.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Wolfbriar Elemental",
+    "Bloodhusk Ritualist",
+    "Stronghold Arena",
+    "Lightkeeper of Emeria",
+    "Spell Contortion"
    ]
   }
  ]

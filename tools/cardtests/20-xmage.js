@@ -9443,4 +9443,19 @@ module.exports = (test) => {
     T.bf('A', 'Llanowar Elves');
     t.eq(v({ per: 'colors among permanents', who: 'you' }), 1, 'green only');
   });
+
+  test('Expend 4: the fourth mana spent this turn sets it off, once', (mk, t) => {
+    t.auto('Wandertale Mentor');
+    const T = mk();
+    const m = T.bf('A', 'Wandertale Mentor');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(m.counters['+1/+1'] || 0, 0, 'one mana: not yet');
+    T.mana('A', 'UUG');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.eq(m.counters['+1/+1'] || 0, 1, 'four spent: a counter');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(m.counters['+1/+1'] || 0, 1, 'not again for the fifth');
+  });
 };

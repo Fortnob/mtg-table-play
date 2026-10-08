@@ -3140,6 +3140,16 @@
        used to be free) */
     _spendPlan(p, plan) {
       if (plan && plan.life > 0) this.changeLife(p, -plan.life, 'cost');
+      // expend: the fourth (eighth) total mana spent this turn
+      if (plan && p) {
+        const k = ['W', 'U', 'B', 'R', 'G', 'C'].reduce((t, c) => t + (Number(plan[c]) || 0), 0);
+        if (k > 0) {
+          const was = p.manaSpentTurn === this.turn ? (p.manaSpentThisTurn || 0) : 0;
+          p.manaSpentTurn = this.turn;
+          p.manaSpentThisTurn = was + k;
+          for (const at of [4, 8]) if (was < at && was + k >= at) this._fire('youExpend', p.id, { n: at, playerId: p.id });
+        }
+      }
       return this._noteSpent(plan);
     }
     /** How much life this player can pay right now: none while their life total can't change (CR 119.8). */
@@ -9720,6 +9730,8 @@
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // "whenever you activate a loyalty ability"
           if (ab.loyaltyOnly && !data.loyalty) continue;
+          // "whenever you expend 4": only that threshold
+          if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only

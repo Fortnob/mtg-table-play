@@ -6483,6 +6483,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Expend (Bloomburrow): "Whenever you expend 4" — the fourth total mana you have spent this turn
+    { re: /^Whenever you expend (\d+),? /i, event: 'youExpend', extraOf: (m) => ({ expendN: +m[1] }) },
     // Bone Miser: "Whenever you discard a creature (land) card"
     { re: /^Whenever you discard an? ((?:non)?(?:creature|land|artifact|enchantment|instant|sorcery)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: m[1].toLowerCase() }) },
     // Shimmering Efreet: "Whenever this creature phases in"
