@@ -5190,7 +5190,16 @@
 
     /** Cascade: exile until a cheaper nonland card, then cast it free (CR 702.85). */
     _cascade(item, a) {
-      if (!a || !a.keywordSet.has('cascade')) return;
+      if (!a) return;
+      // Imoti: cascade handed out to spells of a kind
+      const granted = !a.keywordSet.has('cascade') && item.obj && this._withEmblems(this.battlefield).some(src => {
+        if (src.phasedOut || src.controller !== item.controller) return false;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        if (!g || g.keyword !== 'cascade') return false;
+        if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) < g.minMv) return false;
+        return !g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter);
+      });
+      if (!a.keywordSet.has('cascade') && !granted) return;
       const pid = item.controller;
       const lib = this.zones[pid].library;
       const mv = a.mv || 0;
@@ -19816,6 +19825,8 @@
         // historic: legendary, an artifact, or a Saga
         if (w === 'historic') return !!a.isLegendary || !!a.isArtifact || (a.subtypes || []).includes('Saga');
         if (w === 'token' || w === 'tokens') return !!o.isToken;
+        // Flamekin Herald: "Commander spells you cast"
+        if (w === 'commander' || w === 'commanders') return !!o.isCommander;
         // Wing Shards: "an attacking creature"; Stoneshaker Shaman: "an untapped land"
         if (w === 'attacking') return !!o.attacking;
         // Vengeful Ancestor: "a goaded creature"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12448,
+  "needed": 12445,
   "gainedCards": 1351,
-  "linesNeeded": 13584,
+  "linesNeeded": 13581,
   "linesGained": 1612,
   "gained": {
    "all": 1351,
@@ -280,8 +280,8 @@
   },
   {
    "what": "GainAbilityControlledSpellsEffect",
-   "score": 46,
-   "lines": 34,
+   "score": 43,
+   "lines": 31,
    "cards": [
     "Rain of Riches",
     "Hoarding Broodlord",
@@ -289,12 +289,12 @@
     "Party Thrasher",
     "Ral, Crackling Wit",
     "Thrumming Stone",
-    "Imoti, Celebrant of Bounty",
     "Zhulodok, Void Gorger",
     "Tezzeret, Master of the Bridge",
     "Mycosynth Golem",
     "Wildsear, Scouring Maw",
-    "Hunting Velociraptor"
+    "Hunting Velociraptor",
+    "Prismari, the Inspiration"
    ]
   },
   {
@@ -7197,15 +7197,15 @@
   },
   {
    "what": "GainAbilityControlledSpellsEffect",
-   "score": 34,
-   "cards": 25,
+   "score": 31,
+   "cards": 22,
    "names": [
     "Rain of Riches",
     "Party Thrasher",
     "Ral, Crackling Wit",
     "Thrumming Stone",
-    "Imoti, Celebrant of Bounty",
-    "Zhulodok, Void Gorger"
+    "Zhulodok, Void Gorger",
+    "Mycosynth Golem"
    ]
   },
   {

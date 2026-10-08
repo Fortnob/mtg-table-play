@@ -10734,6 +10734,10 @@
       // Chief Engineer, Dazzling Theater: "Artifact spells you cast have convoke."
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
+      // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
+      { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
+        make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },
+          m[2] ? { minMv: +m[2] } : {}), auto: true },
       /* Winter Orb, Static Orb, Smoke: "players can't untap more than one
          land during their untap steps" */
       { re: /^(As long as (?:this artifact|CARDNAME) is untapped, )?(players|you) can'?t untap more than (one|two|three) (lands?|creatures?|artifacts?|permanents?) during (?:their|your) untap steps?\.?$/i,

@@ -11571,4 +11571,16 @@ module.exports = (test) => {
     T4.g.dealDamageToPlayer(T4.g.player('B'), 4, qb, true);
     t.eq(T4.life('B'), 16, "combat damage from A's creature isn't prevented");
   });
+
+  test('Imoti: spells with mana value 6 or greater have cascade', (mk, t) => {
+    t.auto('Imoti, Celebrant of Bounty');
+    const T = mk();
+    T.bf('A', 'Imoti, Celebrant of Bounty');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.mana('A', '4GG');
+    T.cast('A', T.hand('A', 'Craw Wurm'));
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(bear.zone, 'battlefield', 'cascaded into the Bears');
+  });
 };
