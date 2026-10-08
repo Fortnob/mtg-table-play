@@ -6486,6 +6486,10 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Chandra's Spitfire: "Whenever an opponent is dealt noncombat damage"
+    { re: /^Whenever an opponent is dealt noncombat damage,? /i, event: 'playerDealtDamage', extra: { toOpponent: true, noncombatOnly: true } },
+    // Sunhome Enforcer: "Whenever this creature deals combat damage" (to anything)
+    { re: /^Whenever (?:this creature|CARDNAME) deals combat damage, /i, event: 'dealsDamage', self: true, extra: { combatOnly: true } },
     // Crystallization, Illusionary Armor: "When enchanted creature becomes the target of a spell or ability"
     { re: /^When(?:ever)? enchanted creature becomes the target of a spell or ability,? /i, event: 'becomesTarget', extra: { ofEnchanted: true } },
     // Brazen Dwarf: "Whenever you roll one or more dice"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 13292,
+  "needed": 13285,
   "gainedCards": 1389,
-  "linesNeeded": 14532,
+  "linesNeeded": 14524,
   "linesGained": 1681,
   "gained": {
    "all": 1389,
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 860,
-   "lines": 743,
+   "score": 859,
+   "lines": 742,
    "cards": [
     "Mangara, the Diplomat",
     "Trouble in Pairs",
@@ -4647,20 +4647,6 @@
    ]
   },
   {
-   "what": "DealsCombatDamageTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Dropkick Bomber",
-    "Ceremonial Knife",
-    "Drinker of Sorrow",
-    "Quintessential Katana",
-    "Aisha of Sparks and Smoke",
-    "Living Lore",
-    "Leyline Phantom"
-   ]
-  },
-  {
    "what": "Ability.withTargetPointerSet",
    "score": 7,
    "lines": 7,
@@ -7240,6 +7226,17 @@
     "Choreographed Sparks",
     "Aziza, Mage Tower Captain"
    ]
+  },
+  {
+   "what": "keyword FirebendingAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Firebending Student",
+    "Zuko, Firebending Master",
+    "Fire Lord Zuko",
+    "Sun Warriors"
+   ]
   }
  ],
  "sole": [
@@ -7258,8 +7255,8 @@
   },
   {
    "what": "custom ability",
-   "score": 652,
-   "cards": 562,
+   "score": 651,
+   "cards": 561,
    "names": [
     "Mangara, the Diplomat",
     "Midnight Clock",
@@ -10162,19 +10159,6 @@
    ]
   },
   {
-   "what": "DealsCombatDamageTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Dropkick Bomber",
-    "Ceremonial Knife",
-    "Drinker of Sorrow",
-    "Quintessential Katana",
-    "Aisha of Sparks and Smoke",
-    "Leyline Phantom"
-   ]
-  },
-  {
    "what": "(constructor: assignment)",
    "score": 6,
    "cards": 6,
@@ -11017,6 +11001,18 @@
     "Wormfang Newt",
     "Wormfang Turtle",
     "Temporal Firestorm"
+   ]
+  },
+  {
+   "what": "GainLifeFirstTimeTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Vanguard Seraph",
+    "Attended Healer",
+    "Cleric of Life's Bond",
+    "Leech Collector // Bloodletting",
+    "Deathless Knight"
    ]
   }
  ]
