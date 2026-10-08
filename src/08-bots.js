@@ -1477,6 +1477,10 @@
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Cultivator Colossus: always another land */
+    putFromHand(s) { return { picks: (s.items || []).slice(0, 1).map(x => x.id) }; },
+    /* Eerie Ultimatum: one of each name */
+    returnDifferentNames(s) { const seen = new Set(); return { picks: (s.items || []).filter(x => !seen.has(x.name) && seen.add(x.name)).map(x => x.id) }; },
     /* Demonic Consultation: the name the engine offers first (the costliest card in the library) */
     chooseCardName() { return { picks: [0] }; },
     /* Tainted Pact: keep the first spell worth having, pass over lands */

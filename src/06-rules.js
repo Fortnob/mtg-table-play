@@ -13982,6 +13982,39 @@
           if (copy && this._newTargetsForCopy(copy, st.who, 'chnt') === SUSPEND) return SUSPEND;
           break;
         }
+        // Cultivator Colossus: a land from hand, a card, and again — until you stop or run out
+        case 'putDrawRepeat': {
+          const pool = this.zones[ctx.controller].hand.filter(o => this._matchesCategory(o, e.filter));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'putFromHand', kind: 'objects', zone: 'hand',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}put a ${e.filter} card from your hand onto the battlefield${e.tapped ? ' tapped' : ''}? If you do, draw a card and repeat.` }, 'pdr');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!x || x.zone !== 'hand') break;
+          this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          if (e.tapped) x.tapped = true;
+          this._drawCards(me, 1);
+          this._spliceNext([Object.assign({}, e)]);
+          break;
+        }
+        // Eerie Ultimatum: any number of permanent cards, no two with the same name
+        case 'returnDifferentNames': {
+          const pool = this.zones[ctx.controller].graveyard.filter(o => (o.analysis() || {}).isPermanent);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'returnDifferentNames', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}return any number of permanent cards with different names.` }, 'rdn');
+          if (got === SUSPEND) return SUSPEND;
+          const seen = new Set();
+          for (const id of (got && got.picks) || []) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'graveyard' || seen.has(x.name)) continue;
+            seen.add(x.name);
+            this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          }
+          break;
+        }
         // Tempting offer: each opponent may; you do it again for each who does
         case 'temptingOffer': {
           const took = [];
@@ -19362,7 +19395,9 @@
       }
       if (spec.type === 'spell' || spec.zone === 'stack') {
         return this.stack
-          .filter(st => (st.kind === 'spell' ? !spec.noSpells && this._spellMatches(st, spec, controllerId)
+          .filter(st => (st.kind === 'spell' ? !spec.noSpells && this._spellMatches(st, spec, controllerId) &&
+              // Drown in the Loch: no more than the cards in its controller's graveyard
+              !(spec.mvAtMostCtlGy && ((st.obj && st.obj.card && st.obj.card.cmc) || 0) > ((this.zones[st.controller] || {}).graveyard || []).length)
             : !!spec.abilities && (!spec.abilityKind || (spec.abilityKind === 'triggered') === !!st.triggered) &&
               this._aimsAtYours(st, spec, controllerId) &&
               !(spec.controller === 'you' && st.controller !== controllerId) &&
@@ -19396,6 +19431,7 @@
         const a = o.analysis();
         if (!a || o.phasedOut) continue;
         if (!MTG.oracle.matchesSpec(spec, o, a, controllerId, this._specCtx())) continue;
+        if (spec.mvAtMostCtlGy && ((o.card && o.card.cmc) || 0) > ((this.zones[o.controller] || {}).graveyard || []).length) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
             (this.hasKw(o, 'hexproof') || this.hasKw(o, 'shroud'))) continue;
         // shroud: not even its own controller's (CR 702.18a)

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12642,
+  "needed": 12635,
   "gainedCards": 1354,
-  "linesNeeded": 13819,
+  "linesNeeded": 13812,
   "linesGained": 1621,
   "gained": {
    "all": 1354,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4625,
-   "lines": 4187,
+   "score": 4611,
+   "lines": 4182,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -128,11 +128,10 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 195,
-   "lines": 177,
+   "score": 191,
+   "lines": 176,
    "cards": [
     "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
     "Likeness Looter",
@@ -142,7 +141,8 @@
     "Chthonian Nightmare",
     "Tinybones, the Pickpocket",
     "Dance of the Manse",
-    "Ink-Eyes, Servant of Oni"
+    "Ink-Eyes, Servant of Oni",
+    "Doppelgang"
    ]
   },
   {
@@ -6350,14 +6350,6 @@
    ]
   },
   {
-   "what": "DrownInTheLochPredicate.instance",
-   "score": 4,
-   "lines": 1,
-   "cards": [
-    "Drown in the Loch"
-   ]
-  },
-  {
    "what": "mana restriction CodsworthHandyHelperManaBuilder",
    "score": 4,
    "lines": 1,
@@ -7075,13 +7067,24 @@
     "Whirlpool Rider",
     "Whirlpool Drake"
    ]
+  },
+  {
+   "what": "Ability.setModeTag",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Gandalf the Grey",
+    "Henrika Domnathi // Henrika, Infernal Seer",
+    "Kargan Intimidator",
+    "Sol'Kanar the Tainted"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3771,
-   "cards": 3471,
+   "score": 3757,
+   "cards": 3466,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7119,15 +7122,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 170,
-   "cards": 152,
+   "score": 166,
+   "cards": 151,
    "names": [
     "Agadeem's Awakening // Agadeem, the Undercrypt",
-    "Crackle with Power",
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
     "Likeness Looter",
-    "Kozilek's Command"
+    "Kozilek's Command",
+    "Ruthless Technomancer"
    ]
   },
   {
@@ -10820,14 +10823,6 @@
    ]
   },
   {
-   "what": "DrownInTheLochPredicate.instance",
-   "score": 4,
-   "cards": 1,
-   "names": [
-    "Drown in the Loch"
-   ]
-  },
-  {
    "what": "AnyColorCardInYourGraveyardManaAbility",
    "score": 4,
    "cards": 1,
@@ -10841,6 +10836,14 @@
    "cards": 1,
    "names": [
     "Druid Class"
+   ]
+  },
+  {
+   "what": "MoonsilverKeyPredicate.instance",
+   "score": 4,
+   "cards": 1,
+   "names": [
+    "Moonsilver Key"
    ]
   }
  ]

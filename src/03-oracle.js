@@ -4853,10 +4853,14 @@
     // "target creature that was dealt damage this turn"
     const damaged = /\s+that was dealt damage this turn$/i.test(String(phrase));
     if (damaged) phrase = String(phrase).replace(/\s+that was dealt damage this turn$/i, '');
+    // Drown in the Loch: "with mana value less than or equal to the number of cards in its controller's graveyard"
+    const ctlGy = /\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i.test(String(phrase));
+    if (ctlGy) phrase = String(phrase).replace(/\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i, '');
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
     if (damaged) spec.damagedThisTurn = true;
+    if (ctlGy) spec.mvAtMostCtlGy = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
     if (/^(?:another|other) target /i.test(String(phrase).trim()) || /^any other target$/.test(p)) spec.another = true;
@@ -5318,6 +5322,25 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Traverse the Outlands: "Search your library for up to X basic land
+       cards, where X is the greatest power among creatures you control. Put
+       those cards onto the battlefield tapped, then shuffle." */
+    { re: /^Search your library for up to X ([a-z ]+?) cards, where X is ([^.]+)\. Put those cards onto the battlefield( tapped)?, then shuffle\.$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        if (k == null) return null;
+        return [{ op: 'tutor', n: k, upTo: true, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], prompt: `Search your library for ${m[1].toLowerCase()} cards.` }];
+      } },
+    /* Cultivator Colossus: "you may put a land card from your hand onto the
+       battlefield tapped. If you do, draw a card and repeat this process." */
+    { re: /^You may put an? (land|creature|artifact) card from your hand onto the battlefield( tapped)?\. If you do, draw a card and repeat this process\.$/i,
+      make: (m) => [{ op: 'putDrawRepeat', filter: m[1].toLowerCase(), tapped: !!m[2] }] },
+    // Eerie Ultimatum: "Return any number of permanent cards with different names from your graveyard to the battlefield."
+    { re: /^Return any number of permanent cards with different names from your graveyard to the battlefield\.$/i,
+      make: () => [{ op: 'returnDifferentNames' }] },
+    // Crackle with Power: "CARDNAME deals five times X damage to each of up to X targets."
+    { re: /^CARDNAME deals (two|three|four|five) times X damage to each of up to X targets\.$/i,
+      make: (m) => [{ op: 'damage', n: { xTimes: num(m[1]) }, targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'X', exact: false } }] }] },
     /* The Chain spells (Chain Lightning, Chain of Vapor, Chain of Acid,
        Chain of Plasma, Chain of Smog): "Then that player or that permanent's
        controller may pay {R}{R}. If the player does, they may copy this spell
