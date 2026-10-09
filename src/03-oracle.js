@@ -9470,6 +9470,12 @@
     { re: /^At the beginning of each combat(?:,| )/i, event: 'eachCombatBegin' },
     // Mazirek: "another permanent" — itself, once sacrificed, is no longer there to see it
     { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
+    /* Mortician Beetle, Legate Lanius, It That Betrays: "Whenever a player (an opponent) sacrifices
+       a (nontoken) creature (permanent)," — anyone's sacrifice, and what it was (sacrificedAny) */
+    { re: /^Whenever (a player|an opponent) sacrifices (?:a|an|another) (nontoken )?(creature|permanent|artifact|land), /i,
+      event: 'anySacrifice', aboutObject: true,
+      filt: (m) => ({ words: (m[2] ? 'nontoken ' : '') + m[3].toLowerCase() }),
+      extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
     // Fabrication Module, Territorial Gorger: "Whenever you get one or more {E}"
@@ -10305,6 +10311,12 @@
             if (!e || e.op !== 'returnExiled' || !/^(?:you may )?return that card\b/i.test(String(e.text || ''))) continue;
             e.op = 'returnTriggerCard'; e.yours = /under your control/i.test(e.text || ''); e.triggerOnly = true;
           }
+        }
+        // It That Betrays: "put that card onto the battlefield under your control" — the card sacrificed (sacrificedAny)
+        if (trig.event === 'anySacrifice' && parsed.effects.length === 1 && parsed.effects[0].op === 'manual' &&
+          /^put that card onto the battlefield under your control\.?$/i.test(parsed.effects[0].text || '')) {
+          parsed.effects = [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: parsed.effects[0].text }];
+          parsed.auto = true;
         }
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }

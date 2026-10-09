@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11320,
-  "gainedCards": 1130,
-  "linesNeeded": 12117,
+  "needed": 11316,
+  "gainedCards": 1131,
+  "linesNeeded": 12109,
   "linesGained": 1337,
   "gained": {
-   "all": 1130,
+   "all": 1131,
    "top2000": 46,
    "stdTop": 8
   },
@@ -2258,18 +2258,6 @@
     "Jinxed Choker",
     "Avarice Amulet",
     "Drooling Ogre"
-   ]
-  },
-  {
-   "what": "sacrifice trigger for OPPONENT",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "It That Betrays",
-    "Bloodroot Apothecary",
-    "Legate Lanius, Caesar's Ace",
-    "Malik, Grim Manipulator",
-    "Vengeful Tracker"
    ]
   },
   {
@@ -5348,17 +5336,6 @@
    ]
   },
   {
-   "what": "sacrifice trigger for ANY",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Zodiark, Umbral God",
-    "Fumulus, the Infestation",
-    "Thraximundar",
-    "Mortician Beetle"
-   ]
-  },
-  {
    "what": "SurvivalAbility",
    "score": 4,
    "lines": 4,
@@ -6669,13 +6646,33 @@
     "Insult // Injury",
     "Fear, Fire, Foes!"
    ]
+  },
+  {
+   "what": "CowardsCantBlockWarriorsEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Gornog, the Red Reaper",
+    "Kargan Intimidator",
+    "Boldwyr Intimidator"
+   ]
+  },
+  {
+   "what": "gain for static",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Kaya the Inexorable",
+    "Flame-Wreathed Phoenix",
+    "Mist Dragon"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3508,
-   "cards": 3328,
+   "score": 3511,
+   "cards": 3331,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -9046,15 +9043,6 @@
    ]
   },
   {
-   "what": "sacrifice trigger for OPPONENT",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "It That Betrays",
-    "Vengeful Tracker"
-   ]
-  },
-  {
    "what": "UntapTargetCost",
    "score": 5,
    "cards": 2,
@@ -10366,6 +10354,17 @@
     "Wibbly-wobbly, Timey-wimey",
     "Rotating Fireplace",
     "All of History, All at Once"
+   ]
+  },
+  {
+   "what": "PreventDamageAndRemoveCountersEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Unbreathing Horde",
+    "Undergrowth Champion",
+    "Ugin's Conjurant",
+    "Oathsworn Knight"
    ]
   }
  ]

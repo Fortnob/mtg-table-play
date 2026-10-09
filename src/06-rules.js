@@ -11102,7 +11102,9 @@
       data = data || {};
       /* "Whenever a player sacrifices a permanent": once for each one */
       if (event === 'youSacrifice') {
-        for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, { playerId: controllerId });
+        // It That Betrays, Mortician Beetle: what was sacrificed, when there is one (sacrificedAny)
+        const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
+        for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
       }
       this._fireDelayed(event, this.activePlayer && this.activePlayer.id);
       if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);

@@ -16430,4 +16430,22 @@ module.exports = (test) => {
     t.eq(theirs.controller, 'A');
     t.no(offered && offered.some(o => o.id === mine.id), 'not from your own graveyard');
   });
+
+  test('It That Betrays takes what an opponent sacrifices; Mortician Beetle grows on any sacrifice', (mk, t) => {
+    t.auto('It That Betrays');
+    t.auto('Mortician Beetle');
+    t.auto('Thraximundar');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'It That Betrays');
+    const beetle = T.bf('A', 'Mortician Beetle');
+    const giant = T.bf('B', 'Hill Giant');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'BC');
+    T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.zone(giant, 'battlefield', 'the Giant comes back');
+    t.eq(giant.controller, 'A', "under A's control");
+    t.eq(beetle.counters['+1/+1'], 1, 'the Beetle saw a creature sacrificed');
+  });
 };
