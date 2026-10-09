@@ -2266,7 +2266,7 @@
       this.closePopover();
       // an ability whose cost has an X (mana, or counters taken off) asks for it first
       const asks = x == null ? this._abilityX(o, ab) : null;
-      if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, 0, asks.max, asks.max,
+      if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, 0, asks.max, asks.start != null ? asks.start : asks.max,
         (n) => this.activate(o, a, index, ab, n), o.card);
       /* "Add X mana in any combination of {U} and/or {B}": how much of the
          second colour, the rest the first. Asked only when the amount is
