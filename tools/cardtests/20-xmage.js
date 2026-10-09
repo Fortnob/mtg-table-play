@@ -13200,4 +13200,24 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.zone('B', 'hand').length, hb + 2, 'each player drew twice');
   });
+
+  test("Job select: Black Mage's Rod comes with a Hero, a Wizard that pings on noncreature spells", (mk, t) => {
+    t.auto("Black Mage's Rod");
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', "Black Mage's Rod"));
+    for (let i = 0; i < 3; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    const hero = T.g.battlefield.find(o => o.isToken && o.name === 'Hero');
+    t.ok(hero, 'a Hero'); t.eq(T.g.powerOf(hero), 2, '+1/+0');
+    t.ok(T.g._cardFitsWords(hero, 'Wizard'), 'a Wizard too');
+    t.eq((T.g.characteristics(hero).colors || []).length, 0, 'colorless');
+    const life = T.player('B').life;
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    for (let i = 0; i < 3; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.player('B').life, life - 1, 'one damage to each opponent');
+  });
 };

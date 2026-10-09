@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12059,
+  "needed": 12052,
   "gainedCards": 1263,
-  "linesNeeded": 13067,
+  "linesNeeded": 13031,
   "linesGained": 1506,
   "gained": {
    "all": 1263,
@@ -25,8 +25,8 @@
    "group": 28,
    "x": 3,
    "it": 18,
-   "opponent": 72,
-   "condition": 23
+   "condition": 23,
+   "opponent": 19
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
@@ -314,25 +314,6 @@
     "Self-Destruct",
     "You Look Upon the Tarrasque",
     "Jhoira's Timebug"
-   ]
-  },
-  {
-   "what": "keyword EquipAbility",
-   "score": 31,
-   "lines": 31,
-   "cards": [
-    "Dancer's Chakrams",
-    "Mjölnir, Hammer of Thor",
-    "Luxior, Giada's Gift",
-    "Machinist's Arsenal",
-    "Robe of the Archmagi",
-    "Gavel of the Righteous",
-    "Astrologian's Planisphere",
-    "Pact Weapon",
-    "My Precious // Allure of Power",
-    "Samurai's Katana",
-    "Reaper's Scythe",
-    "Blue Mage's Cane"
    ]
   },
   {
@@ -676,22 +657,22 @@
    ]
   },
   {
-   "what": "keyword JobSelectAbility",
+   "what": "keyword EquipAbility",
    "score": 19,
    "lines": 19,
    "cards": [
-    "Black Mage's Rod",
-    "Dancer's Chakrams",
-    "Machinist's Arsenal",
-    "Astrologian's Planisphere",
-    "Samurai's Katana",
-    "Reaper's Scythe",
-    "Blue Mage's Cane",
-    "Dragoon's Lance",
-    "Summoner's Grimoire",
-    "White Mage's Staff",
-    "Ninja's Blades",
-    "Red Mage's Rapier"
+    "Mjölnir, Hammer of Thor",
+    "Luxior, Giada's Gift",
+    "Robe of the Archmagi",
+    "Gavel of the Righteous",
+    "Pact Weapon",
+    "My Precious // Allure of Power",
+    "Hand of Vecna",
+    "Nightmare Lash",
+    "Transmogrant's Crown",
+    "Dark Knight's Greatsword",
+    "Team Pennant",
+    "Sigil of Distinction"
    ]
   },
   {
@@ -721,25 +702,6 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
-   ]
-  },
-  {
-   "what": "AddCardSubtypeAttachedEffect",
-   "score": 18,
-   "lines": 18,
-   "cards": [
-    "Black Mage's Rod",
-    "Astrologian's Planisphere",
-    "Reaper's Scythe",
-    "Blue Mage's Cane",
-    "Dragoon's Lance",
-    "Summoner's Grimoire",
-    "White Mage's Staff",
-    "Ninja's Blades",
-    "Red Mage's Rapier",
-    "Thief's Knife",
-    "Warrior's Sword",
-    "Sage's Nouliths"
    ]
   },
   {
@@ -1373,6 +1335,25 @@
     "Divine Light",
     "Inner Sanctum",
     "Forfend"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Astrologian's Planisphere",
+    "Reaper's Scythe",
+    "Blue Mage's Cane",
+    "Dragoon's Lance",
+    "Summoner's Grimoire",
+    "Ninja's Blades",
+    "Warrior's Sword",
+    "Avatar Destiny",
+    "Draconic Destiny",
+    "Spider-Suit",
+    "Dark Knight's Greatsword",
+    "Monk's Fist"
    ]
   },
   {
@@ -6946,6 +6927,17 @@
     "Siren of the Fanged Coast",
     "Smelt-Ward Ignus"
    ]
+  },
+  {
+   "what": "DoUnlessControllerPaysEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Magmatic Sprinter",
+    "Psychic Allergy",
+    "Goblin Flotilla",
+    "Treacherous Vampire"
+   ]
   }
  ],
  "sole": [
@@ -8054,6 +8046,19 @@
     "Lobelia Sackville-Baggins",
     "Grim Return",
     "Salvager of Ruin"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Astrologian's Planisphere",
+    "Blue Mage's Cane",
+    "Dragoon's Lance",
+    "Summoner's Grimoire",
+    "Ninja's Blades",
+    "Warrior's Sword"
    ]
   },
   {
@@ -10683,17 +10688,6 @@
     "Turncoat Kunoichi",
     "Detention Chariot",
     "Driftgloom Coyote"
-   ]
-  },
-  {
-   "what": "LoseLifeTargetEffect amount",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Astarion, the Decadent",
-    "Emissary of Despair",
-    "Final Punishment",
-    "Burden of Greed"
    ]
   }
  ]

@@ -7311,7 +7311,9 @@
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
-        /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()));
+        /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
+        // Sage's Nouliths: "Hagneia — Equip {3}"
+        /^Equip (?:\{|\d)/.test(m[2].trim()));
     if (!ABILITY_WORDS.has(word) && !flavour) return line;
     const rest = m[2].trim();
     return rest.charAt(0).toUpperCase() + rest.slice(1);
@@ -9187,6 +9189,12 @@
           if (lower === 'bushido' && kn > 0) {
             gen({ kind: 'triggered', event: 'blocks', also: 'becomesBlocked', self: true,
               effects: [{ op: 'pump', p: kn, t: kn, duration: 'eot', scope: 'self' }] });
+            continue;
+          }
+          // Job select: a 1/1 colorless Hero to carry it, the same way
+          if (lower === 'job select') {
+            gen({ kind: 'triggered', event: 'etb', self: true,
+              effects: [{ op: 'germ', pt: '1/1', colorWords: ['colorless'], subtypes: 'Hero' }] });
             continue;
           }
           // Living weapon (CR 702.92) and For Mirrodin! (CR 702.163): a body to carry it
@@ -11290,6 +11298,18 @@
       const r = both(mm2[1] + ' has ' + mm2[3] + '.', mm2[2].charAt(0).toUpperCase() + mm2[2].slice(1) + ' have ' + mm2[3] + '.');
       if (r) return r;
     }
+    /* The Job select Equipment (Black Mage's Rod, Thief's Knife): "Equipped
+       creature gets +1/+0, has '…,' and is a Wizard in addition to its other
+       types", and Ninja's Blades' "gets +1/+1, is a Ninja …, and has '…'" */
+    if ((mm2 = String(line).match(/^(Equipped creature) (?:gets ([+-]\d+\/[+-]\d+), )?has "([^"]+?),?" and is an? ([A-Z][a-z]+) in addition to its other types\.?$/))) {
+      const q = mm2[3].replace(/[.,]?$/, '.');
+      const r = both(mm2[1] + (mm2[2] ? ' gets ' + mm2[2] + ' and' : '') + ' has "' + q + '"', mm2[1] + ' is a ' + mm2[4] + ' in addition to its other types.');
+      if (r) return r;
+    }
+    if ((mm2 = String(line).match(/^(Equipped creature) gets ([+-]\d+\/[+-]\d+), is an? ([A-Z][a-z]+) in addition to its other types, and has "([^"]+)"\.?$/))) {
+      const r = both(mm2[1] + ' gets ' + mm2[2] + ' and has "' + mm2[4] + '"', mm2[1] + ' is a ' + mm2[3] + ' in addition to its other types.');
+      if (r) return r;
+    }
     // Long-Lost Lances: "creatures you control that are equipped" are equipped creatures you control
     if ((mm2 = String(line).match(/^(Creatures you control) that are (equipped|enchanted) (have|get) (.+)$/i))) {
       const r = parseStatic(mm2[2].charAt(0).toUpperCase() + mm2[2].slice(1) + ' creatures you control ' + mm2[3] + ' ' + mm2[4], ctx);
@@ -11687,6 +11707,9 @@
           if (!probe || !probe.fullyAutomated || !(probe.abilities || []).length || !probe.abilities.every(ab => ab.kind === 'loyalty')) return null;
           return { op: 'continuous', layer: 6, scope: { attached: true, what: 'planeswalker' }, grantText: t };
         }, auto: true },
+      // the Job select Equipment: "Equipped creature is a Wizard in addition to its other types."
+      { re: /^(?:Equipped|Enchanted) creature is an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
+        make: (m) => ({ op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, addSubtypes: [m[1]] }), auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
         make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },
