@@ -2273,4 +2273,75 @@ module.exports = (test) => {
     t.zone(wurm, 'graveyard', 'six damage');
     t.zone(c, 'graveyard', 'Chandra used all six');
   });
+
+  test('Audit: Repartee triggers only on an instant or sorcery that targets a creature (Stirring Hopesinger); Legolas', (mk, t) => {
+    let T = mk();
+    t.auto('Stirring Hopesinger');
+    T.toMain('A');
+    const h = T.bf('A', 'Stirring Hopesinger'), ob = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1W'); T.cast('A', T.hand('A', 'Pacifism'), { targets: [ob] });
+    t.eq(h.counters['+1/+1'] || 0, 0, 'an Aura is not an instant or sorcery');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(h.counters['+1/+1'] || 0, 0, 'a player is not a creature');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [ob] });
+    t.eq(h.counters['+1/+1'] || 0, 1);
+    T = mk();
+    t.auto('Legolas, Master Archer');
+    T.toMain('A');
+    const l = T.bf('A', 'Legolas, Master Archer'), mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Darksteel Colossus');
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [mine] });
+    t.eq(l.counters['+1/+1'] || 0, 0, 'my own Bears: neither ability');
+    t.eq(theirs.damage || 0, 0);
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [l] });
+    t.eq(l.counters['+1/+1'], 1, 'aimed at Legolas: a counter');
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(o => o.id === theirs.id)] }));
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [theirs] });
+    t.eq(theirs.damage, 2 + T.g.powerOf(l), "aimed at the Colossus: Legolas's power as damage, then the Shock");
+  });
+
+  test('Audit: entering with counters (-1/-1, X charge, X +1/+0) and removing any counter as a cost (Loch Mare)', (mk, t) => {
+    let T = mk();
+    T.toMain('A');
+    t.auto('Wickerbough Elder'); t.auto('Astral Cornucopia'); t.auto('Lightning Serpent'); t.auto('Loch Mare');
+    T.mana('A', '3G'); T.cast('A', T.hand('A', 'Wickerbough Elder'));
+    const w = T.g.battlefield.find(o => o.name === 'Wickerbough Elder');
+    t.eq(T.g.powerOf(w), 3, 'a 4/4 with a -1/-1 counter');
+    T.mana('A', '6'); T.cast('A', T.hand('A', 'Astral Cornucopia'), { x: 2 });
+    t.eq(T.g.battlefield.find(o => o.name === 'Astral Cornucopia').counters.charge, 2);
+    T.mana('A', '3R'); T.cast('A', T.hand('A', 'Lightning Serpent'), { x: 3 });
+    t.eq(T.g.powerOf(T.g.battlefield.find(o => o.name === 'Lightning Serpent')), 5, '2/1 with three +1/+0 counters');
+    T.mana('A', '1U'); T.cast('A', T.hand('A', 'Loch Mare'));
+    const lm = T.g.battlefield.find(o => o.name === 'Loch Mare');
+    t.eq(T.g.powerOf(lm), 1, 'a 4/5 with three -1/-1 counters');
+    const hand = T.g.zones.A.hand.length;
+    T.mana('A', '1U'); T.activate('A', lm, 0);
+    t.eq(T.g.zones.A.hand.length, hand + 1);
+    t.eq(lm.counters['-1/-1'], 2, 'one counter paid');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2U'); T.activate('A', lm, 1, { targets: [b] });
+    t.ok(b.tapped); t.eq(b.counters.stun, 1);
+    T.mana('A', '1U');
+    t.no(T.g.activateAbility('A', lm.id, 0, { auto: true }), 'no counters left to remove');
+  });
+
+  test('Audit: Council of Reeds spares legendary creatures, not other legends; Planar Despair counts basic land types', (mk, t) => {
+    let T = mk();
+    t.auto('Council of Reeds');
+    T.toMain('A');
+    T.bf('A', 'Council of Reeds');
+    T.bf('A', 'Mox Amber');
+    T.cast('A', T.hand('A', 'Mox Amber'));
+    t.eq(T.g.battlefield.filter(o => o.name === 'Mox Amber').length, 1, 'two Mox Ambers: one goes');
+    T.bf('A', 'Isamaru, Hound of Konda');
+    T.mana('A', 'W'); T.cast('A', T.hand('A', 'Isamaru, Hound of Konda'));
+    t.eq(T.g.battlefield.filter(o => o.name === 'Isamaru, Hound of Konda').length, 2, 'two Isamarus stay');
+    T = mk();
+    t.auto('Planar Despair');
+    T.toMain('A');
+    for (const n of ['Plains', 'Swamp', 'Island', 'Plains']) T.bf('A', n);
+    const wurm = T.bf('B', 'Craw Wurm'), giant = T.bf('A', 'Hill Giant');
+    T.mana('A', '3BB'); T.cast('A', T.hand('A', 'Planar Despair'));
+    t.eq(T.g.powerOf(wurm), 3, 'three basic land types: -3/-3'); t.eq(T.g.toughnessOf(wurm), 1);
+    t.zone(giant, 'graveyard');
+  });
 };
