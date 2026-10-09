@@ -16395,9 +16395,11 @@
         case 'animate': {
           if (!src) break;
           const [p, t] = String(e.pt || '1/1').split('/');
+          // Testament of Faith: "becomes an X/X Wall creature" — the X paid
+          const ptOf = (v) => (v === 'X' ? (n('X') || 0) : parseInt(v, 10) || 0);
           src.effects.push({
             until: e.duration === 'eot' ? 'eot' : null,
-            setPt: { p: parseInt(p, 10) || 0, t: parseInt(t, 10) || 0 },
+            setPt: { p: ptOf(p), t: ptOf(t) },
             addTypes: ['Creature'].concat(e.addTypes || []),
             addSubtypes: String(e.subtypes || '').split(/\s+/).filter(Boolean),
             keywords: e.keywords || [],
@@ -16405,7 +16407,7 @@
             ...((e.colorWords || []).length ? { setColors: e.colorWords.map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[String(w).toLowerCase()]).filter(Boolean) } : {}),
           });
           this.bumpBoard();
-          this.logEvent('rules', `${src.name} becomes a ${e.pt} creature until end of turn.`);
+          this.logEvent('rules', `${src.name} becomes a ${e.pt} creature${e.duration === 'eot' ? ' until end of turn' : ''}.`);
           break;
         }
 

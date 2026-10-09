@@ -15062,4 +15062,26 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 18, 'six cards: 2 damage');
   });
+
+  test('Testament of Faith becomes an X/X; Ride the Shoopuf becomes a 7/7 for good', (mk, t) => {
+    t.auto('Testament of Faith');
+    t.auto('Ride the Shoopuf');
+    t.auto('Halcyon Glaze');
+    const T = mk();
+    T.toMain('A');
+    const tf = T.bf('A', 'Testament of Faith');
+    const all = tf.analysis().manaAbilities.concat(tf.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    T.mana('A', '3');
+    T.activate('A', tf, all.findIndex(a => a.kind === 'activated'), { x: 3 });
+    T.resolve();
+    t.eq(T.g.powerOf(tf), 3, 'X = 3');
+    t.ok(T.g.characteristics(tf).isCreature);
+    const rs = T.bf('A', 'Ride the Shoopuf');
+    const all2 = rs.analysis().manaAbilities.concat(rs.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    T.mana('A', '5GG');
+    T.activate('A', rs, all2.findIndex(a => /7\/7/.test(a.text || '')));
+    T.resolve();
+    T.nextTurn('B'); T.toMain('B');
+    t.eq(T.g.powerOf(rs), 7, 'still a 7/7 next turn');
+  });
 };

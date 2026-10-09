@@ -3455,13 +3455,14 @@
 
 
     /* ===== a land that gets up and attacks ===== */
-    { re: /^(?:This (?:land|permanent|artifact)|CARDNAME) becomes an? ([\dX*]+\/[\dX*]+)((?: (?:white|blue|black|red|green|colorless|and))*) ([A-Za-z][-A-Za-z ]*?) creature(?: with ([a-z, ']+?))? until end of turn\.?$/i,
+    // (Ride the Shoopuf: "This enchantment becomes a 7/7 Beast creature in addition to its other types." — for good)
+    { re: /^(?=.*(?:until end of turn|in addition to its other types)\.?$)(?:This (?:land|permanent|artifact|enchantment)|CARDNAME) becomes an? ([\dX*]+\/[\dX*]+)((?: (?:white|blue|black|red|green|colorless|and))*) ([A-Za-z][-A-Za-z ]*?) creature(?: with ((?:(?! in addition)[a-z, '])+?))?(?: in addition to its other types)?( until end of turn)?\.?$/i,
       make: (m) => ({ op: 'animate', pt: m[1],
         colorWords: (m[2] || '').match(/white|blue|black|red|green|colorless/gi) || [],
         subtypes: m[3].replace(/\s*\b(artifact|enchantment)\b\s*/gi, ' ').trim(),
         addTypes: (m[3].match(/\b(artifact|enchantment)\b/gi) || []).map(U.titleCase),
         keywords: m[4] ? m[4].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [],
-        duration: 'eot' }) },
+        duration: m[5] ? 'eot' : 'permanent' }) },
     { re: /^It'?s still a land\.?$/i, make: () => ({ op: 'noop' }) },
 
     /* ===== whoever set the trigger off ===== */
@@ -8666,7 +8667,9 @@
     // Gorgon Recluse: "a nonblack creature"
     'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen',
     // Nahiri, Forged in Fury: "an equipped creature you control"
-    'equipped']);
+    'equipped',
+    // Arbaaz Mir: "another nontoken historic permanent you control" — legendary, an artifact or a Saga
+    'historic']);
   /* "Rabbits, Bats, Birds, and/or Mice": a list, any one of them will do;
      "noncreature, nonland permanents": all of them at once */
   function listWords(s) {
@@ -9024,7 +9027,8 @@
       event: 'etb', self: true, also: 'dies' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or is put into a graveyard from the battlefield(?:,| )/i,
       event: 'etb', self: true, also: 'dies' },
-    { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) is put into a graveyard from the battlefield(?:,| )/i,
+    // (Lich, Induced Amnesia: "When this enchantment is put into a graveyard from the battlefield")
+    { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|this enchantment|this land|~|CARDNAME) is put into a graveyard from the battlefield(?:,| )/i,
       event: 'dies', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks or blocks(?:,| )/i,
       event: 'attacks', self: true, also: 'blocks' },

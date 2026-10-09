@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11528,
-  "gainedCards": 1146,
-  "linesNeeded": 12364,
-  "linesGained": 1361,
+  "needed": 11517,
+  "gainedCards": 1141,
+  "linesNeeded": 12351,
+  "linesGained": 1356,
   "gained": {
-   "all": 1146,
+   "all": 1141,
    "top2000": 46,
    "stdTop": 8
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4258,
-   "lines": 3997,
+   "score": 4257,
+   "lines": 3996,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 170,
-   "lines": 158,
+   "score": 169,
+   "lines": 157,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -6802,8 +6802,8 @@
   },
   {
    "what": "custom condition",
-   "score": 133,
-   "cards": 130,
+   "score": 132,
+   "cards": 129,
    "names": [
     "Sting, the Glinting Dagger",
     "Diamond City",
