@@ -488,7 +488,10 @@ const MANA = MTG.mana = {
   },
   pipClasses(s) {
     const cs = [];
-    if (/^\d+$/.test(s) || s === 'X' || s === 'Y' || s === 'Z') cs.push('pip-generic');
+    if (/^\d+$/.test(s) || s === 'X' || s === 'Y' || s === 'Z') {
+      cs.push('pip-generic');
+      if (!/^\d+$/.test(s) || +s <= 20) cs.push('pip-num');     // {0} to {20}, {X}: printed symbols exist
+    }
     else if (s === 'C') cs.push('pip-c');
     else if (s === 'T') cs.push('pip-tap');
     else if (s === 'Q') cs.push('pip-tap', 'pip-untap');

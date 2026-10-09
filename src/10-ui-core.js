@@ -341,12 +341,12 @@
      loaded, every back in the app wears it (see :root[data-real-backs] in
      style.css); until then, or offline, the drawn back stands in. */
   UI.CARD_BACK = 'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
-  /* The tap and untap symbols as printed, from Scryfall; once they have
-     loaded every {T} and {Q} wears them (symbols.css), and until then, or
-     offline, the arrows drawn in type stand in. */
+  /* Tap, untap, colourless and the generic numbers as printed, from
+     Scryfall; once one has loaded they are all used (symbols.css), and
+     until then, or offline, the ones drawn in type stand in. */
   if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
     const tap = new Image();
-    tap.onload = () => { document.documentElement.dataset.realTap = '1'; };
+    tap.onload = () => { document.documentElement.dataset.realSymbols = '1'; };
     tap.src = 'https://svgs.scryfall.io/card-symbols/T.svg';
   }
   if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
@@ -933,7 +933,7 @@
       class: 'pips' + (cls ? ' ' + cls : ''),
       html: list.length
         ? list.map(c => `<i class="pip pip-${c.toLowerCase()}" title="${MTG.mana.COLOR_NAMES[c]}">${c}</i>`).join('')
-        : '<i class="pip pip-c" title="Colourless">C</i>',
+        : '<i class="pip pip-c" title="Colourless">C</i>',   // the diamond, as for {C}
     });
   };
 

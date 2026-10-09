@@ -1218,7 +1218,7 @@
     }).catch(() => {});
     const search = el('input', { type: 'search', placeholder: 'Search by name…', value: colState.q, 'aria-label': 'Search the collection' });
     // a colour reads as its mana symbol, its name on hover
-    const chipFace = (key, v, label) => key === 'color' && /^[WUBRGM]$/.test(v)
+    const chipFace = (key, v, label) => key === 'color' && /^[WUBRGMC]$/.test(v)
       ? { title: label, 'aria-label': label, html: `<i class="pip pip-${v.toLowerCase()}">${v}</i>` } : { text: label };
     const chips = (list, key) => el('div', { class: 'seg mini' }, list.map(([v, label]) => el('button', Object.assign({ type: 'button', class: 'seg-btn' + (colState[key] === v ? ' on' : '') }, chipFace(key, v, label), {
       onclick: () => { colState[key] = v; UI.renderCollection(host); } }))));

@@ -35,7 +35,37 @@
    middle of the capitals, so {2}{G} reads as a pair and not a step */
 .pip.in-text { vertical-align: middle; position: relative; top: -1.5px; }
 
-/* tap and untap, the symbols as printed (once they have loaded) */
-:root[data-real-tap] .pip.pip-tap { background: url("https://svgs.scryfall.io/card-symbols/T.svg") center / 100% 100% no-repeat !important;
-  color: transparent !important; font-size: 0 !important; box-shadow: none !important; }
-:root[data-real-tap] .pip.pip-untap { background-image: url("https://svgs.scryfall.io/card-symbols/Q.svg") !important; }
+/* Tap and untap, colourless (the diamond, both as mana and as the colour
+   of a card with none) and generic mana (the grey numbers): the symbols as
+   printed, from Scryfall, once they have loaded. */
+:root[data-real-symbols] .pip:is(.pip-tap, .pip-c, .pip-num):not(.pip-hybrid):not(.pip-n) {
+  background: var(--rsym) center / 100% 100% no-repeat !important; color: transparent !important; font-size: 0 !important;
+  box-shadow: none !important; clip-path: none !important; border-radius: 50% !important; text-shadow: none !important;
+}
+.pip-tap { --rsym: url("https://svgs.scryfall.io/card-symbols/T.svg"); }
+.pip-untap { --rsym: url("https://svgs.scryfall.io/card-symbols/Q.svg"); }
+.pip-c { --rsym: url("https://svgs.scryfall.io/card-symbols/C.svg"); }
+.pip-num[title="0"] { --rsym: url("https://svgs.scryfall.io/card-symbols/0.svg"); }
+.pip-num[title="1"] { --rsym: url("https://svgs.scryfall.io/card-symbols/1.svg"); }
+.pip-num[title="2"] { --rsym: url("https://svgs.scryfall.io/card-symbols/2.svg"); }
+.pip-num[title="3"] { --rsym: url("https://svgs.scryfall.io/card-symbols/3.svg"); }
+.pip-num[title="4"] { --rsym: url("https://svgs.scryfall.io/card-symbols/4.svg"); }
+.pip-num[title="5"] { --rsym: url("https://svgs.scryfall.io/card-symbols/5.svg"); }
+.pip-num[title="6"] { --rsym: url("https://svgs.scryfall.io/card-symbols/6.svg"); }
+.pip-num[title="7"] { --rsym: url("https://svgs.scryfall.io/card-symbols/7.svg"); }
+.pip-num[title="8"] { --rsym: url("https://svgs.scryfall.io/card-symbols/8.svg"); }
+.pip-num[title="9"] { --rsym: url("https://svgs.scryfall.io/card-symbols/9.svg"); }
+.pip-num[title="10"] { --rsym: url("https://svgs.scryfall.io/card-symbols/10.svg"); }
+.pip-num[title="11"] { --rsym: url("https://svgs.scryfall.io/card-symbols/11.svg"); }
+.pip-num[title="12"] { --rsym: url("https://svgs.scryfall.io/card-symbols/12.svg"); }
+.pip-num[title="13"] { --rsym: url("https://svgs.scryfall.io/card-symbols/13.svg"); }
+.pip-num[title="14"] { --rsym: url("https://svgs.scryfall.io/card-symbols/14.svg"); }
+.pip-num[title="15"] { --rsym: url("https://svgs.scryfall.io/card-symbols/15.svg"); }
+.pip-num[title="16"] { --rsym: url("https://svgs.scryfall.io/card-symbols/16.svg"); }
+.pip-num[title="17"] { --rsym: url("https://svgs.scryfall.io/card-symbols/17.svg"); }
+.pip-num[title="18"] { --rsym: url("https://svgs.scryfall.io/card-symbols/18.svg"); }
+.pip-num[title="19"] { --rsym: url("https://svgs.scryfall.io/card-symbols/19.svg"); }
+.pip-num[title="20"] { --rsym: url("https://svgs.scryfall.io/card-symbols/20.svg"); }
+.pip-num[title="X"] { --rsym: url("https://svgs.scryfall.io/card-symbols/X.svg"); }
+.pip-num[title="Y"] { --rsym: url("https://svgs.scryfall.io/card-symbols/Y.svg"); }
+.pip-num[title="Z"] { --rsym: url("https://svgs.scryfall.io/card-symbols/Z.svg"); }

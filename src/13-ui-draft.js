@@ -570,7 +570,7 @@
         list.sort((a, b) => (a.cmc || 0) - (b.cmc || 0) || String(a.name).localeCompare(String(b.name)));
         const col = el('div', { class: 'pool-col col-' + k.toLowerCase() }, [
           el('div', { class: 'pool-col-head' }, [
-            k === 'C' || k === 'L' ? el('span', { class: 'pool-col-name', text: name })
+            k === 'L' ? el('span', { class: 'pool-col-name', text: name })
               : el('i', { class: 'pip pip-' + k.toLowerCase(), text: k, title: name }),
             el('span', { text: String(list.length) }),
           ]),
