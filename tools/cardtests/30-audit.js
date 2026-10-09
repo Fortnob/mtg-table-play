@@ -2978,4 +2978,31 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.life('A'), 20); t.eq(T.life('C'), 5); t.eq(T.life('B'), 20);
   });
+
+  test('Audit: Mutiny keeps both targets under one opponent; Avarice Totem swaps itself; Challenger Troll', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Mutiny', 'Avarice Totem', 'Challenger Troll']) t.auto(c);
+    T.toMain('A');
+    const bg = T.bf('B', 'Hill Giant'), bb = T.bf('B', 'Grizzly Bears'), cb = T.bf('C', 'Grizzly Bears');
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', T.hand('A', 'Mutiny').id, { auto: true, targets: [{ kind: 'object', id: bg.id }, { kind: 'object', id: cb.id }] }), "C's creature is not that player's");
+    T.cast('A', T.hand('A', 'Mutiny'), { targets: [bg, bb] });
+    t.zone(bb, 'graveyard', "the Giant's 3 damage"); t.zone(cb, 'battlefield');
+    T = mk();
+    T.toMain('A');
+    const tot = T.bf('A', 'Avarice Totem'), os = T.bf('B', 'Serra Angel');
+    T.mana('A', '5'); T.activate('A', tot, 0, { targets: [os] });
+    t.eq(tot.controller, 'B'); t.eq(os.controller, 'A');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Challenger Troll');
+    const w = T.bf('A', 'Craw Wurm'), g = T.bf('A', 'Grizzly Bears');
+    w.summoningSick = g.summoningSick = false;
+    const x1 = T.bf('B', 'Grizzly Bears'), x2 = T.bf('B', 'Llanowar Elves'), x3 = T.bf('B', 'Hill Giant'), x4 = T.bf('B', 'Savannah Lions');
+    let refused = null;
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }, { attackerId: g.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', (ch, gg) => { refused = !gg.declareBlockers('B', [{ blockerId: x1.id, attackerIds: [w.id] }, { blockerId: x2.id, attackerIds: [w.id] }]); return [{ blockerId: x3.id, attackerIds: [g.id] }, { blockerId: x4.id, attackerIds: [g.id] }]; });
+    T.toMain('A', 'end');
+    t.ok(refused, 'power 6: one blocker at most'); t.zone(g, 'graveyard', 'power 2: blocked by two');
+  });
 };
