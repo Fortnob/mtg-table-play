@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12046,
-  "gainedCards": 1263,
-  "linesNeeded": 13023,
-  "linesGained": 1506,
+  "needed": 12001,
+  "gainedCards": 1240,
+  "linesNeeded": 12968,
+  "linesGained": 1478,
   "gained": {
-   "all": 1263,
-   "top2000": 49,
+   "all": 1240,
+   "top2000": 48,
    "stdTop": 9
   },
   "compare": {
@@ -25,7 +25,6 @@
    "group": 28,
    "x": 3,
    "it": 18,
-   "opponent": 72,
    "condition": 23
   }
  },
@@ -33,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4324,
-   "lines": 4057,
+   "score": 4327,
+   "lines": 4060,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -52,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 758,
-   "lines": 698,
+   "score": 754,
+   "lines": 694,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -90,8 +89,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 212,
-   "lines": 191,
+   "score": 208,
+   "lines": 187,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -109,8 +108,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 212,
-   "lines": 206,
+   "score": 208,
+   "lines": 202,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
@@ -121,9 +120,9 @@
     "Rottenmouth Viper",
     "Spirit Water Revival",
     "Hour of Revelation",
-    "Scion of Draco",
     "Drag to the Roots",
-    "Notorious Throng"
+    "Notorious Throng",
+    "Price of Fame"
    ]
   },
   {
@@ -166,8 +165,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 107,
-   "lines": 98,
+   "score": 106,
+   "lines": 97,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -333,25 +332,6 @@
     "Olivia, Opulent Outlaw",
     "Kaito, Dancing Shadow",
     "Nettling Nuisance"
-   ]
-  },
-  {
-   "what": "Ability.setCostAdjuster",
-   "score": 28,
-   "lines": 28,
-   "cards": [
-    "Mariposa Military Base",
-    "Hylda's Crown of Winter",
-    "Osgir, the Reconstructor",
-    "Wayta, Trainer Prodigy",
-    "Prototype Portal",
-    "Mobilized District",
-    "Quest for the Necropolis",
-    "Baru, Wurmspeaker",
-    "Deepwood Denizen",
-    "Survey Mechan",
-    "Razorlash Transmogrant",
-    "Soul Foundry"
    ]
   },
   {
@@ -599,6 +579,25 @@
     "Moonshae Pixie // Pixie Dust",
     "Misty Knight, Hero for Hire",
     "Amber Gristle O'Maul"
+   ]
+  },
+  {
+   "what": "Ability.setCostAdjuster",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Mariposa Military Base",
+    "Hylda's Crown of Winter",
+    "Osgir, the Reconstructor",
+    "Wayta, Trainer Prodigy",
+    "Prototype Portal",
+    "Survey Mechan",
+    "Razorlash Transmogrant",
+    "Soul Foundry",
+    "Pteramander",
+    "Loreseeker's Stone",
+    "Elite Arcanist",
+    "Starport Security"
    ]
   },
   {
@@ -945,6 +944,25 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker",
+    "Warped Tusker",
+    "Shield Mare",
+    "Bartered Cow",
+    "Brine Comber // Brinebound Gift",
+    "Esper Sojourners",
+    "Bant Sojourners",
+    "Jund Sojourners"
+   ]
+  },
+  {
    "what": "custom value",
    "score": 15,
    "lines": 15,
@@ -1087,25 +1105,6 @@
     "Living Wish",
     "Cunning Wish",
     "Death Wish"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker",
-    "Shield Mare",
-    "Bartered Cow",
-    "Brine Comber // Brinebound Gift",
-    "Esper Sojourners",
-    "Bant Sojourners",
-    "Grixis Sojourners"
    ]
   },
   {
@@ -1996,6 +1995,22 @@
    ]
   },
   {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Treasure Map // Treasure Cove",
+    "Spirit Water Revival",
+    "Bruce Banner // The Incredible Hulk",
+    "Hostile Hostel // Creeping Inn",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend",
+    "Ludevic's Test Subject // Ludevic's Abomination"
+   ]
+  },
+  {
    "what": "scope:alts",
    "score": 10,
    "lines": 10,
@@ -2251,21 +2266,6 @@
     "Taigam, Ojutai Master",
     "Goliath Daydreamer",
     "Harness the Storm"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Treasure Map // Treasure Cove",
-    "Spirit Water Revival",
-    "Bruce Banner // The Incredible Hulk",
-    "Hostile Hostel // Creeping Inn",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend",
-    "Ludevic's Test Subject // Ludevic's Abomination"
    ]
   },
   {
@@ -3026,21 +3026,6 @@
    ]
   },
   {
-   "what": "BoostEnchantedEffect p/t",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Alpha Status",
-    "Righteous Authority",
-    "Gleam of Authority",
-    "Blessing of the Nephilim",
-    "Disturbing Conversion",
-    "Aspect of Wolf",
-    "So Tiny",
-    "Snowblind"
-   ]
-  },
-  {
    "what": "ConditionalOneShotEffect without a condition",
    "score": 8,
    "lines": 8,
@@ -3598,6 +3583,20 @@
    ]
   },
   {
+   "what": "BoostEnchantedEffect p/t",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Alpha Status",
+    "Righteous Authority",
+    "Blessing of the Nephilim",
+    "Disturbing Conversion",
+    "Aspect of Wolf",
+    "So Tiny",
+    "Snowblind"
+   ]
+  },
+  {
    "what": "control for custom",
    "score": 7,
    "lines": 7,
@@ -3895,19 +3894,6 @@
     "Frontline Heroism",
     "Muck Drubb",
     "Loki, God of Lies"
-   ]
-  },
-  {
-   "what": "unless pays a count",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Spell Stutter",
-    "Mausoleum Wanderer",
-    "Evasive Action",
-    "Lilting Refrain",
-    "Ixidor's Will",
-    "Phantasmal Sphere"
    ]
   },
   {
@@ -4701,18 +4687,6 @@
    ]
   },
   {
-   "what": "SetBasePowerSourceEffect with two values",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Toph, the Blind Bandit",
-    "Saheeli's Lattice // Mastercraft Raptor",
-    "Bell Borca, Spectral Sergeant",
-    "Pallimud",
-    "Haunting Apparition"
-   ]
-  },
-  {
    "what": "MultipliedValue of \"X\"",
    "score": 5,
    "lines": 5,
@@ -4888,6 +4862,18 @@
     "Sonic the Hedgehog",
     "Mwonvuli Beast Tracker",
     "Tsagan, Raider Warlord"
+   ]
+  },
+  {
+   "what": "unless pays a count",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Spell Stutter",
+    "Mausoleum Wanderer",
+    "Lilting Refrain",
+    "Ixidor's Will",
+    "Phantasmal Sphere"
    ]
   },
   {
@@ -5307,18 +5293,6 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
-   ]
-  },
-  {
-   "what": "GainLifeFirstTimeTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Vanguard Seraph",
-    "Attended Healer",
-    "Cleric of Life's Bond",
-    "Leech Collector // Bloodletting",
-    "Deathless Knight"
    ]
   },
   {
@@ -6225,17 +6199,6 @@
    ]
   },
   {
-   "what": "BoostAllEffect p/t",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Kyler, Sigardian Emissary",
-    "Kate Stewart",
-    "Pack Attack",
-    "Drag to the Bottom"
-   ]
-  },
-  {
    "what": "HasSubtypesSourceEffect",
    "score": 4,
    "lines": 4,
@@ -6353,17 +6316,6 @@
     "Sudden Storm",
     "Mana Skimmer",
     "Samite Alchemist"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Alena, Kessig Trapper",
-    "Tetsuo, Imperial Champion",
-    "Pummeler for Hire",
-    "Impetuous Protege"
    ]
   },
   {
@@ -6740,6 +6692,17 @@
    ]
   },
   {
+   "what": "SetBasePowerSourceEffect with two values",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Saheeli's Lattice // Mastercraft Raptor",
+    "Bell Borca, Spectral Sergeant",
+    "Pallimud",
+    "Haunting Apparition"
+   ]
+  },
+  {
    "what": "UntapAttachedEffect",
    "score": 4,
    "lines": 4,
@@ -6936,13 +6899,46 @@
     "Flaring Flame-Kin",
     "Skyrider Trainee"
    ]
+  },
+  {
+   "what": "ExileTopCreatureCardOfGraveyardCost",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Necratog",
+    "Circling Vultures",
+    "Barrow Ghoul",
+    "Zombie Scavengers"
+   ]
+  },
+  {
+   "what": "SweepEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Barrel Down Sokenzan",
+    "Charge Across the Araba",
+    "Sink into Takenuma",
+    "Plow Through Reito"
+   ]
+  },
+  {
+   "what": "RevealHandTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Baleful Stare",
+    "Withering Gaze",
+    "Rag Man",
+    "Thoughtcutter Agent"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3552,
-   "cards": 3384,
+   "score": 3558,
+   "cards": 3390,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6954,8 +6950,8 @@
   },
   {
    "what": "custom ability",
-   "score": 581,
-   "cards": 539,
+   "score": 577,
+   "cards": 535,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6967,8 +6963,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 154,
-   "cards": 151,
+   "score": 151,
+   "cards": 148,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
@@ -7019,8 +7015,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 64,
-   "cards": 64,
+   "score": 63,
+   "cards": 63,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -7119,19 +7115,6 @@
     "Tifa, Martial Artist",
     "Orochi Soul-Reaver",
     "Lolth, Spider Queen"
-   ]
-  },
-  {
-   "what": "Ability.setCostAdjuster",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Hylda's Crown of Winter",
-    "Osgir, the Reconstructor",
-    "Prototype Portal",
-    "Mobilized District",
-    "Quest for the Necropolis",
-    "Baru, Wurmspeaker"
    ]
   },
   {
@@ -7239,6 +7222,19 @@
    ]
   },
   {
+   "what": "Ability.setCostAdjuster",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Hylda's Crown of Winter",
+    "Osgir, the Reconstructor",
+    "Prototype Portal",
+    "Survey Mechan",
+    "Razorlash Transmogrant",
+    "Soul Foundry"
+   ]
+  },
+  {
    "what": "ConditionalAsThoughEffect",
    "score": 17,
    "cards": 17,
@@ -7330,6 +7326,19 @@
    ]
   },
   {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Conformer Shuriken",
+    "Elturel Survivors",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders"
+   ]
+  },
+  {
    "what": "filter:alts",
    "score": 15,
    "cards": 15,
@@ -7353,19 +7362,6 @@
     "Magus Lucea Kane",
     "Rainbow Vale",
     "Undiscovered Paradise"
-   ]
-  },
-  {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders"
    ]
   },
   {
@@ -7429,6 +7425,19 @@
     "Fangorn, Tree Shepherd",
     "Jolene, Plundering Pugilist",
     "Talion's Messenger"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker",
+    "Warped Tusker"
    ]
   },
   {
@@ -7533,19 +7542,6 @@
     "Apathy",
     "Slow Motion",
     "Unnatural Hunger"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker"
    ]
   },
   {
@@ -7813,6 +7809,19 @@
    ]
   },
   {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Generous Patron",
+    "Nest of Scarabs",
+    "Hapatra, Vizier of Poisons",
+    "Obelisk Spider",
+    "Earth Kingdom General",
+    "The Great Goblin"
+   ]
+  },
+  {
    "what": "AttacksPlayerWithCreaturesTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -7940,19 +7949,6 @@
     "Impact Resonance",
     "Monstrous Onslaught",
     "Ravenous Gigantotherium"
-   ]
-  },
-  {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Generous Patron",
-    "Nest of Scarabs",
-    "Hapatra, Vizier of Poisons",
-    "Obelisk Spider",
-    "Earth Kingdom General",
-    "The Great Goblin"
    ]
   },
   {
@@ -8626,6 +8622,19 @@
    ]
   },
   {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Bruce Banner // The Incredible Hulk",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend"
+   ]
+  },
+  {
    "what": "GainAbilityControllerEffect",
    "score": 7,
    "cards": 7,
@@ -8831,19 +8840,6 @@
     "Geyadrone Dihada",
     "Brand",
     "Aura Thief"
-   ]
-  },
-  {
-   "what": "BoostEnchantedEffect p/t",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Alpha Status",
-    "Gleam of Authority",
-    "Blessing of the Nephilim",
-    "Disturbing Conversion",
-    "Aspect of Wolf",
-    "So Tiny"
    ]
   },
   {
@@ -9075,19 +9071,6 @@
    ]
   },
   {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend",
-    "Ludevic's Test Subject // Ludevic's Abomination"
-   ]
-  },
-  {
    "what": "(verify) optional where the card is not",
    "score": 6,
    "cards": 6,
@@ -9124,19 +9107,6 @@
     "One with the Kami",
     "Silver Sable, Mercenary Leader",
     "Expanding Ooze"
-   ]
-  },
-  {
-   "what": "unless pays a count",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Spell Stutter",
-    "Mausoleum Wanderer",
-    "Evasive Action",
-    "Lilting Refrain",
-    "Ixidor's Will",
-    "Phantasmal Sphere"
    ]
   },
   {
@@ -9423,6 +9393,19 @@
     "Lightning Shrieker",
     "Blitz Hellion",
     "Krovikan Horror"
+   ]
+  },
+  {
+   "what": "BoostEnchantedEffect p/t",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Alpha Status",
+    "Blessing of the Nephilim",
+    "Disturbing Conversion",
+    "Aspect of Wolf",
+    "So Tiny",
+    "Snowblind"
    ]
   },
   {
@@ -9824,6 +9807,18 @@
    ]
   },
   {
+   "what": "unless pays a count",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Spell Stutter",
+    "Mausoleum Wanderer",
+    "Lilting Refrain",
+    "Ixidor's Will",
+    "Phantasmal Sphere"
+   ]
+  },
+  {
    "what": "LeavesBattlefieldAllTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10121,18 +10116,6 @@
     "Celestial Convergence",
     "Reluctant Dounguard",
     "Encumbered Reejerey"
-   ]
-  },
-  {
-   "what": "GainLifeFirstTimeTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Vanguard Seraph",
-    "Attended Healer",
-    "Cleric of Life's Bond",
-    "Leech Collector // Bloodletting",
-    "Deathless Knight"
    ]
   },
   {
@@ -10512,17 +10495,6 @@
    ]
   },
   {
-   "what": "SetBasePowerSourceEffect with two values",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Toph, the Blind Bandit",
-    "Saheeli's Lattice // Mastercraft Raptor",
-    "Pallimud",
-    "Haunting Apparition"
-   ]
-  },
-  {
    "what": "MultipliedValue of \"X\"",
    "score": 4,
    "cards": 4,
@@ -10685,6 +10657,28 @@
     "Emissary of Despair",
     "Final Punishment",
     "Burden of Greed"
+   ]
+  },
+  {
+   "what": "PlayFromTopOfLibraryEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Glarb, Calamity's Augur",
+    "Elsha of the Infinite",
+    "Errant and Giada",
+    "Galea, Kindler of Hope"
+   ]
+  },
+  {
+   "what": "attack with 3 or more",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Legion's Landing // Adanto, the First Fort",
+    "Phoenix Chick",
+    "Inniaz, the Gale Force",
+    "Ruby Collector"
    ]
   }
  ]

@@ -2874,6 +2874,14 @@
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
+      // Deepwood Denizen, Maester Seymour: the counters (of one kind, or all) on a group of permanents
+      if (v.countersAmong) {
+        let k = 0;
+        for (const o of this._scopeList(v.countersAmong, pid, src, null, inLayers)) {
+          for (const [kind, c] of Object.entries(o.counters || {})) if (!v.kind || kind === v.kind) k += Number(c) || 0;
+        }
+        return k * mult;
+      }
       if (v.per) return this.countPermanents(pid, v) * mult;
       // "each land you control and each land card in your graveyard"
       if (v.sum) return v.sum.reduce((acc, x) => acc + this._countValue(x, pid, src, inLayers), 0) * mult;
@@ -9556,7 +9564,7 @@
       if (typeof v === 'object' && v.countersOnIt) return (Number((o.counters || {})[v.countersOnIt]) || 0) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
-      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf)) {
+      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
       }
@@ -11549,7 +11557,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"

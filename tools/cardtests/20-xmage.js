@@ -11,6 +11,12 @@ function generated(t, name) {
   t.ok(a.generated, name + ' uses a translated line');
 }
 
+
+function engineEffects(T, name) {
+  const a = engine().oracle.analyze(card(name));
+  return a.abilities.find(x => x.kind === 'spell').effects;
+}
+
 module.exports = (test) => {
   test('XMage: Archon of Cruelty enters and drains', (mk, t) => {
     generated(t, 'Archon of Cruelty');
@@ -13270,5 +13276,90 @@ module.exports = (test) => {
     T.g._runEffects([{ op: 'counterSpell' }], { controller: 'B', name: 'Counterspell', kind: 'spell', targets: [{ kind: 'stack', id: other.id }] });
     T.settle(); T.resolve(); T.settle();
     t.ok(!T.g.battlefield.some(o => o.name === 'Savannah Lions'), 'another spell is countered as usual');
+  });
+
+  test('Counted cost cuts: Mobilized District, Quest for the Necropolis, Deepwood Denizen, Llanowar Greenwidow, Baru', (mk, t) => {
+    for (const n of ['Mobilized District', 'Quest for the Necropolis', 'Deepwood Denizen', 'Llanowar Greenwidow', 'Baru, Wurmspeaker']) t.auto(n);
+    const T = mk();
+    const abOf = (o) => o.analysis().abilities.find(a => a.kind === 'activated');
+    const md = T.bf('A', 'Mobilized District');
+    t.eq(T.g._abilityMana(md, abOf(md)), '{4}', 'nothing legendary yet');
+    T.bf('A', 'Isamaru, Hound of Konda'); T.bf('A', 'Jace Beleren'); T.bf('A', 'Grizzly Bears');
+    t.eq(T.g._abilityMana(md, abOf(md)), '{2}', 'a legendary creature and a planeswalker');
+    const q = T.bf('A', 'Quest for the Necropolis');
+    T.g.addCounters(q, 'quest', 2);
+    t.eq(T.g._abilityMana(q, abOf(q)), '{3}{B}', 'two quest counters');
+    const dd = T.bf('A', 'Deepwood Denizen');
+    const bear = T.g.battlefield.find(o => o.name === 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 3);
+    T.g.addCounters(T.bf('B', 'Grizzly Bears'), '+1/+1', 2);
+    t.eq(T.g._abilityMana(dd, abOf(dd)), '{2}{G}', 'only the counters on creatures you control');
+    const lg = T.bf('A', 'Llanowar Greenwidow');
+    T.bf('A', 'Forest'); T.bf('A', 'Island'); T.bf('A', 'Forest');
+    t.eq(T.g._abilityMana(lg, abOf(lg)), '{5}{G}', 'two basic land types');
+    const baru = T.bf('A', 'Baru, Wurmspeaker');
+    T.bf('A', 'Craw Wurm');
+    t.eq(T.g._abilityMana(baru, abOf(baru)), '{G}', 'the greatest power among Wurms (8, with its own +2/+2)');
+  });
+
+  test('Counters among a group: Toph, the Blind Bandit; Maester Seymour', (mk, t) => {
+    t.auto('Toph, the Blind Bandit'); t.auto('Maester Seymour');
+    const T = mk();
+    const toph = T.bf('A', 'Toph, the Blind Bandit');
+    const f = T.bf('A', 'Forest');
+    T.g.addCounters(f, '+1/+1', 3);
+    T.g.addCounters(T.bf('B', 'Forest'), '+1/+1', 2);
+    t.eq(T.g.powerOf(toph), 3, 'the counters on lands you control');
+    const ms = T.bf('A', 'Maester Seymour');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 2); T.g.addCounters(bear, 'shield', 1);
+    const before = Number((ms.counters || {})['+1/+1']) || 0;
+    const ab = ms.analysis().abilities.find(a => a.kind === 'activated' && /Monstrosity/.test(a.text));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: ms, name: 'Maester Seymour', kind: 'ability' });
+    t.ok(ms.monstrous, 'monstrous');
+    t.ok((Number(ms.counters['+1/+1']) || 0) - before >= 3, 'as many as the counters among creatures you control');
+  });
+
+  test('Domain and counted groups: Drag to the Bottom, Drag Down, Prismatic Geoscope, Leyline Binding, Collective Restraint', (mk, t) => {
+    for (const n of ['Drag to the Bottom', 'Drag Down', 'Prismatic Geoscope', 'Leyline Binding', 'Collective Restraint', 'Evasive Action']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Forest'); T.bf('A', 'Island'); T.bf('A', 'Swamp');
+    const giant = T.bf('B', 'Hill Giant');
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.g._runEffects(engineEffects(T, 'Drag to the Bottom'), { controller: 'A', name: 'Drag to the Bottom', kind: 'spell' });
+    t.eq(T.g.powerOf(wurm), 2, 'the Wurm is 2/0');
+    T.g.checkStateBasedActions(); T.settle();
+    t.zone(giant, 'graveyard', '1 plus three basic land types: -4/-4');
+    const g2 = T.bf('B', 'Hill Giant');
+    T.g._runEffects(engineEffects(T, 'Drag Down'), { controller: 'A', name: 'Drag Down', kind: 'spell', targets: [{ kind: 'object', id: g2.id }] });
+    T.g.checkStateBasedActions(); T.settle();
+    t.zone(g2, 'graveyard', 'three basic land types: -3/-3');
+    const lb = T.hand('A', 'Leyline Binding');
+    t.eq(T.g.castCost(lb), '{2}{W}', 'three less to cast');
+    const cr = T.bf('A', 'Collective Restraint');
+    const ab = cr.analysis().abilities.find(a => a.effects.some(e => e.op === 'attackTax'));
+    t.eq(T.g._countValue(ab.effects[0].per, 'A', cr), 3, '{3} for each attacker');
+  });
+
+  test('Counted groups: Ascendant Acolyte, Glacial Plating, Pummeler for Hire', (mk, t) => {
+    for (const n of ['Ascendant Acolyte', 'Glacial Plating', 'Pummeler for Hire']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 2);
+    T.g.addCounters(T.bf('B', 'Grizzly Bears'), '+1/+1', 5);
+    const aa = T.put('A', 'Ascendant Acolyte', 'battlefield', { etb: true });
+    T.settle();
+    t.eq(Number((aa.counters || {})['+1/+1']) || 0, 2, 'the counters among your other creatures');
+    const gp = T.bf('A', 'Glacial Plating');
+    T.g._attachAura(gp, bear);
+    T.g.addCounters(gp, 'age', 2);
+    t.eq(T.g.powerOf(bear), 2 + 2 + 6, '+3/+3 for each age counter on the Aura');
+    T.bf('A', 'Hill Giant');
+    const life = T.life('A');
+    T.put('A', 'Pummeler for Hire', 'battlefield', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), life + 4, 'the greatest power among Giants (itself, 4)');
   });
 };

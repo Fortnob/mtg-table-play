@@ -3533,6 +3533,9 @@
     // Mishra's Bauble: "Look at the top card of target player's library."
     { re: /^Look at the top card of target player'?s library\.?$/i, make: () => ({ op: 'lookTop', n: 1, who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Monstrosity (\d+|X)\.?$/i, make: (m) => ({ op: 'monstrosity', n: m[1] === 'X' ? 'X' : +m[1] }) },
+    // Maester Seymour: "Monstrosity X, where X is the number of counters among creatures you control."
+    { re: /^Monstrosity X, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && k.countersAmong ? { op: 'monstrosity', n: k } : null; } },
     { re: /^(?:It|CARDNAME|This creature) explores\.?$/i, make: () => ({ op: 'explore', n: 1 }) },
     { re: /^(?:It|CARDNAME|This creature) explores, then it explores again\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'explore', n: 1 }, { op: 'explore', n: 1 }] }) },
@@ -4029,6 +4032,12 @@
         return { op: 'continuous', layer: 7, cda: true, scope: { self: true },
           setPt: /power/i.test(m[1]) ? { p: dv, t: null, keepToughness: true } : { p: null, t: dv } };
       } },
+    // Toph, the Blind Bandit: "CARDNAME's power is equal to the number of +1/+1 counters on lands you control."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ((?:[+\-0-9/a-z]+ )?counters (?:on|among) [a-z ]+? you control)\.?$/i,
+      make: (m) => {
+        const k = countOf(m[1]);
+        return k && k.countersAmong ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: null, keepToughness: true } } : null;
+      } },
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: countSpec(m[1], 1), t: null, keepToughness: true } }) },
@@ -4189,6 +4198,15 @@
     // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
     { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
       make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
+    // Mobilized District: "for each legendary creature and planeswalker you control" — either kind
+    { re: /^This ability costs \{(\d+)\} less to activate for each ((?:legendary |nonland |nontoken )?(?:creature|artifact|enchantment|land|planeswalker) (?:and|or) (?:creature|artifact|enchantment|land|planeswalker)) you control\.?$/i,
+      make: (m) => ({ op: 'noop', abilityDiscount: { amount: +m[1], per: countSpec(m[2], 1) } }) },
+    // Baru, Wurmspeaker: "This ability costs {X} less to activate, where X is the greatest power among Wurms you control."
+    { re: /^This ability costs \{X\} less to activate, where X is (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[1]);
+        return k && typeof k === 'object' && (k.greatestPower || k.scope || k.countersAmong || k.domain) && !k.plus ? { op: 'noop', abilityDiscount: { amount: 1, per: k } } : null;
+      } },
     // Sire of Stagnation: "That player exiles the top two cards of their library and you draw two cards."
     { re: /^(?:That player|They) exiles? the top (a|one|two|three|four|five|\d+) cards? of their library(?: and you draw (a|one|two|three|\d+) cards?)?\.?$/i,
       make: (m) => (m[2] ? { op: 'sequence', list: [{ op: 'exileTop', n: num(m[1]), who: 'triggerPlayer' }, { op: 'draw', who: 'you', n: num(m[2]) }] }
@@ -5081,7 +5099,7 @@
 
   /** A count that can be made with no effect resolving: what is on the table, in a hand or a graveyard. */
   function plainCount(c) {
-    return !!c && ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'colorsAmongYours', 'per', 'attachedOf']
+    return !!c && ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'colorsAmongYours', 'per', 'attachedOf', 'countersAmong']
       .some(k => c[k] != null) || !!(c && c.sum && c.sum.every(plainCount));
   }
 
@@ -5129,6 +5147,17 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Quest for the Necropolis: "for each quest counter on this enchantment"
+    if ((m = p.match(/^([+\-0-9/a-z]+) counter on this (?:enchantment|land|Equipment|Vehicle|Aura|Saga)$/)))
+      return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Llanowar Greenwidow: "for each basic land type among lands you control" (domain)
+    if (/^basic land types? among lands you control$/i.test(p)) return { domain: true, mult: k };
+    /* Deepwood Denizen: "for each +1/+1 counter on creatures you control";
+       Maester Seymour: "the number of counters among creatures you control" */
+    if ((m = p.match(/^(?:([+\-0-9/a-z]+) )?counters? (?:on|among) ((?:[a-z]+ )*(?:creatures|lands|artifacts|permanents|enchantments)(?: and (?:creatures|lands|artifacts|permanents|enchantments))? you control)$/i))) {
+      const sc = scopeOf(m[2]);
+      if (sc && !sc.self && !sc.attached) return { countersAmong: sc, kind: m[1] ? m[1].toLowerCase() : null, mult: k };
+    }
     let sc = eachScope(p);
     if (!sc) sc = scopeOf(p.replace(/\b([A-Z][a-z'-]+)\b(?=(?: you control| your opponents control|$))/, '$1s'));
     if (!sc || sc.self || sc.attached) return null;
@@ -5226,7 +5255,7 @@
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestMv: sc }) : null;
     }
-    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures|(?:other )?attacking creatures)$/i))) {
+    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
     }
