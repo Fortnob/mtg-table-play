@@ -202,6 +202,8 @@ def steps(quick):
     out = [
         Step('build', [sys.executable, TOOLS / 'build.py'], judge_exit, 120),
         Step('syntax', node('-e', SYNTAX_JS, ROOT / 'index.html'), judge_exit, 120),
+        # the card-picture worker: what it keeps and what it never touches
+        Step('sw', node(TOOLS / 'swtest.js'), judge_exit, 60),
         Step('cardtest', node(TOOLS / 'cardtest.js'), judge_cardtest, 600, needs_bulk=True),
         Step('smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', smoke_to), judge_smoke, 3600, needs_bulk=True),
         # the ready-made decks must stay legal and run in full as coverage moves

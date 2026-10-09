@@ -37,6 +37,7 @@
     showScreen('home');
     wireNet();
     offerCardDb();
+    registerArtCache();
     // a friendly nudge if the card API is unreachable
     MTG.bus.on('scryfall:offline', U.debounce(() => {
       UI.toast('Scryfall is unreachable right now — cached cards still work.', 'err', 5000);
@@ -456,7 +457,7 @@
      wildcards, sleeves, decks, cubes, settings, your name and picture) in
      one file, and back again. Caches of card data and art are left out:
      they are fetched again as needed. */
-  const BACKUP_SKIP = /^mtgtable\.(?:packart|cardDb\.|clientToken|autoWarned|savedGame)/;
+  const BACKUP_SKIP = /^mtgtable\.(?:packart|cardDb\.|clientToken|autoWarned|savedGame|artCache\.|storage\.)/;
   App.exportProfile = function () {
     const data = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -1709,6 +1710,7 @@
     cardDbProgress();
     run.then((ok) => {
       const st = MTG.cardDb.status();
+      if (ok) askPersist();
       if (ok) UI.ok(`The card database is ready: ${st.cards.toLocaleString()} cards.`);
       else if (st.job && st.job.phase === 'error') UI.error(cardDbJobText(st.job));
     });
@@ -1760,7 +1762,7 @@
           ` · Scryfall's data of ${shortDate(info.updated_at)}` + (info.stored ? ` · about ${megabytes(info.stored)} stored` : '') + '.' }));
         kids.push(el('div', { class: 'opt-help', text: info.kind === 'oracle_cards'
           ? 'Bots, the deck builder and card lookups use it and need no network. Drafts and the art picker still ask Scryfall.'
-          : 'Bots, drafts, the deck builder and card lookups use it and need no network. Card pictures still come from Scryfall.' }));
+          : 'Bots, drafts, the deck builder and card lookups use it and need no network. ' + picturesNote() }));
         const newer = st.latest && st.latest.updated_at > (info.updated_at || '') ? st.latest : null;
         if (newer) kids.push(el('div', { class: 'opt-help', text: `Scryfall has a newer copy, from ${shortDate(newer.updated_at)} (${megabytes(newer.size)}).` }));
         buttons.push(newer
@@ -1776,7 +1778,7 @@
           await DB.remove(); UI.ok('Card database deleted.');
         } }));
       } else {
-        kids.push(el('div', { class: 'opt-help', text: 'Scryfall’s card data, saved in this browser. Bots build their decks in moments instead of waiting on dozens of searches, the deck builder searches instantly, and games work without a connection. One download; card pictures still come from Scryfall.' }));
+        kids.push(el('div', { class: 'opt-help', text: 'Scryfall’s card data, saved in this browser. Bots build their decks in moments instead of waiting on dozens of searches, the deck builder searches instantly, and games work without a connection. One download; ' + picturesNote().charAt(0).toLowerCase() + picturesNote().slice(1) }));
         const last = st.job;
         if (last && last.phase === 'error') kids.push(el('div', { class: 'opt-help', text: cardDbJobText(last) }));
         if (pending) kids.push(el('div', { class: 'opt-help', text: `A download stopped part way (${megabytes(pending.got)} so far); downloading again carries on from there.` }));
@@ -1804,6 +1806,182 @@
       .then((i) => { CARD_DB_SIZE.oracle_cards = i.size || CARD_DB_SIZE.oracle_cards; if (!DB.has()) redraw(); }).catch(() => {});
     return host;
   }
+  /* ---- the card pictures kept on this device (sw.js) ----
+     A service worker keeps each card picture, card back and mana symbol
+     the first time it is seen, so after that it shows at once and costs no
+     data; on a phone it keeps the pictures in a store the browser does not
+     clear as readily as its own cache. It handles nothing but those
+     pictures, and never the app itself, so updates arrive as before.
+     ART_CACHE_ON is the way to turn it off for everyone (the page is never
+     kept, so it takes effect on the next load); Options > Card data turns
+     it off on one device, and so does ?nosw in a browser with an address
+     bar (?sw turns it back on). */
+  const ART_CACHE_ON = true;
+  const ART_PREFIX = 'mtg-table-art-', ART_NS = 'mtg-table-art-v1-';
+  // "turned off on this device", for the worker to find (sw.js OFF): outside ART_PREFIX, so no sweep removes it
+  const ART_OFF = 'mtg-table-sw-off';
+  const artCacheSupported = () => {
+    try {
+      return typeof navigator !== 'undefined' && 'serviceWorker' in navigator && window.isSecureContext &&
+        /^https?:$/.test(location.protocol) && typeof caches !== 'undefined';
+    } catch (e) { return false; }   // a sandboxed frame, where even reading `caches` throws
+  };
+  const artCacheOff = () => !ART_CACHE_ON || !!MTG.store.get('artCache.off', false);
+  let artReg = null, artRegError = null;
+  /** What the card database's notes say about pictures, true to whether they are kept here. */
+  const picturesNote = () => (artCacheSupported() && !artCacheOff() && !artRegError
+    ? 'Card pictures come from Scryfall and are kept on this device as you see them.'
+    : 'Card pictures still come from Scryfall.');
+  /** Tell a worker to stand down and empty what it kept; resolved when it has, or after a few seconds. */
+  const retireWorker = (w) => /** @type {Promise<void>} */ (new Promise((res) => {
+    const ch = new MessageChannel();
+    const t = setTimeout(() => res(), 3000);
+    ch.port1.onmessage = () => { clearTimeout(t); res(); };
+    try { w.postMessage({ type: 'retire' }, [ch.port2]); } catch (e) { clearTimeout(t); res(); }
+  }));
+  async function dropArtCache() {
+    if (!artCacheSupported()) return;
+    try {
+      // first the mark a worker started again later finds: unregistering leaves it in charge of pages already open
+      await caches.open(ART_OFF);
+      const mine = new URL('sw.js', location.href).href;
+      const regs = (await navigator.serviceWorker.getRegistrations()).filter((r) => {
+        const w = r.active || r.waiting || r.installing;
+        return w && w.scriptURL === mine;
+      });
+      // every worker of ours stops and empties its caches, the one in charge here and any serving another tab
+      const workers = new Set([navigator.serviceWorker.controller].concat(regs.map(r => r.active)).filter(Boolean));
+      await Promise.all([...workers].map(retireWorker));
+      for (const r of regs) await r.unregister();
+      for (const n of await caches.keys()) if (n.startsWith(ART_PREFIX)) await caches.delete(n);
+    } catch (e) { /* nothing there to drop */ }
+    artReg = null;
+  }
+  function registerArtCache() {
+    if (!artCacheSupported()) return;
+    // ?nosw / ?sw say it once: remembered, then taken out of the address so a later "turn it back on" is not undone
+    const q = new URLSearchParams(location.search);
+    if (q.has('nosw')) MTG.store.set('artCache.off', true);
+    if (q.has('sw')) MTG.store.set('artCache.off', false);
+    const forced = q.has('sw');
+    if (q.has('nosw') || q.has('sw')) {
+      q.delete('nosw'); q.delete('sw');
+      try { history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) { /* the address stays as it was */ }
+    }
+    if (artCacheOff()) { dropArtCache(); return; }
+    // a browser driven by a test gets none, unless the address asks for it
+    if (navigator.webdriver && !forced) return;
+    // on again: the off mark goes first, or the new worker would find it and stand down
+    const go = () => caches.delete(ART_OFF).catch(() => false)
+      .then(() => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })).then((reg) => {
+      artReg = reg; artRegError = null;
+      // a phone app can stay open for days: look for a newer worker when it comes back, at most hourly
+      let checked = Date.now();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || Date.now() - checked < 36e5) return;
+        checked = Date.now();
+        reg.update().catch(() => {});
+      });
+      const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || /** @type {any} */ (navigator).standalone === true;
+      if (standalone) askPersist();
+    }).catch((e) => { artRegError = e; console.warn('Saved card art is off: the worker could not be registered.', e); });
+    // after the page has drawn and settled, so the first screen is not kept waiting
+    const later = () => (window.requestIdleCallback ? requestIdleCallback(go, { timeout: 3000 }) : setTimeout(go, 1500));
+    if (document.readyState === 'complete') later();
+    else window.addEventListener('load', later, { once: true });
+  }
+  /** Ask the worker something, over a channel of its own; null when there is none to ask or it does not answer. */
+  async function askWorker(msg, ms) {
+    try {
+      if (!artCacheSupported()) return null;
+      const reg = artReg || await navigator.serviceWorker.getRegistration();
+      const w = reg && reg.active;
+      if (!w) return null;
+      return await new Promise((res) => {
+        const ch = new MessageChannel();
+        const t = setTimeout(() => res(null), ms || 2000);
+        ch.port1.onmessage = (e) => { clearTimeout(t); res(e.data); };
+        w.postMessage(msg, [ch.port2]);
+      });
+    } catch (e) { return null; }
+  }
+  /**
+   * Ask the browser to keep what is stored here even when space runs low:
+   * granted or not without a word in Safari and Chrome (a home-screen app
+   * is the likeliest to be), though Firefox asks the player, so it is only
+   * ever asked after something the player chose to do. At most once a month.
+   */
+  async function askPersist() {
+    try {
+      const S = navigator.storage;
+      if (!S || !S.persist || !S.persisted || await S.persisted()) return;
+      const last = MTG.store.get('storage.persistAsked', 0) || 0;
+      if (Date.now() - last < 30 * 864e5) return;
+      MTG.store.set('storage.persistAsked', Date.now());
+      await S.persist();
+    } catch (e) { /* the browser decides */ }
+  }
+  /** Options, Card data: how many pictures are kept here, and a way to delete them. */
+  function artCacheRow() {
+    const host = el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
+      el('div', { class: 'opt-label', text: 'Saved card art' }),
+      el('div', { class: 'opt-help', text: 'Reading the saved art…' }),
+    ]));
+    const draw = async () => {
+      const kids = [el('div', { class: 'opt-label', text: 'Saved card art' })];
+      const buttons = [];
+      if (!artCacheSupported()) {
+        kids.push(el('div', { class: 'opt-help', text: 'This browser or address cannot save card art, so pictures are downloaded each time they are needed.' }));
+      } else if (artCacheOff()) {
+        kids.push(el('div', { class: 'opt-help', text: ART_CACHE_ON ? 'Saving card art is turned off on this device.' : 'Saving card art is turned off for now.' }));
+        if (ART_CACHE_ON) buttons.push(el('button', { class: 'btn sm', text: 'Turn it back on', onclick: () => {
+          MTG.store.set('artCache.off', false); registerArtCache(); setTimeout(draw, 1500);
+        } }));
+      } else if (artRegError) {
+        kids.push(el('div', { class: 'opt-help', text: 'This browser would not start saving card art here (site data may be blocked), so pictures are downloaded each time.' }));
+      } else {
+        const help = el('div', { class: 'opt-help', text: 'Reading the saved art…' });
+        kids.push(help);
+        const stats = await askWorker({ type: 'stats' }, 2500);
+        const kept = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
+        if (!stats) help.textContent = 'Card pictures are kept on this device as you see them, so they show at once and use less data. Starting up; look again in a moment.';
+        else {
+          const n = stats.n || 0;
+          help.textContent = `Card pictures are kept on this device as you see them, so they show at once and use less data: ${stats.approx ? 'about ' : ''}${n.toLocaleString()} picture${n === 1 ? '' : 's'} (${megabytes(stats.bytes || 0)}), of up to about ${megabytes(stats.maxBytes || 0)}; the least used go first.`;
+        }
+        kids.push(el('div', { class: 'opt-help', text: kept ? 'Kept until you delete it.' : 'The browser may clear it if the device runs low on space.' }));
+        if (!kept && navigator.storage && navigator.storage.persist) buttons.push(el('button', { class: 'btn sm', text: 'Ask the browser to keep it', onclick: async () => {
+          try { MTG.store.set('storage.persistAsked', Date.now()); await navigator.storage.persist(); } catch (e) { /* the browser decides */ }
+          draw();
+        } }));
+        kids.push(el('div', { class: 'opt-help', text: 'Each browser keeps its own; on an iPhone the home-screen app and Safari keep one each.' + (stats ? ` (worker ${stats.v})` : '') }));
+        buttons.push(el('button', { class: 'btn sm danger', text: 'Delete saved art', onclick: async () => {
+          if (!await UI.confirm('Delete the card pictures saved on this device? They are downloaded again as they are needed.', 'Saved card art', { yes: 'Delete them', no: 'Keep them' })) return;
+          const done = await askWorker({ type: 'clear' }, 5000);
+          if (!done) {
+            for (const n of await caches.keys()) if (n.startsWith(ART_NS + 'g') || n === ART_NS + 'meta') await caches.delete(n);
+          }
+          UI.ok('Saved art deleted.');
+          setTimeout(draw, 800);
+        } }));
+        // the only off switch a home-screen app can reach: it has no address bar for ?nosw
+        buttons.push(el('button', { class: 'btn sm', text: 'Turn off on this device', onclick: async (e) => {
+          e.target.disabled = true;
+          MTG.store.set('artCache.off', true);
+          await dropArtCache();
+          draw();
+        } }));
+      }
+      if (buttons.length) kids.push(el('div', { class: 'row wrap', style: { marginTop: '10px' } }, buttons));
+      if (!host.isConnected && host.dataset.drawn) return;   // Options was drawn again without this row
+      host.dataset.drawn = '1';
+      host.innerHTML = '';
+      host.appendChild(el('div', { class: 'grow' }, kids));
+    };
+    draw();
+    return host;
+  }
+
   /**
    * The first visit: offer the database once, and only download it on a yes.
    * Later visits look for a newer copy now and then, and mention it when the
@@ -2135,6 +2313,7 @@
       (mine ? `, and ${mine} more by you.` : '.');
     sections.push(group('data', 'Card data', null, [
       cardDbRow(),
+      artCacheRow(),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Cache' }), cacheInfo,
         el('div', { class: 'row wrap', style: { marginTop: '10px' } }, [

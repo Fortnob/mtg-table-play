@@ -812,6 +812,19 @@
        costs nothing extra); one that fails is answered with '' from then on,
        which every screen already reads as "write the card out instead", and
        'scryfall:images' tells whatever is showing it to look again. */
+    /**
+     * A picture that would not show: dropped from the pictures kept on this
+     * device (sw.js), so the next time it is fetched afresh. Nothing happens
+     * where there is no worker (Node, a plain http address).
+     */
+    forgetArt(url) {
+      try {
+        const sw = typeof navigator !== 'undefined' && navigator.serviceWorker;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;   // offline: the copy kept is not to blame
+        if (url && sw && sw.controller) sw.controller.postMessage({ type: 'forget', url: String(url) });
+      } catch (e) { /* nothing kept to forget */ }
+    }
+
     imageUsable(url, size) {
       if (!url || typeof Image === 'undefined') return !!url;
       const st = this._img || (this._img = { bad: new Set(), tried: new Set() });
@@ -822,6 +835,7 @@
         probe.decoding = 'async';
         probe.onerror = () => {
           st.bad.add(url);
+          this.forgetArt(url);
           // a picture that failed while the connection was down may well load later
           setTimeout(() => { st.bad.delete(url); st.tried.delete(url); }, 1000 * 60 * 5);
           if (!this._imgTell) this._imgTell = U.debounce(() => MTG.bus.emit('scryfall:images'), 200);

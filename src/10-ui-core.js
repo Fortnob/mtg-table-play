@@ -250,6 +250,7 @@
       probe.onload = () => imgStatus.set(url, 'ok');
       probe.onerror = () => {
         imgStatus.set(url, 'bad');
+        MTG.scry.forgetArt(url);
         if (node.isConnected) node.replaceWith(UI.cardFallback(card, faceIndex || 0));
       };
       probe.src = url;
@@ -866,7 +867,7 @@
         const probe = new Image();
         probe.decoding = 'async';
         probe.onload = () => res(true);
-        probe.onerror = () => res(false);
+        probe.onerror = () => { MTG.scry.forgetArt(url); res(false); };
         probe.src = url;
       }));
     }
