@@ -11834,4 +11834,25 @@ module.exports = (test) => {
     run(/end step/);
     t.eq(T.life('B'), 18, 'two damage'); t.eq(T.g.zones.A.exile.length, 0);
   });
+
+  test("Mizzix's Mastery: exile it and cast a copy; overloaded, every one", (mk, t) => {
+    t.auto("Mizzix's Mastery");
+    const T = mk();
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', '3R');
+    T.cast('A', T.hand('A', "Mizzix's Mastery"), { targets: [bolt.id] });
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(bolt.zone, 'exile'); t.eq(T.life('B'), 17, 'the copy hit');
+    const T2 = mk();
+    const b1 = T2.grave('A', 'Lightning Bolt'), b2 = T2.grave('A', 'Lightning Bolt');
+    T2.answer('confirm', { yes: true }); T2.answer('confirm', { yes: true });
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T2.mana('A', '5RRR');
+    t.ok(T2.g.castSpell('A', T2.hand('A', "Mizzix's Mastery").id, { via: 'overload' }), T2.g.lastError);
+    T2.settle(); T2.resolve(); T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
+    t.eq(b1.zone, 'exile'); t.eq(b2.zone, 'exile'); t.eq(T2.life('B'), 14, 'both copies');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12396,
+  "needed": 12395,
   "gainedCards": 1348,
-  "linesNeeded": 13515,
+  "linesNeeded": 13514,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -90,10 +90,9 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 229,
-   "lines": 202,
+   "score": 221,
+   "lines": 200,
    "cards": [
-    "Mizzix's Mastery",
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
     "March of Swirling Mist",
@@ -104,7 +103,8 @@
     "Fangs of Kalonia",
     "Spectacular Showdown",
     "Boseiju, Who Shelters All",
-    "Edgar Markov"
+    "Edgar Markov",
+    "Archpriest of Shadows"
    ]
   },
   {
@@ -7103,19 +7103,6 @@
    ]
   },
   {
-   "what": "(line not matched to XMage code)",
-   "score": 136,
-   "cards": 127,
-   "names": [
-    "Mizzix's Mastery",
-    "March of Swirling Mist",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Fighter Class",
-    "Wand of Wonder"
-   ]
-  },
-  {
    "what": "custom condition",
    "score": 133,
    "cards": 130,
@@ -7126,6 +7113,19 @@
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 132,
+   "cards": 126,
+   "names": [
+    "March of Swirling Mist",
+    "Winds of Abandon",
+    "Alchemist's Talent",
+    "Fighter Class",
+    "Wand of Wonder",
+    "Fangs of Kalonia"
    ]
   },
   {

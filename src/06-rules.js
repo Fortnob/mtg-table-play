@@ -11049,6 +11049,10 @@
         if (spec.type === 'spell' || spec.zone === 'stack') {
           targets = this.stack.filter(st => st.kind === 'spell' && st.id !== ctx.id && this._spellMatches(st, spec, ctx.controller))
             .map(st => ({ kind: 'stack', id: st.id }));
+        } else if (spec.zone === 'graveyard') {
+          // Mizzix's Mastery overloaded: every such card in your graveyard
+          targets = this.zones[ctx.controller].graveyard.filter(o => o.analysis() && this._cardFitsWords(o, spec.filter || 'card'))
+            .map(o => ({ kind: 'object', id: o.id }));
         } else {
           targets = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
             MTG.oracle.matchesSpec(spec, o, o.analysis(), ctx.controller, this._specCtx())).map(o => ({ kind: 'object', id: o.id }));
@@ -14612,6 +14616,25 @@
           if (!list.length) break;
           for (const c of list) this.moveObject(c, 'graveyard');
           for (const q of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(q, list.length, src, false);
+          break;
+        }
+        // Mizzix's Mastery: each card exiled, and a copy of it cast for nothing if you like
+        case 'exileCopyCast': {
+          const cards = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && (x.zone === 'graveyard' || x.zone === 'exile'));
+          const yes = [];
+          for (const c of cards) {
+            const got = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'castCopy', prompt: `Cast a copy of ${c.name} without paying its mana cost?` }, 'ecc' + c.id);
+            if (got === SUSPEND) return SUSPEND;
+            if (got) yes.push(c);
+          }
+          for (const c of cards) if (c.zone === 'graveyard') this.moveObject(c, 'exile');
+          for (const c of yes) {
+            const dup = this._register(new GObj(c.card, ctx.controller, 'exile'));
+            dup.isCopy = true;
+            this.zones[ctx.controller].exile.push(dup);
+            this._castFree(ctx.controller, dup, { how: `(a copy of ${c.name}) without paying its mana cost` });
+            this.stack[this.stack.length - 1].isCopy = true;
+          }
           break;
         }
         // Mordenkainen: hand and library change places

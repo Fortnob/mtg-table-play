@@ -5447,6 +5447,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Mizzix's Mastery: "Exile target card that's an instant or sorcery from
+       your graveyard. For each card exiled this way, copy it, and you may cast
+       the copy without paying its mana cost. Exile CARDNAME." (overloaded,
+       every such card) */
+    { re: /^Exile (target|each) card that'?s an instant or sorcery from your graveyard\. For each card exiled this way, copy it, and you may cast the copy without paying its mana cost\. Exile CARDNAME\.$/i,
+      make: (m) => {
+        const spec = { type: 'card', filter: 'instant or sorcery', zone: 'graveyard', controller: 'you' };
+        return [Object.assign({ op: 'exileCopyCast' }, /each/i.test(m[1]) ? { eachOf: spec } : { targets: [spec] }), { op: 'exileSelf' }];
+      } },
     /* Valakut Exploration: "if there are cards exiled with this enchantment,
        put them into their owner's graveyard, then this enchantment deals that
        much damage to each opponent." */
