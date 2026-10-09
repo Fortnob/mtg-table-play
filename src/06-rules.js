@@ -14604,6 +14604,16 @@
           this.rng.shuffle(z.library);
           break;
         }
+        // Valakut Exploration: what it exiled goes to the graveyard, and as much damage to each opponent
+        case 'exiledWithToGraveyardDamage': {
+          if (!src) break;
+          const list = [];
+          for (const q of this.players) for (const c of (this.zones[q.id].exile || [])) if (c.exiledWithId === src.id) list.push(c);
+          if (!list.length) break;
+          for (const c of list) this.moveObject(c, 'graveyard');
+          for (const q of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(q, list.length, src, false);
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
@@ -16202,6 +16212,8 @@
             this._lastExiled = o.id;
             this._lastExiledList.push(o.id);
             if (e.play) { o.impulseUntil = until; o.impulseBy = ctx.controller; }
+            // "cards exiled with this enchantment" (Valakut Exploration)
+            if (src) o.exiledWithId = src.id;
           }
           this.logEvent('exile', `${me.name} exiles the top ${cnt} card${cnt === 1 ? '' : 's'}${e.play ? ' and may play ' + (cnt === 1 ? 'it' : 'them') : ''}.`);
           break;

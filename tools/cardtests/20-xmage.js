@@ -11823,4 +11823,15 @@ module.exports = (test) => {
     T3.settle(); T3.resolve();
     t.eq(g1.zone, 'battlefield', 'one back for one sacrificed');
   });
+
+  test('Valakut Exploration: its exiled cards to the graveyard, that much damage', (mk, t) => {
+    t.auto('Valakut Exploration');
+    const T = mk();
+    const ve = T.bf('A', 'Valakut Exploration');
+    const run = (re) => T.g._runEffects(ve.analysis().abilities.find(a => a.kind === 'triggered' && re.test(a.text)).effects, { controller: 'A', obj: ve, name: 'Valakut', kind: 'ability' });
+    run(/Landfall|land you control enters/); run(/Landfall|land you control enters/);
+    t.eq(T.g.zones.A.exile.filter(c => c.exiledWithId === ve.id).length, 2);
+    run(/end step/);
+    t.eq(T.life('B'), 18, 'two damage'); t.eq(T.g.zones.A.exile.length, 0);
+  });
 };

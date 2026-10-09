@@ -5447,6 +5447,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Valakut Exploration: "if there are cards exiled with this enchantment,
+       put them into their owner's graveyard, then this enchantment deals that
+       much damage to each opponent." */
+    { re: /^(?:if there are cards exiled with (?:this enchantment|CARDNAME), )?put them into their owner'?s graveyard, then (?:this enchantment|CARDNAME) deals that much damage to each opponent\.$/i,
+      make: () => [{ op: 'exiledWithToGraveyardDamage' }] },
     /* Pitiless Carnage, Reprocess, Last-Ditch Effort, Renounce, Landslide,
        Lich-Knights' Conquest: "Sacrifice any number of …, then draw that
        many cards", "… Draw a card for each permanent sacrificed this way",
