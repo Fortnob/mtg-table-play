@@ -12332,6 +12332,13 @@
           toOpponent: /opponent/i.test(m[2]), sourceWords: words || null }, noncombat ? { noncombat: true } : {},
           plus ? { how: 'add', n: num(plus[1]) } : { how: m[3].toLowerCase() });
       } },
+    /* The Sound of Drums, Inquisitor's Flail: "If enchanted (equipped) creature would
+       deal combat damage (to a permanent or player), it deals double that damage
+       instead"; "If another creature would deal combat damage to equipped creature" */
+    { re: /^If (enchanted|equipped) creature would deal combat damage(?: to a permanent or player)?, it deals double that damage instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgAttachedDouble', event: 'damage', who: 'any', how: 'double', fromAttached: true, combatOnly: true }) },
+    { re: /^If another creature would deal combat damage to (enchanted|equipped) creature, it deals double that damage to (?:enchanted|equipped) creature instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgToAttachedDouble', event: 'damage', who: 'any', how: 'double', toAttached: true, combatOnly: true, sourceWords: 'creature' }) },
     /* Furnace of Rath, Dictate of the Twin Gods: any source, any victim;
        Fiendish Duo: any source, to an opponent */
     { re: /^If a source would deal damage to (a permanent or player|an opponent), it deals double that damage to that (?:permanent or player|player) instead\.?$/i,

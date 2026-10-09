@@ -8758,6 +8758,10 @@
         if (ef.toPlayerOnly && !ev.toPlayer) return false;
         if (ef.noncombat && ev.combat) return false;
         if (ef.sourceWords && !this._cardFitsWords(ev.source, ef.sourceWords)) return false;
+        // The Sound of Drums, Inquisitor's Flail: combat damage from (or to) the creature it's attached to
+        if (ef.combatOnly && !ev.combat) return false;
+        if (ef.fromAttached && !(ev.source && src.attachedTo === ev.source.id)) return false;
+        if (ef.toAttached && !(ev.victimId && src.attachedTo === ev.victimId)) return false;
       }
       if (ef.event === 'zoneChange' && ef.how === 'toZone' && ev.zone === ef.zone) return false;
       return true;
@@ -10273,9 +10277,9 @@
 
     /* Fiery Emancipation, Torbran, Gratuitous Violence: what a source
        deals, after anything that doubles or adds to it. */
-    _damageAmount(amount, source, victimController, combat, toPlayer) {
+    _damageAmount(amount, source, victimController, combat, toPlayer, victimId) {
       if (!source) return amount;
-      const ev = this._replace({ kind: 'damage', n: amount, controller: source.controller, source, victimController, combat: !!combat, toPlayer: !!toPlayer });
+      const ev = this._replace({ kind: 'damage', n: amount, controller: source.controller, source, victimController, combat: !!combat, toPlayer: !!toPlayer, victimId });
       return Math.max(0, ev.n);
     }
 

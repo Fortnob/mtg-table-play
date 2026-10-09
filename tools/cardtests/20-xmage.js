@@ -15659,4 +15659,25 @@ module.exports = (test) => {
     t.eq(asked, 'A', "the Bears' controller is asked");
     t.eq(V.zone('A', 'hand').length, handA + 1, 'and draws');
   });
+
+  test("Inquisitor's Flail, The Sound of Drums: double combat damage from (and to) the creature", (mk, t) => {
+    t.auto("Inquisitor's Flail");
+    t.auto('The Sound of Drums');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), flail = T.bf('A', "Inquisitor's Flail");
+    flail.attachedTo = bear.id; bear.attachments = [flail.id];
+    const wall = T.bf('B', 'Wall of Wood');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(wall, 'graveyard', 'the Bears deal double: four to a 0/3');
+    const U = mk();
+    const ape = U.bf('A', 'Grizzly Bears'), drums = U.bf('A', 'The Sound of Drums');
+    drums.attachedTo = ape.id; ape.attachments = [drums.id];
+    U.toMain('A');
+    U.answer('declareAttackers', () => [{ attackerId: ape.id, defenderId: 'B' }]);
+    U.toMain('A', 'endCombat');
+    t.eq(U.life('B'), 16, 'four to the player');
+  });
 };
