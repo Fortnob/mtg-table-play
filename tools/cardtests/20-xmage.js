@@ -11638,4 +11638,35 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle(); T.resolve();
     t.eq(T.life('B'), 20, 'the Bolt was countered');
   });
+
+  test("Benevolent Hydra, Beseech the Queen, Malevolent Rumble, Overmaster, Windgrace's Judgment", (mk, t) => {
+    for (const c of ['Benevolent Hydra', 'Beseech the Queen', 'Malevolent Rumble', 'Overmaster', "Windgrace's Judgment"]) t.auto(c);
+    const T = mk();
+    const bh = T.bf('A', 'Benevolent Hydra'), bear = T.bf('A', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1, { }); T.g.addCounters(bh, '+1/+1', 1, { });
+    t.eq(bear.counters['+1/+1'], 2, 'another creature: one more'); t.eq(bh.counters['+1/+1'], 1, 'not itself');
+    const T2 = mk();
+    T2.bf('A', 'Forest'); T2.bf('A', 'Forest');
+    const big = T2.top('A', 'Craw Wurm'), small = T2.top('A', 'Grizzly Bears');
+    T2.answer('pickCard', (ch) => { t.no(ch.cards.some(c => c.id === big.id), 'mana value above two lands'); return { cardIds: [small.id] }; });
+    T2.mana('A', '2BBB');
+    T2.cast('A', T2.hand('A', 'Beseech the Queen'));
+    T2.settle(); T2.resolve();
+    t.eq(small.zone, 'hand');
+    const T3 = mk();
+    const x1 = T3.top('A', 'Grizzly Bears'), x2 = T3.top('A', 'Lightning Bolt');
+    T3.answer('pickCard', (ch) => ({ cardIds: [x1.id] }));
+    T3.mana('A', '1G');
+    T3.cast('A', T3.hand('A', 'Malevolent Rumble'));
+    T3.settle(); T3.resolve();
+    t.eq(x1.zone, 'hand'); t.eq(x2.zone, 'graveyard'); t.eq(T3.g.battlefield.filter(o => o.isToken).length, 1, 'a Spawn');
+    const T4 = mk({ players: ['A', 'B', 'C'] });
+    const pb = T4.bf('B', 'Sol Ring'), pc = T4.bf('C', 'Mind Stone');
+    T4.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T4.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T4.mana('A', '3BG');
+    T4.cast('A', T4.hand('A', "Windgrace's Judgment"));
+    T4.settle(); T4.resolve();
+    t.eq(pb.zone, 'graveyard'); t.eq(pc.zone, 'graveyard');
+  });
 };

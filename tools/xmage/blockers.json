@@ -1,15 +1,15 @@
 {
- "generated": "2026-10-08",
+ "generated": "2026-10-09",
  "stats": {
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12437,
-  "gainedCards": 1352,
-  "linesNeeded": 13569,
-  "linesGained": 1612,
+  "needed": 12427,
+  "gainedCards": 1349,
+  "linesNeeded": 13559,
+  "linesGained": 1609,
   "gained": {
-   "all": 1352,
+   "all": 1349,
    "top2000": 51,
    "stdTop": 10
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4508,
-   "lines": 4136,
+   "score": 4506,
+   "lines": 4134,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -128,8 +128,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 187,
-   "lines": 175,
+   "score": 186,
+   "lines": 174,
    "cards": [
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
@@ -142,7 +142,7 @@
     "Dance of the Manse",
     "Ink-Eyes, Servant of Oni",
     "Doppelgang",
-    "Windgrace's Judgment"
+    "Riptide Gearhulk"
    ]
   },
   {
@@ -6329,17 +6329,6 @@
    ]
   },
   {
-   "what": "ModifyCountersAddedEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Benevolent Hydra",
-    "Mauhúr, Uruk-hai Captain",
-    "Pir, Imaginative Rascal",
-    "Caradora, Heart of Alacria"
-   ]
-  },
-  {
    "what": "AirbendTargetEffect",
    "score": 4,
    "lines": 4,
@@ -7049,13 +7038,24 @@
     "Raving Dead",
     "Knight Rampager"
    ]
+  },
+  {
+   "what": "DealsDamageSourceTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Cecil, Dark Knight // Cecil, Redeemed Paladin",
+    "Shackles of Treachery",
+    "Towering-Wave Mystic",
+    "Emberwilde Caliph"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3676,
-   "cards": 3436,
+   "score": 3674,
+   "cards": 3434,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7080,8 +7080,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 162,
-   "cards": 150,
+   "score": 161,
+   "cards": 149,
    "names": [
     "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
@@ -10810,14 +10810,14 @@
    ]
   },
   {
-   "what": "ModifyCountersAddedEffect",
+   "what": "copy with changes",
    "score": 4,
    "cards": 4,
    "names": [
-    "Benevolent Hydra",
-    "Mauhúr, Uruk-hai Captain",
-    "Pir, Imaginative Rascal",
-    "Caradora, Heart of Alacria"
+    "Increasing Vengeance",
+    "Double Major",
+    "Choreographed Sparks",
+    "Aziza, Mage Tower Captain"
    ]
   }
  ]

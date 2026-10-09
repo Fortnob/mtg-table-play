@@ -4889,7 +4889,10 @@
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
       // Cavern of Souls: "that spell can't be countered"
       if (payFlags.uncounterable) item.uncounterable = true;
-      if (p.nextSpellUncounterable === this.turn) { item.uncounterable = true; p.nextSpellUncounterable = null; }
+      // (Overmaster: only the next instant or sorcery spell)
+      if (p.nextSpellUncounterable === this.turn && (!p.nextSpellUncounterableWords || this._cardFitsWords(o, p.nextSpellUncounterableWords))) {
+        item.uncounterable = true; p.nextSpellUncounterable = null;
+      }
       // Archway of Innovation: the keyword was for this spell only
       if (p.nextSpellKeyword && p.nextSpellKeyword.turn === this.turn) p.nextSpellKeyword = null;
       for (const rider of (payFlags.riders || [])) this._manaRider(rider, item, playerId);
@@ -8282,6 +8285,8 @@
       if (who === 'opponents' && ev.controller === src.controller) return false;
       // Lae'zel: "on a creature or planeswalker you control or on yourself"
       if (ef.onYours && ev.controller !== src.controller) return false;
+      // Benevolent Hydra: "another creature"
+      if (ef.notSelf && ev.object && ev.object.id === src.id) return false;
       // Gond Gate: "Gates you control" — the words, as a card reads them
       if (ef.words && ev.object && !this._cardFitsWords(ev.object, ef.words)) return false;
       // Winding Constrictor: counters on you, not on your permanents
@@ -18085,7 +18090,7 @@
           break;
         }
         /* Mistrise Village */
-        case 'nextSpellUncounterable': me.nextSpellUncounterable = this.turn; break;
+        case 'nextSpellUncounterable': me.nextSpellUncounterable = this.turn; me.nextSpellUncounterableWords = e.words || null; break;
         /* Reality Shift: the top card of a library, face down, as a 2/2 */
         case 'manifest': {
           const who = e.who === 'targetController' ? (this._lastAffectedController() || me) : me;

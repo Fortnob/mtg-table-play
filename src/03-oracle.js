@@ -3459,6 +3459,15 @@
         return { op: 'playHidden', cond };
       } },
     { re: /^The next spell you cast this turn can'?t be countered\.?$/i, make: () => ({ op: 'nextSpellUncounterable' }) },
+    // Overmaster: "The next instant or sorcery spell you cast this turn can't be countered."
+    { re: /^The next (instant or sorcery|creature|noncreature) spell you cast this turn can'?t be countered\.?$/i,
+      make: (m) => ({ op: 'nextSpellUncounterable', words: m[1].toLowerCase() }) },
+    // Malevolent Rumble: "You may put a permanent card from among them into your hand."
+    { re: /^You may put an? ([-a-z ]*?)card from among them into your hand\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'keep' }) },
+    // Beseech the Queen: "Search your library for a card with mana value less than or equal to the number of lands you control, reveal it, put it into your hand, then shuffle."
+    { re: /^Search your library for a card with mana value less than or equal to ([a-z ]+?), reveal it, put it into your hand, then shuffle\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'tutor', n: 1, filter: 'any', maxMv: k, to: 'hand' } : null; } },
     { re: /^One or two target creatures can'?t block this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'cantBlock', targets: [{ type: 'creature' }, { type: 'creature', upTo: true }] }) },
     { re: /^(?:A creature|Creatures) destroyed this way can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
@@ -5285,10 +5294,12 @@
        exile up to one target nonland permanent that player controls" — the
        sentence read for one target, and one picked for each opponent as it
        resolves, among the things of theirs it could have targeted */
-    const perOpp = !depth && s.match(/^For each (opponent|player), (?:you may )?(.+)$/i);
+    // (Windgrace's Judgment: "For any number of opponents, destroy target nonland permanent that player controls" — the same, each one optional)
+    const perOpp = !depth && (s.match(/^For each (opponent|player), (?:you may )?(.+)$/i) || s.match(/^For any number of (opponent)s, (.+)$/i));
     if (perOpp) {
       const body = perOpp[2];
-      const onBf = body.match(/\bup to one target ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i);
+      const onBf = body.match(/\bup to one target ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i) ||
+        (/^For any number/i.test(s) && body.match(/\btarget ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i));
       const inGy = !onBf && body.match(/\bup to one target ([a-z ]+? card) from that player'?s graveyard\b/i);
       if (onBf || inGy) {
         let one = onBf ? body.replace(onBf[0], 'target ' + onBf[1]) : body.replace(inGy[0], 'target ' + inGy[1] + ' from a graveyard');
@@ -10364,6 +10375,9 @@
        instead." */
     { re: /^If you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one of each of those kinds of counters on that permanent or player instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Any', event: 'counters', who: 'putter', onYours: true, players: true, how: 'add', n: 1, whatAny: ['creature', 'planeswalker'] }) },
+    // Benevolent Hydra: "If one or more +1/+1 counters would be put on another creature you control, that many plus one … are put on it instead."
+    { re: /^If one or more \+1\/\+1 counters would be put on another creature you control, that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Other', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', what: 'creature', notSelf: true }) },
     /* Hardened Scales and friends: one more counter, or twice as many */
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
