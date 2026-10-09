@@ -2217,4 +2217,22 @@ module.exports = (test) => {
     t.ok(own >= 0);
     t.no(T.g.activateAbility('A', pw.id, own, { auto: true }), 'a second loyalty ability this turn is refused');
   });
+
+  test('Audit: Wrexial casts from the graveyard of the player it hit, not any opponent\'s', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Wrexial, the Risen Deep');
+    t.auto('Deluxe Dragster');
+    T.toMain('A');
+    const w = T.bf('A', 'Wrexial, the Risen Deep'); w.summoningSick = false;
+    const bs = T.grave('B', 'Divination'), cs = T.grave('C', 'Lightning Bolt');
+    let offered = null;
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => { offered = (ch.options[0] || []).map(o => o.id); return { targets: [(ch.options[0] || [])[0]] }; });
+    const hand = T.g.zones.A.hand.length;
+    T.toMain('A', 'end');
+    t.eq(JSON.stringify(offered), JSON.stringify([bs.id]), "only B's Divination is offered");
+    t.eq(T.g.zones.A.hand.length, hand + 2, 'cast: two cards drawn');
+    t.zone(bs, 'exile', 'and exiled afterwards');
+    t.zone(cs, 'graveyard');
+  });
 };

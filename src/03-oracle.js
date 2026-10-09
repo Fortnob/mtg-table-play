@@ -6893,7 +6893,8 @@
       make: (m) => {
         const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
         const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard' },
-          /^your/i.test(m[3]) ? { controller: 'you' } : /opponent|that player/i.test(m[3]) ? { controller: 'opponent' } : {},
+          // (Wrexial, the Risen Deep: "that player's" is the one it dealt damage to)
+          /^your/i.test(m[3]) ? { controller: 'you' } : /^that player/i.test(m[3]) ? { controller: 'triggerPlayer' } : /opponent/i.test(m[3]) ? { controller: 'opponent' } : {},
           m[2] ? { maxMv: +m[2] } : {});
         return [{ op: 'castFree', from: 'targets', upTo: 1, exileAfter: /exile it instead/i.test(m[0]), targets: [spec] }];
       } },
