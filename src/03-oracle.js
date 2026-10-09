@@ -5325,7 +5325,8 @@
     // Sage's Reverie: "Aura you control that's attached to a creature"
     if ((m = p.match(/^(Aura|Equipment)s? you control that(?:'s| are) attached to (?:a )?creatures?$/i)))
       return { per: m[1].toLowerCase(), who: 'you', attachedToCreature: true, mult: k };
-    if ((m = p.match(/^card in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
+    // (Recurring Insight: "the number of cards in target opponent's hand")
+    if ((m = p.match(/^cards? in (your|target opponent'?s|target player'?s|that player'?s) hand$/i)))
       return { cardsInHand: /^your/i.test(m[1]) ? 'you' : 'target', mult: k };
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
     // the Scents and Seers: "for each card revealed this way"
@@ -12524,6 +12525,12 @@
       { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
       // Everlasting Torment: "All damage is dealt as though its source had wither."
       { re: /^All damage is dealt as though its source had wither\.?$/i, eff: { op: 'witherAll' }, auto: true },
+      // Darksteel Angel, Blightbeetle: "Creatures you control can't have -1/-1 counters put on them."
+      { re: /^(Creatures you control|Creatures your opponents control|Creatures) can'?t have ([+-]\d\/[+-]\d) counters put on them\.?$/i,
+        make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'noCountersOfKind', scope: sc, kind: m[2] } : null; }, auto: true },
+      // Duelist of the Mind: "CARDNAME's power is equal to the number of cards you've drawn this turn."
+      { re: /^(?:CARDNAME|This creature)'?s power is equal to (the number of cards you'?ve drawn this turn|the amount of life you(?:'ve)? gained this turn)\.?$/i,
+        make: (m) => { const k = amountOf(m[1]); return k && k.playerStat ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: null, keepToughness: true } } : null; }, auto: true },
       // Aggressive Mining: "You can't play lands."
       { re: /^You can'?t play lands\.?$/i, eff: { op: 'cantPlayLands' }, auto: true },
       // Cynical Loner: "This creature can't be blocked by Glimmers."

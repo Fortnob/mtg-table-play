@@ -10258,6 +10258,14 @@
         if (ev.cancelled) return;
         n = ev.n;
       }
+      // Darksteel Angel: "Creatures you control can't have -1/-1 counters put on them."
+      if (n > 0 && o.zone === 'battlefield') {
+        for (const s0 of this.battlefield) {
+          if (s0.phasedOut) continue;
+          const nc = this._staticOp(s0, 'noCountersOfKind');
+          if (nc && nc.kind === kind && this._scopeHit(nc.scope, o, o.analysis() || {}, s0.controller, s0)) return;
+        }
+      }
       this.bumpBoard();
       o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
       if (o.counters[kind] <= 0 && kind !== 'loyalty' && kind !== 'defense') delete o.counters[kind];

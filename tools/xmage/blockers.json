@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11809,
+  "needed": 11805,
   "gainedCards": 1191,
-  "linesNeeded": 12717,
+  "linesNeeded": 12712,
   "linesGained": 1410,
   "gained": {
    "all": 1191,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4283,
-   "lines": 4022,
+   "score": 4282,
+   "lines": 4021,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -5830,17 +5830,6 @@
    ]
   },
   {
-   "what": "CantHaveCountersAllEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Solemnity",
-    "Blightbeetle",
-    "Darksteel Angel",
-    "Melira, Sylvok Outcast"
-   ]
-  },
-  {
    "what": "VariableManaCostPredicate.instance",
    "score": 4,
    "lines": 4,
@@ -6882,6 +6871,16 @@
     "Weathered Sentinels",
     "Thran Portal",
     "Phabine, Boss's Confidant"
+   ]
+  },
+  {
+   "what": "LoseGameTargetPlayerEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Vorpal Sword",
+    "Ezio Auditore da Firenze",
+    "Hidetsugu Consumes All // Vessel of the All-Consuming"
    ]
   }
  ],

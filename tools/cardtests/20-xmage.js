@@ -14257,4 +14257,22 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.zone('B', 'graveyard').length, before * 2, 'as many as were in the graveyard');
   });
+
+  test('Darksteel Angel, Blightbeetle: counters that can\'t be put; Duelist of the Mind; Recurring Insight', (mk, t) => {
+    for (const n of ['Darksteel Angel', 'Blightbeetle', 'Duelist of the Mind', 'Recurring Insight']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Darksteel Angel');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(mine, '-1/-1', 1); T.g.addCounters(theirs, '-1/-1', 1);
+    t.ok(!mine.counters['-1/-1'], 'not on yours'); t.eq(theirs.counters['-1/-1'], 1, "on theirs");
+    T.g.addCounters(mine, '+1/+1', 1);
+    t.eq(mine.counters['+1/+1'], 1, '+1/+1 counters are fine');
+    T.bf('B', 'Blightbeetle');
+    T.g.addCounters(mine, '+1/+1', 1);
+    t.eq(mine.counters['+1/+1'], 1, "Blightbeetle: no +1/+1 counters on its controller's opponents' creatures");
+    const duel = T.bf('A', 'Duelist of the Mind');
+    T.player('A').drawnThisTurn = 3; T.g.bumpBoard();
+    t.eq(T.g.powerOf(duel), 3, 'cards drawn this turn');
+  });
 };
