@@ -5052,6 +5052,10 @@ html[data-play="1"] .hoard-chip { display: none; }
 .po-stage.one { overflow-y: auto; place-content: safe center; }
 .po-grid:not(.many) .po-card { --w: clamp(64px, min(10.5vw, calc(88vw / var(--cols, 7) - 16px),
   calc((100 * var(--vh, 1vh) - 250px) / var(--rows, 2) / 1.42 - 14px)), 200px); }
+
+/* a card in its vintage printing, as it is turned over and in the art picker */
+.po-bonus.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .6); background: rgba(48, 34, 18, .95); }
+.art-option .pill.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .5); background: rgba(80, 56, 26, .45); }
 /* ============================================================
    progress.css - the inbox, the Profile screen, quests, mastery,
    ranked and achievements (src/10e-progress.js, src/10f-ui-progress.js)
@@ -8003,7 +8007,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         !/^Commander(?: \d{4}| Anthology| Collection|'s Arsenal| Legends)|^Commander$|^Starter Commander/i.test(s.name || '');
       return all
         .filter(s => ['expansion', 'core', 'draft_innovation', 'masters', 'eternal'].includes(s.set_type) || standalone(s))
-        .filter(s => s.card_count >= 100 && s.released_at && s.released_at <= today)
+        // a hundred cards makes a set worth its own packs; the small early ones (Arabian Nights) were sold in boosters all the same
+        .filter(s => (s.card_count >= 100 || (s.card_count >= 70 && (s.released_at || '') < '1997-01-01')) && s.released_at && s.released_at <= today)
         .filter(s => !/Foreign Black Border|^Renaissance$|^Rinascimento$/i.test(s.name || '') && !['ren', 'rin', 'bchr', '4bb', 'fbb'].includes(s.code))
         .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
     }
@@ -8045,6 +8050,25 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
       this._hosts = { map, t: Date.now() };
       return map;
+    }
+
+    /**
+     * A card's vintage printings: the old frame (1993 or 1997), on paper,
+     * as it first looked or in a retro reprint since. Empty when it has none.
+     */
+    async vintagePrints(card) {
+      const name = U.frontName(card.name).replace(/"/g, '');
+      const key = 'vintage:' + U.normName(name);
+      const hit = await this.db.get(STORES.meta, key);
+      if (hit && Date.now() - hit._t < CACHE_TTL) {
+        const m = await this.db.getMany(STORES.cards, hit.ids);
+        const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
+        if (arr.length === hit.ids.length) return arr;
+      }
+      const found = await this.search(`!"${name}" (frame:1993 or frame:1997) -is:digital lang:en`, { unique: 'prints', max: 40 }).catch(() => []);
+      const list = found.filter(c => c && (c.frame === '1993' || c.frame === '1997') && !c.digital);
+      await this.db.put(STORES.meta, key, { ids: list.map(c => c.id), _t: Date.now() });
+      return list;
     }
 
     /**
@@ -23534,6 +23558,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
         }, auto: true },
+      // Umbra Mystic: "Auras attached to permanents you control have umbra armor."
+      { re: /^Auras attached to permanents you control have (umbra armor|totem armor)\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { who: 'all', what: 'permanent', subtypes: ['aura'], attachedToYours: true }, grant: ['Umbra armor'] }, auto: true },
       // Absolute Virtue: "You have protection from each of your opponents."
       { re: /^You have protection from each of your opponents\.?$/i, eff: { op: 'protFromOpponents' }, auto: true },
       // Ensnaring Bridge: "Creatures with power greater than the number of cards in your hand can't attack."
@@ -45189,6 +45216,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (sc.attacking && !o.attacking) return false;
       // Arachnogenesis: "creatures attacking you" — you, or a planeswalker of yours
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
+      // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura
+      if (sc.attachedToYours && !(o.attachedTo && (this.obj(o.attachedTo) || {}).controller === pid)) return false;
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
       if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;
@@ -59228,6 +59257,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const current = (MTG.settings.artPreferences || {})[card.oracle_id] || card.id;
       let query = '';
       let onlyArtVariants = false;
+      let onlyVintage = false;
+      // the old frame, from Alpha to Scourge and the retro reprints since
+      const vintage = (p) => p.frame === '1993' || p.frame === '1997';
 
       const search = el('input', { type: 'search', placeholder: 'Filter by set, artist or collector number…', style: { maxWidth: '320px' } });
       search.addEventListener('input', U.debounce(() => { query = search.value.toLowerCase(); render(); }, 150));
@@ -59235,7 +59267,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         el('input', { type: 'checkbox', style: { width: 'auto' }, onchange: (e) => { onlyArtVariants = e.target.checked; render(); } }),
         el('span', { text: 'Unique art only' }),
       ]);
-      filterRow.append(search, uniqueArt);
+      const vintageOnly = el('label', { class: 'row small', style: { gap: '5px' } }, [
+        el('input', { type: 'checkbox', style: { width: 'auto' }, onchange: (e) => { onlyVintage = e.target.checked; render(); } }),
+        el('span', { text: 'Vintage frames' }),
+      ]);
+      filterRow.append(...[search, uniqueArt, prints.some(vintage) ? vintageOnly : null].filter(Boolean));
 
       function render() {
         grid.innerHTML = '';
@@ -59245,6 +59281,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           (p.set || '').toLowerCase().includes(query) ||
           (p.artist || '').toLowerCase().includes(query) ||
           String(p.collector_number).toLowerCase().includes(query));
+        if (onlyVintage) list = list.filter(vintage);
         if (onlyArtVariants) {
           const seen = new Set();
           list = list.filter(p => {
@@ -59269,6 +59306,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               el('div', { class: 'dim', text: p.artist || '' }),
               p.full_art ? el('span', { class: 'pill', text: 'full art' }) : null,
               p.border_color === 'borderless' ? el('span', { class: 'pill', text: 'borderless' }) : null,
+              vintage(p) ? el('span', { class: 'pill vintage', text: 'vintage' }) : null,
             ]),
           ]);
           const choose = () => {
@@ -60134,6 +60172,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   /* ---------------- the Store ---------------- */
   /** Buy packs: Shards out, packs into the inventory. */
+  /** How often a pack of a newer set holds a card in its vintage printing. */
+  const VINTAGE_RATE = 0.1;
+
   /* ---------------- what a set's packs cost ----------------
      A set never sold in boosters, an Eternal set or a Commander product
      sold on its own, opens what it has: Avatar's Eternal cards are all
@@ -60243,6 +60284,23 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     let cards = D.makeBooster(pool, rng, spec, { variants, bonus: folded });
     // basics are not collected; a real pack's basic is no loss
     cards = cards.filter(c => !isBasic(c.name));
+    /* Now and then, in a pack of a newer set, a card comes in a vintage
+       printing: the same card in the old frame (1993 or 1997), as it first
+       looked or in a retro reprint. It counts as the card it stands in for
+       (rarity and all), and its look is yours from then on, the art picker
+       counting it as pulled. A set from the old frame's own time needs none. */
+    if ((info.released_at || '9999') >= '2003-07-28' && rng.chance(VINTAGE_RATE)) {
+      const idx = cards.map((c, i) => i).filter(i => !isBasic(cards[i].name));
+      for (let t = 0; t < 3 && idx.length; t++) {
+        const i = idx.splice(rng.int(idx.length), 1)[0];
+        const c = cards[i];
+        const olds = await MTG.scry.vintagePrints(c).catch(() => []);
+        if (!olds.length) continue;
+        const v = olds[rng.int(olds.length)];
+        cards[i] = Object.assign({}, v, { rarity: c.rarity, _vintage: true }, c._foil ? { _foil: true } : {}, c._bonus ? { _bonus: true } : {});
+        break;
+      }
+    }
     /* Duplicate protection, as Arena does it: a rare or mythic you already
        have four of is swapped for one of the set's of the same rarity that
        you have not, while there are any (a foil stays a foil). */
@@ -61715,6 +61773,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
+          it.card && it.card._vintage ? el('span', { class: 'po-bonus vintage', text: 'Vintage' }) : null,
           it.card && it.card._bonus ? el('span', { class: 'po-bonus', text: it.card.set_type === 'commander' ? 'Commander'
             : it.card.set_type === 'alchemy' ? 'Alchemy' : it.card.digital ? 'Digital' : 'Bonus' }) : null,
           it.shards ? el('span', { class: 'po-dup', html: `+${shardSvg()}${fmtN(it.shards)}` }) : null,
