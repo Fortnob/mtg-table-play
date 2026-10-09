@@ -1102,4 +1102,47 @@ module.exports = (test) => {
     t.ok(asked.options.length > 300, 'and every other type');
     t.eq(kd.chosenType, 'Dragon');
   });
+
+  /* ---- the coverage agent's recent cards ---- */
+
+  test("Audit: Tezzeret, Master of the Bridge's +2 gains as much life as it deals", (mk, t) => {
+    const T = mk();
+    const tz = T.bf('A', 'Tezzeret, Master of the Bridge');
+    T.bf('A', 'Sol Ring'); T.bf('A', 'Mind Stone');
+    T.activate('A', tz, 0);
+    t.eq(T.life('B'), 18);
+    t.eq(T.life('A'), 22, 'the same X: two artifacts');
+  });
+
+  test('Audit: Berserk doubles the power and gives trample', (mk, t) => {
+    const T = mk();
+    t.auto('Berserk');
+    const w = T.bf('A', 'Craw Wurm');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Berserk'), { targets: [w] });
+    t.eq(T.g.powerOf(w), 12);
+    t.ok(T.g.hasKw(w, 'trample'));
+  });
+
+  test('Audit: Leafkin Druid makes two green with four creatures, one without', (mk, t) => {
+    const T = mk();
+    t.auto('Leafkin Druid');
+    const d = T.bf('A', 'Leafkin Druid');
+    t.ok(T.g.tapForMana('A', d.id, 0));
+    t.eq(T.player('A').pool.G, 1);
+    d.tapped = false;
+    for (let i = 0; i < 3; i++) T.bf('A', 'Grizzly Bears');
+    t.ok(T.g.tapForMana('A', d.id, 0));
+    t.eq(T.player('A').pool.G, 3);
+  });
+
+  test("Audit: Liliana's Contract draws four, loses four", (mk, t) => {
+    const T = mk();
+    t.auto("Liliana's Contract");
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', "Liliana's Contract"));
+    t.eq(T.zone('A', 'hand').length, h0 + 4);
+    t.eq(T.life('A'), 16);
+  });
 };

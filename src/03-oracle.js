@@ -7467,6 +7467,16 @@
       effects.push(...parseOne(s));
     }
     const folded = foldRiders(effects);
+    /* "…deals X damage to each opponent, where X is the number of artifacts
+       you control. You gain X life.": an X a sentence before defined is the
+       X of the sentences after it */
+    let xIs = null;
+    for (const e of folded) {
+      if (!e || typeof e !== 'object') continue;
+      const wx = String(e.text || '').match(/, where X is ([^,]+?)\.?$/);
+      if (wx) { xIs = amountOf(wx[1]) || null; continue; }
+      if (xIs && /"X"|"negX"|"posX"/.test(JSON.stringify(e, (k, v) => (k === 'text' ? undefined : v)))) fillX(e, xIs);
+    }
     /* Miraculous Recovery: "Return target creature card … to the
        battlefield. Put a +1/+1 counter on it." After a sentence with a
        target, "it" is that target, not this card. */
