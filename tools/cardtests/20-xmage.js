@@ -12795,4 +12795,16 @@ module.exports = (test) => {
     T.settle();
     t.eq(foe.controller, 'A'); t.ok(T.g.hasKw(foe, 'haste'));
   });
+
+  test('Hidden Hideout: only a creature with a counter on it', (mk, t) => {
+    t.auto('Hidden Hideout');
+    const T = mk();
+    const hh = T.bf('A', 'Hidden Hideout');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Savannah Lions');
+    T.g.addCounters(a, 'shield', 1);
+    const fx = hh.analysis().abilities.find(x => x.kind === 'activated' && /lifelink/.test(x.text)).effects;
+    const specs = MTG.rules.effectSpecs(fx);
+    t.ok(!T.g._illegalTargets(specs, [{ kind: 'object', id: a.id }], 'A', hh), 'with a counter');
+    t.ok(T.g._illegalTargets(specs, [{ kind: 'object', id: b.id }], 'A', hh), 'without');
+  });
 };

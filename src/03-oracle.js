@@ -5256,6 +5256,8 @@
     if (wo) spec.withoutKeyword = wo[0].replace(/^without /, '');
     const wc = p.match(/with an? ([+\-0-9/a-z]+) counter on it/);
     if (wc) spec.withCounter = wc[1];
+    // Hidden Hideout, Together Forever: "with a counter on it" — any kind
+    if (/with (?:a|one or more) counters? on (?:it|them)$/.test(p)) spec.withAnyCounter = true;
     // Heartless Act: "target creature with no counters on it"
     if (/with no counters on it$/.test(p)) spec.noCounters = true;
     // Cut Down: "with total power and toughness 5 or less"; Warping Wail: "with power or toughness 1 or less"
@@ -5270,7 +5272,7 @@
     if (mx) spec.mv = +mx[1];
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
-      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.noCounters ||
+      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.withAnyCounter || spec.noCounters ||
       spec.maxPtSum != null || spec.maxPowerOrToughness != null || spec.minPowerOrToughness != null;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
@@ -5281,7 +5283,7 @@
       let left = withClause.toLowerCase();
       for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more))?/g,
         /with power (?:\d+|x) or (?:less|greater|more)/g, /with toughness \d+ or (?:less|greater|more)/g,
-        new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g,
+        new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
         /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
       // "target creature with flying an opponent controls"
       const lc = left.match(/\s(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)\s*$/);
@@ -5457,6 +5459,7 @@
     if (spec.withKeyword && !kw(spec.withKeyword)) return false;
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
     if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
+    if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     if (spec.noCounters && Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     return true;
   }

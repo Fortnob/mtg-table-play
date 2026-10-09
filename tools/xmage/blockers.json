@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12176,
-  "gainedCards": 1288,
-  "linesNeeded": 13236,
+  "needed": 12173,
+  "gainedCards": 1289,
+  "linesNeeded": 13232,
   "linesGained": 1540,
   "gained": {
-   "all": 1288,
+   "all": 1289,
    "top2000": 49,
    "stdTop": 9
   },
@@ -3932,19 +3932,6 @@
    ]
   },
   {
-   "what": "filter:anyCounter",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Together Forever",
-    "Hidden Hideout",
-    "Concord with the Kami",
-    "Volrath, the Shapestealer",
-    "Hunter of Eyeblights",
-    "Razorfin Abolisher"
-   ]
-  },
-  {
    "what": "FirstSpellOpponentsTurnTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -7010,6 +6997,17 @@
     "Goblin Test Pilot",
     "Scab-Clan Giant"
    ]
+  },
+  {
+   "what": "SpellMasteryCondition.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Calculated Dismissal",
+    "Fiery Impulse",
+    "Gather the Pack",
+    "Unholy Hunger"
+   ]
   }
  ],
  "sole": [
@@ -9162,19 +9160,6 @@
    ]
   },
   {
-   "what": "filter:anyCounter",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Together Forever",
-    "Hidden Hideout",
-    "Concord with the Kami",
-    "Volrath, the Shapestealer",
-    "Hunter of Eyeblights",
-    "Razorfin Abolisher"
-   ]
-  },
-  {
    "what": "FirstSpellOpponentsTurnTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -10768,6 +10753,17 @@
     "Increasing Savagery",
     "From Father to Son",
     "The Final Days"
+   ]
+  },
+  {
+   "what": "FaceVillainousChoiceOpponentsEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ensnared by the Mara",
+    "Dr. Eggman",
+    "The Dalek Emperor",
+    "Sycorax Commander"
    ]
   }
  ]
