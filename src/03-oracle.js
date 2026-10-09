@@ -5618,6 +5618,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Parley (Selvala, Rousing of Souls, the Negotiators): "Each player
+       reveals the top card of their library. For each nonland card revealed
+       this way, …. Then each player draws a card." */
+    { re: /^Each player reveals the top card of their library\. For each (nonland|land) card revealed this way, ([^.]+)\. Then each player draws a card\.$/i,
+      make: (m) => {
+        const each = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        if (!each.auto || !each.effects.length) return null;
+        return [{ op: 'parley', filter: m[1].toLowerCase(), each: each.effects }, { op: 'draw', n: 1, who: 'each' }];
+      } },
     /* Goblin Welder: "Choose target artifact a player controls and target
        artifact card in that player's graveyard. If both targets are still
        legal as this ability resolves, that player simultaneously sacrifices

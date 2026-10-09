@@ -15049,6 +15049,20 @@
           this.logEvent('rules', `${me.name} chooses ${pick.toLowerCase()}.`);
           break;
         }
+        // Parley: everybody's top card shown, and something for each that fits
+        case 'parley': {
+          let k = 0;
+          for (const q of this.players.filter(p => !p.hasLost)) {
+            const top = this.zones[q.id].library[0];
+            if (!top) continue;
+            this.logEvent('reveal', `${q.name} reveals ${top.name}.`);
+            if (this._cardFitsWords(top, e.filter || 'nonland')) k++;
+          }
+          const list = [];
+          for (let i = 0; i < k; i++) list.push(...JSON.parse(JSON.stringify(e.each || [])));
+          if (list.length) this._spliceNext(list);
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

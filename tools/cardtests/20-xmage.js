@@ -12571,4 +12571,17 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Forest').length, 2, 'two tapped creatures, two Forests');
   });
+
+  test("Parley: Selvala's Charge makes an Elephant for each nonland card shown", (mk, t) => {
+    t.auto("Selvala's Charge");
+    const T = mk();
+    T.top('A', 'Lightning Bolt'); T.top('B', 'Forest');
+    const ha = T.zone('A', 'hand').length, hb = T.zone('B', 'hand').length;
+    T.mana('A', '4G');
+    T.cast('A', T.hand('A', "Selvala's Charge"));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Elephant').length, 1, 'one nonland card');
+    t.eq(T.zone('A', 'hand').length, ha + 1, 'A drew');
+    t.eq(T.zone('B', 'hand').length, hb + 1, 'B drew');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12262,
+  "needed": 12255,
   "gainedCards": 1314,
-  "linesNeeded": 13338,
+  "linesNeeded": 13330,
   "linesGained": 1571,
   "gained": {
    "all": 1314,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4355,
-   "lines": 4088,
+   "score": 4351,
+   "lines": 4084,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -5744,18 +5744,6 @@
    ]
   },
   {
-   "what": "attack trigger with its own text",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent"
-   ]
-  },
-  {
    "what": "all from one opponent",
    "score": 5,
    "lines": 5,
@@ -7021,13 +7009,24 @@
     "Failure // Comply",
     "Reduce // Rubble"
    ]
+  },
+  {
+   "what": "ExileTargetCardCopyAndCastEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Shiko, Paragon of the Way",
+    "Founding the Third Path",
+    "Demilich",
+    "Roving Actuator"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3572,
-   "cards": 3404,
+   "score": 3568,
+   "cards": 3400,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -10429,18 +10428,6 @@
    ]
   },
   {
-   "what": "attack trigger with its own text",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Captain Vargus Wrath",
-    "Graven Abomination",
-    "Wolf of Devil's Breach",
-    "Woodvine Elemental",
-    "Shrouded Serpent"
-   ]
-  },
-  {
    "what": "GiveManaAbilityAndCastSourceAbility",
    "score": 5,
    "cards": 5,
@@ -10784,6 +10771,17 @@
     "Kimahri, Valiant Guardian",
     "Symbiote Spider-Man",
     "The Ever-Changing 'Dane"
+   ]
+  },
+  {
+   "what": "TargetSpellOrPermanent",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Commit // Memory",
+    "Eight-and-a-Half-Tails",
+    "Blind Seer",
+    "Illusion // Reality"
    ]
   }
  ]
