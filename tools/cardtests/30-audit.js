@@ -465,4 +465,70 @@ module.exports = (test) => {
     T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
     t.eq(T.zone('A', 'hand').length, h0 + 1, 'B did not pay');
   });
+
+  test('Audit: Mystic Sanctuary needs three other Islands to enter untapped, and then returns a spell', (mk, t) => {
+    const T = mk();
+    t.auto('Mystic Sanctuary');
+    T.bf('A', 'Island'); T.bf('A', 'Island');
+    const a = T.hand('A', 'Mystic Sanctuary');
+    T.playLand('A', a);
+    t.ok(a.tapped, 'two other Islands: tapped');
+    T.nextTurn('A');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    const b = T.hand('A', 'Mystic Sanctuary');
+    T.playLand('A', b);
+    t.no(b.tapped, 'three other Islands: untapped');
+    t.eq(T.zone('A', 'library')[0], bolt, 'the Bolt is on top');
+  });
+
+  test('Audit: Rejuvenating Springs is untapped only with two or more opponents', (mk, t) => {
+    const T = mk();
+    t.auto('Rejuvenating Springs');
+    const a = T.hand('A', 'Rejuvenating Springs');
+    T.playLand('A', a);
+    t.ok(a.tapped, 'one opponent');
+    const T3 = mk({ players: ['A', 'B', 'C'] });
+    const b = T3.hand('A', 'Rejuvenating Springs');
+    T3.playLand('A', b);
+    t.no(b.tapped, 'two opponents');
+  });
+
+  test('Audit: Three Tree City makes a mana for each creature of the chosen type', (mk, t) => {
+    const T = mk();
+    t.auto('Three Tree City');
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Elvish Mystic'); T.bf('A', 'Grizzly Bears');
+    T.answer('mode', (ch) => ({ modes: [ch.options.find(o => /Elf/.test(o.label)).i] }));
+    const c = T.put('A', 'Three Tree City', 'battlefield', { etb: true });
+    t.eq(c.chosenType, 'Elf');
+    T.mana('A', '2');
+    t.ok(T.g.tapForMana('A', c.id, 1, 'G'));
+    T.settle();
+    t.eq(T.player('A').pool.G, 2, 'two Elves, two green');
+  });
+
+  test("Audit: Umezawa's Jitte's +2/+2 wears off at end of turn", (mk, t) => {
+    const T = mk();
+    t.auto("Umezawa's Jitte");
+    const bear = T.bf('A', 'Grizzly Bears');
+    const j = T.bf('A', "Umezawa's Jitte", { counters: { charge: 2 } });
+    j.attachedTo = bear.id; bear.attachments = [j.id];
+    T.answer('mode', { modes: [0] });
+    T.activate('A', j, 0);
+    t.eq(T.g.powerOf(bear), 4);
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(bear), 2, 'back to 2 the next turn');
+  });
+
+  test('Audit: Firebreathing\'s +1/+0 wears off at end of turn', (mk, t) => {
+    const T = mk();
+    t.auto('Firebreathing');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const f = T.bf('A', 'Firebreathing');
+    f.attachedTo = bear.id; bear.attachments = [f.id];
+    T.mana('A', 'R');
+    T.activate('A', f, 0);
+    t.eq(T.g.powerOf(bear), 3);
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(bear), 2);
+  });
 };

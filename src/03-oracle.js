@@ -3579,9 +3579,10 @@
     { re: /^Regenerate (?:enchanted|equipped) creature\.?$/i,
       make: () => ({ op: 'regenerate', scope: 'attached' }) },
     { re: /^(?:Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
-      make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], scope: 'attached' }) },
+      // (a pump with no duration lasts for good: Umezawa's Jitte's +2/+2 once never wore off)
+      make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'attached' }) },
     { re: /^(?:CARDNAME|This creature|This permanent) gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
-      make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], scope: 'self' }) },
+      make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'self' }) },
     { re: /^(?:CARDNAME|This creature) gains ([a-z ]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grant', keywords: [U.titleCase(m[1].trim())], scope: 'self' }) },
     { re: /^Up to one target creature can'?t be blocked this turn\.?$/i,
