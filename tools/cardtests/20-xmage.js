@@ -15098,4 +15098,22 @@ module.exports = (test) => {
     t.eq(p.pool.G, 2, 'one green becomes two');
     t.eq(p.pool.C, 0, 'the colorless paid for it');
   });
+
+  test("Titania plays Forests from the graveyard; Akki Battle Squad untaps modified creatures", (mk, t) => {
+    t.auto("Titania, Nature's Force");
+    t.auto('Akki Battle Squad');
+    t.auto('Dauntless Dismantler');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Titania, Nature's Force");
+    const f = T.grave('A', 'Forest'), i = T.grave('A', 'Island');
+    t.ok(!!T.g._playFromRule('A', f, 'land'), 'a Forest may be played from there');
+    t.no(T.g._playFromRule('A', i, 'land'), 'an Island may not');
+    const bear = T.bf('A', 'Grizzly Bears', { tapped: true, counters: { '+1/+1': 1 } });
+    const elf = T.bf('A', 'Llanowar Elves', { tapped: true });
+    const eff = engine().oracle.parseEffects('Untap all modified creatures you control.');
+    T.g._runEffects(eff.effects, { controller: 'A', obj: bear, name: 'Test', kind: 'ability' });
+    t.no(bear.tapped, 'the modified Bears untap');
+    t.ok(elf.tapped, 'the Elves stay tapped');
+  });
 };

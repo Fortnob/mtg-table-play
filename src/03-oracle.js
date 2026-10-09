@@ -2364,6 +2364,9 @@
       make: (m) => ({ op: 'copyPermanent', n: num(m[1].replace(/^a$/i, 'one')), of: 'sacrificed', grant: [] }) },
     { re: /^Tap all creatures your opponents control\.?$/i,
       make: () => ({ op: 'tapAll', what: 'creatures', who: 'opponents' }) },
+    // Akki Battle Squad: "Untap all modified creatures you control." — any group the words name
+    { re: /^Untap all ((?:[a-z]+ )+?(?:creatures|lands|artifacts|permanents)(?: you control)?)\.?$/,
+      make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
     /* Any other "Tap all …" whose words are a scope: "Tap all creatures you
        control", "Tap all attacking creatures", "Tap all nonwhite creatures" */
     { re: /^Tap all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents|[A-Z][a-z]+s)(?: you control| your opponents control| without flying| with toughness \d+ or less)?)\.?$/,
@@ -4379,6 +4382,9 @@
     // Heat Stroke: "destroy each creature that blocked or was blocked this turn"
     { re: /^Destroy each creature that blocked or was blocked this turn\.?$/i,
       make: () => ({ op: 'destroyAll', what: 'creature', blockedOrWasBlocked: true }) },
+    // Dauntless Dismantler: "Destroy each artifact with mana value X."
+    { re: /^Destroy (?:each|all) (artifact|creature|enchantment|nonland permanent)s? with mana value (X|\d+)\.?$/i,
+      make: (m) => { const v = m[2] === 'X' ? 'X' : +m[2]; return { op: 'destroyAll', what: m[1].toLowerCase(), minMv: v, maxMv: v }; } },
     { re: /^Destroy all ([A-Z][a-z]+s)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
     { re: /^Counter (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)? spell)\.?$/i,
@@ -13333,6 +13339,9 @@
         }, auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
+      // Titania, Nature's Force: "You may play Forests from your graveyard."
+      { re: /^(During your turn, )?[Yy]ou may play (Plains|Islands|Swamps|Mountains|Forests) from your graveyard\.?$/,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', filter: m[2].replace(/s$/, '').replace(/^Plain$/, 'Plains').toLowerCase(), duringYourTurn: !!m[1] }), auto: true },
       { re: /^(During your turn, )?you may play lands from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       // Crystal Skull: "You may play historic lands and cast historic spells"; Traveling Chocobo: "play lands and cast Bird spells"

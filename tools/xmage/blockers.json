@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11516,
+  "needed": 11512,
   "gainedCards": 1141,
-  "linesNeeded": 12350,
+  "linesNeeded": 12346,
   "linesGained": 1356,
   "gained": {
    "all": 1141,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4256,
-   "lines": 3995,
+   "score": 4255,
+   "lines": 3994,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2877,20 +2877,6 @@
    ]
   },
   {
-   "what": "PlayFromGraveyardControllerEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Wrenn and Realmbreaker",
-    "Titania, Nature's Force",
-    "Haakon, Stromgald Scourge",
-    "Zask, Skittering Swarmlord",
-    "Liliana, Untouched by Death",
-    "Hazezon, Shaper of Sand",
-    "Abandoned Sarcophagus"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "lines": 7,
@@ -2930,20 +2916,6 @@
     "Practical Research",
     "Nissa Revane",
     "Steamcore Scholar"
-   ]
-  },
-  {
-   "what": "ModifiedPredicate.instance",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Jugan Defends the Temple // Remnant of the Rising Star",
-    "Arna Kennerüd, Skycaptain",
-    "One with the Kami",
-    "Silver Sable, Mercenary Leader",
-    "Expanding Ooze"
    ]
   },
   {
@@ -3385,6 +3357,19 @@
    ]
   },
   {
+   "what": "PlayFromGraveyardControllerEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Wrenn and Realmbreaker",
+    "Haakon, Stromgald Scourge",
+    "Zask, Skittering Swarmlord",
+    "Liliana, Untouched by Death",
+    "Hazezon, Shaper of Sand",
+    "Abandoned Sarcophagus"
+   ]
+  },
+  {
    "what": "damage affecting the defending player",
    "score": 6,
    "lines": 6,
@@ -3484,6 +3469,19 @@
     "Frontline Heroism",
     "Muck Drubb",
     "Loki, God of Lies"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Thundering Raiju",
+    "Jugan Defends the Temple // Remnant of the Rising Star",
+    "Arna Kennerüd, Skycaptain",
+    "One with the Kami",
+    "Silver Sable, Mercenary Leader",
+    "Expanding Ooze"
    ]
   },
   {
@@ -4521,18 +4519,6 @@
     "Circle of Flame",
     "Palazzo Archers",
     "Lost in the Woods"
-   ]
-  },
-  {
-   "what": "UntapAllEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Éomer, Marshal of Rohan",
-    "Lita, Mechanical Engineer",
-    "Preston Garvey, Minuteman",
-    "Jiang Yanggu, Never Alone",
-    "Battle Cry"
    ]
   },
   {
@@ -5615,6 +5601,17 @@
     "Fix What's Broken",
     "Triumphant Reckoning",
     "Return of the Nightstalkers"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Éomer, Marshal of Rohan",
+    "Lita, Mechanical Engineer",
+    "Preston Garvey, Minuteman",
+    "Jiang Yanggu, Never Alone"
    ]
   },
   {
@@ -6750,8 +6747,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3542,
-   "cards": 3362,
+   "score": 3541,
+   "cards": 3361,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8719,19 +8716,6 @@
    ]
   },
   {
-   "what": "ModifiedPredicate.instance",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Akki Battle Squad",
-    "Thundering Raiju",
-    "Arna Kennerüd, Skycaptain",
-    "One with the Kami",
-    "Silver Sable, Mercenary Leader",
-    "Expanding Ooze"
-   ]
-  },
-  {
    "what": "subject:anyCounter",
    "score": 6,
    "cards": 6,
@@ -9374,6 +9358,18 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Thundering Raiju",
+    "Arna Kennerüd, Skycaptain",
+    "One with the Kami",
+    "Silver Sable, Mercenary Leader",
+    "Expanding Ooze"
    ]
   },
   {
