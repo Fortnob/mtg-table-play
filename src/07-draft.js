@@ -458,8 +458,24 @@
    * Build one booster from a bucketed set pool.
    * Never repeats a card inside a pack (real packs do not either).
    */
+  /* How often a Store pack's slot holds one of the cards folded into its
+     set (a Commander deck's new cards, Alchemy's, see MTG.scry.packExtras)
+     in place of the set's own, by slot. Drafts pass none, so their packs
+     stay the set's. */
+  const BONUS_RATE = { rareMythic: 0.1, wildcard: 0.08, uncommon: 0.02, common: 0.01 };
+
   function makeBooster(pool, rng, spec, opts) {
     opts = opts || {};
+    const bonus = opts.bonus || null;
+    // a folded-in card of the rarity asked for, now and then; marked so the opening can say where it is from
+    const fromBonus = (slot, rarities) => {
+      if (!bonus || !rng.chance(BONUS_RATE[slot] || 0)) return null;
+      for (const r of rarities) {
+        const list = (bonus[r] || []).filter(c => !used.has(c.id));
+        if (list.length) { const c = list[rng.int(list.length)]; used.add(c.id); return Object.assign({}, c, { _bonus: true }); }
+      }
+      return null;
+    };
     spec = spec || DRAFT_BOOSTER;
     const used = new Set();
     const out = [];
@@ -485,9 +501,11 @@
       for (let i = 0; i < slot.n; i++) {
         let card = null;
         switch (slot.pick) {
-          case 'common': card = fallbackChain(['common', 'uncommon']); break;
-          case 'uncommon': card = fallbackChain(['uncommon', 'common']); break;
+          case 'common': card = fromBonus('common', ['common']) || fallbackChain(['common', 'uncommon']); break;
+          case 'uncommon': card = fromBonus('uncommon', ['uncommon']) || fallbackChain(['uncommon', 'common']); break;
           case 'rareMythic':
+            card = fromBonus('rareMythic', rng.chance(0.125) ? ['mythic', 'rare'] : ['rare', 'mythic']);
+            if (card) break;
             card = rng.chance(0.125) && pool.mythic.length
               ? takeFrom(pool.mythic) || takeFrom(pool.rare)
               : takeFrom(pool.rare) || takeFrom(pool.mythic);
@@ -495,7 +513,7 @@
             break;
           case 'wildcard': {
             const r = rng.weighted(WILDCARD_MIX);
-            card = takeFrom(pool[r]) || fallbackChain(['common', 'uncommon', 'rare', 'mythic']);
+            card = fromBonus('wildcard', [r]) || takeFrom(pool[r]) || fallbackChain(['common', 'uncommon', 'rare', 'mythic']);
             break;
           }
           case 'variantRare': {

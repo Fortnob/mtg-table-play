@@ -121,7 +121,9 @@
   /* close() runs _onClose, so a button that closes first and then resolves is
      answering its own promise with the dismissal. Settle before closing, and
      let the first answer win. */
-  UI.confirm = function (msg, title) {
+  /** Yes or no; `opts.yes` / `opts.no` name the two buttons for what they do. */
+  UI.confirm = function (msg, title, opts) {
+    opts = opts || {};
     return new Promise(res => {
       let done = false;
       const settle = (v) => { if (!done) { done = true; res(v); } };
@@ -130,8 +132,8 @@
         content: el('p', { text: msg, style: { margin: 0 } }),
         onEnter: () => { settle(true); m.close(); },
         buttons: [
-          { label: 'Cancel', onClick: () => { settle(false); m.close(); } },
-          { label: 'OK', class: 'primary', onClick: () => { settle(true); m.close(); } },
+          { label: opts.no || 'Cancel', onClick: () => { settle(false); m.close(); } },
+          { label: opts.yes || 'OK', class: 'primary', onClick: () => { settle(true); m.close(); } },
         ],
       });
       m._onClose = () => settle(false);

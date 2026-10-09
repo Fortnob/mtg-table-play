@@ -560,6 +560,111 @@
     }
 
     /**
+     * The sets the Store sells packs of: the draftable ones, and besides
+     * them the Eternal sets (Assassin's Creed and its like) and the digital
+     * draft sets (Vintage Masters, the Remastered sets, Jumpstart: Historic
+     * Horizons). Newest first, like draftableSets, which drafts and the
+     * "newest set" defaults keep using.
+     */
+    async packSets() {
+      const all = await this.sets();
+      const today = new Date().toISOString().slice(0, 10);
+      /* A Commander product made for no set of its own (Fallout, Warhammer
+         40,000, Doctor Who) is a world apart: its own packs, rather than
+         folded into a set it has nothing in common with. The yearly
+         Commander decks are folded in with the sets of their time. */
+      const standalone = (s) => s.set_type === 'commander' && !s.parent_set_code &&
+        !/^Commander(?: \d{4}| Anthology| Collection|'s Arsenal| Legends)|^Commander$|^Starter Commander/i.test(s.name || '');
+      return all
+        .filter(s => ['expansion', 'core', 'draft_innovation', 'masters', 'eternal'].includes(s.set_type) || standalone(s))
+        .filter(s => s.card_count >= 100 && s.released_at && s.released_at <= today)
+        .filter(s => !/Foreign Black Border|^Renaissance$|^Rinascimento$/i.test(s.name || '') && !['ren', 'rin', 'bchr', '4bb', 'fbb'].includes(s.code))
+        .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
+    }
+
+    /**
+     * Cards no pack would otherwise hold, each given a set whose packs take
+     * it in: a Commander set's new cards go with the set it was made for,
+     * an Alchemy set's with the set it builds on, and the other digital-only
+     * sets too small to sell their own packs likewise. Followed up the
+     * parent sets to one that is sold; with none, the paper set of the same
+     * time, so it opens beside cards in its own style. A Map: host set code
+     * to the codes folded into it.
+     */
+    async packHosts() {
+      if (this._hosts && Date.now() - this._hosts.t < 60 * 60 * 1000) return this._hosts.map;
+      const all = await this.sets();
+      const sold = await this.packSets();
+      const soldCodes = new Set(sold.map(s => s.code));
+      const byCode = new Map(all.map(s => [s.code, s]));
+      const paper = sold.filter(s => !s.digital && (s.set_type === 'expansion' || s.set_type === 'core'));
+      const today = new Date().toISOString().slice(0, 10);
+      const map = new Map();
+      for (const s of all) {
+        if (soldCodes.has(s.code) || !s.released_at || s.released_at > today) continue;
+        const folds = s.set_type === 'commander' || s.set_type === 'alchemy' || s.set_type === 'eternal' ||
+          (s.digital && !['vanguard', 'memorabilia', 'token', 'minigame', 'funny'].includes(s.set_type));
+        if (!folds) continue;
+        let host = null;
+        for (let p = s.parent_set_code, i = 0; p && i < 6; p = (byCode.get(p) || {}).parent_set_code, i++) {
+          if (soldCodes.has(p)) { host = p; break; }
+        }
+        if (!host && paper.length) {
+          const before = paper.find(x => x.released_at <= s.released_at);
+          host = (before || paper[paper.length - 1]).code;
+        }
+        if (!host) continue;
+        if (!map.has(host)) map.set(host, []);
+        map.get(host).push(s.code);
+      }
+      this._hosts = { map, t: Date.now() };
+      return map;
+    }
+
+    /**
+     * The extra cards a set's packs may hold, bucketed by rarity like a
+     * pool: the first printings of the sets folded into it (packHosts), and
+     * its own cards that were never in its boosters (the deck-only cards of
+     * Commander Legends: Battle for Baldur's Gate, say). Null when there are
+     * none.
+     */
+    async packExtras(code, opts) {
+      opts = opts || {};
+      code = String(code).toLowerCase();
+      const kids = (await this.packHosts()).get(code) || [];
+      // which sets are folded in is part of the key: a change there is a new list
+      const key = 'extras:' + code + ':' + kids.join(',');
+      if (!opts.force) {
+        const hit = await this.db.get(STORES.meta, key);
+        if (hit && Date.now() - hit._t < CACHE_TTL) {
+          const m = await this.db.getMany(STORES.cards, hit.ids);
+          const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
+          if (arr.length === hit.ids.length) return arr.length ? Object.assign(this._bucket(arr), { from: hit.from }) : null;
+        }
+      }
+      const pool = await this.setPool(code).catch(() => null);
+      const have = new Set(((pool && pool.all) || []).map(c => c.name));
+      const out = [], seen = new Set(), from = [];
+      const take = (cards, setCode) => {
+        let n = 0;
+        for (const c of cards) {
+          if (!c || have.has(c.name) || seen.has(c.name) || MTG.formats.isBasicLand(c)) continue;
+          seen.add(c.name); out.push(c); n++;
+        }
+        if (n && setCode) from.push(setCode);
+      };
+      // its own cards that its boosters never held
+      if (pool && !pool.loose) {
+        take(await this.search(`set:${code} -is:booster -is:reprint -t:basic`, { unique: 'cards', order: 'set', max: 600 }).catch(() => []), null);
+      }
+      for (const kid of kids) {
+        take(await this.search(`set:${kid} -is:reprint -t:basic`, { unique: 'cards', order: 'set', max: 1200 }).catch(() => []), kid);
+      }
+      await this.db.put(STORES.meta, key, { ids: out.map(c => c.id), from, _t: Date.now() });
+      return out.length ? Object.assign(this._bucket(out), { from }) : null;
+    }
+
+    /**
      * The draftable sets grouped into the pools people actually name.
      * Scryfall's set list does not carry format legality, so the windows are
      * worked out from release dates, which is how the formats are defined
@@ -604,8 +709,11 @@
           }
         }
       }
-      // is:booster excludes extended-art/promo variants that are not in packs
-      let cards = await this.search('set:' + code + ' is:booster -is:digital lang:en',
+      // is:booster excludes extended-art/promo variants that are not in packs;
+      // a digital-only set's cards are all digital, so that is no reason to leave one out
+      const digitalSet = !!((await this.sets().catch(() => [])).find(s => s.code === String(code).toLowerCase()) || {}).digital;
+      const notDigital = digitalSet ? '' : ' -is:digital';
+      let cards = await this.search('set:' + code + ' is:booster' + notDigital + ' lang:en',
         { unique: 'cards', order: 'set', max: 1200, force: opts.force })
         .catch(() => []);
       /* Some sets are not sold in draft boosters at all, so Scryfall marks
@@ -614,7 +722,7 @@
          and let the collation do its best with it. */
       let loose = false;
       if (cards.length < 20) {
-        const wide = await this.search('set:' + code + ' -is:digital lang:en -t:basic',
+        const wide = await this.search('set:' + code + notDigital + ' lang:en -t:basic',
           { unique: 'cards', order: 'set', max: 1200, force: opts.force })
           .catch(() => []);
         if (wide.length > cards.length) { cards = wide; loose = true; }

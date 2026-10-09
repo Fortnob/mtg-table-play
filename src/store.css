@@ -491,3 +491,21 @@ html[data-play="1"] .hoard-chip { display: none; }
 
 .col-head { align-items: center; }
 .store-head { align-items: center; }
+
+/* ---------- packs: what else a set's packs hold ---------- */
+.pack-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: -2px 0 2px; }
+.pack-tag { padding: 1px 8px; border-radius: 99px; font: 700 10.5px/1.6 var(--font); letter-spacing: .04em; color: #c9d3e2;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14); cursor: help; }
+.pack-tag.bonus { color: var(--gold-1, #f3dd96); border-color: rgba(243, 221, 150, .35); background: rgba(243, 221, 150, .07); }
+.po-bonus { padding: 1px 8px; border-radius: 99px; font: 800 10.5px/1.6 var(--font); letter-spacing: .08em; text-transform: uppercase;
+  color: #f3dd96; background: rgba(20, 22, 30, .95); border: 1px solid rgba(243, 221, 150, .5); }
+
+/* ---------- Commander decks ---------- */
+.store-grid.precons { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.precon-tile { display: grid; gap: 6px; align-content: start; justify-items: stretch; text-align: left; padding-top: 0; overflow: hidden; }
+.precon-art { height: 120px; margin: 0 -14px 4px; background: #11141b center 25% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
+.precon-tile .sc-title { font-size: 15px; }
+.precon-tile .buy { justify-self: start; margin-top: 4px; }
+.precon-fly { width: 120px; aspect-ratio: 63 / 88; border-radius: 6px; overflow: hidden; }
+.precon-fly img { width: 100%; height: 100%; object-fit: cover; }

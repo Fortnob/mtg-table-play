@@ -93,10 +93,10 @@
       const seen = new Set();
       const order = packs.filter(p => { const k = (p.set || 'n' + (p.newest || 0)) + p.kind; if (seen.has(k)) return false; seen.add(k); return true; })
         .concat(packs).slice(0, Math.min(3, packs.length));
-      MTG.scry.draftableSets().catch(() => []).then((sets) => {
+      Promise.all([MTG.scry.draftableSets().catch(() => []), MTG.scry.packSets().catch(() => [])]).then(([sets, sold]) => {
         heap.innerHTML = '';
         order.forEach((p, k) => {
-          const info = p.set ? (sets.find(s => s.code === p.set) || { code: p.set }) : (sets[p.newest || 0] || null);
+          const info = p.set ? (sold.find(s => s.code === p.set) || { code: p.set }) : (sets[p.newest || 0] || null);
           const b = boosterEl(info, p.kind);
           b.style.setProperty('--k', String(k - (order.length - 1) / 2));
           heap.appendChild(b);
@@ -218,13 +218,14 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
       body.innerHTML = '';
       if (id === 'featured') featured(body, opts);
       else if (id === 'packs') packsTab(body, opts);
+      else if (id === 'precons') preconsTab(body);
       else if (id === 'sleeves') sleevesTab(body);
       else if (id === 'wildcards') wildcardsTab(body);
       else if (id === 'frames') UI.framesTab(body, UI.purchaseDialog);
@@ -368,23 +369,193 @@
     });
   }
 
-  function packTile(s) {
+  /**
+   * A set's packs on the shelf. `extra`: the sets whose cards its packs may
+   * hold besides its own (a Commander deck's new cards, Alchemy's), said in
+   * a word on the tile and named in full on hover.
+   */
+  /* ---------------- Commander decks ----------------
+     The preconstructed Commander decks, as printed. MTGJSON keeps their
+     lists. Buying one puts every card of it into your collection, and it
+     can be saved as a deck ready to play. */
+  const MTGJSON = 'https://mtgjson.com/api/v5/';
+  async function preconList() {
+    const hit = MTG.store.get('precons', null);
+    if (hit && Date.now() - hit.t < 7 * 864e5 && (hit.list || []).length) return hit.list;
+    const res = await fetch(MTGJSON + 'DeckList.json');
+    if (!res.ok) throw new Error('The deck lists could not be loaded.');
+    const d = await res.json();
+    const list = (d.data || []).filter(x => /commander deck/i.test(x.type || ''))
+      .map(x => ({ name: x.name, code: String(x.code || '').toLowerCase(), file: x.fileName, date: x.releaseDate || '' }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    MTG.store.set('precons', { t: Date.now(), list });
+    return list;
+  }
+  /* A deck's list, fetched once a session (they are small: tens of KB). */
+  const deckFiles = new Map();
+  function preconFile(p) {
+    if (!deckFiles.has(p.file)) {
+      deckFiles.set(p.file, fetch(MTGJSON + 'decks/' + encodeURIComponent(p.file) + '.json').then((res) => {
+        if (!res.ok) throw new Error('That deck list could not be loaded.');
+        return res.json();
+      }).then(j => (j && j.data) || {}).catch((e) => { deckFiles.delete(p.file); throw e; }));
+    }
+    return deckFiles.get(p.file);
+  }
+  /** Its commander's picture: the art crop, straight from the card's Scryfall id, remembered. */
+  async function preconFace(p) {
+    const faces = MTG.store.get('preconFaces', {}) || {};
+    let id = faces[p.file];
+    if (!id) {
+      const d = await preconFile(p);
+      const c = (d.commander || [])[0] || (d.displayCommander || [])[0] || (d.mainBoard || [])[0];
+      id = c && c.identifiers && c.identifiers.scryfallId;
+      if (!id) return null;
+      // read again: several are fetched at once, and each must keep the others'
+      const now = MTG.store.get('preconFaces', {}) || {};
+      now[p.file] = id;
+      MTG.store.set('preconFaces', now);
+    }
+    return `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`;
+  }
+  /** A deck's cards, as Scryfall prints them: the commanders, the rest, and all of it with counts. */
+  async function preconCards(p) {
+    const d = await preconFile(p);
+    const rows = [].concat((d.commander || []).map(c => ({ c, cmd: true })), (d.mainBoard || []).map(c => ({ c })));
+    const idents = rows.map(({ c }) => (c.identifiers && c.identifiers.scryfallId ? { id: c.identifiers.scryfallId } : { name: c.name }));
+    // in the order asked, with a gap for any not found
+    const found = ((await MTG.scry.collection(idents)) || {}).cards || [];
+    const commanders = [], main = [], all = [];
+    rows.forEach(({ c, cmd }, i) => {
+      const card = found[i];
+      if (!card) return;
+      const qty = Math.max(1, c.count || 1);
+      all.push({ card, qty });
+      if (cmd) commanders.push(card); else main.push({ card, qty });
+    });
+    if (!all.length) throw new Error('The cards of that deck could not be found.');
+    return { commanders, main, all, missing: rows.length - all.length };
+  }
+  async function preconsTab(body) {
+    const S = E();
+    const lead = el('p', { class: 'dim', text: 'Loading the deck lists…' });
+    body.append(lead);
+    let list;
+    try { list = await preconList(); }
+    catch (e) { lead.textContent = 'The deck lists could not be loaded. Check the connection.'; return; }
+    lead.textContent = `Every Commander deck as printed, ${fmtN(S.PRICES.precon)} Shards each. All its cards go into your collection (copies past four become Shards), and you can save it as a deck ready to play.`;
+    const sets = await MTG.scry.sets().catch(() => []);
+    const setName = (c) => (sets.find(s => s.code === c) || {}).name || c.toUpperCase();
+    const search = el('input', { type: 'search', placeholder: 'Find a deck or a set…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
+    const grid = el('div', { class: 'store-grid precons' });
+    /* each tile's commander art, fetched as it comes into view, a few at a time */
+    let busy = 0;
+    const waiting = [];
+    const pump = () => {
+      while (busy < 4 && waiting.length) {
+        const { p, art } = waiting.shift();
+        busy++;
+        preconFace(p).then((url) => { if (url) art.style.backgroundImage = 'url("' + url + '")'; art.classList.add('face'); })
+          .catch(() => {}).finally(() => { busy--; pump(); });
+      }
+    };
+    const seen = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        seen.unobserve(en.target);
+        waiting.push(en.target._precon);
+        pump();
+      }
+    }, { rootMargin: '200px' });
+    const draw = () => {
+      const q = search.value.trim().toLowerCase();
+      grid.innerHTML = '';
+      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q);
+      for (const p of hits.slice(0, 48)) {
+        const tile = preconTile(p, setName(p.code));
+        tile._precon = { p, art: tile.querySelector('.precon-art') };
+        grid.appendChild(tile);
+        seen.observe(tile);
+      }
+      if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck by that name.' }));
+    };
+    search.addEventListener('input', draw);
+    body.append(search, grid);
+    draw();
+  }
+  function preconTile(p, setName) {
+    // the set's art until the commander's is in
+    const art = el('div', { class: 'precon-art' });
+    setArt(p.code).then(a => { if (a && !art.classList.contains('face')) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(E().PRICES.precon) });
+    btn.addEventListener('click', () => buyPrecon(p, btn));
+    return el('div', { class: 'store-card precon-tile' }, [
+      art,
+      el('div', { class: 'sc-title', text: p.name }),
+      el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
+      btn,
+    ]);
+  }
+  async function buyPrecon(p, btn) {
+    const S = E();
+    if (S.shards() < S.PRICES.precon) return UI.purchaseDialog({ title: p.name, cost: S.PRICES.precon, from: btn, buy: () => null });
+    const busy = UI.busy('Commander deck', `Fetching the list of ${p.name}…`);
+    let deck;
+    try { deck = await preconCards(p); }
+    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    const face = deck.commanders[0] || (deck.main[0] || {}).card;
+    let got = null;
+    UI.purchaseDialog({
+      title: p.name, sub: 'Commander deck', from: btn, cost: S.PRICES.precon,
+      visual: face ? el('div', { class: 'precon-fly' }, [UI.cardImage(face, 'normal', 0)]) : null,
+      buy: () => (got = S.buyDeck(deck, S.PRICES.precon)),
+      after: () => preconBought(p, deck, got),
+    });
+  }
+  /** What the deck brought, and the deck saved if you want it. */
+  async function preconBought(p, deck, got) {
+    if (!got || !got.ok) return;
+    const said = `${got.cards} cards: ${got.fresh} new to your collection` + (got.shards ? `, and ${fmtN(got.shards)} Shards for the copies past four.` : '.') +
+      (deck.missing ? ` (${deck.missing} could not be found.)` : '');
+    if (!await UI.confirm(said + ' Save it as a deck, ready to play?', p.name, { yes: 'Save the deck', no: 'Not now' })) return;
+    MTG.decks.save({ id: MTG.uid('deck'), name: p.name, format: 'commander', main: deck.main, sideboard: [], commanders: deck.commanders });
+    UI.ok(`"${p.name}" is in your decks.`);
+  }
+
+  function packTile(s, extra) {
+    const notes = [
+      s.digital ? el('span', { class: 'pack-tag', text: 'Digital', title: 'Printed for Magic Online or Arena, never on paper' }) : null,
+      extra ? el('span', { class: 'pack-tag bonus', text: '+ ' + extra.short, title: extra.long }) : null,
+    ].filter(Boolean);
     return el('div', { class: 'store-card pack-tile' }, [
       boosterEl(s, 'play'),
       el('div', { class: 'sc-title', text: s.name }),
+      notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
       el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1)]),
-    ]);
+    ].filter(Boolean));
+  }
+  /** "Commander cards", "Alchemy cards": what else a set's packs may hold, from the sets folded into it. */
+  function extrasNote(kids, all) {
+    if (!kids || !kids.length) return null;
+    const info = kids.map(c => all.find(s => s.code === c) || { code: c, name: c.toUpperCase() });
+    const kinds = new Set(info.map(s => s.set_type === 'commander' ? 'Commander' : s.set_type === 'alchemy' ? 'Alchemy' : s.digital ? 'digital' : 'bonus'));
+    const short = kinds.has('Commander') && kinds.has('Alchemy') ? 'Commander & Alchemy cards'
+      : kinds.size === 1 ? `${[...kinds][0]} cards` : 'bonus cards';
+    return { short: short.charAt(0).toUpperCase() + short.slice(1), long: 'Now and then, one of the new cards from ' + info.map(s => s.name).join(', ') + '.' };
   }
 
   async function packsTab(body) {
-    const sets = await MTG.scry.draftableSets().catch(() => []);
+    const sets = await MTG.scry.packSets().catch(() => []);
+    const hosts = await MTG.scry.packHosts().catch(() => new Map());
+    const all = await MTG.scry.sets().catch(() => []);
     if (!sets.length) { body.appendChild(el('p', { class: 'dim', text: 'The sets could not be loaded.' })); return; }
     const search = el('input', { type: 'search', placeholder: 'Find a set…', class: 'store-search', 'aria-label': 'Find a set' });
     const grid = el('div', { class: 'store-grid packs' });
     const draw = () => {
       const q = search.value.trim().toLowerCase();
       grid.innerHTML = '';
-      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q).slice(0, 48)) grid.appendChild(packTile(s));
+      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q).slice(0, 48)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
     };
     search.addEventListener('input', draw);
     body.append(search, grid);
@@ -538,9 +709,9 @@
     const seen = new Set();
     const order = packs.filter(p => { const k = (p.set || 'new' + (p.newest || 0)) + p.kind; if (seen.has(k)) return false; seen.add(k); return true; })
       .concat(packs).slice(0, Math.min(9, n));
-    MTG.scry.draftableSets().catch(() => []).then((sets) => {
+    Promise.all([MTG.scry.draftableSets().catch(() => []), MTG.scry.packSets().catch(() => [])]).then(([sets, sold]) => {
       order.forEach((p, k) => {
-        const info = p.set ? (sets.find(s => s.code === p.set) || { code: p.set, name: p.name || '' }) : (sets[p.newest || 0] || sets[0] || null);
+        const info = p.set ? (sold.find(s => s.code === p.set) || { code: p.set, name: p.name || '' }) : (sets[p.newest || 0] || sets[0] || null);
         const b = boosterEl(info, p.kind);
         // a heap: wider at the bottom, each one a little askew
         const row = k < 4 ? 0 : k < 7 ? 1 : 2;
@@ -718,7 +889,8 @@
   UI.openPacks = async function (onClose) {
     const S = E();
     const sets = await MTG.scry.draftableSets().catch(() => []);
-    const setInfo = (p) => (p.set ? (sets.find(s => s.code === p.set) || { code: p.set, name: p.name || String(p.set).toUpperCase() })
+    const sold = await MTG.scry.packSets().catch(() => sets);
+    const setInfo = (p) => (p.set ? (sold.find(s => s.code === p.set) || { code: p.set, name: p.name || String(p.set).toUpperCase() })
       : (sets[p.newest || 0] || sets[0] || { code: '', name: 'Booster' }));
     const backdrop = el('div', { class: 'po-backdrop' });
     const stage = el('div', { class: 'po-stage' });
@@ -896,6 +1068,8 @@
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
+          it.card && it.card._bonus ? el('span', { class: 'po-bonus', text: it.card.set_type === 'commander' ? 'Commander'
+            : it.card.set_type === 'alchemy' ? 'Alchemy' : it.card.digital ? 'Digital' : 'Bonus' }) : null,
           it.shards ? el('span', { class: 'po-dup', html: `+${shardSvg()}${fmtN(it.shards)}` }) : null,
         ].filter(Boolean)),
       ]);
@@ -1213,7 +1387,7 @@
     const uniq = Object.keys(col).length;
     const copies = Object.values(col).reduce((a, e) => a + (e.n || 0), 0);
     const setSel = el('select', { 'aria-label': 'Set' }, [el('option', { value: '', text: 'All my cards' })]);
-    MTG.scry.draftableSets().then(sets => {
+    MTG.scry.packSets().then(sets => {
       for (const s of sets.slice(0, 80)) setSel.appendChild(el('option', { value: s.code, text: s.name, selected: s.code === colState.set }));
     }).catch(() => {});
     const search = el('input', { type: 'search', placeholder: 'Search by name…', value: colState.q, 'aria-label': 'Search the collection' });

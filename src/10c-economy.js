@@ -17,7 +17,7 @@
   const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 
   /** What things cost and what they pay, in Shards. */
-  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
+  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000, precon: 7500 };
   /** A wildcard bought outright, by rarity. */
   const WC_PRICES = { common: 300, uncommon: 750, rare: 2000, mythic: 4000 };
   /** Card styles: a treatment for one card of yours, wherever it is played. */
@@ -198,6 +198,29 @@
     return out;
   }
 
+  /**
+   * A Commander deck bought whole: its price, and every card of it into the
+   * collection (copies past four become Shards, as from a pack). `deck.all`
+   * is [{ card, qty }]. Says how many cards, how many were new, and the
+   * Shards the spare copies made.
+   */
+  function buyDeck(deck, price) {
+    load();
+    if (state.shards < price) return { ok: false, why: `That costs ${price.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= price;
+    let cards = 0, fresh = 0, shards = 0;
+    for (const e of (deck.all || [])) {
+      if (!e || !e.card) continue;
+      const r = addCard(e.card, e.qty || 1);
+      cards += e.qty || 1;
+      if (r.isNew) fresh++;
+      shards += r.shards;
+    }
+    save('deck', -price);
+    if (MTG.progress) MTG.progress.checkSets([...new Set((deck.all || []).map(e => e.card && e.card.set).filter(Boolean))]);
+    return { ok: true, cards, fresh, shards };
+  }
+
   /* ---------------- wildcards ---------------- */
   function useWildcard(rarity) {
     load();
@@ -280,12 +303,14 @@
     const pool = await MTG.scry.setPool(pack.set);
     if (!pool || !pool.all || pool.all.length < 20) throw new Error(`The cards of ${pack.name || pack.set.toUpperCase()} could not be loaded.`);
     const D = MTG.draft;
-    const sets = await MTG.scry.draftableSets().catch(() => []);
+    const sets = await MTG.scry.packSets().catch(() => []);
     const info = sets.find(s => s.code === pack.set) || { code: pack.set };
     const spec = pack.kind === 'collector' ? D.COLLECTOR_BOOSTER : D.boosterSpecFor(info);
     const variants = pack.kind === 'collector' ? await MTG.scry.setVariants(pack.set).catch(() => null) : null;
+    // the cards folded into this set: its Commander decks', Alchemy's, its deck-only ones
+    const folded = await MTG.scry.packExtras(pack.set).catch(() => null);
     const rng = new MTG.RNG((Date.now() ^ (Math.random() * 1e9)) >>> 0);
-    let cards = D.makeBooster(pool, rng, spec, { variants });
+    let cards = D.makeBooster(pool, rng, spec, { variants, bonus: folded });
     // basics are not collected; a real pack's basic is no loss
     cards = cards.filter(c => !isBasic(c.name));
     /* Duplicate protection, as Arena does it: a rare or mythic you already
@@ -569,7 +594,7 @@
     packs: () => load().packs.slice(),
     collection: () => load().col,
     save: () => save(),
-    isBasic, rarityOf, owned, addShards, spend, addCard, addCards, craft, useWildcard,
+    isBasic, rarityOf, owned, addShards, spend, addCard, addCards, buyDeck, craft, useWildcard,
     buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
