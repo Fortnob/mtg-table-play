@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11384,
+  "needed": 11383,
   "gainedCards": 1131,
-  "linesNeeded": 12188,
+  "linesNeeded": 12187,
   "linesGained": 1338,
   "gained": {
    "all": 1131,
@@ -2382,21 +2382,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Surge of Salvation",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Captain America, Super-Soldier",
-    "Gor Muldrak, Amphinologist",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 8,
    "lines": 8,
@@ -2779,6 +2764,20 @@
     "Kellan, the Kid",
     "Dirgur Focusmage // Braingeyser",
     "Mizzix, Replica Rider"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Surge of Salvation",
+    "The Stasis Coffin",
+    "Captain America, Super-Soldier",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
    ]
   },
   {
@@ -8157,19 +8156,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Surge of Salvation",
-    "Absolute Virtue",
-    "The Stasis Coffin",
-    "Captain America, Super-Soldier",
-    "Blossoming Calm",
-    "Gilded Light"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "cards": 7,
@@ -8564,6 +8550,19 @@
     "Case of the Shattered Pact",
     "Case of the Crimson Pulse",
     "Case of the Burning Masks"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Surge of Salvation",
+    "The Stasis Coffin",
+    "Captain America, Super-Soldier",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
    ]
   },
   {

@@ -10303,6 +10303,10 @@
       if (source && !this._noPrevention(combat) && this._protCardTypes(p.id).some(t => this._cardTypesOf(source).includes(t))) {
         this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
       }
+      // Absolute Virtue: protection from each of your opponents — damage from what they control
+      if (source && !this._noPrevention(combat) && source.controller !== p.id && this._anyStaticOf(p.id, 'protFromOpponents')) {
+        this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
+      }
       if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
       // the Spheres: "If a red source would deal damage to you, prevent 2 of that damage."
       if (source && !this._noPrevention(combat)) {
@@ -21802,6 +21806,8 @@
       const tsrc = sourceId && this.obj(sourceId);
       const players = () => this.players.filter(p => !p.hasLost && !this._protected(p))
         .filter(p => !tsrc || !this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)))
+        // Absolute Virtue: not by an opponent's spell or ability
+        .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
         .filter(p => p.id === controllerId || (!this._anyStaticOf(p.id, 'playerHexproof') && p.hexproofTurn !== this.turn))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))

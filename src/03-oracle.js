@@ -12503,7 +12503,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -13201,6 +13201,8 @@
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
         }, auto: true },
+      // Absolute Virtue: "You have protection from each of your opponents."
+      { re: /^You have protection from each of your opponents\.?$/i, eff: { op: 'protFromOpponents' }, auto: true },
       // Ensnaring Bridge: "Creatures with power greater than the number of cards in your hand can't attack."
       { re: /^Creatures with power greater than the number of cards in your hand can'?t attack\.?$/i,
         eff: { op: 'bridgeAttack' }, auto: true },

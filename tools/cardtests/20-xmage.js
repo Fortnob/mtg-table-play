@@ -15792,4 +15792,19 @@ module.exports = (test) => {
     T.settle();
     t.zone(theirs, 'graveyard', "an opponent's is not protected");
   });
+
+  test('Absolute Virtue: you have protection from each of your opponents', (mk, t) => {
+    t.auto('Absolute Virtue');
+    const T = mk();
+    T.bf('A', 'Absolute Virtue');
+    T.toMain('B');
+    T.mana('B', 'R');
+    let threw = false;
+    try { T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] }); } catch (err) { threw = true; }
+    t.ok(threw, "an opponent's spell can't target you");
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 20, 'their damage is prevented');
+  });
 };
