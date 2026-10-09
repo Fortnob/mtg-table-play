@@ -9381,6 +9381,14 @@
         }
         // Charismatic Conqueror: the permanent the trigger is about came in untapped
         case 'triggerObjUntapped': { const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId); return !!x && x.zone === 'battlefield' && !x.tapped; }
+        // Wilhelt: whether the creature the trigger is about had that keyword, as it last was (triggerObjKeyword)
+        case 'triggerObjKeyword': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          if (!x) return false;
+          const xa = (x.zone !== 'battlefield' && x._lkiAnalysis) || null;
+          const has = x.zone === 'battlefield' ? this.hasKw(x, cond.kw) : !!(xa ? xa.keywordSet && xa.keywordSet.has(cond.kw) : ((x.analysis() || {}).keywordSet || new Set()).has(cond.kw));
+          return cond.not ? !has : has;
+        }
         case 'selfCountersTotal': return !!src && Object.values(src.counters || {}).reduce((k, v) => k + (Number(v) || 0), 0) >= cond.n;
         case 'greatestMvArtifact': {
           const arts = this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isArtifact);

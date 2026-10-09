@@ -16893,4 +16893,23 @@ module.exports = (test) => {
     T.g.tapForMana('A', river.id, 0);
     t.eq(T.player('A').pool.B || 0, 1, 'a land played: {B}');
   });
+
+  test("Wilhelt, the Rotcleaver: a Zombie without decayed leaves a decayed Zombie behind; a decayed one doesn't", (mk, t) => {
+    t.auto('Wilhelt, the Rotcleaver');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Wilhelt, the Rotcleaver');
+    const z = T.bf('A', 'Walking Corpse');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [z] });
+    T.settle(); T.resolve(); T.settle();
+    const toks = () => T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks().length, 1, 'a 2/2 Zombie token with decayed');
+    const tok = toks()[0];
+    t.ok(T.g.hasKw(tok, 'decayed'));
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [tok] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(toks().length, 0, 'the decayed one leaves nothing');
+  });
 };
