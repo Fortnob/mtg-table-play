@@ -992,7 +992,14 @@
        like the Store, not a window over it. Its menu goes where it says,
        and takes the packs away with it. */
     const topbar = document.querySelector('.topbar');
-    const place = () => { overlay.style.top = (topbar && topbar.offsetParent !== null ? Math.max(0, Math.round(topbar.getBoundingClientRect().bottom)) : 0) + 'px'; };
+    /* the top bar's bottom is measured on the screen, and the interface is
+       zoomed to fit big screens, so it is turned back into the page's own
+       pixels (the overlay's on-screen height against its own) */
+    const place = () => {
+      if (!topbar || topbar.offsetParent === null) { overlay.style.top = '0px'; return; }
+      const zoom = (overlay.getBoundingClientRect().height / (overlay.offsetHeight || 1)) || 1;
+      overlay.style.top = Math.max(0, topbar.getBoundingClientRect().bottom / zoom) + 'px';
+    };
     place();
     window.addEventListener('resize', place);
     const navAway = (e) => { if (e.target.closest('.topnav-btn, .brand')) close(true); };
