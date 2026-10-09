@@ -5293,6 +5293,10 @@
       make: (m) => ({ op: 'drawDiscard', n: num(m[1]), discard: num(m[2]) }) },
     { re: /^(?:You )?draws? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? and (?:you )?loses? (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'loseLife', n: num(m[2]), who: 'you' }] }) },
+    // Mutiny, Breaking of the Fellowship: "Target creature an opponent controls deals damage equal to its power to another target creature that player controls."
+    { re: /^Target creature an opponent controls deals damage equal to its power to another target creature that player controls\.?$/i,
+      make: () => ({ op: 'damageByPower', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', controller: 'opponent' },
+        { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true, sameControllerAsPrev: true }] }) },
     { re: /^Target (?:creature|permanent) deals damage equal to its power to (any target|another target creature|target creature|target player|target opponent|target planeswalker)\.?$/i,
       make: (m) => ({ op: 'damageByPower', targets: [{ type: 'creature' }, targetSpec(m[1].replace(/^another /i, ''))] }) },
     { re: /^Target player (?:puts|mills) the top (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? of (?:their|his or her) library into (?:their|his or her) graveyard\.?$/i,

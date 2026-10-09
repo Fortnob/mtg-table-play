@@ -16351,4 +16351,18 @@ module.exports = (test) => {
     t.ok(/more than one creature/.test(why), why);
     t.zone(e1, 'graveyard', 'one blocker is fine');
   });
+
+  test("Mutiny: an opponent's creature deals damage equal to its power to another of theirs", (mk, t) => {
+    t.auto('Mutiny');
+    t.auto('Breaking of the Fellowship');
+    const T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Llanowar Elves');
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', T.hand('A', 'Mutiny').id, { targets: [{ kind: 'object', id: giant.id }, { kind: 'object', id: mine.id }], auto: true }), 'not one of yours');
+    T.cast('A', T.hand('A', 'Mutiny'), { targets: [giant, bear] });
+    T.settle();
+    t.zone(bear, 'graveyard', 'three damage from the Giant');
+    t.zone(giant, 'battlefield');
+  });
 };

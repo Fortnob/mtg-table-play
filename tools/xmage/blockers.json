@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11328,
+  "needed": 11326,
   "gainedCards": 1130,
-  "linesNeeded": 12126,
+  "linesNeeded": 12124,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -241,8 +241,8 @@
   },
   {
    "what": "custom target",
-   "score": 45,
-   "lines": 45,
+   "score": 43,
+   "lines": 43,
    "cards": [
     "Rampaging Yao Guai",
     "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
@@ -6777,19 +6777,6 @@
    ]
   },
   {
-   "what": "custom target",
-   "score": 41,
-   "cards": 41,
-   "names": [
-    "Rampaging Yao Guai",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "V.A.T.S.",
-    "Reunion of the House",
-    "Behold the Sinister Six!",
-    "Kairi, the Swirling Sky"
-   ]
-  },
-  {
    "what": "Target.setTargetTag",
    "score": 41,
    "cards": 41,
@@ -6813,6 +6800,19 @@
     "Archive Trap",
     "Mogg Salvage",
     "Ricochet Trap"
+   ]
+  },
+  {
+   "what": "custom target",
+   "score": 39,
+   "cards": 39,
+   "names": [
+    "Rampaging Yao Guai",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
+    "V.A.T.S.",
+    "Reunion of the House",
+    "Behold the Sinister Six!",
+    "Kairi, the Swirling Sky"
    ]
   },
   {
