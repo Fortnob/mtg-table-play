@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11378,
+  "needed": 11370,
   "gainedCards": 1130,
-  "linesNeeded": 12181,
+  "linesNeeded": 12172,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -1350,23 +1350,6 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
-   ]
-  },
-  {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Goblin Javelineer",
-    "Battle-Scarred Goblin",
-    "Arc Spitter",
-    "Knight of Dusk",
-    "Baneblade Scoundrel // Baneclaw Marauder",
-    "Urborg Panther",
-    "Godo's Irregulars",
-    "Barbed-Back Wurm",
-    "Master of Arms",
-    "Flowstone Salamander"
    ]
   },
   {
@@ -3167,19 +3150,6 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Tinder Wall",
-    "Guardian of the Gateless",
-    "Serene Master",
-    "Goblin Snowman",
-    "Wall of Corpses",
-    "Whip Vine"
-   ]
-  },
-  {
    "what": "SacrificeAllControllerEffect",
    "score": 6,
    "lines": 6,
@@ -3941,6 +3911,17 @@
     "Bloodbraid Marauder",
     "Kaervek's Torch",
     "Torrent of Lava"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Battle-Scarred Goblin",
+    "Arc Spitter",
+    "Baneblade Scoundrel // Baneclaw Marauder",
+    "Barbed-Back Wurm"
    ]
   },
   {
@@ -6695,6 +6676,16 @@
     "Web of Inertia",
     "Fight or Flight"
    ]
+  },
+  {
+   "what": "OneOrMoreCountersAddedTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Emperor of Bones",
+    "Cursed Wombat",
+    "Growth-Chamber Guardian"
+   ]
   }
  ],
  "sole": [
@@ -7611,6 +7602,19 @@
    ]
   },
   {
+   "what": "CompositeCost",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Sokenzan Smelter"
+   ]
+  },
+  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 9,
    "cards": 9,
@@ -7754,19 +7758,6 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Goblin Javelineer",
-    "Battle-Scarred Goblin",
-    "Arc Spitter",
-    "Knight of Dusk",
-    "Baneblade Scoundrel // Baneclaw Marauder",
-    "Godo's Irregulars"
-   ]
-  },
-  {
    "what": "discard several, or reveal some",
    "score": 9,
    "cards": 9,
@@ -7868,19 +7859,6 @@
     "Fungal Behemoth",
     "Monstrous War-Leech",
     "Mwonvuli Ooze"
-   ]
-  },
-  {
-   "what": "CompositeCost",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for Pure Flame",
-    "Sokenzan Smelter"
    ]
   },
   {
@@ -8484,19 +8462,6 @@
     "Tymna the Weaver",
     "Belbe, Corrupted Observer",
     "Brazen Cannonade"
-   ]
-  },
-  {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Tinder Wall",
-    "Guardian of the Gateless",
-    "Serene Master",
-    "Goblin Snowman",
-    "Wall of Corpses",
-    "Whip Vine"
    ]
   },
   {
@@ -10403,6 +10368,28 @@
     "Tale of Tinúviel",
     "Thancred Waters",
     "Kyodai, Soul of Kamigawa"
+   ]
+  },
+  {
+   "what": "comparison EQUAL_TO",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ayara's Oathsworn",
+    "Magus of the Library",
+    "Demonic Rising",
+    "Library of Alexandria"
+   ]
+  },
+  {
+   "what": "ChosenSubtypePredicate.TRUE",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Kindred Boon",
+    "From the Rubble",
+    "Mirror of the Forebears",
+    "Belbe's Portal"
    ]
   }
  ]

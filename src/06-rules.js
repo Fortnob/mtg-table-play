@@ -21838,6 +21838,16 @@
           .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && !!s0 && x.name === s0.name; });
       }
       // "another target creature" is never the creature asking (CR 115.5)
+      /* Flowstone Salamander: "target creature blocking it"; Tinder Wall: "target
+         creature it's blocking" — in combat with the source (blockingSelf, blockedBySelf) */
+      if ((spec.blockingSelf || spec.blockedBySelf) && sourceId) {
+        const s0 = this.obj(sourceId);
+        return this._legalTargetsFor(Object.assign({}, spec, { blockingSelf: false, blockedBySelf: false }), controllerId, sourceId).filter(t => {
+          const x = t.kind === 'object' && this.obj(t.id);
+          if (!x || !s0) return false;
+          return spec.blockingSelf ? (x.blocking || []).includes(s0.id) : (s0.blocking || []).includes(x.id);
+        });
+      }
       if (spec.another && sourceId) {
         return this._legalTargetsFor(Object.assign({}, spec, { another: false }), controllerId).filter(t => t.id !== sourceId);
       }

@@ -16022,4 +16022,34 @@ module.exports = (test) => {
     T.toMain('B', 'endCombat');
     t.eq(T.life('A'), 18, 'a creature attacking you is not helped');
   });
+
+  test("Target creature it's blocking, target creature blocking it: Tinder Wall, Flowstone Salamander", (mk, t) => {
+    for (const n of ['Tinder Wall', 'Flowstone Salamander', "Godo's Irregulars", 'Goblin Javelineer', 'Goblin Snowman', 'Master of Arms', 'Knight of Dusk', 'Wall of Corpses']) t.auto(n);
+    let T = mk();
+    const wall = T.bf('A', 'Tinder Wall'), other = T.bf('B', 'Llanowar Elves');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.toMain('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [bear.id] }]);
+    T.toMain('B', 'declareBlockers');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('A');
+    T.mana('A', 'R');
+    t.no(T.g.activateAbility('A', wall.id, 1, { targets: [{ kind: 'object', id: other.id }] }), 'not a creature it is not blocking');
+    T.activate('A', wall, 1, { targets: [bear] });
+    t.zone(wall, 'graveyard', 'sacrificed');
+    t.zone(bear, 'graveyard', 'the Bears it was blocking take 2');
+    // Flowstone Salamander: the creature blocking it
+    T = mk();
+    const sal = T.bf('A', 'Flowstone Salamander');
+    const elf = T.bf('B', 'Llanowar Elves'), elf2 = T.bf('B', 'Llanowar Elves');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: sal.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: elf.id, attackerIds: [sal.id] }]);
+    T.toMain('A', 'declareBlockers');
+    T.mana('A', 'R');
+    t.no(T.g.activateAbility('A', sal.id, 0, { targets: [{ kind: 'object', id: elf2.id }] }), 'not one that is not blocking it');
+    T.mana('A', 'R');
+    T.activate('A', sal, 0, { targets: [elf] });
+    t.zone(elf, 'graveyard');
+  });
 };

@@ -5864,6 +5864,12 @@
     // Cathedral Acolyte: "target creature that entered this turn"
     const enteredNow = /\s+that entered (?:the battlefield )?this turn$/i.test(String(phrase));
     if (enteredNow) phrase = String(phrase).replace(/\s+that entered (?:the battlefield )?this turn$/i, '');
+    /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
+       Tinder Wall, Wall of Corpses: "target creature it's (this creature is) blocking" */
+    const blockingSelf = /\s+blocking (?:it|this creature|CARDNAME)$/i.test(String(phrase));
+    if (blockingSelf) phrase = String(phrase).replace(/\s+blocking (?:it|this creature|CARDNAME)$/i, '');
+    const blockedBySelf = /\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i.test(String(phrase));
+    if (blockedBySelf) phrase = String(phrase).replace(/\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -5876,6 +5882,8 @@
     if (hasX) spec.hasXCost = true;
     if (colored) spec.colored = true;
     if (enteredNow) spec.enteredThisTurn = true;
+    if (blockingSelf) spec.blockingSelf = true;
+    if (blockedBySelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
     if (/^(?:another|other) target /i.test(String(phrase).trim()) || /^any other target$/.test(p)) spec.another = true;
