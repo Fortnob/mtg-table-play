@@ -13123,4 +13123,18 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.player('A').life, 17, 'three life paid');
   });
+
+  test('Gutterbones: back to hand during your turn, once an opponent lost life', (mk, t) => {
+    t.auto('Gutterbones');
+    const T = mk();
+    T.toMain('A');
+    const g = T.grave('A', 'Gutterbones');
+    const use = () => (T.g.altUsesFor('A', g.id).find(u => /^ability:/.test(u.via || '')) || {}).via;
+    T.mana('A', '1B');
+    t.ok(!use() || !T.g.castSpell('A', g.id, { via: use(), auto: true }), 'not before anyone lost life');
+    T.g.changeLife(T.player('B'), -1);
+    t.ok(use() && T.g.castSpell('A', g.id, { via: use(), auto: true }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(g.zone, 'hand');
+  });
 };

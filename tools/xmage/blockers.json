@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12071,
+  "needed": 12070,
   "gainedCards": 1263,
-  "linesNeeded": 13091,
+  "linesNeeded": 13090,
   "linesGained": 1506,
   "gained": {
    "all": 1263,
@@ -2185,23 +2185,6 @@
    ]
   },
   {
-   "what": "Zone.GRAVEYARD",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Cult Conscript",
-    "Gutterbones",
-    "Uchbenbak, the Great Mistake",
-    "Nemesis Phoenix",
-    "Skarrgan Firebird",
-    "Proctor of Potential",
-    "Kuldotha Phoenix",
-    "Cleaving Reaper",
-    "Ashen Ghoul",
-    "Coffin Puppets"
-   ]
-  },
-  {
    "what": "keyword FlyingAbility",
    "score": 10,
    "lines": 10,
@@ -2533,6 +2516,22 @@
     "Battlefield Scrounger",
     "Security Detail",
     "Sawback Manticore"
+   ]
+  },
+  {
+   "what": "Zone.GRAVEYARD",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Cult Conscript",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential",
+    "Kuldotha Phoenix",
+    "Cleaving Reaper",
+    "Ashen Ghoul",
+    "Coffin Puppets"
    ]
   },
   {
@@ -7888,19 +7887,6 @@
    ]
   },
   {
-   "what": "Zone.GRAVEYARD",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Cult Conscript",
-    "Gutterbones",
-    "Uchbenbak, the Great Mistake",
-    "Nemesis Phoenix",
-    "Skarrgan Firebird",
-    "Proctor of Potential"
-   ]
-  },
-  {
    "what": "keyword PowerUpAbility",
    "score": 10,
    "cards": 10,
@@ -8158,6 +8144,19 @@
     "Unwelcome Sprite",
     "Nightmare Sower",
     "Breath of the Sleepless"
+   ]
+  },
+  {
+   "what": "Zone.GRAVEYARD",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Cult Conscript",
+    "Uchbenbak, the Great Mistake",
+    "Nemesis Phoenix",
+    "Skarrgan Firebird",
+    "Proctor of Potential",
+    "Kuldotha Phoenix"
    ]
   },
   {

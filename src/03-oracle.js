@@ -1924,6 +1924,9 @@
     /* "…only if there are four or more card types among cards in your
        graveyard and only as a sorcery": the sorcery half is read off the
        line by the ability itself. */
+    // Gutterbones, Essence Anchor: "Activate only during your turn and only if an opponent lost life this turn."
+    { re: /^Activate (?:this ability )?only during your turn and only if (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[1]); return c ? { op: 'activateOnly', when: 'yourTurn', cond: c } : null; } },
     { re: /^Activate (?:this ability )?only if (.+?) and only as a sorcery\.?$/i,
       make: (m) => { const c = condOf(m[1]); return c ? { op: 'activateOnly', cond: c } : null; } },
     { re: /^Activate (?:this ability )?only as a sorcery and only if (.+?)\.?$/i,
