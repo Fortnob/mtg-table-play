@@ -14210,7 +14210,10 @@
             usedModes.push(...chosen);
           }
           const run = [];
-          for (const i of chosen) { const m = modes[i]; if (m) run.push(...(m.effects || [])); }
+          /* Inscription of Ruin, kicked: two modes chosen as it resolves each
+             ask for their own target, not the one the mode before was given */
+          const own = chosen.length > 1 && !((ctx && ctx.targets) || []).length;
+          for (const i of chosen) { const m = modes[i]; if (m) run.push(...(own ? this._ownTargets(m.effects || []) : (m.effects || []))); }
           this._spliceNext(run);
           this.logEvent('rules', `${me.name} chooses: ${chosen.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
           break;

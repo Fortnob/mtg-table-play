@@ -12612,4 +12612,23 @@ module.exports = (test) => {
     t.eq(g1.zone, 'library'); t.eq(g2.zone, 'library'); t.eq(g3.zone, 'graveyard');
     t.ok(lib.slice(-2).includes(g1) && lib.slice(-2).includes(g2), 'at the bottom');
   });
+
+  test('Inscription of Ruin: one mode, or every one once kicked', (mk, t) => {
+    t.auto('Inscription of Ruin');
+    const a = engine().oracle.analyze(card('Inscription of Ruin'));
+    const md = a.abilities.find(x => x.kind === 'spell').effects.find(e => e.op === 'modal');
+    t.eq(md.modes.length, 3, 'three modes, the note is not one');
+    t.eq(md.countIf.cond.kind, 'kicked'); t.eq(md.countIf.count, 99);
+    const T = mk();
+    const elf = T.grave('A', 'Llanowar Elves'), bear = T.bf('B', 'Grizzly Bears');
+    let count = null;
+    T.answer('mode', (ch) => { count = ch.count; return { modes: [1, 2] }; });
+    const pick = (ch) => { const ids = ch.options[0].map(o => o.id); return { targets: [{ kind: 'object', id: ids.includes(bear.id) ? bear.id : elf.id }] }; };
+    T.answer('pickTarget', pick); T.answer('pickTarget', pick);
+    T.mana('A', '4BBBB');
+    T.cast('A', T.hand('A', 'Inscription of Ruin'), { kick: 1 });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(count, 3, 'kicked: any number');
+    t.eq(elf.zone, 'battlefield'); t.eq(bear.zone, 'graveyard');
+  });
 };

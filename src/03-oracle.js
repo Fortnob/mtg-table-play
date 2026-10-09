@@ -6468,6 +6468,11 @@
       const om = b.match(/^If (.+?) as you cast this spell, you may choose (both|any number|two|three)(?: of them)? instead\.?$/i);
       const oc = om && condOf(om[1]);
       if (oc) { otherCount = { cond: oc, count: /both|two/i.test(om[2]) ? 2 : /three/i.test(om[2]) ? 3 : 99 }; return false; }
+      /* Inscription of Abundance: "Choose one. If this spell was kicked,
+         choose any number instead." — the note comes before the modes */
+      const im = b.match(/^If (.+?), choose (both|any number|one or more|two|three) instead\.?$/i);
+      const ic = im && condOf(im[1]);
+      if (ic) { otherCount = { cond: ic, count: /both|two/i.test(im[2]) ? 2 : /three/i.test(im[2]) ? 3 : 99 }; return false; }
       return true;
     });
     if (modes.length < 2) return null;

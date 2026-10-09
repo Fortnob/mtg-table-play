@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12241,
+  "needed": 12235,
   "gainedCards": 1303,
-  "linesNeeded": 13314,
+  "linesNeeded": 13308,
   "linesGained": 1558,
   "gained": {
    "all": 1303,
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 763,
-   "lines": 703,
+   "score": 761,
+   "lines": 701,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -355,25 +355,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
-   "score": 28,
-   "lines": 28,
-   "cards": [
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance",
-    "Will of the Abzan",
-    "See Double",
-    "Will of the Temur",
-    "Moxite Refinery",
-    "Szat's Will",
-    "SOLDIER Military Program",
-    "Vincent's Limit Break",
-    "Kamahl's Will",
-    "Outlaws' Merriment"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 28,
    "lines": 28,
@@ -466,6 +447,25 @@
     "Stall for Time",
     "Loyal Sentry",
     "Mindbender Spores"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 24,
+   "lines": 24,
+   "cards": [
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance",
+    "Will of the Abzan",
+    "See Double",
+    "Will of the Temur",
+    "Moxite Refinery",
+    "Szat's Will",
+    "SOLDIER Military Program",
+    "Vincent's Limit Break",
+    "Kamahl's Will",
+    "Outlaws' Merriment"
    ]
   },
   {
@@ -7038,8 +7038,8 @@
   },
   {
    "what": "custom ability",
-   "score": 581,
-   "cards": 539,
+   "score": 579,
+   "cards": 537,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7219,19 +7219,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
-   "score": 23,
-   "cards": 23,
-   "names": [
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance",
-    "Will of the Abzan",
-    "See Double",
-    "Will of the Temur"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 23,
    "cards": 23,
@@ -7294,6 +7281,19 @@
     "Spoils of the Vault",
     "The Stone Brain",
     "Academic Probation"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 19,
+   "cards": 19,
+   "names": [
+    "Will of the Mardu",
+    "Aetheric Amplifier",
+    "Inscription of Abundance",
+    "Will of the Abzan",
+    "See Double",
+    "Will of the Temur"
    ]
   },
   {
