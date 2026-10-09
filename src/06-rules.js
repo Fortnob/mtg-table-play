@@ -3522,8 +3522,12 @@
       if (fu && (this.turn === fu.setTurn || !this.activePlayer || this.activePlayer.id !== p.id) &&
           (!fu.filter || this._cardFitsWords(o, fu.filter))) return true;
       for (const src of this.battlefield) {
-        if (src.controller !== playerId || src.phasedOut) continue;
+        if (src.phasedOut) continue;
         const e = this._staticOp(src, 'flashGrant');
+        // Tidal Barracuda: "Any player may cast spells as though they had flash."
+        if (src.controller !== playerId && !(e && e.anyPlayer)) continue;
+        // Teferi, Mage of Zhalfir: "Creature cards you own …"
+        if (e && e.ownedOnly && o.owner !== src.controller) continue;
         if (e && (!e.filter || this._cardFitsWords(o, e.filter))) return true;
       }
       return false;
@@ -19493,6 +19497,8 @@
         if (!e) continue;
         if (abilities && !e.abilities) continue;
         if (e.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
+        // Marisi: only during combat
+        if (e.combatOnly && !(this.phase && this.phase.id === 'combat')) continue;
         if (e.whileAttached && !(o.attachedTo && this.obj(o.attachedTo))) continue;
         return `${o.name} stops that.`;
       }

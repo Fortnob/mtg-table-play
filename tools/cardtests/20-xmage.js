@@ -13912,4 +13912,38 @@ module.exports = (test) => {
     t.eq(V.g.powerOf(human), 1, 'a Goblin does not');
     t.ok(V.g._wardCosts(soldier).length === 1, 'and has ward');
   });
+
+  test('Tidal Barracuda: any player has flash; Teferi, Mage of Zhalfir: your creature cards have flash', (mk, t) => {
+    t.auto('Tidal Barracuda'); t.auto('Teferi, Mage of Zhalfir');
+    const T = mk();
+    T.bf('A', 'Tidal Barracuda');
+    t.ok(T.g._flashFor('B', T.hand('B', 'Divination')), "an opponent's sorcery");
+    t.ok(T.g._flashFor('A', T.hand('A', 'Hill Giant')), 'your creature');
+    const U = mk();
+    U.bf('A', 'Teferi, Mage of Zhalfir');
+    t.ok(U.g._flashFor('A', U.hand('A', 'Hill Giant')), 'a creature card you own');
+    t.ok(!U.g._flashFor('A', U.hand('A', 'Divination')), 'not a sorcery');
+    t.ok(!U.g._flashFor('B', U.hand('B', 'Hill Giant')), "not an opponent's creature");
+  });
+
+  test("Marisi, Breaker of the Coil: your opponents can't cast spells during combat", (mk, t) => {
+    t.auto('Marisi, Breaker of the Coil');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Marisi, Breaker of the Coil');
+    t.ok(!T.g._castBlocked('B'), 'in a main phase they may');
+    T.toMain('A', 'beginCombat');
+    t.ok(!!T.g._castBlocked('B'), 'during combat they may not');
+    t.ok(!T.g._castBlocked('A'), 'you still may');
+  });
+
+  test('Vexilus Praetor: a flavour word before "Commanders you control have …"', (mk, t) => {
+    t.auto('Vexilus Praetor');
+    const T = mk();
+    T.bf('A', 'Vexilus Praetor');
+    const cmd = T.bf('A', 'Isamaru, Hound of Konda'); cmd.isCommander = true;
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.ok(T.g.hasKw(cmd, 'protection from everything'), 'the commander');
+    t.ok(!T.g.hasKw(bear, 'protection from everything'), 'not another creature');
+  });
 };

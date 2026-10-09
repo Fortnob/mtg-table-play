@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11918,
-  "gainedCards": 1230,
-  "linesNeeded": 12862,
-  "linesGained": 1464,
+  "needed": 11920,
+  "gainedCards": 1228,
+  "linesNeeded": 12865,
+  "linesGained": 1462,
   "gained": {
-   "all": 1230,
+   "all": 1228,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4304,
-   "lines": 4043,
+   "score": 4301,
+   "lines": 4040,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 753,
-   "lines": 693,
+   "score": 752,
+   "lines": 692,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 665,
-   "lines": 665,
+   "score": 666,
+   "lines": 666,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -487,6 +487,25 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Gathering Stone",
+    "Minsc & Boo, Timeless Heroes",
+    "Shanid, Sleepers' Scourge",
+    "Obsessive Pursuit",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Mystic Barrier",
+    "Crack in Time",
+    "Staff of the Flame Magus",
+    "Staff of the Wild Magus"
+   ]
+  },
+  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -503,25 +522,6 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Voldaren Pariah // Abolisher of Bloodlines"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Gathering Stone",
-    "Minsc & Boo, Timeless Heroes",
-    "Obsessive Pursuit",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Mystic Barrier",
-    "Crack in Time",
-    "Staff of the Flame Magus",
-    "Staff of the Wild Magus",
-    "Shrine of Loyal Legions"
    ]
   },
   {
@@ -2530,6 +2530,22 @@
    ]
   },
   {
+   "what": "KickedSpellPredicate.instance",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Verazol, the Split Current",
+    "Vine Gecko",
+    "Hallar, the Firefletcher",
+    "Lullmage's Familiar",
+    "Roost of Drakes",
+    "Coralhelm Chronicler",
+    "Bloodstone Goblin",
+    "Merfolk Falconer",
+    "Risen Riptide"
+   ]
+  },
+  {
    "what": "BecomesBasicLandTargetEffect",
    "score": 9,
    "lines": 9,
@@ -3303,20 +3319,6 @@
    ]
   },
   {
-   "what": "CastAsThoughItHadFlashAllEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Tidal Barracuda",
-    "Quick Sliver",
-    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
-    "Complete the Circuit",
-    "Vernal Equinox",
-    "Cherished Hatchling",
-    "Rootwater Shaman"
-   ]
-  },
-  {
    "what": "AttachToSourceTargetEffect",
    "score": 7,
    "lines": 7,
@@ -3863,6 +3865,19 @@
     "Wall Crawl",
     "Jasmine Boreal of the Seven",
     "Dread Charge"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Quick Sliver",
+    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
+    "Complete the Circuit",
+    "Vernal Equinox",
+    "Cherished Hatchling",
+    "Rootwater Shaman"
    ]
   },
   {
@@ -6085,6 +6100,17 @@
    ]
   },
   {
+   "what": "OutlawPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Double Down",
+    "Vial Smasher, Gleeful Grenadier",
+    "Rakish Crew",
+    "Mine Raider"
+   ]
+  },
+  {
    "what": "DamageWithPowerFromOneToAnotherTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6577,6 +6603,17 @@
    ]
   },
   {
+   "what": "UntapSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Hydro-Man, Fluid Felon",
+    "Kitsune Ace",
+    "Forsaken City",
+    "Dwarven Patrol"
+   ]
+  },
+  {
    "what": "keyword ExertAbility",
    "score": 4,
    "lines": 4,
@@ -6872,44 +6909,13 @@
     "Corrupt Official",
     "Port Inspector"
    ]
-  },
-  {
-   "what": "MoreCardsInHandThanOpponentsCondition.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Kitsune Bonesetter",
-    "Descendant of Kiyomaro",
-    "Secretkeeper",
-    "Okina Nightwatch"
-   ]
-  },
-  {
-   "what": "GainAbilityPairedEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Tandem Lookout",
-    "Mirage Phalanx",
-    "Breathkeeper Seraph"
-   ]
-  },
-  {
-   "what": "ExileCardsFromTopOfLibraryTargetEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Oblivion Sower",
-    "Ashiok, Wicked Manipulator",
-    "Raven Guild Master"
-   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3554,
-   "cards": 3383,
+   "score": 3551,
+   "cards": 3380,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6921,8 +6927,8 @@
   },
   {
    "what": "custom ability",
-   "score": 577,
-   "cards": 535,
+   "score": 576,
+   "cards": 534,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7180,6 +7186,19 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Gathering Stone",
+    "Shanid, Sleepers' Scourge",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus"
+   ]
+  },
+  {
    "what": "(verify) condition the card does not print",
    "score": 17,
    "cards": 17,
@@ -7242,19 +7261,6 @@
     "Sweet-Gum Recluse",
     "Drannith Ruins",
     "Ruins of Oran-Rief"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Gathering Stone",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Crack in Time"
    ]
   },
   {
@@ -8855,6 +8861,19 @@
    ]
   },
   {
+   "what": "KickedSpellPredicate.instance",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Verazol, the Split Current",
+    "Hallar, the Firefletcher",
+    "Lullmage's Familiar",
+    "Roost of Drakes",
+    "Bloodstone Goblin",
+    "Merfolk Falconer"
+   ]
+  },
+  {
    "what": "DesertControlledOrGraveyardCondition.instance",
    "score": 7,
    "cards": 7,
@@ -9067,19 +9086,6 @@
     "Baron Strucker, HYDRA Overlord",
     "Iron Man, Bleeding Edge",
     "Lucy MacLean, Positively Armed"
-   ]
-  },
-  {
-   "what": "CastAsThoughItHadFlashAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Tidal Barracuda",
-    "Quick Sliver",
-    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
-    "Vernal Equinox",
-    "Cherished Hatchling",
-    "Rootwater Shaman"
    ]
   },
   {
@@ -9775,6 +9781,18 @@
     "Suki, Courageous Rescuer",
     "Genku, Future Shaper",
     "Nikara, Lair Scavenger"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashAllEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Quick Sliver",
+    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
+    "Vernal Equinox",
+    "Cherished Hatchling",
+    "Rootwater Shaman"
    ]
   },
   {
@@ -10637,17 +10655,6 @@
     "Willbreaker",
     "Horobi, Death's Wail",
     "Cowardice"
-   ]
-  },
-  {
-   "what": "counter of a non-spell",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Dazzling Denial",
-    "Lofty Denial",
-    "Dispelling Exhale",
-    "Silumgar's Scorn"
    ]
   }
  ]

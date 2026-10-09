@@ -81,7 +81,8 @@
   /* Keywords that work because the card's own reading builds them an
      ability (provoke, graft, backup …): handed to another permanent, there
      is no such ability on it, so they can't be handed out yet. */
-  const PRINTED_ONLY = new Set(['provoke', 'graft', 'backup', 'devour', 'recover', 'ravenous']);
+  // (read ahead is read off the Saga's own text as it is cast: Barbara Wright's grant would do nothing)
+  const PRINTED_ONLY = new Set(['provoke', 'graft', 'backup', 'devour', 'recover', 'ravenous', 'read ahead']);
   function kwKnown(k) {
     const w = String(k || '').trim();
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
@@ -7590,7 +7591,7 @@
     const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= 4 &&
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
-      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents )/.test(m[2].trim()) ||
+      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |[A-Z][a-z]+s you control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -11569,6 +11570,9 @@
     // Conqueror's Flail: only while it is attached to a creature
     { re: /^As long as this Equipment is attached to a creature, your opponents can'?t cast spells during your turn\.?$/i,
       make: () => ({ op: 'castRestrict', who: 'opponents', yourTurnOnly: true, whileAttached: true }) },
+    // Marisi, Breaker of the Coil: "Your opponents can't cast spells during combat."
+    { re: /^Your opponents can'?t cast spells during combat\.?$/,
+      make: () => ({ op: 'castRestrict', who: 'opponents', combatOnly: true }) },
     /* Silence on a stick: Grand Abolisher, Voice of Victory, Kutzil */
     { re: /^(?:During your turn, )?[Yy]our opponents can'?t cast spells( during your turn)?( or activate abilities of artifacts, creatures, or enchantments)?\.?$/,
       make: (m) => ({ op: 'castRestrict', who: 'opponents', yourTurnOnly: !!m[1] || /^During/.test(m[0]), abilities: !!m[2] }) },
@@ -12280,6 +12284,10 @@
         make: (m) => ({ op: 'bandsWithOther', words: m[2].toLowerCase().replace(/ies$/, 'y').replace(/s$/, '') }), auto: true },
       { re: /^Double team$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Ascend$/i, eff: { op: 'ascend' }, auto: true },
+      // Tidal Barracuda: "Any player may cast spells as though they had flash."
+      { re: /^Any player may cast spells as though they had flash\.?$/i, eff: { op: 'flashGrant', anyPlayer: true }, auto: true },
+      // Teferi, Mage of Zhalfir: "Creature cards you own that aren't on the battlefield have flash."
+      { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
       // Spider-Punk: "Spells and abilities can't be countered."
       { re: /^Spells and abilities can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all', abilities: true }, auto: true },
       // Storied: three or more artifacts, legendaries and/or Sagas, and the story is yours for the game
