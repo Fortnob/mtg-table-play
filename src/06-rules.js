@@ -9186,7 +9186,7 @@
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
-        case 'selfAttachedToCreature': { const h = src && src.attachedTo && this.obj(src.attachedTo); return !!(h && h.zone === 'battlefield' && (this.characteristics(h) || {}).isCreature); }
+        case 'selfAttachedToCreature': { const h = src && src.attachedTo && this.obj(src.attachedTo); return !!(h && h.zone === 'battlefield' && (this.characteristics(h) || {}).isCreature && (!cond.yours || h.controller === ctx.controller)); }
         case 'ringBearerNotSelf': { const td = ctx.triggerData || {}; return !!td.bearerId && !!ctx.obj && td.bearerId !== ctx.obj.id; }
         case 'noRingBearer': { const rb = me && this.obj(me.ringBearer); return !(rb && rb.zone === 'battlefield' && rb.controller === me.id); }
         case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield');

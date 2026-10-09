@@ -12114,4 +12114,23 @@ module.exports = (test) => {
     T.g._fire(ab.event, 'A', { playerId: 'A' });
     t.ok(T.g.pendingTriggers.some(p => p.obj === st), 'harnessed: it triggers');
   });
+
+  test('Springheart Nantuko: a copy of the creature it is on, else an Insect', (mk, t) => {
+    t.auto('Springheart Nantuko');
+    const T = mk();
+    const nk = T.bf('A', 'Springheart Nantuko');
+    const fx = nk.analysis().abilities.find(a => a.kind === 'triggered').effects;
+    const run = () => T.g._runEffects(fx, { controller: 'A', obj: nk, name: 'Springheart Nantuko', kind: 'ability' });
+    run(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Insect').length, 1, 'unattached: an Insect');
+    const bears = T.bf('A', 'Grizzly Bears');
+    nk.attachedTo = bears.id;
+    T.mana('A', '1G');
+    T.answer('confirm', { yes: true });
+    run(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Grizzly Bears').length, 1, 'paid: a Bears copy');
+    T.answer('confirm', { yes: false });
+    run(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Insect').length, 2, 'declined: another Insect');
+  });
 };

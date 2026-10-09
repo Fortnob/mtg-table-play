@@ -5459,6 +5459,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Springheart Nantuko: "you may pay {1}{G} if this permanent is attached
+       to a creature you control. If you do, create a token that's a copy of
+       that creature. If you didn't create a token this way, create a 1/1
+       green Insect creature token." */
+    { re: /^You may pay ((?:\{[^}]+\})+) if this permanent is attached to a creature you control\. If you do, create a token that'?s a copy of that creature\. If you didn'?t create a token this way, (create [^.]+\.)$/i,
+      make: (m) => {
+        const alt = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+        if (!alt.auto) return null;
+        return [{ op: 'ifCond', cond: { kind: 'selfAttachedToCreature', yours: true },
+          then: [{ op: 'mayPay', pay: { mana: m[1] }, then: [{ op: 'copyPermanent', n: 1, of: 'attached', grant: [] }], otherwise: alt.effects }],
+          otherwise: alt.effects }];
+      } },
     /* Tibalt's Trickery: "Counter target spell. Choose 1, 2, or 3 at random.
        Its controller mills that many cards, then exiles cards from the top of
        their library until they exile a nonland card with a different name
