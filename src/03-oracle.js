@@ -1234,6 +1234,12 @@
     // Ashling's Command: "2 damage to each creature target player controls"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // Otherworld Atlas: "Each player draws a card for each charge counter on this artifact."
+    { re: /^Each player draws a card for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[1]); return c ? { op: 'draw', who: 'each', n: c } : null; } },
+    // Winding Canyons: "You may cast creature spells this turn as though they had flash."
+    { re: /^You may cast (creature|artifact|enchantment|sorcery|noncreature) spells this turn as though they had flash\.?$/i,
+      make: (m) => ({ op: 'flashThisTurn', filter: m[1].toLowerCase() }) },
     /* Lembas: "When this artifact is put into a graveyard from the
        battlefield, its owner shuffles it into their library." — the card
        itself (a sentence after a target is read whole, above) */
@@ -3517,6 +3523,9 @@
         const who = /^target/i.test(m[1]) ? 'target' : /opponent/i.test(m[1]) ? 'opponents' : 'you';
         return Object.assign({ op: 'mill', n: k, who }, who === 'target' ? { targets: [{ type: 'player' }] } : {});
       } },
+    // Ondu Cleric: "you may gain life equal to …" — the "you" went with the "may"
+    { re: /^Gain life equal to (.+?)\.?$/,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'gainLife', n: k, who: 'you' } : null; } },
     { re: /^(?:Then )?[Yy]ou (gain|lose) life equal to (.+?)\.?$/,
       make: (m) => {
         const k = amountOf(m[2]);
@@ -5316,6 +5325,8 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Commander's Insignia: "for each time you've cast your commander from the command zone this game"
+    if (/^time you'?ve cast your commander from the command zone this game$/i.test(p)) return { commanderCasts: true, mult: k };
     // Kyler, Sigardian Emissary: "for each counter on CARDNAME" — of any kind
     if (/^counter on (?:CARDNAME|this creature|this permanent|it)$/i.test(p)) return { countersOnSelf: '*', mult: k };
     // Vishgraz, the Doomhive: "for each poison counter your opponents have"
@@ -7987,6 +7998,10 @@
     [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
     [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
+    // Ice-Fang Coatl: "you control at least three other snow permanents"
+    [/^you control at least (\w+) (other )?((?:snow |legendary |artifact )?(?:permanents|creatures|lands|artifacts))$/i, (m) => {
+      const sc = scopeOf((m[2] ? 'other ' : '') + m[3] + ' you control');
+      return sc && typeof num(m[1]) === 'number' ? { kind: 'control', scope: sc, n: num(m[1]) } : null; }],
     // Quest for Renewal: "there are four or more quest counters on this enchantment"
     [/^there are (\w+) or more ([+\-0-9/a-z]+) counters on (?:this (?:enchantment|artifact|creature|land|permanent)|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() } : null)],
@@ -11202,6 +11217,14 @@
         const t = U.titleCase(m[2]);
         return { op: 'continuous', layer: 4, scope, setSubtypes: [t], setMana: [MANA.COLOR_OF_BASIC[t]] };
       } },
+    // Knowledge Is Power: "Creatures you control get +X/+X, where X is the number of cards you've drawn this turn."
+    { re: /^((?:Other )?[A-Za-z ]+? you control) get \+X\/\+X, where X is (.+?)\.?$/,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        const k = amountOf(m[2]);
+        if (!scope || scope.self || scope.attached || !k || typeof k !== 'object' || !(k.scope || k.playerStat || k.commanderCasts || k.domain || k.cardsInHand || k.cardsInGraveyard)) return null;
+        return { op: 'continuous', layer: 7, scope, pt: { p: k, t: k } };
+      } },
     /* Ragost, Deft Gastronaut: "Artifacts you control are Foods in addition
        to their other types and have '{2}, {T}, Sacrifice this artifact: You
        gain 3 life.'"; Ygra: "Other creatures are Food artifacts …";
@@ -12243,6 +12266,9 @@
           if (m[2]) return { op: 'evasionAttached', minBlockerPower: +m[2] + 1 };
           return { op: 'evasionAttached', onlyBy: m[3].toLowerCase().split(/ or | and\/or /) };
         }, auto: true },
+      // Shielding Plax, Canopy Cover: "can't be the target of spells or abilities your opponents control" is hexproof
+      { re: /^(Enchanted|Equipped) creature can'?t be the target of spells or abilities your opponents control\.?$/i,
+        make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Hexproof'] }), auto: true },
       // Prowler's Helm, Invisibility: "Equipped creature can't be blocked except by Walls."
       { re: /^(?:Enchanted|Equipped) creature can'?t be blocked except by ([A-Z][a-z]+)s\.?$/,
         make: (m) => ({ op: 'evasionAttached', onlyBySubtype: U.titleCase(singularType(m[1] + 's')) }), auto: true },

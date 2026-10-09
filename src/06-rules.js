@@ -2895,6 +2895,8 @@
       }
       // Animar: "for each +1/+1 counter on CARDNAME"
       if (v.countersOnSelf === '*') return (src ? Object.values(src.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0) * mult;
+      // Commander's Insignia: times its controller has cast a commander from the command zone
+      if (v.commanderCasts) return Object.values(((this.player(pid) || {}).commanderCasts) || {}).reduce((k, x) => k + (Number(x) || 0), 0) * mult;
       // Vishgraz: the poison counters among your opponents
       if (v.opponentsPoison) return this.opponentsOf(pid).reduce((acc, q) => acc + (Number(q.poison) || 0), 0) * mult;
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
@@ -3536,7 +3538,7 @@
     }
     _flashFor(playerId, o) {
       const p = this.player(playerId);
-      if (p && p.flashTurn === this.turn) return true;
+      if (p && p.flashTurn === this.turn && (!p.flashTurnFilter || this._cardFitsWords(o, p.flashTurnFilter))) return true;
       // Teferi, Time Raveler +1: until your next turn
       const fu = p && p.flashUntil;
       if (fu && (this.turn === fu.setTurn || !this.activePlayer || this.activePlayer.id !== p.id) &&
@@ -9680,6 +9682,8 @@
       // Kyler, Sigardian Emissary: every counter on it, whatever kind
       if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
+      // Knowledge Is Power, Commander's Insignia: a number the player keeps
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
         // counted from inside the layers, so it must not ask for characteristics again
@@ -16414,6 +16418,8 @@
           break;   // a standing rule, read where it matters
         case 'flashThisTurn':
           me.flashTurn = this.turn;
+          // Winding Canyons: only creature spells
+          me.flashTurnFilter = e.filter || null;
           this.logEvent('rules', `${me.name} may cast spells as though they had flash this turn.`);
           break;
         case 'flashGrant':

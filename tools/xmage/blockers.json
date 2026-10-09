@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11872,
-  "gainedCards": 1222,
-  "linesNeeded": 12792,
-  "linesGained": 1443,
+  "needed": 11859,
+  "gainedCards": 1221,
+  "linesNeeded": 12777,
+  "linesGained": 1441,
   "gained": {
-   "all": 1222,
+   "all": 1221,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4290,
-   "lines": 4029,
+   "score": 4287,
+   "lines": 4026,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -449,25 +449,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 23,
-   "lines": 23,
-   "cards": [
-    "Mirri, Weatherlight Duelist",
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Winding Canyons",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "The Destined Warrior",
-    "Tragic Trajectory",
-    "Hazardroot Herbalist",
-    "Gideon's Phalanx",
-    "Send to Sleep"
-   ]
-  },
-  {
    "what": "AttacksPlayerWithCreaturesTriggeredAbility",
    "score": 22,
    "lines": 16,
@@ -484,6 +465,25 @@
     "Meriadoc Brandybuck",
     "Demonic Covenant",
     "Attuma, Atlantean Warlord"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 22,
+   "lines": 22,
+   "cards": [
+    "Mirri, Weatherlight Duelist",
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "The Destined Warrior",
+    "Tragic Trajectory",
+    "Hazardroot Herbalist",
+    "Gideon's Phalanx",
+    "Send to Sleep",
+    "Joust"
    ]
   },
   {
@@ -3455,20 +3455,6 @@
    ]
   },
   {
-   "what": "AllyEntersBattlefieldTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Ondu Cleric",
-    "Kabira Evangel",
-    "Hagra Diabolist",
-    "Murasa Pyromancer",
-    "Munda, Ambush Leader",
-    "Tajuru Archer",
-    "Bala Ged Thief"
-   ]
-  },
-  {
    "what": "ShuffleIntoLibraryTargetEffect",
    "score": 7,
    "lines": 7,
@@ -3826,19 +3812,6 @@
    ]
   },
   {
-   "what": "CastAsThoughItHadFlashAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Quick Sliver",
-    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
-    "Complete the Circuit",
-    "Vernal Equinox",
-    "Cherished Hatchling",
-    "Rootwater Shaman"
-   ]
-  },
-  {
    "what": "AttacksIfAbleAllEffect",
    "score": 6,
    "lines": 6,
@@ -4186,6 +4159,19 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Kabira Evangel",
+    "Hagra Diabolist",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer",
+    "Bala Ged Thief"
    ]
   },
   {
@@ -4816,6 +4802,18 @@
    ]
   },
   {
+   "what": "CastAsThoughItHadFlashAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Quick Sliver",
+    "Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",
+    "Vernal Equinox",
+    "Cherished Hatchling",
+    "Rootwater Shaman"
+   ]
+  },
+  {
    "what": "becomes a creature in a static ability",
    "score": 5,
    "lines": 5,
@@ -5004,18 +5002,6 @@
     "Flotsam // Jetsam",
     "Path of the Schemer",
     "Halo-Charged Skaab"
-   ]
-  },
-  {
-   "what": "scope:snow",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Ice-Fang Coatl",
-    "Dead of Winter",
-    "Jorn, God of Winter // Kaldring, the Rimestaff",
-    "Rimewind Taskmage",
-    "Gangrenous Zombies"
    ]
   },
   {
@@ -5927,17 +5913,6 @@
    ]
   },
   {
-   "what": "CantBeTargetedAttachedEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Canopy Cover",
-    "Shielding Plax",
-    "Anti-Magic Aura",
-    "Spectral Shield"
-   ]
-  },
-  {
    "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
    "score": 4,
    "lines": 4,
@@ -6297,17 +6272,6 @@
    ]
   },
   {
-   "what": "CardsDrawnThisTurnDynamicValue.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Knowledge Is Power",
-    "Duelist of the Mind",
-    "Niko Aris",
-    "Thundering Djinn"
-   ]
-  },
-  {
    "what": "filter:historic",
    "score": 4,
    "lines": 4,
@@ -6514,6 +6478,17 @@
     "Forsaken Wastes",
     "Lava Runner",
     "Retromancer"
+   ]
+  },
+  {
+   "what": "scope:snow",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Dead of Winter",
+    "Jorn, God of Winter // Kaldring, the Rimestaff",
+    "Rimewind Taskmage",
+    "Gangrenous Zombies"
    ]
   },
   {
@@ -6900,13 +6875,34 @@
     "Corrupt Official",
     "Port Inspector"
    ]
+  },
+  {
+   "what": "MoreCardsInHandThanOpponentsCondition.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Kitsune Bonesetter",
+    "Descendant of Kiyomaro",
+    "Secretkeeper",
+    "Okina Nightwatch"
+   ]
+  },
+  {
+   "what": "GainAbilityPairedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Tandem Lookout",
+    "Mirage Phalanx",
+    "Breathkeeper Seraph"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3551,
-   "cards": 3371,
+   "score": 3548,
+   "cards": 3368,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7125,19 +7121,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 20,
-   "cards": 20,
-   "names": [
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Winding Canyons",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 20,
    "cards": 20,
@@ -7148,6 +7131,19 @@
     "Scrappy Bruiser",
     "Fire Giant's Fury",
     "Act of Heroism"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 19,
+   "cards": 19,
+   "names": [
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "The Destined Warrior"
    ]
   },
   {
@@ -8644,19 +8640,6 @@
    ]
   },
   {
-   "what": "AllyEntersBattlefieldTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Ondu Cleric",
-    "Kabira Evangel",
-    "Hagra Diabolist",
-    "Murasa Pyromancer",
-    "Munda, Ambush Leader",
-    "Tajuru Archer"
-   ]
-  },
-  {
    "what": "TapForManaAllTriggeredManaAbility",
    "score": 7,
    "cards": 7,
@@ -9298,6 +9281,19 @@
     "Echo Chamber",
     "Magus of the Arena",
     "Nova Pentacle"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Kabira Evangel",
+    "Hagra Diabolist",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer",
+    "Bala Ged Thief"
    ]
   },
   {

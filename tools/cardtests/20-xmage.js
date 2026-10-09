@@ -14147,4 +14147,50 @@ module.exports = (test) => {
     const ab = nd.analysis().manaAbilities[0];
     t.eq(T.g._manaOptions(ab, nd, 'A').amount, 2, 'two counters: two mana');
   });
+
+  test('Otherworld Atlas: each player draws for each charge counter; Winding Canyons: creature spells with flash this turn', (mk, t) => {
+    t.auto('Otherworld Atlas'); t.auto('Winding Canyons');
+    const T = mk();
+    T.toMain('A');
+    const atlas = T.bf('A', 'Otherworld Atlas');
+    atlas.counters.charge = 2;
+    for (let i = 0; i < 3; i++) { T.top('A', 'Island'); T.top('B', 'Island'); }
+    const ha = T.zone('A', 'hand').length, hb = T.zone('B', 'hand').length;
+    const ab = atlas.analysis().abilities.find(a => /Each player draws/.test(a.text));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: atlas, name: 'Otherworld Atlas', kind: 'ability' });
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, ha + 2); t.eq(T.zone('B', 'hand').length, hb + 2);
+    const wc = T.bf('A', 'Winding Canyons');
+    const wab = wc.analysis().abilities.find(a => /flash/.test(a.text));
+    T.g._runEffects(wab.effects, { controller: 'A', obj: wc, name: 'Winding Canyons', kind: 'ability' });
+    t.ok(T.g._flashFor('A', T.hand('A', 'Hill Giant')), 'a creature spell');
+    t.ok(!T.g._flashFor('A', T.hand('A', 'Divination')), 'not a sorcery');
+  });
+
+  test("Shielding Plax, Ice-Fang Coatl, Commander's Insignia, Knowledge Is Power, Ondu Cleric", (mk, t) => {
+    for (const n of ['Shielding Plax', 'Ice-Fang Coatl', "Commander's Insignia", 'Knowledge Is Power', 'Ondu Cleric']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const plax = T.bf('A', 'Shielding Plax');
+    T.g._attachAura(plax, bear);
+    t.ok(T.g.hasKw(bear, 'hexproof'), 'hexproof');
+    const coatl = T.bf('A', 'Ice-Fang Coatl');
+    T.bf('A', 'Snow-Covered Forest'); T.bf('A', 'Snow-Covered Island');
+    t.ok(!T.g.hasKw(coatl, 'deathtouch'), 'two other snow permanents');
+    T.bf('A', 'Snow-Covered Swamp'); T.g.bumpBoard();
+    t.ok(T.g.hasKw(coatl, 'deathtouch'), 'three');
+    const U = mk();
+    U.toMain('A');
+    const b2 = U.bf('A', 'Grizzly Bears');
+    U.bf('A', "Commander's Insignia");
+    U.player('A').commanderCasts = { x: 2 }; U.g.bumpBoard();
+    t.eq(U.g.powerOf(b2), 4, 'two commander casts');
+    const V = mk();
+    V.toMain('A');
+    const b3 = V.bf('A', 'Grizzly Bears');
+    V.bf('A', 'Knowledge Is Power');
+    V.player('A').drawnThisTurn = 3; V.g.bumpBoard();
+    t.eq(V.g.powerOf(b3), 5, 'three cards drawn this turn');
+  });
 };
