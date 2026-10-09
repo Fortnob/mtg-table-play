@@ -3311,9 +3311,10 @@
 
     /* ===== a graveyard anybody can reach into ===== */
     // (Ink-Eyes, Scion of Darkness: "from that player's graveyard" — the player it dealt damage to, picked as it resolves)
-    { re: /^Put target creature card from (a|an opponent'?s|that player'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
+    // (Rakshasa Debaser: "from defending player's graveyard")
+    { re: /^Put target creature card from (a|an opponent'?s|that player'?s|defending player'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
       make: (m) => Object.assign({ op: 'reanimate', mine: true, targets: [Object.assign({ type: 'creature', zone: 'graveyard' },
-        /opponent/i.test(m[1]) ? { controller: 'opponent' } : /that player/i.test(m[1]) ? { controller: 'triggerPlayer' } : {})] },
+        /opponent/i.test(m[1]) ? { controller: 'opponent' } : /that player/i.test(m[1]) ? { controller: 'triggerPlayer' } : /defending/i.test(m[1]) ? { defending: true } : {})] },
         m[2] ? { counter: m[2].toLowerCase() } : {}) },
     { re: /^Return target creature card from a graveyard to the battlefield under your control\.?$/i,
       make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },

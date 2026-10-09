@@ -16414,4 +16414,20 @@ module.exports = (test) => {
     t.eq(T.life('B'), 20);
     t.eq(T.g.battlefield.filter(o => o.name === 'Vexing Devil').length, 1, 'it stays');
   });
+
+  test("Rakshasa Debaser: a creature card from the defending player's graveyard", (mk, t) => {
+    t.auto('Rakshasa Debaser');
+    const T = mk();
+    const rak = T.bf('A', 'Rakshasa Debaser');
+    const theirs = T.grave('B', 'Hill Giant'), mine = T.grave('A', 'Craw Wurm');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.options && ch.options[0]) || []; return { targets: [{ kind: 'object', id: theirs.id }] }; });
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: rak.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.settle(); T.resolve(); T.settle();
+    t.zone(theirs, 'battlefield');
+    t.eq(theirs.controller, 'A');
+    t.no(offered && offered.some(o => o.id === mine.id), 'not from your own graveyard');
+  });
 };
