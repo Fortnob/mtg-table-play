@@ -3045,4 +3045,21 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers');
     t.eq(JSON.stringify(offered), JSON.stringify([cg.id]), "only C's graveyard"); t.zone(cg, 'battlefield'); t.zone(bg, 'graveyard');
   });
+
+  test('Audit: Madcap Experiment counts every card revealed; Nev counts X of the first X spell only', (mk, t) => {
+    let T = mk();
+    t.auto('Madcap Experiment'); t.auto('Nev, the Practical Dean');
+    T.toMain('A');
+    T.top('A', 'Island'); T.top('A', 'Mind Stone'); T.top('A', 'Island'); T.top('A', 'Opt');
+    T.mana('A', '3R'); T.cast('A', T.hand('A', 'Madcap Experiment'));
+    t.eq(T.life('A'), 17, 'three cards revealed'); t.ok(T.g.battlefield.some(o => o.name === 'Mind Stone'));
+    T = mk();
+    T.toMain('A');
+    const nev = T.bf('A', 'Nev, the Practical Dean');
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [nev] });
+    T.mana('A', '3R'); T.cast('A', T.hand('A', 'Fireball'), { x: 3, targets: ['B'] }); T.settle(); T.resolve();
+    t.eq(nev.counters['+1/+1'], 3, 'X = 3 (a spell without X before it does not count)');
+    T.mana('A', '2R'); T.cast('A', T.hand('A', 'Fireball'), { x: 2, targets: ['B'] }); T.settle(); T.resolve();
+    t.eq(nev.counters['+1/+1'], 3, 'the second one this turn: nothing');
+  });
 };
