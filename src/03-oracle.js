@@ -1775,6 +1775,15 @@
     // Season of Gathering: "Choose artifact or enchantment." — for "permanents of the chosen type" after it
     { re: /^Choose (artifact|creature|enchantment|land|planeswalker)(?:, (artifact|creature|enchantment|land|planeswalker))*,? or (artifact|creature|enchantment|land|planeswalker)\.?$/i,
       make: (m) => ({ op: 'chooseCardTypeNow', types: m[0].replace(/^Choose /i, '').replace(/\.$/, '').split(/,\s*(?:or\s+)?|\s+or\s+/).map(w => U.titleCase(w.trim())).filter(Boolean) }) },
+    // Bow of Nylea: "Put up to four target cards from your graveyard on the bottom of your library in any order."
+    { re: /^Put (?:up to (one|two|three|four|five|\d+) )?target ([a-z ]*?)cards? from your graveyard on (?:the )?(top|bottom) of your library(?: in any order)?\.?$/i,
+      make: (m) => {
+        const sp = targetSpec('target ' + (m[2] || '') + 'card');
+        if (!sp || sp.unknown) return null;
+        const one = Object.assign(sp, { zone: 'graveyard', controller: 'you' }, m[1] ? { upTo: true } : {});
+        const k = m[1] ? num(m[1]) : 1;
+        return { op: 'toLibrary', where: m[3].toLowerCase(), targets: Array.from({ length: k }, () => Object.assign({}, one, k > 1 ? { distinct: true } : {})) };
+      } },
     // Kozilek's Command: "Target player scries X, then draws a card."
     { re: /^Target player scries (one|two|three|four|\d+|X)\.?$/i, make: (m) => ({ op: 'scry', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     // Kozilek's Command: "Exile up to X target cards from graveyards."

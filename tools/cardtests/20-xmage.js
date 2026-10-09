@@ -12597,4 +12597,19 @@ module.exports = (test) => {
     t.eq(total, 7, 'seven mana: 1 plus six');
     t.ok(!T.g._manaCostPayable('A', fc, fc.analysis().manaAbilities[0]), 'the auto-tapper leaves it alone');
   });
+
+  test('Bow of Nylea: up to four cards from your graveyard to the bottom of your library', (mk, t) => {
+    t.auto('Bow of Nylea');
+    const T = mk();
+    const bow = T.bf('A', 'Bow of Nylea');
+    const g1 = T.grave('A', 'Grizzly Bears'), g2 = T.grave('A', 'Lightning Bolt'), g3 = T.grave('B', 'Forest');
+    T.answer('mode', { modes: [3] });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: g1.id }, { kind: 'object', id: g2.id }] });
+    T.mana('A', '1G');
+    T.activate('A', bow, 0);
+    T.settle();
+    const lib = T.zone('A', 'library');
+    t.eq(g1.zone, 'library'); t.eq(g2.zone, 'library'); t.eq(g3.zone, 'graveyard');
+    t.ok(lib.slice(-2).includes(g1) && lib.slice(-2).includes(g2), 'at the bottom');
+  });
 };
