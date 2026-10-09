@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12110,
-  "gainedCards": 1265,
-  "linesNeeded": 13144,
+  "needed": 12108,
+  "gainedCards": 1266,
+  "linesNeeded": 13141,
   "linesGained": 1510,
   "gained": {
-   "all": 1265,
+   "all": 1266,
    "top2000": 49,
    "stdTop": 9
   },
@@ -3582,20 +3582,6 @@
    ]
   },
   {
-   "what": "CreateTokenCopySourceEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Gruff Triplets",
-    "Scouring Swarm",
-    "Skitterbeam Battalion",
-    "Compy Swarm",
-    "Phoenix Fleet Airship",
-    "Joo Dee, One of Many",
-    "Chronozoa"
-   ]
-  },
-  {
    "what": "DiscardedByOpponentTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -6317,6 +6303,17 @@
     "Fix What's Broken",
     "Triumphant Reckoning",
     "Return of the Nightstalkers"
+   ]
+  },
+  {
+   "what": "CreateTokenCopySourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Scouring Swarm",
+    "Compy Swarm",
+    "Phoenix Fleet Airship",
+    "Joo Dee, One of Many"
    ]
   },
   {
@@ -9334,19 +9331,6 @@
    ]
   },
   {
-   "what": "CreateTokenCopySourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Gruff Triplets",
-    "Scouring Swarm",
-    "Skitterbeam Battalion",
-    "Compy Swarm",
-    "Joo Dee, One of Many",
-    "Chronozoa"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 6,
    "cards": 6,
@@ -10742,6 +10726,17 @@
     "Enter the Avatar State",
     "Loki's Scepter",
     "Jump Scare"
+   ]
+  },
+  {
+   "what": "keyword DemonstrateAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Incarnation Technique",
+    "Replication Technique",
+    "Healing Technique",
+    "Excavation Technique"
    ]
   }
  ]

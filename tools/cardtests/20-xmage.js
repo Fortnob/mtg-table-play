@@ -12972,4 +12972,14 @@ module.exports = (test) => {
     T.g._runEffects(tap, { controller: 'A', obj: kb, name: 'Kiora', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
     t.ok(b1.tapped && !c1.tapped, 'only that opponent');
   });
+
+  test('Gruff Triplets: two copies of itself, unless it is a token', (mk, t) => {
+    t.auto('Gruff Triplets');
+    const T = mk();
+    T.mana('A', '3GGG');
+    T.cast('A', T.hand('A', 'Gruff Triplets'));
+    for (let i = 0; i < 6; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.g.battlefield.filter(o => o.name === 'Gruff Triplets').length, 3, 'three in all, the copies made no more');
+  });
 };

@@ -634,6 +634,8 @@
     });
     // "Whenever this creature attacks, it endures 1": in its own trigger, "it" is itself
     if (scope === 'self') walk(effects, (e) => { if ((e.op === 'endure' || e.op === 'doubleCounters') && e.scope === 'triggerObject') e.scope = 'self'; });
+    // Gruff Triplets: "When this creature enters, … create two tokens that are copies of it" — of itself
+    if (scope === 'self') walk(effects, (e) => { if (e.op === 'copyPermanent' && e.scope === 'triggerObject') { e.self = true; delete e.scope; } });
     // "Untap it." in a trigger about another permanent: that one, not this
     /* …unless the sentence before was about this one: "put a +1/+1 counter
        on Gwenna and untap it" */
@@ -4109,6 +4111,9 @@
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1].replace(/^another /i, ''))] : null,
         self: /CARDNAME|this creature/i.test(m[1]),
         grant: m[2] ? m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
+    // Gruff Triplets: "create two tokens that are copies of it" — what the trigger is about (itself, as it enters)
+    { re: /^Create (two|three|four|\d+) (tapped )?tokens that are copies of it\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: num(m[1]), scope: 'triggerObject', tapped: !!m[2], grant: [] }) },
     // Skyclave Relic: "create two tapped tokens that are copies of this artifact"
     { re: /^Create (two|three|four|\d+) (tapped )?tokens that are copies of (?:CARDNAME|this (?:artifact|creature|enchantment|permanent))\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), self: true, tapped: !!m[2], grant: [] }) },
