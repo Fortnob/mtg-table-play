@@ -1706,4 +1706,78 @@ module.exports = (test) => {
     t.eq(b.counters['+1/+1'], 1);
     t.eq(pw.counters.loyalty, l0 + 1);
   });
+
+  test('Audit: Keening Stone mills as many as the target already has in the graveyard', (mk, t) => {
+    const T = mk();
+    t.auto('Keening Stone');
+    const k = T.bf('A', 'Keening Stone');
+    for (let i = 0; i < 3; i++) T.grave('B', 'Grizzly Bears');
+    T.mana('A', '5');
+    T.activate('A', k, 0, { targets: ['B'] });
+    t.eq(T.zone('B', 'graveyard').length, 6);
+  });
+
+  test("Audit: Sleep keeps the target player's creatures tapped through their next untap", (mk, t) => {
+    const T = mk();
+    t.auto('Sleep');
+    const b = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'UU2');
+    T.cast('A', T.hand('A', 'Sleep'), { targets: ['B'] });
+    t.ok(b.tapped); t.no(mine.tapped);
+    T.nextTurn('B');
+    t.ok(b.tapped, 'still tapped on its controller\'s turn');
+  });
+
+  test('Audit: The Theorist, Jace Beleren draws on opponents\' draw steps only', (mk, t) => {
+    const T = mk();
+    t.auto('The Theorist, Jace Beleren');
+    T.bf('A', 'The Theorist, Jace Beleren');
+    const h0 = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'hand').length, h0 + 1);
+    T.nextTurn('A');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'only its own normal draw on A\'s turn');
+  });
+
+  test('Audit: Terror of the Peaks deals the entering creature\'s power, not its own', (mk, t) => {
+    const T = mk();
+    t.auto('Terror of the Peaks');
+    T.bf('A', 'Terror of the Peaks');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Audit: Ziatora and Heart-Piercer Manticore count the sacrificed creature\'s power', (mk, t) => {
+    let T = mk();
+    t.auto('Ziatora, the Incinerator');
+    T.bf('A', 'Ziatora, the Incinerator');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.toMain('A', 'end'); T.settle(); T.resolve();
+    t.zone(b, 'graveyard');
+    t.eq(T.life('B'), 18);
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 3);
+    T = mk();
+    t.auto('Heart-Piercer Manticore');
+    const w = T.bf('A', 'Craw Wurm');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'RR2');
+    T.cast('A', T.hand('A', 'Heart-Piercer Manticore'));
+    t.zone(w, 'graveyard');
+    t.eq(T.life('B'), 14);
+  });
+
+  test("Audit: Syr Ginger's sacrifice gains life equal to its own power", (mk, t) => {
+    const T = mk();
+    t.auto('Syr Ginger, the Meal Ender');
+    const s = T.bf('A', 'Syr Ginger, the Meal Ender');
+    T.mana('A', '2');
+    T.activate('A', s, 0);
+    t.zone(s, 'graveyard');
+    t.eq(T.life('A'), 23);
+  });
 };

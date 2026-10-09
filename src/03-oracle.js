@@ -683,6 +683,16 @@
     return ok;
   }
 
+  /* Ziatora: "you may sacrifice another creature. When you do, Ziatora
+     deals damage equal to that creature's power" — the one sacrificed */
+  function sacrificedIsThat(list) {
+    for (const e of list || []) {
+      if (!e || typeof e !== 'object') continue;
+      for (const k of ['n', 'p', 't']) if (e[k] && typeof e[k] === 'object' && e[k].ofTrigger && /\bthat creature'?s\b/i.test(e.text || '')) e[k] = { ofSacrificed: e[k].ofTrigger };
+      for (const k of ['then', 'otherwise', 'list']) if (Array.isArray(e[k])) sacrificedIsThat(e[k]);
+    }
+  }
+
   function itIsTheTrigger(effects, scope) {
     if (!scope) return;
     /* "Whenever this creature attacks, it gains double strike until end of
@@ -3582,7 +3592,8 @@
         if (/^(it|that creature)$/i.test(m[1])) e.fromTrigger = true;
         /* Vein Drinker: "This creature deals damage equal to its power" —
            its own power, in an activated ability as much as in a trigger */
-        if (/^(CARDNAME|This creature)$/i.test(m[1]) && k.ofTrigger && k.ofTrigger !== 'mv' && !k.plus) e.n = { ofSelf: k.ofTrigger };
+        // (but "that creature's power" is another creature's: Ziatora's sacrificed one)
+        if (/^(CARDNAME|This creature)$/i.test(m[1]) && /^its /i.test(m[2]) && k.ofTrigger && k.ofTrigger !== 'mv' && !k.plus) e.n = { ofSelf: k.ofTrigger };
         if (/^target/i.test(m[1])) {
           e.fromTarget = true; e.targets = [targetSpec(m[1])];
           // "its power" is the power of the creature dealing it
@@ -7519,6 +7530,7 @@
       const sacMust = !may && ifDo && s.match(/^Sacrifice (a|an|another) ([a-z ]+?)\.$/i);
       if (sacMust && !/ or /i.test(sacMust[2])) {
         const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        sacrificedIsThat(tp.effects);
         if (tp.auto && !JSON.stringify(tp.effects).includes('"X"')) {
           effects.push({ op: 'sacThen', filter: sacMust[2].trim().toLowerCase(), other: /another/i.test(sacMust[1]), then: tp.effects, text: s + ' ' + next });
           i++;
@@ -7540,6 +7552,7 @@
             for (const k of ['then', 'otherwise', 'list']) if (Array.isArray(e[k])) swapX(e[k]);
           }
         };
+        sacrificedIsThat(tp.effects);
         const usesX = JSON.stringify(tp.effects).includes('"X"');
         if (tp.auto && (!usesX || xv)) {
           swapX(tp.effects);
@@ -9425,6 +9438,15 @@
         if (xOnly) parsed.effects = parsed.effects.filter(e => e.op !== 'xColorOnly');
         const spend = parsed.effects.find(e => e.op === 'spendOnly');
         const effects = parsed.effects.filter(e => e.op !== 'activateOnly' && e.op !== 'spendOnly');
+        /* Syr Ginger: "Sacrifice Syr Ginger: You gain life equal to its
+           power" — with nothing targeted before it, "its" is the card
+           sacrificed to pay, as it last was */
+        if (cost.sacSelf) {
+          for (const [i, e] of effects.entries()) {
+            if (effects.slice(0, i).some(x => x && (x.targets || []).length)) break;
+            for (const k of ['n', 'p', 't']) if (e && e[k] && typeof e[k] === 'object' && e[k].ofLast && !(e.targets || []).length) e[k] = { ofSelf: e[k].ofLast };
+          }
+        }
         const ab = {
           kind: isManaAbility(effects) ? 'mana' : 'activated', cost, text: line,
           effects, auto: parsed.auto && costIsAutomatable(cost),
