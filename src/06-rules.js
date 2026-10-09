@@ -4296,7 +4296,7 @@
            (CR 702.29b) — it is a tutor, not a land drop. */
         this._runEffects([{ op: 'tutor', n: 1, to: 'hand',
           filter: use.fetch === 'basic land' ? 'basic land' : use.fetch,
-          prompt: `Search your library for a ${use.fetch} card.` }],
+          prompt: `Search your library for ${this._aCard(use.fetch, 'card')}.` }],
         { controller: playerId, obj: o, name: o.name }, null, 'cycle');
       } else {
         this._drawCards(this.player(playerId), 1);
@@ -5181,7 +5181,7 @@
           } else if (need) {
             this.queueChoice({ type: 'pickCard', playerId, count: need, purpose: 'exileCost', stackId: item.id, setX: !!alt.exileFromHand.mvIsX,
               candidates: pool.map(x => x.id), cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-              prompt: `Exile ${need === 1 ? 'a' : need} ${alt.exileFromHand.filter} card${need === 1 ? '' : 's'} from your hand.` });
+              prompt: `Exile ${need === 1 ? this._aCard(alt.exileFromHand.filter, 'card') : need + ' ' + this._aCard(alt.exileFromHand.filter, 'card', true)} from your hand.` });
           }
         }
         this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn, tapCreatures: alt.tapCreatures }, o, opts, item);
@@ -6589,6 +6589,14 @@
       return list.slice().sort((x, y) => (y.isToken ? 1 : 0) - (x.isToken ? 1 : 0) ||
         this._cardValue(x) - this._cardValue(y));
     }
+    /** "a creature card", "an artifact card", "a card", "an oil counter": the words with their article, and the noun said once (articleWords). */
+    _aCard(words, noun, plural) {
+      const w = String(words || '').trim();
+      const n0 = noun || '';
+      const phrase = !w || (n0 && (w === n0 || w === n0 + 's')) ? (n0 || 'card') : (n0 ? w + ' ' + n0 : w);
+      if (plural) return phrase.replace(/(card|counter)$/, '$1s');
+      return (/^[aeiou]/i.test(phrase) ? 'an ' : 'a ') + phrase;
+    }
     _costCount(n, opts) {
       if (n === 'X') return Math.max(0, (opts && opts.x) || 0);
       return n == null ? 1 : n;
@@ -6693,7 +6701,7 @@
             pick = null;
             ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent',
               candidates: pool.map(x => x.id),
-              prompt: `Sacrifice ${need === 1 ? 'a' : need} ${cost.sacrifice.filter || 'permanent'}${need === 1 ? '' : 's'} to pay the cost.` });
+              prompt: `Sacrifice ${need === 1 ? this._aCard(cost.sacrifice.filter || 'permanent') : need + ' ' + (cost.sacrifice.filter || 'permanent') + 's'} to pay the cost.` });
           }
         }
         if (pick) this._sacrificeNow(pid, pick, item);
@@ -6708,7 +6716,7 @@
               pick2 = null;
               ask({ type: 'sacrifice', count: need2, filter: cost.sacrificeAlso.filter,
                 candidates: pool2.map(x => x.id),
-                prompt: `Sacrifice ${need2 === 1 ? 'a' : need2} ${cost.sacrificeAlso.filter}${need2 === 1 ? '' : 's'} to pay the cost.` });
+                prompt: `Sacrifice ${need2 === 1 ? this._aCard(cost.sacrificeAlso.filter) : need2 + ' ' + cost.sacrificeAlso.filter + 's'} to pay the cost.` });
             }
           }
           if (pick2) this._sacrificeNow(pid, pick2, item);
@@ -12712,7 +12720,8 @@
           if (pool.length > want || e.upTo) {
             const picked = this._ask({ type: 'pickCard', playerId: gyOwner.id, count: want, optional: !!e.upTo,
               cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
-              prompt: `Return ${want === 1 ? 'a' : want} ${e.filter || 'card'} card${want === 1 ? '' : 's'} from your graveyard.` }, 'gy');
+              // ("a card", not "a card card"; "an artifact card")
+              prompt: `Return ${want === 1 ? this._aCard(e.filter, 'card') : want + ' ' + this._aCard(e.filter, 'card', true)} from your graveyard.` }, 'gy');
             if (picked === SUSPEND) return SUSPEND;
             ids = (picked || []).filter(id => pool.some(c => c.id === id)).slice(0, want);
           }
@@ -13920,7 +13929,7 @@
             .filter(c => c && c.zone === 'graveyard' && c.owner === ctx.controller && this._cardFitsWords(c, e.filter || 'card'));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'returnSwept', kind: 'objects', zone: 'graveyard',
-            items: this._chooseItems(pool), min: 1, max: 1, prompt: `Return a ${e.filter || 'card'} card to the battlefield.` }, 'ret');
+            items: this._chooseItems(pool), min: 1, max: 1, prompt: `Return ${this._aCard(e.filter, 'card')} to the battlefield.` }, 'ret');
           if (got === SUSPEND) return SUSPEND;
           const c = got && got.picks.length ? this.obj(got.picks[0]) : null;
           if (c && pool.includes(c)) { this.moveObject(c, 'battlefield', { controller: ctx.controller }); this.logEvent('reanimate', `${me.name} returns ${c.name}.`); }
@@ -14610,7 +14619,7 @@
           const picked = this._ask({
             type: 'pickCard', playerId: owner.id, count: want, worst: true,
             cards: list.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Return ${want === 1 ? 'a' : want} ${what}${want === 1 ? '' : 's'} you control to your hand.`,
+            prompt: `Return ${want === 1 ? this._aCard(what) : want + ' ' + what + 's'} you control to your hand.`,
           }, 'own');
           if (picked === SUSPEND) return SUSPEND;
           for (const id of (picked || []).slice(0, want)) {
@@ -14851,7 +14860,7 @@
               if (!perms.length && !hand.length) { hit.push(q); continue; }
               const got = this._choose({ playerId: q.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
                 items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
-                prompt: `Sacrifice a ${e.cost.sacrifice}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac:' + q.id);
+                prompt: `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac:' + q.id);
               if (got === SUSPEND) return SUSPEND;
               const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
               if (x) pay.push({ q, x, perm: perms.includes(x) }); else hit.push(q);
@@ -14872,7 +14881,7 @@
             if (!perms.length && !hand.length) { this._spliceNext(e.then); break; }
             const got = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
               items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
-              prompt: e.prompt || `Sacrifice a ${e.cost.sacrifice}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac');
+              prompt: e.prompt || `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac');
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x)) this._sacrificeNow(payer.id, [x], null);
@@ -15564,7 +15573,7 @@
             const pool = z.library.filter(c => !got.includes(c) && this._cardFitsWords(c, want));
             if (!pool.length) continue;
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true, fromLibrary: true,
-              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: `Search your library for a ${want} card.` }, 'te' + i);
+              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: `Search your library for ${this._aCard(want, 'card')}.` }, 'te' + i);
             if (picked === SUSPEND) return SUSPEND;
             const c = (picked || []).map(id => this.obj(id)).find(x => x && pool.includes(x));
             if (c) got.push(c);
@@ -16024,7 +16033,7 @@
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'putFromHand', kind: 'objects', zone: 'hand',
             items: this._chooseItems(pool), min: 0, max: 1, optional: true,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}put a ${e.filter} card from your hand onto the battlefield${e.tapped ? ' tapped' : ''}? If you do, draw a card and repeat.` }, 'pdr');
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${this._aCard(e.filter, 'card')} from your hand onto the battlefield${e.tapped ? ' tapped' : ''}? If you do, draw a card and repeat.` }, 'pdr');
           if (got === SUSPEND) return SUSPEND;
           const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
           if (!x || x.zone !== 'hand') break;
@@ -19543,7 +19552,7 @@
             if (!pool.length) break;
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
               cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: `Move a ${kind} counter from ${src.name} onto which creature? Choose none to stop.` }, 'mv' + k);
+              prompt: `Move ${this._aCard(kind, 'counter')} from ${src.name} onto which creature? Choose none to stop.` }, 'mv' + k);
             if (picked === SUSPEND) return SUSPEND;
             const to = this.obj((picked || [])[0]);
             if (!to || to.zone !== 'battlefield') break;
@@ -19756,7 +19765,7 @@
             if (me.isBot || pool.length === 1) this._sacrificeNow(ctx.controller, this._cheapestFirst(pool).slice(0, 1), ctx);
             else {
               const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, filter: e.filter || 'creature',
-                candidates: pool.map(o => o.id), prompt: `Sacrifice a ${e.filter || 'creature'}.` }, 'sac');
+                candidates: pool.map(o => o.id), prompt: `Sacrifice ${this._aCard(e.filter || 'creature')}.` }, 'sac');
               if (got === SUSPEND) { ctx._sacBefore = before; return SUSPEND; }
             }
           }
@@ -19920,7 +19929,7 @@
               if (ctx['_bb' + key] == null) ctx['_bb' + key] = this._sacCount || 0;
               const got = this._ask({ type: 'sacrifice', playerId: foe.id, count: 1, optional: true,
                 candidates: pool.map(o => o.id), filter: 'permanent',
-                prompt: `Sacrifice a ${ctx._braids.join(' or ')}? If you don't, you lose 2 life and ${me.name} draws a card.` }, key);
+                prompt: `Sacrifice ${this._aCard(ctx._braids.join(' or '))}? If you don't, you lose 2 life and ${me.name} draws a card.` }, key);
               if (got === SUSPEND) return SUSPEND;
               gave = (this._sacCount || 0) > ctx['_bb' + key];
             }

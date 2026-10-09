@@ -16145,12 +16145,14 @@ module.exports = (test) => {
     const mine = T.grave('A', 'Grizzly Bears');
     const theirs = T.grave('B', 'Llanowar Elves'), theirs2 = T.grave('B', 'Craw Wurm');
     let asked = null;
-    T.answer('pickCard', (q) => { asked = q.playerId; return { cardIds: [theirs.id] }; });
+    let prompt = '';
+    T.answer('pickCard', (q) => { asked = q.playerId; prompt = q.prompt; return { cardIds: [theirs.id] }; });
     T.mana('A', 'GCC');
     T.cast('A', T.hand('A', 'Skullwinder'));
     T.settle(); T.resolve(); T.settle();
     t.zone(mine, 'hand', 'yours back');
     t.eq(asked, 'B', 'the opponent picks');
+    t.eq(prompt, 'Return a card from your graveyard.');
     t.zone(theirs, 'hand', 'the one they picked');
     t.zone(theirs2, 'graveyard');
   });
