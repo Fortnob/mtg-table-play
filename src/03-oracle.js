@@ -5035,8 +5035,12 @@
     { re: /^Until your next turn, (.+?) (gain|gains|get|gets) ([^.]+?)\.?$/i,
       make: (m) => { const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until your next turn.'); return e && e.op !== 'manual' ? e : null; } },
     // "All lands you control become 2/2 Elemental creatures …": each of them becomes one
-    { re: /^All ([a-z]+)s you control become (\d+\/\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creatures( with [^.]+?)?( until end of turn)?\.?$/,
-      make: (m) => { const e = parseEffectSentence('Each ' + m[1] + ' you control becomes a ' + m[2] + ' ' + m[3] + ' creature' + (m[4] || '') + (m[5] || '') + '.'); return e && e.op !== 'manual' ? e : null; } },
+    // (Life // Death: "All lands you control become 1/1 creatures until end of turn.")
+    { re: /^All ([a-z]+)s you control become (\d+\/\d+) ((?:[A-Z][a-z]+ )*)creatures( with [^.]+?)?( until end of turn)?\.?$/,
+      make: (m) => { const e = parseEffectSentence('Each ' + m[1] + ' you control becomes a ' + m[2] + ' ' + m[3] + 'creature' + (m[4] || '') + (m[5] || '') + '.'); return e && e.op !== 'manual' ? e : null; } },
+    // Oblation, Zoyowa's Justice: "The owner of target nonland permanent shuffles it into their library, then draws two cards."
+    { re: /^The owner of (target [a-z ]+?) shuffles it into their library, then draws (a|one|two|three) cards?\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? [{ op: 'toLibrary', where: 'shuffle', targets: [t] }, { op: 'draw', n: num(m[2]), who: 'targetController' }] : null; } },
     /* Sylvan Awakening: "Until your next turn, all lands you control become
        2/2 Elemental creatures with reach, indestructible, and haste." —
        read as "until end of turn", then made to last */
@@ -10552,7 +10556,8 @@
       /* Clan Guildmage: "becomes a 4/4 Elemental creature with haste";
          Vengeant Earth: "… in addition to its other types" — the creature
          types it had stay */
-      if ((m = p.match(/^becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless|and) )*)((?:[A-Za-z'-]+ )*?)creature(?: with ([a-z, ]+?))?( in addition to its other (?:colors and )?types)?$/))) {
+      // (Hall of Storm Giants: "… creature with ward {3}")
+      if ((m = p.match(/^becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless|and) )*)((?:[A-Za-z'-]+ )*?)creature(?: with ([a-z, ]+?(?: \{\d+\})?))?( in addition to its other (?:colors and )?types)?$/))) {
         if (!typed(m[3].replace(/\band\b/g, ' '), (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
         if (m[6] && eff.setCreatureTypes) { eff.addSubtypes = eff.setCreatureTypes; delete eff.setCreatureTypes; }
         if (m[6] && /colors/.test(m[6]) && eff.setColors) { eff.addColors = eff.setColors; delete eff.setColors; }

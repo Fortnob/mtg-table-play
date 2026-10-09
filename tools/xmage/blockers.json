@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12050,
+  "needed": 12047,
   "gainedCards": 1263,
-  "linesNeeded": 13027,
+  "linesNeeded": 13024,
   "linesGained": 1506,
   "gained": {
    "all": 1263,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4326,
-   "lines": 4059,
+   "score": 4325,
+   "lines": 4058,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -4890,18 +4890,6 @@
    ]
   },
   {
-   "what": "WardAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Coppercoat Vanguard",
-    "Hall of Storm Giants",
-    "Leyline Immersion",
-    "Paladin's Arms",
-    "Thorin Oakenshield"
-   ]
-  },
-  {
    "what": "counter of a non-spell",
    "score": 5,
    "lines": 5,
@@ -4971,18 +4959,6 @@
     "Circle of Flame",
     "Palazzo Archers",
     "Lost in the Woods"
-   ]
-  },
-  {
-   "what": "BecomesCreatureAllEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Life // Death",
-    "Vihaan, Goldwaker",
-    "Natural Affinity",
-    "Kormus Bell",
-    "Ambush Commander"
    ]
   },
   {
@@ -6051,6 +6027,17 @@
    ]
   },
   {
+   "what": "WardAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Coppercoat Vanguard",
+    "Leyline Immersion",
+    "Paladin's Arms",
+    "Thorin Oakenshield"
+   ]
+  },
+  {
    "what": "LoseAllAbilitiesTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6190,6 +6177,17 @@
     "Magus of the Vineyard",
     "Eladamri's Vineyard",
     "Cheering Crowd"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Vihaan, Goldwaker",
+    "Natural Affinity",
+    "Kormus Bell",
+    "Ambush Commander"
    ]
   },
   {
@@ -6942,8 +6940,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3554,
-   "cards": 3386,
+   "score": 3553,
+   "cards": 3385,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -9921,18 +9919,6 @@
    ]
   },
   {
-   "what": "BecomesCreatureAllEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Life // Death",
-    "Vihaan, Goldwaker",
-    "Natural Affinity",
-    "Kormus Bell",
-    "Ambush Commander"
-   ]
-  },
-  {
    "what": "SpellCostReductionSourceEffect",
    "score": 5,
    "cards": 5,
@@ -10687,6 +10673,17 @@
     "Turncoat Kunoichi",
     "Detention Chariot",
     "Driftgloom Coyote"
+   ]
+  },
+  {
+   "what": "LoseLifeTargetEffect amount",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Astarion, the Decadent",
+    "Emissary of Despair",
+    "Final Punishment",
+    "Burden of Greed"
    ]
   }
  ]

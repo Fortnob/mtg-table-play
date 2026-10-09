@@ -13233,4 +13233,21 @@ module.exports = (test) => {
     T.settle();
     t.ok(T.g.log.some(l => (l.text || '').includes(`firebends for ${pw} red mana`)), 'as much red mana as its power');
   });
+
+  test('Oblation: the owner shuffles it in and draws two; Hall of Storm Giants', (mk, t) => {
+    t.auto('Oblation'); t.auto('Hall of Storm Giants');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    for (let i = 0; i < 3; i++) T.top('B', 'Island');
+    const hb = T.zone('B', 'hand').length, ha = T.zone('A', 'hand').length;
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Oblation'), { targets: [bear] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(bear.zone, 'library'); t.eq(T.zone('B', 'hand').length, hb + 2, 'its owner drew two');
+    t.eq(T.zone('A', 'hand').length, ha, 'not the caster');
+    const hall = T.bf('A', 'Hall of Storm Giants');
+    const ab = hall.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: hall, name: 'Hall', kind: 'ability' });
+    t.eq(T.g.powerOf(hall), 7); t.ok(T.g._wardCosts(hall).length === 1, 'ward');
+  });
 };
