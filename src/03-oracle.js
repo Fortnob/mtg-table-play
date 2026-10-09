@@ -7794,6 +7794,13 @@
     if (/^(?:When|Whenever|At)[^,\n]*, if /.test(line) &&
         !abs.some(x => x.kind === 'triggered' && (x.condition || x.intervening))) return false;
     if (/Activate only if/.test(line) && !abs.some(x => x.only && x.only.cond)) return false;
+    /* Starfield Shepherd: "a creature card with mana value 1 or less" kept
+       as any creature card; Szarel: "another nontoken permanent" as any.
+       The limit has to come through. */
+    const absText = JSON.stringify(abs, (k, v) => (k === 'text' || k === 'raw' ? undefined : v));
+    const bare = line.replace(/"[^"]*"/g, '');
+    if (/mana value (?:\d+|X) or (?:less|greater)/i.test(bare) && !/"(?:maxMv|minMv|mv)"/.test(absText)) return false;
+    if (/\bnontoken\b/i.test(bare) && !/nontoken/i.test(absText)) return false;
     // "if that player has …": a condition about the player the trigger is about, which has to say so
     if (/, if that player\b/i.test(line) && !/"who":"triggerPlayer"/.test(JSON.stringify(abs.map(x => x.condition || null)))) return false;
     /* Dockside Extortionist: "create X Treasure tokens, where X is the

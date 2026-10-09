@@ -581,7 +581,8 @@ function checkAnswer(ch, data, game) {
       const legal = (ch.options || []).map(o => o.i);
       within(data.modes, legal, 'answer.modes', 'one of the modes offered');
       if (Array.isArray(data.modes) && !ch.repeatable && new Set(data.modes).size !== data.modes.length) bad('answer.sense', 'answer.modes', 'picks a mode twice');
-      if (Array.isArray(data.modes) && data.modes.length > ch.count) bad('answer.sense', 'answer.modes', `picks ${data.modes.length} modes of ${ch.count}`);
+      // ("choose one or more": as many as the question's max allows)
+      if (Array.isArray(data.modes) && data.modes.length > (ch.max != null ? ch.max : ch.count)) bad('answer.sense', 'answer.modes', `picks ${data.modes.length} modes of ${ch.max != null ? ch.max : ch.count}`);
       break;
     }
     case 'pickTarget': {

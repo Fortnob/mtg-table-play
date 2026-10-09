@@ -1952,4 +1952,11 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Sandstone Oracle'));
     t.eq(T.zone('A', 'hand').length, 4, 'one card, three more to match four');
   });
+
+  test('Audit: generated readings that dropped a mana value or nontoken limit are left to a person', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Starfield Shepherd', 'Szarel, Genesis Shepherd'])
+      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+  });
 };
