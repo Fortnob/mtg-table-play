@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11393,
+  "needed": 11389,
   "gainedCards": 1131,
-  "linesNeeded": 12197,
+  "linesNeeded": 12193,
   "linesGained": 1338,
   "gained": {
    "all": 1131,
@@ -1239,25 +1239,6 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Shadow the Hedgehog",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Slurrk, All-Ingesting",
-    "Cass, Hand of Vengeance",
-    "The Ghoul, Gunslinger",
-    "Orah, Skyclave Hierophant",
-    "Polukranos Reborn // Polukranos, Engine of Ruin",
-    "The Dragon-Kami Reborn // Dragon-Kami's Egg",
-    "Skirk Drill Sergeant"
-   ]
-  },
-  {
    "what": "BoostSourceEffect p/t",
    "score": 12,
    "lines": 12,
@@ -1996,6 +1977,22 @@
     "Feast of Flesh",
     "Kjeldoran War Cry",
     "Mind Burst"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Rundvelt Hordemaster",
+    "Shadow the Hedgehog",
+    "Colfenor, the Last Yew",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger",
+    "Polukranos Reborn // Polukranos, Engine of Ruin",
+    "The Dragon-Kami Reborn // Dragon-Kami's Egg",
+    "Skirk Drill Sergeant"
    ]
   },
   {
@@ -2841,20 +2838,6 @@
    ]
   },
   {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
-   ]
-  },
-  {
    "what": "AttachToSourceTargetEffect",
    "score": 7,
    "lines": 7,
@@ -3493,6 +3476,19 @@
     "Woodwork Prodigy // Soul Tether",
     "Stingerquill Voxmancer // Vicious Verse",
     "Paradox Shaper // Omit Variables"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {
@@ -7513,19 +7509,6 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Slurrk, All-Ingesting",
-    "Cass, Hand of Vengeance"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 10,
    "cards": 10,
@@ -8213,16 +8196,16 @@
    ]
   },
   {
-   "what": "Ability.setDoOnlyOnceEachTurn",
+   "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 7,
    "cards": 7,
    "names": [
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge"
+    "Rundvelt Hordemaster",
+    "Colfenor, the Last Yew",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger",
+    "Polukranos Reborn // Polukranos, Engine of Ruin"
    ]
   },
   {
@@ -8724,6 +8707,19 @@
     "Grim Giganotosaurus",
     "Vitality Hunter",
     "Sealock Monster"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {

@@ -1939,6 +1939,16 @@
     { re: /^Return ((?:another )?target [a-z0-9 '-]+?) to (its|their) owner's hand\.?$/i,
       make: (m) => ({ op: 'bounce', targets: [targetSpec(m[1])] }) },
     // Scrap Trawler: "with lesser mana value" than the permanent the trigger is about
+    /* Jackdaw Savior, Orah, Havi: "return (another) target creature card with lesser
+       mana value from your graveyard to the battlefield (tapped)" — lesser than the one that died */
+    { re: /^Return (?:another )?(target [A-Za-z ]+? card) with lesser mana value from your graveyard to (your hand|the battlefield(?: tapped)?)\.?$/i,
+      make: (m) => {
+        const inner = parseEffectSentence('Return ' + m[1] + ' from your graveyard to ' + m[2] + '.', 1);
+        const t0 = inner && inner.op !== 'manual' && (inner.targets || [])[0];
+        if (!t0) return null;
+        t0.mvBelowTrigger = true;
+        return inner;
+      } },
     { re: /^Return to your hand (target [a-z]+ card) in your graveyard with lesser mana value\.?$/i,
       make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you', mvBelowTrigger: true })] }) },
     { re: /^Return (target [a-z0-9 '-]+?) from your graveyard to your hand\.?$/i,

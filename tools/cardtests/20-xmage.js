@@ -15735,4 +15735,23 @@ module.exports = (test) => {
     try { T.cast('A', T.hand('A', 'Grizzly Bears')); } catch (err) { threw = true; }
     t.ok(threw, 'not for a Bear');
   });
+
+  test('Jackdaw Savior: a creature card of lesser mana value back when a flyer of yours dies', (mk, t) => {
+    t.auto('Jackdaw Savior');
+    t.auto('Orah, Skyclave Hierophant');
+    t.auto('Havi, the All-Father');
+    const T = mk();
+    T.toMain('A');
+    const jd = T.bf('A', 'Jackdaw Savior');
+    const bear = T.grave('A', 'Grizzly Bears'), wurm = T.grave('A', 'Craw Wurm');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.options && ch.options[0]) || []; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [jd] });
+    T.settle(); T.resolve();
+    t.zone(jd, 'graveyard');
+    t.zone(bear, 'battlefield', 'the Bears (2) come back');
+    t.ok(offered && offered.length, 'asked');
+    t.no(offered && offered.some(o => o.id === wurm.id), 'the Wurm (6) is not lesser');
+  });
 };
