@@ -511,3 +511,17 @@ html[data-play="1"] .hoard-chip { display: none; }
 .precon-was { font-size: 12px; }
 .precon-fly { width: 120px; aspect-ratio: 63 / 88; border-radius: 6px; overflow: hidden; }
 .precon-fly img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- your packs: a place under the top bar, like the Store ---------- */
+.pack-open { top: 0; }
+.pack-open .po-pagehead { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap;
+  width: min(1320px, 100%); padding: 0 20px; text-align: left; }
+.pack-open .po-pagehead h1 { margin: 0; font-family: var(--font-display, inherit); font-size: 30px; color: var(--ink, #f1ead8); text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.pack-open .po-pagehead p { margin: 4px 0 0; max-width: 640px; }
+.pack-open.shelf .po-head { justify-items: stretch; width: 100%; padding-top: 22px; }
+.pack-open.shelf .po-x { display: none; }
+/* on the shelf the room is quieter, the menu's own dark with the set's light behind; opening, it is the show */
+.pack-open.shelf .po-backdrop { filter: blur(40px) brightness(.22) saturate(1.05); }
+.pack-open.shelf .po-vignette { background: linear-gradient(180deg, rgba(10, 12, 17, .35), rgba(10, 12, 17, .75)); }
+.pack-open.shelf .po-dust { opacity: .5; }
+.po-openall { box-shadow: 0 0 18px rgba(243, 221, 150, .25); }

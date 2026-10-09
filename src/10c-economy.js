@@ -98,6 +98,17 @@
     const r = String((c && c.rarity) || 'common').toLowerCase();
     return r === 'special' || r === 'bonus' ? 'mythic' : (RARITIES.includes(r) ? r : 'common');
   };
+  /**
+   * What a pulled card is worth, for putting the best of a rarity where it
+   * shows: its market price, the foil one for a foil (0 for a wildcard, or
+   * a card nobody has priced).
+   */
+  function cardValue(it) {
+    const p = it && it.card && it.card.prices;
+    if (!p) return 0;
+    const n = parseFloat(it.foil ? (p.usd_foil || p.usd_etched || p.usd) : (p.usd || p.usd_foil));
+    return Number.isFinite(n) ? n : 0;
+  }
   /** The name a card is collected under: the whole name, both faces. */
   const nameOf = (c) => String((c && c.name) || '');
 
@@ -383,9 +394,9 @@
     state.packs.splice(at, 1);
     save('open');
     if (MTG.progress) { MTG.progress.notePulls(out); MTG.progress.checkSets([pack.set]); }
-    // rarest last, the way they are turned over
-    const rank = (x) => x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity) + (x.foil ? 0.25 : 0);
-    out.sort((a, b) => rank(a) - rank(b));
+    // rarest last, the way they are turned over, and within a rarity the most valuable last
+    const rank = (x) => x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity);
+    out.sort((a, b) => rank(a) - rank(b) || cardValue(a) - cardValue(b));
     return { pack, cards: out, bonus };
   }
 
@@ -627,7 +638,7 @@
     packs: () => load().packs.slice(),
     collection: () => load().col,
     save: () => save(),
-    isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard,
+    isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard, cardValue,
     buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,

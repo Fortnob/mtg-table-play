@@ -975,8 +975,19 @@
     document.addEventListener('keydown', keyHandler);
     document.body.appendChild(overlay);
     overlay.addEventListener('contextmenu', (e) => e.preventDefault());
-    const close = () => {
-      if (inspecting) return closeInspect();
+    /* Under the top bar, which stays: your packs are a place in the game
+       like the Store, not a window over it. Its menu goes where it says,
+       and takes the packs away with it. */
+    const topbar = document.querySelector('.topbar');
+    const place = () => { overlay.style.top = (topbar && topbar.offsetParent !== null ? Math.max(0, Math.round(topbar.getBoundingClientRect().bottom)) : 0) + 'px'; };
+    place();
+    window.addEventListener('resize', place);
+    const navAway = (e) => { if (e.target.closest('.topnav-btn, .brand')) close(true); };
+    if (topbar) topbar.addEventListener('click', navAway, true);
+    const close = (leaving) => {
+      if (inspecting && !leaving) return closeInspect();
+      window.removeEventListener('resize', place);
+      if (topbar) topbar.removeEventListener('click', navAway, true);
       document.removeEventListener('keydown', keyHandler);
       overlay.classList.add('closing');
       setTimeout(() => overlay.remove(), 300);
@@ -1026,8 +1037,16 @@
       const gs = groups();
       if (!gs.length) return close();
       stage.className = 'po-stage inv';
+      overlay.classList.add('shelf');
       stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
-      head.append(el('div', { class: 'po-title', text: 'Your packs' }), el('div', { class: 'po-sub', text: `${S.packs().length} unopened` }));
+      const total = S.packs().length;
+      head.append(el('div', { class: 'po-pagehead' }, [
+        el('div', {}, [
+          el('h1', { text: 'Your packs' }),
+          el('p', { class: 'dim', text: `${total} unopened, from ${gs.length} ${gs.length === 1 ? 'kind' : 'kinds'} of booster. Open them one at a time, a set at once, or every one together.` }),
+        ]),
+        total > 1 ? el('button', { type: 'button', class: 'btn primary po-openall', text: `Open all ${total}`, onclick: () => openAll('all') }) : null,
+      ].filter(Boolean)));
       setBackdrop(gs[0].info);
       const grid = el('div', { class: 'po-inv' });
       for (const g of gs) {
@@ -1049,12 +1068,13 @@
         ]));
       }
       stage.appendChild(grid);
-      foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Done', onclick: close }));
+      foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Done', onclick: () => close() }));
       onKey = (e) => { if (e.key === 'Escape') close(); };
     };
 
     /* ---- one pack ---- */
     const openOne = (g) => {
+      overlay.classList.remove('shelf');
       const p = (groups().find(x => x.key === g.key) || { packs: [] }).packs[0];
       if (!p) return inventory();
       const info = setInfo(p);
@@ -1210,7 +1230,7 @@
         const same = (groups().find(x => x.key === g.key) || { packs: [] }).packs.length;
         if (same) foot.appendChild(el('button', { type: 'button', class: 'btn' + (hidden.length ? '' : ' primary'), text: `Open next (${same})`, onclick: () => { MTG.sfx('click'); openOne(g); } }));
         if (S.packs().length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Back to packs', onclick: () => { MTG.sfx('click'); inventory(); } }));
-        foot.appendChild(el('button', { type: 'button', class: 'btn' + (!hidden.length && !same ? ' primary' : ''), text: 'Done', onclick: close }));
+        foot.appendChild(el('button', { type: 'button', class: 'btn' + (!hidden.length && !same ? ' primary' : ''), text: 'Done', onclick: () => close() }));
       };
       const flip = flipper(tiles, refresh);
       for (const t of tiles) t.addEventListener('click', () => flip(t));
@@ -1241,18 +1261,23 @@
     };
 
     /* ---- every pack of a set at once ---- */
+    /* Every pack of one set (a group), or with 'all' every pack you have:
+       torn open in a row, then everything they held laid out together. */
     const openAll = async (g) => {
-      const packs = (groups().find(x => x.key === g.key) || { packs: [] }).packs.slice();
+      overlay.classList.remove('shelf');
+      const gs = g === 'all' ? groups() : [groups().find(x => x.key === g.key)].filter(Boolean);
+      const each = gs.flatMap(x => x.packs.map(p => ({ p, g: x })));
+      const packs = each.map(x => x.p);
       if (!packs.length) return inventory();
-      const info = g.info;
-      setBackdrop(info);
+      const info = gs.length === 1 ? gs[0].info : { code: gs[0].info.code, name: 'All your packs' };
+      setBackdrop(gs[0].info);
       stage.className = 'po-stage all';
       stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = ''; head.innerHTML = '';
       head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: `Opening ${packs.length} packs…` }));
       const fan = el('div', { class: 'po-fan' });
       const shown = Math.min(packs.length, 10);
       const fanned = Array.from({ length: shown }, (_, i) => {
-        const b = boosterEl(info, g.kind);
+        const b = boosterEl(each[i].g.info, each[i].g.kind);
         b.style.setProperty('--k', String(i - (shown - 1) / 2));
         fan.appendChild(b);
         return b;
@@ -1262,7 +1287,7 @@
       const results = [];
       let failed = null;
       for (let i = 0; i < packs.length; i++) {
-        try { results.push(await S.openPack(packs[i].id, async () => info)); } catch (e) { failed = e; break; }
+        try { results.push(await S.openPack(packs[i].id, async () => each[i].g.info)); } catch (e) { failed = e; break; }
         const b = fanned[i % shown];
         if (b && !reduced()) { b.classList.remove('rip'); void b.offsetWidth; b.classList.add('rip'); }
         MTG.sfx('pack_tear_quick', { pan: shown > 1 ? ((i % shown) / (shown - 1) - 0.5) : 0 });
@@ -1289,7 +1314,8 @@
         }
         for (const r of res.bonus) wcs[r]++;
       }
-      const items = [...merged.values()].sort((a, b) => RANK[b.rarity] - RANK[a.rarity] || (b.foil ? 1 : 0) - (a.foil ? 1 : 0) || a.card.name.localeCompare(b.card.name));
+      // rarest first, and within a rarity the most valuable first
+      const items = [...merged.values()].sort((a, b) => RANK[b.rarity] - RANK[a.rarity] || S.cardValue(b) - S.cardValue(a) || a.card.name.localeCompare(b.card.name));
       for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.unshift({ wildcard: r, count: wcs[r] });
       items.sort((a, b) => RANK[b.wildcard || b.rarity] - RANK[a.wildcard || a.rarity]);
       stage.className = 'po-stage all summary';
@@ -1309,7 +1335,7 @@
       const refresh = () => {
         foot.innerHTML = '';
         if (S.packs().length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Back to packs', onclick: () => { MTG.sfx('click'); inventory(); } }));
-        foot.appendChild(el('button', { type: 'button', class: 'btn primary', text: 'Done', onclick: close }));
+        foot.appendChild(el('button', { type: 'button', class: 'btn primary', text: 'Done', onclick: () => close() }));
       };
       const after = () => {};
       const flip = flipper(tiles, after);
