@@ -8301,6 +8301,8 @@
         for (const aid of d.attackerIds) {
           const at = this.obj(aid);
           at.blockedBy.push(b.id);
+          // Heat Stroke: "was blocked this turn"
+          at.wasBlockedTurn = this.turn;
           if (!at.blockOrder.includes(b.id)) at.blockOrder.push(b.id);
           /* The Ring, level 3: whatever blocks the Ring-bearer does not
              walk away from it. */
@@ -8928,7 +8930,7 @@
        the part of 6 that takes every ability away. Any of these anywhere,
        and the whole battlefield is worked out layer by layer. */
     _changesWhatItIs(e) {
-      return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes ||
+      return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes || e.addSupertypes ||
         e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll));
     }
 
@@ -9010,7 +9012,7 @@
          that permanent. */
       const parts = [];
       const split = (ef, base) => {
-        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType) parts.push(Object.assign({ layer: 4 }, base));
+        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType || ef.addSupertypes) parts.push(Object.assign({ layer: 4 }, base));
         if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
         if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
       };
@@ -9072,6 +9074,8 @@
         if (p.layer === 4) {
           if (e.setTypes) { s.types = e.setTypes.slice(); this._trimSubtypes(s); }
           if (e.addTypes) for (const t of e.addTypes) if (!s.types.includes(t)) s.types.push(t);
+          // On Serra's Wings: "is legendary"
+          if (e.addSupertypes) for (const t of e.addSupertypes) if (!s.supertypes.includes(t)) s.supertypes.push(t);
           if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
           if (e.addSubtypes) for (const t of e.addSubtypes) if (!s.subtypes.includes(t)) s.subtypes.push(t);
           if (e.addChosenType && p.src && p.src.chosenType && !s.subtypes.includes(p.src.chosenType)) s.subtypes.push(p.src.chosenType);
@@ -9787,6 +9791,12 @@
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
       if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
+      // Emissary Escort: the greatest mana value among other artifacts you control, printed
+      if (typeof v === 'object' && v.greatestMv) {
+        let best = 0;
+        for (const x of this._scopeList(v.greatestMv, (src || o).controller, src || o, null, true)) best = Math.max(best, (x.card && x.card.cmc) || 0);
+        return best * (v.mult || 1);
+      }
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
@@ -13137,6 +13147,8 @@
             // Fell the Mighty: "with power greater than target creature's power"
             if (e.aboveTargetPower) { const tg = firstObj(); if (!tg || this.powerOf(x) <= this.powerOf(tg)) return false; }
             if (e.exceptMade && (this._madeThisResolution || []).includes(x.id)) return false;
+            // Heat Stroke: what blocked, or was blocked, this turn
+            if (e.blockedOrWasBlocked && !(x.blockedTurn === this.turn || x.wasBlockedTurn === this.turn)) return false;
             // "creatures that aren't of the chosen type"
             if (e.notChosenType && src && src.chosenType && this._hasCreatureType(x, src.chosenType)) return false;
             // Winds of Rath: "creatures that aren't enchanted"
@@ -18514,6 +18526,7 @@
           applyToScope(e, (o) => {
             if (!o.attacking || (o.blockedBy || []).length || o.blockedNoBlocker === this.turn) return;
             o.blockedNoBlocker = this.turn;
+            o.wasBlockedTurn = this.turn;
             this.logEvent('combat', `${o.name} becomes blocked.`);
             this._fire('becomesBlocked', o.controller, { source: o, object: o });
           });
@@ -20300,6 +20313,7 @@
           o.blocking = [blocked.id];
           o.blockedTurn = this.turn;
           blocked.blockedBy.push(o.id);
+          blocked.wasBlockedTurn = this.turn;
           if (!blocked.blockOrder.includes(o.id)) blocked.blockOrder.push(o.id);
           this.combat.blockers.push(o.id);
         }

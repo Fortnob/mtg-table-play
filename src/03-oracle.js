@@ -4335,6 +4335,9 @@
       make: () => ({ op: 'bounceAll', what: 'creatures', notChosenType: true }) },
     { re: /^You may pay ((?:\{[^}]+\})+) rather than pay (?:CARDNAME|this spell)'?s mana cost\.?$/i,
       make: () => ({ op: 'noop' }) },
+    // Heat Stroke: "destroy each creature that blocked or was blocked this turn"
+    { re: /^Destroy each creature that blocked or was blocked this turn\.?$/i,
+      make: () => ({ op: 'destroyAll', what: 'creature', blockedOrWasBlocked: true }) },
     { re: /^Destroy all ([A-Z][a-z]+s)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
     { re: /^Counter (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)? spell)\.?$/i,
@@ -11533,6 +11536,20 @@
         const t = U.titleCase(m[2]);
         return { op: 'continuous', layer: 4, scope, setSubtypes: [t], setMana: [MANA.COLOR_OF_BASIC[t]] };
       } },
+    /* Emissary Escort, Glint Raker: "This creature gets +X/+0, where X is the
+       greatest mana value among other artifacts you control" — a count the
+       layers can make, with its sign */
+    { re: /^(?:CARDNAME|This creature) gets ([+-])X\/([+-])(X|0), where X is (.+?)\.?$/,
+      make: (m) => {
+        // (a defending player is one opponent, not all of them: left to a person)
+        if (/defending player/i.test(m[4])) return null;
+        const k = amountOf(m[4]);
+        const OK = ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'countersOnSelf', 'greatestMv', 'party', 'playerStat', 'devotion', 'typesInGraveyards', 'cardsInAllGraveyards'];
+        if (!k || typeof k !== 'object' || k.plus || !OK.some(x => k[x])) return null;
+        if ((m[1] === '-') !== (m[2] === '-') && m[3] === 'X') return null;
+        const signed = Object.assign({}, k, { mult: (k.mult || 1) * (m[1] === '-' ? -1 : 1) });
+        return { op: 'continuous', layer: 7, scope: { self: true }, pt: { p: signed, t: m[3] === 'X' ? Object.assign({}, signed) : 0 } };
+      } },
     // Knowledge Is Power: "Creatures you control get +X/+X, where X is the number of cards you've drawn this turn."
     { re: /^((?:Other )?[A-Za-z ]+? you control) get \+X\/\+X, where X is (.+?)\.?$/,
       make: (m) => {
@@ -12179,6 +12196,13 @@
       const q = mm2[3].replace(/[.,]?$/, '.');
       const r = both(mm2[1] + (mm2[2] ? ' gets ' + mm2[2] + ' and' : '') + ' has "' + q + '"', mm2[1] + ' is a ' + mm2[4] + ' in addition to its other types.');
       if (r) return r;
+    }
+    // On Serra's Wings: "Enchanted creature is legendary, gets +1/+1, and has flying, vigilance, and lifelink."
+    if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) is legendary, gets ([+-]\d+\/[+-]\d+), and has ([a-z ,]+?)\.?$/))) {
+      const rest = parseStatic(mm2[1] + ' gets ' + mm2[2] + ' and has ' + mm2[3].replace(/,? and /, ' and ') + '.', ctx);
+      if (rest && rest.auto) {
+        return Object.assign({}, rest, { text: line, effects: [{ op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, addSupertypes: ['Legendary'] }].concat(rest.effects || []) });
+      }
     }
     // Dragoon's Lance: "Equipped creature gets +1/+0 and is a Knight in addition to its other types."
     if ((mm2 = String(line).match(/^((?:Equipped|Enchanted) creature) gets ([+-]\d+\/[+-]\d+) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/))) {

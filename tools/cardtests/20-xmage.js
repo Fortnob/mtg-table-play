@@ -14685,4 +14685,42 @@ module.exports = (test) => {
     T.settle(); T.g.checkStateBasedActions(); T.resolve();
     t.zone(giant, 'graveyard', 'the Wargear gone: the Giant is sacrificed too');
   });
+  test('Heat Stroke destroys what blocked or was blocked, at end of combat', (mk, t) => {
+    t.auto('Heat Stroke');
+    const T = mk();
+    T.bf('B', 'Heat Stroke');
+    const giant = T.bf('A', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears');
+    const wall = T.bf('B', 'Wall of Stone');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [giant.id] }]);
+    T.toMain('A', 'end');
+    t.zone(giant, 'graveyard', 'blocked: destroyed');
+    t.zone(wall, 'graveyard', 'blocked: destroyed');
+    t.zone(bear, 'battlefield', 'unblocked: kept');
+  });
+  test("On Serra's Wings makes the creature legendary", (mk, t) => {
+    t.auto("On Serra's Wings");
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const w = T.bf('A', "On Serra's Wings");
+    w.attachedTo = bear.id; bear.attachments = [w.id]; w.ts = T.g._stampNew();
+    T.g.bumpBoard(); T.settle();
+    t.ok(bear.analysis().isLegendary, 'legendary');
+    t.eq(T.g.powerOf(bear), 3);
+    t.ok(T.g.hasKw(bear, 'Flying') && T.g.hasKw(bear, 'Lifelink'));
+  });
+  test('Emissary Escort gets +X/+0 for the greatest mana value among other artifacts', (mk, t) => {
+    t.auto('Emissary Escort');
+    t.auto('Glint Raker');
+    const T = mk();
+    T.toMain('A');
+    const ee = T.bf('A', 'Emissary Escort');
+    const base = T.g.powerOf(ee), tough = T.g.toughnessOf(ee);
+    T.bf('A', 'Ornithopter');
+    T.bf('A', 'Solemn Simulacrum');
+    T.settle();
+    t.eq(T.g.powerOf(ee), base + 4, 'the Simulacrum: 4');
+    t.eq(T.g.toughnessOf(ee), tough, 'toughness alone');
+  });
 };

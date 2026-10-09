@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11633,
-  "gainedCards": 1160,
-  "linesNeeded": 12492,
+  "needed": 11629,
+  "gainedCards": 1161,
+  "linesNeeded": 12487,
   "linesGained": 1380,
   "gained": {
-   "all": 1160,
+   "all": 1161,
    "top2000": 48,
    "stdTop": 9
   },
@@ -1554,24 +1554,6 @@
    ]
   },
   {
-   "what": "EndOfCombatTriggeredAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Rose, Cutthroat Raider",
-    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
-    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
-    "Heat Stroke",
-    "Daredevil Dragster",
-    "Clockwork Steed",
-    "The Wretched",
-    "Joven's Ferrets",
-    "Clockwork Beast",
-    "Clockwork Avian",
-    "Clockwork Swarm"
-   ]
-  },
-  {
    "what": "prevent damage by some permanents",
    "score": 11,
    "lines": 11,
@@ -1827,6 +1809,23 @@
     "Rustler Rampage",
     "One Last Job",
     "Caught in the Crossfire"
+   ]
+  },
+  {
+   "what": "EndOfCombatTriggeredAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Rose, Cutthroat Raider",
+    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
+    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
+    "Daredevil Dragster",
+    "Clockwork Steed",
+    "The Wretched",
+    "Joven's Ferrets",
+    "Clockwork Beast",
+    "Clockwork Avian",
+    "Clockwork Swarm"
    ]
   },
   {
@@ -8882,19 +8881,6 @@
    ]
   },
   {
-   "what": "EndOfCombatTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Rose, Cutthroat Raider",
-    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
-    "Heat Stroke",
-    "Daredevil Dragster",
-    "The Wretched",
-    "Joven's Ferrets"
-   ]
-  },
-  {
    "what": "subject:anyCounter",
    "score": 6,
    "cards": 6,
@@ -9561,6 +9547,18 @@
     "Demon of Dark Schemes",
     "Consulate Surveillance",
     "Voltstorm Angel"
+   ]
+  },
+  {
+   "what": "EndOfCombatTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Rose, Cutthroat Raider",
+    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
+    "Daredevil Dragster",
+    "The Wretched",
+    "Joven's Ferrets"
    ]
   },
   {
