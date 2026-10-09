@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12108,
+  "needed": 12098,
   "gainedCards": 1266,
-  "linesNeeded": 13141,
+  "linesNeeded": 13124,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -89,28 +89,9 @@
    ]
   },
   {
-   "what": "(cast modifier line)",
-   "score": 214,
-   "lines": 208,
-   "cards": [
-    "Plumb the Forbidden",
-    "Emrakul, the Promised End",
-    "Not of This World",
-    "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass",
-    "Wash Away",
-    "Rottenmouth Viper",
-    "Spirit Water Revival",
-    "Hour of Revelation",
-    "Scion of Draco",
-    "Drag to the Roots",
-    "Notorious Throng"
-   ]
-  },
-  {
    "what": "(line not matched to XMage code)",
-   "score": 213,
-   "lines": 192,
+   "score": 212,
+   "lines": 191,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -124,6 +105,25 @@
     "Boseiju, Who Shelters All",
     "Edgar Markov",
     "Archpriest of Shadows"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 212,
+   "lines": 206,
+   "cards": [
+    "Plumb the Forbidden",
+    "Emrakul, the Promised End",
+    "Not of This World",
+    "Chandra's Incinerator",
+    "Bloodsoaked Insight // Sanguine Morass",
+    "Wash Away",
+    "Rottenmouth Viper",
+    "Spirit Water Revival",
+    "Hour of Revelation",
+    "Scion of Draco",
+    "Drag to the Roots",
+    "Notorious Throng"
    ]
   },
   {
@@ -1335,25 +1335,6 @@
     "Superior Foes of Spider-Man",
     "Storm the Festival",
     "Spectacle Mage"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByCreaturesAttachedEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Prowler's Helm",
-    "Canopy Cover",
-    "Invisibility",
-    "Hedgewitch's Mask",
-    "Dust Corona",
-    "Treetop Bracers",
-    "Saddle of the Cavalier",
-    "Blazing Torch",
-    "Black Scarab",
-    "White Scarab",
-    "Blue Scarab",
-    "Green Scarab"
    ]
   },
   {
@@ -2713,22 +2694,6 @@
    ]
   },
   {
-   "what": "OpponentControlsPermanentCondition",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Black Scarab",
-    "White Scarab",
-    "Blue Scarab",
-    "Green Scarab",
-    "Red Scarab",
-    "Skyshroud Elite",
-    "Beasts of Bogardan",
-    "Ivory Guardians",
-    "Radiant Essence"
-   ]
-  },
-  {
    "what": "DraftFromSpellbookEffect",
    "score": 9,
    "lines": 9,
@@ -3425,6 +3390,20 @@
     "Bubble Smuggler",
     "Crowd-Control Warden",
     "Aquamorph Entity"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesAttachedEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Prowler's Helm",
+    "Invisibility",
+    "Hedgewitch's Mask",
+    "Dust Corona",
+    "Treetop Bracers",
+    "Saddle of the Cavalier",
+    "Blazing Torch"
    ]
   },
   {
@@ -6984,6 +6963,17 @@
     "Opal Guardian",
     "Veiled Apparition"
    ]
+  },
+  {
+   "what": "ControllerDiscardedThisTurnCondition.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Mysterio's Mirage",
+    "Recalibrate",
+    "Ragged Recluse // Odious Witch",
+    "Gilt-Blade Prowler"
+   ]
   }
  ],
  "sole": [
@@ -7015,15 +7005,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 156,
-   "cards": 153,
+   "score": 154,
+   "cards": 151,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
     "Hour of Revelation",
     "Drag to the Roots",
     "Price of Fame",
-    "Ghostfire Slice"
+    "The Magic Mirror"
    ]
   },
   {

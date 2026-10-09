@@ -7687,6 +7687,15 @@
       /* "can't be blocked by Walls", "except by creatures with flying": the
          blockers that may not, described the way a target is */
       if (ev && ev.notBy && MTG.oracle.matchesSpec(ev.notBy, blocker, blocker.analysis(), attacker.controller, this._specCtx())) return false;
+      // the Scarabs, Wrecking Ball Arm: evasion an Aura or Equipment hands its host
+      for (const id of (attacker.attachments || [])) {
+        const at = this.obj(id);
+        const ea = at && at.zone === 'battlefield' && this._staticOp(at, 'evasionAttached');
+        if (!ea) continue;
+        if (ea.notBy && MTG.oracle.matchesSpec(ea.notBy, blocker, blocker.analysis(), attacker.controller, this._specCtx())) return false;
+        if (ea.minBlockerPower != null && this.powerOf(blocker) < ea.minBlockerPower) return false;
+        if (ea.onlyBy && !ea.onlyBy.some(k => this.hasKw(blocker, k))) return false;
+      }
       if (this._protectedFrom(attacker, blocker)) return false;
       const menace = A('menace');
       return { menace };

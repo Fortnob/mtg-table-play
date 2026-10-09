@@ -7612,6 +7612,12 @@
       const sc = scopeOf((/^another$/i.test(m[1]) ? 'other ' : '') + words + ' you control');
       return sc ? { kind: 'control', scope: sc, n: 1 } : null;
     }],
+    // the Scarabs: "an opponent controls a black permanent" — any group the scope words can describe
+    [/^an opponent controls (?:an?|one or more) ([a-zA-Z ,'-]+?)$/i, (m) => {
+      const words = m[1].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)/g, '$1s');
+      const sc = scopeOf(words + ' your opponents control');
+      return sc ? { kind: 'control', scope: sc, n: 1 } : null;
+    }],
     [/^you control a creature with power (\d+) or greater$/i, (m) => ({ kind: 'controlPower', n: +m[1] })],
     // Rhonas the Indomitable: "you control another creature with power 4 or greater"
     [/^you control another creature with power (\d+) or greater$/i, (m) => ({ kind: 'controlPower', n: +m[1], other: true })],
@@ -11556,6 +11562,22 @@
           if (spec.unknown || spec.anyOf) return null;
           delete spec.filter;
           return { op: 'evasion', notBy: spec };
+        }, auto: true },
+      /* The Scarabs, Wrecking Ball Arm: "Enchanted creature can't be blocked
+         by black creatures", "Equipped creature can't be blocked by creatures
+         with power 2 or less", "… except by creatures with flying" — the
+         host's evasion, as long as this is on it */
+      { re: /^(?:Enchanted|Equipped) creature can'?t be blocked (?:by (white|blue|black|red|green|artifact) creatures|by creatures with power (\d+) or less|except by creatures with (flying|reach|flying or reach|flying and\/or reach))\.?$/i,
+        make: (m) => {
+          if (m[1]) {
+            const w = m[1].toLowerCase();
+            const spec = w === 'artifact' ? { type: 'creature', zone: 'battlefield', cardTypes: ['artifact'] } : targetSpec('target ' + w + ' creature');
+            if (!spec || spec.unknown) return null;
+            delete spec.filter;
+            return { op: 'evasionAttached', notBy: spec };
+          }
+          if (m[2]) return { op: 'evasionAttached', minBlockerPower: +m[2] + 1 };
+          return { op: 'evasionAttached', onlyBy: m[3].toLowerCase().split(/ or | and\/or /) };
         }, auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,

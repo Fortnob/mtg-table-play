@@ -12982,4 +12982,16 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.g.battlefield.filter(o => o.name === 'Gruff Triplets').length, 3, 'three in all, the copies made no more');
   });
+
+  test("Black Scarab: the enchanted creature can't be blocked by black creatures", (mk, t) => {
+    t.auto('Black Scarab');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const sc = T.bf('A', 'Black Scarab');
+    sc.attachedTo = bear.id; bear.attachments = [sc.id];
+    const blk = T.bf('B', 'Vampire Nighthawk'), grn = T.bf('B', 'Llanowar Elves');
+    t.ok(!T.g.couldBlock(blk, bear, 'B'), 'not by a black creature');
+    t.ok(T.g.couldBlock(grn, bear, 'B'), 'by a green one');
+    t.eq(T.g.powerOf(bear), 4, '+2/+2 while an opponent has black');
+  });
 };
