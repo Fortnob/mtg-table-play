@@ -12443,7 +12443,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -12816,6 +12816,11 @@
       // Propaganda's words, as the newer cards print them
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
+      /* Soulfire Grand Master, Pestilent Spirit: "Instant and sorcery spells you
+         control have lifelink (deathtouch)"; Firesong and Sunspeaker: "Red instant and …" */
+      { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch)\.?$/i,
+        make: (m) => ({ op: 'spellKeyword', keyword: m[2].toLowerCase(),
+          words: m[1] ? m[1].toLowerCase() + ' instant or ' + m[1].toLowerCase() + ' sorcery' : 'instant or sorcery' }), auto: true },
       // Chief Engineer, Dazzling Theater: "Artifact spells you cast have convoke."
       // Party Thrasher: "Noncreature spells you cast from exile have convoke."
       { re: /^([A-Za-z ]*?)spells you cast from exile have (convoke|improvise|delve)\.?$/i,

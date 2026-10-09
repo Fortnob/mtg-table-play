@@ -15500,4 +15500,26 @@ module.exports = (test) => {
     t.eq(bear.counters.shield, 2);
     t.eq(theirs.counters['+1/+1'], 1, "an opponent's: not doubled");
   });
+
+  test('Heartflame Duelist gives your instants lifelink; Pestilent Spirit gives them deathtouch', (mk, t) => {
+    t.auto('Heartflame Duelist // Heartflame Slash');
+    t.auto('Pestilent Spirit');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Heartflame Duelist // Heartflame Slash');
+    T.mana('A', 'R');
+    const life = T.life('A');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle();
+    t.eq(T.life('B'), 17);
+    t.eq(T.life('A'), life + 3, 'lifelink from the spell');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Pestilent Spirit');
+    const big = U.bf('B', 'Craw Wurm');
+    U.mana('A', 'R');
+    U.cast('A', U.hand('A', 'Shock'), { targets: [big] });
+    U.settle();
+    t.zone(big, 'graveyard', 'two damage from a deathtouch spell is enough');
+  });
 };

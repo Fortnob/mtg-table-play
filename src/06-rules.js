@@ -8620,7 +8620,18 @@
     hasKw(o, kw) {
       if (!o) return false;
       const c = this.characteristics(o);
-      return !!(c && c.keywords.has(String(kw).toLowerCase()));
+      if (c && c.keywords.has(String(kw).toLowerCase())) return true;
+      // Soulfire Grand Master: "Instant and sorcery spells you control have lifelink" — a spell on the stack
+      return o.zone === 'stack' && this._spellKeywordFrom(o, String(kw).toLowerCase());
+    }
+    /** Pestilent Spirit, Soulfire Grand Master: a keyword a standing rule gives this player's spells. */
+    _spellKeywordFrom(o, k) {
+      for (const src of this.battlefield) {
+        if (src.controller !== o.controller || src.phasedOut) continue;
+        const e = this._staticOp(src, 'spellKeyword');
+        if (e && e.keyword === k && this._cardFitsWords(o, e.words)) return true;
+      }
+      return false;
     }
 
     /** How many permanents a player controls that answer to a text like "Goblins" or "creatures". */

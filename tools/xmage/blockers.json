@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11424,
+  "needed": 11422,
   "gainedCards": 1135,
-  "linesNeeded": 12238,
+  "linesNeeded": 12233,
   "linesGained": 1345,
   "gained": {
    "all": 1135,
@@ -279,8 +279,8 @@
   },
   {
    "what": "GainAbilityControlledSpellsEffect",
-   "score": 34,
-   "lines": 25,
+   "score": 29,
+   "lines": 20,
    "cards": [
     "Rain of Riches",
     "Pearl-Ear, Imperial Advisor",
@@ -6718,8 +6718,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3528,
-   "cards": 3348,
+   "score": 3530,
+   "cards": 3350,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6731,8 +6731,8 @@
   },
   {
    "what": "custom ability",
-   "score": 558,
-   "cards": 513,
+   "score": 559,
+   "cards": 514,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -6860,19 +6860,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 27,
-   "cards": 18,
-   "names": [
-    "Rain of Riches",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .add)",
    "score": 26,
    "cards": 26,
@@ -6883,6 +6870,19 @@
     "Press the Enemy",
     "Nicol Bolas, God-Pharaoh",
     "Dune Chanter"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 25,
+   "cards": 16,
+   "names": [
+    "Rain of Riches",
+    "Ral, Crackling Wit",
+    "Thrumming Stone",
+    "Zhulodok, Void Gorger",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor"
    ]
   },
   {
