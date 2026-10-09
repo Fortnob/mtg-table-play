@@ -988,6 +988,9 @@
     // Sanctum Weaver: "Add X mana of any one color, where X is the number of enchantments you control."
     { re: /^Add X mana of any one colou?r, where X is the number of ([-a-zA-Z' ]+? you control)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
+    // Axebane Guardian: "Add X mana in any combination of colors, where X is the number of creatures you control with defender."
+    { re: /^Add X mana in any combination of colou?rs, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'addManaAny', amount: k } : null; } },
     // Arbor Adherent: "Add X mana of any one color, where X is the greatest toughness among other creatures you control."
     { re: /^Add X mana of any one colou?r, where X is (the greatest (?:power|toughness) among [a-z ]+)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'addManaX', amount: k } : null; } },
@@ -1484,6 +1487,15 @@
     // Gilder Bairn: "Double the number of each kind of counter on target permanent."
     { re: /^Double the number of each kind of counter on (target [a-z ,]+?)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', allKinds: true, targets: [targetSpec(m[1])] }) },
+    // Zimone, Paradox Sculptor: "… on up to two target creatures and/or artifacts you control"
+    { re: /^Double the number of each kind of counter on up to (two|three) target ([a-z \/]+?)s(?: and\/or ([a-z]+)s)?( you control)?\.?$/i,
+      make: (m) => {
+        const sp = targetSpec('target ' + m[2] + (m[3] ? ' or ' + m[3] : '') + (m[4] || ''));
+        if (!sp || sp.unknown) return null;
+        return { op: 'doubleCounters', allKinds: true, targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, sp, { upTo: true, distinct: true })) };
+      } },
+    // Aetheric Amplifier: "Double the number of each kind of counter you have."
+    { re: /^Double the number of each kind of counter you have\.?$/i, make: () => ({ op: 'doublePlayerCounters' }) },
     // Heartless Act, Glissa Sunslayer: "Remove up to three counters from target creature."
     { re: /^Remove up to (one|two|three|four|\d+) counters? from (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
@@ -6509,6 +6521,8 @@
     let commanderCount = null, otherCount = null;
     const modes = bullets.filter(b => {
       if (/^You may choose the same mode/i.test(b)) return false;
+      // Aetheric Amplifier: "Choose one. Activate only as a sorcery." — the ability's timing, not a mode
+      if (/^Activate only as a sorcery\.?$/i.test(b)) return false;
       const cm = b.match(/^If you control a commander as you cast this spell, you may choose (both|any number|two|three)(?: of them)? instead\.?$/i);
       if (cm) { commanderCount = /both|two/i.test(cm[1]) ? 2 : /three/i.test(cm[1]) ? 3 : 99; return false; }
       /* Flame of Anor: "If you control a Wizard as you cast this spell,

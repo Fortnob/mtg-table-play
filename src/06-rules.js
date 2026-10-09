@@ -1461,7 +1461,8 @@
             if (cols.size) for (const c of cols) produces.add(c); else any = true;
           } else any = true;
           // "two mana of different colors": the plan counts on one of whatever is wanted
-          amount += e.amount === 'X' || e.distinct ? 1 : (Number(e.amount) || 1);
+          // (Axebane Guardian: an amount in words, counted now)
+          amount += e.amount === 'X' || e.distinct ? 1 : e.amount && typeof e.amount === 'object' ? Math.max(0, this._countValue(e.amount, pid, o)) : (Number(e.amount) || 1);
         } else if (e.op === 'addManaChoice') {
           (e.choices || []).forEach(ch => ch.forEach(sym => { for (const c of MANA.COLORS.concat('C')) if (sym.includes(c)) produces.add(c); }));
           amount += Math.max(1, ...(e.choices || [[1]]).map(ch => ch.length));
@@ -15119,6 +15120,13 @@
             this.rng.shuffle(z.library);
             this.logEvent('rules', `${p.name} shuffles their hand into their library.`);
           }
+          break;
+        }
+        // Aetheric Amplifier: every kind of counter a player has, doubled
+        case 'doublePlayerCounters': {
+          if ((me.poison || 0) > 0) this.addPoison(me, me.poison);
+          for (const k of ['energy', 'experience', 'rad', 'ticket']) if ((Number(me[k]) || 0) > 0) me[k] = Number(me[k]) * 2;
+          this.logEvent('counters', `${me.name} doubles their counters.`);
           break;
         }
         // Mordenkainen: hand and library change places

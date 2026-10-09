@@ -12740,4 +12740,26 @@ module.exports = (test) => {
     T.toMain('B');
     t.ok(sh.zone === 'exile' || !T.g.battlefield.includes(sh), 'exiled at the end step');
   });
+
+  test('Zimone and Aetheric Amplifier double counters; Axebane Guardian counts defenders', (mk, t) => {
+    t.auto('Zimone, Paradox Sculptor'); t.auto('Aetheric Amplifier'); t.auto('Axebane Guardian');
+    const T = mk();
+    const z = T.bf('A', 'Zimone, Paradox Sculptor');
+    const bear = T.bf('A', 'Grizzly Bears'), ring = T.bf('A', 'Sol Ring');
+    T.g.addCounters(bear, '+1/+1', 2); T.g.addCounters(ring, 'charge', 1);
+    const zab = z.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(zab.effects, { controller: 'A', obj: z, name: 'Zimone', kind: 'ability', targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: ring.id }] });
+    t.eq(bear.counters['+1/+1'], 4); t.eq(ring.counters.charge, 2);
+    const amp = T.bf('A', 'Aetheric Amplifier');
+    T.player('A').energy = 3; T.player('A').experience = 1;
+    T.answer('mode', { modes: [1] });
+    T.g._runEffects(amp.analysis().abilities.find(a => a.kind === 'activated' && /Choose one/.test(a.text)).effects, { controller: 'A', obj: amp, name: 'Amp', kind: 'ability' });
+    T.settle();
+    t.eq(T.player('A').energy, 6); t.eq(T.player('A').experience, 2);
+    const ax = T.bf('A', 'Axebane Guardian'); ax.summoningSick = false;
+    T.bf('A', 'Wall of Wood');
+    const mi = ax.analysis().manaAbilities.findIndex(x => (x.effects || []).some(e => e.op === 'addManaAny'));
+    t.ok(T.g.activateAbility('A', ax.id, mi, { manaChoice: 'G' }), T.g.lastError);
+    t.eq(T.player('A').pool.snapshot().G, 2, 'two defenders, two mana');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12212,
+  "needed": 12209,
   "gainedCards": 1303,
-  "linesNeeded": 13279,
+  "linesNeeded": 13276,
   "linesGained": 1558,
   "gained": {
    "all": 1303,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4343,
-   "lines": 4076,
+   "score": 4342,
+   "lines": 4075,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -450,25 +450,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setChooseText",
-   "score": 24,
-   "lines": 24,
-   "cards": [
-    "Will of the Mardu",
-    "Aetheric Amplifier",
-    "Inscription of Abundance",
-    "Will of the Abzan",
-    "See Double",
-    "Will of the Temur",
-    "Moxite Refinery",
-    "Szat's Will",
-    "SOLDIER Military Program",
-    "Vincent's Limit Break",
-    "Kamahl's Will",
-    "Outlaws' Merriment"
-   ]
-  },
-  {
    "what": "ChooseACardNameEffect",
    "score": 24,
    "lines": 24,
@@ -485,6 +466,25 @@
     "Academic Probation",
     "Nebuchadnezzar",
     "Ancient Vendetta"
+   ]
+  },
+  {
+   "what": "Ability.modes.setChooseText",
+   "score": 23,
+   "lines": 23,
+   "cards": [
+    "Will of the Mardu",
+    "Inscription of Abundance",
+    "Will of the Abzan",
+    "See Double",
+    "Will of the Temur",
+    "Moxite Refinery",
+    "Szat's Will",
+    "SOLDIER Military Program",
+    "Vincent's Limit Break",
+    "Kamahl's Will",
+    "Outlaws' Merriment",
+    "Sakashima's Will"
    ]
   },
   {
@@ -7019,8 +7019,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3561,
-   "cards": 3393,
+   "score": 3560,
+   "cards": 3392,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7279,15 +7279,15 @@
   },
   {
    "what": "Ability.modes.setChooseText",
-   "score": 19,
-   "cards": 19,
+   "score": 18,
+   "cards": 18,
    "names": [
     "Will of the Mardu",
-    "Aetheric Amplifier",
     "Inscription of Abundance",
     "Will of the Abzan",
     "See Double",
-    "Will of the Temur"
+    "Will of the Temur",
+    "Moxite Refinery"
    ]
   },
   {
