@@ -12841,4 +12841,17 @@ module.exports = (test) => {
     T.g._runEffects(abs.find(a => /^[-\u2212]3/.test(a.text)).effects, { controller: 'A', obj: te, name: 'Teferi', kind: 'ability', targets: [{ kind: 'object', id: foe.id }] });
     t.eq(T.zone('B', 'library')[2], foe, 'third from the top');
   });
+
+  test('Volcanic Torrent: each creature and planeswalker your opponents control, and nobody else', (mk, t) => {
+    t.auto('Volcanic Torrent');
+    const T = mk();
+    const theirs = T.bf('B', 'Grizzly Bears'), pw = T.bf('B', 'Jace Beleren'), mine = T.bf('A', 'Savannah Lions');
+    T.player('A').spellObjsThisTurn = []; T.player('A').spellsCastThisTurn = 1;
+    T.mana('A', '4R');
+    T.cast('A', T.hand('A', 'Volcanic Torrent'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(theirs.zone, 'graveyard'); t.eq(mine.zone, 'battlefield');
+    t.ok(pw.zone !== 'battlefield' || pw.counters.loyalty < 3, 'the planeswalker took damage');
+    t.eq(T.player('B').life, 20, 'not the player');
+  });
 };

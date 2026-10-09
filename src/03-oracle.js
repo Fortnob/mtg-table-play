@@ -1595,7 +1595,7 @@
     // the subject may be the card's own name, "it", "this creature", etc.
     { re: new RegExp("^(?!(?:When|Whenever|If|As|After|Unless|Until)\\b)(?:[A-Za-z][-A-Za-z0-9',\u2019. ]{0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'damage', n: num(m[1]), targets: [t] } : null; } },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control|creature and planeswalker your opponents control|creature and planeswalker)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), each: m[2].toLowerCase() }) },
 
     // --- counters ---

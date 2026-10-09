@@ -11861,20 +11861,27 @@
               if (e.withKw && !this.hasKw(o, e.withKw)) continue;
               if (e.eachOther && o === dsrc) continue;
               // "each creature your opponents control", "each creature you control", and Delayed Blast Fireball's "they control"
-              if (/creatures? (?:your opponents|they) control/.test(e.each) && o.controller === ctx.controller) continue;
-              if (/creatures? you control/.test(e.each) && o.controller !== ctx.controller) continue;
+              // (Volcanic Torrent: "each creature and planeswalker your opponents control")
+              if (/(?:creatures?|planeswalkers?) (?:your opponents|they) control/.test(e.each) && o.controller === ctx.controller) continue;
+              if (/(?:creatures?|planeswalkers?) you control/.test(e.each) && o.controller !== ctx.controller) continue;
               this.dealDamageToObject(o, cnt, dsrc);
             }
             /* Typhoon: "equal to the number of Islands that player controls" —
                counted for each opponent in turn */
             const perPlayer = e.n && typeof e.n === 'object' && e.n.scope && e.n.scope.thatPlayer;
-            if (/opponent/.test(e.each.replace(/creatures? your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) {
+            if (/opponent/.test(e.each.replace(/(?:creatures?|planeswalkers?) your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) {
               let k = cnt;
               if (perPlayer) { const was = this._thatPlayer; this._thatPlayer = p.id; k = n(e.n); this._thatPlayer = was; }
               if (k > 0) this.dealDamageToPlayer(p, k, dsrc);
             }
             if (/^player/.test(e.each) || /each player/.test(e.each)) for (const p of this.players) this.dealDamageToPlayer(p, cnt, dsrc);
-            if (/planeswalker/.test(e.each)) for (const o of this.battlefield.slice()) { const a = o.analysis(); if (a && a.isPlaneswalker) this.dealDamageToObject(o, cnt, dsrc); }
+            if (/planeswalker/.test(e.each)) for (const o of this.battlefield.slice()) {
+              const a = o.analysis();
+              if (!(a && a.isPlaneswalker) || (a.isCreature && /creature/.test(e.each))) continue;   // (dealt to once)
+              if (/planeswalkers? (?:your opponents|they) control/.test(e.each) && o.controller === ctx.controller) continue;
+              if (/planeswalkers? you control/.test(e.each) && o.controller !== ctx.controller) continue;
+              this.dealDamageToObject(o, cnt, dsrc);
+            }
           } else if (e.scope && typeof e.scope === 'object') {
             // "4 damage to each creature you don't control"
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.dealDamageToObject(o, cnt, dsrc);

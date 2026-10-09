@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12164,
-  "gainedCards": 1289,
-  "linesNeeded": 13221,
-  "linesGained": 1540,
+  "needed": 12161,
+  "gainedCards": 1287,
+  "linesNeeded": 13217,
+  "linesGained": 1537,
   "gained": {
-   "all": 1289,
+   "all": 1287,
    "top2000": 49,
    "stdTop": 9
   },
