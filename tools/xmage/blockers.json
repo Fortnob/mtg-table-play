@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12342,
+  "needed": 12337,
   "gainedCards": 1337,
-  "linesNeeded": 13431,
+  "linesNeeded": 13425,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4370,
-   "lines": 4100,
+   "score": 4369,
+   "lines": 4099,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2387,22 +2387,6 @@
     "Guardians of Koilos",
     "Sentinel of the Pearl Trident",
     "Rona, Disciple of Gix"
-   ]
-  },
-  {
-   "what": "ExchangeControlTargetEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Oko, Thief of Crowns",
-    "Eyes Everywhere",
-    "Vedalken Plotter",
-    "Avarice Totem",
-    "Trade the Helm",
-    "Visions of Duplicity",
-    "Political Trickery",
-    "Shrewd Negotiation",
-    "Phyrexian Infiltrator"
    ]
   },
   {
@@ -5742,6 +5726,18 @@
    ]
   },
   {
+   "what": "ExchangeControlTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Eyes Everywhere",
+    "Avarice Totem",
+    "Visions of Duplicity",
+    "Shrewd Negotiation",
+    "Phyrexian Infiltrator"
+   ]
+  },
+  {
    "what": "token ability VibraniumToken",
    "score": 5,
    "lines": 5,
@@ -8611,19 +8607,6 @@
    ]
   },
   {
-   "what": "ExchangeControlTargetEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Eyes Everywhere",
-    "Vedalken Plotter",
-    "Avarice Totem",
-    "Trade the Helm",
-    "Visions of Duplicity",
-    "Political Trickery"
-   ]
-  },
-  {
    "what": "CantAttackBlockAttachedEffect",
    "score": 8,
    "cards": 8,
@@ -10452,6 +10435,18 @@
     "Obstinate Baloth",
     "Loxodon Smiter",
     "Dodecapod"
+   ]
+  },
+  {
+   "what": "ExchangeControlTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Eyes Everywhere",
+    "Avarice Totem",
+    "Visions of Duplicity",
+    "Shrewd Negotiation",
+    "Phyrexian Infiltrator"
    ]
   },
   {

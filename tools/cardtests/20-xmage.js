@@ -12289,4 +12289,25 @@ module.exports = (test) => {
     t.ok(!T.g.castSpell('A', ward.id, { targets: [{ kind: 'object', id: plain.id }], auto: true }), 'not on an ordinary creature');
     t.ok(T.g.castSpell('A', ward.id, { targets: [{ kind: 'object', id: cmd.id }], auto: true }), T.g.lastError);
   });
+
+  test('Oko, Thief of Crowns: an Elk for good, and a swap for something small', (mk, t) => {
+    t.auto('Oko, Thief of Crowns');
+    const T = mk();
+    const oko = T.bf('A', 'Oko, Thief of Crowns');
+    const ring = T.bf('B', 'Sol Ring');
+    const abs = oko.analysis().abilities;
+    const run = (re, targets) => T.g._runEffects(abs.find(a => re.test(a.text)).effects, { controller: 'A', obj: oko, name: 'Oko', kind: 'ability', targets });
+    run(/^\+1: Target/, [{ kind: 'object', id: ring.id }]);
+    T.settle();
+    t.ok(T.g.characteristics(ring).isCreature, 'a creature');
+    t.eq(T.g.powerOf(ring), 3); t.eq(T.g.manaAbilitiesOf(ring).length, 0, 'no mana from it');
+    T.nextTurn('A');
+    t.ok(T.g.characteristics(ring).isCreature, 'still an Elk next turn');
+    const bear = T.bf('B', 'Grizzly Bears'), wurm = T.bf('B', 'Craw Wurm');
+    const mine = T.bf('A', 'Savannah Lions');
+    t.ok(T.g._illegalTargets(MTG.rules.effectSpecs(abs.find(a => /Exchange/.test(a.text)).effects), [{ kind: 'object', id: mine.id }, { kind: 'object', id: wurm.id }], 'A', oko), 'not a big one');
+    run(/Exchange/, [{ kind: 'object', id: mine.id }, { kind: 'object', id: bear.id }]);
+    T.settle();
+    t.eq(bear.controller, 'A'); t.eq(mine.controller, 'B');
+  });
 };

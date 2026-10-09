@@ -2005,6 +2005,22 @@
         const one = m[1].replace(/s$/, '');
         return { op: 'exchangeControl', targets: [targetSpec('target ' + one), targetSpec('another target ' + one)] };
       } },
+    /* Oko, Thief of Crowns: "Exchange control of target artifact or
+       creature you control and target creature an opponent controls with
+       power 3 or less." */
+    { re: /^Exchange control of (target [a-z ]+? you control) and (target [a-z ]+? an opponent controls(?: with power \d+ or less)?)\.?$/i,
+      make: (m) => {
+        const a = targetSpec(m[1]), b = targetSpec(m[2]);
+        return a && b ? { op: 'exchangeControl', targets: [a, b] } : null;
+      } },
+    /* Oko: "Target artifact or creature loses all abilities and becomes a
+       green Elk creature with base power and toughness 3/3." — for good */
+    { re: /^((?:[Aa]nother )?[Tt]arget [a-z ]+?) (loses all abilities and becomes an? [a-z]+ [A-Z][a-z]+ creature with base power and toughness \d+\/\d+)\.?$/,
+      make: (m) => {
+        const eff = becomesEff(m[2]);
+        if (!eff || !eff.loseAll || !eff.setPt) return null;
+        return becomesSubject(m[1], eff, 'permanent');
+      } },
     /* Mirrorweave: a copy effect on every other creature, for the turn */
     { re: /^Each other creature becomes a copy of (target [a-z ]+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeCopyAll', duration: 'eot', targets: [targetSpec(m[1])] }) },
