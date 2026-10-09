@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11431,
+  "needed": 11425,
   "gainedCards": 1135,
-  "linesNeeded": 12245,
+  "linesNeeded": 12239,
   "linesGained": 1345,
   "gained": {
    "all": 1135,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 723,
-   "lines": 663,
+   "score": 722,
+   "lines": 662,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -4162,18 +4162,6 @@
    ]
   },
   {
-   "what": "or of EnchantedPredicate.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Reyav, Master Smith",
-    "Koll, the Forgemaster",
-    "Dogmeat, Ever Loyal",
-    "Kestia, the Cultivator",
-    "Feast of Dreams"
-   ]
-  },
-  {
    "what": "ToughnessGreaterThanPowerPredicate.instance",
    "score": 5,
    "lines": 5,
@@ -4207,18 +4195,6 @@
     "Increasing Confusion",
     "Stonesplitter Bolt",
     "Vicious Betrayal"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByMoreThanOneAttachedEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Alpha Authority",
-    "Vorrac Battlehorns",
-    "Meltstrider's Resolve",
-    "Rope",
-    "Wolfrider's Saddle"
    ]
   },
   {
@@ -5188,17 +5164,6 @@
     "Virtue of Courage // Embereth Blaze",
     "Fear of Burning Alive",
     "Thor, Guardian of Midgard"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessAttachedEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Wrecking Ball Arm",
-    "Octopus Umbra",
-    "Stasis Field",
-    "Coerced to Kill"
    ]
   },
   {
@@ -6718,6 +6683,36 @@
     "Yasharn, Implacable Earth",
     "Karn's Sylex"
    ]
+  },
+  {
+   "what": "DealsCombatDamageEquippedTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Sword of Hours",
+    "Holy Avenger",
+    "Banshee's Blade"
+   ]
+  },
+  {
+   "what": "FilterBasicCard",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Aerial Surveyor",
+    "Stoic Farmer",
+    "Nissa's Triumph"
+   ]
+  },
+  {
+   "what": "AmassEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Sauron, Lord of the Rings",
+    "Summons of Saruman",
+    "Invade the City"
+   ]
   }
  ],
  "sole": [
@@ -6736,8 +6731,8 @@
   },
   {
    "what": "custom ability",
-   "score": 559,
-   "cards": 514,
+   "score": 558,
+   "cards": 513,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -10001,28 +9996,6 @@
    ]
   },
   {
-   "what": "or of EnchantedPredicate.instance",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Reyav, Master Smith",
-    "Dogmeat, Ever Loyal",
-    "Kestia, the Cultivator",
-    "Feast of Dreams"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessAttachedEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Wrecking Ball Arm",
-    "Octopus Umbra",
-    "Stasis Field",
-    "Coerced to Kill"
-   ]
-  },
-  {
    "what": "AirbendTargetEffect",
    "score": 4,
    "cards": 4,
@@ -10053,17 +10026,6 @@
     "Thassa's Intervention",
     "Increasing Confusion",
     "Stonesplitter Bolt"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByMoreThanOneAttachedEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Alpha Authority",
-    "Vorrac Battlehorns",
-    "Rope",
-    "Wolfrider's Saddle"
    ]
   },
   {
@@ -10427,6 +10389,39 @@
     "Curator Beastie",
     "Tayam, Luminous Enigma",
     "Zameck Guildmage"
+   ]
+  },
+  {
+   "what": "BlocksIfAbleAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Brutal Hordechief",
+    "You've Been Caught Stealing",
+    "Grand Melee",
+    "Predatory Rampage"
+   ]
+  },
+  {
+   "what": "PutCardIntoGraveFromAnywhereAllTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Lazav, Dimir Mastermind",
+    "Planar Void",
+    "Nihilith",
+    "Measure of Wickedness"
+   ]
+  },
+  {
+   "what": "gain for whileControlled",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Aegis Angel",
+    "Tale of Tinúviel",
+    "Thancred Waters",
+    "Kyodai, Soul of Kamigawa"
    ]
   }
  ]

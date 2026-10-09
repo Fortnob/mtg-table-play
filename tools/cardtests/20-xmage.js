@@ -15467,4 +15467,23 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(T.life('B'), 18, 'an opponent: 2 damage');
   });
+
+  test('Reyav: an equipped attacker gains double strike; Wrecking Ball Arm: a 7/7 small creatures cannot block', (mk, t) => {
+    t.auto('Reyav, Master Smith');
+    t.auto('Wrecking Ball Arm');
+    t.auto('Alpha Authority');
+    t.auto('Beamtown Beatstick');
+    const T = mk();
+    T.bf('A', 'Reyav, Master Smith');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    const arm = T.bf('A', 'Wrecking Ball Arm');
+    arm.attachedTo = bear.id; bear.attachments = [arm.id]; arm.ts = T.g._stampNew();
+    T.settle();
+    t.eq(T.g.powerOf(bear), 7, 'a 7/7');
+    t.no(T.g.couldBlock(T.bf('B', 'Grizzly Bears'), bear, 'B'), 'power 2 cannot block it');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: elf.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(T.g.hasKw(bear, 'Double strike'), 'the equipped Bears strike twice');
+    t.no(T.g.hasKw(elf, 'Double strike'), 'the Elves do not');
+  });
 };

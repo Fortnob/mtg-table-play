@@ -9072,6 +9072,9 @@
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' blocks?(?:,| )', 'i'),
       event: 'permBlocks', filt: (m) => subjectFilter(m[1]) },
+    // Reyav, Master Smith: "Whenever a creature you control that's enchanted or equipped attacks"
+    { re: /^Whenever a creature you control that'?s enchanted or equipped attacks,? /i,
+      event: 'permAttacks', aboutObject: true, filt: () => ({ words: 'creature', who: 'you', enchantedOrEquipped: true }) },
     /* Komainu Battle Armor, Acquisition Octopus, Razorfield Ripper: "Whenever
        this creature or equipped creature deals combat damage to a player /
        attacks" — the Equipment itself, or what it is on */
@@ -9112,7 +9115,8 @@
     { re: /^Landfall\s*[-\u2014]\s*When(?:ever)? a land (?:you control )?enters(?: the battlefield)?(?:,| )/i, event: 'landfall' },
     { re: /^When(?:ever)? a land you control enters(?: the battlefield)?(?:,| )/i, event: 'landfall' },
     { re: /^When(?:ever)? a land enters under your control(?:,| )/i, event: 'landfall' },
-    { re: /^When(?:ever)? (?:equipped|enchanted) creature deals combat damage to a player(?: or planeswalker)?(?:,| )/i, event: 'equippedCombatDamage' },
+    // (Beamtown Beatstick: "to a player or battle")
+    { re: /^When(?:ever)? (?:equipped|enchanted) creature deals combat damage to a player(?: or (?:planeswalker|battle))?(?:,| )/i, event: 'equippedCombatDamage' },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals damage to (a player|an opponent)(?:,| )/i, event: 'equippedDealsDamage',
       extraOf: (m) => (/opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks(?:,| )/i, event: 'permAttacks', filt: () => ({ words: 'creature', equipped: true }) },
@@ -12505,6 +12509,13 @@
         return Object.assign({}, rest, { text: line, effects: [{ op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, addSupertypes: ['Legendary'] }].concat(rest.effects || []) });
       }
     }
+    /* Alpha Authority: "Enchanted creature has hexproof and can't be blocked by
+       more than one creature"; Wrecking Ball Arm: "Equipped creature has base
+       power and toughness 7/7 and can't be blocked by creatures with power 2 or less" */
+    if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) has (.+?) and (can'?t be blocked by .+?)\.?$/))) {
+      const r = both(mm2[1] + ' has ' + mm2[2] + '.', mm2[1] + ' ' + mm2[3] + '.');
+      if (r) return r;
+    }
     // Dragoon's Lance: "Equipped creature gets +1/+0 and is a Knight in addition to its other types."
     if ((mm2 = String(line).match(/^((?:Equipped|Enchanted) creature) gets ([+-]\d+\/[+-]\d+) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/))) {
       const r = both(mm2[1] + ' gets ' + mm2[2] + '.', mm2[1] + ' is a ' + mm2[3] + ' in addition to its other types.');
@@ -13043,6 +13054,9 @@
       // Shifting Sliver: "Slivers can't be blocked except by Slivers." — every Sliver, whoever controls it
       { re: /^([A-Z][a-z]+)s can'?t be blocked except by \1s\.?$/,
         make: (m) => ({ op: 'subtypeEvasion', subtype: m[1] }), auto: true },
+      // Alpha Authority: "Enchanted creature can't be blocked by more than one creature."
+      { re: /^(Enchanted|Equipped) creature can'?t be blocked by more than one creature\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'oneBlocker' }, auto: true },
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
