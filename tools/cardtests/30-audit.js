@@ -3005,4 +3005,23 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.ok(refused, 'power 6: one blocker at most'); t.zone(g, 'graveyard', 'power 2: blocked by two');
   });
+
+  test('Audit: Vexing Devil asks each opponent in turn; the first to take 4 ends it', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Vexing Devil');
+    T.toMain('A');
+    const asked = [];
+    T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: false }; });
+    T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: true }; });
+    const vd = T.hand('A', 'Vexing Devil');
+    T.mana('A', 'R'); T.cast('A', vd); T.settle(); T.resolve();
+    t.eq(JSON.stringify(asked), JSON.stringify(['B', 'C']));
+    t.eq(T.life('B'), 20); t.eq(T.life('C'), 16); t.zone(vd, 'graveyard');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.answer('confirm', () => ({ yes: false })); T.answer('confirm', () => ({ yes: false }));
+    const vd2 = T.hand('A', 'Vexing Devil');
+    T.mana('A', 'R'); T.cast('A', vd2); T.settle(); T.resolve();
+    t.zone(vd2, 'battlefield', 'nobody took it: it stays');
+  });
 };
