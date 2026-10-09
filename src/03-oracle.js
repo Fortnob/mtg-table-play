@@ -6513,6 +6513,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Vexing Devil, Longhorn Firebeast: "any opponent may have it deal 4 damage to them. If a player does, sacrifice this creature."
+    { re: /^Any opponent may have it deal (\d+) damage to them\. If a player does, sacrifice (?:this creature|CARDNAME)\.$/i,
+      make: (m) => [{ op: 'opponentMayTakeDamage', n: +m[1] }] },
     /* Othelm, Salvager of Ruin, Samwise, Grim Return: "Choose (up to one) target creature card in
        your graveyard (a graveyard) that was put there from the battlefield this turn. Return it to the
        battlefield tapped (to your hand)." / "Put that card onto the battlefield under your control." */

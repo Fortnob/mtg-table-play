@@ -15226,6 +15226,23 @@
           break;
         }
         // Combustible Gearhulk: "target opponent may have you draw three cards. If the player doesn't, …"
+        /* Vexing Devil: each opponent in turn may take the damage; the first one
+           who does ends it, and the creature is sacrificed (opponentMayTakeDamage) */
+        case 'opponentMayTakeDamage': {
+          if (!src) break;
+          for (const opp of this.opponentsOf(ctx.controller)) {
+            const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'takeDamage',
+              yesLabel: `Take ${e.n} damage`, noLabel: `Let ${src.name} stay`,
+              prompt: `${src.name}: take ${e.n} damage? If you do, ${me.name} sacrifices it.` }, 'tk' + opp.id);
+            if (yes === SUSPEND) return SUSPEND;
+            if (!yes) continue;
+            this.logEvent('rules', `${opp.name} takes the damage.`);
+            this.dealDamageToPlayer(opp, e.n, src, false);
+            if (src.zone === 'battlefield' && src.controller === ctx.controller) this._sacrificeNow(ctx.controller, [src]);
+            break;
+          }
+          break;
+        }
         case 'opponentMayElse': {
           const tdo = e.who === 'triggerObjController' && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           const opp = tdo ? this.player(tdo.controller) : (firstPlayer() || this.opponentsOf(ctx.controller)[0]);

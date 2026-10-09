@@ -16390,4 +16390,28 @@ module.exports = (test) => {
     t.eq(T.life('B'), 16);
     t.zone(giant, 'graveyard');
   });
+
+  test('Vexing Devil: an opponent may take 4 damage, and then it is sacrificed', (mk, t) => {
+    t.auto('Vexing Devil');
+    t.auto('Longhorn Firebeast');
+    let T = mk();
+    T.toMain('A');
+    let q = null;
+    T.answer('confirm', (ch) => { q = ch; return { yes: true }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Vexing Devil'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(q && q.playerId, 'B', 'the opponent is asked');
+    t.eq(q && q.yesLabel, 'Take 4 damage');
+    t.eq(T.life('B'), 16);
+    t.eq(T.g.battlefield.filter(o => o.name === 'Vexing Devil').length, 0, 'sacrificed');
+    T = mk();
+    T.toMain('A');
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Vexing Devil'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 20);
+    t.eq(T.g.battlefield.filter(o => o.name === 'Vexing Devil').length, 1, 'it stays');
+  });
 };
