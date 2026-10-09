@@ -282,6 +282,12 @@
       if (!r.ok) errors.push(`${deck.companion.name} can't be your companion: ${r.reason}`);
     }
 
+    /* --- the table's bracket: a deck that goes past it is turned away --- */
+    if (fmt.bracket && MTG.brackets) {
+      const why = MTG.brackets.overBy(deck, fmt.bracket);
+      if (why) errors.push(why);
+    }
+
     /* --- stats --- */
     const stats = deckStats(main, commanders);
     if (fmt.kind === 'limited' && mainCount >= 40 && stats.lands < 14)
@@ -396,6 +402,8 @@
 
   /** Every knob, with what it means and where it applies. */
   const HOUSE_FIELDS = [
+    { key: 'bracket', label: 'Bracket', type: 'bracket', min: 0, max: 5, when: (f) => !!f.commander && f.kind !== 'limited',
+      hint: 'How strong the decks at this table may be. A deck that goes past it is turned away.' },
     { key: 'startingLife', label: 'Starting life', type: 'int', min: 1, max: 200,
       hint: 'How much life everyone begins with.' },
     { key: 'startingHand', label: 'Opening hand', type: 'int', min: 1, max: 12,
@@ -443,6 +451,7 @@
     if (key === 'colorIdentity') return !!fmt.colorIdentity;
     if (key === 'basicsFree') return !!fmt.basicsFree;
     if (key === 'collector') return false;
+    if (key === 'bracket') return 0;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;
@@ -504,6 +513,7 @@
       const v = rules[f.key];
       if (v == null || v === f.value) continue;
       if (f.type === 'bool') out.push(`${f.label}: ${v ? 'on' : 'off'} (normally ${f.value ? 'on' : 'off'})`);
+      else if (f.type === 'bracket') out.push(MTG.brackets ? MTG.brackets.label(v) : `${f.label} ${v}`);
       else if (f.type === 'intOff') out.push(v ? `${f.label}: ${v}` : `${f.label}: off`);
       else out.push(`${f.label}: ${v}`);
     }

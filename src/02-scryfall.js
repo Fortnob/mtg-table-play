@@ -282,6 +282,8 @@
         artist: c.artist, illustration_id: c.illustration_id, flavor_text: c.flavor_text,
         scryfall_uri: c.scryfall_uri, edhrec_rank: c.edhrec_rank, penny_rank: c.penny_rank,
         hand_modifier: c.hand_modifier, life_modifier: c.life_modifier,
+        // on Commander's Game Changers list (src/15a-brackets.js)
+        game_changer: c.game_changer === true ? true : c.game_changer === false ? false : undefined,
         prices: c.prices ? { usd: c.prices.usd, usd_foil: c.prices.usd_foil, eur: c.prices.eur, tix: c.prices.tix } : null,
         _t: Date.now(),
       };

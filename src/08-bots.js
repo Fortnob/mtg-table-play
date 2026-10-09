@@ -1335,6 +1335,8 @@
       if (!MTG.formats.canBeCommander(c, fmt)) return false;
       // one already tried, whose colours turned up no cards to build with
       if (avoid && avoid.includes(c.name)) return false;
+      // a table with a bracket: no commander past it (a Game Changer at a Core table)
+      if (fmt.bracket && MTG.brackets && !MTG.brackets.allowedCard(c, fmt.bracket)) return false;
       // a commander with no colours has a very thin pool of cards the bots can play
       return (c.color_identity || []).length > 0;
     });
@@ -1397,7 +1399,9 @@
       plan ? searchPool(`${base} ${planQuery(plan)} -t:land`, 175) : Promise.resolve([]),
     ]);
     const ctx = { prior: 0.9, multiplayer: true, commander: true };
-    const cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
+    let cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
+    // a table with a bracket: nothing that goes past it on its own account
+    if (fmt.bracket && MTG.brackets) cands = cands.filter(c => MTG.brackets.allowedCard(c.card, fmt.bracket));
     if (cands.length < 30) {
       /* No cards for these colours (offline, with nothing saved for them):
          another commander, a couple of times, before giving up. */
@@ -1419,7 +1423,15 @@
       creature: 22 + Math.round((1 - cfg.skill) * 6),
       curve: [0, 6, 12, 15, 12, 8, 5, 5],
     };
-    const picks = assembleSingleton(cands, deckSize - landCount, cplan);
+    let picks = assembleSingleton(cands, deckSize - landCount, cplan);
+    /* Past the table's bracket all the same (a fourth Game Changer, two
+       cards that make a combo): those make way and it is put together again. */
+    for (let tries = 0; fmt.bracket && MTG.brackets && tries < 3; tries++) {
+      const over = MTG.brackets.excess({ commanders, main: picks.map(c => ({ card: c.card, qty: 1 })) }, fmt.bracket);
+      if (!over.size) break;
+      cands = cands.filter(c => !over.has(U.normName(c.card.name)));
+      picks = assembleSingleton(cands, deckSize - landCount, cplan);
+    }
     progress('Building the mana base');
     const lands = await buildManaBase(picks.map(c => ({ c, qty: 1 })), landCount, colors, landPool, cfg, fmt,
       { singleton: true, commanders });

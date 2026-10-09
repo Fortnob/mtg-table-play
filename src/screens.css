@@ -1493,3 +1493,90 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 /* the line a card just went into lights up */
 .deck-entry.just { animation: entryJust 1.1s ease-out; }
 @keyframes entryJust { 0% { box-shadow: 0 0 0 2px var(--gold-hi), 0 0 18px rgba(246, 220, 140, .6); filter: brightness(1.4); } 100% { box-shadow: 0 0 0 0 transparent; filter: none; } }
+
+/* ============================================================
+   Commander brackets: a deck's bracket, what puts it there, and
+   the Game Changers marked in a list
+   ============================================================ */
+.bracket-pill.b1, .bracket-step.b1 { --bc: #8fd0a4; }
+.bracket-pill.b2, .bracket-step.b2 { --bc: #82b8ec; }
+.bracket-pill.b3, .bracket-step.b3 { --bc: #e8c75c; }
+.bracket-pill.b4, .bracket-step.b4 { --bc: #f0904c; }
+.bracket-pill.b5, .bracket-step.b5 { --bc: #ec6464; }
+.bracket-pill {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 99px;
+  font: 600 12px/1.4 var(--font); white-space: nowrap; cursor: pointer; color: var(--bc);
+  border: 1px solid color-mix(in srgb, var(--bc) 50%, transparent);
+  background: color-mix(in srgb, var(--bc) 13%, rgba(10,12,16,.4));
+  transition: filter var(--fast), box-shadow var(--fast);
+}
+.bracket-pill:hover:not(.static) { filter: brightness(1.18); box-shadow: 0 0 12px color-mix(in srgb, var(--bc) 35%, transparent); }
+.bracket-pill.short { padding: 1px 7px; font-size: 11px; letter-spacing: .03em; }
+.bracket-pill.static { cursor: default; }
+/* past the table's bracket */
+.bracket-pill.over { color: var(--bad); border-color: var(--bad-line); background: var(--bad-bg); }
+.bracket-pill.over::after { content: '!'; font-weight: 800; }
+:root[data-theme="light"] .bracket-pill { background: color-mix(in srgb, var(--bc) 16%, #fff); color: color-mix(in srgb, var(--bc) 55%, #222); }
+.bracket-row .tiny { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.gc-badge {
+  flex: none; padding: 3px 4px 2px; border-radius: 4px; font: 800 9px/1 var(--font); letter-spacing: .05em;
+  color: #241a05; background: linear-gradient(180deg, #f3d77e, #c99a2e); box-shadow: 0 1px 3px rgba(0,0,0,.45);
+}
+
+.bracket-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+.bracket-step {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px 7px; border-radius: 10px;
+  text-align: center; border: 1px solid rgba(255,255,255,.08); opacity: .5;
+}
+.bracket-step b { font: 700 19px/1 var(--serif); color: var(--bc); }
+.bracket-step span { font-size: 11px; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bracket-step i { font-size: 9.5px; font-style: normal; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.bracket-step.table { opacity: .85; border-style: dashed; border-color: rgba(255,255,255,.3); }
+.bracket-step.on {
+  opacity: 1; border-color: var(--bc); background: color-mix(in srgb, var(--bc) 14%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--bc) 28%, transparent);
+}
+:root[data-theme="light"] .bracket-step { border-color: var(--line); }
+.bracket-over { color: var(--bad); font-size: 13px; margin: 0 0 6px; }
+.bracket-none { padding: 10px 12px; border-radius: 10px; font-size: 13px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
+.bracket-reason { margin-top: 16px; }
+.bracket-reason-head { display: flex; align-items: center; gap: 8px; }
+.bracket-reason p { margin: 4px 0 0; }
+.bracket-cards { display: flex; flex-direction: column; gap: 3px; margin-top: 7px; }
+.bracket-card.strip {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 0 8px; border-radius: 8px;
+  text-align: left; color: var(--ink); cursor: pointer; border: 1px solid rgba(255,255,255,.07);
+  transition: border-color var(--fast), filter var(--fast);
+}
+.bracket-card.strip:hover { border-color: var(--hair-hi); filter: brightness(1.12); }
+.bracket-card .nm { flex: 1; min-width: 0; font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.bracket-card .kw-tag { margin-left: 0; color: var(--gold-1); }
+.bracket-card .cost { flex: none; display: inline-flex; padding: 2px 4px; border-radius: 99px; background: rgba(8,10,14,.55); }
+.bracket-card .cost .pip { width: 14px; height: 14px; font-size: 9px; }
+:root[data-theme="light"] .bracket-card .nm { text-shadow: none; }
+.bracket-combo { margin-top: 8px; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+.bracket-combo-head { display: flex; align-items: center; gap: 8px; }
+.bracket-combo .bracket-cards { margin-top: 6px; }
+.bracket-combo > .tiny { margin-top: 6px; line-height: 1.4; }
+.bracket-foot { margin-top: 16px; }
+/* the table's bracket, chosen in the lobby */
+.bracket-opt.b1, .lobby-bracket.b1, .bracket-name.b1 { --bc: #8fd0a4; }
+.bracket-opt.b2, .lobby-bracket.b2, .bracket-name.b2 { --bc: #82b8ec; }
+.bracket-opt.b3, .lobby-bracket.b3, .bracket-name.b3 { --bc: #e8c75c; }
+.bracket-opt.b4, .lobby-bracket.b4, .bracket-name.b4 { --bc: #f0904c; }
+.bracket-opt.b5, .lobby-bracket.b5, .bracket-name.b5 { --bc: #ec6464; }
+.bracket-panel h3 { margin-bottom: 10px; }
+.bracket-choose { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.bracket-opt {
+  --bc: var(--gold-1); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-height: 38px; padding: 5px 2px; border-radius: 9px; cursor: pointer; color: var(--ink-2);
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.09);
+  transition: border-color var(--fast), background var(--fast), color var(--fast);
+}
+.bracket-opt b { font: 700 16px/1 var(--serif); color: var(--bc); }
+.bracket-opt:hover { border-color: color-mix(in srgb, var(--bc) 50%, transparent); color: var(--ink); }
+.bracket-opt.on { color: var(--ink); border-color: var(--bc); background: color-mix(in srgb, var(--bc) 15%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--bc) 25%, transparent); }
+:root[data-theme="light"] .bracket-opt { background: var(--bg-2, #fff); border-color: var(--line); }
+.bracket-panel p { margin: 10px 0 0; }
+.lobby-bracket, .bracket-name { color: var(--bc); font-weight: 600; }

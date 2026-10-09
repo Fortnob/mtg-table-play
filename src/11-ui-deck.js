@@ -136,6 +136,101 @@
     return host;
   };
 
+  /* ---------------- Commander brackets ---------------- */
+
+  /** The little mark a Game Changer carries in a list. */
+  UI.gcBadge = function (card, cls) {
+    if (!MTG.brackets || !MTG.brackets.isGameChanger(card)) return null;
+    return el('span', { class: 'gc-badge' + (cls ? ' ' + cls : ''), text: 'GC',
+      title: 'Game Changer: one to three of these make a deck Bracket 3; four or more, Bracket 4.' });
+  };
+
+  /**
+   * A deck's bracket, as a button that opens what put it there.
+   * opts.short: "B3" rather than "Bracket 3 · Upgraded" (a seat at a table);
+   * opts.table: the table's bracket, so a deck past it shows as such;
+   * opts.onMark(key): offered beside each reason, to mark its cards in a list.
+   */
+  UI.bracketPill = function (deck, opts) {
+    opts = opts || {};
+    const B = MTG.brackets;
+    const e = B.estimate(deck);
+    const over = opts.table && e.min > opts.table;
+    return el('button', {
+      type: 'button', class: `bracket-pill b${e.bracket}` + (over ? ' over' : '') + (opts.short ? ' short' : ''),
+      text: opts.short ? `B${e.bracket}` : B.label(e.bracket),
+      title: (over ? `Past this table's ${B.label(opts.table)}. ` : '') + `${B.label(e.bracket)}: click to see what puts it there.`,
+      'aria-label': `${B.label(e.bracket)}. Show what puts the deck there.`,
+      onclick: (ev) => { ev.stopPropagation(); UI.bracketSheet(deck, opts); },
+    });
+  };
+
+  /** What puts a deck in its bracket, card by card. */
+  UI.bracketSheet = function (deck, opts) {
+    opts = opts || {};
+    const B = MTG.brackets;
+    const e = B.estimate(deck);
+    const byName = new Map();
+    for (const c of (deck.commanders || []).concat((deck.main || []).map(x => x.card), deck.companion ? [deck.companion] : []))
+      if (c && c.name) byName.set(U.normName(c.name), c);
+    const cardOf = (n) => byName.get(U.normName(n)) || null;
+    const body = el('div', { class: 'bracket-sheet' });
+
+    // the five, this deck's lit
+    body.appendChild(el('div', { class: 'bracket-steps', role: 'list' }, [1, 2, 3, 4, 5].map(n => el('div', {
+      class: `bracket-step b${n}` + (n === e.bracket ? ' on' : '') + (opts.table === n ? ' table' : ''), role: 'listitem',
+      title: B.BRACKETS[n].blurb,
+    }, [el('b', { text: String(n) }), el('span', { text: B.nameOf(n) }), opts.table === n ? el('i', { text: 'this table' }) : null].filter(Boolean)))));
+    body.appendChild(el('p', { class: 'small muted', text: B.BRACKETS[e.bracket].blurb }));
+    if (opts.table && e.min > opts.table)
+      body.appendChild(el('p', { class: 'bracket-over', text: B.overBy(deck, opts.table) }));
+
+    const cardRow = (n) => {
+      const c = cardOf(n);
+      const row = el('button', { type: 'button', class: 'bracket-card strip', title: c ? `Read ${n}` : n }, [
+        el('span', { class: 'nm', text: n }),
+        c && (deck.commanders || []).some(x => U.normName(x.name) === U.normName(n)) ? el('span', { class: 'kw-tag', text: 'commander' }) : null,
+        c && c.mana_cost ? el('span', { class: 'cost', html: MTG.mana.html(c.mana_cost) }) : null,
+      ].filter(Boolean));
+      if (c) { UI.setArt(row, c); UI.attachPreview(row, c, 0); row.addEventListener('click', () => UI.cardSheet(c)); }
+      return row;
+    };
+
+    if (!e.reasons.length) {
+      body.appendChild(el('div', { class: 'bracket-none' }, [
+        el('b', { text: 'Nothing here goes past Bracket 1\u2019s rules.' }),
+        el('span', { text: ' No Game Changers, no mass land denial, no extra turns, no two-card combos. Most decks like this play at Bracket 2; one built to show off an idea more than to win plays at 1.' }),
+      ]));
+    }
+    for (const r of e.reasons) {
+      const sec = el('section', { class: 'bracket-reason' });
+      sec.appendChild(el('div', { class: 'bracket-reason-head' }, [
+        el('span', { class: `bracket-pill b${r.bracket} short static`, text: `B${r.bracket}` }),
+        el('b', { class: 'grow', text: `${r.title} \u00b7 ${r.key === 'combo' ? r.combos.length : r.cards.length}` }),
+        opts.onMark ? el('button', { class: 'btn xs', text: 'Mark in the list', onclick: () => { api.close(); opts.onMark(r.key); } }) : null,
+      ].filter(Boolean)));
+      sec.appendChild(el('p', { class: 'tiny muted', text: r.why }));
+      if (r.key === 'combo') {
+        for (const c of r.combos) {
+          sec.appendChild(el('div', { class: 'bracket-combo' }, [
+            el('div', { class: 'bracket-combo-head' }, [
+              el('span', { class: 'pill ' + (c.early ? 'bad' : 'warn'), text: c.early ? 'early' : 'late' }),
+              el('span', { class: 'grow tiny', text: c.does }),
+            ]),
+            el('div', { class: 'bracket-cards' }, c.pieces.map(cardRow)),
+            c.how ? el('div', { class: 'tiny dim', text: c.how }) : null,
+          ].filter(Boolean)));
+        }
+      } else {
+        sec.appendChild(el('div', { class: 'bracket-cards' }, r.cards.map(cardRow)));
+      }
+      body.appendChild(sec);
+    }
+    body.appendChild(el('p', { class: 'tiny dim bracket-foot', text: 'Read off the list: Game Changers, mass land denial, extra turns and two-card combos. Bracket 5 is a Bracket 4 deck tuned for tournament play, which no list says, so it is never given here.' }));
+    const api = UI.modal({ title: `${deck.name ? deck.name + ': ' : ''}${B.label(e.bracket)}`, width: '560px', content: body, className: 'bracket-modal' });
+    return api;
+  };
+
   /* ---------------- import dialog ---------------- */
   UI.importDeck = function (formatId, onDone) {
     const ta = el('textarea', { rows: 16, placeholder: PLACEHOLDER, spellcheck: 'false' });
@@ -473,6 +568,10 @@ Sideboard
       if (!highlight) return true;
       if (highlight.kind === 'type') return primaryType(card) === highlight.value;
       if (highlight.kind === 'manual') return !UI.autoInfo(card).auto;
+      if (highlight.kind === 'bracket') {
+        const r = MTG.brackets.estimate(deck).reasons.find(x => x.key === highlight.value);
+        return !!r && r.cards.some(n => U.normName(n) === U.normName(card.name));
+      }
       const a = MTG.oracle.analyze(card);
       if (!a || a.isLand) return false;            // the curve counts nonlands
       return Math.min(8, Math.floor(card.cmc || 0)) === Number(highlight.value);
@@ -491,6 +590,7 @@ Sideboard
       if (!highlight) return '';
       if (highlight.kind === 'type') return (TYPE_PLURAL[highlight.value] || highlight.value).toLowerCase();
       if (highlight.kind === 'manual') return 'cards that need a hand';
+      if (highlight.kind === 'bracket') return ({ gc: 'Game Changers', mld: 'mass land denial', turns: 'extra turns', combo: 'combo pieces' })[highlight.value] || 'cards';
       return highlight.value === 8 ? 'cards at 8 mana or more' : `cards at ${highlight.value} mana`;
     }
 
@@ -750,6 +850,10 @@ Sideboard
         el('div', { class: 'deck-head' }, [
           nameInput,
           el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation)]),
+          fmtObj.commander && fmtObj.kind !== 'limited' ? el('div', { class: 'deck-head-row bracket-row' }, [
+            UI.bracketPill(deck, { onMark: (k) => setHighlight('bracket', k) }),
+            el('span', { class: 'tiny dim grow', text: bracketGist() }),
+          ]) : null,
           sizeMeter(validation),
           autoLine(),
           el('div', { class: 'deck-head-row' }, drafted ? [
@@ -1047,6 +1151,16 @@ Sideboard
       return out;
     }
 
+    /** In a few words, what puts the deck in its bracket. */
+    function bracketGist() {
+      const e = MTG.brackets.estimate(deck);
+      if (!e.reasons.length) return 'No Game Changers, combos or extra turns';
+      return e.reasons.map(r => r.key === 'gc' ? `${r.cards.length} Game Changer${r.cards.length === 1 ? '' : 's'}`
+        : r.key === 'combo' ? `${r.combos.length} two-card combo${r.combos.length === 1 ? '' : 's'}`
+        : r.key === 'turns' ? `${r.cards.length} extra turn${r.cards.length === 1 ? '' : 's'}`
+        : 'mass land denial').join(', ');
+    }
+
     function sizePill(v) {
       const label = v.exact
         ? v.size + ' / ' + v.min
@@ -1076,6 +1190,7 @@ Sideboard
      * single copies, so those are the two clicks: the number adds one, the
      * rest of the row takes one away. Everything else is on the menu.
      */
+    const fmtIsCommander = () => !!(MTG.formats.get(deck.format) || {}).commander;
     function entryRow(e, isCmd) {
       const a = MTG.oracle.analyze(e.card);
       const inPool = drafted && deck.sideboard.includes(e);
@@ -1096,6 +1211,7 @@ Sideboard
       }, [
         qty,
         el('span', { class: 'nm', text: e.card.name }),
+        fmtIsCommander() ? UI.gcBadge(e.card) : null,
         UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
         MTG.settings.showCardPrices

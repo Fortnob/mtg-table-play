@@ -1713,6 +1713,9 @@ a { color: var(--info); }
 .kw-text { margin-top: 3px; font-size: 12.5px; line-height: 1.42; color: #c4ccd9; }
 .kw-text .reminder { color: #8d97a8; }
 .kw-note.granted { border-color: rgba(127,217,154,.4); }
+/* on the Game Changers list: gold, and first */
+.kw-note.gc { border-color: rgba(240,200,100,.6); background: linear-gradient(180deg, rgba(58,46,18,.97), rgba(24,20,12,.97)); }
+.kw-note.gc .kw-name { color: #f3d77e; }
 .tok-view .kw-tag { color: #a9b3c4; }
 .tok-stage { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
 .tok-card { --card-w: 150px; --card-h: calc(150px * 88 / 63); width: var(--card-w); height: var(--card-h); flex: none; border-radius: 4.75% / 3.5%; }

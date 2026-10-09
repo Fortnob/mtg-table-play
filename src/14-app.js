@@ -2607,6 +2607,7 @@
           el('span', { text: `${fmt.startingLife} life` }),
           el('span', { text: fmt.exactSize ? `${fmt.deckMin} cards` : `${fmt.deckMin || 60}+ cards` }),
           fmt.commanderDamage ? el('span', { text: `${fmt.commanderDamage} commander damage` }) : null,
+          fmt.bracket ? el('span', { class: `lobby-bracket b${fmt.bracket}`, text: MTG.brackets.label(fmt.bracket) }) : null,
         ].filter(Boolean)),
       ]),
     ]);
@@ -2663,6 +2664,8 @@
         },
       }),
     ]));
+
+    if (MTG.formats.houseFields(sess.formatId).some(f => f.key === 'bracket')) side.appendChild(bracketPanel(sess));
 
     /* -- other people -- */
     const online = el('section', { class: 'panel online-panel' });
@@ -2734,6 +2737,9 @@
     const tools = [];
     let deckLine = null;
     const commander = r.deck && (r.deck.commanders || [])[0];
+    // at a Commander table, each deck's bracket, which opens what puts it there
+    const bracketed = fmt.commander && !limited && MTG.brackets;
+    const bracketPill = () => (bracketed && r.deck ? UI.bracketPill(r.deck, { short: true, table: sess.rules.bracket || 0 }) : null);
 
     if (r.kind === 'bot') {
       const label = MTG.bots.DIFFICULTY[r.difficulty].label;
@@ -2742,6 +2748,7 @@
         else if (r.buildFailed) status.push(el('span', { class: 'pill bad', title: r.buildFailed, text: 'deck failed' }));
         else if (r.deck) {
           deckLine = commander ? commanderLink(commander) : el('span', { class: 'seat-deck-name', text: r.deck.name });
+          if (bracketed) status.push(bracketPill());
           if (r.deckValid && !r.deckValid.ok) {
             status.push(el('span', {
               class: 'pill warn', text: 'rough deck',
@@ -2782,6 +2789,7 @@
     if (!limited) {
       deckLine = commander ? commanderLink(commander)
         : el('span', { class: 'seat-deck-name' + (r.deck ? '' : ' none'), text: r.deck ? r.deck.name : 'No deck chosen yet' });
+      if (bracketed && r.deck) status.push(bracketPill());
       if (r.deck && r.deckValid && !r.deckValid.ok)
         status.push(el('span', { class: 'pill bad', text: `${r.deckValid.errors.length} legality problem${r.deckValid.errors.length === 1 ? '' : 's'}`, title: r.deckValid.errors.join('\n') }));
       else if (r.deck) status.push(el('span', { class: 'pill good', text: 'legal' }));
@@ -2849,6 +2857,27 @@
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Difficulty' }), diffSel]),
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Style' }), persSel]),
     ]);
+  }
+
+  /**
+   * The bracket this table plays at, chosen by the host: any, or one of the
+   * five. A deck that goes past it is turned away, and the bots build to it.
+   */
+  function bracketPanel(sess) {
+    const B = MTG.brackets;
+    const cur = sess.rules.bracket || 0;
+    const p = el('section', { class: 'panel bracket-panel' });
+    p.appendChild(el('h3', { text: 'Bracket' }));
+    p.appendChild(el('div', { class: 'bracket-choose', role: 'radiogroup', 'aria-label': 'The bracket this table plays at' }, [0, 1, 2, 3, 4, 5].map(n => el('button', {
+      type: 'button', class: 'bracket-opt' + (n ? ` b${n}` : '') + (n === cur ? ' on' : ''), role: 'radio', 'aria-checked': n === cur ? 'true' : 'false',
+      title: n ? `${B.label(n)}: ${B.BRACKETS[n].blurb}` : 'Any deck the format allows',
+      onclick: () => { if (n !== cur) { sess.setRule('bracket', n); renderLobby(); } },
+    }, el('b', { text: n ? String(n) : 'Any' })))));
+    p.appendChild(el('p', { class: 'small muted' }, cur ? [
+      el('b', { class: `bracket-name b${cur}`, text: B.label(cur) + '. ' }),
+      `${B.BRACKETS[cur].blurb} A deck that goes past it is turned away, and the bots build to it.`,
+    ] : 'Any deck the format allows. Choose one to keep the table to decks of about the same strength.'));
+    return p;
   }
 
   function formatSetupPanel(sess, fmt) {
@@ -3069,8 +3098,9 @@
   let rulesOpen = false;
 
   function houseRulesPanel(sess) {
-    const fields = MTG.formats.houseFields(sess.formatId);
-    const changed = MTG.formats.houseSummary(sess.formatId, sess.rules);
+    // the bracket has a panel of its own (bracketPanel)
+    const fields = MTG.formats.houseFields(sess.formatId).filter(f => f.key !== 'bracket');
+    const changed = MTG.formats.houseSummary(sess.formatId, Object.assign({}, sess.rules, { bracket: 0 }));
     const panel = el('details', { class: 'panel rules-panel' });
     panel.open = rulesOpen || changed.length > 0;
     panel.addEventListener('toggle', () => { rulesOpen = panel.open; });
@@ -3273,7 +3303,8 @@
       banner.querySelector('.lobby-title').textContent = fmt.name;
       const facts = banner.querySelector('.lobby-facts');
       facts.innerHTML = '';
-      for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${fmt.startingLife} life` : null, 'Waiting for the host to start'])
+      for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${fmt.startingLife} life` : null,
+        fmt.bracket && MTG.brackets ? MTG.brackets.label(fmt.bracket) : null, 'Waiting for the host to start'])
         if (t) facts.appendChild(el('span', { text: t }));
       facts.appendChild(rttPill('host'));
       if (!banner._art) { banner._art = true; decorArt(banner.firstChild, FORMAT_ART[payload.formatId] || HERO_ART[0]); }
@@ -3313,6 +3344,7 @@
         ]),
         el('div', { class: 'seat-deck' }, [
           el('span', { class: 'seat-deck-name' + (r.deckName ? '' : ' none'), text: r.deckName || (r.kind === 'bot' ? 'Building…' : 'No deck chosen yet') }),
+          r.bracket ? el('span', { class: `bracket-pill short static b${r.bracket}`, text: `B${r.bracket}`, title: MTG.brackets.label(r.bracket) }) : null,
           r.deckValid === false ? el('span', { class: 'pill bad', text: 'deck not legal' }) : (r.deckName ? el('span', { class: 'pill good', text: 'ready' }) : null),
         ].filter(Boolean)),
       ]));
@@ -3378,7 +3410,7 @@
   }
 
   /* Rule changes that mean a bot's deck is the wrong shape now. */
-  const DECK_SHAPING = ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'colorIdentity', 'commanderDamage'];
+  const DECK_SHAPING = ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'colorIdentity', 'commanderDamage', 'bracket'];
 
   /**
    * Repaint one seat's cards in the art that seat chose. The deck already
@@ -3496,7 +3528,9 @@
       this.broadcastLobby();
     }
     resetRules() {
+      const bracket = this.rules.bracket;
       this.rules = MTG.formats.houseDefaults(this.formatId);
+      if (bracket) this.rules.bracket = bracket;
       this.refreshFmt();
       for (const r of this.roster) if (r.deck) r.deckValid = MTG.formats.validate(r.deck, this.fmt);
       this.rebuildBotDecks();
@@ -3607,6 +3641,7 @@
               style: r.kind === 'bot' && seatPersonality(r) ? seatPersonality(r).label : null,
               deckName: r.deck ? r.deck.name : null,
               deckValid: r.deckValid ? r.deckValid.ok : null,
+              bracket: r.deck && this.fmt.commander && this.fmt.kind !== 'limited' && MTG.brackets ? MTG.brackets.estimate(r.deck).bracket : null,
               avatar: (r.kind === 'local' ? MTG.settings.avatar : r.avatar) || null,
               sleeve: r.kind === 'local' ? MTG.economy.sleeveWorn() : (r.kind === 'bot' ? null : (r.sleeve || null)),
               frame: r.kind === 'local' ? MTG.economy.frameWorn() : (r.frame || null),

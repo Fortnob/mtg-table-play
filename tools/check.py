@@ -206,6 +206,8 @@ def steps(quick):
         Step('sw', node(TOOLS / 'swtest.js'), judge_exit, 60),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
+        # Commander brackets: what moves a deck up, where decks land, a table's bracket turning one away
+        Step('brackets', node(TOOLS / 'brackettest.js'), judge_exit, 300, needs_bulk=True),
         Step('cardtest', node(TOOLS / 'cardtest.js'), judge_cardtest, 600, needs_bulk=True),
         Step('smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', smoke_to), judge_smoke, 3600, needs_bulk=True),
         # the ready-made decks must stay legal and run in full as coverage moves

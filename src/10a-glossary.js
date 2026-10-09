@@ -753,7 +753,7 @@
   }
 
   /** A term's box: its name, and what it does. */
-  const termBox = (t) => el('div', { class: 'kw-note' + (t.granted ? ' granted' : ''), role: 'listitem' }, [
+  const termBox = (t) => el('div', { class: 'kw-note' + (t.granted ? ' granted' : '') + (t.kind === 'gc' ? ' gc' : ''), role: 'listitem' }, [
     el('div', { class: 'kw-name' }, [
       el('span', { text: t.name }),
       t.granted ? el('span', { class: 'kw-tag', text: 'gained' }) : null,
@@ -777,6 +777,9 @@
     // a Treasure shown as the token itself needs no box saying what a Treasure is
     const shown = new Set(tokens.map(p => String(p.name || '').toLowerCase()));
     const list = find(card, opts).filter(t => !(shown.has(t.name.toLowerCase()) && (t.kind === 't' || t.kind === 'a')));
+    // on Commander's Game Changers list: said first, as Arena puts a card's standing above its keywords
+    if (MTG.brackets && MTG.brackets.isGameChanger(card))
+      list.unshift({ name: 'Game Changer', kind: 'gc', text: 'On Commander\u2019s Game Changers list. A deck with one to three of these is Bracket 3; with four or more, Bracket 4.' });
     return {
       keywords: list.length ? el('div', { class: 'card-aside kw-side', role: 'list', 'aria-label': 'What its keywords mean' }, list.map(termBox)) : null,
       tokens: tokens.length ? el('div', { class: 'card-aside tok-side' }, [tokenViewer(tokens, opts)]) : null,
