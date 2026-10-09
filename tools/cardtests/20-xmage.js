@@ -11971,4 +11971,17 @@ module.exports = (test) => {
     T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
     t.eq(b2.zone, 'battlefield', 'bargained: cast for free'); t.eq(tok.zone, 'graveyard');
   });
+
+  test('Breach the Multiverse: one from each graveyard, and everything is Phyrexian', (mk, t) => {
+    t.auto('Breach the Multiverse');
+    const T = mk();
+    const ga = T.grave('A', 'Grizzly Bears'), gb = T.grave('B', 'Craw Wurm');
+    T.answer('choose', () => ({ picks: [ga.id] }));
+    T.answer('choose', () => ({ picks: [gb.id] }));
+    T.mana('A', '5BB');
+    T.cast('A', T.hand('A', 'Breach the Multiverse'));
+    T.settle(); T.resolve();
+    t.eq(ga.zone, 'battlefield'); t.eq(gb.zone, 'battlefield'); t.eq(gb.controller, 'A');
+    t.ok(T.g._hasCreatureType(gb, 'Phyrexian'), 'a Phyrexian');
+  });
 };

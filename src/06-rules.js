@@ -14743,6 +14743,23 @@
           this.moveObject(c, 'hand');
           break;
         }
+        // Breach the Multiverse: a creature or planeswalker card from each graveyard, all of them yours
+        case 'breachPicks': {
+          const picks = [];
+          for (const q of this.players.filter(x => !x.hasLost)) {
+            const pool = this.zones[q.id].graveyard.filter(c => { const ca = c.analysis() || {}; return ca.isCreature || ca.isPlaneswalker; });
+            if (!pool.length) continue;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
+              items: this._chooseItems(pool), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a creature or planeswalker card in ${q.name}'s graveyard.` }, 'bp:' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            const c = got && got.picks.length ? this.obj(got.picks[0]) : null;
+            if (c) picks.push(c);
+          }
+          for (const c of picks) if (c.zone === 'graveyard') this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          for (const o of this.battlefield) if (o.controller === ctx.controller && !o.phasedOut && (this.characteristics(o) || {}).isCreature) o.effects.push({ addSubtypes: [e.subtype], until: null });
+          this.bumpBoard();
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

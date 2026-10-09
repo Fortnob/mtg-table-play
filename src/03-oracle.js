@@ -5452,6 +5452,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Breach the Multiverse: "Each player mills ten cards. For each player,
+       choose a creature or planeswalker card in that player's graveyard. Put
+       those cards onto the battlefield under your control. Then each creature
+       you control becomes a Phyrexian in addition to its other types." */
+    { re: /^Each player mills (\w+) cards\. For each player, choose a creature or planeswalker card in that player'?s graveyard\. Put those cards onto the battlefield under your control\. Then each creature you control becomes an? ([A-Z][a-z]+) in addition to its other types\.$/i,
+      make: (m) => [{ op: 'mill', n: num(m[1]), who: 'each' }, { op: 'breachPicks', subtype: m[2] }] },
     /* Beseech the Mirror: "Search your library for a card, exile it face
        down, then shuffle. If this spell was bargained, you may cast the
        exiled card without paying its mana cost if that spell's mana value is

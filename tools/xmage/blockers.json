@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12381,
+  "needed": 12380,
   "gainedCards": 1348,
-  "linesNeeded": 13492,
+  "linesNeeded": 13491,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -2440,19 +2440,6 @@
     "Noggin Whack",
     "Gruesome Discovery",
     "Pulse of the Dross"
-   ]
-  },
-  {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Breach the Multiverse",
-    "Fascination",
-    "Invasion of Amonkhet // Lazotep Convert",
-    "Flotsam // Jetsam",
-    "Path of the Schemer",
-    "Halo-Charged Skaab"
    ]
   },
   {
@@ -5604,6 +5591,18 @@
    ]
   },
   {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Fascination",
+    "Invasion of Amonkhet // Lazotep Convert",
+    "Flotsam // Jetsam",
+    "Path of the Schemer",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
    "what": "scope:snow",
    "score": 5,
    "lines": 5,
@@ -8726,17 +8725,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Breach the Multiverse",
-    "Fascination",
-    "Flotsam // Jetsam",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "cost reduction shape",
    "score": 7,
    "cards": 4,
@@ -10813,6 +10801,17 @@
     "Octopus Umbra",
     "Stasis Field",
     "Coerced to Kill"
+   ]
+  },
+  {
+   "what": "copy with changes",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Increasing Vengeance",
+    "Double Major",
+    "Choreographed Sparks",
+    "Aziza, Mage Tower Captain"
    ]
   }
  ]
