@@ -19164,6 +19164,17 @@
           break;
         }
         /* Herald's Horn: the top card into your hand, if it is the right kind */
+        /* Territory Culler: the card just looked at, if it is still on top
+           of the library, may go to the graveyard instead */
+        case 'lookedMayGraveyard': {
+          const lib = this.zones[ctx.controller].library;
+          const top = lib[0];
+          if (!top || !(this._looked || []).includes(top.id)) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Put ${top.name} into your graveyard?` }, 'lookGy');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes) { this.moveObject(top, 'graveyard'); this.logEvent('zone', `${me.name} puts ${top.name} into their graveyard.`); }
+          break;
+        }
         case 'topIfToHand': {
           const top = this.zones[ctx.controller].library[0];
           if (!top) break;

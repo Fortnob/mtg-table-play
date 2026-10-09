@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11756,
+  "needed": 11752,
   "gainedCards": 1199,
-  "linesNeeded": 12646,
+  "linesNeeded": 12638,
   "linesGained": 1422,
   "gained": {
    "all": 1199,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4279,
-   "lines": 4018,
+   "score": 4275,
+   "lines": 4014,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1189,25 +1189,6 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Shadow the Hedgehog",
-    "Archghoul of Thraben",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Slurrk, All-Ingesting",
-    "Cass, Hand of Vengeance",
-    "The Ghoul, Gunslinger",
-    "Orah, Skyclave Hierophant",
-    "Polukranos Reborn // Polukranos, Engine of Ruin",
-    "The Dragon-Kami Reborn // Dragon-Kami's Egg"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 13,
    "lines": 13,
@@ -1426,6 +1407,25 @@
     "Crypt Lurker",
     "Anthropede",
     "Contract Hero"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Shadow the Hedgehog",
+    "Colfenor, the Last Yew",
+    "Havi, the All-Father",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger",
+    "Orah, Skyclave Hierophant",
+    "Polukranos Reborn // Polukranos, Engine of Ruin",
+    "The Dragon-Kami Reborn // Dragon-Kami's Egg",
+    "Skirk Drill Sergeant"
    ]
   },
   {
@@ -3768,19 +3768,6 @@
     "Chandra, Flame's Catalyst",
     "Toshiro Umezawa",
     "Sins of the Past"
-   ]
-  },
-  {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Deathgazer",
-    "Dread Specter"
    ]
   },
   {
@@ -6853,13 +6840,22 @@
     "Spire Mechcycle",
     "Sita Varma, Masked Racer"
    ]
+  },
+  {
+   "what": "(constructor: call on callResult .replace)",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Parapet Thrasher",
+    "Kotis, Sibsig Champion"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3549,
-   "cards": 3369,
+   "score": 3545,
+   "cards": 3365,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7579,19 +7575,6 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Archghoul of Thraben",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Slurrk, All-Ingesting"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 11,
    "cards": 11,
@@ -7753,6 +7736,19 @@
     "Voracious Dragon",
     "Pyre-Sledge Arsonist",
     "Electrostatic Bolt"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Colfenor, the Last Yew",
+    "Havi, the All-Father",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance"
    ]
   },
   {
@@ -9017,19 +9013,6 @@
     "Call to the Grave",
     "Redcap Raiders",
     "Archdemon of Unx"
-   ]
-  },
-  {
-   "what": "blocks or blocked by a kind of creature",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Mirror Shield",
-    "Gorgon Recluse",
-    "Corrosive Ooze",
-    "Giant Shark",
-    "Deathgazer",
-    "Dread Specter"
    ]
   },
   {
@@ -10590,6 +10573,17 @@
     "Rip, Spawn Hunter",
     "Glimmer Seeker",
     "Rootwise Survivor"
+   ]
+  },
+  {
+   "what": "AttacksAloneAttachedTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Bilbo's Ring",
+    "Sigil of Valor",
+    "Reaper's Talisman",
+    "S.H.I.E.L.D. Spy Kit"
    ]
   }
  ]

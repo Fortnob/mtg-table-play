@@ -3983,6 +3983,8 @@
         to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }) },
     // Ghastly Remains, Zodiac Dragon: a card that goes back to its owner's hand by its own words
     { re: /^Return (?:it|this card) to your hand\.?$/i, make: () => ({ op: 'returnItToHand' }) },
+    // Territory Culler, Sarinth Steelseeker: "If you don't put the card into your hand, you may put it into your graveyard."
+    { re: /^If you don'?t put the card into your hand, you may put it into your graveyard\.?$/i, make: () => ({ op: 'lookedMayGraveyard' }) },
     // Vein Drinker: "That creature deals damage equal to its power to this creature."
     { re: /^That creature deals damage equal to its power to (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'damage', n: { ofTarget: 'power' }, fromTarget: true, toSelf2: true }) },
@@ -8479,7 +8481,9 @@
     'land', 'lands', 'planeswalker', 'planeswalkers', 'permanent', 'permanents', 'battle', 'battles',
     'token', 'tokens', 'nontoken', 'legendary', 'nonland', 'noncreature', 'nonartifact', 'snow', 'basic',
     'nonbasic', 'white', 'blue', 'black', 'red', 'green', 'colorless', 'multicolored', 'or', 'and/or',
-    'equipment', 'aura', 'vehicle', 'nonlegendary', 'goaded', 'modified']);
+    'equipment', 'aura', 'vehicle', 'nonlegendary', 'goaded', 'modified',
+    // Gorgon Recluse: "a nonblack creature"
+    'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen']);
   function subjectFilter(raw) {
     let p = String(raw || '').trim();
     const f = {};
