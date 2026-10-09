@@ -531,4 +531,166 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.g.powerOf(bear), 2);
   });
+
+  /* ---- the most-played removal, counters and card draw, each against its words ---- */
+
+  const REMOVAL = [
+    // [card, mana, victim, where it goes, the caster's life after, token its controller gets]
+    ['Beast Within', 'G2', 'Sol Ring', 'graveyard', 20, 'Beast'],
+    ['Generous Gift', 'W2', 'Sol Ring', 'graveyard', 20, 'Elephant'],
+    ['Pongify', 'U', 'Grizzly Bears', 'graveyard', 20, 'Ape'],
+    ['Stroke of Midnight', 'W2', 'Grizzly Bears', 'graveyard', 20, 'Human'],
+    ['Deadly Rollick', 'B3', 'Grizzly Bears', 'exile', 20, null],
+    ['Anguished Unmaking', 'WB1', 'Sol Ring', 'exile', 17, null],
+    ['Infernal Grasp', 'B1', 'Grizzly Bears', 'graveyard', 18, null],
+    ['Withering Torment', 'B2', 'Ghostly Prison', 'graveyard', 18, null],
+    ['Feed the Swarm', 'B1', 'Ghostly Prison', 'graveyard', 17, null],
+    ['Putrefy', 'BG1', 'Sol Ring', 'graveyard', 20, null],
+    ['Go for the Throat', 'B1', 'Grizzly Bears', 'graveyard', 20, null],
+    ['Bedevil', 'BBR', 'Grizzly Bears', 'graveyard', 20, null],
+    ['Despark', 'WB', 'Craw Wurm', 'exile', 20, null],
+    ['Swords to Plowshares', 'W', 'Craw Wurm', 'exile', 20, null],
+  ];
+  for (const [name, mana, victim, to, life, token] of REMOVAL) {
+    test(`Audit: ${name} on ${victim}`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const v = T.bf('B', victim);
+      T.mana('A', mana);
+      T.cast('A', T.hand('A', name), { targets: [v] });
+      t.zone(v, to);
+      t.eq(T.life('A'), life, "the caster's life");
+      if (token) t.ok(T.bfOf('B').some(o => o.isToken && new RegExp(token).test(o.name)), 'its controller has a ' + token);
+      else t.no(T.bfOf('B').some(o => o.isToken), 'no token');
+    });
+  }
+
+  test('Audit: Go for the Throat cannot target an artifact creature, Despark nothing small', (mk, t) => {
+    const T = mk();
+    const golem = T.bf('B', 'Ornithopter'), bear = T.bf('B', 'Grizzly Bears');
+    const g = T.hand('A', 'Go for the Throat');
+    T.mana('A', 'B1');
+    t.no(T.g.castSpell('A', g.id, { targets: [{ kind: 'object', id: golem.id }] }), 'no artifact creature');
+    const d = T.hand('A', 'Despark');
+    T.mana('A', 'WB');
+    t.no(T.g.castSpell('A', d.id, { targets: [{ kind: 'object', id: bear.id }] }), 'no mana value 2');
+  });
+
+  test("Audit: Swords to Plowshares gives the life to the creature's controller", (mk, t) => {
+    const T = mk();
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Swords to Plowshares'), { targets: [T.bf('B', 'Craw Wurm')] });
+    t.eq(T.life('B'), 26);
+  });
+
+  const COUNTERS = [
+    // [counter, mana, may it hit a creature spell]
+    ['Counterspell', 'UU', true],
+    ['Negate', 'U1', false],
+    ['Fierce Guardianship', 'U2', false],
+    ["An Offer You Can't Refuse", 'U', false],
+    ['Swan Song', 'U', false],
+  ];
+  for (const [name, mana, creatures] of COUNTERS) {
+    test(`Audit: ${name} counters a spell${creatures ? '' : ', but not a creature spell'}`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.mana('B', 'R');
+      T.g.passPriority('A', true);
+      T.cast('B', bolt, { targets: ['A'], resolve: false });
+      T.g.passPriority('B', true);
+      T.mana('A', mana);
+      T.cast('A', T.hand('A', name), { targets: [T.stackTarget(bolt)] });
+      t.zone(bolt, 'graveyard');
+      t.eq(T.life('A'), 20);
+      if (name === "An Offer You Can't Refuse") t.eq(T.bfOf('B').filter(o => o.name === 'Treasure').length, 2, 'two Treasures for the caster');
+      if (name === 'Swan Song') t.ok(T.bfOf('B').some(o => o.name === 'Bird'), 'a Bird for the caster');
+      if (!creatures) {
+        const T2 = mk();
+        T2.nextTurn('B');
+        const bear = T2.hand('B', 'Grizzly Bears');
+        T2.mana('B', 'G1');
+        T2.cast('B', bear, { resolve: false });
+        T2.g.passPriority('B', true);
+        T2.mana('A', mana);
+        t.no(T2.g.castSpell('A', T2.hand('A', name).id, { targets: [T2.stackTarget(bear)] }), 'not a creature spell');
+      }
+    });
+  }
+
+  test('Audit: Flusterstorm counters unless {1} is paid', (mk, t) => {
+    const T = mk();
+    t.auto('Flusterstorm');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', bolt, { targets: ['A'], resolve: false });
+    T.g.passPriority('B', true);
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Flusterstorm'), { targets: [T.stackTarget(bolt)] });
+    t.zone(bolt, 'graveyard', 'B had nothing to pay with');
+    t.eq(T.life('A'), 20);
+  });
+
+  const DRAWS = [
+    // [card, mana, cards drawn, life after]
+    ["Night's Whisper", 'B1', 2, 18],
+    ['Read the Bones', 'B2', 2, 18],
+    ['Preordain', 'U', 1, 20],
+    ['Ponder', 'U', 1, 20],
+    ['Big Score', 'R3', 2, 20],
+    ['Deadly Dispute', 'B1', 2, 20],
+  ];
+  for (const [name, mana, drawn, life] of DRAWS) {
+    test(`Audit: ${name} draws ${drawn}`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      if (name === 'Deadly Dispute') T.bf('A', 'Sol Ring');
+      if (name === 'Big Score') T.hand('A', 'Island');
+      const s = T.hand('A', name);
+      const h0 = T.zone('A', 'hand').length;
+      T.mana('A', mana);
+      T.cast('A', s);
+      const extra = name === 'Big Score' ? -1 : 0;
+      t.eq(T.zone('A', 'hand').length, h0 - 1 + drawn + extra);
+      t.eq(T.life('A'), life);
+      if (name === 'Big Score') t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2);
+      if (name === 'Deadly Dispute') t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1);
+    });
+  }
+
+  test('Audit: Brainstorm draws three and puts two back on top', (mk, t) => {
+    const T = mk();
+    t.auto('Brainstorm');
+    const s = T.hand('A', 'Brainstorm');
+    const lib0 = T.zone('A', 'library').length, h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'U');
+    T.cast('A', s);
+    t.eq(T.zone('A', 'hand').length, h0 - 1 + 3 - 2);
+    t.eq(T.zone('A', 'library').length, lib0 - 3 + 2);
+  });
+
+  test('Audit: Windfall: each player discards their hand and draws the most discarded', (mk, t) => {
+    const T = mk();
+    t.auto('Windfall');
+    for (let i = 0; i < 4; i++) T.hand('B', 'Island');
+    T.hand('A', 'Forest');
+    const s = T.hand('A', 'Windfall');
+    T.mana('A', 'U2');
+    T.cast('A', s);
+    t.eq(T.zone('A', 'hand').length, 4);
+    t.eq(T.zone('B', 'hand').length, 4);
+  });
+
+  test('Audit: Dark Ritual, Seething Song and Mana Geyser make their mana', (mk, t) => {
+    const T = mk();
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Dark Ritual'));
+    t.eq(T.player('A').pool.B, 3);
+    T.mana('A', 'R2'); T.cast('A', T.hand('A', 'Seething Song'));
+    t.eq(T.player('A').pool.R, 5);
+    T.bf('B', 'Mountain', { tapped: true }); T.bf('B', 'Mountain', { tapped: true }); T.bf('B', 'Mountain');
+    T.mana('A', 'RR3'); T.cast('A', T.hand('A', 'Mana Geyser'));
+    t.eq(T.player('A').pool.R, 5 + 2, 'two tapped lands');
+  });
 };
