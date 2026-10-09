@@ -7770,6 +7770,8 @@
     if (/^(?:When|Whenever|At)[^,\n]*, if /.test(line) &&
         !abs.some(x => x.kind === 'triggered' && (x.condition || x.intervening))) return false;
     if (/Activate only if/.test(line) && !abs.some(x => x.only && x.only.cond)) return false;
+    // "if that player has …": a condition about the player the trigger is about, which has to say so
+    if (/, if that player\b/i.test(line) && !/"who":"triggerPlayer"/.test(JSON.stringify(abs.map(x => x.condition || null)))) return false;
     /* Dockside Extortionist: "create X Treasure tokens, where X is the
        number of artifacts and enchantments your opponents control" written
        down as one Treasure. A line that counts something has to keep a
@@ -8383,6 +8385,11 @@
       (m) => ({ kind: 'graveyard', what: m[2], n: num(m[1]) })],
     // hand and life
     [/^you have no cards in hand$/i, () => ({ kind: 'hand', n: 0, cmp: 'atMost' })],
+    // Ghirapur Orrery, Asylum Visitor: "if that player has no cards in hand"
+    [/^that player has no cards in hand$/i, () => ({ kind: 'hand', n: 0, cmp: 'atMost', who: 'triggerPlayer' })],
+    // Lavaborn Muse, Shrieking Affliction: "if that player has two or fewer cards in hand"
+    [/^that player has (one|two|three|four|\d+) or (fewer|more) cards in hand$/i,
+      (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[2]) ? 'atMost' : 'atLeast', who: 'triggerPlayer' })],
     [/^you have (\w+) or (?:more|fewer) cards in hand$/i,
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[0]) ? 'atMost' : 'atLeast' })],
     [/^you have (\d+) or (?:more|less) life$/i,

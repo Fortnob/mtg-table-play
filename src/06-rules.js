@@ -9646,7 +9646,12 @@
           for (const o of this.zones[me.id].graveyard) for (const t of ((o.analysis() || {}).types || [])) seen.add(t);
           return seen.size >= (cond.n || 4);
         }
-        case 'hand': return !!me && at(this.zones[me.id].hand.length);
+        case 'hand': {
+          // Ghirapur Orrery: "if that player has no cards in hand" — the player whose upkeep it is
+          const td = (ctx && ctx.triggerData) || {};
+          const whose = cond.who === 'triggerPlayer' ? this.player(td.playerId || td.player || td.drawer) : me;
+          return !!whose && at(this.zones[whose.id].hand.length);
+        }
         case 'life': return !!me && at(me.life);
         case 'opponentLife':
           return this.opponentsOf(me ? me.id : null).some(p => cond.cmp === 'atMost' ? p.life <= cond.n : p.life >= cond.n);

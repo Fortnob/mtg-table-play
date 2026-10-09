@@ -1923,4 +1923,23 @@ module.exports = (test) => {
     for (const n of ['Fresh Meat', 'Murmuration', "Death's Presence", 'Hoard Hauler', 'Caller of the Claw'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
+
+  test('Audit: "if that player has no cards in hand" looks at the player whose upkeep it is', (mk, t) => {
+    let T = mk();
+    t.auto('Ghirapur Orrery');
+    T.bf('A', 'Ghirapur Orrery'); T.hand('A', 'Island');
+    T.nextTurn('B');
+    t.eq(T.zone('B', 'hand').length, 4, 'three and the draw');
+    T = mk();
+    t.auto('Asylum Visitor');
+    T.bf('A', 'Asylum Visitor'); T.hand('A', 'Island');
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'hand').length, 2); t.eq(T.life('A'), 19);
+    T = mk();
+    t.auto('Lavaborn Muse');
+    T.bf('A', 'Lavaborn Muse');
+    for (let i = 0; i < 4; i++) T.hand('A', 'Island');
+    T.nextTurn('B');
+    t.eq(T.life('B'), 17, 'B had no cards; A had four');
+  });
 };
