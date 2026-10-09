@@ -2922,7 +2922,6 @@ module.exports = (test) => {
   });
 
   test('Jarad: opponents lose life equal to the power sacrificed', (mk, t) => {
-    t.auto('Jarad, Golgari Lich Lord');
     const T = mk();
     const j = T.bf('A', 'Jarad, Golgari Lich Lord');
     const w = T.bf('A', 'Craw Wurm');
