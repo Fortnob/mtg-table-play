@@ -1959,4 +1959,34 @@ module.exports = (test) => {
     for (const n of ['Starfield Shepherd', 'Szarel, Genesis Shepherd'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
+
+  test('Audit: Rabid Gnaw: the targeted creature deals its own power, with its lifelink and deathtouch', (mk, t) => {
+    const T = mk();
+    t.auto('Rabid Gnaw');
+    const v = T.bf('A', 'Vampire Nighthawk'), w = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Rabid Gnaw'), { targets: [v, w] });
+    t.ok(T.g.log.some(l => /^Vampire Nighthawk deals 3 to Craw Wurm/.test(l.text)), '2 power, +1/+0');
+    t.zone(w, 'graveyard', 'deathtouch');
+    t.eq(T.life('A'), 23, 'lifelink outside combat');
+  });
+
+  test('Audit: lifelink counts for a fight too', (mk, t) => {
+    const T = mk();
+    const v = T.bf('A', 'Vampire Nighthawk'), b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Prey Upon'), { targets: [v, b] });
+    t.zone(b, 'graveyard');
+    t.eq(T.life('A'), 22);
+  });
+
+  test('Audit: Immersturm Skullcairn: the player it hits discards', (mk, t) => {
+    const T = mk();
+    t.auto('Immersturm Skullcairn');
+    const s = T.bf('A', 'Immersturm Skullcairn');
+    T.hand('B', 'Island'); T.hand('B', 'Island');
+    T.mana('A', 'BRR1');
+    T.activate('A', s, 1, { targets: ['B'] });
+    t.eq(T.life('B'), 17); t.eq(T.zone('B', 'hand').length, 1);
+  });
 };

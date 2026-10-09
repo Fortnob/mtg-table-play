@@ -10123,6 +10123,7 @@
         (this._excessOn = this._excessOn || {})[o.id] = (this._excessOn[o.id] || 0) + excess;
       }
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
+      this._lifelinkFrom(source, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
@@ -10153,6 +10154,15 @@
       this.emit('sfx', 'damage', { player: o.controller, size: amount });
       this.emit('damage', { object: o, amount, source });
       return amount;
+    }
+
+    /* Lifelink (CR 702.15b) works for any damage, not only in combat: a
+       Vampire Nighthawk that fights, or bites with Rabid Gnaw, gains its
+       controller that much. (Combat damage gains it where combat damage is
+       dealt, once for everything assigned.) */
+    _lifelinkFrom(source, amount, isCombat) {
+      if (isCombat || !source || !(amount > 0) || !this.hasKw(source, 'lifelink')) return;
+      this.changeLife(source.controller, amount, 'lifelink');
     }
 
     /** How much more damage would be lethal (CR 120.4a): toughness less damage already marked, 1 from a deathtouch source, loyalty or defence for a planeswalker or battle. */
@@ -10209,6 +10219,7 @@
         if (amount <= 0) return;
       }
       this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
+      this._lifelinkFrom(source, amount, combat);
       // toxic (CR 702.164): combat damage to a player gives poison counters as well
       const tox = combat && source ? this._toxicTotal(source) : 0;
       if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount + tox, source.controller); return amount; }
@@ -12153,13 +12164,27 @@
             this._noPreventNow = (this._noPreventNow || 0) + 1;
             try { return this._runEffect(Object.assign({}, e, { _inNoPrevent: true }), ctx); } finally { this._noPreventNow--; }
           }
-          const cnt = n(e.n);
+          /* Rabid Gnaw: "Target creature you control gets +1/+0. Then it
+             deals damage equal to its power to target creature you don't
+             control" — with no trigger, "it" is the creature an earlier
+             sentence of the spell targeted: it deals the damage, and its
+             power is the amount */
+          let earlier = null;
+          if (e.fromTrigger && !(ctx.triggerData || {}).objectId) {
+            const sa = src && src.analysis ? (src.analysis() || {}) : {};
+            if (sa.isInstant || sa.isSorcery) {
+              const own = new Set(targets.filter(t => t.kind === 'object').map(t => t.id));
+              const t0 = (ctx.resolvedTargets || ctx.targets || []).find(t => t && t.kind === 'object' && !own.has(t.id));
+              earlier = (t0 && this.obj(t0.id)) || null;
+            }
+          }
+          const cnt = earlier && e.n && typeof e.n === 'object' && e.n.ofTrigger === 'power' && !e.n.plus ? this.powerOf(earlier) : n(e.n);
           // Chandra's Outrage: "…and 2 damage to that creature's controller" — noted before it dies
           if (!e.toAffectedController && targets.some(t => t.kind === 'object')) this._noteLastAffected(targets);
           /* Warstorm Surge, Chandra's Ignition: the damage comes from the
              creature the trigger or the spell is about, not from this */
           let dsrc = src;
-          if (e.fromTrigger) { const id = (ctx.triggerData || {}).objectId; dsrc = (id && this.obj(id)) || src; }
+          if (e.fromTrigger) { const id = (ctx.triggerData || {}).objectId; dsrc = (id && this.obj(id)) || earlier || src; }
           if (e.fromTarget) { const t0 = targets.find(t => t.kind === 'object'); dsrc = (t0 && this.obj(t0.id)) || src; }
           // Pain for All: the enchanted creature deals it
           if (e.fromAttached) { const host = src && src.attachedTo && this.obj(src.attachedTo); if (!host || host.zone !== 'battlefield') break; dsrc = host; }

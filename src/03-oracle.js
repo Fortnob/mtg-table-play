@@ -667,6 +667,8 @@
       for (const e of list || []) {
         if (!e) continue;
         if (e.op === 'modal') { for (const m of e.modes || []) run(m.effects, { obj: false, spell: false, pl: false }); continue; }
+        // Immersturm Skullcairn: "deals 3 damage to target player. That player discards a card."
+        if (e.who === 'triggerPlayer' && st.pl && /^(?:That player|They)\b/.test(e.text || '')) e.who = 'target';
         if (e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
           // (a spell's controller, after it may have been countered, is not kept: Frightful Delusion)
           if (st.obj && ops.includes(e.op)) e.who = 'targetController'; else ok = false;
@@ -9567,9 +9569,11 @@
             for (const k of ['n', 'p', 't']) if (e && e[k] && typeof e[k] === 'object' && e[k].ofLast && !(e.targets || []).length) e[k] = { ofSelf: e[k].ofLast };
           }
         }
+        // ("that player" after a target, as in a spell)
+        const thatOk = thatPlayerOfTheTarget(effects);
         const ab = {
           kind: isManaAbility(effects) ? 'mana' : 'activated', cost, text: line,
-          effects, auto: parsed.auto && costIsAutomatable(cost),
+          effects, auto: parsed.auto && costIsAutomatable(cost) && thatOk,
           sorcerySpeed: /Activate only as a sorcery|and only as a sorcery/i.test(line),
         };
         /* "{1}{B}: Return this card from your graveyard to the battlefield
