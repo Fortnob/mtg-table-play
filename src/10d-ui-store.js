@@ -218,7 +218,7 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['deals', 'Daily deals']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
@@ -227,6 +227,7 @@
       else if (id === 'packs') packsTab(body, opts);
       else if (id === 'sleeves') sleevesTab(body);
       else if (id === 'wildcards') wildcardsTab(body);
+      else if (id === 'frames') UI.framesTab(body, UI.purchaseDialog);
       else deals(body);
     };
     for (const [id, label] of TABS) tabs.appendChild(el('button', { type: 'button', role: 'tab', class: 'store-tab', dataset: { tab: id }, text: label, onclick: () => { MTG.sfx('click'); show(id); } }));
@@ -1087,6 +1088,116 @@
     inventory();
   };
 
+  /* ---------------- emotes ---------------- */
+  /** What can be said across the table, quickly. */
+  const EMOTES = [
+    { id: 'hello', text: 'Hello!' }, { id: 'luck', text: 'Good luck!' }, { id: 'nice', text: 'Nice play.' },
+    { id: 'think', text: 'Thinking…' }, { id: 'oops', text: 'Oops.' }, { id: 'wow', text: 'Wow!' },
+    { id: 'thanks', text: 'Thanks!' }, { id: 'gg', text: 'Good game.' },
+  ];
+  UI.EMOTES = EMOTES;
+  let lastEmote = 0;
+  /** A speech bubble by a player's portrait for a moment. */
+  UI.showEmote = function (pid, id) {
+    const em = EMOTES.find(e => e.id === id);
+    if (!em) return;
+    const orbs = [...document.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(pid))}"]`)];
+    const orb = orbs.sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0];
+    if (!orb) return;
+    const r = orb.getBoundingClientRect();
+    const below = r.top < 140;
+    const b = el('div', { class: 'emote-bubble' + (below ? ' below' : ''), text: em.text,
+      style: { left: (r.left + r.width / 2) + 'px', top: (below ? r.bottom + 10 : r.top - 10) + 'px' } });
+    document.body.appendChild(b);
+    MTG.sfx('chat');
+    setTimeout(() => b.classList.add('out'), 2600);
+    setTimeout(() => b.remove(), 3100);
+  };
+  /**
+   * The emote button by your portrait, put on the table once: a click
+   * opens the wheel, an emote is said (and sent to the others online).
+   */
+  UI.mountEmotes = function (table) {
+    if (table._emoteBtn || !table.arena || table.view && (table.view.spectating || table.view.replay)) return;
+    const btn = el('button', { type: 'button', class: 'emote-btn', title: 'Say something', 'aria-label': 'Emotes', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A2.5 2.5 0 0 1 3 13.5v-8z" fill="currentColor"/></svg>' });
+    let wheel = null;
+    const close = () => { if (wheel) { wheel.remove(); wheel = null; } };
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (wheel) return close();
+      wheel = el('div', { class: 'emote-wheel' }, EMOTES.map(em => el('button', { type: 'button', class: 'emote-opt', text: em.text, onclick: (ev) => {
+        ev.stopPropagation();
+        close();
+        if (Date.now() - lastEmote < 1500) return;
+        lastEmote = Date.now();
+        if (MTG.app && MTG.app.sendEmote) MTG.app.sendEmote(em.id);
+      } })));
+      table.arena.appendChild(wheel);
+      setTimeout(() => document.addEventListener('click', close, { once: true }), 0);
+    });
+    table.arena.appendChild(btn);
+    table._emoteBtn = btn;
+  };
+
+  /* ---------------- frames ---------------- */
+  /** The frames, to buy and wear (in the Store). */
+  UI.framesTab = function (body, purchase) {
+    const S = E();
+    body.appendChild(el('p', { class: 'dim', text: 'A frame goes around your portrait, at the table and in the menus, and the other players see it.' }));
+    const grid = el('div', { class: 'store-grid frames' });
+    const on = S.frameWorn();
+    const redraw = () => { body.innerHTML = ''; UI.framesTab(body, purchase); };
+    const name = (MTG.app && MTG.app.myName) || 'You';
+    grid.appendChild(el('div', { class: 'store-card frame-tile' + (!on ? ' worn' : '') }, [
+      UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar }),
+      el('div', { class: 'sc-title', text: 'No frame' }),
+      el('button', { type: 'button', class: 'btn' + (on ? ' primary' : ''), disabled: !on, text: on ? 'Wear' : 'Wearing', onclick: () => { S.equipFrame(null); MTG.sfx('confirm'); redraw(); } }),
+    ]));
+    for (const fr of S.FRAMES) {
+      const owned = S.state.frames.owned.includes(fr.id);
+      const worn = on === fr.id;
+      grid.appendChild(el('div', { class: 'store-card frame-tile' + (worn ? ' worn' : '') }, [
+        UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id }),
+        el('div', { class: 'sc-title', text: fr.name }),
+        owned
+          ? el('button', { type: 'button', class: 'btn' + (worn ? '' : ' primary'), disabled: worn, text: worn ? 'Wearing' : 'Wear', onclick: () => { S.equipFrame(fr.id); MTG.sfx('confirm'); redraw(); } })
+          : el('button', { type: 'button', class: 'btn primary buy', html: (UI.shardIcon ? UI.shardIcon() : '') + ' ' + fr.price.toLocaleString(), onclick: () => purchase({
+            title: `${fr.name} frame`, cost: fr.price, visual: UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id }),
+            buy: () => S.buyFrame(fr.id), after: redraw }) }),
+      ]));
+    }
+    body.appendChild(grid);
+  };
+
+  /* ---------------- card styles ---------------- */
+  /** A card's styles, in its close-up: each to try on, buy, or wear. */
+  UI.cardStyles = function (card, after) {
+    const S = E();
+    const url = MTG.scry.imageUrl(card, 'normal', 0);
+    const owned = S.owned(card.name) > 0;
+    const on = S.styleFor(card.name);
+    const box = el('div', { class: 'style-picker' }, [el('div', { class: 'opt-label', text: 'Card styles' }),
+      el('div', { class: 'opt-help', text: owned ? 'A style goes on this card wherever you play it.' : 'Own the card to give it a style.' })]);
+    const row = el('div', { class: 'style-row' });
+    const mk = (st) => {
+      const has = st ? S.ownsStyle(card.name, st.id) : true;
+      const wearing = st ? on === st.id : !on;
+      const face = el('div', { class: 'style-face cv-face' + (st ? ' cstyle cs-' + st.id : ''), style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null });
+      return el('div', { class: 'style-opt' + (wearing ? ' on' : '') }, [
+        el('div', { class: 'style-thumb' }, [face]),
+        el('b', { text: st ? st.name : 'Plain' }),
+        !owned ? null : has
+          ? el('button', { type: 'button', class: 'btn xs' + (wearing ? '' : ' primary'), disabled: wearing, text: wearing ? 'On' : 'Use', onclick: () => { S.setStyle(card.name, st ? st.id : null); MTG.sfx('confirm'); if (after) after(); } })
+          : el('button', { type: 'button', class: 'btn xs primary buy', html: (UI.shardIcon ? UI.shardIcon() : '') + st.price.toLocaleString(), onclick: () => UI.purchaseDialog({
+            title: `${st.name}: ${card.name}`, cost: st.price, visual: face.cloneNode(true), buy: () => S.buyStyle(card.name, st.id), after }) }),
+      ].filter(Boolean));
+    };
+    row.appendChild(mk(null));
+    for (const st of S.STYLES) row.appendChild(mk(st));
+    box.appendChild(row);
+    return box;
+  };
+
   /* ---------------- the Collection ---------------- */
   const colState = { set: '', rarity: '', color: '', show: 'owned', q: '' };
   /**
@@ -1179,18 +1290,21 @@
 
   /** One card, closer: how many you own, and a wildcard to craft another. */
   function cardDetail(c, after) {
+    let mm = null;
+    const reopen = () => { if (mm) mm.close(); cardDetail(c, after); if (after) after(); };
     const S = E();
     const r = S.rarityOf(c);
     const have = S.owned(c.name);
     const wc = S.wildcards()[r];
     const url = MTG.scry.imageUrl(c, 'normal', 0);
-    const m = UI.modal({
+    const m = mm = UI.modal({
       title: c.name,
       content: el('div', { class: 'col-detail' }, [
         el('div', { class: 'col-detail-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
         el('div', {}, [
           el('p', { text: `${RAR_NAME[r]} · you own ${Math.min(4, have)} of 4.` }),
           el('p', { class: 'dim' }, [document.createTextNode('Crafting takes one '), wcIcon(r, null), document.createTextNode(` ${r} wildcard. You have ${wc}.`)]),
+          UI.cardStyles(c, reopen),
         ]),
       ]),
       buttons: [

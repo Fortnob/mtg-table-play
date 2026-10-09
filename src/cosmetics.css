@@ -1,0 +1,84 @@
+/* ============================================================
+   cosmetics.css - card styles, portrait frames and emotes
+   ============================================================ */
+
+/* ---------- card styles: an overlay on the face of a card of yours ---------- */
+.cv-face.cstyle::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2; }
+.cs-etched { filter: saturate(.75) contrast(1.06); }
+.cs-etched::after { background: repeating-linear-gradient(135deg, rgba(255,255,255,.07) 0 1px, transparent 1px 4px),
+  linear-gradient(160deg, rgba(220, 225, 235, .28), transparent 40%, rgba(160, 170, 190, .22)); mix-blend-mode: screen; }
+.cs-gilded::after { box-shadow: inset 0 0 0 3px #e9c46a, inset 0 0 0 4px rgba(90, 60, 10, .8), inset 0 0 18px rgba(240, 200, 110, .55);
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 236, 170, .35) 45%, transparent 58%); background-size: 260% 100%;
+  animation: csSheen 5s linear infinite; }
+.cs-shadow { filter: saturate(.85) brightness(.92); }
+.cs-shadow::after { background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(20, 0, 30, .75) 100%);
+  box-shadow: inset 0 0 22px rgba(150, 70, 220, .65), inset 0 0 0 1.5px rgba(160, 90, 230, .7); animation: csSmoulder 3.2s ease-in-out infinite; }
+.cs-prismatic::after { background: linear-gradient(115deg, transparent 10%, rgba(255, 90, 200, .32) 25%, rgba(90, 210, 255, .32) 40%, rgba(255, 240, 120, .3) 55%, rgba(120, 255, 170, .28) 70%, transparent 85%);
+  background-size: 300% 100%; mix-blend-mode: color-dodge; animation: csSheen 3.6s linear infinite; }
+.cs-celestial::after { background:
+  radial-gradient(1.2px 1.2px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 62% 14%, #fff, transparent), radial-gradient(1.4px 1.4px at 80% 48%, #e8f0ff, transparent),
+  radial-gradient(1px 1px at 34% 70%, #fff, transparent), radial-gradient(1.3px 1.3px at 72% 82%, #fff, transparent), radial-gradient(1px 1px at 12% 58%, #fff, transparent),
+  linear-gradient(180deg, rgba(40, 60, 140, .35), rgba(10, 10, 40, .1) 50%, rgba(80, 60, 160, .35));
+  box-shadow: inset 0 0 0 1.5px rgba(170, 200, 255, .65), inset 0 0 20px rgba(120, 160, 255, .4); animation: csTwinkle 2.8s ease-in-out infinite; }
+@keyframes csSheen { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+@keyframes csSmoulder { 50% { box-shadow: inset 0 0 30px rgba(170, 90, 240, .8), inset 0 0 0 1.5px rgba(190, 120, 255, .9); } }
+@keyframes csTwinkle { 50% { opacity: .7; } }
+.style-picker { margin-top: 12px; display: grid; gap: 6px; }
+.style-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.style-opt { display: grid; justify-items: center; gap: 4px; padding: 6px; border-radius: 10px; border: 1px solid transparent; }
+.style-opt.on { border-color: rgba(243, 221, 150, .55); background: rgba(243, 221, 150, .06); }
+.style-opt b { font-size: 11.5px; }
+.style-thumb { position: relative; width: 66px; aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; overflow: hidden; }
+.style-face { position: absolute; inset: 0; border-radius: inherit; background: #111 center / cover no-repeat; }
+.pd-visual .style-face { position: relative; width: 150px; aspect-ratio: 63 / 88; }
+
+/* ---------- portrait frames ---------- */
+.portrait.framed { position: relative; }
+.portrait.framed::after, .life-orb[data-frame]:not([data-frame=""]) .orb-ring::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; z-index: 3; }
+.frame-gilded::after, .life-orb[data-frame="gilded"] .orb-ring::after {
+  border: 3px solid transparent; background: conic-gradient(from 210deg, #7d621a, #f3dd96, #b8912f, #7d621a, #f3dd96, #7d621a) border-box;
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  box-shadow: 0 0 10px rgba(243, 221, 150, .35); }
+.frame-thorns::after, .life-orb[data-frame="thorns"] .orb-ring::after {
+  background: repeating-conic-gradient(from 0deg, #2f4a1e 0 6deg, #6b8f3a 6deg 9deg, #1d2e12 9deg 15deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 6px), #000 calc(100% - 4px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 6px), #000 calc(100% - 4px)); }
+.frame-frost::after, .life-orb[data-frame="frost"] .orb-ring::after {
+  background: conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #e8f6ff);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  box-shadow: 0 0 14px rgba(160, 215, 255, .55); }
+.frame-ember::after, .life-orb[data-frame="ember"] .orb-ring::after {
+  background: conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ff6a1a);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  box-shadow: 0 0 16px rgba(255, 120, 40, .6); animation: frameSpin 6s linear infinite; }
+.frame-arcane::after, .life-orb[data-frame="arcane"] .orb-ring::after {
+  background: repeating-conic-gradient(from 0deg, #7fc4ff 0 4deg, transparent 4deg 12deg), conic-gradient(#2a5aa8, #7fc4ff, #2a5aa8);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 3px));
+  box-shadow: 0 0 14px rgba(127, 196, 255, .55); animation: frameSpin 14s linear infinite; }
+.frame-void::after, .life-orb[data-frame="void"] .orb-ring::after {
+  background: conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  box-shadow: 0 0 20px rgba(140, 80, 230, .7); animation: frameSpin 9s linear infinite reverse; }
+@keyframes frameSpin { to { transform: rotate(360deg); } }
+.store-grid.frames { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.frame-tile .portrait.lg { width: 84px; height: 84px; margin: 8px 0; }
+.store-card.frame-tile.worn { border-color: rgba(243, 221, 150, .5); }
+.pd-visual .portrait.lg { width: 110px; height: 110px; }
+
+/* ---------- emotes ---------- */
+.emote-btn { position: absolute; left: 12px; bottom: 150px; z-index: 30; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.16); background: rgba(16, 18, 26, .85); color: #c9c3b4; box-shadow: 0 4px 12px rgba(0,0,0,.5); }
+.emote-btn:hover { color: var(--gold-1, #f3dd96); border-color: rgba(243, 221, 150, .5); }
+.emote-btn svg { width: 17px; height: 17px; }
+.emote-wheel { position: absolute; left: 54px; bottom: 120px; z-index: 31; display: grid; grid-template-columns: repeat(2, auto); gap: 6px; padding: 10px; border-radius: 12px;
+  background: rgba(16, 18, 26, .96); border: 1px solid rgba(243, 221, 150, .3); box-shadow: 0 14px 34px rgba(0,0,0,.6); animation: poIn .15s ease-out; }
+.emote-opt { padding: 7px 12px; border-radius: 99px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05); color: #eee6d4; cursor: pointer; font: 600 13px var(--font); white-space: nowrap; }
+.emote-opt:hover { background: rgba(243, 221, 150, .16); border-color: rgba(243, 221, 150, .45); }
+.emote-bubble { position: fixed; z-index: 7000; translate: -50% -100%; padding: 8px 14px; border-radius: 14px; pointer-events: none;
+  background: #f6efdc; color: #1c1508; font: 700 14px/1.2 var(--font); box-shadow: 0 8px 22px rgba(0,0,0,.5); animation: bubbleIn .3s cubic-bezier(.3, 1.6, .5, 1); }
+.emote-bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent; border-bottom: 0; border-top-color: #f6efdc; }
+.emote-bubble.below { translate: -50% 0; }
+.emote-bubble.below::after { bottom: auto; top: -6px; border-top: 0; border-bottom: 6px solid #f6efdc; }
+.emote-bubble.out { transition: opacity .4s, transform .4s; opacity: 0; transform: translateY(-6px); }
+@keyframes bubbleIn { from { opacity: 0; transform: scale(.6); } }
+@media (prefers-reduced-motion: reduce) { .cs-gilded::after, .cs-prismatic::after, .cs-shadow::after, .cs-celestial::after, .frame-ember::after, .frame-arcane::after, .frame-void::after { animation: none !important; } }

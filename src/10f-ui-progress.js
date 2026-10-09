@@ -137,7 +137,7 @@
     titleSel.addEventListener('change', () => { P().setTitle(titleSel.value); UI.ok(titleSel.value ? `Your title is now "${titleSel.value}".` : 'Title removed.'); });
     const head = el('div', { class: 'profile-head' }, [
       el('button', { type: 'button', class: 'portrait-btn', title: 'Change your name and picture', onclick: () => MTG.app.editProfile && MTG.app.editProfile() },
-        [UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: MTG.settings.frame })]),
+        [UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: E().frameWorn() })]),
       el('div', { class: 'ph-who' }, [
         el('h1', { text: name }),
         el('div', { class: 'ph-sub' }, [titleSel, el('span', { class: 'dim', text: `Mastery level ${S.level} · ${P().rankLabel(S.ranked)}` })]),

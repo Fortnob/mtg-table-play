@@ -157,6 +157,36 @@
     return null;
   };
 
+  /** A seat's portrait frame: yours from the Store, the others' as they sent them. */
+  App.frameFor = function (pid) {
+    const sess = App.session;
+    const members = sess ? sess.roster : (App.lobbyMembers || []);
+    const r = members.find(x => x.id === pid);
+    if (!r) return null;
+    if (r.kind === 'local' || (!sess && pid === (App.clientYou || null))) return MTG.economy.frameWorn();
+    return r.frame && MTG.economy.frameById(r.frame) ? r.frame : null;
+  };
+  /**
+   * An emote: shown by your portrait, and sent to the others online (as a
+   * chat line they read as an emote). Offline, a bot may answer.
+   */
+  App.sendEmote = function (id) {
+    const t = App.table;
+    if (!t) return;
+    if (net.online) { net.chat(App.myName, '::emote:' + id); return; }
+    UI.showEmote(t.meId, id);
+    const bot = App.session && App.session.roster.find(r => r.kind === 'bot');
+    const reply = { hello: 'hello', luck: 'luck', gg: 'gg', nice: 'thanks', thanks: 'nice', oops: 'wow' }[id];
+    if (bot && reply && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, reply), 1100 + Math.random() * 900);
+  };
+  /** An emote someone sent, by name: shown by their portrait. */
+  App.emoteFrom = function (fromName, id) {
+    const t = App.table;
+    if (!t || !t.view) return;
+    const p = (t.view.players || []).find(x => x.name === fromName);
+    if (p) UI.showEmote(p.id, id);
+  };
+
   /** Your name and profile picture, and telling whoever needs to know. */
   App.chooseAvatar = function (after) {
     const told = () => {
@@ -509,6 +539,8 @@
   /** A finished game, from the table: an event's record moves on, a challenge is solved. */
   App.onGameRecorded = function (won) {
     const sess = App.session;
+    const bot = sess && sess.roster && sess.roster.find(r => r.kind === 'bot');
+    if (bot && !net.online && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, 'gg'), 2200);
     const m = sess && sess.mode;
     if (!m) return;
     if (m.event === 'draft') {
@@ -1847,7 +1879,7 @@
     sections.push(group('you', 'You', null, [
       el('div', { class: 'opt-row you-row' }, [
         el('button', { type: 'button', class: 'portrait-btn', title: 'Change your profile picture', 'aria-label': 'Change your profile picture',
-          onclick: () => App.chooseAvatar(() => renderOptions()) }, [UI.portrait(App.myName, null, { size: 'lg', avatar: MTG.settings.avatar })]),
+          onclick: () => App.chooseAvatar(() => renderOptions()) }, [UI.portrait(App.myName, null, { size: 'lg', avatar: MTG.settings.avatar, frame: MTG.economy.frameWorn() })]),
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'Display name' }),
           el('div', { class: 'opt-help', text: 'What other players at the table see.' }),
@@ -2273,6 +2305,7 @@
         name: App.myName, token: MTG.clientToken(), autoPass: MTG.autoPassConfig(),
         avatar: MTG.settings.avatar || null,
         sleeve: MTG.economy.sleeveWorn(),
+        frame: MTG.economy.frameWorn(),
       });
       busy.close();
       App.session = null;             // clients have no engine
@@ -2522,8 +2555,8 @@
       el('div', { class: 'seat-top' }, [
         r.kind === 'local'
           ? el('button', { type: 'button', class: 'portrait-btn', title: 'Change your profile picture', 'aria-label': 'Change your profile picture',
-            onclick: () => App.chooseAvatar(() => renderLobby()) }, [UI.portrait(r.name, key, { size: 'md', avatar: MTG.settings.avatar })])
-          : UI.portrait(r.name, key, { size: 'md', avatar: r.avatar }),
+            onclick: () => App.chooseAvatar(() => renderLobby()) }, [UI.portrait(r.name, key, { size: 'md', avatar: MTG.settings.avatar, frame: MTG.economy.frameWorn() })])
+          : UI.portrait(r.name, key, { size: 'md', avatar: r.avatar, frame: r.frame || null }),
         el('div', { class: 'seat-who' }, [
           el('div', { class: 'seat-name', text: r.name + (r.kind === 'local' ? ' (you)' : '') }),
           el('div', { class: 'seat-role' }, [
@@ -3010,7 +3043,7 @@
       grid.appendChild(el('article', { class: 'seat-card ' + (r.kind === 'bot' ? 'bot' : 'remote') + (me ? ' mine' : '') }, [
         el('div', { class: 'seat-art', 'aria-hidden': 'true' }),
         el('div', { class: 'seat-top' }, [
-          UI.portrait(r.name, null, { size: 'md', avatar: r.avatar }),
+          UI.portrait(r.name, null, { size: 'md', avatar: r.avatar, frame: r.frame && MTG.economy.frameById(r.frame) ? r.frame : null }),
           el('div', { class: 'seat-who' }, [
             el('div', { class: 'seat-name', text: r.name + (me ? ' (you)' : '') }),
             el('div', { class: 'seat-role' }, [
@@ -3317,6 +3350,7 @@
               deckValid: r.deckValid ? r.deckValid.ok : null,
               avatar: (r.kind === 'local' ? MTG.settings.avatar : r.avatar) || null,
               sleeve: r.kind === 'local' ? MTG.economy.sleeveWorn() : (r.kind === 'bot' ? null : (r.sleeve || null)),
+              frame: r.kind === 'local' ? MTG.economy.frameWorn() : (r.frame || null),
             })),
           },
         };
@@ -3978,6 +4012,7 @@
       // their profile picture, if it is one (a small image, nothing else)
       if (seat) seat.avatar = payload && UI.isAvatar(payload.avatar) ? payload.avatar : null;
       if (seat) seat.sleeve = App.cleanSleeve(payload && payload.sleeve);
+      if (seat) seat.frame = payload && typeof payload.frame === 'string' && MTG.economy.frameById(payload.frame) ? payload.frame : null;
       if (payload && payload.autoPass && seat && sess.game) sess.game.setAutoPass(seat.id, payload.autoPass);
       sess.broadcastLobby();
       // someone returning mid-game needs the whole picture, not the lobby
@@ -4055,7 +4090,12 @@
         });
       }
     });
-    net.on('chat', (msg) => { if (App.table) App.table.addChat(msg); });
+    net.on('chat', (msg) => {
+      // an emote travels as a chat line of its own
+      const em = msg && typeof msg.text === 'string' && /^::emote:([a-z]+)$/.exec(msg.text);
+      if (em) { App.emoteFrom(msg.from, em[1]); return; }
+      if (App.table) App.table.addChat(msg);
+    });
     net.on('log', () => {});
     net.on('error', (m) => UI.error(String(m)));
     net.on('disconnected', () => { setNetBadge(); });

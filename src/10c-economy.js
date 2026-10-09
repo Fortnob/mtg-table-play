@@ -20,6 +20,23 @@
   const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
   /** A wildcard bought outright, by rarity. */
   const WC_PRICES = { common: 300, uncommon: 750, rare: 2000, mythic: 4000 };
+  /** Card styles: a treatment for one card of yours, wherever it is played. */
+  const STYLES = [
+    { id: 'etched', name: 'Etched', price: 1000, text: 'Silvered, engraved lines over the art.' },
+    { id: 'gilded', name: 'Gilded', price: 1500, text: 'A gold frame that catches the light.' },
+    { id: 'shadow', name: 'Shadowborn', price: 1500, text: 'Darkened edges and a violet smoulder.' },
+    { id: 'prismatic', name: 'Prismatic foil', price: 2500, text: 'A rainbow foil that moves across the card.' },
+    { id: 'celestial', name: 'Celestial', price: 2500, text: 'Starlight drifting over a midnight sheen.' },
+  ];
+  /** Frames: a ring around your portrait at the table and in the menus. */
+  const FRAMES = [
+    { id: 'gilded', name: 'Gilded', price: 1500 },
+    { id: 'thorns', name: 'Thorns', price: 1500 },
+    { id: 'frost', name: 'Frost', price: 1500 },
+    { id: 'ember', name: 'Ember', price: 2500 },
+    { id: 'arcane', name: 'Arcane', price: 2500 },
+    { id: 'void', name: 'Void', price: 4000 },
+  ];
   /** Another printing's art for a card you own, by rarity (one you pulled is free). */
   const ART_PRICES = { common: 100, uncommon: 200, rare: 400, mythic: 800 };
 
@@ -87,6 +104,8 @@
     lastWinDay: '', deals: null, granted: false, games: 0, wins: 0,
     sleeves: { owned: [], on: null, custom: null, art: {} },
     arts: [],
+    styles: { owned: {}, on: {} },
+    frames: { owned: [], on: null },
   });
   function load() {
     if (state) return state;
@@ -94,6 +113,8 @@
     state.wc = Object.assign({ common: 0, uncommon: 0, rare: 0, mythic: 0 }, state.wc || {});
     state.sleeves = Object.assign({ owned: [], on: null, custom: null, art: {} }, state.sleeves || {});
     if (!Array.isArray(state.arts)) state.arts = [];
+    state.styles = Object.assign({ owned: {}, on: {} }, state.styles || {});
+    state.frames = Object.assign({ owned: [], on: null }, state.frames || {});
     if (!state.granted) grantStart();
     return state;
   }
@@ -490,6 +511,53 @@
     return { ok: true, cost };
   }
 
+  /* ---------------- card styles and frames ---------------- */
+  const styleById = (id) => STYLES.find(x => x.id === id) || null;
+  function ownsStyle(name, id) { load(); return ((state.styles.owned[name]) || []).includes(id); }
+  function buyStyle(name, id) {
+    load();
+    const st = styleById(id);
+    if (!st) return { ok: false, why: 'There is no such style.' };
+    if (owned(name) < 1) return { ok: false, why: 'You need the card in your collection first.' };
+    if (ownsStyle(name, id)) return { ok: true, cost: 0 };
+    if (state.shards < st.price) return { ok: false, why: `That style costs ${st.price.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= st.price;
+    (state.styles.owned[name] = state.styles.owned[name] || []).push(id);
+    state.styles.on[name] = id;
+    save('style', -st.price);
+    return { ok: true, cost: st.price };
+  }
+  /** The style a card of yours wears (null: none), or put one on. */
+  const styleFor = (name) => { load(); return (state.styles.on || {})[name] || null; };
+  function setStyle(name, id) {
+    load();
+    if (id && !ownsStyle(name, id)) return false;
+    if (id) state.styles.on[name] = id; else delete state.styles.on[name];
+    save('style');
+    return true;
+  }
+  const frameById = (id) => FRAMES.find(x => x.id === id) || null;
+  function buyFrame(id) {
+    load();
+    const fr = frameById(id);
+    if (!fr) return { ok: false, why: 'There is no such frame.' };
+    if (state.frames.owned.includes(id)) return { ok: true, cost: 0 };
+    if (state.shards < fr.price) return { ok: false, why: `That frame costs ${fr.price.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= fr.price;
+    state.frames.owned.push(id);
+    state.frames.on = id;
+    save('frame', -fr.price);
+    return { ok: true, cost: fr.price };
+  }
+  function equipFrame(id) {
+    load();
+    if (id && !state.frames.owned.includes(id)) return false;
+    state.frames.on = id || null;
+    save('frame');
+    return true;
+  }
+  const frameWorn = () => { load(); return state.frames.on || null; };
+
   /** A cheat for testing, the backquote key: ten thousand Shards. */
   function grantTest() { return addShards(10000, 'test'); }
 
@@ -506,6 +574,7 @@
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
+    STYLES, FRAMES, styleById, ownsStyle, buyStyle, styleFor, setStyle, frameById, buyFrame, equipFrame, frameWorn,
     sleeves: () => load().sleeves,
     /** The welcome note has been seen. */
     welcomed() { load(); if (state.welcome) { state.welcome = false; save(); } },

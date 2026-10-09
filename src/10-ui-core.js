@@ -911,7 +911,7 @@
       face.style.backgroundImage = 'url("' + opts.avatar + '")';
       face.classList.add('art-on');
     } else if (card) UI.setArt(face, card);
-    return el('span', { class: 'portrait' + (opts.size ? ' ' + opts.size : ''), 'aria-hidden': 'true' }, [
+    return el('span', { class: 'portrait' + (opts.size ? ' ' + opts.size : '') + (opts.frame ? ' framed frame-' + opts.frame : ''), 'aria-hidden': 'true' }, [
       face, el('span', { class: 'portrait-ring' }),
     ]);
   };

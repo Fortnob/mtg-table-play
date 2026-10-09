@@ -515,6 +515,13 @@
           setTimeout(() => n.classList.remove('flipping'), 520);
         }
       }
+      // a card of yours, face up, in the style you gave it (the Collection)
+      const style = !hidden && o.card && o.owner === this.meId && MTG.economy ? MTG.economy.styleFor(o.card.name) : null;
+      if ((face._style || null) !== style || (style && !face.classList.contains('cstyle'))) {
+        for (const c of [...face.classList]) if (c === 'cstyle' || c.startsWith('cs-')) face.classList.remove(c);
+        if (style) face.classList.add('cstyle', 'cs-' + style);
+        face._style = style;
+      }
       // a face-down card wears its owner's sleeve
       if (hidden && UI.applySleeve) UI.applySleeve(face, MTG.app && MTG.app.sleeveFor ? MTG.app.sleeveFor(o.owner || o.controller) : null);
       n.classList.toggle('tapped', !!o.tapped);
@@ -1007,6 +1014,9 @@
       const art = orb.querySelector('.orb-art');
       const card = this.portraitCard(p);
       const chosen = MTG.app && MTG.app.avatarFor ? MTG.app.avatarFor(p.id) : null;
+      // a frame they bought, around the portrait
+      const frame = MTG.app && MTG.app.frameFor ? MTG.app.frameFor(p.id) : null;
+      if ((orb.dataset.frame || '') !== (frame || '')) orb.dataset.frame = frame || '';
       const url = chosen || (card ? (MTG.scry.imageUrl(card, 'art_crop', 0) || '') : '');
       if (art._url !== url) {
         art._url = url;
