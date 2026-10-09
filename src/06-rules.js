@@ -14984,7 +14984,8 @@
         }
         // Resourceful Defense: the counters the permanent that left had, onto a target
         case 'giveLeftCounters': {
-          const gone = (ctx.triggerData || {}).object;
+          const td0 = ctx.triggerData || {};
+          const gone = td0.objectId ? this.obj(td0.objectId) : null;
           const to = e.self ? src : firstObj();
           if (!gone || !to || to.zone !== 'battlefield') break;
           const had = gone._diedCounters || {};
@@ -15164,7 +15165,8 @@
         }
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
-          if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: x.owner });
+          // (under your control when the words say so, or name nobody)
+          if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
           // Nezahal: "Return it to the battlefield tapped …"
           if (x && e.tapped && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
@@ -15389,7 +15391,9 @@
             for (const id of (this._exiledNow || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
-          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id)
+          // (Daretti's emblem: "that card" is the one the trigger is about, when nothing was aimed at)
+          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id ||
+              (ctx.triggerData || {}).objectId)
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
           this.scheduleDelayed({
             event: e.event || 'eachEndStep',

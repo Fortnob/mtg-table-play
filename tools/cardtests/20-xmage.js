@@ -12219,7 +12219,7 @@ module.exports = (test) => {
     T.g.addCounters(a, '+1/+1', 2);
     T.g.moveObject(a, 'graveyard');
     const [trig, act] = rd.analysis().abilities;
-    T.g._runEffects(trig.effects, { controller: 'A', obj: rd, name: 'Resourceful Defense', kind: 'ability', triggerData: { object: a }, targets: [{ kind: 'object', id: b.id }] });
+    T.g._runEffects(trig.effects, { controller: 'A', obj: rd, name: 'Resourceful Defense', kind: 'ability', triggerData: { objectId: a.id }, targets: [{ kind: 'object', id: b.id }] });
     t.eq(b.counters['+1/+1'], 2, 'the two counters went on');
     const c = T.bf('A', 'Craw Wurm');
     T.answer('choose', () => ({ number: 1 }));
@@ -12451,5 +12451,33 @@ module.exports = (test) => {
     const tok = T.g.battlefield.find(o => o.isToken && o.controller === 'A');
     t.ok(tok, 'a Dinosaur');
     t.eq(T.g.powerOf(tok), 6, 'as big as the Wurm'); t.ok(tok.tapped && tok.attacking, 'tapped and attacking');
+  });
+
+  test('Daretti, Scrap Savant: an artifact for an artifact; the emblem brings them back', (mk, t) => {
+    t.auto('Daretti, Scrap Savant');
+    const T = mk();
+    const d = T.bf('A', 'Daretti, Scrap Savant');
+    const ring = T.bf('A', 'Sol Ring'), stone = T.grave('A', 'Mind Stone');
+    const abs = d.analysis().abilities;
+    T.g._runEffects(abs.find(a => /^[-\u2212]2/.test(a.text)).effects, { controller: 'A', obj: d, name: 'Daretti', kind: 'ability', targets: [{ kind: 'object', id: stone.id }] });
+    T.settle();
+    t.eq(ring.zone, 'graveyard', 'sacrificed'); t.eq(stone.zone, 'battlefield', 'returned');
+    T.g._runEffects(abs.find(a => /^[-\u2212]10/.test(a.text)).effects, { controller: 'A', obj: d, name: 'Daretti', kind: 'ability' });
+    T.settle();
+    T.g.moveObject(stone, 'graveyard'); T.settle();
+    t.eq(stone.zone, 'graveyard');
+    T.toMain('B');
+    t.eq(stone.zone, 'battlefield', 'back at the end step'); t.eq(stone.controller, 'A');
+  });
+
+  test('Resourceful Defense in play: the trigger finds the counters of what left', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Resourceful Defense');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Savannah Lions');
+    T.g.addCounters(a, '+1/+1', 3);
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: b.id }] });
+    T.g.moveObject(a, 'graveyard');
+    T.settle(); T.resolve(); T.settle();
+    t.eq(b.counters['+1/+1'], 3);
   });
 };

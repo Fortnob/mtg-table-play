@@ -4040,9 +4040,12 @@
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
-    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)? under (?:its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
+    /* (Daretti's emblem: "return that card to the battlefield at the
+       beginning of the next end step" — with nobody named, under your control) */
+    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
-        name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[3] ? { counter: m[4].toLowerCase() } : {}, m[2] ? { tapped: true } : {})] }) },
+        name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[4] ? { counter: m[5].toLowerCase() } : {}, m[2] ? { tapped: true } : {},
+          !m[3] || /your control/i.test(m[3]) ? { yours: true } : {})] }) },
     /* Luminous Broodmoth: "Whenever a creature … dies, return it to the
        battlefield under its owner's control with a flying counter on it" —
        the card the trigger is about, back from where it went */
@@ -6830,6 +6833,18 @@
       /* "You may sacrifice another creature. If you do, you gain X life and
          draw X cards, where X is that creature's power." The sacrifice is
          asked for as the ability resolves, and X is read off what went. */
+      /* Daretti, Scrap Savant: "Sacrifice an artifact. If you do, return
+         target artifact card from your graveyard to the battlefield." — no
+         choice about it, but nothing to sacrifice means nothing comes back */
+      const sacMust = !may && ifDo && s.match(/^Sacrifice (a|an|another) ([a-z ]+?)\.$/i);
+      if (sacMust && !/ or /i.test(sacMust[2])) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        if (tp.auto && !JSON.stringify(tp.effects).includes('"X"')) {
+          effects.push({ op: 'sacThen', filter: sacMust[2].trim().toLowerCase(), other: /another/i.test(sacMust[1]), then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
       // (not "sacrifice an artifact or discard a card": two prices, not one)
       const sacMay = may && ifDo && !/ or (?:discard|pay|exile)\b/i.test(may[1]) && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
       if (sacMay) {
