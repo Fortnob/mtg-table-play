@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12156,
+  "needed": 12149,
   "gainedCards": 1287,
-  "linesNeeded": 13212,
-  "linesGained": 1537,
+  "linesNeeded": 13189,
+  "linesGained": 1535,
   "gained": {
    "all": 1287,
    "top2000": 49,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4336,
-   "lines": 4069,
+   "score": 4334,
+   "lines": 4067,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -89,25 +89,6 @@
    ]
   },
   {
-   "what": "(line not matched to XMage code)",
-   "score": 217,
-   "lines": 196,
-   "cards": [
-    "Throne of Eldraine",
-    "Case of the Locked Hothouse",
-    "March of Swirling Mist",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Fighter Class",
-    "Wand of Wonder",
-    "Fangs of Kalonia",
-    "Spectacular Showdown",
-    "Boseiju, Who Shelters All",
-    "Edgar Markov",
-    "Archpriest of Shadows"
-   ]
-  },
-  {
    "what": "(cast modifier line)",
    "score": 214,
    "lines": 208,
@@ -124,6 +105,25 @@
     "Scion of Draco",
     "Drag to the Roots",
     "Notorious Throng"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 213,
+   "lines": 192,
+   "cards": [
+    "Throne of Eldraine",
+    "Case of the Locked Hothouse",
+    "March of Swirling Mist",
+    "Winds of Abandon",
+    "Alchemist's Talent",
+    "Fighter Class",
+    "Wand of Wonder",
+    "Fangs of Kalonia",
+    "Spectacular Showdown",
+    "Boseiju, Who Shelters All",
+    "Edgar Markov",
+    "Archpriest of Shadows"
    ]
   },
   {
@@ -1163,25 +1163,6 @@
     "Mister Fantastic",
     "Diplomatic Escort",
     "Teferi's Response"
-   ]
-  },
-  {
-   "what": "ExileAndReturnSourceEffect",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
-    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
-    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
-    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
-    "Terra, Magical Adept // Esper Terra",
-    "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
-    "Jill, Shiva's Dominant // Shiva, Warden of Ice",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "Jecht, Reluctant Guardian // Braska's Final Aeon",
-    "Nissa, Vastwood Seer // Nissa, Sage Animist",
-    "Crystal Fragments // Summon: Alexander",
-    "Huatli, Poet of Unity // Roar of the Fifth People"
    ]
   },
   {
@@ -3379,20 +3360,6 @@
    ]
   },
   {
-   "what": "BeginningOfPostcombatMainTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Sphinx of the Second Sun",
-    "Florian, Voldaren Scion",
-    "Shadow of the Second Sun",
-    "Sorin of House Markov // Sorin, Ravenous Neonate",
-    "Tymna the Weaver",
-    "Belbe, Corrupted Observer",
-    "Brazen Cannonade"
-   ]
-  },
-  {
    "what": "PermanentPredicate.instance",
    "score": 7,
    "lines": 7,
@@ -3913,6 +3880,19 @@
     "Skirk Shaman",
     "Angelic Voices",
     "Elven Riders"
+   ]
+  },
+  {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Tymna the Weaver",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade"
    ]
   },
   {
@@ -4945,18 +4925,6 @@
    ]
   },
   {
-   "what": "ExileSourceAndReturnFaceUpEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Vorinclex // The Grand Evolution",
-    "Dion, Bahamut's Dominant // Bahamut, Warden of Light",
-    "Elesh Norn // The Argent Etchings",
-    "Terra, Magical Adept // Esper Terra",
-    "Jill, Shiva's Dominant // Shiva, Warden of Ice"
-   ]
-  },
-  {
    "what": "ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect",
    "score": 5,
    "lines": 5,
@@ -4978,6 +4946,18 @@
     "Far Fortune, End Boss",
     "Lightwheel Enhancements",
     "Tsagan, Raider Warlord"
+   ]
+  },
+  {
+   "what": "ExileAndReturnSourceEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
+    "Jecht, Reluctant Guardian // Braska's Final Aeon",
+    "Crystal Fragments // Summon: Alexander",
+    "Chandra, Fire of Kaladesh // Chandra, Roaring Flame"
    ]
   },
   {
@@ -6042,6 +6022,17 @@
    ]
   },
   {
+   "what": "ExileSourceAndReturnFaceUpEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Vorinclex // The Grand Evolution",
+    "Elesh Norn // The Argent Etchings",
+    "Terra, Magical Adept // Esper Terra",
+    "Jill, Shiva's Dominant // Shiva, Warden of Ice"
+   ]
+  },
+  {
    "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
    "score": 4,
    "lines": 4,
@@ -6196,17 +6187,6 @@
    ]
   },
   {
-   "what": "DiesOneOrMoreTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Chainsaw",
-    "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
-    "Rinoa, Angel Wing",
-    "Blood Spatter Analysis"
-   ]
-  },
-  {
    "what": "attack with 3 or more",
    "score": 4,
    "lines": 4,
@@ -6356,17 +6336,6 @@
     "Helm of the Ghastlord",
     "Gift of the Deity",
     "Favorable Destiny"
-   ]
-  },
-  {
-   "what": "OneOrMoreCountersAddedTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Emperor of Bones",
-    "Berta, Wise Extrapolator",
-    "Cursed Wombat",
-    "Growth-Chamber Guardian"
    ]
   },
   {
@@ -7004,13 +6973,35 @@
     "Shipwreck Singer",
     "Hustle // Bustle"
    ]
+  },
+  {
+   "what": "DamageTargetEffect.withCantBePrevented",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Urza's Rage",
+    "Arrow Storm",
+    "Flames of the Blood Hand",
+    "Lightning Surge"
+   ]
+  },
+  {
+   "what": "PreventDamageByChosenSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Prahv, Spires of Order",
+    "Pay No Heed",
+    "Burrenton Forge-Tender",
+    "Ajani's Aid"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3556,
-   "cards": 3388,
+   "score": 3557,
+   "cards": 3389,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7074,8 +7065,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 129,
-   "cards": 123,
+   "score": 126,
+   "cards": 120,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
@@ -7126,15 +7117,15 @@
   },
   {
    "what": "custom target",
-   "score": 39,
-   "cards": 39,
+   "score": 40,
+   "cards": 40,
    "names": [
     "Rampaging Yao Guai",
+    "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
     "V.A.T.S.",
     "Reunion of the House",
     "Behold the Sinister Six!",
-    "Kairi, the Swirling Sky",
-    "Role Reversal"
+    "Kairi, the Swirling Sky"
    ]
   },
   {
@@ -9468,6 +9459,19 @@
    ]
   },
   {
+   "what": "RemoveAllCountersSourceCost",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Sage of Hours",
+    "Vish Kal, Blood Arbiter",
+    "Jar of Eyeballs",
+    "Relic Amulet",
+    "Molten Hydra",
+    "Essence Bottle"
+   ]
+  },
+  {
    "what": "SkipCombatStepEffect",
    "score": 6,
    "cards": 6,
@@ -9491,6 +9495,19 @@
     "Jaws of Stone",
     "Meteor Shower",
     "Serra's Hymn"
+   ]
+  },
+  {
+   "what": "TargetsPermanentPredicate",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Avoid Fate",
+    "Legolas, Master Archer",
+    "Ms. Marvel, Kamala Khan",
+    "Fin Fang Foom",
+    "Hawkeye, Bowslinger",
+    "Ring of Immortals"
    ]
   },
   {
@@ -9833,6 +9850,18 @@
    ]
   },
   {
+   "what": "granting a mana ability",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Great Divide Guide",
+    "Brightcap Badger // Fungus Frolic",
+    "Song of Freyalise",
+    "Huatli, Poet of Unity // Roar of the Fifth People",
+    "Orochi Merge-Keeper"
+   ]
+  },
+  {
    "what": "targeted by FilterSpell",
    "score": 5,
    "cards": 5,
@@ -10061,18 +10090,6 @@
    ]
   },
   {
-   "what": "RemoveAllCountersSourceCost",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Sage of Hours",
-    "Jar of Eyeballs",
-    "Relic Amulet",
-    "Molten Hydra",
-    "Essence Bottle"
-   ]
-  },
-  {
    "what": "PreventNextDamageFromChosenSourceToTargetEffect",
    "score": 5,
    "cards": 5,
@@ -10082,18 +10099,6 @@
     "Samite Blessing",
     "Charm Peddler",
     "Sanctum Guardian"
-   ]
-  },
-  {
-   "what": "TargetsPermanentPredicate",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Avoid Fate",
-    "Ms. Marvel, Kamala Khan",
-    "Fin Fang Foom",
-    "Hawkeye, Bowslinger",
-    "Ring of Immortals"
    ]
   },
   {
@@ -10596,17 +10601,6 @@
    ]
   },
   {
-   "what": "granting a mana ability",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Great Divide Guide",
-    "Brightcap Badger // Fungus Frolic",
-    "Song of Freyalise",
-    "Orochi Merge-Keeper"
-   ]
-  },
-  {
    "what": "or of EnchantedPredicate.instance",
    "score": 4,
    "cards": 4,
@@ -10706,17 +10700,6 @@
    ]
   },
   {
-   "what": "ExileAndReturnSourceEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
-    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
-    "Jace, Vryn's Prodigy // Jace, Telepath Unbound",
-    "Jecht, Reluctant Guardian // Braska's Final Aeon"
-   ]
-  },
-  {
    "what": "CastFromGraveyardSourceCondition.instance",
    "score": 4,
    "cards": 4,
@@ -10758,6 +10741,17 @@
     "Navigation Orb",
     "Viewpoint Synchronization",
     "Flourishing Bloom-Kin"
+   ]
+  },
+  {
+   "what": "HideawayPlayEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Rabble Rousing",
+    "Evercoat Ursine",
+    "Shelldock Isle",
+    "Howltooth Hollow"
    ]
   }
  ]

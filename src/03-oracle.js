@@ -3462,7 +3462,8 @@
       make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
 
     // Elesh Norn: "Exile CARDNAME, then return it to the battlefield transformed under its owner's control."
-    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent), then return it to the battlefield transformed under (its owner'?s|your) control\.?$/i,
+    // (Ajani, Nacatl Pariah; Sorin of House Markov: "return him … under his owner's control")
+    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
@@ -8455,7 +8456,8 @@
       const short = full.includes(',') ? full.split(',')[0].trim()
         : (/^([A-Z][a-z'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
       if (short && short.length >= 3 && short !== full && !/^(?:The|A|An)$/.test(short)) {
-        text = text.replace(new RegExp('\\b' + escapeRe(short) + '\\b(?!,)', 'g'), 'CARDNAME');
+        // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
+        text = text.replace(new RegExp('\\b' + escapeRe(short) + '\\b(?!,\\s*[A-Z])', 'g'), 'CARDNAME');
       }
     }
 

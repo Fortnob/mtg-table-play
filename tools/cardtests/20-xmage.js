@@ -12898,4 +12898,16 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(w2.zone, 'graveyard', 'X 5: not prevented');
   });
+
+  test("A legend's short name before a comma: Dion and Jace, Vryn's Prodigy transform", (mk, t) => {
+    t.auto("Dion, Bahamut's Dominant // Bahamut, Warden of Light"); t.auto("Jace, Vryn's Prodigy // Jace, Telepath Unbound");
+    const T = mk();
+    const j = T.bf('A', "Jace, Vryn's Prodigy // Jace, Telepath Unbound"); j.summoningSick = false;
+    for (let i = 0; i < 5; i++) T.grave('A', 'Forest');
+    T.hand('A', 'Island');
+    T.answer('discard', (ch) => ({ cardIds: [ch.cards ? ch.cards[0].id : T.zone('A', 'hand')[0].id] }));
+    T.activate('A', j, 0);
+    T.settle();
+    t.eq(j.zone, 'battlefield'); t.eq(j.face || 0, 1, 'transformed');
+  });
 };
