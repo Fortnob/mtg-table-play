@@ -1598,9 +1598,9 @@
 
     // --- damage ---
     // the subject may be the card's own name, "it", "this creature", etc.
-    { re: new RegExp("^(?!(?:When|Whenever|If|As|After|Unless|Until)\\b)(?:[A-Za-z][-A-Za-z0-9',\u2019. ]{0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
+    { re: new RegExp("^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\\u2019. ]){0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'damage', n: num(m[1]), targets: [t] } : null; } },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',\u2019\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control|creature and planeswalker your opponents control|creature and planeswalker)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control|creature and planeswalker your opponents control|creature and planeswalker)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), each: m[2].toLowerCase() }) },
 
     // --- counters ---
@@ -1913,7 +1913,6 @@
        kept by the table as the spell is cast */
     { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
       make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; } },
-    { re: /^Until end of turn, you don'?t lose this mana as steps and phases end\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^You may choose new targets for (?:the|that) cop(?:y|ies)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^(?:Then )?shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
     { re: /^If you do, .*$/i, make: (m) => ({ op: 'manual', text: m[0] }) },
@@ -2869,10 +2868,13 @@
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])], n: c } : null; } },
 
     /* ===== damage aimed at whoever controls the source ===== */
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to you\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to you\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toSelf: true }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to its controller\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to its controller\.?$/i,
       make: (m) => Object.assign({ op: 'damage', n: num(m[1]), toSelf: true }, /^It deals/i.test(m[0]) ? { itWord: true } : {}) },
+    // Rakdos Charm: every creature hurts the player who controls it
+    { re: /^Each creature deals (one|two|three|\d+) damage to its controller\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), eachCreatureToController: true }) },
 
     /* ===== wider sweepers ===== */
     { re: /^Destroy all ([a-z]+s) with (?:mana value|converted mana cost) (\d+|X) or less\.?$/i,
@@ -2998,9 +3000,9 @@
       make: () => ({ op: 'sacrificeSelf' }) },
 
     /* ===== damage aimed at a list of things ===== */
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)?)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)?)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to (any target|target creature|target player) and (one|two|three|four|five|\d+) damage to you\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to (any target|target creature|target player) and (one|two|three|four|five|\d+) damage to you\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
         { op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] },
         { op: 'damage', n: num(m[3]), toSelf: true }] }) },
@@ -3170,7 +3172,7 @@
     { re: /^It'?s still a land\.?$/i, make: () => ({ op: 'noop' }) },
 
     /* ===== whoever set the trigger off ===== */
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|\d+|X) damage to (?:that player|them)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerPlayer: true }) },
     /* Terastodon, King Solomon's Frogs: "For each permanent put into a
        graveyard this way, its controller creates a 3/3 green Elephant
@@ -3478,9 +3480,9 @@
         if (!m[5] && k !== 'any number of') return null;
         return out;
       } },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
 
     // Elesh Norn: "Exile CARDNAME, then return it to the battlefield transformed under its owner's control."
@@ -3775,8 +3777,9 @@
         return Object.assign({ op: 'takeFromLooked', n: 1, filter, to: 'hand', optional: true, rest: 'keep' },
           m[3] ? { maxPower: +m[3] } : {}, m[4] ? { maxMv: +m[4] } : {});
       } },
+    // Coercion: "You choose a card from it" — any card, a land too
     { re: /^You choose an? ([-a-z ]*?)card from it\.?$/i,
-      make: (m) => ({ op: 'chooseFromHand', filter: (m[1] || 'nonland').trim().toLowerCase() }) },
+      make: (m) => ({ op: 'chooseFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any' }) },
     { re: /^That player discards that card\.?$/i, make: () => ({ op: 'discardChosen' }) },
     { re: /^Exile that card\.?$/i, make: () => ({ op: 'exileChosen' }) },
     { re: /^Attach it to target creature you control\.?$/i, make: () => ({ op: 'attachSelf' }) },
@@ -4031,7 +4034,8 @@
 
 
     /* ===== the last of the frequent shapes ===== */
-    { re: /^(?:Target (?:opponent|player)) reveals their hand\.?$/i, make: () => ({ op: 'revealHand' }) },
+    // the player is targeted as the spell is cast, so with more than one opponent the caster picks whose hand
+    { re: /^Target (opponent|player) reveals their hand\.?$/i, make: (m) => ({ op: 'revealHand', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }) },
     // a generic question about players; "that player" afterwards is the one chosen
     { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'chooseOpponent' }) },
     // "You and that player each draw three cards": you, and the opponent chosen
@@ -4226,7 +4230,7 @@
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
     { re: /^You gain life equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: countSpec(m[1], 1) }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? damage equal to the number of ([-a-z' ]+?) you control to (any target|target creature|target player|target opponent|target planeswalker)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? damage equal to the number of ([-a-z' ]+?) you control to (any target|target creature|target player|target opponent|target planeswalker)\.?$/i,
       make: (m) => ({ op: 'damage', n: countSpec(m[1], 1), targets: [targetSpec(m[2])] }) },
     { re: /^(Target creature(?: you control)?|This creature|It) gets \+X\/\+X until end of turn, where X is the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'pump', p: countSpec(m[2], 1), t: countSpec(m[2], 1), duration: 'eot',
@@ -4949,7 +4953,7 @@
       } },
     { re: /^Return (?:each|all) ([a-zA-Z0-9 ,'/+-]+?) to (?:its owner'?s|their owners'?|their owner'?s) hands?\.?$/,
       make: (m) => { const sc = eachScope(m[1]); return sc ? { op: 'bounceAll', scope: sc, what: sc.what } : null; } },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each ([a-zA-Z0-9 ,'/+-]+?)\.?$/,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each ([a-zA-Z0-9 ,'/+-]+?)\.?$/,
       make: (m) => {
         if (/\b(?:player|opponent)s?\b/i.test(m[2])) return null;
         const sc = eachScope(m[2]);
@@ -4969,7 +4973,7 @@
       } },
     { re: /^Return (target [a-zA-Z0-9 ,'/+-]+?) to (?:its|their) owner'?s'? hands?\.?$/,
       make: (m) => ({ op: 'bounce', targets: [targetSpec(m[1])] }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',. ]{0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target [a-zA-Z0-9 ,'/+-]+?)\.?$/,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target [a-zA-Z0-9 ,'/+-]+?)\.?$/,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
@@ -5441,6 +5445,8 @@
       /* "target spell or nonland permanent an opponent controls" is either
          kind of thing (Sink into Stupor) */
       if (permTypes.includes('permanent') && !types.includes('player')) { spec.type = 'spellOrPermanent'; spec.zone = 'any'; }
+      // Brutal Expulsion: "target spell or creature" — any spell, or a creature on the battlefield
+      else if (permTypes.length && !types.includes('player') && /\bspell (?:or|and\/or) [a-z]+$/i.test(String(phrase).trim())) { spec.type = 'spellOrPermanent'; spec.zone = 'any'; spec.anyOf = permTypes; }
       else if (types.includes('player') || permTypes.length) {
         if (types.includes('player') || permTypes.some(t => t === 'permanent')) spec.unknown = true;
       }
@@ -5563,6 +5569,73 @@
     return Array.isArray(e.modes) && e.modes.some(m => (m.effects || []).some(hasUnknownTarget));
   }
 
+  /* "Creatures target opponent controls get -1/-1", "Draw a card for each
+     tapped creature target player controls": a rule that reads the player
+     into a scope ("who": "target") leaves nobody to be targeted, and the
+     engine then falls back on the caster. Whatever a sentence names as
+     "target player" or "target opponent" is asked for as it is cast, and
+     "target opponent" is never the caster. */
+  function aimsAtTargetPlayer(e) {
+    if (!e || typeof e !== 'object') return false;
+    if (Array.isArray(e)) return e.some(aimsAtTargetPlayer);
+    if (e.op === 'unlessPays') return false;
+    if ((e.who === 'target' && !e.thatPlayer && !e.targets) || e.cardsInHand === 'target') return true;
+    return Object.entries(e).some(([k, v]) => k !== 'targets' && v && typeof v === 'object' && aimsAtTargetPlayer(v));
+  }
+  function playerSpecs(e, out) {
+    out = out || [];
+    if (!e || typeof e !== 'object') return out;
+    if (Array.isArray(e)) { e.forEach(x => playerSpecs(x, out)); return out; }
+    for (const t of e.targets || []) if (t && (t.type === 'player' || t.type === 'opponent' || t.type === 'any')) out.push(t);
+    for (const [k, v] of Object.entries(e)) if (k !== 'targets' && v && typeof v === 'object') playerSpecs(v, out);
+    return out;
+  }
+  function aimPlayers(eff, s) {
+    const who = s.match(/\btarget (player|opponent)\b/gi) || [];
+    if (!who.length) return;
+    const opp = who.every(w => /opponent/i.test(w));
+    const specs = playerSpecs(eff);
+    if (opp) for (const t of specs) if (t.type === 'player' && !t.opponent) t.opponent = true;
+    if (specs.length || !aimsAtTargetPlayer(eff)) return;
+    // on the first effect that can carry it: a sequence's own targets are never read
+    let host = eff;
+    while (host && host.op === 'sequence' && Array.isArray(host.list) && host.list.length) host = host.list[0];
+    if (!host || (host.targets || []).length) return;
+    host.targets = [{ type: 'player', opponent: opp || undefined }];
+  }
+  /* Teferi, Time Raveler: "Return up to one target artifact, creature, or
+     enchantment to its owner's hand" — a rule that lets "up to one" through
+     its pattern without keeping it makes the target compulsory. With one
+     target in the sentence, that one may be left out. */
+  function keepUpTo(eff, s) {
+    if (!/\bup to one (?:other |another )?target\b/i.test(s) || (s.match(/\btarget\b/gi) || []).length !== 1) return;
+    const specs = [];
+    const walk = (e) => {
+      if (!e || typeof e !== 'object') return;
+      if (Array.isArray(e)) { e.forEach(walk); return; }
+      for (const t of e.targets || []) if (t) specs.push(t);
+      for (const k of ['list', 'then', 'otherwise']) walk(e[k]);
+    };
+    walk(eff);
+    if (specs.length === 1 && !specs[0].multi) specs[0].upTo = true;
+  }
+  /* Flickerwisp, Fiend Hunter: "exile another target creature" — with one
+     target in the sentence, "another" is anything but the source itself
+     (with two, it is the first target, and the rule reading them keeps
+     them apart). */
+  function keepAnother(eff, s) {
+    if (!/\b(?:another|any other|other) target\b/i.test(s) || (s.match(/\btarget\b/gi) || []).length !== 1) return;
+    const specs = [];
+    const walk = (e) => {
+      if (!e || typeof e !== 'object') return;
+      if (Array.isArray(e)) { e.forEach(walk); return; }
+      for (const t of e.targets || []) if (t) specs.push(t);
+      for (const k of ['list', 'then', 'otherwise']) walk(e[k]);
+    };
+    walk(eff);
+    if (specs.length === 1 && specs[0].type !== 'player' && !specs[0].notAttached) specs[0].another = true;
+  }
+
   /** Try to convert one sentence into an executable effect. */
   function parseEffectSentence(sentence, depth) {
     /* A token creature calls itself "this token"; to every rule here that
@@ -5592,6 +5665,9 @@
       /* A target with words in it this cannot check would be offered
          wrongly; better that the sentence is not read at all. */
       if (hasUnknownTarget(eff)) continue;
+      aimPlayers(eff, s);
+      keepUpTo(eff, s);
+      keepAnother(eff, s);
       eff.text = s;
       return eff;
     }
@@ -6582,9 +6658,9 @@
         orControl: m[2].toLowerCase() }] },
     { re: /^You may discard a card\. If you do, draw a card\.?$/i,
       make: () => [{ op: 'drawDiscard', n: 1, discard: 1 }] },
-    { re: /^Target (?:opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
-      make: (m) => [{ op: 'handAttack', filter: m[1].replace(/,/g, ' ').toLowerCase(),
-        to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player' }] }] },
+    { re: /^Target (opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
+      make: (m) => [{ op: 'handAttack', filter: m[2].replace(/,/g, ' ').toLowerCase(),
+        to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }] },
     /* a search whose answer goes on top of the library, which is two sentences
        on every card that does it */
     { re: /^(?:You may )?[Ss]earch your library for (?:a|an|up to one) ([-a-z' ]*?)cards?(?: and reveal (?:it|that card))?\. Shuffle(?: your library)?,? (?:and )?(?:then )?put (?:it|that card|the card) on top of it\.?$/i,
@@ -6930,6 +7006,8 @@
     /\s+and\s+(?=(?:you|each|target|that|all|they|it)\b)/i,
     // Sinkhole Surveyor: "you lose 1 life and this creature endures 1"
     /\s+and\s+(?=this creature endures\b)/i,
+    // Klothys: "you gain 2 life and Klothys deals 2 damage to each opponent"
+    /\s+and\s+(?=(?:CARDNAME|this (?:creature|enchantment|artifact|spell|land|permanent)) deals\b)/i,
     // Combat Celebrant: "…and after this phase, there is an additional combat phase"
     /\s+and\s+(?=after this phase\b)/i,
     /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add|blight)s?\b)/i,
@@ -7270,7 +7348,7 @@
   function hasManualStep(e) {
     if (!e || typeof e !== 'object') return false;
     if (e.op === 'manual') return true;
-    if (e.insteadOf) return true;
+    if (e.insteadOf || e.insteadRider) return true;
     for (const k of ['list', 'then', 'otherwise', 'effects']) {
       if (Array.isArray(e[k]) && e[k].some(hasManualStep)) return true;
     }
@@ -7369,9 +7447,13 @@
       /* A coin flip and what it decides are one thought: the sentences
          after it say what each side means. */
       // "Otherwise, …": the branch the condition before it didn't take
+      // (Klothys: "If it was a land card, add {R} or {G}. Otherwise, …" — the branch of a test of the card just exiled)
       if (e && e.otherwiseOf) {
         const prev = out[out.length - 1];
-        if (prev && prev.op === 'ifCond' && !(prev.otherwise && prev.otherwise.length)) { prev.otherwise = e.otherwiseOf; continue; }
+        if (prev && (prev.op === 'ifCond' || prev.op === 'ifLastWas') && !(prev.otherwise && prev.otherwise.length)) { prev.otherwise = e.otherwiseOf; continue; }
+        // with no test before it to be the other branch of, it would do nothing at all
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
       }
       if (e && e.insteadOf) {
         const prev = out.pop();
@@ -7396,24 +7478,31 @@
         else out.push(e);
         continue;
       }
+      /* A rider that finds nothing to ride on is a line for a person: dropped,
+         the words it says would simply never happen. */
       if (e && e.flipRider) {
         const host = e.flipRider.of || 'flipCoin';
-        for (let i = out.length - 1; i >= 0; i--) {
+        let found = false;
+        for (let i = out.length - 1; i >= 0 && !found; i--) {
           if (out[i].op !== host) continue;
           const key = e.flipRider.win ? 'then' : 'otherwise';
           out[i][key] = (out[i][key] || []).concat(e.flipRider.effects);
-          break;
+          found = true;
         }
+        if (!found) out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
       if (e && e.insteadRider) {
-        for (let i = out.length - 1; i >= 0; i--) {
+        let found = false;
+        for (let i = out.length - 1; i >= 0 && !found; i--) {
           if (out[i].op === e.insteadRider.op) {
             const was = out[i].n;
             out[i].n = { ifCond: e.insteadRider.cond, then: e.insteadRider.n, otherwise: was };
-            break;
+            found = true;
           }
         }
+        // Slaying Fire: on a line of its own, it waits for the line above (and is a manual step till then)
+        if (!found) out.push(e);
         continue;
       }
       /* "If that spell is countered this way, exile it instead…" changes
@@ -7451,13 +7540,15 @@
         continue;
       }
       if (e && e.counterExileRider) {
-        for (let i = out.length - 1; i >= 0; i--) {
-          const put = (x) => { if (e.counterExileRider === true) x.exileIt = true; else x.counterTo = e.counterExileRider; };
+        let found = false;
+        for (let i = out.length - 1; i >= 0 && !found; i--) {
+          const put = (x) => { if (e.counterExileRider === true) x.exileIt = true; else x.counterTo = e.counterExileRider; found = true; };
           if (out[i].op === 'counterSpell') { put(out[i]); break; }
           // Syncopate: the counter sits inside "unless its controller pays {X}"
           const inner = out[i].op === 'unlessPays' && (out[i].then || []).find(x => x && x.op === 'counterSpell');
           if (inner) { put(inner); break; }
         }
+        if (!found) unrideable();
         continue;
       }
       if (e && e.noRegenRider) {
@@ -7819,7 +7910,9 @@
     // Keeper of the Accord: "that player controls more creatures than you" — the one whose end step it is
     [/^that player controls more ([a-z]+?)s than you$/i, (m) => ({ kind: 'opponentMore', what: m[1], thatPlayer: true })],
     // what has already happened this turn
-    [/^(?:a|another) creature died this turn$/i, () => ({ kind: 'morbid' })],
+    /* (Chain Assassination's "if another creature died this turn" means
+       besides the one it destroyed, which this count cannot tell apart) */
+    [/^a creature died this turn$/i, () => ({ kind: 'morbid' })],
     [/^a permanent you controlled left the battlefield this turn$/i, () => ({ kind: 'revolt' })],
     [/^you attacked (?:with a creature )?this turn$/i, () => ({ kind: 'raid' })],
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
@@ -8208,8 +8301,8 @@
     { re: /^When(?:ever)? a land you control enters(?: the battlefield)?(?:,| )/i, event: 'landfall' },
     { re: /^When(?:ever)? a land enters under your control(?:,| )/i, event: 'landfall' },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals combat damage to a player(?: or planeswalker)?(?:,| )/i, event: 'equippedCombatDamage' },
-    { re: /^When(?:ever)? (?:equipped|enchanted) creature deals damage to (?:a player|an opponent)(?:,| )/i, event: 'equippedDealsDamage',
-      extra: { toOpponent: true } },
+    { re: /^When(?:ever)? (?:equipped|enchanted) creature deals damage to (a player|an opponent)(?:,| )/i, event: 'equippedDealsDamage',
+      extraOf: (m) => (/opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks(?:,| )/i, event: 'permAttacks', filt: () => ({ words: 'creature', equipped: true }) },
     { re: /^When(?:ever)? an opponent draws their (second|third) card each turn(?:,| )/i, event: 'opponentDraw',
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
@@ -8393,8 +8486,10 @@
     { re: /^When the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) ([a-z]+) counter is put on (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME),? /i,
       event: 'countersPut', self: true, extraOf: (m) => ({ counterKind: m[2].toLowerCase(),
         reachesN: { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12 }[m[1].toLowerCase()] }) },
-    { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes crewed(?: for the first time each turn)?(?:,| )/i, event: 'becomesCrewed', self: true },
-    { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes saddled(?: for the first time each turn)?(?:,| )/i, event: 'becomesSaddled', self: true },
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes crewed(?: for the first time each turn)?(?:,| )/i, event: 'becomesCrewed', self: true,
+      extraOf: (m) => (m && /first time/i.test(m[0]) ? { oncePerTurn: true } : {}) },
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes saddled(?: for the first time each turn)?(?:,| )/i, event: 'becomesSaddled', self: true,
+      extraOf: (m) => (m && /first time/i.test(m[0]) ? { oncePerTurn: true } : {}) },
     { re: /^When(?:ever)? (?:one or more \+1\/\+1 counters are put on|you put one or more \+1\/\+1 counters on) (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
       extra: { counterKind: '+1/+1' } },
     /* Fathom Mage: "Whenever a +1/+1 counter is put on this creature" —
@@ -9041,6 +9136,13 @@
         /* "This ability triggers only once each turn." is about the
            trigger, not something it does. */
         let oncePerTurn = false;
+        /* Whispering Snitch: "Whenever you surveil for the first time each
+           turn, …" — a pattern whose comma is optional stops before the
+           words; they say the ability triggers once a turn */
+        if (/^for the first time each turn,\s*/i.test(body)) {
+          oncePerTurn = true;
+          body = body.replace(/^for the first time each turn,\s*/i, '');
+        }
         if (/\s*This ability triggers only once each turn\.?$/i.test(body)) {
           oncePerTurn = true;
           body = body.replace(/\s*This ability triggers only once each turn\.?$/i, '');
@@ -10033,7 +10135,8 @@
           break;
         }
       }
-      if (folded) { out.abilities.splice(i, 1); i--; }
+      // the rider's line counted as one for a person until it found its host
+      if (folded) { out.abilities.splice(i, 1); i--; if (!ab.auto && (ab.effects || []).length === 1) autoLines++; }
     }
 
     /* "Put a +1/+1 counter on that creature" reads as the creature the

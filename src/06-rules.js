@@ -11855,6 +11855,16 @@
           // Pain for All: the enchanted creature deals it
           if (e.fromAttached) { const host = src && src.attachedTo && this.obj(src.attachedTo); if (!host || host.zone !== 'battlefield') break; dsrc = host; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          /* Rakdos Charm: "Each creature deals 1 damage to its controller" —
+             every creature is a source of its own, aimed at whoever controls it */
+          if (e.eachCreatureToController) {
+            for (const o of this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isCreature)) {
+              const p = this.player(o.controller);
+              if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, o);
+            }
+            this.emit('sfx', 'damage');
+            break;
+          }
           // Hydra Omnivore: every opponent but the one it hit
           if (e.eachOtherOpponent) {
             const hit = triggerPlayer();
@@ -14300,6 +14310,8 @@
           const fits = x && (e.filter === 'artifact creature'
             ? this._matchesCategory(x, 'artifact') && this._matchesCategory(x, 'creature') : this._matchesCategory(x, e.filter));
           if (fits) this._spliceNext(e.then);
+          // Klothys: "Otherwise, you gain 2 life and …" — the card was there, and was not one
+          else if (x && (e.otherwise || []).length) this._spliceNext(e.otherwise);
           break;
         }
 
