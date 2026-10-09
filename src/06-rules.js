@@ -2820,6 +2820,8 @@
       if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
       // Summon: Bahamut: "the total mana value of other permanents you control"
       if (v.spellsCastThisTurn) return (((this.player(pid) || {}).spellsCastThisTurn) || 0) * mult;
+      // Rionya: only the spells of some kind
+      if (v.spellsCastWords) return (((this.player(pid) || {}).spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.spellsCastWords)).length * mult;
       // Call Forth the Tempest: the mana values of the spells cast this turn (on the stack, X counted)
       if (v.spellsMvThisTurn) {
         let k = 0;
@@ -11501,7 +11503,7 @@
         }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
-        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
           v.greatestToughness || v.cardsInAllGraveyards || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);

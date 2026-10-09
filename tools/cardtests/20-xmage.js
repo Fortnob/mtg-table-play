@@ -12648,4 +12648,18 @@ module.exports = (test) => {
     const g = JSON.stringify(ec.abilities);
     t.ok(/"duration":"nextTurn"/.test(g) && /"notSubtype":"angel"/.test(g), 'until your next turn, not Angels');
   });
+
+  test('Rionya: one plus the instants and sorceries cast this turn; Cyberman Patrol hands out afflict 3', (mk, t) => {
+    t.auto('Rionya, Fire Dancer'); t.auto('Cyberman Patrol');
+    const T = mk();
+    const ri = T.bf('A', 'Rionya, Fire Dancer'), bear = T.bf('A', 'Grizzly Bears');
+    T.player('A').spellObjsThisTurn = [T.hand('A', 'Lightning Bolt'), T.hand('A', 'Divination'), T.hand('A', 'Hill Giant')];
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.g._runEffects(ri.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: ri, name: 'Rionya', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Grizzly Bears').length, 3, 'one plus two');
+    T.bf('A', 'Cyberman Patrol');
+    const ring = T.bf('A', 'Ornithopter');
+    t.eq(T.g._kwArg(ring, 'afflict'), 3);
+  });
 };

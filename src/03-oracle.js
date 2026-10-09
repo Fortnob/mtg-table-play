@@ -85,8 +85,8 @@
   function kwKnown(k) {
     const w = String(k || '').trim();
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
-    // toxic N handed out: the engine adds every instance up
-    if (/^toxic \d+$/i.test(w)) return true;
+    // toxic N handed out: the engine adds every instance up (and so for these, Cyberman Patrol's afflict 3)
+    if (/^(?:toxic|firebending|annihilator|afflict) \d+$/i.test(w)) return true;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
       /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
   }
@@ -5059,6 +5059,9 @@
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
+    // Rionya: "the number of instant and sorcery spells you've cast this turn"
+    if ((m = p.match(/^the number of (instant and sorcery|instant and\/or sorcery|noncreature|creature|artifact|enchantment|multicolou?red) spells you'?ve cast this turn$/i)))
+      return done({ spellsCastWords: m[1].toLowerCase().replace(/ and(?:\/or)? /, ' or '), mult: 1 });
     // Call Forth the Tempest: "the total mana value of other spells you've cast this turn"
     if ((m = p.match(/^the total mana value of (other )?spells you'?ve cast this turn$/i))) return done({ spellsMvThisTurn: true, other: !!m[1] });
     // Arachnogenesis: "the number of creatures attacking you"
