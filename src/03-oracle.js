@@ -5540,6 +5540,22 @@
   }
 
   /** A count the engine works out at resolution: "for each creature you control". */
+  /* A creature's own power counted from cards rather than permanents:
+     Lhurgoyf's "creature cards in all graveyards", Consuming Aberration's
+     "cards in your opponents' graveyards". Words naming some other zone or
+     measure, that nothing here reads, give null. */
+  function cdaCount(phrase, who) {
+    const p = String(phrase || '').toLowerCase().trim();
+    let m;
+    if ((m = p.match(/^(?:([a-z]+(?: [a-z]+)?) )?cards? in all graveyards$/))) return { cardsInAllGraveyards: m[1] || 'card' };
+    if ((m = p.match(/^(?:([a-z]+(?: [a-z]+)?) )?cards? in your opponents'? graveyards$/))) return { cardsInOpponentGraveyards: m[1] || 'card', mult: 1 };
+    if ((m = p.match(/^(?:([a-z]+(?: [a-z]+)?) )?cards? in your graveyard$/))) return Object.assign({ cardsInGraveyard: 'you', mult: 1 }, m[1] ? { filter: m[1] } : {});
+    // (the engine counts these itself: Tarmogoyf's kin, "colors among permanents")
+    if (/^card types among cards in |^colou?rs? among |^basic land types among /.test(p)) return countSpec(p, 1, who);
+    if (/\b(?:in|among|with|from|symbols?|hands?|exile|plus)\b/.test(p)) return null;
+    return countSpec(p, 1, who);
+  }
+
   function countSpec(phrase, mult, who) {
     return { per: String(phrase || '').toLowerCase().trim(),
       mult: mult == null ? 1 : mult, who: who || 'you' };
@@ -11641,12 +11657,15 @@
         setPt: { p: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() }, t: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() } } }) },
     // "<name>'s power and toughness are each equal to the number of X you control."
     { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
-      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
-        setPt: { p: countSpec(m[1], 1, /on the battlefield/i.test(m[0]) ? 'any' : 'you'),
-          t: countSpec(m[1], 1, /on the battlefield/i.test(m[0]) ? 'any' : 'you') } }) },
+      make: (m) => {
+        const k = cdaCount(m[1], /on the battlefield/i.test(m[0]) ? 'any' : 'you');
+        return k ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } } : null;
+      } },
     { re: /^(?:CARDNAME|This creature)'?s? power is equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)? and its toughness is equal to that number plus (\d+)\.?$/i,
-      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
-        setPt: { p: countSpec(m[1], 1, 'any'), t: countSpec(m[1], 1, 'any'), tPlus: +m[2] } }) },
+      make: (m) => {
+        const k = cdaCount(m[1], 'any');
+        return k ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k, tPlus: +m[2] } } : null;
+      } },
     // "<scope> gets +2/+0 as long as you control an artifact."
     { re: /^(.+?) gets? ([+-][\dX]+)\/([+-][\dX]+) as long as (.+?)\.?$/i,
       make: (m) => {

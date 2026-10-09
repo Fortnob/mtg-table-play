@@ -2872,7 +2872,7 @@
       }
       if (v.cardsInAllGraveyards) {
         let k = 0;
-        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (v.cardsInAllGraveyards === 'card' || this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInAllGraveyards)) k++;
         return k * mult;
       }
       // "the number of colors among permanents you control", "basic land types among lands you control"
@@ -2900,7 +2900,7 @@
       // Wight of Precinct Six: cards of a kind in the opponents' graveyards
       if (v.cardsInOpponentGraveyards) {
         let k = 0;
-        for (const q of this.opponentsOf(pid)) for (const c of ((this.zones[q.id] || {}).graveyard || [])) if (this._matchesCategory(c, v.cardsInOpponentGraveyards)) k++;
+        for (const q of this.opponentsOf(pid)) for (const c of ((this.zones[q.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInOpponentGraveyards)) k++;
         return k * mult;
       }
       // Commander's Insignia: times its controller has cast a commander from the command zone
@@ -9688,7 +9688,7 @@
       // Necrogoyf: creature cards in all graveyards
       if (typeof v === 'object' && v.cardsInAllGraveyards) {
         let k = 0;
-        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (v.cardsInAllGraveyards === 'card' || this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInAllGraveyards)) k++;
         return k * (v.mult || 1);
       }
       // Towering Gibbon: the greatest mana value among creatures you control, printed

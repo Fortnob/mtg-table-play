@@ -1842,4 +1842,23 @@ module.exports = (test) => {
     t.zone(l, 'battlefield');
     t.eq(T.g.powerOf(l), 3); t.eq(T.g.toughnessOf(l), 3);
   });
+
+  test('Audit: power counted from cards in graveyards: Lhurgoyf, Consuming Aberration, Detritivore, Souls of the Lost', (mk, t) => {
+    const want = { 'Lhurgoyf': [4, 5], 'Consuming Aberration': [4, 4], 'Detritivore': [1, 1], 'Souls of the Lost': [2, 3] };
+    for (const name of Object.keys(want)) {
+      const T = mk();
+      t.auto(name);
+      T.grave('A', 'Grizzly Bears'); T.grave('A', 'Lightning Bolt'); T.grave('A', 'Island');
+      T.grave('B', 'Grizzly Bears'); T.grave('B', 'Craw Wurm'); T.grave('B', 'Ghost Quarter'); T.grave('B', 'Walking Corpse');
+      const o = T.bf('A', name);
+      t.eq([T.g.powerOf(o), T.g.toughnessOf(o)].join('/'), want[name].join('/'), name);
+    }
+  });
+
+  test('Audit: counts of cards nothing reads are left to a person (Unlicensed Hearse, Primalcrux, Adamaro)', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Unlicensed Hearse', 'Primalcrux', 'Adamaro, First to Desire', 'Soulless One'])
+      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+  });
 };
