@@ -21531,10 +21531,13 @@
       if (f.chosenName && !this._chosenNameOf(src, x)) return false;
       // Circle of Affliction: "a source of the chosen color"
       if (f.chosenColor && !(src && src.chosenColor && ((x.analysis() || {}).colors || []).includes(src.chosenColor))) return false;
-      if (f.minPower != null && this.powerOf(x) < f.minPower) return false;
-      if (f.maxPower != null && this.powerOf(x) > f.maxPower) return false;
-      if (f.minToughness != null && this.toughnessOf(x) < f.minToughness) return false;
-      if (f.maxToughness != null && this.toughnessOf(x) > f.maxToughness) return false;
+      // one that has died is judged as it last was (Ulvenwald Observer: a pumped creature still counts)
+      const gone = x.zone !== 'battlefield' && x.zone !== 'stack' && x._lastPower != null;
+      const pw = () => (gone ? x._lastPower : this.powerOf(x)), tg = () => (gone ? x._lastToughness : this.toughnessOf(x));
+      if (f.minPower != null && pw() < f.minPower) return false;
+      if (f.maxPower != null && pw() > f.maxPower) return false;
+      if (f.minToughness != null && tg() < f.minToughness) return false;
+      if (f.maxToughness != null && tg() > f.maxToughness) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"

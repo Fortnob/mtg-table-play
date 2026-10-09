@@ -2417,4 +2417,24 @@ module.exports = (test) => {
     T.mana('A', 'B'); T.cast('A', T.hand('A', 'Cut Down'), { targets: [T.bf('B', 'Grizzly Bears')] });
     t.eq(T.life('A'), 21, 'a black spell: 1 life');
   });
+
+  test('Audit: a dying creature is judged by its last toughness (Ulvenwald Observer, a pumped Bears); Sunbird\'s Invocation ignores flashback', (mk, t) => {
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Ulvenwald Observer');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.top('A', 'Island'); T.top('A', 'Island');
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [b] });
+    const murder = T.hand('A', 'Murder');
+    const h = T.g.zones.A.hand.length;
+    T.mana('A', '1BB'); T.cast('A', murder, { targets: [b] });
+    t.zone(b, 'graveyard');
+    t.eq(T.g.zones.A.hand.length, h, 'a 5/5 as it died: Murder gone, a card drawn');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', "Sunbird's Invocation");
+    T.top('A', 'Island');
+    T.mana('A', '2U'); T.cast('A', T.grave('A', 'Think Twice'), { via: 'flashback' });
+    t.no(T.g.log.some(l => /Sunbird/.test(l.text)), 'cast from the graveyard: no trigger');
+  });
 };
