@@ -731,4 +731,82 @@ module.exports = (test) => {
     T.activate('A', pw, 0);
     t.eq(T.life('B'), 16, 'Chandra\'s +1 twice: 2 damage twice');
   });
+
+  test("Audit: Green Sun's Zenith finds only a green creature, then goes into the library", (mk, t) => {
+    const T = mk();
+    t.auto("Green Sun's Zenith");
+    const wurm = T.put('A', 'Craw Wurm', 'library', { top: false }), bear = T.put('A', 'Grizzly Bears', 'library', { top: false });
+    const ornithopter = T.put('A', 'Ornithopter', 'library', { top: false });
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = (ch.cards || []).map(c => c.name); return { cardIds: [bear.id] }; });
+    const g = T.hand('A', "Green Sun's Zenith");
+    T.mana('A', 'G2');
+    T.cast('A', g, { x: 2 });
+    t.zone(bear, 'battlefield');
+    t.ok(offered && !offered.includes('Ornithopter') && !offered.includes('Craw Wurm'), 'green, mana value 2 or less: ' + JSON.stringify(offered));
+    t.zone(g, 'library', 'shuffled into the library');
+    t.zone(wurm, 'library'); t.zone(ornithopter, 'library');
+  });
+
+  test('Audit: Necropotence exiles each card you discard', (mk, t) => {
+    const T = mk();
+    t.auto('Necropotence');
+    T.bf('A', 'Necropotence');
+    const x = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    t.eq(T.zone('A', 'graveyard').filter(o => o.name !== 'Faithless Looting').length, 0, 'the discarded cards are not in the graveyard');
+    t.ok(T.zone('A', 'exile').length >= 2, 'they are in exile');
+  });
+
+  /* ---- hands revealed and looked at ---- */
+
+  test('Audit: Despise takes a creature or a planeswalker', (mk, t) => {
+    const T = mk();
+    t.auto('Despise');
+    const bear = T.hand('B', 'Grizzly Bears'); T.hand('B', 'Lightning Bolt');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [bear.id] }; });
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Despise'), { targets: ['B'] });
+    t.eq(JSON.stringify(offered), '["Grizzly Bears"]');
+    t.zone(bear, 'graveyard');
+    t.ok(T.g.log.some(l => /B reveals their hand: Grizzly Bears, Lightning Bolt\./.test(l.text)), 'the log names the revealed cards');
+  });
+
+  test('Audit: Duress offers only noncreature, nonland cards', (mk, t) => {
+    const T = mk();
+    t.auto('Duress');
+    T.hand('B', 'Grizzly Bears'); T.hand('B', 'Forest'); const bolt = T.hand('B', 'Lightning Bolt');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [bolt.id] }; });
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Duress'), { targets: ['B'] });
+    t.eq(JSON.stringify(offered), '["Lightning Bolt"]');
+    t.zone(bolt, 'graveyard');
+  });
+
+  test('Audit: Lifebane Zombie offers green or white creature cards', (mk, t) => {
+    const T = mk();
+    t.auto('Lifebane Zombie');
+    const w = T.hand('B', 'Savannah Lions'); T.hand('B', 'Grizzly Bears'); T.hand('B', 'Goblin Guide');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort(); return { cardIds: [w.id] }; });
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Lifebane Zombie'));
+    t.eq(JSON.stringify(offered), '["Grizzly Bears","Savannah Lions"]');
+    t.zone(w, 'exile');
+  });
+
+  test("Audit: Gitaxian Probe shows the caster the target player's hand", (mk, t) => {
+    const T = mk();
+    t.auto('Gitaxian Probe');
+    T.hand('B', 'Lightning Bolt');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Gitaxian Probe'), { targets: ['B'] });
+    const shown = T.asked.find(a => a.playerId === 'A' && (a.items || []).some(i => i.name === 'Lightning Bolt'));
+    t.ok(shown, 'the hand was shown to A');
+    t.no(T.g.log.some(l => /Lightning Bolt/.test(l.text)), 'and not named to everybody');
+  });
 };
