@@ -2832,4 +2832,31 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.zone(pl, 'battlefield', 'the Dog takes nothing'); t.zone(d, 'graveyard', 'the Bears are no Dog');
   });
+
+  test('Audit: Roar of Resistance pumps only attackers of your opponents; Mayhem Devil sees each sacrifice once; Dinosaur Egg discovers its toughness', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Roar of Resistance'); t.auto('Dinosaur Egg');
+    T.toMain('B');
+    T.bf('A', 'Roar of Resistance'); T.bf('A', 'Mountain'); T.bf('A', 'Mountain');
+    const x = T.bf('B', 'Grizzly Bears'), y = T.bf('B', 'Hill Giant');
+    x.summoningSick = y.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: x.id, defenderId: 'A' }, { attackerId: y.id, defenderId: 'C' }]);
+    T.toMain('B', 'declareBlockers');
+    t.eq(T.g.powerOf(x), 2, 'attacking me: nothing'); t.eq(T.g.powerOf(y), 5, 'attacking C, my opponent: +2/+0');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Mayhem Devil');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves');
+    T.answer('choose', () => ({ picks: [a.id, b.id], ids: [a.id, b.id], cardIds: [a.id, b.id] }));
+    T.mana('A', '2B'); T.cast('A', T.hand('A', 'Pitiless Carnage')); T.settle(); T.resolve();
+    t.eq(T.g.log.filter(l => /Triggered: Mayhem Devil/.test(l.text)).length, 2, 'two sacrificed, two triggers');
+    const m = T.hand('A', 'Mulldrifter');
+    T.mana('A', '2U'); T.g.castSpell('A', m.id, { auto: true, via: 'evoke' }); T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.g.log.filter(l => /Triggered: Mayhem Devil/.test(l.text)).length, 3, 'an evoked Mulldrifter: one more');
+    T = mk();
+    T.toMain('A');
+    const egg = T.bf('A', 'Dinosaur Egg');
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [egg] });
+    t.ok(T.g.log.some(l => /discovers 3/.test(l.text)), 'discover 3, its toughness');
+  });
 };
