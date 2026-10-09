@@ -5716,6 +5716,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Liliana, Heretical Healer: "exile Liliana, then return her to the
+       battlefield transformed under her owner's control. If you do, create a
+       2/2 black Zombie creature token." */
+    { re: /^Exile CARDNAME, then return (?:it|him|her) to the battlefield transformed under (?:its|his|her) owner'?s control\. If you do, ([^.]+\.)$/i,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1)));
+        return rest.auto ? [{ op: 'blinkTransformed', ownerControl: true }, { op: 'ifCond', cond: { kind: 'selfTransformed' }, then: rest.effects }] : null;
+      } },
     /* Stonehewer Giant: "Search your library for an Equipment card, put it
        onto the battlefield, attach it to a creature you control, then shuffle." */
     { re: /^Search your library for an? (Equipment|Aura) card, put it onto the battlefield, attach it to a creature you control, then shuffle\.$/i,

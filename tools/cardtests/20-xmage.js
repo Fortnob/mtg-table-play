@@ -12910,4 +12910,15 @@ module.exports = (test) => {
     T.settle();
     t.eq(j.zone, 'battlefield'); t.eq(j.face || 0, 1, 'transformed');
   });
+
+  test('Liliana, Heretical Healer: flips when a creature of yours dies, and makes a Zombie', (mk, t) => {
+    t.auto('Liliana, Heretical Healer // Liliana, Defiant Necromancer');
+    const T = mk();
+    const li = T.bf('A', 'Liliana, Heretical Healer // Liliana, Defiant Necromancer');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    T.settle(); T.resolve(); T.settle();
+    t.eq(li.zone, 'battlefield'); t.eq(li.face || 0, 1, 'a planeswalker now');
+    t.ok(T.g.battlefield.some(o => o.isToken && o.name === 'Zombie'), 'and a Zombie');
+  });
 };

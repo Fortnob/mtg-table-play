@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12149,
+  "needed": 12148,
   "gainedCards": 1287,
-  "linesNeeded": 13189,
+  "linesNeeded": 13188,
   "linesGained": 1535,
   "gained": {
    "all": 1287,
@@ -4949,18 +4949,6 @@
    ]
   },
   {
-   "what": "ExileAndReturnSourceEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
-    "Liliana, Heretical Healer // Liliana, Defiant Necromancer",
-    "Jecht, Reluctant Guardian // Braska's Final Aeon",
-    "Crystal Fragments // Summon: Alexander",
-    "Chandra, Fire of Kaladesh // Chandra, Roaring Flame"
-   ]
-  },
-  {
    "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
    "score": 5,
    "lines": 5,
@@ -6052,6 +6040,17 @@
     "Eight-and-a-Half-Tails",
     "Blind Seer",
     "Illusion // Reality"
+   ]
+  },
+  {
+   "what": "ExileAndReturnSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+    "Jecht, Reluctant Guardian // Braska's Final Aeon",
+    "Crystal Fragments // Summon: Alexander",
+    "Chandra, Fire of Kaladesh // Chandra, Roaring Flame"
    ]
   },
   {
