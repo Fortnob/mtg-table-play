@@ -2478,7 +2478,7 @@
     if (net.isHost) {
       online.append(
         el('button', { class: 'code-display', text: net.roomCode, title: 'Copy the room code', 'aria-label': `Room code ${net.roomCode}. Copy it.`,
-          onclick: () => { navigator.clipboard && navigator.clipboard.writeText(net.roomCode); UI.ok('Room code copied.'); } }),
+          onclick: async () => { if (await UI.copyText(net.roomCode)) UI.ok('Room code copied.'); else UI.error(`Could not copy it; the code is ${net.roomCode}.`); } }),
         el('p', { class: 'small muted', text: 'Share this code. Anyone who enters it joins this table directly — no server holds the game.' }),
         el('button', { class: 'btn sm', text: 'Stop hosting', onclick: () => { net.destroy(); setNetBadge(); renderLobby(); } }),
       );

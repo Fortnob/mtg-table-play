@@ -138,6 +138,26 @@
     });
   };
 
+  /**
+   * Put some text on the clipboard. The clipboard API needs a secure page,
+   * which the app opened from another computer on the network (a phone on
+   * the same Wi-Fi) is not, so it falls back to the old copy command.
+   * Resolves whether it worked.
+   */
+  UI.copyText = async function (text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* the old way, below */ }
+    const box = el('textarea', { value: text, readonly: true, style: { position: 'fixed', top: '-1000px', opacity: '0' } });
+    document.body.appendChild(box);
+    box.select();
+    box.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    box.remove();
+    return ok;
+  };
+
   /** Ask for a line of text; `opts.placeholder` is a faint hint in the empty box. */
   UI.prompt = function (msg, def, title, opts) {
     opts = opts || {};
