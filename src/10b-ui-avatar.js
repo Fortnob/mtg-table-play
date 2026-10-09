@@ -16,38 +16,29 @@
      their face sits in the art (x, y, as fractions) and how far in to
      zoom start the cropper off close to right. */
   const PRESETS = [
-    { name: 'Jace, the Mind Sculptor', y: 0.36, z: 1.7 },
-    { name: 'Chandra, Torch of Defiance', y: 0.34, z: 1.8 },
-    { name: 'Liliana of the Veil', y: 0.3, z: 1.8 },
-    { name: 'Gideon, Ally of Zendikar', y: 0.32, z: 1.8 },
-    { name: 'Nissa, Who Shakes the World', y: 0.34, z: 1.7 },
-    { name: 'Ajani Goldmane', y: 0.34, z: 1.7 },
-    { name: 'Teferi, Hero of Dominaria', y: 0.32, z: 1.8 },
-    { name: 'Karn Liberated', y: 0.34, z: 1.6 },
-    { name: 'Ugin, the Spirit Dragon', y: 0.38, z: 1.5 },
-    { name: 'Nicol Bolas, Dragon-God', y: 0.32, z: 1.6 },
-    { name: 'Sorin, Vengeful Bloodlord', y: 0.32, z: 1.8 },
-    { name: "Elspeth, Sun's Champion", y: 0.3, z: 1.8 },
-    { name: 'Garruk Wildspeaker', y: 0.32, z: 1.7 },
-    { name: 'Vraska, Golgari Queen', y: 0.32, z: 1.8 },
-    { name: 'Kaya, Ghost Assassin', y: 0.32, z: 1.8 },
-    { name: 'Tezzeret the Seeker', y: 0.32, z: 1.7 },
-    { name: 'Sarkhan Vol', y: 0.32, z: 1.7 },
-    { name: 'Nahiri, the Harbinger', y: 0.32, z: 1.8 },
-    { name: 'Ral, Storm Conduit', y: 0.32, z: 1.8 },
-    { name: 'Tamiyo, Field Researcher', y: 0.32, z: 1.8 },
-    { name: 'Kiora, the Crashing Wave', y: 0.32, z: 1.7 },
-    { name: 'Oko, Thief of Crowns', y: 0.32, z: 1.8 },
-    { name: 'Wrenn and Six', y: 0.36, z: 1.6 },
-    { name: 'Kaito Shizuki', y: 0.32, z: 1.8 },
-    { name: 'Urza, Lord High Artificer', y: 0.3, z: 1.8 },
-    { name: 'Yawgmoth, Thran Physician', y: 0.3, z: 1.8 },
-    { name: 'Elesh Norn, Grand Cenobite', y: 0.3, z: 1.7 },
-    { name: "Atraxa, Praetors' Voice", y: 0.3, z: 1.6 },
-    { name: 'Niv-Mizzet, Parun', y: 0.34, z: 1.5 },
-    { name: 'Avacyn, Angel of Hope', y: 0.3, z: 1.8 },
-    { name: 'Edgar Markov', y: 0.3, z: 1.8 },
-    { name: 'Lord Windgrace', y: 0.32, z: 1.7 },
+    // each one a printing whose art shows the whole face, and where it is
+    { name: 'Jace, the Mind Sculptor', set: '2xm', cn: '56', x: 0.44, y: 0.17, z: 3.9 },
+    { name: 'Chandra, Torch of Defiance', set: 'fra', cn: '244', x: 0.57, y: 0.14, z: 3.4 },
+    { name: 'Liliana of the Veil', set: 'inr', cn: '475', x: 0.744, y: 0.157, z: 2.9 },
+    { name: 'Gideon, Ally of Zendikar', set: 'bfz', cn: '29', x: 0.44, y: 0.09, z: 3.9 },
+    { name: 'Ajani Goldmane', set: 'm11', cn: '1', x: 0.505, y: 0.157, z: 2.3 },
+    { name: 'Teferi, Hero of Dominaria', set: 'dom', cn: '207', x: 0.49, y: 0.12, z: 3.4 },
+    { name: "Elspeth, Sun's Champion", set: 'frc', cn: '24', x: 0.53, y: 0.12, z: 4.6 },
+    { name: 'Vraska, Golgari Queen', set: 'grn', cn: '213', x: 0.45, y: 0.245, z: 4.2 },
+    { name: 'Kaya, Ghost Assassin', set: 'cn2', cn: '75', x: 0.44, y: 0.21, z: 3.7 },
+    { name: 'Sarkhan Vol', set: 'mma', cn: '183', x: 0.505, y: 0.14, z: 3.7 },
+    { name: 'Nahiri, the Harbinger', set: 'cmm', cn: '929', x: 0.47, y: 0.14, z: 3.7 },
+    { name: 'Ral, Storm Conduit', set: 'war', cn: '211', x: 0.375, y: 0.09, z: 4 },
+    { name: 'Kiora, the Crashing Wave', set: 'ddo', cn: '34', x: 0.454, y: 0.105, z: 4.6 },
+    { name: 'Oko, Thief of Crowns', set: 'eld', cn: '197', x: 0.45, y: 0.26, z: 3.9 },
+    { name: 'Wrenn and Six', set: '2x2', cn: '296', x: 0.62, y: 0.31, z: 5 },
+    { name: 'Kaito Shizuki', set: 'neo', cn: '226', x: 0.68, y: 0.21, z: 3.9 },
+    { name: 'Urza, Lord High Artificer', set: 'cmm', cn: '130', x: 0.526, y: 0.28, z: 5 },
+    { name: 'Yawgmoth, Thran Physician', set: 'dmr', cn: '110', x: 0.556, y: 0.19, z: 4.2 },
+    { name: 'Niv-Mizzet, Parun', set: 'otc', cn: '235', x: 0.64, y: 0.226, z: 2.75 },
+    { name: 'Avacyn, Angel of Hope', set: 'inr', cn: '477', x: 0.526, y: 0.185, z: 5 },
+    { name: 'Edgar Markov', set: 'inr', cn: '234', x: 0.487, y: 0.157, z: 5 },
+    { name: 'Lord Windgrace', set: 'c18', cn: '43', x: 0.46, y: 0.12, z: 3.4 },
   ];
   UI.avatarPresets = PRESETS;
 
@@ -73,7 +64,7 @@
   let presetCards = null;
   async function presetArt() {
     if (presetCards) return presetCards;
-    const res = await MTG.scry.collection(PRESETS.map(p => ({ name: p.name })));
+    const res = await MTG.scry.collection(PRESETS.map(p => (p.set ? { set: p.set, collector_number: p.cn } : { name: p.name })));
     presetCards = PRESETS.map((p, i) => ({ preset: p, card: (res.cards || [])[i] || null })).filter(x => x.card);
     return presetCards;
   }
@@ -143,8 +134,15 @@
         const who = card.name.split(',')[0];
         const face = el('span', { class: 'av-thumb-face' });
         face.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
-        face.style.backgroundSize = `${Math.round(preset.z * 100)}% auto`;
-        face.style.backgroundPosition = `${Math.round((preset.x != null ? preset.x : 0.5) * 100)}% ${Math.round(preset.y * 100)}%`;
+        /* The face in the middle, as the cropper will put it: the art
+           scaled so its height is z thumbnails, then moved so the face's
+           point is the centre (kept inside the picture). */
+        const B = 68, A = 626 / 457, z = preset.z;
+        const w = A * z * B, h = z * B;
+        const left = Math.max(B - w, Math.min(0, B / 2 - (preset.x != null ? preset.x : 0.5) * w));
+        const top = Math.max(B - h, Math.min(0, B / 2 - preset.y * h));
+        face.style.backgroundSize = `${w.toFixed(1)}px ${h.toFixed(1)}px`;
+        face.style.backgroundPosition = `${left.toFixed(1)}px ${top.toFixed(1)}px`;
         grid.appendChild(el('button', { type: 'button', class: 'av-thumb', role: 'listitem', title: card.name, 'aria-label': card.name,
           onclick: () => crop(url, { x: preset.x != null ? preset.x : 0.5, y: preset.y, z: preset.z }, card.name) }, [
           face, el('span', { class: 'av-thumb-name', text: who }),

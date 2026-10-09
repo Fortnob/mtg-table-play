@@ -1411,3 +1411,10 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .search-grid > .search-card { content-visibility: auto; contain-intrinsic-size: auto 240px; }
 .deck-pane .card-grid > .card-slot { content-visibility: auto; contain-intrinsic-size: auto var(--card-h); }
 :root[data-phone] .deck-list .deck-entry, :root[data-phone] .starter-list .deck-entry { content-visibility: auto; contain-intrinsic-size: auto 38px; }
+
+/* no gold ring around a portrait */
+.portrait-ring { display: none; }
+.portrait-face { inset: 0; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.av-thumb-face { box-shadow: 0 3px 10px rgba(0,0,0,.55) !important; }
+.av-thumb:hover .av-thumb-face { box-shadow: 0 0 0 2px rgba(255,255,255,.5), 0 3px 12px rgba(0,0,0,.6) !important; }
+.av-mask::after { box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
