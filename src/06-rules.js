@@ -11383,7 +11383,8 @@
       const triggerPlayer = () => {
         const d = ctx.triggerData || {};
         // "choose an opponent. That player …": the one chosen, when there was a choice
-        return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId) ||
+        // (Massacre Wurm: "Whenever a creature an opponent controls dies, that player loses 2 life" — its controller)
+        return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId || d.objController) ||
           // a Curse: "that player" is the one it enchants
           (src && src.attachedTo && this.player(src.attachedTo)) || null;
       };

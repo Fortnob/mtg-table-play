@@ -9328,6 +9328,10 @@
            targeted, "it" is the creature the trigger is about, this one or
            the one that set it off, not a target that was never chosen */
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
+        /* Exquisite Blood: "Whenever an opponent loses life, you gain that
+           much life" — with no life lost earlier in the ability, "that much"
+           is what set the trigger off */
+        { const f = parsed.effects[0]; if (f && f.op === 'gainLife' && f.n === 'lastLifeLost') f.n = 'triggerAmount'; }
         /* Kaya's Ghostform: "return that card to the battlefield under your
            control" is the enchanted card that just left, not one held in exile */
         if (trig.event === 'equippedDies') {

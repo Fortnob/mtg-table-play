@@ -860,4 +860,146 @@ module.exports = (test) => {
     t.zone(nr, 'graveyard');
     t.ok(T.life('A') >= 17, 'the original Bolt never resolved');
   });
+
+  /* ---- ranks 500 to 1000, checked against their words ---- */
+
+  test('Audit: Massacre Wurm shrinks their creatures and drains for each that dies', (mk, t) => {
+    const T = mk();
+    t.auto('Massacre Wurm');
+    const elf = T.bf('B', 'Llanowar Elves'), wurm = T.bf('B', 'Craw Wurm'), mine = T.bf('A', 'Llanowar Elves');
+    T.mana('A', 'BBB3');
+    T.cast('A', T.hand('A', 'Massacre Wurm'));
+    t.zone(elf, 'graveyard'); t.zone(wurm, 'battlefield'); t.zone(mine, 'battlefield');
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Audit: Exquisite Blood gains what an opponent loses', (mk, t) => {
+    const T = mk();
+    t.auto('Exquisite Blood');
+    T.bf('A', 'Exquisite Blood');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('A'), 23);
+  });
+
+  test('Audit: Wheel of Fortune: each player discards their hand and draws seven', (mk, t) => {
+    const T = mk({ libraryEach: 8 });
+    t.auto('Wheel of Fortune');
+    T.hand('B', 'Island');
+    const w = T.hand('A', 'Wheel of Fortune');
+    T.mana('A', 'R2');
+    T.cast('A', w);
+    t.eq(T.zone('A', 'hand').length, 7);
+    t.eq(T.zone('B', 'hand').length, 7);
+  });
+
+  test('Audit: Abrupt Decay hits mana value 3 or less, nonland', (mk, t) => {
+    const T = mk();
+    t.auto('Abrupt Decay');
+    const ring = T.bf('B', 'Sol Ring'), wurm = T.bf('B', 'Craw Wurm'), land = T.bf('B', 'Forest');
+    T.mana('A', 'BG');
+    const s = T.hand('A', 'Abrupt Decay');
+    t.no(T.g.castSpell('A', s.id, { targets: [{ kind: 'object', id: wurm.id }] }), 'not mana value 6');
+    t.no(T.g.castSpell('A', s.id, { targets: [{ kind: 'object', id: land.id }] }), 'not a land');
+    T.cast('A', s, { targets: [ring] });
+    t.zone(ring, 'graveyard');
+  });
+
+  test('Audit: Resculpt exiles and gives its controller a 4/4', (mk, t) => {
+    const T = mk();
+    t.auto('Resculpt');
+    const ring = T.bf('B', 'Sol Ring');
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Resculpt'), { targets: [ring] });
+    t.zone(ring, 'exile');
+    const tok = T.bfOf('B').find(o => o.isToken);
+    t.ok(tok && T.g.powerOf(tok) === 4);
+  });
+
+  test('Audit: Spell Pierce counters a noncreature spell unless {2} is paid', (mk, t) => {
+    const T = mk();
+    t.auto('Spell Pierce');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', bolt, { targets: ['A'], resolve: false });
+    T.g.passPriority('B', true);
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Spell Pierce'), { targets: [T.stackTarget(bolt)] });
+    t.zone(bolt, 'graveyard');
+    t.eq(T.life('A'), 20);
+  });
+
+  test('Audit: Unearth returns a creature card with mana value 3 or less', (mk, t) => {
+    const T = mk();
+    t.auto('Unearth');
+    const bear = T.grave('A', 'Grizzly Bears'), wurm = T.grave('A', 'Craw Wurm');
+    const s = T.hand('A', 'Unearth');
+    T.mana('A', 'B');
+    t.no(T.g.castSpell('A', s.id, { targets: [{ kind: 'object', id: wurm.id }] }), 'not mana value 6');
+    T.cast('A', s, { targets: [bear] });
+    t.zone(bear, 'battlefield');
+  });
+
+  test('Audit: Fleshbag Marauder makes each player sacrifice a creature', (mk, t) => {
+    const T = mk();
+    t.auto('Fleshbag Marauder');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Fleshbag Marauder'));
+    t.zone(b, 'graveyard');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Fleshbag Marauder').length + T.zone('A', 'graveyard').filter(o => o.name === 'Fleshbag Marauder').length, 1);
+  });
+
+  test('Audit: Howling Mine gives each player an extra card while untapped', (mk, t) => {
+    const T = mk();
+    t.auto('Howling Mine');
+    const m = T.bf('A', 'Howling Mine');
+    const h0 = T.zone('B', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('B', 'hand').length, h0 + 2, 'its draw and one more');
+    T.nextTurn('A');
+    m.tapped = true;
+    const h1 = T.zone('B', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('B', 'hand').length, h1 + 1, 'tapped, and not untapped on the turn of B: only the draw');
+  });
+
+  test('Audit: Elesh Norn: others +2/+2, theirs -2/-2', (mk, t) => {
+    const T = mk();
+    t.auto('Elesh Norn, Grand Cenobite');
+    const en = T.bf('A', 'Elesh Norn, Grand Cenobite');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Craw Wurm');
+    t.eq(T.g.powerOf(mine), 4); t.eq(T.g.powerOf(theirs), 4); t.eq(T.g.powerOf(en), 4);
+  });
+
+  test('Audit: Exquisite Blood and Bloodthirsty Conqueror gain what an opponent loses', (mk, t) => {
+    const T = mk();
+    T.bf('A', 'Bloodthirsty Conqueror');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('A'), 23);
+  });
+
+  test('Audit: Spirit Link gains life for damage the creature deals', (mk, t) => {
+    const T = mk();
+    t.auto('Spirit Link');
+    const wurm = T.bf('A', 'Craw Wurm');
+    const sl = T.bf('A', 'Spirit Link');
+    sl.attachedTo = wurm.id; wurm.attachments = [sl.id];
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 14);
+    t.eq(T.life('A'), 26);
+  });
+
+  test('Audit: Massacre Wurm: a creature of theirs dying costs its controller 2 life', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Massacre Wurm');
+    const elf = T.bf('C', 'Llanowar Elves');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [elf] });
+    t.eq(T.life('C'), 18);
+    t.eq(T.life('B'), 20);
+  });
 };
