@@ -16878,4 +16878,19 @@ module.exports = (test) => {
       t.zone(bear, 'hand', how);
     }
   });
+
+  test('River of Tears: {U}, or {B} once you have played a land this turn', (mk, t) => {
+    t.auto('River of Tears');
+    const T = mk();
+    T.toMain('A');
+    const river = T.bf('A', 'River of Tears');
+    T.g.tapForMana('A', river.id, 0);
+    t.eq(T.player('A').pool.U || 0, 1, 'no land played yet: {U}');
+    T.player('A').pool.clear();
+    river.tapped = false;
+    const land = T.hand('A', 'Swamp');
+    t.ok(T.g.playLand('A', land.id), T.g.lastError);
+    T.g.tapForMana('A', river.id, 0);
+    t.eq(T.player('A').pool.B || 0, 1, 'a land played: {B}');
+  });
 };

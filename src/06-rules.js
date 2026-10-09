@@ -9756,6 +9756,8 @@
           return (by[cond.what] || 0) >= (cond.n || 1);
         }
         // Lilypad Village: "if a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn" (enteredTypes)
+        // River of Tears: a land played this turn — the count is kept for the player whose turn it is (playedLandThisTurn)
+        case 'playedLandThisTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id && (me.landsPlayed || 0) > 0;
         // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
         case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
         // Slick Sequence, Focus the Mind: a spell cast this turn other than this one, whether it's being cast or resolving (castAnotherSpell)

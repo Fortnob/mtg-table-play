@@ -8725,6 +8725,8 @@
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
+    // River of Tears: "you played a land this turn" (playedLandThisTurn)
+    [/^you played a land this turn$/i, () => ({ kind: 'playedLandThisTurn' })],
     // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)
     [/^it'?s modified$/i, () => ({ kind: 'selfModified' })],
     // Slick Sequence, Focus the Mind: "you've cast another spell this turn" — one other than this (castAnotherSpell)
