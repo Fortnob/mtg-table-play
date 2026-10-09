@@ -844,4 +844,20 @@ module.exports = (test) => {
     t.eq(m.name, 'Sol Ring');
     t.ok(T.g.log.some(l => /^Phyrexian Metamorph enters as a copy of Sol Ring\.$/.test(l.text)), 'log line');
   });
+
+  test("Audit: Narset's Reversal returns the spell it copied, not itself", (mk, t) => {
+    const T = mk();
+    t.auto("Narset's Reversal");
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', bolt, { targets: ['A'], resolve: false });
+    T.g.passPriority('B', true);
+    T.mana('A', 'UU');
+    const nr = T.hand('A', "Narset's Reversal");
+    T.cast('A', nr, { targets: [T.stackTarget(bolt)] });
+    t.zone(bolt, 'hand', 'the Bolt went back to its owner');
+    t.zone(nr, 'graveyard');
+    t.ok(T.life('A') >= 17, 'the original Bolt never resolved');
+  });
 };

@@ -7423,7 +7423,8 @@
        battlefield. Put a +1/+1 counter on it." After a sentence with a
        target, "it" is that target, not this card. */
     folded.forEach((e, i) => {
-      if (!e || (e.op !== 'counters' && e.op !== 'restrict') || e.scope !== 'self' || e.targets) return;
+      // (Narset's Reversal: "Copy target instant or sorcery spell, then return it to its owner's hand" — the spell, not itself)
+      if (!e || (e.op !== 'counters' && e.op !== 'restrict' && e.op !== 'bounce') || e.scope !== 'self' || e.targets) return;
       if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
     });
