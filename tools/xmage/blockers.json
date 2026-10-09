@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11280,
+  "needed": 11278,
   "gainedCards": 1131,
-  "linesNeeded": 12068,
+  "linesNeeded": 12066,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -5712,17 +5712,6 @@
    ]
   },
   {
-   "what": "GainAllCreatureTypesAttachedEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Stalactite Dagger",
-    "Amorphous Axe",
-    "Runed Stalactite",
-    "Arachnoform"
-   ]
-  },
-  {
    "what": "FightEnchantedTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6658,6 +6647,16 @@
     "Alesha, Who Smiles at Death",
     "Yore-Tiller Nephilim",
     "Bereaved Survivor // Dauntless Avenger"
+   ]
+  },
+  {
+   "what": "chapter lambda .setTargetAdjuster",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Battle at the Helvault",
+    "The Horus Heresy",
+    "Vault 13: Dweller's Journey"
    ]
   }
  ],

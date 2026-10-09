@@ -16794,4 +16794,15 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.ok(T.g.hasKw(s2, 'flying'), 'an Equipment');
   });
+
+  test('Amorphous Axe: the equipped creature is every creature type', (mk, t) => {
+    t.auto('Amorphous Axe');
+    t.auto('Runed Stalactite');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), axe = T.bf('A', 'Amorphous Axe');
+    axe.attachedTo = bear.id; bear.attachments = [axe.id];
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 5, '+3/+0');
+    t.ok(T.g._hasCreatureType(bear, 'Goblin') && T.g._hasCreatureType(bear, 'Elf'), 'a Goblin and an Elf');
+  });
 };
