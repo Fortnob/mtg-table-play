@@ -1507,4 +1507,37 @@ module.exports = (test) => {
     t.eq(T.life('B'), 16);
     t.ok(T.g.log.some(l => /^Grizzly Bears deals 2 to B/.test(l.text)));
   });
+
+  test('Audit: Dalek Drone: the controller of the destroyed creature loses 3 life', (mk, t) => {
+    const T = mk();
+    t.auto('Dalek Drone');
+    const w = T.bf('B', 'Craw Wurm');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T.mana('A', 'BB4');
+    T.cast('A', T.hand('A', 'Dalek Drone'));
+    t.zone(w, 'graveyard');
+    t.eq(T.life('B'), 17); t.eq(T.life('A'), 20);
+  });
+
+  test('Audit: Suspended Sentence and Recoil reach the player whose permanent it was', (mk, t) => {
+    let T = mk();
+    t.auto('Suspended Sentence');
+    const w = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'B3');
+    T.cast('A', T.hand('A', 'Suspended Sentence'), { targets: [w] });
+    t.eq(T.life('B'), 17);
+    T = mk();
+    t.auto('Recoil');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.hand('B', 'Lightning Bolt');
+    T.mana('A', 'UB1');
+    T.cast('A', T.hand('A', 'Recoil'), { targets: [b] });
+    t.zone(b, 'hand', 'returned');
+    t.eq(T.zone('B', 'hand').length, 1, 'and B discarded one of the two');
+  });
+
+  test('Audit: Frightful Delusion is manual: who discards after a counter is not kept', (mk, t) => {
+    const T = mk();
+    t.no(T.MTG.oracle.analyze(require('../harness').card('Frightful Delusion')).fullyAutomated);
+  });
 };

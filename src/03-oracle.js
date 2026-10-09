@@ -649,6 +649,32 @@
       /^(?:It|That creature) deals\b/.test(d0.text || '')) d0.fromTrigger = true;
   }
 
+  /* Suspended Sentence: "Destroy target creature an opponent controls. That
+     player loses 3 life." With no trigger and no player targeted, "that
+     player" is whoever had what was targeted. */
+  function thatPlayerOfTheTarget(effects) {
+    const ops = ['loseLife', 'discard', 'createNamedToken', 'draw', 'mill'];
+    let ok = true;
+    const run = (list, st) => {
+      for (const e of list || []) {
+        if (!e) continue;
+        if (e.op === 'modal') { for (const m of e.modes || []) run(m.effects, { obj: false, spell: false, pl: false }); continue; }
+        if (e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
+          // (a spell's controller, after it may have been countered, is not kept: Frightful Delusion)
+          if (st.obj && ops.includes(e.op)) e.who = 'targetController'; else ok = false;
+        }
+        for (const t of e.targets || []) {
+          if (t && t.type === 'player') st.pl = true;
+          else if (t && t.zone === 'stack') st.spell = true;
+          else if (t) st.obj = true;
+        }
+        run(e.then, st); run(e.list, st); run(e.otherwise, st);
+      }
+    };
+    run(effects, { obj: false, spell: false, pl: false });
+    return ok;
+  }
+
   function itIsTheTrigger(effects, scope) {
     if (!scope) return;
     /* "Whenever this creature attacks, it gains double strike until end of
@@ -9500,6 +9526,7 @@
            the one that set it off, not a target that was never chosen */
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
         thatIsTheTarget(parsed, !trig.self && (trig.aboutObject || objFilter));
+        if (trig.self && !thatPlayerOfTheTarget(parsed.effects)) parsed.auto = false;
         /* Exquisite Blood: "Whenever an opponent loses life, you gain that
            much life" — with no life lost earlier in the ability, "that much"
            is what set the trigger off */
@@ -9876,6 +9903,7 @@
       // For an instant or sorcery the line IS the spell's effect.
       if (!out.isPermanent) {
         const parsed = parseEffects(line);
+        if (!thatPlayerOfTheTarget(parsed.effects)) parsed.auto = false;
         out.abilities.push({ kind: 'spell', text: line, effects: parsed.effects, auto: parsed.auto });
         if (parsed.auto) autoLines++;
         continue;

@@ -11906,7 +11906,10 @@
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
             // "Its controller discards a card": whoever controlled what was just destroyed,
             // or what the trigger is about (Bereavement: "whenever a green creature dies")
-            : e.who === 'targetController' ? [this._lastAffectedController() || this.player((ctx.triggerData || {}).objController) || triggerPlayer()]
+            : e.who === 'targetController' ? [this._lastAffectedController() ||
+              // Recoil: "Return target permanent to its owner's hand. Then that player discards a card."
+              (firstObj() && this.player(firstObj().zone === 'battlefield' ? firstObj().controller : firstObj().owner)) ||
+              this.player((ctx.triggerData || {}).objController) || triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           for (const p of who) {
             if (!p || p.hasLost) continue;
