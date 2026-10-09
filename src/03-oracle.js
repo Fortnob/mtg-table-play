@@ -1525,7 +1525,8 @@
         targets: /each/i.test(m[1]) ? undefined : [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
 
     /* "It gains haste." — whatever the sentence before this one was about. */
-    { re: /^(?:It|They) gains? ([a-z, ']+?)(?: until end of turn)?\.?$/i,
+    // (Hideous Taskmaster: "They gain trample, haste, and annihilator 1 until end of turn.")
+    { re: /^(?:It|They) gains? ([a-z0-9, ']+?)(?: until end of turn)?\.?$/i,
       make: (m) => {
         if (!KW_LIST.test(m[1])) return null;
         const kws = keywordList(m[1]);
@@ -2144,9 +2145,10 @@
       make: (m) => ({ op: 'drain', n: num(m[1]), who: 'opponents' }) },
 
     // --- copying a spell ---
-    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
+    // (Expansion: "… with mana value 4 or less")
+    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?(?: with mana value (\d+) or less)?\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
-        m[2] ? { controller: 'you' } : {})] }) },
+        m[2] ? { controller: 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }) },
     /* Strionic Resonator, Lithoform Engine: an ability copied on the stack.
        The copy's targets are offered again as it is made. */
     { re: /^Copy target (activated or triggered|triggered|activated) ability( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
@@ -4404,8 +4406,13 @@
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Chronostutter: "Put target creature into its owner's library second from the top."
-    { re: /^Put (target [a-z ]+?) into its owner'?s library second from the top\.?$/i,
-      make: (m) => { const a = tgt(m[1]); return a && !/spell/i.test(m[1]) ? { op: 'toLibrary', where: 'second', targets: [a] } : null; } },
+    // (Teferi, Hero of Dominaria: "third from the top")
+    { re: /^Put (target [a-z ]+?) into its owner'?s library (second|third) from the top\.?$/i,
+      make: (m) => { const a = tgt(m[1]); return a && !/spell/i.test(m[1]) ? { op: 'toLibrary', where: m[2].toLowerCase(), targets: [a] } : null; } },
+    // Teferi, Hero of Dominaria: "At the beginning of the next end step, untap up to two lands."
+    { re: /^At the beginning of the next end step, untap up to (one|two|three|four) lands\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'self', name: 'Untap lands at end of turn',
+        effects: [{ op: 'untapChosen', n: num(m[1]), upTo: true, filter: 'land' }] }) },
     // Assassin's Strike: "Destroy target creature. Its controller discards a card."
     { re: /^Its controller discards (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'discard', n: num(m[1]), who: 'targetController' }) },

@@ -12824,4 +12824,21 @@ module.exports = (test) => {
     T.settle();
     t.eq(dead.zone, 'battlefield'); t.eq(dead.counters['+1/+1'], 2);
   });
+
+  test('Teferi, Hero of Dominaria: lands untapped at the end step; third from the top', (mk, t) => {
+    t.auto('Teferi, Hero of Dominaria');
+    const T = mk();
+    const te = T.bf('A', 'Teferi, Hero of Dominaria');
+    const l1 = T.bf('A', 'Island'), l2 = T.bf('A', 'Plains'); l1.tapped = true; l2.tapped = true;
+    const abs = te.analysis().abilities;
+    T.answer('choose', (ch) => ({ picks: ch.items.slice(0, 2).map(x => x.id) }));
+    T.g._runEffects(abs.find(a => /^\+1/.test(a.text)).effects, { controller: 'A', obj: te, name: 'Teferi', kind: 'ability' });
+    T.settle();
+    t.ok(l1.tapped && l2.tapped, 'not yet');
+    T.toMain('B');
+    t.ok(!l1.tapped && !l2.tapped, 'untapped at the end step');
+    const foe = T.bf('B', 'Craw Wurm');
+    T.g._runEffects(abs.find(a => /^[-\u2212]3/.test(a.text)).effects, { controller: 'A', obj: te, name: 'Teferi', kind: 'ability', targets: [{ kind: 'object', id: foe.id }] });
+    t.eq(T.zone('B', 'library')[2], foe, 'third from the top');
+  });
 };

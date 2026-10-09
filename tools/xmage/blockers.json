@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12169,
+  "needed": 12164,
   "gainedCards": 1289,
-  "linesNeeded": 13228,
+  "linesNeeded": 13221,
   "linesGained": 1540,
   "gained": {
    "all": 1289,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 52,
+  "verifyFail": 49,
   "overrides": {
    "drain": 63,
    "count": 42,
@@ -147,8 +147,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 170,
-   "lines": 164,
+   "score": 168,
+   "lines": 162,
    "cards": [
     "Likeness Looter",
     "Silkguard",
@@ -157,11 +157,11 @@
     "Dance of the Manse",
     "Ink-Eyes, Servant of Oni",
     "Doppelgang",
-    "Riptide Gearhulk",
     "Diluvian Primordial",
-    "Hideous Taskmaster",
     "Desecrate Reality",
-    "Bronzebeak Foragers"
+    "Bronzebeak Foragers",
+    "Afterlife from the Loam",
+    "Demonic Junker"
    ]
   },
   {
@@ -4036,18 +4036,6 @@
    ]
   },
   {
-   "what": "(verify) \"may\" lost",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Expansion // Explosion",
-    "Drillworks Mole",
-    "Liliana's Influence",
-    "Invasion of Vryn // Overloaded Mage-Ring",
-    "Izzet Guildmage"
-   ]
-  },
-  {
    "what": "BecomesCreatureTypeTargetEffect",
    "score": 6,
    "lines": 6,
@@ -6244,17 +6232,6 @@
    ]
   },
   {
-   "what": "UntapLandsEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Teferi, Hero of Dominaria",
-    "Palinchron",
-    "Great Whale",
-    "Pore Over the Pages"
-   ]
-  },
-  {
    "what": "a target no effect uses",
    "score": 4,
    "lines": 4,
@@ -7008,6 +6985,28 @@
     "Gather the Pack",
     "Unholy Hunger"
    ]
+  },
+  {
+   "what": "turned face up under anyone",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Aphetto Runecaster",
+    "Unblinking Bleb",
+    "Aven Farseer",
+    "Bonethorn Valesk"
+   ]
+  },
+  {
+   "what": "AttacksIfAbleTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Nahiri, the Unforgiving",
+    "Alluring Siren",
+    "Shipwreck Singer",
+    "Hustle // Bustle"
+   ]
   }
  ],
  "sole": [
@@ -7052,8 +7051,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 148,
-   "cards": 142,
+   "score": 146,
+   "cards": 140,
    "names": [
     "Likeness Looter",
     "Silkguard",
@@ -9897,18 +9896,6 @@
    ]
   },
   {
-   "what": "(verify) \"may\" lost",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Expansion // Explosion",
-    "Drillworks Mole",
-    "Liliana's Influence",
-    "Invasion of Vryn // Overloaded Mage-Ring",
-    "Izzet Guildmage"
-   ]
-  },
-  {
    "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10764,6 +10751,17 @@
     "Dr. Eggman",
     "The Dalek Emperor",
     "Sycorax Commander"
+   ]
+  },
+  {
+   "what": "ShuffleIntoLibrarySourceEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Lembas",
+    "Gandalf, Wandering Wizard",
+    "Guan Yu, Sainted Warrior",
+    "Cerulean Sphinx"
    ]
   }
  ]

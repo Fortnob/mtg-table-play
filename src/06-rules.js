@@ -16698,6 +16698,8 @@
             this.moveObject(o, 'library', { toBottom: e.where === 'bottom' });
             // Chronostutter: second from the top
             if (e.where === 'second') { const lib = this.zones[o.owner].library; if (lib[0] === o && lib.length > 1) { lib[0] = lib[1]; lib[1] = o; } }
+            // Teferi, Hero of Dominaria: third from the top
+            if (e.where === 'third') { const lib = this.zones[o.owner].library; if (lib[0] === o) { lib.splice(0, 1); lib.splice(Math.min(2, lib.length), 0, o); } }
             if (e.where === 'shuffle') this.rng.shuffle(this.zones[o.owner].library);
             this.logEvent('zone', `${o.name} goes to the ${e.where === 'shuffle' ? 'library (shuffled)' : e.where} of its owner's library.`);
           }
