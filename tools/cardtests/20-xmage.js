@@ -12807,4 +12807,21 @@ module.exports = (test) => {
     t.ok(!T.g._illegalTargets(specs, [{ kind: 'object', id: a.id }], 'A', hh), 'with a counter');
     t.ok(T.g._illegalTargets(specs, [{ kind: 'object', id: b.id }], 'A', hh), 'without');
   });
+
+  test('Clone Legion copies each creature of the target player; Rakdos Joins Up', (mk, t) => {
+    t.auto('Clone Legion'); t.auto('Rakdos Joins Up');
+    const T = mk();
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Craw Wurm'); T.bf('B', 'Sol Ring');
+    T.mana('A', '7UU');
+    T.cast('A', T.hand('A', 'Clone Legion'), { targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    const mine = T.g.battlefield.filter(o => o.controller === 'A' && o.isToken);
+    t.eq(mine.length, 2, 'two creatures copied, not the Ring');
+    const rj = T.bf('A', 'Rakdos Joins Up');
+    const dead = T.grave('A', 'Grizzly Bears');
+    const trig = rj.analysis().abilities.find(a => a.kind === 'triggered' && /return target creature card/i.test(a.text));
+    T.g._runEffects(trig.effects, { controller: 'A', obj: rj, name: 'Rakdos Joins Up', kind: 'ability', targets: [{ kind: 'object', id: dead.id }] });
+    T.settle();
+    t.eq(dead.zone, 'battlefield'); t.eq(dead.counters['+1/+1'], 2);
+  });
 };

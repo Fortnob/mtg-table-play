@@ -17383,7 +17383,10 @@
           break;
         /* Second Harvest: a copy of each token you control */
         case 'copyEachToken': {
-          const toks = this.battlefield.filter(o => o.controller === ctx.controller && o.isToken && !o.phasedOut &&
+          // Clone Legion: every creature the targeted player controls, tokens or not
+          const tp = e.ofTargetPlayer ? firstPlayer() : null;
+          if (e.ofTargetPlayer && !tp) break;
+          const toks = this.battlefield.filter(o => o.controller === (tp ? tp.id : ctx.controller) && (tp || o.isToken) && !o.phasedOut &&
             (!e.filter || this._cardFitsWords(o, e.filter)));   // Rhys the Redeemed: creature tokens only
           for (const t of toks) this._runEffect({ op: 'copyPermanent', _forced: t }, ctx);
           break;

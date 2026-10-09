@@ -1246,6 +1246,10 @@
     // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Rakdos Joins Up: "return target creature card from your graveyard to the battlefield with two additional +1/+1 counters on it"
+    { re: /^Return (target [a-z ]+?) card from your graveyard to the battlefield with (two|three|four) additional \+1\/\+1 counters on it\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'sequence', list: [{ op: 'reanimate', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] },
+        { op: 'counters', kind: '+1/+1', n: num(m[2]), scope: 'lastTarget' }] } : null; } },
     // Chthonian Nightmare: "Return target creature card with mana value X from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -4936,6 +4940,9 @@
     // Mech Hangar: "Target Vehicle becomes an artifact creature until end of turn."
     { re: /^(Target Vehicle(?: you control)?) becomes an artifact creature until end of turn\.?$/,
       make: (m) => ({ op: 'becomes', duration: 'eot', eff: { addTypes: ['Creature'] }, targets: [targetSpec(m[1])] }) },
+    // Clone Legion: "For each creature target player controls, create a token that's a copy of that creature."
+    { re: /^For each creature target player controls, create a token that'?s a copy of that creature\.?$/i,
+      make: () => ({ op: 'copyEachToken', ofTargetPlayer: true, filter: 'creature', targets: [{ type: 'player' }] }) },
     // Rhys the Redeemed: "For each creature token you control, create a token that's a copy of that creature."
     { re: /^For each creature token you control, create a token that'?s a copy of that creature\.?$/i,
       make: () => ({ op: 'copyEachToken', filter: 'creature' }) },
@@ -6013,6 +6020,12 @@
       make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
     /* Whelming Wave: "Return all creatures to their owners' hands except for
        Krakens, Leviathans, Octopuses, and Serpents." */
+    // (Summon: Leviathan: "Return each creature that isn't a Kraken, Leviathan, Merfolk, Octopus, or Serpent to its owner's hand.")
+    { re: /^Return each creature that isn'?t an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) to its owner'?s hand\.?$/,
+      make: (m) => {
+        const kinds = m[1].split(/,\s*(?:or\s+)?|\s+or\s+/).map(w => singularType(w.trim().toLowerCase())).filter(Boolean);
+        return [{ op: 'bounceAll', scope: { who: 'all', what: 'creature', notSubtypes: kinds }, what: 'creature' }];
+      } },
     { re: /^(Return all creatures to their owners'? hands|Destroy all creatures) except for ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? and )?[A-Z][a-z]+)\.?$/,
       make: (m) => {
         const kinds = m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(w => singularType(w.trim().toLowerCase())).filter(Boolean);
