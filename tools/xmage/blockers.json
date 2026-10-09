@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12098,
+  "needed": 12092,
   "gainedCards": 1266,
-  "linesNeeded": 13124,
+  "linesNeeded": 13118,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4332,
-   "lines": 4065,
+   "score": 4331,
+   "lines": 4064,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1147,25 +1147,6 @@
    ]
   },
   {
-   "what": "TargetStackObject",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Wyll's Reversal",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice",
-    "Consign to Memory",
-    "Deny the Witch",
-    "Radiant Performer",
-    "Katara's Reversal",
-    "Sister of Silence",
-    "Mister Fantastic",
-    "Diplomatic Escort",
-    "Teferi's Response"
-   ]
-  },
-  {
    "what": "DamageTargetEffect amount",
    "score": 14,
    "lines": 14,
@@ -1576,6 +1557,24 @@
     "Patrician Geist",
     "Invasion of Arcavios // Invocation of the Founders",
     "Mizzix, Replica Rider"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Wyll's Reversal",
+    "Green Slime",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Katara's Reversal",
+    "Sister of Silence",
+    "Mister Fantastic",
+    "Diplomatic Escort",
+    "Teferi's Response",
+    "Silver Wyvern"
    ]
   },
   {
@@ -3544,20 +3543,6 @@
     "Call to the Grave",
     "Redcap Raiders",
     "Archdemon of Unx"
-   ]
-  },
-  {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Skyline Cascade",
-    "Fogwalker",
-    "Sudden Storm",
-    "Mana Skimmer",
-    "Samite Alchemist"
    ]
   },
   {
@@ -6460,6 +6445,17 @@
    ]
   },
   {
+   "what": "DontUntapInControllersNextUntapStepTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Lorthos, the Tidemaker",
+    "Sudden Storm",
+    "Mana Skimmer",
+    "Samite Alchemist"
+   ]
+  },
+  {
    "what": "GreatestAmongPermanentsValue",
    "score": 4,
    "lines": 4,
@@ -6979,8 +6975,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3555,
-   "cards": 3387,
+   "score": 3554,
+   "cards": 3386,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7574,19 +7570,6 @@
    ]
   },
   {
-   "what": "TargetStackObject",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Wyll's Reversal",
-    "Tale's End",
-    "Green Slime",
-    "Louisoix's Sacrifice",
-    "Consign to Memory",
-    "Deny the Witch"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 12,
    "cards": 12,
@@ -7861,6 +7844,19 @@
     "Omni-Changeling",
     "Mocking Doppelganger",
     "Wall of Stolen Identity"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Wyll's Reversal",
+    "Green Slime",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Sister of Silence"
    ]
   },
   {
@@ -8713,19 +8709,6 @@
     "Happily Ever After",
     "Near-Death Experience",
     "Battle of Wits"
-   ]
-  },
-  {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Kefnet's Monument",
-    "Lorthos, the Tidemaker",
-    "Skyline Cascade",
-    "Fogwalker",
-    "Sudden Storm",
-    "Mana Skimmer"
    ]
   },
   {
@@ -10727,6 +10710,17 @@
     "Replication Technique",
     "Healing Technique",
     "Excavation Technique"
+   ]
+  },
+  {
+   "what": "ExileUntilSourceLeavesEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Summon: Ixion",
+    "Turncoat Kunoichi",
+    "Detention Chariot",
+    "Driftgloom Coyote"
    ]
   }
  ]

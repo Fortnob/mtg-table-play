@@ -4065,6 +4065,9 @@
     { re: /^Counter target (activated or triggered|activated|triggered) ability(?: you don'?t control)?\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
         /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, /don'?t control/i.test(m[0]) ? { controller: 'opponent' } : {})] }) },
+    // Tale's End: "Counter target activated ability, triggered ability, or legendary spell."
+    { re: /^Counter target activated ability, triggered ability, or (legendary|noncreature|creature|artifact|instant or sorcery) spell\.?$/i,
+      make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase(), abilities: true }] }) },
     { re: /^Counter target spell, activated ability, or triggered ability\.?$/i,
       make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true }] }) },
     { re: /^Its controller (mills|draws) (a|one|two|three|four|five|\d+) cards?\.?$/i,
@@ -4346,7 +4349,8 @@
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
-    { re: /^(Target creature|Target permanent|Target land|Target artifact|It|That creature|That permanent|That land|That artifact|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
+    // (Kefnet's Monument: "target creature an opponent controls")
+    { re: /^(Target (?:creature|permanent|land|artifact)(?: an opponent controls| you don'?t control)?|It|That creature|That permanent|That land|That artifact|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'noUntap', targets: [targetSpec(m[1])] }
         : { op: 'noUntap', scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : 'lastTarget' }) },
     /* "Target creature phases out." */
@@ -6067,6 +6071,9 @@
        put it into your hand." */
     { re: /^Choose target creature card in your graveyard\. If that card'?s mana value is less than or equal to the number of experience counters you have, return it to the battlefield\. Otherwise, put it into your hand\.$/i,
       make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
+    // Elspeth Tirel: "Destroy all other permanents except for lands and tokens."
+    { re: /^Destroy all other permanents except for lands and tokens\.?$/i,
+      make: () => [{ op: 'destroyAll', scope: { who: 'all', what: 'permanent', other: true, notType: ['land'], nontoken: true }, what: 'permanent', noRegen: false }] },
     /* Whelming Wave: "Return all creatures to their owners' hands except for
        Krakens, Leviathans, Octopuses, and Serpents." */
     // (Summon: Leviathan: "Return each creature that isn't a Kraken, Leviathan, Merfolk, Octopus, or Serpent to its owner's hand.")

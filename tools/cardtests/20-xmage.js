@@ -12994,4 +12994,27 @@ module.exports = (test) => {
     t.ok(T.g.couldBlock(grn, bear, 'B'), 'by a green one');
     t.eq(T.g.powerOf(bear), 4, '+2/+2 while an opponent has black');
   });
+
+  test("Tale's End counters a legendary spell, not another; Elspeth Tirel's -5", (mk, t) => {
+    t.auto("Tale's End"); t.auto('Elspeth Tirel');
+    const T = mk();
+    const specs = MTG.rules.spellTargetSpecs(T.hand('A', "Tale's End").analysis());
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Thalia, Guardian of Thraben'), { resolve: false });
+    const leg = T.g.stack[T.g.stack.length - 1];
+    t.ok(!T.g._illegalTargets(specs, [{ kind: 'stack', id: leg.id }], 'A', null), 'a legendary spell');
+    T.resolve(); T.settle();
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'), { resolve: false });
+    const bear = T.g.stack[T.g.stack.length - 1];
+    t.ok(T.g._illegalTargets(specs, [{ kind: 'stack', id: bear.id }], 'A', null), 'not an ordinary one');
+    T.resolve(); T.settle();
+    const el = T.bf('A', 'Elspeth Tirel');
+    const land = T.bf('A', 'Plains'); const tok = T.g._createToken('A', { n: 1, pt: '1/1', subtypes: 'Soldier', colorWords: ['white'], keywords: [] });
+    T.g._runEffects(el.analysis().abilities.find(a => /^[-\u2212]5/.test(a.text)).effects, { controller: 'A', obj: el, name: 'Elspeth', kind: 'ability' });
+    T.settle();
+    t.eq(el.zone, 'battlefield', 'not herself'); t.eq(land.zone, 'battlefield');
+    t.ok(T.g.battlefield.some(o => o.isToken), 'tokens stay');
+    t.ok(!T.g.battlefield.some(o => o.name === 'Grizzly Bears' || o.name === 'Thalia, Guardian of Thraben'), 'the rest destroyed');
+  });
 };
