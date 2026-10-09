@@ -3106,4 +3106,33 @@ module.exports = (test) => {
     const g2 = T.g.battlefield.find(o => o.name === 'Gift of Immortality');
     t.ok(g2 && g2.attachedTo === b.id, 'back, on the same creature');
   });
+
+  test('Audit: Nature\'s Will and Pretender\'s Claim tap only the defending player\'s lands; Shield-Wall Sentinel finds defenders', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ["Nature's Will", "Pretender's Claim", 'Shield-Wall Sentinel']) t.auto(c);
+    T.toMain('A');
+    T.bf('A', "Nature's Will");
+    const myl = T.bf('A', 'Forest'); myl.tapped = true;
+    const bl = T.bf('B', 'Forest'), cl = T.bf('C', 'Forest'), at = T.bf('A', 'Grizzly Bears');
+    at.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: at.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.ok(bl.tapped, "B's lands tapped"); t.no(cl.tapped, "C's not"); t.no(myl.tapped, 'mine untapped');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const pc = T.bf('A', "Pretender's Claim"), w = T.bf('A', 'Craw Wurm');
+    w.summoningSick = false; pc.attachedTo = w.id; w.attachments = [pc.id]; T.g.bumpBoard();
+    const bl2 = T.bf('B', 'Forest'), cl2 = T.bf('C', 'Forest'), blk = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: blk.id, attackerIds: [w.id] }]);
+    T.toMain('A', 'combatDamage'); T.settle(); T.resolve();
+    t.ok(bl2.tapped); t.no(cl2.tapped);
+    T = mk();
+    T.toMain('A');
+    T.top('A', 'Wall of Omens'); T.top('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [ch.cards[0].id] }; });
+    T.mana('A', '3W'); T.cast('A', T.hand('A', 'Shield-Wall Sentinel'));
+    t.ok(offered && offered.every(n => n !== 'Grizzly Bears') && offered.includes('Wall of Omens'), 'only creatures with defender');
+  });
 };
