@@ -1591,7 +1591,7 @@
       if (colState.set && colState.show === 'missing') list = list.filter(c => S.owned(c.name) < 4);
       // by colour (white, blue, black, red, green, then gold and colourless), then cost, lands last
       const order = { W: 0, U: 1, B: 2, R: 3, G: 4, M: 5, C: 6 };
-      const isLandCard = (c) => /Land/.test(String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || ''));
+      const isLandCard = (c) => /\bLand\b/.test(String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || ''));
       list.sort((a, b) => (isLandCard(a) - isLandCard(b)) || (order[colourOf(a)] - order[colourOf(b)]) || (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
       if (colState.set) {
         const have = cards.filter(c => S.owned(c.name) > 0).length;
