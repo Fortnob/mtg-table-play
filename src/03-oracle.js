@@ -992,8 +992,9 @@
     { re: /^Add X mana in any combination of colou?rs, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'addManaAny', amount: k } : null; } },
     // Arbor Adherent: "Add X mana of any one color, where X is the greatest toughness among other creatures you control."
-    { re: /^Add X mana of any one colou?r, where X is (the greatest (?:power|toughness) among [a-z ]+)\.?$/i,
-      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'addManaX', amount: k } : null; } },
+    // (Wirewood Channeler: "where X is the number of Elves on the battlefield" — any amount the words can count)
+    { re: /^Add X mana of any one colou?r, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'addManaX', amount: k } : null; } },
     // Food Chain: "Add X mana of any one color, where X is 1 plus the exiled creature's mana value."
     { re: /^Add X mana of any one colou?r, where X is ((?:one|1) plus )?the exiled (?:creature|card|permanent)'s (mana value|power)\.?$/i,
       make: (m) => ({ op: 'addManaX', amount: Object.assign({ ofExiledCost: /power/i.test(m[2]) ? 'power' : 'mv' }, m[1] ? { plus: 1 } : {}) }) },
@@ -2010,8 +2011,9 @@
     { re: /^Target creature you control deals damage equal to its power to (?:target )?(?:each )?(player|opponent|target player|any target)\.?$/i,
       make: (m) => ({ op: 'bite', toPlayer: true,
         targets: [{ type: 'creature', controller: 'you' }, { type: 'player' }] }) },
-    { re: /^Gain control of target (creature|permanent|artifact)(?: until end of turn)?\.?$/i,
-      make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1])] }) },
+    // (Captivating Crew: "target creature an opponent controls")
+    { re: /^Gain control of target (creature|permanent|artifact)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/i,
+      make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value \d+ or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
@@ -4849,7 +4851,8 @@
        "Permanents you control gain hexproof and indestructible until end of
        turn", "Other creatures you control get +1/+1 until end of turn": the
        group is read with the same scope words a static ability uses. */
-    { re: /^(.+?) (?:gain|gains) ([a-z, ']+?) until end of turn\.?$/i,
+    // (Sozin's Comet: "gains firebending 5" — a keyword with a number)
+    { re: /^(.+?) (?:gain|gains) ([a-z0-9, ']+?) until end of turn\.?$/i,
       make: (m) => {
         const sc = massScopeOf(m[1]);
         if (!sc || !KW_LIST.test(m[2])) return null;
@@ -5144,7 +5147,10 @@
     if ((m = p.match(/^your devotion to (white|blue|black|red|green)$/i)))
       return done({ devotion: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] });
     if ((m = p.match(/^the number of (.+)$/i))) {
-      const c = countOf(m[1]);
+      // Wirewood Channeler: "the number of Elves on the battlefield" — everybody's
+      const field = / on the battlefield$/i.test(m[1]);
+      const c = countOf(m[1].replace(/ on the battlefield$/i, ''));
+      if (c && field) { if (!c.scope) return null; c.scope = Object.assign({}, c.scope, { who: 'all' }); }
       return c ? done(c) : null;
     }
     return null;

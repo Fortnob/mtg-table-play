@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12201,
-  "gainedCards": 1300,
-  "linesNeeded": 13267,
-  "linesGained": 1555,
+  "needed": 12176,
+  "gainedCards": 1288,
+  "linesNeeded": 13236,
+  "linesGained": 1540,
   "gained": {
-   "all": 1300,
+   "all": 1288,
    "top2000": 49,
    "stdTop": 9
   },
@@ -90,8 +90,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 218,
-   "lines": 197,
+   "score": 217,
+   "lines": 196,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -166,8 +166,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 112,
-   "lines": 103,
+   "score": 109,
+   "lines": 100,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -2466,22 +2466,6 @@
    ]
   },
   {
-   "what": "control for custom",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Kiora Bests the Sea God",
-    "Sliver Overlord",
-    "Connive // Concoct",
-    "Empress Galina",
-    "Invoke the Winds",
-    "Jace, Ingenious Mind-Mage",
-    "Sorin, Vampire Lord",
-    "Govern the Guildless",
-    "Kefnet's Last Word"
-   ]
-  },
-  {
    "what": "AttacksOrBlocksAttachedTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -2995,6 +2979,21 @@
     "Leonin Bola",
     "Shuriken",
     "Razor Boomerang"
+   ]
+  },
+  {
+   "what": "control for custom",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Sliver Overlord",
+    "Connive // Concoct",
+    "Empress Galina",
+    "Invoke the Winds",
+    "Jace, Ingenious Mind-Mage",
+    "Sorin, Vampire Lord",
+    "Govern the Guildless",
+    "Kefnet's Last Word"
    ]
   },
   {
@@ -5045,18 +5044,6 @@
    ]
   },
   {
-   "what": "fixed control",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Captivating Crew",
-    "Grip of Phyresis",
-    "Enthralling Victor",
-    "Siren of the Fanged Coast",
-    "Smelt-Ward Ignus"
-   ]
-  },
-  {
    "what": "GreenManaAbility with arguments",
    "score": 5,
    "lines": 5,
@@ -5186,18 +5173,6 @@
     "Clandestine Meddler",
     "Absolving Lammasu",
     "Rune-Brand Juggler"
-   ]
-  },
-  {
-   "what": "SourceControllerCountersCount.EXPERIENCE",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Minthara, Merciless Soul",
-    "Azlask, the Swelling Scourge",
-    "Kalemne, Disciple of Iroas",
-    "Kelsien, the Plague",
-    "Azula, Ruthless Firebender"
    ]
   },
   {
@@ -5365,18 +5340,6 @@
     "Jade Statue",
     "Kjeldoran Elite Guard",
     "Heart Wolf"
-   ]
-  },
-  {
-   "what": "DamageEverythingEffect with a filter",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Rolling Earthquake",
-    "Flamebreak",
-    "Time Bomb",
-    "Borrowing the East Wind",
-    "Thunder of Hooves"
    ]
   },
   {
@@ -6184,17 +6147,6 @@
    ]
   },
   {
-   "what": "one choice of colour",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Wirewood Channeler",
-    "Brigid, Clachan's Heart // Brigid, Doun's Mind",
-    "Azor's Gateway // Sanctum of the Sun",
-    "Springjack Pasture"
-   ]
-  },
-  {
    "what": "HideawayPlayEffect",
    "score": 4,
    "lines": 4,
@@ -6425,6 +6377,17 @@
    ]
   },
   {
+   "what": "SourceControllerCountersCount.EXPERIENCE",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Minthara, Merciless Soul",
+    "Kalemne, Disciple of Iroas",
+    "Kelsien, the Plague",
+    "Azula, Ruthless Firebender"
+   ]
+  },
+  {
    "what": "EnchantedCreatureColorCondition",
    "score": 4,
    "lines": 4,
@@ -6629,6 +6592,17 @@
     "Tetsuo, Imperial Champion",
     "Pummeler for Hire",
     "Impetuous Protege"
+   ]
+  },
+  {
+   "what": "DamageEverythingEffect with a filter",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Rolling Earthquake",
+    "Flamebreak",
+    "Time Bomb",
+    "Borrowing the East Wind"
    ]
   },
   {
@@ -7014,13 +6988,35 @@
     "Airtight Alibi",
     "Wellspring"
    ]
+  },
+  {
+   "what": "MustBeBlockedByTargetSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Turntimber Basilisk",
+    "Impetuous Devils",
+    "Avalanche Tusker",
+    "Giant Ambush Beetle"
+   ]
+  },
+  {
+   "what": "Target.setRandom",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Witch Hunt",
+    "Knight Rampager",
+    "Goblin Test Pilot",
+    "Scab-Clan Giant"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3558,
-   "cards": 3390,
+   "score": 3559,
+   "cards": 3391,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7084,8 +7080,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 130,
-   "cards": 124,
+   "score": 129,
+   "cards": 123,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
@@ -7097,8 +7093,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 68,
-   "cards": 68,
+   "score": 65,
+   "cards": 65,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -9952,6 +9948,18 @@
    ]
   },
   {
+   "what": "TapAllTargetPlayerControlsEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Kiora Bests the Sea God",
+    "Tempest Caller",
+    "Tectonic Instability",
+    "Dovin, Architect of Law",
+    "Gulf Squid"
+   ]
+  },
+  {
    "what": "MayCastTargetCardEffect",
    "score": 5,
    "cards": 5,
@@ -10081,18 +10089,6 @@
     "Sokka, Swordmaster",
     "Kazuul's Toll Collector",
     "Shagrat, Loot Bearer"
-   ]
-  },
-  {
-   "what": "DamageEverythingEffect with a filter",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Rolling Earthquake",
-    "Flamebreak",
-    "Time Bomb",
-    "Borrowing the East Wind",
-    "Thunder of Hooves"
    ]
   },
   {

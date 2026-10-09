@@ -12774,4 +12774,25 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(w.zone, 'graveyard', 'four damage to a 6/4');
   });
+
+  test("Wirewood Channeler counts every Elf; Sozin's Comet; Captivating Crew", (mk, t) => {
+    t.auto('Wirewood Channeler'); t.auto("Sozin's Comet"); t.auto('Captivating Crew');
+    const T = mk();
+    const wc = T.bf('A', 'Wirewood Channeler'); wc.summoningSick = false;
+    T.bf('A', 'Llanowar Elves'); T.bf('B', 'Elvish Mystic');
+    const mi = wc.analysis().manaAbilities.findIndex(x => (x.effects || []).some(e => e.op === 'addManaX'));
+    t.ok(T.g.activateAbility('A', wc.id, mi, { manaChoice: 'G' }), T.g.lastError);
+    t.eq(T.player('A').pool.snapshot().G, 3, 'three Elves on the battlefield');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3RR');
+    T.cast('A', T.hand('A', "Sozin's Comet"));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g._kwArg(bear, 'firebending'), 5);
+    const cc = T.bf('A', 'Captivating Crew');
+    const foe = T.bf('B', 'Craw Wurm');
+    const ab = cc.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: cc, name: 'Crew', kind: 'ability', targets: [{ kind: 'object', id: foe.id }] });
+    T.settle();
+    t.eq(foe.controller, 'A'); t.ok(T.g.hasKw(foe, 'haste'));
+  });
 };
