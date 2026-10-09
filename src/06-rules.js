@@ -14267,6 +14267,8 @@
               const sac = (ctx.sacrificed || [])[0];
               if (!sac || mvOf(c) !== sac.mv + e.mvOfSacrificedPlus) return false;
             }
+            // Shield-Wall Sentinel, Isperia: "a creature card with defender (flying)" (tutorKeyword)
+            if (e.withKeyword && !(ca && ca.keywordSet && ca.keywordSet.has(e.withKeyword))) return false;
             // "an instant card or a card with flash"
             if (e.instantOrFlash) return !!(ca && (ca.isInstant || (ca.keywordSet && ca.keywordSet.has('flash'))));
             // Moonsilver Key: "an artifact card with a mana ability or a basic land card"

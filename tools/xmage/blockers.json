@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11303,
+  "needed": 11302,
   "gainedCards": 1131,
-  "linesNeeded": 12093,
+  "linesNeeded": 12092,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -2439,21 +2439,6 @@
    ]
   },
   {
-   "what": "words:withKeyword",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings",
-    "Cunning Nightbonder",
-    "Radiant, Serra Archangel",
-    "Hidden Spider",
-    "Clip Wings",
-    "Run Afoul"
-   ]
-  },
-  {
    "what": "PartyCount.instance",
    "score": 8,
    "lines": 8,
@@ -2941,6 +2926,20 @@
     "Aspect of Wolf",
     "So Tiny",
     "Snowblind"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder",
+    "Radiant, Serra Archangel",
+    "Hidden Spider",
+    "Clip Wings",
+    "Run Afoul"
    ]
   },
   {
@@ -7892,19 +7891,6 @@
    ]
   },
   {
-   "what": "words:withKeyword",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings",
-    "Cunning Nightbonder",
-    "Radiant, Serra Archangel",
-    "Hidden Spider"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 8,
    "cards": 8,
@@ -8251,6 +8237,19 @@
     "Cathartic Parting",
     "Piper's Melody",
     "Renewing Touch"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder",
+    "Radiant, Serra Archangel",
+    "Hidden Spider",
+    "Clip Wings"
    ]
   },
   {

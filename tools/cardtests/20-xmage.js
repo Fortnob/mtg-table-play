@@ -16598,4 +16598,20 @@ module.exports = (test) => {
     t.no(myLand.tapped, "A's land is untapped");
     t.no(otherCreature.tapped, 'not their creatures');
   });
+
+  test('Shield-Wall Sentinel: search for a creature card with defender', (mk, t) => {
+    t.auto('Shield-Wall Sentinel');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.top('A', 'Grizzly Bears'), wall = T.top('A', 'Wall of Wood');
+    let offered = null;
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', (q) => { offered = (q.cards || []).map(c => c.id); return { cardIds: [wall.id] }; });
+    T.mana('A', 'WCCC');
+    T.cast('A', T.hand('A', 'Shield-Wall Sentinel'));
+    T.settle(); T.resolve(); T.settle();
+    t.zone(wall, 'hand');
+    t.ok(!offered || !offered.includes(bear.id), 'not a creature without defender');
+    t.zone(bear, 'library');
+  });
 };

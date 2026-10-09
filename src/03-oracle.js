@@ -5164,6 +5164,10 @@
     // Dark Deal: "…then draws that many cards minus one"
     { re: /^Each player discards all the cards in their hand, then draws that many cards minus one\.?$/i,
       make: () => ({ op: 'wheel', n: 'sameMinusOne' }) },
+    // Shield-Wall Sentinel, Isperia the Inscrutable: "a creature card with defender (flying)" (tutorKeyword)
+    { re: /^Search your library for an? (creature|artifact creature|[a-z]+ creature) card with (flying|defender|haste|trample|deathtouch|lifelink|vigilance|reach|first strike|flash), reveal it, put it into your hand, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), withKeyword: m[2].toLowerCase(), to: 'hand',
+        prompt: `Search your library for ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card with ${m[2].toLowerCase()}.` }) },
     /* Waterlogged Teachings: "an instant card or a card with flash" */
     { re: /^Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle\.?$/i,
       make: () => ({ op: 'tutor', n: 1, filter: 'any', instantOrFlash: true, to: 'hand' }) },
