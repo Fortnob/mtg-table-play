@@ -16749,4 +16749,20 @@ module.exports = (test) => {
     t.ok(T.g._dealsByToughness(wall));
     t.no(T.g._dealsByToughness(other), 'not another creature');
   });
+
+  test('Otherworldly Journey: back at the end step with a +1/+1 counter', (mk, t) => {
+    t.auto('Otherworldly Journey');
+    t.auto('Long Road Home');
+    const T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'WC');
+    T.cast('A', T.hand('A', 'Otherworldly Journey'), { targets: [giant] });
+    T.settle();
+    t.zone(giant, 'exile');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(giant, 'battlefield');
+    t.eq(giant.controller, 'B', "under its owner's control");
+    t.eq(giant.counters['+1/+1'], 1);
+  });
 };

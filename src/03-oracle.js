@@ -6646,12 +6646,14 @@
        the battlefield under its owner's control. If it entered under your
        control, put a +1/+1 counter on CARDNAME." (and the same without the
        last sentence) */
-    { re: /^(Exile (?:up to one )?(?:other )?target [a-z ]+?)\. At the beginning of the next end step, return that card to the battlefield under its owner'?s control\.( If it entered under your control, put a \+1\/\+1 counter on CARDNAME\.)?$/i,
-      make: (m) => {
+    // (Otherworldly Journey, Long Road Home: "… under its owner's control with a +1/+1 counter on it" — flickerCounter)
+    { re: /^(Exile (?:up to one )?(?:other )?target [a-z ]+?)\. At the beginning of the next end step, return that card to the battlefield under its owner'?s control( with a \+1\/\+1 counter on it)?\.( If it entered under your control, put a \+1\/\+1 counter on CARDNAME\.)?$/i,
+      make: (m0) => {
+        const m = [m0[0], m0[1], m0[3]];
         const ex = parseSentenceList(splitSentences(m[1] + '.'));
         if (!ex.auto || ex.effects.length !== 1 || ex.effects[0].op !== 'exile') return null;
         return [ex.effects[0], { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
-          effects: [m[2] ? { op: 'returnThatCounterSource' } : { op: 'returnThat' }] }];
+          effects: [m[2] ? { op: 'returnThatCounterSource' } : Object.assign({ op: 'returnThat' }, m0[2] ? { counter: '+1/+1' } : {})] }];
       } },
     /* Call the Coppercoats (strive): "Choose any number of target opponents.
        Create X 1/1 white Human Soldier creature tokens, where X is the number
