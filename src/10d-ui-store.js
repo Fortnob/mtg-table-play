@@ -1217,8 +1217,11 @@
       for (const s of sets.slice(0, 80)) setSel.appendChild(el('option', { value: s.code, text: s.name, selected: s.code === colState.set }));
     }).catch(() => {});
     const search = el('input', { type: 'search', placeholder: 'Search by name…', value: colState.q, 'aria-label': 'Search the collection' });
-    const chips = (list, key) => el('div', { class: 'seg mini' }, list.map(([v, label]) => el('button', { type: 'button', class: 'seg-btn' + (colState[key] === v ? ' on' : ''), text: label,
-      onclick: () => { colState[key] = v; UI.renderCollection(host); } })));
+    // a colour reads as its mana symbol, its name on hover
+    const chipFace = (key, v, label) => key === 'color' && /^[WUBRGM]$/.test(v)
+      ? { title: label, 'aria-label': label, html: `<i class="pip pip-${v.toLowerCase()}">${v}</i>` } : { text: label };
+    const chips = (list, key) => el('div', { class: 'seg mini' }, list.map(([v, label]) => el('button', Object.assign({ type: 'button', class: 'seg-btn' + (colState[key] === v ? ' on' : '') }, chipFace(key, v, label), {
+      onclick: () => { colState[key] = v; UI.renderCollection(host); } }))));
     const grid = el('div', { class: 'col-grid' });
     const status = el('div', { class: 'col-status dim' });
     host.append(el('div', { class: 'collection' }, [
@@ -1229,7 +1232,7 @@
       el('div', { class: 'col-filters' }, [
         setSel, search,
         chips([['', 'Any rarity'], ['common', 'C'], ['uncommon', 'U'], ['rare', 'R'], ['mythic', 'M']], 'rarity'),
-        chips([['', 'Any colour'], ['W', 'W'], ['U', 'U'], ['B', 'B'], ['R', 'R'], ['G', 'G'], ['M', 'Multi'], ['C', 'Colourless']], 'color'),
+        chips([['', 'Any colour'], ['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']], 'color'),
         colState.set ? chips([['owned', 'Owned'], ['all', 'All'], ['missing', 'Missing']], 'show') : null,
       ].filter(Boolean)),
       status, grid,

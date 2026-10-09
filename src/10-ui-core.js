@@ -341,6 +341,14 @@
   UI.CARD_BACK = 'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
   if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
     const img = new Image();
+  /* The tap and untap symbols as printed, from Scryfall; once they have
+     loaded every {T} and {Q} wears them (symbols.css), and until then, or
+     offline, the arrows drawn in type stand in. */
+  if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
+    const tap = new Image();
+    tap.onload = () => { document.documentElement.dataset.realTap = '1'; };
+    tap.src = 'https://svgs.scryfall.io/card-symbols/T.svg';
+  }
     img.onload = () => {
       document.documentElement.style.setProperty('--card-back', `url("${UI.CARD_BACK}")`);
       document.documentElement.dataset.realBacks = '1';

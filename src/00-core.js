@@ -490,7 +490,8 @@ const MANA = MTG.mana = {
     const cs = [];
     if (/^\d+$/.test(s) || s === 'X' || s === 'Y' || s === 'Z') cs.push('pip-generic');
     else if (s === 'C') cs.push('pip-c');
-    else if (s === 'T' || s === 'Q') cs.push('pip-tap');
+    else if (s === 'T') cs.push('pip-tap');
+    else if (s === 'Q') cs.push('pip-tap', 'pip-untap');
     else if (s === 'S') cs.push('pip-snow');
     else if (s === 'E') cs.push('pip-energy');
     else {
@@ -528,7 +529,7 @@ const MANA = MTG.mana = {
   textHtml(text) {
     if (!text) return '';
     let out = U.esc(text);
-    out = out.replace(/\{([^}]+)\}/g, (m, s) => `<i class="pip ${MANA.pipClasses(s)}" title="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`);
+    out = out.replace(/\{([^}]+)\}/g, (m, s) => `<i class="pip in-text ${MANA.pipClasses(s)}" title="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`);
     out = out.replace(/\(([^)]+)\)/g, '<em class="reminder">($1)</em>');
     return out.replace(/\n/g, '<br>');
   },

@@ -2934,7 +2934,7 @@
   }
   function poolHtml(pool) {
     if (!pool) return '';
-    return ['W', 'U', 'B', 'R', 'G', 'C'].map(c => pool[c] ? `<i class="pip pip-${c.toLowerCase()}">${pool[c]}</i>` : '').join('');
+    return ['W', 'U', 'B', 'R', 'G', 'C'].map(c => pool[c] ? `<i class="pip pip-n pip-${c.toLowerCase()}">${pool[c]}</i>` : '').join('');
   }
   /** "Mira’s", but "the Goblins’": a name ending in s takes the apostrophe alone. */
   function possessive(name) { name = String(name || ''); return /s$/i.test(name) ? name + '’' : name + '’s'; }
