@@ -2678,4 +2678,17 @@ module.exports = (test) => {
     T.mana('B', '1G'); T.cast('B', T.hand('B', 'Sylvan Scrying'));
     t.zone(f, 'library', 'an opponent finds nothing');
   });
+
+  test('Audit: Greatsword of Tyr puts its counter on the equipped creature', (mk, t) => {
+    const T = mk();
+    t.auto('Greatsword of Tyr');
+    T.toMain('A');
+    const gs = T.bf('A', 'Greatsword of Tyr'), b = T.bf('A', 'Grizzly Bears');
+    b.summoningSick = false;
+    gs.attachedTo = b.id; b.attachments = [gs.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(b.counters['+1/+1'], 1, 'on the Bears');
+    t.eq(gs.counters['+1/+1'] || 0, 0, 'not on the Equipment');
+  });
 };

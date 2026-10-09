@@ -10075,6 +10075,13 @@
            the one that set it off, not a target that was never chosen */
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
         thatIsTheTarget(parsed, !trig.self && (trig.aboutObject || objFilter));
+        /* Greatsword of Tyr: "Whenever equipped creature attacks, put a +1/+1
+           counter on it" — the creature, not the Equipment */
+        if (objFilter && objFilter.equipped) {
+          for (const e of parsed.effects) {
+            if (e && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\b(?:this|CARDNAME)\b/.test(e.text || '')) e.scope = 'triggerObject';
+          }
+        }
         if (trig.self && !thatPlayerOfTheTarget(parsed.effects)) parsed.auto = false;
         // Memory Worm: "deals 2 damage to target player. That player discards a card." in any trigger
         if (!trig.self) thatPlayerOfTheTarget(parsed.effects, true);
