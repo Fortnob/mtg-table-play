@@ -16566,4 +16566,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.zone(ring2, 'graveyard', 'you sacrificed nothing');
   });
+
+  test('Gift of Immortality: the creature comes back, and the Aura returns on it at the end step', (mk, t) => {
+    t.auto('Gift of Immortality');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), gift = T.bf('A', 'Gift of Immortality');
+    gift.attachedTo = bear.id; bear.attachments = [gift.id];
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'battlefield', 'the Bears come back');
+    t.zone(gift, 'graveyard', 'the Aura waits for the end step');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(gift, 'battlefield');
+    t.eq(gift.attachedTo, bear.id, 'attached to the Bears again');
+  });
 };

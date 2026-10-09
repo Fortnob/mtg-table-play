@@ -17138,6 +17138,26 @@
           if (c.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
           break;
         }
+        /* Gift of Immortality: this Aura comes back at the next end step,
+           attached to the creature the trigger is about (returnAuraLater) */
+        case 'returnSelfAttachedLater': {
+          const hostId = (ctx.triggerData || {}).objectId;
+          if (!src || !hostId) break;
+          this.scheduleDelayed({ event: 'eachEndStep', controller: ctx.controller, forPlayer: null, notBefore: null, sameTurnOk: true,
+            objId: src.id, name: `Return ${src.name}`, effects: [{ op: 'returnAuraTo', auraId: src.id, hostId }] });
+          break;
+        }
+        case 'returnAuraTo': {
+          const c = this.obj(e.auraId), host = this.obj(e.hostId);
+          if (!c || c.zone !== 'graveyard' || !host || host.zone !== 'battlefield') break;
+          this.moveObject(c, 'battlefield', { controller: c.owner });
+          if (c.zone !== 'battlefield') break;
+          c.attachedTo = host.id;
+          host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${c.name} returns attached to ${host.name}.`);
+          break;
+        }
         case 'returnTriggerCard': {
           const td = ctx.triggerData || {};
           // what this resolution just exiled comes first ("Exile target creature. Return it …")
