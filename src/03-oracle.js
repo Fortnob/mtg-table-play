@@ -3119,6 +3119,8 @@
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
     // The Stasis Coffin: "You gain protection from everything until your next turn."
     { re: /^You gain protection from everything until your next turn\.?$/i, make: () => ({ op: 'playerProtection' }) },
+    // Shallow Grave, Corpse Dance, Mistmoon Griffin: "Return the top creature card of your graveyard to the battlefield."
+    { re: /^Return the top creature card of your graveyard to the battlefield\.?$/i, make: () => ({ op: 'reanimateTop', filter: 'creature' }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."

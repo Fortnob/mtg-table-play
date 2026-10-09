@@ -17074,6 +17074,17 @@
           this.logEvent('zone', `${x.name} is exiled from the graveyard.`);
           break;
         }
+        /* Shallow Grave: "the top creature card of your graveyard" — the last one
+           put there; "that creature" in the next sentences is this one (reanimateTop) */
+        case 'reanimateTop': {
+          const yard = this.zones[ctx.controller].graveyard;
+          let c = null;
+          for (let i = yard.length - 1; i >= 0; i--) if (yard[i] !== src && this._cardFitsWords(yard[i], e.filter || 'creature')) { c = yard[i]; break; }
+          if (!c) { this.logEvent('rules', `${me.name} has no ${e.filter || 'creature'} card in their graveyard.`); break; }
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (c.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
+          break;
+        }
         case 'returnTriggerCard': {
           const td = ctx.triggerData || {};
           // what this resolution just exiled comes first ("Exile target creature. Return it …")

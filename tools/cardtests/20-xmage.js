@@ -16288,4 +16288,24 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(giant.damage, 2, 'two damage to the creature blocking the equipped Bears');
   });
+
+  test('Shallow Grave: the top creature card of your graveyard, with haste, exiled at the end step', (mk, t) => {
+    t.auto('Shallow Grave');
+    t.auto('Corpse Dance');
+    t.auto('Mistmoon Griffin');
+    const T = mk();
+    T.toMain('A');
+    const wurm = T.grave('A', 'Craw Wurm');
+    T.grave('A', 'Lightning Bolt');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.grave('A', 'Forest');
+    T.mana('A', 'BC');
+    T.cast('A', T.hand('A', 'Shallow Grave'));
+    T.settle();
+    t.zone(bear, 'battlefield', 'the last creature card put there');
+    t.zone(wurm, 'graveyard');
+    t.ok(T.g.hasKw(bear, 'haste'), 'with haste');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'exile', 'exiled at the end step');
+  });
 };

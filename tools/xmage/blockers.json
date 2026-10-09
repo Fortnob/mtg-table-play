@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11338,
+  "needed": 11335,
   "gainedCards": 1130,
-  "linesNeeded": 12136,
+  "linesNeeded": 12133,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4216,
-   "lines": 3955,
+   "score": 4213,
+   "lines": 3952,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6677,8 +6677,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3515,
-   "cards": 3335,
+   "score": 3512,
+   "cards": 3332,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
