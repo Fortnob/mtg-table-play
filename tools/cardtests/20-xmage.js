@@ -13723,4 +13723,56 @@ module.exports = (test) => {
     t.eq(toks.length, 2, 'populated');
     t.ok(U.g.hasKw(toks[1], 'haste'), 'the new one has haste');
   });
+
+  test('Berserk: double power and trample; at the next end step it is destroyed if it attacked', (mk, t) => {
+    t.auto('Berserk');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    T.toMain('A');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Berserk'), { targets: [bear.id] });
+    T.resolve();
+    t.eq(T.g.powerOf(bear), 4, 'power doubled');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'graveyard', 'it attacked: destroyed');
+    const U = mk();
+    U.toMain('A');
+    const elf = U.bf('A', 'Grizzly Bears');
+    U.mana('A', 'G');
+    U.cast('A', U.hand('A', 'Berserk'), { targets: [elf.id] });
+    U.resolve();
+    U.toMain('A', 'end');
+    U.settle(); U.resolve(); U.settle();
+    t.zone(elf, 'battlefield', 'it did not attack: it stays');
+  });
+
+  test('Sanctum of Eternity: a commander you own back to your hand', (mk, t) => {
+    t.auto('Sanctum of Eternity');
+    const T = mk();
+    T.toMain('A');
+    const sanctum = T.bf('A', 'Sanctum of Eternity');
+    const cmd = T.bf('A', 'Isamaru, Hound of Konda'); cmd.isCommander = true;
+    const other = T.bf('A', 'Grizzly Bears');
+    const spec = sanctum.analysis().abilities.find(a => a.kind === 'activated').effects[0].targets[0];
+    const ids = T.g._legalTargetsFor(spec, 'A', sanctum.id).map(x => x.id);
+    t.ok(ids.includes(cmd.id) && !ids.includes(other.id), 'only the commander');
+    T.mana('A', '2');
+    T.activate('A', sanctum, sanctum.analysis().manaAbilities.length, { targets: [cmd.id] });
+    // (a commander going to a hand may go to the command zone instead, as its owner likes)
+    t.ok(cmd.zone === 'hand' || cmd.zone === 'command', 'it left the battlefield for its owner');
+  });
+
+  test("Skrelv's Hive: creatures you control with toxic have lifelink once an opponent has three poison counters", (mk, t) => {
+    t.auto("Skrelv's Hive");
+    const T = mk();
+    T.bf('A', "Skrelv's Hive");
+    const rot = T.bf('A', 'Venerated Rotpriest');
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.ok(!T.g.hasKw(rot, 'lifelink'), 'not yet');
+    T.player('B').poison = 3; T.g.bumpBoard();
+    t.ok(T.g.hasKw(rot, 'lifelink'), 'three poison counters: lifelink');
+    t.ok(!T.g.hasKw(bear, 'lifelink'), 'only creatures with toxic');
+  });
 };

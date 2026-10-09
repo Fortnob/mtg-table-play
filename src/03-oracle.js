@@ -1569,6 +1569,13 @@
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
     // Quiet Disrepair: "Destroy enchanted creature."
     { re: /^Destroy enchanted (creature|permanent|artifact|land)\.?$/i, make: () => ({ op: 'destroy', scope: 'attached' }) },
+    // Sanctum of Eternity: "Return target commander you own from the battlefield to your hand."
+    { re: /^Return target commander you own from the battlefield to your hand\.?$/i,
+      make: () => ({ op: 'bounce', targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent', commander: true, owner: 'you' }] }) },
+    // Berserk: "At the beginning of the next end step, destroy that creature if it attacked this turn."
+    { re: /^At the beginning of the next end step, destroy (?:it|that creature) if it attacked this turn\.?$/i,
+      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Destroy it at end of turn if it attacked',
+        effects: [{ op: 'ifCond', cond: { kind: 'selfAttackedThisTurn' }, then: [{ op: 'destroyThat' }] }] }) },
     // Puffer Extract: "Destroy it at the beginning of the next end step."
     { re: /^Destroy (it|that creature) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Destroy it at end of turn',
@@ -10624,7 +10631,8 @@
       } else if ((m = rest.match(/ with an? ([+\-0-9/a-z]+) counter on (?:it|them)$/i)) ||
           (m = rest.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
         sc.withCounter = m[1]; rest = rest.slice(0, m.index);
-      } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed)$/i))) {
+      // (Skrelv's Hive: "creatures you control with toxic")
+      } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed|toxic|infect|flash|ward)$/i))) {
         if (/^without/i.test(m[1])) sc.withoutKeyword = m[2].toLowerCase(); else sc.keyword = m[2].toLowerCase();
         rest = rest.slice(0, m.index);
       }

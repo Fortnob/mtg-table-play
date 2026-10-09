@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11940,
+  "needed": 11936,
   "gainedCards": 1233,
-  "linesNeeded": 12888,
-  "linesGained": 1469,
+  "linesNeeded": 12883,
+  "linesGained": 1468,
   "gained": {
    "all": 1233,
    "top2000": 48,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4310,
-   "lines": 4049,
+   "score": 4309,
+   "lines": 4048,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1705,24 +1705,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Sanctum of Eternity",
-    "Coveted Falcon",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Tel-Jilad Stylus",
-    "Leave // Chance",
-    "Conjured Currency",
-    "The Neutrinos",
-    "Saving Grasp",
-    "Scarab of the Unseen",
-    "Obelisk of Undoing"
-   ]
-  },
-  {
    "what": "CompositeCost",
    "score": 11,
    "lines": 11,
@@ -2117,6 +2099,23 @@
     "Knight of Sursi",
     "Kjeldoran Skycaptain",
     "Phobian Phantasm"
+   ]
+  },
+  {
+   "what": "owner of a permanent",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Coveted Falcon",
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency",
+    "The Neutrinos",
+    "Saving Grasp",
+    "Scarab of the Unseen",
+    "Obelisk of Undoing"
    ]
   },
   {
@@ -2584,17 +2583,6 @@
     "Legate Lanius, Caesar's Ace",
     "Malik, Grim Manipulator",
     "Vengeful Tracker"
-   ]
-  },
-  {
-   "what": "AbilityPredicate ToxicAbility",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Skrelv's Hive",
-    "Necrogen Rotpriest",
-    "Flensing Raptor",
-    "Slaughter Singer"
    ]
   },
   {
@@ -6178,6 +6166,16 @@
    ]
   },
   {
+   "what": "AbilityPredicate ToxicAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Necrogen Rotpriest",
+    "Flensing Raptor",
+    "Slaughter Singer"
+   ]
+  },
+  {
    "what": "RollDieWithResultTableEffect",
    "score": 4,
    "lines": 4,
@@ -6914,8 +6912,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3558,
-   "cards": 3387,
+   "score": 3557,
+   "cards": 3386,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7903,19 +7901,6 @@
    ]
   },
   {
-   "what": "owner of a permanent",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Sanctum of Eternity",
-    "Reality Scramble",
-    "Become Anonymous",
-    "Tel-Jilad Stylus",
-    "Leave // Chance",
-    "Conjured Currency"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 9,
    "cards": 9,
@@ -8423,6 +8408,19 @@
    ]
   },
   {
+   "what": "owner of a permanent",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Reality Scramble",
+    "Become Anonymous",
+    "Tel-Jilad Stylus",
+    "Leave // Chance",
+    "Conjured Currency",
+    "Saving Grasp"
+   ]
+  },
+  {
    "what": "ReturnFromExileForSourceEffect",
    "score": 8,
    "cards": 8,
@@ -8533,17 +8531,6 @@
     "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
     "Gale, Waterdeep Prodigy",
     "Harness the Storm"
-   ]
-  },
-  {
-   "what": "AbilityPredicate ToxicAbility",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Skrelv's Hive",
-    "Necrogen Rotpriest",
-    "Flensing Raptor",
-    "Slaughter Singer"
    ]
   },
   {
@@ -10655,6 +10642,17 @@
     "Willbreaker",
     "Horobi, Death's Wail",
     "Cowardice"
+   ]
+  },
+  {
+   "what": "counter of a non-spell",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Dazzling Denial",
+    "Lofty Denial",
+    "Dispelling Exhale",
+    "Silumgar's Scorn"
    ]
   }
  ]
