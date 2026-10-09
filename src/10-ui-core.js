@@ -138,13 +138,15 @@
     });
   };
 
-  UI.prompt = function (msg, def, title) {
+  /** Ask for a line of text; `opts.placeholder` is a faint hint in the empty box. */
+  UI.prompt = function (msg, def, title, opts) {
+    opts = opts || {};
     return new Promise(res => {
-      const input = el('input', { type: 'text', value: def || '' });
+      const input = el('input', { type: 'text', class: 'prompt-input', value: def || '', placeholder: opts.placeholder || '', 'aria-label': title || msg });
       let done = false;
       const settle = (v) => { if (!done) { done = true; res(v); } };
       const m = UI.modal({
-        title: title || 'Enter a value',
+        title: title || 'Type it in',
         content: el('div', null, [el('p', { text: msg, class: 'small muted' }), input]),
         onEnter: () => { settle(input.value); m.close(); },
         buttons: [
@@ -339,8 +341,6 @@
      loaded, every back in the app wears it (see :root[data-real-backs] in
      style.css); until then, or offline, the drawn back stands in. */
   UI.CARD_BACK = 'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
-  if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
-    const img = new Image();
   /* The tap and untap symbols as printed, from Scryfall; once they have
      loaded every {T} and {Q} wears them (symbols.css), and until then, or
      offline, the arrows drawn in type stand in. */
@@ -349,6 +349,8 @@
     tap.onload = () => { document.documentElement.dataset.realTap = '1'; };
     tap.src = 'https://svgs.scryfall.io/card-symbols/T.svg';
   }
+  if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
+    const img = new Image();
     img.onload = () => {
       document.documentElement.style.setProperty('--card-back', `url("${UI.CARD_BACK}")`);
       document.documentElement.dataset.realBacks = '1';
