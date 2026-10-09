@@ -12631,4 +12631,21 @@ module.exports = (test) => {
     t.eq(count, 3, 'kicked: any number');
     t.eq(elf.zone, 'battlefield'); t.eq(bear.zone, 'graveyard');
   });
+
+  test("Arbor Adherent, Skyclave Relic, Emeria's Call", (mk, t) => {
+    t.auto('Arbor Adherent'); t.auto('Skyclave Relic'); t.auto("Emeria's Call // Emeria, Shattered Skyclave");
+    const T = mk();
+    const aa = T.bf('A', 'Arbor Adherent'); aa.summoningSick = false;
+    T.bf('A', 'Craw Wurm');
+    const ai = aa.analysis().manaAbilities.findIndex(x => (x.effects || []).some(e => e.op === 'addManaX'));
+    t.ok(T.g.activateAbility('A', aa.id, ai, { manaChoice: 'G' }), T.g.lastError);
+    t.eq(T.player('A').pool.snapshot().G, 4, 'the Wurm is 6/4');
+    const relic = T.bf('A', 'Skyclave Relic');
+    T.g._runEffects([{ op: 'copyPermanent', n: 2, self: true, tapped: true, grant: [] }], { controller: 'A', obj: relic, name: 'Relic', kind: 'ability' });
+    const toks = T.g.battlefield.filter(o => o.isToken && o.name === 'Skyclave Relic');
+    t.eq(toks.length, 2); t.ok(toks.every(o => o.tapped), 'tapped');
+    const ec = engine().oracle.analyze(card("Emeria's Call // Emeria, Shattered Skyclave"));
+    const g = JSON.stringify(ec.abilities);
+    t.ok(/"duration":"nextTurn"/.test(g) && /"notSubtype":"angel"/.test(g), 'until your next turn, not Angels');
+  });
 };

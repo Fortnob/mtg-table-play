@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12235,
+  "needed": 12227,
   "gainedCards": 1303,
-  "linesNeeded": 13308,
+  "linesNeeded": 13298,
   "linesGained": 1558,
   "gained": {
    "all": 1303,
@@ -2850,21 +2850,6 @@
    ]
   },
   {
-   "what": "CreateTokenCopySourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Skyclave Relic",
-    "Gruff Triplets",
-    "Scouring Swarm",
-    "Skitterbeam Battalion",
-    "Compy Swarm",
-    "Phoenix Fleet Airship",
-    "Joo Dee, One of Many",
-    "Chronozoa"
-   ]
-  },
-  {
    "what": "RemoveCounterCost",
    "score": 8,
    "lines": 8,
@@ -3665,6 +3650,20 @@
    ]
   },
   {
+   "what": "CreateTokenCopySourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Gruff Triplets",
+    "Scouring Swarm",
+    "Skitterbeam Battalion",
+    "Compy Swarm",
+    "Phoenix Fleet Airship",
+    "Joo Dee, One of Many",
+    "Chronozoa"
+   ]
+  },
+  {
    "what": "DiscardedByOpponentTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -3802,20 +3801,6 @@
     "Mild-Mannered Librarian",
     "Goblin Ski Patrol",
     "Subversive Acolyte"
-   ]
-  },
-  {
-   "what": "boost for nextTurn",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Sorin, Solemn Visitor",
-    "All-Seeing Arbiter",
-    "Dovin Baan",
-    "Behold the Unspeakable // Vision of the Unspeakable",
-    "Mu Yanling, Sky Dancer",
-    "Mouth of the Storm",
-    "Wasp, Shrinking Savior"
    ]
   },
   {
@@ -6091,39 +6076,6 @@
    ]
   },
   {
-   "what": "gain for nextTurn",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Emeria's Call // Emeria, Shattered Skyclave",
-    "Venat, Heart of Hydaelyn // Hydaelyn, the Mothercrystal",
-    "Dihada, Binder of Wills",
-    "Karvanista, Loyal Lupari // Lupari Shield"
-   ]
-  },
-  {
-   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Repulsive Mutation",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Bighorner Rancher",
-    "Peema Aether-Seer"
-   ]
-  },
-  {
-   "what": "ManaValueLessThanOrEqualToSourcePowerPredicate.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Carmen, Cruel Skymarcher",
-    "Dreadhorde Arcanist",
-    "Gurgling Anointer",
-    "Arcane Proxy"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAttachedEffect",
    "score": 4,
    "lines": 4,
@@ -7019,6 +6971,50 @@
     "Huatli, Warrior Poet",
     "Nissa, Genesis Mage",
     "Angrath, Minotaur Pirate"
+   ]
+  },
+  {
+   "what": "several cards from one graveyard",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Spellweaver Helix",
+    "Pestilent Cauldron // Restorative Burst",
+    "Serene Remembrance",
+    "Push // Pull"
+   ]
+  },
+  {
+   "what": "filter:nonsnow",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Thermal Flux",
+    "Chill to the Bone",
+    "Arcum's Weathervane",
+    "Hallowed Ground"
+   ]
+  },
+  {
+   "what": "boost for nextTurn",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "All-Seeing Arbiter",
+    "Dovin Baan",
+    "Mu Yanling, Sky Dancer",
+    "Wasp, Shrinking Savior"
+   ]
+  },
+  {
+   "what": "keyword ExertAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Oketra's Avenger",
+    "Rhonas's Stalwart"
    ]
   }
  ],
@@ -8671,19 +8667,6 @@
    ]
   },
   {
-   "what": "CreateTokenCopySourceEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Skyclave Relic",
-    "Gruff Triplets",
-    "Scouring Swarm",
-    "Skitterbeam Battalion",
-    "Compy Swarm",
-    "Joo Dee, One of Many"
-   ]
-  },
-  {
    "what": "CastFromZonePredicate",
    "score": 7,
    "cards": 7,
@@ -9419,6 +9402,19 @@
    ]
   },
   {
+   "what": "CreateTokenCopySourceEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Gruff Triplets",
+    "Scouring Swarm",
+    "Skitterbeam Battalion",
+    "Compy Swarm",
+    "Joo Dee, One of Many",
+    "Chronozoa"
+   ]
+  },
+  {
    "what": "put from hand tapped, or for another player",
    "score": 6,
    "cards": 6,
@@ -9611,19 +9607,6 @@
     "Balduvian Frostwaker",
     "Balduvian Conjurer",
     "Ohran Yeti"
-   ]
-  },
-  {
-   "what": "boost for nextTurn",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Sorin, Solemn Visitor",
-    "All-Seeing Arbiter",
-    "Behold the Unspeakable // Vision of the Unspeakable",
-    "Mu Yanling, Sky Dancer",
-    "Mouth of the Storm",
-    "Wasp, Shrinking Savior"
    ]
   },
   {
@@ -10697,17 +10680,6 @@
    ]
   },
   {
-   "what": "ManaValueLessThanOrEqualToSourcePowerPredicate.instance",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Carmen, Cruel Skymarcher",
-    "Dreadhorde Arcanist",
-    "Gurgling Anointer",
-    "Arcane Proxy"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAttachedEffect",
    "score": 4,
    "cards": 4,
@@ -10716,6 +10688,17 @@
     "Octopus Umbra",
     "Stasis Field",
     "Coerced to Kill"
+   ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Toph, Hardheaded Teacher",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Earthshape",
+    "Bumi's Feast Lecture"
    ]
   },
   {
@@ -10782,6 +10765,17 @@
     "Eight-and-a-Half-Tails",
     "Blind Seer",
     "Illusion // Reality"
+   ]
+  },
+  {
+   "what": "MaxSpeedAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Vnwxt, Verbose Host",
+    "Racers' Scoreboard",
+    "Far Fortune, End Boss",
+    "Lightwheel Enhancements"
    ]
   }
  ]

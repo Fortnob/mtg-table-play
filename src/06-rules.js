@@ -1559,6 +1559,8 @@
     }
 
     _manaXValue(e, o, pid) {
+      // Arbor Adherent: an amount described in words
+      if (e.amount) return e.amount.ofExiledCost ? 0 : Math.max(0, this._countValue(e.amount, pid, o));
       if (e.x === 'power') return o ? Math.max(0, this.powerOf(o)) : 0;
       // Neheb, the Eternal: the life your opponents have lost this turn
       if (e.x === 'opponentsLifeLost') return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0);
@@ -14325,6 +14327,8 @@
             copy.summoningSick = true;
             copy.face = source.face || 0;
             if (e.grant && e.grant.length) copy.effects.push({ keywords: e.grant, until: null });
+            // Skyclave Relic: "two tapped tokens"
+            if (e.tapped) copy.tapped = true;
             copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
             this.battlefield.push(copy);
             this.bumpBoard();

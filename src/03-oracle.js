@@ -988,6 +988,9 @@
     // Sanctum Weaver: "Add X mana of any one color, where X is the number of enchantments you control."
     { re: /^Add X mana of any one colou?r, where X is the number of ([-a-zA-Z' ]+? you control)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
+    // Arbor Adherent: "Add X mana of any one color, where X is the greatest toughness among other creatures you control."
+    { re: /^Add X mana of any one colou?r, where X is (the greatest (?:power|toughness) among [a-z ]+)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'addManaX', amount: k } : null; } },
     // Food Chain: "Add X mana of any one color, where X is 1 plus the exiled creature's mana value."
     { re: /^Add X mana of any one colou?r, where X is ((?:one|1) plus )?the exiled (?:creature|card|permanent)'s (mana value|power)\.?$/i,
       make: (m) => ({ op: 'addManaX', amount: Object.assign({ ofExiledCost: /power/i.test(m[2]) ? 'power' : 'mv' }, m[1] ? { plus: 1 } : {}) }) },
@@ -2289,8 +2292,8 @@
     /* Alesha, Who Laughs at Fate: "Return target creature card with mana
        value less than or equal to CARDNAME's power from your graveyard to
        the battlefield." */
-    { re: /^Return target ([a-z ]*?creature) card with mana value less than or equal to (?:CARDNAME|this creature)'?s power from your graveyard to the battlefield\.?$/i,
-      make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard', controller: 'you', maxMvSourcePower: true })] }) },
+    { re: /^Return (up to one )?target ([a-z ]*?(?:creature|permanent)) card with mana value less than or equal to (?:CARDNAME|this creature)'?s power from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', maxMvSourcePower: true }, m[1] ? { upTo: true } : {})] }) },
     /* Liquimetal Torque and friends: one more card type for the turn */
     { re: /^(target [a-z ]+?) becomes an? (artifact|enchantment|creature|land) in addition to its other types until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'addTypes', types: [U.titleCase(m[2])], duration: 'eot', targets: [t] } : null; } },
@@ -4056,6 +4059,9 @@
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1].replace(/^another /i, ''))] : null,
         self: /CARDNAME|this creature/i.test(m[1]),
         grant: m[2] ? m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
+    // Skyclave Relic: "create two tapped tokens that are copies of this artifact"
+    { re: /^Create (two|three|four|\d+) (tapped )?tokens that are copies of (?:CARDNAME|this (?:artifact|creature|enchantment|permanent))\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: num(m[1]), self: true, tapped: !!m[2], grant: [] }) },
     // (Orthion, Hero of Lavabrink: "Create five tokens that are copies of another target creature you control.")
     { re: /^Create (two|three|four|five|six|seven|eight|nine|ten|\d+|X) tokens that are copies of ((?:another )?target [a-z0-9 '-]+?)(?:, except they (?:have|gain) ([a-z, ']+))?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), targets: [targetSpec(m[2])],
@@ -4916,6 +4922,16 @@
         const b = parseEffectSentence(U.titleCase(m[2].charAt(0)) + m[2].slice(1) + ', where X is ' + m[3] + '.');
         if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
         return { op: 'sequence', list: [a, b] };
+      } },
+    /* Emeria's Call: "Non-Angel creatures you control gain indestructible
+       until your next turn." — read as "until end of turn", then made to last */
+    { re: /^(.+? (?:gain|gains|get|gets) [^.]+?) until your next turn\.?$/i,
+      make: (m) => {
+        const e = parseEffectSentence(m[1] + ' until end of turn.');
+        const list = !e ? [] : e.op === 'sequence' ? e.list : [e];
+        if (!list.length || !list.every(x => x && (x.op === 'grantKeyword' || x.op === 'pump') && x.duration === 'eot')) return null;
+        for (const x of list) x.duration = 'nextTurn';
+        return e;
       } },
     // Jace, the Perfected Mind: "Until your next turn, up to one target creature gets -3/-0."
     { re: /^Until your next turn, (.+?) (gain|gains|get|gets) ([^.]+?)\.?$/i,
