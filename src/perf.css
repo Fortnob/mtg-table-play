@@ -1,0 +1,93 @@
+/* ============================================================
+   perf.css - spacing, and keeping the busy screens smooth
+
+   Loaded last, so it can settle things the other sheets set up:
+     - shine only where you are looking: a booster shines when hovered
+       (and the one being opened), not every booster on the screen;
+     - every sweep of light is a layer slid across with transform, which
+       the graphics card moves without repainting, in place of animated
+       background positions and blend modes, which repaint every frame;
+     - glows that pulse fade a layer's opacity rather than animating a
+       filter.
+   ============================================================ */
+
+/* ---------- boosters: still unless hovered ---------- */
+.bp-foil { animation: none !important; mix-blend-mode: normal !important; background: none !important; inset: 0 auto 0 -100%; width: 300%; opacity: 0; transition: opacity .3s; will-change: transform; }
+.bp-foil::before { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.18) 46%, transparent 52%, rgba(255, 224, 170, .12) 58%, transparent 64%); }
+.booster:hover .bp-foil, .po-pack .bp-foil { opacity: 1; animation: slideSheen 2.8s linear infinite !important; }
+.po-pack.torn .bp-foil, .po-pack.gather .bp-foil { animation-duration: 1.2s !important; }
+@keyframes slideSheen { from { transform: translateX(-34%); } to { transform: translateX(34%); } }
+/* a heap of packs: no light at all until you reach for it */
+.ph-heap .booster .bp-foil, .hc-heap .booster .bp-foil, .po-fan .booster .bp-foil, .pd-fan .booster .bp-foil { display: none; }
+.pack-hoard:hover .ph-heap .booster:last-child .bp-foil { display: block; opacity: 1; animation: slideSheen 2.8s linear infinite !important; }
+.pack-hoard:not(.empty) .ph-heap::before { animation: none !important; opacity: .8; }
+.pack-hoard:hover .ph-heap::before { opacity: 1; }
+
+/* ---------- opening packs ---------- */
+.po-backdrop { filter: blur(22px) brightness(.32) saturate(1.1); }
+.po-dust i:nth-child(n+15) { display: none; }
+/* foil cards: a slid layer of colour, no blend mode */
+.po-foil { animation: none !important; mix-blend-mode: normal !important; background: none !important; inset: 0 auto 0 -100%; width: 300%; will-change: transform;
+  animation: slideSheen 3.4s linear infinite !important; }
+.po-foil::before { content: ""; position: absolute; inset: 0; opacity: .55;
+  background: linear-gradient(115deg, transparent 34%, rgba(255, 120, 220, .35) 42%, rgba(120, 220, 255, .35) 48%, rgba(255, 250, 150, .3) 54%, transparent 62%); }
+/* a rare waiting to be turned: the glow fades in and out on a layer of its own */
+.po-card.waiting:not(.flipped) { animation: none !important; }
+.po-card.big:not(.flipped)::before { content: ""; position: absolute; inset: -4px; border-radius: 8px; pointer-events: none; z-index: 0;
+  box-shadow: 0 0 26px 8px rgba(var(--rc), .75); opacity: 0; transition: opacity .3s; }
+.po-card.waiting:not(.flipped)::before { animation: waitPulse 1.6s ease-in-out infinite; }
+@keyframes waitPulse { 50% { opacity: 1; } }
+.po-card.waiting:not(.flipped):hover { transform: translateY(-4px); }
+.po-sheen { will-change: transform; }
+
+/* ---------- card styles: the moving light slid, the rest still ---------- */
+.cv-face.cstyle::after { animation: none; }
+.cs-gilded::after { background: none !important; animation: none !important; box-shadow: inset 0 0 0 3px #e9c46a, inset 0 0 0 4px rgba(90, 60, 10, .8), inset 0 0 18px rgba(240, 200, 110, .55); }
+.cs-gilded::before, .cs-prismatic::before { content: ""; position: absolute; top: 0; bottom: 0; left: -100%; width: 300%; z-index: 2; pointer-events: none; will-change: transform; }
+.cs-gilded::before { background: linear-gradient(115deg, transparent 42%, rgba(255, 236, 170, .32) 48%, transparent 54%); animation: slideSheen 6s linear infinite; }
+.cs-prismatic::after { background: none !important; animation: none !important; mix-blend-mode: normal !important; }
+.cs-prismatic::before { opacity: .6; animation: slideSheen 4s linear infinite;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 90, 200, .32) 38%, rgba(90, 210, 255, .32) 45%, rgba(255, 240, 120, .3) 52%, rgba(120, 255, 170, .28) 59%, transparent 67%); }
+.cs-shadow::after { animation: none !important; }
+.cs-celestial::after { animation: none !important; }
+.cs-celestial::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  box-shadow: inset 0 0 26px rgba(150, 190, 255, .55); opacity: 0; animation: waitPulse 3s ease-in-out infinite; }
+.style-face.cstyle { overflow: hidden; }
+
+/* ---------- the shop's busy grids ---------- */
+.store-card { will-change: auto; }
+.store-card:hover { transform: translateY(-3px); }
+.glow-btn { animation: none !important; box-shadow: 0 0 14px rgba(255, 200, 90, .35); }
+.inbox-chip.has { box-shadow: 0 0 10px rgba(243, 221, 150, .2); }
+
+/* ---------- spacing: the home screen ---------- */
+.home-notes, .home-today, .home-tiles { margin-top: 14px !important; }
+.home-today { gap: 12px; }
+.home-tiles { gap: 12px; }
+.today-item { padding: 11px 15px 13px; }
+@media (max-height: 820px) {
+  .home-notes, .home-today, .home-tiles { margin-top: 10px !important; }
+  .home-today, .home-tiles { gap: 10px; }
+  .today-item { padding: 8px 13px 10px; }
+  .ti-value { font-size: 16px; }
+}
+/* a tall screen: the sections breathe */
+@media (min-height: 1000px) {
+  .home-notes, .home-today, .home-tiles { margin-top: 20px !important; }
+  .home-tile { min-height: 120px; }
+  .today-item { padding: 14px 18px 16px; }
+  .ti-value { font-size: 19px; }
+}
+
+/* ---------- spacing: the other screens ---------- */
+.store, .collection, .profile { padding-top: 22px; }
+.store-tabs { margin-top: 6px; }
+.store-body, .profile-body { padding-top: 4px; }
+.store-grid { gap: 18px; }
+.store-h { margin: 28px 0 12px; }
+.profile-body { gap: 18px; }
+.col-filters { margin: 4px 0 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .bp-foil, .po-foil, .cs-gilded::before, .cs-prismatic::before, .cs-celestial::before, .po-card.waiting::before { animation: none !important; }
+}
