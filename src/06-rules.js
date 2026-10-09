@@ -22370,6 +22370,8 @@
           effects: JSON.parse(JSON.stringify(this.resolving.effects)),
           index: this.resolving.index,
           answers: JSON.parse(JSON.stringify(this.resolving.answers)),
+          // Rise of the Witch-king: who sacrificed what so far (sacrificedThisWay)
+          sacBy: this.resolving._sacBy ? JSON.parse(JSON.stringify(this.resolving._sacBy)) : undefined,
           manual: JSON.parse(JSON.stringify(this.resolving.manual)),
           afterKind: this.resolving.afterKind,
         } : null,
@@ -22437,7 +22439,7 @@
         if (ctx.objId) ctx.obj = byId(ctx.objId);
         this.resolving = {
           ctx, effects: rs.effects, index: rs.index, answers: rs.answers,
-          manual: rs.manual, afterKind: rs.afterKind,
+          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy,
           // the callback is a closure, so it is rebuilt from what it was for
           after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx) : null,
         };
