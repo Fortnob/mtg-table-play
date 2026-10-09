@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12085,
+  "needed": 12083,
   "gainedCards": 1266,
-  "linesNeeded": 13110,
+  "linesNeeded": 13106,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4328,
-   "lines": 4061,
+   "score": 4327,
+   "lines": 4060,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2392,22 +2392,6 @@
    ]
   },
   {
-   "what": "AddCardTypeTargetEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Depthshaker Titan",
-    "Chandra, Spark Hunter",
-    "Kolodin, Triumph Caster",
-    "Ashnod's Transmogrant",
-    "Tezzeret, Agent of Bolas",
-    "Workshop Elders",
-    "Tezzeret the Schemer",
-    "Thran Forge",
-    "Tezzeret, Cruel Machinist"
-   ]
-  },
-  {
    "what": "CardsInAllGraveyardsCount",
    "score": 9,
    "lines": 9,
@@ -2876,6 +2860,21 @@
     "Consulate Surveillance",
     "Voltstorm Angel",
     "Janjeet Sentry"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Depthshaker Titan",
+    "Chandra, Spark Hunter",
+    "Kolodin, Triumph Caster",
+    "Ashnod's Transmogrant",
+    "Tezzeret, Agent of Bolas",
+    "Workshop Elders",
+    "Tezzeret the Schemer",
+    "Thran Forge"
    ]
   },
   {
@@ -4048,19 +4047,6 @@
    ]
   },
   {
-   "what": "BecomesCreatureAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Sylvan Awakening",
-    "Life // Death",
-    "Vihaan, Goldwaker",
-    "Natural Affinity",
-    "Kormus Bell",
-    "Ambush Commander"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 6,
    "lines": 6,
@@ -5045,6 +5031,18 @@
     "Circle of Flame",
     "Palazzo Archers",
     "Lost in the Woods"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Life // Death",
+    "Vihaan, Goldwaker",
+    "Natural Affinity",
+    "Kormus Bell",
+    "Ambush Commander"
    ]
   },
   {
@@ -6973,8 +6971,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3552,
-   "cards": 3384,
+   "score": 3553,
+   "cards": 3385,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7451,6 +7449,19 @@
    ]
   },
   {
+   "what": "WishEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Karn, the Great Creator",
+    "Mastermind's Acquisition",
+    "Vivien, Arkbow Ranger",
+    "Fae of Wishes // Granted",
+    "Legion Angel",
+    "Coax from the Blind Eternities"
+   ]
+  },
+  {
    "what": "attack with a kind of creature",
    "score": 13,
    "cards": 13,
@@ -7604,19 +7615,6 @@
     "Hindervines",
     "Snag",
     "Hunter's Ambush"
-   ]
-  },
-  {
-   "what": "WishEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Mastermind's Acquisition",
-    "Vivien, Arkbow Ranger",
-    "Fae of Wishes // Granted",
-    "Legion Angel",
-    "Coax from the Blind Eternities",
-    "Burning Wish"
    ]
   },
   {
@@ -9276,19 +9274,6 @@
    ]
   },
   {
-   "what": "BecomesCreatureAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Sylvan Awakening",
-    "Life // Death",
-    "Vihaan, Goldwaker",
-    "Natural Affinity",
-    "Kormus Bell",
-    "Ambush Commander"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 6,
    "cards": 6,
@@ -9962,6 +9947,18 @@
     "Kirol, History Buff // Pack a Punch",
     "Stingerquill Voxmancer // Vicious Verse",
     "Paradox Shaper // Omit Variables"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAllEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Life // Death",
+    "Vihaan, Goldwaker",
+    "Natural Affinity",
+    "Kormus Bell",
+    "Ambush Commander"
    ]
   },
   {

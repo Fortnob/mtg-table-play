@@ -13053,4 +13053,18 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(g1.zone, 'hand'); t.eq(g2.zone, 'hand'); t.eq(w1.zone, 'battlefield');
   });
+
+  test('Sylvan Awakening: lands are 2/2 creatures until your next turn', (mk, t) => {
+    t.auto('Sylvan Awakening');
+    const T = mk();
+    const f = T.bf('A', 'Forest');
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Sylvan Awakening'));
+    T.settle(); T.resolve(); T.settle();
+    t.ok(T.g.characteristics(f).isCreature && T.g.hasKw(f, 'indestructible'), 'a creature');
+    T.toMain('B');
+    t.ok(T.g.characteristics(f).isCreature, 'still, on their turn');
+    T.toMain('A');
+    t.ok(!T.g.characteristics(f).isCreature, 'over on your next turn');
+  });
 };

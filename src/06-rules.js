@@ -19020,7 +19020,7 @@
            creature that's still a land". One effect, each part in its own
            layer, on each permanent named as it resolves (CR 611.2c). */
         case 'becomes': {
-          const until = e.duration === 'permanent' ? null : 'eot';
+          const until = e.duration === 'permanent' || e.duration === 'nextTurn' ? null : 'eot';
           let eff = e.eff || {};
           // Destiny Spinner: "an X/X …, where X is the number of enchantments you control" — counted as it resolves
           if (e.ptX) { const k = Math.max(0, n(e.ptX)); eff = Object.assign({}, eff, { setPt: { p: k, t: k } }); }
@@ -19033,8 +19033,9 @@
                ability it is handed in the same breath stays */
             const handed = one.loseAll && one.grantText ? { grantText: one.grantText, until } : null;
             if (handed) delete one.grantText;
-            o.effects.push(Object.assign(one, { until }));
-            if (handed) o.effects.push(handed);
+            // (Sylvan Awakening: until the controller's next turn)
+            o.effects.push(Object.assign(one, { until }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
+            if (handed) o.effects.push(Object.assign(handed, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
             o._chr = null;
           });
           // Purelace: a spell on the stack changes colour too

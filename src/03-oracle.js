@@ -5021,6 +5021,20 @@
     // Jace, the Perfected Mind: "Until your next turn, up to one target creature gets -3/-0."
     { re: /^Until your next turn, (.+?) (gain|gains|get|gets) ([^.]+?)\.?$/i,
       make: (m) => { const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until your next turn.'); return e && e.op !== 'manual' ? e : null; } },
+    // "All lands you control become 2/2 Elemental creatures …": each of them becomes one
+    { re: /^All ([a-z]+)s you control become (\d+\/\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creatures( with [^.]+?)?( until end of turn)?\.?$/,
+      make: (m) => { const e = parseEffectSentence('Each ' + m[1] + ' you control becomes a ' + m[2] + ' ' + m[3] + ' creature' + (m[4] || '') + (m[5] || '') + '.'); return e && e.op !== 'manual' ? e : null; } },
+    /* Sylvan Awakening: "Until your next turn, all lands you control become
+       2/2 Elemental creatures with reach, indestructible, and haste." —
+       read as "until end of turn", then made to last */
+    { re: /^Until your next turn, (.+? (?:become|becomes) [^.]+?)\.?$/i,
+      make: (m) => {
+        const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' until end of turn.');
+        const list = !e ? [] : e.op === 'sequence' ? e.list : [e];
+        if (!list.length || !list.every(x => x && x.op === 'becomes' && x.duration === 'eot')) return null;
+        for (const x of list) x.duration = 'nextTurn';
+        return e;
+      } },
   ];
 
   /** "each nonland permanent you don't control" -> the scope of the plural. */
