@@ -4494,6 +4494,9 @@
     // Edric, Fecundity: "its controller (that creature's controller) may draw a card" — theirs to decide
     { re: /^(?:Its|That creature'?s) controller may draw (a|one|two) cards?\.?$/i,
       make: (m) => ({ op: 'may', who: 'targetController', then: [{ op: 'draw', n: num(m[1]), who: 'targetController' }] }) },
+    // Brood Sliver: "its controller may create a 1/1 colorless Sliver creature token"
+    { re: /^(?:Its|That creature'?s) controller may create (an? .+? tokens?(?: with [a-z ,]+)?)\.?$/i,
+      make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.'); return tok && tok.op === 'createToken' ? { op: 'may', who: 'targetController', then: [Object.assign(tok, { who: 'targetController' })] } : null; } },
     { re: /^Its controller (mills|draws) (a|one|two|three|four|five|\d+) cards?\.?$/i,
       make: (m) => ({ op: /mills/i.test(m[1]) ? 'mill' : 'draw', n: num(m[2]), who: 'targetController' }) },
     { re: /^(Each player|Shuffle your) (?:shuffles their )?hand and graveyard into (?:their|your) library, then (?:draws?) (seven|five|four|three|\d+) cards\.?$/i,

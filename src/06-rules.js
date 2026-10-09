@@ -14576,9 +14576,12 @@
         case 'may': {
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
           const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
+          // (asked of another player: the card's name and the question, "Edric, Spymaster of Trest: Draw a card?")
           const d1 = e.who === 'targetController' && (e.then || [])[0];
+          const nm = (src && src.name) || ctx.name || 'Effect';
+          const ask = d1 && String(e.text || '').replace(/^(?:its|that [a-z]+'?s) controller may /i, '').replace(/\.$/, '');
           const yes = this._ask({ type: 'confirm', playerId: who.id,
-            prompt: e.prompt || (d1 && d1.op === 'draw' ? `${ctx.name || 'Effect'}: Draw ${d1.n === 1 ? 'a card' : d1.n + ' cards'}?` : null) ||
+            prompt: e.prompt || (ask ? `${nm}: ${truncate(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
               `${ctx.name || 'Effect'}: ${truncate(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           if (yes) this._spliceNext(e.then);

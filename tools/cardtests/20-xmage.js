@@ -15806,4 +15806,20 @@ module.exports = (test) => {
     T.toMain('B', 'endCombat');
     t.eq(T.life('A'), 20, 'their damage is prevented');
   });
+
+  test("Brood Sliver: a Sliver's controller may create a Sliver token", (mk, t) => {
+    t.auto('Brood Sliver');
+    const T = mk();
+    T.bf('B', 'Brood Sliver');
+    const sl = T.bf('A', 'Muscle Sliver');
+    let asked = null, prompt = '';
+    T.answer('confirm', (q) => { asked = q.playerId; prompt = q.prompt; return { yes: true }; });
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: sl.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    T.settle();
+    t.eq(asked, 'A', "the attacking Sliver's controller decides");
+    t.eq(prompt, 'Brood Sliver: Create a 1/1 colorless Sliver creature token?');
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, 'A gets the token');
+  });
 };
