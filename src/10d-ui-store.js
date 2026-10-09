@@ -151,7 +151,7 @@
      illustration has it, and anyone after takes its next choice; told
      apart by Scryfall's illustration id, so a reprint of the same picture
      counts as the same. Kept, so each keeps its picture from then on. */
-  const ART_KEY = 'artclaims2';
+  const ART_KEY = 'artclaims3';
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -172,7 +172,14 @@
     }
     return null;
   }
+  /* Never a pack's face: the numbered chase printings (serialized, the
+     headliners, double rainbow, gleaming gold), one of a handful, and the
+     promos, which no pack holds at all. */
+  const NOT_A_PULL = new Set(['serialized', 'headliner', 'doublerainbow', 'gleaminggold',
+    'playpromo', 'prerelease', 'promopack', 'buyabox', 'bundle', 'datestamped', 'stamped', 'judgegift', 'league',
+    'convention', 'tourney', 'release', 'instore', 'event', 'giftbox', 'setpromo', 'wizardsplaynetwork', 'premiereshop', 'intropack']);
   const artOf = (c) => {
+    if (!c || (c.promo_types || []).some(t => NOT_A_PULL.has(t)) || /z$/i.test(String(c.collector_number || ''))) return null;
     const url = MTG.scry.imageUrl(c, 'art_crop', 0);
     const ill = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null;
     return url ? { url, name: c.name, ill } : null;

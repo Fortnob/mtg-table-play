@@ -658,7 +658,7 @@
       code = String(code).toLowerCase();
       const kids = (await this.packHosts()).get(code) || [];
       // which sets are folded in is part of the key: a change there is a new list
-      const key = 'extras:' + code + ':' + kids.join(',');
+      const key = 'extras2:' + code + ':' + kids.join(',');
       if (!opts.force) {
         const hit = await this.db.get(STORES.meta, key);
         if (hit && Date.now() - hit._t < CACHE_TTL) {
@@ -673,7 +673,8 @@
       const take = (cards, setCode) => {
         let n = 0;
         for (const c of cards) {
-          if (!c || have.has(c.name) || seen.has(c.name) || MTG.formats.isBasicLand(c)) continue;
+          // an Alchemy rebalancing ("A-" and an existing card's name) is not a card of its own
+          if (!c || have.has(c.name) || seen.has(c.name) || MTG.formats.isBasicLand(c) || /^A-/.test(c.name)) continue;
           seen.add(c.name); out.push(c); n++;
         }
         if (n && setCode) from.push(setCode);

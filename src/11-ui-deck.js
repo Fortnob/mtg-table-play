@@ -1378,6 +1378,8 @@ Sideboard
     ownedOnly.addEventListener('change', () => { MTG.setSetting('searchOwnedOnly', ownedOnly.checked); run(); });
 
     function draw(cards, q) {
+      // Alchemy's rebalanced versions of existing cards ("A-…") are left out: only its new cards are cards here
+      cards = cards.filter(c => !/^A-/.test(c.name || ''));
       last = { cards, q };
       results.innerHTML = '';
       let hidden = 0;
@@ -1447,7 +1449,7 @@ Sideboard
         MTG.scry.autocomplete(q, { signal: suggestFlight.signal }).then((names) => {
           if (input.value.trim() !== q) return;
           suggestBox.innerHTML = '';
-          for (const nm of names.slice(0, 8)) {
+          for (const nm of names.filter(n => !/^A-/.test(n)).slice(0, 8)) {
             suggestBox.appendChild(el('button', {
               type: 'button', class: 'suggest-chip', text: nm,
               onclick: () => { input.value = nm; suggestBox.innerHTML = ''; run(); },
