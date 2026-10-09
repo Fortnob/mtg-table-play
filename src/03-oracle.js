@@ -2119,8 +2119,17 @@
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
     { re: /^(?:Each creature|All creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'allCreatures' }) },
-    { re: /^Tap all creatures (?:your opponents control|target player controls)\.?$/i,
+    // Cleaver Skaab: "Create two tokens that are copies of the sacrificed creature."
+    { re: /^Create (a|one|two|three) tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of the sacrificed (creature|artifact|permanent)\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: num(m[1].replace(/^a$/i, 'one')), of: 'sacrificed', grant: [] }) },
+    { re: /^Tap all creatures your opponents control\.?$/i,
       make: () => ({ op: 'tapAll', what: 'creatures', who: 'opponents' }) },
+    /* "Tap all creatures target player controls" (Sleep), Kiora Bests the
+       Sea God: "Tap all nonland permanents target opponent controls." —
+       that player's, not every opponent's */
+    { re: /^Tap all ((?:nonland |untapped |other )?(?:creatures|permanents|lands|artifacts)) target (player|opponent) controls\.?$/i,
+      make: (m) => ({ op: 'tapAll', scope: Object.assign(scopeOf(m[1].replace(/^untapped /i, '')) || { what: 'permanent' }, { who: 'target' }),
+        targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
 
     // --- library and graveyard ---
     { re: /^Return target creature card from your graveyard to the battlefield\.?$/i,
@@ -9791,6 +9800,8 @@
     // (and "six", "seven" … : Clockwork Dragon, Phantom Nishoba)
     // (not in reminder text: impending's "it enters with four time counters")
     const noReminder = text.replace(/\([^)]*\)/g, '');
+    // Banquet Guests: "enters with twice X +1/+1 counters on it"
+    if (/enters with twice X \+1\/\+1 counters/i.test(noReminder) && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: { xTimes: 2 } };
     let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
     etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([a-z ]+?) counters?/i);
@@ -11555,7 +11566,7 @@
          so counts as read rather than as a line nobody could parse. */
       { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each ([^.]+?)\.?$/i,
         make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
-      { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
+      { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read
       { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,

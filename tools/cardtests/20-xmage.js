@@ -12957,4 +12957,19 @@ module.exports = (test) => {
     T.toMain('B');
     t.ok(!T.g.hasKw(r, 'first strike'), 'not on theirs');
   });
+
+  test('Banquet Guests: twice X counters; Kiora Bests the Sea God taps one opponent', (mk, t) => {
+    t.auto('Banquet Guests'); t.auto('Kiora Bests the Sea God');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.mana('A', '2GW1');
+    T.cast('A', T.hand('A', 'Banquet Guests'), { x: 1 });
+    T.settle(); T.resolve(); T.settle();
+    const bg = T.g.battlefield.find(o => o.name === 'Banquet Guests');
+    t.ok(bg, 'cast'); t.eq(bg.counters['+1/+1'], 2, 'twice X');
+    const kb = T.g.battlefield.find(o => o.name === 'Banquet Guests');
+    const b1 = T.bf('B', 'Grizzly Bears'), c1 = T.bf('C', 'Savannah Lions');
+    const tap = engine().oracle.parseEffects('Tap all nonland permanents target opponent controls.').effects;
+    T.g._runEffects(tap, { controller: 'A', obj: kb, name: 'Kiora', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    t.ok(b1.tapped && !c1.tapped, 'only that opponent');
+  });
 };

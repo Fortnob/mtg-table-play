@@ -5552,6 +5552,8 @@
         // "enters with X +1/+1 counters" resolves against the X actually paid
         const raw = a.entersWithCounters.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
+          // Banquet Guests: "twice X"
+          : (raw && typeof raw === 'object' && raw.xTimes) ? (o.chosenX || 0) * raw.xTimes
           : (raw && typeof raw === 'object' && raw.colorsSpent) ? (o.colorsSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.manaSpent) ? (o.manaSpent || 0) * (raw.mult || 1)
           : (raw && typeof raw === 'object' && raw.returnedMv) ? (o._returnedMv || 0)
@@ -12728,7 +12730,10 @@
         }
         case 'tapAll': {
           if (e.scope && typeof e.scope === 'object') {
-            for (const x of this._scopeList(e.scope, ctx.controller, src)) this._markTapped(x);
+            // (Kiora Bests the Sea God: the target player's)
+            const tp = e.scope.who === 'target' ? firstPlayer() : null;
+            if (e.scope.who === 'target' && !tp) break;
+            for (const x of this._scopeList(e.scope, ctx.controller, src, tp ? tp.id : undefined)) this._markTapped(x);
             this.emit('sfx', 'tap');
             break;
           }
@@ -14302,6 +14307,8 @@
 
         case 'copyPermanent': {
           let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
+          // Cleaver Skaab: "copies of the sacrificed creature", as it last was
+          if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
           if (!source && e.scope === 'lastTarget') {
             const ex = (this._resExiled || []).slice(-1)[0] || this._lastExiled;
