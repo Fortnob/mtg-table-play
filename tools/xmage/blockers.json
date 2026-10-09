@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11635,
+  "needed": 11633,
   "gainedCards": 1160,
-  "linesNeeded": 12495,
+  "linesNeeded": 12492,
   "linesGained": 1380,
   "gained": {
    "all": 1160,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4266,
-   "lines": 4005,
+   "score": 4267,
+   "lines": 4006,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -5364,17 +5364,6 @@
    ]
   },
   {
-   "what": "UnattachedTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Grafted Exoskeleton",
-    "Grafted Wargear",
-    "Captain's Hook",
-    "Stitcher's Graft"
-   ]
-  },
-  {
    "what": "CantAttackYouUnlessPayAllEffect",
    "score": 4,
    "lines": 4,
@@ -6807,13 +6796,23 @@
     "Francisco, Fowl Marauder",
     "The Thing, Ben Grimm"
    ]
+  },
+  {
+   "what": "GreatestSharedCreatureTypeCount.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "White Lotus Tile",
+    "Skemfar Shadowsage",
+    "Basalt Ravager"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3544,
-   "cards": 3364,
+   "score": 3545,
+   "cards": 3365,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8408,6 +8407,19 @@
    ]
   },
   {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Astrologian's Planisphere",
+    "Blue Mage's Cane",
+    "Summoner's Grimoire",
+    "Ninja's Blades",
+    "Draconic Destiny",
+    "Spider-Suit"
+   ]
+  },
+  {
    "what": "ConditionalReplacementEffect",
    "score": 7,
    "cards": 7,
@@ -8945,19 +8957,6 @@
     "Bubble Matrix",
     "Ethersworn Shieldmage",
     "Inner Sanctum"
-   ]
-  },
-  {
-   "what": "AddCardSubtypeAttachedEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Astrologian's Planisphere",
-    "Blue Mage's Cane",
-    "Summoner's Grimoire",
-    "Ninja's Blades",
-    "Draconic Destiny",
-    "Spider-Suit"
    ]
   },
   {

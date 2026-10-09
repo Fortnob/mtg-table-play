@@ -14664,4 +14664,25 @@ module.exports = (test) => {
     t.eq(mine.damage || 0, 0, 'nor does your creature');
     t.eq(theirs.damage, 3, 'theirs does');
   });
+  test('Grafted Wargear: what it leaves is sacrificed, moved or gone', (mk, t) => {
+    t.auto('Grafted Wargear');
+    t.auto('Grafted Exoskeleton');
+    const T = mk();
+    T.toMain('A');
+    const gw = T.bf('A', 'Grafted Wargear');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('A', 'Hill Giant');
+    gw.attachedTo = bear.id; bear.attachments = [gw.id]; gw.ts = T.g._stampNew();
+    T.g.checkStateBasedActions();
+    const all = gw.analysis().manaAbilities.concat(gw.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const idx = all.findIndex(a => /^Equip/.test(a.text));
+    T.mana('A', '0');
+    T.activate('A', gw, idx, { targets: [giant] });
+    T.resolve();
+    t.eq(gw.attachedTo, giant.id, 'on the Giant now');
+    t.zone(bear, 'graveyard', 'the Bears it left are sacrificed');
+    T.g.moveObject(gw, 'graveyard');
+    T.settle(); T.g.checkStateBasedActions(); T.resolve();
+    t.zone(giant, 'graveyard', 'the Wargear gone: the Giant is sacrificed too');
+  });
 };

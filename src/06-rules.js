@@ -10371,6 +10371,34 @@
       this.emit('counters', { object: o, kind, n });
     }
 
+    /* Grafted Exoskeleton: "Whenever this Equipment becomes unattached from a
+       permanent" — moved to another creature, unattached by an effect, or
+       gone from the battlefield itself (looking back at it, CR 603.10). */
+    _unattachWatch() {
+      const watches = (o) => { const a = o.analysis(); return !!(a && a.abilities.some(x => x.kind === 'triggered' && x.event === 'unattachedFrom')); };
+      for (const o of this.battlefield) {
+        if (o._hostWas && o._hostWas !== o.attachedTo && watches(o)) {
+          const h = this.obj(o._hostWas);
+          o._hostWas = o.attachedTo || null;
+          if (h && h.zone === 'battlefield') this._fire('unattachedFrom', null, { source: o, object: h });
+        } else o._hostWas = o.attachedTo || null;
+      }
+      const left = this._leftAttached || [];
+      this._leftAttached = [];
+      for (const x of left) {
+        const o = this.obj(x.id), h = this.obj(x.hostId);
+        if (!o || !h || h.zone !== 'battlefield' || !watches(o)) continue;
+        const a = o.analysis();
+        a.abilities.forEach((ab, i) => {
+          if (ab.kind !== 'triggered' || ab.event !== 'unattachedFrom') return;
+          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
+            controller: o.controller, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
+            effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
+            triggerData: { event: 'unattachedFrom', objectId: h.id } });
+        });
+      }
+    }
+
     /* ---------- zones ---------- */
     _removeFromZone(o) {
       if (o.zone === 'battlefield') {
@@ -10383,6 +10411,8 @@
           const host = this.obj(o.attachedTo);
           if (host) host.attachments = host.attachments.filter(x => x !== o.id);
           o.lastAttachedTo = o.attachedTo;
+          // Grafted Wargear leaving: it becomes unattached from what it was on (seen as it was)
+          if (host && host.zone === 'battlefield') (this._leftAttached = this._leftAttached || []).push({ id: o.id, hostId: host.id });
           o.attachedTo = null;
         }
       } else if (o.zone === 'stack') {
@@ -16706,6 +16736,16 @@
         }
         /* "Return it to your hand": the card the trigger is about (Zodiac
            Dragon), or this card, from the graveyard (Ghastly Remains) */
+        // Grafted Exoskeleton: "sacrifice that permanent" — only one you control
+        case 'sacrificeTriggerObject': {
+          const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          if (x && x.zone === 'battlefield' && x.controller === ctx.controller) {
+            this.moveObject(x, 'graveyard');
+            this.logEvent('sacrifice', `${me.name} sacrifices ${x.name}.`);
+            this._fire('youSacrifice', ctx.controller, { count: 1 });
+          }
+          break;
+        }
         case 'returnItToHand': {
           const td = ctx.triggerData || {};
           // Zendikons: the land that died goes to its owner's hand, whoever that is
@@ -20344,6 +20384,7 @@
 
     /* ---------- state-based actions (CR 704) ---------- */
     checkStateBasedActions() {
+      this._unattachWatch();
       let repeat = true, guard = 0;
       this._checkAscend();
       while (repeat && guard++ < 20) {

@@ -4016,6 +4016,8 @@
         to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }) },
     // Ghastly Remains, Zodiac Dragon: a card that goes back to its owner's hand by its own words
     { re: /^Return (?:it|this card) to your hand\.?$/i, make: () => ({ op: 'returnItToHand' }) },
+    // Grafted Exoskeleton: the permanent it was attached to, if you still control it
+    { re: /^Sacrifice that permanent\.?$/i, make: () => ({ op: 'sacrificeTriggerObject' }) },
     // Territory Culler, Sarinth Steelseeker: "If you don't put the card into your hand, you may put it into your graveyard."
     { re: /^If you don'?t put the card into your hand, you may put it into your graveyard\.?$/i, make: () => ({ op: 'lookedMayGraveyard' }) },
     // Vein Drinker: "That creature deals damage equal to its power to this creature."
@@ -9018,6 +9020,8 @@
     { re: /^At the beginning of each player'?s upkeep(?:,| )/i, event: 'eachUpkeep' },
     { re: /^When(?:ever)? equipped creature dies(?:,| )/i, event: 'equippedDies' },
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
+    // Grafted Exoskeleton: "Whenever this Equipment becomes unattached from a permanent, sacrifice that permanent."
+    { re: /^Whenever (?:this Equipment|CARDNAME) becomes unattached from a permanent,/i, event: 'unattachedFrom', self: true },
     // Zendikons: "When enchanted land dies, return that card to its owner's hand."
     // Tezzeret's Touch: "When enchanted artifact is put into a graveyard, return that card to its owner's hand."
     { re: /^When(?:ever)? enchanted artifact is put into a graveyard,/i, event: 'equippedDies' },
