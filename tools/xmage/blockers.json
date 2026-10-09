@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11264,
+  "needed": 11263,
   "gainedCards": 1131,
-  "linesNeeded": 12048,
+  "linesNeeded": 12047,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -89,21 +89,21 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 196,
-   "lines": 190,
+   "score": 195,
+   "lines": 189,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
     "Not of This World",
     "Chandra's Incinerator",
     "Bloodsoaked Insight // Sanguine Morass",
-    "Wash Away",
     "Rottenmouth Viper",
     "Spirit Water Revival",
     "Hour of Revelation",
     "Notorious Throng",
     "Price of Fame",
-    "Shadow of Mortality"
+    "Shadow of Mortality",
+    "The Magic Mirror"
    ]
   },
   {
@@ -2677,20 +2677,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Mizzix, Replica Rider"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "lines": 7,
@@ -3087,6 +3073,19 @@
     "Day of the Dragons",
     "Yukora, the Prisoner",
     "Death Pit Offering"
+   ]
+  },
+  {
+   "what": "CastFromZonePredicate",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Rivaz of the Claw",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Mizzix, Replica Rider"
    ]
   },
   {

@@ -16944,4 +16944,23 @@ module.exports = (test) => {
     const ab2 = compass.analysis().manaAbilities.find(a => (a.effects || []).some(e => e.op === 'addManaAmong'));
     t.eq(T.g._manaAmong(ab2.effects.find(e => e.op === 'addManaAmong'), compass, 'A').join(''), 'R', 'only the basic Mountain');
   });
+
+  test("Wash Away: only a spell that wasn't cast from its owner's hand", (mk, t) => {
+    t.auto('Wash Away');
+    const T = mk();
+    T.toMain('B');
+    const fromHand = T.hand('B', 'Lightning Bolt');
+    T.mana('B', 'R');
+    T.cast('B', fromHand, { targets: ['A'], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    const wa = T.hand('A', 'Wash Away');
+    const spec = wa.analysis().abilities.find(a => a.kind === 'spell').effects[0].targets[0];
+    t.no(T.g._legalTargetsFor(spec, 'A', wa.id).some(x => x.id === item.id), 'cast from the hand: not a target');
+    T.settle(); T.resolve(); T.settle();
+    const looting = T.grave('B', 'Faithless Looting');
+    T.mana('B', 'RCC');
+    T.cast('B', looting, { via: 'flashback', resolve: false });
+    const item2 = T.g.stack[T.g.stack.length - 1];
+    t.ok(T.g._legalTargetsFor(spec, 'A', wa.id).some(x => x.id === item2.id), 'flashed back from the graveyard: a target');
+  });
 };

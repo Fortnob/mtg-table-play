@@ -4567,6 +4567,9 @@
       make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
         /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, /don'?t control/i.test(m[0]) ? { controller: 'opponent' } : {})] }) },
     // Tale's End: "Counter target activated ability, triggered ability, or legendary spell."
+    // Wash Away: "Counter target spell [that wasn't cast from its owner's hand]." (notFromHand)
+    { re: /^Counter target spell \[?that wasn'?t cast from its owner'?s hand\]?\.?$/i,
+      make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', notFromHand: true }] }) },
     { re: /^Counter target activated ability, triggered ability, or (legendary|noncreature|creature|artifact|instant or sorcery) spell\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase(), abilities: true }] }) },
     { re: /^Counter target spell, activated ability, or triggered ability\.?$/i,

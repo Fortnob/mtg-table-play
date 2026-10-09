@@ -22155,6 +22155,8 @@
       if (xv(spec.minMv) != null && mv < xv(spec.minMv)) return false;
       // Frontline Medic: "with {X} in its mana cost"
       if (spec.hasXCost && !/\{X\}/.test(String((o.card && o.card.mana_cost) || ''))) return false;
+      // Wash Away: a spell that wasn't cast from its owner's hand (notFromHand)
+      if (spec.notFromHand && item.fromZone === 'hand') return false;
       if (xv(spec.mv) != null && mv !== xv(spec.mv)) return false;
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;
