@@ -1481,7 +1481,9 @@
           (e.choices || []).forEach(ch => ch.forEach(sym => { for (const c of MANA.COLORS.concat('C')) if (sym.includes(c)) produces.add(c); }));
           amount += Math.max(1, ...(e.choices || [[1]]).map(ch => ch.length));
         } else if (e.op === 'addManaPer') {
-          const k = (e.per && e.per.countersOnSelf) ? ((o && Number(o.counters[e.per.countersOnSelf])) || 0)
+          // (Nardole: "for each counter on Nardole", every kind)
+          const k = (e.per && e.per.countersOnSelf === '*') ? (o ? Object.values(o.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0)
+            : (e.per && e.per.countersOnSelf) ? ((o && Number(o.counters[e.per.countersOnSelf])) || 0)
             : this.countPermanents(pid, e.per || {}) * ((e.per && e.per.mult) || 1);
           if (k > 0) { produces.add(e.symbol || 'C'); amount += k; }
         } else if (e.op === 'addManaAmong') {
@@ -2892,6 +2894,9 @@
         return best;
       }
       // Animar: "for each +1/+1 counter on CARDNAME"
+      if (v.countersOnSelf === '*') return (src ? Object.values(src.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0) * mult;
+      // Vishgraz: the poison counters among your opponents
+      if (v.opponentsPoison) return this.opponentsOf(pid).reduce((acc, q) => acc + (Number(q.poison) || 0), 0) * mult;
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
@@ -9672,6 +9677,9 @@
       // Toxrill: "for each slime counter on them" — on each one it touches
       if (typeof v === 'object' && v.countersOnIt) return (Number((o.counters || {})[v.countersOnIt]) || 0) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
+      // Kyler, Sigardian Emissary: every counter on it, whatever kind
+      if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
+      if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
         // counted from inside the layers, so it must not ask for characteristics again

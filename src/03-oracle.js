@@ -3809,7 +3809,8 @@
     { re: /^Its controller manifests the top card of their library\.?$/i, make: () => ({ op: 'manifest', who: 'targetController' }) },
     { re: /^Manifest the top card of your library\.?$/i, make: () => ({ op: 'manifest' }) },
     { re: /^(?:That creature'?s controller|Its controller) sacrifices it\.?$/i, make: () => ({ op: 'sacAttached' }) },
-    { re: /^Untap (up to )?(one|two|three|four|five|\d+) (lands|creatures|artifacts|permanents)( you control)?\.?$/i,
+    // (Palinchron, Time Spiral: "untap up to seven lands", "You untap up to six lands")
+    { re: /^(?:You )?[Uu]ntap (up to )?(one|two|three|four|five|six|seven|eight|nine|ten|\d+) (lands|creatures|artifacts|permanents)( you control)?\.?$/,
       make: (m) => ({ op: 'untapChosen', n: num(m[2]), upTo: !!m[1], filter: m[3].replace(/s$/, '') }) },
     { re: /^(?:Then )?[Ii]f (.+?), (.+)$/,
       make: (m) => {
@@ -4357,6 +4358,9 @@
     { re: /^Each opponent loses the game\.?$/i, make: () => ({ op: 'winGame' }) },
 
     /* ===== counts that depend on the board ("... for each creature you control") ===== */
+    // Glimmerpost: "you gain 1 life for each Locus on the battlefield"
+    { re: /^You gain (one|two|three|\d+) life for each ([A-Za-z' ]+?) on the battlefield\.?$/,
+      make: (m) => { const c = countOf(m[2] + ' you control'); if (!c || !c.scope) return null; c.scope = Object.assign({}, c.scope, { who: 'all' }); c.mult = num(m[1]); return { op: 'gainLife', who: 'you', n: c }; } },
     { re: /^You gain (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life for each ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: countSpec(m[2], num(m[1])) }) },
     { re: /^Each opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life for each ([-a-z' ]+?) you control\.?$/i,
@@ -5278,6 +5282,10 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Kyler, Sigardian Emissary: "for each counter on CARDNAME" — of any kind
+    if (/^counter on (?:CARDNAME|this creature|this permanent|it)$/i.test(p)) return { countersOnSelf: '*', mult: k };
+    // Vishgraz, the Doomhive: "for each poison counter your opponents have"
+    if (/^poison counter your opponents have$/i.test(p)) return { opponentsPoison: true, mult: k };
     // Quest for the Necropolis: "for each quest counter on this enchantment"
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on this (?:enchantment|land|Equipment|Vehicle|Aura|Saga)$/)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
@@ -7630,7 +7638,8 @@
   function noReminderText(t) { return String(t || '').replace(/\([^)]*\)/g, ''); }
   function stripAbilityWord(line) {
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' ]{2,30}?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Company Commander: "Bring it Down! — …")
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' ]{2,30}?!?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules

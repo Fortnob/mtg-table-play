@@ -14117,4 +14117,34 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.ok(g.tapped && b.tapped, 'still tapped after their untap step');
   });
+
+  test('Kyler, Vishgraz, Glimmerpost, Company Commander, Time Spiral: counts and flavour words', (mk, t) => {
+    for (const n of ['Kyler, Sigardian Emissary', 'Vishgraz, the Doomhive', 'Glimmerpost', 'Company Commander', 'Time Spiral']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const ky = T.bf('A', 'Kyler, Sigardian Emissary');
+    const human = T.bf('A', 'Elite Vanguard');
+    T.g.addCounters(ky, '+1/+1', 1); T.g.addCounters(ky, 'shield', 1);
+    T.g.addCounters(human, 'shield', 5);
+    t.eq(T.g.powerOf(human), 2 + 2, 'two counters on Kyler, not the five on the Human');
+    const vg = T.bf('A', 'Vishgraz, the Doomhive');
+    const base = T.g.powerOf(vg);
+    T.player('B').poison = 3; T.g.bumpBoard();
+    t.eq(T.g.powerOf(vg), base + 3, '+1/+1 for each poison counter');
+    T.bf('B', 'Glimmerpost');
+    const life = T.life('A');
+    T.put('A', 'Glimmerpost', 'battlefield', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), life + 2, 'each Locus on the battlefield, anyone\'s');
+  });
+
+  test('Nardole, Resourceful Cyborg: {U} for each counter on it, of any kind', (mk, t) => {
+    t.auto('Nardole, Resourceful Cyborg');
+    const T = mk();
+    T.toMain('A');
+    const nd = T.bf('A', 'Nardole, Resourceful Cyborg'); nd.summoningSick = false;
+    T.g.addCounters(nd, '+1/+1', 1); T.g.addCounters(nd, 'shield', 1);
+    const ab = nd.analysis().manaAbilities[0];
+    t.eq(T.g._manaOptions(ab, nd, 'A').amount, 2, 'two counters: two mana');
+  });
 };
