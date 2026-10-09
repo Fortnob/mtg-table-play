@@ -9470,7 +9470,7 @@
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
-        case 'fullParty': return this._partySize(pid) >= 4;
+        case 'fullParty': return this._partySize(me ? me.id : null) >= 4;
         // Myrkul, Lord of Bones: at or under half the life the game started with
         case 'lifeAtMostHalfStart': return !!me && me.life * 2 <= ((this.config && this.config.startingLife) || 20);
         // True-Faith Censer: the creature it is on is a Human
@@ -11938,7 +11938,8 @@
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
-        if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
+        // (Search Warrant: in a spell, "that player" is the one it targets)
+        if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer() || firstPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
@@ -12386,9 +12387,12 @@
             /* Typhoon: "equal to the number of Islands that player controls" —
                counted for each opponent in turn */
             const perPlayer = e.n && typeof e.n === 'object' && e.n.scope && e.n.scope.thatPlayer;
+            // Stormbreath Dragon: "equal to the number of cards in that player's hand", each in turn
+            const perHand = e.n && typeof e.n === 'object' && e.n.triggerPlayerHand;
             if (/opponent/.test(e.each.replace(/(?:creatures?|planeswalkers?) your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) {
               let k = cnt;
               if (perPlayer) { const was = this._thatPlayer; this._thatPlayer = p.id; k = n(e.n); this._thatPlayer = was; }
+              if (perHand) { const was = ctx.chosenPlayer; ctx.chosenPlayer = p.id; k = n(e.n); ctx.chosenPlayer = was; }
               if (k > 0) this.dealDamageToPlayer(p, k, dsrc);
             }
             if (/^player/.test(e.each) || /each player/.test(e.each)) for (const p of this.players) this.dealDamageToPlayer(p, cnt, dsrc);

@@ -2485,4 +2485,56 @@ module.exports = (test) => {
     T.mana('A', '3'); T.activate('A', tf, 0, { x: 3 });
     t.eq(T.g.powerOf(tf), 3); t.eq(T.g.toughnessOf(tf), 3);
   });
+
+  test('Audit: "that player" after a player target in any trigger (Memory Worm, Palantir of Orthanc); hand counts per player (Stormbreath Dragon, Search Warrant)', (mk, t) => {
+    let T = mk();
+    for (const c of ['Memory Worm', 'Palantír of Orthanc', 'Stormbreath Dragon', 'Search Warrant']) t.auto(c);
+    T.toMain('A');
+    T.bf('A', 'Memory Worm');
+    T.hand('B', 'Island'); T.hand('B', 'Island'); T.top('B', 'Mountain');
+    const ah = T.g.zones.A.hand.length;
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', '2U'); T.cast('A', T.grave('A', 'Think Twice'), { via: 'flashback' });
+    t.eq(T.life('B'), 18);
+    t.eq(T.g.zones.B.graveyard.length, 1, 'B discarded');
+    t.ok(T.g.zones.B.hand.some(c => c.name === 'Mountain'), 'and B drew');
+    t.eq(T.g.zones.A.hand.length, ah + 1, 'A only drew from Think Twice');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Palantír of Orthanc');
+    T.top('A', 'Hill Giant'); T.top('A', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'C' }] }));
+    T.answer('confirm', () => ({ yes: false }));
+    T.toMain('A', 'end'); T.settle();
+    t.eq(T.life('C'), 16, 'C declined: loses the milled Giant\'s mana value');
+    t.eq(T.life('A'), 20); t.eq(T.life('B'), 20);
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const sd = T.bf('A', 'Stormbreath Dragon');
+    const bh = T.g.zones.B.hand.length + 3, ch = T.g.zones.C.hand.length + 1;
+    for (let i = 0; i < 3; i++) T.hand('B', 'Island');
+    T.hand('C', 'Island');
+    T.mana('A', '5RR'); T.activate('A', sd, 0);
+    t.eq(T.life('B'), 20 - bh, "B: its own hand size"); t.eq(T.life('C'), 20 - ch, "C: its own");
+    T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) T.hand('B', 'Island');
+    const k = T.g.zones.B.hand.length;
+    T.mana('A', '3WU'); T.cast('A', T.hand('A', 'Search Warrant'), { targets: ['B'] });
+    t.eq(T.life('A'), 20 + k, 'life for each card in the targeted hand');
+  });
+
+  test('Audit: "if you have a full party" (Squad Commander) checks the party instead of failing', (mk, t) => {
+    const T = mk();
+    t.auto('Squad Commander');
+    T.toMain('A');
+    T.bf('A', 'Squad Commander');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A', 'beginCombat'); T.settle(); T.resolve();
+    t.eq(T.g.powerOf(bears), 2, 'no party: nothing');
+    for (const n of ['Fiend Hunter', 'Merfolk Looter', 'Elvish Warrior', 'Prodigal Sorcerer']) T.bf('A', n);
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A', 'beginCombat'); T.settle(); T.resolve();
+    t.eq(T.g.powerOf(bears), 3, 'a Cleric, Rogue, Warrior and Wizard: +1/+0');
+    t.ok(T.g.hasKw(bears, 'indestructible'));
+  });
 };

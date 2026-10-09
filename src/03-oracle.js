@@ -678,7 +678,7 @@
   /* Suspended Sentence: "Destroy target creature an opponent controls. That
      player loses 3 life." With no trigger and no player targeted, "that
      player" is whoever had what was targeted. */
-  function thatPlayerOfTheTarget(effects) {
+  function thatPlayerOfTheTarget(effects, playersOnly) {
     const ops = ['loseLife', 'discard', 'createNamedToken', 'draw', 'mill'];
     let ok = true;
     const run = (list, st) => {
@@ -687,7 +687,7 @@
         if (e.op === 'modal') { for (const m of e.modes || []) run(m.effects, { obj: false, spell: false, pl: false }); continue; }
         // Immersturm Skullcairn: "deals 3 damage to target player. That player discards a card."
         if (e.who === 'triggerPlayer' && st.pl && /^(?:That player|They)\b/.test(e.text || '')) e.who = 'target';
-        if (e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
+        if (!playersOnly && e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
           // (a spell's controller, after it may have been countered, is not kept: Frightful Delusion)
           if (st.obj && ops.includes(e.op)) e.who = 'targetController'; else ok = false;
         }
@@ -10000,6 +10000,8 @@
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
         thatIsTheTarget(parsed, !trig.self && (trig.aboutObject || objFilter));
         if (trig.self && !thatPlayerOfTheTarget(parsed.effects)) parsed.auto = false;
+        // Memory Worm: "deals 2 damage to target player. That player discards a card." in any trigger
+        if (!trig.self) thatPlayerOfTheTarget(parsed.effects, true);
         /* Conclave Mentor: "When this creature dies, you gain life equal to its
            power" — with nothing before it, "its" is this creature, as it last was */
         if (trig.self) {
