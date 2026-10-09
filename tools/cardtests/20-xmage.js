@@ -13982,4 +13982,27 @@ module.exports = (test) => {
     T.toMain('B');
     t.eq(T.g._abilityMana(crown, ab), '{1}', 'not your turn: {1}');
   });
+
+  test('Legends called by their first name: Legolas Greenleaf, Zurgo Helmsmasher', (mk, t) => {
+    t.auto('Legolas Greenleaf'); t.auto('Zurgo Helmsmasher');
+    const T = mk();
+    const leg = T.bf('A', 'Legolas Greenleaf');
+    t.ok(!T.g.couldBlock(T.bf('B', 'Grizzly Bears'), leg, 'B'), 'power 2 cannot block it');
+    t.ok(!!T.g.couldBlock(T.bf('B', 'Hill Giant'), leg, 'B'), 'power 3 can');
+    const a = T.bf('A', 'Zurgo Helmsmasher').analysis();
+    t.ok(a.abilities.some(x => x.kind === 'triggered' && /CARDNAME/.test(x.text)), 'Zurgo is itself in its trigger');
+  });
+
+  test("Shardmage's Rescue: hexproof only the turn the Aura entered", (mk, t) => {
+    t.auto("Shardmage's Rescue");
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const aura = T.bf('A', "Shardmage's Rescue");
+    T.g._attachAura(aura, bear);
+    aura.entered = T.g.turn; T.g.bumpBoard();
+    t.ok(T.g.hasKw(bear, 'hexproof'), 'this turn');
+    aura.entered = T.g.turn - 1; T.g.bumpBoard();
+    t.ok(!T.g.hasKw(bear, 'hexproof'), 'a later turn');
+  });
 };

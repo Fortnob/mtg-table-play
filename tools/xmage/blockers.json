@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11910,
-  "gainedCards": 1225,
-  "linesNeeded": 12854,
-  "linesGained": 1458,
+  "needed": 11904,
+  "gainedCards": 1224,
+  "linesNeeded": 12834,
+  "linesGained": 1447,
   "gained": {
-   "all": 1225,
+   "all": 1224,
    "top2000": 48,
    "stdTop": 9
   },
@@ -222,8 +222,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 51,
-   "lines": 51,
+   "score": 50,
+   "lines": 50,
    "cards": [
     "Tidus, Yuna's Guardian",
     "Contest of Claws",
@@ -231,12 +231,12 @@
     "Incremental Blight",
     "Fall of Gil-galad",
     "Iroh, Tea Master",
-    "Phantom Blade",
     "Friendly Rivalry",
     "Allies at Last",
     "Burning Sun's Avatar",
     "Fleeting Reflection",
-    "Reckless Rage"
+    "Reckless Rage",
+    "Terrific Team-Up"
    ]
   },
   {
@@ -685,21 +685,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 17,
-   "lines": 8,
-   "cards": [
-    "The Aetherspark",
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Hylderblade",
-    "Bound by Moonsilver",
-    "Detainment Spell",
-    "Concealed Weapon",
-    "Stasis Cell"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 17,
    "lines": 11,
@@ -791,6 +776,20 @@
     "Elite Arcanist",
     "Starport Security",
     "Thaumaton Torpedo"
+   ]
+  },
+  {
+   "what": "AttachEffect",
+   "score": 16,
+   "lines": 7,
+   "cards": [
+    "The Aetherspark",
+    "Felidar Umbra",
+    "Hylderblade",
+    "Bound by Moonsilver",
+    "Detainment Spell",
+    "Concealed Weapon",
+    "Stasis Cell"
    ]
   },
   {
@@ -1813,24 +1812,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Quicksilver, Brash Blur",
-    "Captain Marvel, Earth's Protector",
-    "Loki Laufeyson",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Brawn, Amadeus Cho",
-    "Iron Fist, Hero for Hire",
-    "White Tiger, Ava Ayala",
-    "Donald Blake, Guise of Thor"
-   ]
-  },
-  {
    "what": "ExileFromZoneTargetEffect",
    "score": 11,
    "lines": 11,
@@ -2116,6 +2097,23 @@
     "Saving Grasp",
     "Scarab of the Unseen",
     "Obelisk of Undoing"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Quicksilver, Brash Blur",
+    "Captain Marvel, Earth's Protector",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho",
+    "Iron Fist, Hero for Hire",
+    "White Tiger, Ava Ayala",
+    "Donald Blake, Guise of Thor"
    ]
   },
   {
@@ -3655,16 +3653,6 @@
    ]
   },
   {
-   "what": "AttacksEachCombatStaticAbility",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Alexios, Deimos of Kosmos",
-    "Xantcha, Sleeper Agent",
-    "Zurgo Helmsmasher"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 6,
    "lines": 3,
@@ -4413,19 +4401,6 @@
    ]
   },
   {
-   "what": "CantBlockCreaturesSourceEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Zurgo Bellstriker",
-    "Sunweb",
-    "Hinterland Drake",
-    "Cyclops Tyrant",
-    "Gibbering Hyenas",
-    "Orcish Veteran"
-   ]
-  },
-  {
    "what": "CantBeBlockedByAllTargetEffect",
    "score": 6,
    "lines": 6,
@@ -4523,6 +4498,15 @@
    "cards": [
     "Throne of Eldraine",
     "Keeper of the Mind"
+   ]
+  },
+  {
+   "what": "AttacksEachCombatStaticAbility",
+   "score": 5,
+   "lines": 2,
+   "cards": [
+    "Alexios, Deimos of Kosmos",
+    "Xantcha, Sleeper Agent"
    ]
   },
   {
@@ -5482,6 +5466,18 @@
    ]
   },
   {
+   "what": "CantBlockCreaturesSourceEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Sunweb",
+    "Hinterland Drake",
+    "Cyclops Tyrant",
+    "Gibbering Hyenas",
+    "Orcish Veteran"
+   ]
+  },
+  {
    "what": "two colours",
    "score": 5,
    "lines": 5,
@@ -6100,6 +6096,17 @@
    ]
   },
   {
+   "what": "EntersBattlefieldAttachToTarget",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Hidden Blade",
+    "Hunter's Bow",
+    "Rocket-Powered Goblin Glider",
+    "Novel Nunchaku"
+   ]
+  },
+  {
    "what": "OutlawPredicate.instance",
    "score": 4,
    "lines": 4,
@@ -6512,17 +6519,6 @@
     "Forsaken Wastes",
     "Lava Runner",
     "Retromancer"
-   ]
-  },
-  {
-   "what": "DealtDamageAndDiedTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Zurgo Helmsmasher",
-    "Madame Vastra",
-    "Trophy Hunter",
-    "Seraph"
    ]
   },
   {
@@ -7018,15 +7014,15 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 44,
-   "cards": 44,
+   "score": 43,
+   "cards": 43,
    "names": [
     "Contest of Claws",
     "Cosmic Hunger",
     "Incremental Blight",
     "Fall of Gil-galad",
     "Iroh, Tea Master",
-    "Phantom Blade"
+    "Friendly Rivalry"
    ]
   },
   {
@@ -8319,6 +8315,19 @@
    ]
   },
   {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman"
+   ]
+  },
+  {
    "what": "AttachedToMatchesFilterCondition",
    "score": 8,
    "cards": 8,
@@ -8598,19 +8607,6 @@
     "Spirit of Resistance",
     "Veteran Bodyguard",
     "Orim's Touch"
-   ]
-  },
-  {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde",
-    "Tzaangor Shaman"
    ]
   },
   {
@@ -9167,19 +9163,6 @@
    ]
   },
   {
-   "what": "AttachEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Assassin Gauntlet",
-    "Felidar Umbra",
-    "Hylderblade",
-    "Detainment Spell",
-    "Concealed Weapon",
-    "Stasis Cell"
-   ]
-  },
-  {
    "what": "CantBeBlockedByMoreThanOneAllEffect",
    "score": 6,
    "cards": 6,
@@ -9489,19 +9472,6 @@
     "Sorrow's Path",
     "Barrin's Spite",
     "Retribution"
-   ]
-  },
-  {
-   "what": "CantBlockCreaturesSourceEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Zurgo Bellstriker",
-    "Sunweb",
-    "Hinterland Drake",
-    "Cyclops Tyrant",
-    "Gibbering Hyenas",
-    "Orcish Veteran"
    ]
   },
   {
@@ -9904,6 +9874,18 @@
    ]
   },
   {
+   "what": "AttachEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Felidar Umbra",
+    "Hylderblade",
+    "Detainment Spell",
+    "Concealed Weapon",
+    "Stasis Cell"
+   ]
+  },
+  {
    "what": "PreventNextDamageFromChosenSourceToTargetEffect",
    "score": 5,
    "cards": 5,
@@ -10297,6 +10279,18 @@
     "Ayesha Tanaka",
     "Rust",
     "Ouphe Vandals"
+   ]
+  },
+  {
+   "what": "CantBlockCreaturesSourceEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Sunweb",
+    "Hinterland Drake",
+    "Cyclops Tyrant",
+    "Gibbering Hyenas",
+    "Orcish Veteran"
    ]
   },
   {

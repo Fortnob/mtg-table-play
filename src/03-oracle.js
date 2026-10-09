@@ -7931,7 +7931,7 @@
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Mirrex: "Activate only if this land entered this turn."
-    [/^this (?:land|artifact|enchantment|permanent) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
+    [/^this (?:land|artifact|enchantment|permanent|Aura|Equipment|Vehicle|Saga) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Messenger Hawk: "you've drawn two or more cards this turn"
     [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
@@ -8923,6 +8923,23 @@
         // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
         // (Óin, Fíli: a letter with an accent is still part of the word)
         text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(short) + '(?![\\w\\u00C0-\\u024F])(?!,\\s*[A-Z])', 'g'), 'CARDNAME');
+      }
+      /* Legolas Greenleaf: "Legolas can't be blocked …"; Captain Kathryn
+         Janeway: "Whenever Captain Janeway … enters" — a legend with no comma
+         in its name, called by its first name (or first and last), where a
+         verb about it follows. A word that is also one of its types (Sliver
+         Hivelord's "Sliver creatures") or a title is not a name. */
+      if (!full.includes(',') && !/^([A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.test(full)) {
+        const parts = full.split(/\s+/);
+        const subs = new Set((tl.subtypes || []).map(x => x.toLowerCase()));
+        const cands = parts.length >= 3 ? [parts[0] + ' ' + parts[parts.length - 1], parts[0]] : parts.length === 2 ? [parts[0]] : [];
+        for (const c of cands) {
+          if (c.length < 3 || /^(?:The|A|An|King|Queen|Lord|Lady|Sir|General|Captain|Dr\.|Doctor|Professor|Mister|Miss)$/.test(c) || subs.has(c.toLowerCase())) continue;
+          text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(c) +
+            "(?=(?:'s\\s+(?:power|toughness|base)|\\s+(?:enters|attacks|blocks|deals|dies|can't|can|gets|gains|has|is|isn't|doesn't|becomes|and|or|leaves))\\b)", 'g'), 'CARDNAME');
+          // Zurgo Helmsmasher: "dealt damage by Zurgo this turn", "a +1/+1 counter on Zurgo."
+          text = text.replace(new RegExp('(?<=\\b(?:on|by|to|untap|tap|exile|sacrifice|return|destroy) )' + escapeRe(c) + '(?=[.,]|\\s+this turn\\b)', 'g'), 'CARDNAME');
+        }
       }
       /* Dáin of the Ancient Halls: "Whenever Dáin attacks, he deals damage …"
          — a legend's "he" or "she" at the head of a clause is the legend */
