@@ -13017,4 +13017,15 @@ module.exports = (test) => {
     t.ok(T.g.battlefield.some(o => o.isToken), 'tokens stay');
     t.ok(!T.g.battlefield.some(o => o.name === 'Grizzly Bears' || o.name === 'Thalia, Guardian of Thraben'), 'the rest destroyed');
   });
+
+  test('Instill Energy: attacks the turn it came; Sliver Overlord takes a Sliver', (mk, t) => {
+    t.auto('Instill Energy'); t.auto('Sliver Overlord');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = true;
+    t.ok(!T.g.canAttack(bear), 'sick');
+    const ie = T.bf('A', 'Instill Energy'); ie.attachedTo = bear.id; bear.attachments = [ie.id];
+    T.g.bumpBoard && T.g.bumpBoard();
+    t.ok(T.g.canAttack(bear), 'as though it had haste');
+  });
 };

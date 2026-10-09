@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12092,
+  "needed": 12090,
   "gainedCards": 1266,
-  "linesNeeded": 13118,
+  "linesNeeded": 13116,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4331,
-   "lines": 4064,
+   "score": 4330,
+   "lines": 4063,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2909,21 +2909,6 @@
    ]
   },
   {
-   "what": "control for custom",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Sliver Overlord",
-    "Connive // Concoct",
-    "Empress Galina",
-    "Invoke the Winds",
-    "Jace, Ingenious Mind-Mage",
-    "Sorin, Vampire Lord",
-    "Govern the Guildless",
-    "Kefnet's Last Word"
-   ]
-  },
-  {
    "what": "VoidCondition.instance",
    "score": 8,
    "lines": 8,
@@ -3669,6 +3654,20 @@
     "Munda, Ambush Leader",
     "Tajuru Archer",
     "Bala Ged Thief"
+   ]
+  },
+  {
+   "what": "control for custom",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Connive // Concoct",
+    "Empress Galina",
+    "Invoke the Winds",
+    "Jace, Ingenious Mind-Mage",
+    "Sorin, Vampire Lord",
+    "Govern the Guildless",
+    "Kefnet's Last Word"
    ]
   },
   {
@@ -6975,8 +6974,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3554,
-   "cards": 3386,
+   "score": 3553,
+   "cards": 3385,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8712,19 +8711,6 @@
    ]
   },
   {
-   "what": "control for custom",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Sliver Overlord",
-    "Connive // Concoct",
-    "Empress Galina",
-    "Invoke the Winds",
-    "Jace, Ingenious Mind-Mage",
-    "Sorin, Vampire Lord"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 7,
    "cards": 7,
@@ -9509,6 +9495,19 @@
     "Mystic Decree",
     "Blind Fury",
     "Wind Shear"
+   ]
+  },
+  {
+   "what": "control for custom",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Connive // Concoct",
+    "Empress Galina",
+    "Invoke the Winds",
+    "Jace, Ingenious Mind-Mage",
+    "Sorin, Vampire Lord",
+    "Kefnet's Last Word"
    ]
   },
   {

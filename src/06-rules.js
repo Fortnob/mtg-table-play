@@ -7341,7 +7341,8 @@
       const c = this.characteristics(o);
       if (!a || !(c && c.isCreature)) return false;
       if (o.tapped || o.phasedOut) return false;
-      if (o.summoningSick && !this.hasKw(o, 'haste')) return false;
+      // (Instill Energy: "can attack as though it had haste")
+      if (o.summoningSick && !this.hasKw(o, 'haste') && !this._hasFlag(o, 'attackAsHaste')) return false;
       // "can attack this turn as though it didn't have defender"
       if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender')) return false;
       if (a.abilities.some(x => (x.effects || []).some(e => e.op === 'cantAttack'))) return false;

@@ -2019,7 +2019,8 @@
       make: (m) => ({ op: 'bite', toPlayer: true,
         targets: [{ type: 'creature', controller: 'you' }, { type: 'player' }] }) },
     // (Captivating Crew: "target creature an opponent controls")
-    { re: /^Gain control of target (creature|permanent|artifact)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/i,
+    // (Sliver Overlord: "Gain control of target Sliver.")
+    { re: /^Gain control of target (creature|permanent|artifact|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
@@ -11586,6 +11587,9 @@
           if (m[2]) return { op: 'evasionAttached', minBlockerPower: +m[2] + 1 };
           return { op: 'evasionAttached', onlyBy: m[3].toLowerCase().split(/ or | and\/or /) };
         }, auto: true },
+      // Instill Energy: "Enchanted creature can attack as though it had haste."
+      { re: /^(Enchanted|Equipped) creature can attack as though it had haste\.?$/i,
+        make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'attackAsHaste' }), auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
         make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },
