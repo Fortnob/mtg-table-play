@@ -2157,6 +2157,13 @@
         const subs = (x) => { const tl = String((x && x.card && x.card.type_line) || ''); return tl.includes('—') ? tl.split('—')[1].trim().split(/\s+/) : []; };
         if (p && !subs(o).some(s => subs(p).includes(s))) return false;
       }
+      // Goblin Welder: owned by whoever controlled the first; Bioshift: the same controller as the first
+      if ((spec.ownedByPrevController || spec.sameControllerAsPrev) && t.chosen.length) {
+        const prev = t.chosen[t.chosen.length - 1];
+        const p = prev && prev.kind === 'object' ? this.objIn(prev.id) : null;
+        if (p && spec.ownedByPrevController && o.owner !== p.controller) return false;
+        if (p && spec.sameControllerAsPrev && o.controller !== p.controller) return false;
+      }
       // Callidus Assassin: one with the same name as the card aiming
       if (spec.sameNameAsSource) {
         const src = t.source ? this.objIn(t.source) : null;
