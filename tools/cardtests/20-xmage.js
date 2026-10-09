@@ -14830,4 +14830,17 @@ module.exports = (test) => {
     t.eq(U.g.powerOf(a), 4, 'two others: +2/+0');
     t.eq(U.g.toughnessOf(a), 2);
   });
+  test('Planar Despair: -1/-1 to all creatures for each basic land type among your lands', (mk, t) => {
+    t.auto('Planar Despair');
+    t.auto('Magmablood Archaic');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Island'); T.bf('A', 'Forest'); T.bf('A', 'Forest');
+    const g = T.bf('B', 'Hill Giant');
+    const card = T.hand('A', 'Planar Despair');
+    const sp = card.analysis().abilities.find(a => a.kind === 'spell');
+    T.g._runEffects(sp.effects, { controller: 'A', obj: card, name: 'Planar Despair', kind: 'spell' });
+    t.eq(T.g.powerOf(g), 1, 'two types: -2/-2');
+    t.eq(T.g.toughnessOf(g), 1);
+  });
 };

@@ -3153,6 +3153,18 @@
     { re: /^You gain (one|two|three|four|\d+) life for each card exiled this way\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { lastExiledCount: true, mult: num(m[1]) } }) },
     { re: /^Exile (?:all|each) (?:player'?s|players'?) graveyards?\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
+    /* Planar Despair, Mutilate: "All creatures get -1/-1 until end of turn
+       for each basic land type among lands you control" — counted once, as
+       it resolves */
+    { re: /^(All creatures|Creatures you control|Other creatures you control|Creatures your opponents control) get ([+-])(\d+)\/([+-])(\d+) until end of turn for each ([^.]+?)\.?$/i,
+      make: (m) => {
+        const c = countOf(m[6].replace(/ on the battlefield$/i, ''));
+        if (!c) return null;
+        if (/ on the battlefield$/i.test(m[6]) && c.scope) c.scope = Object.assign({}, c.scope, { who: 'all' });
+        const amt = (sign, k) => (+k ? Object.assign({}, c, { mult: (c.mult || 1) * (+k) * (sign === '-' ? -1 : 1) }) : 0);
+        const scope = /^all/i.test(m[1]) ? 'allCreatures' : scopeOf(m[1]);
+        return scope ? { op: 'pump', p: amt(m[2], m[3]), t: amt(m[4], m[5]), duration: 'eot', scope } : null;
+      } },
     { re: /^All creatures get ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'allCreatures' }) },
     { re: /^Each other player sacrifices (a|one|two|\d+) ([a-z]+)(?: of their choice)?\.?$/i,
