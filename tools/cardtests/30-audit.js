@@ -2437,4 +2437,28 @@ module.exports = (test) => {
     T.mana('A', '2U'); T.cast('A', T.grave('A', 'Think Twice'), { via: 'flashback' });
     t.no(T.g.log.some(l => /Sunbird/.test(l.text)), 'cast from the graveyard: no trigger');
   });
+
+  test('Audit: "its power" in an activated ability is its own (Ghitu Fire-Eater, Heartfire Immolator, Yew Spirit, Heroes\' Bane)', (mk, t) => {
+    let T = mk();
+    for (const c of ['Ghitu Fire-Eater', 'Heartfire Immolator', 'Yew Spirit', "Heroes' Bane", 'Chameleon Colossus']) t.auto(c);
+    T.toMain('A');
+    const g = T.bf('A', 'Ghitu Fire-Eater'); g.summoningSick = false;
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.activate('A', g, 0, { targets: [wurm] });
+    t.eq(wurm.damage, 2, "the Fire-Eater's power, 2, not the Wurm's 6");
+    t.zone(wurm, 'battlefield');
+    const hi = T.bf('A', 'Heartfire Immolator');
+    const w2 = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'R'); T.activate('A', hi, 0, { targets: [w2] });
+    t.eq(w2.damage, 2);
+    T = mk();
+    T.toMain('A');
+    const ys = T.bf('A', 'Yew Spirit');
+    T.mana('A', '2GG'); T.activate('A', ys, 0);
+    t.eq(T.g.powerOf(ys), 6, 'a 3/3 gets +3/+3'); t.eq(T.g.toughnessOf(ys), 6);
+    T.mana('A', '3GG'); T.cast('A', T.hand('A', "Heroes' Bane"));
+    const hb = T.g.battlefield.find(o => o.name === "Heroes' Bane");
+    T.mana('A', '2GG'); T.activate('A', hb, 0);
+    t.eq(hb.counters['+1/+1'], 8, 'four more for its power of 4');
+  });
 };

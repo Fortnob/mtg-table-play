@@ -9749,6 +9749,24 @@
             for (const k of ['n', 'p', 't']) if (e && e[k] && typeof e[k] === 'object' && e[k].ofLast && !(e.targets || []).length) e[k] = { ofSelf: e[k].ofLast };
           }
         }
+        /* Ghitu Fire-Eater: "It deals damage equal to its power to any
+           target"; Yew Spirit: "This creature gets +X/+X until end of turn,
+           where X is its power" — with nothing targeted before it, "it" is
+           this permanent, not what it aims at */
+        for (const [i, e] of effects.entries()) {
+          if (!e || effects.slice(0, i).some(x => x && (x.targets || []).length)) break;
+          // (Heroes' Bane: "Put X +1/+1 counters on this creature, where X is its power")
+          const aboutMe = /^(?:then )?(?:it|this creature|CARDNAME)\b/i.test(String(e.text || '')) || (e.scope === 'self' && !(e.targets || []).length);
+          if (!aboutMe || !/\b(?:its|CARDNAME'?s|this creature'?s) (?:power|toughness)\b/i.test(String(e.text || ''))) continue;
+          const mine = (v) => {
+            if (!v || typeof v !== 'object') return v;
+            if (v.ofTrigger === 'power' || v.ofTrigger === 'toughness') return { ofSelf: v.ofTrigger };
+            if (v.by) return Object.assign({}, v, { by: mine(v.by) });
+            return v;
+          };
+          for (const k of ['n', 'p', 't']) if (e[k] && typeof e[k] === 'object') e[k] = mine(e[k]);
+          if (e.fromTrigger) delete e.fromTrigger;
+        }
         // ("that player" after a target, as in a spell)
         const thatOk = thatPlayerOfTheTarget(effects);
         const ab = {
