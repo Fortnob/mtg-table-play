@@ -12198,4 +12198,16 @@ module.exports = (test) => {
     T.g._runEffects(fx, { controller: 'A', obj: pal, name: 'Fire Nation Palace', kind: 'ability', targets: [{ kind: 'object', id: sage.id }] });
     t.eq(T.g._kwArg(sage, 'firebending'), 5, 'one printed and four given');
   });
+
+  test('Goblin Welder: an artifact swapped for one in the same graveyard', (mk, t) => {
+    t.auto('Goblin Welder');
+    const T = mk();
+    const gw = T.bf('A', 'Goblin Welder'); gw.summoningSick = false;
+    const ring = T.bf('B', 'Sol Ring');
+    const mine = T.grave('A', 'Mind Stone'), theirs = T.grave('B', 'Mind Stone');
+    t.ok(!T.g.activateAbility('A', gw.id, 0, { targets: [{ kind: 'object', id: ring.id }, { kind: 'object', id: mine.id }] }), 'not from another graveyard');
+    T.activate('A', gw, 0, { targets: [ring, theirs] });
+    T.resolve(); T.settle();
+    t.eq(ring.zone, 'graveyard'); t.eq(theirs.zone, 'battlefield'); t.eq(theirs.controller, 'B');
+  });
 };

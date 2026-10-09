@@ -5511,6 +5511,13 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Goblin Welder: "Choose target artifact a player controls and target
+       artifact card in that player's graveyard. If both targets are still
+       legal as this ability resolves, that player simultaneously sacrifices
+       the artifact and returns the artifact card to the battlefield." */
+    { re: /^Choose target artifact a player controls and target artifact card in that player'?s graveyard\. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield\.$/i,
+      make: () => [{ op: 'weldSwap', targets: [{ type: 'artifact', filter: 'artifact', zone: 'battlefield' },
+        { type: 'artifact', filter: 'artifact', zone: 'graveyard', ownedByPrevController: true }] }] },
     /* Springheart Nantuko: "you may pay {1}{G} if this permanent is attached
        to a creature you control. If you do, create a token that's a copy of
        that creature. If you didn't create a token this way, create a 1/1

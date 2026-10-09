@@ -6151,6 +6151,11 @@
         if (!legal.some(same)) return `${what} isn't a legal target for ${name}.`;
         // "any other target", "another target creature": not one already chosen
         if (sp.distinct && tg.slice(0, i).some(same)) return `${what} isn't a legal target for ${name}.`;
+        // Goblin Welder: "target artifact card in that player's graveyard"
+        if (sp.ownedByPrevController && i > 0) {
+          const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
+          if (!a0 || !b0 || b0.owner !== a0.controller) return `${what} isn't in the graveyard of the first target's controller.`;
+        }
         // Secret Tunnel: "two target creatures … that share a creature type"
         if (sp.sharesTypeWithPrev && i > 0) {
           const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
@@ -14912,6 +14917,17 @@
         }
         // The Infinity Stones: harnessed, its ∞ abilities work from now on
         case 'harness': if (src && src.zone === 'battlefield') { src.harnessed = true; this.logEvent('rules', `${src.name} is harnessed.`); } break;
+        // Goblin Welder: an artifact out, an artifact card from the same player's graveyard in
+        case 'weldSwap': {
+          const ts = targets.filter(t => t.kind === 'object');
+          const art = ts[0] && this.obj(ts[0].id), card = ts[1] && this.obj(ts[1].id);
+          if (!art || art.zone !== 'battlefield' || !card || card.zone !== 'graveyard' || card.owner !== art.controller) break;
+          const pid = art.controller;
+          this._sacrificeNow(pid, [art]);
+          this.moveObject(card, 'battlefield', { controller: pid });
+          this.logEvent('rules', `${this.player(pid).name} swaps ${art.name} for ${card.name}.`);
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12351,
+  "needed": 12350,
   "gainedCards": 1337,
-  "linesNeeded": 13445,
+  "linesNeeded": 13444,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -242,10 +242,9 @@
   },
   {
    "what": "custom target",
-   "score": 49,
-   "lines": 46,
+   "score": 45,
+   "lines": 45,
    "cards": [
-    "Goblin Welder",
     "Rampaging Yao Guai",
     "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
     "V.A.T.S.",
@@ -256,7 +255,8 @@
     "Modify Memory",
     "Unbury",
     "Chaos Mutation",
-    "Thwart the Grave"
+    "Thwart the Grave",
+    "Raise the Draugr"
    ]
   },
   {
@@ -7159,15 +7159,15 @@
   },
   {
    "what": "custom target",
-   "score": 43,
-   "cards": 40,
+   "score": 39,
+   "cards": 39,
    "names": [
-    "Goblin Welder",
     "Rampaging Yao Guai",
     "V.A.T.S.",
     "Reunion of the House",
     "Behold the Sinister Six!",
-    "Kairi, the Swirling Sky"
+    "Kairi, the Swirling Sky",
+    "Role Reversal"
    ]
   },
   {
