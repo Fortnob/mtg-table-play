@@ -11558,7 +11558,8 @@
     // Crippling Fear: "Creatures that aren't of the chosen type"
     /* Kjeldoran Frostbeast: "creatures blocking or blocked by this creature";
        Wall of Nets: "creatures blocked by this creature" */
-    if ((mm0 = rest.match(/ (blocking or blocked by|blocked by|blocking) (?:this creature|CARDNAME)$/i))) {
+    // (Battle-Scarred Goblin, Trailblazer's Torch: "each creature blocking it")
+    if ((mm0 = rest.match(/ (blocking or blocked by|blocked by|blocking) (?:this creature|CARDNAME|it)$/i))) {
       sc.combatWithSelf = /blocking or/i.test(mm0[1]) ? 'either' : /^blocked/i.test(mm0[1]) ? 'blockedBy' : 'blocking';
       rest = rest.slice(0, mm0.index);
     }

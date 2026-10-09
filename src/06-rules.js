@@ -20096,7 +20096,9 @@
       // Kjeldoran Frostbeast: blocking it, or blocked by it
       if (sc.combatWithSelf) {
         if (!src) return false;
-        const blocksIt = (o.blocking || []).includes(src.id), itBlocks = (src.blocking || []).includes(o.id);
+        // Trailblazer's Torch: an Equipment's "it" is the creature it's attached to (combatHost)
+        const cw = src.attachedTo && !(src.analysis() || {}).isCreature ? (this.obj(src.attachedTo) || src) : src;
+        const blocksIt = (o.blocking || []).includes(cw.id), itBlocks = (cw.blocking || []).includes(o.id);
         if (sc.combatWithSelf === 'blocking' ? !blocksIt : sc.combatWithSelf === 'blockedBy' ? !itBlocks : !(blocksIt || itBlocks)) return false;
       }
       // Backgrounds: "Commander creatures you own"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11343,
+  "needed": 11338,
   "gainedCards": 1130,
-  "linesNeeded": 12143,
+  "linesNeeded": 12136,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4217,
-   "lines": 3956,
+   "score": 4216,
+   "lines": 3955,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -3880,30 +3880,6 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Battle-Scarred Goblin",
-    "Arc Spitter",
-    "Baneblade Scoundrel // Baneclaw Marauder",
-    "Barbed-Back Wurm"
-   ]
-  },
-  {
-   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Cromat",
-    "Sisters of Stone Death",
-    "Abu Ja'far",
-    "Sentinel",
-    "Steadfast Armasaur",
-    "Sworn Defender"
-   ]
-  },
-  {
    "what": "BecomesCreatureAttachedWithActivatedAbilityOrSpellEffect",
    "score": 6,
    "lines": 6,
@@ -4819,6 +4795,18 @@
     "Treetop Bracers",
     "Saddle of the Cavalier",
     "Blazing Torch"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Cromat",
+    "Sisters of Stone Death",
+    "Sentinel",
+    "Steadfast Armasaur",
+    "Sworn Defender"
    ]
   },
   {
@@ -6116,17 +6104,6 @@
    ]
   },
   {
-   "what": "DoIfClashWonEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Pollen Lullaby",
-    "Woodland Guidance",
-    "Fire Juggler",
-    "Sentry Oak"
-   ]
-  },
-  {
    "what": "PreventDamageToAttachedEffect",
    "score": 4,
    "lines": 4,
@@ -6675,13 +6652,33 @@
     "Cursed Wombat",
     "Growth-Chamber Guardian"
    ]
+  },
+  {
+   "what": "PlayWithTheTopCardRevealedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Lantern of Insight",
+    "Wizened Snitches",
+    "Field of Dreams"
+   ]
+  },
+  {
+   "what": "ShuffleLibraryTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Lantern of Insight",
+    "Soldier of Fortune",
+    "Boggart Forager"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3516,
-   "cards": 3336,
+   "score": 3515,
+   "cards": 3335,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -9694,18 +9691,6 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Cromat",
-    "Abu Ja'far",
-    "Sentinel",
-    "Steadfast Armasaur",
-    "Sworn Defender"
-   ]
-  },
-  {
    "what": "SanctuaryTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10374,6 +10359,17 @@
     "Exhaustion",
     "Mana Vapors",
     "Misstep"
+   ]
+  },
+  {
+   "what": "DamageEverythingEffect with a filter",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Rolling Earthquake",
+    "Flamebreak",
+    "Time Bomb",
+    "Borrowing the East Wind"
    ]
   }
  ]

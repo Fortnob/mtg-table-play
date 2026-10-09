@@ -16263,4 +16263,29 @@ module.exports = (test) => {
     t.eq(T.life('A'), 20, "A takes B's 20");
     t.eq(T.life('B'), 5, "B takes A's 5");
   });
+
+  test("It deals N damage to each creature blocking it: Battle-Scarred Goblin, Trailblazer's Torch", (mk, t) => {
+    t.auto('Battle-Scarred Goblin');
+    t.auto("Trailblazer's Torch");
+    let T = mk();
+    const gob = T.bf('A', 'Battle-Scarred Goblin');
+    const e1 = T.bf('B', 'Llanowar Elves'), e2 = T.bf('B', 'Llanowar Elves'), off = T.bf('B', 'Llanowar Elves');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: gob.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: e1.id, attackerIds: [gob.id] }, { blockerId: e2.id, attackerIds: [gob.id] }]);
+    T.toMain('A', 'declareBlockers');
+    T.settle(); T.resolve(); T.settle();
+    t.zone(e1, 'graveyard'); t.zone(e2, 'graveyard');
+    t.zone(off, 'battlefield', 'not one that is not blocking');
+    T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), torch = T.bf('A', "Trailblazer's Torch");
+    torch.attachedTo = bear.id; bear.attachments = [torch.id];
+    const giant = T.bf('B', 'Hill Giant');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: giant.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'declareBlockers');
+    T.settle(); T.resolve(); T.settle();
+    t.eq(giant.damage, 2, 'two damage to the creature blocking the equipped Bears');
+  });
 };
