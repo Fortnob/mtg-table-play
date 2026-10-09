@@ -13390,6 +13390,8 @@
           }
           if (x && grew) this.addCounters(x, '+1/+1', grew);
           this.logEvent('rules', `${x ? x.name : who.name} connives${grew ? ` and grows by ${grew}` : ''}.`);
+          // Iron Monger: "Whenever a creature you control connives"
+          if (x && x.zone === 'battlefield') this._fire('connives', x.controller, { object: x, objController: x.controller });
           break;
         }
 

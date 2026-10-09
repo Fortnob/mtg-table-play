@@ -15254,4 +15254,18 @@ module.exports = (test) => {
     t.ok(T.g.powerOf(bear) >= 4, 'the equipped Bears get +2/+0');
     t.eq(T.g.powerOf(giant), 3, 'the Giant does not');
   });
+
+  test('Iron Monger: a creature of yours conniving puts a counter on each Villain', (mk, t) => {
+    t.auto('Iron Monger, Sadistic Tycoon');
+    t.auto('Ultron, Unlimited');
+    const T = mk();
+    T.toMain('A');
+    const im = T.bf('A', 'Iron Monger, Sadistic Tycoon');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.top('A', 'Island');
+    T.hand('A', 'Island');
+    T.g._runEffects([{ op: 'connive', n: 1, scope: 'self' }], { controller: 'A', obj: bear, name: 'Test', kind: 'ability' });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(im.counters['+1/+1'], 1, 'Iron Monger, a Villain, gets a counter');
+  });
 };
