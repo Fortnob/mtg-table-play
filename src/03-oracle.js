@@ -5357,6 +5357,10 @@
         else spec.unknown = true;
         continue;
       }
+      /* Outlaws (Shoot the Sheriff): Assassins, Mercenaries, Pirates, Rogues
+         and Warlocks, by one word — "non-outlaw", "outlaw" */
+      if (/^non-outlaw$/i.test(w)) { spec.notSubtypes = ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock']; continue; }
+      if (/^outlaws?$/i.test(w)) { spec.subtypes = (spec.subtypes || []).concat(['assassin', 'mercenary', 'pirate', 'rogue', 'warlock']); continue; }
       // "non-Human": anything but that creature type
       if (/^non-[A-Z]/.test(w)) { spec.notSubtype = w.slice(4).toLowerCase(); continue; }
       // a creature type or other subtype is printed with a capital: "target Goblin"
@@ -5432,6 +5436,7 @@
     }
     if (spec.notType && spec.notType.some(isType)) return false;
     if (spec.notSubtype && (a.subtypes || []).some(t => t.toLowerCase() === spec.notSubtype)) return false;
+    if (spec.notSubtypes && (a.subtypes || []).some(t => spec.notSubtypes.includes(t.toLowerCase()))) return false;
     if (spec.nonlegendary && (a.supertypes || []).includes('Legendary')) return false;
     if (spec.legendary && !(a.supertypes || []).includes('Legendary')) return false;
     if (spec.historic && !((a.supertypes || []).includes('Legendary') || a.isArtifact || (a.subtypes || []).includes('Saga'))) return false;
@@ -10293,6 +10298,10 @@
          Saprolings": a permanent of either creature type */
       const two = words.length === 3 && /^(?:and|or|and\/or)$/i.test(words[1]) && /^[A-Z]/.test(words[0]) && /^[A-Z]/.test(words[2]);
       const sing = (x) => SAME[x.toLowerCase()] || (/s$/.test(x) ? singularType(x) : x.toLowerCase());
+      // Outlaws: "Outlaws you control" — Assassins, Mercenaries, Pirates, Rogues and Warlocks
+      if (/^outlaws$/i.test(w) && words.length <= 2) {
+        sc.subtypeAny = ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock']; sc.what = 'permanent'; words.pop();
+      } else
       // Falthis: "Commanders you control have menace" — whatever kind of permanent they are
       if (/^commanders$/i.test(w) && words.length === 1) {
         sc.commander = sc.who === 'you' ? 'control' : true; sc.what = 'permanent'; words.pop();

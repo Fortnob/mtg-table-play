@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12145,
+  "needed": 12141,
   "gainedCards": 1287,
-  "linesNeeded": 13185,
+  "linesNeeded": 13180,
   "linesGained": 1535,
   "gained": {
    "all": 1287,
@@ -147,8 +147,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 166,
-   "lines": 160,
+   "score": 165,
+   "lines": 159,
    "cards": [
     "Likeness Looter",
     "Silkguard",
@@ -2898,21 +2898,6 @@
     "Near-Death Experience",
     "Battle of Wits",
     "Barren Glory"
-   ]
-  },
-  {
-   "what": "OutlawPredicate.instance",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Shoot the Sheriff",
-    "Vihaan, Goldwaker",
-    "At Knifepoint",
-    "Hellspur Posse Boss",
-    "Vial Smasher, Gleeful Grenadier",
-    "Rakish Crew",
-    "Charred Graverobber",
-    "Mine Raider"
    ]
   },
   {
@@ -6491,6 +6476,17 @@
    ]
   },
   {
+   "what": "OutlawPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "At Knifepoint",
+    "Vial Smasher, Gleeful Grenadier",
+    "Rakish Crew",
+    "Mine Raider"
+   ]
+  },
+  {
    "what": "DontUntapInPlayersNextUntapStepAllEffect",
    "score": 4,
    "lines": 4,
@@ -7038,8 +7034,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 144,
-   "cards": 138,
+   "score": 143,
+   "cards": 137,
    "names": [
     "Likeness Looter",
     "Silkguard",
@@ -8749,19 +8745,6 @@
    ]
   },
   {
-   "what": "OutlawPredicate.instance",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Shoot the Sheriff",
-    "At Knifepoint",
-    "Hellspur Posse Boss",
-    "Vial Smasher, Gleeful Grenadier",
-    "Rakish Crew",
-    "Charred Graverobber"
-   ]
-  },
-  {
    "what": "DontUntapInControllersNextUntapStepTargetEffect",
    "score": 7,
    "cards": 7,
@@ -9338,6 +9321,19 @@
     "Giant Shark",
     "Deathgazer",
     "Dread Specter"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Sylvan Awakening",
+    "Life // Death",
+    "Vihaan, Goldwaker",
+    "Natural Affinity",
+    "Kormus Bell",
+    "Ambush Commander"
    ]
   },
   {
@@ -9966,18 +9962,6 @@
     "Quistis Trepe",
     "Toshiro Umezawa",
     "Sins of the Past"
-   ]
-  },
-  {
-   "what": "BecomesCreatureAllEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Sylvan Awakening",
-    "Life // Death",
-    "Natural Affinity",
-    "Kormus Bell",
-    "Ambush Commander"
    ]
   },
   {
@@ -10751,6 +10735,17 @@
     "Evercoat Ursine",
     "Shelldock Isle",
     "Howltooth Hollow"
+   ]
+  },
+  {
+   "what": "AddCreatureSubTypeAllMultiZoneEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Leyline of Transformation",
+    "Arcane Adaptation",
+    "Roshan, Hidden Magister",
+    "Rukarumel, Biologist"
    ]
   }
  ]

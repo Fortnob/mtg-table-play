@@ -20636,6 +20636,8 @@
         if (w === 'permanent') return !!a.isPermanent;
         // historic: legendary, an artifact, or a Saga
         if (w === 'historic') return !!a.isLegendary || !!a.isArtifact || (a.subtypes || []).includes('Saga');
+        // an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
+        if (w === 'outlaw') return (a.subtypes || []).some(t => ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock'].includes(t.toLowerCase())) || !!(a.keywordSet && a.keywordSet.has('changeling'));
         if (w === 'token' || w === 'tokens') return !!o.isToken;
         // Flamekin Herald: "Commander spells you cast"
         if (w === 'commander' || w === 'commanders') return !!o.isCommander;

@@ -12936,4 +12936,14 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(tok), 1); t.eq(T.g.toughnessOf(tok), 1);
     t.ok(T.g._cardFitsWords(tok, 'Nightmare'), 'a Nightmare');
   });
+
+  test('Shoot the Sheriff: not an outlaw', (mk, t) => {
+    t.auto('Shoot the Sheriff');
+    const T = mk();
+    const rogue = T.bf('B', 'Robber of the Rich'), bear = T.bf('B', 'Grizzly Bears');
+    const specs = MTG.rules.spellTargetSpecs(T.hand('A', 'Shoot the Sheriff').analysis());
+    t.ok(T.g._illegalTargets(specs, [{ kind: 'object', id: rogue.id }], 'A', null), 'a Rogue is an outlaw');
+    t.ok(!T.g._illegalTargets(specs, [{ kind: 'object', id: bear.id }], 'A', null), 'a Bear is not');
+    t.ok(T.g._cardFitsWords(rogue, 'outlaw') && !T.g._cardFitsWords(bear, 'outlaw'));
+  });
 };
