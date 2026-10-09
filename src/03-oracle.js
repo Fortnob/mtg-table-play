@@ -1766,7 +1766,8 @@
        knows */
     { re: /^((?:Another )?[Tt]arget [a-z ]+?) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => {
-        const kws = keywordList(m[2]);
+        // Alseid of Life's Bounty: "protection from the color of your choice" is one keyword, chosen as it resolves
+        const kws = /^protection from (?:colou?rless or from )?the colou?r of your choice$/i.test(m[2]) ? [U.titleCase(m[2])] : keywordList(m[2]);
         if (!kws.every(k => kwKnown(k) || /^protection from /i.test(k))) return null;
         return { op: 'grantKeyword', keywords: kws, duration: 'eot', targets: [targetSpec(m[1])] };
       } },

@@ -12662,4 +12662,16 @@ module.exports = (test) => {
     const ring = T.bf('A', 'Ornithopter');
     t.eq(T.g._kwArg(ring, 'afflict'), 3);
   });
+
+  test("Alseid of Life's Bounty: protection from a chosen colour for a creature or enchantment", (mk, t) => {
+    t.auto("Alseid of Life's Bounty");
+    const T = mk();
+    const al = T.bf('A', "Alseid of Life's Bounty");
+    const pac = T.bf('A', 'Intangible Virtue');
+    const ab = al.analysis().abilities.find(a => a.kind === 'activated');
+    T.answer('mode', { modes: [2] });
+    T.g._runEffects(ab.effects, { controller: 'A', obj: al, name: 'Alseid', kind: 'ability', targets: [{ kind: 'object', id: pac.id }] });
+    T.settle();
+    t.ok(T.g.hasKw(pac, 'protection from black'), 'black chosen');
+  });
 };
