@@ -15125,4 +15125,19 @@ module.exports = (test) => {
     t.no(T.g.couldBlock(T.bf('B', 'Hill Giant'), ss, 'B'), 'a Giant cannot');
     t.ok(T.g.couldBlock(T.bf('B', 'Muscle Sliver'), ss, 'B'), 'a Sliver can');
   });
+
+  test('Enter the Avatar State: an Avatar with four keywords until end of turn', (mk, t) => {
+    t.auto('Enter the Avatar State');
+    t.auto("Loki's Scepter");
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const card = T.hand('A', 'Enter the Avatar State');
+    const sp = card.analysis().abilities.find(a => a.kind === 'spell');
+    T.g._runEffects(sp.effects, { controller: 'A', obj: card, name: 'Enter the Avatar State', kind: 'spell', targets: [{ kind: 'object', id: bear.id }] });
+    t.ok(T.g._hasCreatureType(bear, 'Avatar'), 'an Avatar');
+    t.ok(['Flying', 'First strike', 'Lifelink', 'Hexproof'].every(k => T.g.hasKw(bear, k)), 'with all four');
+    T.nextTurn('B');
+    t.no(T.g._hasCreatureType(bear, 'Avatar'), 'gone next turn');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11511,
+  "needed": 11509,
   "gainedCards": 1141,
-  "linesNeeded": 12345,
+  "linesNeeded": 12342,
   "linesGained": 1356,
   "gained": {
    "all": 1141,
@@ -2891,20 +2891,6 @@
    ]
   },
   {
-   "what": "AddCardSubTypeTargetEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Clavileño, First of the Blessed",
-    "Jenova, Ancient Calamity",
-    "Enter the Avatar State",
-    "Archangel Elspeth",
-    "Vronos, Masked Inquisitor",
-    "Loki's Scepter",
-    "Jump Scare"
-   ]
-  },
-  {
    "what": "(verify) optional where the card is not",
    "score": 7,
    "lines": 7,
@@ -5426,6 +5412,17 @@
     "Eye of Nidhogg",
     "Sinister Strength",
     "Grave Servitude"
+   ]
+  },
+  {
+   "what": "AddCardSubTypeTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Clavileño, First of the Blessed",
+    "Jenova, Ancient Calamity",
+    "Vronos, Masked Inquisitor",
+    "Jump Scare"
    ]
   },
   {
@@ -10205,17 +10202,6 @@
    ]
   },
   {
-   "what": "AddCardSubTypeTargetEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Clavileño, First of the Blessed",
-    "Enter the Avatar State",
-    "Loki's Scepter",
-    "Jump Scare"
-   ]
-  },
-  {
    "what": "keyword DemonstrateAbility",
    "score": 4,
    "cards": 4,
@@ -10356,6 +10342,17 @@
     "Barret Wallace",
     "Item Shopkeep",
     "Hemlock Vial"
+   ]
+  },
+  {
+   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Archangel Elspeth",
+    "Fix What's Broken",
+    "Triumphant Reckoning",
+    "Return of the Nightstalkers"
    ]
   },
   {

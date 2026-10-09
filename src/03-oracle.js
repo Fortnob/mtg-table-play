@@ -2652,6 +2652,21 @@
       make: (m) => ({ op: 'destroyAttachedTo', kind: /aura/i.test(m[1]) ? 'Aura' : 'Equipment' }) },
     // Tetsuko, Ivory Mask: "You have shroud."
     { re: /^You have shroud\.?$/i, make: () => ({ op: 'playerShroud' }) },
+    /* Enter the Avatar State: "Until end of turn, target creature you control
+       becomes an Avatar in addition to its other types and gains flying, …";
+       Archangel Elspeth: "It becomes an Angel … and gains flying." */
+    { re: /^(Until end of turn, )?(target creature(?: you control)?|it|that creature) becomes an? ([A-Z][a-z]+) in addition to its other types(?: and gains ([a-z, ]+?))?( until end of turn)?\.?$/i,
+      make: (m) => {
+        const eot = !!(m[1] || m[5]);
+        const tg = /^target/i.test(m[2]) ? tgt(m[2]) : null;
+        if (/^target/i.test(m[2]) && !tg) return null;
+        const kws = m[4] ? keywordList(m[4]) : [];
+        if (m[4] && (!kws.length || !kws.every(kwKnown))) return null;
+        if (!m[4] && !eot && !tg) return null;      // the plain "It becomes …" is the rule below
+        const add = Object.assign({ op: 'addTypes', subtypes: [m[3]] }, eot ? { duration: 'eot' } : {}, tg ? { targets: [tg] } : { scope: 'lastTarget' });
+        if (!kws.length) return add;
+        return { op: 'sequence', list: [add, { op: 'grantKeyword', keywords: kws, duration: eot ? 'eot' : 'permanent', scope: tg ? 'lastTarget' : 'lastTarget' }] };
+      } },
     // Guide of Souls: "It becomes an Angel in addition to its other types."
     { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
