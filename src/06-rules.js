@@ -11100,6 +11100,8 @@
           if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
           if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // Taigam, Ojutai Master: only a spell cast from the hand
+          if (ab.fromHandOnly && !(data.spell && data.spell.fromZone === 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only
           if (ab.noncombatOnly && data.combat) continue;
           // Kaya's Ghostform: exile counts only for "dies or is put into exile"
@@ -11141,6 +11143,8 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Vine Gecko: only a spell that was kicked
+          if (ab.kickedOnly && !(data.object && data.object.wasKicked)) continue;
           // Inkling Mascot: a spell aimed at a creature (an artifact or land, …), maybe one of yours or not
           if (ab.targetsWhat && !((data.spell && data.spell.targets) || []).some(t => {
             const x = t.kind === 'object' && this.obj(t.id);

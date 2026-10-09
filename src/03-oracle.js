@@ -3015,7 +3015,9 @@
       make: (m) => Object.assign({ op: 'castFree' }, m[2] ? { maxMv: num(m[2]) } : {},
         /instant and\/or sorcery/i.test(m[0]) ? { filter: 'instant or sorcery' } : {}) },
     { re: /^You may cast (?:a|up to one) spell( with mana value (X|\d+) or less)? from among (?:them|those cards|the revealed cards|cards revealed this way|the exiled cards|cards exiled this way) without paying its mana cost\.?$/i,
-      make: (m) => Object.assign({ op: 'castFree', upTo: 1 }, m[2] ? { maxMv: num(m[2]) } : {}) },
+      // (Sunbird's Invocation: cards revealed, not exiled — the ones just looked at)
+      make: (m) => Object.assign({ op: 'castFree', upTo: 1 }, m[2] ? { maxMv: num(m[2]) } : {},
+        /revealed/i.test(m[0]) ? { from: 'looked' } : {}) },
     { re: /^Each player discards their hand,? then draws seven cards\.?$/i, make: () => ({ op: 'wheel', n: 7 }) },
     { re: /^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i,
       make: () => ({ op: 'wheel', n: 'mostDiscarded' }) },
@@ -7843,6 +7845,8 @@
       if (!e || typeof e !== 'object') continue;
       const wx = String(e.text || '').match(/, where X is ([^,]+?)\.?$/);
       if (wx) { xIs = amountOf(wx[1]) || null; continue; }
+      // Sunbird's Invocation: "You may cast a spell with mana value X or less from among cards revealed this way" — the same X
+      if (xIs && e.op === 'castFree' && e.maxMv === 'X') { e.maxMv = xIs; continue; }
       if (xIs && /"X"|"negX"|"posX"/.test(JSON.stringify(e, (k, v) => (k === 'text' ? undefined : v)))) fillX(e, xIs);
     }
     /* Miraculous Recovery: "Return target creature card … to the
@@ -8815,6 +8819,9 @@
     { re: /^Whenever an opponent taps an? ([a-z ]+?) for mana,? /i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }), extra: { toOpponent: true } },
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
+    { re: /^Whenever you cast an? (instant or sorcery |creature |noncreature )?spell from your hand,? /i, event: 'youCastSpell',
+      extraOf: (m) => Object.assign({ fromHandOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
       extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true }) },
@@ -8842,6 +8849,8 @@
       extraOf: (m) => Object.assign({ targetsWhat: m[2].toLowerCase().replace(/s$/, '') },
         m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {},
         m[3] ? { targetsWhose: /don/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
+    // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
+    { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"
     { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"

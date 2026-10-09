@@ -14918,4 +14918,32 @@ module.exports = (test) => {
     T.resolve();
     t.eq(sh.counters['+1/+1'], 1, 'a creature spell with no target does nothing');
   });
+  test("Lullmage's Familiar: a kicked spell gains 2 life, an unkicked one nothing", (mk, t) => {
+    t.auto("Lullmage's Familiar");
+    t.auto('Verazol, the Split Current');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Lullmage's Familiar");
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Burst Lightning'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.life('A'), 20, 'not kicked');
+    T.mana('A', '4R');
+    T.cast('A', T.hand('A', 'Burst Lightning'), { targets: ['B'], kick: true });
+    T.resolve();
+    t.eq(T.life('A'), 22, 'kicked');
+  });
+  test("Sunbird's Invocation: a spell from your hand reveals that many, and one no bigger may be cast free", (mk, t) => {
+    t.auto("Sunbird's Invocation");
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Sunbird's Invocation");
+    const elves = T.top('A', 'Llanowar Elves');
+    T.top('A', 'Island');
+    T.answer('*', (ch) => (ch.type === 'confirm' ? { yes: true } : ch.type === 'pickCard' ? { cardIds: [elves.id] } : {}));
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.zone(elves, 'battlefield', 'the Elves (mana value 1) cast free off a 2-drop');
+  });
 };

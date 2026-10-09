@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11552,
+  "needed": 11546,
   "gainedCards": 1146,
-  "linesNeeded": 12399,
+  "linesNeeded": 12389,
   "linesGained": 1361,
   "gained": {
    "all": 1146,
@@ -2021,19 +2021,6 @@
    ]
   },
   {
-   "what": "spell from a zone",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Sunbird's Invocation",
-    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
-    "Gale, Waterdeep Prodigy",
-    "Taigam, Ojutai Master",
-    "Goliath Daydreamer",
-    "Harness the Storm"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 9,
    "lines": 9,
@@ -2354,22 +2341,6 @@
    ]
   },
   {
-   "what": "KickedSpellPredicate.instance",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Verazol, the Split Current",
-    "Vine Gecko",
-    "Hallar, the Firefletcher",
-    "Lullmage's Familiar",
-    "Roost of Drakes",
-    "Coralhelm Chronicler",
-    "Bloodstone Goblin",
-    "Merfolk Falconer",
-    "Risen Riptide"
-   ]
-  },
-  {
    "what": "BecomesBasicLandTargetEffect",
    "score": 9,
    "lines": 9,
@@ -2453,21 +2424,6 @@
     "Xavier Sal, Infested Captain",
     "Overseer of Vault 76",
     "Chisei, Heart of Oceans"
-   ]
-  },
-  {
-   "what": "CastFromZonePredicate",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Invasion of Arcavios // Invocation of the Founders",
-    "Mizzix, Replica Rider"
    ]
   },
   {
@@ -2939,6 +2895,20 @@
     "Astelli Reclaimer",
     "Pull Through the Weft",
     "United Battlefront"
+   ]
+  },
+  {
+   "what": "CastFromZonePredicate",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Rivaz of the Claw",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Mizzix, Replica Rider"
    ]
   },
   {
@@ -4382,6 +4352,18 @@
     "Kimahri, Valiant Guardian",
     "Symbiote Spider-Man",
     "The Ever-Changing 'Dane"
+   ]
+  },
+  {
+   "what": "spell from a zone",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
+    "Gale, Waterdeep Prodigy",
+    "Taigam, Ojutai Master",
+    "Goliath Daydreamer",
+    "Harness the Storm"
    ]
   },
   {
@@ -6767,13 +6749,23 @@
     "Jodah, Archmage Eternal",
     "Leyline of Mutation"
    ]
+  },
+  {
+   "what": "ModifyCountersAddedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Mauhúr, Uruk-hai Captain",
+    "Pir, Imaginative Rascal",
+    "Caradora, Heart of Alacria"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3541,
-   "cards": 3361,
+   "score": 3542,
+   "cards": 3362,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8253,17 +8245,6 @@
    ]
   },
   {
-   "what": "spell from a zone",
-   "score": 7,
-   "cards": 4,
-   "names": [
-    "Sunbird's Invocation",
-    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
-    "Gale, Waterdeep Prodigy",
-    "Harness the Storm"
-   ]
-  },
-  {
    "what": "ConditionalOneShotEffect.addEffect",
    "score": 7,
    "cards": 7,
@@ -8586,19 +8567,6 @@
     "Balduvian Warlord",
     "General Jarkeld",
     "Dwarven Armory"
-   ]
-  },
-  {
-   "what": "KickedSpellPredicate.instance",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Verazol, the Split Current",
-    "Hallar, the Firefletcher",
-    "Lullmage's Familiar",
-    "Roost of Drakes",
-    "Bloodstone Goblin",
-    "Merfolk Falconer"
    ]
   },
   {
@@ -10487,6 +10455,28 @@
     "Vial Smasher, Gleeful Grenadier",
     "Rakish Crew",
     "Mine Raider"
+   ]
+  },
+  {
+   "what": "DamageWithPowerFromOneToAnotherTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Chocobo Kick",
+    "Huatli, Dinosaur Knight",
+    "Devouring Tendrils",
+    "Compel Brutality"
+   ]
+  },
+  {
+   "what": "EachSpellYouCastHasReplicateEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Hatchery Sliver",
+    "Ian Chesterton",
+    "Djinn Illuminatus",
+    "Threefold Signal"
    ]
   }
  ]
