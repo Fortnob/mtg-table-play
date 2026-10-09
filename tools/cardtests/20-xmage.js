@@ -13567,4 +13567,60 @@ module.exports = (test) => {
     U.player('A').enduringStory = true; bom._chr = null;
     t.ok(!U.g._hasFlag(bom, 'noUntap'), 'and untaps with one');
   });
+
+  test('Party Thrasher: convoke from exile only; Tezzeret: affinity for artifacts on creature and planeswalker spells', (mk, t) => {
+    t.auto('Party Thrasher');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Party Thrasher'); T.bf('A', 'Grizzly Bears');
+    const inHand = T.hand('A', 'Divination');
+    const inExile = T.put('A', 'Divination', 'exile');
+    t.eq(T.g.costReductionFor(inHand), 0, 'no convoke from the hand');
+    t.eq(T.g.costReductionFor(inExile), 2, 'convoke from exile: two untapped creatures');
+    t.eq(T.g.costReductionFor(T.put('A', 'Hill Giant', 'exile')), 0, 'a creature spell does not get it');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Tezzeret, Master of the Bridge');
+    U.bf('A', 'Mind Stone'); U.bf('A', 'Sol Ring');
+    t.eq(U.g.costReductionFor(U.hand('A', 'Hill Giant')), 2, 'a creature spell: two artifacts');
+    t.eq(U.g.costReductionFor(U.hand('A', 'Divination')), 0, 'a sorcery does not');
+  });
+
+  test('Athreos, God of Passage: another creature you own comes back to your hand unless an opponent pays 3 life', (mk, t) => {
+    t.auto('Athreos, God of Passage');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Athreos, God of Passage');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('payOrDont', { pay: false });
+    T.g._runEffects([{ op: 'destroy' }], { controller: 'B', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: bear.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'hand', 'back to your hand');
+    const lion = T.bf('A', 'Savannah Lions');
+    const life = T.life('B');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('payOrDont', { pay: true });
+    T.g._runEffects([{ op: 'destroy' }], { controller: 'B', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: lion.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(lion, 'graveyard', 'the opponent paid');
+    t.eq(T.life('B'), life - 3);
+    // a creature it does not own: nothing
+    const theirs = T.bf('B', 'Hill Giant');
+    T.g._runEffects([{ op: 'destroy' }], { controller: 'A', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: theirs.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(theirs, 'graveyard');
+  });
+
+  test("Maze's End: ten Gates with different names", (mk, t) => {
+    t.auto("Maze's End");
+    const T = mk();
+    const cond = { kind: 'distinctNames', subtype: 'Gate', n: 10 };
+    const names = ['Azorius', 'Boros', 'Dimir', 'Golgari', 'Gruul', 'Izzet', 'Orzhov', 'Rakdos', 'Selesnya'];
+    for (const n of names) T.bf('A', n + ' Guildgate');
+    T.bf('A', 'Azorius Guildgate');
+    t.ok(!T.g._condMet(cond, { controller: 'A' }), 'ten Gates, nine names');
+    T.bf('A', 'Simic Guildgate');
+    t.ok(T.g._condMet(cond, { controller: 'A' }), 'ten names');
+  });
 };

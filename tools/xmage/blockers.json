@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11955,
+  "needed": 11948,
   "gainedCards": 1232,
-  "linesNeeded": 12906,
+  "linesNeeded": 12897,
   "linesGained": 1469,
   "gained": {
    "all": 1232,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 754,
-   "lines": 694,
+   "score": 753,
+   "lines": 693,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -259,25 +259,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 43,
-   "lines": 31,
-   "cards": [
-    "Rain of Riches",
-    "Hoarding Broodlord",
-    "Pearl-Ear, Imperial Advisor",
-    "Party Thrasher",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Zhulodok, Void Gorger",
-    "Tezzeret, Master of the Bridge",
-    "Mycosynth Golem",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor",
-    "Prismari, the Inspiration"
-   ]
-  },
-  {
    "what": "AlternativeCostSourceAbility",
    "score": 42,
    "lines": 42,
@@ -294,6 +275,25 @@
     "Hand of Emrakul",
     "Land Grant",
     "Thwart"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 34,
+   "lines": 25,
+   "cards": [
+    "Rain of Riches",
+    "Pearl-Ear, Imperial Advisor",
+    "Ral, Crackling Wit",
+    "Thrumming Stone",
+    "Zhulodok, Void Gorger",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor",
+    "Prismari, the Inspiration",
+    "Shadow the Hedgehog",
+    "Quandrix, the Proof",
+    "Silverquill, the Disputant",
+    "Ezio Auditore da Firenze"
    ]
   },
   {
@@ -2747,21 +2747,6 @@
    ]
   },
   {
-   "what": "WinGameSourceControllerEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Liliana's Contract",
-    "Helix Pinnacle",
-    "Central Elevator // Promising Stairs",
-    "Mortal Combat",
-    "Happily Ever After",
-    "Near-Death Experience",
-    "Battle of Wits",
-    "Barren Glory"
-   ]
-  },
-  {
    "what": "PayEnergyCost",
    "score": 8,
    "lines": 8,
@@ -3385,6 +3370,20 @@
     "Kazuul's Toll Collector",
     "Frodo, Determined Hero",
     "Shagrat, Loot Bearer"
+   ]
+  },
+  {
+   "what": "WinGameSourceControllerEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Helix Pinnacle",
+    "Central Elevator // Promising Stairs",
+    "Mortal Combat",
+    "Happily Ever After",
+    "Near-Death Experience",
+    "Battle of Wits",
+    "Barren Glory"
    ]
   },
   {
@@ -6919,8 +6918,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3556,
-   "cards": 3388,
+   "score": 3561,
+   "cards": 3390,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6932,8 +6931,8 @@
   },
   {
    "what": "custom ability",
-   "score": 578,
-   "cards": 536,
+   "score": 577,
+   "cards": 535,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7062,15 +7061,15 @@
   },
   {
    "what": "GainAbilityControlledSpellsEffect",
-   "score": 31,
-   "cards": 22,
+   "score": 27,
+   "cards": 18,
    "names": [
     "Rain of Riches",
-    "Party Thrasher",
     "Ral, Crackling Wit",
     "Thrumming Stone",
     "Zhulodok, Void Gorger",
-    "Mycosynth Golem"
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor"
    ]
   },
   {
@@ -8630,19 +8629,6 @@
    ]
   },
   {
-   "what": "WinGameSourceControllerEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Liliana's Contract",
-    "Helix Pinnacle",
-    "Mortal Combat",
-    "Happily Ever After",
-    "Near-Death Experience",
-    "Battle of Wits"
-   ]
-  },
-  {
    "what": "ConditionalReplacementEffect",
    "score": 7,
    "cards": 7,
@@ -9115,6 +9101,19 @@
     "Vernal Equinox",
     "Cherished Hatchling",
     "Rootwater Shaman"
+   ]
+  },
+  {
+   "what": "WinGameSourceControllerEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Helix Pinnacle",
+    "Mortal Combat",
+    "Happily Ever After",
+    "Near-Death Experience",
+    "Battle of Wits",
+    "Barren Glory"
    ]
   },
   {

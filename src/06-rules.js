@@ -3010,7 +3010,11 @@
         if (src.controller !== pid || src.phasedOut) continue;
         const g = this._staticOp(src, 'grantCastKeyword');
         if (!g || (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter))) continue;
+        // Party Thrasher: only spells cast from exile
+        if (g.fromZones && !g.fromZones.includes(o.zone)) continue;
         if (out === cr) out = Object.assign({}, cr);
+        // Tezzeret, Master of the Bridge: affinity for artifacts, unless the card has an affinity of its own
+        if (g.keyword === 'affinity') { if (!out.affinity) out.affinity = g.affinityFor; continue; }
         out[g.keyword] = true;
       }
       return out;
@@ -9046,6 +9050,7 @@
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         case 'enduringStory': return !!me && !!me.enduringStory;
+        case 'distinctNames': return !!me && new Set(this.battlefield.filter(x => x.controller === me.id && !x.phasedOut && this._hasSubtype(x, cond.subtype)).map(x => x.name)).size >= (cond.n || 1);
         // Twenty-Toed Toad: every counter on it, of whatever kind
         // Battle Angels of Tyr: the player it hit has more than every other player
         case 'triggerPlayerMost': {
@@ -20856,6 +20861,8 @@
       if (f.who === 'you' && src && owner !== src.controller) return false;
       if (f.who === 'opponent' && src && owner === src.controller) return false;
       if (f.who === 'enchantedPlayer' && !(src && src.attachedTo && owner === src.attachedTo)) return false;
+      // Athreos, God of Passage: "another creature you own"
+      if (f.owned && src && x.owner !== src.controller) return false;
       if (f.nontoken && x.isToken) return false;
       if (f.token && !x.isToken) return false;
       /* Ygra: "Whenever a Food is put into a graveyard from the battlefield"

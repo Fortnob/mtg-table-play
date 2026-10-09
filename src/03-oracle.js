@@ -8059,6 +8059,8 @@
     [/^(?:CARDNAME|this spell|it) was bought back$/i, () => ({ kind: 'boughtBack' })],
     [/^you have the city'?s blessing$/i, () => ({ kind: 'cityBlessing' })],
     [/^you have an enduring story$/i, () => ({ kind: 'enduringStory' })],
+    // Maze's End: "you control ten or more Gates with different names"
+    [/^you control (\w+) or more ([A-Z][a-z]+)s with different names$/, (m) => (typeof num(m[1]) === 'number' ? { kind: 'distinctNames', subtype: m[2], n: num(m[1]) } : null)],
     [/^you'?ve completed a dungeon$/i, () => ({ kind: 'completedDungeon' })],
     [/^you control (\w+) or more lands with different names$/i, (m) => ({ kind: 'landNames', n: num(m[1]) })],
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
@@ -8158,6 +8160,8 @@
     if (/ of the chosen type\b/i.test(p)) { f.chosenType = true; p = p.replace(/ of the chosen type\b/i, ''); }
     const who = (q) => {
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
+      // Athreos, God of Passage: "another creature you own" — whoever controls it
+      if (/ you own$/.test(q)) { f.owned = true; return q.replace(/ you own$/, ''); }
       // the Curses: "a creature enchanted player controls"
       if (/ enchanted (?:player|opponent) controls$/.test(q)) { f.who = 'enchantedPlayer'; return q.replace(/ enchanted (?:player|opponent) controls$/, ''); }
       if (/ (?:an opponent controls|your opponents control|you don'?t control)$/.test(q)) {
@@ -11831,8 +11835,15 @@
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
       // Chief Engineer, Dazzling Theater: "Artifact spells you cast have convoke."
+      // Party Thrasher: "Noncreature spells you cast from exile have convoke."
+      { re: /^([A-Za-z ]*?)spells you cast from exile have (convoke|improvise|delve)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell', fromZones: ['exile'] }), auto: true },
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
+      // Tezzeret, Master of the Bridge: "Creature and planeswalker spells you cast have affinity for artifacts."
+      { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'affinity', affinityFor: m[2].toLowerCase(),
+          filter: m[1].trim().toLowerCase().replace(/ and /g, ' or ') || 'spell' }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },
