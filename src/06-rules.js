@@ -11157,6 +11157,8 @@
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
           // Captain Ripley Vance: only the third spell its controller casts this turn
           if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
+          // Edgewall Innkeeper: a card with an Adventure, however it was cast
+          if (ab.hasAdventure && !(data.object && data.object.card && data.object.card.layout === 'adventure')) continue;
           // Vine Gecko: only a spell that was kicked
           if (ab.kickedOnly && !(data.object && data.object.wasKicked)) continue;
           // Inkling Mascot: a spell aimed at a creature (an artifact or land, …), maybe one of yours or not
@@ -21567,7 +21569,12 @@
       if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;
       if (f.keyword && !this.hasKw(x, f.keyword)) return false;
       if (f.noKeyword && this.hasKw(x, f.noKeyword)) return false;
-      if (f.withCounter && !(Number(x.counters[f.withCounter]) > 0)) return false;
+      /* a creature that has died is judged by the counters it had as it went;
+         The Swarmlord: "with a counter on it" — any kind */
+      if (f.withCounter) {
+        const cs = (x.zone === 'battlefield' ? x.counters : (x._diedCounters || x.counters)) || {};
+        if (f.withCounter === '*' ? !Object.values(cs).some(v => Number(v) > 0) : !(Number(cs[f.withCounter]) > 0)) return false;
+      }
       if (f.attacking && !x.attacking) return false;
       if (f.pumped && !(this.powerOf(x) > (parseInt((x.analysis() || {}).power, 10) || 0))) return false;
       return true;

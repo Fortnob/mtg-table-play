@@ -8758,6 +8758,9 @@
       } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         // Luminous Broodmoth: "a creature you control without flying"
         f.noKeyword = m[1].toLowerCase(); p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with an? counter on it$/i))) {
+        // The Swarmlord: "a creature you control with a counter on it" — of any kind
+        f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? ([+\-0-9/a-z]+) counter on it$/i))) {
         f.withCounter = m[1]; p = p.slice(0, m.index);
       }
@@ -8903,6 +8906,8 @@
       extraOf: (m) => Object.assign({ targetsWhat: m[2].toLowerCase().replace(/s$/, '') },
         m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {},
         m[3] ? { targetsWhose: /don/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
+    // Edgewall Innkeeper, Wandermare: "Whenever you cast a creature spell that has an Adventure"
+    { re: /^Whenever you cast a creature spell that has an Adventure,? /i, event: 'youCastSpell', extra: { spellFilter: 'creature', hasAdventure: true } },
     // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
     { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"

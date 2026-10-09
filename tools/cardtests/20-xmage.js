@@ -15189,4 +15189,38 @@ module.exports = (test) => {
     t.ok(v.analysis().isLegendary, 'legendary');
     t.eq(T.g.powerOf(v), 4, '2/2, +1/+1 twice from Tolsimir: green and white');
   });
+
+  test('Edgewall Innkeeper draws for a creature spell with an Adventure, not for others', (mk, t) => {
+    t.auto('Edgewall Innkeeper');
+    t.auto('Wandermare');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Edgewall Innkeeper');
+    T.top('A', 'Island'); T.top('A', 'Island');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0, 'no Adventure: nothing');
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Lovestruck Beast'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'Lovestruck Beast: a card');
+  });
+
+  test('Skyclave Shadowcat: a creature that died with a +1/+1 counter on it draws a card', (mk, t) => {
+    t.auto('Skyclave Shadowcat');
+    t.auto('Marchesa, the Black Rose');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Skyclave Shadowcat');
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const elf = T.bf('A', 'Llanowar Elves');
+    T.top('A', 'Island'); T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.g.moveObject(elf, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h, 'no counter: nothing');
+    T.g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 1, 'the counter it died with: a card');
+  });
 };

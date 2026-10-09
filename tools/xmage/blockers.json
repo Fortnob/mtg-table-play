@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11493,
-  "gainedCards": 1139,
-  "linesNeeded": 12321,
-  "linesGained": 1351,
+  "needed": 11486,
+  "gainedCards": 1136,
+  "linesNeeded": 12313,
+  "linesGained": 1348,
   "gained": {
-   "all": 1139,
+   "all": 1136,
    "top2000": 46,
    "stdTop": 8
   },
@@ -2436,21 +2436,6 @@
    ]
   },
   {
-   "what": "subject:anyCounter",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Yuna, Grand Summoner",
-    "Felisa, Fang of Silverquill",
-    "Village Pillagers",
-    "Puca's Covenant",
-    "Cleopatra, Exiled Pharaoh",
-    "The Swarmlord",
-    "Shadow Urchin",
-    "Buzzard-Wasp Colony"
-   ]
-  },
-  {
    "what": "GainClassAbilitySourceEffect",
    "score": 8,
    "lines": 8,
@@ -3391,6 +3376,19 @@
     "Broadcast Takeover",
     "Tibalt, the Fiend-Blooded",
     "Rowan, Fearless Sparkmage"
+   ]
+  },
+  {
+   "what": "subject:anyCounter",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Yuna, Grand Summoner",
+    "Felisa, Fang of Silverquill",
+    "Puca's Covenant",
+    "Cleopatra, Exiled Pharaoh",
+    "Shadow Urchin",
+    "Buzzard-Wasp Colony"
    ]
   },
   {
@@ -4766,18 +4764,6 @@
     "Tidal Terror",
     "Gravelgill Scoundrel",
     "Civil Servant"
-   ]
-  },
-  {
-   "what": "AdventurePredicate.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Edgewall Inn",
-    "Edgewall Innkeeper",
-    "Beluna Grandsquall // Seek Thrills",
-    "Wandermare",
-    "Garenbrig Squire"
    ]
   },
   {
@@ -6737,6 +6723,16 @@
     "Time of Ice",
     "Victory of the Pyrohammer"
    ]
+  },
+  {
+   "what": "DoWhenCostPaid not optional",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Smoke Bomb",
+    "Auron, Venerated Guardian",
+    "Glissa's Retriever"
+   ]
   }
  ],
  "sole": [
@@ -6820,8 +6816,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 64,
-   "cards": 64,
+   "score": 65,
+   "cards": 65,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8711,19 +8707,6 @@
    ]
   },
   {
-   "what": "subject:anyCounter",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Felisa, Fang of Silverquill",
-    "Village Pillagers",
-    "Puca's Covenant",
-    "Cleopatra, Exiled Pharaoh",
-    "Shadow Urchin",
-    "Buzzard-Wasp Colony"
-   ]
-  },
-  {
    "what": "AttacksOrBlocksAttachedTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -9401,6 +9384,18 @@
     "Daredevil Dragster",
     "The Wretched",
     "Joven's Ferrets"
+   ]
+  },
+  {
+   "what": "subject:anyCounter",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Felisa, Fang of Silverquill",
+    "Puca's Covenant",
+    "Cleopatra, Exiled Pharaoh",
+    "Shadow Urchin",
+    "Buzzard-Wasp Colony"
    ]
   },
   {
