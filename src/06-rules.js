@@ -16821,7 +16821,8 @@
           const last = this._lastAffected && this.obj(this._lastAffected.id);
           // Determined Iteration: "The token created this way" — the one this resolution just made
           const made = e.madeNow && (this._madeThisResolution || []).length ? this.obj(this._madeThisResolution[this._madeThisResolution.length - 1]) : null;
-          const x = e.madeNow ? (made || this._lastCopy || null) : (last || this._lastCopy || null);
+          // (after an effect that notes nothing, "it" is the target: Legion Leadership's doubled creature)
+          const x = e.madeNow ? (made || this._lastCopy || null) : (last || this._lastCopy || firstObj() || null);
           if (!x || x.zone !== 'battlefield') break;
           x.effects.push({ keywords: e.keywords, until: e.until || null });
           this.bumpBoard();
@@ -19400,6 +19401,7 @@
       if (sc.blocking && !(o.blocking || []).length) return false;
       if (sc.withCounter && !(Number(o.counters[sc.withCounter]) > 0)) return false;
       if (sc.withAnyCounter && !Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
+      if (sc.noCounters && Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
       if (sc.color && !(oa.colors || []).includes(sc.color)) return false;
       if (sc.notColor && (oa.colors || []).includes(sc.notColor)) return false;
       // "multicolored permanents", "black or green permanents"

@@ -1145,4 +1145,75 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, h0 + 4);
     t.eq(T.life('A'), 16);
   });
+
+  test('Audit: Jhoira, Weatherlight Captain draws only for a historic spell', (mk, t) => {
+    const T = mk();
+    t.auto('Jhoira, Weatherlight Captain');
+    T.bf('A', 'Jhoira, Weatherlight Captain');
+    const bolt = T.hand('A', 'Lightning Bolt'), ring = T.hand('A', 'Sol Ring');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'R'); T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.zone('A', 'hand').length, h0 - 1, 'an instant: no card');
+    T.mana('A', '1'); T.cast('A', ring);
+    t.eq(T.zone('A', 'hand').length, h0 - 1, 'an artifact: a card for the one cast');
+  });
+
+  test('Audit: Damning Verdict destroys only creatures with no counters', (mk, t) => {
+    const T = mk();
+    t.auto('Damning Verdict');
+    const plain = T.bf('B', 'Grizzly Bears'), counted = T.bf('B', 'Craw Wurm', { counters: { '+1/+1': 1 } });
+    T.mana('A', 'WW3');
+    T.cast('A', T.hand('A', 'Damning Verdict'));
+    t.zone(plain, 'graveyard');
+    t.zone(counted, 'battlefield');
+  });
+
+  test('Audit: Leather Armor equips for {0}, once each turn', (mk, t) => {
+    const T = mk();
+    t.auto('Leather Armor');
+    const la = T.bf('A', 'Leather Armor');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves');
+    T.activate('A', la, 0, { targets: [a] });
+    t.eq(la.attachedTo, a.id);
+    t.no(T.g.activateAbility('A', la.id, 0, { targets: [{ kind: 'object', id: b.id }] }), 'not twice in a turn');
+    t.no(T.manualLines().length, 'nothing left for a person');
+  });
+
+  test('Audit: Triassic Egg: the choice needs two hatchling counters, and is not a mode', (mk, t) => {
+    const T = mk();
+    t.auto('Triassic Egg');
+    const egg = T.bf('A', 'Triassic Egg', { counters: { hatchling: 1 } });
+    t.no(T.g.activateAbility('A', egg.id, 1, {}), 'one counter is not enough');
+    egg.counters.hatchling = 2;
+    const wurm = T.hand('A', 'Craw Wurm');
+    let labels = null;
+    T.answer('mode', (ch) => { labels = ch.options.map(o => o.label); return { modes: [0] }; });
+    T.activate('A', egg, 1);
+    t.eq(labels.length, 2, 'two modes');
+    t.zone(wurm, 'battlefield');
+  });
+
+  test('Audit: Legion Leadership doubles power and grants first strike, both until end of turn', (mk, t) => {
+    const T = mk();
+    t.auto('Legion Leadership');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Legion Leadership'), { targets: [b] });
+    t.eq(T.g.powerOf(b), 4);
+    t.ok(T.g.hasKw(b, 'first strike'));
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(b), 2);
+    t.no(T.g.hasKw(b, 'first strike'));
+  });
+
+  test("Audit: Skulduggery's -1/-1 wears off too", (mk, t) => {
+    const T = mk();
+    t.auto('Skulduggery');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Skulduggery'), { targets: [mine, theirs] });
+    t.eq(T.g.powerOf(mine), 3); t.eq(T.g.powerOf(theirs), 5);
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(mine), 2); t.eq(T.g.powerOf(theirs), 6);
+  });
 };

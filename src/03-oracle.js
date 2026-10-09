@@ -6846,8 +6846,17 @@
     /* "If you control a commander as you cast this spell, you may choose
        both instead." — the Will cycle: a note on how many, not a mode. */
     let commanderCount = null, otherCount = null;
+    /* Triassic Egg: "Choose one. Activate only if there are two or more
+       hatchling counters on this artifact." — a footnote on the ability, not
+       a mode: kept beside the choice, where the ability takes it up */
+    const footnotes = [];
     const modes = bullets.filter(b => {
       if (/^You may choose the same mode/i.test(b)) return false;
+      if (/^Activate (?:this ability )?only (?!as a sorcery\.?$)/i.test(b)) {
+        const f = parseEffectSentence(b);
+        footnotes.push(f && f.op === 'activateOnly' ? f : { op: 'manual', text: b });
+        return false;
+      }
       // Aetheric Amplifier: "Choose one. Activate only as a sorcery." — the ability's timing, not a mode
       if (/^Activate only as a sorcery\.?$/i.test(b)) return false;
       const cm = b.match(/^If you control a commander as you cast this spell, you may choose (both|any number|two|three)(?: of them)? instead\.?$/i);
@@ -6873,12 +6882,12 @@
       out.push({ label: label.replace(/\.$/, ''), effects: parsed.effects, auto: parsed.auto });
     }
     return {
-      effects: [Object.assign({ op: 'modal', count, repeatable, modes: out, text: cleaned },
+      effects: footnotes.concat([Object.assign({ op: 'modal', count, repeatable, modes: out, text: cleaned },
         /or more$|^any number$/.test(word) ? { max: out.length } : {},
         // Hullbreaker Horror: "choose up to one" — none at all is an answer too
         /^up to /.test(word) ? { min: 0 } : {},
-        commanderCount ? { countIf: { cond: { kind: 'controlCommander' }, count: commanderCount } } : otherCount ? { countIf: otherCount } : {})],
-      auto: out.every(x => x.auto),
+        commanderCount ? { countIf: { cond: { kind: 'controlCommander' }, count: commanderCount } } : otherCount ? { countIf: otherCount } : {})]),
+      auto: out.every(x => x.auto) && !footnotes.some(f => f.op === 'manual'),
     };
   }
 
@@ -7254,6 +7263,10 @@
       let rightRaw = parts[1];
       const a = parseEffectSentence(left);
       if (!a) continue;
+      /* Legion Leadership: "Until end of turn, double target creature's power
+         and it gains first strike" — the "until end of turn" in front is said
+         of both halves */
+      if (/^Until end of turn, /i.test(left) && !/until end of turn/i.test(rightRaw)) rightRaw = rightRaw.replace(/\.?\s*$/, ' until end of turn.');
       /* "Target player draws two cards and loses 2 life": the second half
          has no subject of its own, so it borrows the first half's. Read on
          its own it would mean that *you* lose the life. */
@@ -8283,7 +8296,7 @@
   const SPELL_WORDS = new Set(['creature', 'noncreature', 'instant', 'sorcery', 'artifact', 'enchantment',
     'planeswalker', 'land', 'legendary', 'kindred', 'tribal', 'white', 'blue', 'black', 'red', 'green',
     'colorless', 'multicolored', 'monocolored', 'nonartifact', 'or', 'and/or', 'permanent', 'battle', 'aura',
-    'equipment', 'vehicle']);
+    'equipment', 'vehicle', 'historic']);
   function spellFilter(raw, mv) {
     const chosenType = / of the chosen type/i.test(String(raw || ''));
     const words = String(raw || '').replace(/ of the chosen type/i, '').replace(/,/g, ' ').split(/\s+/).filter(Boolean);
@@ -8665,7 +8678,10 @@
     { re: /^When(?:ever)? a(?:nother)? creature you control dies(?:,| )/i, event: 'yourCreatureDies' },
     { re: /^When(?:ever)? a creature dies(?:,| )/i, event: 'anyCreatureDies' },
     { re: /^When(?:ever)? a land enters(?: the battlefield)? under your control(?:,| )/i, event: 'landfall' },
-    { re: /^When(?:ever)? you (?:cast|play) (?:a|an|your first) ([a-z ]*?)spell(?:,| )/i, event: 'youCastSpell' },
+    /* (with no words before "spell": Jhoira, Weatherlight Captain's "a
+       historic spell" read here was any spell; words the patterns above
+       could not read leave the line for a person) */
+    { re: /^When(?:ever)? you (?:cast|play) (?:a|an) spell(?:,| )/i, event: 'youCastSpell' },
     { re: /^When(?:ever)? an opponent casts a spell(?:,| )/i, event: 'opponentCastSpell' },
     { re: /^When(?:ever)? you gain life(?:,| )/i, event: 'youGainLife' },
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
@@ -10658,7 +10674,9 @@
         sc.withAnyCounter = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with an? ([+\-0-9/a-z]+) counter on (?:it|them)$/i)) ||
           (m = rest.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
-        sc.withCounter = m[1]; rest = rest.slice(0, m.index);
+        // Damning Verdict: "with no counters on them" is the opposite of a kind of counter called "no"
+        if (/^no$/i.test(m[1])) sc.noCounters = true; else sc.withCounter = m[1];
+        rest = rest.slice(0, m.index);
       // (Skrelv's Hive: "creatures you control with toxic")
       } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed|toxic|infect|flash|ward)$/i))) {
         if (/^without/i.test(m[1])) sc.withoutKeyword = m[2].toLowerCase(); else sc.keyword = m[2].toLowerCase();
@@ -12640,8 +12658,9 @@
       }
       if (eff.op === 'equip' && eff.once) {
         const spec = { type: 'creature', controller: 'you' };
+        // (Leather Armor: "Activate only once each turn" — kept on the ability, where the engine counts it)
         return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
-          effects: [{ op: 'attachSelf', targets: [spec] }, { op: 'activateOnly', perTurn: 1 }] };
+          only: { perTurn: 1 }, effects: [{ op: 'attachSelf', targets: [spec] }] };
       }
       if (eff.op === 'equip' && eff.discount) {
         const spec = { type: 'creature', controller: 'you' };
