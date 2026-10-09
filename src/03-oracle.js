@@ -8882,6 +8882,9 @@
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
       extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true }) },
+    // Prosper, Tome-Bound: "Whenever you play a card from exile"; Pia Nalaar: "… play a land from exile or cast a spell from exile"
+    { re: /^Whenever you play a card from exile,? |^Whenever you play a land from exile or cast a spell from exile,? /i,
+      event: 'youCastSpell', also: 'youPlayLand', extra: { fromExileOnly: true } },
     // Nalfeshnee: "Whenever you cast a spell from exile"
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"

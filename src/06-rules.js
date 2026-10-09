@@ -2711,10 +2711,11 @@
       if (!this.canPlayLand(playerId)) return this.fail('You cannot play a land right now.');
       if (back) o.face = 1;
       p.landsPlayed++;
+      const fromZone = o.zone;
       this.moveObject(o, 'battlefield', { asLand: true });
       this.logEvent('land', `${p.name} plays ${o.name}.`);
-      // City of Traitors: "when you play another land"
-      this._fire('youPlayLand', playerId, { object: o });
+      // City of Traitors: "when you play another land" (Prosper: and where it was played from)
+      this._fire('youPlayLand', playerId, { object: o, fromZone });
       // Horn of Greed, Burgeoning: "whenever a player / an opponent plays a land"
       this._fire('anyPlayLand', null, { object: o, playerId });
       this._fire('opponentPlaysLand', null, { object: o, playerId, except: playerId });
@@ -11142,7 +11143,7 @@
           // Secrets of the Dead: "a spell from your graveyard"
           if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
           // Nalfeshnee: "a spell from exile"
-          if (ab.fromExileOnly && !(data.spell && data.spell.fromZone === 'exile')) continue;
+          if (ab.fromExileOnly && !((data.spell && data.spell.fromZone === 'exile') || data.fromZone === 'exile')) continue;
           // "attacks a player": not a planeswalker or a battle
           if (ab.attacksPlayer && !(data.attacker && this.player(data.attacker.attacking))) continue;
           // Talion: the chosen number among the spell's mana value, power and toughness

@@ -15223,4 +15223,21 @@ module.exports = (test) => {
     T.g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
     t.eq(T.zone('A', 'hand').length, h + 1, 'the counter it died with: a card');
   });
+
+  test('Prosper, Tome-Bound: playing a card from exile makes a Treasure', (mk, t) => {
+    t.auto('Prosper, Tome-Bound');
+    t.auto('Pia Nalaar, Consul of Revival');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Prosper, Tome-Bound');
+    const treasures = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Treasure').length;
+    const isl = T.hand('A', 'Island');
+    T.g.playLand('A', isl.id); T.settle(); T.resolve();
+    t.eq(treasures(), 0, 'from the hand: nothing');
+    const fr = T.put('A', 'Forest', 'exile');
+    T.g.player('A').landsPlayed = 0;
+    T.g.moveObject(fr, 'battlefield', { asLand: true });
+    T.g._fire('youPlayLand', 'A', { object: fr, fromZone: 'exile' }); T.settle(); T.resolve();
+    t.eq(treasures(), 1, 'from exile: a Treasure');
+  });
 };
