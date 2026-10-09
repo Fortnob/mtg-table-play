@@ -21298,6 +21298,8 @@
           // the dungeon a player is in, and those they have completed
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).slice(),
           ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null,
+          // for the rest of the game, once had: they have to survive a save
+          cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
@@ -21305,8 +21307,6 @@
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
         battlefield: this.battlefield.map(o => o.id),
-          // for the rest of the game, once had: they have to survive a save
-          cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
         stack: this.stack.map(it => Object.assign({}, it, {
           obj: undefined, objId: it.obj ? it.obj.id : it.objId,
           effects: it.effects ? JSON.parse(JSON.stringify(it.effects)) : null,
