@@ -8911,6 +8911,14 @@
     { re: /^Whenever you activate a loyalty ability(?! of enchanted)(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
       filt: (m) => (m[1] ? { words: m[1].toLowerCase() } : { words: 'permanent' }), extra: { loyaltyOnly: true } },
     { re: /^Whenever an ability of equipped creature is activated, if it isn'?t a mana ability,? /i, event: 'anyActivateAbility', extra: { ofEnchanted: true } },
+    /* Harsh Mentor, Runic Armasaur, Burning-Tree Shaman: "Whenever an opponent
+       (a player) activates an ability of an artifact, creature, or land that
+       isn't a mana ability" — mana abilities never reach this, so only the
+       kind of permanent and who is asked */
+    { re: /^Whenever (a player|an opponent) activates an ability(?: of (an? (?:artifact|creature|land|permanent)(?:,? (?:or )?(?:artifact|creature|land))*)(?: they control)?(?: on the battlefield)?)?(?:,? (?:if it|that) isn'?t a mana ability)?,? /i,
+      event: 'anyActivateAbility',
+      filt: (m) => ({ words: m[2] ? m[2].replace(/^an? /i, '').replace(/,? or |, /g, ' or ').toLowerCase() : 'card' }),
+      extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
     // Elspeth's Talent: "Whenever you activate a loyalty ability of enchanted planeswalker"
     { re: /^Whenever you activate a loyalty ability of enchanted planeswalker,? /i, event: 'youActivateAbility', extra: { loyaltyOnly: true, ofEnchanted: true } },
     // Zhur-Taa Druid, Forbidden Orchard: "Whenever you tap this creature for mana"

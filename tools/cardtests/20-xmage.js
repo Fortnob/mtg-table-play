@@ -15451,4 +15451,20 @@ module.exports = (test) => {
     T.g.dealDamageToPlayer(T.g.player('A'), 2, other, true);
     t.eq(T.life('A'), 18, 'another source still hurts');
   });
+
+  test("Harsh Mentor: an opponent activating a creature's ability takes 2", (mk, t) => {
+    t.auto('Harsh Mentor');
+    t.auto('Runic Armasaur');
+    t.auto('Burning-Tree Shaman');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Harsh Mentor');
+    const theirs = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Llanowar Elves');
+    T.g._fire('anyActivateAbility', null, { object: mine, objController: 'A', playerId: 'A' });
+    T.settle(); T.resolve();
+    t.eq(T.life('A'), 20, 'its controller: nothing');
+    T.g._fire('anyActivateAbility', null, { object: theirs, objController: 'B', playerId: 'B' });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), 18, 'an opponent: 2 damage');
+  });
 };

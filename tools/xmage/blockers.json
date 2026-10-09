@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11436,
-  "gainedCards": 1134,
-  "linesNeeded": 12252,
+  "needed": 11431,
+  "gainedCards": 1135,
+  "linesNeeded": 12245,
   "linesGained": 1345,
   "gained": {
-   "all": 1134,
+   "all": 1135,
    "top2000": 46,
    "stdTop": 8
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 730,
-   "lines": 670,
+   "score": 723,
+   "lines": 663,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -6723,8 +6723,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3528,
-   "cards": 3348,
+   "score": 3529,
+   "cards": 3349,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6736,8 +6736,8 @@
   },
   {
    "what": "custom ability",
-   "score": 565,
-   "cards": 520,
+   "score": 559,
+   "cards": 514,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",

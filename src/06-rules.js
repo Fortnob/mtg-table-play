@@ -11240,6 +11240,8 @@
           }
           // an Aura or Equipment watching the creature it is on, whoever controls that creature
           if (ab.ofEnchanted && !(data.object && o.attachedTo === data.object.id)) continue;
+          // Harsh Mentor: only an opponent's activation
+          if (ab.activatorIsOpponent && data.playerId === o.controller) continue;
           // "a creature dealt damage by this creature this turn dies"
           if (ab.damagedByMe && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
             data.object._damagedBy.ids.includes(o.id))) continue;
