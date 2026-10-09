@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11332,
+  "needed": 11328,
   "gainedCards": 1130,
-  "linesNeeded": 12130,
+  "linesNeeded": 12126,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4213,
-   "lines": 3952,
+   "score": 4212,
+   "lines": 3951,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -222,13 +222,12 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 50,
-   "lines": 50,
+   "score": 48,
+   "lines": 48,
    "cards": [
     "Tidus, Yuna's Guardian",
     "Contest of Claws",
     "Cosmic Hunger",
-    "Incremental Blight",
     "Fall of Gil-galad",
     "Iroh, Tea Master",
     "Friendly Rivalry",
@@ -236,7 +235,8 @@
     "Burning Sun's Avatar",
     "Fleeting Reflection",
     "Reckless Rage",
-    "Terrific Team-Up"
+    "Terrific Team-Up",
+    "Coordinated Clobbering"
    ]
   },
   {
@@ -5523,17 +5523,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByMoreThanOneAllEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Flopsie, Bumi's Buddy",
-    "Michelangelo, Mutant BFF",
-    "Battlefront Krushok",
-    "Rocksteady, Crash Courser"
-   ]
-  },
-  {
    "what": "keyword CraftAbility",
    "score": 4,
    "lines": 4,
@@ -6670,13 +6659,23 @@
     "Zealot's Conviction",
     "Ravenous Necrotitan"
    ]
+  },
+  {
+   "what": "DamageCantBePreventedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Isengard Unleashed",
+    "Insult // Injury",
+    "Fear, Fire, Foes!"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3512,
-   "cards": 3332,
+   "score": 3511,
+   "cards": 3331,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6778,19 +6777,6 @@
    ]
   },
   {
-   "what": "Target.setTargetTag",
-   "score": 43,
-   "cards": 43,
-   "names": [
-    "Contest of Claws",
-    "Cosmic Hunger",
-    "Incremental Blight",
-    "Fall of Gil-galad",
-    "Iroh, Tea Master",
-    "Friendly Rivalry"
-   ]
-  },
-  {
    "what": "custom target",
    "score": 41,
    "cards": 41,
@@ -6801,6 +6787,19 @@
     "Reunion of the House",
     "Behold the Sinister Six!",
     "Kairi, the Swirling Sky"
+   ]
+  },
+  {
+   "what": "Target.setTargetTag",
+   "score": 41,
+   "cards": 41,
+   "names": [
+    "Contest of Claws",
+    "Cosmic Hunger",
+    "Fall of Gil-galad",
+    "Iroh, Tea Master",
+    "Friendly Rivalry",
+    "Allies at Last"
    ]
   },
   {
@@ -10238,17 +10237,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByMoreThanOneAllEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Flopsie, Bumi's Buddy",
-    "Michelangelo, Mutant BFF",
-    "Battlefront Krushok",
-    "Rocksteady, Crash Courser"
-   ]
-  },
-  {
    "what": "FilterPermanentThisOrAnother",
    "score": 4,
    "cards": 4,
@@ -10367,6 +10355,17 @@
     "Relic Retriever",
     "Primary Research",
     "Living History"
+   ]
+  },
+  {
+   "what": "TimeTravelEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Time Beetle",
+    "Wibbly-wobbly, Timey-wimey",
+    "Rotating Fireplace",
+    "All of History, All at Once"
    ]
   }
  ]

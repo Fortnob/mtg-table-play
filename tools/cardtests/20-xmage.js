@@ -16321,4 +16321,34 @@ module.exports = (test) => {
     t.eq(giant.controller, 'A', "the Giant is A's");
     t.eq(totem.controller, 'B', "the Totem is B's");
   });
+
+  test('Incremental Growth: one, two and three counters on three targets; Challenger Troll', (mk, t) => {
+    t.auto('Incremental Growth');
+    t.auto('Incremental Blight');
+    t.auto('Challenger Troll');
+    let T = mk();
+    T.toMain('A');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Llanowar Elves'), c = T.bf('A', 'Hill Giant');
+    T.mana('A', 'GGCCC');
+    T.cast('A', T.hand('A', 'Incremental Growth'), { targets: [a, b, c] });
+    T.settle();
+    t.eq(a.counters['+1/+1'], 1); t.eq(b.counters['+1/+1'], 2); t.eq(c.counters['+1/+1'], 3);
+    // Challenger Troll: a creature of yours with power 4 or greater, blocked by one at most
+    T = mk();
+    T.bf('A', 'Challenger Troll');
+    const wurm = T.bf('A', 'Craw Wurm');
+    const e1 = T.bf('B', 'Llanowar Elves'), e2 = T.bf('B', 'Llanowar Elves');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    let two = null, why = '';
+    T.answer('declareBlockers', (ch, g) => {
+      two = g.declareBlockers('B', [{ blockerId: e1.id, attackerIds: [wurm.id] }, { blockerId: e2.id, attackerIds: [wurm.id] }]);
+      why = g.lastError || '';
+      return [{ blockerId: e1.id, attackerIds: [wurm.id] }];
+    });
+    T.toMain('A', 'endCombat');
+    t.no(two, 'two blockers refused');
+    t.ok(/more than one creature/.test(why), why);
+    t.zone(e1, 'graveyard', 'one blocker is fine');
+  });
 };

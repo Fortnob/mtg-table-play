@@ -8351,7 +8351,10 @@
           const at = this.obj(aid);
           const ev = at && this._staticOp(at, 'evasion');
           // (Familiar Ground: handed to each creature its controller controls)
-          if (!((ev && ev.oneBlocker) || (at && this._hasFlag(at, 'oneBlocker'))) || n < 2) continue;
+          // Challenger Troll: its controller's creatures with power 4 or greater, as blockers are declared (oneBlockerPower)
+          const big = at && this.battlefield.some(s0 => s0.controller === at.controller && !s0.phasedOut && (this._staticOp(s0, 'oneBlockerPower') || {}).n != null &&
+            this.powerOf(at) >= this._staticOp(s0, 'oneBlockerPower').n);
+          if (!((ev && ev.oneBlocker) || big || (at && this._hasFlag(at, 'oneBlocker'))) || n < 2) continue;
           if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked by more than one creature.`);
           let kept = false;
           declarations = declarations.map(d => {

@@ -3124,6 +3124,11 @@
     { re: /^You gain protection from everything until your next turn\.?$/i, make: () => ({ op: 'playerProtection' }) },
     // Shallow Grave, Corpse Dance, Mistmoon Griffin: "Return the top creature card of your graveyard to the battlefield."
     { re: /^Return the top creature card of your graveyard to the battlefield\.?$/i, make: () => ({ op: 'reanimateTop', filter: 'creature' }) },
+    /* Incremental Growth, Incremental Blight: "Put a +1/+1 counter on target creature, two +1/+1
+       counters on another target creature, and three +1/+1 counters on a third target creature." */
+    { re: /^Put an? ([+-]1\/[+-]1) counter on target creature, two \1 counters on another target creature, and three \1 counters on a third target creature\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [1, 2, 3].map(k => ({ op: 'counters', kind: m[1], n: k,
+        targets: [Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield' }, k > 1 ? { distinct: true } : {})] })) }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -12636,7 +12641,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -13285,6 +13290,9 @@
       // Alpha Authority: "Enchanted creature can't be blocked by more than one creature."
       { re: /^(Enchanted|Equipped) creature can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'oneBlocker' }, auto: true },
+      // Challenger Troll, Flopsie: "Each creature you control with power 4 or greater can't be blocked by more than one creature." — its power as blockers are declared
+      { re: /^Each creature you control with power (\d+) or greater can'?t be blocked by more than one creature\.?$/i,
+        make: (m) => ({ op: 'oneBlockerPower', n: +m[1] }), auto: true },
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
