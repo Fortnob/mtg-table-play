@@ -263,7 +263,9 @@
     }
     if (ch.type === 'mode') {
       const count = Math.max(1, ch.count || 1);
-      return normalize(Object.assign(base, { kind: 'options', min: count, max: count, repeat: !!ch.repeatable,
+      // "choose one or more", "choose up to one": a range, when the question gives one
+      const min = ch.min != null ? Math.max(0, ch.min) : count, max = ch.max != null ? Math.max(min, ch.max) : count;
+      return normalize(Object.assign(base, { kind: 'options', min, max, repeat: !!ch.repeatable,
         options: (ch.options || []).map((o, k) => ({ label: o.label, i: o.i != null ? o.i : k })) }));
     }
     // pickCard: a face-up row of particular cards

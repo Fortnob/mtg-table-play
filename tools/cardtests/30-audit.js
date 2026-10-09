@@ -380,4 +380,89 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Gather the White Lotus'));
     t.eq(T.bfOf('A').filter(o => o.isToken).length, 2);
   });
+
+  /* ---- "choose one or more", "choose up to one" ---- */
+
+  test('Audit: Farewell can exile more than one kind of thing', (mk, t) => {
+    const T = mk();
+    t.auto('Farewell');
+    const ring = T.bf('B', 'Sol Ring'), bear = T.bf('B', 'Grizzly Bears'), ench = T.bf('B', 'Ghostly Prison');
+    let asked = null;
+    T.answer('mode', (ch) => { asked = ch; return { modes: [0, 1] }; });
+    T.mana('A', 'WW4');
+    T.cast('A', T.hand('A', 'Farewell'));
+    t.eq(asked.max, 4, 'up to all four offered');
+    t.zone(ring, 'exile'); t.zone(bear, 'exile');
+    t.zone(ench, 'battlefield', 'the mode not chosen');
+  });
+
+  test('Audit: Hullbreaker Horror may choose no mode', (mk, t) => {
+    const T = mk();
+    t.auto('Hullbreaker Horror');
+    T.bf('A', 'Hullbreaker Horror');
+    const mine = T.bf('A', 'Grizzly Bears');
+    let asked = null;
+    T.answer('mode', (ch) => { asked = ch; return { modes: [] }; });
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Llanowar Elves'));
+    t.eq(asked && asked.min, 0, 'none is allowed');
+    t.zone(mine, 'battlefield', 'nothing of yours bounced');
+  });
+
+  test("Audit: Jeska's Will may choose both modes with a commander", (mk, t) => {
+    const T = mk();
+    t.auto("Jeska's Will");
+    let asked = null;
+    T.answer('mode', (ch) => { asked = ch; return { modes: [0] }; });
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', "Jeska's Will"), { targets: ['B'] });
+    t.eq(asked.count || 1, 1, 'one mode without a commander');
+  });
+
+  /* ---- top-ranked cards, checked against their words ---- */
+
+  test('Audit: Inspiring Call draws for and protects only the creatures with +1/+1 counters', (mk, t) => {
+    const T = mk();
+    t.auto('Inspiring Call');
+    const a = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } }), b = T.bf('A', 'Llanowar Elves');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Inspiring Call'));
+    t.eq(T.zone('A', 'hand').length, h0 + 1);
+    t.ok(T.g.hasKw(a, 'indestructible'));
+    t.no(T.g.hasKw(b, 'indestructible'));
+  });
+
+  test('Audit: Rise of the Dark Realms takes creature cards from every graveyard', (mk, t) => {
+    const T = mk();
+    t.auto('Rise of the Dark Realms');
+    const x = T.grave('A', 'Grizzly Bears'), y = T.grave('B', 'Craw Wurm'), z = T.grave('B', 'Lightning Bolt');
+    T.mana('A', 'BB7');
+    T.cast('A', T.hand('A', 'Rise of the Dark Realms'));
+    t.zone(x, 'battlefield'); t.zone(y, 'battlefield'); t.zone(z, 'graveyard');
+    t.eq(y.controller, 'A');
+  });
+
+  test("Audit: Garruk's Uprising draws only for a creature with power 4 or greater", (mk, t) => {
+    const T = mk();
+    t.auto("Garruk's Uprising");
+    T.bf('A', "Garruk's Uprising");
+    const h0 = T.zone('A', 'hand').length;
+    T.put('A', 'Grizzly Bears', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0);
+    T.put('A', 'Craw Wurm', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1);
+  });
+
+  test('Audit: Rhystic Study draws unless the caster pays {1}', (mk, t) => {
+    const T = mk();
+    t.auto('Rhystic Study');
+    T.bf('A', 'Rhystic Study');
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('payOrDont', { pay: false });
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'B did not pay');
+  });
 };

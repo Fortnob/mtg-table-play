@@ -14262,8 +14262,12 @@
             break;
           }
           let want = Math.min(n(e.count) || 1, modes.length);
-          // the Will cycle: both modes, with a commander on the battlefield
-          if (e.countIf && this._condMet(e.countIf.cond, ctx)) want = Math.min(e.countIf.count, modes.length);
+          /* "Choose one or more" (Farewell): as many as there are; "choose up
+             to one" (Hullbreaker Horror): none is an answer as well */
+          let least = e.min != null ? Math.min(e.min, want) : want;
+          let most = e.max ? Math.max(want, Math.min(e.max, modes.length)) : want;
+          // the Will cycle: both modes may be chosen, with a commander on the battlefield
+          if (e.countIf && this._condMet(e.countIf.cond, ctx)) { most = Math.min(e.countIf.count, modes.length); want = most; }
           /* "Choose one that hasn't been chosen (this turn)": the modes this
              permanent has used are kept on it */
           let usable = modes.map((m, i) => i);
@@ -14276,12 +14280,13 @@
             if (!usable.length) { this.logEvent('rules', `${src.name}: every mode has been chosen.`); break; }
           }
           const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: want,
+            min: least !== want ? least : undefined, max: most !== want ? most : undefined,
             repeatable: !!e.repeatable,
             options: usable.map(i => ({ i, label: truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90) })),
             prompt: e.prompt || `Choose ${want === 1 ? 'one' : want}.` });
           if (picked === SUSPEND) return SUSPEND;
-          const order = (picked || []).slice(0, e.repeatable ? want : modes.length);
-          let chosen = (order.length ? order : usable.slice(0, want));
+          const order = (picked || []).slice(0, e.repeatable ? want : most);
+          let chosen = (order.length || (least === 0 && Array.isArray(picked)) ? order : usable.slice(0, want));
           if (usedModes) {
             chosen = chosen.filter(i => usable.includes(i));
             if (!chosen.length) chosen = usable.slice(0, 1);

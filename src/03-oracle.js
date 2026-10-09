@@ -6786,6 +6786,8 @@
     return {
       effects: [Object.assign({ op: 'modal', count, repeatable, modes: out, text: cleaned },
         /or more$|^any number$/.test(word) ? { max: out.length } : {},
+        // Hullbreaker Horror: "choose up to one" — none at all is an answer too
+        /^up to /.test(word) ? { min: 0 } : {},
         commanderCount ? { countIf: { cond: { kind: 'controlCommander' }, count: commanderCount } } : otherCount ? { countIf: otherCount } : {})],
       auto: out.every(x => x.auto),
     };

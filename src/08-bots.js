@@ -2445,6 +2445,12 @@
       }).sort((x, y) => y.v - x.v);
       if (!scored.length) return [0];
       if (ch.repeatable) return new Array(count).fill(scored[0].i);
+      // a range of modes: every one worth having, within it
+      if (ch.min != null || ch.max != null) {
+        const lo = ch.min != null ? ch.min : count, hi = ch.max != null ? ch.max : count;
+        const good = scored.filter(s => s.v > 0).slice(0, hi);
+        return (good.length >= lo ? good : scored.slice(0, lo)).map(s => s.i);
+      }
       return scored.slice(0, count).map(s => s.i);
     }
     _modeWorth(effects) {
