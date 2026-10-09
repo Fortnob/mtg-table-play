@@ -12474,6 +12474,8 @@
           { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature' }, grant: ['Changeling'] },
           { op: 'everyTypeElsewhere' }] }), auto: true },
       { re: /^Skip your draw step\.?$/i, eff: { op: 'skipStep', step: 'draw', who: 'you' }, auto: true },
+      // Stasis: "Players skip their untap steps."
+      { re: /^Players skip their (untap|draw) steps\.?$/i, make: (m) => ({ op: 'skipStep', step: m[1].toLowerCase(), who: 'all' }), auto: true },
       { re: /^Skip your (?:untap|combat|draw) step\.?$/i,
         make: (m) => ({ op: 'skipStep', step: (m[0].match(/untap|combat|draw/i) || [])[0].toLowerCase(), who: 'you' }), auto: true },
       { re: /^Activated abilities of ([a-z]+s)(?: your opponents control| you control)? can'?t be activated\.?$/i,

@@ -1008,6 +1008,16 @@
     _untapStep() {
       const ap = this.activePlayer;
       let n = 0;
+      /* Stasis, "Skip your untap step": nothing untaps, but what has been
+         under its controller's control since the turn began can still
+         attack (CR 302.6) */
+      if (this._skipsStep(ap.id, 'untap')) {
+        for (const o of this.battlefield) if (o.controller === ap.id) o.summoningSick = false;
+        this.logEvent('step', `${ap.name} skips their untap step.`);
+        this.checkStateBasedActions();
+        this._advanceStep();
+        return;
+      }
       // "untap all permanents you control during each other player's untap step"
       const alsoUntap = [];
       for (const src of this.battlefield) {
@@ -1113,7 +1123,7 @@
       const skipFirst = this.turn === 1 && !this.config.firstPlayerDraws;
       if (skipFirst) {
         this.logEvent('step', `${ap.name} skips the first draw.`);
-      } else if (ap.skipNextDraw || ap.skipEveryDraw) {
+      } else if (ap.skipNextDraw || ap.skipEveryDraw || this._skipsStep(ap.id, 'draw')) {
         ap.skipNextDraw = false;
         this.logEvent('step', `${ap.name} skips their draw.`);
       } else {
@@ -20167,6 +20177,17 @@
     }
 
     /** Does this player control a permanent with that standing rule? */
+    /** Necropotence, Stasis: is this player's step of that kind skipped by a standing rule on the battlefield? */
+    _skipsStep(playerId, step) {
+      for (const o of this._withEmblems(this.battlefield)) {
+        if (o.phasedOut) continue;
+        const e = this._staticOp(o, 'skipStep');
+        if (!e || e.step !== step) continue;
+        if (e.who === 'all' || o.controller === playerId) return true;
+      }
+      return false;
+    }
+
     _anyStaticOf(playerId, op) {
       // an emblem's standing rule is its owner's as much as a permanent's is
       for (const o of this._withEmblems(this.battlefield)) {

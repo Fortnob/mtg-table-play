@@ -14723,4 +14723,22 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(ee), base + 4, 'the Simulacrum: 4');
     t.eq(T.g.toughnessOf(ee), tough, 'toughness alone');
   });
+  test('Necropotence skips the draw step; Stasis skips every untap step', (mk, t) => {
+    t.auto('Necropotence');
+    t.auto('Stasis');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Necropotence');
+    const h = T.zone('A', 'hand').length;
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    t.eq(T.zone('A', 'hand').length, h, 'no card drawn');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Stasis');
+    const land = U.bf('B', 'Forest', { tapped: true });
+    const bear = U.bf('B', 'Grizzly Bears', { sick: true });
+    U.nextTurn('B'); U.toMain('B');
+    t.ok(land.tapped, 'the Forest stays tapped');
+    t.no(bear.summoningSick, 'the Bears can attack all the same');
+  });
 };
