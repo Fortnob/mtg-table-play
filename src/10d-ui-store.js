@@ -151,7 +151,7 @@
      illustration has it, and anyone after takes its next choice; told
      apart by Scryfall's illustration id, so a reprint of the same picture
      counts as the same. Kept, so each keeps its picture from then on. */
-  const ART_KEY = 'artclaims';
+  const ART_KEY = 'artclaims2';
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -177,19 +177,32 @@
     const ill = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null;
     return url ? { url, name: c.name, ill } : null;
   };
+  /** What a card sells for (its foil price when that is all there is), 0 when nobody has priced it. */
+  const valueOf = (c) => {
+    const p = c && c.prices;
+    const n = p ? parseFloat(p.usd || p.usd_foil || p.usd_etched) : NaN;
+    return Number.isFinite(n) ? n : 0;
+  };
   /**
-   * A striking card from a set, for the front of its packs: its best-known
-   * mythic or rare whose picture no other pack or deck wears (the Collector
-   * Booster another again), else any card of the set that is free.
+   * The front of a set's packs: the most valuable card that can be pulled
+   * from them whose picture no other pack or deck wears (the Collector
+   * Booster the next most valuable again), else any card of the set that
+   * is free. Sorted here by price, since a search's own price order may put
+   * the unpriced first.
    */
   function setArt(code, kind) {
     const key = 'set:' + code + (kind === 'collector' ? ':collector' : '');
     if (artReg.by[key]) return Promise.resolve(artReg.by[key]);
     if (artWaiting.has(key)) return artWaiting.get(key);
     const p = (async () => {
-      const look = async (q, max) => { try { return await MTG.scry.search(q, { max, order: 'edhrec', unique: 'art' }); } catch (e) { return []; } };
-      let art = claimArt(key, (await look(`set:${code} (r:mythic or r:rare) -t:land`, 40)).map(artOf));
-      if (!art) art = claimArt(key, (await look(`set:${code}`, 120)).map(artOf));
+      const look = async (q, max) => {
+        let found = [];
+        try { found = await MTG.scry.search(q, { max, order: 'usd', dir: 'desc', unique: 'art' }); } catch (e) { found = []; }
+        return found.slice().sort((a, b) => valueOf(b) - valueOf(a));
+      };
+      // what its packs hold; a set never in boosters holds the whole set
+      let art = claimArt(key, (await look(`set:${code} is:booster -t:basic`, 250)).map(artOf));
+      if (!art) art = claimArt(key, (await look(`set:${code} -t:basic`, 400)).map(artOf));
       artWaiting.delete(key);
       return art;
     })();
@@ -203,6 +216,18 @@
    * symbol where its logo goes, the kind of booster and its card count on
    * the band at the bottom, and crimped foil at both ends.
    */
+  /* Pack art fetched only as a booster comes into view: a shelf of every
+     set would otherwise ask for two hundred searches at once. */
+  const lazyArt = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting || !en.target._loadArt) continue;
+      lazyArt.unobserve(en.target);
+      const load = en.target._loadArt;
+      en.target._loadArt = null;
+      load();
+    }
+  }, { rootMargin: '300px' }) : null;
+
   function boosterEl(setInfo, kind, opts) {
     opts = opts || {};
     const collector = kind === 'collector';
@@ -225,7 +250,12 @@
       ]),
       el('div', { class: 'bp-seam' }),
     ]);
-    if (setInfo && setInfo.code) setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    const paint = () => setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    if (setInfo && setInfo.code) {
+      const had = artReg.by['set:' + setInfo.code + (kind === 'collector' ? ':collector' : '')];
+      if (had || !opts.lazy || !lazyArt) paint();
+      else { node._loadArt = paint; lazyArt.observe(node); }
+    }
     return node;
   }
 
@@ -609,7 +639,7 @@
       extra ? el('span', { class: 'pack-tag bonus', text: '+ ' + extra.short, title: extra.long }) : null,
     ].filter(Boolean);
     return el('div', { class: 'store-card pack-tile' }, [
-      boosterEl(s, 'play'),
+      boosterEl(s, 'play', { lazy: true }),
       el('div', { class: 'sc-title', text: s.name }),
       notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
       el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1)]),
@@ -635,7 +665,7 @@
     const draw = () => {
       const q = search.value.trim().toLowerCase();
       grid.innerHTML = '';
-      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q).slice(0, 48)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
+      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
     };
     search.addEventListener('input', draw);
     body.append(search, grid);
