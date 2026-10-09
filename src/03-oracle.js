@@ -5263,7 +5263,8 @@
   /** "each nonland permanent you don't control" -> the scope of the plural. */
   function eachScope(phrase) {
     const p = String(phrase).trim().replace(/^(?:each|all) /i, '');
-    return scopeOf(p.replace(/\b(creature|permanent|artifact|enchantment|land|planeswalker|battle)\b(?!s)/, '$1s'));
+    // (Perplexing Test: "all creature tokens" are tokens that are creatures, not creatures and tokens)
+    return scopeOf(p.replace(/\b(creature|permanent|artifact|enchantment|land|planeswalker|battle)\b(?!s)(?! tokens?\b)/, '$1s'));
   }
 
   /* "for each creature you control with a +1/+1 counter on it", "for each
@@ -5358,6 +5359,9 @@
     // Thraben Charm: "twice the number of creatures you control"
     const tw = p.match(/^twice (the number of .+)$/i);
     if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }
+    // Endless Ranks of the Dead: "half the number of Zombies you control, rounded down"
+    const hf = p.match(/^half (the number of .+), rounded (up|down)$/i);
+    if (hf) { const k = amountOf(hf[1]); return k ? { half: k, up: /up/i.test(hf[2]) } : null; }
     let plus = 0;
     const pl = p.match(/^(.+?) plus (one|two|three|four|five|\d+)$/i);
     if (pl) { p = pl[1]; plus = num(pl[2]); if (typeof plus !== 'number') return null; }
@@ -6987,7 +6991,8 @@
     }
     return {
       effects: footnotes.concat([Object.assign({ op: 'modal', count, repeatable, modes: out, text: cleaned },
-        /or more$|^any number$/.test(word) ? { max: out.length } : {},
+        // (Scour for Scrap: "choose one or both" is one or two)
+        /or more$|^any number$|^one or both$/.test(word) ? { max: out.length } : {},
         // Hullbreaker Horror: "choose up to one" — none at all is an answer too
         /^up to /.test(word) ? { min: 0 } : {},
         commanderCount ? { countIf: { cond: { kind: 'controlCommander' }, count: commanderCount } } : otherCount ? { countIf: otherCount } : {})]),
@@ -7609,6 +7614,17 @@
       if (!e || (e.op !== 'counters' && e.op !== 'restrict' && e.op !== 'bounce') || e.scope !== 'self' || e.targets) return;
       if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
+    });
+    /* Summon: Knights of Round: "Other creatures you control get +2/+2 until
+       end of turn. Put an indestructible counter on each of them." With
+       nothing targeted, "each of them" is the group the sentence before
+       named. */
+    folded.forEach((e, i) => {
+      if (!e || e.scope !== 'eachTarget' || (e.targets || []).length) return;
+      if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) return;
+      const prev = folded[i - 1];
+      const group = prev && prev.scope && (typeof prev.scope === 'object' || /^(?:yourCreatures|opponentCreatures|allCreatures)$/.test(prev.scope)) ? prev.scope : null;
+      if (group) e.scope = group;
     });
     return { effects: folded, auto: auto && !folded.some(hasManualStep) };
   }

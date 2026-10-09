@@ -1540,4 +1540,74 @@ module.exports = (test) => {
     const T = mk();
     t.no(T.MTG.oracle.analyze(require('../harness').card('Frightful Delusion')).fullyAutomated);
   });
+
+  test('Audit: Perplexing Test returns creature tokens, not every token', (mk, t) => {
+    const T = mk();
+    t.auto('Perplexing Test');
+    T.g._createNamedToken('B', { token: 'Treasure', n: 1 });
+    T.g._createToken('B', { n: 1, pt: '1/1', subtypes: 'Goblin', colorWords: ['red'], keywords: [], addTypes: [] });
+    const real = T.bf('B', 'Craw Wurm');
+    T.answer('mode', { modes: [0] });
+    T.mana('A', 'UU3');
+    T.cast('A', T.hand('A', 'Perplexing Test'));
+    t.zone(real, 'battlefield');
+    t.eq(T.bfOf('B').map(o => o.name).sort().join(), 'Craw Wurm,Treasure');
+  });
+
+  test('Audit: Kinsbaile Borderguard counts Kithkin and leaves soldiers for its counters', (mk, t) => {
+    const T = mk();
+    t.auto('Kinsbaile Borderguard');
+    T.bf('A', 'Kinsbaile Skirmisher'); T.bf('A', 'Kinsbaile Skirmisher');
+    T.mana('A', 'WW1');
+    T.cast('A', T.hand('A', 'Kinsbaile Borderguard'));
+    const k = T.bfOf('A').find(o => o.name === 'Kinsbaile Borderguard');
+    t.eq(k.counters['+1/+1'], 2);
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [k] });
+    t.zone(k, 'graveyard');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Kithkin Soldier').length, 2);
+  });
+
+  test('Audit: Summon: Knights of Round V puts the counter on each of the other creatures', (mk, t) => {
+    const T = mk();
+    t.auto('Summon: Knights of Round');
+    const s = T.bf('A', 'Summon: Knights of Round', { counters: { lore: 4 } });
+    const b = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A'); T.resolve();
+    t.eq(b.counters.indestructible, 1);
+    t.no(theirs.counters.indestructible);
+    t.zone(s, 'graveyard');
+  });
+
+  test('Audit: Endless Ranks of the Dead makes half as many Zombies as you have', (mk, t) => {
+    const T = mk();
+    t.auto('Endless Ranks of the Dead');
+    T.bf('A', 'Endless Ranks of the Dead');
+    for (let i = 0; i < 5; i++) T.bf('A', 'Walking Corpse');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Zombie').length, 2, 'five Zombies, half rounded down');
+  });
+
+  test("Audit: Ghoulcaller's Harvest counts half the creature cards in your graveyard, rounded up", (mk, t) => {
+    const T = mk();
+    t.auto("Ghoulcaller's Harvest");
+    for (let i = 0; i < 3; i++) T.grave('A', 'Grizzly Bears');
+    for (let i = 0; i < 4; i++) T.grave('B', 'Grizzly Bears');
+    T.mana('A', 'BG3');
+    T.cast('A', T.hand('A', "Ghoulcaller's Harvest"));
+    t.eq(T.bfOf('A').filter(o => o.name === 'Zombie').length, 2);
+  });
+
+  test('Audit: Scour for Scrap can choose both modes', (mk, t) => {
+    const T = mk();
+    t.auto('Scour for Scrap');
+    const ring = T.grave('A', 'Sol Ring');
+    T.top('A', 'Mind Stone');
+    let asked;
+    T.answer('mode', (ch) => { asked = ch; return { modes: [0, 1] }; });
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Mind Stone').id] }));
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Scour for Scrap'), { targets: [ring] });
+    t.zone(ring, 'hand');
+    t.ok(T.zone('A', 'hand').some(o => o.name === 'Mind Stone'), 'and the search');
+  });
 };
