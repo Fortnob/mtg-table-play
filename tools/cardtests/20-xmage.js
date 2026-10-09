@@ -17040,4 +17040,23 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(evra), 13, 'its power becomes the old life total');
     t.eq(T.g.toughnessOf(evra), 4, 'its toughness is unchanged');
   });
+
+  test('"Create a 0/0 token. Put X +1/+1 counters on it": the token, not the card (Wild Hypothesis, Additive Evolution)', (mk, t) => {
+    t.auto('Wild Hypothesis');
+    t.auto('Additive Evolution');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Wild Hypothesis'), { x: 2 });
+    T.settle();
+    const f1 = T.g.battlefield.find(o => o.isToken && /Fractal/.test(o.name));
+    t.ok(f1, 'the Fractal lives');
+    t.eq(f1 && (f1.counters['+1/+1'] || 0), 2, 'with two counters');
+    const ae = T.hand('A', 'Additive Evolution');
+    T.mana('A', 'GG3');
+    T.cast('A', ae);
+    T.settle();
+    t.eq(ae.counters['+1/+1'] || 0, 0, 'none on the enchantment');
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Fractal/.test(o.name) && (o.counters['+1/+1'] || 0) === 3).length, 1, 'three on the new Fractal');
+  });
 };

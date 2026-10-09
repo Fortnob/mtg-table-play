@@ -12653,7 +12653,8 @@
           }
           // Ring of Valkas: "on equipped creature if it's red"
           else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
-          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
+          // (thatToken: Wild Hypothesis, "Put X +1/+1 counters on it" — the token just made)
+          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget' || e.scope === 'thatToken') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.addCounters(o, e.kind, cnt);
           }

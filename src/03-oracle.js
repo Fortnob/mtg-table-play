@@ -8154,6 +8154,16 @@
     folded.forEach((e, i) => {
       if (e && i > 0 && folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice')) sacrificedIsThat([e]);
     });
+    /* Wild Hypothesis, Fractal Anomaly, G'raha Tia: "Create a 0/0 … Fractal
+       creature token. Put X +1/+1 counters on it." — the token just made,
+       not this card (thatToken) */
+    folded.forEach((e, i) => {
+      if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets || i === 0) return;
+      const prev = folded[i - 1];
+      if (!prev || prev.op !== 'createToken' || (prev.n != null && prev.n !== 1)) return;
+      if (!/\bon (?:it|that token)\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
+      e.scope = 'thatToken';
+    });
     folded.forEach((e, i) => {
       itIsTarget(e, i);
       // Defy Death: "If it's an Angel, put two +1/+1 counters on it."
