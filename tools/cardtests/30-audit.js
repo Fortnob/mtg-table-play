@@ -1002,4 +1002,80 @@ module.exports = (test) => {
     t.eq(T.life('C'), 18);
     t.eq(T.life('B'), 20);
   });
+
+  /* ---- hand-written scripts against the card's current words ---- */
+
+  test('Audit: Voice of Resurgence makes an X/X only on your turn, and when it dies', (mk, t) => {
+    const T = mk();
+    t.auto('Voice of Resurgence');
+    const v = T.bf('A', 'Voice of Resurgence');
+    T.bf('A', 'Grizzly Bears');
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['B'] });
+    const toks = () => T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks().length, 1, 'an opponent cast a spell on your turn');
+    t.eq(T.g.powerOf(toks()[0]), 3, 'Voice, the Bears and itself');
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [v] });
+    t.zone(v, 'graveyard');
+    t.eq(toks().length, 2, 'none for the spell on their turn, one as Voice died');
+  });
+
+  test('Audit: Brimaz makes a vigilant token attacking, and one blocking what it blocks', (mk, t) => {
+    const T = mk();
+    t.auto('Brimaz, King of Oreskos');
+    const br = T.bf('A', 'Brimaz, King of Oreskos');
+    T.answer('declareAttackers', () => [{ attackerId: br.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    const cat = T.bfOf('A').find(o => o.isToken);
+    t.ok(cat && cat.attacking && T.g.hasKw(cat, 'vigilance'), 'an attacking Cat with vigilance');
+    T.nextTurn('B');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: br.id, attackerIds: [bear.id] }]);
+    T.toMain('B', 'combatDamage');
+    const cat2 = T.bfOf('A').filter(o => o.isToken).find(o => o !== cat);
+    t.ok(cat2 && (cat2.blocking || []).includes(bear.id), 'the new Cat blocks the Bears');
+  });
+
+  test('Audit: Oblivion Stone removes the fate counters after the sweep', (mk, t) => {
+    const T = mk();
+    t.auto('Oblivion Stone');
+    const os = T.bf('A', 'Oblivion Stone');
+    const keep = T.bf('A', 'Sol Ring', { counters: { fate: 1 } }), gone = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '5');
+    T.activate('A', os, 1);
+    t.zone(gone, 'graveyard'); t.zone(keep, 'battlefield');
+    t.eq(keep.counters.fate || 0, 0, 'no fate counter left');
+  });
+
+  test("Audit: Thassa's Oracle keeps one card on top and the rest at the bottom", (mk, t) => {
+    const T = mk();
+    t.auto("Thassa's Oracle");
+    const lib = T.zone('A', 'library');
+    const n0 = lib.length;
+    const second = lib[1];
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[1].id] }));
+    T.mana('A', 'UU');
+    T.cast('A', T.hand('A', "Thassa's Oracle"));
+    t.eq(lib[0], second, 'the chosen one on top');
+    t.eq(lib.length, n0);
+    t.no(T.g.over, 'two blue pips against a full library: no win');
+  });
+
+  test('Audit: Approach of the Second Sun wins only on the second cast, from the hand', (mk, t) => {
+    const T = mk({ libraryEach: 3 });
+    t.auto('Approach of the Second Sun');
+    const a1 = T.hand('A', 'Approach of the Second Sun');
+    T.mana('A', 'W6');
+    T.cast('A', a1);
+    t.eq(T.life('A'), 27);
+    t.zone(a1, 'library');
+    t.no(T.g.over);
+    T.mana('A', 'W6');
+    T.cast('A', T.hand('A', 'Approach of the Second Sun'));
+    t.ok(T.player('B').hasLost, 'the second one from the hand wins');
+  });
 };

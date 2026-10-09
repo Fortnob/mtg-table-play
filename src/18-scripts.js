@@ -30,6 +30,9 @@
   /* ---------------- the table ----------------
      kind: 'triggered' | 'activated' | 'static' | 'spell' | 'mana' | 'chapter'
      Everything else is exactly what the parser would have produced. */
+  // Voice of Resurgence's token: its size is the number of creatures its controller has
+  const VOICE_TOKEN = { op: 'createToken', n: 1, pt: '0/0', colorWords: ['green', 'white'], subtypes: 'Elemental', keywords: [],
+    grantedText: "This creature's power and toughness are each equal to the number of creatures you control." };
   const SCRIPTS = {
     /* --- cards whose text counts something the parser has no word for --- */
     "dark confidant": {
@@ -42,8 +45,13 @@
     "thassa's oracle": {
       abilities: [{
         kind: 'triggered', event: 'etb', self: true, auto: true,
-        text: "When this creature enters, look at the top X cards of your library, where X is your devotion to blue. If X is greater than or equal to the number of cards in your library, you win the game.",
-        effects: [{ op: 'winIfLibraryAtMost', count: { devotion: 'U' } }],
+        text: "When this creature enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game.",
+        effects: [
+          { op: 'winIfLibraryAtMost', count: { devotion: 'U' } },
+          { op: 'lookAt', n: { devotion: 'U' }, keep: 0 },
+          { op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', optional: true, rest: 'keep', prompt: 'Choose up to one to keep on top.' },
+          { op: 'restToBottom', random: true },
+        ],
       }],
     },
     "approach of the second sun": {
@@ -173,11 +181,12 @@
     "brimaz, king of oreskos": {
       abilities: [
         { kind: 'triggered', event: 'attacks', self: true, auto: true,
-          text: "Whenever this creature attacks, create a 1/1 white Cat Soldier creature token that's attacking.",
-          effects: [{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], subtypes: 'Cat Soldier', keywords: [], attacking: true }] },
-        { kind: 'triggered', event: 'blocks', self: true, auto: true,
-          text: "Whenever this creature blocks a creature, create a 1/1 white Cat Soldier creature token that's blocking that creature.",
-          effects: [{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], subtypes: 'Cat Soldier', keywords: [] }] },
+          text: "Whenever this creature attacks, create a 1/1 white Cat Soldier creature token with vigilance that's attacking.",
+          effects: [{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], subtypes: 'Cat Soldier', keywords: ['Vigilance'], attacking: true }] },
+        // once for each creature it blocks, the token blocking that one
+        { kind: 'triggered', event: 'blocksCreature', self: true, auto: true,
+          text: "Whenever this creature blocks a creature, create a 1/1 white Cat Soldier creature token with vigilance that's blocking that creature.",
+          effects: [{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], subtypes: 'Cat Soldier', keywords: ['Vigilance'], blockingTriggerObject: true }] },
       ],
       keepKeywords: true,
     },
@@ -185,8 +194,8 @@
     "birthing pod": {
       abilities: [{
         kind: 'activated', auto: true,
-        cost: { mana: '{1}{G}', tap: true, sacrifice: { n: 1, filter: 'creature' }, other: [] },
-        text: '{1}{G}, {T}, Sacrifice a creature: Search your library for a creature card with mana value equal to 1 plus the sacrificed creature\u2019s mana value, put that card onto the battlefield, then shuffle. Activate only as a sorcery.',
+        cost: { mana: '{1}{G/P}', tap: true, sacrifice: { n: 1, filter: 'creature' }, other: [] },
+        text: '{1}{G/P}, {T}, Sacrifice a creature: Search your library for a creature card with mana value equal to 1 plus the sacrificed creature\u2019s mana value, put that card onto the battlefield, then shuffle. Activate only as a sorcery.',
         sorcerySpeed: true,
         effects: [{ op: 'tutor', n: 1, filter: 'creature', to: 'battlefield', mvOfSacrificedPlus: 1 }, { op: 'shuffle' }],
       }],
@@ -266,15 +275,19 @@
           text: '{4}, {T}: Put a fate counter on target permanent.',
           effects: [{ op: 'counters', kind: 'fate', n: 1, targets: [{ type: 'permanent' }] }] },
         { kind: 'activated', auto: true, cost: { mana: '{5}', tap: true, sacSelf: true, other: [] },
-          text: '{5}, {T}, Sacrifice this artifact: Destroy each nonland permanent without a fate counter on it.',
-          effects: [{ op: 'destroyAll', what: 'nonland permanent', withoutCounter: 'fate' }] },
+          text: '{5}, {T}, Sacrifice this artifact: Destroy each nonland permanent without a fate counter on it, then remove all fate counters from all permanents.',
+          effects: [{ op: 'destroyAll', what: 'nonland permanent', withoutCounter: 'fate' }, { op: 'removeCountersAll', kind: 'fate' }] },
       ],
     },
     "voice of resurgence": {
       abilities: [{
-        kind: 'triggered', event: 'opponentCastSpell', auto: true,
-        text: "Whenever an opponent casts a spell during your turn or an opponent's creature attacks you, create a 0/1 green Elemental creature token.",
-        effects: [{ op: 'createToken', n: 1, pt: '0/1', colorWords: ['green'], subtypes: 'Elemental', keywords: [] }],
+        kind: 'triggered', event: 'opponentCastSpell', auto: true, condition: { kind: 'yourTurn' },
+        text: "Whenever an opponent casts a spell during your turn, create a green and white Elemental creature token with \"This token's power and toughness are each equal to the number of creatures you control.\"",
+        effects: [VOICE_TOKEN],
+      }, {
+        kind: 'triggered', event: 'dies', self: true, auto: true,
+        text: "When this creature dies, create a green and white Elemental creature token with \"This token's power and toughness are each equal to the number of creatures you control.\"",
+        effects: [VOICE_TOKEN],
       }],
     },
     "chalice of the void": {

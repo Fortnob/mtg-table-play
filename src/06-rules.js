@@ -5155,6 +5155,8 @@
       if (p.spellsCastThisTurn === 2) this._fire('opponentSecondSpell', null, Object.assign({ except: playerId }, castData));
       // Canyon Crab: "a spell from your hand"
       o._castFromHand = item.fromZone === 'hand';
+      // Approach of the Second Sun: the names this player has cast this game, countered or not
+      if (!item.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       /* "Whenever this creature becomes the target of a spell": each
@@ -12756,7 +12758,9 @@
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
           // Slaughter Specialist: "each opponent creates …"
           if (e.who === 'opponents') { for (const p of this.opponentsOf(ctx.controller)) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
-          this._createToken(owner.id, Object.assign({}, e, { n: many }, sized));
+          // Brimaz: "a token that's blocking that creature" — the creature the trigger is about
+          const blockingId = e.blockingTriggerObject ? (ctx.triggerData || {}).objectId : null;
+          this._createToken(owner.id, Object.assign({}, e, { n: many }, sized, blockingId ? { blockingId } : {}));
           break;
         }
         case 'createNamedToken': {
@@ -12837,7 +12841,9 @@
           }
           this._leavingTogether = null;
           this._lastSweep = n;
-          this.logEvent('wipe', `${e.op === 'destroyAll' ? 'Destroys' : e.op === 'exileAll' ? 'Exiles' : 'Returns'} ${n} ${want}${n === 1 ? '' : 's'}.`);
+          // "Destroys 2 artifacts", never "artifactss"; several kinds at once are permanents
+          const noun = /\s|,/.test(want) && !/^nonland permanent$/.test(want) ? 'permanent' : want.replace(/s$/, '');
+          this.logEvent('wipe', `${e.op === 'destroyAll' ? 'Destroys' : e.op === 'exileAll' ? 'Exiles' : 'Returns'} ${n} ${noun}${n === 1 ? '' : 's'}.`);
           this.emit('sfx', n >= 3 ? 'wipe' : 'destroy', { size: n });
           break;
         }
@@ -16176,10 +16182,12 @@
           break;
         }
 
+        /* "If this spell was cast from your hand and you've cast another spell
+           named Approach of the Second Sun this game, you win the game" —
+           another cast, countered or not, and this one from the hand */
         case 'approach': {
-          const cast = (me.approachCasts || 0) + 1;
-          me.approachCasts = cast;
-          if (cast >= 2) {
+          const before = ((me.namesCast || {})[(src && src.name) || 'Approach of the Second Sun'] || 1) - 1;
+          if (src && src._castFromHand && before >= 1) {
             for (const p of this.opponentsOf(ctx.controller)) this.playerLoses(p, 'a card said so');
             this.checkStateBasedActions();
             break;
@@ -17987,6 +17995,12 @@
         }
         /* Spinal Parasite: "Remove a counter from target permanent" — of the
            kind named, or of a kind its controller (this effect's) chooses */
+        // Oblivion Stone: "then remove all fate counters from all permanents"
+        case 'removeCountersAll': {
+          for (const x of this.battlefield) if (x.counters && x.counters[e.kind]) delete x.counters[e.kind];
+          this.bumpBoard();
+          break;
+        }
         case 'removeCountersFrom': {
           const x = firstObj();
           if (!x) break;
@@ -19801,6 +19815,14 @@
         if (e.attacking && this.combat && this.combat.attackers) {
           const def = (e.attackingId && this.player(e.attackingId)) || this.opponentsOf(controller)[0];
           if (def) { o.attacking = def.id; this.combat.attackers.push(o.id); }
+        }
+        // entering blocking (CR 506.3): it blocks, though it was never declared as a blocker
+        const blocked = e.blockingId && this.combat && this.obj(e.blockingId);
+        if (blocked && blocked.zone === 'battlefield' && blocked.attacking) {
+          o.blocking = [blocked.id];
+          blocked.blockedBy.push(o.id);
+          if (!blocked.blockOrder.includes(o.id)) blocked.blockOrder.push(o.id);
+          this.combat.blockers.push(o.id);
         }
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(o);
