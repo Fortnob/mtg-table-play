@@ -14602,4 +14602,25 @@ module.exports = (test) => {
     t.ok(ids.includes(fresh.id), 'the Giant just came in');
     t.no(ids.includes(old.id), 'the Bears have been here a while');
   });
+  test("Equip by another cost: Dissection Tools sacrifices a creature; Dragoon's Lance makes a Knight", (mk, t) => {
+    t.auto('Dissection Tools');
+    t.auto("Dark Knight's Greatsword");
+    t.auto("Dragoon's Lance");
+    const T = mk();
+    T.toMain('A');
+    const dt = T.bf('A', 'Dissection Tools');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const all = dt.analysis().manaAbilities.concat(dt.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const idx = all.findIndex(a => /^Equip/.test(a.text));
+    T.answer('*', (ch) => (ch.type === 'pickTarget' ? { targets: [{ kind: 'object', id: bear.id }] } : { cardIds: [elf.id], ids: [elf.id] }));
+    T.activate('A', dt, idx, { targets: [bear] });
+    T.resolve();
+    t.zone(elf, 'graveyard', 'the Elves paid for it');
+    t.eq(dt.attachedTo, bear.id, 'and the Tools went on the Bears');
+    const dl = T.bf('A', "Dragoon's Lance");
+    dl.attachedTo = bear.id; bear.attachments.push(dl.id); dl.ts = T.g._stampNew();
+    T.settle();
+    t.ok(T.g._hasCreatureType(bear, 'Knight'), 'a Knight');
+  });
 };

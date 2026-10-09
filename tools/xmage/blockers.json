@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11655,
+  "needed": 11644,
   "gainedCards": 1160,
-  "linesNeeded": 12520,
+  "linesNeeded": 12506,
   "linesGained": 1380,
   "gained": {
    "all": 1160,
@@ -89,8 +89,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 200,
-   "lines": 179,
+   "score": 199,
+   "lines": 178,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -615,25 +615,6 @@
     "The Book of Vile Darkness",
     "Synthesis Pod",
     "Emrakul's Evangel"
-   ]
-  },
-  {
-   "what": "keyword EquipAbility",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Mjölnir, Hammer of Thor",
-    "Luxior, Giada's Gift",
-    "Robe of the Archmagi",
-    "Gavel of the Righteous",
-    "Pact Weapon",
-    "My Precious // Allure of Power",
-    "Hand of Vecna",
-    "Nightmare Lash",
-    "Transmogrant's Crown",
-    "Dark Knight's Greatsword",
-    "Team Pennant",
-    "Sigil of Distinction"
    ]
   },
   {
@@ -1167,25 +1148,6 @@
     "Divine Light",
     "Inner Sanctum",
     "Forfend"
-   ]
-  },
-  {
-   "what": "AddCardSubtypeAttachedEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Astrologian's Planisphere",
-    "Reaper's Scythe",
-    "Blue Mage's Cane",
-    "Dragoon's Lance",
-    "Summoner's Grimoire",
-    "Ninja's Blades",
-    "Warrior's Sword",
-    "Avatar Destiny",
-    "Draconic Destiny",
-    "Spider-Suit",
-    "Dark Knight's Greatsword",
-    "Monk's Fist"
    ]
   },
   {
@@ -1841,6 +1803,23 @@
    ]
   },
   {
+   "what": "keyword EquipAbility",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Mjölnir, Hammer of Thor",
+    "Luxior, Giada's Gift",
+    "Robe of the Archmagi",
+    "Gavel of the Righteous",
+    "My Precious // Allure of Power",
+    "Hand of Vecna",
+    "Transmogrant's Crown",
+    "Team Pennant",
+    "Bloodthorn Flail",
+    "Warrior's Blades"
+   ]
+  },
+  {
    "what": "ConditionalReplacementEffect",
    "score": 10,
    "lines": 10,
@@ -2243,6 +2222,22 @@
     "Moira, Urborg Haunt",
     "Othelm, Sigardian Outcast",
     "Sudden Salvation"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Astrologian's Planisphere",
+    "Reaper's Scythe",
+    "Blue Mage's Cane",
+    "Summoner's Grimoire",
+    "Ninja's Blades",
+    "Avatar Destiny",
+    "Draconic Destiny",
+    "Spider-Suit",
+    "Captain's Hook"
    ]
   },
   {
@@ -6892,8 +6887,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 122,
-   "cards": 116,
+   "score": 121,
+   "cards": 115,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
@@ -6905,8 +6900,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 63,
-   "cards": 63,
+   "score": 64,
+   "cards": 64,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -7409,19 +7404,6 @@
    ]
   },
   {
-   "what": "keyword EquipAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Robe of the Archmagi",
-    "My Precious // Allure of Power",
-    "Nightmare Lash",
-    "Transmogrant's Crown",
-    "Team Pennant",
-    "Demonmail Hauberk"
-   ]
-  },
-  {
    "what": "prevent damage by some permanents",
    "score": 12,
    "cards": 12,
@@ -7852,19 +7834,6 @@
     "Lobelia Sackville-Baggins",
     "Grim Return",
     "Salvager of Ruin"
-   ]
-  },
-  {
-   "what": "AddCardSubtypeAttachedEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Astrologian's Planisphere",
-    "Blue Mage's Cane",
-    "Dragoon's Lance",
-    "Summoner's Grimoire",
-    "Ninja's Blades",
-    "Warrior's Sword"
    ]
   },
   {
@@ -8973,6 +8942,32 @@
     "Call to the Grave",
     "Redcap Raiders",
     "Archdemon of Unx"
+   ]
+  },
+  {
+   "what": "keyword EquipAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Robe of the Archmagi",
+    "My Precious // Allure of Power",
+    "Transmogrant's Crown",
+    "Team Pennant",
+    "Bloodthorn Flail",
+    "Warrior's Blades"
+   ]
+  },
+  {
+   "what": "AddCardSubtypeAttachedEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Astrologian's Planisphere",
+    "Blue Mage's Cane",
+    "Summoner's Grimoire",
+    "Ninja's Blades",
+    "Draconic Destiny",
+    "Spider-Suit"
    ]
   },
   {

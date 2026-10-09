@@ -12125,6 +12125,11 @@
       const r = both(mm2[1] + (mm2[2] ? ' gets ' + mm2[2] + ' and' : '') + ' has "' + q + '"', mm2[1] + ' is a ' + mm2[4] + ' in addition to its other types.');
       if (r) return r;
     }
+    // Dragoon's Lance: "Equipped creature gets +1/+0 and is a Knight in addition to its other types."
+    if ((mm2 = String(line).match(/^((?:Equipped|Enchanted) creature) gets ([+-]\d+\/[+-]\d+) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/))) {
+      const r = both(mm2[1] + ' gets ' + mm2[2] + '.', mm2[1] + ' is a ' + mm2[3] + ' in addition to its other types.');
+      if (r) return r;
+    }
     if ((mm2 = String(line).match(/^(Equipped creature) gets ([+-]\d+\/[+-]\d+), is an? ([A-Z][a-z]+) in addition to its other types, and has "([^"]+)"\.?$/))) {
       const r = both(mm2[1] + ' gets ' + mm2[2] + ' and has "' + mm2[4] + '"', mm2[1] + ' is a ' + mm2[3] + ' in addition to its other types.');
       if (r) return r;
@@ -13125,6 +13130,12 @@
         make: (m) => ({ op: 'equipBonus', p: +m[1], t: +m[2] }), auto: true },
       { re: /^Enchanted creature gets \+(\d+)\/\+(\d+)\.?$/i,
         make: (m) => ({ op: 'auraBonus', p: +m[1], t: +m[2] }), auto: true },
+      /* Pact Weapon, Dissection Tools, Dark Knight's Greatsword: "Equip—Discard
+         a card", "Equip—Sacrifice a creature", "Equip—Pay 3 life" — any cost
+         the table can take, in place of mana */
+      // (with a flavour label in front: "Chaosbringer — Equip—Pay 3 life.")
+      { re: /^(?:[A-Z][A-Za-z' ]+ \u2014 )?Equip\u2014([^{].*?)\.?(?:\s+Activate only once each turn\.?)?$/,
+        make: (m) => { const c = parseCost(m[1]); return c.other.length || c.mana ? null : { op: 'equip', costObj: c, once: /Activate only once/i.test(m[0]) }; }, auto: true },
       { re: /^Equip(?:\s*[-\u2014]\s*[^{]*)? (\{[^}]+\}(?:\{[^}]+\})*)$/i,
         make: (m) => ({ op: 'equip', cost: m[1] }), auto: true },
       // "Equip 2" is the same sentence with the braces left off
@@ -13152,7 +13163,7 @@
       if (eff.op === 'equip' && eff.once) {
         const spec = { type: 'creature', controller: 'you' };
         // (Leather Armor: "Activate only once each turn" — kept on the ability, where the engine counts it)
-        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: parseCost(eff.cost), targets: [spec],
+        return { kind: 'activated', text: line, auto: true, sorcerySpeed: true, cost: eff.costObj || parseCost(eff.cost), targets: [spec],
           only: { perTurn: 1 }, effects: [{ op: 'attachSelf', targets: [spec] }] };
       }
       if (eff.op === 'equip' && eff.discount) {
@@ -13174,7 +13185,7 @@
         else if (eff.only) spec.subtypes = [eff.only.toLowerCase()];
         return {
           kind: 'activated', text: line, auto: true, sorcerySpeed: true,
-          cost: parseCost(eff.cost),
+          cost: eff.costObj || parseCost(eff.cost),
           targets: [spec],
           effects: [{ op: 'attachSelf', targets: [spec] }],
         };
