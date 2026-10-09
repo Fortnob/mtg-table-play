@@ -14712,6 +14712,37 @@
           this.logEvent('rules', `${me.name} may cast ${x.name} from their graveyard this turn.`);
           break;
         }
+        // Beseech the Mirror: a card found and set aside; cast for nothing if bargained and cheap enough, otherwise to hand
+        case 'beseech': {
+          const r = this.resolving;
+          const slot = r ? r.index + ':beseech' : null;
+          r && (r.marks = r.marks || {});
+          let id = r && r.marks[slot];
+          const z = this.zones[ctx.controller];
+          if (!id) {
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, fromLibrary: true,
+              cards: z.library.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: 'Search your library for a card.' }, 'bs');
+            if (picked === SUSPEND) return SUSPEND;
+            const c = (picked || []).map(x => this.obj(x)).find(x => x && x.zone === 'library');
+            if (!c) { this.rng.shuffle(z.library); break; }
+            this.moveObject(c, 'exile'); c.faceDownExile = true;
+            this.rng.shuffle(z.library);
+            id = c.id;
+            if (r) r.marks[slot] = id;
+          }
+          const c = this.obj(id);
+          if (!c || c.zone !== 'exile') break;
+          const bargained = this._condMet({ kind: 'bargained' }, ctx);
+          const ca = c.analysis() || {};
+          if (bargained && !ca.isLand && ((c.card && c.card.cmc) || 0) <= e.maxMv) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'castCopy', prompt: `Cast ${c.name} without paying its mana cost?` }, 'bsc');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) { c.faceDownExile = false; this._castFree(ctx.controller, c); break; }
+          }
+          c.faceDownExile = false;
+          this.moveObject(c, 'hand');
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

@@ -11951,4 +11951,24 @@ module.exports = (test) => {
     T.mana('A', 'R');
     t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), 'no more spells this turn');
   });
+
+  test('Beseech the Mirror: to hand, or cast for nothing when bargained', (mk, t) => {
+    t.auto('Beseech the Mirror');
+    const T = mk();
+    const bear = T.top('A', 'Grizzly Bears');
+    T.answer('pickCard', () => ({ cardIds: [bear.id] }));
+    T.mana('A', '1BBB');
+    T.cast('A', T.hand('A', 'Beseech the Mirror'), { bargain: null });
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'hand', 'not bargained: to hand');
+    const T2 = mk();
+    const b2 = T2.top('A', 'Grizzly Bears');
+    const tok = T2.bf('A', 'Sol Ring');
+    T2.answer('pickCard', () => ({ cardIds: [b2.id] }));
+    T2.answer('confirm', { yes: true });
+    T2.mana('A', '1BBB');
+    T2.cast('A', T2.hand('A', 'Beseech the Mirror'), { bargain: tok.id });
+    T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
+    t.eq(b2.zone, 'battlefield', 'bargained: cast for free'); t.eq(tok.zone, 'graveyard');
+  });
 };

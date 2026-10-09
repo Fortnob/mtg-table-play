@@ -5452,6 +5452,13 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Beseech the Mirror: "Search your library for a card, exile it face
+       down, then shuffle. If this spell was bargained, you may cast the
+       exiled card without paying its mana cost if that spell's mana value is
+       4 or less. Put the exiled card into your hand if it wasn't cast this
+       way." */
+    { re: /^Search your library for a card, exile it face down, then shuffle\. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell'?s mana value is (\d+) or less\. Put the exiled card into your hand if it wasn'?t cast this way\.$/i,
+      make: (m) => [{ op: 'beseech', maxMv: +m[1] }] },
     /* Conduit of Worlds: "Choose target nonland permanent card in your
        graveyard. If you haven't cast a spell this turn, you may cast that
        card. If you do, you can't cast additional spells this turn." */
