@@ -707,8 +707,10 @@
         if (!e) continue;
         if (e.op === 'modal') { for (const m of e.modes || []) run(m.effects, { obj: false, spell: false, pl: false }); continue; }
         // Immersturm Skullcairn: "deals 3 damage to target player. That player discards a card."
-        if (e.who === 'triggerPlayer' && st.pl && /^(?:That player|They)\b/.test(e.text || '')) e.who = 'target';
-        if (!playersOnly && e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
+        // Skullwinder: after "choose an opponent", "that player" is the one chosen, whatever was targeted before
+        if (e.op === 'chooseOpponent') st.chosen = true;
+        if (!st.chosen && e.who === 'triggerPlayer' && st.pl && /^(?:That player|They)\b/.test(e.text || '')) e.who = 'target';
+        if (!st.chosen && !playersOnly && e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
           // (a spell's controller, after it may have been countered, is not kept: Frightful Delusion)
           if (st.obj && ops.includes(e.op)) e.who = 'targetController'; else ok = false;
         }
@@ -5486,6 +5488,9 @@
       make: (m) => { const who = /^that/i.test(m[1]) ? 'triggerPlayer' : /opponent/i.test(m[1]) ? 'opponents' : 'each';
         // (each carries the sentence: "that player" in a spell is the one it targets)
         return { op: 'sequence', list: [m[2], m[3]].map(f => ({ op: 'sacrificeChoice', n: 1, who, filter: f.toLowerCase(), text: m[0] })) }; } },
+    // Skullwinder: "That player returns a card from their graveyard to their hand." — they choose
+    { re: /^That player returns (a|an) ([a-z ]*?)card from their graveyard to their hand\.?$/i,
+      make: (m) => ({ op: 'graveyardPick', who: 'triggerPlayer', n: 1, upTo: false, filter: m[2].trim().toLowerCase() || 'card', to: 'hand' }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")

@@ -12694,14 +12694,16 @@
         /* "return a creature card from your graveyard to your hand" — no
            target: chosen as it resolves, from what is there by then */
         case 'graveyardPick': {
-          const yard = (this.zones[ctx.controller] || {}).graveyard || [];
+          // Skullwinder: "That player returns a card from their graveyard to their hand" — the chosen opponent, from theirs (gyPickOwner)
+          const gyOwner = e.who === 'triggerPlayer' ? (triggerPlayer() || firstPlayer() || me) : me;
+          const yard = (this.zones[gyOwner.id] || {}).graveyard || [];
           const pool = yard.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card') &&
             (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
           const want = Math.min(n(e.n) || 1, pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
           if (pool.length > want || e.upTo) {
-            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: want, optional: !!e.upTo,
+            const picked = this._ask({ type: 'pickCard', playerId: gyOwner.id, count: want, optional: !!e.upTo,
               cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
               prompt: `Return ${want === 1 ? 'a' : want} ${e.filter || 'card'} card${want === 1 ? '' : 's'} from your graveyard.` }, 'gy');
             if (picked === SUSPEND) return SUSPEND;
@@ -12710,7 +12712,7 @@
           for (const id of ids) {
             const c = this.obj(id);
             if (!c) continue;
-            this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: ctx.controller });
+            this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: gyOwner.id });
             // Teval: "to the battlefield tapped"
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             // Scavenger's Talent: "with a finality counter on it"

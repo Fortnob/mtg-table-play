@@ -16137,4 +16137,21 @@ module.exports = (test) => {
     T.settle();
     t.ok(T.g.activateAbility('A', pad.id, k, { auto: true }), 'a Rat entered');
   });
+
+  test('Skullwinder: you return a card, then the chosen opponent returns one of theirs', (mk, t) => {
+    t.auto('Skullwinder');
+    const T = mk();
+    T.toMain('A');
+    const mine = T.grave('A', 'Grizzly Bears');
+    const theirs = T.grave('B', 'Llanowar Elves'), theirs2 = T.grave('B', 'Craw Wurm');
+    let asked = null;
+    T.answer('pickCard', (q) => { asked = q.playerId; return { cardIds: [theirs.id] }; });
+    T.mana('A', 'GCC');
+    T.cast('A', T.hand('A', 'Skullwinder'));
+    T.settle(); T.resolve(); T.settle();
+    t.zone(mine, 'hand', 'yours back');
+    t.eq(asked, 'B', 'the opponent picks');
+    t.zone(theirs, 'hand', 'the one they picked');
+    t.zone(theirs2, 'graveyard');
+  });
 };
