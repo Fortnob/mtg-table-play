@@ -11412,6 +11412,9 @@
         // Tempting offer: what an opponent who took it does, done as that player
         const ctxNow = e._as ? Object.assign({}, r.ctx, { controller: e._as }) : r.ctx;
         // who is doing it, for "if you would put one or more counters…"
+        // Abstract Paintmage: what mana this makes, for a "spend this mana only" after it (restrictedMana)
+        const manaBy = /^addMana/.test(e.op || '') ? this.player(ctxNow.controller) : null;
+        const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
@@ -11419,7 +11422,7 @@
           r.index++;
           continue;
         }
-        finally { this._putBy = null; }
+        finally { this._putBy = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
         r.index++;
       }
@@ -12049,6 +12052,21 @@
       };
 
       switch (e.op) {
+        /* Abstract Paintmage, Tablet-style rituals: "Spend this mana only to cast
+           instant and sorcery spells" after a triggered ability or spell made
+           it — that mana is set aside with its restriction (restrictedMana) */
+        case 'spendOnly': {
+          const lm = this._lastAddedMana;
+          if (!lm || lm.pid !== me.id || e.open) break;
+          me.restricted = me.restricted || [];
+          let k = 0;
+          for (const c of MANA.COLORS.concat('C')) {
+            const made = Math.max(0, (Number(me.pool[c]) || 0) - (Number(lm.before[c]) || 0));
+            for (let i = 0; i < made; i++) { me.pool[c]--; me.restricted.push({ color: c, spendOnly: e, srcId: src ? src.id : null }); k++; }
+          }
+          if (k) this.logEvent('mana', `${src ? src.name : ctx.name || 'That'}'s mana can only be spent as it says.`);
+          break;
+        }
         case 'addMana':
           for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
             if (/^\d+$/.test(s)) { for (let i = 0; i < +s; i++) me.pool.add('C'); continue; }

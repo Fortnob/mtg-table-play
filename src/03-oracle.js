@@ -1160,8 +1160,8 @@
        kept with the ability that makes it. */
     { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z /]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?\.?$/i,
       make: (m) => {
-        // (Codsworth: "Aura and/or Equipment spells" — either one)
-        const words = m[1].trim().toLowerCase().replace(/ and\/or /, ' or ');
+        // (Codsworth: "Aura and/or Equipment spells" — either one; Tablet of Discovery: "instant and sorcery spells")
+        const words = m[1].trim().toLowerCase().replace(/ and(?:\/or)? /, ' or ');
         if (!/^(?:creature|artifact|legendary|instant or sorcery|instant|sorcery|enchantment|colorless|noncreature|dragon|[a-z]+ creature|(?:colorless )?[a-z]+|[a-z]+ or [a-z]+)$/.test(words)) return null;
         const out = { op: 'spendOnly', words: words + ' spell', chosenType: !!m[2], uncounterable: !!m[3] };
         /* "…or activate abilities of creatures" (Castle Garenbrig, Eldrazi
@@ -11073,8 +11073,11 @@
     /* "Spend this mana only to cast Dragon spells" on a loyalty ability is
        a restriction the table only keeps for mana abilities; elsewhere the
        line is left for a person. */
+    // (Abstract Paintmage: right after the mana it is about, the table keeps it — restrictedMana)
+    const keptRestriction = (list) => (list || []).every((e, i) => !e || e.op !== 'spendOnly' ||
+      (!e.open && i > 0 && /^addMana/.test((list[i - 1] || {}).op || '')));
     for (const ab of out.abilities) {
-      if (ab.kind !== 'mana' && (ab.effects || []).some(e => e && e.op === 'spendOnly') && ab.auto) {
+      if (ab.kind !== 'mana' && (ab.effects || []).some(e => e && e.op === 'spendOnly') && ab.auto && !keptRestriction(ab.effects)) {
         ab.auto = false;
         autoLines--;
       }

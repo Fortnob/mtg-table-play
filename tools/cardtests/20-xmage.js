@@ -15624,4 +15624,39 @@ module.exports = (test) => {
     t.eq(elf.counters['+1/+1'], undefined, 'not an Elf');
     t.eq(stale.counters['+1/+1'], undefined, 'not one from before');
   });
+
+  test('Geosurge, Abstract Paintmage: mana from a spell or trigger keeps its restriction', (mk, t) => {
+    t.auto('Geosurge');
+    t.auto('Abstract Paintmage');
+    t.auto('Vex');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'RRRR');
+    T.cast('A', T.hand('A', 'Geosurge'));
+    T.settle();
+    const p = T.player('A');
+    t.eq(p.pool.R || 0, 0, 'the seven red are set aside');
+    t.eq(p.restricted.length, 7);
+    let threw = false;
+    try { T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); } catch (err) { threw = true; }
+    t.ok(threw, 'not for an instant');
+    T.cast('A', T.hand('A', 'Hill Giant'));
+    T.settle();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Hill Giant').length, 1, 'a creature spell can use it');
+    t.eq(p.restricted.length, 3, 'three left');
+    // Vex: the countered spell's controller decides
+    const V = mk();
+    V.toMain('A');
+    let asked = null;
+    V.answer('confirm', (q) => { asked = q.playerId; return { yes: true }; });
+    V.mana('A', '1G');
+    V.cast('A', V.hand('A', 'Grizzly Bears'), { resolve: false });
+    const item = V.g.stack[V.g.stack.length - 1];
+    const vex = engine().oracle.analyze(card('Vex'));
+    const handA = V.zone('A', 'hand').length;
+    V.g._runEffects(vex.abilities[0].effects, { controller: 'B', name: 'Vex', kind: 'spell', targets: [{ kind: 'stack', id: item.id }] });
+    V.settle();
+    t.eq(asked, 'A', "the Bears' controller is asked");
+    t.eq(V.zone('A', 'hand').length, handA + 1, 'and draws');
+  });
 };

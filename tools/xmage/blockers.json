@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11410,
-  "gainedCards": 1134,
-  "linesNeeded": 12221,
+  "needed": 11403,
+  "gainedCards": 1135,
+  "linesNeeded": 12218,
   "linesGained": 1344,
   "gained": {
-   "all": 1134,
+   "all": 1135,
    "top2000": 46,
    "stdTop": 8
   },
@@ -3240,19 +3240,6 @@
    ]
   },
   {
-   "what": "ConditionalAnyColorManaAbility shape",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Resonating Lute",
-    "Crucible of the Spirit Dragon",
-    "Thieving Varmint",
-    "Overgrown Zealot",
-    "Rootcoil Creeper",
-    "Jeweled Lotus"
-   ]
-  },
-  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 6,
    "lines": 6,
@@ -4320,6 +4307,18 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
+   ]
+  },
+  {
+   "what": "ConditionalAnyColorManaAbility shape",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Crucible of the Spirit Dragon",
+    "Thieving Varmint",
+    "Overgrown Zealot",
+    "Rootcoil Creeper",
+    "Jeweled Lotus"
    ]
   },
   {
@@ -5861,17 +5860,6 @@
    ]
   },
   {
-   "what": "AddConditionalManaEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Abstract Paintmage",
-    "Smoky Lounge // Misty Salon",
-    "Karolina Dean, Runaway",
-    "Niko Defies Destiny"
-   ]
-  },
-  {
    "what": "FightEnchantedTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6707,6 +6695,16 @@
     "Sauron, Lord of the Rings",
     "Summons of Saruman",
     "Invade the City"
+   ]
+  },
+  {
+   "what": "token ability PestBlackGreenDiesToken",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Tend the Pests",
+    "Pest Rescuer",
+    "Eccentric Pestfinder // Turn Stones"
    ]
   }
  ],
@@ -9204,18 +9202,6 @@
    ]
   },
   {
-   "what": "ConditionalAnyColorManaAbility shape",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Resonating Lute",
-    "Crucible of the Spirit Dragon",
-    "Thieving Varmint",
-    "Overgrown Zealot",
-    "Jeweled Lotus"
-   ]
-  },
-  {
    "what": "targeted by FilterSpell",
    "score": 5,
    "cards": 5,
@@ -10186,6 +10172,17 @@
     "Willbreaker",
     "Horobi, Death's Wail",
     "Cowardice"
+   ]
+  },
+  {
+   "what": "ConditionalAnyColorManaAbility shape",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Crucible of the Spirit Dragon",
+    "Thieving Varmint",
+    "Overgrown Zealot",
+    "Jeweled Lotus"
    ]
   },
   {
