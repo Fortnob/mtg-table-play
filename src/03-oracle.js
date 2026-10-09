@@ -12653,6 +12653,9 @@
         make: (m) => ({ op: 'blockPowerLimit', min: +m[1] }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'evasion', defenderControls: m[1].trim().toLowerCase() }), auto: true },
+      // Suq'Ata Firewalker: "can't be the target of red spells or abilities from red sources" — anyone's
+      { re: /^(?:CARDNAME|This creature) can'?t be the target of (white|blue|black|red|green) spells or abilities from (white|blue|black|red|green) sources\.?$/i,
+        make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'untargetableBy', q: [m[1].toLowerCase()] } : null), auto: true },
       // Goblin Goon, Monstrous Hound: "can't attack unless you control more creatures than defending player"
       { re: /^(?:CARDNAME|This creature) can'?t attack unless you control more (creature|land)s than defending player\.?$/i,
         make: (m) => ({ op: 'attackRequires', moreThanDefender: m[1].toLowerCase() }), auto: true },

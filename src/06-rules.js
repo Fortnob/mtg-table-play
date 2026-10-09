@@ -2554,6 +2554,11 @@
       return seen.size;
     }
     /** Hexproof from a quality (Knight of Grace, Veil of Summer): does this source have one of them? */
+    /** Suq'Ata Firewalker: no spell or ability from a source of that colour may target it, whoever controls it. */
+    _untargetableHit(o, source) {
+      const e = o && source && this._staticOp(o, 'untargetableBy');
+      return !!e && (e.q || []).some(q => this._matchesProtection(q, source));
+    }
     _hexproofFromHit(o, source) {
       if (!o || !source) return false;
       const qs = [];
@@ -2630,6 +2635,7 @@
         if (o.zone === 'battlefield') {
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
+          if (item.obj && this._untargetableHit(o, item.obj)) return false;
           if (this.hasKw(o, 'shroud')) return false;
           // protection from a quality the spell or ability's source has
           if (item.obj && this._protectedFrom(o, item.obj)) return false;
@@ -21456,6 +21462,7 @@
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && s0 !== o && this._protectedFrom(o, s0)) continue; }
         // hexproof from a quality: not by an opponent's spell or ability with it (CR 702.11d)
         if (zone === 'battlefield' && sourceId && o.controller !== controllerId) { const s0 = this.obj(sourceId); if (s0 && this._hexproofFromHit(o, s0)) continue; }
+        if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0)) continue; }
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
       if (spec.type === 'any') out.push(...players());

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11679,
+  "needed": 11676,
   "gainedCards": 1171,
-  "linesNeeded": 12546,
+  "linesNeeded": 12543,
   "linesGained": 1392,
   "gained": {
    "all": 1171,
@@ -5172,18 +5172,6 @@
    ]
   },
   {
-   "what": "CantBeTargetedSourceEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Gaea's Revenge",
-    "Wall of Shadows",
-    "Mercenary Informer",
-    "Rebel Informer",
-    "Raiding Party"
-   ]
-  },
-  {
    "what": "CastOnlyIfConditionIsTrueAbility",
    "score": 5,
    "lines": 5,
@@ -6214,17 +6202,6 @@
    ]
   },
   {
-   "what": "(constructor: assignment)",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Banewhip Punisher",
-    "Ammit Eternal",
-    "Suq'Ata Firewalker",
-    "Bull Elephant"
-   ]
-  },
-  {
    "what": "keyword AftermathAbility",
    "score": 4,
    "lines": 4,
@@ -6828,6 +6805,26 @@
     "The Wise Mothman",
     "Mirelurk Queen",
     "Screeching Scorchbeast"
+   ]
+  },
+  {
+   "what": "TargetCardInGraveyardBattlefieldOrStack",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Angel of Serenity",
+    "Endless Detour",
+    "Daretti, Ingenious Iconoclast"
+   ]
+  },
+  {
+   "what": "DiesOneOrMoreTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Chainsaw",
+    "Rinoa, Angel Wing",
+    "Blood Spatter Analysis"
    ]
   }
  ],

@@ -14575,4 +14575,17 @@ module.exports = (test) => {
     U.toMain('A', 'endCombat');
     t.eq(U.life('B'), 20, 'and deals no damage');
   });
+  test("Suq'Ata Firewalker can't be the target of red spells, even its controller's", (mk, t) => {
+    t.auto("Suq'Ata Firewalker");
+    t.auto('Mercenary Informer');
+    const T = mk();
+    T.toMain('A');
+    const fw = T.bf('A', "Suq'Ata Firewalker");
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const shock = { type: 'any' };
+    const ids = (src) => T.g._legalTargetsFor(shock, 'A', src.id).map(x => x.id);
+    t.no(ids(bolt).includes(fw.id), 'not by Lightning Bolt');
+    const ray = T.hand('A', 'Disfigure');
+    t.ok(ids(ray).includes(fw.id), 'a black spell may');
+  });
 };
