@@ -3056,6 +3056,8 @@
     { re: /^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i,
       make: () => ({ op: 'wheel', n: 'mostDiscarded' }) },
     { re: /^Each player discards their hand,? then draws that many cards\.?$/i, make: () => ({ op: 'wheel', n: 'sameDiscarded' }) },
+    // Temporal Cascade: "Each player shuffles their hand and graveyard into their library." — and draws nothing
+    { re: /^Each player shuffles their hand and graveyard into their library\.?$/i, make: () => ({ op: 'twister', who: 'each', n: 0, noDraw: true }) },
     // Incendiary Command, Collective Defiance, Borrowed Knowledge: the same with other words
     { re: /^(Each player|Target player) discards all the cards in their hand, then draws that many cards\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'wheel', who: 'target', n: 'sameDiscarded', targets: [{ type: 'player' }] } : { op: 'wheel', n: 'sameDiscarded' }) },
@@ -3862,6 +3864,10 @@
     // the Karoo lands: "return a land you control to its owner's hand"
     { re: /^Return an? ([a-z][a-z ]*?) you control to (?:its|their) owner'?s hand\.?$/i,
       make: (m) => ({ op: 'returnOwn', filter: m[1].trim().toLowerCase(), n: 1 }) },
+    // Blizzard Specter: "That player returns a permanent they control to its owner's hand." — their choice
+    { re: /^(That player|Target player|Target opponent) returns an? ([a-z][a-z ]*?) they control to (?:its|their) owner'?s hand\.?$/i,
+      make: (m) => Object.assign({ op: 'returnOwn', filter: m[2].trim().toLowerCase(), n: 1, who: /^that/i.test(m[1]) ? 'triggerPlayer' : 'target' },
+        /^target/i.test(m[1]) ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {}) },
     { re: /^Return (two|three|\d+) ([a-z][a-z ]*?) you control to (?:its|their) owner'?s hand\.?$/i,
       make: (m) => ({ op: 'returnOwn', filter: m[2].trim().toLowerCase(), n: num(m[1]) }) },
     { re: /^Return (?:CARDNAME|this permanent|this creature|this land) to (?:its|their) owner'?s hand\.?$/i,

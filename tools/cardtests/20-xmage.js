@@ -15387,4 +15387,19 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 20, 'no damage');
   });
+
+  test('Sunken Hope: in each upkeep, that player returns one of their creatures to hand', (mk, t) => {
+    t.auto('Sunken Hope');
+    t.auto('Mana Breach');
+    t.auto('Temporal Cascade');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Sunken Hope');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Hill Giant');
+    T.g._fire('eachUpkeep', null, { playerId: 'B' });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'hand', "B returns their only creature");
+    t.zone(mine, 'battlefield', "A's creature stays");
+  });
 };

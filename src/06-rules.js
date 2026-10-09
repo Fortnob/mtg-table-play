@@ -14349,6 +14349,8 @@
             this.rng.shuffle(z.library);
           }
           this.emit('sfx', 'shuffle');
+          // Temporal Cascade: shuffled away, and nothing drawn
+          if (e.noDraw) { this.logEvent('wheel', `${live.length > 1 ? 'Everyone shuffles' : me.name + ' shuffles'} hand and graveyard into their library.`); break; }
           for (const p of live) this._drawCards(p, n(e.n) || 7);
           this.logEvent('wheel', `${live.length > 1 ? 'Everyone shuffles' : me.name + ' shuffles'} hand and graveyard away and draws ${n(e.n) || 7}.`);
           break;
@@ -14474,13 +14476,16 @@
             }
             break;
           }
-          const list = this.battlefield.filter(o => o.controller === ctx.controller &&
+          // Blizzard Specter: "that player returns a permanent they control" — theirs, and their choice
+          const owner = e.who === 'triggerPlayer' ? triggerPlayer() : e.who === 'target' ? firstPlayer() : me;
+          if (!owner) break;
+          const list = this.battlefield.filter(o => o.controller === owner.id &&
             !(e.other && o === src) && this._fitsFilter(o, e.filter || 'permanent'));
           if (!list.length) break;
           const want = Math.min(n(e.n) || 1, list.length);
           const what = e.filter || 'permanent';
           const picked = this._ask({
-            type: 'pickCard', playerId: ctx.controller, count: want, worst: true,
+            type: 'pickCard', playerId: owner.id, count: want, worst: true,
             cards: list.map(o => ({ id: o.id, name: o.name, card: o.card })),
             prompt: `Return ${want === 1 ? 'a' : want} ${what}${want === 1 ? '' : 's'} you control to your hand.`,
           }, 'own');
@@ -14489,7 +14494,7 @@
             const o = this.obj(id);
             if (!o || o.zone !== 'battlefield') continue;
             this.moveObject(o, 'hand');
-            this.logEvent('bounce', `${me.name} returns ${o.name} to their hand.`);
+            this.logEvent('bounce', `${owner.name} returns ${o.name} to their hand.`);
             // Arid Archway: "if another Desert was returned this way"
             (this._returnedNow = this._returnedNow || []).push({ id: o.id, self: !!src && o.id === src.id, subtypes: ((o.analysis() || {}).subtypes || []).slice() });
           }
