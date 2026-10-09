@@ -8237,6 +8237,19 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        costs nothing extra); one that fails is answered with '' from then on,
        which every screen already reads as "write the card out instead", and
        'scryfall:images' tells whatever is showing it to look again. */
+    /**
+     * A picture that would not show: dropped from the pictures kept on this
+     * device (sw.js), so the next time it is fetched afresh. Nothing happens
+     * where there is no worker (Node, a plain http address).
+     */
+    forgetArt(url) {
+      try {
+        const sw = typeof navigator !== 'undefined' && navigator.serviceWorker;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;   // offline: the copy kept is not to blame
+        if (url && sw && sw.controller) sw.controller.postMessage({ type: 'forget', url: String(url) });
+      } catch (e) { /* nothing kept to forget */ }
+    }
+
     imageUsable(url, size) {
       if (!url || typeof Image === 'undefined') return !!url;
       const st = this._img || (this._img = { bad: new Set(), tried: new Set() });
@@ -8247,6 +8260,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         probe.decoding = 'async';
         probe.onerror = () => {
           st.bad.add(url);
+          this.forgetArt(url);
           // a picture that failed while the connection was down may well load later
           setTimeout(() => { st.bad.delete(url); st.tried.delete(url); }, 1000 * 60 * 5);
           if (!this._imgTell) this._imgTell = U.debounce(() => MTG.bus.emit('scryfall:images'), 200);
@@ -12646,6 +12660,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const one = m[1].replace(/s$/, '');
         return { op: 'exchangeControl', targets: [targetSpec('target ' + one), targetSpec('another target ' + one)] };
       } },
+    // Avarice Totem, Eyes Everywhere: "Exchange control of this artifact and target nonland permanent." (withSelf)
+    { re: /^Exchange control of (?:this (?:artifact|enchantment|creature|permanent)|CARDNAME) and (target [a-z ]+?)\.?$/i,
+      make: (m) => { const b = targetSpec(m[1]); return b && !b.unknown ? { op: 'exchangeControl', withSelf: true, targets: [b] } : null; } },
     /* Oko, Thief of Crowns: "Exchange control of target artifact or
        creature you control and target creature an opponent controls with
        power 3 or less." */
@@ -13411,6 +13428,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
     // The Stasis Coffin: "You gain protection from everything until your next turn."
     { re: /^You gain protection from everything until your next turn\.?$/i, make: () => ({ op: 'playerProtection' }) },
+    // Shallow Grave, Corpse Dance, Mistmoon Griffin: "Return the top creature card of your graveyard to the battlefield."
+    { re: /^Return the top creature card of your graveyard to the battlefield\.?$/i, make: () => ({ op: 'reanimateTop', filter: 'creature' }) },
+    /* Incremental Growth, Incremental Blight: "Put a +1/+1 counter on target creature, two +1/+1
+       counters on another target creature, and three +1/+1 counters on a third target creature." */
+    { re: /^Put an? ([+-]1\/[+-]1) counter on target creature, two \1 counters on another target creature, and three \1 counters on a third target creature\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [1, 2, 3].map(k => ({ op: 'counters', kind: m[1], n: k,
+        targets: [Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield' }, k > 1 ? { distinct: true } : {})] })) }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -13434,6 +13458,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // --- life ---
     { re: /^Your life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1] }) },
     { re: /^Each opponent'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'opponents' }) },
+    // Biorhythm, Shaman of Forgotten Ways: "Each player's life total becomes the number of creatures they control."
+    { re: /^Each player'?s life total becomes the number of (creatures|lands|permanents|artifacts) they control\.?$/i,
+      make: (m) => ({ op: 'setLife', who: 'each', n: { eachControls: m[1].toLowerCase().replace(/s$/, '') } }) },
+    // Magus of the Mirror, Mirror Universe: "Exchange life totals with target opponent."
+    { re: /^Exchange life totals with target (opponent|player)\.?$/i,
+      make: (m) => ({ op: 'exchangeLife', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
 
     // --- static/global that the engine tracks ---
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
@@ -13587,9 +13617,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
     /* ===== a graveyard anybody can reach into ===== */
     // (Ink-Eyes, Scion of Darkness: "from that player's graveyard" — the player it dealt damage to, picked as it resolves)
-    { re: /^Put target creature card from (a|an opponent'?s|that player'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
+    // (Rakshasa Debaser: "from defending player's graveyard")
+    { re: /^Put target creature card from (a|an opponent'?s|that player'?s|defending player'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
       make: (m) => Object.assign({ op: 'reanimate', mine: true, targets: [Object.assign({ type: 'creature', zone: 'graveyard' },
-        /opponent/i.test(m[1]) ? { controller: 'opponent' } : /that player/i.test(m[1]) ? { controller: 'triggerPlayer' } : {})] },
+        /opponent/i.test(m[1]) ? { controller: 'opponent' } : /that player/i.test(m[1]) ? { controller: 'triggerPlayer' } : /defending/i.test(m[1]) ? { defending: true } : {})] },
         m[2] ? { counter: m[2].toLowerCase() } : {}) },
     { re: /^Return target creature card from a graveyard to the battlefield under your control\.?$/i,
       make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
@@ -15569,6 +15600,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'drawDiscard', n: num(m[1]), discard: num(m[2]) }) },
     { re: /^(?:You )?draws? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? and (?:you )?loses? (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'loseLife', n: num(m[2]), who: 'you' }] }) },
+    // Mutiny, Breaking of the Fellowship: "Target creature an opponent controls deals damage equal to its power to another target creature that player controls."
+    { re: /^Target creature an opponent controls deals damage equal to its power to another target creature that player controls\.?$/i,
+      make: () => ({ op: 'damageByPower', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', controller: 'opponent' },
+        { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true, sameControllerAsPrev: true }] }) },
     { re: /^Target (?:creature|permanent) deals damage equal to its power to (any target|another target creature|target creature|target player|target opponent|target planeswalker)\.?$/i,
       make: (m) => ({ op: 'damageByPower', targets: [{ type: 'creature' }, targetSpec(m[1].replace(/^another /i, ''))] }) },
     { re: /^Target player (?:puts|mills) the top (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? of (?:their|his or her) library into (?:their|his or her) graveyard\.?$/i,
@@ -16785,6 +16820,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Vexing Devil, Longhorn Firebeast: "any opponent may have it deal 4 damage to them. If a player does, sacrifice this creature."
+    { re: /^Any opponent may have it deal (\d+) damage to them\. If a player does, sacrifice (?:this creature|CARDNAME)\.$/i,
+      make: (m) => [{ op: 'opponentMayTakeDamage', n: +m[1] }] },
     /* Othelm, Salvager of Ruin, Samwise, Grim Return: "Choose (up to one) target creature card in
        your graveyard (a graveyard) that was put there from the battlefield this turn. Return it to the
        battlefield tapped (to your hand)." / "Put that card onto the battlefield under your control." */
@@ -17185,6 +17223,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        X or less." (picked as it resolves) */
     { re: /^Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less\.$/i,
       make: () => [{ op: 'returnDifferentNames', differentMv: true, filter: 'creature', maxMv: 'X' }] },
+    // Meteor Blast, Firestorm: "CARDNAME deals 4 (X) damage to each of X targets."
+    { re: /^CARDNAME deals (X|\d+|one|two|three|four|five) damage to each of X targets\.$/i,
+      make: (m) => [{ op: 'damage', n: /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'X', exact: true } }] }] },
     // Crackle with Power: "CARDNAME deals five times X damage to each of up to X targets."
     { re: /^CARDNAME deals (two|three|four|five) times X damage to each of up to X targets\.$/i,
       make: (m) => [{ op: 'damage', n: { xTimes: num(m[1]) }, targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'X', exact: false } }] }] },
@@ -20473,6 +20514,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         // "Whenever this creature attacks, double its power": its own power
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
+        // Sleeper Agent, Goblin Cadets: "target opponent gains control of it" — this creature
+        if (trig.self) body = body.replace(/^target (opponent|player) gains control of it\b/i, 'target $1 gains control of CARDNAME');
         /* Narcomoeba: "When this card is put into your graveyard from your
            library, you may put it onto the battlefield" — "it" is the card */
         /* Patron of the Vein, Promise of Tomorrow: "Whenever a creature … dies,
@@ -21844,7 +21887,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Crippling Fear: "Creatures that aren't of the chosen type"
     /* Kjeldoran Frostbeast: "creatures blocking or blocked by this creature";
        Wall of Nets: "creatures blocked by this creature" */
-    if ((mm0 = rest.match(/ (blocking or blocked by|blocked by|blocking) (?:this creature|CARDNAME)$/i))) {
+    // (Battle-Scarred Goblin, Trailblazer's Torch: "each creature blocking it")
+    if ((mm0 = rest.match(/ (blocking or blocked by|blocked by|blocking) (?:this creature|CARDNAME|it)$/i))) {
       sc.combatWithSelf = /blocking or/i.test(mm0[1]) ? 'either' : /^blocked/i.test(mm0[1]) ? 'blockedBy' : 'blocking';
       rest = rest.slice(0, mm0.index);
     }
@@ -22916,7 +22960,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -23565,6 +23609,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // Alpha Authority: "Enchanted creature can't be blocked by more than one creature."
       { re: /^(Enchanted|Equipped) creature can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'oneBlocker' }, auto: true },
+      // Challenger Troll, Flopsie: "Each creature you control with power 4 or greater can't be blocked by more than one creature." — its power as blockers are declared
+      { re: /^Each creature you control with power (\d+) or greater can'?t be blocked by more than one creature\.?$/i,
+        make: (m) => ({ op: 'oneBlockerPower', n: +m[1] }), auto: true },
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
@@ -33542,7 +33589,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const at = this.obj(aid);
           const ev = at && this._staticOp(at, 'evasion');
           // (Familiar Ground: handed to each creature its controller controls)
-          if (!((ev && ev.oneBlocker) || (at && this._hasFlag(at, 'oneBlocker'))) || n < 2) continue;
+          // Challenger Troll: its controller's creatures with power 4 or greater, as blockers are declared (oneBlockerPower)
+          const big = at && this.battlefield.some(s0 => s0.controller === at.controller && !s0.phasedOut && (this._staticOp(s0, 'oneBlockerPower') || {}).n != null &&
+            this.powerOf(at) >= this._staticOp(s0, 'oneBlockerPower').n);
+          if (!((ev && ev.oneBlocker) || big || (at && this._hasFlag(at, 'oneBlocker'))) || n < 2) continue;
           if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked by more than one creature.`);
           let kept = false;
           declarations = declarations.map(d => {
@@ -39292,7 +39342,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         /* Switcheroo: "Exchange control of two target creatures." Both
            change hands at once, or neither does (CR 701.12b). */
         case 'exchangeControl': {
-          const pair = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && x.zone === 'battlefield');
+          // Avarice Totem: this permanent and the one targeted (withSelf)
+          const pair = (e.withSelf ? [src] : []).concat(targets.filter(t => t.kind === 'object').map(t => this.obj(t.id))).filter(x => x && x.zone === 'battlefield');
           if (pair.length !== 2 || pair[0].controller === pair[1].controller) {
             this.logEvent('control', 'Nothing changes hands.');
             break;
@@ -39765,12 +39816,31 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         case 'setLife': {
           // Blessed Wind: "Target player's life total becomes 20."
-          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
           /* a life total that "becomes" a number gains or loses the difference
              (CR 119.5); The Endstone: half the starting life total */
           const start = (this.config && this.config.startingLife) || 20;
-          const to = e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n);
-          for (const p of who) { if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); }
+          // Biorhythm: each player's own count, all worked out before any life changes (eachControls)
+          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
+            : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
+          who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
+          break;
+        }
+        /* Magus of the Mirror: "Exchange life totals with target opponent." Each
+           gains or loses the difference (CR 701.12c); a life total that can't
+           change means no exchange at all (exchangeLife) */
+        case 'exchangeLife': {
+          const other = firstPlayer();
+          if (!other || other === me || other.hasLost) break;
+          if (this._lifeFrozen(me) || this._lifeFrozen(other) ||
+            (me.life < other.life && this._lifeGainStopped(me)) || (other.life < me.life && this._lifeGainStopped(other))) {
+            this.logEvent('life', `${me.name} and ${other.name} can't exchange life totals.`);
+            break;
+          }
+          const a0 = me.life, b0 = other.life;
+          if (a0 !== b0) { this.changeLife(me, b0 - a0); this.changeLife(other, a0 - b0); }
+          this.logEvent('life', `${me.name} and ${other.name} exchange life totals.`);
           break;
         }
 
@@ -40394,6 +40464,23 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
         }
         // Combustible Gearhulk: "target opponent may have you draw three cards. If the player doesn't, …"
+        /* Vexing Devil: each opponent in turn may take the damage; the first one
+           who does ends it, and the creature is sacrificed (opponentMayTakeDamage) */
+        case 'opponentMayTakeDamage': {
+          if (!src) break;
+          for (const opp of this.opponentsOf(ctx.controller)) {
+            const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'takeDamage',
+              yesLabel: `Take ${e.n} damage`, noLabel: `Let ${src.name} stay`,
+              prompt: `${src.name}: take ${e.n} damage? If you do, ${me.name} sacrifices it.` }, 'tk' + opp.id);
+            if (yes === SUSPEND) return SUSPEND;
+            if (!yes) continue;
+            this.logEvent('rules', `${opp.name} takes the damage.`);
+            this.dealDamageToPlayer(opp, e.n, src, false);
+            if (src.zone === 'battlefield' && src.controller === ctx.controller) this._sacrificeNow(ctx.controller, [src]);
+            break;
+          }
+          break;
+        }
         case 'opponentMayElse': {
           const tdo = e.who === 'triggerObjController' && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           const opp = tdo ? this.player(tdo.controller) : (firstPlayer() || this.opponentsOf(ctx.controller)[0]);
@@ -42244,6 +42331,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           this.moveObject(x, 'exile');
           this._lastExiled = x.id;
           this.logEvent('zone', `${x.name} is exiled from the graveyard.`);
+          break;
+        }
+        /* Shallow Grave: "the top creature card of your graveyard" — the last one
+           put there; "that creature" in the next sentences is this one (reanimateTop) */
+        case 'reanimateTop': {
+          const yard = this.zones[ctx.controller].graveyard;
+          let c = null;
+          for (let i = yard.length - 1; i >= 0; i--) if (yard[i] !== src && this._cardFitsWords(yard[i], e.filter || 'creature')) { c = yard[i]; break; }
+          if (!c) { this.logEvent('rules', `${me.name} has no ${e.filter || 'creature'} card in their graveyard.`); break; }
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (c.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
           break;
         }
         case 'returnTriggerCard': {
@@ -45268,7 +45366,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // Kjeldoran Frostbeast: blocking it, or blocked by it
       if (sc.combatWithSelf) {
         if (!src) return false;
-        const blocksIt = (o.blocking || []).includes(src.id), itBlocks = (src.blocking || []).includes(o.id);
+        // Trailblazer's Torch: an Equipment's "it" is the creature it's attached to (combatHost)
+        const cw = src.attachedTo && !(src.analysis() || {}).isCreature ? (this.obj(src.attachedTo) || src) : src;
+        const blocksIt = (o.blocking || []).includes(cw.id), itBlocks = (cw.blocking || []).includes(o.id);
         if (sc.combatWithSelf === 'blocking' ? !blocksIt : sc.combatWithSelf === 'blockedBy' ? !itBlocks : !(blocksIt || itBlocks)) return false;
       }
       // Backgrounds: "Commander creatures you own"
@@ -53852,6 +53952,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (ch.purpose === 'chainCopy') return ch.costKind === 'mana';
       // Combustible Gearhulk: let them draw while life is short; take the damage otherwise
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
+      // Vexing Devil: take the damage while there's life to spare, rather than face the creature
+      if (ch.purpose === 'takeDamage') return this.me.life > 12;
       // Chandra: cast the exiled card only if it can be paid for
       if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       // Jace, the Mind Sculptor: an opponent's good card goes to the bottom, our own bad one does
@@ -58917,6 +59019,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       probe.onload = () => imgStatus.set(url, 'ok');
       probe.onerror = () => {
         imgStatus.set(url, 'bad');
+        MTG.scry.forgetArt(url);
         if (node.isConnected) node.replaceWith(UI.cardFallback(card, faceIndex || 0));
       };
       probe.src = url;
@@ -59533,7 +59636,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const probe = new Image();
         probe.decoding = 'async';
         probe.onload = () => res(true);
-        probe.onerror = () => res(false);
+        probe.onerror = () => { MTG.scry.forgetArt(url); res(false); };
         probe.src = url;
       }));
     }
@@ -62302,7 +62405,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (colState.set && colState.show === 'missing') list = list.filter(c => S.owned(c.name) < 4);
       // by colour (white, blue, black, red, green, then gold and colourless), then cost, lands last
       const order = { W: 0, U: 1, B: 2, R: 3, G: 4, M: 5, C: 6 };
-      const isLandCard = (c) => /Land/.test(String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || ''));
+      const isLandCard = (c) => /\bLand\b/.test(String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || ''));
       list.sort((a, b) => (isLandCard(a) - isLandCard(b)) || (order[colourOf(a)] - order[colourOf(b)]) || (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
       if (colState.set) {
         const have = cards.filter(c => S.owned(c.name) > 0).length;
@@ -73125,6 +73228,7 @@ Sideboard
     showScreen('home');
     wireNet();
     offerCardDb();
+    registerArtCache();
     // a friendly nudge if the card API is unreachable
     MTG.bus.on('scryfall:offline', U.debounce(() => {
       UI.toast('Scryfall is unreachable right now — cached cards still work.', 'err', 5000);
@@ -73544,7 +73648,7 @@ Sideboard
      wildcards, sleeves, decks, cubes, settings, your name and picture) in
      one file, and back again. Caches of card data and art are left out:
      they are fetched again as needed. */
-  const BACKUP_SKIP = /^mtgtable\.(?:packart|cardDb\.|clientToken|autoWarned|savedGame)/;
+  const BACKUP_SKIP = /^mtgtable\.(?:packart|cardDb\.|clientToken|autoWarned|savedGame|artCache\.|storage\.)/;
   App.exportProfile = function () {
     const data = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -74797,6 +74901,7 @@ Sideboard
     cardDbProgress();
     run.then((ok) => {
       const st = MTG.cardDb.status();
+      if (ok) askPersist();
       if (ok) UI.ok(`The card database is ready: ${st.cards.toLocaleString()} cards.`);
       else if (st.job && st.job.phase === 'error') UI.error(cardDbJobText(st.job));
     });
@@ -74848,7 +74953,7 @@ Sideboard
           ` · Scryfall's data of ${shortDate(info.updated_at)}` + (info.stored ? ` · about ${megabytes(info.stored)} stored` : '') + '.' }));
         kids.push(el('div', { class: 'opt-help', text: info.kind === 'oracle_cards'
           ? 'Bots, the deck builder and card lookups use it and need no network. Drafts and the art picker still ask Scryfall.'
-          : 'Bots, drafts, the deck builder and card lookups use it and need no network. Card pictures still come from Scryfall.' }));
+          : 'Bots, drafts, the deck builder and card lookups use it and need no network. ' + picturesNote() }));
         const newer = st.latest && st.latest.updated_at > (info.updated_at || '') ? st.latest : null;
         if (newer) kids.push(el('div', { class: 'opt-help', text: `Scryfall has a newer copy, from ${shortDate(newer.updated_at)} (${megabytes(newer.size)}).` }));
         buttons.push(newer
@@ -74864,7 +74969,7 @@ Sideboard
           await DB.remove(); UI.ok('Card database deleted.');
         } }));
       } else {
-        kids.push(el('div', { class: 'opt-help', text: 'Scryfall’s card data, saved in this browser. Bots build their decks in moments instead of waiting on dozens of searches, the deck builder searches instantly, and games work without a connection. One download; card pictures still come from Scryfall.' }));
+        kids.push(el('div', { class: 'opt-help', text: 'Scryfall’s card data, saved in this browser. Bots build their decks in moments instead of waiting on dozens of searches, the deck builder searches instantly, and games work without a connection. One download; ' + picturesNote().charAt(0).toLowerCase() + picturesNote().slice(1) }));
         const last = st.job;
         if (last && last.phase === 'error') kids.push(el('div', { class: 'opt-help', text: cardDbJobText(last) }));
         if (pending) kids.push(el('div', { class: 'opt-help', text: `A download stopped part way (${megabytes(pending.got)} so far); downloading again carries on from there.` }));
@@ -74892,6 +74997,182 @@ Sideboard
       .then((i) => { CARD_DB_SIZE.oracle_cards = i.size || CARD_DB_SIZE.oracle_cards; if (!DB.has()) redraw(); }).catch(() => {});
     return host;
   }
+  /* ---- the card pictures kept on this device (sw.js) ----
+     A service worker keeps each card picture, card back and mana symbol
+     the first time it is seen, so after that it shows at once and costs no
+     data; on a phone it keeps the pictures in a store the browser does not
+     clear as readily as its own cache. It handles nothing but those
+     pictures, and never the app itself, so updates arrive as before.
+     ART_CACHE_ON is the way to turn it off for everyone (the page is never
+     kept, so it takes effect on the next load); Options > Card data turns
+     it off on one device, and so does ?nosw in a browser with an address
+     bar (?sw turns it back on). */
+  const ART_CACHE_ON = true;
+  const ART_PREFIX = 'mtg-table-art-', ART_NS = 'mtg-table-art-v1-';
+  // "turned off on this device", for the worker to find (sw.js OFF): outside ART_PREFIX, so no sweep removes it
+  const ART_OFF = 'mtg-table-sw-off';
+  const artCacheSupported = () => {
+    try {
+      return typeof navigator !== 'undefined' && 'serviceWorker' in navigator && window.isSecureContext &&
+        /^https?:$/.test(location.protocol) && typeof caches !== 'undefined';
+    } catch (e) { return false; }   // a sandboxed frame, where even reading `caches` throws
+  };
+  const artCacheOff = () => !ART_CACHE_ON || !!MTG.store.get('artCache.off', false);
+  let artReg = null, artRegError = null;
+  /** What the card database's notes say about pictures, true to whether they are kept here. */
+  const picturesNote = () => (artCacheSupported() && !artCacheOff() && !artRegError
+    ? 'Card pictures come from Scryfall and are kept on this device as you see them.'
+    : 'Card pictures still come from Scryfall.');
+  /** Tell a worker to stand down and empty what it kept; resolved when it has, or after a few seconds. */
+  const retireWorker = (w) => /** @type {Promise<void>} */ (new Promise((res) => {
+    const ch = new MessageChannel();
+    const t = setTimeout(() => res(), 3000);
+    ch.port1.onmessage = () => { clearTimeout(t); res(); };
+    try { w.postMessage({ type: 'retire' }, [ch.port2]); } catch (e) { clearTimeout(t); res(); }
+  }));
+  async function dropArtCache() {
+    if (!artCacheSupported()) return;
+    try {
+      // first the mark a worker started again later finds: unregistering leaves it in charge of pages already open
+      await caches.open(ART_OFF);
+      const mine = new URL('sw.js', location.href).href;
+      const regs = (await navigator.serviceWorker.getRegistrations()).filter((r) => {
+        const w = r.active || r.waiting || r.installing;
+        return w && w.scriptURL === mine;
+      });
+      // every worker of ours stops and empties its caches, the one in charge here and any serving another tab
+      const workers = new Set([navigator.serviceWorker.controller].concat(regs.map(r => r.active)).filter(Boolean));
+      await Promise.all([...workers].map(retireWorker));
+      for (const r of regs) await r.unregister();
+      for (const n of await caches.keys()) if (n.startsWith(ART_PREFIX)) await caches.delete(n);
+    } catch (e) { /* nothing there to drop */ }
+    artReg = null;
+  }
+  function registerArtCache() {
+    if (!artCacheSupported()) return;
+    // ?nosw / ?sw say it once: remembered, then taken out of the address so a later "turn it back on" is not undone
+    const q = new URLSearchParams(location.search);
+    if (q.has('nosw')) MTG.store.set('artCache.off', true);
+    if (q.has('sw')) MTG.store.set('artCache.off', false);
+    const forced = q.has('sw');
+    if (q.has('nosw') || q.has('sw')) {
+      q.delete('nosw'); q.delete('sw');
+      try { history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) { /* the address stays as it was */ }
+    }
+    if (artCacheOff()) { dropArtCache(); return; }
+    // a browser driven by a test gets none, unless the address asks for it
+    if (navigator.webdriver && !forced) return;
+    // on again: the off mark goes first, or the new worker would find it and stand down
+    const go = () => caches.delete(ART_OFF).catch(() => false)
+      .then(() => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })).then((reg) => {
+      artReg = reg; artRegError = null;
+      // a phone app can stay open for days: look for a newer worker when it comes back, at most hourly
+      let checked = Date.now();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || Date.now() - checked < 36e5) return;
+        checked = Date.now();
+        reg.update().catch(() => {});
+      });
+      const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || /** @type {any} */ (navigator).standalone === true;
+      if (standalone) askPersist();
+    }).catch((e) => { artRegError = e; console.warn('Saved card art is off: the worker could not be registered.', e); });
+    // after the page has drawn and settled, so the first screen is not kept waiting
+    const later = () => (window.requestIdleCallback ? requestIdleCallback(go, { timeout: 3000 }) : setTimeout(go, 1500));
+    if (document.readyState === 'complete') later();
+    else window.addEventListener('load', later, { once: true });
+  }
+  /** Ask the worker something, over a channel of its own; null when there is none to ask or it does not answer. */
+  async function askWorker(msg, ms) {
+    try {
+      if (!artCacheSupported()) return null;
+      const reg = artReg || await navigator.serviceWorker.getRegistration();
+      const w = reg && reg.active;
+      if (!w) return null;
+      return await new Promise((res) => {
+        const ch = new MessageChannel();
+        const t = setTimeout(() => res(null), ms || 2000);
+        ch.port1.onmessage = (e) => { clearTimeout(t); res(e.data); };
+        w.postMessage(msg, [ch.port2]);
+      });
+    } catch (e) { return null; }
+  }
+  /**
+   * Ask the browser to keep what is stored here even when space runs low:
+   * granted or not without a word in Safari and Chrome (a home-screen app
+   * is the likeliest to be), though Firefox asks the player, so it is only
+   * ever asked after something the player chose to do. At most once a month.
+   */
+  async function askPersist() {
+    try {
+      const S = navigator.storage;
+      if (!S || !S.persist || !S.persisted || await S.persisted()) return;
+      const last = MTG.store.get('storage.persistAsked', 0) || 0;
+      if (Date.now() - last < 30 * 864e5) return;
+      MTG.store.set('storage.persistAsked', Date.now());
+      await S.persist();
+    } catch (e) { /* the browser decides */ }
+  }
+  /** Options, Card data: how many pictures are kept here, and a way to delete them. */
+  function artCacheRow() {
+    const host = el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
+      el('div', { class: 'opt-label', text: 'Saved card art' }),
+      el('div', { class: 'opt-help', text: 'Reading the saved art…' }),
+    ]));
+    const draw = async () => {
+      const kids = [el('div', { class: 'opt-label', text: 'Saved card art' })];
+      const buttons = [];
+      if (!artCacheSupported()) {
+        kids.push(el('div', { class: 'opt-help', text: 'This browser or address cannot save card art, so pictures are downloaded each time they are needed.' }));
+      } else if (artCacheOff()) {
+        kids.push(el('div', { class: 'opt-help', text: ART_CACHE_ON ? 'Saving card art is turned off on this device.' : 'Saving card art is turned off for now.' }));
+        if (ART_CACHE_ON) buttons.push(el('button', { class: 'btn sm', text: 'Turn it back on', onclick: () => {
+          MTG.store.set('artCache.off', false); registerArtCache(); setTimeout(draw, 1500);
+        } }));
+      } else if (artRegError) {
+        kids.push(el('div', { class: 'opt-help', text: 'This browser would not start saving card art here (site data may be blocked), so pictures are downloaded each time.' }));
+      } else {
+        const help = el('div', { class: 'opt-help', text: 'Reading the saved art…' });
+        kids.push(help);
+        const stats = await askWorker({ type: 'stats' }, 2500);
+        const kept = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
+        if (!stats) help.textContent = 'Card pictures are kept on this device as you see them, so they show at once and use less data. Starting up; look again in a moment.';
+        else {
+          const n = stats.n || 0;
+          help.textContent = `Card pictures are kept on this device as you see them, so they show at once and use less data: ${stats.approx ? 'about ' : ''}${n.toLocaleString()} picture${n === 1 ? '' : 's'} (${megabytes(stats.bytes || 0)}), of up to about ${megabytes(stats.maxBytes || 0)}; the least used go first.`;
+        }
+        kids.push(el('div', { class: 'opt-help', text: kept ? 'Kept until you delete it.' : 'The browser may clear it if the device runs low on space.' }));
+        if (!kept && navigator.storage && navigator.storage.persist) buttons.push(el('button', { class: 'btn sm', text: 'Ask the browser to keep it', onclick: async () => {
+          try { MTG.store.set('storage.persistAsked', Date.now()); await navigator.storage.persist(); } catch (e) { /* the browser decides */ }
+          draw();
+        } }));
+        kids.push(el('div', { class: 'opt-help', text: 'Each browser keeps its own; on an iPhone the home-screen app and Safari keep one each.' + (stats ? ` (worker ${stats.v})` : '') }));
+        buttons.push(el('button', { class: 'btn sm danger', text: 'Delete saved art', onclick: async () => {
+          if (!await UI.confirm('Delete the card pictures saved on this device? They are downloaded again as they are needed.', 'Saved card art', { yes: 'Delete them', no: 'Keep them' })) return;
+          const done = await askWorker({ type: 'clear' }, 5000);
+          if (!done) {
+            for (const n of await caches.keys()) if (n.startsWith(ART_NS + 'g') || n === ART_NS + 'meta') await caches.delete(n);
+          }
+          UI.ok('Saved art deleted.');
+          setTimeout(draw, 800);
+        } }));
+        // the only off switch a home-screen app can reach: it has no address bar for ?nosw
+        buttons.push(el('button', { class: 'btn sm', text: 'Turn off on this device', onclick: async (e) => {
+          e.target.disabled = true;
+          MTG.store.set('artCache.off', true);
+          await dropArtCache();
+          draw();
+        } }));
+      }
+      if (buttons.length) kids.push(el('div', { class: 'row wrap', style: { marginTop: '10px' } }, buttons));
+      if (!host.isConnected && host.dataset.drawn) return;   // Options was drawn again without this row
+      host.dataset.drawn = '1';
+      host.innerHTML = '';
+      host.appendChild(el('div', { class: 'grow' }, kids));
+    };
+    draw();
+    return host;
+  }
+
   /**
    * The first visit: offer the database once, and only download it on a yes.
    * Later visits look for a newer copy now and then, and mention it when the
@@ -75223,6 +75504,7 @@ Sideboard
       (mine ? `, and ${mine} more by you.` : '.');
     sections.push(group('data', 'Card data', null, [
       cardDbRow(),
+      artCacheRow(),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Cache' }), cacheInfo,
         el('div', { class: 'row wrap', style: { marginTop: '10px' } }, [
