@@ -9485,6 +9485,8 @@
     // King T'Challa, Krang: "Whenever a player draws their second card each turn"
     { re: /^When(?:ever)? a player draws their (second|third) card each turn,? /i, event: 'anyDraw',
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
+    // Nev, Owlin Spiralmancer, Zimone: "Whenever you cast your first spell with {X} in its mana cost each turn," (firstXSpell)
+    { re: /^Whenever you cast your first spell with \{X\} in its mana cost each turn, /i, event: 'youCastSpell', extra: { firstXSpell: true } },
     // Captain Ripley Vance: "Whenever you cast your third spell each turn"
     { re: /^When(?:ever)? you cast your third spell each turn,? /i, event: 'youCastSpell', extra: { castNth: 3 } },
     // Midnight Clock: "When the twelfth hour counter is put on this artifact"
@@ -10317,6 +10319,11 @@
           /^put that card onto the battlefield under your control\.?$/i.test(parsed.effects[0].text || '')) {
           parsed.effects = [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: parsed.effects[0].text }];
           parsed.auto = true;
+        }
+        // Nev, the Practical Dean: "put X +1/+1 counters" — the X of the spell that set it off (firstXSpell)
+        if (trig.extra && trig.extra.firstXSpell) {
+          const wx = (list) => (list || []).forEach(e => { if (!e) return; for (const k of ['n']) if (e[k] === 'X') e[k] = { triggerSpellX: true }; wx(e.then); wx(e.list); });
+          wx(parsed.effects);
         }
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }

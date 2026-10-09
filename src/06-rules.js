@@ -11272,6 +11272,11 @@
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
           // Captain Ripley Vance: only the third spell its controller casts this turn
           if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
+          // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
+          if (ab.firstXSpell) {
+            const hasX = (x) => /\{X\}/.test(((x && x.card) || {}).mana_cost || '');
+            if (!hasX(data.object) || ((this.player(o.controller) || {}).spellObjsThisTurn || []).some(x => x !== data.object && hasX(x))) continue;
+          }
           // Edgewall Innkeeper: a card with an Adventure, however it was cast
           if (ab.hasAdventure && !(data.object && data.object.card && data.object.card.layout === 'adventure')) continue;
           // Vine Gecko: only a spell that was kicked
@@ -12060,6 +12065,8 @@
           const gy = this.zones[ctx.controller].graveyard;
           return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * (v.mult || 1);
         }
+        // Nev: the X the triggering spell was cast with (firstXSpell)
+        if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||

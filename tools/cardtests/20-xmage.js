@@ -16448,4 +16448,20 @@ module.exports = (test) => {
     t.eq(giant.controller, 'A', "under A's control");
     t.eq(beetle.counters['+1/+1'], 1, 'the Beetle saw a creature sacrificed');
   });
+
+  test('Nev, the Practical Dean: the first spell with {X} each turn puts X counters on it', (mk, t) => {
+    t.auto('Nev, the Practical Dean');
+    t.auto('Owlin Spiralmancer');
+    const T = mk();
+    T.toMain('A');
+    const nev = T.bf('A', 'Nev, the Practical Dean');
+    T.mana('A', 'RCCC');
+    T.cast('A', T.hand('A', 'Blaze'), { x: 3, targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(nev.counters['+1/+1'], 3, 'X was 3');
+    T.mana('A', 'RCC');
+    T.cast('A', T.hand('A', 'Blaze'), { x: 2, targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(nev.counters['+1/+1'], 3, 'only the first one each turn');
+  });
 };
