@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12327,
+  "needed": 12326,
   "gainedCards": 1337,
-  "linesNeeded": 13413,
+  "linesNeeded": 13411,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -730,17 +730,6 @@
     "Otherworldly Outburst",
     "Searing Blood",
     "Melira, the Living Cure"
-   ]
-  },
-  {
-   "what": "keyword StationLevelAbility",
-   "score": 18,
-   "lines": 6,
-   "cards": [
-    "Exploration Broodship",
-    "Uthros Research Craft",
-    "Inspirit, Flagship Vessel",
-    "Synthesizer Labship"
    ]
   },
   {
@@ -2102,6 +2091,16 @@
     "Tresserhorn Skyknight",
     "Marble Priest",
     "Enchanted Being"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 10,
+   "lines": 4,
+   "cards": [
+    "Exploration Broodship",
+    "Inspirit, Flagship Vessel",
+    "Synthesizer Labship"
    ]
   },
   {
@@ -7908,17 +7907,6 @@
    ]
   },
   {
-   "what": "keyword StationLevelAbility",
-   "score": 10,
-   "cards": 4,
-   "names": [
-    "Exploration Broodship",
-    "Uthros Research Craft",
-    "Inspirit, Flagship Vessel",
-    "Synthesizer Labship"
-   ]
-  },
-  {
    "what": "CastSpellPaidBySourceTriggeredAbility",
    "score": 10,
    "cards": 1,
@@ -9166,6 +9154,16 @@
     "Gargoyle Sentinel",
     "Elder Land Wurm",
     "Chimeric Sphere"
+   ]
+  },
+  {
+   "what": "keyword StationLevelAbility",
+   "score": 6,
+   "cards": 3,
+   "names": [
+    "Exploration Broodship",
+    "Inspirit, Flagship Vessel",
+    "Synthesizer Labship"
    ]
   },
   {

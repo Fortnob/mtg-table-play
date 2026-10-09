@@ -1575,7 +1575,7 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle)|CARDNAME)\.?$/i,
+    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
     // Palantír of Orthanc: "put an influence counter on CARDNAME and scry 2"
     { re: /^Put (a|an|one|two|three) ([a-z]+) counters? on (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) and (scry|surveil) (\d+)\.?$/i,
@@ -9964,6 +9964,7 @@
     'this artifact': { self: true, what: 'permanent' },
     'this enchantment': { self: true, what: 'permanent' },
     'this vehicle': { self: true, what: 'permanent' },
+    'this spacecraft': { self: true, what: 'permanent' },
     'this equipment': { self: true, what: 'permanent' },
     'this land': { self: true, what: 'land' },
     'this permanent': { self: true, what: 'permanent' },

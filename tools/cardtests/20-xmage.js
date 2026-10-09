@@ -12362,4 +12362,19 @@ module.exports = (test) => {
     T.bf('B', 'Underground Sea');
     t.eq(T.g.canCast('A', hm.id).cost, '{1}{B}{B}', 'a nonbasic is no basic');
   });
+
+  test('Uthros Research Craft: a card and a charge counter for each artifact spell; +1/+0 per artifact', (mk, t) => {
+    t.auto('Uthros Research Craft');
+    const T = mk();
+    const u = T.bf('A', 'Uthros Research Craft');
+    u.counters.charge = 12;
+    T.bf('A', 'Sol Ring');
+    t.eq(T.g.powerOf(u), (parseInt(u.card.power, 10) || 0) + 2, 'two artifacts, itself and the Ring');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', '2');
+    T.cast('A', T.hand('A', 'Mind Stone'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(u.counters.charge, 13, 'a charge counter');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'drew one for the one cast');
+  });
 };
