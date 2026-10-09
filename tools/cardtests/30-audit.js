@@ -693,4 +693,42 @@ module.exports = (test) => {
     T.mana('A', 'RR3'); T.cast('A', T.hand('A', 'Mana Geyser'));
     t.eq(T.player('A').pool.R, 5 + 2, 'two tapped lands');
   });
+
+  test('Audit: Ram Through spills excess damage only from a trampler', (mk, t) => {
+    const T = mk();
+    t.auto('Ram Through');
+    const big = T.bf('A', 'Craw Wurm'), bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Ram Through'), { targets: [big, bear] });
+    t.zone(bear, 'graveyard');
+    t.eq(T.life('B'), 20, 'no trample: nothing spills over');
+    const tr = T.bf('A', 'Colossal Dreadmaw'), elf = T.bf('B', 'Llanowar Elves');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Ram Through'), { targets: [tr, elf] });
+    t.zone(elf, 'graveyard');
+    t.eq(T.life('B'), 15, 'trample: 6 power, 1 to the Elves, 5 to B');
+  });
+
+  test("Audit: Hall of Storm Giants enters tapped only with two or more other lands", (mk, t) => {
+    const T = mk();
+    t.auto('Hall of Storm Giants');
+    const a = T.hand('A', 'Hall of Storm Giants');
+    T.playLand('A', a);
+    t.no(a.tapped);
+    T.nextTurn('A');
+    T.bf('A', 'Island'); T.bf('A', 'Island');
+    const b = T.hand('A', 'Hall of Storm Giants');
+    T.playLand('A', b);
+    t.ok(b.tapped);
+  });
+
+  test("Audit: Rowan's Talent copies the planeswalker's loyalty ability", (mk, t) => {
+    const T = mk();
+    t.auto("Rowan's Talent");
+    const pw = T.bf('A', 'Chandra, Torch of Defiance');
+    const tal = T.bf('A', "Rowan's Talent");
+    tal.attachedTo = pw.id; pw.attachments = [tal.id];
+    T.activate('A', pw, 0);
+    t.eq(T.life('B'), 16, 'Chandra\'s +1 twice: 2 damage twice');
+  });
 };

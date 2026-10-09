@@ -13028,7 +13028,17 @@
           }
           const victim = objs[1];
           if (!victim) { this.logEvent('rules', 'Nothing to bite.'); break; }
-          this.dealDamageToObject(victim, amount, biter);
+          /* Ram Through: "If the creature you control has trample, excess
+             damage is dealt to that creature's controller instead." */
+          const rn = this.resolving;
+          const nx = rn && rn.effects[rn.index + 1];
+          const spill = !!(nx && nx.op === 'excessToController' && (!nx.ifSourceHas || this.hasKw(biter, nx.ifSourceHas)));
+          if (spill && victim.zone === 'battlefield') {
+            const first = Math.min(amount, this._lethalLeft(victim, biter));
+            const owner = this.player(victim.controller);
+            if (first > 0) this.dealDamageToObject(victim, first, biter);
+            if (amount - first > 0 && owner) this.dealDamageToPlayer(owner, amount - first, biter);
+          } else this.dealDamageToObject(victim, amount, biter);
           this.logEvent('fight', `${biter.name} deals ${amount} damage to ${victim.name}.`);
           this.emit('sfx', 'damage');
           break;
