@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11456,
+  "needed": 11450,
   "gainedCards": 1134,
-  "linesNeeded": 12273,
+  "linesNeeded": 12267,
   "linesGained": 1345,
   "gained": {
    "all": 1134,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4247,
-   "lines": 3986,
+   "score": 4244,
+   "lines": 3983,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1706,21 +1706,6 @@
    ]
   },
   {
-   "what": "Ability.withFirstModeCost",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Dance of the Tumbleweeds",
-    "Rustler Rampage",
-    "One Last Job",
-    "Caught in the Crossfire"
-   ]
-  },
-  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 10,
    "lines": 10,
@@ -2046,6 +2031,20 @@
     "Feast of Flesh",
     "Kjeldoran War Cry",
     "Mind Burst"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "One Last Job",
+    "Caught in the Crossfire"
    ]
   },
   {
@@ -4619,18 +4618,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Fascination",
-    "Invasion of Amonkhet // Lazotep Convert",
-    "Flotsam // Jetsam",
-    "Path of the Schemer",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "not attacking",
    "score": 5,
    "lines": 5,
@@ -5796,6 +5783,17 @@
    ]
   },
   {
+   "what": "MillCardsEachPlayerEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Invasion of Amonkhet // Lazotep Convert",
+    "Flotsam // Jetsam",
+    "Path of the Schemer",
+    "Halo-Charged Skaab"
+   ]
+  },
+  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 4,
    "lines": 4,
@@ -6729,8 +6727,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3537,
-   "cards": 3357,
+   "score": 3534,
+   "cards": 3354,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7939,19 +7937,6 @@
    ]
   },
   {
-   "what": "Ability.withFirstModeCost",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Tifa's Limit Break",
-    "Cloud's Limit Break",
-    "Rush of Dread",
-    "Getaway Glamer",
-    "Dance of the Tumbleweeds",
-    "Rustler Rampage"
-   ]
-  },
-  {
    "what": "ProtectionAbility",
    "score": 8,
    "cards": 8,
@@ -8272,6 +8257,19 @@
     "Spider-Verse",
     "Baron Strucker, HYDRA Overlord",
     "Iron Man, Bleeding Edge"
+   ]
+  },
+  {
+   "what": "Ability.withFirstModeCost",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Tifa's Limit Break",
+    "Cloud's Limit Break",
+    "Rush of Dread",
+    "Getaway Glamer",
+    "Dance of the Tumbleweeds",
+    "One Last Job"
    ]
   },
   {

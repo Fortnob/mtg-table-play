@@ -13026,7 +13026,10 @@
           /* "Untap all Birds and Frogs you control": a group described the
              way a static ability describes one */
           if (e.scope && typeof e.scope === 'object') {
-            for (const o of this._scopeList(e.scope, ctx.controller, src)) this._markUntapped(o);
+            // (Rustler Rampage: "creatures target player controls")
+            const tpU = e.scope.who === 'target' ? firstPlayer() : null;
+            if (e.scope.who === 'target' && !tpU) break;
+            for (const o of this._scopeList(e.scope, ctx.controller, src, tpU ? tpU.id : undefined)) this._markUntapped(o);
             this.emit('sfx', 'untap_all');
             break;
           }
@@ -14404,7 +14407,8 @@
           /* Everybody discards, and only then does anybody draw — and
              Windfall's "the greatest number discarded" is counted first. */
           // "Discard all the cards in your hand, then draw that many cards": you alone
-          const live = e.who === 'you' ? [me] : this.players.filter(p => !p.hasLost);
+          // (Collective Defiance: "Target player discards all the cards in their hand …" — that one)
+          const live = e.who === 'you' ? [me] : e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players.filter(p => !p.hasLost);
           const counts = live.map(p => this.zones[p.id].hand.length);
           const most = counts.length ? Math.max(...counts) : 0;
           for (const p of live) {

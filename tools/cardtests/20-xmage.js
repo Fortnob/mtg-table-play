@@ -15347,4 +15347,27 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'hand').length, h - 1, 'nothing found');
     t.ok(T.g.log.some(l => /can't search libraries/.test(l.text)));
   });
+
+  test('Modes that now read: a target player wheels, untap their creatures, take a creature with haste', (mk, t) => {
+    t.auto('Collective Defiance');
+    t.auto('Rustler Rampage');
+    t.auto('Grab the Reins');
+    t.auto('Fascination');
+    const T = mk();
+    T.toMain('A');
+    const src = T.hand('A', 'Island');
+    const run = (text, targets) => T.g._runEffects(engine().oracle.parseEffects(text).effects, { controller: 'A', obj: src, name: 'Test', kind: 'spell', targets });
+    T.hand('B', 'Island'); T.hand('B', 'Island');
+    for (let i = 0; i < 3; i++) T.top('B', 'Swamp');
+    const handA = T.zone('A', 'hand').length;
+    run('Target player discards all the cards in their hand, then draws that many cards.', [{ kind: 'player', id: 'B' }]);
+    t.eq(T.zone('B', 'hand').filter(c => c.name === 'Swamp').length, 2, 'B discards two and draws two');
+    t.eq(T.zone('A', 'hand').length, handA, 'A is untouched');
+    const bear = T.bf('B', 'Grizzly Bears', { tapped: true });
+    run('Untap all creatures target player controls.', [{ kind: 'player', id: 'B' }]);
+    t.no(bear.tapped, 'untapped');
+    run('Until end of turn, you gain control of target creature and it gains haste.', [{ kind: 'object', id: bear.id }]);
+    t.eq(bear.controller, 'A', 'taken');
+    t.ok(T.g.hasKw(bear, 'Haste'), 'with haste');
+  });
 };

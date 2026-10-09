@@ -3056,6 +3056,19 @@
     { re: /^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i,
       make: () => ({ op: 'wheel', n: 'mostDiscarded' }) },
     { re: /^Each player discards their hand,? then draws that many cards\.?$/i, make: () => ({ op: 'wheel', n: 'sameDiscarded' }) },
+    // Incendiary Command, Collective Defiance, Borrowed Knowledge: the same with other words
+    { re: /^(Each player|Target player) discards all the cards in their hand, then draws that many cards\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'wheel', who: 'target', n: 'sameDiscarded', targets: [{ type: 'player' }] } : { op: 'wheel', n: 'sameDiscarded' }) },
+    { re: /^Discard your hand, then draw cards equal to the number of cards discarded this way\.?$/i, make: () => ({ op: 'wheel', who: 'you', n: 'sameDiscarded' }) },
+    // Rustler Rampage: "Untap all creatures target player controls."
+    { re: /^Untap all creatures target player controls\.?$/i,
+      make: () => ({ op: 'untapAll', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
+    // Fascination: "Each player mills X cards."
+    { re: /^Each player mills X cards\.?$/i, make: () => ({ op: 'mill', n: 'X', who: 'each' }) },
+    // Grab the Reins: "Until end of turn, you gain control of target creature and it gains haste."
+    { re: /^Until end of turn, you gain control of (target creature) and it gains haste\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'gainControl', until: 'eot', targets: [targetSpec(m[1])] },
+        { op: 'grantKeyword', keywords: ['Haste'], duration: 'eot', scope: 'lastTarget' }] }) },
     { re: /^Look at the top (two|three|four|five|\d+) cards of (?:your|target player'?s) library,? (?:then|and) put them back in any order\.?$/i,
       make: (m) => (/target player/i.test(m[0]) ? null : { op: 'arrangeTop', n: num(m[1]) }) },
 
