@@ -16365,4 +16365,17 @@ module.exports = (test) => {
     t.zone(bear, 'graveyard', 'three damage from the Giant');
     t.zone(giant, 'battlefield');
   });
+
+  test('Sleeper Agent: target opponent gains control of it as it enters', (mk, t) => {
+    t.auto('Sleeper Agent');
+    t.auto('Goblin Cadets');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Sleeper Agent'));
+    T.settle(); T.resolve(); T.settle();
+    const agent = T.g.battlefield.find(o => o.name === 'Sleeper Agent');
+    t.ok(agent, 'on the battlefield');
+    t.eq(agent && agent.controller, 'B', 'B controls it');
+  });
 };

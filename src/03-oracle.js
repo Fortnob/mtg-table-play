@@ -10201,6 +10201,8 @@
         }
         // "Whenever this creature attacks, double its power": its own power
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
+        // Sleeper Agent, Goblin Cadets: "target opponent gains control of it" — this creature
+        if (trig.self) body = body.replace(/^target (opponent|player) gains control of it\b/i, 'target $1 gains control of CARDNAME');
         /* Narcomoeba: "When this card is put into your graveyard from your
            library, you may put it onto the battlefield" — "it" is the card */
         /* Patron of the Vein, Promise of Tomorrow: "Whenever a creature … dies,
