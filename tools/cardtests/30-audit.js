@@ -3135,4 +3135,28 @@ module.exports = (test) => {
     T.mana('A', '3W'); T.cast('A', T.hand('A', 'Shield-Wall Sentinel'));
     t.ok(offered && offered.every(n => n !== 'Grizzly Bears') && offered.includes('Wall of Omens'), 'only creatures with defender');
   });
+
+  test('Audit: Hellraiser Goblin makes your creatures attack; Repay in Kind; Acidic Soil counts each player\'s lands', (mk, t) => {
+    let T = mk();
+    for (const c of ['Hellraiser Goblin', 'Repay in Kind', 'Acidic Soil']) t.auto(c);
+    T.toMain('A');
+    const hg = T.bf('A', 'Hellraiser Goblin'), b = T.bf('A', 'Grizzly Bears');
+    let refused = null;
+    T.answer('declareAttackers', (ch, g) => { refused = !g.declareAttackers('A', []); return [{ attackerId: b.id, defenderId: 'B' }, { attackerId: hg.id, defenderId: 'B' }]; });
+    T.toMain('A', 'declareBlockers');
+    t.ok(refused, 'no attack is refused'); t.ok(b.attacking, 'the Bears attack, with haste');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.g.player('B').life = 7; T.g.player('C').life = 12;
+    T.mana('A', '5BB'); T.cast('A', T.hand('A', 'Repay in Kind'));
+    t.eq(T.life('A'), 7); t.eq(T.life('B'), 7); t.eq(T.life('C'), 7);
+    T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.bf('B', 'Forest');
+    T.bf('A', 'Island');
+    const lands = (p) => T.g.battlefield.filter(o => o.controller === p && (o.analysis() || {}).isLand).length;
+    const la = lands('A'), lb = lands('B');
+    T.mana('A', '2R'); T.cast('A', T.hand('A', 'Acidic Soil'));
+    t.eq(T.life('A'), 20 - la); t.eq(T.life('B'), 20 - lb);
+  });
 };
