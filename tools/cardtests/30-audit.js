@@ -3341,4 +3341,27 @@ module.exports = (test) => {
     T.mana('A', '1W'); T.cast('A', T.hand('A', 'Raise the Alarm'));
     t.eq(st.counters.story, 1, 'two tokens at once: one counter');
   });
+
+  test('Audit: Wild Hypothesis\'s 0/0 gets its counters; Tree of Redemption swaps life and toughness; Commit puts a spell second from the top', (mk, t) => {
+    let T = mk();
+    for (const c of ['Wild Hypothesis', 'Tree of Redemption', 'Commit // Memory']) t.auto(c);
+    T.toMain('A');
+    T.mana('A', '2GU'); T.cast('A', T.hand('A', 'Wild Hypothesis'), { x: 2 }); T.settle();
+    const f = T.g.battlefield.find(o => /Fractal/.test(o.name));
+    t.ok(f && T.g.powerOf(f) === 2 && T.g.toughnessOf(f) === 2, 'a 2/2 Fractal that lives');
+    T = mk();
+    T.toMain('A');
+    T.g.player('A').life = 5;
+    const tr = T.bf('A', 'Tree of Redemption'); tr.summoningSick = false;
+    T.activate('A', tr, 0);
+    t.eq(T.life('A'), 13); t.eq(T.g.toughnessOf(tr), 5);
+    T = mk();
+    T.toMain('B');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'], resolve: false }); T.settle();
+    const st = T.g.stack.find(s => s.name === 'Lightning Bolt'), bolt = st.obj;
+    T.g.priorityIndex = T.g.turnOrder.indexOf('A');
+    T.mana('A', '3U'); T.g.castSpell('A', T.hand('A', 'Commit // Memory').id, { auto: true, face: 0, targets: [{ kind: 'stack', id: st.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bolt, 'library'); t.eq(T.g.zones.B.library.indexOf(bolt), 1, 'second from the top'); t.eq(T.life('A'), 20);
+  });
 };
