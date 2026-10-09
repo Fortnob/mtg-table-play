@@ -5447,6 +5447,17 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Moraug, Fury of Akoum: "if it's your main phase, there's an additional
+       combat phase after this phase. At the beginning of that combat, untap
+       all creatures you control." */
+    { re: /^(?:if it'?s your main phase, )?there'?s an additional combat phase after this phase\. At the beginning of that combat, untap all creatures you control\.$/i,
+      make: () => [{ op: 'ifCond', cond: { kind: 'yourMainPhase' }, then: [{ op: 'extraCombat', count: 1, inMain: true },
+        { op: 'delayed', event: 'eachCombatBegin', name: 'Untap all creatures you control', effects: [{ op: 'untapAll', what: 'creatures' }] }] }] },
+    /* Invasion of Ikoria: "search your library and/or graveyard for a
+       non-Human creature card with mana value X or less and put it onto the
+       battlefield. If you search your library this way, shuffle." */
+    { re: /^Search your library and\/or graveyard for an? ([-a-z ]+?) card with mana value (X|\d+) or less and put it onto the battlefield\. If you search your library this way, shuffle\.$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), maxMv: m[2] === 'X' ? 'X' : +m[2], to: 'battlefield', alsoGraveyard: true }] },
     /* Mizzix's Mastery: "Exile target card that's an instant or sorcery from
        your graveyard. For each card exiled this way, copy it, and you may cast
        the copy without paying its mana cost. Exile CARDNAME." (overloaded,
@@ -11098,6 +11109,10 @@
       // Leonin Shikari, Forge Anew: "(During your turn,) you may activate equip abilities any time you could cast an instant."
       { re: /^(During your turn, )?you may activate equip abilities any time you could cast an instant\.?$/i,
         make: (m) => ({ op: 'instantEquip', yourTurn: !!m[1] }), auto: true },
+      // Moraug, Fury of Akoum: "Each creature you control gets +1/+0 for each time it has attacked this turn."
+      { re: /^Each creature you control gets \+(\d+)\/\+(\d+) for each time it has attacked this turn\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' },
+          pt: { p: +m[1] ? { attacksThisTurn: true, mult: +m[1] } : 0, t: +m[2] ? { attacksThisTurn: true, mult: +m[2] } : 0 } }), auto: true },
       // Kruphix, Horizon Stone, Omnath, Ozai: "If you would lose unspent mana, that mana becomes colorless (red, black) instead."
       { re: /^If you would lose unspent mana, that mana becomes (colorless|white|blue|black|red|green) instead\.?$/i,
         make: (m) => ({ op: 'manaBecomes', color: { colorless: 'C', white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }), auto: true },

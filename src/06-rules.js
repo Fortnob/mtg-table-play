@@ -8885,6 +8885,8 @@
           const mine = stat(p);
           return this.players.filter(q => q !== p && !q.hasLost).every(q => stat(q) < mine);
         }
+        // Moraug: "if it's your main phase"
+        case 'yourMainPhase': return !!me && !!this.activePlayer && this.activePlayer.id === me.id && !!this.phase && /^(?:precombat|postcombat)$/.test(this.phase.id);
         case 'triggerObjNotCastFromHand': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           return !!x && !(x.wasCast === this.turn && x.castFromZone === 'hand');
@@ -9363,6 +9365,8 @@
     _contValue(v, o, src) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
+      // Moraug: for each time this creature has attacked this turn
+      if (typeof v === 'object' && v.attacksThisTurn) return (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) * (v.mult || 1);
       // Allosaurus Rider: "equal to 1 plus the number of lands you control"
       if (typeof v === 'object' && v.plus) { const b = Object.assign({}, v); delete b.plus; return this._contValue(b, o, src) + v.plus; }
       /* Mirror Box: the other creatures of its controller's with its name;

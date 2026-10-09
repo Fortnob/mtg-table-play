@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12395,
+  "needed": 12394,
   "gainedCards": 1348,
-  "linesNeeded": 13514,
+  "linesNeeded": 13511,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -33,21 +33,21 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4454,
-   "lines": 4112,
+   "score": 4446,
+   "lines": 4110,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
     "Etali, Primal Conqueror // Etali, Primal Sickness",
     "Beseech the Mirror",
     "Promise of Loyalty",
-    "Moraug, Fury of Akoum",
     "Mechanized Production",
     "Kodama of the East Tree",
     "Marvin, Murderous Mimic",
     "Ugin, the Ineffable",
     "Skrelv, Defector Mite",
-    "The Darkness Crystal"
+    "The Darkness Crystal",
+    "Wheel of Misfortune"
    ]
   },
   {
@@ -4093,16 +4093,6 @@
    ]
   },
   {
-   "what": "SearchLibraryGraveyardPutOntoBattlefieldEffect",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Invasion of Ikoria // Zilortha, Apex of Ikoria",
-    "Sanctum of All",
-    "Elspeth, Undaunted Hero"
-   ]
-  },
-  {
    "what": "Ability.modes.setLimitUsageByOnce",
    "score": 6,
    "lines": 3,
@@ -7047,6 +7037,17 @@
     "Karolina Dean, Runaway",
     "Niko Defies Destiny"
    ]
+  },
+  {
+   "what": "keyword TrampleAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Thrasta, Tempest's Roar",
+    "Varchild's War-Riders",
+    "Gorilla Berserkers",
+    "Giant Solifuge"
+   ]
   }
  ],
  "sole": [
@@ -7060,7 +7061,7 @@
     "Etali, Primal Conqueror // Etali, Primal Sickness",
     "Beseech the Mirror",
     "Promise of Loyalty",
-    "Moraug, Fury of Akoum"
+    "Mechanized Production"
    ]
   },
   {

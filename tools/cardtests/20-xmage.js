@@ -11855,4 +11855,21 @@ module.exports = (test) => {
     T2.settle(); T2.resolve(); T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
     t.eq(b1.zone, 'exile'); t.eq(b2.zone, 'exile'); t.eq(T2.life('B'), 14, 'both copies');
   });
+
+  test('Moraug: +1/+0 for each attack this turn; Invasion of Ikoria looks in the graveyard too', (mk, t) => {
+    t.auto('Moraug, Fury of Akoum');
+    const T = mk();
+    T.bf('A', 'Moraug, Fury of Akoum');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.g.powerOf(bear), 3, 'attacked once');
+    const T2 = mk();
+    const gy = T2.grave('A', 'Craw Wurm');
+    T2.answer('pickCard', (ch) => { t.ok(ch.cards.some(c => c.id === gy.id), 'the graveyard card offered'); return { cardIds: [gy.id] }; });
+    const inv = T2.bf('A', 'Invasion of Ikoria // Zilortha, Apex of Ikoria');
+    T2.g._runEffects(inv.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: inv, name: 'Invasion', kind: 'ability', x: 6 });
+    T2.settle();
+    t.eq(gy.zone, 'battlefield');
+  });
 };
