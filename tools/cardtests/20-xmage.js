@@ -13067,4 +13067,14 @@ module.exports = (test) => {
     T.toMain('A');
     t.ok(!T.g.characteristics(f).isCreature, 'over on your next turn');
   });
+
+  test('Mobilizer Mech: up to one other Vehicle of yours becomes a creature', (mk, t) => {
+    t.auto('Mobilizer Mech');
+    const T = mk();
+    const mm = T.bf('A', 'Mobilizer Mech');
+    const veh = T.bf('A', "Smuggler's Copter");
+    const trig = mm.analysis().abilities.find(a => a.kind === 'triggered' && JSON.stringify(a.effects).includes('becomes'));
+    T.g._runEffects(trig.effects, { controller: 'A', obj: mm, name: 'Mobilizer Mech', kind: 'ability', targets: [{ kind: 'object', id: veh.id }] });
+    t.ok(T.g.characteristics(veh).isCreature, 'crewed as if');
+  });
 };

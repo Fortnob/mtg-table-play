@@ -4968,8 +4968,14 @@
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {}, m[5] ? { tapped: true } : {})) },
     // Mech Hangar: "Target Vehicle becomes an artifact creature until end of turn."
-    { re: /^(Target Vehicle(?: you control)?) becomes an artifact creature until end of turn\.?$/,
-      make: (m) => ({ op: 'becomes', duration: 'eot', eff: { addTypes: ['Creature'] }, targets: [targetSpec(m[1])] }) },
+    // (Mobilizer Mech: "up to one other target Vehicle you control")
+    { re: /^((?:[Uu]p to one )?(?:other |another )?[Tt]arget Vehicle(?: you control)?) becomes an artifact creature until end of turn\.?$/,
+      make: (m) => {
+        const sp = targetSpec(m[1].replace(/^up to one /i, '').replace(/^other /i, 'another '));
+        if (!sp) return null;
+        if (/^up to one/i.test(m[1])) sp.upTo = true;
+        return { op: 'becomes', duration: 'eot', eff: { addTypes: ['Creature'] }, targets: [sp] };
+      } },
     // Clone Legion: "For each creature target player controls, create a token that's a copy of that creature."
     { re: /^For each creature target player controls, create a token that'?s a copy of that creature\.?$/i,
       make: () => ({ op: 'copyEachToken', ofTargetPlayer: true, filter: 'creature', targets: [{ type: 'player' }] }) },
