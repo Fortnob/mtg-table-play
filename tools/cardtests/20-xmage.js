@@ -16737,4 +16737,16 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(sentry), 2 + 2 + 2, 'two of theirs tapped: +2/+1 twice');
     t.eq(T.zone('A', 'hand').length, hand + 1, 'Sharae: one card, once a turn');
   });
+
+  test('Treefolk Umbra: the enchanted creature deals combat damage equal to its toughness', (mk, t) => {
+    t.auto('Treefolk Umbra');
+    t.auto('Gauntlets of Light');
+    const T = mk();
+    const wall = T.bf('A', 'Wall of Wood'), umbra = T.bf('A', 'Treefolk Umbra'), other = T.bf('A', 'Wall of Wood');
+    umbra.attachedTo = wall.id; wall.attachments = [umbra.id];
+    T.g.bumpBoard();
+    t.eq(T.g.toughnessOf(wall), 5, '0/3 with +0/+2');
+    t.ok(T.g._dealsByToughness(wall));
+    t.no(T.g._dealsByToughness(other), 'not another creature');
+  });
 };

@@ -13394,6 +13394,10 @@
       // Iron Golem: "attacks or blocks each combat if able"
       { re: /^(?:CARDNAME|This creature) attacks or blocks each combat if able\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'mustBlock' }] }), auto: true },
+      // Treefolk Umbra, Gauntlets of Light: "Enchanted creature gets +0/+2 and assigns combat damage equal to its toughness rather than its power." (toughnessAttached)
+      { re: /^(Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+) and assigns combat damage equal to its toughness rather than its power\.?$/i,
+        make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[2], t: +m[3] } },
+          { op: 'toughnessDamage', who: 'attached' }] }), auto: true },
       // Doran and kin: combat damage by toughness
       { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },

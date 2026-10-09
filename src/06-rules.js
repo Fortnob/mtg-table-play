@@ -465,6 +465,8 @@
       return this.battlefield.some(s => {
         const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
         if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
+        // Treefolk Umbra: only the creature it's attached to (toughnessAttached)
+        if (e.who === 'attached' && s.attachedTo !== o.id) return false;
         return !e.ifTougher || this.toughnessOf(o) > this.powerOf(o);
       });
     }

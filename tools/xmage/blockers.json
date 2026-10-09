@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11286,
+  "needed": 11284,
   "gainedCards": 1131,
-  "linesNeeded": 12074,
+  "linesNeeded": 12072,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -5712,17 +5712,6 @@
    ]
   },
   {
-   "what": "CombatDamageByToughnessAttachedEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Treefolk Umbra",
-    "Gauntlets of Light",
-    "Bark of Doran",
-    "Solid Footing"
-   ]
-  },
-  {
    "what": "GainAllCreatureTypesAttachedEffect",
    "score": 4,
    "lines": 4,
@@ -6659,6 +6648,16 @@
     "Don't Make a Sound",
     "Divert Disaster",
     "Assimilate Essence"
+   ]
+  },
+  {
+   "what": "reanimate attacking",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Alesha, Who Smiles at Death",
+    "Yore-Tiller Nephilim",
+    "Bereaved Survivor // Dauntless Avenger"
    ]
   }
  ],
