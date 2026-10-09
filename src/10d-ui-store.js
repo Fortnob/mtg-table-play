@@ -821,7 +821,7 @@
       const info = setInfo(p);
       setBackdrop(info);
       stage.className = 'po-stage one';
-      stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
+      stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = ''; head.innerHTML = '';
       head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: (p.kind === 'collector' ? 'Collector Booster' : 'Play Booster') }));
       const pack = boosterEl(info, p.kind, { big: true });
       pack.classList.add('po-pack');
@@ -955,7 +955,7 @@
     /* ---- the cards of one pack, dealt ---- */
     const deal = (res, g, info) => {
       stage.className = 'po-stage one dealt-stage';
-      stage.innerHTML = ''; foot.innerHTML = '';
+      stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = '';
       const items = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
       const cols = Math.min(8, Math.ceil(items.length / 2));
       const grid = el('div', { class: 'po-grid', style: { '--cols': String(cols) } });
@@ -1006,7 +1006,7 @@
       const info = g.info;
       setBackdrop(info);
       stage.className = 'po-stage all';
-      stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
+      stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = ''; head.innerHTML = '';
       head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: `Opening ${packs.length} packs…` }));
       const fan = el('div', { class: 'po-fan' });
       const shown = Math.min(packs.length, 10);
@@ -1052,7 +1052,7 @@
       for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.unshift({ wildcard: r, count: wcs[r] });
       items.sort((a, b) => RANK[b.wildcard || b.rarity] - RANK[a.wildcard || a.rarity]);
       stage.className = 'po-stage all summary';
-      stage.innerHTML = '';
+      stage.innerHTML = ''; stage.scrollTop = 0;
       head.innerHTML = '';
       head.append(el('div', { class: 'po-title', text: `${info.name}: ${results.length} pack${results.length === 1 ? '' : 's'}` }),
         el('div', { class: 'po-sub' }, [
@@ -1073,7 +1073,8 @@
       const after = () => {};
       const flip = flipper(tiles, after);
       refresh();
-      requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.add('dealt')));
+      // the whole haul from the top, wherever the list of packs was scrolled to
+      requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
       setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
       // the best of it turned over first, with its sound; the rest in a quick wave
       const best = tiles.filter(t => t._big);
