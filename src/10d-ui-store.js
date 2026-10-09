@@ -31,7 +31,7 @@
   UI.shardIcon = shardSvg;
   const shards = (n, cls) => el('span', { class: 'shards' + (cls ? ' ' + cls : ''), html: shardSvg() + `<b>${fmtN(n)}</b>` });
   /** A wildcard's face, coloured by rarity. */
-  const wcIcon = (r, n) => el('span', { class: 'wc-ico wc-' + r, title: `${RAR_NAME[r]} wildcards`, html: `<i></i>${n != null ? `<b>${fmtN(n)}</b>` : ''}` });
+  const wcIcon = (r, n) => el('span', { class: 'wc-ico wc-' + r, title: `${RAR_NAME[r]} wildcards`, html: gemSvg(r) + (n != null ? `<b>${fmtN(n)}</b>` : '') });
 
   /* ---------------- the balance in the top bar ---------------- */
   /**
@@ -83,19 +83,33 @@
     return p;
   }
 
-  /** A booster, drawn: the art, the set's symbol and name, the crimped foil. */
+  /**
+   * A booster, drawn the way a real one is printed: the set's art over the
+   * whole front, "Magic: The Gathering" across the top, the set's name and
+   * symbol where its logo goes, the kind of booster and its card count on
+   * the band at the bottom, and crimped foil at both ends.
+   */
   function boosterEl(setInfo, kind, opts) {
     opts = opts || {};
+    const collector = kind === 'collector';
     const art = el('div', { class: 'bp-art' });
-    const node = el('div', { class: 'booster' + (kind === 'collector' ? ' collector' : '') + (opts.big ? ' big' : '') }, [
+    const name = setInfo ? (setInfo.name || String(setInfo.code || '').toUpperCase()) : 'Booster';
+    const node = el('div', { class: 'booster' + (collector ? ' collector' : '') + (opts.big ? ' big' : '') + (opts.cls ? ' ' + opts.cls : ''),
+      title: `${name} ${collector ? 'Collector Booster' : 'Play Booster'}` }, [
       art,
+      el('div', { class: 'bp-shade' }),
       el('div', { class: 'bp-foil' }),
       el('div', { class: 'bp-crimp top' }), el('div', { class: 'bp-crimp bottom' }),
-      el('div', { class: 'bp-label' }, [
+      el('div', { class: 'bp-top' }, [el('span', { text: 'Magic' }), el('small', { text: 'The Gathering' })]),
+      el('div', { class: 'bp-logo' }, [
         setInfo && setInfo.icon_svg_uri ? el('img', { class: 'bp-icon', src: setInfo.icon_svg_uri, alt: '' }) : null,
-        el('div', { class: 'bp-name', text: setInfo ? (setInfo.name || String(setInfo.code || '').toUpperCase()) : 'Booster' }),
-        el('div', { class: 'bp-kind', text: kind === 'collector' ? 'Collector Booster' : 'Play Booster' }),
+        el('div', { class: 'bp-name', text: name }),
       ].filter(Boolean)),
+      el('div', { class: 'bp-band' }, [
+        el('div', { class: 'bp-kind', text: collector ? 'Collector Booster' : 'Play Booster' }),
+        el('div', { class: 'bp-count', text: collector ? '15 cards' : '14 cards' }),
+      ]),
+      el('div', { class: 'bp-seam' }),
     ]);
     if (setInfo && setInfo.code) setArt(setInfo.code).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
     return node;
@@ -310,168 +324,414 @@
   }
 
   /* ---------------- opening packs ---------------- */
+  const RANK = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
+  const reduced = () => document.documentElement.dataset.reducedMotion === '1' ||
+    (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  /** A wildcard's gem: a cut stone in the rarity's colours. */
+  function gemSvg(r) {
+    const id = 'wg' + (++shardSeq);
+    const C = { common: ['#f2f2f2', '#9a9a9a', '#4a4a4a'], uncommon: ['#eef8ff', '#8fb4cc', '#3b5566'],
+      rare: ['#fff2c2', '#d9a83a', '#6e4a10'], mythic: ['#ffd9b0', '#f06a22', '#7a1f06'] }[r] || ['#fff', '#999', '#444'];
+    return `<svg viewBox="0 0 100 100" class="wc-gem" aria-hidden="true"><defs>` +
+      `<linearGradient id="${id}a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${C[0]}"/><stop offset=".5" stop-color="${C[1]}"/><stop offset="1" stop-color="${C[2]}"/></linearGradient>` +
+      `<radialGradient id="${id}b" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>` +
+      `<polygon points="50,4 86,26 86,74 50,96 14,74 14,26" fill="url(#${id}a)" stroke="${C[0]}" stroke-width="1.5"/>` +
+      `<polygon points="50,4 86,26 50,38 14,26" fill="#fff" opacity=".28"/><polygon points="14,26 50,38 50,96 14,74" fill="#000" opacity=".12"/>` +
+      `<polygon points="86,26 86,74 50,96 50,38" fill="#000" opacity=".26"/><polygon points="50,38 68,49 50,82 32,49" fill="url(#${id}b)" opacity=".75"/>` +
+      `<path d="M50 20 L54 46 L80 50 L54 54 L50 80 L46 54 L20 50 L46 46 Z" fill="#fff" opacity=".55"/></svg>`;
+  }
+  /** A wildcard, as a card of its own: a dark frame in its metal, and its gem. */
+  function wildcardFace(r, track) {
+    return el('div', { class: 'wc-card wc-' + r }, [
+      el('div', { class: 'wc-frame' }),
+      el('div', { class: 'wc-title', text: 'Wildcard' }),
+      el('div', { class: 'wc-gem-wrap', html: gemSvg(r) }),
+      el('div', { class: 'wc-rarity', text: RAR_NAME[r] }),
+      track ? el('div', { class: 'wc-note', text: 'Wildcard track reward' }) : null,
+    ].filter(Boolean));
+  }
+  UI.wildcardFace = wildcardFace;
+
   /**
-   * The pack opening, over everything: the pack, torn open with a click;
-   * the cards dealt face down; commons and uncommons turned over in turn,
-   * rares and mythics left glowing until you turn them. Then the next pack,
-   * or done. `onClose` is told when it closes.
+   * Opening packs, over everything: your packs grouped by set (open one, or
+   * all of a set at once); a pack torn open and its cards dealt face down,
+   * the commons turned over by themselves and the rares and mythics left
+   * to gather themselves and turn when clicked. Hover a card to bring it
+   * up, right-click to hold it up to the light. `onClose` is told when it
+   * closes.
    */
   UI.openPacks = async function (onClose) {
     const S = E();
     const sets = await MTG.scry.draftableSets().catch(() => []);
-    const setInfo = (code) => sets.find(s => s.code === code) || { code, name: String(code || '').toUpperCase() };
-    const overlay = el('div', { class: 'pack-open', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Opening packs' });
+    const setInfo = (p) => (p.set ? (sets.find(s => s.code === p.set) || { code: p.set, name: p.name || String(p.set).toUpperCase() })
+      : (sets[p.newest || 0] || sets[0] || { code: '', name: 'Booster' }));
+    const backdrop = el('div', { class: 'po-backdrop' });
     const stage = el('div', { class: 'po-stage' });
+    const head = el('div', { class: 'po-head' });
     const foot = el('div', { class: 'po-foot' });
-    const count = el('div', { class: 'po-count' });
+    const overlay = el('div', { class: 'pack-open', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Opening packs' }, [
+      backdrop, el('div', { class: 'po-vignette' }), el('div', { class: 'po-dust' }, Array.from({ length: 26 }, (_, i) => el('i', { style: {
+        left: (Math.random() * 100).toFixed(1) + '%', '--t': (9 + Math.random() * 12).toFixed(1) + 's', '--d': (-Math.random() * 20).toFixed(1) + 's',
+        '--s': (1 + Math.random() * 2.2).toFixed(1) + 'px' } }))),
+      head, stage, foot,
+      el('button', { type: 'button', class: 'btn ghost sm po-x', text: 'Close', onclick: () => close() }),
+    ]);
+    const hadAmbience = !!(MTG.audio && MTG.audio._ambWanted);
+    if (MTG.audio && MTG.audio.ambience) MTG.audio.ambience(true);
+    let onKey = () => {};
+    const keyHandler = (e) => onKey(e);
+    document.addEventListener('keydown', keyHandler);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('contextmenu', (e) => e.preventDefault());
     const close = () => {
-      document.removeEventListener('keydown', onKey);
+      if (inspecting) return closeInspect();
+      document.removeEventListener('keydown', keyHandler);
+      if (MTG.audio && MTG.audio.ambience && !hadAmbience) MTG.audio.ambience(false);
       overlay.classList.add('closing');
-      setTimeout(() => overlay.remove(), 260);
+      setTimeout(() => overlay.remove(), 300);
       if (onClose) onClose();
     };
-    overlay.append(el('div', { class: 'po-rays' }), stage, count, foot,
-      el('button', { type: 'button', class: 'btn ghost sm po-x', text: 'Close', onclick: close }));
-    document.body.appendChild(overlay);
-    let onKey = () => {};
-    document.addEventListener('keydown', (e) => onKey(e));
+    const setBackdrop = (info) => {
+      if (!info || !info.code) return;
+      setArt(info.code).then(a => { if (a) backdrop.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    };
 
-    const nextPack = () => {
-      const left = S.packs();
-      if (!left.length) return close();
-      // the welcome packs: the newest sets, named now
-      const p = left[0];
-      const info = p.set ? setInfo(p.set) : (sets[p.newest || 0] || sets[0]);
-      stage.innerHTML = ''; foot.innerHTML = '';
-      count.textContent = `${left.length} pack${left.length === 1 ? '' : 's'} to open`;
+    /* ---- right-click: the card held up to the light ---- */
+    let inspecting = null;
+    const inspect = (card) => {
+      if (!card) return;
+      closeInspect();
+      MTG.sfx('inspect');
+      const url = MTG.scry.imageUrl(card, 'large', 0) || MTG.scry.imageUrl(card, 'normal', 0);
+      const big = el('div', { class: 'po-inspect' }, [
+        el('div', { class: 'poi-card', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }, url ? [] : [UI.cardFallback(card, 0)]),
+        el('div', { class: 'poi-name', text: card.name }),
+        el('div', { class: 'poi-sub', text: `${RAR_NAME[S.rarityOf(card)]} · you own ${Math.min(4, S.owned(card.name))} of 4 · right-click or Esc to put it down` }),
+      ]);
+      big.addEventListener('click', closeInspect);
+      big.addEventListener('contextmenu', (e) => { e.preventDefault(); closeInspect(); });
+      overlay.appendChild(big);
+      inspecting = big;
+    };
+    function closeInspect() {
+      if (!inspecting) return;
+      const b = inspecting;
+      inspecting = null;
+      b.classList.add('closing');
+      setTimeout(() => b.remove(), 200);
+    }
+
+    /* ---- your packs, by set ---- */
+    const groups = () => {
+      const m = new Map();
+      for (const p of S.packs()) {
+        const key = (p.set || 'new' + (p.newest || 0)) + '|' + (p.kind || 'play');
+        if (!m.has(key)) m.set(key, { key, info: setInfo(p), kind: p.kind || 'play', packs: [] });
+        m.get(key).packs.push(p);
+      }
+      return [...m.values()];
+    };
+    const inventory = () => {
+      const gs = groups();
+      if (!gs.length) return close();
+      stage.className = 'po-stage inv';
+      stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
+      head.append(el('div', { class: 'po-title', text: 'Your packs' }), el('div', { class: 'po-sub', text: `${S.packs().length} unopened` }));
+      setBackdrop(gs[0].info);
+      const grid = el('div', { class: 'po-inv' });
+      for (const g of gs) {
+        const n = g.packs.length;
+        const stack = el('div', { class: 'po-inv-stack' }, [
+          n > 2 ? boosterEl(g.info, g.kind, { cls: 'behind b2' }) : null,
+          n > 1 ? boosterEl(g.info, g.kind, { cls: 'behind b1' }) : null,
+          boosterEl(g.info, g.kind),
+          el('span', { class: 'po-inv-n', text: '×' + n }),
+        ].filter(Boolean));
+        stack.addEventListener('click', () => openOne(g));
+        grid.appendChild(el('div', { class: 'po-inv-item' }, [
+          stack,
+          el('div', { class: 'po-inv-name', text: g.info.name }),
+          el('div', { class: 'po-inv-btns' }, [
+            el('button', { type: 'button', class: 'btn primary', text: 'Open', onclick: () => openOne(g) }),
+            n > 1 ? el('button', { type: 'button', class: 'btn', text: `Open all (${n})`, onclick: () => openAll(g) }) : null,
+          ].filter(Boolean)),
+        ]));
+      }
+      stage.appendChild(grid);
+      foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Done', onclick: close }));
+      onKey = (e) => { if (e.key === 'Escape') close(); };
+    };
+
+    /* ---- one pack ---- */
+    const openOne = (g) => {
+      const p = (groups().find(x => x.key === g.key) || { packs: [] }).packs[0];
+      if (!p) return inventory();
+      const info = setInfo(p);
+      setBackdrop(info);
+      stage.className = 'po-stage one';
+      stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
+      head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: (p.kind === 'collector' ? 'Collector Booster' : 'Play Booster') }));
       const pack = boosterEl(info, p.kind, { big: true });
       pack.classList.add('po-pack');
       const hint = el('div', { class: 'po-hint', text: 'Click the pack to open it' });
-      stage.append(pack, hint);
+      stage.append(el('div', { class: 'po-spot' }), pack, hint);
+      // the pack leans toward the pointer
+      pack.addEventListener('pointermove', (e) => {
+        const r = pack.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        pack.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg');
+        pack.style.setProperty('--ry', (x * 14).toFixed(1) + 'deg');
+      });
+      pack.addEventListener('pointerleave', () => { pack.style.setProperty('--rx', '0deg'); pack.style.setProperty('--ry', '0deg'); });
       MTG.sfx('pack_shake');
       let opening = false;
       const open = async () => {
         if (opening) return;
         opening = true;
-        hint.remove();
-        pack.classList.add('shaking');
-        MTG.sfx('pack_shake');
+        hint.classList.add('gone');
+        pack.classList.add('seam');
+        MTG.sfx('pack_seam');
         let res;
         try {
-          [res] = await Promise.all([
-            S.openPack(p.id, async () => info),
-            new Promise(r => setTimeout(r, 650)),
-          ]);
+          [res] = await Promise.all([S.openPack(p.id, async () => info), sleep(reduced() ? 100 : 620)]);
         } catch (e) {
           opening = false;
-          pack.classList.remove('shaking');
-          UI.error(e.message || String(e));
-          return;
+          pack.classList.remove('seam');
+          hint.classList.remove('gone');
+          return UI.error(e.message || String(e));
         }
-        pack.classList.remove('shaking');
+        pack.classList.remove('seam');
         pack.classList.add('torn');
-        overlay.classList.add('burst');
+        overlay.classList.remove('flash'); void overlay.offsetWidth; overlay.classList.add('flash');
         MTG.sfx('pack_tear');
-        setTimeout(() => overlay.classList.remove('burst'), 900);
-        setTimeout(() => { pack.remove(); deal(res, info); }, 520);
+        await sleep(reduced() ? 50 : 480);
+        deal(res, g, info);
       };
       pack.addEventListener('click', open);
-      onKey = (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); open(); } else if (e.key === 'Escape') close(); };
+      onKey = (e) => {
+        if (e.key === 'Escape') return close();
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); open(); }
+      };
     };
 
-    const deal = (res, info) => {
-      const items = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
-      const grid = el('div', { class: 'po-grid', style: { '--cols': String(Math.min(7, Math.ceil(items.length / 2))) } });
-      stage.appendChild(grid);
-      count.textContent = `${info.name || ''}${S.packs().length ? ` · ${S.packs().length} more to open` : ''}`;
-      const tiles = items.map((it, i) => {
-        const big = it.wildcard ? (it.wildcard === 'rare' || it.wildcard === 'mythic') : (it.rarity === 'rare' || it.rarity === 'mythic');
-        const r = it.wildcard || it.rarity;
-        const front = el('div', { class: 'po-front' });
-        if (it.wildcard) {
-          front.classList.add('wc-face', 'wc-' + it.wildcard);
-          front.append(el('div', { class: 'wc-big' }), el('div', { class: 'wc-label', text: `${RAR_NAME[it.wildcard]} wildcard` }),
-            it.track ? el('div', { class: 'wc-sub', text: 'Wildcard track' }) : null);
-        } else {
-          const url = MTG.scry.imageUrl(it.card, 'normal', 0);
-          if (url) front.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
-          else front.appendChild(UI.cardFallback(it.card, 0));
-          if (it.foil) front.appendChild(el('div', { class: 'po-foil' }));
-        }
-        const tags = el('div', { class: 'po-tags' }, [
+    /** A face-down card, ready to be turned. */
+    const cardTile = (it, i, n, cols) => {
+      const r = it.wildcard || it.rarity;
+      const big = r === 'rare' || r === 'mythic';
+      const front = el('div', { class: 'po-front' });
+      if (it.wildcard) front.appendChild(wildcardFace(it.wildcard, it.track));
+      else {
+        const url = MTG.scry.imageUrl(it.card, 'normal', 0);
+        if (url) front.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+        else front.appendChild(UI.cardFallback(it.card, 0));
+        if (it.foil) front.appendChild(el('div', { class: 'po-foil' }));
+        front.appendChild(el('div', { class: 'po-sheen' }));
+      }
+      const col = i % cols, row = Math.floor(i / cols), rows = Math.ceil(n / cols);
+      const t = el('button', { type: 'button', class: `po-card r-${r}${big ? ' big' : ''}`, 'aria-label': 'A card, face down', style: {
+        '--i': String(i),
+        '--ox': ((cols - 1) / 2 - col).toFixed(2), '--oy': ((rows - 1) / 2 - row).toFixed(2),
+        transformOrigin: `${col === 0 ? 'left' : col === cols - 1 ? 'right' : 'center'} ${rows === 1 ? 'center' : row === 0 ? 'top' : row === rows - 1 ? 'bottom' : 'center'}`,
+      } }, [
+        el('div', { class: 'po-inner' }, [
+          el('div', { class: 'po-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
+          front,
+        ]),
+        el('div', { class: 'po-tags' }, [
+          it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
           it.shards ? el('span', { class: 'po-dup', html: `+${shardSvg()}${fmtN(it.shards)}` }) : null,
-        ].filter(Boolean));
-        const t = el('button', { type: 'button', class: `po-card r-${r}${big ? ' big' : ''}`, style: { '--i': String(i) },
-          'aria-label': it.wildcard ? `${RAR_NAME[it.wildcard]} wildcard` : 'A card, face down' }, [
-          el('div', { class: 'po-inner' }, [el('div', { class: 'po-back' }), front]),
-          tags,
-        ]);
-        t._item = it; t._big = big; t._flipped = false;
-        t.addEventListener('click', () => flip(t));
-        if (it.card) UI.attachPreview(t, it.card, 0);
-        grid.appendChild(t);
-        return t;
-      });
+        ].filter(Boolean)),
+      ]);
+      t._item = it; t._big = big; t._flipped = false;
+      t.addEventListener('mouseenter', () => { if (t._flipped) MTG.sfx('hover'); });
+      t.addEventListener('contextmenu', (e) => { e.preventDefault(); if (t._flipped && it.card) inspect(it.card); });
+      return t;
+    };
+
+    /** Light thrown off a card as it turns: a ring, and motes. */
+    const burst = (t, kind) => {
+      if (reduced()) return;
+      const b = el('div', { class: 'po-burst ' + kind }, [el('div', { class: 'po-ring' })]);
+      const n = kind === 'mythic' ? 22 : 14;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+        const d = (kind === 'mythic' ? 90 : 65) + Math.random() * 60;
+        b.appendChild(el('i', { style: { '--dx': (Math.cos(a) * d).toFixed(0) + 'px', '--dy': (Math.sin(a) * d - 30).toFixed(0) + 'px', '--d': (Math.random() * 0.2).toFixed(2) + 's' } }));
+      }
+      t.appendChild(b);
+      setTimeout(() => b.remove(), 1600);
+      if (kind === 'mythic') { overlay.classList.remove('quake'); void overlay.offsetWidth; overlay.classList.add('quake'); }
+    };
+
+    /** Turn a card over: a rare or mythic gathers itself first. */
+    const flipper = (tiles, after) => {
       let flips = 0;
-      const flip = (t) => {
-        if (t._flipped) return;
-        t._flipped = true;
-        t.classList.add('flipped');
-        t.setAttribute('aria-label', t._item.card ? t._item.card.name : `${RAR_NAME[t._item.wildcard]} wildcard`);
+      const flip = async (t, quick) => {
+        if (t._flipped || t._charging) return;
         const it = t._item;
-        if (it.wildcard) MTG.sfx('wildcard');
-        else if (it.rarity === 'mythic') { MTG.sfx('reveal_mythic'); sparkle(t, 'mythic'); }
-        else if (it.rarity === 'rare') { MTG.sfx('reveal_rare'); sparkle(t, 'rare'); }
-        else MTG.sfx('card_flip', { index: flips });
+        const r = it.wildcard || it.rarity;
+        const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
+        if (t._big && !quick && !reduced()) {
+          t._charging = true;
+          t.classList.add('charging');
+          MTG.sfx(r === 'mythic' ? 'charge_mythic' : 'charge_rare');
+          await sleep(r === 'mythic' ? 820 : 520);
+          t.classList.remove('charging');
+          t._charging = false;
+        }
+        t._flipped = true;
+        t.classList.remove('waiting');
+        t.classList.add('flipped');
+        t.setAttribute('aria-label', it.card ? it.card.name : `${RAR_NAME[it.wildcard]} wildcard`);
+        if (it.wildcard) { MTG.sfx('wildcard'); burst(t, it.wildcard === 'mythic' ? 'mythic' : 'rare'); }
+        else if (it.rarity === 'mythic') { if (!quick || !after.mythicSounded) MTG.sfx('reveal_mythic'); after.mythicSounded = true; burst(t, 'mythic'); }
+        else if (it.rarity === 'rare') { if (!quick || !after.rareSounded) MTG.sfx('reveal_rare'); after.rareSounded = true; burst(t, 'rare'); }
+        else if (!quick || flips % 3 === 0) MTG.sfx('card_flip', { index: flips, pan });
         flips++;
-        if (it.isNew && (it.rarity === 'rare' || it.rarity === 'mythic')) setTimeout(() => MTG.sfx('new_card'), 380);
-        if (it.shards) setTimeout(() => MTG.sfx('shards', { intensity: 0.2 }), 300);
-        refreshFoot();
+        if (it.isNew && (r === 'rare' || r === 'mythic') && !quick) setTimeout(() => MTG.sfx('new_card'), 700);
+        if (it.shards && !quick) setTimeout(() => MTG.sfx('shards', { intensity: 0.15 }), 450);
+        after();
       };
-      const revealAll = () => {
-        tiles.filter(t => !t._flipped).forEach((t, k) => setTimeout(() => flip(t), k * 160));
-      };
-      const refreshFoot = () => {
+      return flip;
+    };
+
+    /* ---- the cards of one pack, dealt ---- */
+    const deal = (res, g, info) => {
+      stage.className = 'po-stage one dealt-stage';
+      stage.innerHTML = ''; foot.innerHTML = '';
+      const items = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
+      const cols = Math.min(8, Math.ceil(items.length / 2));
+      const grid = el('div', { class: 'po-grid', style: { '--cols': String(cols) } });
+      stage.appendChild(grid);
+      const tiles = items.map((it, i) => cardTile(it, i, items.length, cols));
+      for (const t of tiles) grid.appendChild(t);
+      const refresh = () => {
         foot.innerHTML = '';
         const hidden = tiles.filter(t => !t._flipped);
         if (hidden.length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Reveal all', onclick: revealAll }));
-        const more = S.packs().length;
-        if (more) foot.appendChild(el('button', { type: 'button', class: 'btn primary', text: `Open next pack (${more})`, onclick: () => { MTG.sfx('click'); nextPack(); } }));
-        foot.appendChild(el('button', { type: 'button', class: 'btn' + (more ? '' : ' primary'), text: 'Done', onclick: close }));
+        const same = (groups().find(x => x.key === g.key) || { packs: [] }).packs.length;
+        if (same) foot.appendChild(el('button', { type: 'button', class: 'btn' + (hidden.length ? '' : ' primary'), text: `Open next (${same})`, onclick: () => { MTG.sfx('click'); openOne(g); } }));
+        if (S.packs().length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Back to packs', onclick: () => { MTG.sfx('click'); inventory(); } }));
+        foot.appendChild(el('button', { type: 'button', class: 'btn' + (!hidden.length && !same ? ' primary' : ''), text: 'Done', onclick: close }));
       };
-      refreshFoot();
-      // dealt in, then the small ones turned over one after another
-      requestAnimationFrame(() => grid.classList.add('dealt'));
+      const flip = flipper(tiles, refresh);
+      for (const t of tiles) t.addEventListener('click', () => flip(t));
+      const revealAll = () => tiles.filter(t => !t._flipped).forEach((t, k) => setTimeout(() => flip(t, true), k * 140));
+      refresh();
+      // dealt out of the pack, one after another
+      requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.add('dealt')));
+      tiles.forEach((t, k) => setTimeout(() => {
+        const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
+        MTG.sfx('card_deal', { pan });
+      }, 60 + k * 55));
+      const dealt = 60 + tiles.length * 55 + 350;
+      // dealt: from now on a card comes up and goes back at once
+      setTimeout(() => grid.classList.add('settled'), dealt + 300);
       const auto = tiles.filter(t => !t._big);
-      auto.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t); }, 700 + k * 130));
-      const bigs = tiles.filter(t => t._big);
-      if (bigs.length) setTimeout(() => { for (const t of bigs) if (!t._flipped) t.classList.add('waiting'); }, 700 + auto.length * 130);
+      auto.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t); }, dealt + k * 150));
+      setTimeout(() => { for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting'); }, dealt + auto.length * 150);
       onKey = (e) => {
         if (e.key === 'Escape') return close();
         if (e.key !== ' ' && e.key !== 'Enter') return;
         e.preventDefault();
-        const next = tiles.find(t => !t._flipped);
+        const next = tiles.find(t => !t._flipped && !t._charging);
         if (next) flip(next);
-        else if (S.packs().length) nextPack();
+        else if ((groups().find(x => x.key === g.key) || { packs: [] }).packs.length) openOne(g);
+        else if (S.packs().length) inventory();
         else close();
       };
     };
 
-    /** Light thrown off a rare or mythic as it turns over. */
-    const sparkle = (t, kind) => {
-      if (document.documentElement.dataset.reducedMotion === '1') return;
-      const b = el('div', { class: 'po-burst ' + kind });
-      for (let i = 0; i < 14; i++) {
-        const a = (i / 14) * Math.PI * 2;
-        b.appendChild(el('i', { style: { '--dx': (Math.cos(a) * (60 + Math.random() * 50)).toFixed(0) + 'px', '--dy': (Math.sin(a) * (60 + Math.random() * 50)).toFixed(0) + 'px', '--d': (Math.random() * 0.15).toFixed(2) + 's' } }));
+    /* ---- every pack of a set at once ---- */
+    const openAll = async (g) => {
+      const packs = (groups().find(x => x.key === g.key) || { packs: [] }).packs.slice();
+      if (!packs.length) return inventory();
+      const info = g.info;
+      setBackdrop(info);
+      stage.className = 'po-stage all';
+      stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
+      head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: `Opening ${packs.length} packs…` }));
+      const fan = el('div', { class: 'po-fan' });
+      const shown = Math.min(packs.length, 10);
+      const fanned = Array.from({ length: shown }, (_, i) => {
+        const b = boosterEl(info, g.kind);
+        b.style.setProperty('--k', String(i - (shown - 1) / 2));
+        fan.appendChild(b);
+        return b;
+      });
+      stage.appendChild(fan);
+      onKey = () => {};
+      const results = [];
+      let failed = null;
+      for (let i = 0; i < packs.length; i++) {
+        try { results.push(await S.openPack(packs[i].id, async () => info)); } catch (e) { failed = e; break; }
+        const b = fanned[i % shown];
+        if (b && !reduced()) { b.classList.remove('rip'); void b.offsetWidth; b.classList.add('rip'); }
+        MTG.sfx('pack_tear_quick', { pan: shown > 1 ? ((i % shown) / (shown - 1) - 0.5) : 0 });
+        await sleep(reduced() ? 10 : 110);
       }
-      t.appendChild(b);
-      setTimeout(() => b.remove(), 1200);
-      if (kind === 'mythic') { overlay.classList.remove('quake'); void overlay.offsetWidth; overlay.classList.add('quake'); }
+      if (failed && !results.length) { UI.error(failed.message || String(failed)); return inventory(); }
+      overlay.classList.remove('flash'); void overlay.offsetWidth; overlay.classList.add('flash');
+      MTG.sfx('pack_tear');
+      await sleep(reduced() ? 50 : 420);
+      // everything, together: the same card once with how many, rarest first
+      const merged = new Map();
+      const wcs = { common: 0, uncommon: 0, rare: 0, mythic: 0 };
+      let shardsIn = 0, fresh = 0, total = 0;
+      for (const res of results) {
+        for (const it of res.cards) {
+          total++;
+          if (it.wildcard) { wcs[it.wildcard]++; continue; }
+          const key = it.card.name + (it.foil ? '|f' : '');
+          const m = merged.get(key) || Object.assign({}, it, { count: 0, shards: 0, isNew: false });
+          m.count++; m.shards += it.shards || 0; m.isNew = m.isNew || it.isNew;
+          merged.set(key, m);
+          shardsIn += it.shards || 0;
+          if (it.isNew) fresh++;
+        }
+        for (const r of res.bonus) wcs[r]++;
+      }
+      const items = [...merged.values()].sort((a, b) => RANK[b.rarity] - RANK[a.rarity] || (b.foil ? 1 : 0) - (a.foil ? 1 : 0) || a.card.name.localeCompare(b.card.name));
+      for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.unshift({ wildcard: r, count: wcs[r] });
+      items.sort((a, b) => RANK[b.wildcard || b.rarity] - RANK[a.wildcard || a.rarity]);
+      stage.className = 'po-stage all summary';
+      stage.innerHTML = '';
+      head.innerHTML = '';
+      head.append(el('div', { class: 'po-title', text: `${info.name}: ${results.length} pack${results.length === 1 ? '' : 's'}` }),
+        el('div', { class: 'po-sub' }, [
+          document.createTextNode(`${total} cards · ${fresh} new`),
+          shardsIn ? el('span', { html: ` · +${shardSvg()}${fmtN(shardsIn)} for extra copies` }) : null,
+          ...RAR.filter(r => wcs[r]).map(r => el('span', { class: 'po-wcsum' }, [wcIcon(r, wcs[r])])),
+        ].filter(Boolean)));
+      const cols = Math.max(4, Math.min(10, Math.ceil(Math.sqrt(items.length * 1.8))));
+      const grid = el('div', { class: 'po-grid many', style: { '--cols': String(cols) } });
+      stage.appendChild(grid);
+      const tiles = items.map((it, i) => cardTile(it, i, items.length, cols));
+      for (const t of tiles) grid.appendChild(t);
+      const refresh = () => {
+        foot.innerHTML = '';
+        if (S.packs().length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Back to packs', onclick: () => { MTG.sfx('click'); inventory(); } }));
+        foot.appendChild(el('button', { type: 'button', class: 'btn primary', text: 'Done', onclick: close }));
+      };
+      const after = () => {};
+      const flip = flipper(tiles, after);
+      refresh();
+      requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.add('dealt')));
+      setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
+      // the best of it turned over first, with its sound; the rest in a quick wave
+      const best = tiles.filter(t => t._big);
+      const rest = tiles.filter(t => !t._big);
+      let at = 400;
+      for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
+      rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+      if (failed) UI.error(`Some packs could not be opened: ${failed.message || failed}`);
+      onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
     };
 
-    nextPack();
+    inventory();
   };
 
   /* ---------------- the Collection ---------------- */
