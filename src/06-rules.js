@@ -2897,6 +2897,12 @@
       }
       // Animar: "for each +1/+1 counter on CARDNAME"
       if (v.countersOnSelf === '*') return (src ? Object.values(src.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0) * mult;
+      // Wight of Precinct Six: cards of a kind in the opponents' graveyards
+      if (v.cardsInOpponentGraveyards) {
+        let k = 0;
+        for (const q of this.opponentsOf(pid)) for (const c of ((this.zones[q.id] || {}).graveyard || [])) if (this._matchesCategory(c, v.cardsInOpponentGraveyards)) k++;
+        return k * mult;
+      }
       // Commander's Insignia: times its controller has cast a commander from the command zone
       if (v.commanderCasts) return Object.values(((this.player(pid) || {}).commanderCasts) || {}).reduce((k, x) => k + (Number(x) || 0), 0) * mult;
       // Vishgraz: the poison counters among your opponents
@@ -9694,7 +9700,7 @@
       if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts)) return this._countValue(v, (src || o).controller, src || o, true);
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
         // counted from inside the layers, so it must not ask for characteristics again
@@ -11657,6 +11663,8 @@
         // the Scents and Seers: how many cards were revealed
         if (v && typeof v === 'object' && v.revealedCount) return (this._revealedCount || 0) * (v.mult || 1);
         // the Commander storms: how many times you've cast your commander from the command zone
+        // Keening Stone: "the number of cards in that player's graveyard" — the targeted player
+        if (v && typeof v === 'object' && v.targetGraveyardCount) { const tp = firstPlayer(); return tp ? ((this.zones[tp.id] || {}).graveyard || []).length : 0; }
         if (v && typeof v === 'object' && v.commanderCasts) {
           const cc = (me && me.commanderCasts) || {};
           return Object.values(cc).reduce((k, x) => k + (Number(x) || 0), 0) * (v.mult || 1);
@@ -11698,7 +11706,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -17029,6 +17037,30 @@
         }
 
         // "Target creature blocks this creature this turn if able."
+        /* Sewer-veillance Cam: "tap or untap target creature" — its
+           controller's choice; a bot taps what an opponent has and untaps
+           its own */
+        case 'tapOrUntap': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          let tapIt = !x.tapped;
+          if (!me.isBot) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
+              options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }], prompt: `${ctx.name || 'Effect'}: tap or untap ${x.name}?` }, 'tou');
+            if (got === SUSPEND) return SUSPEND;
+            tapIt = ((got && got.picks) || [0])[0] === 0;
+          } else tapIt = x.controller !== ctx.controller;
+          if (tapIt) this._markTapped(x); else this._markUntapped(x);
+          break;
+        }
+        // Vampire Hexmage: every counter of every kind comes off
+        case 'removeAllCounters': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          for (const [kind, c] of Object.entries(x.counters || {})) if (Number(c) > 0) this.addCounters(x, kind, -Number(c));
+          this.logEvent('counters', `All counters are removed from ${x.name}.`);
+          break;
+        }
         case 'mustBlockThis': {
           /* Fighter Class: "blocks it" — the creature the trigger is about;
              Feral Contest: in a spell, the creature the sentence before acted on */

@@ -1234,6 +1234,21 @@
     // Ashling's Command: "2 damage to each creature target player controls"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // Awakening: "untap all creatures and lands" — everyone's
+    { re: /^Untap all ((?:creatures|lands|artifacts|permanents)(?: and (?:creatures|lands|artifacts|permanents))?)\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1]); return sc && sc.who === 'all' ? { op: 'untapAll', scope: sc } : null; } },
+    // Sewer-veillance Cam, Twiddle: "Tap or untap target creature."
+    { re: /^Tap or untap (target (?:creature|permanent|artifact|land|artifact or creature))\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'tapOrUntap', targets: [t] } : null; } },
+    // Keening Stone: "Target player mills X cards, where X is the number of cards in that player's graveyard."
+    { re: /^Target player mills X cards, where X is the number of cards in that player'?s graveyard\.?$/i,
+      make: () => ({ op: 'mill', who: 'target', n: { targetGraveyardCount: true }, targets: [{ type: 'player' }] }) },
+    // Vampire Hexmage: "Remove all counters from target permanent."
+    { re: /^Remove all counters from (target (?:permanent|creature|artifact|land))\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'removeAllCounters', targets: [t] } : null; } },
+    // Nimbleclaw Adept: "Untap two other target permanents."
+    { re: /^Untap (one|two|three) other target ([a-z]+)s\.?$/i,
+      make: (m) => ({ op: 'untap', targets: Array.from({ length: num(m[1]) }, () => Object.assign(targetSpec('target ' + m[2]), { another: true })) }) },
     // Otherworld Atlas: "Each player draws a card for each charge counter on this artifact."
     { re: /^Each player draws a card for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[1]); return c ? { op: 'draw', who: 'each', n: c } : null; } },
@@ -5330,6 +5345,8 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Wight of Precinct Six: "for each creature card in your opponents' graveyards"
+    if ((m = p.match(/^([a-z]+) card in your opponents'? graveyards$/i))) return { cardsInOpponentGraveyards: m[1].toLowerCase(), mult: k };
     // Kalemne, Disciple of Iroas: "for each experience counter you have"
     if (/^experience counter you have$/i.test(p)) return { playerStat: 'experience', mult: k };
     // Commander's Insignia: "for each time you've cast your commander from the command zone this game"

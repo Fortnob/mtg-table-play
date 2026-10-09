@@ -14227,4 +14227,34 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.life('A'), life - T.g.powerOf(sk), 'damage equal to its power to each opponent');
   });
+
+  test('Nimbleclaw Adept, Vampire Hexmage, Wight of Precinct Six, Sewer-veillance Cam, Keening Stone, Awakening', (mk, t) => {
+    for (const n of ['Nimbleclaw Adept', 'Vampire Hexmage', 'Wight of Precinct Six', 'Sewer-veillance Cam', 'Keening Stone', 'Awakening']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const hex = T.bf('A', 'Vampire Hexmage');
+    const jace = T.bf('B', 'Jace Beleren');
+    const hab = hex.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(hab.effects, { controller: 'A', obj: hex, name: 'Vampire Hexmage', kind: 'ability', targets: [{ kind: 'object', id: jace.id }] });
+    T.settle(); T.g.checkStateBasedActions(); T.settle();
+    t.zone(jace, 'graveyard', 'no loyalty left');
+    const wight = T.bf('A', 'Wight of Precinct Six');
+    const base = T.g.powerOf(wight);
+    T.grave('B', 'Grizzly Bears'); T.grave('B', 'Hill Giant'); T.grave('B', 'Shock'); T.grave('A', 'Grizzly Bears'); T.g.bumpBoard();
+    t.eq(T.g.powerOf(wight), base + 2, 'two creature cards in opponents\' graveyards');
+    const cam = T.bf('A', 'Sewer-veillance Cam');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [0] }));
+    const cab = cam.analysis().abilities.find(a => a.kind === 'triggered');
+    T.g._runEffects(cab.effects.map(e => (e.op === 'may' ? e.then : [e])).flat(), { controller: 'A', obj: cam, name: 'Sewer-veillance Cam', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    T.settle();
+    t.ok(bear.tapped, 'tapped');
+    const ks = T.bf('A', 'Keening Stone');
+    for (let i = 0; i < 6; i++) T.top('B', 'Island');
+    const before = T.zone('B', 'graveyard').length;
+    const kab = ks.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(kab.effects, { controller: 'A', obj: ks, name: 'Keening Stone', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle();
+    t.eq(T.zone('B', 'graveyard').length, before * 2, 'as many as were in the graveyard');
+  });
 };

@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11843,
-  "gainedCards": 1212,
-  "linesNeeded": 12754,
-  "linesGained": 1431,
+  "needed": 11809,
+  "gainedCards": 1191,
+  "linesNeeded": 12717,
+  "linesGained": 1410,
   "gained": {
-   "all": 1212,
-   "top2000": 48,
+   "all": 1191,
+   "top2000": 47,
    "stdTop": 9
   },
   "compare": {
@@ -18,13 +18,13 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 48,
+  "verifyFail": 47,
   "overrides": {
    "drain": 63,
    "count": 42,
    "group": 28,
    "x": 3,
-   "it": 18,
+   "it": 16,
    "condition": 23
   }
  },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4285,
-   "lines": 4024,
+   "score": 4283,
+   "lines": 4022,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 751,
-   "lines": 691,
+   "score": 749,
+   "lines": 689,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -741,25 +741,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Nimbleclaw Adept",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg",
-    "Painwracker Oni",
-    "Fires of Victory",
-    "Gutwrencher Oni"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 17,
    "lines": 17,
@@ -831,6 +812,25 @@
     "Baxter Stockman",
     "Abuna Acolyte",
     "Auriok Siege Sled"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "The Chief Warg",
+    "Painwracker Oni",
+    "Fires of Victory",
+    "Gutwrencher Oni",
+    "Burning Sun Cavalry"
    ]
   },
   {
@@ -1284,25 +1284,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Rampant Frogantua",
-    "Coram, the Undertaker",
-    "Umbris, Fear Manifest",
-    "Wight of Precinct Six",
-    "Carrion Grub",
-    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
-    "Anya, Merciless Angel",
-    "Skanos Dragonheart",
-    "Omnath, Locus of the Void",
-    "Greven, Predator Captain",
-    "Lumbering Battlement",
-    "Dark Matter Manipulator"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 13,
    "lines": 13,
@@ -1483,6 +1464,25 @@
     "Crypt Lurker",
     "Anthropede",
     "Contract Hero"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Rampant Frogantua",
+    "Coram, the Undertaker",
+    "Umbris, Fear Manifest",
+    "Carrion Grub",
+    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
+    "Anya, Merciless Angel",
+    "Skanos Dragonheart",
+    "Omnath, Locus of the Void",
+    "Greven, Predator Captain",
+    "Lumbering Battlement",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
    ]
   },
   {
@@ -2717,21 +2717,6 @@
    ]
   },
   {
-   "what": "PayEnergyCost",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Unstable Amulet",
-    "Aetherflux Conduit",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Rex, Cyber-Hound",
-    "Consulate Surveillance",
-    "Voltstorm Angel",
-    "Janjeet Sentry"
-   ]
-  },
-  {
    "what": "AddCardTypeTargetEffect",
    "score": 8,
    "lines": 8,
@@ -3272,6 +3257,20 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Unstable Amulet",
+    "Aetherflux Conduit",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Rex, Cyber-Hound",
+    "Consulate Surveillance",
+    "Voltstorm Angel"
+   ]
+  },
+  {
    "what": "Ability.setDoOnlyOnceEachTurn",
    "score": 7,
    "lines": 7,
@@ -3353,20 +3352,6 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
-   ]
-  },
-  {
-   "what": "UntapAllEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Éomer, Marshal of Rohan",
-    "Lita, Mechanical Engineer",
-    "Awakening",
-    "Preston Garvey, Minuteman",
-    "Blinkmoth Infusion",
-    "Jiang Yanggu, Never Alone",
-    "Battle Cry"
    ]
   },
   {
@@ -3962,19 +3947,6 @@
     "Ugin's Conjurant",
     "Polukranos, Unchained",
     "Oathsworn Knight"
-   ]
-  },
-  {
-   "what": "RemoveAllCountersPermanentTargetEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Invasion of Fiora // Marchesa, Resolute Monarch",
-    "Vampire Hexmage",
-    "Purging Stormbrood // Absorb Essence",
-    "Hapatra's Mark",
-    "Suncleanser",
-    "Blitz Leech"
    ]
   },
   {
@@ -4845,6 +4817,18 @@
     "Circle of Flame",
     "Palazzo Archers",
     "Lost in the Woods"
+   ]
+  },
+  {
+   "what": "UntapAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Éomer, Marshal of Rohan",
+    "Lita, Mechanical Engineer",
+    "Preston Garvey, Minuteman",
+    "Jiang Yanggu, Never Alone",
+    "Battle Cry"
    ]
   },
   {
@@ -6161,17 +6145,6 @@
    ]
   },
   {
-   "what": "Ability.setModeTag",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Gandalf the Grey",
-    "Henrika Domnathi // Henrika, Infernal Seer",
-    "Kargan Intimidator",
-    "Sol'Kanar the Tainted"
-   ]
-  },
-  {
    "what": "DontUntapInPlayersNextUntapStepAllEffect",
    "score": 4,
    "lines": 4,
@@ -6325,17 +6298,6 @@
    ]
   },
   {
-   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Sewer-veillance Cam",
-    "Wernog, Rider's Chaplain",
-    "Raving Oni-Slave",
-    "Sundering Titan"
-   ]
-  },
-  {
    "what": "AttackIfAbleTargetRandomOpponentSourceEffect",
    "score": 4,
    "lines": 4,
@@ -6454,17 +6416,6 @@
     "Forsaken Wastes",
     "Lava Runner",
     "Retromancer"
-   ]
-  },
-  {
-   "what": "scope:snow",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Dead of Winter",
-    "Jorn, God of Winter // Kaldring, the Rimestaff",
-    "Rimewind Taskmage",
-    "Gangrenous Zombies"
    ]
   },
   {
@@ -6892,13 +6843,53 @@
     "Star Compass",
     "Plaza of Harmony"
    ]
+  },
+  {
+   "what": "words:another",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "The Ur-Dragon",
+    "Bone Dragon",
+    "Gallia, Tragic Host"
+   ]
+  },
+  {
+   "what": "CombatDamageDealtToYouTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Witch-king of Angmar",
+    "Norn's Decree",
+    "Starscream, Power Hungry // Starscream, Seeker Leader"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Repulsive Mutation",
+    "Bighorner Rancher",
+    "Peema Aether-Seer"
+   ]
+  },
+  {
+   "what": "(constructor: local method addSubType)",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Weathered Sentinels",
+    "Thran Portal",
+    "Phabine, Boss's Confidant"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3547,
-   "cards": 3367,
+   "score": 3545,
+   "cards": 3365,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6949,8 +6940,8 @@
   },
   {
    "what": "custom condition",
-   "score": 133,
-   "cards": 130,
+   "score": 134,
+   "cards": 131,
    "names": [
     "Sting, the Glinting Dagger",
     "Diamond City",
@@ -7195,19 +7186,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Nimbleclaw Adept",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Oak Street Innkeeper"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 17,
    "cards": 17,
@@ -7231,6 +7209,19 @@
     "Sweet-Gum Recluse",
     "Drannith Ruins",
     "Ruins of Oran-Rief"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Butterbur, Bree Innkeeper",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare"
    ]
   },
   {
@@ -8714,19 +8705,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Wight of Precinct Six",
-    "Carrion Grub",
-    "Skanos Dragonheart",
-    "Omnath, Locus of the Void",
-    "Greven, Predator Captain",
-    "Dark Matter Manipulator"
-   ]
-  },
-  {
    "what": "GainAbilityWithAttachmentEffect",
    "score": 7,
    "cards": 7,
@@ -9017,19 +8995,6 @@
     "One with the Kami",
     "Silver Sable, Mercenary Leader",
     "Expanding Ooze"
-   ]
-  },
-  {
-   "what": "PayEnergyCost",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Unstable Amulet",
-    "Plasma Caster",
-    "Demon of Dark Schemes",
-    "Consulate Surveillance",
-    "Voltstorm Angel",
-    "Janjeet Sentry"
    ]
   },
   {
@@ -9342,6 +9307,19 @@
     "Jace, Ingenious Mind-Mage",
     "Sorin, Vampire Lord",
     "Kefnet's Last Word"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Carrion Grub",
+    "Skanos Dragonheart",
+    "Omnath, Locus of the Void",
+    "Greven, Predator Captain",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
    ]
   },
   {
@@ -9728,6 +9706,18 @@
    ]
   },
   {
+   "what": "PayEnergyCost",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Unstable Amulet",
+    "Plasma Caster",
+    "Demon of Dark Schemes",
+    "Consulate Surveillance",
+    "Voltstorm Angel"
+   ]
+  },
+  {
    "what": "CastAsThoughItHadFlashAllEffect",
    "score": 5,
    "cards": 5,
@@ -9953,18 +9943,6 @@
     "Justice, Vance Astrovik",
     "Stormfront Riders",
     "Urza's Miter"
-   ]
-  },
-  {
-   "what": "RemoveAllCountersPermanentTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Vampire Hexmage",
-    "Purging Stormbrood // Absorb Essence",
-    "Hapatra's Mark",
-    "Suncleanser",
-    "Blitz Leech"
    ]
   },
   {
@@ -10635,6 +10613,17 @@
     "Amulet of Safekeeping",
     "Dormant Gomazoa",
     "Leovold, Emissary of Trest"
+   ]
+  },
+  {
+   "what": "becomes the target, under anyone",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Shay Cormac",
+    "Willbreaker",
+    "Horobi, Death's Wail",
+    "Cowardice"
    ]
   }
  ]
