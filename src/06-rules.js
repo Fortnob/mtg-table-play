@@ -14218,7 +14218,7 @@
           const picked = (me.isBot && need > 1) ? this._cheapestFirst(zone).slice(0, need).map(o => o.id)
             : this._ask({ type: 'pickCard', playerId: ctx.controller, count: need,
               cards: zone.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: pay.sacrifice ? (need > 1 ? `Sacrifice ${need}.` : 'Sacrifice one.') : 'Discard one.' }, 'pay');
+              prompt: pay.sacrifice ? (need > 1 ? `Sacrifice ${['', 'one', 'two', 'three', 'four', 'five', 'six'][need] || need}.` : 'Sacrifice one.') : 'Discard one.' }, 'pay');
           if (picked === SUSPEND) return SUSPEND;
           const chosen = (picked || []).map(id => this.obj(id)).filter(o => o && zone.includes(o)).slice(0, need);
           if (chosen.length < need) break;
