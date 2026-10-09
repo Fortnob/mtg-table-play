@@ -44,6 +44,45 @@ for (const [u, m, mode] of keep) check(SW.shouldHandle(u, m, mode, false), 'shou
 for (const [u, m, mode, what] of never) check(!SW.shouldHandle(u, m, mode, false), 'should never touch ' + what + ' (' + u + ')');
 check(!SW.shouldHandle(keep[0][0], 'GET', 'no-cors', true), 'should never touch a Range request');
 
+// the app's own page, and nothing else of the app's
+const SCOPE = 'https://fortnob.github.io/mtg-table-play/';
+for (const [u, mode, yes, what] of [
+  [SCOPE, 'navigate', true, 'the app opened'],
+  [SCOPE + 'index.html', 'navigate', true, 'index.html opened'],
+  [SCOPE + '?sw=1', 'navigate', true, 'the app opened with a switch in the address'],
+  [SCOPE + 'index.html', 'no-cors', false, 'index.html fetched by the page'],
+  [SCOPE + 'sw.js', 'navigate', false, 'the worker itself'],
+  [SCOPE + 'manifest.webmanifest', 'navigate', false, 'another file of the app'],
+  [SCOPE + 'other/', 'navigate', false, 'a folder below'],
+  ['https://fortnob.github.io/other-app/', 'navigate', false, 'another app on the same host'],
+  ['https://example.com/mtg-table-play/', 'navigate', false, 'another host'],
+]) check(SW.isAppPage(u, 'GET', mode, SCOPE) === yes, (yes ? 'should keep ' : 'should not keep ') + what + ' (' + u + ')');
+check(!SW.isAppPage(SCOPE, 'POST', 'navigate', SCOPE), 'should not keep a POST');
+check(SW.APP.startsWith(SW.NS), 'the page is kept under the app prefix, so turning the worker off takes it too');
+
+// the web app manifest and its icons, served beside index.html
+const manifest = path.join(ROOT, 'src', 'manifest.webmanifest');
+let man = null;
+try { man = JSON.parse(fs.readFileSync(manifest, 'utf8')); } catch (e) { man = null; }
+check(!!man, 'src/manifest.webmanifest reads as JSON');
+if (man) {
+  check(man.start_url === './' && man.scope === './' && man.display === 'standalone', 'the manifest opens the app full screen from its own folder');
+  for (const ic of man.icons || []) {
+    const file = path.join(ROOT, 'src', ic.src);
+    const ok = fs.existsSync(file);
+    check(ok, 'the manifest names an icon that is there: ' + ic.src);
+    if (ok) {
+      const b = fs.readFileSync(file);
+      const w = b.readUInt32BE(16), h = b.readUInt32BE(20);
+      check(b.slice(1, 4).toString() === 'PNG' && ic.sizes === `${w}x${h}`, `${ic.src} is a ${ic.sizes} PNG (it is ${w}x${h})`);
+    }
+  }
+}
+const head = fs.readFileSync(path.join(ROOT, 'src', 'head.html'), 'utf8');
+check(/rel="manifest" href="manifest\.webmanifest"/.test(head), 'head.html links the manifest file');
+check(/rel="apple-touch-icon" href="icons\/apple-touch-icon\.png"/.test(head) && fs.existsSync(path.join(ROOT, 'src', 'icons', 'apple-touch-icon.png')),
+  'head.html links the iPhone icon, and it is there');
+
 // the pictures kept from the start are the ones the app draws
 const css = fs.readFileSync(path.join(ROOT, 'src', 'symbols.css'), 'utf8');
 const symbols = new Set((css.match(/https:\/\/svgs\.scryfall\.io\/card-symbols\/[^")\s]+\.svg/g) || []));

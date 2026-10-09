@@ -1810,10 +1810,11 @@
      A service worker keeps each card picture, card back and mana symbol
      the first time it is seen, so after that it shows at once and costs no
      data; on a phone it keeps the pictures in a store the browser does not
-     clear as readily as its own cache. It handles nothing but those
-     pictures, and never the app itself, so updates arrive as before.
-     ART_CACHE_ON is the way to turn it off for everyone (the page is never
-     kept, so it takes effect on the next load); Options > Card data turns
+     clear as readily as its own cache. It keeps the app's page too, so a
+     home-screen app opens with no connection, but always asks the network
+     for it first, so updates arrive as before. It handles nothing else.
+     ART_CACHE_ON is the way to turn it off for everyone (the page is asked
+     for afresh first, so it takes effect on the next load); Options > Card data turns
      it off on one device, and so does ?nosw in a browser with an address
      bar (?sw turns it back on). */
   const ART_CACHE_ON = true;
@@ -1954,6 +1955,7 @@
           try { MTG.store.set('storage.persistAsked', Date.now()); await navigator.storage.persist(); } catch (e) { /* the browser decides */ }
           draw();
         } }));
+        kids.push(el('div', { class: 'opt-help', text: 'The app itself is kept too, so it opens without a connection; it still updates whenever there is one.' }));
         kids.push(el('div', { class: 'opt-help', text: 'Each browser keeps its own; on an iPhone the home-screen app and Safari keep one each.' + (stats ? ` (worker ${stats.v})` : '') }));
         buttons.push(el('button', { class: 'btn sm danger', text: 'Delete saved art', onclick: async () => {
           if (!await UI.confirm('Delete the card pictures saved on this device? They are downloaded again as they are needed.', 'Saved card art', { yes: 'Delete them', no: 'Keep them' })) return;

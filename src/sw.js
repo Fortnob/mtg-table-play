@@ -1,13 +1,17 @@
 /* ============================================================
-   sw.js - the card pictures kept on this device
+   sw.js - the card pictures kept on this device, and the app itself
 
    A service worker for the art the table shows: Scryfall's card images,
    the card back and the mana symbols. The first time a picture is wanted
    it is fetched (with CORS, so what is kept is a real, readable picture
    and not an opaque blob the browser counts at many times its size) and
-   kept in Cache Storage; after that it comes from the device. Nothing
-   else passes through here: not the app's own files, not Scryfall's
-   card data, not anything sent.
+   kept in Cache Storage; after that it comes from the device.
+
+   And the app's page, so a home-screen app opens with no connection:
+   always asked of the network first, so an update arrives as it always
+   has, and the copy kept here only when the network cannot answer or
+   takes too long. Nothing else passes through here: not Scryfall's card
+   data, not anything sent.
 
    Pictures are kept in "generations" of about 24 MB, at most eight of
    them and never more than a fifth of what the browser allows. When the
@@ -26,12 +30,13 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 3;
+const VERSION = 4;
 const PREFIX = 'mtg-table-art-';                 // every cache this app has ever owned
 const NS = PREFIX + 'v1-';
 const PINNED = NS + 'pinned';
 const META = NS + 'meta';
 const GEN = NS + 'g';
+const APP = NS + 'app';                          // the app's page, kept for opening offline
 /* "Turned off on this device": made by the page, and outside PREFIX so
    neither the page's sweep nor the worker's own removes it. A worker the
    browser starts again for a page it still controls finds it and keeps
@@ -40,6 +45,8 @@ const OFF = 'mtg-table-sw-off';
 const GEN_BYTES = 24e6, GEN_MAX_N = 600, MAX_GENS = 8, QUOTA_SHARE = 0.2, LOOKUP_MS = 1500;
 // a failure slower than this was the connection, not a cached copy without its CORS headers
 const SLOW_MS = 3000;
+// how long the app's page waits on the network before opening the copy kept here
+const PAGE_MS = 4000;
 const HOSTS = new Set(['cards.scryfall.io', 'backs.scryfall.io', 'svgs.scryfall.io']);
 /* These two send CORS headers only to a request that carries an Origin,
    so a picture the page loaded first (no Origin) can sit in the HTTP
@@ -62,7 +69,15 @@ function shouldHandle(url, method, mode, hasRange) {
   return true;
 }
 
-if (typeof module === 'object' && module.exports) module.exports = { shouldHandle, PINNED_URLS, CARD_BACK, NS, PREFIX, OFF, VERSION };
+/** Whether a request is the app's page itself: a page load of the worker's own folder, or of index.html in it. */
+function isAppPage(url, method, mode, scope) {
+  if (method !== 'GET' || mode !== 'navigate') return false;
+  let u, s;
+  try { u = new URL(url); s = new URL(scope); } catch (e) { return false; }
+  return u.origin === s.origin && (u.pathname === s.pathname || u.pathname === s.pathname + 'index.html');
+}
+
+if (typeof module === 'object' && module.exports) module.exports = { shouldHandle, isAppPage, PINNED_URLS, CARD_BACK, NS, PREFIX, OFF, APP, VERSION };
 
 if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWorkerGlobalScope) {
   let st = null;                    // { gens: [names, oldest first], meta: { name: { n, bytes, approx } }, maxGens }
@@ -317,6 +332,40 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
     return fetch(req);
   }
 
+  /* ---- the app's page ---- */
+  // one copy, by the folder's address: "/" and "/index.html", with or without ?sw, are the same page
+  const pageKey = () => self.registration.scope;
+  const goodPage = (res) => !!res && res.ok && res.type === 'basic' && !res.redirected && /text\/html/i.test(res.headers.get('content-type') || '');
+  async function keepPage(res) {
+    if (retired || !goodPage(res)) return;
+    await (await caches.open(APP)).put(pageKey(), res);
+  }
+  /**
+   * The network first, so an update is never held back; the copy kept here
+   * when there is no connection or it has not answered in PAGE_MS (the
+   * network still finishes behind it, and its page is kept for next time);
+   * with nothing kept, the network however long it takes.
+   */
+  async function servePage(event) {
+    const req = event.request;
+    const net = fetch(req).then((res) => {
+      if (goodPage(res)) { const copy = res.clone(); queue(event, () => keepPage(copy)); }
+      return res;
+    });
+    const first = await Promise.race([
+      net.then((r) => ({ r }), () => ({ failed: true })),
+      new Promise((r) => setTimeout(() => r({ slow: true }), PAGE_MS)),
+    ]);
+    if (first.r) return first.r;
+    const kept = await caches.match(pageKey(), { cacheName: APP }).catch(() => null);
+    if (kept) return kept;
+    return net;
+  }
+  /** The page as installed, so the first launch without a connection already has it. */
+  async function precachePage() {
+    try { await keepPage(await fetch(pageKey(), { credentials: 'same-origin' })); } catch (e) { /* the next page load keeps it */ }
+  }
+
   async function precachePinned() {
     const c = await caches.open(PINNED);
     await Promise.allSettled(PINNED_URLS.map(async (u) => {
@@ -328,7 +377,7 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
 
   self.addEventListener('install', (event) => {
     self.skipWaiting();
-    event.waitUntil(precachePinned().catch(() => {}));
+    event.waitUntil(Promise.all([precachePinned().catch(() => {}), precachePage()]));
   });
 
   self.addEventListener('activate', (event) => {
@@ -342,7 +391,12 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
 
   self.addEventListener('fetch', (event) => {
     const r = event.request;
-    if (retired || !shouldHandle(r.url, r.method, r.mode, r.headers.has('range'))) return;
+    if (retired) return;
+    if (isAppPage(r.url, r.method, r.mode, self.registration.scope)) {
+      event.respondWith(isOff().then(off => (off ? fetch(r) : servePage(event))).catch(() => fetch(r)));
+      return;
+    }
+    if (!shouldHandle(r.url, r.method, r.mode, r.headers.has('range'))) return;
     // anything going wrong in here: the plain network, exactly as without the worker; but a
     // connection that hung, or none at all, has had its one try, so the page's fallback comes at once
     event.respondWith(isOff().then(off => (off ? fetch(r) : serve(event)))

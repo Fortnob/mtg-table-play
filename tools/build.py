@@ -1,4 +1,5 @@
-"""Assemble src/ into the self-contained index.html, and copy src/sw.js beside it."""
+"""Assemble src/ into the self-contained index.html, and copy the files served
+beside it: the service worker (src/sw.js), the web app manifest and its icons."""
 import json, pathlib, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
@@ -18,11 +19,20 @@ parts.append('</script>')
 parts.append((src / 'tail.html').read_text(encoding='utf-8'))
 out = root / (sys.argv[1] if len(sys.argv) > 1 else 'index.html')
 out.write_text('\n'.join(parts), encoding='utf-8', newline='\n')
-# the service worker that keeps card pictures on the device (src/sw.js):
-# a file of its own, served beside index.html, copied as it is
-sw = root / 'src' / 'sw.js'
-if sw.exists():
-    sw_out = out.with_name('sw.js')
-    sw_out.write_text(sw.read_text(encoding='utf-8'), encoding='utf-8', newline='\n')
-    print(f'wrote {sw_out} ({sw_out.stat().st_size:,} bytes)')
+# files of their own, served beside index.html and copied as they are: the
+# service worker that keeps card pictures and the page on the device, and
+# the manifest and icons a phone's home screen uses
+for name in ('sw.js', 'manifest.webmanifest'):
+    f = root / 'src' / name
+    if f.exists():
+        f_out = out.with_name(name)
+        f_out.write_text(f.read_text(encoding='utf-8'), encoding='utf-8', newline='\n')
+        print(f'wrote {f_out} ({f_out.stat().st_size:,} bytes)')
+icons = root / 'src' / 'icons'
+if icons.is_dir():
+    icons_out = out.parent / 'icons'
+    icons_out.mkdir(exist_ok=True)
+    for f in sorted(icons.glob('*.png')):
+        (icons_out / f.name).write_bytes(f.read_bytes())
+    print(f'wrote {icons_out} ({len(list(icons.glob("*.png")))} icons)')
 print(f'wrote {out} ({out.stat().st_size:,} bytes)')
