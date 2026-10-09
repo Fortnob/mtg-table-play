@@ -3174,6 +3174,10 @@
     /* ===== looking at somebody's hand, and taking something out of it ===== */
     { re: /^Look at target (?:player|opponent)'?s hand\.?$/i,
       make: () => ({ op: 'revealHand', look: true, targets: [{ type: 'player' }] }) },
+    // Seer's Vision: "Look at target player's hand and choose a card from it." — then "That player discards that card."
+    { re: /^Look at target (player|opponent)'?s hand and choose an? ([a-z]+ )?card from it\.?$/i,
+      make: (m) => [{ op: 'revealHand', look: true, targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] },
+        { op: 'chooseFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any' }] },
 
     /* ===== a sweep that spares one kind of creature ===== */
     { re: /^(?:CARDNAME|This spell) deals (\d+) damage to each creature without ([a-z]+)\.?$/i,
@@ -12492,6 +12496,9 @@
           { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature' }, grant: ['Changeling'] },
           { op: 'everyTypeElsewhere' }] }), auto: true },
       { re: /^Skip your draw step\.?$/i, eff: { op: 'skipStep', step: 'draw', who: 'you' }, auto: true },
+      // Telepathy, Seer's Vision: "Your opponents play with their hands revealed."; Revelation: "Players …"
+      { re: /^(Your opponents|Players|Each player) plays? with (?:their|his or her) hands? revealed\.?$/i,
+        make: (m) => ({ op: 'handsRevealed', to: /opponents/i.test(m[1]) ? 'controller' : 'all' }), auto: true },
       // Stasis: "Players skip their untap steps."
       { re: /^Players skip their (untap|draw) steps\.?$/i, make: (m) => ({ op: 'skipStep', step: m[1].toLowerCase(), who: 'all' }), auto: true },
       { re: /^Skip your (?:untap|combat|draw) step\.?$/i,

@@ -14791,4 +14791,21 @@ module.exports = (test) => {
     U.g.dealDamageToPlayer(U.g.player('A'), 4, U.bf('B', 'Air Elemental'), true);
     t.eq(U.life('A'), life - 4, 'the Elves (power 1) are stopped, the Elemental (4) is not');
   });
+  test("Telepathy shows its controller the opponents' hands; Revelation shows every hand", (mk, t) => {
+    t.auto('Telepathy');
+    t.auto('Revelation');
+    t.auto("Seer's Vision");
+    const T = mk();
+    T.toMain('A');
+    T.hand('A', 'Island'); T.hand('B', 'Mountain');
+    const shown = (viewer, owner) => T.g.viewFor(viewer).players.find(p => p.id === owner).hand.every(h => !h.hidden);
+    t.no(shown('A', 'B'), 'hidden at first');
+    const tp = T.bf('A', 'Telepathy');
+    t.ok(shown('A', 'B'), "A sees B's hand");
+    t.no(shown('B', 'A'), "B does not see A's");
+    T.g.moveObject(tp, 'graveyard');
+    t.no(shown('A', 'B'), 'hidden again once Telepathy is gone');
+    T.bf('B', 'Revelation');
+    t.ok(shown('A', 'B') && shown('B', 'A'), 'Revelation: everyone sees every hand');
+  });
 };

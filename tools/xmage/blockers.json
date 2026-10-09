@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11595,
+  "needed": 11590,
   "gainedCards": 1152,
-  "linesNeeded": 12451,
+  "linesNeeded": 12444,
   "linesGained": 1368,
   "gained": {
    "all": 1152,
@@ -2939,21 +2939,6 @@
    ]
   },
   {
-   "what": "LookTargetHandChooseDiscardEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Cracked Skull",
-    "Leshrac's Sigil",
-    "Seer's Vision",
-    "Abandon Hope",
-    "Doomsday Specter",
-    "Thrull Surgeon",
-    "Mind Warp",
-    "Extortion"
-   ]
-  },
-  {
    "what": "RecruitEffect",
    "score": 8,
    "lines": 8,
@@ -3698,19 +3683,6 @@
    ]
   },
   {
-   "what": "PlayWithHandRevealedEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Telepathy",
-    "Zur's Weirding",
-    "Enduring Renewal",
-    "Seer's Vision",
-    "Wandering Eye",
-    "Revelation"
-   ]
-  },
-  {
    "what": "CantAttackBlockUnlessConditionSourceEffect",
    "score": 6,
    "lines": 6,
@@ -4123,6 +4095,19 @@
     "Helicarrier Strike",
     "Timeline Inquiry",
     "Beast Mode"
+   ]
+  },
+  {
+   "what": "LookTargetHandChooseDiscardEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Cracked Skull",
+    "Leshrac's Sigil",
+    "Abandon Hope",
+    "Doomsday Specter",
+    "Mind Warp",
+    "Extortion"
    ]
   },
   {
@@ -6795,13 +6780,23 @@
     "Jadelight Spelunker",
     "Deepfathom Echo"
    ]
+  },
+  {
+   "what": "ControlTargetPlayerNextTurnEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Sorin Markov",
+    "Mindslaver",
+    "Worst Fears"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3538,
-   "cards": 3358,
+   "score": 3539,
+   "cards": 3359,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8604,19 +8599,6 @@
    ]
   },
   {
-   "what": "LookTargetHandChooseDiscardEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Cracked Skull",
-    "Leshrac's Sigil",
-    "Abandon Hope",
-    "Doomsday Specter",
-    "Thrull Surgeon",
-    "Mind Warp"
-   ]
-  },
-  {
    "what": "RecruitEffect",
    "score": 7,
    "cards": 7,
@@ -9245,6 +9227,19 @@
     "Underworld Cerberus",
     "Fell Shepherd",
     "Infernal Caretaker"
+   ]
+  },
+  {
+   "what": "LookTargetHandChooseDiscardEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Cracked Skull",
+    "Leshrac's Sigil",
+    "Abandon Hope",
+    "Doomsday Specter",
+    "Mind Warp",
+    "Extortion"
    ]
   },
   {

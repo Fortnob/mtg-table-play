@@ -22179,6 +22179,20 @@
     /* ---------- serialisation for multiplayer ---------- */
     /** A redacted view: hidden zones are replaced with counts for other players. */
     /** May `viewer` see the top card of `ownerId`'s library right now? */
+    /* Telepathy: "Your opponents play with their hands revealed" — to its
+       controller; Revelation: "Players play with their hands revealed" — to
+       everybody, onlookers too. */
+    _handShown(ownerId, viewer) {
+      for (const o of this.battlefield) {
+        if (o.phasedOut) continue;
+        const e = this._staticOp(o, 'handsRevealed');
+        if (!e) continue;
+        if (e.to === 'all') return true;
+        if (e.to === 'controller' && viewer === o.controller && ownerId !== o.controller) return true;
+      }
+      return false;
+    }
+
     _topCardShown(ownerId, viewer) {
       for (const o of this.battlefield) {
         if (o.controller !== ownerId || o.phasedOut) continue;
@@ -22381,7 +22395,8 @@
              shows it to everybody. The table shows it face up on the library. */
           topCard: this.zones[p.id].library.length && this._topCardShown(p.id, playerId) ? ser(this.zones[p.id].library[0]) : null,
           handSize: this.zones[p.id].hand.length,
-          hand: p.id === playerId ? this.zones[p.id].hand.map(o => ser(o)) : this.zones[p.id].hand.map(o => ser(o, true)),
+          // Telepathy: a hand played revealed is shown face up to whoever may see it
+          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => ser(o)) : this.zones[p.id].hand.map(o => ser(o, true)),
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),
           /* A card exiled from somebody else that you may play (an
              opponent's card Dauthi Voidwalker let you have, the top of a
