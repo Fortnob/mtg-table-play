@@ -16963,4 +16963,24 @@ module.exports = (test) => {
     const item2 = T.g.stack[T.g.stack.length - 1];
     t.ok(T.g._legalTargetsFor(spec, 'A', wa.id).some(x => x.id === item2.id), 'flashed back from the graveyard: a target');
   });
+
+  test("Magewright's Stone: only a creature with an activated ability that has {T} in its cost", (mk, t) => {
+    t.auto("Magewright's Stone");
+    const T = mk();
+    T.toMain('A');
+    const stone = T.bf('A', "Magewright's Stone");
+    const elf = T.bf('A', 'Llanowar Elves', { etb: true });
+    const bear = T.bf('A', 'Grizzly Bears', { etb: true });
+    const tim = T.bf('B', 'Prodigal Sorcerer', { etb: true });
+    const spec = stone.analysis().abilities[0].effects[0].targets[0];
+    const ids = T.g._legalTargetsFor(spec, 'A', stone.id).map(x => x.id);
+    t.ok(ids.includes(elf.id), 'a mana ability with {T}');
+    t.ok(ids.includes(tim.id), "an opponent's {T} ability");
+    t.no(ids.includes(bear.id), 'no activated ability');
+    elf.tapped = true;
+    T.mana('A', 'C');
+    T.activate('A', stone, 0, { targets: [elf.id] });
+    T.settle();
+    t.no(elf.tapped, 'untapped');
+  });
 };

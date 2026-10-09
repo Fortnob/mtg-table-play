@@ -2000,6 +2000,8 @@
     { re: /^Each opponent discards (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'discard', n: num(m[1]), who: 'opponents' }) },
     { re: /^Untap ((?:another )?target [a-z0-9 '-]+?)\.?$/i, make: (m) => ({ op: 'untap', targets: [targetSpec(m[1])] }) },
+    // Magewright's Stone
+    { re: /^Untap (target creature that has an activated ability with \{T\} in its cost)\.?$/i, make: (m) => ({ op: 'untap', targets: [targetSpec(m[1])] }) },
     { re: /^Untap (CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
       make: (m) => Object.assign({ op: 'untap', scope: 'self' }, /^it$/i.test(m[1]) ? { itWord: true } : {}) },
     { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
@@ -5960,6 +5962,9 @@
     if (blockingSelf) phrase = String(phrase).replace(/\s+blocking (?:it|this creature|CARDNAME)$/i, '');
     const blockedBySelf = /\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i.test(String(phrase));
     if (blockedBySelf) phrase = String(phrase).replace(/\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i, '');
+    // Magewright's Stone: "target creature that has an activated ability with {T} in its cost" (hasTapAbility)
+    const tapAb = /\s+that has an activated ability with \{T\} in its cost$/i.test(String(phrase));
+    if (tapAb) phrase = String(phrase).replace(/\s+that has an activated ability with \{T\} in its cost$/i, '');
     // Moira, Grim Return: "target creature card in your graveyard that was put there from the battlefield this turn"
     const fromBf = /\s+that was put there from the battlefield this turn$/i.test(String(phrase));
     if (fromBf) phrase = String(phrase).replace(/\s+that was put there from the battlefield this turn$/i, '');
@@ -5977,6 +5982,7 @@
     if (enteredNow) spec.enteredThisTurn = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
+    if (tapAb) spec.hasTapAbility = true;
     if (blockedBySelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
@@ -6224,6 +6230,8 @@
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
+    // (hasTapAbility: an activated ability, mana abilities among them, with {T} in its cost)
+    if (spec.hasTapAbility && !((analysis.abilities || []).concat(analysis.manaAbilities || []).some(ab => ab && ab.kind !== 'triggered' && ab.kind !== 'static' && ab.cost && ab.cost.tap))) return false;
     // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
     if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
