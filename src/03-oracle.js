@@ -2534,6 +2534,9 @@
     // Shielded Passage: all damage, combat or not
     { re: /^Prevent all damage that would be dealt to (target creature|target permanent) this turn\.?$/i,
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
+    // Mutational Advantage: "Prevent all damage that would be dealt to those permanents this turn." — the ones the sentence before was about
+    { re: /^Prevent all damage that would be dealt to (?:those|them|those creatures|those permanents) this turn\.?$/i,
+      make: () => ({ op: 'flagEot', scope: 'lastGroup', flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
     // Cinder Wall: "When this creature blocks, destroy it at end of combat."
     { re: /^Destroy (?:it|CARDNAME|this creature) at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'self' }) },
     // Bleeding Edge: "Up to one target creature gets -2/-2 until end of turn."

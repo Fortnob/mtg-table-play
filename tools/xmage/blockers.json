@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12322,
+  "needed": 12321,
   "gainedCards": 1335,
-  "linesNeeded": 13407,
+  "linesNeeded": 13406,
   "linesGained": 1593,
   "gained": {
    "all": 1335,
@@ -777,25 +777,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Mutational Advantage",
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever",
-    "Blinding Fog",
-    "Safe Passage",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage",
-    "Divine Light",
-    "Inner Sanctum"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 17,
    "lines": 11,
@@ -1525,6 +1506,25 @@
     "Item Shopkeep",
     "Zamriel, Seraph of Steel",
     "Swordsman, Sharp Scoundrel"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever",
+    "Blinding Fog",
+    "Safe Passage",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage",
+    "Divine Light",
+    "Inner Sanctum",
+    "Forfend"
    ]
   },
   {
@@ -7432,19 +7432,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 15,
-   "cards": 12,
-   "names": [
-    "Mutational Advantage",
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever",
-    "Blinding Fog",
-    "Safe Passage"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 15,
    "cards": 15,
@@ -7813,6 +7800,19 @@
     "Team Pennant",
     "Demonmail Hauberk",
     "Bloodthorn Flail"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Pack Leader",
+    "Loyal Unicorn",
+    "Rescue Retriever",
+    "Blinding Fog",
+    "Safe Passage",
+    "Emmara Tandris"
    ]
   },
   {

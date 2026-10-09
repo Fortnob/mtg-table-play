@@ -12394,4 +12394,18 @@ module.exports = (test) => {
     const fx = lq.analysis().abilities.find(a => a.kind === 'activated' && /Exile/.test(a.text)).effects;
     t.eq(fx[0].targets[0].mv, 'X');
   });
+
+  test('Mutational Advantage: what has counters is shielded from damage this turn', (mk, t) => {
+    t.auto('Mutational Advantage');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), lions = T.bf('A', 'Savannah Lions');
+    T.g.addCounters(bear, '+1/+1', 1);
+    T.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T.mana('A', '1GU');
+    T.cast('A', T.hand('A', 'Mutational Advantage'));
+    T.settle(); T.resolve(); T.settle();
+    t.ok(T.g.hasKw(bear, 'indestructible') && !T.g.hasKw(lions, 'indestructible'), 'only the one with a counter');
+    T.g.dealDamageToObject(bear, 3, lions); T.g.dealDamageToObject(lions, 1, bear);
+    t.eq(bear.damage || 0, 0, 'no damage to it'); t.eq(lions.damage, 1);
+  });
 };
