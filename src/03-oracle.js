@@ -1447,7 +1447,8 @@
     { re: /^Then that player shuffles\.?$/i, make: () => ({ op: 'noop' }) },
     // Kozilek: "if you have fewer than seven cards in hand, draw cards equal to the difference"
     { re: /^(?:If you have fewer than (\w+) cards in hand, )?draw cards equal to the difference\.?$/i,
-      make: (m) => ({ op: 'draw', who: 'you', n: { handTo: m[1] ? num(m[1]) : 7 } }) },
+      // (with no number of its own, the difference is between that player's hand and yours: Sandstone Oracle)
+      make: (m) => ({ op: 'draw', who: 'you', n: m[1] ? { handTo: num(m[1]) } : { handDiff: true } }) },
     // the Rings: "put a +1/+1 counter on equipped creature if it's red"
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (equipped|enchanted) creature if it'?s (white|blue|black|red|green|an? [A-Z][a-z]+)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'attached', ifHost: m[3].replace(/^an? /i, '').toLowerCase() }) },

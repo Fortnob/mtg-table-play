@@ -9571,7 +9571,8 @@
         case 'castFromHand': return !!ctx && ((ctx.fromZone === 'hand') !== !!cond.not);
         case 'thatPlayerMoreCards': {
           const td = (ctx && ctx.triggerData) || {};
-          const p = this.player(td.player || td.playerId || td.drawer);
+          // Sandstone Oracle: "choose an opponent. If that player has more cards…" — the one chosen
+          const p = this.player((ctx && ctx.chosenPlayer) || td.player || td.playerId || td.drawer);
           return !!(p && me && this.zones[p.id].hand.length > this.zones[me.id].hand.length);
         }
         case 'totalToughness': return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature)
@@ -11657,6 +11658,11 @@
         if (v && typeof v === 'object' && v.minusHand != null) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, v.minusHand - (p ? this.zones[p.id].hand.length : 0)); }
         // Kozilek: "draw cards equal to the difference" — up to seven in hand
         if (v && typeof v === 'object' && v.handTo != null) return Math.max(0, v.handTo - ((me && this.zones[me.id].hand.length) || 0));
+        // Sandstone Oracle: "If that player has more cards in hand than you, draw cards equal to the difference"
+        if (v && typeof v === 'object' && v.handDiff) {
+          const them = this.player(ctx.chosenPlayer) || triggerPlayer() || firstPlayer();
+          return them && me ? Math.max(0, this.zones[them.id].hand.length - this.zones[me.id].hand.length) : 0;
+        }
         // Generous Plunderer: "equal to the number of artifacts they control" — the defending player's
         if (v && typeof v === 'object' && v.defendersCount) {
           const dp = this._defenderOf(src);

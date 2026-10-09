@@ -1942,4 +1942,14 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.life('B'), 17, 'B had no cards; A had four');
   });
+
+  test('Audit: Sandstone Oracle draws the difference between hands, not up to seven', (mk, t) => {
+    const T = mk();
+    t.auto('Sandstone Oracle');
+    for (let i = 0; i < 4; i++) T.hand('B', 'Island');
+    T.hand('A', 'Island');
+    T.mana('A', '7');
+    T.cast('A', T.hand('A', 'Sandstone Oracle'));
+    t.eq(T.zone('A', 'hand').length, 4, 'one card, three more to match four');
+  });
 };
