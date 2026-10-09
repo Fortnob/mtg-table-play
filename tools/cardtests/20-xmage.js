@@ -12351,4 +12351,15 @@ module.exports = (test) => {
     T.settle();
     t.eq(ring.zone, 'hand'); t.eq(bear.zone, 'exile'); t.eq(theirs.zone, 'exile');
   });
+
+  test('Hagra Mauling: {1} less while an opponent has no basic land', (mk, t) => {
+    t.auto('Hagra Mauling // Hagra Broodpit');
+    const T = mk();
+    const hm = T.hand('A', 'Hagra Mauling // Hagra Broodpit');
+    T.bf('B', 'Island');
+    t.eq(T.g.canCast('A', hm.id).cost, '{2}{B}{B}', 'full price with an Island there');
+    T.g.battlefield.filter(o => o.name === 'Island').forEach(o => T.g.moveObject(o, 'graveyard'));
+    T.bf('B', 'Underground Sea');
+    t.eq(T.g.canCast('A', hm.id).cost, '{1}{B}{B}', 'a nonbasic is no basic');
+  });
 };

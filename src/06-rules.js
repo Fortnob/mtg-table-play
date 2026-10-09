@@ -19236,7 +19236,9 @@
         if (spec.attachedToCreature) { const h = o.attachedTo && this.obj(o.attachedTo); if (!h || !(this.characteristics(h) || {}).isCreature) continue; }
         const hit = wants.some(want => want === 'permanent' ||
           (a.types || []).some(x => x.toLowerCase() === want) ||
-          (a.subtypes || []).some(x => x.toLowerCase() === want));
+          (a.subtypes || []).some(x => x.toLowerCase() === want) ||
+          // Hagra Mauling: "basic lands", more than one word
+          (/\s/.test(want) && this._cardFitsWords(o, want)));
         if (hit) k++;
       }
       return k;

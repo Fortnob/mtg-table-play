@@ -7514,6 +7514,8 @@
     [/^an opponent has (\d+) or less life$/i, (m) => ({ kind: 'opponentLife', n: +m[1], cmp: 'atMost' })],
     // Land Tax, Gift of Estates and the other catch-up cards
     [/^an opponent controls more ([a-z]+?)s than you$/i, (m) => ({ kind: 'opponentMore', what: m[1] })],
+    // Hagra Mauling: "if an opponent controls no basic lands"
+    [/^an opponent controls no ((?:basic |nonbasic )?[a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[1].toLowerCase(), n: 0, cmp: 'atMost', who: 'anOpponent' })],
     // Keeper of the Accord: "that player controls more creatures than you" — the one whose end step it is
     [/^that player controls more ([a-z]+?)s than you$/i, (m) => ({ kind: 'opponentMore', what: m[1], thatPlayer: true })],
     // what has already happened this turn

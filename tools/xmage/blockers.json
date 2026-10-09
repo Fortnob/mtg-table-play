@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12329,
+  "needed": 12327,
   "gainedCards": 1337,
-  "linesNeeded": 13414,
+  "linesNeeded": 13413,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -71,8 +71,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 668,
-   "lines": 668,
+   "score": 667,
+   "lines": 667,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -109,12 +109,11 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 215,
-   "lines": 209,
+   "score": 214,
+   "lines": 208,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
-    "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
     "Chandra's Incinerator",
     "Bloodsoaked Insight // Sanguine Morass",
@@ -123,7 +122,8 @@
     "Spirit Water Revival",
     "Hour of Revelation",
     "Scion of Draco",
-    "Drag to the Roots"
+    "Drag to the Roots",
+    "Notorious Throng"
    ]
   },
   {
@@ -7057,15 +7057,15 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 158,
-   "cards": 155,
+   "score": 157,
+   "cards": 154,
    "names": [
     "Plumb the Forbidden",
-    "Hagra Mauling // Hagra Broodpit",
     "Not of This World",
     "Hour of Revelation",
     "Drag to the Roots",
-    "Price of Fame"
+    "Price of Fame",
+    "Ghostfire Slice"
    ]
   },
   {
