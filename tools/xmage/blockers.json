@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12380,
+  "needed": 12379,
   "gainedCards": 1348,
-  "linesNeeded": 13491,
+  "linesNeeded": 13490,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -4938,15 +4938,6 @@
    ]
   },
   {
-   "what": "ProliferateEffect args",
-   "score": 5,
-   "lines": 2,
-   "cards": [
-    "Ripples of Potential",
-    "Roalesk, Apex Hybrid"
-   ]
-  },
-  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 5,
    "lines": 5,
@@ -7045,6 +7036,17 @@
     "Cartouche of Strength",
     "Warbriar Blessing",
     "Pitiless Fists"
+   ]
+  },
+  {
+   "what": "BecomesChosenCreatureTypeTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Trickery Charm",
+    "Unnatural Selection",
+    "Imagecrafter",
+    "Mistform Mutant"
    ]
   }
  ],
@@ -9909,15 +9911,6 @@
    ]
   },
   {
-   "what": "ProliferateEffect args",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Ripples of Potential",
-    "Roalesk, Apex Hybrid"
-   ]
-  },
-  {
    "what": "sacrifice trigger for OPPONENT",
    "score": 5,
    "cards": 2,
@@ -10812,6 +10805,17 @@
     "Double Major",
     "Choreographed Sparks",
     "Aziza, Mage Tower Captain"
+   ]
+  },
+  {
+   "what": "SetBasePowerSourceEffect with two values",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Toph, the Blind Bandit",
+    "Saheeli's Lattice // Mastercraft Raptor",
+    "Pallimud",
+    "Haunting Apparition"
    ]
   }
  ]

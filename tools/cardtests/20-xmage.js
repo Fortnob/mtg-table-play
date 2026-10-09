@@ -11984,4 +11984,16 @@ module.exports = (test) => {
     t.eq(ga.zone, 'battlefield'); t.eq(gb.zone, 'battlefield'); t.eq(gb.controller, 'A');
     t.ok(T.g._hasCreatureType(gb, 'Phyrexian'), 'a Phyrexian');
   });
+
+  test('Ripples of Potential: proliferate, then those of yours phase out', (mk, t) => {
+    t.auto('Ripples of Potential');
+    const T = mk();
+    const a = T.bf('A', 'Grizzly Bears'); a.counters['+1/+1'] = 1;
+    const b = T.bf('A', 'Savannah Lions');
+    T.answer('choose', (ch) => { t.eq(ch.items.length, 1, 'only the one with a counter'); return { picks: [a.id] }; });
+    T.mana('A', '1U');
+    T.cast('A', T.hand('A', 'Ripples of Potential'));
+    T.settle(); T.resolve();
+    t.eq(a.counters['+1/+1'], 2); t.ok(a.phasedOut, 'phased out'); t.no(b.phasedOut);
+  });
 };

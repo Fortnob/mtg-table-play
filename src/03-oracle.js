@@ -5452,6 +5452,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Ripples of Potential: "Proliferate, then choose any number of
+       permanents you control that had a counter put on them this way. Those
+       permanents phase out." */
+    { re: /^Proliferate, then choose any number of permanents you control that had a counter put on them this way\. Those permanents phase out\.$/i,
+      make: () => [{ op: 'proliferate' }, { op: 'phaseOutProliferated' }] },
     /* Breach the Multiverse: "Each player mills ten cards. For each player,
        choose a creature or planeswalker card in that player's graveyard. Put
        those cards onto the battlefield under your control. Then each creature

@@ -13265,6 +13265,8 @@
              never your own. Each one chosen gets one more of every kind. */
           const BAD = new Set(['-1/-1', 'stun', 'time', 'doom', 'age', 'fade', 'decay', 'hit', 'bounty', 'slime', 'blight', 'ice', 'rust', 'wage']);
           let n2 = 0;
+          // Ripples of Potential: which of yours got a counter this way
+          this._lastProliferated = [];
           // Tekuthal: "proliferate twice instead", and twice again for each more of them
           const twice = this.battlefield.filter(x => !x.phasedOut && x.controller === ctx.controller && this._staticOp(x, 'proliferateTwice')).length;
           for (let rep = 0; rep < (1 << Math.min(twice, 4)); rep++) {
@@ -13275,6 +13277,7 @@
               const mine = x.controller === ctx.controller;
               if (mine ? bad > good : bad === 0) continue;
               for (const k of kinds) { x.counters[k]++; n2++; }
+              if (mine && !this._lastProliferated.includes(x.id)) this._lastProliferated.push(x.id);
             }
             for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller) { p.poison++; n2++; }
             this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
@@ -14758,6 +14761,18 @@
           for (const c of picks) if (c.zone === 'graveyard') this.moveObject(c, 'battlefield', { controller: ctx.controller });
           for (const o of this.battlefield) if (o.controller === ctx.controller && !o.phasedOut && (this.characteristics(o) || {}).isCreature) o.effects.push({ addSubtypes: [e.subtype], until: null });
           this.bumpBoard();
+          break;
+        }
+        // Ripples of Potential: any of those just proliferated phase out
+        case 'phaseOutProliferated': {
+          const pool = (this._lastProliferated || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && !x.phasedOut);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'phaseOutAny', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose any number of them to phase out.` }, 'pop');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).map(id => ({ kind: 'object', id }));
+          if (picks.length) this._runEffect({ op: 'phaseOut' }, Object.assign({}, ctx, { targets: picks, resolvedTargets: picks }));
           break;
         }
         // Mordenkainen: hand and library change places
