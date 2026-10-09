@@ -970,7 +970,8 @@
           this.combatsThisTurn = this._combatTurn === this.turn ? (this.combatsThisTurn || 0) + 1 : 1;
           this._combatTurn = this.turn;
           this._fire('yourCombatBegin', this.activePlayer.id);
-          this._fire('eachCombatBegin', null, {});
+          // (Sentinel of the Eternal Watch: "that player" is the one whose combat it is)
+          this._fire('eachCombatBegin', null, { playerId: this.activePlayer.id });
           break;
         case 'declareAttackers': this._declareAttackersStep(); return;
         case 'declareBlockers': this._declareBlockersStep(); return;

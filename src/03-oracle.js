@@ -4248,7 +4248,7 @@
       make: (m) => ({ op: 'restrict', flag: 'mustBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) attacks this turn if able\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'mustAttackEot', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
-    { re: /^Goad (target creature(?: an opponent controls)?)\.?$/i,
+    { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
@@ -5179,9 +5179,11 @@
     }
     let rest = orig.slice(0, orig.length - withClause.length);
     // who controls it
-    const ctl = rest.match(/\s+(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)$/i);
+    const ctl = rest.match(/\s+(you control|you don'?t control|an opponent controls|your opponents control|defending player controls|that player controls)$/i);
     if (ctl) {
-      spec.controller = /^you control/i.test(ctl[1]) ? 'you' : 'opponent';
+      /* Grenzo: "target creature that player controls" — the player the
+         trigger is about, settled as the target is chosen on resolution */
+      spec.controller = /^you control/i.test(ctl[1]) ? 'you' : /^that player/i.test(ctl[1]) ? 'triggerPlayer' : 'opponent';
       rest = rest.slice(0, ctl.index);
     }
     const types = [];

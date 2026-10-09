@@ -234,7 +234,7 @@ module.exports = (test) => {
   });
 
   test('XMage: Mistblade Shinobi bounces a creature the damaged player controls', (mk, t) => {
-    generated(t, 'Mistblade Shinobi');
+    t.auto('Mistblade Shinobi');
     const T = mk({ players: ['A', 'B', 'C'] });
     const ninja = T.bf('A', 'Mistblade Shinobi');
     const bs = T.bf('B', 'Grizzly Bears');
@@ -12407,5 +12407,35 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(bear, 'indestructible') && !T.g.hasKw(lions, 'indestructible'), 'only the one with a counter');
     T.g.dealDamageToObject(bear, 3, lions); T.g.dealDamageToObject(lions, 1, bear);
     t.eq(bear.damage || 0, 0, 'no damage to it'); t.eq(lions.damage, 1);
+  });
+
+  test('Grenzo, Havoc Raiser: goad a creature of the player it hit', (mk, t) => {
+    t.auto('Grenzo, Havoc Raiser');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const gz = T.bf('A', 'Grenzo, Havoc Raiser');
+    const hers = T.bf('B', 'Grizzly Bears'), other = T.bf('C', 'Savannah Lions');
+    T.answer('mode', { modes: [0] });
+    let offered = null;
+    T.answer('choose', (ch) => { offered = ch.items.map(x => x.id); return { picks: [hers.id] }; });
+    T.g._runEffects(gz.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: gz, name: 'Grenzo', kind: 'ability', triggerData: { player: 'B', playerId: 'B' } });
+    T.settle();
+    t.ok(!offered || !offered.includes(other.id), 'only the creatures of that player');
+    t.eq(hers.goadedBy, 'A', 'goaded'); t.ok(!other.goadedBy);
+  });
+
+  test("Sentinel of the Eternal Watch: taps a creature of the player whose combat it is", (mk, t) => {
+    t.auto('Sentinel of the Eternal Watch');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Sentinel of the Eternal Watch');
+    const bb = T.bf('B', 'Grizzly Bears'), cc = T.bf('C', 'Savannah Lions');
+    T.answer('choose', (ch) => ({ picks: ch.items.slice(0, 1).map(x => x.id) }));
+    bb.summoningSick = true;
+    T.answer('declareAttackers', () => []);
+    T.toMain('B');
+    for (let i = 0; i < 20 && !(T.g.activePlayer.id === 'B' && T.g.step === 'beginCombat' && !T.g.stack.length && !T.g.pendingTriggers.length && !T.g.pendingChoice); i++) {
+      T.settle(); const p = T.g.priorityPlayer; if (!p) break; T.g.passPriority(p.id, true);
+    }
+    T.settle(); T.resolve(); T.settle();
+    t.ok(bb.tapped && !cc.tapped, "B's creature tapped at B's combat");
   });
 };

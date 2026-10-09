@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12321,
-  "gainedCards": 1335,
-  "linesNeeded": 13406,
-  "linesGained": 1593,
+  "needed": 12291,
+  "gainedCards": 1318,
+  "linesNeeded": 13373,
+  "linesGained": 1576,
   "gained": {
-   "all": 1335,
+   "all": 1318,
    "top2000": 50,
    "stdTop": 9
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4369,
-   "lines": 4099,
+   "score": 4367,
+   "lines": 4097,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 770,
-   "lines": 707,
+   "score": 764,
+   "lines": 704,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -62,11 +62,11 @@
     "Treasure Nabber",
     "Tergrid, God of Fright // Tergrid's Lantern",
     "The Skullspore Nexus",
-    "Grenzo, Havoc Raiser",
     "Extraplanar Lens",
     "Firemane Commando",
     "Wedding Ring",
-    "Colossal Grave-Reaver"
+    "Colossal Grave-Reaver",
+    "Breena, the Demagogue"
    ]
   },
   {
@@ -204,8 +204,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 72,
-   "lines": 72,
+   "score": 71,
+   "lines": 71,
    "cards": [
     "Temple of the Dragon Queen",
     "Struggle for Project Purity",
@@ -215,10 +215,10 @@
     "Sower of Discord",
     "Sin, Unending Cataclysm",
     "Greymond, Avacyn's Stalwart",
-    "Citadel Siege",
     "Lifecraft Engine",
     "Neverwinter Hydra",
-    "Monastery Siege"
+    "Monastery Siege",
+    "Valki, God of Lies // Tibalt, Cosmic Impostor"
    ]
   },
   {
@@ -336,25 +336,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 30,
-   "lines": 27,
-   "cards": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Feline Sovereign",
-    "Alela, Cunning Conqueror",
-    "Tidus, Yuna's Guardian",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen",
-    "Kastral, the Windcrested",
-    "Descendants' Fury",
-    "Olivia, Opulent Outlaw"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 28,
    "lines": 19,
@@ -371,6 +352,25 @@
     "Atalya, Samite Master",
     "Soul Burn",
     "Anavolver"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 28,
+   "lines": 25,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Kastral, the Windcrested",
+    "Descendants' Fury",
+    "Olivia, Opulent Outlaw",
+    "Kaito, Dancing Shadow",
+    "Nettling Nuisance"
    ]
   },
   {
@@ -488,25 +488,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 23,
-   "lines": 17,
-   "cards": [
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Karazikar, the Eye Tyrant",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Bitter Work",
-    "Gornog, the Red Reaper",
-    "Firkraag, Cunning Instigator",
-    "Meriadoc Brandybuck",
-    "Demonic Covenant",
-    "Attuma, Atlantean Warlord"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 23,
    "lines": 23,
@@ -542,6 +523,25 @@
     "Nebuchadnezzar",
     "Ancient Vendetta",
     "Dementia Sliver"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 22,
+   "lines": 16,
+   "cards": [
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Bitter Work",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Meriadoc Brandybuck",
+    "Demonic Covenant",
+    "Attuma, Atlantean Warlord"
    ]
   },
   {
@@ -4507,19 +4507,6 @@
    ]
   },
   {
-   "what": "TargetController.ACTIVE.getControllerPredicate",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Unstable Glyphbridge // Sandswirl Wanderglyph",
-    "Topplegeist",
-    "Kitt Kanto, Mayhem Diva",
-    "Mana Cache",
-    "Tooth Collector",
-    "Urborg Stalker"
-   ]
-  },
-  {
    "what": "ConditionalRequirementEffect",
    "score": 6,
    "lines": 6,
@@ -5507,6 +5494,18 @@
    ]
   },
   {
+   "what": "TargetController.ACTIVE.getControllerPredicate",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Unstable Glyphbridge // Sandswirl Wanderglyph",
+    "Kitt Kanto, Mayhem Diva",
+    "Mana Cache",
+    "Tooth Collector",
+    "Urborg Stalker"
+   ]
+  },
+  {
    "what": "or of NamePredicate",
    "score": 5,
    "lines": 5,
@@ -5624,18 +5623,6 @@
     "Sparkshaper Visionary",
     "The Curse of Fenric",
     "Dance of the Skywise"
-   ]
-  },
-  {
-   "what": "targeted trigger pointing at the spell",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Reality Smasher",
-    "Forsaken Wastes",
-    "Black Bolt, Inhuman King",
-    "Lava Runner",
-    "Retromancer"
    ]
   },
   {
@@ -6556,17 +6543,6 @@
    ]
   },
   {
-   "what": "BeginningOfCombatTriggeredAbility for OPPONENT",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Champions of Minas Tirith",
-    "Web of Inertia",
-    "Fight or Flight",
-    "Sentinel of the Eternal Watch"
-   ]
-  },
-  {
    "what": "OneOrMoreCountersAddedTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -7005,6 +6981,17 @@
    ]
   },
   {
+   "what": "targeted trigger pointing at the spell",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Reality Smasher",
+    "Forsaken Wastes",
+    "Lava Runner",
+    "Retromancer"
+   ]
+  },
+  {
    "what": "DealtDamageAndDiedTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -7025,13 +7012,24 @@
     "Suq'Ata Firewalker",
     "Bull Elephant"
    ]
+  },
+  {
+   "what": "keyword AftermathAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Reduce // Rubble"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3585,
-   "cards": 3414,
+   "score": 3583,
+   "cards": 3412,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7043,8 +7041,8 @@
   },
   {
    "what": "custom ability",
-   "score": 586,
-   "cards": 541,
+   "score": 581,
+   "cards": 539,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7082,8 +7080,8 @@
   },
   {
    "what": "custom condition",
-   "score": 134,
-   "cards": 131,
+   "score": 135,
+   "cards": 132,
    "names": [
     "Sting, the Glinting Dagger",
     "Queen Marchesa",
@@ -7198,32 +7196,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 24,
-   "cards": 21,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Feline Sovereign",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver"
-   ]
-  },
-  {
-   "what": "AsEntersBattlefieldAbility",
-   "score": 24,
-   "cards": 24,
-   "names": [
-    "Temple of the Dragon Queen",
-    "Struggle for Project Purity",
-    "Hollowmurk Siege",
-    "Eclipsed Realms",
-    "Frontier Siege",
-    "Sin, Unending Cataclysm"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 24,
    "cards": 24,
@@ -7250,6 +7222,19 @@
    ]
   },
   {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 23,
+   "cards": 20,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen"
+   ]
+  },
+  {
    "what": "Ability.modes.setChooseText",
    "score": 23,
    "cards": 23,
@@ -7273,6 +7258,19 @@
     "Fallaji Wayfarer",
     "Aether Spike",
     "Swallowed by Leviathan"
+   ]
+  },
+  {
+   "what": "AsEntersBattlefieldAbility",
+   "score": 23,
+   "cards": 23,
+   "names": [
+    "Temple of the Dragon Queen",
+    "Struggle for Project Purity",
+    "Hollowmurk Siege",
+    "Eclipsed Realms",
+    "Frontier Siege",
+    "Sin, Unending Cataclysm"
    ]
   },
   {
@@ -9216,6 +9214,19 @@
    ]
   },
   {
+   "what": "FirstSpellOpponentsTurnTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Wavebreak Hippocamp",
+    "Alela, Cunning Conqueror",
+    "Nymris, Oona's Trickster",
+    "Blightwing Bandit",
+    "Stinging Lionfish",
+    "Arena Trickster"
+   ]
+  },
+  {
    "what": "ConditionalAnyColorManaAbility shape",
    "score": 6,
    "cards": 6,
@@ -9869,18 +9880,6 @@
    ]
   },
   {
-   "what": "FirstSpellOpponentsTurnTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Wavebreak Hippocamp",
-    "Nymris, Oona's Trickster",
-    "Blightwing Bandit",
-    "Stinging Lionfish",
-    "Arena Trickster"
-   ]
-  },
-  {
    "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
    "score": 5,
    "cards": 5,
@@ -10322,18 +10321,6 @@
     "Wormfang Newt",
     "Wormfang Turtle",
     "Temporal Firestorm"
-   ]
-  },
-  {
-   "what": "targeted trigger pointing at the spell",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Reality Smasher",
-    "Forsaken Wastes",
-    "Black Bolt, Inhuman King",
-    "Lava Runner",
-    "Retromancer"
    ]
   },
   {
@@ -10789,6 +10776,17 @@
     "Vorrac Battlehorns",
     "Rope",
     "Wolfrider's Saddle"
+   ]
+  },
+  {
+   "what": "(constructor: local method makeAbility)",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Court of Vantress",
+    "Kimahri, Valiant Guardian",
+    "Symbiote Spider-Man",
+    "The Ever-Changing 'Dane"
    ]
   }
  ]
