@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11381,
+  "needed": 11380,
   "gainedCards": 1130,
-  "linesNeeded": 12184,
+  "linesNeeded": 12183,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -6577,16 +6577,6 @@
    ]
   },
   {
-   "what": "ModifyCountersAddedEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Mauhúr, Uruk-hai Captain",
-    "Pir, Imaginative Rascal",
-    "Caradora, Heart of Alacria"
-   ]
-  },
-  {
    "what": "that player",
    "score": 3,
    "lines": 3,
@@ -6694,6 +6684,16 @@
     "Mirror Shield",
     "Corrosive Ooze",
     "Giant Shark"
+   ]
+  },
+  {
+   "what": "BeginningOfCombatTriggeredAbility for OPPONENT",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Champions of Minas Tirith",
+    "Web of Inertia",
+    "Fight or Flight"
    ]
   }
  ],

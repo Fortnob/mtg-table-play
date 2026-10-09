@@ -15970,4 +15970,19 @@ module.exports = (test) => {
     t.ok(bear.tapped, 'tapped');
     t.no(offered && offered.some(o => o.id === wurm.id), 'the Wurm (6) is not lesser than the Giant (4)');
   });
+
+  test('Pir, Imaginative Rascal: one more of each kind of counter on your permanents', (mk, t) => {
+    t.auto('Pir, Imaginative Rascal');
+    const T = mk();
+    T.bf('A', 'Pir, Imaginative Rascal');
+    const bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1);
+    T.g.addCounters(bear, 'charge', 2);
+    T.g.addCounters(theirs, '+1/+1', 1);
+    t.eq(bear.counters['+1/+1'], 2);
+    t.eq(bear.counters.charge, 3);
+    t.eq(theirs.counters['+1/+1'], 1, "an opponent's: as it was");
+    T.g.addPoison(T.player('A'), 1, 'B');
+    t.eq(T.player('A').poison, 1, 'not poison on you: that is no permanent');
+  });
 };

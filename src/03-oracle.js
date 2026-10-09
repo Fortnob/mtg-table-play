@@ -12442,6 +12442,9 @@
     // Winding Constrictor: "If one or more counters would be put on an artifact or creature you control, that many plus one of each of those kinds of counters are put on that permanent instead."
     { re: /^If one or more counters would be put on an artifact or creature you control, that many plus one of each of those kinds of counters are put on that permanent instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1AC', event: 'counters', who: 'you', how: 'add', n: 1, whatAny: ['artifact', 'creature'] }) },
+    // Pir, Imaginative Rascal: "on a permanent your team controls" — yours, with no teams
+    { re: /^If one or more counters would be put on a permanent your team controls, that many plus one of each of those kinds of counters are put on that permanent instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Team', event: 'counters', who: 'you', how: 'add', n: 1, whatAny: ['permanent'] }) },
     // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
     { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },
