@@ -16647,4 +16647,15 @@ module.exports = (test) => {
     t.zone(giant, 'graveyard');
     t.eq(T.bfOf('B').filter(o => o.name === 'Lander').length, 1, 'B gets a Lander');
   });
+
+  test('Avatar of Slaughter: all creatures have double strike and attack each combat if able', (mk, t) => {
+    t.auto('Avatar of Slaughter');
+    t.auto('Hellraiser Goblin');
+    const T = mk();
+    T.bf('A', 'Avatar of Slaughter');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(bear, 'double strike'));
+    t.ok(T.g._hasFlag(bear, 'mustAttackEot') || T.g._hasFlag(bear, 'mustAttack'), 'must attack');
+  });
 };

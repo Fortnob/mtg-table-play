@@ -12758,6 +12758,11 @@
       return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
     };
     let mm2;
+    // Avatar of Slaughter: "All creatures have double strike and attack each combat if able."
+    if ((mm2 = String(line).match(/^(All creatures|Creatures you control|Other creatures you control) have ([a-z ]+?) and attack each combat if able\.?$/i))) {
+      const r = both(mm2[1] + ' have ' + mm2[2] + '.', mm2[1] + ' attack each combat if able.');
+      if (r) return r;
+    }
     /* Tenza, Godo's Maul: "Equipped creature gets +1/+1. As long as it's legendary, it gets an
        additional +2/+2. As long as it's red, it has trample." — "it's" is the equipped creature */
     if ((mm2 = String(line).match(/^(Enchanted|Equipped) creature gets [+-]\d+\/[+-]\d+\.(?: As long as it'?s [^.]+\.)+$/i))) {

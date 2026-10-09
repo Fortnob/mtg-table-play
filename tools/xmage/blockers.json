@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11298,
+  "needed": 11296,
   "gainedCards": 1131,
-  "linesNeeded": 12088,
+  "linesNeeded": 12086,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -3283,19 +3283,6 @@
    ]
   },
   {
-   "what": "AttacksIfAbleAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Maximum Carnage",
-    "The Akroan War",
-    "Avatar of Slaughter",
-    "Goblin Diplomats",
-    "Skeletal Swarming",
-    "Hellraiser Goblin"
-   ]
-  },
-  {
    "what": "MayCastTargetCardEffect",
    "score": 6,
    "lines": 6,
@@ -5364,6 +5351,17 @@
     "Doctor Doom, King of Latveria",
     "Urza, Powerstone Prodigy",
     "Mishra, Excavation Prodigy"
+   ]
+  },
+  {
+   "what": "AttacksIfAbleAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Maximum Carnage",
+    "The Akroan War",
+    "Goblin Diplomats",
+    "Skeletal Swarming"
    ]
   },
   {
@@ -10100,17 +10098,6 @@
    ]
   },
   {
-   "what": "AttacksIfAbleAllEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Maximum Carnage",
-    "Avatar of Slaughter",
-    "Goblin Diplomats",
-    "Hellraiser Goblin"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 4,
    "cards": 4,
@@ -10361,6 +10348,17 @@
     "Mortuary",
     "Sigil of the New Dawn",
     "Kithkin Mourncaller"
+   ]
+  },
+  {
+   "what": "GainAbilityAllEffect.withForceQuotes",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Cloakwood Hermit",
+    "Dungeon Delver",
+    "Acolyte of Bahamut",
+    "Scion of Halaster"
    ]
   }
  ]
