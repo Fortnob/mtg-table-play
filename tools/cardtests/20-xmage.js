@@ -15580,4 +15580,24 @@ module.exports = (test) => {
     t.eq(asked, 'B', 'B decides');
     t.eq(V.zone('B', 'hand').length, handV + 1, 'B draws');
   });
+
+  test("Scion of Darkness takes a creature card from the damaged player's graveyard", (mk, t) => {
+    t.auto('Scion of Darkness');
+    t.auto('Ink-Eyes, Servant of Oni');
+    const T = mk();
+    const scion = T.bf('A', 'Scion of Darkness');
+    const theirs = T.grave('B', 'Grizzly Bears');
+    T.grave('A', 'Hill Giant');
+    T.toMain('A');
+    let offered = null;
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', (q) => { offered = (q.options || q.candidates || []).length; return { targets: [theirs.id] }; });
+    T.answer('declareAttackers', () => [{ attackerId: scion.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    T.settle();
+    t.eq(T.life('B'), 14);
+    t.zone(theirs, 'battlefield', 'returned');
+    t.eq(theirs.controller, 'A', 'under your control');
+    t.eq(offered, 1, "only the damaged player's graveyard");
+  });
 };

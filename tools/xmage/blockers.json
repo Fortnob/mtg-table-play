@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11414,
+  "needed": 11412,
   "gainedCards": 1135,
-  "linesNeeded": 12225,
+  "linesNeeded": 12223,
   "linesGained": 1345,
   "gained": {
    "all": 1135,
@@ -146,21 +146,21 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 161,
-   "lines": 155,
+   "score": 159,
+   "lines": 153,
    "cards": [
     "Likeness Looter",
     "Silkguard",
     "Chthonian Nightmare",
     "Tinybones, the Pickpocket",
     "Dance of the Manse",
-    "Ink-Eyes, Servant of Oni",
     "Doppelgang",
     "Diluvian Primordial",
     "Desecrate Reality",
     "Bronzebeak Foragers",
     "Afterlife from the Loam",
-    "Demonic Junker"
+    "Demonic Junker",
+    "Kitesail Larcenist"
    ]
   },
   {
@@ -6753,15 +6753,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 140,
-   "cards": 134,
+   "score": 138,
+   "cards": 132,
    "names": [
     "Likeness Looter",
     "Silkguard",
     "Chthonian Nightmare",
     "Tinybones, the Pickpocket",
     "Dance of the Manse",
-    "Ink-Eyes, Servant of Oni"
+    "Doppelgang"
    ]
   },
   {
