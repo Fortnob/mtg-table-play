@@ -16999,4 +16999,25 @@ module.exports = (test) => {
     t.ok(T.g.battlefield.some(o => o.isToken && /Treasure/.test(o.name)), 'the Treasure was made');
     t.eq(staff.counters.story || 0, 1, 'a Treasure is not a creature token');
   });
+
+  test('Commit: a spell or a nonland permanent goes into its owner\'s library second from the top', (mk, t) => {
+    t.auto('Commit // Memory');
+    const T = mk();
+    T.toMain('A');
+    T.top('A', 'Forest'); T.top('A', 'Island');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R3U');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.cast('A', T.hand('A', 'Commit // Memory'), { face: 0, targets: [{ kind: 'stack', id: T.stackItem(bolt).id }] });
+    T.settle();
+    t.zone(bolt, 'library');
+    t.eq(T.g.zones.A.library.indexOf(bolt), 1, 'second from the top');
+    t.eq(T.life('B'), 20, 'the bolt never resolved');
+    t.no(T.g.stack.length, 'the stack is empty');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Commit // Memory'), { face: 0, targets: [bear.id] });
+    t.zone(bear, 'library');
+    t.eq(T.g.zones.B.library.indexOf(bear), 1, 'into its owner\'s library, second');
+  });
 };

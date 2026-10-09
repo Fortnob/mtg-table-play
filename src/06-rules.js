@@ -17829,8 +17829,12 @@
           if (e.attached) { const x = src && src.attachedTo && this.obj(src.attachedTo); targets = x ? [{ kind: 'object', id: x.id }] : []; }
           this._noteLastAffected(targets);
           for (const t of targets) {
-            if (t.kind !== 'object') continue;
-            const o = this.obj(t.id);
+            let o = t.kind === 'object' ? this.obj(t.id) : null;
+            // Commit: "target spell or nonland permanent" — a spell leaves the stack uncast, as a bounced one does
+            if (t.kind === 'stack') {
+              const item = this.stack.find(st => st.id === t.id);
+              if (item && item.kind === 'spell' && item.obj && !item.isCopy) o = item.obj;
+            }
             if (!o) continue;
             this.moveObject(o, 'library', { toBottom: e.where === 'bottom' });
             // Chronostutter: second from the top
@@ -17838,7 +17842,8 @@
             // Teferi, Hero of Dominaria: third from the top
             if (e.where === 'third') { const lib = this.zones[o.owner].library; if (lib[0] === o) { lib.splice(0, 1); lib.splice(Math.min(2, lib.length), 0, o); } }
             if (e.where === 'shuffle') this.rng.shuffle(this.zones[o.owner].library);
-            this.logEvent('zone', `${o.name} goes to the ${e.where === 'shuffle' ? 'library (shuffled)' : e.where} of its owner's library.`);
+            this.logEvent('zone', e.where === 'second' || e.where === 'third' ? `${o.name} goes into its owner's library ${e.where} from the top.`
+              : e.where === 'shuffle' ? `${o.name} is shuffled into its owner's library.` : `${o.name} goes to the ${e.where || 'top'} of its owner's library.`);
           }
           break;
         }

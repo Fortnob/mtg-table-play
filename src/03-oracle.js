@@ -4988,9 +4988,9 @@
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Chronostutter: "Put target creature into its owner's library second from the top."
-    // (Teferi, Hero of Dominaria: "third from the top")
+    // (Teferi, Hero of Dominaria: "third from the top"; Commit: "target spell or nonland permanent", off the stack)
     { re: /^Put (target [a-z ]+?) into its owner'?s library (second|third) from the top\.?$/i,
-      make: (m) => { const a = tgt(m[1]); return a && !/spell/i.test(m[1]) ? { op: 'toLibrary', where: m[2].toLowerCase(), targets: [a] } : null; } },
+      make: (m) => { const a = tgt(m[1]); return a && (!/spell/i.test(m[1]) || /^target spell or nonland permanent$/i.test(m[1])) ? { op: 'toLibrary', where: m[2].toLowerCase(), targets: [a] } : null; } },
     // Teferi, Hero of Dominaria: "At the beginning of the next end step, untap up to two lands."
     { re: /^At the beginning of the next end step, untap up to (one|two|three|four) lands\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'self', name: 'Untap lands at end of turn',

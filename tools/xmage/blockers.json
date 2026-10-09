@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11261,
+  "needed": 11260,
   "gainedCards": 1131,
-  "linesNeeded": 12045,
+  "linesNeeded": 12044,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -5043,17 +5043,6 @@
    ]
   },
   {
-   "what": "TargetSpellOrPermanent",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Commit // Memory",
-    "Eight-and-a-Half-Tails",
-    "Blind Seer",
-    "Illusion // Reality"
-   ]
-  },
-  {
    "what": "ExileAndReturnSourceEffect",
    "score": 4,
    "lines": 4,
@@ -6652,6 +6641,16 @@
     "Koll, the Forgemaster",
     "Kestia, the Cultivator",
     "Feast of Dreams"
+   ]
+  },
+  {
+   "what": "BecomesMonarchTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Starscream, Power Hungry // Starscream, Seeker Leader",
+    "Garland, Royal Kidnapper",
+    "Jared Carthalion, True Heir"
    ]
   }
  ],
@@ -9846,17 +9845,6 @@
    ]
   },
   {
-   "what": "TargetSpellOrPermanent",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Commit // Memory",
-    "Eight-and-a-Half-Tails",
-    "Blind Seer",
-    "Illusion // Reality"
-   ]
-  },
-  {
    "what": "MaxSpeedAbility",
    "score": 4,
    "cards": 4,
@@ -10349,6 +10337,17 @@
     "Appetite for Brains",
     "Nimble Larcenist",
     "Transgress the Mind"
+   ]
+  },
+  {
+   "what": "DealsDamageSourceTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Cecil, Dark Knight // Cecil, Redeemed Paladin",
+    "Shackles of Treachery",
+    "Towering-Wave Mystic",
+    "Emberwilde Caliph"
    ]
   }
  ]
