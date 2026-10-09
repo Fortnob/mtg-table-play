@@ -666,6 +666,8 @@
     if (aboutOther && d0 && !(d0.targets || []).length) {
       for (const k of ['n', 'p', 't']) if (d0[k] && typeof d0[k] === 'object' && d0[k].ofLast) d0[k] = { ofTrigger: d0[k].ofLast };
       if (d0.who === 'targetController' && ['createToken', 'createNamedToken'].includes(d0.op)) d0.who = 'triggerObjController';
+      // Ankh of Mishra: "deals 2 damage to that land's controller" — the land that entered
+      if (d0.op === 'damage' && d0.toAffectedController) { delete d0.toAffectedController; d0.toTriggerObjController = true; }
     }
   }
 

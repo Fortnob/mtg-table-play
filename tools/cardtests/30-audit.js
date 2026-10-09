@@ -2113,4 +2113,20 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.zone(w, 'graveyard'); t.zone(wall, 'graveyard'); t.zone(other, 'battlefield');
   });
+
+  test('Audit: "that land\'s controller" is the controller of the land the trigger is about (Ankh of Mishra, Dingus Egg)', (mk, t) => {
+    let T = mk();
+    t.auto('Ankh of Mishra');
+    T.bf('A', 'Ankh of Mishra');
+    T.nextTurn('B');
+    T.playLand('B', T.hand('B', 'Mountain'));
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
+    T = mk();
+    t.auto('Dingus Egg');
+    T.bf('A', 'Dingus Egg');
+    const land = T.bf('B', 'Island');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Stone Rain'), { targets: [land] });
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
+  });
 };
