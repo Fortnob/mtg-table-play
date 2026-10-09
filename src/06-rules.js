@@ -7988,6 +7988,9 @@
         const g = this._staticOp(s, 'groupEvasion');
         if (g && this.powerOf(attacker) <= g.maxPower && this.powerOf(blocker) > g.maxBlockerPower) return false;
         if (this._staticOp(s, 'smallCantBlock') && this.powerOf(blocker) < this.powerOf(s)) return false;
+        // Bower Passage: "Creatures with flying can't block creatures you control." (cantBlockYours)
+        const cb = this._staticOp(s, 'cantBlockYours');
+        if (cb && (cb.keyword ? this.hasKw(blocker, cb.keyword) : this._cardFitsWords(blocker, cb.words))) return false;
       }
       /* "Creatures with power less than this one's can't block it." */
       if (ev && ev.blockerAtLeastMyPower && this.powerOf(blocker) < this.powerOf(attacker)) return false;

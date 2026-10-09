@@ -16673,4 +16673,22 @@ module.exports = (test) => {
     t.zone(wurm, 'graveyard');
     t.eq(T.zone('A', 'hand').length, hand + 6, 'six cards for the Wurm');
   });
+
+  test("Bower Passage: creatures with flying can't block your creatures", (mk, t) => {
+    t.auto('Bower Passage');
+    const T = mk();
+    T.bf('A', 'Bower Passage');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const bird = T.bf('B', 'Suntail Hawk'), elf = T.bf('B', 'Llanowar Elves');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    let flyer = null, ground = null;
+    T.answer('declareBlockers', (ch, g) => {
+      flyer = g.declareBlockers('B', [{ blockerId: bird.id, attackerIds: [bear.id] }]);
+      return [{ blockerId: elf.id, attackerIds: [bear.id] }];
+    });
+    T.toMain('A', 'endCombat');
+    t.no(flyer, 'the Hawk may not block');
+    t.zone(elf, 'graveyard', 'the Elves may');
+  });
 };

@@ -12709,7 +12709,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -13743,6 +13743,9 @@
         }, auto: true },
       // "This creature must be blocked if able."
       { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },
+      // Bower Passage: "Creatures with flying can't block creatures you control."; Heat Wave: "Blue creatures can't …" (cantBlockYours)
+      { re: /^(?:Creatures with (flying|reach|defender|horsemanship)|(white|blue|black|red|green|artifact) creatures) can'?t block creatures you control\.?$/i,
+        make: (m) => (m[1] ? { op: 'cantBlockYours', keyword: m[1].toLowerCase() } : { op: 'cantBlockYours', words: m[2].toLowerCase() + ' creature' }), auto: true },
       // Champion of Lambholt: "Creatures with power less than this creature's power can't block creatures you control."
       { re: /^Creatures with power less than (?:this creature|CARDNAME)'?s power can'?t block creatures you control\.?$/i,
         eff: { op: 'smallCantBlock' }, auto: true },
