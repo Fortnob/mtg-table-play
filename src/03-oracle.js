@@ -4547,6 +4547,9 @@
     // Terisian Mindbreaker: "defending player mills half their library, rounded up"
     { re: /^Defending player mills half their library, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'mill', who: 'defending', n: { halfLibrary: 'defending', up: /up/i.test(m[1]) } }) },
+    // Thieving Skydiver: "If that artifact is an Equipment, attach it to this creature."
+    { re: /^If that artifact is an Equipment, attach it to (?:this creature|CARDNAME)\.?$/i,
+      make: () => ({ op: 'attachTargetToSelf', onlyEquipment: true }) },
     // Hammer of Nazahn: "attach that Equipment to target creature you control"
     { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },
@@ -4813,6 +4816,9 @@
     /* "Target land becomes the basic land type of your choice until end of turn." */
     { re: /^(Target land|This land|CARDNAME) becomes the basic land type of your choice until end of turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'becomeBasicType', targets: [targetSpec('target land')] } : { op: 'becomeBasicType', scope: 'self' }) },
+    // Fighter Class: "Whenever a creature you control attacks, up to one target creature blocks it this combat if able."
+    { re: /^(Target creature|Up to one target creature) blocks it this (?:turn|combat) if able\.?$/i,
+      make: (m) => ({ op: 'mustBlockThis', ofTrigger: true, targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
     { re: /^(Target creature|Up to one target creature) blocks (?:CARDNAME|this creature) this turn if able\.?$/i,
       make: (m) => ({ op: 'mustBlockThis', targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
     { re: /^All creatures able to block (target creature|CARDNAME|this creature) this turn do so\.?$/i,
@@ -11053,6 +11059,10 @@
         if (/mana value/i.test(m[0])) ef.setPt = { mv: true };
         return ef;
       } },
+    // Planar Nexus: "This land is every nonbasic land type."
+    { re: /^(?:This land|CARDNAME) is every nonbasic land type\.?$/i,
+      make: () => ({ op: 'continuous', layer: 4, scope: { self: true },
+        addSubtypes: ['Cave', 'Desert', 'Gate', 'Lair', 'Locus', 'Mine', 'Power-Plant', 'Sphere', 'Tower', 'Town', "Urza's"] }) },
     // Ashaya, Soul of the Wild: "Nontoken creatures you control are Forest lands in addition to their other types."
     { re: /^(.+?) (?:is|are) (?:an? )?(Plains|Island|Swamp|Mountain|Forest) lands? in addition to (?:its|their) other types\.?$/i,
       make: (m) => {

@@ -13775,4 +13775,39 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(rot, 'lifelink'), 'three poison counters: lifelink');
     t.ok(!T.g.hasKw(bear, 'lifelink'), 'only creatures with toxic');
   });
+
+  test('Thieving Skydiver: the stolen Equipment is attached to it; Planar Nexus is every nonbasic land type', (mk, t) => {
+    t.auto('Thieving Skydiver'); t.auto('Planar Nexus');
+    const T = mk();
+    T.toMain('A');
+    const sky = T.bf('A', 'Thieving Skydiver');
+    const bs = T.bf('B', 'Bonesplitter');
+    const ab = sky.analysis().abilities.find(a => a.kind === 'triggered');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: sky, name: 'Thieving Skydiver', kind: 'ability', targets: [{ kind: 'object', id: bs.id }], x: 1 });
+    T.settle();
+    t.eq(bs.controller, 'A', 'taken');
+    t.eq(bs.attachedTo, sky.id, 'and attached to the Skydiver');
+    t.eq(T.g.powerOf(sky), 4, '+2/+0');
+    const ms = T.bf('B', 'Mind Stone');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: sky, name: 'Thieving Skydiver', kind: 'ability', targets: [{ kind: 'object', id: ms.id }], x: 2 });
+    T.settle();
+    t.eq(ms.controller, 'A'); t.ok(!ms.attachedTo, 'not an Equipment: not attached');
+    const nexus = T.bf('A', 'Planar Nexus');
+    t.ok(T.g._hasSubtype(nexus, 'Gate') && T.g._hasSubtype(nexus, "Urza's") && T.g._hasSubtype(nexus, 'Cave'), 'a Gate, an Urza\'s, a Cave');
+    t.ok(!T.g._hasSubtype(nexus, 'Forest'), 'not a basic type');
+  });
+
+  test('Fighter Class, level 3: up to one target creature blocks the attacker if able', (mk, t) => {
+    t.auto('Fighter Class');
+    const T = mk();
+    const fc = T.bf('A', 'Fighter Class');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    const ab = fc.analysis().abilities.find(a => a.kind === 'triggered' && /blocks it/.test(a.text));
+    t.ok(!!ab, 'the level 3 trigger');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: fc, name: 'Fighter Class', kind: 'ability',
+      targets: [{ kind: 'object', id: giant.id }], triggerData: { objectId: bear.id } });
+    T.settle();
+    t.ok(giant.effects.some(x => x.mustBlockId === bear.id), 'the Giant must block the Bears');
+  });
 };

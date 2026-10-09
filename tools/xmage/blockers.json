@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11936,
+  "needed": 11931,
   "gainedCards": 1233,
-  "linesNeeded": 12883,
+  "linesNeeded": 12878,
   "linesGained": 1468,
   "gained": {
    "all": 1233,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4309,
-   "lines": 4048,
+   "score": 4307,
+   "lines": 4046,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -108,21 +108,21 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 208,
-   "lines": 187,
+   "score": 207,
+   "lines": 186,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
     "March of Swirling Mist",
     "Winds of Abandon",
     "Alchemist's Talent",
-    "Fighter Class",
     "Wand of Wonder",
     "Fangs of Kalonia",
     "Spectacular Showdown",
     "Boseiju, Who Shelters All",
     "Edgar Markov",
-    "Archpriest of Shadows"
+    "Archpriest of Shadows",
+    "Rise and Shine"
    ]
   },
   {
@@ -222,8 +222,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 52,
-   "lines": 52,
+   "score": 51,
+   "lines": 51,
    "cards": [
     "Tidus, Yuna's Guardian",
     "Contest of Claws",
@@ -6912,8 +6912,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3557,
-   "cards": 3386,
+   "score": 3555,
+   "cards": 3384,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6977,15 +6977,15 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 128,
-   "cards": 122,
+   "score": 127,
+   "cards": 121,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
     "Alchemist's Talent",
-    "Fighter Class",
     "Wand of Wonder",
-    "Fangs of Kalonia"
+    "Fangs of Kalonia",
+    "Spectacular Showdown"
    ]
   },
   {
@@ -7016,8 +7016,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 45,
-   "cards": 45,
+   "score": 44,
+   "cards": 44,
    "names": [
     "Contest of Claws",
     "Cosmic Hunger",

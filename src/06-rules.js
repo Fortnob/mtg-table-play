@@ -16486,6 +16486,21 @@
         }
 
         // Hammer of Nazahn: "attach that Equipment to target creature you control"
+        /* Thieving Skydiver: the artifact just taken, if it is an Equipment,
+           goes onto this creature */
+        case 'attachTargetToSelf': {
+          const eq = firstObj();
+          if (!eq || eq.zone !== 'battlefield' || !src || src.zone !== 'battlefield' || eq === src) break;
+          if (e.onlyEquipment && !(eq.analysis() || {}).isEquipment) break;
+          if (eq.controller !== ctx.controller || !(src.analysis() || {}).isCreature) break;
+          if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
+          eq.attachedTo = src.id;
+          eq.ts = this._stampNew();
+          src.attachments.push(eq.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is attached to ${src.name}.`);
+          break;
+        }
         case 'attachThat': {
           const eq = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           const host = firstObj();
@@ -16909,13 +16924,16 @@
         }
 
         // "Target creature blocks this creature this turn if able."
-        case 'mustBlockThis':
-          if (!src) break;
+        case 'mustBlockThis': {
+          // Fighter Class: "blocks it" — the creature the trigger is about
+          const whom = e.ofTrigger ? this.obj((ctx.triggerData || {}).objectId) : src;
+          if (!whom) break;
           applyToScope(e, (o) => {
-            o.effects.push({ mustBlockId: src.id, until: 'eot' });
-            this.logEvent('rules', `${o.name} blocks ${src.name} this turn if able.`);
+            o.effects.push({ mustBlockId: whom.id, until: 'eot' });
+            this.logEvent('rules', `${o.name} blocks ${whom.name} this turn if able.`);
           });
           break;
+        }
         // "Target creature can't block this creature this turn."
         case 'cantBlockThis':
           if (!src) break;
