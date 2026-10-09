@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12075,
-  "gainedCards": 1266,
-  "linesNeeded": 13096,
-  "linesGained": 1510,
+  "needed": 12071,
+  "gainedCards": 1263,
+  "linesNeeded": 13091,
+  "linesGained": 1506,
   "gained": {
-   "all": 1266,
+   "all": 1263,
    "top2000": 49,
    "stdTop": 9
   },
@@ -6488,17 +6488,6 @@
    ]
   },
   {
-   "what": "ConniveSourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "M.O.D.O.K.",
-    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
-    "Obscura Interceptor",
-    "Psychic Pickpocket"
-   ]
-  },
-  {
    "what": "filter:historic",
    "score": 4,
    "lines": 4,
@@ -6958,6 +6947,17 @@
     "Woodland Guidance",
     "Fire Juggler",
     "Sentry Oak"
+   ]
+  },
+  {
+   "what": "PreventDamageToAttachedEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Inviolability",
+    "Shield of the Avatar",
+    "Shield of the Realm",
+    "Fylgja"
    ]
   }
  ],

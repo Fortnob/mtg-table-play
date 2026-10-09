@@ -13111,4 +13111,16 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
     t.eq(T.zone('A', 'hand').length, hand + 1, 'a card for the first');
   });
+
+  test('M.O.D.O.K.: a flavour word before "Pay 3 life:"', (mk, t) => {
+    t.auto('M.O.D.O.K.');
+    const T = mk();
+    T.toMain('A');
+    const m = T.bf('A', 'M.O.D.O.K.');
+    T.top('A', 'Forest');
+    T.answer('discard', (ch) => ({ cardIds: [(ch.cards || [])[0] ? ch.cards[0].id : T.zone('A', 'hand')[0].id] }));
+    T.activate('A', m, 0);
+    T.settle();
+    t.eq(T.player('A').life, 17, 'three life paid');
+  });
 };
