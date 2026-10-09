@@ -10445,6 +10445,13 @@
         }
         continue;
       }
+      // Unctus, Grand Metatect: "becomes a blue artifact in addition to its other colors and types"
+      if ((m = p.match(/^becomes an? ((?:(?:white|blue|black|red|green) )*)(artifact|enchantment) in addition to its other (?:colors and )?types$/))) {
+        const cols = m[1].trim().split(/\s+/).filter(Boolean).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]);
+        if (cols.length) eff.addColors = (eff.addColors || []).concat(cols);
+        eff.addTypes = (eff.addTypes || []).concat([m[2].charAt(0).toUpperCase() + m[2].slice(1)]);
+        continue;
+      }
       // "becomes a blue Frog with base power and toughness 1/1", "is an Insect artifact creature with base power and toughness 0/1"
       if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)$/))) {
         if (!typed(m[1], m[2], [m[3], m[4]])) return null;

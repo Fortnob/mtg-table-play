@@ -12854,4 +12854,17 @@ module.exports = (test) => {
     t.ok(pw.zone !== 'battlefield' || pw.counters.loyalty < 3, 'the planeswalker took damage');
     t.eq(T.player('B').life, 20, 'not the player');
   });
+
+  test('Unctus, Grand Metatect: a blue artifact as well, for the turn', (mk, t) => {
+    t.auto('Unctus, Grand Metatect');
+    const T = mk();
+    const u = T.bf('A', 'Unctus, Grand Metatect');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ab = u.analysis().abilities.find(a => a.kind === 'activated' && /blue artifact/.test(a.text));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: u, name: 'Unctus', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    t.ok(T.g._cardFitsWords(bear, 'artifact') && T.g._cardFitsWords(bear, 'creature'), 'an artifact creature');
+    t.ok(T.g._cardFitsWords(bear, 'blue') && T.g._cardFitsWords(bear, 'green'), 'blue and still green');
+    T.toMain('B');
+    t.ok(!T.g._cardFitsWords(bear, 'artifact'), 'only for the turn');
+  });
 };
