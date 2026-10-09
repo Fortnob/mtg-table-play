@@ -15486,4 +15486,18 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(bear, 'Double strike'), 'the equipped Bears strike twice');
     t.no(T.g.hasKw(elf, 'Double strike'), 'the Elves do not');
   });
+
+  test('Loading Zone doubles counters of any kind put on your creatures', (mk, t) => {
+    t.auto('Loading Zone');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Loading Zone');
+    const bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1);
+    T.g.addCounters(bear, 'shield', 1);
+    T.g.addCounters(theirs, '+1/+1', 1);
+    t.eq(bear.counters['+1/+1'], 2);
+    t.eq(bear.counters.shield, 2);
+    t.eq(theirs.counters['+1/+1'], 1, "an opponent's: not doubled");
+  });
 };

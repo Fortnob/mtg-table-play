@@ -12270,6 +12270,10 @@
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
         / or /.test(m[1]) ? { whatAny: ['artifact', 'creature'] } : { what: m[1].toLowerCase() }) },
+    // Loading Zone: "If one or more counters would be put on a creature, Spacecraft, or Planet you control, twice that many of each of those kinds …" — any kind
+    { re: /^If one or more counters would be put on (an? (?:creature|artifact|permanent)(?:,? (?:or )?(?:creature|artifact|Spacecraft|Planet))*)( you control)?, twice that many of each of those kinds of counters are put on (?:it|that \w+) instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'cntDoubleAll', event: 'counters', who: m[2] ? 'you' : 'all', how: 'double',
+        words: m[1].replace(/^an? /i, '').replace(/,? or |, /g, ' or ').toLowerCase() }) },
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent)( you control)?, twice that many \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'cntDouble11', event: 'counters', who: m[2] ? 'you' : 'all', how: 'double', counter: '+1/+1', what: m[1].toLowerCase() }) },
     { re: /^If one or more tokens would be created under your control, twice that many of those tokens are created instead\.?$/i,
