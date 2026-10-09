@@ -3759,6 +3759,8 @@
         a.altCosts.forEach((alt, i) => {
           if (alt.cond && !this._condMet(alt.cond, { controller: playerId, obj: o })) return;
           if (this._thingCostBlocked(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn }, o, null)) return;
+          // Sephara: enough untapped creatures to tap
+          if (alt.tapCreatures && this._tapCostPool(playerId, alt.tapCreatures, o).length < (alt.tapCreatures.n || 1)) return;
           if (alt.exileFromHand && this._discardPool(playerId, alt.exileFromHand, o).length < (alt.exileFromHand.n || 1)) return;
           const me = this.player(playerId);
           if (alt.life && (!me || me.life < alt.life || this._lifeFrozen(me))) return;
@@ -4946,7 +4948,7 @@
               prompt: `Exile ${need === 1 ? 'a' : need} ${alt.exileFromHand.filter} card${need === 1 ? '' : 's'} from your hand.` });
           }
         }
-        this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn }, o, opts, item);
+        this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn, tapCreatures: alt.tapCreatures }, o, opts, item);
       }
       /* The rest of the price: life, and anything to be given up. */
       if (a && a.additionalCost && !opts.skipAdditional && !(optAdd && !opts.payAdditional)) {
@@ -6265,6 +6267,8 @@
       const f = String((spec && spec.filter) || 'creature');
       return this.battlefield.filter(x => x.controller === pid && !x.tapped && !x.phasedOut &&
         !(self && x.id === self.id && (spec.another || selfTaps)) &&
+        // Sephara: "untapped creatures you control with flying"
+        (!spec.keyword || this.hasKw(x, spec.keyword)) &&
         (/^(?:creature|creatures)$/i.test(f) ? this.characteristics(x).isCreature : this._cardFitsWords(x, f)));
     }
     /** Least valuable first: tokens, then the cheapest cards. */

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12390,
+  "needed": 12384,
   "gainedCards": 1348,
-  "linesNeeded": 13503,
+  "linesNeeded": 13495,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -241,25 +241,6 @@
    ]
   },
   {
-   "what": "AlternativeCostSourceAbility",
-   "score": 53,
-   "lines": 50,
-   "cards": [
-    "Sephara, Sky's Blade",
-    "Invigorate",
-    "Foil",
-    "Submerge",
-    "Archive Trap",
-    "Mogg Salvage",
-    "Ricochet Trap",
-    "Once Upon a Time",
-    "Massacre",
-    "Asmoranomardicadaistinaculdacar",
-    "Hand of Emrakul",
-    "Land Grant"
-   ]
-  },
-  {
    "what": "custom target",
    "score": 49,
    "lines": 46,
@@ -295,6 +276,25 @@
     "Wildsear, Scouring Maw",
     "Hunting Velociraptor",
     "Prismari, the Inspiration"
+   ]
+  },
+  {
+   "what": "AlternativeCostSourceAbility",
+   "score": 42,
+   "lines": 42,
+   "cards": [
+    "Invigorate",
+    "Foil",
+    "Submerge",
+    "Archive Trap",
+    "Mogg Salvage",
+    "Ricochet Trap",
+    "Once Upon a Time",
+    "Massacre",
+    "Asmoranomardicadaistinaculdacar",
+    "Hand of Emrakul",
+    "Land Grant",
+    "Thwart"
    ]
   },
   {
@@ -7053,8 +7053,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3631,
-   "cards": 3415,
+   "score": 3632,
+   "cards": 3416,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -7105,8 +7105,8 @@
   },
   {
    "what": "custom condition",
-   "score": 133,
-   "cards": 130,
+   "score": 134,
+   "cards": 131,
    "names": [
     "Sting, the Glinting Dagger",
     "Queen Marchesa",
@@ -7156,19 +7156,6 @@
    ]
   },
   {
-   "what": "AlternativeCostSourceAbility",
-   "score": 48,
-   "cards": 45,
-   "names": [
-    "Sephara, Sky's Blade",
-    "Invigorate",
-    "Foil",
-    "Submerge",
-    "Archive Trap",
-    "Mogg Salvage"
-   ]
-  },
-  {
    "what": "Target.setTargetTag",
    "score": 47,
    "cards": 47,
@@ -7192,6 +7179,19 @@
     "Reunion of the House",
     "Behold the Sinister Six!",
     "Kairi, the Swirling Sky"
+   ]
+  },
+  {
+   "what": "AlternativeCostSourceAbility",
+   "score": 39,
+   "cards": 39,
+   "names": [
+    "Invigorate",
+    "Foil",
+    "Submerge",
+    "Archive Trap",
+    "Mogg Salvage",
+    "Ricochet Trap"
    ]
   },
   {

@@ -11909,4 +11909,19 @@ module.exports = (test) => {
     bear.attacking = 'B';
     t.no(T.g.canBlock(greenBlocker, bear), 'not by green'); t.ok(T.g.canBlock(whiteBlocker, bear), 'white can');
   });
+
+  test("Sephara: {W} and four untapped flyers instead of the mana cost", (mk, t) => {
+    t.auto("Sephara, Sky's Blade");
+    const T = mk();
+    const fl = [1, 2, 3, 4].map(() => T.bf('A', 'Serra Angel'));
+    const sp = T.hand('A', "Sephara, Sky's Blade");
+    const use = T.g.altUsesFor('A', sp.id).find(u => u.kind === 'cast' && /alternative/i.test(u.label || ''));
+    t.ok(use, 'the alternative cost is offered');
+    T.mana('A', 'W');
+    T.answer('tapCost', (ch) => ({ cardIds: fl.map(x => x.id) }));
+    T.answer('choose', (ch) => ({ picks: fl.map(x => x.id) }));
+    t.ok(T.g.castSpell('A', sp.id, { via: use.via }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(sp.zone, 'battlefield'); t.ok(fl.every(x => x.tapped), 'four flyers tapped');
+  });
 };

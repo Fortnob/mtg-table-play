@@ -6249,6 +6249,10 @@
       else if ((k = part.match(/^discard (a|an|one|two) ([a-z ]*?)cards?$/i)))
         alt.discard = { n: num(k[1]), filter: k[2].trim() || 'card' };
       // Daze, Gush, the Borderposts: "return an Island you control to its owner's hand"
+      /* Sephara, Lashknife: "tap four untapped creatures you control with
+         flying", "tap an untapped creature you control" */
+      else if ((k = part.match(/^tap (a|an|one|two|three|four|five|\d+) untapped ([a-z]+?)s? you control(?: with (flying|first strike|vigilance))?$/i)))
+        alt.tapCreatures = Object.assign({ n: num(k[1]), filter: k[2].toLowerCase() }, k[3] ? { keyword: k[3].toLowerCase() } : {});
       else if ((k = part.match(/^return (a|an|one|two) ([A-Za-z ]+?) you control to (?:its|their) owner'?s'? hands?$/i)))
         alt.returnOwn = { n: num(k[1]), filter: k[2].trim().toLowerCase().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') };
       else return null;
