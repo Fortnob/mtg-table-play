@@ -1893,15 +1893,18 @@
           const idx = a.manaAbilities.length + acts.indexOf(ab);
           const c = ab.cost || {};
           const cost = ab.kind === 'loyalty'
-            ? (c.loyalty > 0 ? '+' + c.loyalty : String(c.loyalty || 0))
+            ? (c.loyaltyX < 0 ? '−X' : c.loyalty > 0 ? '+' + c.loyalty : c.loyalty < 0 ? '−' + -c.loyalty : '0')
             : (typeof c === 'string' ? c : (c.raw || ''));
+          // a minus ability needs that much loyalty to pay (CR 606.6)
+          const short = ab.kind === 'loyalty' && c.loyalty < 0 && -c.loyalty > ((o.counters || {}).loyalty || 0);
           // the cost is shown on its own, so the text is what comes after the colon
           // a Room's locked door reads "Unlock <door>", its cost shown beside it
           const raw = ab.special === 'unlock' ? String(ab.text || '').replace(/:\s*[^:]*$/, '')
             : String(ab.text || '').replace(/^[^:]*:\s*/, '');
           const text = (raw && MTG.oracle.named ? MTG.oracle.named(raw, o) : raw) || MTG.oracle.abilityLabel(ab, o);
           uses.push({ label: MTG.oracle.abilityLabel(ab, o), cost, loyalty: ab.kind === 'loyalty',
-            text, fn: () => this.activate(o, a, idx, ab) });
+            text, off: short ? `Needs ${-c.loyalty} loyalty; it has ${(o.counters || {}).loyalty || 0}.` : null,
+            fn: () => this.activate(o, a, idx, ab) });
         });
         a.manaAbilities.forEach((ab, i) => {
           const xs = this._abilityX(o, ab);
@@ -2356,6 +2359,11 @@
      */
     _abilityX(o, ab) {
       const c = (ab && ab.cost) || {};
+      // a planeswalker's "-X": as many loyalty counters as you like, up to all of them
+      if (ab && ab.kind === 'loyalty' && c.loyaltyX < 0) {
+        const have = Number((o.counters || {}).loyalty) || 0;
+        return { label: 'choose X', sub: `X loyalty comes off. It has ${have}.`, max: have, start: 0 };
+      }
       const rc = c.removeCounters;
       if (rc && (rc.n === 'X' || rc.n === 'any')) {
         const kind = String(rc.kind || '').replace(/\s+counters?$/i, '').trim();
@@ -2478,10 +2486,11 @@
         el('div', { class: 'pop-title', text: o.card.name }),
         ...uses.map(u => el('button', {
           type: 'button', class: 'pop-item' + (u.mana ? ' mana' : '') + (u.loyalty ? ' loy' : ''), role: 'menuitem',
+          disabled: !!u.off, title: u.off || null,
           onclick: (e) => { e.stopPropagation(); this.closePopover(); u.fn(); },
         }, [
           u.cost ? el('span', { class: 'pop-cost', html: u.loyalty
-            ? `<b class="loy-cost${/^-/.test(u.cost) ? ' minus' : ''}">${escapeHtml(u.cost)}</b>`
+            ? `<b class="loy-cost${/^[-−]/.test(u.cost) ? ' minus' : ''}">${escapeHtml(u.cost)}</b>`
             : MTG.mana.textHtml(u.cost) }) : null,
           el('span', { class: 'pop-label', html: MTG.mana.textHtml(truncate(u.text || u.label, 120)) }),
         ].filter(Boolean))),

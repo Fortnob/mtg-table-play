@@ -634,6 +634,8 @@
 .pop-item { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 9px 10px; border-radius: 9px; cursor: pointer;
   border: 0; background: none; color: #e9edf4; font: 500 13px/1.35 var(--font); }
 .pop-item:hover { background: rgba(255,255,255,.07); }
+.pop-item:disabled { opacity: .42; cursor: default; }
+.pop-item:disabled:hover { background: none; }
 .pop-cost { flex: none; display: inline-flex; gap: 1px; align-items: center; font-size: 12px; color: #c3cad6; max-width: 46%; }
 .loy-cost { font: 800 12px/22px var(--font); min-width: 30px; text-align: center; padding: 0 5px; border-radius: 4px 4px 12px 12px; background: #2f4a33; color: #b7f0c8; }
 .loy-cost.minus { background: #4a2a2a; color: #ffb9b0; }
