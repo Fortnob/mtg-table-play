@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11775,
+  "needed": 11767,
   "gainedCards": 1191,
-  "linesNeeded": 12677,
+  "linesNeeded": 12661,
   "linesGained": 1410,
   "gained": {
    "all": 1191,
@@ -983,25 +983,6 @@
     "Trade Caravan",
     "Arcum's Sleigh",
     "Inventive Wingsmith"
-   ]
-  },
-  {
-   "what": "BecomesCreatureAttachedEffect",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Spider-Man No More",
-    "In Too Deep",
-    "Retro-Mutation",
-    "Zoetic Glyph",
-    "Deep Freeze",
-    "Ensoul Artifact",
-    "Harmonious Emergence",
-    "Corrupted Zendikon",
-    "Nissa's Zendikon",
-    "Awaken the Ancient",
-    "Crackling Emergence",
-    "Mightstone's Animation"
    ]
   },
   {
@@ -2011,6 +1992,23 @@
     "Ramses Overdark",
     "Cut the Earthly Bond",
     "Venomous Vines"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAttachedEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Spider-Man No More",
+    "In Too Deep",
+    "Retro-Mutation",
+    "Zoetic Glyph",
+    "Deep Freeze",
+    "Ensoul Artifact",
+    "Awaken the Ancient",
+    "Mightstone's Animation",
+    "Tezzeret's Touch",
+    "Puppet Crafting"
    ]
   },
   {
@@ -3513,20 +3511,6 @@
     "General Jarkeld",
     "Dwarven Armory",
     "Lesser Werewolf"
-   ]
-  },
-  {
-   "what": "dies attached to enchanted land",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Genju of the Realm",
-    "Corrupted Zendikon",
-    "Nissa's Zendikon",
-    "Wind Zendikon",
-    "Guardian Zendikon",
-    "Vastwood Zendikon",
-    "Crusher Zendikon"
    ]
   },
   {
@@ -6863,13 +6847,23 @@
     "Eriette of the Charmed Apple",
     "Chronomantic Escape"
    ]
+  },
+  {
+   "what": "search with TargetCardAndOrCardInLibrary",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Axgard Armory",
+    "Aang's Journey",
+    "Invert // Invent"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3545,
-   "cards": 3365,
+   "score": 3547,
+   "cards": 3367,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

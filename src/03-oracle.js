@@ -8872,6 +8872,8 @@
     { re: /^At the beginning of each player'?s upkeep(?:,| )/i, event: 'eachUpkeep' },
     { re: /^When(?:ever)? equipped creature dies(?:,| )/i, event: 'equippedDies' },
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
+    // Zendikons: "When enchanted land dies, return that card to its owner's hand."
+    { re: /^When(?:ever)? enchanted land dies,/i, event: 'equippedDies' },
     // Kaya's Ghostform: "When enchanted permanent dies or is put into exile"
     { re: /^When(?:ever)? enchanted (?:creature|permanent) dies or is put into exile(?:,| )/i, event: 'equippedDies', extra: { orExiled: true } },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|this enchantment|~|CARDNAME) enters(?: the battlefield)?(?:,| )/i, event: 'etb', self: true },
@@ -9683,6 +9685,11 @@
            control" is the enchanted card that just left, not one held in exile */
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }
+          // Zendikons: "return that card to its owner's hand" — the land that died
+          if (parsed.effects.length === 1 && parsed.effects[0].op === 'manual' && /^return that card to its owner'?s hand\.?$/i.test(parsed.effects[0].text || '')) {
+            parsed.effects = [{ op: 'returnItToHand', ownerHand: true, text: parsed.effects[0].text }];
+            parsed.auto = true;
+          }
         }
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
@@ -11172,8 +11179,8 @@
       /* Clan Guildmage: "becomes a 4/4 Elemental creature with haste";
          Vengeant Earth: "… in addition to its other types" — the creature
          types it had stay */
-      // (Hall of Storm Giants: "… creature with ward {3}")
-      if ((m = p.match(/^becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless|and) )*)((?:[A-Za-z'-]+ )*?)creature(?: with ([a-z, ]+?(?: \{\d+\})?))?( in addition to its other (?:colors and )?types)?$/))) {
+      // (Hall of Storm Giants: "… creature with ward {3}"; Wind Zendikon: "is a 2/2 blue Elemental creature with flying")
+      if ((m = p.match(/^(?:becomes|is) an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless|and) )*)((?:[A-Za-z'-]+ )*?)creature(?: with ([a-z, ]+?(?: \{\d+\})?))?( in addition to its other (?:colors and )?types)?$/))) {
         if (!typed(m[3].replace(/\band\b/g, ' '), (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
         if (m[6] && eff.setCreatureTypes) { eff.addSubtypes = eff.setCreatureTypes; delete eff.setCreatureTypes; }
         if (m[6] && /colors/.test(m[6]) && eff.setColors) { eff.addColors = eff.setColors; delete eff.setColors; }
@@ -11944,6 +11951,17 @@
       const rest = eachKind[4].replace(/ and has /, ' and have ').replace(/, has /, ', have ');
       const again = parseStatic((eachKind[1] ? 'Other ' : '') + pl + ' you control ' + (eachKind[3] === 'gets' ? 'get' : 'have') + ' ' + rest, ctx);
       if (again && again.auto) return Object.assign({}, again, { text: line });
+    }
+    /* Zendikons: "Enchanted land is a 3/3 black Ooze creature. It's still a
+       land." — the second sentence only says the land keeps its card type,
+       which being made a creature never took away */
+    const still = String(line).match(/^((?:Enchanted|Each|All) lands?\b[^.]* (?:is|are) an? \d+\/\d+ [^.]*creatures?[^.]*\.) It'?s still a land\.?$/);
+    if (still) {
+      const again = parseStatic(still[1], ctx);
+      if (again && again.auto) {
+        for (const e of again.effects || []) if (e && e.op === 'continuous' && e.addTypes && !e.addTypes.includes('Land')) e.addTypes = e.addTypes.concat('Land');
+        return Object.assign({}, again, { text: line });
+      }
     }
     // Jetmir: "Creatures you control also get +1/+0 and have trample as long as …" — "also" adds nothing
     const also = String(line).match(/^((?:Other )?[A-Za-z ]+? you control) also (gets?|ha(?:ve|s)) (.+)$/i);

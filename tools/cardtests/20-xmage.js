@@ -14361,4 +14361,22 @@ module.exports = (test) => {
     t.ok(!T.g.couldBlock(T.bf('B', 'Grizzly Bears'), tok, 'B'), 'a Bear cannot block it');
     t.ok(!!T.g.couldBlock(T.bf('B', 'Kami of Ancient Law'), tok, 'B'), 'a Spirit can');
   });
+  test('Wind Zendikon: the land is a 2/2 flier, and back to hand when it dies', (mk, t) => {
+    t.auto('Wind Zendikon');
+    t.auto('Corrupted Zendikon');
+    const T = mk();
+    T.toMain('A');
+    const land = T.bf('A', 'Island');
+    const wz = T.bf('A', 'Wind Zendikon');
+    wz.attachedTo = land.id; land.attachments = [wz.id]; wz.ts = T.g._stampNew();
+    T.settle();
+    t.eq(T.g.powerOf(land), 2, 'a 2/2');
+    t.ok(T.g.hasKw(land, 'Flying'), 'with flying');
+    const ch = T.g.characteristics(land);
+    t.ok(ch.isCreature && ch.isLand !== false, 'a creature, still a land');
+    T.g.moveObject(land, 'graveyard');
+    T.settle(); T.resolve(); T.settle();
+    t.zone(land, 'hand', 'the land goes back to its owner\'s hand');
+    t.zone(wz, 'graveyard', 'the Zendikon stays in the graveyard');
+  });
 };

@@ -16588,6 +16588,12 @@
            Dragon), or this card, from the graveyard (Ghastly Remains) */
         case 'returnItToHand': {
           const td = ctx.triggerData || {};
+          // Zendikons: the land that died goes to its owner's hand, whoever that is
+          if (e.ownerHand) {
+            const x = td.objectId && this.obj(td.objectId);
+            if (x && x.zone === 'graveyard' && !x.isToken) this.moveObject(x, 'hand');
+            break;
+          }
           const x = (td.objectId && this.obj(td.objectId)) || src;
           if (x && (x.zone === 'graveyard' || x.zone === 'exile') && x.owner === ctx.controller) this.moveObject(x, 'hand');
           break;
