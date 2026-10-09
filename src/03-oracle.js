@@ -12659,6 +12659,14 @@
           if (!probe || !probe.fullyAutomated || !(probe.abilities || []).length || !probe.abilities.every(ab => ab.kind === 'loyalty')) return null;
           return { op: 'continuous', layer: 6, scope: { attached: true, what: 'planeswalker' }, grantText: t };
         }, auto: true },
+      // Way of the Pyromancer: "Planeswalkers you control have '[+1]: Add {R}.'" — each of them, as its own
+      { re: /^Planeswalkers you control have "\[([+\u2212-]?(?:\d+|X))\]: ([^"]+)"\.?$/,
+        make: (m) => {
+          const t = m[1].replace('\u2212', '-') + ': ' + m[2];
+          const probe = analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Planeswalker', oracle_text: t, keywords: [], layout: 'token' });
+          if (!probe || !probe.fullyAutomated || !(probe.abilities || []).length || !probe.abilities.every(ab => ab.kind === 'loyalty')) return null;
+          return { op: 'continuous', layer: 6, scope: { who: 'you', what: 'planeswalker' }, grantText: t };
+        }, auto: true },
       // the Job select Equipment: "Equipped creature is a Wizard in addition to its other types."
       { re: /^(?:Equipped|Enchanted) creature is an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
         make: (m) => ({ op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, addSubtypes: [m[1]] }), auto: true },

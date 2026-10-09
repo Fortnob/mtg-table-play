@@ -14741,4 +14741,21 @@ module.exports = (test) => {
     t.ok(land.tapped, 'the Forest stays tapped');
     t.no(bear.summoningSick, 'the Bears can attack all the same');
   });
+  test('Way of the Pyromancer hands each planeswalker you control "+1: Add {R}"', (mk, t) => {
+    t.auto('Way of the Pyromancer');
+    t.auto('Way of the Wildspeaker');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Way of the Pyromancer');
+    const pw = T.bf('A', 'Jace Beleren');
+    T.settle();
+    const all = pw.analysis().manaAbilities.concat(pw.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const idx = all.findIndex(a => /Add \{R\}/.test(a.text || ''));
+    t.ok(idx >= 0, 'the ability is there');
+    const before = pw.counters.loyalty;
+    T.activate('A', pw, idx);
+    T.resolve();
+    t.eq(pw.counters.loyalty, before + 1, '+1 loyalty');
+    t.eq(T.g.player('A').pool.total(), 1, 'and one mana');
+  });
 };

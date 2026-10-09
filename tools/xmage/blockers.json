@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11628,
+  "needed": 11617,
   "gainedCards": 1161,
-  "linesNeeded": 12486,
+  "linesNeeded": 12475,
   "linesGained": 1380,
   "gained": {
    "all": 1161,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4267,
-   "lines": 4006,
+   "score": 4261,
+   "lines": 4000,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2688,21 +2688,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde",
-    "Tzaangor Shaman",
-    "Loki Laufeyson",
-    "Way of the Cryomancer"
-   ]
-  },
-  {
    "what": "GainControlAllEffect",
    "score": 8,
    "lines": 8,
@@ -3235,6 +3220,20 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
+   ]
+  },
+  {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman",
+    "Loki Laufeyson"
    ]
   },
   {
@@ -4361,18 +4360,6 @@
     "Auriok Steelshaper",
     "Hulk, Gamma Goliath",
     "Boom Scholar"
-   ]
-  },
-  {
-   "what": "granting a loyalty ability",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Ichormoon Gauntlet",
-    "Way of the Pyromancer",
-    "Way of the Healer",
-    "Way of the Deathbringer",
-    "Way of the Wildspeaker"
    ]
   },
   {
@@ -6805,13 +6792,23 @@
     "Skemfar Shadowsage",
     "Basalt Ravager"
    ]
+  },
+  {
+   "what": "DoubleCountersSourceEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Level Up",
+    "Lily Bowen, Raging Grandma",
+    "Paradox Zone"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3545,
-   "cards": 3365,
+   "score": 3539,
+   "cards": 3359,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8137,19 +8134,6 @@
    ]
   },
   {
-   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Mercurial Spelldancer",
-    "Summon: G.F. Cerberus",
-    "Flamehold Grappler",
-    "Najal, the Storm Runner",
-    "Howl of the Horde",
-    "Tzaangor Shaman"
-   ]
-  },
-  {
    "what": "AttachedToMatchesFilterCondition",
    "score": 8,
    "cards": 8,
@@ -8429,6 +8413,19 @@
     "Spirit of Resistance",
     "Veteran Bodyguard",
     "Orim's Touch"
+   ]
+  },
+  {
+   "what": "delayed CopyNextSpellDelayedTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Mercurial Spelldancer",
+    "Summon: G.F. Cerberus",
+    "Flamehold Grappler",
+    "Najal, the Storm Runner",
+    "Howl of the Horde",
+    "Tzaangor Shaman"
    ]
   },
   {
