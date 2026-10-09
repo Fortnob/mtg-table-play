@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11532,
+  "needed": 11528,
   "gainedCards": 1146,
-  "linesNeeded": 12369,
+  "linesNeeded": 12364,
   "linesGained": 1361,
   "gained": {
    "all": 1146,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 746,
-   "lines": 686,
+   "score": 741,
+   "lines": 681,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -6763,8 +6763,8 @@
   },
   {
    "what": "custom ability",
-   "score": 574,
-   "cards": 532,
+   "score": 570,
+   "cards": 528,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -8038,6 +8038,19 @@
    ]
   },
   {
+   "what": "ConditionalReplacementEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Vampire Socialite",
+    "Batwing Brume",
+    "Aether Revolt",
+    "Winds of Qal Sisma",
+    "Spirit of Resistance",
+    "Veteran Bodyguard"
+   ]
+  },
+  {
    "what": "AttachedToMatchesFilterCondition",
    "score": 8,
    "cards": 8,
@@ -8293,19 +8306,6 @@
     "Ninja's Blades",
     "Draconic Destiny",
     "Spider-Suit"
-   ]
-  },
-  {
-   "what": "ConditionalReplacementEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Vampire Socialite",
-    "Batwing Brume",
-    "Winds of Qal Sisma",
-    "Spirit of Resistance",
-    "Veteran Bodyguard",
-    "Orim's Touch"
    ]
   },
   {

@@ -9124,6 +9124,8 @@
     { re: /^At the beginning of the next end step(?:,| )/i, event: 'eachEndStep' },
     { re: /^At the beginning of your next main phase(?:,| )/i, event: 'yourMain1' },
     { re: /^At the beginning of each player'?s upkeep(?:,| )/i, event: 'eachUpkeep' },
+    // Black Vise, The Rack: "At the beginning of the chosen player's upkeep" — the opponent chosen as it entered
+    { re: /^At the beginning of the chosen player'?s upkeep,? /i, event: 'eachUpkeep', extra: { chosenPlayerOnly: true } },
     { re: /^When(?:ever)? equipped creature dies(?:,| )/i, event: 'equippedDies' },
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
     // Grafted Exoskeleton: "Whenever this Equipment becomes unattached from a permanent, sacrifice that permanent."
@@ -9189,6 +9191,8 @@
     { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
+    // Fabrication Module, Territorial Gorger: "Whenever you get one or more {E}"
+    { re: /^Whenever you get one or more \{E\},? /i, event: 'youGetEnergy' },
     // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
     { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
     // King T'Challa, Krang: "Whenever a player draws their second card each turn"

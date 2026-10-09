@@ -15033,4 +15033,33 @@ module.exports = (test) => {
     t.zone(ss, 'battlefield', 'back on the third draw');
     t.ok(ss.tapped, 'tapped');
   });
+
+  test('Territorial Gorger: getting energy pumps it', (mk, t) => {
+    t.auto('Territorial Gorger');
+    t.auto('Fabrication Module');
+    const T = mk();
+    T.toMain('A');
+    const tg = T.bf('A', 'Territorial Gorger');
+    const src = T.hand('A', 'Island');
+    T.g._runEffects([{ op: 'energy', n: 2 }], { controller: 'A', obj: src, name: 'Test', kind: 'spell' });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.player('A').energy, 2, 'two energy');
+    t.eq(T.g.powerOf(tg), 4, '2/2 +2/+2');
+  });
+
+  test("Black Vise hurts the chosen player in their upkeep for cards over four", (mk, t) => {
+    t.auto('Black Vise');
+    t.auto('The Rack');
+    const T = mk();
+    T.toMain('A');
+    const bv = T.bf('A', 'Black Vise');
+    bv.chosenPlayer = 'B';
+    for (let i = 0; i < 6; i++) T.hand('B', 'Island');
+    T.g._fire('eachUpkeep', null, { playerId: 'A' });
+    T.resolve();
+    t.eq(T.life('B'), 20, "not in its controller's upkeep");
+    T.g._fire('eachUpkeep', null, { playerId: 'B' });
+    T.resolve();
+    t.eq(T.life('B'), 18, 'six cards: 2 damage');
+  });
 };

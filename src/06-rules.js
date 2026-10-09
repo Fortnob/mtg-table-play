@@ -11148,6 +11148,8 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Black Vise: only the upkeep of the player chosen as it entered
+          if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
           // Captain Ripley Vance: only the third spell its controller casts this turn
           if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
           // Vine Gecko: only a spell that was kicked
@@ -12766,6 +12768,8 @@
           k = evE.n;
           me.energy = (me.energy || 0) + k;
           this.logEvent('counters', `${me.name} gets ${k} energy (${me.energy}).`);
+          // Fabrication Module: "Whenever you get one or more {E}" — once for the lot, knowing how many
+          if (k > 0) this._fire('youGetEnergy', me.id, { playerId: me.id, amount: k });
           break;
         }
         case 'payEnergy': {
