@@ -186,6 +186,15 @@ def judge_newcards(code, out):
                   f"{s['borrowedAuto']} of them by borrowing another card's reading")
 
 
+def judge_readall(code, out):
+    s = last_json(out)
+    if not s:
+        tail = [l for l in out.strip().splitlines() if l.strip()]
+        return False, f'exit {code}: ' + (tail[-1][:200] if tail else 'no output')
+    ok = code == 0 and s['thrown'] == 0 and s['unreadable'] == 0
+    return ok, f"{s['cards']:,} cards ({s['faces']:,} faces) read; {s['thrown']} throwing, {s['unreadable']} unreadable"
+
+
 def steps(quick):
     n_std, n_pau, n_cmd = (4, 4, 2) if quick else (20, 20, 8)
     smoke_to = 300 if quick else 100000
@@ -208,6 +217,8 @@ def steps(quick):
     if not quick:
         out.append(Step('contracts smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', 1500), judge_contract_tables, 3600,
                         env={'CONTRACTS': '1'}, needs_bulk=True))
+    # every card in the bulk file, every face, read without an exception
+    out.append(Step('read every card', node(TOOLS / 'readall.js', '--show', 20), judge_readall, 900, needs_bulk=True))
     # cards nobody wrote anything for, and how many borrow a reading
     out.append(Step('new cards', node(TOOLS / 'newcards.js', '--show', 0), judge_newcards, 900, needs_bulk=True))
     out.append(Step('types', tsc_cmd(), judge_tsc, 600))

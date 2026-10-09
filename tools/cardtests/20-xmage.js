@@ -12025,4 +12025,16 @@ module.exports = (test) => {
     T2.g._runEffects([{ op: 'regrowthAll', filter: 'creature', maxPower: 2 }], { controller: 'A', name: 'Dawn', kind: 'spell' });
     t.eq(s1.zone, 'hand'); t.eq(s2.zone, 'graveyard', 'power 6 stays');
   });
+
+  test('Quistis Trepe reads (a rider with nothing to ride is a manual line), and analyze never throws', (mk, t) => {
+    const T = mk();
+    const q = T.hand('A', 'Quistis Trepe');
+    t.ok(q.analysis(), 'read');
+    const broken = { id: 'test:broken', name: 'Broken', type_line: 'Creature — Bear', mana_cost: '{1}{G}', power: '2', toughness: '2', layout: 'transform', oracle_text: '', card_faces: [null, null] };
+    const warn = console.warn; console.warn = () => {};
+    let a = null, threw = false;
+    try { a = T.MTG.oracle.analyze(broken); } catch (e) { threw = true; }
+    console.warn = warn;
+    t.no(threw, 'no exception'); t.ok(a && a.unreadable && !a.fullyAutomated, 'marked unreadable, for a person');
+  });
 };

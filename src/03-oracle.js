@@ -6942,29 +6942,33 @@
          where the countered spell goes, so it travels with the counter. */
       /* Curse of Opulence: "Each opponent attacking that player does the same." —
          everything said so far, again, for the attacking player */
+      /* A rider with nothing before it to change (Quistis Trepe's "If that
+         spell would be put into a graveyard, exile it instead." after a cast
+         this does not read) is a line for a person, never a null list. */
+      const unrideable = () => out.push({ op: 'manual', text: e.text || '' });
       if (e && e.sameForAttacker) {
-        if (!out.length) return null;
+        if (!out.length) { unrideable(); continue; }
         out.push({ op: 'asPlayer', who: 'attackingOpponent', effects: JSON.parse(JSON.stringify(out)) });
         continue;
       }
       // Vohar: the spell cast this way is exiled rather than put into a graveyard
       if (e && e.exileAfterCastRider) {
         const prev = out.slice().reverse().find(x => x && /^(?:mayCastFromGraveyard|mayPlayExiled)$/.test(x.op));
-        if (!prev) return null;
+        if (!prev) { unrideable(); continue; }
         prev.exileAfter = true;
         continue;
       }
       // Combust: the damage just dealt can't be prevented
       if (e && e.noPreventRider) {
         const prev = out.slice().reverse().find(x => x && x.op === 'damage');
-        if (!prev) return null;
+        if (!prev) { unrideable(); continue; }
         prev.noPrevent = true;
         continue;
       }
       // Oubliette: it comes back tapped
       if (e && e.phaseTapRider) {
         const prev = out.slice().reverse().find(x => x && x.op === 'phaseOutUntilLeaves');
-        if (!prev) return null;
+        if (!prev) { unrideable(); continue; }
         prev.tapIn = true;
         continue;
       }
@@ -7965,7 +7969,17 @@
     if (!card) return null;
     const key = card.id + ':' + (faceIndex || 0);
     if (cache.has(key)) return cache.get(key);
-    const res = _analyze(card, faceIndex || 0);
+    let res;
+    try {
+      res = _analyze(card, faceIndex || 0);
+    } catch (err) {
+      /* Words this cannot read must never stop a card being shown, sorted
+         or built into a pool: the card is read without its text (types,
+         cost, power and toughness still known) and its text left for a
+         person. tools/readall.js fails on any card that ends up here. */
+      if (typeof console !== 'undefined' && console.warn) console.warn('[oracle] could not read ' + (card.name || card.id) + ': ' + (err && err.message));
+      res = unreadableAnalysis(card, faceIndex || 0);
+    }
     cache.set(key, res);
     /* A card is only as automated as its other face: Venat transforms
        into Hydaelyn, an adventure is cast from the same card. If the side
@@ -7975,6 +7989,21 @@
       const other = analyze(card, 1);
       if (other && !other.fullyAutomated) { res.fullyAutomated = false; res.otherFaceManual = true; }
     }
+    return res;
+  }
+
+  /** The reading of a card whose words threw: everything but the words, and the words as one manual line. */
+  function unreadableAnalysis(card, faceIndex) {
+    const strip = (x) => Object.assign({}, x, { oracle_text: '' });
+    const bare = Object.assign(strip(card), { id: String(card.id) + ':unreadable', card_faces: card.card_faces ? card.card_faces.map(strip) : card.card_faces });
+    let res = null;
+    try { res = _analyze(bare, faceIndex); } catch (e2) { res = null; }
+    const face = (card.card_faces && card.card_faces[faceIndex]) || card;
+    const text = String(face.oracle_text || card.oracle_text || '');
+    res = Object.assign({ abilities: [], manaAbilities: [], keywords: [] }, res || {});
+    res.abilities = (res.abilities || []).concat(text ? [{ kind: 'static', auto: false, text, effects: [{ op: 'manual', text }] }] : []);
+    res.fullyAutomated = false;
+    res.unreadable = true;
     return res;
   }
 
