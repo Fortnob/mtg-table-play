@@ -296,8 +296,14 @@ Sideboard
       buttons.push({ label: 'Save deck', class: 'primary', onClick: () => save() });
     }
 
+    /* A deck started from nothing is named here, in its own name box, not
+       before: the box starts empty, showing faintly the name it gets if it
+       is left so (opts.untitled, "New Deck (2)" and the like). */
+    const untitled = opts.untitled || 'Untitled deck';
+    const titleOf = () => 'Deck — ' + (String(deck.name || '').trim() || untitled);
+    let focusName = !!opts.nameFirst && !MTG.isTouch();
     const m = UI.modal({
-      title: 'Deck — ' + deck.name,
+      title: titleOf(),
       width: '1280px',
       className: 'deck-modal',
       content: wrap,
@@ -309,7 +315,7 @@ Sideboard
     let headArtFor = null;
 
     function cleanName() {
-      deck.name = deck.name.trim() || 'Untitled deck';
+      deck.name = String(deck.name || '').trim() || untitled;
       return deck.name;
     }
 
@@ -450,6 +456,8 @@ Sideboard
         query: q,
         format: deck.format,
         colors: (validation.colorIdentity || []),
+        // a deck opened to be named first keeps the cursor in its name box
+        noFocus: focusName,
         onAdd: (card, n) => addCardObj(card, n || 1),
         onRemove: (card) => removeCardObj(card),
         inDeck: () => {
@@ -729,8 +737,11 @@ Sideboard
       /* ----- left: the list ----- */
       const listTop = left.scrollTop;
       left.innerHTML = '';
-      const nameInput = el('input', { type: 'text', value: deck.name, class: 'deck-name-input', 'aria-label': 'Deck name' });
-      nameInput.addEventListener('input', () => { deck.name = nameInput.value; });
+      const nameInput = el('input', { type: 'text', value: deck.name || '', class: 'deck-name-input', 'aria-label': 'Deck name',
+        placeholder: untitled, autocomplete: 'off', spellcheck: 'false' });
+      nameInput.addEventListener('input', () => { deck.name = nameInput.value; m.setTitle(titleOf()); });
+      // a new deck opens ready to be named (a phone waits for a tap, so its keyboard does not cover the deck)
+      if (focusName) setTimeout(() => { focusName = false; if (nameInput.isConnected) nameInput.focus(); }, 60);
       const fmtSel = el('select', { 'aria-label': 'Format' }, MTG.formats.list().map(f =>
         el('option', { value: f.id, text: f.name, selected: f.id === deck.format })));
       fmtSel.addEventListener('change', () => { deck.format = fmtSel.value; render(); });
@@ -1328,7 +1339,7 @@ Sideboard
       });
     }
     if (opts.query) input.value = opts.query;
-    setTimeout(() => input.focus(), 50);
+    if (!opts.noFocus) setTimeout(() => input.focus(), 50);
     if (opts.onlyCommanders) {
       status.textContent = 'Search for a legendary creature.';
       // a starting point, so the modal is not an empty box

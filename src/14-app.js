@@ -1666,13 +1666,12 @@
     while (taken.has(`new deck (${n})`)) n++;
     return `New Deck (${n})`;
   }
-  async function newDeck() {
-    const name = await UI.prompt('Give it a name, or leave it blank and name it later.', '', 'Name your deck', { placeholder: 'New Deck' });
-    if (name == null) return;
+  /** A deck from nothing: straight into the editor, which is where it is named. */
+  function newDeck() {
     UI.deckBuilder({
-      id: MTG.uid('deck'), name: name.trim() || untitledName(), format: App.formatId,
+      id: MTG.uid('deck'), name: '', format: App.formatId,
       main: [], sideboard: [], commanders: [], companion: null,
-    }, { onSave: () => renderDecks() });
+    }, { onSave: () => renderDecks(), untitled: untitledName(), nameFirst: true });
   }
 
   /* ================= 4. options ================= */

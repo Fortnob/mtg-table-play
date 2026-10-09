@@ -1040,6 +1040,9 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .deck-name-input { font: 600 20px/1.2 var(--serif) !important; padding: 8px 10px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
 .deck-name-input:hover { border-color: rgba(255,255,255,.12) !important; }
 .deck-name-input:focus { border-color: var(--gold-mid) !important; background: rgba(0,0,0,.3) !important; }
+/* a deck not named yet: the name it will get, faint, in a box that asks to be filled */
+.deck-name-input::placeholder { color: var(--ink-3); opacity: .6; font-style: italic; }
+.deck-name-input:placeholder-shown:not(:focus) { border-color: rgba(255,255,255,.16) !important; border-style: dashed !important; }
 .deck-head-row { display: flex; gap: 8px; align-items: center; }
 .deck-head-row select { flex: 1; min-width: 0; }
 .size-meter { height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
