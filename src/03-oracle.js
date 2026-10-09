@@ -647,6 +647,14 @@
     const d0 = (parsed.effects || [])[0];
     if (aboutOther && d0 && d0.op === 'damage' && !d0.fromTrigger && !d0.fromTarget && !d0.fromAttached &&
       /^(?:It|That creature) deals\b/.test(d0.text || '')) d0.fromTrigger = true;
+    /* Wolverine Riders: "you gain life equal to its toughness"; Genesis
+       Chamber: "that creature's controller creates a … token" — with
+       nothing before it, "it" is what the trigger is about, not something
+       an earlier sentence removed */
+    if (aboutOther && d0 && !(d0.targets || []).length) {
+      for (const k of ['n', 'p', 't']) if (d0[k] && typeof d0[k] === 'object' && d0[k].ofLast) d0[k] = { ofTrigger: d0[k].ofLast };
+      if (d0.who === 'targetController' && ['createToken', 'createNamedToken'].includes(d0.op)) d0.who = 'triggerObjController';
+    }
   }
 
   /* Suspended Sentence: "Destroy target creature an opponent controls. That
@@ -2996,10 +3004,11 @@
       make: (m) => ({ op: 'gainLife', who: 'you', n: { ofLast: m[1].toLowerCase() } }) },
     { re: /^Its controller loses (one|two|three|four|five|\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'targetController', n: num(m[1]) }) },
-    { re: /^Its controller creates (a|an|one|two|three|four|\d+) ([\dX*]+\/[\dX*]+) ((?:(?:white|blue|black|red|green|colorless)(?:,? and |, | ))*)(.+?) creature tokens?(?: with ([a-z, ]+))?\.?$/i,
+    // (Genesis Chamber: "a 1/1 colorless Myr artifact creature token" — an artifact, and a Myr)
+    { re: /^Its controller creates (a|an|one|two|three|four|\d+) ([\dX*]+\/[\dX*]+) ((?:(?:white|blue|black|red|green|colorless)(?:,? and |, | ))*)(.+?)( artifact)? creature tokens?(?: with ([a-z, ]+))?\.?$/i,
       make: (m) => ({ op: 'createToken', who: 'targetController', n: num(m[1]), pt: m[2],
         colorWords: (m[3].match(/\b(white|blue|black|red|green|colorless)\b/gi) || []), subtypes: m[4],
-        keywords: m[5] ? keywordList(m[5]) : [] }) },
+        addTypes: m[5] ? ['Artifact'] : [], keywords: m[6] ? keywordList(m[6]) : [] }) },
     /* the sentences after a counterspell, about the spell it countered */
     // Cityscape Leveler: "Its controller creates a tapped Powerstone token."
     { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
@@ -3178,8 +3187,16 @@
         { op: 'damage', n: num(m[3]), toSelf: true }] }) },
 
     /* ===== counters on a whole category ===== */
+    /* Brokers Ascendancy: "put a +1/+1 counter on each creature you control
+       and a loyalty counter on each planeswalker you control" — two kinds,
+       on two kinds of permanent */
+    { re: /^Put (a|one|two|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on each ([a-z]+) you control and (a|one|two|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on each ([a-z]+) you control\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [
+        { op: 'counters', kind: m[2], n: num(m[1]), scope: 'yourMatching', filter: m[3].toLowerCase() },
+        { op: 'counters', kind: m[5], n: num(m[4]), scope: 'yourMatching', filter: m[6].toLowerCase() }] }) },
     { re: /^Put (a|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each ([-a-zA-Z' \/]+?) you control\.?$/i,
-      make: (m) => (/\bother\b|\bwith|\btarget\b|^of /i.test(m[3]) ? null
+      // (a second "counter on each" in the words is a second clause, not part of the first)
+      make: (m) => (/\bother\b|\bwith|\btarget\b|^of | you control |\bcounters? on\b/i.test(m[3]) ? null
         : { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: 'yourMatching', filter: m[3].trim() }) },
     // Earth Kingdom Soldier: "put a +1/+1 counter on each of up to two target creatures you control"
     { re: /^Put (a|one|two) ([+\-]\d\/[+\-]\d) counters? on each of (up to )?(two|three) target ([a-zA-Z ]+?)( you control)?\.?$/i,

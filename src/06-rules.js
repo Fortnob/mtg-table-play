@@ -12855,6 +12855,8 @@
         case 'createToken': {
           const owner = e.who === 'targetController'
             ? (this._lastAffectedController() || me)
+            // Genesis Chamber: "that creature's controller creates …" — the one that entered
+            : e.who === 'triggerObjController' ? (this.player((ctx.triggerData || {}).objController) || me)
             // Rootcast Apprenticeship: "Target player creates …"
             : e.who === 'target' ? (firstPlayer() || me) : me;
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land

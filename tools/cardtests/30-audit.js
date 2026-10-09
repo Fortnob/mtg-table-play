@@ -1671,4 +1671,39 @@ module.exports = (test) => {
       t.eq(T.g.hasKw(c, 'first strike'), fs, name);
     }
   });
+
+  test("Audit: Genesis Chamber gives the Myr artifact token to the entering creature's controller", (mk, t) => {
+    const T = mk();
+    t.auto('Genesis Chamber');
+    T.bf('A', 'Genesis Chamber');
+    T.nextTurn('B');
+    T.mana('B', 'G1');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    const myr = T.bfOf('B').find(o => o.name === 'Myr');
+    t.ok(myr, 'B gets the Myr');
+    t.ok(myr && T.g._matchesCategory(myr, 'artifact'), 'an artifact');
+    t.no(T.bfOf('A').some(o => o.name !== 'Genesis Chamber'));
+  });
+
+  test('Audit: Wolverine Riders and Angelic Chorus gain life by the creature that entered', (mk, t) => {
+    for (const card of ['Wolverine Riders', 'Angelic Chorus']) {
+      const T = mk();
+      t.auto(card);
+      T.bf('A', card);
+      T.mana('A', 'GG4');
+      T.cast('A', T.hand('A', 'Elvish Warrior'));
+      t.eq(T.life('A'), 23, card);
+    }
+  });
+
+  test('Audit: Brokers Ascendancy counters both creatures and planeswalkers', (mk, t) => {
+    const T = mk();
+    t.auto('Brokers Ascendancy');
+    T.bf('A', 'Brokers Ascendancy');
+    const b = T.bf('A', 'Grizzly Bears'), pw = T.bf('A', 'Ajani Goldmane');
+    const l0 = pw.counters.loyalty;
+    T.nextTurn('B');
+    t.eq(b.counters['+1/+1'], 1);
+    t.eq(pw.counters.loyalty, l0 + 1);
+  });
 };
