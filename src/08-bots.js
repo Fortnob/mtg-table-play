@@ -1456,7 +1456,7 @@
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
-    if (e.op === 'counters') return /-1\/-1|stun|shield/.test(e.kind || '') && !/shield/.test(e.kind || '');
+    if (e.op === 'counters' || e.op === 'countersDivided') return /-1\/-1|stun|shield/.test(e.kind || '') && !/shield/.test(e.kind || '');
     return HARMFUL.has(e.op);
   }
 
