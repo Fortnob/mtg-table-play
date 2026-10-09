@@ -696,9 +696,16 @@
           });
         }
         status.textContent = `${list.length} printing${list.length === 1 ? '' : 's'}`;
+        /* Another printing's art costs Shards, unless it is the one the card
+           has now, one you pulled from a pack (or crafted, or bought), or
+           collection rules are off. */
+        const ec = MTG.economy;
+        const locked = (p) => !!(ec && ec.rulesOn() && p.id !== card.id && p.id !== current && !ec.ownsArt(p));
         for (const p of list) {
           const url = MTG.scry.imageUrl(p, 'normal', 0);
-          const opt = el('div', { class: 'art-option' + (p.id === current ? ' chosen' : '') }, [
+          const lock = locked(p);
+          const opt = el('div', { class: 'art-option' + (p.id === current ? ' chosen' : '') + (lock ? ' locked' : '') }, [
+            lock ? el('div', { class: 'art-lock', html: (UI.shardIcon ? UI.shardIcon() : '') + `<b>${ec.artPrice(p).toLocaleString()}</b>` }) : null,
             url ? el('img', { src: url, loading: 'lazy', alt: p.set_name }) : UI.cardFallback(p, 0),
             el('div', { class: 'cap' }, [
               el('div', { text: `${String(p.set).toUpperCase()} · #${p.collector_number}` }),
@@ -707,7 +714,7 @@
               p.border_color === 'borderless' ? el('span', { class: 'pill', text: 'borderless' }) : null,
             ]),
           ]);
-          opt.addEventListener('click', () => {
+          const choose = () => {
             if (opts.remember !== false) {
               MTG.settings.artPreferences = MTG.settings.artPreferences || {};
               if (p.oracle_id) MTG.settings.artPreferences[p.oracle_id] = p.id;
@@ -717,6 +724,17 @@
             m._onClose = null;
             m.close();
             resolve(p);
+          };
+          opt.addEventListener('click', () => {
+            if (!lock) return choose();
+            UI.purchaseDialog({
+              title: `${U.frontName(p.name)}: ${p.set_name || String(p.set).toUpperCase()} art`,
+              sub: `#${p.collector_number}${p.artist ? ' \u00b7 ' + p.artist : ''}. Art you pull from packs is free.`,
+              cost: ec.artPrice(p),
+              visual: url ? el('div', { class: 'deal-img', style: { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } }) : UI.cardFallback(p, 0),
+              buy: () => ec.buyArt(p),
+              after: () => choose(),
+            });
           });
           grid.appendChild(opt);
         }

@@ -18,6 +18,10 @@
 
   /** What things cost and what they pay, in Shards. */
   const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
+  /** A wildcard bought outright, by rarity. */
+  const WC_PRICES = { common: 300, uncommon: 750, rare: 2000, mythic: 4000 };
+  /** Another printing's art for a card you own, by rarity (one you pulled is free). */
+  const ART_PRICES = { common: 100, uncommon: 200, rare: 400, mythic: 800 };
 
   /* Sleeves: what goes over the back of your cards. Woven patterns and
      card art at one price, and a sleeve of your own picture at four times
@@ -81,12 +85,14 @@
     packs: [], col: {}, opened: 0, track: { rare: 0, mythic: 0 },
     lastWinDay: '', deals: null, granted: false, games: 0, wins: 0,
     sleeves: { owned: [], on: null, custom: null, art: {} },
+    arts: [],
   });
   function load() {
     if (state) return state;
     state = Object.assign(blank(), MTG.store.get(KEY, null) || {});
     state.wc = Object.assign({ common: 0, uncommon: 0, rare: 0, mythic: 0 }, state.wc || {});
     state.sleeves = Object.assign({ owned: [], on: null, custom: null, art: {} }, state.sleeves || {});
+    if (!Array.isArray(state.arts)) state.arts = [];
     if (!state.granted) grantStart();
     return state;
   }
@@ -153,6 +159,7 @@
     const e = state.col[name] || (state.col[name] = { n: 0 });
     const isNew = e.n === 0;
     if (card.id && !e.id) e.id = card.id;
+    if (card.id) { e.p = e.p || []; if (!e.p.includes(card.id) && e.p.length < 40) e.p.push(card.id); }
     if (card.rarity) e.r = rarityOf(card);
     if (card.set) e.s = card.set;
     const room = Math.max(0, PLAYSET - e.n);
@@ -398,6 +405,75 @@
     return state.sleeves.custom ? { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim } : null;
   }
 
+  /* ---------------- wildcards for Shards, and art ---------------- */
+  function buyWildcards(rarity, n) {
+    load();
+    n = Math.max(1, Math.floor(n || 1));
+    const cost = (WC_PRICES[rarity] || 0) * n;
+    if (!cost) return { ok: false, why: 'There is no such wildcard.' };
+    if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= cost;
+    state.wc[rarity] += n;
+    save('wildcards', -cost);
+    return { ok: true, cost };
+  }
+  /**
+   * What finishing a deck takes: the copies missing, the wildcards that
+   * crafts them, how many of those you lack, and what buying the lack
+   * would cost in Shards.
+   */
+  function craftPlan(deck) {
+    load();
+    const missing = missingFor(deck);
+    const need = wildcardsFor(missing);
+    const have = Object.assign({}, state.wc);
+    const short = {};
+    let shortCost = 0, copies = 0;
+    for (const r of RARITIES) {
+      short[r] = Math.max(0, need[r] - have[r]);
+      shortCost += short[r] * WC_PRICES[r];
+      copies += need[r];
+    }
+    return { missing, need, have, short, shortCost, copies, canAfford: state.shards >= shortCost,
+      enough: RARITIES.every(r => !short[r]) };
+  }
+  /**
+   * Craft every missing copy of a deck. With `buyShort`, first buy the
+   * wildcards you lack with Shards (all of them, or none if you cannot
+   * afford them). Returns what is still missing afterwards.
+   */
+  function craftAll(deck, buyShort) {
+    load();
+    const plan = craftPlan(deck);
+    if (buyShort && plan.shortCost > 0) {
+      if (state.shards < plan.shortCost) return { ok: false, why: `Buying the wildcards you lack costs ${plan.shortCost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.`, left: plan.missing };
+      state.shards -= plan.shortCost;
+      for (const r of RARITIES) state.wc[r] += plan.short[r];
+      save('wildcards', -plan.shortCost);
+    }
+    const left = craftMissing(deck);
+    return { ok: !left.length, left };
+  }
+  /** Whether a printing's art is yours: one you pulled, crafted or bought, or bought on its own. */
+  function ownsArt(card) {
+    load();
+    if (!card || !card.id) return true;
+    if (state.arts.includes(card.id)) return true;
+    const e = state.col[card.name];
+    return !!(e && e.p && e.p.includes(card.id));
+  }
+  const artPrice = (card) => ART_PRICES[rarityOf(card)] || 100;
+  function buyArt(card) {
+    load();
+    if (ownsArt(card)) return { ok: true, cost: 0 };
+    const cost = artPrice(card);
+    if (state.shards < cost) return { ok: false, why: `That art costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= cost;
+    state.arts.push(card.id);
+    save('art', -cost);
+    return { ok: true, cost };
+  }
+
   /** A cheat for testing, the backquote key: ten thousand Shards. */
   function grantTest() { return addShards(10000, 'test'); }
 
@@ -413,6 +489,7 @@
     buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
     sleeves: () => load().sleeves,
     /** The welcome note has been seen. */
     welcomed() { load(); if (state.welcome) { state.welcome = false; save(); } },

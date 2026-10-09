@@ -535,6 +535,8 @@
       return all
         .filter(s => !s.digital && ['expansion', 'core', 'draft_innovation', 'masters'].includes(s.set_type))
         .filter(s => s.card_count >= 100 && s.released_at && s.released_at <= today)
+        // printed only in other languages (Renaissance, the foreign black-border sets): no English cards to open
+        .filter(s => !/Foreign Black Border|^Renaissance$|^Rinascimento$/i.test(s.name || '') && !['ren', 'rin', 'bchr', '4bb', 'fbb'].includes(s.code))
         .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
     }
 

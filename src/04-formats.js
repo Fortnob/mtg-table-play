@@ -92,10 +92,14 @@
 
   /* -------- helpers -------- */
 
-  // the type line is parsed once and cached by the oracle, so ask it
+  /* A basic land is said on the type line ("Basic Land — Forest"), so
+     that is all this reads: a card whose rules text cannot be read must
+     not stop a set's cards from loading. */
   function isBasicLand(card) {
-    const a = MTG.oracle.analyze(card);
-    return !!(a && a.isBasicLand);
+    if (!card) return false;
+    const tl = String((card.card_faces && card.card_faces[0] && card.card_faces[0].type_line) || card.type_line || '');
+    if (tl) return /\bBasic\b/.test(tl.split(/\s+\/\/\s+/)[0]) && /\bLand\b/.test(tl);
+    try { const a = MTG.oracle.analyze(card); return !!(a && a.isBasicLand); } catch (e) { return false; }
   }
   /** Cards exempt from the singleton / 4-copy rule. */
   function unlimitedAllowed(card) {

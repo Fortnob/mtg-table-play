@@ -148,7 +148,7 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['sleeves', 'Sleeves'], ['deals', 'Daily deals']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['deals', 'Daily deals']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
@@ -156,6 +156,7 @@
       if (id === 'featured') featured(body, opts);
       else if (id === 'packs') packsTab(body, opts);
       else if (id === 'sleeves') sleevesTab(body);
+      else if (id === 'wildcards') wildcardsTab(body);
       else deals(body);
     };
     for (const [id, label] of TABS) tabs.appendChild(el('button', { type: 'button', role: 'tab', class: 'store-tab', dataset: { tab: id }, text: label, onclick: () => { MTG.sfx('click'); show(id); } }));
@@ -381,7 +382,7 @@
       buyB.disabled = true;
       MTG.sfx('purchase');
       body.classList.add('bought');
-      const from = [...visual.querySelectorAll('.booster, .sleeve-tile-face, .deal-img')];
+      const from = [...visual.querySelectorAll('.booster, .sleeve-tile-face, .deal-img, .wc-tile-face')];
       flyTo(from.length ? from : [visual], o.fly || from.length || 1);
       setTimeout(() => { m.close(); if (o.after) o.after(); }, 900);
     }, 'primary');
@@ -554,6 +555,8 @@
     ].filter(Boolean));
   }
   UI.wildcardFace = wildcardFace;
+  /** A wildcard's gem, small, for a count beside it. */
+  UI.wildcardIconHtml = (r) => gemSvg(r);
 
   /**
    * Opening packs, over everything: your packs grouped by set (open one, or
@@ -1061,42 +1064,105 @@
 
   /* ---------------- decks and the collection ---------------- */
   /**
+   * Craft all: every copy a deck lacks, with how many of each wildcard it
+   * uses. When you lack wildcards, the window offers to buy the rest with
+   * Shards (if you can afford them). `o.playAnyway` adds the way out for a
+   * game about to start. Resolves true when the deck is complete (or is to
+   * be played anyway).
+   */
+  UI.craftAllDialog = function (deck, o) {
+    o = o || {};
+    const S = E();
+    const plan = S.craftPlan(deck);
+    if (!plan.missing.length) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let buyShort = plan.shortCost > 0 && plan.canAfford;
+      const rows = el('div', { class: 'craft-rows' });
+      const draw = () => {
+        rows.innerHTML = '';
+        for (const r of RAR) {
+          if (!plan.need[r]) continue;
+          const short = plan.short[r];
+          rows.appendChild(el('div', { class: 'craft-row' + (short ? ' short' : '') }, [
+            wcIcon(r, null),
+            el('span', { class: 'cr-name', text: `${RAR_NAME[r]} wildcards` }),
+            el('span', { class: 'cr-need', text: `uses ${plan.need[r]}` }),
+            el('span', { class: 'cr-have dim', text: `you have ${plan.have[r]}` }),
+            short ? el('span', { class: 'cr-short', html: buyShort ? `buy ${short} for ${shardSvg()}${fmtN(short * S.WC_PRICES[r])}` : `${short} short` }) : null,
+          ].filter(Boolean)));
+        }
+      };
+      draw();
+      const list = el('ul', { class: 'miss-list' }, plan.missing.slice(0, 60).map(m => el('li', {}, [wcIcon(m.rarity, null), document.createTextNode(` ${m.name}: need ${m.need}, have ${m.have}`)])));
+      const buyBox = plan.shortCost > 0 ? el('label', { class: 'craft-buy' + (plan.canAfford ? '' : ' off') }, [
+        el('input', { type: 'checkbox', class: 'switch', checked: buyShort, disabled: !plan.canAfford, onchange: (e) => { buyShort = e.target.checked; draw(); setLabel(); } }),
+        el('span', { html: plan.canAfford
+          ? `Buy the wildcards I lack with Shards: ${shardSvg()}<b>${fmtN(plan.shortCost)}</b> (you have ${fmtN(S.shards())})`
+          : `Buying the wildcards you lack would cost ${shardSvg()}<b>${fmtN(plan.shortCost)}</b>; you have ${fmtN(S.shards())}.` }),
+      ]) : null;
+      const m = UI.modal({
+        title: o.title || 'Craft all',
+        className: 'craft-modal',
+        content: el('div', { class: 'craft-all' }, [
+          el('p', { text: `${deck.name || 'This deck'} needs ${plan.copies} card${plan.copies === 1 ? '' : 's'} your collection doesn’t have.` }),
+          rows, buyBox, list,
+        ].filter(Boolean)),
+      });
+      m._onClose = () => resolve(false);
+      m.button('Cancel', (mm) => mm.close(), 'ghost');
+      if (o.playAnyway) m.button('Play anyway (collection rules off)', (mm) => { MTG.setSetting('useCollection', false); mm._onClose = null; mm.close(); resolve(true); }, 'ghost');
+      const go = m.button('', () => {
+        const res = S.craftAll(deck, buyShort);
+        if (res.why) { MTG.sfx('reject'); return UI.error(res.why); }
+        MTG.sfx('wildcard');
+        if (buyShort && plan.shortCost) setTimeout(() => MTG.sfx('purchase'), 120);
+        m._onClose = null;
+        m.close();
+        if (res.ok) { UI.ok(`Crafted ${plan.copies} card${plan.copies === 1 ? '' : 's'}. The deck is complete.`); resolve(true); }
+        else { UI.error(`Still missing ${res.left.length} card${res.left.length === 1 ? '' : 's'}: not enough wildcards.`); resolve(false); }
+      }, 'primary');
+      const setLabel = () => {
+        const uses = RAR.filter(r => plan.need[r]).map(r => `${Math.min(plan.need[r], buyShort ? plan.need[r] : plan.have[r])} ${r}`).join(', ');
+        const whole = plan.enough || buyShort;
+        go.textContent = whole ? `Craft all (${uses})` : `Craft what I can (${uses})`;
+        go.disabled = !RAR.some(r => plan.need[r] && (buyShort || plan.have[r]));
+      };
+      setLabel();
+    });
+  };
+
+  /**
    * Before a deck is played: whether the collection holds it. When it does
-   * not, the missing cards are listed with what the wildcards would craft,
-   * and the player crafts them, turns collection rules off, or goes back.
-   * Resolves true when the deck may be played.
+   * not, the craft-all window, with a way to play anyway. Starter decks and
+   * the bots' decks never come here (see App.collectionAllows).
    */
   UI.checkCollection = async function (deck) {
     const S = E();
     if (!S.rulesOn() || !deck) return true;
-    let miss = S.missingFor(deck);
-    if (!miss.length) return true;
-    const need = S.wildcardsFor(miss);
-    const have = S.wildcards();
-    const enough = RAR.every(r => have[r] >= need[r]);
-    const list = el('ul', { class: 'miss-list' }, miss.slice(0, 40).map(m => el('li', {}, [wcIcon(m.rarity, null), document.createTextNode(` ${m.name} — need ${m.need}, have ${m.have}`)])));
-    return new Promise((resolve) => {
-      const m = UI.modal({
-        title: 'Cards you don’t own',
-        content: el('div', {}, [
-          el('p', { text: `${deck.name || 'This deck'} uses ${miss.reduce((a, m) => a + m.need - m.have, 0)} cards your collection doesn’t have.` }),
-          list,
-          el('p', { class: 'dim' }, [document.createTextNode('Wildcards needed: '), ...RAR.filter(r => need[r]).map(r => el('span', {}, [wcIcon(r, null), document.createTextNode(` ${need[r]} (you have ${have[r]})  `)]))]),
-        ]),
-        buttons: [
-          { label: 'Back', onClick: (mm) => mm.close() },
-          { label: 'Play anyway (turn collection rules off)', onClick: (mm) => { MTG.setSetting('useCollection', false); mm._onClose = null; mm.close(); resolve(true); } },
-          { label: enough ? 'Craft them' : 'Craft what I can', class: 'primary', onClick: (mm) => {
-            const left = S.craftMissing(deck);
-            MTG.sfx('wildcard');
-            mm._onClose = null;
-            mm.close();
-            if (!left.length) { UI.ok('Crafted. The deck is complete.'); resolve(true); }
-            else { UI.error(`Still missing ${left.length} card${left.length === 1 ? '' : 's'}: not enough wildcards.`); resolve(false); }
-          } },
-        ],
-      });
-      m._onClose = () => resolve(false);
-    });
+    if (!S.missingFor(deck).length) return true;
+    return UI.craftAllDialog(deck, { title: 'Cards you don’t own', playAnyway: true });
   };
+
+  /* ---------------- the Store: wildcards ---------------- */
+  function wildcardsTab(body) {
+    const S = E();
+    body.appendChild(el('p', { class: 'dim', text: 'A wildcard crafts any one card of its rarity. Packs give them now and then; here they are for Shards.' }));
+    const grid = el('div', { class: 'store-grid wildcards' });
+    for (const r of RAR) {
+      const price = S.WC_PRICES[r];
+      const face = () => el('div', { class: 'wc-tile-face' }, [UI.wildcardFace(r)]);
+      const buyN = (n) => el('button', { type: 'button', class: 'btn buy' + (n === 1 ? ' primary' : ''), onclick: () => UI.purchaseDialog({
+        title: `${n} ${RAR_NAME[r]} wildcard${n > 1 ? 's' : ''}`, sub: `You have ${S.wildcards()[r]}.`, cost: price * n, fly: Math.min(n, 5),
+        visual: face(), buy: () => S.buyWildcards(r, n), after: () => { body.innerHTML = ''; wildcardsTab(body); },
+      }) }, [el('span', { text: n === 1 ? '1' : '×' + n }), el('span', { class: 'buy-price', html: shardSvg() + fmtN(price * n) })]);
+      grid.appendChild(el('div', { class: 'store-card wc-tile' }, [
+        face(),
+        el('div', { class: 'sc-title', text: `${RAR_NAME[r]} wildcard` }),
+        el('div', { class: 'sc-sub dim', text: `You have ${S.wildcards()[r]}` }),
+        el('div', { class: 'pack-buys' }, [buyN(1), buyN(5)]),
+      ]));
+    }
+    body.appendChild(grid);
+  }
+
 })(window.MTG);
