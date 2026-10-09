@@ -41,10 +41,10 @@
 
   /* Which sounds belong to the interface rather than the game. They have
      their own volume, so a player can keep the cards and lose the clicks. */
-  const UI_SOUNDS = new Set(['click', 'hover', 'confirm', 'cancel', 'error', 'reject', 'pickup', 'notify', 'chat',
+  const UI_SOUNDS = new Set(['click', 'hover', 'confirm', 'cancel', 'error', 'reject', 'pickup', 'notify', 'chat', 'nav', 'open', 'close', 'toggle',
     'join', 'leave', 'pack_open', 'pick', 'ui_attack', 'ui_block', 'ui_play', 'priority', 'choice', 'target',
     'pack_shake', 'pack_seam', 'pack_tear', 'pack_tear_quick', 'card_deal', 'card_flip', 'charge_rare', 'charge_mythic',
-    'reveal_rare', 'reveal_mythic', 'new_card', 'shards', 'purchase', 'wildcard', 'inspect']);
+    'reveal_rare', 'reveal_mythic', 'new_card', 'shards', 'purchase', 'wildcard', 'inspect', 'pack_charge', 'boom', 'pack_land', 'shards_spend']);
 
   /* Each colour of mana as sound: the notes it is built from and how they
      are played. Notes are in hertz; the first is the root. */
@@ -423,16 +423,22 @@
       finally { this._t = null; this._pv = 1; this._bus = 'game'; this._trim = 1; }
     }
 
-    /* ---------------- the room ----------------
-       A slow pad under the game: soft chords that drift in and out every
-       few seconds over a faint room tone, quiet enough to forget about.
-       It runs only while a table is open, and stops when the tab is
-       hidden. */
+    /* ---------------- the music ----------------
+       A small score, written as it plays: a warm string pad on a slow
+       progression in D minor, a low bass under it, a harp that arpeggiates
+       the chord now and then, and a soft flute that sings a short phrase
+       over it. Two moods: 'menu' (the front end: more melody, more light)
+       and 'table' (under a game: sparser and lower, so it never competes
+       with the cards). It runs while something wants it, on the music
+       bus, and stops when the tab is hidden. */
 
-    ambience(on) {
+    ambience(on, mood) {
       this._ambWanted = !!on;
+      if (mood) this._moodWanted = mood;
       this._ambTick();
     }
+    /** Which music: 'menu' or 'table'. A change takes effect at the next chord. */
+    mood(m) { this._moodWanted = m; if (this._mus) this._mus.nextMood = m; }
 
     _ambTick() {
       const want = this._ambWanted && setting('ambience') && !setting('muted') && setting('volAmb') > 0 &&
@@ -445,22 +451,36 @@
         return;
       }
       if (!this._bed) this._ambBed();
-      this._ambChord();
-      this._ambTimer = setTimeout(() => this._ambTick(), rnd(5200, 7800));
+      const now = this.ctx.currentTime;
+      if (!this._mus) this._mus = { next: now + 0.3, bar: 0, chord: -1, mood: this._moodWanted || 'table', nextMood: null, prev: null };
+      const M = this._mus;
+      if (this._moodWanted && M.mood !== this._moodWanted && !M.nextMood) M.nextMood = this._moodWanted;
+      // a little ahead of time, a bar at a time
+      while (M.next < now + 2.5) { this._musBar(M, M.next); M.next += this._barLen(M); M.bar++; }
+      this._ambTimer = setTimeout(() => this._ambTick(), 700);
     }
+
+    /* The music keeps its own count of voices, apart from the sound
+       effects', so a full chord never crowds out a card being played. */
+    _mtrack(node) {
+      this._mVoices = (this._mVoices || 0) + 1;
+      node.onended = () => { this._mVoices--; };
+    }
+
+    _barLen(M) { return (60 / (M.mood === 'menu' ? 68 : 60)) * 4; }
 
     _ambBed() {
       const ctx = this.ctx;
       const src = ctx.createBufferSource();
       src.buffer = this.brownBuf; src.loop = true;
       const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass'; lp.frequency.value = 340; lp.Q.value = 0.4;
+      lp.type = 'lowpass'; lp.frequency.value = 300; lp.Q.value = 0.4;
       const lfo = ctx.createOscillator(), lg = ctx.createGain();
-      lfo.frequency.value = 0.045; lg.gain.value = 120;
+      lfo.frequency.value = 0.045; lg.gain.value = 100;
       lfo.connect(lg); lg.connect(lp.frequency);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 3);
+      g.gain.exponentialRampToValueAtTime(0.03, ctx.currentTime + 4);
       src.connect(lp); lp.connect(g); g.connect(this.buses.amb.dry);
       src.start(); lfo.start();
       this._bed = { src, lfo, g };
@@ -468,57 +488,189 @@
 
     _ambStop() {
       const b = this._bed;
+      this._mus = null;
       if (!b || !this.ctx) return;
       this._bed = null;
       const t = this.ctx.currentTime;
       b.g.gain.cancelScheduledValues(t);
       b.g.gain.setTargetAtTime(0.0001, t, 0.6);
       b.src.stop(t + 3); b.lfo.stop(t + 3);
+      // the notes already sounding fade with the bus
+      const md = this._musDuck;
+      if (md) { md.gain.cancelScheduledValues(t); md.gain.setTargetAtTime(0.0001, t, 0.5); this._musDuck = null; }
     }
 
-    /** One chord of the pad, from a slow, unresolved progression. */
-    _ambChord() {
-      const PROG = [
-        [146.8, 220, 261.6, 329.6],     // Dm9-ish
-        [130.8, 196, 246.9, 329.6],     // Cmaj7
-        [116.5, 174.6, 220, 293.7],     // Bbmaj7
-        [130.8, 196, 233.1, 311.1],     // Cm7, for colour
-      ];
-      this._ambI = ((this._ambI == null ? -1 : this._ambI) + 1) % PROG.length;
-      const notes = PROG[this._ambI];
+    /** The node every note of the music goes through, so stopping can fade them all. */
+    _musOut() {
+      if (!this._musDuck) {
+        const g = this.ctx.createGain();
+        g.gain.value = 1;
+        g.connect(this.buses.amb.dry);
+        const w = this.ctx.createGain(); w.gain.value = 1;
+        g.connect(w); w.connect(this.buses.amb.wet);
+        this._musDuck = g;
+      }
+      return this._musDuck;
+    }
+
+    /** One bar of the score, starting at time `t`. */
+    _musBar(M, t) {
+      const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+      /* The progressions, as chords of MIDI notes: [bass, ...pad]. Menu:
+         Dm9 – B♭maj7 – Fadd9 – C/E, then Gm9 – B♭maj7 – Dm – Am7. Table:
+         lower and plainer, Dm – B♭ – Gm – Asus, with long chords. */
+      const PROG = {
+        menu: [[38, 62, 65, 69, 72], [34, 62, 65, 69, 74], [41, 60, 65, 69, 72], [40, 60, 64, 67, 72],
+               [43, 62, 65, 70, 74], [34, 62, 65, 69, 74], [38, 62, 65, 69, 74], [45, 60, 64, 67, 72]],
+        table: [[38, 57, 62, 65], [34, 58, 62, 65], [43, 58, 62, 67], [45, 57, 62, 64]],
+      };
+      const SCALE = [62, 64, 65, 67, 69, 72, 74, 76, 77, 79, 81];   // D dorian-ish, for the flute and harp
+      const barsPerChord = M.mood === 'menu' ? 2 : 3;
+      if (M.bar % barsPerChord === 0) {
+        if (M.nextMood) { M.mood = M.nextMood; M.nextMood = null; M.chord = -1; }
+        const prog = PROG[M.mood] || PROG.table;
+        M.chord = (M.chord + 1) % prog.length;
+        const ch = prog[M.chord];
+        const len = this._barLen(M) * barsPerChord;
+        this._musPad(ch.slice(1).map(midi), t, len, M.mood);
+        this._musBass(midi(ch[0]), t, len, M.mood);
+        M.cur = ch;
+      }
+      const ch = M.cur || PROG.table[0];
+      const beat = this._barLen(M) / 4;
+      // the harp: a broken chord across the bar, now and then
+      const harpOdds = M.mood === 'menu' ? 0.55 : 0.22;
+      if (Math.random() < harpOdds) {
+        const notes = ch.slice(1).map(n => n + 12).concat([ch[1] + 24]);
+        const up = Math.random() < 0.7;
+        const seq = up ? notes : notes.slice().reverse();
+        const step = beat / (Math.random() < 0.5 ? 2 : 3);
+        seq.forEach((n, i) => this._musHarp(midi(n), t + i * step + Math.random() * 0.02, M.mood === 'menu' ? 0.03 : 0.022));
+      }
+      // the flute: a short phrase over the chord, on the menus mostly
+      const fluteOdds = M.mood === 'menu' ? 0.38 : 0.08;
+      if (M.bar % 2 === 1 && Math.random() < fluteOdds) {
+        const tones = new Set(ch.slice(1).map(n => ((n % 12) + 12) % 12));
+        let at = SCALE.findIndex(n => tones.has(n % 12) && n >= 69) ;
+        if (at < 0) at = 4;
+        const n = 3 + Math.floor(Math.random() * 3);
+        let tt = t + beat * (Math.random() < 0.5 ? 0 : 1);
+        for (let i = 0; i < n; i++) {
+          const len = beat * (i === n - 1 ? 2.5 : (Math.random() < 0.6 ? 1 : 0.5));
+          this._musFlute(midi(SCALE[at]), tt, len, M.mood === 'menu' ? 0.022 : 0.015);
+          tt += len;
+          // stepwise, mostly, towards a chord tone at the end
+          at = clamp(at + (Math.random() < 0.5 ? 1 : -1) * (Math.random() < 0.8 ? 1 : 2), 2, SCALE.length - 1);
+          if (i === n - 2) { const k = SCALE.findIndex((x, j) => Math.abs(j - at) <= 2 && tones.has(x % 12)); if (k >= 0) at = k; }
+        }
+      }
+    }
+
+    /** The strings: two detuned saws through a slowly breathing low-pass, per note. */
+    _musPad(freqs, t, len, mood) {
       const ctx = this.ctx;
-      const t0 = ctx.currentTime + 0.05;
-      const bus = this.buses.amb;
-      const dur = 9;
-      notes.forEach((f, i) => {
-        if (this.voices > this._cap() - 8) return;
+      const out = this._musOut();
+      const rel = 3.5;
+      freqs.forEach((f, i) => {
+        if (this._mVoices > 46) return;
         const g = ctx.createGain();
         const lp = ctx.createBiquadFilter();
-        lp.type = 'lowpass'; lp.frequency.value = 650 + Math.random() * 400; lp.Q.value = 0.3;
+        lp.type = 'lowpass'; lp.Q.value = 0.6;
+        lp.frequency.setValueAtTime(mood === 'menu' ? 700 : 520, t);
+        lp.frequency.linearRampToValueAtTime(mood === 'menu' ? 1500 : 900, t + len * 0.5);
+        lp.frequency.linearRampToValueAtTime(mood === 'menu' ? 900 : 600, t + len + rel);
         const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
         lp.connect(g);
-        if (p) { p.pan.value = rnd(-0.45, 0.45); g.connect(p); p.connect(bus.dry); } else g.connect(bus.dry);
-        const ws = ctx.createGain(); ws.gain.value = 0.5; g.connect(ws); ws.connect(bus.wet);
-        const peak = 0.026 * (i === 0 ? 1.2 : 1);
-        const st = t0 + i * 0.35;
-        g.gain.setValueAtTime(0.0001, st);
-        g.gain.exponentialRampToValueAtTime(peak, st + 2.6);
-        g.gain.setValueAtTime(peak, st + 4.5);
-        g.gain.exponentialRampToValueAtTime(0.0001, st + dur);
-        for (const [type, det] of [['triangle', 1], ['sine', 1.004]]) {
+        if (p) { p.pan.value = (i / Math.max(1, freqs.length - 1) - 0.5) * 0.8; g.connect(p); p.connect(out); } else g.connect(out);
+        const peak = (mood === 'menu' ? 0.016 : 0.013) * (i === 0 ? 1.1 : 1);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(peak, t + 2.4);
+        g.gain.setValueAtTime(peak, t + Math.max(2.5, len - 0.5));
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len + rel);
+        for (const cents of [-7, 6]) {
           const o = ctx.createOscillator();
-          o.type = type; o.frequency.value = f * det;
-          o.connect(lp); o.start(st); o.stop(st + dur + 0.1);
-          this._track(o);
+          o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = cents + (Math.random() - 0.5) * 3;
+          o.connect(lp); o.start(t); o.stop(t + len + rel + 0.1);
+          this._mtrack(o);
         }
+        // a sine an octave down, for body
+        const s = ctx.createOscillator();
+        s.type = 'sine'; s.frequency.value = f / 2;
+        const sg = ctx.createGain(); sg.gain.value = 0.5;
+        s.connect(sg); sg.connect(lp); s.start(t); s.stop(t + len + rel + 0.1);
+        this._mtrack(s);
       });
-      // now and then a high glint, like light catching something on the table
-      if (Math.random() < 0.35) {
-        const was = this._bus; this._bus = 'amb';
-        this._t = t0 + rnd(1.5, 4);
-        this.bell(PROG[this._ambI][3] * 4, { ratio: 3.5, index: 0.3, dur: 2.2, gain: 0.012, send: 0.8, pan: rnd(-0.6, 0.6) });
-        this._t = null; this._bus = was;
+    }
+
+    /** The bass: a soft, round low note under the chord. */
+    _musBass(f, t, len, mood) {
+      if (this._mVoices > 46) return;
+      const ctx = this.ctx;
+      const g = ctx.createGain();
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.5;
+      lp.connect(g); g.connect(this._musOut());
+      const peak = mood === 'menu' ? 0.03 : 0.034;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 1.2);
+      g.gain.setValueAtTime(peak, t + Math.max(1.3, len - 0.4));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len + 2);
+      for (const [type, mul] of [['sine', 1], ['triangle', 2]]) {
+        const o = ctx.createOscillator();
+        o.type = type; o.frequency.value = f * mul;
+        const og = ctx.createGain(); og.gain.value = mul === 1 ? 1 : 0.25;
+        o.connect(og); og.connect(lp); o.start(t); o.stop(t + len + 2.1);
+        this._mtrack(o);
       }
+    }
+
+    /** The harp: a plucked string, bright at first and soon warm. */
+    _musHarp(f, t, peak) {
+      if (this._mVoices > 46) return;
+      const ctx = this.ctx;
+      const g = ctx.createGain();
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.7;
+      lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
+      lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 1.5), t + 1.2);
+      const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      lp.connect(g);
+      if (p) { p.pan.value = clamp((Math.log2(f / 440)) * 0.5, -0.7, 0.7); g.connect(p); p.connect(this._musOut()); } else g.connect(this._musOut());
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+      for (const [type, mul, lvl] of [['triangle', 1, 1], ['sine', 2, 0.35], ['sine', 3, 0.12]]) {
+        const o = ctx.createOscillator();
+        o.type = type; o.frequency.value = f * mul;
+        const og = ctx.createGain(); og.gain.value = lvl;
+        o.connect(og); og.connect(lp); o.start(t); o.stop(t + 2.5);
+        this._mtrack(o);
+      }
+    }
+
+    /** The flute: a breathy sine with a slow vibrato that grows into the note. */
+    _musFlute(f, t, len, peak) {
+      if (this._mVoices > 46) return;
+      const ctx = this.ctx;
+      const g = ctx.createGain();
+      g.connect(this._musOut());
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.18);
+      g.gain.setValueAtTime(peak * 0.85, t + Math.max(0.2, len * 0.7));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len + 0.6);
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = f;
+      const o2g = ctx.createGain(); o2g.gain.value = 0.18;
+      const vib = ctx.createOscillator(), vg = ctx.createGain();
+      vib.frequency.value = 4.8; vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.8, len));
+      vib.connect(vg); vg.connect(o.frequency); vg.connect(o2.frequency);
+      o.connect(g); o2.connect(o2g); o2g.connect(g);
+      // breath
+      const n = ctx.createBufferSource(); n.buffer = this.noiseBuf;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * 2; bp.Q.value = 2;
+      const ng = ctx.createGain(); ng.gain.value = 0.15;
+      n.connect(bp); bp.connect(ng); ng.connect(g);
+      const end = t + len + 0.7;
+      for (const x of [o, o2, vib]) { x.start(t); x.stop(end); this._mtrack(x); }
+      n.start(t, Math.random() * 0.5); n.stop(end);
     }
 
     /* ---------------- the stack building up ----------------
@@ -572,7 +724,8 @@
 
     /** Everything that hums, let go: the table has closed. */
     quiet() {
-      this.ambience(false);
+      // the music goes on, back to the menus' mood
+      this.mood('menu');
       this._tensionLevel = -1;
       this.tension(0);
       this._tensionLevel = 0;
@@ -922,29 +1075,58 @@
       this.noise({ filter: 'lowpass', freq: 300, dur: 0.6, gain: 0.05, pan: o.pan, send: 0.5 });
     },
 
-    /* ---- the interface ---- */
+    /* ---- the interface ----
+       One family: a soft wooden tick for touching things, warm round notes
+       (a fifth, a third) for yes and back, felt-muted low notes for no.
+       Quiet enough to be felt more than heard. */
     hover(o) {
-      this.tone(2300 * (o.pitch || 1), { dur: 0.016, gain: 0.012, send: 0.05, pan: o.pan });
-      this.noise({ filter: 'highpass', freq: 6500, dur: 0.012, gain: 0.01, send: 0, pan: o.pan });
+      this.noise({ filter: 'bandpass', freq: 3800 * (o.pitch || 1), q: 2.2, dur: 0.014, gain: 0.018, send: 0.02, pan: o.pan });
+      this.tone(1760 * (o.pitch || 1), { type: 'sine', dur: 0.03, gain: 0.006, send: 0.15, pan: o.pan });
     },
-    click(o) { this.noise({ filter: 'highpass', freq: 4500, dur: 0.018, gain: 0.06, rate: 2, send: 0.05 }); },
+    /** A button pressed: a little wooden tick with a body under it. */
+    click(o) {
+      this.noise({ filter: 'bandpass', freq: 2600, q: 1.8, dur: 0.016, gain: 0.07, rate: 1.4, send: 0.03 });
+      this.thump(340, { dur: 0.045, gain: 0.035 });
+    },
+    /** Yes: a soft fifth, up. */
     confirm(o) {
-      this.tone(880, { dur: 0.06, gain: 0.04, send: 0.2 });
-      this.tone(1174.7, { dur: 0.09, gain: 0.04, delay: 0.05, send: 0.25 });
+      this.noise({ filter: 'bandpass', freq: 2600, q: 1.8, dur: 0.014, gain: 0.04, rate: 1.4, send: 0.02 });
+      this.tone(587.3, { type: 'triangle', filter: 'lowpass', filterFreq: 2400, dur: 0.16, gain: 0.04, send: 0.3 });
+      this.tone(880, { type: 'triangle', filter: 'lowpass', filterFreq: 2600, dur: 0.24, gain: 0.035, delay: 0.06, send: 0.35 });
     },
+    /** Back: the same fifth, down, a little softer. */
     cancel(o) {
-      this.tone(784, { dur: 0.06, gain: 0.035, send: 0.2 });
-      this.tone(587.3, { dur: 0.09, gain: 0.035, delay: 0.05, send: 0.2 });
+      this.tone(659.3, { type: 'triangle', filter: 'lowpass', filterFreq: 2000, dur: 0.12, gain: 0.03, send: 0.25 });
+      this.tone(440, { type: 'triangle', filter: 'lowpass', filterFreq: 1800, dur: 0.18, gain: 0.03, delay: 0.06, send: 0.25 });
     },
+    /** No: two low, felt-muted notes and a dull knock. */
     error(o) {
-      this.tone(196, { type: 'square', dur: 0.08, gain: 0.07, filter: 'lowpass', filterFreq: 1000 });
-      this.tone(147, { type: 'square', dur: 0.11, gain: 0.07, delay: 0.08, filter: 'lowpass', filterFreq: 900 });
+      this.thump(110, { dur: 0.12, gain: 0.08 });
+      this.tone(220, { type: 'triangle', filter: 'lowpass', filterFreq: 700, dur: 0.12, gain: 0.06 });
+      this.tone(185, { type: 'triangle', filter: 'lowpass', filterFreq: 650, dur: 0.18, gain: 0.06, delay: 0.09 });
     },
     /** A softer no, for a card dropped where it cannot go. */
     reject(o) {
-      this.tone(233, { type: 'triangle', dur: 0.07, gain: 0.06, filter: 'lowpass', filterFreq: 900 });
-      this.tone(185, { type: 'triangle', dur: 0.1, gain: 0.06, delay: 0.07, filter: 'lowpass', filterFreq: 800 });
-      this.noise({ filter: 'bandpass', freq: 1400, sweepTo: 600, dur: 0.12, gain: 0.04, delay: 0.04, send: 0.1 });
+      this.tone(247, { type: 'triangle', filter: 'lowpass', filterFreq: 900, dur: 0.08, gain: 0.05 });
+      this.tone(196, { type: 'triangle', filter: 'lowpass', filterFreq: 800, dur: 0.12, gain: 0.05, delay: 0.07 });
+      this.noise({ filter: 'bandpass', freq: 1200, sweepTo: 500, dur: 0.1, gain: 0.03, delay: 0.03, send: 0.1 });
+    },
+    /** Another screen: a page turned, and the room opening a little. */
+    nav(o) {
+      this.noise({ filter: 'bandpass', freq: 1800, sweepTo: 3600, q: 0.7, dur: 0.16, attack: 0.04, gain: 0.05, rate: 1.1, send: 0.15 });
+      this.tone(392, { type: 'sine', dur: 0.3, attack: 0.03, gain: 0.018, delay: 0.05, send: 0.5 });
+    },
+    /** A window opening: air, and a soft low note. */
+    open(o) {
+      this.noise({ filter: 'bandpass', freq: 900, sweepTo: 2600, q: 0.8, dur: 0.14, attack: 0.03, gain: 0.04, send: 0.2 });
+      this.tone(293.7, { type: 'triangle', filter: 'lowpass', filterFreq: 1400, dur: 0.22, gain: 0.025, delay: 0.03, send: 0.4 });
+    },
+    /** A window closing: the same air, falling. */
+    close(o) { this.noise({ filter: 'bandpass', freq: 2400, sweepTo: 800, q: 0.8, dur: 0.12, gain: 0.035, send: 0.15 }); },
+    /** A switch thrown: on rises, off falls. */
+    toggle(o) {
+      this.noise({ filter: 'bandpass', freq: 2800, q: 2, dur: 0.012, gain: 0.05, send: 0.02 });
+      this.tone(o.on ? 660 : 494, { type: 'sine', dur: 0.07, gain: 0.025, delay: 0.01, send: 0.2 });
     },
     /** A card lifted out of the hand. */
     pickup(o) { this.noise({ filter: 'bandpass', freq: 2000, sweepTo: 3600, dur: 0.07, gain: 0.05, attack: 0.02, rate: 1.3, pan: o.pan, send: 0.05 }); },
@@ -962,7 +1144,11 @@
       this.bell(740, { ratio: 1.41, index: 1.4, dur: 0.18, gain: 0.035, send: 0.2 });
       this.thump(170, { dur: 0.07, gain: 0.05 });
     },
-    notify(o) { this.chord([880, 1174], { type: 'sine', dur: 0.15, gain: 0.08, spread: 0.065, send: 0.4 }); },
+    /** Something to look at: a soft two-note bell. */
+    notify(o) {
+      this.bell(880, { ratio: 2, index: 0.6, dur: 0.5, gain: 0.03, send: 0.5 });
+      this.bell(1318.5, { ratio: 2, index: 0.5, dur: 0.6, gain: 0.025, delay: 0.09, send: 0.55 });
+    },
     pack_open(o) {
       this.noise({ filter: 'bandpass', freq: 3400, sweepTo: 1100, dur: 0.32, gain: 0.17, rate: 0.85, q: 0.5, send: 0.4 });
       this.chord([660, 880, 1320], { type: 'sine', dur: 0.28, gain: 0.065, spread: 0.075, delay: 0.14, send: 0.5 });
@@ -982,25 +1168,43 @@
       this.noise({ filter: 'bandpass', freq: 900, sweepTo: 4200, q: 0.7, dur: 0.5, attack: 0.25, gain: 0.05, send: 0.5 });
       this.tone(196, { type: 'sine', slideTo: 392, attack: 0.2, dur: 0.5, gain: 0.04, send: 0.5 });
     },
-    /** The foil torn open: a rip, a rush of air, then a warm low chord. */
+    /** The pack gathering itself before it tears: a low rumble that swells, and a riser. */
+    pack_charge(o) {
+      const d = o.dur || 1;
+      this.noise({ filter: 'lowpass', freq: 120, sweepTo: 400, dur: d, attack: d * 0.85, gain: 0.12, rate: 0.6, send: 0.3 });
+      this.tone(55, { type: 'sine', slideTo: 82, attack: d * 0.8, dur: d, gain: 0.08, send: 0.2 });
+      this.noise({ filter: 'bandpass', freq: 500, sweepTo: 5200, q: 1.6, dur: d, attack: d * 0.9, gain: 0.07, send: 0.6 });
+      this.tone(196, { type: 'sawtooth', filter: 'lowpass', filterFreq: 900, slideTo: 392, attack: d * 0.85, dur: d, gain: 0.03, send: 0.5 });
+    },
+    /** The foil torn open: a rip, a boom under it, a rush of air, then a warm chord. */
     pack_tear(o) {
-      this.dip(0.35, 1.2);
-      this.noise({ filter: 'bandpass', freq: 3400, sweepTo: 900, q: 0.5, dur: 0.28, gain: 0.2, rate: 0.8, attack: 0.004, send: 0.2 });
-      this.noise({ filter: 'bandpass', freq: 5200, sweepTo: 2200, q: 0.9, dur: 0.12, gain: 0.08, rate: 1.5, delay: 0.04, send: 0.15 });
-      this.noise({ filter: 'lowpass', freq: 700, sweepTo: 200, dur: 0.7, attack: 0.02, gain: 0.07, delay: 0.12, send: 0.5 });
-      this.thump(70, { dur: 0.45, gain: 0.12, delay: 0.1 });
-      [146.8, 220, 293.7, 370].forEach((f, i) => this.tone(f, { type: 'triangle', filter: 'lowpass', filterFreq: 1400, attack: 0.08, dur: 1.4, gain: 0.035, delay: 0.16 + i * 0.03, send: 0.7 }));
-      this.noise({ filter: 'highpass', freq: 7500, dur: 0.9, attack: 0.15, gain: 0.018, delay: 0.2, send: 0.8 });
+      this.dip(0.6, 1.8);
+      this.thump(42, { dur: 1.3, gain: 0.22 });
+      this.thump(85, { dur: 0.5, gain: 0.12 });
+      this.noise({ filter: 'bandpass', freq: 3400, sweepTo: 800, q: 0.5, dur: 0.32, gain: 0.24, rate: 0.75, attack: 0.003, send: 0.2 });
+      this.noise({ filter: 'bandpass', freq: 5600, sweepTo: 2000, q: 0.9, dur: 0.14, gain: 0.09, rate: 1.5, delay: 0.03, send: 0.15 });
+      this.noise({ filter: 'lowpass', freq: 900, sweepTo: 150, dur: 1.1, attack: 0.01, gain: 0.12, delay: 0.05, send: 0.6 });
+      [73.4, 146.8, 220, 293.7, 370].forEach((f, i) => this.tone(f, { type: i ? 'triangle' : 'sine', filter: 'lowpass', filterFreq: 1600, attack: 0.06, dur: 2, gain: i ? 0.035 : 0.06, delay: 0.14 + i * 0.025, send: 0.75 }));
+      this.noise({ filter: 'highpass', freq: 7000, dur: 1.4, attack: 0.2, gain: 0.025, delay: 0.18, send: 0.9 });
     },
     /** One of many packs, opened in a run. */
     pack_tear_quick(o) {
-      this.noise({ filter: 'bandpass', freq: 3000, sweepTo: 1000, q: 0.5, dur: 0.16, gain: 0.1, rate: 0.9, send: 0.2, pan: o.pan });
-      this.thump(110, { dur: 0.15, gain: 0.05 });
+      this.noise({ filter: 'bandpass', freq: 3000, sweepTo: 900, q: 0.5, dur: 0.18, gain: 0.13, rate: 0.85, send: 0.2, pan: o.pan });
+      this.thump(70, { dur: 0.28, gain: 0.1 });
     },
-    /** A card dealt onto the table: air past its edge, and a soft landing. */
+    /** All of them open: one big settle. */
+    boom(o) {
+      this.dip(0.6, 2);
+      this.thump(38, { dur: 1.6, gain: 0.24 });
+      this.noise({ filter: 'lowpass', freq: 600, sweepTo: 100, dur: 1.6, gain: 0.12, send: 0.7 });
+      [73.4, 110, 146.8, 220, 277.2, 329.6].forEach((f, i) => this.tone(f, { type: i < 2 ? 'sine' : 'triangle', filter: 'lowpass', filterFreq: 1800, attack: 0.08, dur: 2.6, gain: i < 2 ? 0.06 : 0.03, delay: i * 0.02, send: 0.85 }));
+      this.noise({ filter: 'highpass', freq: 7500, dur: 2, attack: 0.3, gain: 0.03, delay: 0.1, send: 0.95 });
+    },
+    /** A card dealt onto the table: air past its edge, and a landing with some weight. */
     card_deal(o) {
-      this.noise({ filter: 'bandpass', freq: 2200, sweepTo: 1200, q: 1.2, dur: 0.07, gain: 0.045, rate: 1.2, pan: o.pan, send: 0.08 });
-      this.noise({ filter: 'lowpass', freq: 500, dur: 0.04, gain: 0.03, delay: 0.06, pan: o.pan, send: 0.05 });
+      this.noise({ filter: 'bandpass', freq: 2200, sweepTo: 1100, q: 1.2, dur: 0.08, gain: 0.05, rate: 1.2, pan: o.pan, send: 0.08 });
+      this.thump(150, { dur: 0.07, gain: 0.04, delay: 0.06, pan: o.pan });
+      this.noise({ filter: 'lowpass', freq: 600, dur: 0.05, gain: 0.035, delay: 0.06, pan: o.pan, send: 0.05 });
     },
     /** One card turned face up: the snap of the paper, and its weight. */
     card_flip(o) {
@@ -1061,11 +1265,25 @@
       }
       this.tone(392, { type: 'sine', dur: 0.4, gain: 0.02, send: 0.5 });
     },
-    /** Bought: a soft till, then a warm chord. */
+    /** Bought: a heavy latch, crystals poured out, and a warm swell. */
     purchase(o) {
-      this.noise({ filter: 'bandpass', freq: 2600, q: 2, dur: 0.03, gain: 0.06, send: 0.1 });
-      this.thump(140, { dur: 0.12, gain: 0.06 });
-      [392, 493.9, 587.3].forEach((f, i) => this.tone(f, { type: 'triangle', filter: 'lowpass', filterFreq: 2200, dur: 0.6, gain: 0.035, delay: 0.05 + i * 0.03, send: 0.6 }));
+      this.dip(0.4, 1.4);
+      this.thump(60, { dur: 0.6, gain: 0.16 });
+      this.noise({ filter: 'bandpass', freq: 1800, q: 2.5, dur: 0.04, gain: 0.09, send: 0.1 });
+      for (let i = 0; i < 7; i++) {
+        const f = [1318.5, 1568, 1760, 2093, 2349, 2637][Math.floor(Math.random() * 6)];
+        this.bell(f, { ratio: 2.76, index: 0.7, dur: 0.45, gain: 0.025, delay: 0.05 + i * 0.045 + Math.random() * 0.02, send: 0.7 });
+      }
+      [146.8, 220, 293.7, 370, 440].forEach((f, i) => this.tone(f, { type: 'triangle', filter: 'lowpass', filterFreq: 2200, attack: 0.05, dur: 1.4, gain: 0.04, delay: 0.12 + i * 0.03, send: 0.75 }));
+    },
+    /** A pack set down with the others: a soft, solid thud. */
+    pack_land(o) {
+      this.thump(95 + (o.index || 0) * 4, { dur: 0.18, gain: 0.09, pan: o.pan });
+      this.noise({ filter: 'bandpass', freq: 1400, q: 1, dur: 0.06, gain: 0.05, pan: o.pan, send: 0.08 });
+    },
+    /** Shards going out: crystals clicking down. */
+    shards_spend(o) {
+      for (let i = 0; i < 5; i++) this.bell([2349, 2093, 1760, 1568, 1318.5][i], { ratio: 2.76, index: 0.6, dur: 0.25, gain: 0.018, delay: i * 0.05, send: 0.5 });
     },
     chat(o) { this.tone(1046, { type: 'sine', dur: 0.06, gain: 0.055, send: 0.25 }); },
     join(o) { [440, 587, 880].forEach((f, i) => this.tone(f, { type: 'sine', dur: 0.13, gain: 0.075, delay: i * 0.065, send: 0.4 })); },
@@ -1085,7 +1303,7 @@
     ['Combat', [['attack', {}], ['block', {}], ['hit', { intensity: 0.2 }, 'hit for 2'], ['hit', { intensity: 1 }, 'hit for 8'], ['burn', { intensity: 0.4 }]]],
     ['Life', [['life_gain', { intensity: 0.4 }], ['life_loss', { intensity: 0.2 }, 'lose a little'], ['life_loss', { intensity: 1 }, 'lose a lot'], ['poison', {}]]],
     ['The turn', [['turn_mine', {}, 'your turn'], ['turn_theirs', {}, 'their turn'], ['priority', {}], ['choice', {}], ['win', {}], ['lose', {}], ['eliminated', {}]]],
-    ['Interface', [['hover', {}], ['click', {}], ['confirm', {}], ['cancel', {}], ['reject', {}], ['error', {}]]],
+    ['Interface', [['hover', {}], ['click', {}], ['confirm', {}], ['cancel', {}], ['reject', {}], ['error', {}], ['nav', {}], ['open', {}], ['close', {}], ['notify', {}]]],
     ['Store', [['purchase', {}], ['shards', { intensity: 0.6 }], ['pack_tear', {}], ['card_deal', {}], ['card_flip', {}], ['charge_rare', {}], ['reveal_rare', {}],
       ['charge_mythic', {}], ['reveal_mythic', {}], ['wildcard', {}]]],
   ];

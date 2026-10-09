@@ -743,8 +743,8 @@
         toggle(prefix + 'muted', 'Mute everything', null, !!S.muted, (on) => A.setMuted(on)),
         slider('volGame', 'Game', 'Cards, spells, combat and life.', 1, (x) => A.setLevel('volGame', x)),
         slider('volUi', 'Interface', 'Clicks, hovers, and the ping when it is your move.', 0.7, (x) => A.setLevel('volUi', x)),
-        toggle(prefix + 'ambience', 'Table ambience', 'A quiet, slowly changing room under the game.', val('ambience', true), (on) => A.setAmbience(on)),
-        slider('volAmb', 'Ambience', null, 0.35, (x) => A.setLevel('volAmb', x)),
+        toggle(prefix + 'ambience', 'Music', 'A quiet score: warmer and more melodic on the menus, sparser and lower under a game.', val('ambience', true), (on) => A.setAmbience(on)),
+        slider('volAmb', 'Music', null, 0.35, (x) => A.setLevel('volAmb', x)),
         el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'Sound test' }),
           el('div', { class: 'opt-help', text: 'Every sound the table makes. Spells and lands take the colour of their mana.' }),
@@ -765,7 +765,7 @@
     return r;
   };
   Table.prototype.update = function (view) {
-    if (!this._feelOn) { this._feelOn = true; MTG.audio.ambience(true); }
+    if (!this._feelOn) { this._feelOn = true; MTG.audio.ambience(true, 'table'); }
     return base.update.apply(this, arguments);
   };
   Table.prototype.destroy = function () {

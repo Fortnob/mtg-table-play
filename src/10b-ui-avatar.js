@@ -162,24 +162,30 @@
    * circle is what the table shows. `start` is where to begin: the point
    * of the picture in the middle (x, y as fractions) and the zoom.
    */
-  UI.avatarCropper = async function (source, start, label, onSave, onBack) {
+  UI.avatarCropper = async function (source, start, label, onSave, onBack, shape) {
+    /* `shape`: a circle for a profile picture (the default), or a card
+       ({ card: true }) for a sleeve: 63 by 88, saved bigger. */
+    const card = !!(shape && shape.card);
+    const VW = card ? 300 * 63 / 88 : 300, VH = 300;
+    const OW = card ? 252 : OUT, OH = card ? 352 : OUT;
+    const LIMIT = card ? 90000 : MAX_LEN;
     let loaded;
     const busy = UI.busy('Profile picture', 'Opening the picture…');
     try { loaded = await loadImage(source); } catch (e) { busy.close(); UI.error(e.message || String(e)); if (onBack) onBack(); return; }
     busy.close();
     const { img, release } = loaded;
-    const VIEW = 300;                       // the canvas's own pixels, square
-    const canvas = el('canvas', { class: 'av-canvas', width: VIEW, height: VIEW, 'aria-label': 'The picture, to drag into place' });
+    const VIEW = VH;                        // the canvas's own pixels, tall
+    const canvas = el('canvas', { class: 'av-canvas', width: Math.round(VW), height: VH, 'aria-label': 'The picture, to drag into place' });
     const ctx = canvas.getContext('2d');
     const zoom = el('input', { type: 'range', min: '1', max: '5', step: '0.01', class: 'av-zoom', 'aria-label': 'Zoom' });
     // "cover": the picture fills the square at zoom 1
-    const base = Math.max(VIEW / img.naturalWidth, VIEW / img.naturalHeight);
+    const base = Math.max(VW / img.naturalWidth, VH / img.naturalHeight);
     const st = { z: U.clamp(start.z || 1, 1, 5), cx: (start.x != null ? start.x : 0.5) * img.naturalWidth, cy: (start.y != null ? start.y : 0.5) * img.naturalHeight };
     zoom.value = String(st.z);
     /** The part of the picture inside the square, kept inside the picture. */
     const box = () => {
-      const span = VIEW / (base * st.z);   // picture pixels across the square
-      const w = Math.min(span, img.naturalWidth), h = Math.min(span, img.naturalHeight);
+      // picture pixels across and down the frame
+      const w = Math.min(VW / (base * st.z), img.naturalWidth), h = Math.min(VH / (base * st.z), img.naturalHeight);
       st.cx = U.clamp(st.cx, w / 2, img.naturalWidth - w / 2);
       st.cy = U.clamp(st.cy, h / 2, img.naturalHeight - h / 2);
       return { sx: st.cx - w / 2, sy: st.cy - h / 2, w, h };
@@ -187,8 +193,8 @@
     const draw = () => {
       const b = box();
       ctx.fillStyle = '#111';
-      ctx.fillRect(0, 0, VIEW, VIEW);
-      ctx.drawImage(img, b.sx, b.sy, b.w, b.h, 0, 0, VIEW, VIEW);
+      ctx.fillRect(0, 0, VW, VH);
+      ctx.drawImage(img, b.sx, b.sy, b.w, b.h, 0, 0, VW, VH);
     };
     zoom.addEventListener('input', () => { st.z = +zoom.value; draw(); });
     canvas.addEventListener('wheel', (e) => {
@@ -202,8 +208,8 @@
     canvas.addEventListener('pointermove', (e) => {
       if (!drag) return;
       // screen pixels to canvas pixels to picture pixels
-      const shown = U.rect(canvas).width || VIEW;
-      const k = (VIEW / shown) / (base * st.z) / U.zoom();
+      const shown = U.rect(canvas).width || VW;
+      const k = (VW / shown) / (base * st.z) / U.zoom();
       st.cx -= (e.clientX - drag.x) * k;
       st.cy -= (e.clientY - drag.y) * k;
       drag = { x: e.clientX, y: e.clientY };
@@ -224,21 +230,21 @@
     });
 
     const body = el('div', { class: 'av-crop' }, [
-      el('div', { class: 'av-stage' }, [canvas, el('div', { class: 'av-mask', 'aria-hidden': 'true' })]),
+      el('div', { class: 'av-stage' + (card ? ' card' : '') }, [canvas, el('div', { class: 'av-mask', 'aria-hidden': 'true' })]),
       el('label', { class: 'av-zoom-row' }, [el('span', { class: 'tiny dim', text: 'Zoom' }), zoom]),
-      el('div', { class: 'tiny dim', text: 'Drag the picture to move it; the circle is what the table shows.' }),
+      el('div', { class: 'tiny dim', text: card ? 'Drag the picture to move it; this is the back of your cards.' : 'Drag the picture to move it; the circle is what the table shows.' }),
     ]);
     const m = UI.modal({ title: label ? `Crop: ${label}` : 'Crop the picture', content: body, className: 'av-modal' });
     m._onClose = () => release();
     m.button('Back', () => { m.close(); if (onBack) onBack(); }, 'ghost');
     m.button('Use this picture', () => {
-      const out = el('canvas', { width: OUT, height: OUT });
+      const out = el('canvas', { width: OW, height: OH });
       const b = box();
-      out.getContext('2d').drawImage(img, b.sx, b.sy, b.w, b.h, 0, 0, OUT, OUT);
+      out.getContext('2d').drawImage(img, b.sx, b.sy, b.w, b.h, 0, 0, OW, OH);
       let data = '';
-      for (const q of [0.86, 0.75, 0.6]) { data = out.toDataURL('image/jpeg', q); if (data.length <= MAX_LEN) break; }
+      for (const q of [0.86, 0.75, 0.6, 0.5]) { data = out.toDataURL('image/jpeg', q); if (data.length <= LIMIT) break; }
       m.close();
-      if (UI.isAvatar(data)) onSave(data);
+      if (data.length <= LIMIT && /^data:image\/jpeg;base64,/.test(data)) onSave(data);
       else UI.error('That picture could not be saved.');
     }, 'primary');
     draw();

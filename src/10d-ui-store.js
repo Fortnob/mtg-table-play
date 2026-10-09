@@ -58,6 +58,18 @@
           if (k < 1) anim = requestAnimationFrame(step);
         };
         anim = requestAnimationFrame(step);
+      } else if (ev.delta < 0) {
+        // spent: counted down, crystals clicking out
+        MTG.sfx('shards_spend');
+        chip.classList.remove('spend'); void chip.offsetWidth; chip.classList.add('spend');
+        const from = shown, t0 = performance.now(), dur = 700;
+        const step = (t) => {
+          const k = Math.min(1, (t - t0) / dur);
+          shown = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 2)));
+          val.textContent = fmtN(shown);
+          if (k < 1) anim = requestAnimationFrame(step);
+        };
+        anim = requestAnimationFrame(step);
       } else { shown = to; val.textContent = fmtN(to); }
     });
     return chip;
@@ -136,13 +148,14 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['deals', 'Daily deals']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['sleeves', 'Sleeves'], ['deals', 'Daily deals']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
       body.innerHTML = '';
       if (id === 'featured') featured(body, opts);
       else if (id === 'packs') packsTab(body, opts);
+      else if (id === 'sleeves') sleevesTab(body);
       else deals(body);
     };
     for (const [id, label] of TABS) tabs.appendChild(el('button', { type: 'button', role: 'tab', class: 'store-tab', dataset: { tab: id }, text: label, onclick: () => { MTG.sfx('click'); show(id); } }));
@@ -208,25 +221,27 @@
     // bundles: packs of the last few sets together
     const bundles = el('div', { class: 'store-grid bundles' });
     const offers = [
-      { title: 'Starter bundle', sub: `5 packs of ${s.name}, and a rare wildcard`, cost: 5000, give: () => { E().buyPacks(s, 'play', 5); } , wc: 'rare' },
-      { title: 'Collector’s trio', sub: `3 Collector Boosters of ${s.name}`, cost: 7500, give: () => { E().buyPacks(s, 'collector', 3); } },
+      { title: 'Starter bundle', sub: `5 packs of ${s.name}, and a rare wildcard`, cost: 5000, set: s, kind: 'play', n: 5, give: () => { E().buyPacks(s, 'play', 5); }, wc: 'rare' },
+      { title: 'Collector’s trio', sub: `3 Collector Boosters of ${s.name}`, cost: 7500, set: s, kind: 'collector', n: 3, give: () => { E().buyPacks(s, 'collector', 3); } },
     ];
-    if (sets[1]) offers.push({ title: 'Catch-up bundle', sub: `6 packs of ${sets[1].name}`, cost: 6000, give: () => { E().buyPacks(sets[1], 'play', 6); } });
+    if (sets[1]) offers.push({ title: 'Catch-up bundle', sub: `6 packs of ${sets[1].name}`, cost: 6000, set: sets[1], kind: 'play', n: 6, give: () => { E().buyPacks(sets[1], 'play', 6); } });
     for (const o of offers) {
       bundles.appendChild(el('div', { class: 'store-card bundle' }, [
         el('div', { class: 'sc-title', text: o.title }),
         el('div', { class: 'sc-sub dim', text: o.sub }),
-        el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(o.cost), onclick: async () => {
-          if (E().shards() < o.cost) return notEnough(o.cost);
-          if (!await UI.confirm(`Buy the ${o.title} for ${fmtN(o.cost)} Shards?`, 'Store')) return;
-          // the bundle's price, not the packs' own: Shards in for the difference, then the packs bought
-          const packsCost = o.title.startsWith('Collector') ? E().PRICES.collector * 3 : E().PRICES.pack * (o.title.startsWith('Catch') ? 6 : 5);
-          E().addShards(packsCost - o.cost, 'bundle');
-          o.give();
-          if (o.wc) { E().state.wc[o.wc]++; E().save(); }
-          bought(o.title);
-          if (opts.onChange) opts.onChange();
-        } }),
+        el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(o.cost), onclick: () => UI.purchaseDialog({
+          title: o.title, sub: o.sub, cost: o.cost, fly: o.n,
+          visual: packFan(o.set, o.kind, o.n),
+          buy: () => {
+            if (E().shards() < o.cost) return { ok: false, why: `That costs ${fmtN(o.cost)} Shards.` };
+            // the bundle's price, not the packs' own: the difference back first, then the packs bought
+            const packsCost = (o.kind === 'collector' ? E().PRICES.collector : E().PRICES.pack) * o.n;
+            if (packsCost !== o.cost) E().addShards(packsCost - o.cost, 'bundle');
+            o.give();
+            if (o.wc) { E().state.wc[o.wc]++; E().save(); }
+            return { ok: true };
+          },
+        }) }),
       ]));
     }
     body.appendChild(el('h3', { class: 'store-h', text: 'Bundles' }));
@@ -252,12 +267,25 @@
       el('span', { text: label }), el('span', { class: 'buy-price', html: shardSvg() + fmtN(each * qty) }),
     ]);
   }
-  async function buy(s, kind, qty) {
+  /** Boosters fanned out, as many as are being bought (up to five shown). */
+  function packFan(s, kind, qty) {
+    const shown = Math.min(5, qty);
+    const fan = el('div', { class: 'pd-fan' });
+    for (let i = 0; i < shown; i++) {
+      const b = boosterEl(s, kind, { big: shown === 1 });
+      b.style.setProperty('--k', String(i - (shown - 1) / 2));
+      fan.appendChild(b);
+    }
+    if (qty > shown) fan.appendChild(el('span', { class: 'po-inv-n', text: '\u00d7' + qty }));
+    return fan;
+  }
+  function buy(s, kind, qty) {
     const each = kind === 'collector' ? E().PRICES.collector : E().PRICES.pack;
-    if (E().shards() < each * qty) return notEnough(each * qty);
-    const r = E().buyPacks(s, kind, qty);
-    if (!r.ok) return UI.error(r.why);
-    bought(`${qty} ${kind === 'collector' ? 'Collector Booster' : 'pack'}${qty > 1 ? 's' : ''} of ${s.name}`);
+    const what = `${qty} ${kind === 'collector' ? 'Collector Booster' : 'Play Booster'}${qty > 1 ? 's' : ''}`;
+    UI.purchaseDialog({
+      title: what, sub: s.name, visual: packFan(s, kind, qty), cost: each * qty, fly: qty,
+      buy: () => E().buyPacks(s, kind, qty),
+    });
   }
 
   function packTile(s) {
@@ -310,17 +338,190 @@
         el('div', { class: 'sc-title', text: d.name }),
         el('div', { class: 'sc-sub dim', text: `${RAR_NAME[d.r] || ''} · you have ${have}` }),
         el('button', { type: 'button', class: 'btn primary buy', disabled: d.bought || have >= 4, html: d.bought ? 'Bought' : shardSvg() + ' ' + fmtN(d.price),
-          onclick: () => {
-            const r = E().buyDeal(i);
-            if (!r.ok) return UI.error(r.why);
-            bought(d.name);
-            body.innerHTML = '';
-            deals(body);
-          } }),
+          onclick: () => UI.purchaseDialog({
+            title: d.name, sub: `${RAR_NAME[d.r] || ''} · daily deal`, cost: d.price,
+            visual: el('div', { class: 'deal-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
+            buy: () => E().buyDeal(i),
+            after: () => { body.innerHTML = ''; deals(body); },
+          }) }),
       ]);
       if (card) UI.attachPreview(tile, card, 0);
       wrap.appendChild(tile);
     });
+  }
+
+  /* ---------------- buying: a moment of weight ---------------- */
+  /**
+   * The purchase, as a window: what you are buying, large, and what it
+   * costs against what you have. Buying sets off the sound and sends the
+   * goods flying to where they will be (your packs, or the Shards chip).
+   * `o.visual` is the thing shown; `o.buy()` makes the purchase and says
+   * { ok, why }; `o.fly` is how many to send flying (default 1).
+   */
+  UI.purchaseDialog = function (o) {
+    const S = E();
+    const have = S.shards();
+    const short = have < o.cost;
+    const visual = el('div', { class: 'pd-visual' }, [o.visual]);
+    const body = el('div', { class: 'pd' }, [
+      visual,
+      el('div', { class: 'pd-copy' }, [
+        el('div', { class: 'pd-title', text: o.title }),
+        o.sub ? el('div', { class: 'pd-sub dim', text: o.sub }) : null,
+        el('div', { class: 'pd-price', html: `${shardSvg()}<b>${fmtN(o.cost)}</b>` }),
+        el('div', { class: 'pd-after dim', text: short ? `You have ${fmtN(have)}: ${fmtN(o.cost - have)} short.` : `You have ${fmtN(have)}; ${fmtN(have - o.cost)} after.` }),
+      ].filter(Boolean)),
+    ]);
+    const m = UI.modal({ title: 'Store', content: body, className: 'pd-modal' });
+    m.button('Cancel', (mm) => mm.close(), 'ghost');
+    const buyB = m.button(short ? 'Not enough Shards' : `Buy for ${fmtN(o.cost)}`, () => {
+      if (buyB.disabled) return;
+      const r = o.buy();
+      if (!r || !r.ok) { MTG.sfx('reject'); return UI.error((r && r.why) || 'That could not be bought.'); }
+      buyB.disabled = true;
+      MTG.sfx('purchase');
+      body.classList.add('bought');
+      const from = [...visual.querySelectorAll('.booster, .sleeve-tile-face, .deal-img')];
+      flyTo(from.length ? from : [visual], o.fly || from.length || 1);
+      setTimeout(() => { m.close(); if (o.after) o.after(); }, 900);
+    }, 'primary');
+    if (short) buyB.disabled = true;
+    return m;
+  };
+
+  /** Copies of the bought things fly to your packs (or the Shards chip), landing one after another. */
+  function flyTo(nodes, n) {
+    const target = document.querySelector('.store-wallet .glow-btn, .store-wallet .btn') || document.querySelector('.shard-chip');
+    if (!target) return;
+    const tr = target.getBoundingClientRect();
+    const tx = tr.left + tr.width / 2, ty = tr.top + tr.height / 2;
+    const count = Math.min(10, Math.max(1, n));
+    for (let i = 0; i < count; i++) {
+      const src = nodes[i % nodes.length];
+      const r = src.getBoundingClientRect();
+      const ghost = src.cloneNode(true);
+      ghost.classList.add('fly-ghost');
+      Object.assign(ghost.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+      document.body.appendChild(ghost);
+      const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
+      setTimeout(() => {
+        ghost.style.transform = `translate(${dx}px, ${dy}px) scale(.12) rotate(${(i % 2 ? 1 : -1) * 12}deg)`;
+        ghost.style.opacity = '0.2';
+      }, 30 + i * 90);
+      setTimeout(() => {
+        ghost.remove();
+        MTG.sfx('pack_land', { index: i });
+        target.classList.remove('landed'); void target.offsetWidth; target.classList.add('landed');
+      }, 680 + i * 90);
+    }
+  }
+
+  /* ---------------- sleeves ---------------- */
+  /** What a sleeve draws with: a background, and the colour of its rim. */
+  UI.sleeveBg = function (sl) {
+    if (!sl) return null;
+    if (sl.kind === 'pattern') return sl.css;
+    if (sl.kind === 'art' && sl.art) return `url("${String(sl.art).replace(/"/g, '%22')}") 50% 30% / cover no-repeat, #111`;
+    if (sl.kind === 'custom' && sl.img) return `url("${sl.img}") center / cover no-repeat, #111`;
+    return null;
+  };
+  /** Put a sleeve on a card back (or take it off, with null). */
+  UI.applySleeve = function (node, sl) {
+    const bg = UI.sleeveBg(sl);
+    const key = bg ? (sl.id + ':' + (sl.art || (sl.img ? sl.img.length : '') || '')) : '';
+    if (node._sleeve === key) return;
+    node._sleeve = key;
+    node.classList.toggle('sleeved', !!bg);
+    if (bg) { node.style.setProperty('--sleeve-bg', bg); node.style.setProperty('--sleeve-rim', sl.rim || '#c9a24a'); }
+    else { node.style.removeProperty('--sleeve-bg'); node.style.removeProperty('--sleeve-rim'); }
+  };
+  /** A sleeve to show in the Store: card-shaped, with the sleeve on it. */
+  function sleeveFace(sl, art) {
+    const face = el('div', { class: 'sleeve-tile-face card-back' });
+    const worn = sl ? (sl.kind === 'pattern' ? { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim }
+      : sl.kind === 'art' ? (art ? { id: sl.id, kind: 'art', art, rim: sl.rim } : null)
+      : (E().sleeves().custom ? { id: 'custom', kind: 'custom', img: E().sleeves().custom, rim: sl.rim } : null)) : null;
+    if (worn) UI.applySleeve(face, worn);
+    else if (sl && sl.kind === 'custom') face.appendChild(el('div', { class: 'sleeve-upload-hint', html: '<b>+</b><span>Your picture</span>' }));
+    return face;
+  }
+
+  async function sleevesTab(body) {
+    const S = E();
+    const list = S.SLEEVES;
+    // the art sleeves' pictures, looked up once
+    const arts = list.filter(x => x.kind === 'art');
+    const known = S.sleeves().art || {};
+    const missing = arts.filter(x => !known[x.id]);
+    if (missing.length) {
+      try {
+        const res = await MTG.scry.collection(missing.map(x => ({ name: x.card })));
+        missing.forEach((x, i) => { const c = (res.cards || [])[i]; const u = c && MTG.scry.imageUrl(c, 'art_crop', 0); if (u) S.noteSleeveArt(x.id, u); });
+      } catch (e) { /* drawn without them */ }
+    }
+    const art = S.sleeves().art || {};
+    body.innerHTML = '';
+    body.appendChild(el('p', { class: 'dim', text: `Sleeves go over the back of your cards, on the table and in your packs, and the other players see them. Sleeves are ${fmtN(S.PRICES.sleeve)} Shards; a sleeve of your own picture is ${fmtN(S.PRICES.sleeveCustom)}.` }));
+    const grid = el('div', { class: 'store-grid sleeves' });
+    const redraw = () => sleevesTab(body);
+    const on = S.sleeves().on;
+    // the plain back
+    grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (!on ? ' worn' : '') }, [
+      el('div', { class: 'sleeve-tile-face card-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
+      el('div', { class: 'sc-title', text: 'Classic back' }),
+      el('button', { type: 'button', class: 'btn' + (!on ? '' : ' primary'), disabled: !on, text: !on ? 'Wearing' : 'Wear', onclick: () => { S.equipSleeve(null); MTG.sfx('confirm'); redraw(); } }),
+    ]));
+    for (const sl of list) {
+      const owned = S.sleeves().owned.includes(sl.id);
+      const worn = on === sl.id;
+      const custom = sl.kind === 'custom';
+      const price = custom ? S.PRICES.sleeveCustom : S.PRICES.sleeve;
+      const face = sleeveFace(sl, art[sl.id]);
+      const btns = [];
+      if (!owned) {
+        btns.push(el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(price), onclick: () => UI.purchaseDialog({
+          title: custom ? 'Custom sleeve' : `${sl.name} sleeve`,
+          sub: custom ? 'Upload any picture and crop it to the back of your cards. Yours to change whenever you like.' : 'For the back of your cards.',
+          visual: sleeveFace(sl, art[sl.id]), cost: price,
+          buy: () => S.buySleeve(sl.id),
+          after: () => {
+            if (custom) chooseCustom(redraw);
+            else { S.equipSleeve(sl.id); redraw(); }
+          },
+        }) }));
+      } else {
+        if (custom) btns.push(el('button', { type: 'button', class: 'btn', text: S.sleeves().custom ? 'Change picture' : 'Choose picture', onclick: () => chooseCustom(redraw) }));
+        btns.push(el('button', { type: 'button', class: 'btn' + (worn ? '' : ' primary'), disabled: worn || (custom && !S.sleeves().custom), text: worn ? 'Wearing' : 'Wear',
+          onclick: () => { S.equipSleeve(sl.id); MTG.sfx('confirm'); redraw(); } }));
+      }
+      grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (worn ? ' worn' : '') + (custom ? ' custom' : '') }, [
+        face,
+        el('div', { class: 'sc-title', text: sl.name }),
+        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own' }) : null,
+        el('div', { class: 'pack-buys' }, btns),
+      ].filter(Boolean)));
+    }
+    body.appendChild(grid);
+  }
+
+  /** Your own sleeve: a picture from this device, cropped to a card. */
+  function chooseCustom(after) {
+    const file = el('input', { type: 'file', accept: 'image/*', class: 'sr-only' });
+    document.body.appendChild(file);
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      file.remove();
+      if (!f) return;
+      if (!/^image\//.test(f.type)) return UI.error('That file is not a picture.');
+      UI.avatarCropper(f, { x: 0.5, y: 0.5, z: 1 }, 'your sleeve', (data) => {
+        E().setCustomSleeve(data);
+        E().equipSleeve('custom');
+        MTG.sfx('confirm');
+        UI.ok('Your sleeve is on.');
+        if (after) after();
+      }, null, { card: true });
+    });
+    file.click();
   }
 
   /* ---------------- opening packs ---------------- */
@@ -378,8 +579,6 @@
       head, stage, foot,
       el('button', { type: 'button', class: 'btn ghost sm po-x', text: 'Close', onclick: () => close() }),
     ]);
-    const hadAmbience = !!(MTG.audio && MTG.audio._ambWanted);
-    if (MTG.audio && MTG.audio.ambience) MTG.audio.ambience(true);
     let onKey = () => {};
     const keyHandler = (e) => onKey(e);
     document.addEventListener('keydown', keyHandler);
@@ -388,7 +587,6 @@
     const close = () => {
       if (inspecting) return closeInspect();
       document.removeEventListener('keydown', keyHandler);
-      if (MTG.audio && MTG.audio.ambience && !hadAmbience) MTG.audio.ambience(false);
       overlay.classList.add('closing');
       setTimeout(() => overlay.remove(), 300);
       if (onClose) onClose();
@@ -491,20 +689,24 @@
         if (opening) return;
         opening = true;
         hint.classList.add('gone');
-        pack.classList.add('seam');
-        MTG.sfx('pack_seam');
+        // the pack lifts, the room closes in, the seam begins to glow; then it gives
+        pack.classList.add('gather');
+        overlay.classList.add('tense');
+        MTG.sfx('pack_charge', { dur: reduced() ? 0.2 : 1.05 });
         let res;
         try {
-          [res] = await Promise.all([S.openPack(p.id, async () => info), sleep(reduced() ? 100 : 620)]);
+          [res] = await Promise.all([S.openPack(p.id, async () => info), sleep(reduced() ? 150 : 1050)]);
         } catch (e) {
           opening = false;
-          pack.classList.remove('seam');
+          pack.classList.remove('gather');
+          overlay.classList.remove('tense');
           hint.classList.remove('gone');
           return UI.error(e.message || String(e));
         }
-        pack.classList.remove('seam');
+        pack.classList.remove('gather');
+        overlay.classList.remove('tense');
         pack.classList.add('torn');
-        overlay.classList.remove('flash'); void overlay.offsetWidth; overlay.classList.add('flash');
+        overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
         MTG.sfx('pack_tear');
         await sleep(reduced() ? 50 : 480);
         deal(res, g, info);
@@ -536,7 +738,7 @@
         transformOrigin: `${col === 0 ? 'left' : col === cols - 1 ? 'right' : 'center'} ${rows === 1 ? 'center' : row === 0 ? 'top' : row === rows - 1 ? 'bottom' : 'center'}`,
       } }, [
         el('div', { class: 'po-inner' }, [
-          el('div', { class: 'po-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
+          (() => { const b = el('div', { class: 'po-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]); UI.applySleeve(b, S.sleeveWorn()); return b; })(),
           front,
         ]),
         el('div', { class: 'po-tags' }, [
@@ -674,9 +876,9 @@
         await sleep(reduced() ? 10 : 110);
       }
       if (failed && !results.length) { UI.error(failed.message || String(failed)); return inventory(); }
-      overlay.classList.remove('flash'); void overlay.offsetWidth; overlay.classList.add('flash');
-      MTG.sfx('pack_tear');
-      await sleep(reduced() ? 50 : 420);
+      overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
+      MTG.sfx('boom');
+      await sleep(reduced() ? 50 : 520);
       // everything, together: the same card once with how many, rarest first
       const merged = new Map();
       const wcs = { common: 0, uncommon: 0, rare: 0, mythic: 0 };

@@ -498,6 +498,7 @@
         face.innerHTML = '';
         face.style.backgroundImage = '';
         face.className = 'cv-face';
+        face._sleeve = null;
         if (hidden) {
           face.classList.add('back');
           face.appendChild(el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' })));
@@ -514,6 +515,8 @@
           setTimeout(() => n.classList.remove('flipping'), 520);
         }
       }
+      // a face-down card wears its owner's sleeve
+      if (hidden && UI.applySleeve) UI.applySleeve(face, MTG.app && MTG.app.sleeveFor ? MTG.app.sleeveFor(o.owner || o.controller) : null);
       n.classList.toggle('tapped', !!o.tapped);
       n.classList.toggle('sick', !!o.summoningSick && o.zone === 'battlefield' && o.power != null);
       n.classList.toggle('attacking', !!o.attacking);
@@ -1077,7 +1080,8 @@
     /** Library, graveyard and exile, as piles you can see the size of and open. */
     renderPiles(host, p, mine) {
       const gy = p.graveyard || [], ex = p.exile || [];
-      const sig = [p.librarySize, gy.length, gy.length ? gy[gy.length - 1].id : '', ex.length, ex.length ? ex[ex.length - 1].id : '', p.topCard ? p.topCard.id : ''].join('|');
+      const sleeve = MTG.app && MTG.app.sleeveFor ? MTG.app.sleeveFor(p.id) : null;
+      const sig = [p.librarySize, gy.length, gy.length ? gy[gy.length - 1].id : '', ex.length, ex.length ? ex[ex.length - 1].id : '', p.topCard ? p.topCard.id : '', sleeve ? sleeve.id : ''].join('|');
       if (host._sig === sig) return;
       host._sig = sig;
       host.innerHTML = '';
@@ -1093,6 +1097,8 @@
           el('span', { class: 'pile-label', text: label }),
         ]);
         const face = node.firstChild;
+        // the library wears its owner's sleeve
+        if (zone === 'library' && !top && n && UI.applySleeve) UI.applySleeve(face, sleeve);
         if (top && top.card) {
           const url = MTG.scry.imageUrl(top.card, 'small', top.face || 0);
           if (url) face.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';

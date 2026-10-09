@@ -125,6 +125,38 @@
     const m = (App.lobbyMembers || []).find(x => x.id === pid);
     return m && UI.isAvatar(m.avatar) ? m.avatar : null;
   };
+  /**
+   * A seat's sleeve, as UI.applySleeve draws it: yours from the Store, the
+   * others' as they sent them, and for a bot one of the woven ones, chosen
+   * by its name so it keeps it from game to game.
+   */
+  App.sleeveFor = function (pid) {
+    const sess = App.session;
+    const members = sess ? sess.roster : (App.lobbyMembers || []);
+    const r = members.find(x => x.id === pid);
+    if (!r) return null;
+    if (r.kind === 'local' || (!sess && pid === (App.clientYou || null))) return MTG.economy.sleeveWorn();
+    if (r.kind === 'bot') {
+      const pats = MTG.economy.SLEEVES.filter(x => x.kind === 'pattern');
+      let h = 0; for (const ch of String(r.name || pid)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const sl = pats[h % pats.length];
+      return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
+    }
+    return App.cleanSleeve(r.sleeve);
+  };
+  /**
+   * A sleeve another player sent, kept only if it is one this app draws:
+   * a woven one by its name, art from Scryfall, or a small picture.
+   */
+  App.cleanSleeve = function (sl) {
+    if (!sl || typeof sl !== 'object') return null;
+    const known = MTG.economy.sleeveById(sl.id);
+    if (sl.kind === 'pattern' && known && known.kind === 'pattern') return { id: known.id, kind: 'pattern', css: known.css, rim: known.rim };
+    if (sl.kind === 'art' && known && typeof sl.art === 'string' && /^https:\/\/cards\.scryfall\.io\//.test(sl.art)) return { id: known.id, kind: 'art', art: sl.art, rim: known.rim };
+    if (sl.kind === 'custom' && typeof sl.img === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(sl.img) && sl.img.length <= 100000) return { id: 'custom', kind: 'custom', img: sl.img, rim: '#f1d58a' };
+    return null;
+  };
+
   /** Your name and profile picture, and telling whoever needs to know. */
   App.chooseAvatar = function (after) {
     const told = () => {
@@ -289,6 +321,8 @@
     app.append(skip, topbar, ...Object.values(screens),
       el('div', { id: 'toasts', role: 'status', 'aria-live': 'polite' }));
     renderHome();
+    // the menus' music, from the first click (a browser lets sound start only then)
+    if (MTG.audio && MTG.audio.ambience) MTG.audio.ambience(true, 'menu');
   }
 
   function showScreen(name) {
@@ -308,6 +342,8 @@
       if (b.dataset.nav === lit) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
     }
+    // the menus' music; a table brings its own mood when it opens
+    if (name !== 'table' && MTG.audio && MTG.audio.ambience) MTG.audio.ambience(true, 'menu');
     if (name === 'home') renderHome();
     if (name === 'formats') renderFormats();
     if (name === 'decks') renderDecks();
@@ -336,6 +372,29 @@
     UI.ok('+10,000 Shards');
   });
 
+  /* The menus' sounds, in one place: a tick for any button, a switch
+     thrown up or down, a soft touch on hovering the big things. The table
+     and the pack opening make their own. */
+  const ownSounds = (n) => !!(n && n.closest && n.closest('.arena, .pack-open, #screen-table, #screen-draft'));
+  document.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest && e.target.closest('button, [role="tab"], .seg-btn, summary');
+    if (!b || b.disabled || ownSounds(b)) return;
+    if (b.classList.contains('primary')) MTG.sfx('confirm'); else MTG.sfx('click');
+  }, true);
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (!t || ownSounds(t)) return;
+    if (t.type === 'checkbox') MTG.sfx('toggle', { on: !!t.checked });
+    else if (t.tagName === 'SELECT') MTG.sfx('click');
+  }, true);
+  document.addEventListener('pointerover', (e) => {
+    const n = e.target && e.target.closest && e.target.closest('.topnav-btn, .hero-btn, .store-card, .home-tile, .deck-entry, .col-card');
+    if (!n || ownSounds(n) || n === App._hovered) return;
+    App._hovered = n;
+    MTG.sfx('hover');
+  }, true);
+  document.addEventListener('pointerout', (e) => { if (App._hovered && !App._hovered.contains(e.relatedTarget)) App._hovered = null; }, true);
+
   /** A deck that is played: whether the collection holds it (starter decks always may be played). */
   App.collectionAllows = async function (deck) {
     if (!deck || deck.starter || deck.source === 'starter' || deck.source === 'bot') return true;
@@ -352,6 +411,7 @@
 
   /** Go to one of the top-level screens, leaving a table properly on the way. */
   async function navTo(name) {
+    if (name !== App.screen) MTG.sfx('nav');
     if (name === 'home') return goHome();
     if (App.screen === 'table' || App.screen === 'draft') return App.exitToMenu();
     if (App.screen === 'lobby' && (App.session || net.online)) {
@@ -1874,6 +1934,7 @@
       await net.join(code.trim(), {
         name: App.myName, token: MTG.clientToken(), autoPass: MTG.autoPassConfig(),
         avatar: MTG.settings.avatar || null,
+        sleeve: MTG.economy.sleeveWorn(),
       });
       busy.close();
       App.session = null;             // clients have no engine
@@ -2567,6 +2628,7 @@
 
   function renderClientLobbyData(payload) {
     App.lobbyMembers = (payload && payload.members) || [];
+    App.clientYou = (payload && payload.you) || null;
     if (!App.clientLobbyBox) return;
     const box = App.clientLobbyBox;
     box.innerHTML = '';
@@ -2912,6 +2974,7 @@
               deckName: r.deck ? r.deck.name : null,
               deckValid: r.deckValid ? r.deckValid.ok : null,
               avatar: (r.kind === 'local' ? MTG.settings.avatar : r.avatar) || null,
+              sleeve: r.kind === 'local' ? MTG.economy.sleeveWorn() : (r.kind === 'bot' ? null : (r.sleeve || null)),
             })),
           },
         };
@@ -3564,6 +3627,7 @@
       if (payload && payload.autoPass && seat) seat.autoPass = payload.autoPass;
       // their profile picture, if it is one (a small image, nothing else)
       if (seat) seat.avatar = payload && UI.isAvatar(payload.avatar) ? payload.avatar : null;
+      if (seat) seat.sleeve = App.cleanSleeve(payload && payload.sleeve);
       if (payload && payload.autoPass && seat && sess.game) sess.game.setAutoPass(seat.id, payload.autoPass);
       sess.broadcastLobby();
       // someone returning mid-game needs the whole picture, not the lobby

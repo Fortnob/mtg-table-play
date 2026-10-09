@@ -64,6 +64,7 @@
       close(val) {
         if (api._closed) return;
         api._closed = true;
+        if (MTG.sfx) MTG.sfx('close');
         const i = openModals.indexOf(api);
         if (i >= 0) openModals.splice(i, 1);
         back.remove();
@@ -105,6 +106,7 @@
     });
     openModals.push(api);
     document.body.appendChild(back);
+    if (MTG.sfx) MTG.sfx('open');
     if (opts.onOpen) opts.onOpen(api);
     // the window itself takes focus, unless it chose a field: a screen reader
     // reads its title, and the next Tab lands on the first control inside

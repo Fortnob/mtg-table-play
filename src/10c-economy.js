@@ -17,7 +17,44 @@
   const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 
   /** What things cost and what they pay, in Shards. */
-  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000 };
+  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
+
+  /* Sleeves: what goes over the back of your cards. Woven patterns and
+     card art at one price, and a sleeve of your own picture at four times
+     that. A sleeve is drawn from what is here (src/10d-ui-store.js). */
+  const SLEEVES = [
+    { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a',
+      css: 'radial-gradient(circle at 50% 50%, rgba(201,162,74,.22) 0 9%, transparent 10%) 0 0 / 22% 16%, repeating-linear-gradient(45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), linear-gradient(160deg, #1b1916, #050505)' },
+    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff',
+      css: 'repeating-radial-gradient(circle at 50% 120%, rgba(160,215,255,.16) 0 2px, transparent 2px 14px), linear-gradient(170deg, #1a4f86, #0a1c38 70%, #050c1c)' },
+    { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a',
+      css: 'radial-gradient(ellipse at 50% 110%, rgba(255,140,60,.5), transparent 55%), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 2px, transparent 2px 7px), linear-gradient(180deg, #5a0d0d, #1c0404)' },
+    { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a',
+      css: 'repeating-linear-gradient(60deg, rgba(160,220,120,.12) 0 2px, transparent 2px 10px), repeating-linear-gradient(-60deg, rgba(160,220,120,.12) 0 2px, transparent 2px 10px), linear-gradient(160deg, #1f4d22, #0a1f0c)' },
+    { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a',
+      css: 'repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,162,74,.22) 0 6deg, transparent 6deg 18deg), radial-gradient(circle at 50% 50%, #fff8e6, #d9cbaa 70%, #9c8a63)' },
+    { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff',
+      css: 'radial-gradient(circle at 30% 20%, rgba(220,180,255,.35), transparent 40%), radial-gradient(circle at 75% 80%, rgba(140,90,230,.4), transparent 45%), linear-gradient(160deg, #2a1450, #0d0620)' },
+    { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a',
+      css: 'repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 12px), repeating-linear-gradient(90deg, rgba(0,0,0,.25) 0 1px, transparent 1px 12px), linear-gradient(135deg, #f5d27a, #b8862b 50%, #f0c860)' },
+    { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8',
+      css: 'radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 80%, #cfd8ff, transparent), radial-gradient(1px 1px at 85% 15%, #fff, transparent), radial-gradient(ellipse at 50% 50%, #1a1f3a, #03040a 75%)' },
+    // the art of the game's best-known faces and moments
+    { id: 'art-bolas', name: 'Nicol Bolas', kind: 'art', card: 'Nicol Bolas, Dragon-God', rim: '#e05a3a' },
+    { id: 'art-ugin', name: 'Ugin', kind: 'art', card: 'Ugin, the Spirit Dragon', rim: '#9fd8e6' },
+    { id: 'art-emrakul', name: 'Emrakul', kind: 'art', card: 'Emrakul, the Aeons Torn', rim: '#c8b8e8' },
+    { id: 'art-liliana', name: 'Liliana', kind: 'art', card: 'Liliana of the Veil', rim: '#a77ad8' },
+    { id: 'art-jace', name: 'Jace', kind: 'art', card: 'Jace, the Mind Sculptor', rim: '#6fb6ff' },
+    { id: 'art-chandra', name: 'Chandra', kind: 'art', card: 'Chandra, Torch of Defiance', rim: '#ff8a3a' },
+    { id: 'art-avacyn', name: 'Avacyn', kind: 'art', card: 'Avacyn, Angel of Hope', rim: '#f1e2b0' },
+    { id: 'art-sheoldred', name: 'Sheoldred', kind: 'art', card: 'Sheoldred, the Apocalypse', rim: '#c9a24a' },
+    { id: 'art-atraxa', name: 'Atraxa', kind: 'art', card: "Atraxa, Praetors' Voice", rim: '#e8e2d0' },
+    { id: 'art-griselbrand', name: 'Griselbrand', kind: 'art', card: 'Griselbrand', rim: '#b04040' },
+    { id: 'art-craterhoof', name: 'Craterhoof', kind: 'art', card: 'Craterhoof Behemoth', rim: '#8fd46a' },
+    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', rim: '#7fc4ff' },
+    // your own picture
+    { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
+  ];
   const REWARD = { play: 50, win: 150, firstWin: 250 };
   /** A copy past the fourth is worth this many Shards instead. */
   const DUP_SHARDS = { common: 5, uncommon: 10, rare: 40, mythic: 80 };
@@ -43,11 +80,13 @@
     v: 1, shards: 0, wc: { common: 0, uncommon: 0, rare: 0, mythic: 0 },
     packs: [], col: {}, opened: 0, track: { rare: 0, mythic: 0 },
     lastWinDay: '', deals: null, granted: false, games: 0, wins: 0,
+    sleeves: { owned: [], on: null, custom: null, art: {} },
   });
   function load() {
     if (state) return state;
     state = Object.assign(blank(), MTG.store.get(KEY, null) || {});
     state.wc = Object.assign({ common: 0, uncommon: 0, rare: 0, mythic: 0 }, state.wc || {});
+    state.sleeves = Object.assign({ owned: [], on: null, custom: null, art: {} }, state.sleeves || {});
     if (!state.granted) grantStart();
     return state;
   }
@@ -316,6 +355,49 @@
     return need;
   }
 
+  /* ---------------- sleeves ---------------- */
+  const sleeveById = (id) => SLEEVES.find(x => x.id === id) || null;
+  function buySleeve(id) {
+    load();
+    const sl = sleeveById(id);
+    if (!sl) return { ok: false, why: 'There is no such sleeve.' };
+    if (state.sleeves.owned.includes(id)) return { ok: false, why: 'You already have that sleeve.' };
+    const cost = sl.kind === 'custom' ? PRICES.sleeveCustom : PRICES.sleeve;
+    if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= cost;
+    state.sleeves.owned.push(id);
+    save('sleeve', -cost);
+    return { ok: true, cost };
+  }
+  /** Put a sleeve on (null: the plain back). */
+  function equipSleeve(id) {
+    load();
+    if (id && !state.sleeves.owned.includes(id)) return false;
+    state.sleeves.on = id || null;
+    save('sleeve');
+    return true;
+  }
+  /** Your own sleeve's picture (a card-shaped JPEG data URL). */
+  function setCustomSleeve(data) {
+    load();
+    state.sleeves.custom = data || null;
+    save('sleeve');
+  }
+  /** The art behind an art sleeve, kept once it is known. */
+  function noteSleeveArt(id, url) { load(); if (url && state.sleeves.art[id] !== url) { state.sleeves.art[id] = url; save(); } }
+  /**
+   * The sleeve you wear, as something another player can draw too:
+   * { id, kind, css | art | img, rim }, or null for the plain back.
+   */
+  function sleeveWorn() {
+    load();
+    const sl = sleeveById(state.sleeves.on);
+    if (!sl) return null;
+    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
+    if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
+    return state.sleeves.custom ? { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim } : null;
+  }
+
   /** A cheat for testing, the backquote key: ten thousand Shards. */
   function grantTest() { return addShards(10000, 'test'); }
 
@@ -330,6 +412,8 @@
     isBasic, rarityOf, owned, addShards, spend, addCard, addCards, craft, useWildcard,
     buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
+    SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    sleeves: () => load().sleeves,
     /** The welcome note has been seen. */
     welcomed() { load(); if (state.welcome) { state.welcome = false; save(); } },
     get isWelcome() { return !!load().welcome; },

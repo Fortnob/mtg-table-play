@@ -295,3 +295,70 @@ html[data-play="1"] .shard-chip { display: none; }
 @keyframes rewardIn { from { opacity: 0; transform: translateY(10px) scale(.9); } }
 .welcome-gift .wc-ico, .miss-list .wc-ico { margin-right: 8px; }
 .hero-copy p { color: #d8dce6; text-shadow: 0 1px 4px #000, 0 0 12px rgba(0,0,0,.8); max-width: 520px; }
+
+/* ---------- sleeves ---------- */
+/* a back in a sleeve: the sleeve's face, a rim in its colour, and a little gloss */
+.sleeved { background: var(--sleeve-bg) !important; overflow: hidden; }
+.sleeved::before { display: none !important; }
+.sleeved .back-ring { display: none !important; }
+.sleeved::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.55), inset 0 0 0 3px var(--sleeve-rim, #c9a24a), inset 0 0 14px rgba(0,0,0,.45);
+  background: linear-gradient(125deg, rgba(255,255,255,.2), transparent 32%, transparent 64%, rgba(255,255,255,.07)); }
+.store-grid.sleeves { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.sleeve-tile-face { width: 120px; aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; position: relative; display: grid; place-items: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,.55); transition: transform .2s; }
+.sleeve-tile:hover .sleeve-tile-face { transform: translateY(-4px) rotate(-1.5deg); }
+.sleeve-tile.worn { border-color: rgba(243, 221, 150, .55); box-shadow: 0 0 0 1px rgba(243, 221, 150, .35), 0 0 22px rgba(243, 221, 150, .12); }
+.sleeve-upload-hint { display: grid; justify-items: center; gap: 2px; color: #f1d58a; font-size: 12px; position: relative; z-index: 1; }
+.sleeve-upload-hint b { font-size: 34px; line-height: 1; }
+.sleeve-tile.custom .sleeve-tile-face:not(.sleeved) { background: repeating-linear-gradient(45deg, rgba(243,221,150,.08) 0 6px, transparent 6px 12px), #15121c; border: 1.5px dashed rgba(243, 221, 150, .5); }
+
+/* ---------- buying ---------- */
+.pd-modal .modal-body { overflow: visible; }
+.pd { display: flex; gap: 26px; align-items: center; min-width: min(560px, 86vw); padding: 6px 4px; }
+.pd-visual { flex: none; display: grid; place-items: center; min-width: 240px; min-height: 250px; position: relative;
+  background: radial-gradient(circle, rgba(243, 221, 150, .14), transparent 65%); }
+.pd-visual .deal-img { width: 170px; }
+.pd-visual .sleeve-tile-face { width: 150px; }
+.pd-fan { position: relative; width: 230px; height: 260px; }
+.pd-fan .booster { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 130px; transform-origin: 50% 90%;
+  transform: rotate(calc(var(--k) * 5deg)) translateX(calc(var(--k) * 12px)); }
+.pd-fan .booster.big { width: 170px; }
+.pd-fan .po-inv-n { right: 0; top: 0; }
+.pd-title { font: 600 22px/1.2 var(--font-display, Georgia, serif); color: var(--gold-1, #f3dd96); }
+.pd-sub { margin-top: 4px; }
+.pd-price { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 30px; color: #efe4ff; }
+.pd-price .shard-ico { width: 30px; height: 30px; }
+.pd-after { margin-top: 6px; font-size: 13px; }
+.pd.bought .pd-visual { animation: boughtPulse .7s ease-out; }
+@keyframes boughtPulse { 30% { transform: scale(1.06); filter: brightness(1.4) drop-shadow(0 0 24px rgba(243, 221, 150, .6)); } }
+.fly-ghost { position: fixed; z-index: 6000; margin: 0; pointer-events: none; translate: none;
+  transition: transform .62s cubic-bezier(.5, -0.25, .7, .9), opacity .62s ease-in; }
+.landed { animation: landed .35s ease-out; }
+@keyframes landed { 40% { transform: scale(1.12); box-shadow: 0 0 22px rgba(243, 221, 150, .7); } }
+.shard-chip.spend { animation: shardSpend .7s ease-out; }
+@keyframes shardSpend { 25% { transform: scale(.94); filter: brightness(.8); } 60% { transform: scale(1.04); } }
+
+/* ---------- a pack that gathers itself before it tears ---------- */
+.po-pack.gather { animation: packGather 1.05s cubic-bezier(.6, 0, .9, .4) forwards; }
+.po-pack.gather .bp-seam { animation: seam 1.05s ease-in forwards; }
+@keyframes packGather {
+  0% { transform: none; }
+  20% { transform: translateY(-14px) scale(1.06); }
+  60% { transform: translateY(-20px) scale(1.12) rotate(-.6deg); filter: brightness(1.15) drop-shadow(0 0 30px rgba(243, 221, 150, .35)); }
+  75% { transform: translateY(-20px) scale(1.13) rotate(.8deg); }
+  90% { transform: translateY(-21px) scale(1.14) rotate(-.8deg); }
+  100% { transform: translateY(-22px) scale(1.16); filter: brightness(1.5) drop-shadow(0 0 50px rgba(255, 230, 170, .7)); } }
+.pack-open .po-vignette { transition: opacity .9s, background .9s; }
+.pack-open.tense .po-vignette { background: radial-gradient(ellipse 45% 40% at 50% 46%, transparent 0%, rgba(6, 7, 11, .8) 70%, rgba(2, 3, 5, .97) 100%); }
+.pack-open.tense .po-dust i { animation-duration: calc(var(--t) / 4); }
+.pack-open.tense .po-spot { animation: spotSwell 1.05s ease-in forwards; }
+@keyframes spotSwell { to { transform: scale(1.3); opacity: 1.6; filter: brightness(1.8); } }
+.po-pack.torn { animation: packTorn .45s cubic-bezier(.5, 0, .8, .3) forwards; }
+@keyframes packTorn { 0% { transform: translateY(-22px) scale(1.16); filter: brightness(2); } 100% { transform: translateY(80px) scale(.8); opacity: 0; filter: brightness(2.6) blur(3px); } }
+.pack-open.flash::after { animation: flash 1s ease-out forwards; background: radial-gradient(circle at 50% 50%, rgba(255, 246, 222, .95), rgba(240, 200, 120, .35) 35%, transparent 70%); }
+.pack-open.quake { animation: quakeBig .6s ease-out; }
+@keyframes quakeBig { 10% { transform: translate(-8px, 4px); } 25% { transform: translate(7px, -5px); } 40% { transform: translate(-5px, 3px); } 55% { transform: translate(4px, -2px); } 70% { transform: translate(-2px, 1px); } }
+
+/* your packs scroll, however many sets there are */
+.po-stage.inv { overflow-y: auto; align-content: start; padding-top: 30px; padding-bottom: 30px; }
