@@ -10225,7 +10225,7 @@
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
       // (Everlasting Torment: all damage as though its source had wither)
-      if ((source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) || this._anyStatic('witherAll')) this.addCounters(o, '-1/-1', amount);
+      if ((source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) || this._anyStatic('witherAll')) this.addCounters(o, '-1/-1', amount, source ? { by: source.controller } : undefined);
       else o.damage += amount;
       // "target creature that was dealt damage this turn", until the cleanup step
       o.damagedThisTurn = true;
@@ -10444,9 +10444,11 @@
     addCounters(o, kind, n, opts) {
       n = Math.trunc(Number(n)) || 0;
       if (!n) return;
+      // who puts them (Hapatra: "Whenever you put"): the effect's controller, a wither source's, or its own
+      const putter = (opts && opts.by) || this._putBy || o.controller;
       if (n > 0 && !(opts && opts.noReplace)) {
         const ev = this._replace({ kind: 'counters', object: o, n, counter: kind, controller: o.controller,
-          putter: this._putBy || o.controller });
+          putter });
         if (ev.cancelled) return;
         if (ev.cancelled) return;
         n = ev.n;
@@ -10463,7 +10465,7 @@
       o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
       if (o.counters[kind] <= 0 && kind !== 'loyalty' && kind !== 'defense') delete o.counters[kind];
       // "Whenever one or more +1/+1 counters are put on this creature"
-      if (n > 0 && o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n });
+      if (n > 0 && o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n, putter });
       this.emit('sfx', n > 0 ? 'counter_add' : 'counter_remove', { player: o.controller, size: Math.abs(n) });
       this.emit('counters', { object: o, kind, n });
     }
@@ -11112,6 +11114,8 @@
           // "their second card each turn", "except the first one they draw in each of their draw steps"
           if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
+          // Hapatra: "Whenever you put one or more -1/-1 counters on a creature"
+          if (ab.putByYou && (data.putter || data.objController) !== o.controller) continue;
           // "whenever you activate a loyalty ability"
           if (ab.loyaltyOnly && !data.loyalty) continue;
           // "whenever you activate an exhaust ability"

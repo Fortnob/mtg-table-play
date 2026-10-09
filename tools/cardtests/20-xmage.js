@@ -15522,4 +15522,25 @@ module.exports = (test) => {
     U.settle();
     t.zone(big, 'graveyard', 'two damage from a deathtouch spell is enough');
   });
+
+  test('Nest of Scarabs: you put -1/-1 counters on a creature, that many Insects', (mk, t) => {
+    t.auto('Nest of Scarabs');
+    t.auto('Generous Patron');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Nest of Scarabs');
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'RCC');
+    T.cast('A', T.hand('A', 'Puncture Blast'), { targets: [wurm] });
+    T.settle();
+    t.eq(wurm.counters['-1/-1'], 3, 'wither puts three -1/-1 counters');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Insect Token' || /Insect/.test(o.card.type_line || '')).length, 3, 'three Insects');
+    // an opponent's counters are theirs: no Insects
+    T.toMain('B');
+    T.mana('B', 'RCC');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.cast('B', T.hand('B', 'Puncture Blast'), { targets: [bear] });
+    T.settle();
+    t.eq(T.bfOf('A').filter(o => /Insect/.test(o.card.type_line || '')).length, 3, 'still three');
+  });
 };

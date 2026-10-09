@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11422,
+  "needed": 11418,
   "gainedCards": 1135,
-  "linesNeeded": 12233,
+  "linesNeeded": 12229,
   "linesGained": 1345,
   "gained": {
    "all": 1135,
@@ -1220,25 +1220,6 @@
    ]
   },
   {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Generous Patron",
-    "Nest of Scarabs",
-    "Rikku, Resourceful Guardian",
-    "Hapatra, Vizier of Poisons",
-    "Obelisk Spider",
-    "Earth Kingdom General",
-    "Omarthis, Ghostfire Initiate",
-    "The Great Goblin",
-    "Kros, Defense Contractor",
-    "Kate Stewart",
-    "Ant-Man, Colony Commander",
-    "Inspired Tethermage"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 12,
    "lines": 12,
@@ -2445,6 +2426,21 @@
     "Ninja Teen",
     "Bard Class",
     "Fisher's Talent"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Rikku, Resourceful Guardian",
+    "Earth Kingdom General",
+    "Omarthis, Ghostfire Initiate",
+    "The Great Goblin",
+    "Kros, Defense Contractor",
+    "Kate Stewart",
+    "Ant-Man, Colony Commander",
+    "Inspired Tethermage"
    ]
   },
   {
@@ -7473,19 +7469,6 @@
    ]
   },
   {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Generous Patron",
-    "Nest of Scarabs",
-    "Hapatra, Vizier of Poisons",
-    "Obelisk Spider",
-    "Earth Kingdom General",
-    "The Great Goblin"
-   ]
-  },
-  {
    "what": "AttacksPlayerWithCreaturesTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -8697,6 +8680,19 @@
     "Team Pennant",
     "Bloodthorn Flail",
     "Warrior's Blades"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Earth Kingdom General",
+    "The Great Goblin",
+    "Kros, Defense Contractor",
+    "Kate Stewart",
+    "Ant-Man, Colony Commander",
+    "Inspired Tethermage"
    ]
   },
   {

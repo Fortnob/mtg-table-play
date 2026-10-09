@@ -9342,6 +9342,12 @@
       filt: (m) => ({ words: m[2].toLowerCase(), who: 'you', other: /another/i.test(m[1]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? you put one or more \+1\/\+1 counters on (?:a|another) creature you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
+    /* Hapatra, Nest of Scarabs: "Whenever you put one or more -1/-1 counters on
+       a creature"; Generous Patron: "counters on a creature you don't control" */
+    { re: /^Whenever you put one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters on (a|another) (creature|permanent|Goblin)( you don'?t control)?, /i,
+      event: 'countersPut', aboutObject: true,
+      filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? 'opponent' : undefined }),
+      extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
     { re: /^At the beginning of each opponent'?s upkeep(?:,| )/i, event: 'opponentUpkeep' },
