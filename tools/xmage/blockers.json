@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12286,
+  "needed": 12279,
   "gainedCards": 1318,
-  "linesNeeded": 13366,
+  "linesNeeded": 13359,
   "linesGained": 1576,
   "gained": {
    "all": 1318,
@@ -90,8 +90,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 220,
-   "lines": 199,
+   "score": 218,
+   "lines": 197,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -336,25 +336,6 @@
    ]
   },
   {
-   "what": "(constructor: view.get)",
-   "score": 28,
-   "lines": 19,
-   "cards": [
-    "Season of Gathering",
-    "Biophagus",
-    "Season of the Burrow",
-    "Season of the Bold",
-    "Guildmages' Forum",
-    "Animal Attendant",
-    "Sphere of the Suns",
-    "Drain Life",
-    "Murdock's Crusade",
-    "Atalya, Samite Master",
-    "Soul Burn",
-    "Anavolver"
-   ]
-  },
-  {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
    "score": 28,
    "lines": 25,
@@ -583,25 +564,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 21,
-   "lines": 18,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Kaito, Bane of Nightmares",
-    "Change of Fortune",
-    "Liliana's Standard Bearer",
-    "Blitzball Stadium",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Moonshae Pixie // Pixie Dust",
-    "Misty Knight, Hero for Hire"
-   ]
-  },
-  {
    "what": "OrTriggeredAbility halves differ",
    "score": 21,
    "lines": 21,
@@ -637,6 +599,25 @@
     "Tatsunari, Toad Rider",
     "Ant-Man, Elusive Avenger",
     "Exit Specialist"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 20,
+   "lines": 17,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Kaito, Bane of Nightmares",
+    "Change of Fortune",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Moonshae Pixie // Pixie Dust",
+    "Misty Knight, Hero for Hire",
+    "Amber Gristle O'Maul"
    ]
   },
   {
@@ -792,6 +773,25 @@
     "Undiscovered Paradise",
     "Initiates of the Ebon Hand",
     "Farrelite Priest"
+   ]
+  },
+  {
+   "what": "(constructor: view.get)",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Biophagus",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant",
+    "Sphere of the Suns",
+    "Drain Life",
+    "Murdock's Crusade",
+    "Atalya, Samite Master",
+    "Soul Burn",
+    "Anavolver",
+    "Cetavolver",
+    "Degavolver"
    ]
   },
   {
@@ -1002,25 +1002,6 @@
    ]
   },
   {
-   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Meathook Massacre II",
-    "Rakdos Joins Up",
-    "Yuna, Hope of Spira",
-    "Evil Reawakened",
-    "Admiral Brass, Unsinkable",
-    "Coalstoke Gearhulk",
-    "Zoraline, Cosmos Caller",
-    "The Revelations of Ezio",
-    "Prison Break",
-    "Perennation",
-    "Queen's Bay Paladin",
-    "Shuri's Fabricator"
-   ]
-  },
-  {
    "what": "custom value",
    "score": 15,
    "lines": 15,
@@ -1182,6 +1163,25 @@
     "Mister Fantastic",
     "Diplomatic Escort",
     "Teferi's Response"
+   ]
+  },
+  {
+   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Meathook Massacre II",
+    "Rakdos Joins Up",
+    "Yuna, Hope of Spira",
+    "Evil Reawakened",
+    "Admiral Brass, Unsinkable",
+    "Coalstoke Gearhulk",
+    "The Revelations of Ezio",
+    "Prison Break",
+    "Perennation",
+    "Queen's Bay Paladin",
+    "Shuri's Fabricator",
+    "Graceful Restoration"
    ]
   },
   {
@@ -7093,8 +7093,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 132,
-   "cards": 126,
+   "score": 130,
+   "cards": 124,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
@@ -7206,19 +7206,6 @@
     "Mobilized District",
     "Quest for the Necropolis",
     "Baru, Wurmspeaker"
-   ]
-  },
-  {
-   "what": "(constructor: view.get)",
-   "score": 23,
-   "cards": 14,
-   "names": [
-    "Season of Gathering",
-    "Biophagus",
-    "Season of the Burrow",
-    "Season of the Bold",
-    "Guildmages' Forum",
-    "Animal Attendant"
    ]
   },
   {
@@ -7365,19 +7352,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Change of Fortune",
-    "Liliana's Standard Bearer",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 16,
    "cards": 16,
@@ -7427,6 +7401,19 @@
     "Beloved Princess",
     "Prehistoric Pet",
     "Ant-Man, Elusive Avenger"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 15,
+   "cards": 12,
+   "names": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Moonshae Pixie // Pixie Dust"
    ]
   },
   {
@@ -7649,16 +7636,16 @@
    ]
   },
   {
-   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "what": "(constructor: view.get)",
    "score": 12,
    "cards": 12,
    "names": [
-    "Rakdos Joins Up",
-    "Evil Reawakened",
-    "Admiral Brass, Unsinkable",
-    "Coalstoke Gearhulk",
-    "Zoraline, Cosmos Caller",
-    "The Revelations of Ezio"
+    "Biophagus",
+    "Season of the Bold",
+    "Guildmages' Forum",
+    "Animal Attendant",
+    "Sphere of the Suns",
+    "Drain Life"
    ]
   },
   {
@@ -7759,6 +7746,19 @@
     "Voyager Glidecar",
     "Spring-Loaded Sawblades // Bladewheel Chariot",
     "Gastal Thrillroller"
+   ]
+  },
+  {
+   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Rakdos Joins Up",
+    "Evil Reawakened",
+    "Admiral Brass, Unsinkable",
+    "Coalstoke Gearhulk",
+    "The Revelations of Ezio",
+    "Prison Break"
    ]
   },
   {

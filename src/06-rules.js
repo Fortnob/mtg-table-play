@@ -2864,6 +2864,7 @@
       // Animar: "for each +1/+1 counter on CARDNAME"
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
+      if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
@@ -11359,7 +11360,7 @@
         if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).colorsSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
-        if (v && typeof v === 'object' && v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * (v.mult || 1);
+        if (v && typeof v === 'object' && v.diedThisTurn) return (v.yours ? ((((this.turnHistory || {}).diedBy) || {})[ctx.controller] || 0) : ((this.turnHistory || {}).creaturesDied || 0)) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         // Rackling: "3 minus the number of cards in their hand"
         if (v && typeof v === 'object' && v.minusHand != null) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, v.minusHand - (p ? this.zones[p.id].hand.length : 0)); }
@@ -15024,6 +15025,27 @@
         }
         // (a limit on X, settled as the spell was cast)
         case 'xCap': break;
+        // Season of Gathering: "Choose artifact or enchantment." — kept on the spell for the sentence after
+        case 'chooseCardTypeNow': {
+          const types = e.types || [];
+          if (!src || !types.length) break;
+          let pick = types[0];
+          if (me.isBot) {
+            // the type that costs the opponents most and this player least
+            const score = (t) => this.battlefield.filter(o => !o.phasedOut && (o.analysis() || {}).types && o.analysis().types.includes(t))
+              .reduce((k, o) => k + (o.controller === me.id ? -1 : 1), 0);
+            pick = types.slice().sort((a, b) => score(b) - score(a))[0];
+          } else if (types.length > 1) {
+            const got = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'chooseCardType',
+              options: types.map((label, i) => ({ i, label })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${types.join(' or ').toLowerCase()}.` }, 'cct');
+            if (got === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(got) ? got[0] : got;
+            pick = types[idx == null ? 0 : idx] || types[0];
+          }
+          src.chosenCardType = pick;
+          this.logEvent('rules', `${me.name} chooses ${pick.toLowerCase()}.`);
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
@@ -18966,7 +18988,9 @@
       if (sc.subtypes && !sc.subtypes.some(st => (oa.subtypes || []).some(t => t.toLowerCase() === st) ||
           (oa.keywordSet && oa.keywordSet.has('changeling')))) return false;
       if (sc.notSubtype && (oa.subtypes || []).some(t => t.toLowerCase() === sc.notSubtype)) return false;
-      if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||
+      // (Season of Gathering: a card type chosen as it resolved)
+      if (sc.chosenType && src && src.chosenCardType && !src.chosenType) { if (!(oa.types || []).includes(src.chosenCardType)) return false; }
+      else if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||
           (oa.keywordSet && oa.keywordSet.has('changeling'))))) return false;
       if (sc.chosenColor && !(src && src.chosenColor && (oa.colors || []).includes(src.chosenColor))) return false;
       // Crippling Fear: everything not of the chosen type

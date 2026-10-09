@@ -1236,7 +1236,10 @@
     // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
-    // Ruthless Technomancer: "Return target creature card with power X or less from your graveyard to the battlefield."
+    // Season of the Burrow: "… mana value 3 or less from your graveyard to the battlefield with an indestructible counter on it"
+    { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Ruthless Technomancer: "Return target creature card with power X or less from your graveyard to the battlefield.
     { re: /^Return (target [a-z ]+?) card with power (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with power ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Lazotep Quarry: "Exile target creature card with mana value X from your graveyard."
@@ -1761,6 +1764,9 @@
 
     // --- library manipulation ---
     { re: /^Scry (\d+)\.?$/i, make: (m) => ({ op: 'scry', n: +m[1] }) },
+    // Season of Gathering: "Choose artifact or enchantment." — for "permanents of the chosen type" after it
+    { re: /^Choose (artifact|creature|enchantment|land|planeswalker)(?:, (artifact|creature|enchantment|land|planeswalker))*,? or (artifact|creature|enchantment|land|planeswalker)\.?$/i,
+      make: (m) => ({ op: 'chooseCardTypeNow', types: m[0].replace(/^Choose /i, '').replace(/\.$/, '').split(/,\s*(?:or\s+)?|\s+or\s+/).map(w => U.titleCase(w.trim())).filter(Boolean) }) },
     // Kozilek's Command: "Target player scries X, then draws a card."
     { re: /^Target player scries (one|two|three|four|\d+|X)\.?$/i, make: (m) => ({ op: 'scry', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     // Kozilek's Command: "Exile up to X target cards from graveyards."
@@ -4922,6 +4928,8 @@
     if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Season of Loss: "for each creature that died under your control this turn"
+    if (/^creatures? that died under your control this turn$/i.test(p)) return { diedThisTurn: true, yours: true, mult: k };
     // Fountain of Cho: "for each storage counter removed this way"
     if (/^[a-z+\-0-9/]+ counters? removed this way$/i.test(p)) return { removedCounters: true, mult: k };
     // Rite of Flame: "for each card named CARDNAME in each graveyard"

@@ -12480,4 +12480,31 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(b.counters['+1/+1'], 3);
   });
+
+  test('Seasons: artifact or enchantment chosen, an indestructible counter, deaths under your control', (mk, t) => {
+    t.auto('Season of Gathering'); t.auto('Season of the Burrow'); t.auto('Season of Loss');
+    const T = mk();
+    const ring = T.bf('B', 'Sol Ring'), pac = T.bf('B', 'Pacifism'), mine = T.bf('A', 'Mind Stone');
+    T.mana('A', 'GG4');
+    T.answer('choose', { picks: [1] });
+    T.answer('mode', { modes: [1] });
+    T.cast('A', T.hand('A', 'Season of Gathering'));
+    T.settle();
+    t.eq(pac.zone, 'graveyard', 'enchantments chosen'); t.eq(ring.zone, 'battlefield'); t.eq(mine.zone, 'battlefield');
+    const stone = T.grave('A', 'Mind Stone');
+    T.mana('A', 'WW3');
+    T.answer('choose', { picks: [2] });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: stone.id }] });
+    T.cast('A', T.hand('A', 'Season of the Burrow'));
+    T.settle();
+    t.eq(stone.zone, 'battlefield'); t.eq(stone.counters.indestructible, 1, 'with an indestructible counter');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('B', 'Savannah Lions');
+    T.g.moveObject(b1, 'graveyard'); T.g.moveObject(b2, 'graveyard');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', 'BB3');
+    T.answer('choose', { picks: [1] });
+    T.cast('A', T.hand('A', 'Season of Loss'));
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'one card: only one died under your control');
+  });
 };
