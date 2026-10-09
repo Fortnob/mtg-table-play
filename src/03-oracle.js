@@ -6266,6 +6266,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Goblin Guide: "defending player reveals the top card of their library.
+       If it's a land card, that player puts it into their hand." */
+    { re: /^Defending player reveals the top card of their library\. If it'?s an? ([a-z]+) card, that player puts it into their hand\.?$/i,
+      make: (m) => [{ op: 'revealTopIf', who: 'defending', filter: m[1].toLowerCase(), to: 'hand' }] },
     /* Forgotten Creation: "you may discard all the cards in your hand. If
        you do, draw that many cards." — as many as went, read off the discard */
     { re: /^(?:You may )?discard all the cards in your hand\. If you do, draw that many cards\.?$/i,

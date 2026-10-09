@@ -2089,4 +2089,28 @@ module.exports = (test) => {
     t.eq(T2.life('A'), 24);
     t.eq(T2.g.obj(w.id).zone, 'graveyard');
   });
+
+  test("Audit: Goblin Guide gives the defending player their top card only if it's a land", (mk, t) => {
+    for (const [top, where] of [['Island', 'hand'], ['Grizzly Bears', 'library']]) {
+      const T = mk();
+      t.auto('Goblin Guide');
+      const g = T.bf('A', 'Goblin Guide');
+      const c = T.top('B', top);
+      T.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'B' }]);
+      T.toMain('A', 'combatDamage');
+      t.zone(c, where, top);
+      t.zone(g, 'battlefield');
+    }
+  });
+
+  test('Audit: Heat Stroke destroys what blocked or was blocked, nothing else', (mk, t) => {
+    const T = mk();
+    t.auto('Heat Stroke');
+    T.bf('A', 'Heat Stroke');
+    const w = T.bf('A', 'Craw Wurm'), wall = T.bf('B', 'Wall of Stone'), other = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [w.id] }]);
+    T.toMain('A', 'end');
+    t.zone(w, 'graveyard'); t.zone(wall, 'graveyard'); t.zone(other, 'battlefield');
+  });
 };

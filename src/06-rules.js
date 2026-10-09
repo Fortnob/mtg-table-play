@@ -16048,6 +16048,18 @@
           }
           break;
         }
+        // Goblin Guide: the defending player shows their top card, and keeps it if it is a land
+        case 'revealTopIf': {
+          const p = e.who === 'defending' ? (this._defenderOf(src) || triggerPlayer()) : me;
+          const top = p && this.zones[p.id].library[0];
+          if (!top) break;
+          this.logEvent('reveal', `${p.name} reveals ${top.name}.`);
+          if (this._cardFitsWords(top, e.filter || 'card')) {
+            this.moveObject(top, e.to === 'hand' ? 'hand' : 'graveyard');
+            this.logEvent('rules', `${p.name} puts ${top.name} into their hand.`);
+          }
+          break;
+        }
         case 'toHandThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone !== 'hand') this.moveObject(x, 'hand');
