@@ -12535,4 +12535,16 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.player('B').life, 18); t.eq(scried, 2);
   });
+
+  test('Tyvar, Jubilant Brawler: mill three, then a small creature back', (mk, t) => {
+    t.auto('Tyvar, Jubilant Brawler');
+    const T = mk();
+    const ty = T.bf('A', 'Tyvar, Jubilant Brawler');
+    const wurm = T.grave('A', 'Craw Wurm'), elf = T.grave('A', 'Llanowar Elves');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.id); return { cardIds: [elf.id] }; });
+    T.g._runEffects(ty.analysis().abilities.find(a => /^[-\u2212]2/.test(a.text)).effects, { controller: 'A', obj: ty, name: 'Tyvar', kind: 'ability' });
+    T.settle();
+    t.eq(elf.zone, 'battlefield'); t.ok(!offered || !offered.includes(wurm.id), 'not the Wurm');
+  });
 };

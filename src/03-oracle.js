@@ -4877,13 +4877,14 @@
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
-    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
-      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : { op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
-        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield' }) },
+    // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")
+    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)\.?$/,
+      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
+        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {})) },
     // Teval, the Balanced Scale: "Then you may return a land card from your graveyard to the battlefield tapped."
-    { re: /^(?:Then )?[Yy]ou may return (a|an|one) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
-      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : { op: 'graveyardPick', n: 1, upTo: true,
-        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield', tapped: !!m[4] }) },
+    { re: /^(?:Then )?[Yy]ou may return (a|an|one) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
+      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: 1, upTo: true,
+        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield', tapped: !!m[5] }, m[3] ? { maxMv: +m[3] } : {})) },
     // Domri, Anarch of Bolas: "Creature spells you cast this turn can't be countered."
     { re: /^(Creature |Instant and sorcery |Noncreature )?spells you cast this turn can'?t be countered\.?$/i,
       make: (m) => ({ op: 'uncounterableTurn', words: (m[1] || '').trim().toLowerCase().replace(/ and /, ' or ') || null }) },

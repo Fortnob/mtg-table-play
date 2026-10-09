@@ -12009,7 +12009,8 @@
            target: chosen as it resolves, from what is there by then */
         case 'graveyardPick': {
           const yard = (this.zones[ctx.controller] || {}).graveyard || [];
-          const pool = yard.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card'));
+          const pool = yard.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card') &&
+            (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
           const want = Math.min(n(e.n) || 1, pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
