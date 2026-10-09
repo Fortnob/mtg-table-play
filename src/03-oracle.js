@@ -10097,9 +10097,14 @@
         thatIsTheTarget(parsed, !trig.self && (trig.aboutObject || objFilter));
         /* Greatsword of Tyr: "Whenever equipped creature attacks, put a +1/+1
            counter on it" — the creature, not the Equipment */
-        if (objFilter && objFilter.equipped) {
+        if ((objFilter && objFilter.equipped) || /^equipped/.test(trig.event || '')) {
+          /* (Foot Chopper: "you may sacrifice it. If you do, draw cards equal
+             to its power" — the creature, whose power it is) */
+          const sacIt = (list) => { for (const e of list || []) { if (!e) continue; if (e.op === 'sacrificeSelf' && /^Sacrifice it\.?$/i.test(e.text || '')) e.op = 'sacrificeTriggerObject'; sacIt(e.then); sacIt(e.list); } };
+          sacIt(parsed.effects);
           for (const e of parsed.effects) {
-            if (e && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\b(?:this|CARDNAME)\b/.test(e.text || '')) e.scope = 'triggerObject';
+            // (Writ of Passage: "it can't be blocked this turn" — "this turn" is no "this")
+            if (e && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\bthis (?:creature|Equipment|Aura|enchantment|artifact|permanent)\b|\bCARDNAME\b/i.test(e.text || '')) e.scope = 'triggerObject';
           }
         }
         if (trig.self && !thatPlayerOfTheTarget(parsed.effects)) parsed.auto = false;

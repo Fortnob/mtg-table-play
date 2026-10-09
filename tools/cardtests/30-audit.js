@@ -2709,4 +2709,27 @@ module.exports = (test) => {
     T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle(); T.resolve();
     t.zone(bl, 'hand', "the caster's land goes back"); t.zone(al, 'battlefield');
   });
+
+  test('Audit: "it" in an Aura or Equipment trigger is the creature (Writ of Passage, Foot Chopper)', (mk, t) => {
+    let T = mk();
+    t.auto('Writ of Passage'); t.auto('Foot Chopper');
+    T.toMain('A');
+    const wp = T.bf('A', 'Writ of Passage'), b = T.bf('A', 'Grizzly Bears');
+    b.summoningSick = false;
+    wp.attachedTo = b.id; b.attachments = [wp.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok((b.effects || []).some(x => x.flag === 'unblockable'), "the Bears can't be blocked");
+    T = mk();
+    T.toMain('A');
+    const fc = T.bf('A', 'Foot Chopper'), hg = T.bf('A', 'Hill Giant');
+    hg.summoningSick = false;
+    fc.attachedTo = hg.id; hg.attachments = [fc.id]; T.g.bumpBoard();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: hg.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.zone(hg, 'graveyard', 'the creature is sacrificed'); t.zone(fc, 'battlefield', 'the Equipment stays');
+    t.eq(T.g.zones.A.hand.length, h + 3, 'three cards for its power');
+  });
 };
