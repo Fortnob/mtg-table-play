@@ -1451,6 +1451,14 @@
       const produces = new Set();
       let any = false, amount = 0;
       for (const e of (ab.effects || [])) {
+        // Ilysian Caryatid: whichever way its "instead" goes right now
+        if (e.op === 'ifCond') {
+          const sub = this._manaOptions({ effects: this._condMet(e.cond, { controller: pid, obj: o }) ? (e.then || []) : (e.otherwise || []) }, o, pid);
+          for (const c of sub.produces) produces.add(c);
+          if (sub.any) any = true;
+          if (sub.produces.size || sub.any) amount += sub.amount;
+          continue;
+        }
         if (e.op === 'addMana') {
           for (const sym of e.symbols || []) for (const c of MANA.COLORS.concat('C')) if (sym.includes(c)) produces.add(c);
           amount += (e.tron && this._tronAssembled(pid, e.tron) ? e.tron.symbols : (e.symbols || [])).length;
@@ -11018,6 +11026,8 @@
     _runEffectsNow(effects, ctx) {
       for (const e of (effects || [])) {
         if (e.op === 'manual') continue;
+        // a mana ability's "If …, add … instead" is decided at once (Ilysian Caryatid)
+        if (e.op === 'ifCond') { this._runEffectsNow(this._condMet(e.cond, ctx) ? e.then : e.otherwise, ctx); continue; }
         try { this._runEffect(e, ctx); } catch (err) { console.warn('[mana effect]', e, err); }
       }
     }

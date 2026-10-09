@@ -13623,4 +13623,28 @@ module.exports = (test) => {
     T.bf('A', 'Simic Guildgate');
     t.ok(T.g._condMet(cond, { controller: 'A' }), 'ten names');
   });
+
+  test('Mana abilities with a rider or an "instead" stay off the stack: The Great Henge, Pristine Talisman, Ilysian Caryatid, Gemstone Mine', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const henge = T.bf('A', 'The Great Henge');
+    t.eq(henge.analysis().manaAbilities.length, 1, 'a mana ability');
+    const life = T.life('A');
+    t.ok(T.g.activateAbility('A', henge.id, 0, {}), 'tapped for mana');
+    t.eq(T.g.stack.length, 0, 'nothing on the stack');
+    t.eq(T.player('A').pool.G, 2); t.eq(T.life('A'), life + 2, 'and 2 life with it');
+    T.player('A').pool.clear();
+    const cary = T.bf('A', 'Ilysian Caryatid'); cary.summoningSick = false;
+    t.eq(T.g._manaOptions(cary.analysis().manaAbilities[0], cary, 'A').amount, 1, 'one mana');
+    T.bf('A', 'Craw Wurm');
+    t.eq(T.g._manaOptions(cary.analysis().manaAbilities[0], cary, 'A').amount, 2, 'two with a creature of power 4 or greater');
+    T.g.activateAbility('A', cary.id, 0, {});
+    const p = T.player('A').pool;
+    t.eq(['W', 'U', 'B', 'R', 'G'].reduce((k, c) => k + (p[c] || 0), 0), 2, 'two mana added at once');
+    T.player('A').pool.clear();
+    const mine = T.bf('A', 'Gemstone Mine');
+    mine.counters.mining = 1;
+    T.g.activateAbility('A', mine.id, 0, {});
+    t.zone(mine, 'graveyard', 'the last mining counter: sacrificed');
+  });
 };

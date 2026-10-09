@@ -385,15 +385,26 @@
     'addManaAmong', 'addManaDevotion', 'addManaX', 'addManaEachColor']);
   function isManaAbility(effects) {
     if (!effects || !effects.length) return false;
-    if (!effects.some(e => MANA_OPS.has(e.op))) return false;
-    return effects.every(e => {
+    /* The Great Henge: "Add {G}{G}. You gain 2 life."; Ilysian Caryatid:
+       "… If you control a creature with power 4 or greater, add two mana of
+       any one color instead"; Gemstone Mine: "If there are no mining
+       counters on this land, sacrifice it." — still mana abilities, with
+       no target (CR 605.1a), so they don't wait on the stack */
+    const branches = (e) => [].concat(e.then || [], e.otherwise || []);
+    const makesMana = (list) => (list || []).some(e => e && (MANA_OPS.has(e.op) || (e.op === 'ifCond' && makesMana(branches(e)))));
+    if (!makesMana(effects)) return false;
+    const fits = (e) => {
+      if (!e) return false;
       if (e.targets && e.targets.length) return false;
       if (MANA_OPS.has(e.op)) return true;
       if (e.op === 'damage') return !!e.toSelf;
       if (e.op === 'loseLife') return e.who === 'you';
+      if (e.op === 'gainLife') return (e.who === 'you' || e.who === 'opponents') && typeof e.n === 'number';
+      if (e.op === 'ifCond') return !e.cond || e.cond.kind !== 'manual' ? branches(e).every(fits) : false;
       if (e.op === 'counters' || e.op === 'tap' || e.op === 'untap') return e.scope === 'self';
       return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly';
-    });
+    };
+    return effects.every(fits);
   }
 
   /* ---------------- effect parsing ---------------- */
@@ -7805,6 +7816,8 @@
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
+    // Mirrex: "Activate only if this land entered this turn."
+    [/^this (?:land|artifact|enchantment|permanent) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Messenger Hawk: "you've drawn two or more cards this turn"
     [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
