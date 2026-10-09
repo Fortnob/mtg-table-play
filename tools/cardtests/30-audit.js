@@ -227,4 +227,157 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Brutal Expulsion'), { targets: [bear] });
     t.zone(bear, 'hand');
   });
+
+  /* ---- the most-played lands, family by family ---- */
+
+  const FETCHES = { 'Flooded Strand': ['Plains', 'Island'], 'Polluted Delta': ['Island', 'Swamp'], 'Bloodstained Mire': ['Swamp', 'Mountain'],
+    'Wooded Foothills': ['Mountain', 'Forest'], 'Windswept Heath': ['Forest', 'Plains'], 'Marsh Flats': ['Plains', 'Swamp'],
+    'Scalding Tarn': ['Island', 'Mountain'], 'Verdant Catacombs': ['Swamp', 'Forest'], 'Arid Mesa': ['Mountain', 'Plains'],
+    'Misty Rainforest': ['Forest', 'Island'] };
+  for (const [name, types] of Object.entries(FETCHES)) {
+    test(`Audit: ${name} pays 1 life and offers only ${types.join(' or ')} cards, put in untapped`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const f = T.bf('A', name);
+      let offered = null;
+      T.answer('pickCard', (ch) => { offered = (ch.cards || []).map(c => c.name); return { cardIds: [ch.cards[0].id] }; });
+      T.activate('A', f, 0);
+      t.zone(f, 'graveyard');
+      t.eq(T.life('A'), 19);
+      t.ok(offered && offered.length && offered.every(n => types.includes(n)), 'offered ' + JSON.stringify(offered));
+      const got = T.bfOf('A');
+      t.eq(got.length, 1);
+      t.no(got[0].tapped, 'untapped');
+    });
+  }
+
+  for (const name of ['Evolving Wilds', 'Terramorphic Expanse', 'Fabled Passage']) {
+    test(`Audit: ${name} fetches a basic land tapped`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const f = T.bf('A', name);
+      T.activate('A', f, 0);
+      t.zone(f, 'graveyard');
+      t.eq(T.life('A'), 20);
+      const got = T.bfOf('A');
+      t.eq(got.length, 1);
+      t.ok(/Basic Land/.test(got[0].card.type_line));
+      t.ok(got[0].tapped, 'tapped (with fewer than four lands)');
+    });
+  }
+
+  test('Audit: Fabled Passage untaps the land with four or more lands', (mk, t) => {
+    const T = mk();
+    for (const n of ['Plains', 'Island', 'Swamp']) T.bf('A', n);
+    const f = T.bf('A', 'Fabled Passage');
+    T.activate('A', f, 0);
+    const got = T.bfOf('A').filter(o => !['Plains', 'Island', 'Swamp'].includes(o.name) || o.entered === T.g.turn);
+    t.eq(T.bfOf('A').length, 4);
+    t.ok(T.bfOf('A').every(o => !o.tapped), 'the new land is untapped');
+  });
+
+  const SHOCKS = ['Watery Grave', 'Breeding Pool', 'Godless Shrine', 'Hallowed Fountain', 'Steam Vents', 'Blood Crypt',
+    'Stomping Ground', 'Overgrown Tomb', 'Sacred Foundry', 'Temple Garden'];
+  for (const name of SHOCKS) {
+    test(`Audit: ${name} enters untapped for 2 life, tapped without`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const a = T.hand('A', name);
+      T.answer('confirm', { yes: true });
+      T.playLand('A', a);
+      t.no(a.tapped); t.eq(T.life('A'), 18);
+      T.nextTurn('A');
+      const b = T.hand('A', name);
+      T.answer('confirm', { yes: false });
+      T.playLand('A', b);
+      t.ok(b.tapped); t.eq(T.life('A'), 18);
+    });
+  }
+
+  const CHECKS = { 'Sulfur Falls': ['Island', 'Mountain'], 'Clifftop Retreat': ['Mountain', 'Plains'], 'Dragonskull Summit': ['Swamp', 'Mountain'],
+    'Glacial Fortress': ['Plains', 'Island'], 'Isolated Chapel': ['Plains', 'Swamp'], 'Hinterland Harbor': ['Forest', 'Island'],
+    'Drowned Catacomb': ['Island', 'Swamp'], 'Woodland Cemetery': ['Swamp', 'Forest'], 'Rootbound Crag': ['Mountain', 'Forest'],
+    'Sunpetal Grove': ['Forest', 'Plains'] };
+  const OTHER = { Plains: 'Swamp', Island: 'Forest', Swamp: 'Plains', Mountain: 'Island', Forest: 'Mountain' };
+  for (const [name, types] of Object.entries(CHECKS)) {
+    test(`Audit: ${name} enters untapped only with a ${types.join(' or ')}`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const wrong = Object.keys(OTHER).find(x => !types.includes(x));
+      T.bf('A', wrong);
+      const a = T.hand('A', name);
+      T.playLand('A', a);
+      t.ok(a.tapped, 'tapped with only a ' + wrong);
+      T.nextTurn('A');
+      T.bf('A', types[1]);
+      const b = T.hand('A', name);
+      T.playLand('A', b);
+      t.no(b.tapped, 'untapped with a ' + types[1]);
+    });
+  }
+
+  for (const name of ['Sunken Hollow', 'Cinder Glade', 'Smoldering Marsh', 'Prairie Stream', 'Canopy Vista']) {
+    test(`Audit: ${name} enters untapped only with two or more basic lands`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      T.bf('A', 'Plains');
+      const a = T.hand('A', name);
+      T.playLand('A', a);
+      t.ok(a.tapped, 'tapped with one basic');
+      T.nextTurn('A');
+      T.bf('A', 'Island');
+      const b = T.hand('A', name);
+      T.playLand('A', b);
+      t.no(b.tapped, 'untapped with two basics');
+    });
+  }
+
+  /* ---- tutors that put the card on top ---- */
+
+  const TOPS = { 'Vampiric Tutor': ['Lightning Bolt', 'B', 18], 'Enlightened Tutor': ['Sol Ring', 'W', 20],
+    'Mystical Tutor': ['Lightning Bolt', 'U', 20], 'Worldly Tutor': ['Grizzly Bears', 'G', 20] };
+  for (const [name, [want, mana, life]] of Object.entries(TOPS)) {
+    test(`Audit: ${name} puts ${want} on top of the library`, (mk, t) => {
+      const T = mk();
+      t.auto(name);
+      const x = T.put('A', want, 'library', { top: false });
+      let offered = null;
+      T.answer('pickCard', (ch) => { offered = (ch.cards || []).map(c => c.name); return { cardIds: [x.id] }; });
+      T.mana('A', mana);
+      T.cast('A', T.hand('A', name));
+      t.eq(T.zone('A', 'library')[0], x, 'on top');
+      t.ok(offered && !offered.includes('Plains') || name === 'Vampiric Tutor', 'lands not offered: ' + JSON.stringify(offered && offered.slice(0, 5)));
+      t.eq(T.life('A'), life);
+    });
+  }
+
+  /* ---- "Plains" is not a plural ---- */
+
+  test('Audit: Castle Ardenvale enters untapped with a Plains', (mk, t) => {
+    const T = mk();
+    t.auto('Castle Ardenvale');
+    T.bf('A', 'Plains');
+    const c = T.hand('A', 'Castle Ardenvale');
+    T.playLand('A', c);
+    t.no(c.tapped);
+  });
+
+  test('Audit: Bleachbone Verge makes white only with a Plains or a Swamp', (mk, t) => {
+    const T = mk();
+    t.auto('Bleachbone Verge');
+    const v = T.bf('A', 'Bleachbone Verge');
+    t.no(T.g.tapForMana('A', v.id, 1), 'no white with nothing');
+    T.bf('A', 'Plains');
+    t.ok(T.g.tapForMana('A', v.id, 1), 'white with a Plains');
+    t.eq(T.player('A').pool.W, 1);
+  });
+
+  test('Audit: Gather the White Lotus makes a token for each Plains', (mk, t) => {
+    const T = mk();
+    t.auto('Gather the White Lotus');
+    T.bf('A', 'Plains'); T.bf('A', 'Plains'); T.bf('A', 'Island');
+    T.mana('A', 'W4');
+    T.cast('A', T.hand('A', 'Gather the White Lotus'));
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 2);
+  });
 };

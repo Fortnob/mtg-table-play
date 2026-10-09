@@ -7371,7 +7371,7 @@
          way of saying a creature only goes to war on the right terrain. */
       const needs = this._staticOp(o, 'attackRequires');
       if (needs && needs.defenderControls) {
-        const want = String(needs.defenderControls).toLowerCase().replace(/s$/, '');
+        const want = String(needs.defenderControls).toLowerCase().replace(/(?<!plain)s$/, '');
         const has = this.players.some(p => p.id !== o.controller && !p.hasLost &&
           this.battlefield.some(x => {
             if (x.controller !== p.id) return false;
@@ -19465,7 +19465,7 @@
       // "artifacts and enchantments" counts anything that is either
       const wants = String(spec.per || '').toLowerCase()
         .split(/\s+and\s+|\s*,\s*/)
-        .map(w => w.trim().replace(/s$/, ''))
+        .map(w => w.trim().replace(/(?<!plain)s$/, ''))
         .filter(Boolean);
       if (!wants.length) return 0;
       let k = 0;
@@ -20672,8 +20672,9 @@
           if ((a.types || []).some(t => t.toLowerCase() === bare)) return false;
           continue;
         }
-        const hit = (a.types || []).some(t => t.toLowerCase() === want) ||
-          (a.subtypes || []).some(t => t.toLowerCase() === want);
+        // (the word as printed too: "Plains" is not the plural of anything)
+        const hit = (a.types || []).some(t => t.toLowerCase() === want || t.toLowerCase() === w) ||
+          (a.subtypes || []).some(t => t.toLowerCase() === want || t.toLowerCase() === w);
         if (!hit) return false;
       }
       return true;
@@ -20773,7 +20774,7 @@
       if (!filter || filter === 'card' || filter === 'any') return true;
       const a = o.analysis();
       if (!a) return false;
-      const want = String(filter).toLowerCase().trim().replace(/^an? /, '').replace(/s$/, '');
+      const want = String(filter).toLowerCase().trim().replace(/^an? /, '').replace(/(?<!plain)s$/, '');
       if (want === 'permanent' || want === 'card') return true;
       return (a.types || []).some(x => x.toLowerCase() === want) ||
         (a.subtypes || []).some(x => x.toLowerCase() === want);

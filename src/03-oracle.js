@@ -785,8 +785,11 @@
       s = '';
     }
     if (s.trim()) return null;
-    const what = e.filter === 'any' ? 'card' : e.filter + ' card';
-    e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/.test(what) ? 'an ' : 'a ') : (e.upTo ? 'up to ' : '') + e.n + ' ') +
+    // the prompt says it as the card does: "a Forest card", not "a forest card"; "up to two", not "up to 2"
+    const asPrinted = (w) => { const hit = String(sentence).match(new RegExp('\\b' + w.replace(/[^a-z'-]/gi, '') + '\\b', 'i')); return hit && /^[A-Z]/.test(hit[0]) ? hit[0] : w; };
+    const what = e.filter === 'any' ? 'card' : e.filter.split(' ').map(w => w.replace(/^[a-z'-]+/, (x) => asPrinted(x))).join(' ') + ' card';
+    const NW = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+    e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
       what + (e.n === 1 ? '' : 's') + '.';
     return after ? { op: 'sequence', list: [e, after] } : e;
   }
