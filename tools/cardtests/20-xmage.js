@@ -15299,4 +15299,17 @@ module.exports = (test) => {
     T.g.moveObject(down, 'battlefield', { controller: 'A' }); T.settle(); T.resolve();
     t.eq(ci.counters['+1/+1'], 1, 'face down: a counter');
   });
+
+  test('Everett K. Ross: an opponent attacking you with two or more creatures draws you a card', (mk, t) => {
+    t.auto('Everett K. Ross, Hapless Attaché');
+    const T = mk();
+    T.bf('B', 'Everett K. Ross, Hapless Attaché');
+    for (let i = 0; i < 3; i++) T.top('B', 'Island');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Hill Giant');
+    const h = T.zone('B', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: a.id, defenderId: 'B' }, { attackerId: b.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.zone('B', 'hand').length, h + 1, 'two attackers: a card');
+  });
 };

@@ -11206,6 +11206,9 @@
           if (ab.attacksEnchanted && (!o.attachedTo || data.player !== o.attachedTo || !this.player(data.defenderId))) continue;
           // battalion: this and at least so many others attacking
           if (ab.minAttackers && ((this.combat && this.combat.attackers) || []).length < ab.minAttackers) continue;
+          // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
+          if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
+          if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome

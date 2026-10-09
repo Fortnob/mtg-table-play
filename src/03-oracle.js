@@ -9315,6 +9315,12 @@
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
     { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    /* Norn's Decree, Suppressor Skyguard, Trouble in Pairs: "Whenever a player
+       attacks", "Whenever a player attacks you", "Whenever an opponent attacks
+       you with two or more creatures" */
+    { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
+      extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
+        m[3] && !m[2] ? { minAttackers: num(m[3]) } : {}) },
     // Horizon Explorer: "Whenever you attack a player" (read as any attack you make)
     { re: /^Whenever you attack a player,? /i, event: 'youAttack' },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
