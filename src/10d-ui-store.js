@@ -402,21 +402,18 @@
     }
     return deckFiles.get(p.file);
   }
-  /** Its commander's picture: the art crop, straight from the card's Scryfall id, remembered. */
-  async function preconFace(p) {
-    const faces = MTG.store.get('preconFaces', {}) || {};
-    let id = faces[p.file];
-    if (!id) {
-      const d = await preconFile(p);
-      const c = (d.commander || [])[0] || (d.displayCommander || [])[0] || (d.mainBoard || [])[0];
-      id = c && c.identifiers && c.identifiers.scryfallId;
-      if (!id) return null;
-      // read again: several are fetched at once, and each must keep the others'
-      const now = MTG.store.get('preconFaces', {}) || {};
-      now[p.file] = id;
-      MTG.store.set('preconFaces', now);
-    }
-    return `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`;
+  /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
+  const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
+    .map(c => ({ name: c.name, rarity: c.rarity, qty: Math.max(1, c.count || 1) }));
+  /**
+   * What a tile shows: its commander's picture (the art crop, straight from
+   * the card's Scryfall id) and the rows to price it by.
+   */
+  async function preconInfo(p) {
+    const d = await preconFile(p);
+    const c = (d.commander || [])[0] || (d.displayCommander || [])[0] || (d.mainBoard || [])[0];
+    const id = c && c.identifiers && c.identifiers.scryfallId;
+    return { art: id ? `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg` : null, rows: preconRows(d) };
   }
   /** A deck's cards, as Scryfall prints them: the commanders, the rest, and all of it with counts. */
   async function preconCards(p) {
@@ -443,27 +440,36 @@
     let list;
     try { list = await preconList(); }
     catch (e) { lead.textContent = 'The deck lists could not be loaded. Check the connection.'; return; }
-    lead.textContent = `Every Commander deck as printed, ${fmtN(S.PRICES.precon)} Shards each. All its cards go into your collection (copies past four become Shards), and you can save it as a deck ready to play.`;
+    lead.textContent = 'Every Commander deck as printed. A deck costs less than the wildcards for its cards would, and the cards you already own come off the price. Its cards go into your collection, and you can save it as a deck ready to play.';
     const sets = await MTG.scry.sets().catch(() => []);
     const setName = (c) => (sets.find(s => s.code === c) || {}).name || c.toUpperCase();
     const search = el('input', { type: 'search', placeholder: 'Find a deck or a set…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
     const grid = el('div', { class: 'store-grid precons' });
-    /* each tile's commander art, fetched as it comes into view, a few at a time */
+    /* each tile's commander and price, fetched as it comes into view, a few at a time */
     let busy = 0;
     const waiting = [];
     const pump = () => {
       while (busy < 4 && waiting.length) {
-        const { p, art } = waiting.shift();
+        const tile = waiting.shift();
         busy++;
-        preconFace(p).then((url) => { if (url) art.style.backgroundImage = 'url("' + url + '")'; art.classList.add('face'); })
-          .catch(() => {}).finally(() => { busy--; pump(); });
+        preconInfo(tile._precon.p).then((info) => {
+          if (info.art) tile._precon.art.style.backgroundImage = 'url("' + info.art + '")';
+          tile._precon.art.classList.add('face');
+          tile._rows = info.rows;
+          tile._reprice();
+        }).catch(() => {}).finally(() => { busy--; pump(); });
       }
     };
+    // what you own changes the prices: each tile shown says again what it costs
+    const off = MTG.bus.on('economy:changed', () => {
+      if (!grid.isConnected) { off(); return; }
+      for (const t of grid.children) if (t._reprice) t._reprice();
+    });
     const seen = new IntersectionObserver((entries) => {
       for (const en of entries) {
         if (!en.isIntersecting) continue;
         seen.unobserve(en.target);
-        waiting.push(en.target._precon);
+        waiting.push(en.target);
         pump();
       }
     }, { rootMargin: '200px' });
@@ -487,36 +493,55 @@
     // the set's art until the commander's is in
     const art = el('div', { class: 'precon-art' });
     setArt(p.code).then(a => { if (a && !art.classList.contains('face')) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
-    const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(E().PRICES.precon) });
+    const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', 'aria-label': 'Buy ' + p.name });
+    const owns = el('div', { class: 'precon-owns dim' });
     btn.addEventListener('click', () => buyPrecon(p, btn));
-    return el('div', { class: 'store-card precon-tile' }, [
+    const tile = el('div', { class: 'store-card precon-tile' }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
       el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
-      btn,
+      owns,
+      el('div', { class: 'precon-buy' }, [btn]),
     ]);
+    // its price for you, and what you have of it already, once its list is in
+    tile._reprice = () => {
+      if (!tile._rows) return;
+      const pr = E().deckPrice(tile._rows);
+      const all = pr.owned >= pr.cards;
+      // every card of it yours: nothing to pay, and it can still be saved as a deck
+      btn.innerHTML = all ? 'Save as a deck' : shardSvg() + ' ' + fmtN(pr.price);
+      btn.classList.toggle('primary', !all);
+      const was = btn.parentNode.querySelector('.precon-was');
+      if (was) was.remove();
+      if (!all && pr.price < pr.full) btn.after(el('s', { class: 'precon-was dim', text: fmtN(pr.full) }));
+      owns.textContent = all ? 'All of it in your collection' : `You own ${pr.owned} of ${pr.cards}`;
+      owns.title = `${pr.cards} cards besides its basic lands, which are free`;
+    };
+    return tile;
   }
   async function buyPrecon(p, btn) {
     const S = E();
-    if (S.shards() < S.PRICES.precon) return UI.purchaseDialog({ title: p.name, cost: S.PRICES.precon, from: btn, buy: () => null });
     const busy = UI.busy('Commander deck', `Fetching the list of ${p.name}…`);
     let deck;
     try { deck = await preconCards(p); }
     catch (e) { busy.close(); return UI.error(e.message || String(e)); }
     busy.close();
+    const pr = S.deckPrice(deck.all.map(e => ({ name: e.card.name, rarity: e.card.rarity, qty: e.qty })));
+    // everything in it yours already: nothing to buy, but it can still be saved as a deck
+    if (pr.owned >= pr.cards) return preconBought(p, deck, { ok: true, cards: pr.cards, fresh: 0, price: 0 });
     const face = deck.commanders[0] || (deck.main[0] || {}).card;
     let got = null;
     UI.purchaseDialog({
-      title: p.name, sub: 'Commander deck', from: btn, cost: S.PRICES.precon,
+      title: p.name, sub: 'Commander deck', from: btn, cost: pr.price,
       visual: face ? el('div', { class: 'precon-fly' }, [UI.cardImage(face, 'normal', 0)]) : null,
-      buy: () => (got = S.buyDeck(deck, S.PRICES.precon)),
+      buy: () => (got = S.buyDeck(deck)),
       after: () => preconBought(p, deck, got),
     });
   }
   /** What the deck brought, and the deck saved if you want it. */
   async function preconBought(p, deck, got) {
     if (!got || !got.ok) return;
-    const said = `${got.cards} cards: ${got.fresh} new to your collection` + (got.shards ? `, and ${fmtN(got.shards)} Shards for the copies past four.` : '.') +
+    const said = (got.price ? `${got.cards} cards: ${got.fresh} new to your collection.` : `You have every card of it already.`) +
       (deck.missing ? ` (${deck.missing} could not be found.)` : '');
     if (!await UI.confirm(said + ' Save it as a deck, ready to play?', p.name, { yes: 'Save the deck', no: 'Not now' })) return;
     MTG.decks.save({ id: MTG.uid('deck'), name: p.name, format: 'commander', main: deck.main, sideboard: [], commanders: deck.commanders });

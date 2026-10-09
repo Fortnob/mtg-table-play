@@ -502,10 +502,12 @@ html[data-play="1"] .hoard-chip { display: none; }
 
 /* ---------- Commander decks ---------- */
 .store-grid.precons { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-.precon-tile { display: grid; gap: 6px; align-content: start; justify-items: stretch; text-align: left; padding-top: 0; overflow: hidden; }
+.precon-tile { display: flex; flex-direction: column; gap: 6px; text-align: left; padding-top: 0; overflow: hidden; }
 .precon-art { height: 120px; margin: 0 -14px 4px; background: #11141b center 25% / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
 .precon-tile .sc-title { font-size: 15px; }
-.precon-tile .buy { justify-self: start; margin-top: 4px; }
+.precon-owns { font-size: 12px; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.precon-buy { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 4px; }
+.precon-was { font-size: 12px; }
 .precon-fly { width: 120px; aspect-ratio: 63 / 88; border-radius: 6px; overflow: hidden; }
 .precon-fly img { width: 100%; height: 100%; object-fit: cover; }

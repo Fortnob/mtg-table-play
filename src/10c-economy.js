@@ -17,7 +17,11 @@
   const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 
   /** What things cost and what they pay, in Shards. */
-  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000, precon: 7500 };
+  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
+  /* A Commander deck costs what the wildcards for its cards would, less a
+     share for buying them together, and nothing for the cards you have
+     already; never less than PRECON_MIN. */
+  const PRECON_RATE = 0.6, PRECON_MIN = 500;
   /** A wildcard bought outright, by rarity. */
   const WC_PRICES = { common: 300, uncommon: 750, rare: 2000, mythic: 4000 };
   /** Card styles: a treatment for one card of yours, wherever it is played. */
@@ -199,26 +203,55 @@
   }
 
   /**
-   * A Commander deck bought whole: its price, and every card of it into the
-   * collection (copies past four become Shards, as from a pack). `deck.all`
-   * is [{ card, qty }]. Says how many cards, how many were new, and the
-   * Shards the spare copies made.
+   * What a Commander deck costs you: the wildcards its cards would take
+   * (each card as many times as the deck has it, up to four), less those
+   * you own, at PRECON_RATE. `cards`: [{ name, rarity, qty }]. Also the
+   * price with nothing owned, how many cards it counts and how many of
+   * them you have.
    */
-  function buyDeck(deck, price) {
+  function deckPrice(cards) {
     load();
+    const need = new Map();
+    for (const c of (cards || [])) {
+      if (!c || !c.name || isBasic(c.name)) continue;
+      const e = need.get(c.name) || { r: rarityOf(c), want: 0 };
+      e.want = Math.min(PLAYSET, e.want + (c.qty || 1));
+      need.set(c.name, e);
+    }
+    let full = 0, due = 0, count = 0, have = 0;
+    for (const [name, e] of need) {
+      const per = WC_PRICES[e.r] || WC_PRICES.common;
+      const got = Math.min(e.want, owned(name));
+      full += per * e.want;
+      due += per * (e.want - got);
+      count += e.want;
+      have += got;
+    }
+    const at = (n) => Math.max(PRECON_MIN, Math.round(n * PRECON_RATE / 50) * 50);
+    return { price: at(due), full: at(full), cards: count, owned: have };
+  }
+  /**
+   * A Commander deck bought whole, at its price for you (deckPrice): every
+   * card you lack goes into the collection, up to four of each. No Shards
+   * for copies you had already: the price left those out. `deck.all` is
+   * [{ card, qty }].
+   */
+  function buyDeck(deck) {
+    load();
+    const list = (deck.all || []).filter(e => e && e.card);
+    const { price } = deckPrice(list.map(e => ({ name: e.card.name, rarity: e.card.rarity, qty: e.qty || 1 })));
     if (state.shards < price) return { ok: false, why: `That costs ${price.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
     state.shards -= price;
-    let cards = 0, fresh = 0, shards = 0;
-    for (const e of (deck.all || [])) {
-      if (!e || !e.card) continue;
-      const r = addCard(e.card, e.qty || 1);
+    let cards = 0, fresh = 0;
+    for (const e of list) {
+      const room = Math.max(0, Math.min(e.qty || 1, PLAYSET - owned(nameOf(e.card))));
       cards += e.qty || 1;
-      if (r.isNew) fresh++;
-      shards += r.shards;
+      if (!room) continue;
+      if (addCard(e.card, room).isNew) fresh++;
     }
     save('deck', -price);
-    if (MTG.progress) MTG.progress.checkSets([...new Set((deck.all || []).map(e => e.card && e.card.set).filter(Boolean))]);
-    return { ok: true, cards, fresh, shards };
+    if (MTG.progress) MTG.progress.checkSets([...new Set(list.map(e => e.card.set).filter(Boolean))]);
+    return { ok: true, cards, fresh, price };
   }
 
   /* ---------------- wildcards ---------------- */
@@ -594,7 +627,7 @@
     packs: () => load().packs.slice(),
     collection: () => load().col,
     save: () => save(),
-    isBasic, rarityOf, owned, addShards, spend, addCard, addCards, buyDeck, craft, useWildcard,
+    isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard,
     buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
