@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12343,
+  "needed": 12342,
   "gainedCards": 1337,
-  "linesNeeded": 13432,
+  "linesNeeded": 13431,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -2116,20 +2116,6 @@
     "Edgewalker",
     "Samut, the Driving Force",
     "Ragemonger"
-   ]
-  },
-  {
-   "what": "CastAsThoughItHadFlashIfConditionAbility",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Timely Ward",
-    "Flash Photography",
-    "Silver Scrutiny",
-    "Fated Clash",
-    "Bard's Company",
-    "Scarring Memories",
-    "Illusion Spinners"
    ]
   },
   {
@@ -4328,6 +4314,19 @@
     "Lupine Prototype",
     "Hazoret, Godseeker",
     "Blind-Spot Giant"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashIfConditionAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Flash Photography",
+    "Silver Scrutiny",
+    "Fated Clash",
+    "Bard's Company",
+    "Scarring Memories",
+    "Illusion Spinners"
    ]
   },
   {
@@ -8040,19 +8039,6 @@
    ]
   },
   {
-   "what": "CastAsThoughItHadFlashIfConditionAbility",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Timely Ward",
-    "Flash Photography",
-    "Silver Scrutiny",
-    "Fated Clash",
-    "Scarring Memories",
-    "Illusion Spinners"
-   ]
-  },
-  {
    "what": "words:mv",
    "score": 9,
    "cards": 9,
@@ -10094,6 +10080,18 @@
     "Orb of Dreams",
     "False Floor",
     "Due Respect"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashIfConditionAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Flash Photography",
+    "Silver Scrutiny",
+    "Fated Clash",
+    "Scarring Memories",
+    "Illusion Spinners"
    ]
   },
   {

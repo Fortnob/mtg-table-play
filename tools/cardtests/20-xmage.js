@@ -12276,4 +12276,17 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.zone('A', 'hand').length, hand + 2, 'two cards, not five');
   });
+
+  test('Timely Ward: flash only when it targets a commander', (mk, t) => {
+    t.auto('Timely Ward');
+    const T = mk();
+    const cmd = T.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+    const plain = T.bf('A', 'Savannah Lions');
+    T.toMain('B');
+    if (T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    T.mana('A', '2W');
+    const ward = T.hand('A', 'Timely Ward');
+    t.ok(!T.g.castSpell('A', ward.id, { targets: [{ kind: 'object', id: plain.id }], auto: true }), 'not on an ordinary creature');
+    t.ok(T.g.castSpell('A', ward.id, { targets: [{ kind: 'object', id: cmd.id }], auto: true }), T.g.lastError);
+  });
 };

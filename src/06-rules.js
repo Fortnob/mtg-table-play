@@ -3198,6 +3198,8 @@
       if (!instantSpeed) {
         const sorceryOk = this.activePlayer.id === playerId && this.isMain && this.stackEmpty;
         if (!sorceryOk && a.flashTax) flashTax = a.flashTax;
+        // Timely Ward: with a commander about to aim at (whether it does is checked as it is cast)
+        else if (!sorceryOk && a.flashIfTargetsCommander && this.battlefield.some(x => x.isCommander && !x.phasedOut)) { /* allowed */ }
         else {
           if (this.activePlayer.id !== playerId) return { ok: false, reason: 'Sorcery speed: only on your turn.' };
           if (!this.isMain) return { ok: false, reason: 'Sorcery speed: only in a main phase.' };
@@ -4578,6 +4580,16 @@
       const chk = this.canCast(playerId, objId, opts.via || opts.alternative);
       if (!chk.ok) return this.fail(chk.reason);
       const p = this.player(playerId);
+      // Timely Ward: flash only when a commander is what it targets
+      {
+        const o0 = this.obj(objId), a0 = o0 && o0.analysis();
+        if (a0 && a0.flashIfTargetsCommander && !(this.activePlayer.id === playerId && this.isMain && this.stackEmpty) &&
+          !(a0.isInstant || a0.has('flash') || this._flashFor(playerId, o0))) {
+          const t0 = (opts.targets || []).map(normTarget).find(t => t && t.kind === 'object');
+          const x = t0 && this.obj(t0.id);
+          if (!x || !x.isCommander) return this.fail(`${o0.name} has flash only when it targets a commander.`);
+        }
+      }
       const o = this.obj(objId);
       const a = o.analysis();
       // Open the Way: "X can't be greater than the number of players in the game"

@@ -9062,6 +9062,14 @@
         autoLines++;
         continue;
       }
+      /* Timely Ward: "You may cast this spell as though it had flash if it
+         targets a commander." */
+      if (/^You may cast (?:this spell|CARDNAME) as though it had flash if it targets a commander\.?$/i.test(line)) {
+        out.flashIfTargetsCommander = true;
+        out.abilities.push({ kind: 'castModifier', keyword: 'Flash', text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       /* Saproling Symbiosis, Oakshade Stalker: "You may cast this spell as
          though it had flash if you pay {2} more to cast it." */
       const fTax = line.match(/^You may cast (?:this spell|CARDNAME|this creature) as though it had flash if you pay ((?:\{[^}]+\})+) more to cast it\.?$/i);
