@@ -16765,4 +16765,18 @@ module.exports = (test) => {
     t.eq(giant.controller, 'B', "under its owner's control");
     t.eq(giant.counters['+1/+1'], 1);
   });
+
+  test('Owlin Spiralmancer copies the first {X} spell once, and the stack empties', (mk, t) => {
+    t.auto('Owlin Spiralmancer');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Owlin Spiralmancer');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'RC');
+    T.cast('A', T.hand('A', 'Blaze'), { x: 1, targets: ['B'] });
+    for (let i = 0; i < 10 && T.g.stack.length; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.g.stack.length, 0, 'the stack empties');
+    t.eq(T.life('B'), 18, 'the spell and one copy');
+  });
 };
