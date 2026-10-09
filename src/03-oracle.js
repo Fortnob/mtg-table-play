@@ -9664,6 +9664,14 @@
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
         thatIsTheTarget(parsed, !trig.self && (trig.aboutObject || objFilter));
         if (trig.self && !thatPlayerOfTheTarget(parsed.effects)) parsed.auto = false;
+        /* Conclave Mentor: "When this creature dies, you gain life equal to its
+           power" — with nothing before it, "its" is this creature, as it last was */
+        if (trig.self) {
+          const f0 = (parsed.effects || [])[0];
+          if (f0 && !(f0.targets || []).length && /\bits\b/i.test(f0.text || '')) {
+            for (const k of ['n', 'p', 't']) if (f0[k] && typeof f0[k] === 'object' && f0[k].ofLast) f0[k] = { ofSelf: f0[k].ofLast };
+          }
+        }
         /* Exquisite Blood: "Whenever an opponent loses life, you gain that
            much life" — with no life lost earlier in the ability, "that much"
            is what set the trigger off */

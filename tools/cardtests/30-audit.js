@@ -1808,4 +1808,28 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'graveyard').length, 3);
     t.eq(T.zone('A', 'hand').length, 4, 'three for the three, and the draw step');
   });
+
+  test('Audit: "when this creature dies/enters, gain life equal to its power" counts itself', (mk, t) => {
+    let T = mk();
+    t.auto('Conclave Mentor');
+    const m = T.bf('A', 'Conclave Mentor');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [m] });
+    t.zone(m, 'graveyard');
+    t.eq(T.life('A'), 22);
+    T = mk();
+    t.auto('Boulderbranch Golem');
+    T.mana('A', '7');
+    T.cast('A', T.hand('A', 'Boulderbranch Golem'));
+    t.eq(T.life('A'), 26);
+  });
+
+  test("Audit: Living Destiny gains life equal to the revealed card's mana value", (mk, t) => {
+    const T = mk();
+    t.auto('Living Destiny');
+    T.hand('A', 'Craw Wurm');
+    T.mana('A', 'GG3');
+    T.cast('A', T.hand('A', 'Living Destiny'));
+    t.eq(T.life('A'), 26);
+  });
 };

@@ -5119,6 +5119,8 @@
         if (add.reveal) {
           const shown = this._discardPool(playerId, add.reveal, o)[0];
           if (shown) this.logEvent('rules', `${p.name} reveals ${shown.name}.`);
+          // Living Destiny: "the revealed card's mana value", read as the spell resolves
+          if (shown) item.revealedCost = { id: shown.id, name: shown.name, power: this.powerOf(shown), toughness: this.toughnessOf(shown), mv: (shown.card && shown.card.cmc) || 0 };
         }
         this._payThingCosts(playerId, Object.assign({}, add, { spellExile: true }), o, opts, item);
         if (addPick) this.logEvent('rules', `${p.name} pays the additional cost: ${addPick.label.toLowerCase()}.`);
@@ -11762,7 +11764,7 @@
           return (me.spellsCastThisTurn || 0) * v.spellsThisTurn;
         }
         if (v && typeof v === 'object' && v.ofLast) {
-          const snap = this._lastAffected;
+          const snap = ctx.revealedCost || this._lastAffected;
           return snap ? (snap[v.ofLast] || 0) : 0;
         }
         /* "…deals 2 damage. If this spell was kicked, it deals 4 instead."
