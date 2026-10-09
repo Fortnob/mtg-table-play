@@ -12633,6 +12633,13 @@
       return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
     };
     let mm2;
+    /* Tenza, Godo's Maul: "Equipped creature gets +1/+1. As long as it's legendary, it gets an
+       additional +2/+2. As long as it's red, it has trample." — "it's" is the equipped creature */
+    if ((mm2 = String(line).match(/^(Enchanted|Equipped) creature gets [+-]\d+\/[+-]\d+\.(?: As long as it'?s [^.]+\.)+$/i))) {
+      const parts = String(line).split(/(?<=\.)\s+/).map((p, i) => (i ? p.replace(/^As long as it'?s /i, 'As long as ' + mm2[1].toLowerCase() + ' creature is ') : p));
+      const rs = parts.map(p => parseStatic(p, ctx));
+      if (rs.every(x => x && x.auto)) return Object.assign({}, rs[0], { text: line, effects: [].concat(...rs.map(x => x.effects || [])) });
+    }
     if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) has ([a-z ,]+?) and can'?t be blocked\.?$/i))) {
       const r = both(mm2[1] + ' has ' + mm2[2] + '.', mm2[1] + " can't be blocked.");
       if (r) return r;
@@ -13119,6 +13126,14 @@
       // Shielding Plax, Canopy Cover: "can't be the target of spells or abilities your opponents control" is hexproof
       { re: /^(Enchanted|Equipped) creature can'?t be the target of spells or abilities your opponents control\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Hexproof'] }), auto: true },
+      // Tenza, Godo's Maul: "As long as equipped creature is legendary (red), it gets an additional +2/+2 (has trample)."
+      { re: /^As long as (equipped|enchanted) creature is (legendary|white|blue|black|red|green), it (?:gets an additional ([+-]\d+)\/([+-]\d+)|has ([a-z ,]+?))\.?$/i,
+        make: (m) => {
+          const cond = { kind: 'attachedFits', words: m[2].toLowerCase() };
+          if (m[3]) return { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[3], t: +m[4] }, cond };
+          const kws = keywordList(m[5]);
+          return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws, cond } : null;
+        }, auto: true },
         // True-Faith Censer: "As long as equipped creature is a Human, it gets an additional +1/+0."
       { re: /^As long as (equipped|enchanted) creature is an? ([A-Z][a-z]+), it gets an additional ([+-]\d+)\/([+-]\d+)\.?$/,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[3], t: +m[4] },

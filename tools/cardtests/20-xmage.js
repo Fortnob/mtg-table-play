@@ -16154,4 +16154,18 @@ module.exports = (test) => {
     t.zone(theirs, 'hand', 'the one they picked');
     t.zone(theirs2, 'graveyard');
   });
+
+  test("Tenza, Godo's Maul: more for a legendary creature, trample for a red one", (mk, t) => {
+    t.auto("Tenza, Godo's Maul");
+    const T = mk();
+    const maul = T.bf('A', "Tenza, Godo's Maul"), maul2 = T.bf('A', "Tenza, Godo's Maul");
+    const krenko = T.bf('A', 'Krenko, Mob Boss'), bear = T.bf('A', 'Grizzly Bears');
+    maul.attachedTo = krenko.id; krenko.attachments = [maul.id];
+    maul2.attachedTo = bear.id; bear.attachments = [maul2.id];
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(krenko), 3 + 1 + 2, 'Krenko (3/3, legendary, red): +1/+1 and +2/+2');
+    t.ok(T.g.hasKw(krenko, 'trample'), 'and trample: red');
+    t.eq(T.g.powerOf(bear), 3, 'the Bears: just +1/+1');
+    t.no(T.g.hasKw(bear, 'trample'), 'green: no trample');
+  });
 };

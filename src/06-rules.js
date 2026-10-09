@@ -9545,6 +9545,8 @@
         case 'lifeAtMostHalfStart': return !!me && me.life * 2 <= ((this.config && this.config.startingLife) || 20);
         // True-Faith Censer: the creature it is on is a Human
         case 'attachedHasType': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._hasCreatureType(host, cond.subtype); }
+        // Tenza, Godo's Maul: "as long as it's legendary", "as long as it's red" — the creature it's attached to
+        case 'attachedFits': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._cardFitsWords(host, cond.words); }
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
         // Brass Knuckles: the creature it's on wears two Equipment or more
         case 'hostEquipmentAtLeast': {

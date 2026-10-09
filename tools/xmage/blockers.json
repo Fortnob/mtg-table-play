@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11363,
+  "needed": 11362,
   "gainedCards": 1130,
-  "linesNeeded": 12164,
+  "linesNeeded": 12163,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -2089,22 +2089,6 @@
    ]
   },
   {
-   "what": "AttachedToMatchesFilterCondition",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Tenza, Godo's Maul",
-    "Maze's Mantle",
-    "Goblin Shrine",
-    "Armament of Nyx",
-    "Mishra's Domination",
-    "Veteran's Voice",
-    "Earthlore",
-    "Tourach's Gate",
-    "Krovikan Plague"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
    "score": 9,
    "lines": 9,
@@ -2703,6 +2687,21 @@
     "Esgaroth Garrison",
     "Patient Instructor",
     "Long Lake Nuisance"
+   ]
+  },
+  {
+   "what": "AttachedToMatchesFilterCondition",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Maze's Mantle",
+    "Goblin Shrine",
+    "Armament of Nyx",
+    "Mishra's Domination",
+    "Veteran's Voice",
+    "Earthlore",
+    "Tourach's Gate",
+    "Krovikan Plague"
    ]
   },
   {
@@ -7927,19 +7926,6 @@
    ]
   },
   {
-   "what": "AttachedToMatchesFilterCondition",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Tenza, Godo's Maul",
-    "Maze's Mantle",
-    "Goblin Shrine",
-    "Armament of Nyx",
-    "Mishra's Domination",
-    "Veteran's Voice"
-   ]
-  },
-  {
    "what": "words:withKeyword",
    "score": 8,
    "cards": 8,
@@ -8403,6 +8389,19 @@
     "Balduvian Warlord",
     "General Jarkeld",
     "Dwarven Armory"
+   ]
+  },
+  {
+   "what": "AttachedToMatchesFilterCondition",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Maze's Mantle",
+    "Goblin Shrine",
+    "Armament of Nyx",
+    "Mishra's Domination",
+    "Veteran's Voice",
+    "Earthlore"
    ]
   },
   {
