@@ -3208,4 +3208,23 @@ module.exports = (test) => {
     T.mana('A', '2U'); T.cast('A', T.hand('A', 'Frost Breath'), { targets: [ob, ob2] });
     t.eq(T.g.powerOf(is), p0 + 2, 'one untapped creature tapped: once');
   });
+
+  test('Audit: Otherworldly Journey returns the creature to its owner with a counter; Treefolk Umbra deals damage by toughness', (mk, t) => {
+    let T = mk();
+    t.auto('Otherworldly Journey'); t.auto('Treefolk Umbra');
+    T.toMain('A');
+    const ob = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1W'); T.cast('A', T.hand('A', 'Otherworldly Journey'), { targets: [ob] });
+    t.zone(ob, 'exile');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    const b2 = T.g.battlefield.find(o => o.name === 'Grizzly Bears');
+    t.ok(b2 && b2.controller === 'B' && b2.counters['+1/+1'] === 1, "back under B's control, with a +1/+1 counter");
+    T = mk();
+    T.toMain('A');
+    const tu = T.bf('A', 'Treefolk Umbra'), at = T.bf('A', 'Grizzly Bears');
+    at.summoningSick = false; tu.attachedTo = at.id; at.attachments = [tu.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: at.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 16, 'a 2/4: four damage');
+  });
 };
