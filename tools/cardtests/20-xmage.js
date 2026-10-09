@@ -12072,4 +12072,15 @@ module.exports = (test) => {
     T.toMain('B');
     t.eq(mine.zone, 'battlefield', 'back'); t.eq(ph.counters['+1/+1'], 1, 'a counter on Phelia');
   });
+
+  test('Explore the Vastlands: a land and an instant or sorcery each, and 3 life', (mk, t) => {
+    const T = mk();
+    const l = T.top('A', 'Forest'), sp = T.top('A', 'Lightning Bolt'), cr = T.top('A', 'Craw Wurm');
+    T.answer('choose', (ch) => ({ picks: ch.items.slice(0, 1).map(x => x.id) }));
+    T.answer('choose', (ch) => ({ picks: ch.items.slice(0, 1).map(x => x.id) }));
+    T.answer('choose', () => ({ picks: [] })); T.answer('choose', () => ({ picks: [] }));
+    T.g._runEffects([{ op: 'exploreVastlands', n: 5, life: 3 }], { controller: 'A', name: 'Explore the Vastlands', kind: 'spell' });
+    T.settle();
+    t.eq(l.zone, 'hand'); t.eq(sp.zone, 'hand'); t.eq(cr.zone, 'library'); t.eq(T.life('A'), 23); t.eq(T.life('B'), 23);
+  });
 };

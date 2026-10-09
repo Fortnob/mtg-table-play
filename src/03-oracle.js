@@ -5457,6 +5457,13 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Explore the Vastlands: "Each player looks at the top five cards of
+       their library and may reveal a land card and/or an instant or sorcery
+       card from among them. Each player puts the cards they revealed this way
+       into their hand and the rest on the bottom of their library in a random
+       order. Each player gains 3 life." */
+    { re: /^Each player looks at the top (\w+) cards of their library and may reveal a land card and\/or an instant or sorcery card from among them\. Each player puts the cards they revealed this way into their hand and the rest on the bottom of their library in a random order\. Each player gains (\d+) life\.$/i,
+      make: (m) => [{ op: 'exploreVastlands', n: num(m[1]), life: +m[2] }] },
     /* Phelia, Exuberant Shepherd: "exile up to one other target nonland
        permanent. At the beginning of the next end step, return that card to
        the battlefield under its owner's control. If it entered under your

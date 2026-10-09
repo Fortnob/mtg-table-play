@@ -14818,6 +14818,33 @@
           this._spliceNext(list.map(x => ({ op: 'connive', n: 1, objId: x.id, _as: x.controller })));
           break;
         }
+        // Explore the Vastlands: each player may keep a land and an instant or sorcery from the top five
+        case 'exploreVastlands': {
+          const players = this.players.filter(q => !q.hasLost);
+          const keep = new Map();
+          for (const q of players) {
+            const top = this.zones[q.id].library.slice(0, e.n || 5);
+            const got = [];
+            for (const [i, words] of [[0, 'land'], [1, 'instant or sorcery']]) {
+              const pool = top.filter(c => this._cardFitsWords(c, words));
+              if (!pool.length) continue;
+              const r = this._choose({ playerId: q.id, purpose: 'revealAny', kind: 'objects', zone: 'library',
+                items: this._chooseItems(pool), min: 0, max: 1, optional: true, prompt: `Reveal ${i ? 'an instant or sorcery' : 'a land'} card from the top ${top.length}?` }, 'ev:' + q.id + ':' + i);
+              if (r === SUSPEND) return SUSPEND;
+              for (const id of (r && r.picks) || []) { const c = this.obj(id); if (c && top.includes(c)) got.push(c); }
+            }
+            keep.set(q.id, { top, got });
+          }
+          for (const q of players) {
+            const { top, got } = keep.get(q.id);
+            const z = this.zones[q.id];
+            for (const c of got) if (c.zone === 'library') this.moveObject(c, 'hand');
+            const rest = this.rng.shuffle(top.filter(c => c.zone === 'library'));
+            for (const c of rest) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
+            this.changeLife(q, e.life || 0);
+          }
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
