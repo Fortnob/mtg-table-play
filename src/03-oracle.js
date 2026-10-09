@@ -2309,7 +2309,8 @@
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on each creature you control, where X is (?:this creature|CARDNAME)'?s power\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofSelf: 'power' }, scope: 'yourCreatures' }) },
     /* Tarrian's Soulcleaver */
-    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on (?:equipped|enchanted) creature\.?$/i,
+    // (Vivien's Talent: "put a loyalty counter on enchanted planeswalker")
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on (?:equipped|enchanted) (?:creature|planeswalker)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), scope: 'attached' }) },
     /* Rite of Replication's kicker */
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
@@ -8054,9 +8055,11 @@
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
-    { re: /^Whenever you activate a loyalty ability(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
+    { re: /^Whenever you activate a loyalty ability(?! of enchanted)(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
       filt: (m) => (m[1] ? { words: m[1].toLowerCase() } : { words: 'permanent' }), extra: { loyaltyOnly: true } },
     { re: /^Whenever an ability of equipped creature is activated, if it isn'?t a mana ability,? /i, event: 'anyActivateAbility', extra: { ofEnchanted: true } },
+    // Elspeth's Talent: "Whenever you activate a loyalty ability of enchanted planeswalker"
+    { re: /^Whenever you activate a loyalty ability of enchanted planeswalker,? /i, event: 'youActivateAbility', extra: { loyaltyOnly: true, ofEnchanted: true } },
     // Zhur-Taa Druid, Forbidden Orchard: "Whenever you tap this creature for mana"
     { re: /^Whenever you tap (?:this (?:creature|land|artifact|permanent)|CARDNAME) for mana,? /i, event: 'tapForMana', self: true },
     // Manabarbs, Burning Earth, Vorinclex: "Whenever a player (an opponent) taps a land for mana"
@@ -11674,6 +11677,16 @@
       // Instill Energy: "Enchanted creature can attack as though it had haste."
       { re: /^(Enchanted|Equipped) creature can attack as though it had haste\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'attackAsHaste' }), auto: true },
+      /* The Talents: "Enchanted planeswalker has '[+1]: Create three 1/1
+         white Soldier creature tokens.'" — a loyalty ability it may use as
+         its own */
+      { re: /^Enchanted planeswalker has "\[([+\u2212-]?(?:\d+|X))\]: ([^"]+)"\.?$/,
+        make: (m) => {
+          const t = m[1].replace('\u2212', '-') + ': ' + m[2];
+          const probe = analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Planeswalker', oracle_text: t, keywords: [], layout: 'token' });
+          if (!probe || !probe.fullyAutomated || !(probe.abilities || []).length || !probe.abilities.every(ab => ab.kind === 'loyalty')) return null;
+          return { op: 'continuous', layer: 6, scope: { attached: true, what: 'planeswalker' }, grantText: t };
+        }, auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
         make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },

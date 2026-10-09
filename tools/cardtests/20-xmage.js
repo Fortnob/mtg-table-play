@@ -13162,4 +13162,42 @@ module.exports = (test) => {
     const st = engine().oracle.analyze(card('Long-Lost Lances')).abilities.find(a => a.kind === 'static' && /equipped/.test(a.text));
     t.ok(JSON.stringify(st.effects).includes('"equipped":true'), 'equipped creatures you control');
   });
+
+  test("Elspeth's Talent: the planeswalker gains a +1, and using it pumps your creatures", (mk, t) => {
+    t.auto("Elspeth's Talent"); t.auto("Vivien's Talent");
+    const T = mk();
+    T.toMain('A');
+    const pw = T.bf('A', 'Jace Beleren');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const tal = T.bf('A', "Elspeth's Talent");
+    tal.attachedTo = pw.id; pw.attachments = [tal.id];
+    T.g.bumpBoard();
+    const a = pw.analysis();
+    const list = (a.manaAbilities || []).concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const gi = list.findIndex(x => x.granted && x.kind === 'loyalty');
+    t.ok(gi >= 0, 'a granted loyalty ability');
+    const was = pw.counters.loyalty;
+    t.ok(T.g.activateAbility('A', pw.id, gi, { auto: true }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.eq(pw.counters.loyalty, was + 1);
+    const soldiers = T.g.battlefield.filter(o => o.isToken && o.name === 'Soldier');
+    t.eq(soldiers.length, 3, 'three Soldiers');
+    t.eq(T.g.powerOf(bear), 4, '+2/+2 from the Talent, which resolved first');
+  });
+
+  test("Rowan's Talent: a loyalty ability of the enchanted planeswalker is copied", (mk, t) => {
+    t.auto("Rowan's Talent");
+    const T = mk();
+    T.toMain('A');
+    const pw = T.bf('A', 'Jace Beleren');
+    const tal = T.bf('A', "Rowan's Talent");
+    tal.attachedTo = pw.id; pw.attachments = [tal.id];
+    T.g.bumpBoard();
+    for (let i = 0; i < 4; i++) { T.top('A', 'Island'); T.top('B', 'Island'); }
+    const hb = T.zone('B', 'hand').length;
+    T.activate('A', pw, 0);
+    for (let i = 0; i < 4; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.zone('B', 'hand').length, hb + 2, 'each player drew twice');
+  });
 };

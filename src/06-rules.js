@@ -9630,12 +9630,14 @@
             for (const ab of JSON.parse(t.slice(1))) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
             return;
           }
-          const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Creature', oracle_text: t, keywords: [], layout: 'token' });
+          // the Talents: a loyalty ability handed to a planeswalker ("+1: …") is read as a planeswalker's
+          const loyal = /^[+\u2212-]?(?:\d+|X): /.test(t);
+          const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: loyal ? 'Planeswalker' : 'Creature', oracle_text: t, keywords: [], layout: 'token' });
           // words: triggered abilities, and activated ones ("has '{T}: Draw a card'")
           /* …and standing rules ("This creature gets +1/+1 for each …",
              "Creature tokens you control get +2/+2"): read as its own, so
              the layers count them from it */
-          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static') extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
+          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static' || (loyal && ab.kind === 'loyalty')) extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
           // a mana ability handed over: "has '{T}: Add one mana of any color'"
           for (const ab of ((ga && ga.manaAbilities) || [])) extraMana.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
         });
