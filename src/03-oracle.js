@@ -2106,6 +2106,8 @@
       make: (m) => ({ op: 'activateOnly', when: /turn/i.test(m[1]) ? 'yourTurn' : /combat/i.test(m[1]) ? 'combat' : 'yourUpkeep' }) },
     // Desert: "Activate only during the end of combat step."
     { re: /^Activate (?:this ability )?only during the end of combat step\.?$/i, make: () => ({ op: 'activateOnly', when: 'endCombat' }) },
+    // Trap Runner: "Activate only during combat after blockers are declared."
+    { re: /^Activate (?:this ability )?only during combat after blockers are declared\.?$/i, make: () => ({ op: 'activateOnly', when: 'afterBlockers' }) },
     // Vivi Ornitier, Nimbleclaw Adept: two restrictions at once
     { re: /^Activate (?:this ability )?only (during your turn|as a sorcery) and only once each turn\.?$/i,
       make: (m) => Object.assign({ op: 'activateOnly', perTurn: 1 }, /turn/i.test(m[1]) ? { when: 'yourTurn' } : {}) },
@@ -2826,6 +2828,18 @@
     { re: /^(?:CARDNAME|This creature|It) assigns no combat damage this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamage'] }) },
     // Shielded Passage: all damage, combat or not
+    /* Azorius Ploy, Falling Timber, Resistance Fighter: "Prevent all combat
+       damage target creature would deal this turn"; Shieldmage Elder: "all
+       damage" — whatever it would deal, in combat or out */
+    { re: /^Prevent all (combat )?damage (target (?:attacking or blocking )?creature|it|that creature) would deal this turn\.?$/i,
+      make: (m) => Object.assign({ op: 'restrict', flag: m[1] ? 'noDamage' : 'noDamageAll' },
+        /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])] } : { scope: 'lastTarget' }) },
+    // Curtain of Light, Trap Runner: "Target unblocked attacking creature becomes blocked."
+    { re: /^Target unblocked attacking creature becomes blocked\.?$/i,
+      make: () => { const sp = targetSpec('target unblocked attacking creature'); return sp && !sp.unknown ? { op: 'becomeBlocked', targets: [sp] } : null; } },
+    // Azorius Ploy: "Prevent all combat damage that would be dealt to target creature this turn."
+    { re: /^Prevent all combat damage that would be dealt to (target creature) this turn\.?$/i,
+      make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken'] }) },
     { re: /^Prevent all damage that would be dealt to (target creature|target permanent) this turn\.?$/i,
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
     // Mutational Advantage: "Prevent all damage that would be dealt to those permanents this turn." — the ones the sentence before was about
@@ -5616,7 +5630,7 @@
      one it would offer wrongly. */
   const SPEC_FLAGS = new Set(['attacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
     'nonlegendary', 'basic', 'nonbasic', 'nonland', 'noncreature', 'nonartifact', 'nonenchantment',
-    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic']);
+    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked']);
   const SPEC_FILLER = new Set(['a', 'an', 'or', 'and', 'and/or', 'target', 'other', 'another', 'of', 'card', 'cards',
     'one', 'two', 'three', 'up', 'to']);
 
@@ -5756,6 +5770,8 @@
         else if (lw === 'multicolored') spec.multicolored = true;
         else if (lw === 'monocolored') spec.monocolored = true;
         else if (lw === 'face-down') spec.faceDown = true;
+        // Curtain of Light: "target unblocked attacking creature"
+        else if (lw === 'unblocked') { spec.unblocked = true; spec.attacking = true; }
         else spec.unknown = true;
         continue;
       }
@@ -5872,6 +5888,7 @@
     if (mvMin != null && (obj.card.cmc || 0) < mvMin) return false;
     if (mvIs != null && (obj.card.cmc || 0) !== mvIs) return false;
     if (spec.attacking && !obj.attacking) return false;
+    if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;

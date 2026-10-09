@@ -39,6 +39,8 @@
     attackDespiteDefender: "can attack this turn as though it didn't have defender",
     exceptByHaste: "can't be blocked this turn except by creatures with haste",
     exceptByFlying: "can't be blocked this turn except by creatures with flying",
+    noDamage: 'deals no combat damage this turn',
+    noDamageAll: 'deals no damage this turn',
   };
 
   const PHASES = [
@@ -2455,7 +2457,7 @@
       const steps = ['declareBlockers', 'firstStrikeDamage', 'combatDamage', 'endCombat'];
       if (!this.phase || this.phase.id !== 'combat' || !steps.includes(this.step)) return [];
       return (this.combat.attackers || []).map(id => this.obj(id))
-        .filter(o => o && o.zone === 'battlefield' && o.controller === pid && o.attacking && !(o.blockedBy || []).length && !o.removedFromCombat);
+        .filter(o => o && o.zone === 'battlefield' && o.controller === pid && o.attacking && !(o.blockedBy || []).length && o.blockedNoBlocker !== this.turn && !o.removedFromCombat);
     }
     /** Ninjutsu: the attacker home, and an ability to bring the Ninja in, on the stack. */
     _ninjutsuSwap(pid, ninjaId, back) {
@@ -6472,6 +6474,9 @@
       if (only.when === 'endstep' && this.step !== 'end') return 'Only during the end step.';
       // Desert: "Activate only during the end of combat step."
       if (only.when === 'endCombat' && this.step !== 'endCombat') return 'Only during the end of combat step.';
+      // Trap Runner: once blockers are declared, until combat ends
+      if (only.when === 'afterBlockers' && !(this.phase && this.phase.id === 'combat' &&
+        ['declareBlockers', 'firstStrikeDamage', 'combatDamage', 'endCombat'].includes(this.step))) return 'Only during combat after blockers are declared.';
       if (only.when === 'mainphase' && !this.isMain) return 'Only during a main phase.';
       if (only.cond && !this._condMet(only.cond, { controller: playerId, obj: o })) {
         return 'The condition on that ability is not met.';
@@ -8361,6 +8366,11 @@
         if (o.attacking) {
           const blockers = o.blockOrder.map(bid => this.obj(bid)).filter(b => b && b.zone === 'battlefield' && b.blocking.includes(o.id));
           if (!blockers.length) {
+            /* A creature that was blocked stays blocked when its blockers are
+               gone (CR 509.1h): it deals no combat damage, unless it has
+               trample (CR 702.19e). Fencing Ace's second blow after the
+               first killed its blocker; Curtain of Light. */
+            if (((o.blockedBy || []).length || o.blockedNoBlocker === this.turn) && !this.hasKw(o, 'trample')) continue;
             // unblocked: damage to the defender
             const d = o.attacking;
             assignments.push({ source: o, targetKind: this.player(d) ? 'player' : 'object', targetId: d, amount: power, a });
@@ -8512,6 +8522,7 @@
         const o = this.obj(id);
         if (!o) continue;
         o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
+        o.blockedNoBlocker = null;
       }
       /* Mana kept through combat by firebending drains away with it. */
       for (const p of this.players) {
@@ -18419,6 +18430,15 @@
           break;
         }
         // Wall of Tears: back to its owner's hand as combat ends
+        // Curtain of Light: blocked, though nothing blocks it
+        case 'becomeBlocked':
+          applyToScope(e, (o) => {
+            if (!o.attacking || (o.blockedBy || []).length || o.blockedNoBlocker === this.turn) return;
+            o.blockedNoBlocker = this.turn;
+            this.logEvent('combat', `${o.name} becomes blocked.`);
+            this._fire('becomesBlocked', o.controller, { source: o, object: o });
+          });
+          break;
         case 'bounceAtEndOfCombat':
           applyToScope(e, (o) => { o.bounceAtEndOfCombat = this.turn; });
           break;
