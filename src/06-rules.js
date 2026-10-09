@@ -13509,7 +13509,8 @@
           let paid = null;
           // Balduvian Horde: yes or no, and if yes the card is chosen at random
           if (e.random && pool.length) {
-            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Discard a card at random, or sacrifice ${src.name}?` }, 'unlessRandom');
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Discard a card at random, or sacrifice ${src.name}?`,
+              yesLabel: 'Discard at random', noLabel: `Sacrifice ${src.name}` }, 'unlessRandom');
             if (yes === SUSPEND) return SUSPEND;
             if (yes === null || !!yes) paid = pool[Math.floor(this.rng.next() * pool.length)];
           } else if (pool.length) {
@@ -21686,7 +21687,7 @@
           phasedOut: o.phasedOut, effects: JSON.parse(JSON.stringify(o.effects || [])),
           markers: Object.assign({}, o.markers), entered: o.entered,
           attacking: o.attacking, blocking: o.blocking.slice(), blockedBy: o.blockedBy.slice(),
-          blockOrder: o.blockOrder.slice(), removedFromCombat: o.removedFromCombat,
+          blockOrder: o.blockOrder.slice(), removedFromCombat: o.removedFromCombat, blockedNoBlocker: o.blockedNoBlocker || null,
           chosenX: o.chosenX, targets: JSON.parse(JSON.stringify(o.targets || [])),
           manualNote: o.manualNote, revealedTo: o.revealedTo, isCommander: !!o.isCommander,
           castFromCommandZone: o.castFromCommandZone, foretold: o.foretold, note: o.note,
@@ -22067,6 +22068,8 @@
         counters: Object.assign({}, o.counters), damage: o.damage, summoningSick: o.summoningSick,
         attachedTo: o.attachedTo, attachments: o.attachments, isToken: o.isToken,
         attacking: o.attacking, blocking: o.blocking, blockedBy: o.blockedBy, blockOrder: o.blockOrder,
+        // Curtain of Light: blocked with nothing blocking it, for the target picker's "unblocked"
+        blockedNoBlocker: !!o.blockedNoBlocker,
         effects: o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
         prepared: !!o.prepared,
         // what it chose as it entered: a creature type, a colour, a card name, a player, a number
