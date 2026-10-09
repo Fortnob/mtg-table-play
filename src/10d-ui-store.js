@@ -149,9 +149,11 @@
      Every set's packs (Play and Collector apart) and every Commander deck
      wears an illustration no other one does. The first to ask for an
      illustration has it, and anyone after takes its next choice; told
-     apart by Scryfall's illustration id, so a reprint of the same picture
-     counts as the same. Kept, so each keeps its picture from then on. */
-  const ART_KEY = 'artclaims3';
+     apart by Scryfall's illustration id (its first eight hex digits), so a
+     reprint of the same picture counts as the same. Kept, so each keeps its
+     picture from then on. */
+  const ART_KEY = 'artclaims4';
+  for (const old of ['artclaims', 'artclaims2', 'artclaims3']) MTG.store.del(old);   // the claims of earlier ways of choosing
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -179,37 +181,45 @@
     'playpromo', 'prerelease', 'promopack', 'buyabox', 'bundle', 'datestamped', 'stamped', 'judgegift', 'league',
     'convention', 'tourney', 'release', 'instore', 'event', 'giftbox', 'setpromo', 'wizardsplaynetwork', 'premiereshop', 'intropack']);
   const artOf = (c) => {
-    if (!c || (c.promo_types || []).some(t => NOT_A_PULL.has(t)) || /z$/i.test(String(c.collector_number || ''))) return null;
+    if (!c || (c.promo_types || []).some(t => NOT_A_PULL.has(t)) || /z$/i.test(String(c.collector_number || '')) || /^A-/.test(c.name || '')) return null;
     const url = MTG.scry.imageUrl(c, 'art_crop', 0);
     const ill = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null;
     return url ? { url, name: c.name, ill } : null;
   };
-  /** What a card sells for (its foil price when that is all there is), 0 when nobody has priced it. */
-  const valueOf = (c) => {
-    const p = c && c.prices;
-    const n = p ? parseFloat(p.usd || p.usd_foil || p.usd_etched) : NaN;
-    return Number.isFinite(n) ? n : 0;
-  };
   /**
-   * The front of a set's packs: the most valuable card that can be pulled
-   * from them whose picture no other pack or deck wears (the Collector
-   * Booster the next most valuable again), else any card of the set that
-   * is free. Sorted here by price, since a search's own price order may put
-   * the unpriced first.
+   * A set's pictures chosen ahead of time (src/10d0-packart.js, written by
+   * tools/packart.js): each 40 hex digits, a card id without its dashes and
+   * the first 8 of its illustration id. The art crop comes straight from
+   * the id, so nothing is asked of Scryfall but the picture itself.
+   */
+  function preArt(code) {
+    const s = MTG.packArt && MTG.packArt[code];
+    if (!s) return null;
+    const out = [];
+    for (let i = 0; i + 40 <= s.length; i += 40) {
+      const h = s.slice(i, i + 32);
+      const id = `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+      out.push({ url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: '', ill: s.slice(i + 32, i + 40) });
+    }
+    return out;
+  }
+  /**
+   * A striking card from a set, for the front of its packs: its best-known
+   * mythic or rare whose picture no other pack or deck wears (the Collector
+   * Booster another again), else any card of the set that is free. From
+   * the list made ahead of time; a set newer than the list is looked up,
+   * behind anything the player is waiting on.
    */
   function setArt(code, kind) {
     const key = 'set:' + code + (kind === 'collector' ? ':collector' : '');
     if (artReg.by[key]) return Promise.resolve(artReg.by[key]);
+    const ready = claimArt(key, preArt(code));
+    if (ready) return Promise.resolve(ready);
     if (artWaiting.has(key)) return artWaiting.get(key);
     const p = (async () => {
-      const look = async (q, max) => {
-        let found = [];
-        try { found = await MTG.scry.search(q, { max, order: 'usd', dir: 'desc', unique: 'art' }); } catch (e) { found = []; }
-        return found.slice().sort((a, b) => valueOf(b) - valueOf(a));
-      };
-      // what its packs hold; a set never in boosters holds the whole set
-      let art = claimArt(key, (await look(`set:${code} is:booster -t:basic`, 250)).map(artOf));
-      if (!art) art = claimArt(key, (await look(`set:${code} -t:basic`, 400)).map(artOf));
+      const look = async (q, max) => { try { return await MTG.scry.search(q, { max, order: 'edhrec', unique: 'art', low: true, quiet: true }); } catch (e) { return []; } };
+      let art = claimArt(key, (await look(`set:${code} (r:mythic or r:rare) -t:land`, 40)).map(artOf));
+      if (!art) art = claimArt(key, (await look(`set:${code}`, 120)).map(artOf));
       artWaiting.delete(key);
       return art;
     })();

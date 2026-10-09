@@ -112,13 +112,38 @@
   class Queue {
     /* `slowGap` is for the endpoints Scryfall holds to two a second; a 429
        from those locks the whole client out for thirty seconds. */
-    constructor(minGap, slowGap) { this.gap = minGap; this.slowGap = slowGap || minGap; this.last = 0; this.lastSlow = 0; this.chain = Promise.resolve(); this.pending = 0; }
+    constructor(minGap, slowGap) {
+      this.gap = minGap; this.slowGap = slowGap || minGap; this.last = 0; this.lastSlow = 0; this.chain = Promise.resolve(); this.pending = 0;
+      this.asked = 0;          // requests someone is waiting on, queued or under way
+      this.later = [];         // requests nobody is waiting on (pack art, a token's picture), in the order asked
+      this.laterBusy = false;
+    }
     /* A request given an AbortSignal that fires while it queues (a search
        for "gob" once "goblin" is typed) drops out without being sent, and
        one already sent is cut off, so the search wanted is not left
        waiting its turn behind it. The slow endpoints are spaced from each
-       other, not from every quick lookup in between. */
-    run(fn, slow, signal) {
+       other, not from every quick lookup in between.
+       `low`: nobody is waiting on it. It goes only when no other request
+       is queued, one at a time, so a search the player typed waits behind
+       one of these at most, never behind a shelf of them. */
+    run(fn, slow, signal, low) {
+      if (low) {
+        return new Promise((res, rej) => { this.later.push({ fn, slow, signal, res, rej }); this._pumpLater(); });
+      }
+      this.asked++;
+      const p = this._enqueue(fn, slow, signal);
+      const done = () => { this.asked--; this._pumpLater(); };
+      p.then(done, done);
+      return p;
+    }
+    _pumpLater() {
+      if (this.laterBusy || this.asked > 0 || !this.later.length) return;
+      const j = this.later.shift();
+      this.laterBusy = true;
+      const done = () => { this.laterBusy = false; this._pumpLater(); };
+      this._enqueue(j.fn, j.slow, j.signal).then((v) => { done(); j.res(v); }, (e) => { done(); j.rej(e); });
+    }
+    _enqueue(fn, slow, signal) {
       this.pending++;
       MTG.bus.emit('scryfall:pending', this.pending);
       const p = this.chain.then(async () => {
@@ -177,7 +202,7 @@
     async _fetch(path, opts) {
       opts = opts || {};
       this.stats.requests++;
-      return this.q.run(() => this._doFetch(path, opts), /\/cards\/(search|named|random|collection)/.test(path), opts.signal);
+      return this.q.run(() => this._doFetch(path, opts), /\/cards\/(search|named|random|collection)/.test(path), opts.signal, !!opts.low);
     }
 
     async _doFetch(path, opts) {
@@ -198,7 +223,8 @@
           // one retry for a dropped connection, then admit it
           if (attempt < 1 && !/timed out/i.test(e.message || '')) { await U.sleep(600); continue; }
           this.stats.errors++; this.offline = true;
-          MTG.bus.emit('scryfall:offline');
+          // a picture nobody asked for (opts.quiet) is no reason to tell the player Scryfall is down
+          if (!opts.quiet) MTG.bus.emit('scryfall:offline');
           throw new Error(/timed out/i.test(e.message || '')
             ? 'Scryfall did not answer in time. Cached cards still work.'
             : 'Network error contacting Scryfall. Cached cards still work.');
@@ -288,15 +314,22 @@
 
     /* ================= card lookup ================= */
 
-    async byId(id) {
+    /**
+     * A card by its Scryfall id: the card database, then the cache, then
+     * Scryfall. opts.cacheOnly: never Scryfall (null instead); opts.low and
+     * opts.quiet: see _fetch and _doFetch.
+     */
+    async byId(id, opts) {
+      opts = opts || {};
       if (!id) return null;
       const local = await this._localDb();
       const own = local && local.idx.byIdCard(id);
       if (own) { this.stats.local++; return own; }
       const hit = await this.db.get(STORES.cards, id);
       if (hit) { this.stats.hits++; return hit; }
+      if (opts.cacheOnly) return null;
       this.stats.misses++;
-      const c = await this._fetch('/cards/' + encodeURIComponent(id));
+      const c = await this._fetch('/cards/' + encodeURIComponent(id), { low: opts.low, quiet: opts.quiet });
       if (!c) return null;
       return (await this._store([c]))[0];
     }
@@ -457,7 +490,7 @@
       for (let page = 0; url && out.length < max && page < 40; page++) {
         if (seenPages.has(url)) break;
         seenPages.add(url);
-        const data = await this._fetch(url, { signal: opts.signal });
+        const data = await this._fetch(url, { signal: opts.signal, low: opts.low, quiet: opts.quiet });
         if (!data) break;
         out.push(...(data.data || []));
         url = data.has_more ? data.next_page : null;
