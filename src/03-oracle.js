@@ -5457,6 +5457,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Phelia, Exuberant Shepherd: "exile up to one other target nonland
+       permanent. At the beginning of the next end step, return that card to
+       the battlefield under its owner's control. If it entered under your
+       control, put a +1/+1 counter on CARDNAME." (and the same without the
+       last sentence) */
+    { re: /^(Exile (?:up to one )?(?:other )?target [a-z ]+?)\. At the beginning of the next end step, return that card to the battlefield under its owner'?s control\.( If it entered under your control, put a \+1\/\+1 counter on CARDNAME\.)?$/i,
+      make: (m) => {
+        const ex = parseSentenceList(splitSentences(m[1] + '.'));
+        if (!ex.auto || ex.effects.length !== 1 || ex.effects[0].op !== 'exile') return null;
+        return [ex.effects[0], { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
+          effects: [m[2] ? { op: 'returnThatCounterSource' } : { op: 'returnThat' }] }];
+      } },
     /* Call the Coppercoats (strive): "Choose any number of target opponents.
        Create X 1/1 white Human Soldier creature tokens, where X is the number
        of creatures those opponents control." */

@@ -14948,6 +14948,15 @@
           }
           break;
         }
+        // Phelia: back under its owner's control, and a counter on Phelia if that is you
+        case 'returnThatCounterSource': {
+          const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          if (!x || x.zone === 'battlefield') break;
+          this.moveObject(x, 'battlefield', { controller: x.owner });
+          const ph = e.srcId && this.obj(e.srcId);
+          if (x.zone === 'battlefield' && x.controller === ctx.controller && ph && ph.zone === 'battlefield') this.addCounters(ph, '+1/+1', 1);
+          break;
+        }
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: x.owner });
@@ -15198,6 +15207,8 @@
                 const p = this._lastAffectedController();
                 return Object.assign({}, x, { who: 'fixed', pid: p ? p.id : ctx.controller });
               }
+              // Phelia: the counter goes on the creature that set this up
+              if (x.op === 'returnThatCounterSource') return Object.assign({}, x, { srcId: src ? src.id : null });
               return Object.assign({}, x,
                 objId && (x.scope === 'lastTarget' || x.scope === 'thatObject') ? { scope: 'thatObject' } : {});
             }),

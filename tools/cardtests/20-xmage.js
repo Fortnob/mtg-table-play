@@ -12061,4 +12061,15 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 3);
   });
+
+  test('Phelia: exile, back at the end step, a counter when it is yours', (mk, t) => {
+    t.auto('Phelia, Exuberant Shepherd');
+    const T = mk();
+    const ph = T.bf('A', 'Phelia, Exuberant Shepherd');
+    const mine = T.bf('A', 'Sol Ring');
+    T.g._runEffects(ph.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: ph, name: 'Phelia', kind: 'ability', targets: [{ kind: 'object', id: mine.id }] });
+    t.eq(mine.zone, 'exile');
+    T.toMain('B');
+    t.eq(mine.zone, 'battlefield', 'back'); t.eq(ph.counters['+1/+1'], 1, 'a counter on Phelia');
+  });
 };
