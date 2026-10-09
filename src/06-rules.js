@@ -10382,7 +10382,7 @@
       }
       // Tainted Remedy: an opponent's gain becomes a loss of as much
       if (delta > 0 && this.battlefield.some(o => !o.phasedOut && o.controller !== p.id && this._staticOp(o, 'gainBecomesLoss'))) {
-        this.logEvent('life', `${p.name} would gain ${delta} life, and loses it instead.`);
+        this.logEvent('life', `${p.name} loses ${delta} life instead of gaining it.`);
         delta = -delta;
       }
       if (delta > 0) {
@@ -17458,7 +17458,7 @@
           const item = t && this.stack.find(s => s.id === t.id);
           if (!item || !item.obj) break;
           this.prevention.push({ who: ctx.controller, sourceId: item.obj.id, until: 'eot' });
-          this.logEvent('rules', `Damage ${item.obj.name} would deal is prevented this turn.`);
+          this.logEvent('rules', `Damage that ${item.obj.name} would deal this turn is prevented.`);
           break;
         }
         case 'preventDamage':
