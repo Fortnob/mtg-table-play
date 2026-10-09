@@ -12522,4 +12522,17 @@ module.exports = (test) => {
     T.toMain('B');
     t.eq(T.g.battlefield.filter(x => x.isToken).length, 0, 'sacrificed at the end step');
   });
+
+  test('Alibou, Ancient Witness: X damage and scry X, X the tapped artifacts', (mk, t) => {
+    t.auto('Alibou, Ancient Witness');
+    const T = mk();
+    const al = T.bf('A', 'Alibou, Ancient Witness');
+    const r1 = T.bf('A', 'Sol Ring'), r2 = T.bf('A', 'Mind Stone'); r1.tapped = true; r2.tapped = true;
+    T.bf('A', 'Fellwar Stone');
+    let scried = 0;
+    T.answer('scry', (ch) => { scried = ch.count; return { top: ch.cards.map(c => c.id), bottom: [] }; });
+    T.g._runEffects(al.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: al, name: 'Alibou', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle();
+    t.eq(T.player('B').life, 18); t.eq(scried, 2);
+  });
 };

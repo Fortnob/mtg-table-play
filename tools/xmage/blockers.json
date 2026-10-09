@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12275,
-  "gainedCards": 1318,
-  "linesNeeded": 13352,
-  "linesGained": 1575,
+  "needed": 12269,
+  "gainedCards": 1314,
+  "linesNeeded": 13346,
+  "linesGained": 1571,
   "gained": {
-   "all": 1318,
-   "top2000": 50,
+   "all": 1314,
+   "top2000": 49,
    "stdTop": 9
   },
   "compare": {
@@ -25,7 +25,7 @@
    "group": 28,
    "x": 3,
    "it": 18,
-   "opponent": 73,
+   "opponent": 72,
    "condition": 23
   }
  },
@@ -833,25 +833,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance",
-    "Witch-king, Sky Scourge",
-    "Jocasta, Automaton Avenger",
-    "Mordor Trebuchet"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 16,
    "lines": 16,
@@ -961,6 +942,25 @@
     "Suit Up",
     "Okiba Salvage",
     "Fang Guardian"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Ainok Strike Leader",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge",
+    "Jocasta, Automaton Avenger",
+    "Mordor Trebuchet",
+    "Metropolis Angel"
    ]
   },
   {
@@ -7430,19 +7430,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 14,
    "cards": 8,
@@ -7516,6 +7503,19 @@
     "Fabrication Foundry",
     "Wonderscape Sage",
     "Araumi of the Dead Tide"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Ainok Strike Leader",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger"
    ]
   },
   {

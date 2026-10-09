@@ -1767,6 +1767,8 @@
 
     // --- library manipulation ---
     { re: /^Scry (\d+)\.?$/i, make: (m) => ({ op: 'scry', n: +m[1] }) },
+    // Alibou: "you scry X, where X is the number of tapped artifacts you control"
+    { re: /^(?:You )?[Ss]cry X, where X is (.+?)\.?$/, make: (m) => { const k = amountOf(m[1]); return k ? { op: 'scry', n: k } : null; } },
     // Season of Gathering: "Choose artifact or enchantment." — for "permanents of the chosen type" after it
     { re: /^Choose (artifact|creature|enchantment|land|planeswalker)(?:, (artifact|creature|enchantment|land|planeswalker))*,? or (artifact|creature|enchantment|land|planeswalker)\.?$/i,
       make: (m) => ({ op: 'chooseCardTypeNow', types: m[0].replace(/^Choose /i, '').replace(/\.$/, '').split(/,\s*(?:or\s+)?|\s+or\s+/).map(w => U.titleCase(w.trim())).filter(Boolean) }) },
@@ -4892,6 +4894,16 @@
        sentence with its time at the front. */
     { re: /^Until end of turn, (.+?) (gain|gains|get|gets) (.+?)\.?$/i,
       make: (m) => parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until end of turn.') },
+    /* Alibou, Ancient Witness: "deals X damage to any target and you scry
+       X, where X is the number of tapped artifacts you control" — two
+       things, each with the same X */
+    { re: /^(.+? X .+?) and (you (?:scry|surveil|draw|gain|mill) X\b.*?), where X is (.+?)\.?$/i,
+      make: (m) => {
+        const a = parseEffectSentence(m[1] + ', where X is ' + m[3] + '.');
+        const b = parseEffectSentence(U.titleCase(m[2].charAt(0)) + m[2].slice(1) + ', where X is ' + m[3] + '.');
+        if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
+        return { op: 'sequence', list: [a, b] };
+      } },
     // Jace, the Perfected Mind: "Until your next turn, up to one target creature gets -3/-0."
     { re: /^Until your next turn, (.+?) (gain|gains|get|gets) ([^.]+?)\.?$/i,
       make: (m) => { const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until your next turn.'); return e && e.op !== 'manual' ? e : null; } },
