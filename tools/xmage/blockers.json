@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12335,
+  "needed": 12334,
   "gainedCards": 1337,
-  "linesNeeded": 13423,
+  "linesNeeded": 13421,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -128,12 +128,11 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 182,
-   "lines": 173,
+   "score": 180,
+   "lines": 171,
    "cards": [
     "Lazotep Quarry",
     "Likeness Looter",
-    "Kozilek's Command",
     "Ruthless Technomancer",
     "Silkguard",
     "Chthonian Nightmare",
@@ -142,7 +141,8 @@
     "Ink-Eyes, Servant of Oni",
     "Doppelgang",
     "Riptide Gearhulk",
-    "Diluvian Primordial"
+    "Diluvian Primordial",
+    "Hideous Taskmaster"
    ]
   },
   {
@@ -7075,15 +7075,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 158,
-   "cards": 149,
+   "score": 156,
+   "cards": 147,
    "names": [
     "Lazotep Quarry",
     "Likeness Looter",
-    "Kozilek's Command",
     "Ruthless Technomancer",
     "Silkguard",
-    "Chthonian Nightmare"
+    "Chthonian Nightmare",
+    "Tinybones, the Pickpocket"
    ]
   },
   {

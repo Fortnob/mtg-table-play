@@ -12324,4 +12324,19 @@ module.exports = (test) => {
     T.g.checkStateBasedActions();
     t.eq(lions.zone, 'graveyard'); t.eq(mine.damage || 0, 0, 'not your own');
   });
+
+  test("Kozilek's Command: a target player scries X; up to X cards from graveyards", (mk, t) => {
+    t.auto("Kozilek's Command");
+    const T = mk();
+    const g1 = T.grave('B', 'Grizzly Bears'), g2 = T.grave('B', 'Llanowar Elves'), g3 = T.grave('A', 'Savannah Lions');
+    T.top('B', 'Forest'); T.top('B', 'Island');
+    const hand = T.zone('B', 'hand').length;
+    T.answer('scry', (ch) => { t.eq(ch.playerId, 'B', 'B scries'); return { top: [], bottom: ch.cards.map(c => c.id) }; });
+    T.mana('A', '2CC');
+    T.answer('mode', { modes: [1, 3] });
+    T.cast('A', T.hand('A', "Kozilek's Command"), { x: 2, targets: ['B', g1, g2] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('B', 'hand').length, hand + 1, 'B drew');
+    t.eq(g1.zone, 'exile'); t.eq(g2.zone, 'exile'); t.eq(g3.zone, 'graveyard');
+  });
 };

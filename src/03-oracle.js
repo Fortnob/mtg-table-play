@@ -1753,6 +1753,11 @@
 
     // --- library manipulation ---
     { re: /^Scry (\d+)\.?$/i, make: (m) => ({ op: 'scry', n: +m[1] }) },
+    // Kozilek's Command: "Target player scries X, then draws a card."
+    { re: /^Target player scries (one|two|three|four|\d+|X)\.?$/i, make: (m) => ({ op: 'scry', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
+    // Kozilek's Command: "Exile up to X target cards from graveyards."
+    { re: /^Exile (up to )?X target cards from graveyards\.?$/i,
+      make: (m) => ({ op: 'exile', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard', multi: { count: 'X', exact: !m[1] } }] }) },
     { re: /^Surveil (\d+)\.?$/i, make: (m) => ({ op: 'surveil', n: +m[1] }) },
     { re: /^Mill (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'you' }) },
     { re: /^(?:Then )?[Ll]earn\.?$/, make: () => ({ op: 'learn' }) },

@@ -12517,12 +12517,14 @@
           const r = this.resolving;
           if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + ':' + e.op)) break;
           const want = n(e.n);
-          const cards = this._topOfLibrary(ctx.controller, want);
+          // Kozilek's Command: "Target player scries X"
+          const who = (e.who === 'target' && firstPlayer()) || me;
+          const cards = this._topOfLibrary(who.id, want);
           if (!cards.length) {
-            this.logEvent(e.op, `${me.name} has no cards to ${e.op}.`);
+            this.logEvent(e.op, `${who.name} has no cards to ${e.op}.`);
             break;
           }
-          const q = { type: e.op, playerId: ctx.controller, count: cards.length, cards,
+          const q = { type: e.op, playerId: who.id, count: cards.length, cards,
             prompt: (e.op === 'scry' ? 'Scry ' : 'Surveil ') + want + '.' };
           if (r) { if (this._ask(q, e.op) === SUSPEND) return SUSPEND; break; }
           this.queueChoice(q);
