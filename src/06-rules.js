@@ -16264,7 +16264,8 @@
         case 'mayMoveLooked': {
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
           if (!pool.length) break;
-          const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+          // Garruk, Savage Herald: "Otherwise, put it on the bottom of your library" — no choice in it
+          const yes = e.must ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             prompt: `Put ${pool[0].name} ${e.to === 'graveyard' ? 'into your graveyard' : 'on the bottom of your library'}?` }, 'mml');
           if (yes === SUSPEND) return SUSPEND;
           if (yes) for (const o of pool) {

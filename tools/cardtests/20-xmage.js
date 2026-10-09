@@ -15153,4 +15153,24 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(a, 'Persist') && T.g.hasKw(b, 'Persist'), 'the two chosen');
     t.no(T.g.hasKw(c, 'Persist'), 'not the third');
   });
+
+  test('Garruk, Savage Herald: a creature on top to hand, anything else to the bottom', (mk, t) => {
+    t.auto('Garruk, Savage Herald');
+    t.auto('Llanowar Empath');
+    const T = mk();
+    T.toMain('A');
+    const g = T.bf('A', 'Garruk, Savage Herald');
+    const isl = T.top('A', 'Island');
+    T.activate('A', g, 0);
+    T.resolve();
+    const lib = T.zone('A', 'library');
+    t.eq(lib[lib.length - 1].id, isl.id, 'the Island went to the bottom');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.top('A', 'Grizzly Bears');
+    const top = T.zone('A', 'library')[0];
+    T.activate('A', g, 0);
+    T.resolve();
+    t.zone(top, 'hand', 'a creature: into the hand');
+  });
 };

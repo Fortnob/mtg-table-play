@@ -7094,13 +7094,14 @@
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: 1, filter: m[2].trim().toLowerCase(), to: 'hand', rest: 'graveyard' }] },
     /* "Look at the top card of your library. If it's a creature card, you
        may reveal it and put it into your hand." */
-    { re: /^(?:Look at|Reveal) the top card of your library\. If it'?s an? ([a-z ]+?) card, (you may )?(?:reveal it and )?put it (into your hand|onto the battlefield)( tapped)?\.(?: Otherwise, (draw a card|you may put (?:it|that card) (?:into your graveyard|on the bottom of your library))\.)?$/i,
+    // (Llanowar Empath: "Scry 2, then reveal the top card …"; Garruk, Savage Herald: "Otherwise, put it on the bottom of your library.")
+    { re: /^(?:Scry (\d+), then )?(?:look at|reveal) the top card of your library\. If it'?s an? ([a-z ]+?) card, (you may )?(?:reveal it and )?put it (into your hand|onto the battlefield)( tapped)?\.(?: Otherwise, (draw a card|(?:you may )?put (?:it|that card) (?:into your graveyard|on the bottom of your library))\.)?$/i,
       make: (m) => {
-        const otherwise = !m[5] ? null : /^draw/i.test(m[5]) ? [{ op: 'draw', n: 1, who: 'you' }]
-          : [{ op: 'mayMoveLooked', to: /graveyard/i.test(m[5]) ? 'graveyard' : 'bottom' }];
-        return [{ op: 'lookAt', n: 1, keep: 0 },
-          Object.assign({ op: 'takeFromLooked', n: 1, filter: m[1].trim().toLowerCase(), to: /hand/i.test(m[3]) ? 'hand' : 'battlefield', rest: 'keep' },
-            m[2] ? {} : { mustTake: true }, m[4] ? { tapped: true } : {}, otherwise ? { otherwise } : {})];
+        const otherwise = !m[6] ? null : /^draw/i.test(m[6]) ? [{ op: 'draw', n: 1, who: 'you' }]
+          : [Object.assign({ op: 'mayMoveLooked', to: /graveyard/i.test(m[6]) ? 'graveyard' : 'bottom' }, /^you may/i.test(m[6]) ? {} : { must: true })];
+        return (m[1] ? [{ op: 'scry', n: +m[1] }] : []).concat([{ op: 'lookAt', n: 1, keep: 0 },
+          Object.assign({ op: 'takeFromLooked', n: 1, filter: m[2].trim().toLowerCase(), to: /hand/i.test(m[4]) ? 'hand' : 'battlefield', rest: 'keep' },
+            m[3] ? {} : { mustTake: true }, m[5] ? { tapped: true } : {}, otherwise ? { otherwise } : {})]);
       } },
     /* Midnight Tilling: "Mill four cards, then you may return a permanent
        card from among them to your hand." */
