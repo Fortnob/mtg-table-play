@@ -2952,6 +2952,8 @@
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
       if (v.party) return this._partySize(pid) * mult;
+      // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
+      if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
@@ -9731,6 +9733,11 @@
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
           return (by[cond.what] || 0) >= (cond.n || 1);
         }
+        // Lilypad Village: "if a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn" (enteredTypes)
+        case 'enteredTypeThisTurn': {
+          const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
+          return !!by['sub:*'] || (cond.types || []).some(t => (by['sub:' + t] || 0) > 0);
+        }
         case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
         case 'moreLifeThanAnOpponent': return !!me && this.opponentsOf(me.id).some(p => !p.hasLost && p.life < me.life);
         case 'greatestPowerYours': {
@@ -10885,6 +10892,11 @@
         by.permanent = (by.permanent || 0) + 1;
         if (!a.isLand) by['nonland permanent'] = (by['nonland permanent'] || 0) + 1;
         for (const t of ['creature', 'artifact', 'land']) if (a['is' + t[0].toUpperCase() + t.slice(1)]) by[t] = (by[t] || 0) + 1;
+        // Hobgoblin Bandit Lord, Lilypad Village: which creature types entered (a changeling is every one) (enteredTypes)
+        if (a.isCreature) {
+          for (const t of a.subtypes || []) by['sub:' + t.toLowerCase()] = (by['sub:' + t.toLowerCase()] || 0) + 1;
+          if (a.keywordSet && a.keywordSet.has('changeling')) by['sub:*'] = (by['sub:*'] || 0) + 1;
+        }
       }
       this._soulbondOnEnter(o);
       this._fire('etb', o.controller, { object: o, source: o });
@@ -12031,7 +12043,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"

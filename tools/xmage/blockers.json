@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11366,
+  "needed": 11364,
   "gainedCards": 1130,
-  "linesNeeded": 12167,
+  "linesNeeded": 12165,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 169,
-   "lines": 157,
+   "score": 168,
+   "lines": 156,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -137,11 +137,11 @@
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
-    "Lilypad Village",
     "Éowyn, Shieldmaiden",
     "Rith, Liberated Primeval",
     "Wakka, Devoted Guardian",
-    "Tinybones, Trinket Thief"
+    "Tinybones, Trinket Thief",
+    "March of the Canonized"
    ]
   },
   {
@@ -979,25 +979,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Hobgoblin Bandit Lord",
-    "Mana Cannons",
-    "Niv-Mizzet, Guildpact",
-    "Anathemancer",
-    "Monstrous Emergence",
-    "Moonveil Regent",
-    "Voracious Dragon",
-    "Close Encounter",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt",
-    "Galvanic Bombardment",
-    "Blazing Effigy"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 14,
    "lines": 14,
@@ -1181,6 +1162,25 @@
     "Crashing Tide",
     "Mutual Destruction",
     "Supernatural Rescue"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Mana Cannons",
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt",
+    "Galvanic Bombardment",
+    "Blazing Effigy",
+    "Kindle"
    ]
   },
   {
@@ -6743,15 +6743,15 @@
   },
   {
    "what": "custom condition",
-   "score": 132,
-   "cards": 129,
+   "score": 131,
+   "cards": 128,
    "names": [
     "Sting, the Glinting Dagger",
     "Diamond City",
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
-    "Lilypad Village"
+    "Éowyn, Shieldmaiden"
    ]
   },
   {
@@ -7472,19 +7472,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Hobgoblin Bandit Lord",
-    "Mana Cannons",
-    "Anathemancer",
-    "Voracious Dragon",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 10,
    "cards": 10,
@@ -7742,6 +7729,19 @@
     "Slimefoot's Survey",
     "Nael, Avizoa Aeronaut",
     "Gurmag Nightwatch"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Mana Cannons",
+    "Anathemancer",
+    "Voracious Dragon",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt",
+    "Galvanic Bombardment"
    ]
   },
   {

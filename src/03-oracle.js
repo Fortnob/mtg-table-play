@@ -5618,6 +5618,10 @@
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
+    // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn"
+    if ((m = p.match(/^([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
+      const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k };
+    }
     // Season of Loss: "for each creature that died under your control this turn"
     if (/^creatures? that died under your control this turn$/i.test(p)) return { diedThisTurn: true, yours: true, mult: k };
     // Fountain of Cho: "for each storage counter removed this way"
@@ -8600,6 +8604,9 @@
     // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
     [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
       (m) => ({ kind: 'enteredThisTurn', n: num(m[1].replace(/^an?$/i, 'one')), what: m[2].toLowerCase().replace(/s$/, '') })],
+    // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
+    [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
+      (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
     // Banishing Slash: "you control an artifact and an enchantment"

@@ -16111,4 +16111,30 @@ module.exports = (test) => {
     T.activate('A', sword, j, { targets: [ape] });
     t.eq(sword.attachedTo, ape.id, 'equipped for {1}');
   });
+
+  test('Hobgoblin Bandit Lord counts the Goblins that entered under your control this turn; Lilypad Village', (mk, t) => {
+    t.auto('Hobgoblin Bandit Lord');
+    t.auto('Lilypad Village');
+    let T = mk();
+    T.toMain('A');
+    const lord = T.bf('A', 'Hobgoblin Bandit Lord');
+    T.put('A', 'Goblin Piker', 'battlefield', { etb: true });
+    T.put('A', 'Mogg Fanatic', 'battlefield', { etb: true });
+    T.put('A', 'Llanowar Elves', 'battlefield', { etb: true });
+    T.put('B', 'Goblin Piker', 'battlefield', { etb: true });
+    T.settle();
+    T.mana('A', 'R');
+    T.activate('A', lord, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 18, "two Goblins entered under A's control: not the Elves, not B's Goblin");
+    // Lilypad Village: only once a Bird, Frog, Otter or Rat has entered
+    T = mk();
+    T.toMain('A');
+    const pad = T.bf('A', 'Lilypad Village');
+    const k = pad.analysis().manaAbilities.length;
+    T.mana('A', 'U');
+    t.no(T.g.activateAbility('A', pad.id, k, { auto: true }), 'nothing has entered yet');
+    T.put('A', 'Bog Rats', 'battlefield', { etb: true });
+    T.settle();
+    t.ok(T.g.activateAbility('A', pad.id, k, { auto: true }), 'a Rat entered');
+  });
 };
