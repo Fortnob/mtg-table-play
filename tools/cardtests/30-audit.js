@@ -3093,4 +3093,17 @@ module.exports = (test) => {
     T.mana('A', 'B'); T.cast('A', T.hand('A', 'Scheming Symmetry'), { targets: ['B', 'C'] });
     t.eq(JSON.stringify(T.asked.filter(a => a.type === 'pickCard').map(a => a.playerId)), JSON.stringify(['B', 'C']));
   });
+
+  test('Audit: Gift of Immortality brings the creature back now and itself back on it at the end step', (mk, t) => {
+    const T = mk();
+    t.auto('Gift of Immortality');
+    T.toMain('A');
+    const g = T.bf('A', 'Gift of Immortality'), b = T.bf('A', 'Grizzly Bears');
+    g.attachedTo = b.id; b.attachments = [g.id]; T.g.bumpBoard();
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [b] }); T.settle(); T.resolve();
+    t.zone(b, 'battlefield', 'the creature returns'); t.zone(g, 'graveyard', 'the Aura waits');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle(); T.resolve();
+    const g2 = T.g.battlefield.find(o => o.name === 'Gift of Immortality');
+    t.ok(g2 && g2.attachedTo === b.id, 'back, on the same creature');
+  });
 };
