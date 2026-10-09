@@ -1738,6 +1738,9 @@ a { color: var(--info); }
 .kw-text { margin-top: 3px; font-size: 12.5px; line-height: 1.42; color: #c4ccd9; }
 .kw-text .reminder { color: #8d97a8; }
 .kw-note.granted { border-color: rgba(127,217,154,.4); }
+/* on the Game Changers list: gold, and first */
+.kw-note.gc { border-color: rgba(240,200,100,.6); background: linear-gradient(180deg, rgba(58,46,18,.97), rgba(24,20,12,.97)); }
+.kw-note.gc .kw-name { color: #f3d77e; }
 .tok-view .kw-tag { color: #a9b3c4; }
 .tok-stage { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
 .tok-card { --card-w: 150px; --card-h: calc(150px * 88 / 63); width: var(--card-w); height: var(--card-h); flex: none; border-radius: 4.75% / 3.5%; }
@@ -4633,6 +4636,93 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 /* the line a card just went into lights up */
 .deck-entry.just { animation: entryJust 1.1s ease-out; }
 @keyframes entryJust { 0% { box-shadow: 0 0 0 2px var(--gold-hi), 0 0 18px rgba(246, 220, 140, .6); filter: brightness(1.4); } 100% { box-shadow: 0 0 0 0 transparent; filter: none; } }
+
+/* ============================================================
+   Commander brackets: a deck's bracket, what puts it there, and
+   the Game Changers marked in a list
+   ============================================================ */
+.bracket-pill.b1, .bracket-step.b1 { --bc: #8fd0a4; }
+.bracket-pill.b2, .bracket-step.b2 { --bc: #82b8ec; }
+.bracket-pill.b3, .bracket-step.b3 { --bc: #e8c75c; }
+.bracket-pill.b4, .bracket-step.b4 { --bc: #f0904c; }
+.bracket-pill.b5, .bracket-step.b5 { --bc: #ec6464; }
+.bracket-pill {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 99px;
+  font: 600 12px/1.4 var(--font); white-space: nowrap; cursor: pointer; color: var(--bc);
+  border: 1px solid color-mix(in srgb, var(--bc) 50%, transparent);
+  background: color-mix(in srgb, var(--bc) 13%, rgba(10,12,16,.4));
+  transition: filter var(--fast), box-shadow var(--fast);
+}
+.bracket-pill:hover:not(.static) { filter: brightness(1.18); box-shadow: 0 0 12px color-mix(in srgb, var(--bc) 35%, transparent); }
+.bracket-pill.short { padding: 1px 7px; font-size: 11px; letter-spacing: .03em; }
+.bracket-pill.static { cursor: default; }
+/* past the table's bracket */
+.bracket-pill.over { color: var(--bad); border-color: var(--bad-line); background: var(--bad-bg); }
+.bracket-pill.over::after { content: '!'; font-weight: 800; }
+:root[data-theme="light"] .bracket-pill { background: color-mix(in srgb, var(--bc) 16%, #fff); color: color-mix(in srgb, var(--bc) 55%, #222); }
+.bracket-row .tiny { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.gc-badge {
+  flex: none; padding: 3px 4px 2px; border-radius: 4px; font: 800 9px/1 var(--font); letter-spacing: .05em;
+  color: #241a05; background: linear-gradient(180deg, #f3d77e, #c99a2e); box-shadow: 0 1px 3px rgba(0,0,0,.45);
+}
+
+.bracket-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+.bracket-step {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px 7px; border-radius: 10px;
+  text-align: center; border: 1px solid rgba(255,255,255,.08); opacity: .5;
+}
+.bracket-step b { font: 700 19px/1 var(--serif); color: var(--bc); }
+.bracket-step span { font-size: 11px; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bracket-step i { font-size: 9.5px; font-style: normal; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.bracket-step.table { opacity: .85; border-style: dashed; border-color: rgba(255,255,255,.3); }
+.bracket-step.on {
+  opacity: 1; border-color: var(--bc); background: color-mix(in srgb, var(--bc) 14%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--bc) 28%, transparent);
+}
+:root[data-theme="light"] .bracket-step { border-color: var(--line); }
+.bracket-over { color: var(--bad); font-size: 13px; margin: 0 0 6px; }
+.bracket-none { padding: 10px 12px; border-radius: 10px; font-size: 13px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
+.bracket-reason { margin-top: 16px; }
+.bracket-reason-head { display: flex; align-items: center; gap: 8px; }
+.bracket-reason p { margin: 4px 0 0; }
+.bracket-cards { display: flex; flex-direction: column; gap: 3px; margin-top: 7px; }
+.bracket-card.strip {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 0 8px; border-radius: 8px;
+  text-align: left; color: var(--ink); cursor: pointer; border: 1px solid rgba(255,255,255,.07);
+  transition: border-color var(--fast), filter var(--fast);
+}
+.bracket-card.strip:hover { border-color: var(--hair-hi); filter: brightness(1.12); }
+.bracket-card .nm { flex: 1; min-width: 0; font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.bracket-card .kw-tag { margin-left: 0; color: var(--gold-1); }
+.bracket-card .cost { flex: none; display: inline-flex; padding: 2px 4px; border-radius: 99px; background: rgba(8,10,14,.55); }
+.bracket-card .cost .pip { width: 14px; height: 14px; font-size: 9px; }
+:root[data-theme="light"] .bracket-card .nm { text-shadow: none; }
+.bracket-combo { margin-top: 8px; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+.bracket-combo-head { display: flex; align-items: center; gap: 8px; }
+.bracket-combo .bracket-cards { margin-top: 6px; }
+.bracket-combo > .tiny { margin-top: 6px; line-height: 1.4; }
+.bracket-foot { margin-top: 16px; }
+/* the table's bracket, chosen in the lobby */
+.bracket-opt.b1, .lobby-bracket.b1, .bracket-name.b1 { --bc: #8fd0a4; }
+.bracket-opt.b2, .lobby-bracket.b2, .bracket-name.b2 { --bc: #82b8ec; }
+.bracket-opt.b3, .lobby-bracket.b3, .bracket-name.b3 { --bc: #e8c75c; }
+.bracket-opt.b4, .lobby-bracket.b4, .bracket-name.b4 { --bc: #f0904c; }
+.bracket-opt.b5, .lobby-bracket.b5, .bracket-name.b5 { --bc: #ec6464; }
+.bracket-panel h3 { margin-bottom: 10px; }
+.bracket-choose { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.bracket-opt {
+  --bc: var(--gold-1); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-height: 38px; padding: 5px 2px; border-radius: 9px; cursor: pointer; color: var(--ink-2);
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.09);
+  transition: border-color var(--fast), background var(--fast), color var(--fast);
+}
+.bracket-opt b { font: 700 16px/1 var(--serif); color: var(--bc); }
+.bracket-opt:hover { border-color: color-mix(in srgb, var(--bc) 50%, transparent); color: var(--ink); }
+.bracket-opt.on { color: var(--ink); border-color: var(--bc); background: color-mix(in srgb, var(--bc) 15%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--bc) 25%, transparent); }
+:root[data-theme="light"] .bracket-opt { background: var(--bg-2, #fff); border-color: var(--line); }
+.bracket-panel p { margin: 10px 0 0; }
+.lobby-bracket, .bracket-name { color: var(--bc); font-weight: 600; }
 /* ============================================================
    store.css - Shards, the Store, the Collection and opening packs
    (src/10c-economy.js, src/10d-ui-store.js)
@@ -5049,7 +5139,7 @@ html[data-play="1"] .shard-chip { display: none; }
   100% { transform: translateY(-14px) scale(1.07) rotate(-1deg); filter: brightness(1.1); } }
 .po-part { position: absolute !important; left: 0; top: 0; pointer-events: none; animation: none;
   transform: translateY(-14px) scale(1.07) rotate(-1deg); }
-.po-part.strip { z-index: 3; transform-origin: 96% 8%; animation: stripAway .55s cubic-bezier(.35, .05, .55, 1) forwards; }
+.po-part.tear-top { z-index: 3; transform-origin: 96% 8%; animation: stripAway .55s cubic-bezier(.35, .05, .55, 1) forwards; }
 @keyframes stripAway {
   0% { transform: translateY(-14px) scale(1.07) rotate(-1deg); }
   30% { transform: translate(6px, -24px) scale(1.07) rotate(6deg); }
@@ -7904,6 +7994,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         artist: c.artist, illustration_id: c.illustration_id, flavor_text: c.flavor_text,
         scryfall_uri: c.scryfall_uri, edhrec_rank: c.edhrec_rank, penny_rank: c.penny_rank,
         hand_modifier: c.hand_modifier, life_modifier: c.life_modifier,
+        // on Commander's Game Changers list (src/15a-brackets.js)
+        game_changer: c.game_changer === true ? true : c.game_changer === false ? false : undefined,
         prices: c.prices ? { usd: c.prices.usd, usd_foil: c.prices.usd_foil, eur: c.prices.eur, tix: c.prices.tix } : null,
         _t: Date.now(),
       };
@@ -14276,6 +14368,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Tree of Perdition: "Exchange target opponent's life total with this creature's toughness."
     { re: /^Exchange target opponent'?s life total with (?:this creature|CARDNAME)'?s toughness\.?$/i,
       make: () => ({ op: 'exchangeLifeToughness', targets: [{ type: 'player', opponent: true }] }) },
+    // Tree of Redemption: "Exchange your life total with this creature's toughness."; Evra, Halcyon Witness: "… with CARDNAME's power."
+    { re: /^Exchange your life total with (?:this creature|CARDNAME)'?s (toughness|power)\.?$/i,
+      make: (m) => ({ op: 'exchangeLifeToughness', who: 'you', stat: m[1].toLowerCase() }) },
     // The Celestus: "If it's night, it becomes day. Otherwise, it becomes night."
     { re: /^If it'?s night, it becomes day\. Otherwise, it becomes night\.?$/i, make: () => ({ op: 'flipDayNight' }) },
     { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
@@ -15544,9 +15639,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Chronostutter: "Put target creature into its owner's library second from the top."
-    // (Teferi, Hero of Dominaria: "third from the top")
+    // (Teferi, Hero of Dominaria: "third from the top"; Commit: "target spell or nonland permanent", off the stack)
     { re: /^Put (target [a-z ]+?) into its owner'?s library (second|third) from the top\.?$/i,
-      make: (m) => { const a = tgt(m[1]); return a && !/spell/i.test(m[1]) ? { op: 'toLibrary', where: m[2].toLowerCase(), targets: [a] } : null; } },
+      make: (m) => { const a = tgt(m[1]); return a && (!/spell/i.test(m[1]) || /^target spell or nonland permanent$/i.test(m[1])) ? { op: 'toLibrary', where: m[2].toLowerCase(), targets: [a] } : null; } },
     // Teferi, Hero of Dominaria: "At the beginning of the next end step, untap up to two lands."
     { re: /^At the beginning of the next end step, untap up to (one|two|three|four) lands\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'self', name: 'Untap lands at end of turn',
@@ -16247,6 +16342,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
+    if ((m = p.match(/^(opponents?|players?) (?:that|who) (?:was|were) dealt combat damage this turn$/i)))
+      return { combatHitPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
     // Kinbinding: "the number of creatures that entered the battlefield under your control this turn"
@@ -18433,7 +18531,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* "You gain X life and draw X cards, where X is …": both halves read
        with X in them, and the rider fills in both. */
     const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/);
-    if (wx && !/bwhere Xb/.test(wx[1])) {
+    if (wx && !/\bwhere X\b/.test(wx[1])) {
       const k = amountOf(wx[2]);
       const both = k && parseCompound(wx[1] + '.');
       if (both && both.every(x => x.op !== 'manual' && !hasManualStep(x))) {
@@ -18581,6 +18679,27 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           continue;
         }
       }
+      /* Mask of Griselbrand, G'raha Tia, Tivash: "You may pay X life, where X
+         is its power. If you do, draw X cards." — X read as it resolves, the
+         life paid and every X after it that number (payLifeX) */
+      const payX = may && ifDo && may[1].match(/^pay X life, where X is ([^,]+?)$/i);
+      if (payX) {
+        const k = amountOf(payX[1]);
+        const tp = k && parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        // Tivash: "create an X/X black Demon creature token" — the size the same X
+        const sizeX = (list) => { for (const x of list || []) if (x && typeof x === 'object') {
+          if (x.op === 'createToken' && /^X\/X$/i.test(String(x.pt || '')) && !x.ptX) x.ptX = k;
+          for (const kk of ['then', 'otherwise', 'list']) if (Array.isArray(x[kk])) sizeX(x[kk]);
+        } };
+        if (tp) { sizeX(tp.effects); for (const x of tp.effects) fillX(x, k); }
+        // (an X left unfilled — a target's "mana value X" — leaves the card to a person)
+        if (tp && tp.auto && tp.effects.length &&
+          !/"X"|"X\/|\/X"/.test(JSON.stringify(tp.effects, (k2, v) => (k2 === 'text' || (k2 === 'pt' && /^X\/X$/i.test(String(v)))) ? undefined : v))) {
+          effects.push({ op: 'mayPay', pay: { life: k }, then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
       if (may && ifDo) {
         const cost = asCost(may[1]);
         let thenText = U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1);
@@ -18706,6 +18825,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        sacrificed, which the player is asked for before the rest goes on */
     folded.forEach((e, i) => {
       if (e && i > 0 && folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice')) sacrificedIsThat([e]);
+    });
+    /* Wild Hypothesis, Fractal Anomaly, G'raha Tia: "Create a 0/0 … Fractal
+       creature token. Put X +1/+1 counters on it." — the token just made,
+       not this card (thatToken) */
+    folded.forEach((e, i) => {
+      if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets || i === 0) return;
+      const prev = folded[i - 1];
+      if (!prev || prev.op !== 'createToken' || (prev.n != null && prev.n !== 1)) return;
+      if (!/\bon (?:it|that token)\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
+      e.scope = 'thatToken';
     });
     folded.forEach((e, i) => {
       itIsTarget(e, i);
@@ -19793,6 +19922,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^When(?:ever)? (?:this land|CARDNAME) enters untapped(?:,| )/i, event: 'etb', self: true,
       extra: { condition: { kind: 'selfUntapped' } } },
     { re: /^Whenever you create or sacrifice a token(?:,| )/i, event: 'youCreateToken', also: 'youSacToken' },
+    // Staff of the Storyteller: once for each lot of tokens one effect makes
+    { re: /^Whenever you create one or more creature tokens,? /i, event: 'youCreateToken', filt: () => subjectFilter('a creature'), extra: { batch: true } },
     { re: /^Whenever you create (?:a|one or more) tokens?(?:,| )/i, event: 'youCreateToken' },
     { re: /^Whenever you sacrifice a token(?:,| )/i, event: 'youSacToken' },
     // Kira, Glyph Keeper: "for the first time each turn"
@@ -25013,6 +25144,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!r.ok) errors.push(`${deck.companion.name} can't be your companion: ${r.reason}`);
     }
 
+    /* --- the table's bracket: a deck that goes past it is turned away --- */
+    if (fmt.bracket && MTG.brackets) {
+      const why = MTG.brackets.overBy(deck, fmt.bracket);
+      if (why) errors.push(why);
+    }
+
     /* --- stats --- */
     const stats = deckStats(main, commanders);
     if (fmt.kind === 'limited' && mainCount >= 40 && stats.lands < 14)
@@ -25127,6 +25264,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   /** Every knob, with what it means and where it applies. */
   const HOUSE_FIELDS = [
+    { key: 'bracket', label: 'Bracket', type: 'bracket', min: 0, max: 5, when: (f) => !!f.commander && f.kind !== 'limited',
+      hint: 'How strong the decks at this table may be. A deck that goes past it is turned away.' },
     { key: 'startingLife', label: 'Starting life', type: 'int', min: 1, max: 200,
       hint: 'How much life everyone begins with.' },
     { key: 'startingHand', label: 'Opening hand', type: 'int', min: 1, max: 12,
@@ -25174,6 +25313,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (key === 'colorIdentity') return !!fmt.colorIdentity;
     if (key === 'basicsFree') return !!fmt.basicsFree;
     if (key === 'collector') return false;
+    if (key === 'bracket') return 0;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;
@@ -25235,6 +25375,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const v = rules[f.key];
       if (v == null || v === f.value) continue;
       if (f.type === 'bool') out.push(`${f.label}: ${v ? 'on' : 'off'} (normally ${f.value ? 'on' : 'off'})`);
+      else if (f.type === 'bracket') out.push(MTG.brackets ? MTG.brackets.label(v) : `${f.label} ${v}`);
       else if (f.type === 'intOff') out.push(v ? `${f.label}: ${v}` : `${f.label}: off`);
       else out.push(`${f.label}: ${v}`);
     }
@@ -28564,6 +28705,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (v.party) return this._partySize(pid) * mult;
       // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredYours) return ((((((this.turnHistory || {}).enteredBy) || {})[pid]) || {})[v.enteredYours] || 0) * mult;
+      // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
+      if (v.combatHitPlayers) { const hit = ((this.turnHistory || {}).combatHit) || []; return hit.filter(id => v.combatHitPlayers === 'players' || this.opponentsOf(pid).some(q => q.id === id)).length * mult; }
       // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
@@ -34172,6 +34315,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (as.targetKind === 'player') {
           const p = this.player(as.targetId);
           got = this.dealDamageToPlayer(p, as.amount, as.source, true) || 0;
+          // Tymna the Weaver: which players were dealt combat damage this turn (combatHitPlayers)
+          if (got > 0) {
+            const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+            if (!(h.combatHit = h.combatHit || []).includes(p.id)) h.combatHit.push(p.id);
+          }
           // Steel Hellkite: who this creature has hit this turn
           if (got > 0 && as.source) {
             if (!as.source._hitPlayers || as.source._hitPlayers.turn !== this.turn) as.source._hitPlayers = { turn: this.turn, ids: [] };
@@ -37708,7 +37856,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -38259,7 +38407,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           }
           // Ring of Valkas: "on equipped creature if it's red"
           else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
-          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
+          // (thatToken: Wild Hypothesis, "Put X +1/+1 counters on it" — the token just made)
+          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget' || e.scope === 'thatToken') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
             for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.addCounters(o, e.kind, cnt);
           }
@@ -40339,6 +40488,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
            twice: once for the offer, once for what to pay it with. */
         case 'mayPay': {
           let pay = e.pay || {};
+          // Mask of Griselbrand: "pay X life, where X is its power" — the number as it resolves (payLifeX)
+          const lifeX = pay.life != null && typeof pay.life === 'object' ? Math.max(0, n(pay.life) || 0) : null;
+          if (lifeX != null) pay = Object.assign({}, pay, { life: lifeX });
           /* "You may pay {E}{E}{E}": energy, not mana (Guide of Souls) */
           const eN = (String(pay.mana || '').match(/\{E\}/gi) || []).length;
           if (eN) pay = Object.assign({}, pay, { energy: eN, mana: String(pay.mana).replace(/\{E\}/gi, '') || null });
@@ -40359,7 +40511,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (!able && (pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
-            prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
+            prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${truncate(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} (X is ${lifeX}.)` : `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}`) }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
           if (pay.energy && !this._doneHere('energyPaid')) {
@@ -43435,8 +43587,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (e.attached) { const x = src && src.attachedTo && this.obj(src.attachedTo); targets = x ? [{ kind: 'object', id: x.id }] : []; }
           this._noteLastAffected(targets);
           for (const t of targets) {
-            if (t.kind !== 'object') continue;
-            const o = this.obj(t.id);
+            let o = t.kind === 'object' ? this.obj(t.id) : null;
+            // Commit: "target spell or nonland permanent" — a spell leaves the stack uncast, as a bounced one does
+            if (t.kind === 'stack') {
+              const item = this.stack.find(st => st.id === t.id);
+              if (item && item.kind === 'spell' && item.obj && !item.isCopy) o = item.obj;
+            }
             if (!o) continue;
             this.moveObject(o, 'library', { toBottom: e.where === 'bottom' });
             // Chronostutter: second from the top
@@ -43444,7 +43600,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             // Teferi, Hero of Dominaria: third from the top
             if (e.where === 'third') { const lib = this.zones[o.owner].library; if (lib[0] === o) { lib.splice(0, 1); lib.splice(Math.min(2, lib.length), 0, o); } }
             if (e.where === 'shuffle') this.rng.shuffle(this.zones[o.owner].library);
-            this.logEvent('zone', `${o.name} goes to the ${e.where === 'shuffle' ? 'library (shuffled)' : e.where} of its owner's library.`);
+            this.logEvent('zone', e.where === 'second' || e.where === 'third' ? `${o.name} goes into its owner's library ${e.where} from the top.`
+              : e.where === 'shuffle' ? `${o.name} is shuffled into its owner's library.` : `${o.name} goes to the ${e.where || 'top'} of its owner's library.`);
           }
           break;
         }
@@ -43877,16 +44034,19 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         // Tree of Perdition: their life total becomes its toughness, and its toughness their life total
         case 'exchangeLifeToughness': {
-          const p = firstPlayer();
+          // Tree of Redemption, Evra: "your life total" (who 'you'); Evra: "… with its power" (stat 'power')
+          const p = e.who === 'you' ? me : firstPlayer();
           if (!p || !src || src.zone !== 'battlefield') break;
-          const life = p.life, tough = this.toughnessOf(src);
+          const isPow = e.stat === 'power';
+          const life = p.life, tough = isPow ? this.powerOf(src) : this.toughnessOf(src);
           const pw = parseInt((src.card && src.card.power) || '0', 10) || 0;
+          const tg = parseInt((src.card && src.card.toughness) || '0', 10) || 0;
           if (life !== tough) {
             this.changeLife(p, tough - life, 'exchange');
             if (p.life === tough) {
-              src.effects.push({ setPt: { p: pw, t: life }, until: null });
+              src.effects.push({ setPt: isPow ? { p: life, t: tg } : { p: pw, t: life }, until: null });
               src._chr = null; this.bumpBoard();
-              this.logEvent('rules', `${src.name} and ${p.name} exchange: ${p.name} is at ${tough} life, and its toughness is ${life}.`);
+              this.logEvent('rules', `${src.name} and ${p.name} exchange: ${p.name} is at ${tough} life, and its ${isPow ? 'power' : 'toughness'} is ${life}.`);
             }
           }
           break;
@@ -53397,6 +53557,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!MTG.formats.canBeCommander(c, fmt)) return false;
       // one already tried, whose colours turned up no cards to build with
       if (avoid && avoid.includes(c.name)) return false;
+      // a table with a bracket: no commander past it (a Game Changer at a Core table)
+      if (fmt.bracket && MTG.brackets && !MTG.brackets.allowedCard(c, fmt.bracket)) return false;
       // a commander with no colours has a very thin pool of cards the bots can play
       return (c.color_identity || []).length > 0;
     });
@@ -53459,7 +53621,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       plan ? searchPool(`${base} ${planQuery(plan)} -t:land`, 175) : Promise.resolve([]),
     ]);
     const ctx = { prior: 0.9, multiplayer: true, commander: true };
-    const cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
+    let cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
+    // a table with a bracket: nothing that goes past it on its own account
+    if (fmt.bracket && MTG.brackets) cands = cands.filter(c => MTG.brackets.allowedCard(c.card, fmt.bracket));
     if (cands.length < 30) {
       /* No cards for these colours (offline, with nothing saved for them):
          another commander, a couple of times, before giving up. */
@@ -53481,7 +53645,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       creature: 22 + Math.round((1 - cfg.skill) * 6),
       curve: [0, 6, 12, 15, 12, 8, 5, 5],
     };
-    const picks = assembleSingleton(cands, deckSize - landCount, cplan);
+    let picks = assembleSingleton(cands, deckSize - landCount, cplan);
+    /* Past the table's bracket all the same (a fourth Game Changer, two
+       cards that make a combo): those make way and it is put together again. */
+    for (let tries = 0; fmt.bracket && MTG.brackets && tries < 3; tries++) {
+      const over = MTG.brackets.excess({ commanders, main: picks.map(c => ({ card: c.card, qty: 1 })) }, fmt.bracket);
+      if (!over.size) break;
+      cands = cands.filter(c => !over.has(U.normName(c.card.name)));
+      picks = assembleSingleton(cands, deckSize - landCount, cplan);
+    }
     progress('Building the mana base');
     const lands = await buildManaBase(picks.map(c => ({ c, qty: 1 })), landCount, colors, landPool, cfg, fmt,
       { singleton: true, commanders });
@@ -58570,6 +58742,260 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 })(window.MTG);
 
 
+/* ===== 15a-brackets.js ===== */
+/* ============================================================
+   15a-brackets.js - Commander brackets
+   The five brackets Commander is played in (Exhibition, Core, Upgraded,
+   Optimized, cEDH), and where a deck falls among them by what can be read
+   off its list: how many Game Changers it runs, whether it takes the
+   table's lands away, how many extra turns it takes, and whether two of
+   its cards make an infinite combo, early or late. Tutors once counted
+   and no longer do. Bracket 5 is a Bracket 4 deck built to win a
+   tournament, which no list says, so nothing is put there by reading it.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const U = MTG.util;
+
+  /** @type {Array<null|{n:number, name:string, blurb:string}>} by number */
+  const BRACKETS = [
+    null,
+    { n: 1, name: 'Exhibition', blurb: 'Decks built to show off an idea more than to win. No Game Changers, no mass land denial, no extra turns, no two-card combos.' },
+    { n: 2, name: 'Core', blurb: 'About as strong as a typical preconstructed deck. No Game Changers, mass land denial or two-card combos; an extra turn here and there, never one after another.' },
+    { n: 3, name: 'Upgraded', blurb: 'Stronger than a precon. Up to three Game Changers; no mass land denial; no two-card combo that comes together early; extra turns never one after another.' },
+    { n: 4, name: 'Optimized', blurb: 'High power: anything the banned list allows.' },
+    { n: 5, name: 'cEDH', blurb: 'Competitive: the strongest decks, built for tournament play.' },
+  ];
+  const nameOf = (n) => (BRACKETS[n] ? BRACKETS[n].name : '');
+  const label = (n) => (BRACKETS[n] ? `Bracket ${n} · ${BRACKETS[n].name}` : 'Any bracket');
+
+  // the rules text, without its reminders: "gift an extra turn" is one for an opponent
+  const textOf = (c) => (c.card_faces && c.card_faces.length
+    ? c.card_faces.map(f => f.oracle_text || '').join('\n')
+    : c.oracle_text || '').replace(/\([^)]*\)/g, '');
+
+  /* The list as it stood when this was written (February 2026), for a card
+     kept from before the app held on to Scryfall's word for it. Scryfall's
+     word wins wherever there is one: on the card, or in the card database. */
+  const GC_KNOWN = new Set([
+    'Ad Nauseam', 'Ancient Tomb', 'Aura Shards', 'Biorhythm', "Bolas's Citadel", 'Braids, Cabal Minion', 'Chrome Mox',
+    'Coalition Victory', 'Consecrated Sphinx', 'Crop Rotation', 'Cyclonic Rift', 'Demonic Tutor', 'Drannith Magistrate',
+    'Enlightened Tutor', 'Farewell', 'Field of the Dead', 'Fierce Guardianship', 'Force of Will', "Gaea's Cradle", 'Gamble',
+    'Gifts Ungiven', 'Glacial Chasm', 'Grand Arbiter Augustin IV', 'Grim Monolith', 'Humility', 'Imperial Seal', 'Intuition',
+    "Jeska's Will", "Lion's Eye Diamond", 'Mana Vault', "Mishra's Workshop", 'Mox Diamond', 'Mystical Tutor',
+    'Narset, Parter of Veils', 'Natural Order', 'Necropotence', 'Notion Thief', 'Opposition Agent', 'Orcish Bowmasters',
+    'Panoptic Mirror', 'Rhystic Study', 'Seedborn Muse', "Serra's Sanctum", 'Smothering Tithe', 'Survival of the Fittest',
+    "Teferi's Protection", 'Tergrid, God of Fright', "Thassa's Oracle", 'The One Ring', 'The Tabernacle at Pendrell Vale',
+    'Underworld Breach', 'Vampiric Tutor', 'Worldly Tutor',
+  ].map(n => U.normName(n)));
+
+  /** On the Game Changers list. */
+  function isGameChanger(c) {
+    if (!c) return false;
+    if (c.game_changer === true || c.game_changer === false) return c.game_changer;
+    const idx = MTG.cardDb && MTG.cardDb.idx;
+    const d = idx && c.name ? idx.byNameCard(c.name) : null;
+    if (d) return !!d.game_changer;
+    return GC_KNOWN.has(U.normName(U.frontName(c.name || '')));
+  }
+
+  /* Mass land denial: cards that destroy, exile or bounce lands, keep them
+     tapped, or change the mana they make, four or more a player at once,
+     without giving them back. The text catches the plain ones; the rest are
+     named. */
+  const MLD_NAMES = new Set([
+    'Armageddon', 'Ravages of War', 'Catastrophe', 'Decree of Annihilation', 'Jokulhaups', 'Obliterate',
+    'Worldfire', 'Apocalypse', 'Devastation', 'Ruination', 'Wildfire', 'Destructive Force', 'Burning of Xinye',
+    'Impending Disaster', 'Boom // Bust', 'Death Cloud', 'Global Ruin', 'Cataclysm', 'Fall of the Thran',
+    'Thoughts of Ruin', 'Myojin of Infinite Rage', 'Wake of Destruction', 'Acid Rain', 'Tsunami', 'Flashfires',
+    'Boil', 'Choke', 'Epicenter', 'Sunder', 'Hokori, Dust Drinker', 'Rising Waters', 'Winter Orb', 'Static Orb',
+    'Stasis', 'Blood Moon', 'Magus of the Moon', 'Back to Basics', 'Contamination', 'Infernal Darkness',
+    'Mana Vortex', 'Keldon Firebombers', 'Bend or Break', 'Upheaval', 'Sway of the Stars', 'Desolation Angel',
+  ].map(n => U.normName(n)));
+  const LAND = '(?:non-?basic )?lands';
+  const BASIC = '(?:plains|islands|swamps|mountains|forests)';
+  const MLD_TEXT = [
+    new RegExp(`\\b(?:destroy|exile) all (?:${LAND}|${BASIC})\\b(?! (?:you|target player) control)`, 'i'),
+    new RegExp(`\\b(?:destroy|exile) all (?:(?!except)[a-z, ])*\\band ${LAND}\\b`, 'i'),
+    new RegExp(`\\beach player sacrifices (?:all|four|five|six|seven|x) ${LAND}\\b`, 'i'),
+    new RegExp(`\\breturn all ${LAND} to their owners' hands\\b`, 'i'),
+    /\blands don't untap during their controllers' untap steps\b/i,
+    /\bplayers skip their untap steps\b/i,
+    /\bplayers can't untap more than (?:one|two) (?:lands?|permanents?)\b/i,
+    new RegExp(`\\bnonbasic lands are ${BASIC}\\b`, 'i'),
+  ];
+  function isMassLandDenial(c) {
+    if (!c) return false;
+    if (MLD_NAMES.has(U.normName(c.name)) || MLD_NAMES.has(U.normName(U.frontName(c.name)))) return true;
+    const t = textOf(c);
+    return MLD_TEXT.some(re => re.test(t));
+  }
+
+  // an extra turn that goes to an opponent, after you have taken theirs
+  const NOT_TURNS = new Set(['Emrakul, the Promised End'].map(n => U.normName(n)));
+  /** Takes an extra turn (or gives one), as opposed to stopping them. */
+  function takesExtraTurn(c) {
+    if (!c || NOT_TURNS.has(U.normName(c.name))) return false;
+    const t = textOf(c);
+    return /\btakes? (?:an|one|two|three|that many|x) extra turns?\b/i.test(t);
+  }
+
+  /* Two-card combos: the ones the curated table knows, and the loops the
+     engine reads off the text when it is sure of them. A combo is early
+     when both halves could be on the table by turn five on curve: the
+     cheaper costs four or less and the dearer five or less. */
+  function manaValue(deck, name) {
+    const n = U.normName(name);
+    const all = (deck.commanders || []).concat((deck.main || []).map(e => e.card));
+    const c = all.find(x => x && (U.normName(x.name) === n || U.normName(U.frontName(x.name)) === n));
+    return c ? (c.cmc || 0) : 0;
+  }
+  function twoCardCombos(deck) {
+    if (!MTG.combos) return [];
+    let res;
+    try { res = MTG.combos.quickScan(deck); } catch (e) { return []; }
+    const out = [];
+    for (const c of res.combos || []) {
+      if (!c.pieces || c.pieces.length !== 2) continue;
+      if (c.kind !== 'infinite' && c.kind !== 'win') continue;
+      if (c.source === 'engine' && c.confidence !== 'certain') continue;
+      const mv = c.pieces.map(p => manaValue(deck, p)).sort((a, b) => a - b);
+      out.push({ pieces: c.pieces.slice(), does: (c.produces || [])[0] || '', how: c.steps || '', early: mv[0] <= 4 && mv[1] <= 5, mv });
+    }
+    return out;
+  }
+
+  /** Each different card in the deck once, its commanders first. */
+  function cardsOf(deck) {
+    const seen = new Set(), out = [];
+    const add = (c, cmd) => {
+      if (!c || !c.name) return;
+      const k = U.normName(c.name);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ card: c, cmd });
+    };
+    for (const c of deck.commanders || []) add(c, true);
+    for (const e of deck.main || []) add(e.card, false);
+    if (deck.companion) add(deck.companion, false);
+    return out;
+  }
+
+  const cache = new Map();
+  /**
+   * Where a deck falls.
+   *   bracket: the bracket to show (two at the least: a deck with nothing
+   *            past Bracket 1 is still most likely a Core deck);
+   *   min:     the lowest bracket whose rules it keeps, for a table's limit;
+   *   reasons: what puts it there, each with its cards and the bracket it
+   *            asks for, the highest first.
+   */
+  function estimate(deck) {
+    if (!deck) return { bracket: 2, min: 1, reasons: [], gameChangers: [] };
+    const list = cardsOf(deck);
+    const sig = list.map(x => (x.cmd ? '*' : '') + U.normName(x.card.name)).sort().join('|');
+    if (cache.has(sig)) return cache.get(sig);
+    const named = (xs) => xs.map(x => x.card.name);
+    const reasons = [];
+
+    const gc = list.filter(x => isGameChanger(x.card));
+    if (gc.length) reasons.push({
+      key: 'gc', title: 'Game Changers', bracket: gc.length > 3 ? 4 : 3, cards: named(gc),
+      why: gc.length > 3
+        ? `${gc.length} Game Changers: Bracket 3 allows three, Bracket 4 any number.`
+        : `${gc.length === 1 ? 'A Game Changer' : gc.length + ' Game Changers'}: Brackets 1 and 2 have none, Bracket 3 up to three.`,
+    });
+    const mld = list.filter(x => isMassLandDenial(x.card));
+    if (mld.length) reasons.push({
+      key: 'mld', title: 'Mass land denial', bracket: 4, cards: named(mld),
+      why: 'Taking every player’s lands away (or their mana) is for Bracket 4 and up.',
+    });
+    const turns = list.filter(x => takesExtraTurn(x.card));
+    if (turns.length) reasons.push({
+      key: 'turns', title: 'Extra turns', bracket: turns.length >= 3 ? 4 : 2, cards: named(turns),
+      why: turns.length >= 3
+        ? `${turns.length} cards that take extra turns, enough to chain them: Bracket 4.`
+        : 'Bracket 1 has none; Brackets 2 and 3 a few, never one after another.',
+    });
+    const combos = twoCardCombos(deck);
+    if (combos.length) {
+      const early = combos.filter(c => c.early);
+      const pieces = [...new Set(combos.flatMap(c => c.pieces))];
+      reasons.push({
+        key: 'combo', title: 'Two-card combos', bracket: early.length ? 4 : 3, cards: pieces, combos,
+        why: early.length
+          ? 'A two-card combo that can come together early, by turn five or so: Bracket 4.'
+          : 'Two-card combos that come together only late: Bracket 3 at the least.',
+      });
+    }
+    reasons.sort((a, b) => b.bracket - a.bracket);
+    const min = Math.max(1, ...reasons.map(r => r.bracket));
+    const out = { bracket: Math.max(2, min), min, reasons, gameChangers: named(gc) };
+    if (cache.size > 40) cache.delete(cache.keys().next().value);
+    cache.set(sig, out);
+    return out;
+  }
+
+  /** Whether a deck keeps a table's bracket (0: no limit). */
+  function fits(deck, n) {
+    return !n || estimate(deck).min <= n;
+  }
+
+  /** Why it does not, in a sentence, or null when it does. */
+  function overBy(deck, n) {
+    if (!n) return null;
+    const e = estimate(deck);
+    if (e.min <= n) return null;
+    const over = e.reasons.filter(r => r.bracket > n);
+    const bits = over.map(r => {
+      if (r.key === 'gc') return n >= 3 ? `${r.cards.length} Game Changers (three at most)` : `Game Changers (${r.cards.join(', ')})`;
+      if (r.key === 'mld') return `mass land denial (${r.cards.join(', ')})`;
+      if (r.key === 'turns') return n === 1 ? `extra turns (${r.cards.join(', ')})` : `${r.cards.length} extra-turn cards`;
+      return `a two-card combo (${r.combos.filter(c => n >= 3 ? c.early : true).map(c => c.pieces.join(' + ')).slice(0, 2).join('; ')})`;
+    });
+    return `This table plays ${label(n)}; this deck needs Bracket ${e.min} for ${bits.join(', ')}.`;
+  }
+
+  /** Whether a card may go in a deck for a table at bracket n on its own account (combos aside). */
+  function allowedCard(c, n) {
+    if (!n || n >= 4) return true;
+    if (n <= 2 && isGameChanger(c)) return false;
+    if (n === 1 && takesExtraTurn(c)) return false;
+    return !isMassLandDenial(c);
+  }
+
+  /**
+   * The cards to take out of a deck to bring it down to bracket n: what goes
+   * past it, keeping the first three Game Changers and the first two extra
+   * turns where those are allowed, and one card of each combo that is not.
+   * Commanders stay. Names, normalised.
+   */
+  function excess(deck, n) {
+    const out = new Set();
+    if (!n || n >= 4) return out;
+    const e = estimate(deck);
+    const cmds = new Set((deck.commanders || []).map(c => U.normName(c.name)));
+    const cut = (names) => { for (const x of names) if (!cmds.has(U.normName(x))) out.add(U.normName(x)); };
+    for (const r of e.reasons) {
+      if (r.bracket <= n) continue;
+      if (r.key === 'gc') cut(n >= 3 ? r.cards.filter(x => !cmds.has(U.normName(x))).slice(3) : r.cards);
+      else if (r.key === 'turns') cut(n >= 2 ? r.cards.slice(2) : r.cards);
+      else if (r.key === 'combo') {
+        for (const c of r.combos) {
+          if (n >= 3 && !c.early) continue;
+          const piece = c.pieces.find(p => !cmds.has(U.normName(p)));
+          if (piece) cut([piece]);
+        }
+      } else cut(r.cards);
+    }
+    return out;
+  }
+
+  MTG.brackets = {
+    BRACKETS, nameOf, label, estimate, fits, overBy, allowedCard, excess,
+    isGameChanger, isMassLandDenial, takesExtraTurn, twoCardCombos,
+  };
+})(window.MTG);
 /* ===== 16-advisor.js ===== */
 /* ============================================================
    16-advisor.js - work out what a deck is trying to do, then help
@@ -61109,7 +61535,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   }
 
   /** A term's box: its name, and what it does. */
-  const termBox = (t) => el('div', { class: 'kw-note' + (t.granted ? ' granted' : ''), role: 'listitem' }, [
+  const termBox = (t) => el('div', { class: 'kw-note' + (t.granted ? ' granted' : '') + (t.kind === 'gc' ? ' gc' : ''), role: 'listitem' }, [
     el('div', { class: 'kw-name' }, [
       el('span', { text: t.name }),
       t.granted ? el('span', { class: 'kw-tag', text: 'gained' }) : null,
@@ -61133,6 +61559,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // a Treasure shown as the token itself needs no box saying what a Treasure is
     const shown = new Set(tokens.map(p => String(p.name || '').toLowerCase()));
     const list = find(card, opts).filter(t => !(shown.has(t.name.toLowerCase()) && (t.kind === 't' || t.kind === 'a')));
+    // on Commander's Game Changers list: said first, as Arena puts a card's standing above its keywords
+    if (MTG.brackets && MTG.brackets.isGameChanger(card))
+      list.unshift({ name: 'Game Changer', kind: 'gc', text: 'On Commander\u2019s Game Changers list. A deck with one to three of these is Bracket 3; with four or more, Bracket 4.' });
     return {
       keywords: list.length ? el('div', { class: 'card-aside kw-side', role: 'list', 'aria-label': 'What its keywords mean' }, list.map(termBox)) : null,
       tokens: tokens.length ? el('div', { class: 'card-aside tok-side' }, [tokenViewer(tokens, opts)]) : null,
@@ -64589,7 +65018,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg');
           return c;
         };
-        const strip = piece('strip', `polygon(0% 0%, 100% 0%, ${at(edge.slice().reverse())})`);
+        const strip = piece('tear-top', `polygon(0% 0%, 100% 0%, ${at(edge.slice().reverse())})`);
         const body = piece('body', `polygon(${at(edge)}, 100% 100%, 0% 100%)`);
         // the cards inside, face down in your sleeves
         const rise = el('div', { class: 'po-rise' }, [0, 1, 2].map((k) => {
@@ -66207,6 +66636,101 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return host;
   };
 
+  /* ---------------- Commander brackets ---------------- */
+
+  /** The little mark a Game Changer carries in a list. */
+  UI.gcBadge = function (card, cls) {
+    if (!MTG.brackets || !MTG.brackets.isGameChanger(card)) return null;
+    return el('span', { class: 'gc-badge' + (cls ? ' ' + cls : ''), text: 'GC',
+      title: 'Game Changer: one to three of these make a deck Bracket 3; four or more, Bracket 4.' });
+  };
+
+  /**
+   * A deck's bracket, as a button that opens what put it there.
+   * opts.short: "B3" rather than "Bracket 3 · Upgraded" (a seat at a table);
+   * opts.table: the table's bracket, so a deck past it shows as such;
+   * opts.onMark(key): offered beside each reason, to mark its cards in a list.
+   */
+  UI.bracketPill = function (deck, opts) {
+    opts = opts || {};
+    const B = MTG.brackets;
+    const e = B.estimate(deck);
+    const over = opts.table && e.min > opts.table;
+    return el('button', {
+      type: 'button', class: `bracket-pill b${e.bracket}` + (over ? ' over' : '') + (opts.short ? ' short' : ''),
+      text: opts.short ? `B${e.bracket}` : B.label(e.bracket),
+      title: (over ? `Past this table's ${B.label(opts.table)}. ` : '') + `${B.label(e.bracket)}: click to see what puts it there.`,
+      'aria-label': `${B.label(e.bracket)}. Show what puts the deck there.`,
+      onclick: (ev) => { ev.stopPropagation(); UI.bracketSheet(deck, opts); },
+    });
+  };
+
+  /** What puts a deck in its bracket, card by card. */
+  UI.bracketSheet = function (deck, opts) {
+    opts = opts || {};
+    const B = MTG.brackets;
+    const e = B.estimate(deck);
+    const byName = new Map();
+    for (const c of (deck.commanders || []).concat((deck.main || []).map(x => x.card), deck.companion ? [deck.companion] : []))
+      if (c && c.name) byName.set(U.normName(c.name), c);
+    const cardOf = (n) => byName.get(U.normName(n)) || null;
+    const body = el('div', { class: 'bracket-sheet' });
+
+    // the five, this deck's lit
+    body.appendChild(el('div', { class: 'bracket-steps', role: 'list' }, [1, 2, 3, 4, 5].map(n => el('div', {
+      class: `bracket-step b${n}` + (n === e.bracket ? ' on' : '') + (opts.table === n ? ' table' : ''), role: 'listitem',
+      title: B.BRACKETS[n].blurb,
+    }, [el('b', { text: String(n) }), el('span', { text: B.nameOf(n) }), opts.table === n ? el('i', { text: 'this table' }) : null].filter(Boolean)))));
+    body.appendChild(el('p', { class: 'small muted', text: B.BRACKETS[e.bracket].blurb }));
+    if (opts.table && e.min > opts.table)
+      body.appendChild(el('p', { class: 'bracket-over', text: B.overBy(deck, opts.table) }));
+
+    const cardRow = (n) => {
+      const c = cardOf(n);
+      const row = el('button', { type: 'button', class: 'bracket-card strip', title: c ? `Read ${n}` : n }, [
+        el('span', { class: 'nm', text: n }),
+        c && (deck.commanders || []).some(x => U.normName(x.name) === U.normName(n)) ? el('span', { class: 'kw-tag', text: 'commander' }) : null,
+        c && c.mana_cost ? el('span', { class: 'cost', html: MTG.mana.html(c.mana_cost) }) : null,
+      ].filter(Boolean));
+      if (c) { UI.setArt(row, c); UI.attachPreview(row, c, 0); row.addEventListener('click', () => UI.cardSheet(c)); }
+      return row;
+    };
+
+    if (!e.reasons.length) {
+      body.appendChild(el('div', { class: 'bracket-none' }, [
+        el('b', { text: 'Nothing here goes past Bracket 1\u2019s rules.' }),
+        el('span', { text: ' No Game Changers, no mass land denial, no extra turns, no two-card combos. Most decks like this play at Bracket 2; one built to show off an idea more than to win plays at 1.' }),
+      ]));
+    }
+    for (const r of e.reasons) {
+      const sec = el('section', { class: 'bracket-reason' });
+      sec.appendChild(el('div', { class: 'bracket-reason-head' }, [
+        el('span', { class: `bracket-pill b${r.bracket} short static`, text: `B${r.bracket}` }),
+        el('b', { class: 'grow', text: `${r.title} \u00b7 ${r.key === 'combo' ? r.combos.length : r.cards.length}` }),
+        opts.onMark ? el('button', { class: 'btn xs', text: 'Mark in the list', onclick: () => { api.close(); opts.onMark(r.key); } }) : null,
+      ].filter(Boolean)));
+      sec.appendChild(el('p', { class: 'tiny muted', text: r.why }));
+      if (r.key === 'combo') {
+        for (const c of r.combos) {
+          sec.appendChild(el('div', { class: 'bracket-combo' }, [
+            el('div', { class: 'bracket-combo-head' }, [
+              el('span', { class: 'pill ' + (c.early ? 'bad' : 'warn'), text: c.early ? 'early' : 'late' }),
+              el('span', { class: 'grow tiny', text: c.does }),
+            ]),
+            el('div', { class: 'bracket-cards' }, c.pieces.map(cardRow)),
+            c.how ? el('div', { class: 'tiny dim', text: c.how }) : null,
+          ].filter(Boolean)));
+        }
+      } else {
+        sec.appendChild(el('div', { class: 'bracket-cards' }, r.cards.map(cardRow)));
+      }
+      body.appendChild(sec);
+    }
+    body.appendChild(el('p', { class: 'tiny dim bracket-foot', text: 'Read off the list: Game Changers, mass land denial, extra turns and two-card combos. Bracket 5 is a Bracket 4 deck tuned for tournament play, which no list says, so it is never given here.' }));
+    const api = UI.modal({ title: `${deck.name ? deck.name + ': ' : ''}${B.label(e.bracket)}`, width: '560px', content: body, className: 'bracket-modal' });
+    return api;
+  };
+
   /* ---------------- import dialog ---------------- */
   UI.importDeck = function (formatId, onDone) {
     const ta = el('textarea', { rows: 16, placeholder: PLACEHOLDER, spellcheck: 'false' });
@@ -66544,6 +67068,10 @@ Sideboard
       if (!highlight) return true;
       if (highlight.kind === 'type') return primaryType(card) === highlight.value;
       if (highlight.kind === 'manual') return !UI.autoInfo(card).auto;
+      if (highlight.kind === 'bracket') {
+        const r = MTG.brackets.estimate(deck).reasons.find(x => x.key === highlight.value);
+        return !!r && r.cards.some(n => U.normName(n) === U.normName(card.name));
+      }
       const a = MTG.oracle.analyze(card);
       if (!a || a.isLand) return false;            // the curve counts nonlands
       return Math.min(8, Math.floor(card.cmc || 0)) === Number(highlight.value);
@@ -66562,6 +67090,7 @@ Sideboard
       if (!highlight) return '';
       if (highlight.kind === 'type') return (TYPE_PLURAL[highlight.value] || highlight.value).toLowerCase();
       if (highlight.kind === 'manual') return 'cards that need a hand';
+      if (highlight.kind === 'bracket') return ({ gc: 'Game Changers', mld: 'mass land denial', turns: 'extra turns', combo: 'combo pieces' })[highlight.value] || 'cards';
       return highlight.value === 8 ? 'cards at 8 mana or more' : `cards at ${highlight.value} mana`;
     }
 
@@ -66821,6 +67350,10 @@ Sideboard
         el('div', { class: 'deck-head' }, [
           nameInput,
           el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation)]),
+          fmtObj.commander && fmtObj.kind !== 'limited' ? el('div', { class: 'deck-head-row bracket-row' }, [
+            UI.bracketPill(deck, { onMark: (k) => setHighlight('bracket', k) }),
+            el('span', { class: 'tiny dim grow', text: bracketGist() }),
+          ]) : null,
           sizeMeter(validation),
           autoLine(),
           el('div', { class: 'deck-head-row' }, drafted ? [
@@ -67118,6 +67651,16 @@ Sideboard
       return out;
     }
 
+    /** In a few words, what puts the deck in its bracket. */
+    function bracketGist() {
+      const e = MTG.brackets.estimate(deck);
+      if (!e.reasons.length) return 'No Game Changers, combos or extra turns';
+      return e.reasons.map(r => r.key === 'gc' ? `${r.cards.length} Game Changer${r.cards.length === 1 ? '' : 's'}`
+        : r.key === 'combo' ? `${r.combos.length} two-card combo${r.combos.length === 1 ? '' : 's'}`
+        : r.key === 'turns' ? `${r.cards.length} extra turn${r.cards.length === 1 ? '' : 's'}`
+        : 'mass land denial').join(', ');
+    }
+
     function sizePill(v) {
       const label = v.exact
         ? v.size + ' / ' + v.min
@@ -67147,6 +67690,7 @@ Sideboard
      * single copies, so those are the two clicks: the number adds one, the
      * rest of the row takes one away. Everything else is on the menu.
      */
+    const fmtIsCommander = () => !!(MTG.formats.get(deck.format) || {}).commander;
     function entryRow(e, isCmd) {
       const a = MTG.oracle.analyze(e.card);
       const inPool = drafted && deck.sideboard.includes(e);
@@ -67167,6 +67711,7 @@ Sideboard
       }, [
         qty,
         el('span', { class: 'nm', text: e.card.name }),
+        fmtIsCommander() ? UI.gcBadge(e.card) : null,
         UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
         MTG.settings.showCardPrices
@@ -78540,6 +79085,7 @@ Sideboard
           el('span', { text: `${fmt.startingLife} life` }),
           el('span', { text: fmt.exactSize ? `${fmt.deckMin} cards` : `${fmt.deckMin || 60}+ cards` }),
           fmt.commanderDamage ? el('span', { text: `${fmt.commanderDamage} commander damage` }) : null,
+          fmt.bracket ? el('span', { class: `lobby-bracket b${fmt.bracket}`, text: MTG.brackets.label(fmt.bracket) }) : null,
         ].filter(Boolean)),
       ]),
     ]);
@@ -78596,6 +79142,8 @@ Sideboard
         },
       }),
     ]));
+
+    if (MTG.formats.houseFields(sess.formatId).some(f => f.key === 'bracket')) side.appendChild(bracketPanel(sess));
 
     /* -- other people -- */
     const online = el('section', { class: 'panel online-panel' });
@@ -78667,6 +79215,9 @@ Sideboard
     const tools = [];
     let deckLine = null;
     const commander = r.deck && (r.deck.commanders || [])[0];
+    // at a Commander table, each deck's bracket, which opens what puts it there
+    const bracketed = fmt.commander && !limited && MTG.brackets;
+    const bracketPill = () => (bracketed && r.deck ? UI.bracketPill(r.deck, { short: true, table: sess.rules.bracket || 0 }) : null);
 
     if (r.kind === 'bot') {
       const label = MTG.bots.DIFFICULTY[r.difficulty].label;
@@ -78675,6 +79226,7 @@ Sideboard
         else if (r.buildFailed) status.push(el('span', { class: 'pill bad', title: r.buildFailed, text: 'deck failed' }));
         else if (r.deck) {
           deckLine = commander ? commanderLink(commander) : el('span', { class: 'seat-deck-name', text: r.deck.name });
+          if (bracketed) status.push(bracketPill());
           if (r.deckValid && !r.deckValid.ok) {
             status.push(el('span', {
               class: 'pill warn', text: 'rough deck',
@@ -78715,6 +79267,7 @@ Sideboard
     if (!limited) {
       deckLine = commander ? commanderLink(commander)
         : el('span', { class: 'seat-deck-name' + (r.deck ? '' : ' none'), text: r.deck ? r.deck.name : 'No deck chosen yet' });
+      if (bracketed && r.deck) status.push(bracketPill());
       if (r.deck && r.deckValid && !r.deckValid.ok)
         status.push(el('span', { class: 'pill bad', text: `${r.deckValid.errors.length} legality problem${r.deckValid.errors.length === 1 ? '' : 's'}`, title: r.deckValid.errors.join('\n') }));
       else if (r.deck) status.push(el('span', { class: 'pill good', text: 'legal' }));
@@ -78782,6 +79335,27 @@ Sideboard
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Difficulty' }), diffSel]),
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Style' }), persSel]),
     ]);
+  }
+
+  /**
+   * The bracket this table plays at, chosen by the host: any, or one of the
+   * five. A deck that goes past it is turned away, and the bots build to it.
+   */
+  function bracketPanel(sess) {
+    const B = MTG.brackets;
+    const cur = sess.rules.bracket || 0;
+    const p = el('section', { class: 'panel bracket-panel' });
+    p.appendChild(el('h3', { text: 'Bracket' }));
+    p.appendChild(el('div', { class: 'bracket-choose', role: 'radiogroup', 'aria-label': 'The bracket this table plays at' }, [0, 1, 2, 3, 4, 5].map(n => el('button', {
+      type: 'button', class: 'bracket-opt' + (n ? ` b${n}` : '') + (n === cur ? ' on' : ''), role: 'radio', 'aria-checked': n === cur ? 'true' : 'false',
+      title: n ? `${B.label(n)}: ${B.BRACKETS[n].blurb}` : 'Any deck the format allows',
+      onclick: () => { if (n !== cur) { sess.setRule('bracket', n); renderLobby(); } },
+    }, el('b', { text: n ? String(n) : 'Any' })))));
+    p.appendChild(el('p', { class: 'small muted' }, cur ? [
+      el('b', { class: `bracket-name b${cur}`, text: B.label(cur) + '. ' }),
+      `${B.BRACKETS[cur].blurb} A deck that goes past it is turned away, and the bots build to it.`,
+    ] : 'Any deck the format allows. Choose one to keep the table to decks of about the same strength.'));
+    return p;
   }
 
   function formatSetupPanel(sess, fmt) {
@@ -79002,8 +79576,9 @@ Sideboard
   let rulesOpen = false;
 
   function houseRulesPanel(sess) {
-    const fields = MTG.formats.houseFields(sess.formatId);
-    const changed = MTG.formats.houseSummary(sess.formatId, sess.rules);
+    // the bracket has a panel of its own (bracketPanel)
+    const fields = MTG.formats.houseFields(sess.formatId).filter(f => f.key !== 'bracket');
+    const changed = MTG.formats.houseSummary(sess.formatId, Object.assign({}, sess.rules, { bracket: 0 }));
     const panel = el('details', { class: 'panel rules-panel' });
     panel.open = rulesOpen || changed.length > 0;
     panel.addEventListener('toggle', () => { rulesOpen = panel.open; });
@@ -79206,7 +79781,8 @@ Sideboard
       banner.querySelector('.lobby-title').textContent = fmt.name;
       const facts = banner.querySelector('.lobby-facts');
       facts.innerHTML = '';
-      for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${fmt.startingLife} life` : null, 'Waiting for the host to start'])
+      for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${fmt.startingLife} life` : null,
+        fmt.bracket && MTG.brackets ? MTG.brackets.label(fmt.bracket) : null, 'Waiting for the host to start'])
         if (t) facts.appendChild(el('span', { text: t }));
       facts.appendChild(rttPill('host'));
       if (!banner._art) { banner._art = true; decorArt(banner.firstChild, FORMAT_ART[payload.formatId] || HERO_ART[0]); }
@@ -79246,6 +79822,7 @@ Sideboard
         ]),
         el('div', { class: 'seat-deck' }, [
           el('span', { class: 'seat-deck-name' + (r.deckName ? '' : ' none'), text: r.deckName || (r.kind === 'bot' ? 'Building…' : 'No deck chosen yet') }),
+          r.bracket ? el('span', { class: `bracket-pill short static b${r.bracket}`, text: `B${r.bracket}`, title: MTG.brackets.label(r.bracket) }) : null,
           r.deckValid === false ? el('span', { class: 'pill bad', text: 'deck not legal' }) : (r.deckName ? el('span', { class: 'pill good', text: 'ready' }) : null),
         ].filter(Boolean)),
       ]));
@@ -79311,7 +79888,7 @@ Sideboard
   }
 
   /* Rule changes that mean a bot's deck is the wrong shape now. */
-  const DECK_SHAPING = ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'colorIdentity', 'commanderDamage'];
+  const DECK_SHAPING = ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'colorIdentity', 'commanderDamage', 'bracket'];
 
   /**
    * Repaint one seat's cards in the art that seat chose. The deck already
@@ -79429,7 +80006,9 @@ Sideboard
       this.broadcastLobby();
     }
     resetRules() {
+      const bracket = this.rules.bracket;
       this.rules = MTG.formats.houseDefaults(this.formatId);
+      if (bracket) this.rules.bracket = bracket;
       this.refreshFmt();
       for (const r of this.roster) if (r.deck) r.deckValid = MTG.formats.validate(r.deck, this.fmt);
       this.rebuildBotDecks();
@@ -79540,6 +80119,7 @@ Sideboard
               style: r.kind === 'bot' && seatPersonality(r) ? seatPersonality(r).label : null,
               deckName: r.deck ? r.deck.name : null,
               deckValid: r.deckValid ? r.deckValid.ok : null,
+              bracket: r.deck && this.fmt.commander && this.fmt.kind !== 'limited' && MTG.brackets ? MTG.brackets.estimate(r.deck).bracket : null,
               avatar: (r.kind === 'local' ? MTG.settings.avatar : r.avatar) || null,
               sleeve: r.kind === 'local' ? MTG.economy.sleeveWorn() : (r.kind === 'bot' ? null : (r.sleeve || null)),
               frame: r.kind === 'local' ? MTG.economy.frameWorn() : (r.frame || null),
