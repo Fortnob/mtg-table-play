@@ -5457,6 +5457,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Tibalt's Trickery: "Counter target spell. Choose 1, 2, or 3 at random.
+       Its controller mills that many cards, then exiles cards from the top of
+       their library until they exile a nonland card with a different name
+       than that spell. They may cast that card without paying its mana cost.
+       Then they put the exiled cards on the bottom of their library in a
+       random order." */
+    { re: /^Counter target spell\. Choose 1, 2, or 3 at random\. Its controller mills that many cards, then exiles cards from the top of their library until they exile a nonland card with a different name than that spell\. They may cast that card without paying its mana cost\. Then they put the exiled cards on the bottom of their library in a random order\.$/i,
+      make: () => [{ op: 'tibaltsTrickery', targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }] },
     /* Explore the Vastlands: "Each player looks at the top five cards of
        their library and may reveal a land card and/or an instant or sorcery
        card from among them. Each player puts the cards they revealed this way

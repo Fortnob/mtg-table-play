@@ -14845,6 +14845,45 @@
           }
           break;
         }
+        // Tibalt's Trickery: countered, and its controller gets a random something else for free
+        case 'tibaltsTrickery': {
+          const r = this.resolving;
+          const slot = r ? r.index + ':tt' : null;
+          r && (r.marks = r.marks || {});
+          let st = r && r.marks[slot];
+          if (!st) {
+            const t0 = targets.find(t => t.kind === 'stack');
+            const item = t0 && this.stack.find(s => s.id === t0.id);
+            if (!item) break;
+            const name = item.name, pid = item.controller;
+            this._runEffect({ op: 'counterSpell' }, Object.assign({}, ctx, { targets: [t0], resolvedTargets: [t0] }));
+            const k = 1 + this.rng.int(3);
+            this.logEvent('rules', `${ctx.name || "Tibalt's Trickery"}: ${k} at random.`);
+            const z = this.zones[pid];
+            for (let i = 0; i < k && z.library.length; i++) this.moveObject(z.library[0], 'graveyard');
+            const exiled = [];
+            let hit = null;
+            while (z.library.length) {
+              const c = z.library[0];
+              this.moveObject(c, 'exile');
+              exiled.push(c.id);
+              if (!(c.analysis() || {}).isLand && c.name !== name) { hit = c; break; }
+            }
+            st = { pid, exiled, hit: hit ? hit.id : null };
+            if (r) r.marks[slot] = st;
+          }
+          const hit = st.hit && this.obj(st.hit);
+
+          if (hit && hit.zone === 'exile') {
+            const yes = this._ask({ type: 'confirm', playerId: st.pid, purpose: 'castCopy', prompt: `Cast ${hit.name} without paying its mana cost?` }, 'ttc');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) this._castFree(st.pid, hit);
+          }
+          const z = this.zones[st.pid];
+          const rest = this.rng.shuffle(st.exiled.map(id => this.obj(id)).filter(c => c && c.zone === 'exile'));
+          for (const c of rest) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

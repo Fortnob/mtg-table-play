@@ -12083,4 +12083,20 @@ module.exports = (test) => {
     T.settle();
     t.eq(l.zone, 'hand'); t.eq(sp.zone, 'hand'); t.eq(cr.zone, 'library'); t.eq(T.life('A'), 23); t.eq(T.life('B'), 23);
   });
+
+  test("Tibalt's Trickery: countered, and something else for free", (mk, t) => {
+    t.auto("Tibalt's Trickery");
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Forest');
+    const bear = T.top('A', 'Grizzly Bears');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.mana('A', 'R');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), T.g.lastError);
+    const st = T.g.stack[T.g.stack.length - 1];
+    T.answer('confirm', { yes: true });
+    T.mana('A', '1R');
+    t.ok(T.g.castSpell('A', T.hand('A', "Tibalt's Trickery").id, { targets: [{ kind: 'stack', id: st.id }] }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.life('B'), 20, 'the Bolt was countered'); t.eq(bear.zone, 'battlefield', 'the Bears were cast for nothing');
+  });
 };
