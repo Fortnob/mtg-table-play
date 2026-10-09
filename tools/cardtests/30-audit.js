@@ -2461,4 +2461,28 @@ module.exports = (test) => {
     T.mana('A', '2GG'); T.activate('A', hb, 0);
     t.eq(hb.counters['+1/+1'], 8, 'four more for its power of 4');
   });
+
+  test('Audit: Black Vise hurts only the chosen player; Hatching Plans; Testament of Faith takes the X paid', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Black Vise', 'Hatching Plans', 'Testament of Faith']) t.auto(c);
+    T.toMain('A');
+    T.answer('mode', (ch) => ({ modes: [ch.options.findIndex(o => /C/.test(o.label || ''))] }));
+    T.mana('A', '1'); T.cast('A', T.hand('A', 'Black Vise'));
+    for (let i = 0; i < 7; i++) { T.hand('B', 'Island'); T.hand('C', 'Island'); }
+    T.nextTurn('B'); T.toMain('B');
+    t.eq(T.life('B'), 20, 'B was not chosen');
+    T.nextTurn('C'); T.toMain('C');
+    t.eq(T.life('C'), 17, 'C, chosen, with seven cards: 3');
+    T = mk();
+    T.toMain('A');
+    const hp = T.bf('A', 'Hatching Plans');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const nat = T.hand('A', 'Naturalize');
+    const h = T.g.zones.A.hand.length;
+    T.mana('A', '1G'); T.cast('A', nat, { targets: [hp] });
+    t.eq(T.g.zones.A.hand.length, h - 1 + 3, 'destroyed: three cards');
+    const tf = T.bf('A', 'Testament of Faith');
+    T.mana('A', '3'); T.activate('A', tf, 0, { x: 3 });
+    t.eq(T.g.powerOf(tf), 3); t.eq(T.g.toughnessOf(tf), 3);
+  });
 };
