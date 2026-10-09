@@ -11146,6 +11146,13 @@
     /* "As long as enchanted creature is white, it gets +1/+1 and has
        lifelink": any standing rule this can read, with the condition on
        it. "It" is what the condition is about. */
+    /* At Knifepoint: "During your turn, outlaws you control have first
+       strike." — the same as "As long as it's your turn, …" */
+    const dyt = line.match(/^During your turn, (.+)$/i);
+    if (dyt) {
+      const viaAl = parseContinuous("As long as it's your turn, " + dyt[1]);
+      if (viaAl) return Object.assign(viaAl, { text: line });
+    }
     const al = line.match(/^As long as (.+?), (.+)$/i);
     if (al) {
       const cond = condOf(al[1]);

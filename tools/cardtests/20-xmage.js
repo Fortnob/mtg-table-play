@@ -12946,4 +12946,15 @@ module.exports = (test) => {
     t.ok(!T.g._illegalTargets(specs, [{ kind: 'object', id: bear.id }], 'A', null), 'a Bear is not');
     t.ok(T.g._cardFitsWords(rogue, 'outlaw') && !T.g._cardFitsWords(bear, 'outlaw'));
   });
+
+  test('"During your turn, …": At Knifepoint gives outlaws first strike on your turn only', (mk, t) => {
+    t.auto('At Knifepoint');
+    const T = mk();
+    T.bf('A', 'At Knifepoint');
+    const r = T.bf('A', 'Robber of the Rich'), bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('A');
+    t.ok(T.g.hasKw(r, 'first strike') && !T.g.hasKw(bear, 'first strike'), 'the outlaw, on your turn');
+    T.toMain('B');
+    t.ok(!T.g.hasKw(r, 'first strike'), 'not on theirs');
+  });
 };

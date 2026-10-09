@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12141,
-  "gainedCards": 1287,
-  "linesNeeded": 13180,
-  "linesGained": 1535,
+  "needed": 12115,
+  "gainedCards": 1265,
+  "linesNeeded": 13150,
+  "linesGained": 1510,
   "gained": {
-   "all": 1287,
+   "all": 1265,
    "top2000": 49,
    "stdTop": 9
   },
@@ -1414,25 +1414,6 @@
    ]
   },
   {
-   "what": "EquippedPredicate.instance",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Cloud, Ex-SOLDIER",
-    "Nahiri, Forged in Fury",
-    "Dáin Ironfoot",
-    "Barret Wallace",
-    "Stone Haven Outfitter",
-    "Syr Gwyn, Hero of Ashvale",
-    "Hexgold Hoverwings",
-    "Long-Lost Lances",
-    "Nazahn, Revered Bladesmith",
-    "Item Shopkeep",
-    "Zamriel, Seraph of Steel",
-    "Swordsman, Sharp Scoundrel"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 13,
    "lines": 13,
@@ -1693,6 +1674,25 @@
    ]
   },
   {
+   "what": "EquippedPredicate.instance",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Cloud, Ex-SOLDIER",
+    "Nahiri, Forged in Fury",
+    "Dáin Ironfoot",
+    "Barret Wallace",
+    "Stone Haven Outfitter",
+    "Syr Gwyn, Hero of Ashvale",
+    "Hexgold Hoverwings",
+    "Long-Lost Lances",
+    "Nazahn, Revered Bladesmith",
+    "Item Shopkeep",
+    "Swordsman, Sharp Scoundrel",
+    "Hemlock Vial"
+   ]
+  },
+  {
    "what": "target count 1-2",
    "score": 12,
    "lines": 12,
@@ -1893,21 +1893,6 @@
     "Saving Grasp",
     "Scarab of the Unseen",
     "Obelisk of Undoing"
-   ]
-  },
-  {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Blacksmith's Talent",
-    "Fortune Teller's Talent",
-    "Sorcerer Class",
-    "Rogue Class",
-    "Ninja Teen",
-    "Bard Class",
-    "Fisher's Talent",
-    "Advanced Reconstruction"
    ]
   },
   {
@@ -2138,6 +2123,20 @@
     "Hidden Spider",
     "Clip Wings",
     "Run Afoul"
+   ]
+  },
+  {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Fortune Teller's Talent",
+    "Sorcerer Class",
+    "Rogue Class",
+    "Ninja Teen",
+    "Bard Class",
+    "Fisher's Talent",
+    "Advanced Reconstruction"
    ]
   },
   {
@@ -6476,17 +6475,6 @@
    ]
   },
   {
-   "what": "OutlawPredicate.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "At Knifepoint",
-    "Vial Smasher, Gleeful Grenadier",
-    "Rakish Crew",
-    "Mine Raider"
-   ]
-  },
-  {
    "what": "DontUntapInPlayersNextUntapStepAllEffect",
    "score": 4,
    "lines": 4,
@@ -6990,6 +6978,17 @@
     "Burrenton Forge-Tender",
     "Ajani's Aid"
    ]
+  },
+  {
+   "what": "ZuberasDiedDynamicValue.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Floating-Dream Zubera",
+    "Ashen-Skin Zubera",
+    "Dripping-Tongue Zubera",
+    "Ember-Fist Zubera"
+   ]
   }
  ],
  "sole": [
@@ -7060,8 +7059,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 126,
-   "cards": 120,
+   "score": 127,
+   "cards": 121,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
@@ -8439,19 +8438,6 @@
    ]
   },
   {
-   "what": "EquippedPredicate.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Nahiri, Forged in Fury",
-    "Barret Wallace",
-    "Stone Haven Outfitter",
-    "Hexgold Hoverwings",
-    "Long-Lost Lances",
-    "Item Shopkeep"
-   ]
-  },
-  {
    "what": "AttachedToMatchesFilterCondition",
    "score": 8,
    "cards": 8,
@@ -8768,6 +8754,19 @@
     "Invoke the Winds",
     "Jace, Ingenious Mind-Mage",
     "Sorin, Vampire Lord"
+   ]
+  },
+  {
+   "what": "EquippedPredicate.instance",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Nahiri, Forged in Fury",
+    "Barret Wallace",
+    "Stone Haven Outfitter",
+    "Hexgold Hoverwings",
+    "Long-Lost Lances",
+    "Item Shopkeep"
    ]
   },
   {
