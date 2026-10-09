@@ -7762,6 +7762,8 @@
         if (ea.notBy && MTG.oracle.matchesSpec(ea.notBy, blocker, blocker.analysis(), attacker.controller, this._specCtx())) return false;
         if (ea.minBlockerPower != null && this.powerOf(blocker) < ea.minBlockerPower) return false;
         if (ea.onlyBy && !ea.onlyBy.some(k => this.hasKw(blocker, k))) return false;
+        // Prowler's Helm: only Walls may block it
+        if (ea.onlyBySubtype && !this._hasCreatureType(blocker, ea.onlyBySubtype)) return false;
       }
       if (this._protectedFrom(attacker, blocker)) return false;
       const menace = A('menace');
@@ -16756,7 +16758,9 @@
             break;
           }
           const last = this._lastAffected && this.obj(this._lastAffected.id);
-          const x = last || this._lastCopy || null;
+          // Determined Iteration: "The token created this way" — the one this resolution just made
+          const made = e.madeNow && (this._madeThisResolution || []).length ? this.obj(this._madeThisResolution[this._madeThisResolution.length - 1]) : null;
+          const x = e.madeNow ? (made || this._lastCopy || null) : (last || this._lastCopy || null);
           if (!x || x.zone !== 'battlefield') break;
           x.effects.push({ keywords: e.keywords, until: e.until || null });
           this.bumpBoard();
@@ -20920,6 +20924,11 @@
       if (spec.maxMvSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
         return this._legalTargetsFor(Object.assign({}, spec, { maxMvSourcePower: false, maxMv: s0 ? Math.max(0, this.powerOf(s0)) : 0 }), controllerId, sourceId);
+      }
+      // Spellstutter Sprite: "with mana value X or less, where X is the number of Faeries you control", counted now
+      if (spec.maxMvCount) {
+        const s0 = sourceId && this.obj(sourceId);
+        return this._legalTargetsFor(Object.assign({}, spec, { maxMvCount: null, maxMv: Math.max(0, this._countValue(spec.maxMvCount, controllerId, s0 || null)) }), controllerId, sourceId);
       }
       // Pain for All: "any other target" — not the creature this Aura enchants
       if (spec.notAttached && sourceId) {

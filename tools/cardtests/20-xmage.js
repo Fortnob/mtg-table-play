@@ -13647,4 +13647,80 @@ module.exports = (test) => {
     T.g.activateAbility('A', mine.id, 0, {});
     t.zone(mine, 'graveyard', 'the last mining counter: sacrificed');
   });
+
+  test('Cloudcrest Lake, Grove of the Burnwillows: mana abilities with a rider', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const lake = T.bf('A', 'Cloudcrest Lake');
+    t.eq(lake.analysis().manaAbilities.length, 2, '{C} and the painland-style ability, both mana abilities');
+    T.g.activateAbility('A', lake.id, 1, { manaChoice: 'U' });
+    t.eq(T.g.stack.length, 0, 'nothing on the stack');
+    t.ok(lake.noUntapNext, "it won't untap next untap step");
+    const grove = T.bf('A', 'Grove of the Burnwillows');
+    const life = T.life('B');
+    T.g.activateAbility('A', grove.id, grove.analysis().manaAbilities.length - 1, { manaChoice: 'G' });
+    t.eq(T.g.stack.length, 0);
+    t.eq(T.life('B'), life + 1, 'each opponent gains 1 life');
+  });
+
+  test('Spellstutter Sprite: a spell with mana value up to the number of Faeries you control; Lembas, Deglamer: its owner shuffles it in', (mk, t) => {
+    t.auto('Spellstutter Sprite'); t.auto('Lembas'); t.auto('Deglamer');
+    const T = mk();
+    T.toMain('B');
+    T.mana('B', '3RR');
+    T.cast('B', T.hand('B', 'Hill Giant'), { resolve: false });
+    T.cast('B', T.hand('B', 'Shock'), { targets: [{ kind: 'player', id: 'A' }], resolve: false });
+    const sprite = T.bf('A', 'Spellstutter Sprite');
+    const spec = sprite.analysis().abilities.find(a => a.kind === 'triggered').effects[0].targets[0];
+    const ids = () => T.g._legalTargetsFor(spec, 'A', sprite.id).map(x => x.id);
+    const giant = T.g.stack.find(x => x.obj && x.obj.name === 'Hill Giant'), shock = T.g.stack.find(x => x.obj && x.obj.name === 'Shock');
+    t.ok(ids().includes(shock.id) && !ids().includes(giant.id), 'one Faerie: mana value 1 or less');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Faerie Miscreant');
+    t.ok(ids().includes(giant.id), 'four Faeries: mana value 4 is fine');
+    const U = mk();
+    U.toMain('A');
+    const lem = U.bf('A', 'Lembas');
+    U.g._runEffects([{ op: 'destroy' }], { controller: 'B', name: 'Shatter', kind: 'spell', targets: [{ kind: 'object', id: lem.id }] });
+    U.settle(); U.resolve(); U.settle();
+    t.zone(lem, 'library', 'shuffled into its owner\'s library');
+    const V = mk();
+    V.toMain('A');
+    const ring = V.bf('B', 'Sol Ring');
+    V.mana('A', '1G');
+    V.cast('A', V.hand('A', 'Deglamer'), { targets: [ring.id] });
+    V.resolve();
+    t.zone(ring, 'library');
+  });
+
+  test("Prowler's Helm: only Walls may block", (mk, t) => {
+    t.auto("Prowler's Helm");
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const helm = T.bf('A', "Prowler's Helm");
+    T.g.attach ? T.g.attach(helm, bear) : (helm.attachedTo = bear.id, bear.attachments = (bear.attachments || []).concat(helm.id));
+    t.eq(helm.attachedTo, bear.id);
+    t.ok(!T.g.couldBlock(T.bf('B', 'Hill Giant'), bear, 'B'), 'not a Wall');
+    t.ok(!!T.g.couldBlock(T.bf('B', 'Wall of Stone'), bear, 'B'), 'a Wall');
+  });
+
+  test('Transmutation Font: your choice of a Blood, Clue or Food token; Determined Iteration: the populated token gains haste', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const font = T.bf('A', 'Transmutation Font');
+    T.answer('mode', (ch) => ({ modes: [ch.options.find(o => /Clue/.test(o.label)).i] }));
+    T.activate('A', font, 0);
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Clue'), 'a Clue');
+    t.auto('Determined Iteration');
+    const U = mk();
+    U.toMain('A');
+    const di = U.bf('A', 'Determined Iteration');
+    U.g._runEffects([{ op: 'createToken', n: 1, power: 2, toughness: 2, name: 'Soldier', types: ['Creature'], subtypes: ['Soldier'], colors: ['W'] }], { controller: 'A', name: 'test', kind: 'spell' });
+    U.settle();
+    const ab = di.analysis().abilities.find(a => a.kind === 'triggered');
+    U.g._runEffects(ab.effects, { controller: 'A', obj: di, name: 'Determined Iteration', kind: 'ability' });
+    U.settle();
+    const toks = U.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 2, 'populated');
+    t.ok(U.g.hasKw(toks[1], 'haste'), 'the new one has haste');
+  });
 };

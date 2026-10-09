@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11947,
-  "gainedCards": 1232,
-  "linesNeeded": 12896,
+  "needed": 11940,
+  "gainedCards": 1233,
+  "linesNeeded": 12888,
   "linesGained": 1469,
   "gained": {
-   "all": 1232,
+   "all": 1233,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4313,
-   "lines": 4052,
+   "score": 4310,
+   "lines": 4049,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2470,22 +2470,6 @@
    ]
   },
   {
-   "what": "ShuffleIntoLibraryTargetEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "This Is How It Ends",
-    "Turn the Earth",
-    "Wand of Vertebrae",
-    "Cathartic Parting",
-    "Unravel the Aether",
-    "Deglamer",
-    "Piper's Melody",
-    "Renewing Touch",
-    "Living Library"
-   ]
-  },
-  {
    "what": "GainLifeEffect amount",
    "score": 9,
    "lines": 9,
@@ -3261,20 +3245,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesAttachedEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Prowler's Helm",
-    "Invisibility",
-    "Hedgewitch's Mask",
-    "Dust Corona",
-    "Treetop Bracers",
-    "Saddle of the Cavalier",
-    "Blazing Torch"
-   ]
-  },
-  {
    "what": "AddCardSubTypeTargetEffect",
    "score": 7,
    "lines": 7,
@@ -3555,6 +3525,20 @@
    ]
   },
   {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae",
+    "Cathartic Parting",
+    "Piper's Melody",
+    "Renewing Touch",
+    "Living Library"
+   ]
+  },
+  {
    "what": "BoostEnchantedEffect p/t",
    "score": 7,
    "lines": 7,
@@ -3790,6 +3774,19 @@
     "Edward Kenway",
     "Rogue Class",
     "Etrata, Deadly Fugitive"
+   ]
+  },
+  {
+   "what": "SacrificeTargetCost",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Transmutation Font",
+    "Behemoth's Herald",
+    "Angel's Herald",
+    "Dragon's Herald",
+    "Demon's Herald",
+    "Sphinx's Herald"
    ]
   },
   {
@@ -5400,6 +5397,18 @@
    ]
   },
   {
+   "what": "CantBeBlockedByCreaturesAttachedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Hedgewitch's Mask",
+    "Dust Corona",
+    "Treetop Bracers",
+    "Saddle of the Cavalier",
+    "Blazing Torch"
+   ]
+  },
+  {
    "what": "CantBeTargetedSourceEffect",
    "score": 5,
    "lines": 5,
@@ -5516,18 +5525,6 @@
     "Nightsky Mimic",
     "Shorecrasher Mimic",
     "Riverfall Mimic"
-   ]
-  },
-  {
-   "what": "SacrificeTargetCost",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Behemoth's Herald",
-    "Angel's Herald",
-    "Dragon's Herald",
-    "Demon's Herald",
-    "Sphinx's Herald"
    ]
   },
   {
@@ -5795,17 +5792,6 @@
     "Dr. Eggman",
     "The Dalek Emperor",
     "Sycorax Commander"
-   ]
-  },
-  {
-   "what": "ShuffleIntoLibrarySourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Lembas",
-    "Gandalf, Wandering Wizard",
-    "Guan Yu, Sainted Warrior",
-    "Cerulean Sphinx"
    ]
   },
   {
@@ -6913,13 +6899,23 @@
     "Mirage Phalanx",
     "Breathkeeper Seraph"
    ]
+  },
+  {
+   "what": "ExileCardsFromTopOfLibraryTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Oblivion Sower",
+    "Ashiok, Wicked Manipulator",
+    "Raven Guild Master"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3561,
-   "cards": 3390,
+   "score": 3558,
+   "cards": 3387,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8128,19 +8124,6 @@
    ]
   },
   {
-   "what": "ShuffleIntoLibraryTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "This Is How It Ends",
-    "Turn the Earth",
-    "Wand of Vertebrae",
-    "Cathartic Parting",
-    "Unravel the Aether",
-    "Deglamer"
-   ]
-  },
-  {
    "what": "keyword PowerUpAbility",
    "score": 9,
    "cards": 9,
@@ -8603,19 +8586,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesAttachedEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Prowler's Helm",
-    "Invisibility",
-    "Hedgewitch's Mask",
-    "Dust Corona",
-    "Treetop Bracers",
-    "Saddle of the Cavalier"
-   ]
-  },
-  {
    "what": "LookLibraryAndPickControllerEffect shape",
    "score": 7,
    "cards": 7,
@@ -8769,6 +8739,19 @@
     "Geyadrone Dihada",
     "Brand",
     "Aura Thief"
+   ]
+  },
+  {
+   "what": "ShuffleIntoLibraryTargetEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "This Is How It Ends",
+    "Turn the Earth",
+    "Wand of Vertebrae",
+    "Cathartic Parting",
+    "Piper's Melody",
+    "Renewing Touch"
    ]
   },
   {
@@ -9010,6 +8993,19 @@
     "Case of the Shattered Pact",
     "Case of the Crimson Pulse",
     "Case of the Burning Masks"
+   ]
+  },
+  {
+   "what": "SacrificeTargetCost",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Transmutation Font",
+    "Behemoth's Herald",
+    "Angel's Herald",
+    "Dragon's Herald",
+    "Demon's Herald",
+    "Sphinx's Herald"
    ]
   },
   {
@@ -10220,6 +10216,18 @@
    ]
   },
   {
+   "what": "CantBeBlockedByCreaturesAttachedEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Hedgewitch's Mask",
+    "Dust Corona",
+    "Treetop Bracers",
+    "Saddle of the Cavalier",
+    "Blazing Torch"
+   ]
+  },
+  {
    "what": "BecomesTappedAttachedTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10301,18 +10309,6 @@
     "Nightsky Mimic",
     "Shorecrasher Mimic",
     "Riverfall Mimic"
-   ]
-  },
-  {
-   "what": "SacrificeTargetCost",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Behemoth's Herald",
-    "Angel's Herald",
-    "Dragon's Herald",
-    "Demon's Herald",
-    "Sphinx's Herald"
    ]
   },
   {
@@ -10541,17 +10537,6 @@
    ]
   },
   {
-   "what": "ShuffleIntoLibrarySourceEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Lembas",
-    "Gandalf, Wandering Wizard",
-    "Guan Yu, Sainted Warrior",
-    "Cerulean Sphinx"
-   ]
-  },
-  {
    "what": "SearchLibraryPutOntoBattlefieldTappedRestInHandEffect",
    "score": 4,
    "cards": 4,
@@ -10659,6 +10644,17 @@
     "Amulet of Safekeeping",
     "Dormant Gomazoa",
     "Leovold, Emissary of Trest"
+   ]
+  },
+  {
+   "what": "becomes the target, under anyone",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Shay Cormac",
+    "Willbreaker",
+    "Horobi, Death's Wail",
+    "Cowardice"
    ]
   }
  ]

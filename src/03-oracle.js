@@ -263,6 +263,8 @@
       // "Sacrifice this", "Sacrifice this artifact", "Sacrifice CARDNAME" —
       // all of them mean the permanent whose ability this is
       if (/^Sacrifice (this|~|it|CARDNAME)\b/i.test(p)) { cost.sacSelf = true; continue; }
+      // Transmutation Font: "Sacrifice three artifact tokens with different names" — a price the table can't check yet
+      if (/^Sacrifice .+ with different names$/i.test(p)) { cost.other.push(p); continue; }
       if ((m = p.match(/^Sacrifice (a|an|another|one|two|three|four|five|six|ten|\d+|X) (other )?(.+)$/i))) {
         const word = m[1].toLowerCase();
         cost.sacrifice = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word) || 1,
@@ -402,6 +404,8 @@
       if (e.op === 'gainLife') return (e.who === 'you' || e.who === 'opponents') && typeof e.n === 'number';
       if (e.op === 'ifCond') return !e.cond || e.cond.kind !== 'manual' ? branches(e).every(fits) : false;
       if (e.op === 'counters' || e.op === 'tap' || e.op === 'untap') return e.scope === 'self';
+      // Cloudcrest Lake: "This land doesn't untap during your next untap step."
+      if (e.op === 'noUntap') return e.scope === 'self';
       return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly';
     };
     return effects.every(fits);
@@ -1169,6 +1173,17 @@
     // Ashling's Command: "2 damage to each creature target player controls"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    /* Lembas: "When this artifact is put into a graveyard from the
+       battlefield, its owner shuffles it into their library." — the card
+       itself (a sentence after a target is read whole, above) */
+    { re: /^Its owner shuffles it into their library\.?$/i, make: () => ({ op: 'selfToLibrary', shuffle: true, ownerIt: true }) },
+    // Spellstutter Sprite: "counter target spell with mana value X or less, where X is the number of Faeries you control"
+    { re: /^Counter target spell with mana value X or less, where X is (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[1]);
+        if (!k || typeof k !== 'object' || !(k.scope || k.per)) return null;
+        return { op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', maxMvCount: k }] };
+      } },
     // Ominous Cemetery: "Target creature's owner shuffles it into their library."
     { re: /^(Target (?:creature|permanent|nonland permanent))'s owner shuffles it into their library\.?$/i,
       make: (m) => ({ op: 'toLibrary', where: 'shuffle', targets: [targetSpec(m[1])] }) },
@@ -4937,6 +4952,12 @@
     { re: /^Create (?:a|an) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone) token or (?:a|an) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone) token\.?$/i,
       make: (m) => ({ op: 'modal', count: 1, modes: [m[1], m[2]].map(t => ({ label: 'Create a ' + t + ' token',
         effects: [{ op: 'createNamedToken', n: 1, token: U.titleCase(t) }], auto: true })) }) },
+    // Transmutation Font: "Create your choice of a Blood token, a Clue token, or a Food token."
+    { re: /^Create your choice of (?:a|an) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone) token, (?:a|an) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone) token,? or (?:a|an) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone) token\.?$/i,
+      make: (m) => ({ op: 'modal', count: 1, modes: [m[1], m[2], m[3]].map(t => ({ label: 'Create a ' + U.titleCase(t) + ' token',
+        effects: [{ op: 'createNamedToken', n: 1, token: U.titleCase(t) }], auto: true })) }) },
+    // Determined Iteration: "The token created this way gains haste."
+    { re: /^The token created this way gains haste\.?$/i, make: () => ({ op: 'grantLast', keywords: ['Haste'], until: null, madeNow: true }) },
     /* "Put target artifact card from your graveyard on top of your library." */
     { re: /^Put (target [a-z ]+? card) from your graveyard on top of your library\.?$/i,
       make: (m) => ({ op: 'toLibrary', where: 'top', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you' })] }) },
@@ -5941,6 +5962,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Deglamer, Unravel the Aether: "Choose target artifact or enchantment. Its owner shuffles it into their library."
+    { re: /^Choose (target (?:artifact|enchantment|creature|nonland permanent|permanent|artifact or enchantment))\. Its owner shuffles it into their library\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? [{ op: 'toLibrary', where: 'shuffle', targets: [t] }] : null; } },
     /* Nightmare Shepherd: "you may exile it. If you do, create a token that's
        a copy of that creature, except it's 1/1 and it's a Nightmare in
        addition to its other types." */
@@ -7647,6 +7671,8 @@
         out.push({ op: 'asPlayer', who: 'attackingOpponent', effects: JSON.parse(JSON.stringify(out)) });
         continue;
       }
+      // Lembas: "its owner shuffles it" is the card itself only when nothing was aimed at before it
+      if (e && e.ownerIt && out.some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) { unrideable(); continue; }
       // Vohar: the spell cast this way is exiled rather than put into a graveyard
       if (e && e.exileAfterCastRider) {
         // (Diviner of Mist: "You may cast …" is the cast inside a "may")
@@ -12003,6 +12029,9 @@
           if (m[2]) return { op: 'evasionAttached', minBlockerPower: +m[2] + 1 };
           return { op: 'evasionAttached', onlyBy: m[3].toLowerCase().split(/ or | and\/or /) };
         }, auto: true },
+      // Prowler's Helm, Invisibility: "Equipped creature can't be blocked except by Walls."
+      { re: /^(?:Enchanted|Equipped) creature can'?t be blocked except by ([A-Z][a-z]+)s\.?$/,
+        make: (m) => ({ op: 'evasionAttached', onlyBySubtype: U.titleCase(singularType(m[1] + 's')) }), auto: true },
       // Instill Energy: "Enchanted creature can attack as though it had haste."
       { re: /^(Enchanted|Equipped) creature can attack as though it had haste\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'attackAsHaste' }), auto: true },
