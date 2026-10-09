@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11805,
+  "needed": 11800,
   "gainedCards": 1191,
-  "linesNeeded": 12712,
+  "linesNeeded": 12707,
   "linesGained": 1410,
   "gained": {
    "all": 1191,
@@ -1968,23 +1968,6 @@
    ]
   },
   {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Phyrexian Censor",
-    "Spider-Woman, Stunning Savior",
-    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
-    "Zhao, the Moon Slayer",
-    "Root Maze",
-    "Radiant Grace // Radiant Restraints",
-    "Orb of Dreams",
-    "Ashling's Prerogative",
-    "False Floor",
-    "Due Respect"
-   ]
-  },
-  {
    "what": "Ability.withFirstModeCost",
    "score": 10,
    "lines": 10,
@@ -2729,6 +2712,21 @@
     "Workshop Elders",
     "Tezzeret the Schemer",
     "Thran Forge"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Phyrexian Censor",
+    "Spider-Woman, Stunning Savior",
+    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
+    "Zhao, the Moon Slayer",
+    "Radiant Grace // Radiant Restraints",
+    "Orb of Dreams",
+    "Ashling's Prerogative",
+    "Due Respect"
    ]
   },
   {
@@ -9741,18 +9739,6 @@
    ]
   },
   {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Spider-Woman, Stunning Savior",
-    "Root Maze",
-    "Orb of Dreams",
-    "False Floor",
-    "Due Respect"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 5,
    "cards": 5,
@@ -10623,6 +10609,17 @@
     "Willbreaker",
     "Horobi, Death's Wail",
     "Cowardice"
+   ]
+  },
+  {
+   "what": "counter of a non-spell",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Dazzling Denial",
+    "Lofty Denial",
+    "Dispelling Exhale",
+    "Silumgar's Scorn"
    ]
   }
  ]

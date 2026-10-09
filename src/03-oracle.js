@@ -1242,6 +1242,11 @@
     // Ashling's Command: "2 damage to each creature target player controls"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // Roalesk, Apex Hybrid: "proliferate, then proliferate again"
+    { re: /^Proliferate, then proliferate again\.?$/i, make: () => [{ op: 'proliferate' }, { op: 'proliferate' }] },
+    // Lay Down Arms: "Exile target creature with mana value less than or equal to the number of Plains you control."
+    { re: /^(Exile|Destroy) target creature with mana value less than or equal to (the number of [A-Za-z ]+? you control)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' && (k.scope || k.per) ? { op: /exile/i.test(m[1]) ? 'exile' : 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', maxMvCount: k }] } : null; } },
     // Awakening: "untap all creatures and lands" — everyone's
     { re: /^Untap all ((?:creatures|lands|artifacts|permanents)(?: and (?:creatures|lands|artifacts|permanents))?)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc && sc.who === 'all' ? { op: 'untapAll', scope: sc } : null; } },
@@ -11778,6 +11783,10 @@
     { re: /^If you would gain life, you gain twice that much life instead\.?$/i,
       make: () => ({ op: 'replace', id: 'lifeDouble', event: 'gainLife', who: 'you', how: 'double' }) },
     /* Authority of the Consuls, Blind Obedience: the other side's arrivals come in tapped */
+    // Root Maze: "Artifacts and lands enter tapped." — everyone's
+    { re: /^((?:Artifacts|Creatures|Lands)(?:,? (?:and )?(?:artifacts|creatures|lands))*) enter (?:the battlefield )?tapped\.?$/,
+      make: (m) => ({ op: 'replace', id: 'etbTapAll', event: 'enters', who: 'all', how: 'tapped',
+        whatAny: m[1].toLowerCase().split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
     // Kismet, Frozen Aether: "Artifacts, creatures, and lands your opponents control enter tapped."
     { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands)(?:,? (?:and )?(?:artifacts|creatures|lands|nonbasic lands))*) your opponents control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTapOpp', event: 'enters', who: 'opponents', how: 'tapped',
@@ -12541,6 +12550,9 @@
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
       { re: /^Players can cast spells only during their own turns\.?$/i, eff: { op: 'castOnlyOwnTurn' }, auto: true },
+      // Spellbreaker Behemoth: "Creature spells you control with power 5 or greater can't be countered."
+      { re: /^Creature spells you control with power (\d+) or greater can'?t be countered\.?$/i,
+        make: (m) => ({ op: 'uncounterable', who: 'you', words: 'creature spells', minPower: +m[1] }), auto: true },
       // Root Sliver: "Sliver spells can't be countered."
       { re: /^([A-Z][a-z]+|Creature|Noncreature|Green|Blue|Black|Red|White) spells can'?t be countered\.?$/,
         make: (m) => ({ op: 'uncounterable', who: 'all', words: m[1].toLowerCase() + ' spells' }), auto: true },

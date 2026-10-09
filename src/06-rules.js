@@ -19656,6 +19656,8 @@
         if (!e) continue;
         if (e.who === 'you' && o.controller !== item.controller) continue;
         if (e.words && item.obj && !this._cardFitsWords(item.obj, e.words)) continue;
+        // Spellbreaker Behemoth: only those with power 5 or greater
+        if (e.minPower != null && !(item.obj && parseInt((item.obj.card && item.obj.card.power) || '0', 10) >= e.minPower)) continue;
         return true;
       }
       return false;

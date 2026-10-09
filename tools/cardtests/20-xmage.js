@@ -14275,4 +14275,31 @@ module.exports = (test) => {
     T.player('A').drawnThisTurn = 3; T.g.bumpBoard();
     t.eq(T.g.powerOf(duel), 3, 'cards drawn this turn');
   });
+
+  test('Root Maze, Lay Down Arms, Spellbreaker Behemoth, Roalesk', (mk, t) => {
+    for (const n of ['Root Maze', 'Lay Down Arms', 'Spellbreaker Behemoth', 'Roalesk, Apex Hybrid']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    T.bf('B', 'Root Maze');
+    const land = T.hand('A', 'Forest');
+    T.playLand('A', land);
+    t.ok(land.tapped, 'a land enters tapped, whoever plays it');
+    const lda = T.hand('A', 'Lay Down Arms');
+    const spec = lda.analysis().abilities.find(a => a.kind === 'spell').effects[0].targets[0];
+    T.bf('A', 'Plains'); T.bf('A', 'Plains');
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    const ids = T.g._legalTargetsFor(spec, 'A', lda.id).map(x => x.id);
+    t.ok(ids.includes(bear.id) && !ids.includes(giant.id), 'two Plains: mana value 2 or less');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Spellbreaker Behemoth');
+    U.mana('A', '6GG');
+    U.cast('A', U.hand('A', 'Craw Wurm'), { resolve: false });
+    const item = U.g.stack[U.g.stack.length - 1];
+    U.g._runEffects([{ op: 'counterSpell' }], { controller: 'B', name: 'Counterspell', kind: 'spell', targets: [{ kind: 'stack', id: item.id }] });
+    U.settle(); U.resolve(); U.settle();
+    t.ok(U.g.battlefield.some(o => o.name === 'Craw Wurm'), 'power 6: not countered');
+    const ro = U.bf('A', 'Roalesk, Apex Hybrid');
+    t.eq(ro.analysis().abilities.find(a => a.kind === 'triggered' && /proliferate again/.test(a.text)).effects.filter(e => e.op === 'proliferate').length, 2, 'two proliferates');
+  });
 };
