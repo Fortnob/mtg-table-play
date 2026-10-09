@@ -1236,6 +1236,9 @@
     // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Chthonian Nightmare: "Return target creature card with mana value X from your graveyard to the battlefield."
+    { re: /^Return (target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Season of the Burrow: "… mana value 3 or less from your graveyard to the battlefield with an indestructible counter on it"
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -2946,6 +2949,10 @@
         if (!sc) return null;
         return { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: sc };
       } },
+    // Silkguard: "Put a +1/+1 counter on each of up to X target creatures you control."
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d) counters? on each of up to X target (creatures?(?: you control)?)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]),
+        targets: [Object.assign(targetSpec('target ' + m[3].replace(/creatures/, 'creature')), { distinct: true, multi: { count: 'X', exact: false } })] }) },
     { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each of up to (two|three|four|\d+) target ([a-z ]+?)s\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].trim(), n: num(m[1]),
         targets: Array.from({ length: num(m[3]) }, () => Object.assign(targetSpec(m[4]), { upTo: true })) }) },
@@ -4035,7 +4042,8 @@
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1].replace(/^another /i, ''))] : null,
         self: /CARDNAME|this creature/i.test(m[1]),
         grant: m[2] ? m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
-    { re: /^Create (two|three|\d+|X) tokens that are copies of (target [a-z0-9 '-]+?)(?:, except they (?:have|gain) ([a-z, ']+))?\.?$/i,
+    // (Orthion, Hero of Lavabrink: "Create five tokens that are copies of another target creature you control.")
+    { re: /^Create (two|three|four|five|six|seven|eight|nine|ten|\d+|X) tokens that are copies of ((?:another )?target [a-z0-9 '-]+?)(?:, except they (?:have|gain) ([a-z, ']+))?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), targets: [targetSpec(m[2])],
         grant: m[3] ? m[3].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
 

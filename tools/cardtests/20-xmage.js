@@ -12507,4 +12507,19 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.zone('A', 'hand').length, hand + 1, 'one card: only one died under your control');
   });
+
+  test('Orthion, Hero of Lavabrink: five hasty copies, gone at the end step', (mk, t) => {
+    t.auto('Orthion, Hero of Lavabrink');
+    const T = mk();
+    const o = T.bf('A', 'Orthion, Hero of Lavabrink');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ab = o.analysis().abilities.find(a => a.kind === 'activated' && /five/.test(a.text));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: o, name: 'Orthion', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    T.settle();
+    const toks = T.g.battlefield.filter(x => x.isToken && x.name === 'Grizzly Bears');
+    t.eq(toks.length, 5);
+    t.ok(toks.every(x => T.g.hasKw(x, 'haste')), 'all hasty');
+    T.toMain('B');
+    t.eq(T.g.battlefield.filter(x => x.isToken).length, 0, 'sacrificed at the end step');
+  });
 };

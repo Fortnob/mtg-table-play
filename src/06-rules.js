@@ -14316,6 +14316,8 @@
             // the copy is what any later sentence is talking about
             this._lastCopy = copy;
             (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
+            // Orthion: "They gain haste." — every copy made
+            if (cnt > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
           }
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
