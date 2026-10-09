@@ -1175,6 +1175,7 @@
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
+          it.card && it.card._vintage ? el('span', { class: 'po-bonus vintage', text: 'Vintage' }) : null,
           it.card && it.card._bonus ? el('span', { class: 'po-bonus', text: it.card.set_type === 'commander' ? 'Commander'
             : it.card.set_type === 'alchemy' ? 'Alchemy' : it.card.digital ? 'Digital' : 'Bonus' }) : null,
           it.shards ? el('span', { class: 'po-dup', html: `+${shardSvg()}${fmtN(it.shards)}` }) : null,

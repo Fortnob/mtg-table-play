@@ -286,6 +286,9 @@
 
   /* ---------------- the Store ---------------- */
   /** Buy packs: Shards out, packs into the inventory. */
+  /** How often a pack of a newer set holds a card in its vintage printing. */
+  const VINTAGE_RATE = 0.1;
+
   /* ---------------- what a set's packs cost ----------------
      A set never sold in boosters, an Eternal set or a Commander product
      sold on its own, opens what it has: Avatar's Eternal cards are all
@@ -395,6 +398,23 @@
     let cards = D.makeBooster(pool, rng, spec, { variants, bonus: folded });
     // basics are not collected; a real pack's basic is no loss
     cards = cards.filter(c => !isBasic(c.name));
+    /* Now and then, in a pack of a newer set, a card comes in a vintage
+       printing: the same card in the old frame (1993 or 1997), as it first
+       looked or in a retro reprint. It counts as the card it stands in for
+       (rarity and all), and its look is yours from then on, the art picker
+       counting it as pulled. A set from the old frame's own time needs none. */
+    if ((info.released_at || '9999') >= '2003-07-28' && rng.chance(VINTAGE_RATE)) {
+      const idx = cards.map((c, i) => i).filter(i => !isBasic(cards[i].name));
+      for (let t = 0; t < 3 && idx.length; t++) {
+        const i = idx.splice(rng.int(idx.length), 1)[0];
+        const c = cards[i];
+        const olds = await MTG.scry.vintagePrints(c).catch(() => []);
+        if (!olds.length) continue;
+        const v = olds[rng.int(olds.length)];
+        cards[i] = Object.assign({}, v, { rarity: c.rarity, _vintage: true }, c._foil ? { _foil: true } : {}, c._bonus ? { _bonus: true } : {});
+        break;
+      }
+    }
     /* Duplicate protection, as Arena does it: a rare or mythic you already
        have four of is swapped for one of the set's of the same rarity that
        you have not, while there are any (a foil stays a foil). */

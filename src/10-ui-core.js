@@ -703,6 +703,9 @@
       const current = (MTG.settings.artPreferences || {})[card.oracle_id] || card.id;
       let query = '';
       let onlyArtVariants = false;
+      let onlyVintage = false;
+      // the old frame, from Alpha to Scourge and the retro reprints since
+      const vintage = (p) => p.frame === '1993' || p.frame === '1997';
 
       const search = el('input', { type: 'search', placeholder: 'Filter by set, artist or collector number…', style: { maxWidth: '320px' } });
       search.addEventListener('input', U.debounce(() => { query = search.value.toLowerCase(); render(); }, 150));
@@ -710,7 +713,11 @@
         el('input', { type: 'checkbox', style: { width: 'auto' }, onchange: (e) => { onlyArtVariants = e.target.checked; render(); } }),
         el('span', { text: 'Unique art only' }),
       ]);
-      filterRow.append(search, uniqueArt);
+      const vintageOnly = el('label', { class: 'row small', style: { gap: '5px' } }, [
+        el('input', { type: 'checkbox', style: { width: 'auto' }, onchange: (e) => { onlyVintage = e.target.checked; render(); } }),
+        el('span', { text: 'Vintage frames' }),
+      ]);
+      filterRow.append(...[search, uniqueArt, prints.some(vintage) ? vintageOnly : null].filter(Boolean));
 
       function render() {
         grid.innerHTML = '';
@@ -720,6 +727,7 @@
           (p.set || '').toLowerCase().includes(query) ||
           (p.artist || '').toLowerCase().includes(query) ||
           String(p.collector_number).toLowerCase().includes(query));
+        if (onlyVintage) list = list.filter(vintage);
         if (onlyArtVariants) {
           const seen = new Set();
           list = list.filter(p => {
@@ -744,6 +752,7 @@
               el('div', { class: 'dim', text: p.artist || '' }),
               p.full_art ? el('span', { class: 'pill', text: 'full art' }) : null,
               p.border_color === 'borderless' ? el('span', { class: 'pill', text: 'borderless' }) : null,
+              vintage(p) ? el('span', { class: 'pill vintage', text: 'vintage' }) : null,
             ]),
           ]);
           const choose = () => {

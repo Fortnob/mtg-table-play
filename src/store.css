@@ -531,3 +531,7 @@ html[data-play="1"] .hoard-chip { display: none; }
 .po-stage.one { overflow-y: auto; place-content: safe center; }
 .po-grid:not(.many) .po-card { --w: clamp(64px, min(10.5vw, calc(88vw / var(--cols, 7) - 16px),
   calc((100 * var(--vh, 1vh) - 250px) / var(--rows, 2) / 1.42 - 14px)), 200px); }
+
+/* a card in its vintage printing, as it is turned over and in the art picker */
+.po-bonus.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .6); background: rgba(48, 34, 18, .95); }
+.art-option .pill.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .5); background: rgba(80, 56, 26, .45); }

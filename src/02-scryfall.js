@@ -582,7 +582,8 @@
         !/^Commander(?: \d{4}| Anthology| Collection|'s Arsenal| Legends)|^Commander$|^Starter Commander/i.test(s.name || '');
       return all
         .filter(s => ['expansion', 'core', 'draft_innovation', 'masters', 'eternal'].includes(s.set_type) || standalone(s))
-        .filter(s => s.card_count >= 100 && s.released_at && s.released_at <= today)
+        // a hundred cards makes a set worth its own packs; the small early ones (Arabian Nights) were sold in boosters all the same
+        .filter(s => (s.card_count >= 100 || (s.card_count >= 70 && (s.released_at || '') < '1997-01-01')) && s.released_at && s.released_at <= today)
         .filter(s => !/Foreign Black Border|^Renaissance$|^Rinascimento$/i.test(s.name || '') && !['ren', 'rin', 'bchr', '4bb', 'fbb'].includes(s.code))
         .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
     }
@@ -624,6 +625,25 @@
       }
       this._hosts = { map, t: Date.now() };
       return map;
+    }
+
+    /**
+     * A card's vintage printings: the old frame (1993 or 1997), on paper,
+     * as it first looked or in a retro reprint since. Empty when it has none.
+     */
+    async vintagePrints(card) {
+      const name = U.frontName(card.name).replace(/"/g, '');
+      const key = 'vintage:' + U.normName(name);
+      const hit = await this.db.get(STORES.meta, key);
+      if (hit && Date.now() - hit._t < CACHE_TTL) {
+        const m = await this.db.getMany(STORES.cards, hit.ids);
+        const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
+        if (arr.length === hit.ids.length) return arr;
+      }
+      const found = await this.search(`!"${name}" (frame:1993 or frame:1997) -is:digital lang:en`, { unique: 'prints', max: 40 }).catch(() => []);
+      const list = found.filter(c => c && (c.frame === '1993' || c.frame === '1997') && !c.digital);
+      await this.db.put(STORES.meta, key, { ids: list.map(c => c.id), _t: Date.now() });
+      return list;
     }
 
     /**
