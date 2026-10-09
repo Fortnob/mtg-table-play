@@ -2812,4 +2812,24 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.zone(gc, 'battlefield'); t.eq(gc.controller, 'A');
   });
+
+  test('Audit: Pir adds one of each kind only on your permanents; Pack Leader shields only Dogs', (mk, t) => {
+    let T = mk();
+    t.auto('Pir, Imaginative Rascal'); t.auto('Pack Leader');
+    T.toMain('A');
+    T.bf('A', 'Pir, Imaginative Rascal');
+    const b = T.bf('A', 'Grizzly Bears'), o = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'W'); T.cast('A', T.hand('A', 'Gird for Battle'), { targets: [b, o] });
+    T.g.addCounters(b, 'charge', 2);
+    t.eq(b.counters['+1/+1'], 2); t.eq(b.counters.charge, 3); t.eq(o.counters['+1/+1'], 1);
+    T = mk();
+    T.toMain('A');
+    const pl = T.bf('A', 'Pack Leader'), d = T.bf('A', 'Grizzly Bears');
+    pl.summoningSick = d.summoningSick = false;
+    const b1 = T.bf('B', 'Hill Giant'), b2 = T.bf('B', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: pl.id, defenderId: 'B' }, { attackerId: d.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: b1.id, attackerIds: [pl.id] }, { blockerId: b2.id, attackerIds: [d.id] }]);
+    T.toMain('A', 'end');
+    t.zone(pl, 'battlefield', 'the Dog takes nothing'); t.zone(d, 'graveyard', 'the Bears are no Dog');
+  });
 };
