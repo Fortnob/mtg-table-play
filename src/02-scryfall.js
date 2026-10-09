@@ -173,6 +173,16 @@
      here as itself. */
   const NOT_SOLD = new Set(['om1', 'omb']);
 
+  /* Never in the card pool: the nine cards that play for ante, banned in
+     every format and meaningless in a game not played for keeps. No
+     search, pack, draft, Collector Booster or suggestion turns one up;
+     asked for by name or id (a deck that already has one) it is still
+     found, so nothing that loads breaks. */
+  const ANTE = new Set(['Amulet of Quoz', 'Bronze Tablet', 'Contract from Below', 'Darkpact', 'Demonic Attorney',
+    'Jeweled Bird', 'Rebirth', 'Tempest Efreet', 'Timmerian Fiends']);
+  const isAnte = (c) => !!c && (ANTE.has(c.name) || /\bplaying for ante\b/i.test(c.oracle_text || ''));
+  const noAnte = (cards) => (cards || []).filter(c => !isAnte(c));
+
   /* ---------------- the client ---------------- */
   class Scryfall {
     constructor() {
@@ -453,14 +463,14 @@
       const max = opts.max || 175;
       const local = await this._localDb(opts);
       if (local && local.answers(query, opts)) {
-        try { const cards = local.search(query, opts); this.stats.local++; return cards; }
+        try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); }
         catch (e) { if (!(e instanceof local.Unsupported)) throw e; /* beyond the local engine: Scryfall it is */ }
       }
-      try { return await this._liveSearch(query, opts, max); }
+      try { return noAnte(await this._liveSearch(query, opts, max)); }
       catch (e) {
         if (e && e.stale) throw e;
         // offline with a database that could not answer exactly: its best is better than nothing
-        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return cards; } catch (e2) {} }
+        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); } catch (e2) {} }
         throw e;
       }
     }
@@ -503,10 +513,10 @@
     async autocomplete(q, opts) {
       if (!q || q.length < 2) return [];
       const local = await this._localDb();
-      if (local) return local.idx.autocomplete(q, 20);
+      if (local) return local.idx.autocomplete(q, 20).filter(n => !ANTE.has(n));
       try {
         const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q), { signal: opts && opts.signal });
-        return (d && d.data) || [];
+        return ((d && d.data) || []).filter(n => !ANTE.has(n));
       } catch (e) { return []; }
     }
 
@@ -515,11 +525,18 @@
       if (local && local.answers(query || '', {})) {
         try {
           const ids = local.idx.query(query || '-t:basic', {});
-          if (ids.length) return local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
+          for (let tries = 0; ids.length && tries < 8; tries++) {
+            const c = local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
+            if (!isAnte(c)) return c;
+          }
         } catch (e) { /* Scryfall can */ }
       }
-      const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
-      return c ? (await this._store([c]))[0] : null;
+      for (let tries = 0; tries < 4; tries++) {
+        const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
+        if (!c) return null;
+        if (!isAnte(c)) return (await this._store([c]))[0];
+      }
+      return null;
     }
 
     /* ================= printings (art selection) ================= */
@@ -814,6 +831,7 @@
     }
 
     _bucket(cards) {
+      cards = noAnte(cards);
       const b = {
         all: cards, playable: [], common: [], uncommon: [], rare: [], mythic: [],
         special: [], bonus: [], basics: [], nonbasicLands: [],
@@ -926,6 +944,8 @@
   }
 
   MTG.scry = new Scryfall();
+  /** Whether a card is one of the ante cards, left out of the card pool. */
+  MTG.scry.isAnte = isAnte;
 
   /* ---------------- a game in progress ----------------
      Kept in IndexedDB rather than localStorage: a snapshot carries whole
