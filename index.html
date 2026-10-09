@@ -8083,7 +8083,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       code = String(code).toLowerCase();
       const kids = (await this.packHosts()).get(code) || [];
       // which sets are folded in is part of the key: a change there is a new list
-      const key = 'extras:' + code + ':' + kids.join(',');
+      const key = 'extras2:' + code + ':' + kids.join(',');
       if (!opts.force) {
         const hit = await this.db.get(STORES.meta, key);
         if (hit && Date.now() - hit._t < CACHE_TTL) {
@@ -8098,7 +8098,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const take = (cards, setCode) => {
         let n = 0;
         for (const c of cards) {
-          if (!c || have.has(c.name) || seen.has(c.name) || MTG.formats.isBasicLand(c)) continue;
+          // an Alchemy rebalancing ("A-" and an existing card's name) is not a card of its own
+          if (!c || have.has(c.name) || seen.has(c.name) || MTG.formats.isBasicLand(c) || /^A-/.test(c.name)) continue;
           seen.add(c.name); out.push(c); n++;
         }
         if (n && setCode) from.push(setCode);
@@ -13395,6 +13396,19 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         return { op: 'sequence', list: [
           { op: 'grantKeyword', keywords: [kw], duration: 'eot', scope: { who: 'you', what: 'permanent', subtypes: ['aura', 'equipment'] } },
           { op: 'grantKeyword', keywords: [kw], duration: 'eot', scope: { who: 'you', what: 'creature', modified: true } }] }; } },
+    /* Faith's Reward, Gerrard's Hourglass Pendant, Second Sunrise, Thrilling Encore, Supper for
+       Spiders, Gleancrawler: "… cards in your graveyard that were put there from the battlefield this turn" */
+    { re: /^Return to the battlefield( tapped)? all ([a-z ,]+?) cards in your graveyard that were put there from the battlefield this turn\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[2].toLowerCase().replace(/,? and |, /g, ' or '), yours: true, tapped: !!m[1], fromBfThisTurn: true }) },
+    { re: /^Each player returns to the battlefield all ([a-z ,]+?) cards in their graveyard that were put there from the battlefield this turn\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/,? and |, /g, ' or '), yours: false, fromBfThisTurn: true }) },
+    { re: /^Put onto the battlefield under your control all creature cards in (all graveyards|your opponents'? graveyards) that were put there from the battlefield this turn\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: 'creature', yours: false, mine: true, fromBfThisTurn: true, opponentsOnly: /opponents/i.test(m[1]) }) },
+    { re: /^Return (?:to your hand )?all creature cards in your graveyard that were put there from the battlefield this turn(?: to your hand)?\.?$/i,
+      make: () => ({ op: 'regrowthAll', filter: 'creature', fromBfThisTurn: true }) },
+    // Moira, Urborg Haunt: "return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn"
+    { re: /^Return to the battlefield (target creature card in your graveyard that was put there from the battlefield this turn)\.?$/i,
+      make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -13742,6 +13756,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
     /* ===== keyword actions that make a thing ===== */
     { re: /^Investigate\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue' }) },
+    // Fateful Absence: "Its controller investigates." — the controller of what was just destroyed
+    { re: /^Its controller investigates\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue', who: 'targetController' }) },
     { re: /^Investigate (two|three|\d+) times\.?$/i, make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: 'Clue' }) },
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
     // Gallia of the Endless Dance: "discard a card at random"
@@ -16176,6 +16192,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (blockingSelf) phrase = String(phrase).replace(/\s+blocking (?:it|this creature|CARDNAME)$/i, '');
     const blockedBySelf = /\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i.test(String(phrase));
     if (blockedBySelf) phrase = String(phrase).replace(/\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i, '');
+    // Moira, Grim Return: "target creature card in your graveyard that was put there from the battlefield this turn"
+    const fromBf = /\s+that was put there from the battlefield this turn$/i.test(String(phrase));
+    if (fromBf) phrase = String(phrase).replace(/\s+that was put there from the battlefield this turn$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -16189,6 +16208,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (colored) spec.colored = true;
     if (enteredNow) spec.enteredThisTurn = true;
     if (blockingSelf) spec.blockingSelf = true;
+    if (fromBf) spec.fromBfThisTurn = true;
     if (blockedBySelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
@@ -16340,6 +16360,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     } else if (types.includes('player')) {
       if (permTypes.length) { spec.type = 'any'; spec.anyOf = permTypes; }
       else spec.type = 'player';
+    } else if (permTypes.length > 1 && !/\b(?:or|and)\b|,/i.test(String(phrase))) {
+      /* Kotori: "target artifact creature you control" — both at once, not either */
+      spec.type = permTypes[permTypes.length - 1]; spec.alsoTypes = permTypes.slice(0, -1);
     } else if (permTypes.length > 1) {
       spec.type = 'permanent'; spec.anyOf = permTypes;
     } else if (permTypes.length === 1) {
@@ -16385,6 +16408,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (spec.type === 'planeswalker' && !a.isPlaneswalker) return false;
     if (spec.type === 'battle' && !a.isBattle) return false;
     if (spec.anyOf && !spec.anyOf.some(w => w === 'permanent' || w === 'player' || isType(w))) return false;
+    if (spec.alsoTypes && !spec.alsoTypes.every(w => w === 'permanent' || isType(w))) return false;
     const hasSub = () => spec.subtypes.some(st => (a.subtypes || []).some(t => t.toLowerCase() === st));
     if (spec.typeOrSubtype) {
       if (!(spec.cardTypes || []).some(isType) && !hasSub()) return false;
@@ -16432,6 +16456,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
+    // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
+    if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
@@ -16753,6 +16779,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Othelm, Salvager of Ruin, Samwise, Grim Return: "Choose (up to one) target creature card in
+       your graveyard (a graveyard) that was put there from the battlefield this turn. Return it to the
+       battlefield tapped (to your hand)." / "Put that card onto the battlefield under your control." */
+    { re: /^Choose (up to one )?target (creature|permanent) card in (your graveyard|a graveyard) that was put there from the battlefield this turn\. (?:Return it to (the battlefield( tapped)?|your hand)|Put that card onto the battlefield under your control)\.( Then the Ring tempts you\.)?$/i,
+      make: (m) => {
+        const spec = Object.assign({ type: m[2].toLowerCase() === 'creature' ? 'creature' : 'permanent', filter: m[2].toLowerCase(), zone: 'graveyard', fromBfThisTurn: true },
+          /your/i.test(m[3]) ? { controller: 'you' } : {}, m[1] ? { upTo: true } : {});
+        // (Samwise: "Then the Ring tempts you.")
+        const ring = m[6] ? [{ op: 'ringTempts' }] : [];
+        if (/hand/i.test(m[4] || '')) return [{ op: 'regrowth', targets: [spec] }].concat(ring);
+        return [Object.assign({ op: 'reanimate', targets: [spec] }, m[5] ? { tapped: true } : {}, /your graveyard/i.test(m[3]) ? {} : { mine: true })].concat(ring);
+      } },
     /* Goblin Guide: "defending player reveals the top card of their library.
        If it's a land card, that player puts it into their hand." */
     { re: /^Defending player reveals the top card of their library\. If it'?s an? ([a-z]+) card, that player puts it into their hand\.?$/i,
@@ -35842,6 +35880,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         o._diedCounters = Object.assign({}, o.counters);
         // Garna, Desculpting Blast: "if it was attacking", asked after it has gone
         o._wasAttacking = from === 'battlefield' && !!o.attacking;
+        // Faith's Reward: "cards in your graveyard that were put there from the battlefield this turn" (fromBfThisTurn)
+        o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         o.tapped = false; o.damage = 0; o.counters = {};
@@ -43838,6 +43878,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'regrowthAll': {
           for (const c of this.zones[ctx.controller].graveyard.slice()) {
             if (!this._cardFitsWords(c, e.filter)) continue;
+            // Gleancrawler: only what went there from the battlefield this turn (fromBfThisTurn)
+            if (e.fromBfThisTurn && c._toGraveFromBf !== this.turn) continue;
             // Dawn: "with power 2 or less"
             if (e.maxPower != null && !((parseInt((c.card || {}).power, 10) || 0) <= e.maxPower)) continue;
             this.moveObject(c, 'hand');
@@ -45015,8 +45057,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           // "all land cards from your graveyard", or every creature card in every graveyard
           const from = e.yours ? [me] : this.players;
           for (const p of from) {
+            // Supper for Spiders: only your opponents' graveyards
+            if (e.opponentsOnly && p.id === ctx.controller) continue;
             for (const c of this.zones[p.id].graveyard) {
               if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > n(e.maxMv)) continue;
+              // Faith's Reward: only what went there from the battlefield this turn (fromBfThisTurn)
+              if (e.fromBfThisTurn && c._toGraveFromBf !== this.turn) continue;
               // Bloodline Bidding: "of the chosen type"
               if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(c, src.chosenType))) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);
@@ -60798,7 +60844,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      illustration has it, and anyone after takes its next choice; told
      apart by Scryfall's illustration id, so a reprint of the same picture
      counts as the same. Kept, so each keeps its picture from then on. */
-  const ART_KEY = 'artclaims2';
+  const ART_KEY = 'artclaims3';
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -60819,7 +60865,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
     return null;
   }
+  /* Never a pack's face: the numbered chase printings (serialized, the
+     headliners, double rainbow, gleaming gold), one of a handful, and the
+     promos, which no pack holds at all. */
+  const NOT_A_PULL = new Set(['serialized', 'headliner', 'doublerainbow', 'gleaminggold',
+    'playpromo', 'prerelease', 'promopack', 'buyabox', 'bundle', 'datestamped', 'stamped', 'judgegift', 'league',
+    'convention', 'tourney', 'release', 'instore', 'event', 'giftbox', 'setpromo', 'wizardsplaynetwork', 'premiereshop', 'intropack']);
   const artOf = (c) => {
+    if (!c || (c.promo_types || []).some(t => NOT_A_PULL.has(t)) || /z$/i.test(String(c.collector_number || ''))) return null;
     const url = MTG.scry.imageUrl(c, 'art_crop', 0);
     const ill = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null;
     return url ? { url, name: c.name, ill } : null;
@@ -64570,6 +64623,8 @@ Sideboard
     ownedOnly.addEventListener('change', () => { MTG.setSetting('searchOwnedOnly', ownedOnly.checked); run(); });
 
     function draw(cards, q) {
+      // Alchemy's rebalanced versions of existing cards ("A-…") are left out: only its new cards are cards here
+      cards = cards.filter(c => !/^A-/.test(c.name || ''));
       last = { cards, q };
       results.innerHTML = '';
       let hidden = 0;
@@ -64639,7 +64694,7 @@ Sideboard
         MTG.scry.autocomplete(q, { signal: suggestFlight.signal }).then((names) => {
           if (input.value.trim() !== q) return;
           suggestBox.innerHTML = '';
-          for (const nm of names.slice(0, 8)) {
+          for (const nm of names.filter(n => !/^A-/.test(n)).slice(0, 8)) {
             suggestBox.appendChild(el('button', {
               type: 'button', class: 'suggest-chip', text: nm,
               onclick: () => { input.value = nm; suggestBox.innerHTML = ''; run(); },
