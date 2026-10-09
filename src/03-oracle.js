@@ -1307,6 +1307,9 @@
       make: () => ({ op: 'reanimate', ownerControl: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
     { re: /^Each opponent gains (one|two|three|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'opponents' }) },
     { re: /^Each player gets (a|one|two|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'each' }) },
+    /* Open the Way, Soul Immolation, Winter's Chill: "X can't be greater
+       than …" — a limit on the X chosen as the spell is cast */
+    { re: /^X can'?t be greater than (.+?)\.?$/i, make: (m) => { const k = amountOf(m[1]); return k ? { op: 'xCap', n: k } : null; } },
     // Vraska, Betrayal's Sting: "If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference."
     { re: /^If target player has fewer than (\w+) poison counters, they get a number of poison counters equal to the difference\.?$/i,
       make: (m) => ({ op: 'poison', upTo: num(m[1]), n: 0, who: 'target', targets: [{ type: 'player' }] }) },
@@ -4941,6 +4944,8 @@
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
     if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });
+    // Open the Way: "the number of players in the game"
+    if (/^the number of players in the game$/i.test(p)) return done({ playersInGame: true, mult: 1 });
     // Nissa, Ascended Animist: "where X is Nissa's loyalty"
     if (/^(?:CARDNAME'?s|this planeswalker'?s|its) loyalty$/i.test(p)) return done({ ofSelf: 'loyalty' });
     // Resolute Archangel: "your starting life total"
@@ -5718,6 +5723,10 @@
        the amount of life you gained. If you do, draw X cards." */
     { re: /^You may pay \{X\}, where X is less than or equal to the amount of life you gained\. If you do, draw X cards\.$/i,
       make: () => [{ op: 'payXDraw' }] },
+    /* Shanna, Purifying Blade: "you may pay {X}. If you do, draw X cards. X
+       can't be greater than the amount of life you gained this turn." */
+    { re: /^You may pay \{X\}\. If you do, draw X cards\. X can'?t be greater than (.+?)\.$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? [{ op: 'payXDraw', cap: k }] : null; } },
     /* Finale of Revelation: "Draw X cards. If X is 10 or more, instead shuffle
        your graveyard into your library, draw X cards, untap up to five lands,
        and you have no maximum hand size for the rest of the game." */

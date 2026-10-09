@@ -12252,4 +12252,28 @@ module.exports = (test) => {
     T.g.moveObject(tok, 'graveyard'); T.settle(); T.resolve(); T.settle();
     t.eq(T.zone('A', 'hand').length, hand + 1, 'drew a card');
   });
+
+  test("Open the Way: X no greater than the number of players", (mk, t) => {
+    t.auto('Open the Way');
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.top('A', 'Forest');
+    T.mana('A', '3GG');
+    t.ok(!T.g.castSpell('A', T.hand('A', 'Open the Way').id, { x: 3, auto: true }), 'three is too many with two players');
+    T.cast('A', T.hand('A', 'Open the Way'), { x: 2 });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Forest').length, 2);
+  });
+
+  test('Shanna, Purifying Blade: X no more than the life gained this turn', (mk, t) => {
+    t.auto('Shanna, Purifying Blade');
+    const T = mk();
+    const sh = T.bf('A', 'Shanna, Purifying Blade');
+    T.g.changeLife(T.player('A'), 2);
+    T.mana('A', '5');
+    T.answer('choose', (ch) => ({ number: ch.number.max }));
+    const hand = T.zone('A', 'hand').length;
+    T.g._runEffects(sh.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: sh, name: 'Shanna', kind: 'ability' });
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, hand + 2, 'two cards, not five');
+  });
 };

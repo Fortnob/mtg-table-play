@@ -2790,6 +2790,16 @@
       return out;
     }
 
+    /** The most X can be for this spell ("X can't be greater than …"), or Infinity. */
+    _xCap(o, pid) {
+      const a = o && o.analysis();
+      let most = Infinity;
+      for (const ab of ((a && a.abilities) || [])) {
+        if (ab.kind !== 'spell') continue;
+        for (const x of (ab.effects || [])) if (x && x.op === 'xCap') most = Math.min(most, this._countValue(x.n, pid, o));
+      }
+      return most;
+    }
     /** A count the parser described ("for each artifact you control"), worked out for a player. */
     _countValue(v, pid, src, inLayers) {
       if (v == null) return 0;
@@ -2797,6 +2807,7 @@
       const mult = v.mult || 1;
       if (v.scope) return this._scopeList(v.scope, pid, src, null, inLayers).length * mult;
       if (v.cardsInHand) return (((this.zones[pid] || {}).hand || []).length) * mult;
+      if (v.playersInGame) return this.players.filter(p => !p.hasLost).length * mult;
       if (v.cardsInGraveyard) {
         // "for each creature card in your graveyard": only the cards the words name
         const gy = ((this.zones[pid] || {}).graveyard || []);
@@ -4569,6 +4580,11 @@
       const p = this.player(playerId);
       const o = this.obj(objId);
       const a = o.analysis();
+      // Open the Way: "X can't be greater than the number of players in the game"
+      if (a && !opts.free) {
+        const most = this._xCap(o, playerId);
+        if ((opts.x || 0) > most) return this.fail(`X can't be greater than ${most} for ${o.name}.`);
+      }
       /* The targets, checked before anything is paid or moved: the half
          being cast (or both, fused), as the words on it ask */
       if (a && !a.isPermanent || (a && a.isAura) || (opts.targets || []).length) {
@@ -5835,6 +5851,12 @@
       const aimed = this._specsOf({ effects: ab.effects });
       if ((opts.targets || []).some((t, i) => aimed[i] && aimed[i].another && t && t.id === o.id))
         return this.fail('That needs another target, not this one.');
+      // Shanna, Purifying Blade: "X can't be greater than the amount of life you gained this turn"
+      for (const x of (ab.effects || [])) {
+        if (!x || x.op !== 'xCap') continue;
+        const most = this._countValue(x.n, playerId, o);
+        if ((opts.x || 0) > most) return this.fail(`X can't be greater than ${most} for ${o.name}.`);
+      }
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
         this._specX = opts.x || 0;
@@ -14581,7 +14603,8 @@
         }
         // Well of Lost Dreams: pay {X} up to the life gained, and draw X
         case 'payXDraw': {
-          const most = Math.max(0, Number((ctx.triggerData || {}).amount) || 0);
+          // (Shanna: the limit is said, not the trigger's amount)
+          const most = Math.max(0, e.cap ? n(e.cap) : Number((ctx.triggerData || {}).amount) || 0);
           let cap = 0;
           for (let k = most; k > 0; k--) if (this.couldPay(ctx.controller, '{' + k + '}', this.manaSources(ctx.controller))) { cap = k; break; }
           if (!cap) break;
@@ -14973,6 +14996,8 @@
           from._chr = null; this.bumpBoard();
           break;
         }
+        // (a limit on X, settled as the spell was cast)
+        case 'xCap': break;
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

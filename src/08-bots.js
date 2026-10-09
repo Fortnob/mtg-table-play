@@ -3011,6 +3011,7 @@
       if (/\{X\}/.test(choice.costStr || choice.o.card.mana_cost || '')) {
         const left = Math.max(0, spare);
         opts.x = this.d >= 4 ? left : Math.min(left, 1 + Math.floor(this.rand() * 3));
+        opts.x = Math.min(opts.x, g._xCap(choice.o, this.pid));   // Open the Way: "X can't be greater than …"
         if (opts.x <= 0 && !(choice.a.isPermanent)) return false;
         /* "X target creatures": X of them, so X is no more than there are
            worth pointing at, and the targets are picked again for it */
