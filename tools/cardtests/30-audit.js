@@ -2745,4 +2745,23 @@ module.exports = (test) => {
     T.g.activateAbility('B', el.id, 0, { auto: true }); T.settle(); T.resolve();
     t.eq(T.life('B'), 18, 'a mana ability: nothing');
   });
+
+  test('Audit: "a noncreature, nonland card" is every word at once (Fallaji Archaeologist); a list of types is any one (Blech)', (mk, t) => {
+    let T = mk();
+    t.auto('Fallaji Archaeologist');
+    T.toMain('A');
+    T.top('A', 'Grizzly Bears'); T.top('A', 'Opt'); T.top('A', 'Forest');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [ch.cards[0].id] }; });
+    T.mana('A', '1U'); T.cast('A', T.hand('A', 'Fallaji Archaeologist'));
+    t.eq(JSON.stringify(offered), JSON.stringify(['Opt']), 'only the noncreature, nonland card is offered');
+    const g = T.g;
+    const art = T.bf('A', 'Mind Stone'), artc = T.bf('A', 'Ornithopter'), bear = T.bf('A', 'Grizzly Bears');
+    t.ok(g._matchesCategory(artc, 'artifact creature'), 'an artifact creature is one');
+    t.no(g._matchesCategory(art, 'artifact creature'), 'an artifact alone is not');
+    t.no(g._matchesCategory(bear, 'artifact creature'), 'a creature alone is not');
+    t.no(g._matchesCategory(bear, 'noncreature, nonland permanent'));
+    t.ok(g._matchesCategory(art, 'noncreature, nonland permanent'));
+    t.ok(g._matchesCategory(bear, 'Pest, Bat, Bear, and Spider'), 'a list: any one of them');
+  });
 };

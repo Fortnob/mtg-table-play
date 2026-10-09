@@ -21580,9 +21580,11 @@
       if (!a) return false;
       /* Blech: "each Pest, Bat, Insect, Snake, and Spider you control";
          "each Frog or Rabbit" — any one of them, not all at once */
-      const alts = String(filter || '').split(/\s*,\s*(?:and\/or\s+|and\s+|or\s+)?|\s+(?:and\/or|and|or)\s+/).filter(Boolean);
+      // ("noncreature, nonland permanent": no "or" or "and", so every word at once)
+      const f0 = String(filter || '');
+      const alts = (/\b(?:or|and)\b/i.test(f0) ? f0 : f0.replace(/,/g, ' ')).split(/\s*,\s*(?:and\/or\s+|and\s+|or\s+)?|\s+(?:and\/or|and|or)\s+/).filter(Boolean);
       if (alts.length > 1) return alts.some(w => this._matchesCategory(o, w));
-      const words = String(filter || '').toLowerCase().split(/\s+/).filter(Boolean);
+      const words = f0.replace(/,/g, ' ').toLowerCase().split(/\s+/).filter(Boolean);
       for (const w of words) {
         const want = w.replace(/s$/, '');
         if (want === 'permanent' || want === 'you' || want === 'control') continue;
@@ -21679,7 +21681,9 @@
         const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
         return types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line);
       };
-      const alts = String(phrase || '').toLowerCase().replace(/\bcards?\b/g, ' ')
+      // (Fallaji Archaeologist: "a noncreature, nonland card" — with no "or" in it, the commas join words, every one of which must fit)
+      const ph0 = String(phrase || '').toLowerCase();
+      const alts = (/\b(?:or|and)\b/.test(ph0) ? ph0 : ph0.replace(/,/g, ' ')).replace(/\bcards?\b/g, ' ')
         .split(/\s+and\/or\s+|\s+or\s+|\s*,\s*(?:or\s+)?/).map(s => s.trim()).filter(Boolean);
       if (!alts.length) return true;
       return alts.some(alt => alt.split(/\s+/).filter(Boolean).every(fits));
