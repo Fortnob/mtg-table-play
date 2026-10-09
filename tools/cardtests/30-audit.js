@@ -1078,4 +1078,28 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Approach of the Second Sun'));
     t.ok(T.player('B').hasLost, 'the second one from the hand wins');
   });
+
+  test('Audit: Manamorphose adds two mana of the colours chosen, one each', (mk, t) => {
+    const T = mk();
+    t.auto('Manamorphose');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [ch.options.find(o => /Black/.test(o.label)).i, ch.options.find(o => /Green/.test(o.label)).i] }; });
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Manamorphose'));
+    t.ok(asked && asked.repeat && asked.min === 2 && asked.max === 2, 'two picks, repeats allowed');
+    t.eq(T.player('A').pool.B, 1);
+    t.eq(T.player('A').pool.G, 1);
+  });
+
+  test('Audit: choosing a creature type offers every type, your own first', (mk, t) => {
+    const T = mk();
+    t.auto('Kindred Discovery');
+    T.bf('A', 'Llanowar Elves');
+    let asked = null;
+    T.answer('mode', (ch) => { asked = ch; return { modes: [ch.options.find(o => o.label === 'Dragon').i] }; });
+    const kd = T.put('A', 'Kindred Discovery', 'battlefield', { etb: true });
+    t.eq(asked.options[0].label, 'Elf', 'your own type first');
+    t.ok(asked.options.length > 300, 'and every other type');
+    t.eq(kd.chosenType, 'Dragon');
+  });
 };

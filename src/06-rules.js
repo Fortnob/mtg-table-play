@@ -5739,6 +5739,12 @@
       }
     }
 
+    /** Every creature type a player may name: their own cards' types first, commonest first, then the rest in order. */
+    _creatureTypeChoices(pid, own) {
+      const first = own || this._typesByCount(pid);
+      return first.concat(CREATURE_TYPES.filter(t => !first.includes(t)));
+    }
+
     /** The creature types this player's cards care about most, commonest first. */
     _typesByCount(pid) {
       const counts = new Map();
@@ -5776,10 +5782,11 @@
       this.bumpBoard();
       const p = this.player(o.controller);
       this.logEvent('rules', `${o.name}: ${pick} is the chosen creature type.`);
-      if (p && !p.isBot && types.length > 1) {
-        const options = types.slice(0, 12).map((t, i) => ({ i, label: t }));
+      // any creature type may be named, not only the ones among this player's cards (CR 205.3m)
+      if (p && !p.isBot) {
+        const all = this._creatureTypeChoices(o.controller, types);
         this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseType', objId: o.id,
-          types: types.slice(0, 12), options, prompt: `${o.name}: choose a creature type.` });
+          types: all, options: all.map((t, i) => ({ i, label: t })), prompt: `${o.name}: choose a creature type.` });
       }
     }
 
@@ -11703,6 +11710,24 @@
             for (const c of got) me.pool.add(c);
             break;
           }
+          /* "Add three mana in any combination of colors": a colour for each.
+             In a mana ability nothing waits: the colours the table sent with
+             it (manaSplit, a list), if any. As a spell or trigger resolves, a
+             person is asked; a bot keeps to the colour it wants most. */
+          if (amt > 1 && !e.sameColor) {
+            const sent = Array.isArray(ctx.manaSplit) ? ctx.manaSplit.filter(c => pool.includes(c)).slice(0, amt) : [];
+            if (sent.length === amt) { for (const c of sent) me.pool.add(c); break; }
+            if (this.resolving && !me.isBot) {
+              const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+              const got = this._choose({ playerId: ctx.controller, purpose: 'manaColors', kind: 'options', repeat: true, min: amt, max: amt,
+                options: pool.map((c, i) => ({ i, label: `{${c}} ${NAMES[c]}` })), prompt: `Add ${amt} mana: choose a colour for each.` }, 'mcomb');
+              if (got === SUSPEND) return SUSPEND;
+              const picks = (got && got.picks) || [];
+              for (let i = 0; i < amt; i++) me.pool.add(pool[picks[i]] || color);
+              this.logEvent('mana', `${me.name} adds ${amt} mana.`);
+              break;
+            }
+          }
           for (let i = 0; i < amt; i++) me.pool.add(color);
           break;
         }
@@ -13378,10 +13403,9 @@
             if (!xa || !xa.isCreature) continue;
             for (const t of (xa.subtypes || [])) counts.set(t, (counts.get(t) || 0) + (x.controller === ctx.controller ? 2 : 1));
           }
-          const types = [...counts].sort((a, b) => b[1] - a[1]).map(x => x[0]);
-          if (!types.length) types.push('Human');
+          const types = this._creatureTypeChoices(ctx.controller, [...counts].sort((a, b) => b[1] - a[1]).map(x => x[0]));
           const got = this._choose({ playerId: ctx.controller, purpose: 'creatureType', kind: 'options', min: 1, max: 1,
-            options: types.slice(0, 20).map((t, i) => ({ i, label: t })), prompt: 'Choose a creature type.' }, 'ctype');
+            options: types.map((t, i) => ({ i, label: t })), prompt: 'Choose a creature type.' }, 'ctype');
           if (got === SUSPEND) return SUSPEND;
           src.chosenType = types[(got && got.picks.length ? got.picks[0] : 0)] || types[0];
           this.logEvent('rules', `${me.name} chooses ${src.chosenType}.`);
@@ -21849,6 +21873,41 @@
     return lines;
   }
   /** The target specs a list of effects asks for, in order (into sequences, not into modes). */
+  /* Every creature type (CR 205.3m), for "choose a creature type": the
+     types printed on creature and kindred cards, the non-creature subtypes
+     that share a line with them left out */
+  const CREATURE_TYPES = [
+    'Advisor', 'Aetherborn', 'Alien', 'Ally', 'Andorian', 'Angel', 'Antelope', 'Ape', 'Archer', 'Archon', 'Armadillo', 'Armored',
+    'Army', 'Artificer', 'Assassin', 'Assembly-Worker', 'Astartes', 'Athlete', 'Atog', 'Aurochs', 'Automaton', 'Avatar', 'Azra',
+    'Badger', 'Balloon', 'Barbarian', 'Bard', 'Basilisk', 'Bat', 'Bear', 'Beast', 'Beaver', 'Beeble', 'Beholder', 'Berserker',
+    'Bird', 'Bison', 'Boar', 'Borg', 'Brainiac', 'Bringer', 'Brushwagg', "C'tan", 'Caitian', 'Camel', 'Capybara', 'Carrier',
+    'Cat', 'Centaur', 'Champion', 'Chicken', 'Chimera', 'Citizen', 'Cleric', 'Clown', 'Cockatrice', 'Construct', 'Cow', 'Coward',
+    'Coyote', 'Crab', 'Crocodile', 'Custodes', 'Cyberman', 'Cyclops', 'Dalek', 'Dauthi', 'Demigod', 'Demon', 'Detective',
+    'Devil', 'Dinosaur', 'Djinn', 'Doctor', 'Dog', 'Dragon', 'Drake', 'Dreadnought', 'Drix', 'Drone', 'Druid', 'Dryad', 'Dwarf',
+    'Echidna', 'Efreet', 'Egg', 'Elder', 'Eldrazi', 'Elemental', 'Elephant', 'Elf', 'Elk', 'Employee', 'Eternal', 'Eye',
+    'Faerie', 'Ferret', 'Fish', 'Flagbearer', 'Fox', 'Fractal', 'Frog', 'Fungus', 'Gamer', 'Gamma', 'Gargoyle', 'Germ', 'Giant',
+    'Giraffe', 'Gith', 'Glimmer', 'Gnoll', 'Gnome', 'Goat', 'Goblin', 'God', 'Golem', 'Gorgon', 'Gorn', 'Graveborn', 'Gremlin',
+    'Griffin', 'Hag', 'Halfling', 'Hamster', 'Harpy', 'Head', 'Hedgehog', 'Hellion', 'Hero', 'Hippo', 'Hippogriff', 'Homarid',
+    'Homunculus', 'Horror', 'Horse', 'Human', 'Hydra', 'Hyena', 'Illusion', 'Imp', 'Incarnation', 'Inhuman', 'Inkling',
+    'Inquisitor', 'Insect', 'Jackal', 'Jellyfish', 'Juggernaut', 'Kangaroo', 'Kavu', 'Kelpien', 'Kirin', 'Kithkin', 'Klingon',
+    'Knight', 'Kobold', 'Kor', 'Kraken', 'Kree', 'Lamia', 'Lammasu', 'Lanthanite', 'Leech', 'Lemur', 'Leviathan', 'Lhurgoyf',
+    'Licid', 'Lizard', 'Lobster', 'Manticore', 'Masticore', 'Mercenary', 'Merfolk', 'Metathran', 'Minion', 'Minotaur', 'Mite',
+    'Mole', 'Monger', 'Mongoose', 'Monk', 'Monkey', 'Moogle', 'Moonfolk', 'Mount', 'Mouse', 'Mutant', 'Myr', 'Mystic', 'Naga',
+    'Nautilus', 'Necron', 'Nephilim', 'Nightmare', 'Nightstalker', 'Ninja', 'Noble', 'Noggle', 'Nomad', 'Nymph', 'Octopus',
+    'Officer', 'Ogre', 'Ooze', 'Orc', 'Orgg', 'Orion', 'Otter', 'Ouphe', 'Ox', 'Oyster', 'Pangolin', 'Peasant', 'Pegasus',
+    'Pentavite', 'Performer', 'Pest', 'Phelddagrif', 'Phoenix', 'Phyrexian', 'Pilot', 'Pirate', 'Plant', 'Platypus', 'Pony',
+    'Porcupine', 'Possum', 'Praetor', 'Primarch', 'Processor', 'Q', 'Qu', 'Rabbit', 'Raccoon', 'Ranger', 'Rat', 'Rebel',
+    'Reflection', 'Reveler', 'Rhino', 'Rigger', 'Robot', 'Rogue', 'Rukh', 'Sable', 'Salamander', 'Samurai', 'Sand', 'Saproling',
+    'Satyr', 'Scarecrow', 'Scientist', 'Scion', 'Scorpion', 'Scout', 'Sculpture', 'Seal', 'Serf', 'Serpent', 'Servo', 'Shade',
+    'Shaman', 'Shapeshifter', 'Shark', 'Sheep', "Shi'ar", 'Siren', 'Skeleton', 'Skrull', 'Skunk', 'Slith', 'Sliver', 'Sloth',
+    'Slug', 'Snail', 'Snake', 'Soldier', 'Soltari', 'Sorcerer', 'Spawn', 'Specter', 'Spellshaper', 'Sphinx', 'Spider', 'Spike',
+    'Spirit', 'Sponge', 'Spuzzem', 'Spy', 'Squid', 'Squirrel', 'Starfish', 'Surrakar', 'Survivor', 'Symbiote', 'Synth',
+    'Talosian', 'Teddy', 'Tellarite', 'Tentacle', 'Thalakos', 'Tholian', 'Thopter', 'Thrull', 'Tiefling', 'Time Lord', 'Tosk',
+    'Toy', 'Treefolk', 'Trilobite', 'Triskelavite', 'Troll', 'Turtle', 'Tyranid', 'Unicorn', 'Urzan', 'Utrom', 'Vampire',
+    'Varmint', 'Vedalken', 'Villain', 'Volver', 'Vorta', 'Vulcan', 'Wall', 'Walrus', 'Warlock', 'Warrior', 'Weasel', 'Weird',
+    'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Xindi', 'Yeti', 'Zombie', 'Zubera',
+  ];
+
   function effectSpecs(effects) {
     const specs = [];
     const walk = (list) => {
