@@ -2774,4 +2774,42 @@ module.exports = (test) => {
       t.no(o.analysis().fullyAutomated, n + ' is not counted as automated');
     }
   });
+
+  test('Audit: Brood Sliver asks the attacking Sliver\'s controller; Ensnaring Bridge; Absolute Virtue; Ink-Eyes takes from the player it hit', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Brood Sliver', 'Ensnaring Bridge', 'Absolute Virtue', 'Ink-Eyes, Servant of Oni']) t.auto(c);
+    T.toMain('B');
+    T.bf('A', 'Brood Sliver');
+    const s = T.bf('B', 'Sinew Sliver'); s.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: s.id, defenderId: 'C' }]);
+    T.toMain('B', 'end');
+    t.eq(T.asked.find(a => a.type === 'confirm').playerId, 'B', 'B is asked');
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.controller === 'B').length, 1, "and B gets the Sliver");
+    T = mk();
+    T.toMain('B');
+    T.bf('A', 'Ensnaring Bridge');
+    const g = T.bf('B', 'Hill Giant'), e = T.bf('B', 'Llanowar Elves');
+    g.summoningSick = e.summoningSick = false;
+    while (T.g.zones.A.hand.length) T.g.moveObject(T.g.zones.A.hand[0], 'library');
+    T.hand('A', 'Island'); T.hand('A', 'Island');
+    let refused = null;
+    T.answer('declareAttackers', (ch, g2) => { refused = !g2.declareAttackers('B', [{ attackerId: g.id, defenderId: 'A' }]); return [{ attackerId: e.id, defenderId: 'A' }]; });
+    T.toMain('B', 'end');
+    t.ok(refused, 'power 3 against two cards in hand: no attack');
+    t.eq(T.life('A'), 19, 'the Elves (power 1) could');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('B');
+    T.bf('A', 'Absolute Virtue');
+    const bc = T.bf('B', 'Grizzly Bears'); bc.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: bc.id, defenderId: 'A' }]);
+    T.toMain('B', 'end');
+    t.eq(T.life('A'), 20, "an opponent's damage is prevented");
+    T = mk();
+    T.toMain('A');
+    const ie = T.bf('A', 'Ink-Eyes, Servant of Oni'); ie.summoningSick = false;
+    const gc = T.grave('B', 'Hill Giant'); T.grave('A', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: ie.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.zone(gc, 'battlefield'); t.eq(gc.controller, 'A');
+  });
 };
