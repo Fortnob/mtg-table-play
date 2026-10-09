@@ -1401,7 +1401,8 @@
       const pack = boosterEl(info, p.kind, { big: true });
       pack.classList.add('po-pack');
       const hint = el('div', { class: 'po-hint', text: 'Click the pack to open it' });
-      stage.append(el('div', { class: 'po-spot' }), pack, hint);
+      const wrap = el('div', { class: 'po-packwrap' }, [pack]);
+      stage.append(el('div', { class: 'po-spot' }), wrap, hint);
       // the pack leans toward the pointer
       pack.addEventListener('pointermove', (e) => {
         const r = pack.getBoundingClientRect();
@@ -1415,30 +1416,60 @@
       const open = async () => {
         if (opening) return;
         opening = true;
-        // a click from here on, while it gathers and tears, hurries the dealing (the next tick: this click is still going up)
+        // a click from here on hurries the opening and the dealing (the next tick: this click is still going up)
         earlyHurry = false;
-        setTimeout(() => { stage.onclick = () => { earlyHurry = true; }; }, 0);
+        setTimeout(() => { stage.onclick = () => { earlyHurry = true; wrap.classList.add('hurry'); }; }, 0);
+        const pause = async (ms) => { for (let t = 0; t < ms && !earlyHurry; t += 30) await sleep(30); };
         hint.classList.add('gone');
-        // the pack lifts, the room closes in, the seam begins to glow; then it gives
-        pack.classList.add('gather');
+        /* Opened the way a pack is: gripped, a twist, the top torn off along
+           a ragged line, and the cards pulled up out of it as the wrapper
+           falls away; then they are dealt from there. */
+        pack.classList.add('grip');
         overlay.classList.add('tense');
-        MTG.sfx('pack_charge', { dur: reduced() ? 0.2 : 1.05 });
+        MTG.sfx('pack_charge', { dur: reduced() ? 0.2 : 0.7 });
         let res;
         try {
-          [res] = await Promise.all([S.openPack(p.id, async () => info), sleep(reduced() ? 150 : 1050)]);
+          [res] = await Promise.all([S.openPack(p.id, async () => info), pause(reduced() ? 150 : 650)]);
         } catch (e) {
           opening = false;
-          pack.classList.remove('gather');
+          stage.onclick = null;
+          pack.classList.remove('grip');
           overlay.classList.remove('tense');
           hint.classList.remove('gone');
           return UI.error(e.message || String(e));
         }
-        pack.classList.remove('gather');
         overlay.classList.remove('tense');
-        pack.classList.add('torn');
-        overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
+        if (reduced()) { pack.classList.add('torn'); await sleep(50); return deal(res, g, info); }
+        // the torn edge, a little below the top: a ragged line, left to right
+        const edge = [];
+        for (let x = 0; x <= 100; x += 4) edge.push([x, 13 + (x % 8 === 0 ? -1 : 1) * (0.5 + Math.random() * 1.3)]);
+        const at = (pts) => pts.map(([x, y]) => `${x}% ${y.toFixed(1)}%`).join(', ');
+        const piece = (cls, clip) => {
+          const c = pack.cloneNode(true);
+          c.classList.remove('po-pack', 'grip');
+          c.classList.add('po-part', cls);
+          c.style.clipPath = clip;
+          c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg');
+          return c;
+        };
+        const strip = piece('strip', `polygon(0% 0%, 100% 0%, ${at(edge.slice().reverse())})`);
+        const body = piece('body', `polygon(${at(edge)}, 100% 100%, 0% 100%)`);
+        // the cards inside, face down in your sleeves
+        const rise = el('div', { class: 'po-rise' }, [0, 1, 2].map((k) => {
+          const b = el('div', { class: 'po-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]);
+          UI.applySleeve(b, S.sleeveWorn());
+          b.style.setProperty('--n', String(k));
+          return b;
+        }));
+        // flecks of foil off the tear
+        const flecks = el('div', { class: 'po-flecks' }, Array.from({ length: 16 }, (_, i) => el('i', { style: {
+          '--x': (8 + i * 5.6).toFixed(0) + '%', '--dx': ((Math.random() - 0.3) * 120).toFixed(0) + 'px',
+          '--dy': (-30 - Math.random() * 90).toFixed(0) + 'px', '--r': (Math.random() * 540).toFixed(0) + 'deg', '--d': (i * 0.018).toFixed(3) + 's' } })));
+        wrap.append(rise, body, strip, flecks);
+        pack.style.visibility = 'hidden';
         MTG.sfx('pack_tear');
-        await sleep(reduced() ? 50 : 480);
+        requestAnimationFrame(() => { body.classList.add('open'); rise.classList.add('up'); });
+        await pause(950);
         deal(res, g, info);
       };
       pack.addEventListener('click', open);
