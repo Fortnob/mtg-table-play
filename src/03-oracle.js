@@ -8080,6 +8080,18 @@
           oracle_text: has[1], keywords: [], layout: 'token' });
         if (probe && probe.fullyAutomated) { host.grantedText = has[1]; continue; }
       }
+      /* Waltz of Rage: "Until end of turn, whenever a creature you control
+         dies, exile the top card of your library. You may play it until the
+         end of your next turn." — the second sentence belongs to each of
+         those triggers, not to the spell */
+      const prevE = out[out.length - 1];
+      if (e && prevE && prevE.op === 'getEmblem' && prevE.thisTurn && !prevE.once &&
+          /^You may (?:play|cast) (?:it|that card|those cards|them)\b/i.test(String(e.text || ''))) {
+        const joined = String(prevE.emblemText || '').replace(/\.?$/, '. ') + String(e.text).trim().replace(/\.?$/, '.');
+        if (emblemText(joined)) { prevE.emblemText = joined; continue; }
+        out.pop(); out.push({ op: 'manual', text: (prevE.text || '') + ' ' + (e.text || '') });
+        continue;
+      }
       /* "…deals 2 damage to any target. If this spell was kicked, it deals
          4 damage instead." The second sentence is not another effect; it is
          the first one's number, with a question attached. */

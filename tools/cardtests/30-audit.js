@@ -2562,4 +2562,30 @@ module.exports = (test) => {
     T.playLand('A', T.grave('A', 'Forest'));
     t.eq(T.g.battlefield.filter(o => /Elemental/.test(o.name) && o.controller === 'A').length, 1, 'a Forest from the graveyard, and its 5/3');
   });
+
+  test('Audit: a land is played only from the hand or where a card allows it', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const ex = T.put('A', 'Island', 'exile'), gy = T.grave('A', 'Forest');
+    t.no(T.g.playLand('A', ex.id), 'not from exile');
+    t.no(T.g.playLand('A', gy.id), 'not from the graveyard');
+    t.zone(ex, 'exile'); t.zone(gy, 'graveyard');
+    T.bf('A', "Titania, Nature's Force");
+    t.ok(T.g.playLand('A', gy.id), 'with Titania, a Forest from the graveyard');
+  });
+
+  test('Audit: Waltz of Rage lets you play each card its turn-long trigger exiles', (mk, t) => {
+    const T = mk();
+    t.auto('Waltz of Rage');
+    T.toMain('A');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Llanowar Elves');
+    T.top('A', 'Lightning Bolt'); T.top('A', 'Shock');
+    T.mana('A', '3RR'); T.cast('A', T.hand('A', 'Waltz of Rage'), { targets: [b] });
+    const ex = T.g.zones.A.exile.slice();
+    t.eq(ex.length, 2, 'two Elves died: two cards exiled');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.mana('A', 'RR');
+    for (const c of ex) t.ok(T.g.castSpell('A', c.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), c.name + ' cast on the next turn');
+  });
 };

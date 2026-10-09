@@ -2709,6 +2709,18 @@
       const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
       if (!back && (!a || !a.isLand)) return this.fail('That is not a land.');
       if (!this.canPlayLand(playerId)) return this.fail('You cannot play a land right now.');
+      /* A land is played from the hand, or from wherever a card gives leave:
+         exiled by an impulse effect, the top of the library or the graveyard
+         (Crucible of Worlds, Titania). */
+      let leave = null;
+      if (o.zone !== 'hand' && this.config.rulesEnforcement !== 'relaxed') {
+        const z = this.zones[playerId] || {};
+        const impulsed = o.zone === 'exile' && !o.impulseCastOnly &&
+          ((o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) || this._mayPlayFromExile(playerId, o));
+        if (o.zone === 'graveyard' || (o.zone === 'library' && (z.library || [])[0] === o)) leave = this._playFromRule(playerId, o, 'land');
+        if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
+      }
+      if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
       if (back) o.face = 1;
       p.landsPlayed++;
       const fromZone = o.zone;
