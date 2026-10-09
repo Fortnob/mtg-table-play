@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11389,
+  "needed": 11388,
   "gainedCards": 1130,
-  "linesNeeded": 12185,
+  "linesNeeded": 12184,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -2893,20 +2893,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Pack Leader",
-    "Rescue Retriever",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage",
-    "Inner Sanctum"
-   ]
-  },
-  {
    "what": "DiscardedByOpponentTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -3747,6 +3733,19 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Rescue Retriever",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage",
+    "Inner Sanctum"
    ]
   },
   {
@@ -8670,19 +8669,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Pack Leader",
-    "Rescue Retriever",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage",
-    "Inner Sanctum"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 6,
    "cards": 6,
@@ -9574,6 +9560,18 @@
     "Justice, Vance Astrovik",
     "Stormfront Riders",
     "Urza's Miter"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Rescue Retriever",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage",
+    "Inner Sanctum"
    ]
   },
   {

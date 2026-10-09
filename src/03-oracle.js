@@ -4766,6 +4766,9 @@
     // "…dealt to creatures this turn", "…dealt this turn to creatures you control"
     { re: /^Prevent all (combat )?damage that would be dealt (?:to creatures( you control)? this turn|this turn to creatures( you control)?)\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: m[2] || m[3] ? 'yourCreatures' : 'creatures' }) },
+    // Pack Leader: "Prevent all combat damage that would be dealt this turn to Dogs you control."
+    { re: /^Prevent all (combat )?damage that would be dealt (?:this turn to ([A-Z][a-z]+)s you control|to ([A-Z][a-z]+)s you control this turn)\.?$/,
+      make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'yourCreatures', toSubtype: (m[2] || m[3]).toLowerCase() }) },
     // "Prevent all combat damage that would be dealt to you and creatures you control this turn."
     { re: /^Prevent all (combat )?damage that would be dealt to you and creatures you control this turn\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'youAndYours' }) },

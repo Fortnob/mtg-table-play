@@ -17528,14 +17528,14 @@
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
-            tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking,
+            tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking, toSubtype: e.toSubtype || null,
             fromMaxPower: e.fromMaxPower != null ? e.fromMaxPower : null });
           {
             // "Damage from attacking creatures to Alice is prevented this turn." — said the way the card says it
             const by = e.fromCreatures ? ' that creatures would deal' : e.fromAttacking ? ' from attacking creatures'
               : e.fromMaxPower != null ? ` from creatures with power ${e.fromMaxPower} or less` : '';
             const to = e.to === 'you' ? ` to ${me.name}` : e.to === 'creatures' ? ' to creatures'
-              : e.to === 'yourCreatures' ? ` to creatures ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
+              : e.to === 'yourCreatures' ? ` to ${e.toSubtype ? e.toSubtype.charAt(0).toUpperCase() + e.toSubtype.slice(1) + 's' : 'creatures'} ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
             this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'}${by}${to} is prevented this turn.`);
           }
           break;
@@ -20503,6 +20503,8 @@
         const tCreature = !!(target && target.zone === 'battlefield' && (this.characteristics(target) || {}).isCreature);
         if (pv.to === 'creatures' && !tCreature) continue;
         if (pv.to === 'yourCreatures' && !(tCreature && target.controller === pv.who)) continue;
+        // Pack Leader: only Dogs
+        if (pv.toSubtype && !(tCreature && this._hasCreatureType(target, pv.toSubtype))) continue;
         if (pv.to === 'youAndYours' && !(target && (target.id === pv.who || (tCreature && target.controller === pv.who)))) continue;
         if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;
         if (pv.fromAttacking && !(source && source.attacking)) continue;

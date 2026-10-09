@@ -15841,4 +15841,18 @@ module.exports = (test) => {
     t.zone(giant, 'graveyard');
     t.eq(elf.counters['+1/+1'], 7, 'its power as it last was: 3, a counter and +3');
   });
+
+  test('Pack Leader: attacking prevents combat damage to your Dogs this turn', (mk, t) => {
+    t.auto('Pack Leader');
+    const T = mk();
+    const pl = T.bf('A', 'Pack Leader'), bear = T.bf('A', 'Grizzly Bears');
+    const wall = T.bf('B', 'Hill Giant'), wall2 = T.bf('B', 'Hill Giant');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: pl.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [pl.id] }, { blockerId: wall2.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(pl, 'battlefield', 'the Dog takes no combat damage');
+    t.zone(bear, 'graveyard', 'the Bear is no Dog');
+    t.ok(T.g.log.some(l => /Combat damage to Dogs A controls is prevented this turn\./.test(l.text || '')), 'log');
+  });
 };
