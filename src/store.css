@@ -488,3 +488,6 @@ html[data-play="1"] .hoard-chip { display: none; }
 .search-own i.on { background: var(--gold-1, #f3dd96); box-shadow: 0 0 4px rgba(243, 221, 150, .6); }
 .search-own span { font-size: 10.5px; color: #a79f8c; }
 .search-card.unowned .card-slot, .search-card.unowned .card-img { filter: saturate(.75) brightness(.85); }
+
+.col-head { align-items: center; }
+.store-head { align-items: center; }

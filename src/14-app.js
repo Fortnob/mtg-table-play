@@ -391,6 +391,12 @@
   // (Options is the gear at the right of the bar)
   const NAV = [['home', 'Home'], ['formats', 'Play'], ['decks', 'Decks'], ['collection', 'Collection'], ['store', 'Store'], ['profile', 'Profile']];
   App.navTo = (n) => navTo(n);
+  /** The Profile screen, on one of its tabs. */
+  function navProfile(tab) {
+    showScreen('profile');
+    const b = document.querySelector(`#screen-profile .store-tab[data-tab="${tab}"]`);
+    if (b) b.click();
+  }
 
   /**
    * A ranked game: your deck for the format, against a bot as strong as
@@ -836,7 +842,7 @@
     booster: 'Cogwork Librarian', picktwo: 'Fact or Fiction', chaos: 'Possibility Storm',
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
   };
-  const TILE_ART = { formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top" };
+  const TILE_ART = { formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe' };
   const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART));
 
   /** The decoration cards by name, once they are here. */
@@ -1000,10 +1006,32 @@
       decorArt(t.firstChild, TILE_ART[id]);
       return t;
     };
-    page.appendChild(el('div', { class: 'home-tiles' }, [
-      tile('formats', SVG.play, 'Play', 'Every format, from Commander pods of eight to booster drafts. Fill the seats with friends or bots.', () => showScreen('formats')),
+    /* -- today: quests, the week, rewards waiting, packs to open; each goes where it says -- */
+    if (MTG.progress) {
+      const P = MTG.progress.state;
+      const q = P.quests || [];
+      const qDone = q.length ? q.reduce((a, x) => a + Math.min(1, x.n / x.goal), 0) / q.length : 1;
+      const box = MTG.progress.inboxCount();
+      const packs = MTG.economy.packs().length;
+      const today = (cls, label, value, sub, pct, onClick) => el('button', { type: 'button', class: 'today-item ' + cls, onclick: onClick }, [
+        el('span', { class: 'ti-label', text: label }),
+        el('b', { class: 'ti-value', text: value }),
+        sub ? el('span', { class: 'ti-sub', text: sub }) : null,
+        pct != null ? el('span', { class: 'ti-bar' }, [el('i', { style: { width: Math.round(pct * 100) + '%' } })]) : null,
+      ].filter(Boolean));
+      page.appendChild(el('div', { class: 'home-today', role: 'group', 'aria-label': 'Today' }, [
+        today('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', q.length ? MTG.progress.questText(q[0]) : 'A new one tomorrow', qDone, () => navProfile('quests')),
+        today('t-weekly', 'Weekly wins', `${P.weekly.wins} / 15`, 'Rewards along the way', P.weekly.wins / 15, () => navProfile('quests')),
+        today('t-inbox' + (box ? ' hot' : ''), 'Rewards', box ? `${box} to claim` : 'None waiting', box ? 'Open the inbox' : 'Earn them by playing', null, () => UI.openInbox()),
+        today('t-packs' + (packs ? ' hot' : ''), 'Your packs', packs ? `${packs} to open` : 'None', packs ? 'Open them' : 'Buy some in the Store', null, () => (packs ? App.openPacks() : showScreen('store'))),
+        today('t-rank', 'Ranked', MTG.progress.rankLabel(P.ranked), `Mastery level ${P.level}`, null, () => navProfile('ranked')),
+      ]));
+    }
+    page.appendChild(el('div', { class: 'home-tiles four' }, [
+      tile('formats', SVG.play, 'Play', 'Every format, events and challenges. Fill the seats with friends or bots.', () => showScreen('formats')),
       tile('decks', SVG.deck, 'Decks', 'Import a list from anywhere, build one from scratch, and see what it combos into.', () => showScreen('decks')),
-      tile('options', SVG.gear, 'Options', 'Pace, stops, appearance, accessibility and sound.', () => showScreen('options')),
+      tile('collection', SVG.cards, 'Collection', 'Every card you own, set by set, and wildcards to craft the rest.', () => showScreen('collection')),
+      tile('store', SVG.shard, 'Store', 'Packs, wildcards, sleeves and frames, for the Shards you earn.', () => showScreen('store')),
     ]));
     const replay = el('button', { class: 'btn xs ghost', text: 'Watch a replay…', title: 'Open a replay file saved from the game menu',
       onclick: () => App.openReplayFile() });
@@ -1239,6 +1267,8 @@
   }
 
   const SVG = {
+    cards: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="8.5" height="12.5" rx="1.5" transform="rotate(-10 6.75 12.25)"/><rect x="8" y="4.5" width="8.5" height="12.5" rx="1.5"/><rect x="13.5" y="6" width="8.5" height="12.5" rx="1.5" transform="rotate(10 17.75 12.25)"/></svg>',
+    shard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l6.5 6.2L12 21.5 5.5 8.7z"/><path d="M5.5 8.7h13M12 2.5v19"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>',
     deck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="11" height="15" rx="2"/><path d="M8 3h9a2 2 0 0 1 2 2v12"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>',

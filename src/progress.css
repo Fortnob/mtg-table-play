@@ -184,3 +184,28 @@ html[data-play="1"] .inbox-chip { display: none; }
 .ch-badge { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: rgba(190, 150, 255, .18); color: #d9c8ff; }
 .challenge.solved .ch-badge { background: rgba(120, 200, 120, .2); color: #9fe09f; }
 .ch-text { display: grid; gap: 3px; }
+
+/* ---------- the home screen: today, and four doors ---------- */
+.home-today { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.today-item { position: relative; display: grid; gap: 2px; align-content: start; text-align: left; padding: 10px 14px 12px; border-radius: 12px; cursor: pointer; color: inherit;
+  border: 1px solid rgba(255,255,255,.08); background: linear-gradient(180deg, rgba(28, 32, 42, .92), rgba(16, 18, 26, .92)); transition: transform .15s, border-color .15s; min-width: 0; }
+.today-item:hover { transform: translateY(-2px); border-color: rgba(243, 221, 150, .4); }
+.ti-label { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #a79f8c; }
+.ti-value { font: 600 17px/1.2 var(--font-display, Georgia, serif); color: #f1ead8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ti-sub { font-size: 12px; color: #b9b2a2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ti-bar { height: 5px; margin-top: 5px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.ti-bar i { display: block; height: 100%; background: linear-gradient(90deg, #b8862b, #ffe6a0); }
+.today-item.hot { border-color: rgba(243, 221, 150, .5); box-shadow: 0 0 18px rgba(243, 221, 150, .12); }
+.today-item.hot .ti-value { color: var(--gold-1, #f3dd96); }
+.today-item.hot::after { content: ""; position: absolute; top: 10px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: #e2564a; box-shadow: 0 0 8px rgba(226, 86, 74, .8); }
+.home-tiles.four { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+@media (max-width: 1100px) { .home-today { grid-template-columns: repeat(3, minmax(0, 1fr)); } .home-tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 640px) { .home-today { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* the top bar keeps to one line */
+.brand-name { white-space: nowrap; }
+@media (max-width: 1240px) { .topbar .brand-name { display: none; } }
+@media (max-width: 1080px) { .topnav-btn { padding-left: 8px !important; padding-right: 8px !important; } .net-badge { display: none !important; } }
+
+.rank-play { align-items: center; }
+.rank-play-label { letter-spacing: .1em; text-transform: uppercase; }

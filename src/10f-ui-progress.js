@@ -290,7 +290,8 @@
         r.tier === 'Mythic' ? el('p', { text: `Mythic, ${r.step} wins clear.` }) : steps,
         el('p', { class: 'dim', text: `${P().seasonName(r.season)} season. Best this season: ${r.best}. A win moves you up a step (two in Bronze and Silver); a loss moves you down one, but never out of a tier you have reached. Opponents get stronger as you climb.` }),
         el('div', { class: 'rank-play' }, [
-          el('button', { type: 'button', class: 'btn primary hero-btn', html: '<span>Play ranked</span>', onclick: () => opts.onRanked && opts.onRanked('standard') }),
+          el('span', { class: 'tiny dim rank-play-label', text: 'Play ranked:' }),
+          el('button', { type: 'button', class: 'btn primary hero-btn', html: '<span>Standard</span>', onclick: () => opts.onRanked && opts.onRanked('standard') }),
           el('button', { type: 'button', class: 'btn', text: 'Modern', onclick: () => opts.onRanked && opts.onRanked('modern') }),
           el('button', { type: 'button', class: 'btn', text: 'Pauper', onclick: () => opts.onRanked && opts.onRanked('pauper') }),
         ]),
