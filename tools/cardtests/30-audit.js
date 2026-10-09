@@ -2537,4 +2537,29 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bears), 3, 'a Cleric, Rogue, Warrior and Wizard: +1/+0');
     t.ok(T.g.hasKw(bears, 'indestructible'));
   });
+
+  test('Audit: Call of the Wild bins a non-creature; Dauntless Dismantler destroys only mana value X; Titania plays a Forest from the graveyard', (mk, t) => {
+    let T = mk();
+    for (const c of ['Call of the Wild', 'Dauntless Dismantler', "Titania, Nature's Force"]) t.auto(c);
+    T.toMain('A');
+    const cw = T.bf('A', 'Call of the Wild');
+    const isl = T.top('A', 'Island');
+    T.mana('A', '2GG'); T.activate('A', cw, 0);
+    t.zone(isl, 'graveyard', 'not a creature: into the graveyard');
+    const gb = T.top('A', 'Grizzly Bears');
+    T.mana('A', '2GG'); T.activate('A', cw, 0);
+    t.zone(gb, 'battlefield', 'a creature: onto the battlefield');
+    T = mk();
+    T.toMain('A');
+    const dd = T.bf('A', 'Dauntless Dismantler');
+    const ms = T.bf('B', 'Mind Stone'), sr = T.bf('B', 'Sol Ring'), ws = T.bf('B', 'Wayfarer\'s Bauble');
+    T.mana('A', '4W'); T.activate('A', dd, 0, { x: 2 });
+    t.zone(ms, 'graveyard', 'Mind Stone, mana value 2');
+    t.zone(sr, 'battlefield'); t.zone(ws, 'battlefield');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', "Titania, Nature's Force");
+    T.playLand('A', T.grave('A', 'Forest'));
+    t.eq(T.g.battlefield.filter(o => /Elemental/.test(o.name) && o.controller === 'A').length, 1, 'a Forest from the graveyard, and its 5/3');
+  });
 };
