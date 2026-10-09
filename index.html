@@ -10998,8 +10998,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (!e) continue;
         if (e.op === 'modal') { for (const m of e.modes || []) run(m.effects, { obj: false, spell: false, pl: false }); continue; }
         // Immersturm Skullcairn: "deals 3 damage to target player. That player discards a card."
-        if (e.who === 'triggerPlayer' && st.pl && /^(?:That player|They)\b/.test(e.text || '')) e.who = 'target';
-        if (!playersOnly && e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
+        // Skullwinder: after "choose an opponent", "that player" is the one chosen, whatever was targeted before
+        if (e.op === 'chooseOpponent') st.chosen = true;
+        if (!st.chosen && e.who === 'triggerPlayer' && st.pl && /^(?:That player|They)\b/.test(e.text || '')) e.who = 'target';
+        if (!st.chosen && !playersOnly && e.who === 'triggerPlayer' && (st.obj || st.spell) && !st.pl && /^(?:That player|They)\b/.test(e.text || '')) {
           // (a spell's controller, after it may have been countered, is not kept: Frightful Delusion)
           if (st.obj && ops.includes(e.op)) e.who = 'targetController'; else ok = false;
         }
@@ -15777,6 +15779,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => { const who = /^that/i.test(m[1]) ? 'triggerPlayer' : /opponent/i.test(m[1]) ? 'opponents' : 'each';
         // (each carries the sentence: "that player" in a spell is the one it targets)
         return { op: 'sequence', list: [m[2], m[3]].map(f => ({ op: 'sacrificeChoice', n: 1, who, filter: f.toLowerCase(), text: m[0] })) }; } },
+    // Skullwinder: "That player returns a card from their graveyard to their hand." — they choose
+    { re: /^That player returns (a|an) ([a-z ]*?)card from their graveyard to their hand\.?$/i,
+      make: (m) => ({ op: 'graveyardPick', who: 'triggerPlayer', n: 1, upTo: false, filter: m[2].trim().toLowerCase() || 'card', to: 'hand' }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")
@@ -15909,6 +15914,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
+    // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn"
+    if ((m = p.match(/^([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
+      const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k };
+    }
     // Season of Loss: "for each creature that died under your control this turn"
     if (/^creatures? that died under your control this turn$/i.test(p)) return { diedThisTurn: true, yours: true, mult: k };
     // Fountain of Cho: "for each storage counter removed this way"
@@ -18891,6 +18900,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
     [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
       (m) => ({ kind: 'enteredThisTurn', n: num(m[1].replace(/^an?$/i, 'one')), what: m[2].toLowerCase().replace(/s$/, '') })],
+    // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
+    [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
+      (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
     // Banishing Slash: "you control an artifact and an enchantment"
@@ -22912,6 +22924,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
     };
     let mm2;
+    /* Tenza, Godo's Maul: "Equipped creature gets +1/+1. As long as it's legendary, it gets an
+       additional +2/+2. As long as it's red, it has trample." — "it's" is the equipped creature */
+    if ((mm2 = String(line).match(/^(Enchanted|Equipped) creature gets [+-]\d+\/[+-]\d+\.(?: As long as it'?s [^.]+\.)+$/i))) {
+      const parts = String(line).split(/(?<=\.)\s+/).map((p, i) => (i ? p.replace(/^As long as it'?s /i, 'As long as ' + mm2[1].toLowerCase() + ' creature is ') : p));
+      const rs = parts.map(p => parseStatic(p, ctx));
+      if (rs.every(x => x && x.auto)) return Object.assign({}, rs[0], { text: line, effects: [].concat(...rs.map(x => x.effects || [])) });
+    }
     if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) has ([a-z ,]+?) and can'?t be blocked\.?$/i))) {
       const r = both(mm2[1] + ' has ' + mm2[2] + '.', mm2[1] + " can't be blocked.");
       if (r) return r;
@@ -23152,6 +23171,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
       { re: /^(Each opponent|Each player|Your opponents) can'?t draw more than one card each turn\.?$/i,
         make: (m) => ({ op: 'drawLimitOne', who: /player/i.test(m[1]) ? 'each' : 'opponents' }), auto: true },
+      // Kotori, Pilot Prodigy; Astor: "Vehicles you control have crew 2." — one more crew ability on each
+      { re: /^Vehicles you control have crew (\d+)\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', subtypes: ['vehicle'] }, grantText: 'Crew ' + m[1] }), auto: true },
+      // Astor, Bearer of Blades: "Equipment you control have equip {1}." — one more equip ability on each
+      { re: /^Equipment you control have equip (\{[1-9]\})\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', subtypes: ['equipment'] }, grantText: 'Equip ' + m[1] }), auto: true },
       // Puresteel Paladin: "Equipment you control have equip {0} as long as you control three or more artifacts."
       { re: /^Equipment you control have equip \{0\}(?: as long as (.+?))?\.?$/i,
         make: (m) => {
@@ -23392,6 +23417,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // Shielding Plax, Canopy Cover: "can't be the target of spells or abilities your opponents control" is hexproof
       { re: /^(Enchanted|Equipped) creature can'?t be the target of spells or abilities your opponents control\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Hexproof'] }), auto: true },
+      // Tenza, Godo's Maul: "As long as equipped creature is legendary (red), it gets an additional +2/+2 (has trample)."
+      { re: /^As long as (equipped|enchanted) creature is (legendary|white|blue|black|red|green), it (?:gets an additional ([+-]\d+)\/([+-]\d+)|has ([a-z ,]+?))\.?$/i,
+        make: (m) => {
+          const cond = { kind: 'attachedFits', words: m[2].toLowerCase() };
+          if (m[3]) return { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[3], t: +m[4] }, cond };
+          const kws = keywordList(m[5]);
+          return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws, cond } : null;
+        }, auto: true },
         // True-Faith Censer: "As long as equipped creature is a Human, it gets an additional +1/+0."
       { re: /^As long as (equipped|enchanted) creature is an? ([A-Z][a-z]+), it gets an additional ([+-]\d+)\/([+-]\d+)\.?$/,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[3], t: +m[4] },
@@ -28066,6 +28099,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
       if (v.party) return this._partySize(pid) * mult;
+      // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
+      if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
@@ -34657,6 +34692,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'lifeAtMostHalfStart': return !!me && me.life * 2 <= ((this.config && this.config.startingLife) || 20);
         // True-Faith Censer: the creature it is on is a Human
         case 'attachedHasType': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._hasCreatureType(host, cond.subtype); }
+        // Tenza, Godo's Maul: "as long as it's legendary", "as long as it's red" — the creature it's attached to
+        case 'attachedFits': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._cardFitsWords(host, cond.words); }
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
         // Brass Knuckles: the creature it's on wears two Equipment or more
         case 'hostEquipmentAtLeast': {
@@ -34844,6 +34881,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'enteredThisTurn': {
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
           return (by[cond.what] || 0) >= (cond.n || 1);
+        }
+        // Lilypad Village: "if a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn" (enteredTypes)
+        case 'enteredTypeThisTurn': {
+          const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
+          return !!by['sub:*'] || (cond.types || []).some(t => (by['sub:' + t] || 0) > 0);
         }
         case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
         case 'moreLifeThanAnOpponent': return !!me && this.opponentsOf(me.id).some(p => !p.hasLost && p.life < me.life);
@@ -35999,6 +36041,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         by.permanent = (by.permanent || 0) + 1;
         if (!a.isLand) by['nonland permanent'] = (by['nonland permanent'] || 0) + 1;
         for (const t of ['creature', 'artifact', 'land']) if (a['is' + t[0].toUpperCase() + t.slice(1)]) by[t] = (by[t] || 0) + 1;
+        // Hobgoblin Bandit Lord, Lilypad Village: which creature types entered (a changeling is every one) (enteredTypes)
+        if (a.isCreature) {
+          for (const t of a.subtypes || []) by['sub:' + t.toLowerCase()] = (by['sub:' + t.toLowerCase()] || 0) + 1;
+          if (a.keywordSet && a.keywordSet.has('changeling')) by['sub:*'] = (by['sub:*'] || 0) + 1;
+        }
       }
       this._soulbondOnEnter(o);
       this._fire('etb', o.controller, { object: o, source: o });
@@ -37145,7 +37192,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -37796,14 +37843,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         /* "return a creature card from your graveyard to your hand" — no
            target: chosen as it resolves, from what is there by then */
         case 'graveyardPick': {
-          const yard = (this.zones[ctx.controller] || {}).graveyard || [];
+          // Skullwinder: "That player returns a card from their graveyard to their hand" — the chosen opponent, from theirs (gyPickOwner)
+          const gyOwner = e.who === 'triggerPlayer' ? (triggerPlayer() || firstPlayer() || me) : me;
+          const yard = (this.zones[gyOwner.id] || {}).graveyard || [];
           const pool = yard.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card') &&
             (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
           const want = Math.min(n(e.n) || 1, pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
           if (pool.length > want || e.upTo) {
-            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: want, optional: !!e.upTo,
+            const picked = this._ask({ type: 'pickCard', playerId: gyOwner.id, count: want, optional: !!e.upTo,
               cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
               prompt: `Return ${want === 1 ? 'a' : want} ${e.filter || 'card'} card${want === 1 ? '' : 's'} from your graveyard.` }, 'gy');
             if (picked === SUSPEND) return SUSPEND;
@@ -37812,7 +37861,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           for (const id of ids) {
             const c = this.obj(id);
             if (!c) continue;
-            this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: ctx.controller });
+            this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: gyOwner.id });
             // Teval: "to the battlefield tapped"
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             // Scavenger's Talent: "with a finality counter on it"
@@ -60749,7 +60798,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      illustration has it, and anyone after takes its next choice; told
      apart by Scryfall's illustration id, so a reprint of the same picture
      counts as the same. Kept, so each keeps its picture from then on. */
-  const ART_KEY = 'artclaims';
+  const ART_KEY = 'artclaims2';
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -60775,19 +60824,32 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const ill = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null;
     return url ? { url, name: c.name, ill } : null;
   };
+  /** What a card sells for (its foil price when that is all there is), 0 when nobody has priced it. */
+  const valueOf = (c) => {
+    const p = c && c.prices;
+    const n = p ? parseFloat(p.usd || p.usd_foil || p.usd_etched) : NaN;
+    return Number.isFinite(n) ? n : 0;
+  };
   /**
-   * A striking card from a set, for the front of its packs: its best-known
-   * mythic or rare whose picture no other pack or deck wears (the Collector
-   * Booster another again), else any card of the set that is free.
+   * The front of a set's packs: the most valuable card that can be pulled
+   * from them whose picture no other pack or deck wears (the Collector
+   * Booster the next most valuable again), else any card of the set that
+   * is free. Sorted here by price, since a search's own price order may put
+   * the unpriced first.
    */
   function setArt(code, kind) {
     const key = 'set:' + code + (kind === 'collector' ? ':collector' : '');
     if (artReg.by[key]) return Promise.resolve(artReg.by[key]);
     if (artWaiting.has(key)) return artWaiting.get(key);
     const p = (async () => {
-      const look = async (q, max) => { try { return await MTG.scry.search(q, { max, order: 'edhrec', unique: 'art' }); } catch (e) { return []; } };
-      let art = claimArt(key, (await look(`set:${code} (r:mythic or r:rare) -t:land`, 40)).map(artOf));
-      if (!art) art = claimArt(key, (await look(`set:${code}`, 120)).map(artOf));
+      const look = async (q, max) => {
+        let found = [];
+        try { found = await MTG.scry.search(q, { max, order: 'usd', dir: 'desc', unique: 'art' }); } catch (e) { found = []; }
+        return found.slice().sort((a, b) => valueOf(b) - valueOf(a));
+      };
+      // what its packs hold; a set never in boosters holds the whole set
+      let art = claimArt(key, (await look(`set:${code} is:booster -t:basic`, 250)).map(artOf));
+      if (!art) art = claimArt(key, (await look(`set:${code} -t:basic`, 400)).map(artOf));
       artWaiting.delete(key);
       return art;
     })();
@@ -60801,6 +60863,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
    * symbol where its logo goes, the kind of booster and its card count on
    * the band at the bottom, and crimped foil at both ends.
    */
+  /* Pack art fetched only as a booster comes into view: a shelf of every
+     set would otherwise ask for two hundred searches at once. */
+  const lazyArt = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting || !en.target._loadArt) continue;
+      lazyArt.unobserve(en.target);
+      const load = en.target._loadArt;
+      en.target._loadArt = null;
+      load();
+    }
+  }, { rootMargin: '300px' }) : null;
+
   function boosterEl(setInfo, kind, opts) {
     opts = opts || {};
     const collector = kind === 'collector';
@@ -60823,7 +60897,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       ]),
       el('div', { class: 'bp-seam' }),
     ]);
-    if (setInfo && setInfo.code) setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    const paint = () => setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    if (setInfo && setInfo.code) {
+      const had = artReg.by['set:' + setInfo.code + (kind === 'collector' ? ':collector' : '')];
+      if (had || !opts.lazy || !lazyArt) paint();
+      else { node._loadArt = paint; lazyArt.observe(node); }
+    }
     return node;
   }
 
@@ -61207,7 +61286,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       extra ? el('span', { class: 'pack-tag bonus', text: '+ ' + extra.short, title: extra.long }) : null,
     ].filter(Boolean);
     return el('div', { class: 'store-card pack-tile' }, [
-      boosterEl(s, 'play'),
+      boosterEl(s, 'play', { lazy: true }),
       el('div', { class: 'sc-title', text: s.name }),
       notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
       el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1)]),
@@ -61233,7 +61312,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const draw = () => {
       const q = search.value.trim().toLowerCase();
       grid.innerHTML = '';
-      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q).slice(0, 48)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
+      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
     };
     search.addEventListener('input', draw);
     body.append(search, grid);
