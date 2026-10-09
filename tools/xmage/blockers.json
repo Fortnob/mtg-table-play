@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11275,
+  "needed": 11273,
   "gainedCards": 1131,
-  "linesNeeded": 12062,
+  "linesNeeded": 12060,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -4676,18 +4676,6 @@
    ]
   },
   {
-   "what": "all from one opponent",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Deadeye Tracker",
-    "Lochmere Serpent",
-    "Misinformation",
-    "Shieldmage Advocate",
-    "Forcemage Advocate"
-   ]
-  },
-  {
    "what": "ReturnToHandFromGraveyardAllEffect",
    "score": 5,
    "lines": 5,
@@ -6657,6 +6645,16 @@
     "Elvish Guidance",
     "Dawn's Reflection",
     "Market Festival"
+   ]
+  },
+  {
+   "what": "CommittedCrimeTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Kaervek, the Punisher",
+    "Marchesa, Dealer of Death",
+    "Lazav, Familiar Stranger"
    ]
   }
  ],
@@ -9584,18 +9582,6 @@
    ]
   },
   {
-   "what": "all from one opponent",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Deadeye Tracker",
-    "Lochmere Serpent",
-    "Misinformation",
-    "Shieldmage Advocate",
-    "Forcemage Advocate"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesAttachedEffect",
    "score": 5,
    "cards": 5,
@@ -10355,6 +10341,17 @@
     "Seedtime",
     "Second Chance",
     "Wormfang Manta"
+   ]
+  },
+  {
+   "what": "ExileCardYouChooseTargetOpponentEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Biting-Palm Ninja",
+    "Appetite for Brains",
+    "Nimble Larcenist",
+    "Transgress the Mind"
    ]
   }
  ]

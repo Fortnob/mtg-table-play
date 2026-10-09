@@ -3142,6 +3142,9 @@
     { re: /^Return this card to the battlefield attached to that creature at the beginning of the next end step\.?$/i, make: () => ({ op: 'returnSelfAttachedLater' }) },
     // Whirlpool Warrior, Whirlpool Rider: "Shuffle the cards from your hand into your library, then draw that many cards." (handShuffleYou)
     { re: /^Shuffle the cards from your hand into your library, then draw that many cards\.?$/i, make: () => ({ op: 'shuffleHandDraw', who: 'you' }) },
+    // Deadeye Tracker, Lochmere Serpent: "Exile two (five) target cards from an opponent's graveyard." — one graveyard (gyExileN)
+    { re: /^Exile (two|three|four|five) target cards from an opponent'?s graveyard\.?$/i,
+      make: (m) => ({ op: 'exile', sameGraveyard: true, targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'card', zone: 'graveyard', controller: 'opponent', distinct: true })) }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."

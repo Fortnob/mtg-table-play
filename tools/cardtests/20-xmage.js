@@ -16823,4 +16823,19 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, 2, 'two shuffled in, two drawn');
     t.eq(T.zone('B', 'hand').length, bHand, "the opponent's hand is untouched");
   });
+
+  test("Deadeye Tracker: exile two target cards from an opponent's graveyard, then explore", (mk, t) => {
+    t.auto('Deadeye Tracker');
+    t.auto('Lochmere Serpent');
+    const T = mk();
+    T.toMain('A');
+    const dt = T.bf('A', 'Deadeye Tracker');
+    const c1 = T.grave('B', 'Hill Giant'), c2 = T.grave('B', 'Lightning Bolt'), mine = T.grave('A', 'Craw Wurm');
+    T.top('A', 'Forest');
+    T.mana('A', 'BC');
+    t.no(T.g.activateAbility('A', dt.id, 0, { targets: [{ kind: 'object', id: c1.id }, { kind: 'object', id: mine.id }] }), 'not from your own graveyard');
+    T.activate('A', dt, 0, { targets: [c1, c2] });
+    t.zone(c1, 'exile'); t.zone(c2, 'exile');
+    t.zone(mine, 'graveyard');
+  });
 };
