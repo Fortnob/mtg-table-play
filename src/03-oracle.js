@@ -2013,6 +2013,15 @@
         const a = targetSpec(m[1]), b = targetSpec(m[2]);
         return a && b ? { op: 'exchangeControl', targets: [a, b] } : null;
       } },
+    /* Call Forth the Tempest: "deals damage to each creature your opponents
+       control equal to …" is "deals X damage …, where X is …" */
+    { re: /^(CARDNAME|This creature|It) deals damage to (each [a-z ]+?) equal to ((?:the|its|your) [^.]+?)\.?$/i,
+      make: (m) => {
+        // (Sunspine Lynx: "the number of nonbasic lands that player controls" is counted player by player)
+        if (/\b(?:that player|they|their)\b/i.test(m[3])) return null;
+        const e = parseEffectSentence(m[1] + ' deals X damage to ' + m[2] + ', where X is ' + m[3] + '.');
+        return e && e.op !== 'manual' && !hasManualStep(e) ? e : null;
+      } },
     /* Oko: "Target artifact or creature loses all abilities and becomes a
        green Elk creature with base power and toughness 3/3." — for good */
     { re: /^((?:[Aa]nother )?[Tt]arget [a-z ]+?) (loses all abilities and becomes an? [a-z]+ [A-Z][a-z]+ creature with base power and toughness \d+\/\d+)\.?$/,
@@ -4974,6 +4983,8 @@
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
+    // Call Forth the Tempest: "the total mana value of other spells you've cast this turn"
+    if ((m = p.match(/^the total mana value of (other )?spells you'?ve cast this turn$/i))) return done({ spellsMvThisTurn: true, other: !!m[1] });
     // Arachnogenesis: "the number of creatures attacking you"
     if (/^the number of creatures attacking you$/i.test(p)) return done({ scope: { who: 'all', what: 'creature', attacking: true, attackingYou: true }, mult: 1 });
     // Cavern-Hoard Dragon: "the greatest number of artifacts an opponent controls"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12337,
+  "needed": 12335,
   "gainedCards": 1337,
-  "linesNeeded": 13425,
+  "linesNeeded": 13423,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -3969,16 +3969,6 @@
    ]
   },
   {
-   "what": "DamageAllEffect amount",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Call Forth the Tempest",
-    "Volcanic Torrent",
-    "Draconic Intervention"
-   ]
-  },
-  {
    "what": "filter:anyCounter",
    "score": 6,
    "lines": 6,
@@ -7030,6 +7020,17 @@
     "Trophy Hunter",
     "Seraph"
    ]
+  },
+  {
+   "what": "(constructor: assignment)",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Banewhip Punisher",
+    "Ammit Eternal",
+    "Suq'Ata Firewalker",
+    "Bull Elephant"
+   ]
   }
  ],
  "sole": [
@@ -9196,16 +9197,6 @@
    ]
   },
   {
-   "what": "DamageAllEffect amount",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Call Forth the Tempest",
-    "Volcanic Torrent",
-    "Draconic Intervention"
-   ]
-  },
-  {
    "what": "not or",
    "score": 6,
    "cards": 6,
@@ -10796,6 +10787,17 @@
     "Saheeli's Lattice // Mastercraft Raptor",
     "Pallimud",
     "Haunting Apparition"
+   ]
+  },
+  {
+   "what": "MultipliedValue of \"X\"",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Nuclear Fallout",
+    "Thassa's Intervention",
+    "Increasing Confusion",
+    "Stonesplitter Bolt"
    ]
   }
  ]

@@ -12310,4 +12310,18 @@ module.exports = (test) => {
     T.settle();
     t.eq(bear.controller, 'A'); t.eq(mine.controller, 'B');
   });
+
+  test('Call Forth the Tempest: damage equal to the mana value of the other spells cast this turn', (mk, t) => {
+    t.auto('Call Forth the Tempest');
+    const T = mk();
+    const cft = T.hand('A', 'Call Forth the Tempest'), bolt = T.hand('A', 'Lightning Bolt'), ghor = T.hand('A', 'Hill Giant');
+    T.player('A').spellObjsThisTurn = [bolt, ghor, cft];
+    const lions = T.bf('B', 'Savannah Lions'), wurm = T.bf('B', 'Craw Wurm'), mine = T.bf('A', 'Grizzly Bears');
+    const trig = cft.analysis().abilities.find(a => a.kind === 'spell');
+    T.g._runEffects(trig.effects, { controller: 'A', obj: cft, name: 'Call Forth the Tempest', kind: 'spell' });
+    T.settle();
+    t.eq(wurm.damage, 5, 'one for the Bolt and four for the Giant');
+    T.g.checkStateBasedActions();
+    t.eq(lions.zone, 'graveyard'); t.eq(mine.damage || 0, 0, 'not your own');
+  });
 };
