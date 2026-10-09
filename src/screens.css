@@ -888,6 +888,40 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 :root[data-phone] .topnav { margin-left: 2px; gap: 0; }
 :root[data-phone] .topnav-btn { padding: 0 9px; font-size: 11.5px; letter-spacing: .04em; }
 :root[data-phone] .topnav-btn::after { left: 9px; right: 9px; }
+/* A phone has no room for the six places and the chips on one line (they
+   ran off the side and the whole page scrolled sideways): the places get a
+   row of their own under the brand and the chips. Every width a phone
+   layout is used at (00-core.js NARROW), held upright or on its side. */
+@media (max-width: 760px) {
+  :root[data-phone]:not([data-play]) .topbar { flex-wrap: wrap; height: auto; row-gap: 0; column-gap: 4px; }
+  :root[data-phone]:not([data-play]) .topbar .brand { height: 46px; }
+  :root[data-phone]:not([data-play]) .topnav {
+    order: 99; flex: 1 0 100%; height: 38px; margin: 0 -8px; padding: 0 2px; justify-content: space-between;
+    overflow-x: auto; scrollbar-width: none; border-top: 1px solid rgba(255,255,255,.06);
+  }
+  :root[data-phone]:not([data-play]) .topnav::-webkit-scrollbar { display: none; }
+  /* !important: progress.css pads the tabs 8px on every screen under 1080px */
+  :root[data-phone]:not([data-play]) .topnav-btn { flex: 1 1 auto; padding-left: 5px !important; padding-right: 5px !important; font-size: 11px; letter-spacing: .03em; white-space: nowrap; }
+  :root[data-phone]:not([data-play]) .topnav-btn::after { left: 6px; right: 6px; }
+  /* on its side a phone is short: both rows lower */
+  :root[data-phone][data-short]:not([data-play]) .topbar .brand { height: 38px; }
+  :root[data-phone][data-short]:not([data-play]) .topnav { height: 32px; }
+  /* the toasts under both rows, not over the places */
+  :root[data-phone]:not([data-play]) #toasts { top: calc(92px + env(safe-area-inset-top, 0px)); }
+  :root[data-phone][data-short]:not([data-play]) #toasts { top: calc(76px + env(safe-area-inset-top, 0px)); }
+}
+/* A narrow phone: the first row must hold the brand, the three chips and
+   the sound button however big the counts get, so the chips give up their
+   spacing and the packs chip its little stack of boosters. */
+@media (max-width: 400px) {
+  :root[data-phone]:not([data-play]) .inbox-chip,
+  :root[data-phone]:not([data-play]) .hoard-chip,
+  :root[data-phone]:not([data-play]) .shard-chip { margin-right: 2px; }
+  :root[data-phone]:not([data-play]) .inbox-chip { padding: 0 7px; }
+  :root[data-phone]:not([data-play]) .hoard-chip { padding: 0 9px; gap: 0; }
+  :root[data-phone]:not([data-play]) .hoard-chip .hc-heap { display: none; }
+  :root[data-phone]:not([data-play]) .shard-chip { padding: 4px 9px 4px 6px; gap: 4px; }
+}
 :root[data-phone] .menu-wrap { padding: 16px 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
 :root[data-phone] .page-head { flex-wrap: wrap; align-items: flex-start; }
 :root[data-phone] .page-head > .grow { flex: 1 1 calc(100% - 60px); }

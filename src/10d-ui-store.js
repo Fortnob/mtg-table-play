@@ -1049,11 +1049,15 @@
     };
     place();
     window.addEventListener('resize', place);
+    // the bar grows and shrinks with what is on it (a phone's second row, a Shard count gaining a digit)
+    const barWatch = topbar && window.ResizeObserver ? new ResizeObserver(() => place()) : null;
+    if (barWatch) barWatch.observe(topbar);
     const navAway = (e) => { if (e.target.closest('.topnav-btn, .brand')) close(true); };
     if (topbar) topbar.addEventListener('click', navAway, true);
     const close = (leaving) => {
       if (inspecting && !leaving) return closeInspect();
       window.removeEventListener('resize', place);
+      if (barWatch) barWatch.disconnect();
       if (topbar) topbar.removeEventListener('click', navAway, true);
       document.removeEventListener('keydown', keyHandler);
       overlay.classList.add('closing');
