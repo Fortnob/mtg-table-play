@@ -16983,4 +16983,20 @@ module.exports = (test) => {
     T.settle();
     t.no(elf.tapped, 'untapped');
   });
+
+  test('Staff of the Storyteller: one story counter for each lot of creature tokens', (mk, t) => {
+    t.auto('Staff of the Storyteller');
+    const T = mk();
+    T.toMain('A');
+    const staff = T.bf('A', 'Staff of the Storyteller');
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    T.settle();
+    t.eq(staff.counters.story || 0, 1, 'two Soldiers at once: one counter');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    T.settle();
+    t.ok(T.g.battlefield.some(o => o.isToken && /Treasure/.test(o.name)), 'the Treasure was made');
+    t.eq(staff.counters.story || 0, 1, 'a Treasure is not a creature token');
+  });
 };

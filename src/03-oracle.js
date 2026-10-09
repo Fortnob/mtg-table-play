@@ -9237,6 +9237,8 @@
     { re: /^When(?:ever)? (?:this land|CARDNAME) enters untapped(?:,| )/i, event: 'etb', self: true,
       extra: { condition: { kind: 'selfUntapped' } } },
     { re: /^Whenever you create or sacrifice a token(?:,| )/i, event: 'youCreateToken', also: 'youSacToken' },
+    // Staff of the Storyteller: once for each lot of tokens one effect makes
+    { re: /^Whenever you create one or more creature tokens,? /i, event: 'youCreateToken', filt: () => subjectFilter('a creature'), extra: { batch: true } },
     { re: /^Whenever you create (?:a|one or more) tokens?(?:,| )/i, event: 'youCreateToken' },
     { re: /^Whenever you sacrifice a token(?:,| )/i, event: 'youSacToken' },
     // Kira, Glyph Keeper: "for the first time each turn"
