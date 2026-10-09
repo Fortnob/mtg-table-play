@@ -2609,7 +2609,8 @@
     { re: /^Discover (one|two|three|four|five|six|seven|eight|nine|ten|\d+)\.?$/i, make: (m) => ({ op: 'discover', n: num(m[1]) }) },
     { re: /^Discover X, where X is (?:that spell'?s|its) mana value\.?$/i, make: () => ({ op: 'discover', n: { ofTrigger: 'mv' } }) },
     // Pantlaza: "discover X, where X is that creature's toughness"
-    { re: /^Discover X, where X is that creature'?s (power|toughness)\.?$/i, make: (m) => ({ op: 'discover', n: { ofTrigger: m[1].toLowerCase() } }) },
+    // (Dinosaur Egg: "When this creature dies, you may discover X, where X is its toughness")
+    { re: /^Discover X, where X is (?:that creature'?s|its) (power|toughness)\.?$/i, make: (m) => ({ op: 'discover', n: { ofTrigger: m[1].toLowerCase() } }) },
     { re: /^[Ee]arthbend (one|two|three|four|five|six|\d+|X)\.?$/,
       make: (m) => ({ op: 'earthbend', n: num(m[1]), targets: [{ type: 'land', controller: 'you', filter: 'land you control' }] }) },
     { re: /^[Aa]irbend (up to one )?(other )?(target [a-z ]+?)\.?$/,

@@ -15985,4 +15985,19 @@ module.exports = (test) => {
     T.g.addPoison(T.player('A'), 1, 'B');
     t.eq(T.player('A').poison, 1, 'not poison on you: that is no permanent');
   });
+
+  test('Dinosaur Egg: discover X, where X is its toughness, when it dies', (mk, t) => {
+    t.auto('Dinosaur Egg');
+    const T = mk();
+    T.toMain('A');
+    const egg = T.bf('A', 'Dinosaur Egg');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.top('A', 'Craw Wurm');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [egg] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(egg, 'graveyard');
+    t.ok(bear.zone === 'battlefield' || bear.zone === 'hand', 'the Bears (2) are discovered past the Wurm (6): its toughness is 3');
+  });
 };
