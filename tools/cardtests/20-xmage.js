@@ -16208,4 +16208,19 @@ module.exports = (test) => {
     t.zone(elf, 'battlefield');
     t.ok(elf.tapped, 'tapped');
   });
+
+  test('Kinbinding: +X/+X for each creature that entered under your control this turn, and none the next', (mk, t) => {
+    t.auto('Kinbinding');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Kinbinding');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.put('A', 'Llanowar Elves', 'battlefield', { etb: true });
+    T.put('A', 'Hill Giant', 'battlefield', { etb: true });
+    T.put('B', 'Hill Giant', 'battlefield', { etb: true });
+    T.settle();
+    t.eq(T.g.powerOf(bear), 4, "two of A's entered");
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(bear), 2, 'a new turn: none yet');
+  });
 };

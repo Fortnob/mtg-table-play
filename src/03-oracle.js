@@ -5638,6 +5638,10 @@
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
+    // Kinbinding: "the number of creatures that entered the battlefield under your control this turn"
+    if ((m = p.match(/^(creatures?|nonland permanents?|permanents?|artifacts?|lands?) that entered (?:the battlefield )?under your control this turn$/i))) {
+      return { enteredYours: m[1].toLowerCase().replace(/s$/, ''), mult: k };
+    }
     // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn"
     if ((m = p.match(/^([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
       const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k };
@@ -12006,7 +12010,7 @@
       make: (m) => {
         const scope = scopeOf(m[1]);
         const k = amountOf(m[2]);
-        if (!scope || scope.self || scope.attached || !k || typeof k !== 'object' || !(k.scope || k.playerStat || k.commanderCasts || k.domain || k.cardsInHand || k.cardsInGraveyard)) return null;
+        if (!scope || scope.self || scope.attached || !k || typeof k !== 'object' || !(k.scope || k.playerStat || k.commanderCasts || k.domain || k.cardsInHand || k.cardsInGraveyard || k.enteredYours)) return null;
         return { op: 'continuous', layer: 7, scope, pt: { p: k, t: k } };
       } },
     /* Ragost, Deft Gastronaut: "Artifacts you control are Foods in addition

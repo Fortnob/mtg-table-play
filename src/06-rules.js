@@ -2952,6 +2952,8 @@
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
       if (v.party) return this._partySize(pid) * mult;
+      // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
+      if (v.enteredYours) return ((((((this.turnHistory || {}).enteredBy) || {})[pid]) || {})[v.enteredYours] || 0) * mult;
       // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
@@ -9917,7 +9919,8 @@
       if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party)) return this._countValue(v, (src || o).controller, src || o, true);
+      // (Kinbinding: v.enteredYours — what entered under its controller's control this turn)
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party || v.enteredYours)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       // Emissary Escort: the greatest mana value among other artifacts you control, printed
       if (typeof v === 'object' && v.greatestMv) {
@@ -12047,7 +12050,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
