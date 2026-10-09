@@ -5433,6 +5433,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Witch's Oven: "Create a Food token. If the sacrificed creature's toughness was 4 or greater, create two Food tokens instead."
+    { re: /^Create an? (Food|Treasure|Clue) token\. If the sacrificed creature'?s (toughness|power) was (\d+) or greater, create two \1 tokens instead\.?$/i,
+      make: (m) => [{ op: 'tokenBySacrificed', token: m[1], stat: m[2].toLowerCase(), atLeast: +m[3] }] },
     /* Final Parting: "Search your library for two cards. Put one into your
        hand and the other into your graveyard. Then shuffle." */
     { re: /^Search your library for two cards\. Put one into your hand and the other into your graveyard\. Then shuffle\.$/i,
@@ -6552,7 +6555,7 @@
       }
 
       // "... unless <someone> pays <cost>."
-      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
+      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|target opponent|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
         // Painful Quandary: "…unless they discard a card"
         s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i) ||
         /* Mogis, Torment of Scarabs, Nicol Bolas: "…unless they sacrifice a
@@ -6563,11 +6566,13 @@
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
         const cost = /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
           : /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
-        effects.push({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
+        effects.push(Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
             // Kazuul: "unless that creature's controller pays {3}" — the attacker's
             : /^that creature'?s controller$/i.test(unless[2]) ? 'triggerObjController'
-            : /that player|target player|they/i.test(unless[2]) ? 'target' : 'spellController',
-          cost, then: inner.effects, text: s });
+            : /that player|target player|target opponent|they/i.test(unless[2]) ? 'target' : 'spellController',
+          cost, then: inner.effects, text: s },
+          // Athreos: "unless target opponent pays 3 life" — the opponent is a target
+          /^target opponent$/i.test(unless[2]) ? { targets: [{ type: 'player', opponent: true }] } : {}));
         if (!inner.auto) auto = false;
         continue;
       }
@@ -10987,6 +10992,9 @@
       { re: /^[A-Za-z ,]*spells? you cast costs? \{\d+\} less to cast\.?$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
+      // Endrek Sahr: "When you control seven or more Thrulls, sacrifice CARDNAME."
+      { re: /^When you control (\w+) or more ([A-Z][a-z]+)s, sacrifice (?:CARDNAME|this creature)\.?$/,
+        make: (m) => { const k = num(m[1]); return typeof k === 'number' ? { op: 'sacWhenControlAtLeast', n: k, what: m[2].toLowerCase() } : null; }, auto: true },
       // Six: "During your turn, nonland permanent cards in your graveyard have retrace."
       { re: /^During your turn, nonland permanent cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceNonlandPermanents' }, auto: true },
       /* Thunderfoot Baloth: "As long as you control your commander, this

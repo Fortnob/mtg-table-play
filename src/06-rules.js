@@ -14444,6 +14444,13 @@
           else this._drawCards(me, 1);
           break;
         }
+        // Witch's Oven: one token, or two for a big enough sacrifice
+        case 'tokenBySacrificed': {
+          const sac = (ctx.sacrificed || [])[0];
+          const k = sac && (Number(sac[e.stat]) || 0) >= e.atLeast ? 2 : 1;
+          this._createNamedToken(ctx.controller, { token: e.token, n: k });
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
@@ -19020,6 +19027,15 @@
           if (noneAll && o.zone === 'battlefield' && !this.battlefield.some(x => x !== o && !x.phasedOut && this._cardFitsWords(x, noneAll.what))) {
             this.logEvent('sba', `${o.name} is sacrificed (there are no ${noneAll.what}s on the battlefield).`);
             this.moveObject(o, 'graveyard');
+            repeat = true;
+            continue;
+          }
+          // Endrek Sahr: "When you control seven or more Thrulls, sacrifice CARDNAME."
+          const tooMany = this._staticOp(o, 'sacWhenControlAtLeast');
+          if (tooMany && o.zone === 'battlefield' &&
+              this.battlefield.filter(x => x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, tooMany.what)).length >= tooMany.n) {
+            this.logEvent('sba', `${o.name} is sacrificed (${tooMany.n} or more ${tooMany.what}s).`);
+            this._sacrificeNow(o.controller, [o], null);
             repeat = true;
             continue;
           }

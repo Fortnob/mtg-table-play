@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12427,
+  "needed": 12425,
   "gainedCards": 1349,
-  "linesNeeded": 13559,
+  "linesNeeded": 13557,
   "linesGained": 1609,
   "gained": {
    "all": 1349,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4506,
-   "lines": 4134,
+   "score": 4505,
+   "lines": 4133,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -6362,17 +6362,6 @@
    ]
   },
   {
-   "what": "ControlsPermanentsControllerTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Endrek Sahr, Master Breeder",
-    "Goblins of the Flarg",
-    "Ronom Serpent",
-    "Endangered Armodon"
-   ]
-  },
-  {
    "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
    "score": 4,
    "lines": 4,
@@ -7049,13 +7038,24 @@
     "Towering-Wave Mystic",
     "Emberwilde Caliph"
    ]
+  },
+  {
+   "what": "CombatDamageByToughnessAttachedEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Treefolk Umbra",
+    "Gauntlets of Light",
+    "Bark of Doran",
+    "Solid Footing"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3674,
-   "cards": 3434,
+   "score": 3673,
+   "cards": 3433,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",

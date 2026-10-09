@@ -11669,4 +11669,22 @@ module.exports = (test) => {
     T4.settle(); T4.resolve();
     t.eq(pb.zone, 'graveyard'); t.eq(pc.zone, 'graveyard');
   });
+
+  test("Witch's Oven by the sacrificed toughness; Endrek Sahr goes at seven Thrulls", (mk, t) => {
+    t.auto("Witch's Oven"); t.auto('Endrek Sahr, Master Breeder');
+    const T = mk();
+    const ov = T.bf('A', "Witch's Oven"); ov.tapped = false;
+    const wurm = T.bf('A', 'Craw Wurm');
+    T.answer('sacrifice', () => ({ cardIds: [wurm.id] }));
+    T.answer('choose', () => ({ picks: [wurm.id] }));
+    const la = ov.analysis(), idx = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T.g.activateAbility('A', ov.id, idx, { sacrifice: [wurm.id] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(T.g.battlefield.filter(o => o.name === 'Food').length, 2, 'toughness 4: two Food');
+    const T2 = mk();
+    const es = T2.bf('A', 'Endrek Sahr, Master Breeder');
+    T2.g._runEffects([{ op: 'createToken', n: 7, pt: '1/1', colorWords: ['black'], subtypes: 'Thrull', keywords: [] }], { controller: 'A', name: 'tok', kind: 'ability' });
+    T2.g.checkStateBasedActions();
+    t.eq(es.zone, 'graveyard', 'seven Thrulls');
+  });
 };
