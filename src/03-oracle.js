@@ -4803,6 +4803,9 @@
        sentence with its time at the front. */
     { re: /^Until end of turn, (.+?) (gain|gains|get|gets) (.+?)\.?$/i,
       make: (m) => parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until end of turn.') },
+    // Jace, the Perfected Mind: "Until your next turn, up to one target creature gets -3/-0."
+    { re: /^Until your next turn, (.+?) (gain|gains|get|gets) ([^.]+?)\.?$/i,
+      make: (m) => { const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until your next turn.'); return e && e.op !== 'manual' ? e : null; } },
   ];
 
   /** "each nonland permanent you don't control" -> the scope of the plural. */
@@ -4910,6 +4913,8 @@
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
     if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });
+    // Nissa, Ascended Animist: "where X is Nissa's loyalty"
+    if (/^(?:CARDNAME'?s|this planeswalker'?s|its) loyalty$/i.test(p)) return done({ ofSelf: 'loyalty' });
     // Resolute Archangel: "your starting life total"
     if (/^your starting life total$/i.test(p)) return done({ startingLife: true });
     // Last March of the Ents: "the greatest toughness among creatures you control"
@@ -5441,9 +5446,11 @@
       if (inner && inner.op === 'noop' && (inner.insteadOf || inner.insteadRider)) { inner.text = s; return inner; }
     }
     /* Pest Infestation, Heliod's Intervention: "twice X" — read with X, then doubled */
-    if (!depth && /\b(?:twice|two times) X\b/.test(s) && !/\bwhere X\b/.test(s)) {
-      const inner = parseEffectSentence(s.replace(/\b(?:twice|two times) X\b/g, 'X'), 1);
-      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: 2 })) { inner.text = s; return inner; }
+    // (Jace, the Perfected Mind: "three times X")
+    if (!depth && /\b(?:twice|two times|three times) X\b/.test(s) && !/\bwhere X\b/.test(s)) {
+      const k = /\bthree times X\b/.test(s) ? 3 : 2;
+      const inner = parseEffectSentence(s.replace(/\b(?:twice|two times|three times) X\b/g, 'X'), 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: k })) { inner.text = s; return inner; }
     }
     // Laccolith Whelp: "have it deal damage equal to its power to target creature"
     const hi = !depth && s.match(/^Have (it|CARDNAME|this creature) (deal|gain|fight) (.+)$/i);

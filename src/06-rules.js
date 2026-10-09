@@ -11367,6 +11367,7 @@
           if (!src) return 0;
           const gone = src.zone !== 'battlefield' && src._lastPower != null;
           if (v.ofSelf === 'power') return gone ? src._lastPower : this.powerOf(src);
+          if (v.ofSelf === 'loyalty') return Number((src.counters || {}).loyalty) || 0;
           return gone ? src._lastToughness : this.toughnessOf(src);
         }
         if (v && typeof v === 'object' && v.devotion) return this.devotionOf(ctx.controller, v.devotion) * (v.mult || 1);

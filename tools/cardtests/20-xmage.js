@@ -12172,4 +12172,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(b1.counters['+1/+1'] >= 5, true, 'all four on the one chosen');
   });
+
+  test("Nissa, Ascended Animist: an X/X as big as her loyalty; Jace's -3/-0 until your next turn", (mk, t) => {
+    t.auto('Nissa, Ascended Animist'); t.auto('Jace, the Perfected Mind');
+    const T = mk();
+    const ni = T.bf('A', 'Nissa, Ascended Animist');
+    ni.counters.loyalty = 8;
+    T.g._runEffects(ni.analysis().abilities.find(a => /^\+1/.test(a.text)).effects, { controller: 'A', obj: ni, name: 'Nissa', kind: 'ability' });
+    T.settle();
+    const tok = T.g.battlefield.find(o => o.isToken && o.controller === 'A');
+    t.ok(tok && T.g.powerOf(tok) === 8 && T.g.toughnessOf(tok) === 8, 'an 8/8 Horror');
+    const ja = T.bf('A', 'Jace, the Perfected Mind');
+    const w = T.bf('B', 'Craw Wurm');
+    T.g._runEffects(ja.analysis().abilities.find(a => /^\+1/.test(a.text)).effects, { controller: 'A', obj: ja, name: 'Jace', kind: 'ability', targets: [{ kind: 'object', id: w.id }] });
+    t.eq(T.g.powerOf(w), 3);
+    t.eq(ja.analysis().abilities.find(a => /^[-\u2212]X/.test(a.text)).effects[0].n.xTimes, 3, 'three times X');
+  });
 };

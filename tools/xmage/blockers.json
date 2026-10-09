@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12355,
-  "gainedCards": 1336,
-  "linesNeeded": 13453,
+  "needed": 12352,
+  "gainedCards": 1337,
+  "linesNeeded": 13446,
   "linesGained": 1595,
   "gained": {
-   "all": 1336,
+   "all": 1337,
    "top2000": 50,
    "stdTop": 9
   },
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4376,
-   "lines": 4103,
+   "score": 4375,
+   "lines": 4102,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2686,22 +2686,6 @@
    ]
   },
   {
-   "what": "boost for nextTurn",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Jace, the Perfected Mind",
-    "Sorin, Solemn Visitor",
-    "All-Seeing Arbiter",
-    "Dovin Baan",
-    "Behold the Unspeakable // Vision of the Unspeakable",
-    "Mu Yanling, Sky Dancer",
-    "Mouth of the Storm",
-    "Mu Yanling, Celestial Wind",
-    "Wasp, Shrinking Savior"
-   ]
-  },
-  {
    "what": "AttachedToMatchesFilterCondition",
    "score": 9,
    "lines": 9,
@@ -3897,6 +3881,20 @@
    ]
   },
   {
+   "what": "boost for nextTurn",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sorin, Solemn Visitor",
+    "All-Seeing Arbiter",
+    "Dovin Baan",
+    "Behold the Unspeakable // Vision of the Unspeakable",
+    "Mu Yanling, Sky Dancer",
+    "Mouth of the Storm",
+    "Wasp, Shrinking Savior"
+   ]
+  },
+  {
    "what": "Ability.withTargetPointerSet",
    "score": 7,
    "lines": 7,
@@ -4087,19 +4085,6 @@
     "Rhystic Lightning",
     "Rhystic Syphon",
     "Flay"
-   ]
-  },
-  {
-   "what": "gain for nextTurn",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Emeria's Call // Emeria, Shattered Skyclave",
-    "Venat, Heart of Hydaelyn // Hydaelyn, the Mothercrystal",
-    "Dihada, Binder of Wills",
-    "Vivien, Champion of the Wilds",
-    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
-    "Karvanista, Loyal Lupari // Lupari Shield"
    ]
   },
   {
@@ -5341,18 +5326,6 @@
    ]
   },
   {
-   "what": "variable loyalty",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Jace, the Perfected Mind",
-    "Ashiok, Nightmare Weaver",
-    "Huatli, Warrior Poet",
-    "Nissa, Genesis Mage",
-    "Angrath, Minotaur Pirate"
-   ]
-  },
-  {
    "what": "SpellCostReductionSourceEffect",
    "score": 5,
    "lines": 5,
@@ -6202,6 +6175,17 @@
    ]
   },
   {
+   "what": "gain for nextTurn",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Emeria's Call // Emeria, Shattered Skyclave",
+    "Venat, Heart of Hydaelyn // Hydaelyn, the Mothercrystal",
+    "Dihada, Binder of Wills",
+    "Karvanista, Loyal Lupari // Lupari Shield"
+   ]
+  },
+  {
    "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
    "score": 4,
    "lines": 4,
@@ -7042,6 +7026,17 @@
     "Broodspinner",
     "Peer Past the Veil",
     "Lucid Dreams"
+   ]
+  },
+  {
+   "what": "DealtDamageAndDiedTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Zurgo Helmsmasher",
+    "Madame Vastra",
+    "Trophy Hunter",
+    "Seraph"
    ]
   }
  ],
@@ -9146,19 +9141,6 @@
    ]
   },
   {
-   "what": "boost for nextTurn",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Sorin, Solemn Visitor",
-    "All-Seeing Arbiter",
-    "Behold the Unspeakable // Vision of the Unspeakable",
-    "Mu Yanling, Sky Dancer",
-    "Mouth of the Storm",
-    "Mu Yanling, Celestial Wind"
-   ]
-  },
-  {
    "what": "opponent or planeswalker",
    "score": 7,
    "cards": 7,
@@ -9709,6 +9691,19 @@
     "Balduvian Frostwaker",
     "Balduvian Conjurer",
     "Ohran Yeti"
+   ]
+  },
+  {
+   "what": "boost for nextTurn",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Sorin, Solemn Visitor",
+    "All-Seeing Arbiter",
+    "Behold the Unspeakable // Vision of the Unspeakable",
+    "Mu Yanling, Sky Dancer",
+    "Mouth of the Storm",
+    "Wasp, Shrinking Savior"
    ]
   },
   {
