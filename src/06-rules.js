@@ -4960,6 +4960,11 @@
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
       // Cavern of Souls: "that spell can't be countered"
       if (payFlags.uncounterable) item.uncounterable = true;
+      // Banefire: "If X is 5 or more, this spell can't be countered"
+      {
+        const big = ((a && a.abilities) || []).filter(ab => ab.kind === 'spell').flatMap(ab => ab.effects || []).find(ef => ef && ef.bigX);
+        if (big && (opts.x || 0) >= big.bigX) { item.uncounterable = true; item.noPrevent = true; }
+      }
       // (Overmaster: only the next instant or sorcery spell)
       if (p.nextSpellUncounterable === this.turn && (!p.nextSpellUncounterableWords || this._cardFitsWords(o, p.nextSpellUncounterableWords))) {
         item.uncounterable = true; p.nextSpellUncounterable = null;
@@ -11795,7 +11800,8 @@
         }
         case 'damage': {
           // Combust: "The damage can't be prevented." — for this damage only
-          if (e.noPrevent && !e._inNoPrevent) {
+          // (Banefire: the whole spell, once X was big enough as it was cast)
+          if ((e.noPrevent || (ctx && ctx.noPrevent)) && !e._inNoPrevent) {
             this._noPreventNow = (this._noPreventNow || 0) + 1;
             try { return this._runEffect(Object.assign({}, e, { _inNoPrevent: true }), ctx); } finally { this._noPreventNow--; }
           }

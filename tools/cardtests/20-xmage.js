@@ -12882,4 +12882,20 @@ module.exports = (test) => {
     t.ok(bs, 'on the battlefield'); t.eq(bs.attachedTo, bear.id);
     t.eq(T.g.powerOf(bear), 4);
   });
+
+  test('Banefire: with X 5 or more, not countered and not prevented', (mk, t) => {
+    t.auto('Banefire');
+    const T = mk();
+    const w1 = T.bf('B', 'Craw Wurm'), w2 = T.bf('B', 'Craw Wurm');
+    for (const w of [w1, w2]) w.effects.push({ flag: 'noDamageTaken', until: 'eot' }, { flag: 'noNoncombatTaken', until: 'eot' });
+    T.mana('A', '4R');
+    T.cast('A', T.hand('A', 'Banefire'), { x: 4, targets: [w1] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(w1.zone, 'battlefield', 'X 4: prevented');
+    T.mana('A', '5R');
+    T.cast('A', T.hand('A', 'Banefire'), { x: 5, targets: [w2], resolve: false });
+    t.ok(T.g.stack[T.g.stack.length - 1].uncounterable, "can't be countered");
+    T.settle(); T.resolve(); T.settle();
+    t.eq(w2.zone, 'graveyard', 'X 5: not prevented');
+  });
 };

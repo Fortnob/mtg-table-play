@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12157,
+  "needed": 12156,
   "gainedCards": 1287,
-  "linesNeeded": 13213,
+  "linesNeeded": 13212,
   "linesGained": 1537,
   "gained": {
    "all": 1287,
@@ -3519,20 +3519,6 @@
    ]
   },
   {
-   "what": "static ability in STACK",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Banefire",
-    "Demonfire",
-    "Exquisite Firecraft",
-    "Dragonlord's Prerogative",
-    "Bloodbraid Marauder",
-    "Kaervek's Torch",
-    "Torrent of Lava"
-   ]
-  },
-  {
    "what": "LeavesBattlefieldAllTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -4691,6 +4677,19 @@
     "Konstrari Improviser // Soul Tether",
     "Tenured Tethermage",
     "Hungering Puppetbeast"
+   ]
+  },
+  {
+   "what": "static ability in STACK",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Demonfire",
+    "Exquisite Firecraft",
+    "Dragonlord's Prerogative",
+    "Bloodbraid Marauder",
+    "Kaervek's Torch",
+    "Torrent of Lava"
    ]
   },
   {
@@ -8747,19 +8746,6 @@
    ]
   },
   {
-   "what": "static ability in STACK",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Banefire",
-    "Demonfire",
-    "Exquisite Firecraft",
-    "Dragonlord's Prerogative",
-    "Bloodbraid Marauder",
-    "Kaervek's Torch"
-   ]
-  },
-  {
    "what": "WinGameSourceControllerEffect",
    "score": 7,
    "cards": 7,
@@ -9674,6 +9660,19 @@
     "Ghirapur Guide",
     "Doorman",
     "Joven's Tools"
+   ]
+  },
+  {
+   "what": "static ability in STACK",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Demonfire",
+    "Exquisite Firecraft",
+    "Dragonlord's Prerogative",
+    "Bloodbraid Marauder",
+    "Kaervek's Torch",
+    "Torrent of Lava"
    ]
   },
   {
