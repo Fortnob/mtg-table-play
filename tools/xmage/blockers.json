@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12090,
+  "needed": 12087,
   "gainedCards": 1266,
-  "linesNeeded": 13116,
+  "linesNeeded": 13112,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -5036,18 +5036,6 @@
    ]
   },
   {
-   "what": "DamagedPlayerThisTurnPredicate",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Spear of Heliod",
-    "Giltspire Avenger",
-    "Reciprocate",
-    "Otherworldly Escort",
-    "Retaliate"
-   ]
-  },
-  {
    "what": "attacks you, or its controller",
    "score": 5,
    "lines": 5,
@@ -6969,13 +6957,24 @@
     "Ragged Recluse // Odious Witch",
     "Gilt-Blade Prowler"
    ]
+  },
+  {
+   "what": "controlled damage to a player chosen before",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Chandra's Flame Wave",
+    "Swathcutter Giant",
+    "Ronin Cliffrider",
+    "Gouged Zealot"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3553,
-   "cards": 3385,
+   "score": 3554,
+   "cards": 3386,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

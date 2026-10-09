@@ -13028,4 +13028,18 @@ module.exports = (test) => {
     T.g.bumpBoard && T.g.bumpBoard();
     t.ok(T.g.canAttack(bear), 'as though it had haste');
   });
+
+  test('Spear of Heliod: only a creature that dealt damage to you this turn', (mk, t) => {
+    t.auto('Spear of Heliod');
+    const T = mk();
+    const sp = T.bf('A', 'Spear of Heliod');
+    const hit = T.bf('B', 'Grizzly Bears'), idle = T.bf('B', 'Savannah Lions');
+    T.g.dealDamageToPlayer(T.player('A'), 2, hit, true);
+    const ab = sp.analysis().abilities.find(a => a.kind === 'activated');
+    const specs = MTG.rules.effectSpecs(ab.effects);
+    t.ok(!T.g._illegalTargets(specs, [{ kind: 'object', id: hit.id }], 'A', sp), 'the one that hit you');
+    t.ok(T.g._illegalTargets(specs, [{ kind: 'object', id: idle.id }], 'A', sp), 'not the other');
+    T.nextTurn('B');
+    t.ok(T.g._illegalTargets(specs, [{ kind: 'object', id: hit.id }], 'A', sp), 'only this turn');
+  });
 };

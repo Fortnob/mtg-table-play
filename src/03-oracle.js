@@ -5249,6 +5249,9 @@
     // "target creature that was dealt damage this turn"
     const damaged = /\s+that was dealt damage this turn$/i.test(String(phrase));
     if (damaged) phrase = String(phrase).replace(/\s+that was dealt damage this turn$/i, '');
+    // Spear of Heliod: "target creature that dealt damage to you this turn"
+    const hurtYou = /\s+that dealt damage to you this turn$/i.test(String(phrase));
+    if (hurtYou) phrase = String(phrase).replace(/\s+that dealt damage to you this turn$/i, '');
     // Drown in the Loch: "with mana value less than or equal to the number of cards in its controller's graveyard"
     const ctlGy = /\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i.test(String(phrase));
     if (ctlGy) phrase = String(phrase).replace(/\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i, '');
@@ -5259,6 +5262,7 @@
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
     if (damaged) spec.damagedThisTurn = true;
+    if (hurtYou) spec.dealtDamageToYou = true;
     if (ctlGy) spec.mvAtMostCtlGy = true;
     if (colored) spec.colored = true;
     /* "another target creature", "any other target": never the thing
@@ -5502,6 +5506,8 @@
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
     if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
     if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
+    // Spear of Heliod: one that has dealt damage to the one choosing, this turn
+    if (spec.dealtDamageToYou && !(obj._hurtPlayers && ctx && obj._hurtPlayers.turn === ctx.turn && obj._hurtPlayers.ids.includes(me))) return false;
     if (spec.noCounters && Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     return true;
   }

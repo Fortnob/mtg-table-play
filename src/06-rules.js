@@ -9979,6 +9979,11 @@
       p.life -= lost;
       p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + amount;
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
+      // Spear of Heliod: who this source has dealt damage to this turn
+      if (source) {
+        if (!source._hurtPlayers || source._hurtPlayers.turn !== this.turn) source._hurtPlayers = { turn: this.turn, ids: [] };
+        if (!source._hurtPlayers.ids.includes(p.id)) source._hurtPlayers.ids.push(p.id);
+      }
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${p.name} (${p.life} life).`);
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!combat, player: p.id });
       // No Mercy: "Whenever a creature deals damage to you" — the damaged player's triggers
@@ -20839,6 +20844,8 @@
         hasKw: (o, k) => this.hasKw(o, k),
         // "with mana value X": the X of the spell or ability being cast, while it is checked
         get x() { return game._specX; },
+        // Spear of Heliod: "this turn"
+        get turn() { return game.turn; },
       };
       return this.__specCtx;
     }
