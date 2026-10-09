@@ -263,7 +263,7 @@ module.exports = (test) => {
   });
 
   test('XMage: Splendid Agony spreads two -1/-1 counters over its targets', (mk, t) => {
-    generated(t, 'Splendid Agony');
+    t.auto('Splendid Agony');
     const T = mk();
     const a = T.bf('B', 'Craw Wurm'), b = T.bf('B', 'Craw Wurm');
     T.mana('A', '2B');
@@ -12153,5 +12153,23 @@ module.exports = (test) => {
     const b = T.g.players.find(p => p.id === 'B'); b.poison = 3;
     T.g._runEffects(abs.find(a => /^-9/.test(a.text)).effects, { controller: 'A', obj: v, name: 'Vraska', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
     t.eq(b.poison, 9);
+  });
+
+  test('Distribute counters: Ajani, Sleeper Agent; any number of targets', (mk, t) => {
+    t.auto('Ajani, Sleeper Agent'); t.auto('Blessings of Nature');
+    const T = mk();
+    const aj = T.bf('A', 'Ajani, Sleeper Agent');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Savannah Lions');
+    const fx = aj.analysis().abilities.find(a => /^\u22123|^-3/.test(a.text)).effects;
+    T.g._runEffects(fx, { controller: 'A', obj: aj, name: 'Ajani', kind: 'ability', targets: [{ kind: 'object', id: b1.id }, { kind: 'object', id: b2.id }] });
+    T.settle();
+    t.eq((b1.counters['+1/+1'] || 0) + (b2.counters['+1/+1'] || 0), 3, 'three counters in all');
+    t.ok(b1.counters['+1/+1'] >= 1 && b2.counters['+1/+1'] >= 1, 'on both');
+    t.ok(T.g.hasKw(b1, 'vigilance') && T.g.hasKw(b2, 'vigilance'), 'they gain vigilance');
+    T.answer('choose', (ch) => ({ picks: ch.items.filter(x => x.id === b1.id).map(x => x.id) }));
+    T.mana('A', '4G');
+    T.cast('A', T.hand('A', 'Blessings of Nature'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(b1.counters['+1/+1'] >= 5, true, 'all four on the one chosen');
   });
 };

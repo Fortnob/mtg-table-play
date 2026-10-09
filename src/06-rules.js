@@ -11087,7 +11087,7 @@
         if (!pool.length) return null;
         const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
           items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
-          harmful: /^(?:destroy|exile|bounce|tap|damage|sacrifice|fight|phaseOut)$/.test(e.op) || (e.op === 'counters' && /^-/.test(e.kind || '')),
+          harmful: /^(?:destroy|exile|bounce|tap|damage|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
           prompt: `${ctx.name ? ctx.name + ': ' : ''}choose any number of ${e.anyFrom.filter || 'targets'}.` }, 'anyt');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
@@ -15689,6 +15689,9 @@
           const total = n(e.n);
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
           if (!objs.length || total <= 0) break;
+          // "They gain vigilance until end of turn": the ones the counters went among
+          this._noteLastAffected(objs.map(o => ({ kind: 'object', id: o.id })));
+          this._lastGroup = objs.map(o => o.id);
           const each = Math.floor(total / objs.length);
           let spare = total - each * objs.length;
           for (const o of objs) {

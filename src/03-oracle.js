@@ -3290,6 +3290,30 @@
         keywords: m[1].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean), duration: null }) },
 
     /* ===== damage split between things ===== */
+    /* "Distribute three +1/+1 counters among one, two, or three target
+       creatures you control", "… among any number of target creatures,
+       where X is …": the counters spread over what was chosen */
+    { re: /^(?:You may )?[Dd]istribute (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (\+1\/\+1|-1\/-1|stun|shield|oil) counters among (one or two|one, two, or three|up to (?:one|two|three|four|five|\d+)|any number of) (other )?(target )?(creatures?(?: you control| your opponents control)?|Elves)(?:, where X is (.+?)(?: as you cast this spell)?)?\.?$/i,
+      make: (m) => {
+        let n = num(m[1]);
+        if (m[7]) { if (!/^X$/i.test(m[1])) return null; n = amountOf(m[7]); if (!n) return null; }
+        const one = m[6].replace(/^Elves$/, 'Elf creature').replace(/creatures/g, 'creature');
+        if (!m[5] && !/you control$/i.test(one)) return null;
+        const sp = targetSpec((m[4] ? 'another target ' : 'target ') + one);
+        if (!sp) return null;
+        const out = { op: 'countersDivided', n, kind: m[2] };
+        const k = m[3].toLowerCase();
+        if (k === 'any number of' || !m[5]) out.anyFrom = Object.assign({}, sp, { upTo: true });
+        else if (k === 'one or two') out.targets = [sp, Object.assign({}, sp, { upTo: true, distinct: true })];
+        else if (k === 'one, two, or three') out.targets = [sp, Object.assign({}, sp, { upTo: true, distinct: true }), Object.assign({}, sp, { upTo: true, distinct: true })];
+        else {
+          const c = num(k.replace(/^up to /, ''));
+          if (typeof c !== 'number' || c < 1) return null;
+          out.targets = Array.from({ length: c }, () => Object.assign({}, sp, { upTo: true }));
+        }
+        if (!m[5] && k !== 'any number of') return null;
+        return out;
+      } },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until)\b)(?:[A-Za-z][-A-Za-z0-9',’\. ]{0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
