@@ -5768,6 +5768,9 @@
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
       return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
+    // Morbid Curiosity, Shadow: "the mana value of the sacrificed permanent"
+    if ((m = p.match(/^the (power|toughness|mana value) of the sacrificed (?:creature|artifact|permanent|land)$/i)))
+      return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });

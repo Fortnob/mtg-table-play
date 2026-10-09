@@ -16658,4 +16658,19 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(bear, 'double strike'));
     t.ok(T.g._hasFlag(bear, 'mustAttackEot') || T.g._hasFlag(bear, 'mustAttack'), 'must attack');
   });
+
+  test('Morbid Curiosity: draw cards equal to the mana value of the sacrificed permanent', (mk, t) => {
+    t.auto('Morbid Curiosity');
+    t.auto('Memorial Vault');
+    const T = mk();
+    T.toMain('A');
+    const wurm = T.bf('A', 'Craw Wurm');
+    for (let i = 0; i < 8; i++) T.top('A', 'Island');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Morbid Curiosity'), { sacrificeIds: [wurm.id] });
+    T.settle();
+    t.zone(wurm, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, hand + 6, 'six cards for the Wurm');
+  });
 };
