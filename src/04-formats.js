@@ -425,6 +425,8 @@
       hint: 'Picks per booster.' },
     { key: 'collector', label: 'Collector boosters', type: 'bool', when: (f) => !!f.draft && f.draft.style !== 'cube',
       hint: 'Fifteen cards, mostly foil, with extra rares and special printings, in place of the usual packs.' },
+    { key: 'allPacksAtOnce', label: 'Open all packs at once', type: 'bool', when: (f) => !!f.draft,
+      hint: 'Every pack is opened at the start and they all pass together, a card at a time, instead of one pack per player per round.' },
     { key: 'basicsFree', label: 'Free basic lands', type: 'bool', when: (f) => !!f.draft,
       hint: 'Off means you play only what you drafted.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,

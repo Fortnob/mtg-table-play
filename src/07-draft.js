@@ -732,6 +732,7 @@
         seed: Date.now(),
         botDifficulty: 5,
         timerSeconds: 0,
+        allAtOnce: false,    // every pack opened at the start, all passing together, in one round
       }, cfg);
       this.rng = new MTG.RNG(this.cfg.seed);
       this.seats = [];
@@ -1033,9 +1034,13 @@
 
     _openRound() {
       this.pickNumber = 0;
-      this.queues = this.roundPacks[this.round].map(p => [this._packOf(p.slice(), null)]);
+      /* All packs at once: each seat opens every one of its packs now, and
+         they all pass the same way, a card at a time, until every one is
+         empty; otherwise a pack each, round by round. */
+      if (this.cfg.allAtOnce) this.queues = this.roundPacks[0].map((p, s) => this.roundPacks.map(r => this._packOf(r[s].slice(), null)));
+      else this.queues = this.roundPacks[this.round].map(p => [this._packOf(p.slice(), null)]);
       for (const s of this.seats) s.roundCount = 0;
-      this.direction = this.round % 2 === 0 ? 1 : -1;  // left, right, left
+      this.direction = this.cfg.allAtOnce ? 1 : (this.round % 2 === 0 ? 1 : -1);  // left, right, left
       this.emit('round:begin', this.round + 1, this.setsUsed);
       MTG.sfx('pack_open');
       this._beginPick();
@@ -1152,7 +1157,7 @@
     _botMods(s, card, usable) {
       const mods = [];
       if (!card) return mods;
-      const late = this.round >= this.cfg.packs - 1 && this.pickNumber >= 7;
+      const late = this.cfg.allAtOnce ? this.pickNumber >= this.cfg.packs * 7 : (this.round >= this.cfg.packs - 1 && this.pickNumber >= 7);
       for (const a of usable) {
         if (!a.mod) continue;
         const def = DRAFT_ABILITIES[a.key] || {};
@@ -1264,7 +1269,8 @@
       if (this.seats.some(s => s.offers.length)) { this._holding = true; return; }
       this._holding = false;
       if (!this.queues.some(q => q.some(p => p.length))) {
-        this.round++;
+        // all packs at once: there was only the one round
+        this.round = this.cfg.allAtOnce ? this.cfg.packs : this.round + 1;
         for (const s of this.seats) s.sitOutRound = -1;
         if (this.round >= this.cfg.packs) { this._endPicks(); return; }
         this._openRound();
@@ -1822,7 +1828,8 @@
       const canUse = s ? this.availableAbilities(seatId) : [];
       return {
         you: seatId, formatId: this.cfg.formatId,
-        round: Math.min(this.round + 1, this.cfg.packs), totalRounds: this.cfg.packs,
+        round: Math.min(this.round + 1, this.cfg.packs), totalRounds: this.cfg.packs, allAtOnce: !!this.cfg.allAtOnce,
+        packsWaiting: s ? this._queue(s).filter(p => p.length).length : 0,
         pick: this.pickNumber + 1,
         started: this.started, finished: this.finished,
         phase: this.finished ? 'done' : this.broker ? 'broker' : 'picking',

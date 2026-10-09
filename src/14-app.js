@@ -1169,6 +1169,8 @@
           el('option', { value: String(n), text: n === 3 ? '3 (standard)' : String(n), selected: n === (q.packs || 3) })));
         packSel.addEventListener('change', () => { q.packs = parseInt(packSel.value, 10) || 3; saveQuick(q); });
         const packsField = field('Packs each', packSel);
+        const openField = field('Packs open', segmented([['round', 'One at a time'], ['all', 'All at once']],
+          q.allAtOnce ? 'all' : 'round', (v) => { q.allAtOnce = v === 'all'; saveQuick(q); draw(); }, 'How the packs open'));
         let source = null;
         if (style === 'booster' || style === 'commander') {
           const setSel = el('select', { 'aria-label': 'Set to draft' }, [el('option', { value: '', text: 'The newest set' })]);
@@ -1186,6 +1188,7 @@
           source = field('Sets', chaosSetsSelect(q.chaosPool, (pool) => { q.chaosPool = pool; saveQuick(q); draw(); }));
         }
         panel.appendChild(el('div', { class: 'quick-pair' }, [source, packsField].filter(Boolean)));
+        panel.appendChild(openField);
       }
 
       const go = el('button', {
@@ -1207,7 +1210,7 @@
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
-            collector: !!q.collector, packs: q.packs || 3,
+            collector: !!q.collector, packs: q.packs || 3, allAtOnce: !!q.allAtOnce,
           });
         },
       });
@@ -2298,6 +2301,7 @@
       }
       if (opts.collector && style !== 'cube') sess.setRule('collector', true);
       if (opts.packs && opts.packs !== 3) sess.setRule('packs', U.clamp(Math.floor(opts.packs), 1, 8));
+      if (opts.allAtOnce) sess.setRule('allPacksAtOnce', true);
       const count = U.clamp(opts.opponents || 1, 1, Math.min(7, (sess.fmt.maxPlayers || 8) - 1));
       for (let i = 0; i < count; i++) sess.addBot(opts.difficulty || 5);
       const ready = sess.readyToStart();
@@ -3455,6 +3459,7 @@
           // left at the format's number, each pack is its booster's real size
           packSizeAuto: this.packSize === MTG.formats.houseDefaults(this.formatId).packSize,
           collector: !!this.rules.collector,
+          allAtOnce: !!this.rules.allPacksAtOnce,
           picksPerTurn: this.fmt.draft.picksPerTurn,
           setCodes: this.fmt.draft.style === 'chaos' ? (this.chaosPoolSets() || []) : [this.setCode],
           cube: this.cube,

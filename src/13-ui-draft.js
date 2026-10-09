@@ -428,7 +428,12 @@
         art,
         el('div', { class: 'draft-where' }, [
           el('div', { class: 'eyebrow', text: (v.setsUsed || []).join(' · ') || 'Mixed packs' }),
-          el('div', { class: 'draft-title' }, [
+          el('div', { class: 'draft-title' }, v.allAtOnce ? [
+            // every pack open at once: how many are in front of you, and the pick
+            el('span', { text: `All ${v.totalRounds} packs` }),
+            el('i', { text: v.packsWaiting > 1 ? `${v.packsWaiting} in front of you` : 'open' }),
+            el('span', { class: 'draft-pick', text: `Pick ${v.pick}` }),
+          ] : [
             el('span', { text: `Pack ${v.round}` }),
             el('i', { text: `of ${v.totalRounds}` }),
             el('span', { class: 'draft-pick', text: `Pick ${v.pick}` }),
