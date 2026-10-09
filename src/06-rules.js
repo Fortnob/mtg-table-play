@@ -6781,7 +6781,10 @@
         if (ab.equipDiscount && ab.equipDiscount.targetPower) d -= Math.max(0, this.powerOf(tObj));
       }
       // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control"
-      for (const e of (ab.effects || [])) if (e && e.abilityDiscount) d -= e.abilityDiscount.amount * this._countValue(e.abilityDiscount.per, o.controller, o);
+      for (const e of (ab.effects || [])) if (e && e.abilityDiscount) d -= e.abilityDiscount.amount * (e.abilityDiscount.cond
+        // Hylda's Crown of Winter: so much less while a condition holds
+        ? (this._condMet(e.abilityDiscount.cond, { controller: o.controller, obj: o }) ? 1 : 0)
+        : this._countValue(e.abilityDiscount.per, o.controller, o));
       // Crown of Gondor: {3} less if you're the monarch; Plate Armor: {1} less for each other Equipment
       if (ab.equipDiscount && !ab.equipDiscount.targetPower) {
         const ed = ab.equipDiscount;
@@ -21014,6 +21017,11 @@
       if (spec.maxMvSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
         return this._legalTargetsFor(Object.assign({}, spec, { maxMvSourcePower: false, maxMv: s0 ? Math.max(0, this.powerOf(s0)) : 0 }), controllerId, sourceId);
+      }
+      // Go-Shintai of Hidden Cruelty: "with toughness X or less, where X is the number of Shrines you control", counted now
+      if (spec.maxToughnessCount) {
+        const s1 = sourceId && this.obj(sourceId);
+        return this._legalTargetsFor(Object.assign({}, spec, { maxToughnessCount: null, maxToughness: Math.max(0, this._countValue(spec.maxToughnessCount, controllerId, s1 || null)) }), controllerId, sourceId);
       }
       // Spellstutter Sprite: "with mana value X or less, where X is the number of Faeries you control", counted now
       if (spec.maxMvCount) {

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11920,
-  "gainedCards": 1228,
-  "linesNeeded": 12865,
-  "linesGained": 1462,
+  "needed": 11910,
+  "gainedCards": 1225,
+  "linesNeeded": 12854,
+  "linesGained": 1458,
   "gained": {
-   "all": 1228,
+   "all": 1225,
    "top2000": 48,
    "stdTop": 9
   },
@@ -582,25 +582,6 @@
    ]
   },
   {
-   "what": "Ability.setCostAdjuster",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Mariposa Military Base",
-    "Hylda's Crown of Winter",
-    "Osgir, the Reconstructor",
-    "Wayta, Trainer Prodigy",
-    "Prototype Portal",
-    "Survey Mechan",
-    "Razorlash Transmogrant",
-    "Soul Foundry",
-    "Pteramander",
-    "Loreseeker's Stone",
-    "Elite Arcanist",
-    "Starport Security"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 20,
    "lines": 20,
@@ -791,6 +772,25 @@
     "Painwracker Oni",
     "Fires of Victory",
     "Gutwrencher Oni"
+   ]
+  },
+  {
+   "what": "Ability.setCostAdjuster",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Mariposa Military Base",
+    "Osgir, the Reconstructor",
+    "Wayta, Trainer Prodigy",
+    "Prototype Portal",
+    "Survey Mechan",
+    "Razorlash Transmogrant",
+    "Soul Foundry",
+    "Pteramander",
+    "Loreseeker's Stone",
+    "Elite Arcanist",
+    "Starport Security",
+    "Thaumaton Torpedo"
    ]
   },
   {
@@ -7212,19 +7212,6 @@
    ]
   },
   {
-   "what": "Ability.setCostAdjuster",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Hylda's Crown of Winter",
-    "Osgir, the Reconstructor",
-    "Prototype Portal",
-    "Survey Mechan",
-    "Razorlash Transmogrant",
-    "Soul Foundry"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 17,
    "cards": 17,
@@ -7352,6 +7339,19 @@
     "Grand Architect",
     "Cryptek",
     "Pia Nalaar"
+   ]
+  },
+  {
+   "what": "Ability.setCostAdjuster",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Osgir, the Reconstructor",
+    "Prototype Portal",
+    "Survey Mechan",
+    "Razorlash Transmogrant",
+    "Soul Foundry",
+    "Pteramander"
    ]
   },
   {

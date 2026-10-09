@@ -1422,6 +1422,18 @@
     // Immaculate Magistrate: "Put a +1/+1 counter on target creature for each Elf you control."
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (target creature(?: you control)?) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [targetSpec(m[2])] } : null; } },
+    // Go-Shintai of Boundless Vigor: "Put a +1/+1 counter on target Shrine for each Shrine you control."
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on (target (?:[A-Z][a-z]+|artifact|enchantment|land|permanent)) for each (.+?)\.?$/,
+      make: (m) => { const c = countOf(m[3]); const t = targetSpec(m[2]); return c && t && !t.unknown ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [t] } : null; } },
+    // Honden of Night's Reach: "target opponent discards a card for each Shrine you control"
+    { re: /^Target (opponent|player) discards a card for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[2]); return c ? { op: 'discard', n: c, who: 'target', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] } : null; } },
+    // Crescent Island Temple: "For each Shrine you control, create a 1/1 red Monk creature token with prowess."
+    { re: /^For each ([^,]+? you control), (create [^.]+?)\.?$/i,
+      make: (m) => { const e = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + ' for each ' + m[1] + '.'); return e && e.op === 'createToken' && e.count ? e : null; } },
+    // Go-Shintai of Hidden Cruelty: "Destroy target creature with toughness X or less, where X is the number of Shrines you control."
+    { re: /^Destroy target creature with toughness X or less, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && (k.scope || k.per) ? { op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', maxToughnessCount: k }] } : null; } },
     // Tyrannize, Wit's End: "Target player discards their hand."
     // Curse of Obsession: "that player discards their hand"
     { re: /^That player discards (?:their|his or her) hand\.?$/i, make: () => ({ op: 'discard', n: 'all', who: 'triggerPlayer' }) },
@@ -4272,6 +4284,9 @@
     // Mobilized District: "for each legendary creature and planeswalker you control" — either kind
     { re: /^This ability costs \{(\d+)\} less to activate for each ((?:legendary |nonland |nontoken )?(?:creature|artifact|enchantment|land|planeswalker) (?:and|or) (?:creature|artifact|enchantment|land|planeswalker)) you control\.?$/i,
       make: (m) => ({ op: 'noop', abilityDiscount: { amount: +m[1], per: countSpec(m[2], 1) } }) },
+    // Hylda's Crown of Winter: "This ability costs {1} less to activate during your turn."
+    { re: /^This ability costs \{(\d+)\} less to activate (during your turn|if [^.]+?)\.?$/i,
+      make: (m) => { const c = /^during your turn$/i.test(m[2]) ? { kind: 'yourTurn' } : condOf(m[2].replace(/^if /i, '')); return c ? { op: 'noop', abilityDiscount: { amount: +m[1], cond: c } } : null; } },
     // Baru, Wurmspeaker: "This ability costs {X} less to activate, where X is the greatest power among Wurms you control."
     { re: /^This ability costs \{X\} less to activate, where X is (.+?)\.?$/i,
       make: (m) => {

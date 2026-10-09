@@ -13946,4 +13946,40 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(cmd, 'protection from everything'), 'the commander');
     t.ok(!T.g.hasKw(bear, 'protection from everything'), 'not another creature');
   });
+
+  test('Shrines: Honden of Night\'s Reach, Go-Shintai of Boundless Vigor, Go-Shintai of Hidden Cruelty, Crescent Island Temple', (mk, t) => {
+    for (const n of ["Honden of Night's Reach", 'Go-Shintai of Boundless Vigor', 'Go-Shintai of Hidden Cruelty', 'Crescent Island Temple']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const honden = T.bf('A', "Honden of Night's Reach");
+    const vigor = T.bf('A', 'Go-Shintai of Boundless Vigor');
+    for (let i = 0; i < 3; i++) T.hand('B', 'Island');
+    const ab = honden.analysis().abilities.find(a => a.kind === 'triggered');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: honden, name: "Honden of Night's Reach", kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle();
+    t.eq(T.zone('B', 'hand').length, 1, 'two Shrines: two cards');
+    const vab = vigor.analysis().abilities.find(a => a.kind === 'triggered');
+    const counters = JSON.stringify(vab.effects).match(/"op":"counters"[^}]*"n":\{[^}]*\}/);
+    t.ok(!!counters, 'counters for each Shrine');
+    const cruel = T.bf('A', 'Go-Shintai of Hidden Cruelty');
+    const cab = cruel.analysis().abilities.find(a => a.kind === 'triggered');
+    const spec = JSON.parse(JSON.stringify(cab.effects)).flatMap(function walk(e) { return [].concat(e.targets || [], ...(['then', 'list'].map(k => (e[k] || []).flatMap(walk)))); })[0];
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    const ids = T.g._legalTargetsFor(spec, 'A', cruel.id).map(x => x.id);
+    t.ok(ids.includes(bear.id) && ids.includes(giant.id), 'three Shrines: toughness 3 or less');
+    const temple = T.put('A', 'Crescent Island Temple', 'battlefield', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.bfOf('A').filter(o => o.isToken && /Monk/.test(o.name)).length, 4, 'four Shrines: four Monks');
+  });
+
+  test("Hylda's Crown of Winter: the tap ability costs {1} less during your turn", (mk, t) => {
+    t.auto("Hylda's Crown of Winter");
+    const T = mk();
+    T.toMain('A');
+    const crown = T.bf('A', "Hylda's Crown of Winter");
+    const ab = crown.analysis().abilities.find(a => a.kind === 'activated' && /Tap target creature/.test(a.text));
+    t.eq(T.g._abilityMana(crown, ab), '', 'your turn: free');
+    T.toMain('B');
+    t.eq(T.g._abilityMana(crown, ab), '{1}', 'not your turn: {1}');
+  });
 };
