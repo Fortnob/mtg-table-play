@@ -12339,4 +12339,16 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'hand').length, hand + 1, 'B drew');
     t.eq(g1.zone, 'exile'); t.eq(g2.zone, 'exile'); t.eq(g3.zone, 'graveyard');
   });
+
+  test('Abstergo Entertainment: a historic card back, then every graveyard exiled', (mk, t) => {
+    t.auto('Abstergo Entertainment');
+    const T = mk();
+    const ab = T.bf('A', 'Abstergo Entertainment');
+    const ring = T.grave('A', 'Sol Ring'), bear = T.grave('A', 'Grizzly Bears'), theirs = T.grave('B', 'Llanowar Elves');
+    const fx = ab.analysis().abilities.find(a => a.kind === 'activated').effects;
+    t.ok(T.g._illegalTargets(MTG.rules.effectSpecs(fx), [{ kind: 'object', id: bear.id }], 'A', ab), 'a Bear is not historic');
+    T.g._runEffects(fx, { controller: 'A', obj: ab, name: 'Abstergo', kind: 'ability', targets: [{ kind: 'object', id: ring.id }] });
+    T.settle();
+    t.eq(ring.zone, 'hand'); t.eq(bear.zone, 'exile'); t.eq(theirs.zone, 'exile');
+  });
 };

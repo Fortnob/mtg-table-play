@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12334,
+  "needed": 12329,
   "gainedCards": 1337,
-  "linesNeeded": 13421,
+  "linesNeeded": 13414,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 772,
-   "lines": 709,
+   "score": 770,
+   "lines": 707,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -2371,22 +2371,6 @@
     "Taigam, Ojutai Master",
     "Goliath Daydreamer",
     "Harness the Storm"
-   ]
-  },
-  {
-   "what": "filter:historic",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Abstergo Entertainment",
-    "Samwise Gamgee",
-    "Elena, Turk Recruit",
-    "What Must Be Done",
-    "Lost to Legend",
-    "Tegan Jovanka",
-    "Guardians of Koilos",
-    "Sentinel of the Pearl Trident",
-    "Rona, Disciple of Gix"
    ]
   },
   {
@@ -6835,6 +6819,17 @@
    ]
   },
   {
+   "what": "filter:historic",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "What Must Be Done",
+    "Lost to Legend",
+    "Tegan Jovanka",
+    "Guardians of Koilos"
+   ]
+  },
+  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 4,
    "lines": 4,
@@ -7036,8 +7031,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3584,
-   "cards": 3413,
+   "score": 3585,
+   "cards": 3414,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7049,8 +7044,8 @@
   },
   {
    "what": "custom ability",
-   "score": 587,
-   "cards": 542,
+   "score": 586,
+   "cards": 541,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -8384,19 +8379,6 @@
     "Experimental Pilot",
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter"
-   ]
-  },
-  {
-   "what": "filter:historic",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Abstergo Entertainment",
-    "Samwise Gamgee",
-    "Elena, Turk Recruit",
-    "What Must Be Done",
-    "Lost to Legend",
-    "Tegan Jovanka"
    ]
   },
   {
@@ -10798,6 +10780,17 @@
     "Thassa's Intervention",
     "Increasing Confusion",
     "Stonesplitter Bolt"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAttachedEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Alpha Authority",
+    "Vorrac Battlehorns",
+    "Rope",
+    "Wolfrider's Saddle"
    ]
   }
  ]

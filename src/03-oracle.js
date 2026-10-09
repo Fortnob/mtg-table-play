@@ -5084,7 +5084,7 @@
      one it would offer wrongly. */
   const SPEC_FLAGS = new Set(['attacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
     'nonlegendary', 'basic', 'nonbasic', 'nonland', 'noncreature', 'nonartifact', 'nonenchantment',
-    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down']);
+    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic']);
   const SPEC_FILLER = new Set(['a', 'an', 'or', 'and', 'and/or', 'target', 'other', 'another', 'of', 'card', 'cards',
     'one', 'two', 'three', 'up', 'to']);
 
@@ -5201,6 +5201,8 @@
         else if (lw === 'token') spec.token = true;
         else if (lw === 'nonlegendary') spec.nonlegendary = true;
         else if (lw === 'legendary') spec.legendary = true;
+        // Abstergo Entertainment: "target historic card" — legendary, an artifact or a Saga
+        else if (lw === 'historic') spec.historic = true;
         else if (lw === 'nonbasic') spec.nonbasic = true;
         else if (lw === 'basic') spec.basic = true;
         else if (lw === 'noncreature') spec.notType = (spec.notType || []).concat('creature');
@@ -5290,6 +5292,7 @@
     if (spec.notSubtype && (a.subtypes || []).some(t => t.toLowerCase() === spec.notSubtype)) return false;
     if (spec.nonlegendary && (a.supertypes || []).includes('Legendary')) return false;
     if (spec.legendary && !(a.supertypes || []).includes('Legendary')) return false;
+    if (spec.historic && !((a.supertypes || []).includes('Legendary') || a.isArtifact || (a.subtypes || []).includes('Saga'))) return false;
     if (spec.nonbasic && (a.supertypes || []).includes('Basic')) return false;
     if (spec.basic && !(a.supertypes || []).includes('Basic')) return false;
     if (spec.nonland && a.isLand) return false;
