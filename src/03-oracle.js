@@ -7800,17 +7800,10 @@
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
     };
     /* Entrapment Maneuver, Tribute to Hunger: "Target player sacrifices a
-       creature. You gain life equal to that creature's toughness." The
-       player's choice is asked after the rest of the spell has resolved, so
-       nothing here can read what they sacrificed: a person finishes it. */
+       creature. You gain life equal to that creature's toughness." — the one
+       sacrificed, which the player is asked for before the rest goes on */
     folded.forEach((e, i) => {
-      if (!e || i === 0 || !folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice' && x.who !== 'you')) return;
-      if (/"ofTrigger"/.test(JSON.stringify(e)) && /\bthat creature'?s\b/i.test(e.text || '')) folded[i] = { op: 'manual', text: e.text };
-    });
-    // (Psychic Miasma: "Target player discards a card. If a land card is discarded this way …" — the same wait)
-    folded.forEach((e, i) => {
-      if (!e || i === 0 || !folded.slice(0, i).some(x => x && x.op === 'discard' && x.who !== 'you' && !x.random)) return;
-      if (/"how":"discarded"/.test(JSON.stringify(e))) folded[i] = { op: 'manual', text: e.text };
+      if (e && i > 0 && folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice')) sacrificedIsThat([e]);
     });
     folded.forEach((e, i) => {
       itIsTarget(e, i);

@@ -2068,6 +2068,10 @@
           this.moveObject(item.obj, 'exile');
           this.logEvent('rules', `${item.name} is exiled (${item.via}).`);
         }
+        else if (item.returnsToHand && !item.countered && (!a || !a.isPermanent)) {
+          this.moveObject(item.obj, 'hand');
+          this.logEvent('rules', `${item.name} returns to its owner's hand.`);
+        }
         else if (item.boughtBack && !item.countered && (!a || !a.isPermanent)) {
           // bought back: it comes home instead (CR 702.27)
           this.moveObject(item.obj, 'hand');
@@ -13231,11 +13235,21 @@
               }
               continue;
             }
-            this.queueChoice(Object.assign({
+            const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(n(e.n), pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
               prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${n(e.n)} ${e.filter || 'permanent'}${n(e.n) === 1 ? '' : 's'}.`,
-            }, e.exile ? { exileInstead: true } : {}));
+            }, e.exile ? { exileInstead: true } : {});
+            /* Asked as the effect resolves and waited for, one player at a
+               time in turn order, so the words after it see what went:
+               Tribute to Hunger's "that creature's toughness" */
+            if (this.resolving) {
+              // (what an earlier sacrifice left behind is not this one; a resumed answer keeps its own)
+              const askedBefore = Object.prototype.hasOwnProperty.call(this.resolving.answers, this.resolving.index + ':sac' + p.id);
+              if (!askedBefore && !this._doneHere('sacReset')) this._lastSacrificed = [];
+              const got = this._ask(q, 'sac' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+            } else this.queueChoice(q);
           }
           break;
         }
@@ -16784,6 +16798,10 @@
         case 'selfFromGraveyard': {
           // "return CARDNAME to its owner's hand" said of a permanent: it goes back from the battlefield
           if (src && src.zone === 'battlefield' && e.to === 'hand') { this.moveObject(src, 'hand'); break; }
+          /* Psychic Miasma: "return CARDNAME to its owner's hand" said by the
+             spell as it resolves — it goes to its owner's hand instead of the
+             graveyard once it has finished */
+          if (src && src.zone === 'stack' && e.to === 'hand' && ctx.obj === src) { ctx.returnsToHand = true; break; }
           if (!src || src.zone !== (e.from || 'graveyard')) break;
           // "…converted", "…transformed": its back face up
           if (e.transformed && e.to === 'battlefield' && src.card.card_faces && src.card.card_faces.length > 1) { src.face = 1; src._chr = null; }

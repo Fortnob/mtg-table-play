@@ -2011,18 +2011,6 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, 3);
   });
 
-  test('Audit: "that creature\'s toughness" after an opponent\'s sacrifice is left to a person', (mk, t) => {
-    const { card } = require('../harness');
-    const T = mk();
-    for (const n of ['Entrapment Maneuver', 'Tribute to Hunger', 'Twisted Justice'])
-      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
-  });
-
-  test('Audit: Psychic Miasma is left to a person: the discard is chosen after it resolves', (mk, t) => {
-    const T = mk();
-    t.no(T.MTG.oracle.analyze(require('../harness').card('Psychic Miasma')).fullyAutomated);
-  });
-
   test('Audit: Aunt May counts the Spider that entered', (mk, t) => {
     const T = mk();
     t.auto('Aunt May');
@@ -2032,5 +2020,73 @@ module.exports = (test) => {
     T.mana('A', 'G1'); T.cast('A', b);
     t.eq(s.counters['+1/+1'], 1); t.no(b.counters['+1/+1']);
     t.eq(T.life('A'), 22);
+  });
+
+  test('Audit: Tribute to Hunger waits for the opponent\'s sacrifice, then gains its toughness', (mk, t) => {
+    const T = mk();
+    t.auto('Tribute to Hunger');
+    const w = T.bf('B', 'Craw Wurm'); T.bf('B', 'Grizzly Bears');
+    T.answer('sacrifice', (ch) => T.g.resolveChoice(ch.playerId, { cardIds: [w.id] }));
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Tribute to Hunger'), { targets: ['B'] });
+    t.zone(w, 'graveyard');
+    t.eq(T.life('A'), 24, 'Craw Wurm\'s toughness');
+  });
+
+  test('Audit: Entrapment Maneuver makes Soldiers for the sacrificed attacker\'s toughness', (mk, t) => {
+    const T = mk();
+    t.auto('Entrapment Maneuver');
+    T.nextTurn('B');
+    const w = T.bf('B', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    T.g.passPriority('B', true);
+    T.mana('A', 'W3');
+    T.cast('A', T.hand('A', 'Entrapment Maneuver'), { targets: ['B'] });
+    t.zone(w, 'graveyard');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Soldier').length, 4);
+  });
+
+  test('Audit: Psychic Miasma returns to hand when a land is discarded, and not otherwise', (mk, t) => {
+    for (const [pick, where] of [['Island', 'hand'], ['Grizzly Bears', 'graveyard']]) {
+      const T = mk();
+      t.auto('Psychic Miasma');
+      T.hand('B', 'Island'); T.hand('B', 'Grizzly Bears');
+      T.answer('discard', (ch) => T.g.resolveChoice(ch.playerId, { cardIds: [T.zone('B', 'hand').find(o => o.name === pick).id] }));
+      T.mana('A', 'B1');
+      const pm = T.hand('A', 'Psychic Miasma');
+      T.cast('A', pm, { targets: ['B'] });
+      t.zone(pm, where, pick);
+    }
+  });
+
+  test("Audit: each opponent sacrifices in turn order, each asked as the spell resolves (Liliana's Triumph)", (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Craw Wurm'); T.bf('C', 'Craw Wurm');
+    const order = [];
+    const pick = (ch) => { order.push(ch.playerId); return T.g.resolveChoice(ch.playerId, { cardIds: [T.bfOf(ch.playerId).find(o => o.name === 'Grizzly Bears' || ch.playerId === 'C').id] }); };
+    T.answer('sacrifice', pick); T.answer('sacrifice', pick);
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', "Liliana's Triumph"));
+    t.eq(order.join(), 'B,C');
+    t.eq(T.bfOf('B').map(o => o.name).join(), 'Craw Wurm', 'B chose its Bears');
+    t.eq(T.bfOf('C').length, 0);
+  });
+
+  test("Audit: a game saved while an opponent's sacrifice is pending resumes where it stopped", (mk, t) => {
+    const T = mk();
+    const w = T.bf('B', 'Craw Wurm'); T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B2');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Tribute to Hunger').id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }));
+    T.g.passPriority('A', true); T.g.passPriority('B', true);
+    t.eq((T.g.pendingChoice || {}).type, 'sacrifice'); t.eq((T.g.pendingChoice || {}).playerId, 'B');
+    const snap = JSON.parse(JSON.stringify(T.g.snapshot()));
+    const T2 = mk();
+    t.ok(T2.g.restore(snap), 'restored');
+    t.eq((T2.g.pendingChoice || {}).playerId, 'B', 'still waiting for B');
+    T2.g.resolveChoice('B', { cardIds: [w.id] });
+    T2.settle();
+    t.eq(T2.life('A'), 24);
+    t.eq(T2.g.obj(w.id).zone, 'graveyard');
   });
 };
