@@ -15085,6 +15085,42 @@
           if (list.length) this._spliceNext(list);
           break;
         }
+        // Jace, the Mind Sculptor: a look at someone's top card, which may go to the bottom
+        case 'fateseal': {
+          const p = firstPlayer() || me;
+          const top = this.zones[p.id].library[0];
+          if (!top) break;
+          this.logEvent('rules', `${me.name} looks at the top card of ${p.id === me.id ? 'their' : p.name + "'s"} library.`);
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'fateseal', card: top.card, cardId: top.id,
+            prompt: `Put ${top.name} on the bottom of ${p.id === me.id ? 'your' : p.name + "'s"} library?` }, 'fs');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes && top.zone === 'library') {
+            const lib = this.zones[p.id].library;
+            lib.splice(lib.indexOf(top), 1); lib.push(top);
+            this.logEvent('rules', `${me.name} puts the card on the bottom.`);
+          }
+          break;
+        }
+        // Jace, the Mind Sculptor: a whole library exiled
+        case 'exileLibrary': {
+          const p = e.who === 'you' ? me : firstPlayer();
+          if (!p) break;
+          const lib = this.zones[p.id].library.slice();
+          for (const c of lib) this.moveObject(c, 'exile');
+          this.logEvent('exile', `${p.name} exiles their library (${lib.length} cards).`);
+          break;
+        }
+        // "that player shuffles their hand into their library"
+        case 'shuffleHandIn': {
+          const who = e.who === 'each' ? this.players.filter(q => !q.hasLost) : e.who === 'you' ? [me] : [firstPlayer() || triggerPlayer()].filter(Boolean);
+          for (const p of who) {
+            const z = this.zones[p.id];
+            for (const c of z.hand.slice()) this.moveObject(c, 'library');
+            this.rng.shuffle(z.library);
+            this.logEvent('rules', `${p.name} shuffles their hand into their library.`);
+          }
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

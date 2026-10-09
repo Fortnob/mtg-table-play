@@ -1934,8 +1934,24 @@
       make: () => ({ op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true }) },
     /* Shuffle riders: the engine shuffles when it searches, so the sentence
        that says so is describing what already happened. */
-    { re: /^(?:Then that player shuffles|Then shuffle|That player shuffles|Shuffle your library|Then shuffle your library)\b.*$/i,
+    { re: /^(?:Then that player shuffles|Then shuffle|That player shuffles|Shuffle your library|Then shuffle your library)(?: (?:it|them|their library|that library|your library))?\.?$/i,
       make: () => ({ op: 'noop' }) },
+    /* Urza, Lord High Artificer; Hazoret's Undying Fury: "Shuffle your
+       library, then exile the top card." — a shuffle, then the rest */
+    { re: /^Shuffle your library, then (exile the top (?:card|(?:two|three|four|five|six|seven|\d+) cards))(?: of your library)?\.?$/i,
+      make: (m) => {
+        const inner = parseEffectSentence(U.titleCase(m[1].charAt(0)) + m[1].slice(1) + ' of your library.');
+        if (!inner || inner.op === 'manual' || hasManualStep(inner)) return null;
+        return { op: 'sequence', list: [{ op: 'shuffle' }].concat(inner.op === 'sequence' ? inner.list : [inner]) };
+      } },
+    // Jace, the Mind Sculptor: "that player shuffles their hand into their library"
+    { re: /^(?:Then )?(that player|target player|each player|you) shuffles? (?:their|your) hand into (?:their|your) library\.?$/i,
+      make: (m) => ({ op: 'shuffleHandIn', who: /^each/i.test(m[1]) ? 'each' : /^you$/i.test(m[1]) ? 'you' : 'target',
+        targets: /^target/i.test(m[1]) ? [{ type: 'player' }] : undefined }) },
+    // Jace, the Mind Sculptor: "Exile all cards from target player's library"
+    { re: /^Exile all cards from (target player|target opponent|your)(?:'s)? library\.?$/i,
+      make: (m) => ({ op: 'exileLibrary', who: /^your/i.test(m[1]) ? 'you' : 'target',
+        targets: /^target/i.test(m[1]) ? [{ type: 'player', opponent: /opponent/i.test(m[1]) }] : undefined }) },
     { re: /^If you search(?:ed)? your library this way, shuffle(?: it)?\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
@@ -5650,6 +5666,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Jace, the Mind Sculptor: "Look at the top card of target player's
+       library. You may put that card on the bottom of that player's library." */
+    { re: /^Look at the top card of target player'?s library\. You may put that card on the bottom of that player'?s library\.$/i,
+      make: () => [{ op: 'fateseal', targets: [{ type: 'player' }] }] },
     /* Parley (Selvala, Rousing of Souls, the Negotiators): "Each player
        reveals the top card of their library. For each nonland card revealed
        this way, …. Then each player draws a card." */

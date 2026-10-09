@@ -12674,4 +12674,40 @@ module.exports = (test) => {
     T.settle();
     t.ok(T.g.hasKw(pac, 'protection from black'), 'black chosen');
   });
+
+  test('Jace, the Mind Sculptor: fateseal one, and the ultimate', (mk, t) => {
+    t.auto('Jace, the Mind Sculptor');
+    const T = mk();
+    const j = T.bf('A', 'Jace, the Mind Sculptor');
+    const top = T.top('B', 'Lightning Bolt'); T.top('B', 'Forest'); const bolt2 = T.zone('B', 'library')[0];
+    const abs = j.analysis().abilities;
+    T.answer('confirm', { yes: true });
+    T.g._runEffects(abs.find(a => /^\+2/.test(a.text)).effects, { controller: 'A', obj: j, name: 'Jace', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle();
+    const lib = T.zone('B', 'library');
+    t.eq(lib[lib.length - 1], bolt2, 'the top card went to the bottom');
+    T.hand('B', 'Grizzly Bears');
+    T.g._runEffects(abs.find(a => /^[-\u2212]12/.test(a.text)).effects, { controller: 'A', obj: j, name: 'Jace', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle();
+    t.eq(T.zone('B', 'hand').length, 0, 'hand shuffled in');
+    t.ok(T.zone('B', 'library').some(c => c.name === 'Grizzly Bears'), 'the hand is the library now');
+    t.ok(T.zone('B', 'exile').length >= 2, 'the old library exiled');
+  });
+
+  test('Urza, Lord High Artificer: shuffle, exile the top card, play it free this turn', (mk, t) => {
+    t.auto('Urza, Lord High Artificer');
+    const T = mk();
+    const u = T.bf('A', 'Urza, Lord High Artificer');
+    T.zone('A', 'library').splice(0);
+    for (let i = 0; i < 4; i++) T.top('A', 'Grizzly Bears');
+    const ab = u.analysis().abilities.find(a => a.kind === 'activated' && /Shuffle/.test(a.text));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: u, name: 'Urza', kind: 'ability' });
+    T.settle();
+    const ex = T.zone('A', 'exile');
+    t.eq(ex.length, 1, 'one card exiled');
+    const it = ex[0];
+    t.ok(T.g.castSpell('A', it.id, { auto: true, via: 'free' }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(it.zone, 'battlefield', 'played for free');
+  });
 };

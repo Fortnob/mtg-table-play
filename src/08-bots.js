@@ -2356,6 +2356,12 @@
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Chandra: cast the exiled card only if it can be paid for
       if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
+      // Jace, the Mind Sculptor: an opponent's good card goes to the bottom, our own bad one does
+      if (ch.purpose === 'fateseal') {
+        const c = ch.cardId && g.obj(ch.cardId);
+        if (!c) return false;
+        return c.owner === this.pid ? !this.wantToDraw(c, 0) : !(c.analysis() || {}).isLand;
+      }
       if (ch.purpose === 'payToUntap') {
         // a shock land: pay when we would use the mana this turn and can spare the life
         return this.me.life > 10 && (this.d <= 3 || this._wouldUseUntapped());
