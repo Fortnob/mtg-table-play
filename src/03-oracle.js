@@ -3140,6 +3140,8 @@
         then: [{ op: 'may', then: [{ op: 'graveyardPick', n: 1, upTo: false, filter: m[2].toLowerCase(), to: 'battlefield', notSacrificed: true }] }] }) },
     // Gift of Immortality: "Return this card to the battlefield attached to that creature at the beginning of the next end step." (returnAuraLater)
     { re: /^Return this card to the battlefield attached to that creature at the beginning of the next end step\.?$/i, make: () => ({ op: 'returnSelfAttachedLater' }) },
+    // Whirlpool Warrior, Whirlpool Rider: "Shuffle the cards from your hand into your library, then draw that many cards." (handShuffleYou)
+    { re: /^Shuffle the cards from your hand into your library, then draw that many cards\.?$/i, make: () => ({ op: 'shuffleHandDraw', who: 'you' }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."

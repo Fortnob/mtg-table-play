@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11278,
+  "needed": 11275,
   "gainedCards": 1131,
-  "linesNeeded": 12066,
+  "linesNeeded": 12062,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -5538,16 +5538,6 @@
    ]
   },
   {
-   "what": "ShuffleHandIntoLibraryDrawThatManySourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Whirlpool Warrior",
-    "Whirlpool Rider",
-    "Whirlpool Drake"
-   ]
-  },
-  {
    "what": "DontUntapInPlayersNextUntapStepAllEffect",
    "score": 4,
    "lines": 4,
@@ -6657,6 +6647,16 @@
     "Battle at the Helvault",
     "The Horus Heresy",
     "Vault 13: Dweller's Journey"
+   ]
+  },
+  {
+   "what": "EnchantedTappedTriggeredManaAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Elvish Guidance",
+    "Dawn's Reflection",
+    "Market Festival"
    ]
   }
  ],

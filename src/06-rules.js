@@ -16375,8 +16375,9 @@
         }
         // Winds of Change: each hand into its library, and as many cards back
         case 'shuffleHandDraw': {
-          for (const p of this.players) {
-            if (p.hasLost) continue;
+          // (Whirlpool Warrior: only yours — handShuffleYou)
+          for (const p of (e.who === 'you' ? [me] : this.players)) {
+            if (!p || p.hasLost) continue;
             const hand = this.zones[p.id].hand.slice();
             for (const c of hand) this.moveObject(c, 'library');
             this.rng.shuffle(this.zones[p.id].library);

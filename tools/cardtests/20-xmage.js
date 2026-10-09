@@ -16805,4 +16805,22 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bear), 5, '+3/+0');
     t.ok(T.g._hasCreatureType(bear, 'Goblin') && T.g._hasCreatureType(bear, 'Elf'), 'a Goblin and an Elf');
   });
+
+  test('Whirlpool Warrior: shuffle your hand into your library and draw that many', (mk, t) => {
+    t.auto('Whirlpool Warrior');
+    t.auto('Whirlpool Rider');
+    t.auto('Whirlpool Drake');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 10; i++) T.top('A', 'Island');
+    const hand = T.zone('A', 'hand');
+    while (hand.length) T.g.moveObject(hand[0], 'graveyard');
+    const a = T.hand('A', 'Craw Wurm'), b = T.hand('A', 'Hill Giant');
+    const bHand = T.zone('B', 'hand').length;
+    T.mana('A', 'UCC');
+    T.cast('A', T.hand('A', 'Whirlpool Warrior'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, 2, 'two shuffled in, two drawn');
+    t.eq(T.zone('B', 'hand').length, bHand, "the opponent's hand is untouched");
+  });
 };
