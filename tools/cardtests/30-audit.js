@@ -3075,4 +3075,22 @@ module.exports = (test) => {
     t.zone(mine, 'battlefield', 'mine stays');
     t.eq(lands('B') - b0, 2, 'B lost two creatures: two lands'); t.eq(lands('C') - c0, 1); t.eq(lands('A') - a0, 0);
   });
+
+  test('Audit: Rise of the Witch-king returns another card only if you sacrificed; Scheming Symmetry asks each target player', (mk, t) => {
+    let T = mk();
+    t.auto('Rise of the Witch-king'); t.auto('Scheming Symmetry');
+    T.toMain('A');
+    const mb = T.bf('A', 'Grizzly Bears'), ob = T.bf('B', 'Hill Giant'), old = T.grave('A', 'Craw Wurm');
+    T.mana('A', '2BG'); T.cast('A', T.hand('A', 'Rise of the Witch-king')); T.settle(); T.resolve();
+    t.zone(mb, 'graveyard', 'the sacrificed Bears stay'); t.zone(ob, 'graveyard'); t.zone(old, 'battlefield', 'another card returns');
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Hill Giant'); const w = T.grave('A', 'Craw Wurm');
+    T.mana('A', '2BG'); T.cast('A', T.hand('A', 'Rise of the Witch-king')); T.settle(); T.resolve();
+    t.zone(w, 'graveyard', 'no creature of mine sacrificed: nothing returns');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Scheming Symmetry'), { targets: ['B', 'C'] });
+    t.eq(JSON.stringify(T.asked.filter(a => a.type === 'pickCard').map(a => a.playerId)), JSON.stringify(['B', 'C']));
+  });
 };
