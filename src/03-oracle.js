@@ -6913,6 +6913,9 @@
        X or less." (picked as it resolves) */
     { re: /^Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less\.$/i,
       make: () => [{ op: 'returnDifferentNames', differentMv: true, filter: 'creature', maxMv: 'X' }] },
+    // Meteor Blast, Firestorm: "CARDNAME deals 4 (X) damage to each of X targets."
+    { re: /^CARDNAME deals (X|\d+|one|two|three|four|five) damage to each of X targets\.$/i,
+      make: (m) => [{ op: 'damage', n: /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'X', exact: true } }] }] },
     // Crackle with Power: "CARDNAME deals five times X damage to each of up to X targets."
     { re: /^CARDNAME deals (two|three|four|five) times X damage to each of up to X targets\.$/i,
       make: (m) => [{ op: 'damage', n: { xTimes: num(m[1]) }, targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', distinct: true, multi: { count: 'X', exact: false } }] }] },

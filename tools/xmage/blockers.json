@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11324,
+  "needed": 11323,
   "gainedCards": 1130,
-  "linesNeeded": 12122,
+  "linesNeeded": 12120,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -146,8 +146,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 158,
-   "lines": 152,
+   "score": 156,
+   "lines": 150,
    "cards": [
     "Likeness Looter",
     "Chthonian Nightmare",
@@ -6713,8 +6713,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 137,
-   "cards": 131,
+   "score": 135,
+   "cards": 129,
    "names": [
     "Likeness Looter",
     "Chthonian Nightmare",

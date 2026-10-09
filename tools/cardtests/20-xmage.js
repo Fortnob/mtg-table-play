@@ -16378,4 +16378,16 @@ module.exports = (test) => {
     t.ok(agent, 'on the battlefield');
     t.eq(agent && agent.controller, 'B', 'B controls it');
   });
+
+  test('Meteor Blast: 4 damage to each of X targets', (mk, t) => {
+    t.auto('Meteor Blast');
+    const T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'RRRCC');
+    T.cast('A', T.hand('A', 'Meteor Blast'), { x: 2, targets: ['B', giant] });
+    T.settle();
+    t.eq(T.life('B'), 16);
+    t.zone(giant, 'graveyard');
+  });
 };
