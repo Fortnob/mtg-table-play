@@ -14873,4 +14873,15 @@ module.exports = (test) => {
     t.eq(ml.counters['+1/+1'], 1, 'the +1/+1 counter stayed');
     t.eq(T.zone('A', 'hand').length, h + 1, 'a card drawn');
   });
+  test('Loch Mare and Chainbreaker enter with their -1/-1 counters', (mk, t) => {
+    t.auto('Loch Mare');
+    t.auto('Chainbreaker');
+    const T = mk();
+    T.toMain('A');
+    const lm = T.put('A', 'Loch Mare', 'battlefield', { etb: true });
+    const cb = T.put('A', 'Chainbreaker', 'battlefield', { etb: true });
+    T.settle();
+    t.eq(lm.counters['-1/-1'], 3);
+    t.eq(cb.counters['-1/-1'], 2);
+  });
 };

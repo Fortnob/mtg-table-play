@@ -10713,7 +10713,8 @@
     if (/enters with twice X \+1\/\+1 counters/i.test(noReminder) && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: { xTimes: 2 } };
     let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
-    etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([a-z ]+?) counters?/i);
+    // (Loch Mare, Moonlit Lamenter: "-1/-1 counters" as well as named ones)
+    etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (-1\/-1|[a-z ]+?) counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
     /* Graft N (CR 702.58): it enters with N +1/+1 counters, and may hand
        one to each other creature as that creature enters */
