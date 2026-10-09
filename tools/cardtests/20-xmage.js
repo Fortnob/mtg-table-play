@@ -16052,4 +16052,19 @@ module.exports = (test) => {
     T.activate('A', sal, 0, { targets: [elf] });
     t.zone(elf, 'graveyard');
   });
+
+  test('Silkguard: Auras, Equipment and modified creatures you control gain hexproof', (mk, t) => {
+    t.auto('Silkguard');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    const sword = T.bf('A', 'Bonesplitter');
+    T.mana('A', 'GC');
+    T.cast('A', T.hand('A', 'Silkguard'), { x: 1, targets: [bear] });
+    T.settle();
+    t.eq(bear.counters['+1/+1'], 1);
+    t.ok(T.g.hasKw(bear, 'hexproof'), 'the Bears are modified now');
+    t.ok(T.g.hasKw(sword, 'hexproof'), 'an Equipment');
+    t.no(T.g.hasKw(elf, 'hexproof'), 'an unmodified creature does not');
+  });
 };

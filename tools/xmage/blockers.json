@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11370,
+  "needed": 11369,
   "gainedCards": 1130,
-  "linesNeeded": 12172,
+  "linesNeeded": 12171,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -146,11 +146,10 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 159,
-   "lines": 153,
+   "score": 158,
+   "lines": 152,
    "cards": [
     "Likeness Looter",
-    "Silkguard",
     "Chthonian Nightmare",
     "Tinybones, the Pickpocket",
     "Dance of the Manse",
@@ -160,7 +159,8 @@
     "Bronzebeak Foragers",
     "Afterlife from the Loam",
     "Demonic Junker",
-    "Kitesail Larcenist"
+    "Kitesail Larcenist",
+    "Guff Rewrites History"
    ]
   },
   {
@@ -6730,15 +6730,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 138,
-   "cards": 132,
+   "score": 137,
+   "cards": 131,
    "names": [
     "Likeness Looter",
-    "Silkguard",
     "Chthonian Nightmare",
     "Tinybones, the Pickpocket",
     "Dance of the Manse",
-    "Doppelgang"
+    "Doppelgang",
+    "Diluvian Primordial"
    ]
   },
   {

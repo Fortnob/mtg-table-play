@@ -3096,6 +3096,12 @@
     // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control get +2/+0 until end of turn"
     { re: /^Creatures attacking your opponents(?: and\/or planeswalkers they control)? get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true } }) },
+    // Silkguard: "Auras, Equipment, and modified creatures you control gain hexproof until end of turn."
+    { re: /^Auras, Equipment, and modified creatures you control gain (hexproof|indestructible|shroud) until end of turn\.?$/i,
+      make: (m) => { const kw = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+        return { op: 'sequence', list: [
+          { op: 'grantKeyword', keywords: [kw], duration: 'eot', scope: { who: 'you', what: 'permanent', subtypes: ['aura', 'equipment'] } },
+          { op: 'grantKeyword', keywords: [kw], duration: 'eot', scope: { who: 'you', what: 'creature', modified: true } }] }; } },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
