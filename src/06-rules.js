@@ -5102,7 +5102,15 @@
       const a = o.analysis();
       if (!a) return 0;
       const k = a.keywords.find(x => x.keyword.toLowerCase() === kw);
-      return k && k.arg ? (parseInt(k.arg, 10) || 0) : 0;
+      let v = k && k.arg ? (parseInt(k.arg, 10) || 0) : 0;
+      /* handed to it ("gains firebending 4 until end of turn"): each
+         instance adds up, its own words not counted twice */
+      const c = o.zone === 'battlefield' ? this.characteristics(o) : null;
+      if (c) for (const w of c.keywords) {
+        const m = /^([a-z ]+?) (\d+)$/.exec(w);
+        if (m && m[1] === kw && !(a.keywordSet && a.keywordSet.has(w))) v += +m[2];
+      }
+      return v;
     }
 
     /** Every ward price a permanent has: printed, or handed to it ("has ward {2}"). */

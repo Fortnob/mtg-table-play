@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12352,
+  "needed": 12351,
   "gainedCards": 1337,
-  "linesNeeded": 13446,
+  "linesNeeded": 13445,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -1181,18 +1181,6 @@
     "Widow's Bite",
     "Atlantis Attacks",
     "Helicarrier Strike"
-   ]
-  },
-  {
-   "what": "FirebendingAbility",
-   "score": 14,
-   "lines": 5,
-   "cards": [
-    "Fire Nation Palace",
-    "Sozin's Comet",
-    "Fire Nation Turret",
-    "Iroh, Dragon of the West",
-    "Fire Nation Cadets"
    ]
   },
   {
@@ -6406,6 +6394,17 @@
    ]
   },
   {
+   "what": "FirebendingAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Sozin's Comet",
+    "Fire Nation Turret",
+    "Iroh, Dragon of the West",
+    "Fire Nation Cadets"
+   ]
+  },
+  {
    "what": "AllianceAbility",
    "score": 4,
    "lines": 4,
@@ -7481,18 +7480,6 @@
     "Quag Feast",
     "Abuelo's Awakening",
     "Cloudspire Skycycle"
-   ]
-  },
-  {
-   "what": "FirebendingAbility",
-   "score": 14,
-   "cards": 5,
-   "names": [
-    "Fire Nation Palace",
-    "Sozin's Comet",
-    "Fire Nation Turret",
-    "Iroh, Dragon of the West",
-    "Fire Nation Cadets"
    ]
   },
   {
@@ -10807,6 +10794,17 @@
     "Double Major",
     "Choreographed Sparks",
     "Aziza, Mage Tower Captain"
+   ]
+  },
+  {
+   "what": "SetBasePowerSourceEffect with two values",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Toph, the Blind Bandit",
+    "Saheeli's Lattice // Mastercraft Raptor",
+    "Pallimud",
+    "Haunting Apparition"
    ]
   }
  ]

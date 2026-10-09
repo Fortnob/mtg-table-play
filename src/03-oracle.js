@@ -1724,6 +1724,12 @@
         duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
         scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+    /* Fire Nation Palace: "Target creature you control gains firebending 4
+       until end of turn" — a keyword with a number, which adds up */
+    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|CARDNAME|This creature|It|That creature) gains (firebending|annihilator|afflict|toxic) (\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'grantKeyword', keywords: [U.titleCase(m[2]) + ' ' + m[3]], duration: 'eot',
+        targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     /* the same for any other kind of target ("target permanent you
        control", "target legendary creature"), with keywords the table
        knows */

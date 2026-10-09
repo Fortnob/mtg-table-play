@@ -12188,4 +12188,14 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(w), 3);
     t.eq(ja.analysis().abilities.find(a => /^[-\u2212]X/.test(a.text)).effects[0].n.xTimes, 3, 'three times X');
   });
+
+  test('Fire Nation Palace: firebending 4 handed out adds to what is printed', (mk, t) => {
+    t.auto('Fire Nation Palace');
+    const T = mk();
+    const pal = T.bf('A', 'Fire Nation Palace');
+    const sage = T.bf('A', 'Fire Sages');
+    const fx = pal.analysis().abilities.find(a => a.kind === 'activated').effects;
+    T.g._runEffects(fx, { controller: 'A', obj: pal, name: 'Fire Nation Palace', kind: 'ability', targets: [{ kind: 'object', id: sage.id }] });
+    t.eq(T.g._kwArg(sage, 'firebending'), 5, 'one printed and four given');
+  });
 };
