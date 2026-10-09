@@ -288,6 +288,10 @@
 .ohand { display: flex; align-items: center; padding-left: 24px; position: relative; min-width: 30px; height: 56px; }
 .ohand .cv { --w: 38px; margin-left: -27px; cursor: default; }
 .ohand .cv:nth-child(odd) { rotate: -3deg; }
+/* a hand played revealed: face up, a little larger and further apart, each readable on hover */
+.ohand.revealed { padding-left: 30px; }
+.ohand.revealed .cv { --w: 46px; margin-left: -24px; rotate: 0deg; translate: 0 0; cursor: zoom-in; transition: translate var(--fast); }
+.ohand.revealed .cv:hover { translate: 0 6px; z-index: 2; }
 .ohand .cv:nth-child(even) { rotate: 3deg; translate: 0 2px; }
 .ohand .cv .cv-body { box-shadow: -2px 1px 4px rgba(0,0,0,.7); }
 .ohand .cv-face.back .back-ring { width: 52%; }

@@ -973,10 +973,14 @@
           el('div', { class: 'hud-sub', text: sub }),
         );
       }
-      // their hand: the backs, one per card, so a card leaving it is seen to leave
-      const backs = (p.hand || []).map(o => this.cardEl(Object.assign({ hidden: true }, o)));
+      // their hand: the backs, one per card, so a card leaving it is seen to
+      // leave; face up when it is revealed to you (Telepathy, Seer's Vision)
+      const shown = (p.hand || []).some(o => !o.hidden && o.card);
+      const backs = (p.hand || []).map(o => this.cardEl(!o.hidden && o.card ? o : Object.assign({ hidden: true }, o)));
       this.place(hud._hand, backs);
       hud._hand.dataset.n = String(p.handSize);
+      hud._hand.classList.toggle('revealed', shown);
+      hud._hand.title = shown ? 'Their hand, revealed' : 'Cards in hand';
       this.renderPiles(hud._piles, p, false);
       this.renderCommand(hud._cmd, p, false);
       this.paintFlags(hud._flags, p);
