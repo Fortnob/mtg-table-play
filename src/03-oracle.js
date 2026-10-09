@@ -5811,7 +5811,11 @@
         /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
       // "target creature with flying an opponent controls"
       const lc = left.match(/\s(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)\s*$/);
-      if (lc) { left = left.slice(0, lc.index); if (!spec.controller) spec.controller = /^you control/.test(lc[1]) ? 'you' : 'opponent'; }
+      if (lc) {
+        left = left.slice(0, lc.index);
+        if (!spec.controller) spec.controller = /^you control/.test(lc[1]) ? 'you' : 'opponent';
+        if (/^defending/.test(lc[1])) spec.defending = true;
+      }
       if (/[a-z]/.test(left.replace(/\b(?:and|or)\b/g, ''))) spec.unknown = true;
     }
     let rest = orig.slice(0, orig.length - withClause.length);
@@ -5821,6 +5825,8 @@
       /* Grenzo: "target creature that player controls" — the player the
          trigger is about, settled as the target is chosen on resolution */
       spec.controller = /^you control/i.test(ctl[1]) ? 'you' : /^that player/i.test(ctl[1]) ? 'triggerPlayer' : 'opponent';
+      // "target creature defending player controls": one opponent, the one attacked (settled when it is chosen)
+      if (/^defending/i.test(ctl[1])) spec.defending = true;
       rest = rest.slice(0, ctl.index);
     }
     const types = [];
@@ -11158,6 +11164,8 @@
       sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player)/i.test(W[1]) ? 'target' : 'opponents';
       // Cavern-Hoard Dragon: "for each artifact that player controls"
       if (/^that player/i.test(W[1])) sc.thatPlayer = true;
+      // Silumgar, the Drifting Death: "creatures defending player controls" — the one opponent attacked
+      if (/^defending/i.test(W[1])) sc.defending = true;
       rest = rest.slice(0, W.index);
     }
     // and what they have

@@ -2129,4 +2129,92 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Stone Rain'), { targets: [land] });
     t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
   });
+
+  test('Audit: "defending player controls" is the one opponent attacked, not every opponent (Master of Diversion, Silumgar)', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Master of Diversion');
+    T.toMain('A');
+    const m = T.bf('A', 'Master of Diversion'); m.summoningSick = false;
+    const bb = T.bf('B', 'Grizzly Bears'), cb = T.bf('C', 'Hill Giant');
+    let offered = null;
+    T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => { offered = (ch.options[0] || []).map(o => o.id); return { targets: [offered[0]] }; });
+    T.toMain('A', 'declareBlockers');
+    t.eq(JSON.stringify(offered), JSON.stringify([bb.id]), "only B's creature is offered");
+    t.ok(bb.tapped, "B's Bears tapped"); t.no(cb.tapped);
+    T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Silumgar, the Drifting Death');
+    T.toMain('A');
+    const d = T.bf('A', 'Shivan Dragon'); d.summoningSick = false;
+    T.bf('A', 'Silumgar, the Drifting Death');
+    const sb = T.bf('B', 'Grizzly Bears'), sc = T.bf('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: d.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.powerOf(sb), 1, "B's creatures get -1/-1");
+    t.eq(T.g.powerOf(sc), 2, "C's do not");
+  });
+
+  test('Audit: "defending player" through an Equipment, a count and an activated ability (Captain America\'s Shield, Terra Ravager, Ancient Hellkite)', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto("Captain America's Shield");
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const sh = T.bf('A', "Captain America's Shield");
+    sh.attachedTo = bear.id; bear.attachments = [sh.id];
+    T.g.bumpBoard();
+    const bc = T.bf('B', 'Hill Giant'), cc = T.bf('C', 'Grizzly Bears');
+    let offered = null;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'C' }]);
+    T.answer('pickTarget', (ch) => { offered = (ch.options[0] || []).map(o => o.id); return { targets: [offered[0]] }; });
+    T.toMain('A', 'declareBlockers');
+    t.eq(JSON.stringify(offered), JSON.stringify([cc.id]), "attacking C: only C's creature is offered");
+    t.ok(cc.tapped); t.no(bc.tapped);
+    T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Terra Ravager');
+    T.toMain('A');
+    const r = T.bf('A', 'Terra Ravager'); r.summoningSick = false;
+    T.bf('B', 'Mountain'); T.bf('B', 'Mountain');
+    for (let i = 0; i < 5; i++) T.bf('C', 'Forest');
+    T.answer('declareAttackers', () => [{ attackerId: r.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.powerOf(r), 2, "0/4 gets +X/+0 for B's two lands, not C's five");
+    T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Ancient Hellkite');
+    T.toMain('A');
+    const h = T.bf('A', 'Ancient Hellkite'); h.summoningSick = false;
+    const hb = T.bf('B', 'Grizzly Bears'), hc = T.bf('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: h.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.mana('A', 'R');
+    t.no(T.g.activateAbility('A', h.id, 0, { auto: true, targets: [{ kind: 'object', id: hc.id }] }), "C's creature is not defending");
+    T.mana('A', 'R');
+    T.activate('A', h, 0, { targets: [hb] });
+    t.eq(hb.damage, 1);
+  });
+
+  test('Audit: Hit targets one player in a three-player game: they sacrifice and take its mana value', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Hit // Run');
+    T.toMain('A');
+    T.bf('B', 'Hill Giant');
+    const g = T.bf('C', 'Hill Giant');
+    T.mana('A', '1BR');
+    T.cast('A', T.hand('A', 'Hit // Run'), { face: 0, targets: ['C'] });
+    t.zone(g, 'graveyard');
+    t.eq(T.life('C'), 16); t.eq(T.life('B'), 20);
+  });
+
+  test('Audit: a planeswalker with Way of the Pyromancer\'s ability still activates one loyalty ability a turn', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Way of the Pyromancer');
+    const pw = T.bf('A', 'Jace Beleren');
+    T.settle();
+    const all = pw.analysis().manaAbilities.concat(pw.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const idx = all.findIndex(a => /Add \{R\}/.test(a.text || ''));
+    T.activate('A', pw, idx);
+    const own = all.findIndex(a => /Each player draws a card/.test(a.text || ''));
+    t.ok(own >= 0);
+    t.no(T.g.activateAbility('A', pw.id, own, { auto: true }), 'a second loyalty ability this turn is refused');
+  });
 };

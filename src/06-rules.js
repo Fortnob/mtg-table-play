@@ -11498,6 +11498,13 @@
     _runEffect(e, ctx) {
       const me = this.player(ctx.controller);
       const src = ctx.obj;
+      /* "defending player": the one attacked by the creature this is about —
+         this one, or the attacker the trigger names (Silumgar, the Drifting Death) */
+      {
+        const d = ctx.triggerData || {};
+        const att = d.objectId && this.obj(d.objectId);
+        this._defendingPid = ((this._defenderOf(src) || this._defenderOf(att)) || {}).id || null;
+      }
       let targets = (ctx.resolvedTargets || ctx.targets || []);
       let sliced = false;
       /* "Destroy target artifact. Target player draws a card." Two
@@ -11606,7 +11613,8 @@
         const td = ctx.triggerData || {};
         const tp = ctx.chosenPlayer || td.drawer || td.player || td.deadController || td.playerId || '-';
         const aimed = e.targets.map(spec => (spec && spec.controller === 'triggerPlayer'
-          ? Object.assign({}, spec, { controller: undefined, controllerId: tp }) : spec))
+          ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
+          : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
           // Scrap Trawler: "with lesser mana value" than the one the trigger is about
           .map(spec => {
             if (!spec || !spec.mvBelowTrigger) return spec;
@@ -19817,6 +19825,7 @@
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
       if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
+      if (sc.defending && this._defendingPid && o.controller !== this._defendingPid) return false;
       if (sc.historic && !(oa.isLegendary || oa.isArtifact || (oa.subtypes || []).includes('Saga'))) return false;
       // Massacre Girl: "each creature other than <the one that made this>"
       if (sc.exceptId && o.id === sc.exceptId) return false;
@@ -21524,6 +21533,11 @@
       spec = spec || {};
       // Regicide, Custodi Peacekeeper: the colours or the number noted during the draft
       if (spec.notedColors || spec.notedMaxPower) return this._legalTargetsFor(this._notedSpec(spec, controllerId), controllerId, sourceId);
+      // "target creature defending player controls" chosen while its source attacks (Ancient Hellkite)
+      if (spec.defending && !spec.controllerId) {
+        const d = sourceId && this._defenderOf(this.obj(sourceId));
+        if (d) return this._legalTargetsFor(Object.assign({}, spec, { controllerId: d.id }), controllerId, sourceId);
+      }
       // Alesha: "with mana value less than or equal to CARDNAME's power", as it is now
       if (spec.maxMvSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
