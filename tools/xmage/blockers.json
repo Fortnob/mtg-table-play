@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12068,
+  "needed": 12062,
   "gainedCards": 1263,
-  "linesNeeded": 13087,
+  "linesNeeded": 13075,
   "linesGained": 1506,
   "gained": {
    "all": 1263,
@@ -526,25 +526,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Bilbo's Ring",
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "Nimble Brigand",
-    "Slippery Scoundrel",
-    "Waterlogged Hulk // Watertight Gondola",
-    "Become the Pilot",
-    "Queen Mother Ramonda"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -599,6 +580,25 @@
     "Tatsunari, Toad Rider",
     "Ant-Man, Elusive Avenger",
     "Exit Specialist"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola",
+    "Become the Pilot",
+    "Queen Mother Ramonda",
+    "Stature, Size Shifter"
    ]
   },
   {
@@ -1204,25 +1204,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Lord Skitter's Blessing",
-    "Ellivere of the Wild Court",
-    "Estrid, the Masked",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Beastmaster's Magemark",
-    "Necromancer's Magemark",
-    "Guardian's Magemark",
-    "Graceful Takedown",
-    "Fencer's Magemark",
-    "Time Elemental",
-    "Ramses Overdark"
-   ]
-  },
-  {
    "what": "prevent all, or only combat",
    "score": 14,
    "lines": 14,
@@ -1597,25 +1578,6 @@
    ]
   },
   {
-   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Meathook Massacre II",
-    "Yuna, Hope of Spira",
-    "Admiral Brass, Unsinkable",
-    "Coalstoke Gearhulk",
-    "The Revelations of Ezio",
-    "Prison Break",
-    "Perennation",
-    "Queen's Bay Paladin",
-    "Shuri's Fabricator",
-    "Graceful Restoration",
-    "Grim Reaper, Lethal Legionnaire",
-    "Generous Revival"
-   ]
-  },
-  {
    "what": "PutCounterOnPermanentTriggeredAbility",
    "score": 12,
    "lines": 12,
@@ -1651,25 +1613,6 @@
     "Crypt Lurker",
     "Anthropede",
     "Contract Hero"
-   ]
-  },
-  {
-   "what": "EquippedPredicate.instance",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Cloud, Ex-SOLDIER",
-    "Nahiri, Forged in Fury",
-    "Dáin Ironfoot",
-    "Barret Wallace",
-    "Stone Haven Outfitter",
-    "Syr Gwyn, Hero of Ashvale",
-    "Hexgold Hoverwings",
-    "Long-Lost Lances",
-    "Nazahn, Revered Bladesmith",
-    "Item Shopkeep",
-    "Swordsman, Sharp Scoundrel",
-    "Hemlock Vial"
    ]
   },
   {
@@ -2120,6 +2063,23 @@
    ]
   },
   {
+   "what": "EquippedPredicate.instance",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Cloud, Ex-SOLDIER",
+    "Nahiri, Forged in Fury",
+    "Dáin Ironfoot",
+    "Barret Wallace",
+    "Stone Haven Outfitter",
+    "Syr Gwyn, Hero of Ashvale",
+    "Nazahn, Revered Bladesmith",
+    "Item Shopkeep",
+    "Swordsman, Sharp Scoundrel",
+    "Hemlock Vial"
+   ]
+  },
+  {
    "what": "PermanentsEnterBattlefieldTappedEffect",
    "score": 10,
    "lines": 10,
@@ -2182,6 +2142,23 @@
     "Glen Elendra Pranksters",
     "Dream Spoilers",
     "Dreamspoiler Witches"
+   ]
+  },
+  {
+   "what": "EnchantedPredicate.instance",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Lord Skitter's Blessing",
+    "Ellivere of the Wild Court",
+    "Estrid, the Masked",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental",
+    "Ramses Overdark",
+    "Cut the Earthly Bond",
+    "Venomous Vines"
    ]
   },
   {
@@ -2311,6 +2288,22 @@
    ]
   },
   {
+   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Meathook Massacre II",
+    "Admiral Brass, Unsinkable",
+    "Coalstoke Gearhulk",
+    "The Revelations of Ezio",
+    "Prison Break",
+    "Perennation",
+    "Graceful Restoration",
+    "Grim Reaper, Lethal Legionnaire",
+    "Generous Revival"
+   ]
+  },
+  {
    "what": "amount from a count",
    "score": 9,
    "lines": 9,
@@ -2340,22 +2333,6 @@
     "You Meet in a Tavern",
     "Nissa, Genesis Mage",
     "Ayesha Tanaka, Armorer"
-   ]
-  },
-  {
-   "what": "FilterPermanentThisOrAnother",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Yuna, Hope of Spira",
-    "Esoteric Duplicator",
-    "Experiment Twelve",
-    "Printlifter Ooze",
-    "Pyrotechnic Performer",
-    "King of the Oathbreakers",
-    "Kingpin, Wilson Fisk",
-    "True Identity",
-    "Pine Walker"
    ]
   },
   {
@@ -2962,6 +2939,21 @@
     "Brand",
     "Aura Thief",
     "Gruul Charm"
+   ]
+  },
+  {
+   "what": "FilterPermanentThisOrAnother",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Esoteric Duplicator",
+    "Experiment Twelve",
+    "Printlifter Ooze",
+    "Pyrotechnic Performer",
+    "King of the Oathbreakers",
+    "Kingpin, Wilson Fisk",
+    "True Identity",
+    "Pine Walker"
    ]
   },
   {
@@ -6962,8 +6954,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3553,
-   "cards": 3385,
+   "score": 3554,
+   "cards": 3386,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7596,6 +7588,19 @@
    ]
   },
   {
+   "what": "keyword EquipAbility",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Robe of the Archmagi",
+    "My Precious // Allure of Power",
+    "Nightmare Lash",
+    "Transmogrant's Crown",
+    "Team Pennant",
+    "Demonmail Hauberk"
+   ]
+  },
+  {
    "what": "prevent damage by some permanents",
    "score": 12,
    "cards": 12,
@@ -7696,19 +7701,6 @@
    ]
   },
   {
-   "what": "keyword EquipAbility",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Robe of the Archmagi",
-    "Nightmare Lash",
-    "Transmogrant's Crown",
-    "Team Pennant",
-    "Demonmail Hauberk",
-    "Bloodthorn Flail"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 11,
    "cards": 11,
@@ -7745,19 +7737,6 @@
     "Fancy Footwork",
     "Wanderwine Farewell",
     "Become Brutes"
-   ]
-  },
-  {
-   "what": "EnchantedPredicate.instance",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Lord Skitter's Blessing",
-    "Ellivere of the Wild Court",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Guardian's Magemark",
-    "Graceful Takedown"
    ]
   },
   {
@@ -8107,6 +8086,19 @@
    ]
   },
   {
+   "what": "EnchantedPredicate.instance",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Lord Skitter's Blessing",
+    "Ellivere of the Wild Court",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental"
+   ]
+  },
+  {
    "what": "activated with 2 effects in its constructor",
    "score": 9,
    "cards": 9,
@@ -8156,19 +8148,6 @@
     "Skarrgan Firebird",
     "Proctor of Potential",
     "Kuldotha Phoenix"
-   ]
-  },
-  {
-   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Admiral Brass, Unsinkable",
-    "Coalstoke Gearhulk",
-    "The Revelations of Ezio",
-    "Prison Break",
-    "Perennation",
-    "Queen's Bay Paladin"
    ]
   },
   {
@@ -8458,6 +8437,19 @@
    ]
   },
   {
+   "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Admiral Brass, Unsinkable",
+    "Coalstoke Gearhulk",
+    "The Revelations of Ezio",
+    "Prison Break",
+    "Perennation",
+    "Graceful Restoration"
+   ]
+  },
+  {
    "what": "keyword FlyingAbility",
    "score": 8,
    "cards": 8,
@@ -8494,6 +8486,19 @@
     "Safe Haven",
     "Parallax Tide",
     "Helvault"
+   ]
+  },
+  {
+   "what": "BecomesBlockedAllTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Norin, Swift Survivalist",
+    "She-Hulk, Wallbreaker",
+    "Labyrinth Raptor",
+    "Ib Halfheart, Goblin Tactician",
+    "Spined Sliver",
+    "Tattered Ratter"
    ]
   },
   {
@@ -8683,19 +8688,6 @@
     "Happily Ever After",
     "Near-Death Experience",
     "Battle of Wits"
-   ]
-  },
-  {
-   "what": "EquippedPredicate.instance",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Nahiri, Forged in Fury",
-    "Barret Wallace",
-    "Stone Haven Outfitter",
-    "Hexgold Hoverwings",
-    "Long-Lost Lances",
-    "Item Shopkeep"
    ]
   },
   {
@@ -8891,19 +8883,6 @@
     "Omnath, Locus of the Void",
     "Greven, Predator Captain",
     "Dark Matter Manipulator"
-   ]
-  },
-  {
-   "what": "BecomesBlockedAllTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Norin, Swift Survivalist",
-    "She-Hulk, Wallbreaker",
-    "Labyrinth Raptor",
-    "Ib Halfheart, Goblin Tactician",
-    "Spined Sliver",
-    "Tattered Ratter"
    ]
   },
   {
@@ -9881,6 +9860,18 @@
    ]
   },
   {
+   "what": "EquippedPredicate.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Nahiri, Forged in Fury",
+    "Barret Wallace",
+    "Stone Haven Outfitter",
+    "Item Shopkeep",
+    "Hemlock Vial"
+   ]
+  },
+  {
    "what": "CastAsThoughItHadFlashIfConditionAbility",
    "score": 5,
    "cards": 5,
@@ -10214,6 +10205,18 @@
     "Visions of Duplicity",
     "Shrewd Negotiation",
     "Phyrexian Infiltrator"
+   ]
+  },
+  {
+   "what": "token ability VibraniumToken",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "The Great Mound",
+    "Vibranium Mining Mech",
+    "Shuri's Fabricator",
+    "T'Challa, the Black Panther",
+    "Dora Milaje Elite"
    ]
   },
   {
@@ -10694,17 +10697,6 @@
     "Emissary of Despair",
     "Final Punishment",
     "Burden of Greed"
-   ]
-  },
-  {
-   "what": "PlayFromTopOfLibraryEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Glarb, Calamity's Augur",
-    "Elsha of the Infinite",
-    "Errant and Giada",
-    "Galea, Kindler of Hope"
    ]
   }
  ]

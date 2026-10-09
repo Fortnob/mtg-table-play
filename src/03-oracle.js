@@ -1255,6 +1255,9 @@
     // Chthonian Nightmare: "Return target creature card with mana value X from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Yuna, Hope of Spira: "return up to one target enchantment card from your graveyard to the battlefield with a finality counter on it"
+    { re: /^Return (up to one )?(target [a-z ]+?) card from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
+      make: (m) => { const t = tgt(m[2]); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' }, m[1] ? { upTo: true } : {})] } : null; } },
     // Season of the Burrow: "… mana value 3 or less from your graveyard to the battlefield with an indestructible counter on it"
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -11266,6 +11269,28 @@
     if (also) {
       const again = parseStatic(also[1] + ' ' + also[2] + ' ' + also[3], ctx);
       if (again && again.auto) return Object.assign({}, again, { text: line });
+    }
+    /* Two standing rules in one sentence, each read on its own and kept
+       together: Bilbo's Ring "equipped creature has hexproof and can't be
+       blocked"; Yuna "CARDNAME and enchantment creatures you control have
+       trample, lifelink, and ward {2}" */
+    const both = (a1, a2) => {
+      const x = parseStatic(a1, ctx), y = parseStatic(a2, ctx);
+      return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
+    };
+    let mm2;
+    if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) has ([a-z ,]+?) and can'?t be blocked\.?$/i))) {
+      const r = both(mm2[1] + ' has ' + mm2[2] + '.', mm2[1] + " can't be blocked.");
+      if (r) return r;
+    }
+    if ((mm2 = String(line).match(/^(CARDNAME|This creature) and ((?:other )?[a-z ]+? you control) have ([^.]+?)\.?$/i))) {
+      const r = both(mm2[1] + ' has ' + mm2[3] + '.', mm2[2].charAt(0).toUpperCase() + mm2[2].slice(1) + ' have ' + mm2[3] + '.');
+      if (r) return r;
+    }
+    // Long-Lost Lances: "creatures you control that are equipped" are equipped creatures you control
+    if ((mm2 = String(line).match(/^(Creatures you control) that are (equipped|enchanted) (have|get) (.+)$/i))) {
+      const r = parseStatic(mm2[2].charAt(0).toUpperCase() + mm2[2].slice(1) + ' creatures you control ' + mm2[3] + ' ' + mm2[4], ctx);
+      if (r && r.auto) return Object.assign({}, r, { text: line });
     }
     /* Guardian Naga, Frodo, Determined Hero: "During your turn, prevent all
        damage that would be dealt to this creature." — any standing rule the

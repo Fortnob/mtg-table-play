@@ -13150,4 +13150,16 @@ module.exports = (test) => {
     T.g.dealDamageToObject(n, 3, src);
     t.eq(n.damage, 3, 'not on theirs');
   });
+
+  test('Yuna, Hope of Spira: keywords for her and enchantment creatures on your turn; Long-Lost Lances', (mk, t) => {
+    t.auto('Yuna, Hope of Spira'); t.auto('Long-Lost Lances');
+    const T = mk();
+    T.toMain('A');
+    const y = T.bf('A', 'Yuna, Hope of Spira');
+    t.ok(T.g.hasKw(y, 'trample') && T.g.hasKw(y, 'lifelink'), 'on your turn');
+    T.toMain('B');
+    t.ok(!T.g.hasKw(y, 'trample'), 'not on theirs');
+    const st = engine().oracle.analyze(card('Long-Lost Lances')).abilities.find(a => a.kind === 'static' && /equipped/.test(a.text));
+    t.ok(JSON.stringify(st.effects).includes('"equipped":true'), 'equipped creatures you control');
+  });
 };
