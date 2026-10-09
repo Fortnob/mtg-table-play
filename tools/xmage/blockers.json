@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12394,
+  "needed": 12391,
   "gainedCards": 1348,
-  "linesNeeded": 13511,
+  "linesNeeded": 13504,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4446,
-   "lines": 4110,
+   "score": 4438,
+   "lines": 4108,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -42,12 +42,12 @@
     "Beseech the Mirror",
     "Promise of Loyalty",
     "Mechanized Production",
-    "Kodama of the East Tree",
     "Marvin, Murderous Mimic",
-    "Ugin, the Ineffable",
     "Skrelv, Defector Mite",
     "The Darkness Crystal",
-    "Wheel of Misfortune"
+    "Wheel of Misfortune",
+    "Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel",
+    "Lethal Scheme"
    ]
   },
   {
@@ -447,17 +447,6 @@
     "Haunt the Network",
     "Beastie Beatdown",
     "Fatal Fissure"
-   ]
-  },
-  {
-   "what": "filter:colored",
-   "score": 26,
-   "lines": 5,
-   "cards": [
-    "Ugin, the Ineffable",
-    "Ugin, Eye of the Storms",
-    "Devourer of Destiny",
-    "Reach of Shadows"
    ]
   },
   {
@@ -7048,12 +7037,23 @@
     "Gorilla Berserkers",
     "Giant Solifuge"
    ]
+  },
+  {
+   "what": "FightEnchantedTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Meltstrider's Resolve",
+    "Cartouche of Strength",
+    "Warbriar Blessing",
+    "Pitiless Fists"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3629,
+   "score": 3635,
    "cards": 3416,
    "names": [
     "Tibalt's Trickery",
@@ -9070,6 +9070,19 @@
    ]
   },
   {
+   "what": "ChancellorAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Devourer of Destiny",
+    "Sphinx of Foresight",
+    "Chancellor of the Spires",
+    "Chancellor of the Forge",
+    "Chancellor of the Tangle",
+    "Chancellor of the Dross"
+   ]
+  },
+  {
    "what": "GainControlAllEffect",
    "score": 7,
    "cards": 7,
@@ -9711,19 +9724,6 @@
     "Mystic Decree",
     "Blind Fury",
     "Wind Shear"
-   ]
-  },
-  {
-   "what": "ChancellorAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Sphinx of Foresight",
-    "Chancellor of the Spires",
-    "Chancellor of the Forge",
-    "Chancellor of the Tangle",
-    "Chancellor of the Dross",
-    "Providence"
    ]
   },
   {

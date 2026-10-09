@@ -10000,6 +10000,14 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      // Ugin, the Ineffable: the Spirit leaving brings its exiled card to its controller's hand
+      if (from === 'battlefield' && toZone !== 'battlefield' && o._uginCard) {
+        const c = this.obj(o._uginCard);
+        o._uginCard = null;
+        if (c && c.zone === 'exile') { c.faceDownExile = false; this.moveObject(c, 'hand'); }
+      }
+      // (Kodama of the East Tree's mark lasts only while the permanent stays)
+      if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
       // out of exile, an adventure is over
       if (from === 'exile' && toZone !== 'exile') o.adventureBy = null;
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
@@ -14639,6 +14647,34 @@
             this._castFree(ctx.controller, dup, { how: `(a copy of ${c.name}) without paying its mana cost` });
             this.stack[this.stack.length - 1].isCopy = true;
           }
+          break;
+        }
+        // Ugin, the Ineffable: a card face down in exile, and a Spirit that brings it back
+        case 'uginSpirit': {
+          const top = this.zones[ctx.controller].library[0];
+          if (top) { this.moveObject(top, 'exile'); top.faceDownExile = true; top.lookableBy = ctx.controller; }
+          const before = new Set(this.battlefield.map(x => x.id));
+          this._createToken(ctx.controller, { n: 1, pt: '2/2', colorWords: ['colorless'], subtypes: 'Spirit', keywords: [] });
+          const tok = this.battlefield.find(x => !before.has(x.id) && x.controller === ctx.controller);
+          if (tok && top) tok._uginCard = top.id;
+          break;
+        }
+        // Kodama of the East Tree: a permanent card from hand no costlier than what entered
+        case 'kodamaPut': {
+          const td = ctx.triggerData || {};
+          const it = td.objectId && this.obj(td.objectId);
+          if (!it || (src && it._kodamaPut === src.id)) break;
+          const cap = (it.card && it.card.cmc) || 0;
+          const pool = this.zones[ctx.controller].hand.filter(c => (c.analysis() || {}).isPermanent && ((c.card && c.card.cmc) || 0) <= cap);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'putFromHand', kind: 'objects', zone: 'hand',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}put a permanent card with mana value ${cap} or less from your hand onto the battlefield?` }, 'kod');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          if (!x || x.zone !== 'hand') break;
+          if (src) x._kodamaPut = src.id;
+          this.moveObject(x, 'battlefield', { controller: ctx.controller });
           break;
         }
         // Mordenkainen: hand and library change places

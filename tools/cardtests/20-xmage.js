@@ -11872,4 +11872,27 @@ module.exports = (test) => {
     T2.settle();
     t.eq(gy.zone, 'battlefield');
   });
+
+  test('Ugin, the Ineffable: the Spirit brings its card back; -3 on a coloured permanent; Kodama of the East Tree', (mk, t) => {
+    t.auto('Ugin, the Ineffable'); t.auto('Kodama of the East Tree');
+    const T = mk();
+    const ug = T.bf('A', 'Ugin, the Ineffable');
+    const top = T.top('A', 'Craw Wurm');
+    const ab = ug.analysis().abilities.filter(a => a.kind === 'loyalty');
+    T.g._runEffects(ab[0].effects, { controller: 'A', obj: ug, name: 'Ugin', kind: 'ability' });
+    t.eq(top.zone, 'exile');
+    const sp = T.g.battlefield.find(o => o.isToken && o.controller === 'A');
+    T.g.moveObject(sp, 'graveyard');
+    t.eq(top.zone, 'hand', 'back when the Spirit left');
+    const thop = T.bf('B', 'Ornithopter');
+    const spec = ab[1].effects[0].targets[0];
+    t.no(T.g._legalTargetsFor(spec, 'A', ug.id).some(x => x.id === thop.id), 'colourless is not a target');
+    const T2 = mk();
+    const kd = T2.bf('A', 'Kodama of the East Tree');
+    const big = T2.hand('A', 'Craw Wurm'), small = T2.hand('A', 'Grizzly Bears');
+    T2.answer('choose', (ch) => { t.no(ch.items.some(x => x.id === big.id), 'only mana value 3 or less'); return { picks: [small.id] }; });
+    const cc = T2.bf('A', 'Centaur Courser', { etb: true });
+    T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
+    t.eq(small.zone, 'battlefield');
+  });
 };

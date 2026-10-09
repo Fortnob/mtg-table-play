@@ -4979,11 +4979,15 @@
     // Drown in the Loch: "with mana value less than or equal to the number of cards in its controller's graveyard"
     const ctlGy = /\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i.test(String(phrase));
     if (ctlGy) phrase = String(phrase).replace(/\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i, '');
+    // Ugin, the Ineffable: "target permanent that's one or more colors"
+    const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
+    if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
     if (damaged) spec.damagedThisTurn = true;
     if (ctlGy) spec.mvAtMostCtlGy = true;
+    if (colored) spec.colored = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
     if (/^(?:another|other) target /i.test(String(phrase).trim()) || /^any other target$/.test(p)) spec.another = true;
@@ -5184,6 +5188,7 @@
     if (spec.colors && !spec.colors.some(c => cols.includes(c))) return false;
     if (spec.notColors && spec.notColors.some(c => cols.includes(c))) return false;
     if (spec.colorless && cols.length) return false;
+    if (spec.colored && !cols.length) return false;
     if (spec.multicolored && cols.length < 2) return false;
     if (spec.monocolored && cols.length !== 1) return false;
     if (spec.controller === 'you' && obj.controller !== me) return false;
@@ -5447,6 +5452,16 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Ugin, the Ineffable: "Exile the top card of your library face down and
+       look at it. Create a 2/2 colorless Spirit creature token. When that
+       token leaves the battlefield, put the exiled card into your hand." */
+    { re: /^Exile the top card of your library face down and look at it\. Create a 2\/2 colorless Spirit creature token\. When that token leaves the battlefield, put the exiled card into your hand\.$/i,
+      make: () => [{ op: 'uginSpirit' }] },
+    /* Kodama of the East Tree: "if it wasn't put onto the battlefield with
+       this ability, you may put a permanent card with equal or lesser mana
+       value from your hand onto the battlefield." */
+    { re: /^(?:if it wasn'?t put onto the battlefield with this ability, )?you may put a permanent card with equal or lesser mana value from your hand onto the battlefield\.$/i,
+      make: () => [{ op: 'kodamaPut' }] },
     /* Moraug, Fury of Akoum: "if it's your main phase, there's an additional
        combat phase after this phase. At the beginning of that combat, untap
        all creatures you control." */
