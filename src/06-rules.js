@@ -18991,6 +18991,8 @@
       if (sc.subtypes && !sc.subtypes.some(st => (oa.subtypes || []).some(t => t.toLowerCase() === st) ||
           (oa.keywordSet && oa.keywordSet.has('changeling')))) return false;
       if (sc.notSubtype && (oa.subtypes || []).some(t => t.toLowerCase() === sc.notSubtype)) return false;
+      // Whelming Wave: "except for Krakens, Leviathans, Octopuses, and Serpents"
+      if (sc.notSubtypes && (oa.subtypes || []).some(t => sc.notSubtypes.includes(t.toLowerCase()))) return false;
       // (Season of Gathering: a card type chosen as it resolved)
       if (sc.chosenType && src && src.chosenCardType && !src.chosenType) { if (!(oa.types || []).includes(src.chosenCardType)) return false; }
       else if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||

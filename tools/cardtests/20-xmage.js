@@ -12547,4 +12547,28 @@ module.exports = (test) => {
     T.settle();
     t.eq(elf.zone, 'battlefield'); t.ok(!offered || !offered.includes(wurm.id), 'not the Wurm');
   });
+
+  test('Whelming Wave spares the sea creatures; Harvest Season counts tapped creatures', (mk, t) => {
+    t.auto('Whelming Wave'); t.auto('Harvest Season');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'), serp = T.bf('B', 'Coral Eel');
+    const eelType = (serp.analysis().subtypes || []).join(' ');
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Whelming Wave'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(bear.zone, 'hand');
+    t.eq(serp.zone, /Fish/.test(eelType) ? 'hand' : 'battlefield', 'a Fish is no Serpent');
+    const k = T.bf('B', 'Kraken Hatchling');
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Whelming Wave'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(k.zone, 'battlefield', 'the Kraken stays');
+    const c1 = T.bf('A', 'Grizzly Bears'), c2 = T.bf('A', 'Savannah Lions'); c1.tapped = true; c2.tapped = true;
+    for (let i = 0; i < 3; i++) T.top('A', 'Forest');
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.slice(0, 2).map(c => c.id) }));
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Harvest Season'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Forest').length, 2, 'two tapped creatures, two Forests');
+  });
 };

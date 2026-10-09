@@ -5918,9 +5918,24 @@
        put it into your hand." */
     { re: /^Choose target creature card in your graveyard\. If that card'?s mana value is less than or equal to the number of experience counters you have, return it to the battlefield\. Otherwise, put it into your hand\.$/i,
       make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
+    /* Whelming Wave: "Return all creatures to their owners' hands except for
+       Krakens, Leviathans, Octopuses, and Serpents." */
+    { re: /^(Return all creatures to their owners'? hands|Destroy all creatures) except for ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? and )?[A-Z][a-z]+)\.?$/,
+      make: (m) => {
+        const kinds = m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(w => singularType(w.trim().toLowerCase())).filter(Boolean);
+        const scope = { who: 'all', what: 'creature', notSubtypes: kinds };
+        return /^Return/.test(m[1]) ? [{ op: 'bounceAll', scope, what: 'creature' }] : [{ op: 'destroyAll', scope, what: 'creature', noRegen: false }];
+      } },
     /* Traverse the Outlands: "Search your library for up to X basic land
        cards, where X is the greatest power among creatures you control. Put
        those cards onto the battlefield tapped, then shuffle." */
+    // (Harvest Season: the same in one sentence, "…, where X is the number of tapped creatures you control, put those cards …")
+    { re: /^Search your library for up to X ([a-z ]+?) cards, where X is ([^.,]+), put (?:those cards|them) onto the battlefield( tapped)?, then shuffle\.$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        if (k == null) return null;
+        return [{ op: 'tutor', n: k, upTo: true, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], prompt: `Search your library for ${m[1].toLowerCase()} cards.` }];
+      } },
     { re: /^Search your library for up to X ([a-z ]+?) cards, where X is ([^.]+)\. Put those cards onto the battlefield( tapped)?, then shuffle\.$/i,
       make: (m) => {
         const k = amountOf(m[2]);
