@@ -12051,4 +12051,14 @@ module.exports = (test) => {
     t.eq(foe.zone, 'graveyard'); t.ok(b1.tapped && b2.tapped, 'both convoked');
     t.eq(T.g.log.filter(l => / connives\./.test(l.text || '')).length, 2, 'each connived');
   });
+
+  test('Call the Coppercoats: a Soldier for each creature the targeted opponents control', (mk, t) => {
+    t.auto('Call the Coppercoats');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Savannah Lions'); T.bf('C', 'Craw Wurm');
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Call the Coppercoats'), { targets: [{ kind: 'player', id: 'B' }, { kind: 'player', id: 'C' }] });
+    T.settle(); T.resolve();
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.isToken).length, 3);
+  });
 };

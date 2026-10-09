@@ -5457,6 +5457,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Call the Coppercoats (strive): "Choose any number of target opponents.
+       Create X 1/1 white Human Soldier creature tokens, where X is the number
+       of creatures those opponents control." */
+    { re: /^Choose any number of target opponents\. (Create X [^.]+?), where X is the number of creatures those opponents control\.$/i,
+      make: (m) => {
+        const tok = parseSentenceList(splitSentences(m[1] + '.'));
+        if (!tok.auto || tok.effects.length !== 1 || tok.effects[0].op !== 'createToken') return null;
+        return [Object.assign({}, tok.effects[0], { n: { creaturesOfTargetPlayers: true }, anyFrom: { type: 'player', opponent: true } })];
+      } },
     // Lethal Scheme: "Destroy target creature or planeswalker. Each creature that convoked this spell connives."
     { re: /^([^.]+\.) Each creature that convoked this spell connives\.$/i,
       make: (m) => { const pre = parseSentenceList(splitSentences(m[1])); return pre.auto ? [...pre.effects, { op: 'conniveConvokers' }] : null; } },

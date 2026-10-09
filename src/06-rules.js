@@ -11251,6 +11251,11 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // Call the Coppercoats: the creatures the targeted players control
+        if (v && typeof v === 'object' && v.creaturesOfTargetPlayers) {
+          const ids = new Set(targets.filter(t => t.kind === 'player').map(t => t.id));
+          return this.battlefield.filter(o => ids.has(o.controller) && !o.phasedOut && (this.characteristics(o) || {}).isCreature).length;
+        }
         // Shatterskull Smashing: X, or twice X once X is big enough
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
         // Pitiless Carnage: "that many" — how many were just sacrificed

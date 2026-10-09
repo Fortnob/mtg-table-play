@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12391,
+  "needed": 12390,
   "gainedCards": 1348,
-  "linesNeeded": 13502,
+  "linesNeeded": 13501,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -676,25 +676,6 @@
    ]
   },
   {
-   "what": "target count 0",
-   "score": 19,
-   "lines": 16,
-   "cards": [
-    "Call the Coppercoats",
-    "Court of Cunning",
-    "Riverchurn Monument",
-    "Communal Brewing",
-    "Tinybones Joins Up",
-    "Wheel and Deal",
-    "Jace, Memory Adept",
-    "Officious Interrogation",
-    "Ral Zarek, Guest Lecturer",
-    "Hollow Marauder",
-    "Cabal Conditioning",
-    "Memory Vampire"
-   ]
-  },
-  {
    "what": "custom cost",
    "score": 19,
    "lines": 19,
@@ -1048,6 +1029,25 @@
     "Erosion",
     "Feedback",
     "Curse Artifact"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Court of Cunning",
+    "Riverchurn Monument",
+    "Communal Brewing",
+    "Tinybones Joins Up",
+    "Wheel and Deal",
+    "Jace, Memory Adept",
+    "Officious Interrogation",
+    "Ral Zarek, Guest Lecturer",
+    "Hollow Marauder",
+    "Cabal Conditioning",
+    "Memory Vampire",
+    "Reward the Faithful"
    ]
   },
   {
@@ -7470,19 +7470,6 @@
    ]
   },
   {
-   "what": "target count 0",
-   "score": 15,
-   "cards": 12,
-   "names": [
-    "Call the Coppercoats",
-    "Court of Cunning",
-    "Tinybones Joins Up",
-    "Wheel and Deal",
-    "Jace, Memory Adept",
-    "Officious Interrogation"
-   ]
-  },
-  {
    "what": "PreventAllDamageToAllEffect",
    "score": 15,
    "cards": 12,
@@ -7798,6 +7785,19 @@
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Mirror Room // Fractured Realm"
+   ]
+  },
+  {
+   "what": "target count 0",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Court of Cunning",
+    "Tinybones Joins Up",
+    "Wheel and Deal",
+    "Jace, Memory Adept",
+    "Officious Interrogation",
+    "Hollow Marauder"
    ]
   },
   {
