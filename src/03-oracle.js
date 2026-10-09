@@ -10380,6 +10380,8 @@
           const wx = (list) => (list || []).forEach(e => { if (!e) return; for (const k of ['n']) if (e[k] === 'X') e[k] = { triggerSpellX: true }; wx(e.then); wx(e.list); });
           wx(parsed.effects);
         }
+        // Ashnod's Intervention: "return it to its owner's hand" after dying or being exiled — from either (exiledFromBf)
+        if (trig.also === 'exiledFromBf') for (const e of parsed.effects) if (e && e.op === 'selfFromGraveyard') e.orExile = true;
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }
           // Zendikons: "return that card to its owner's hand" — the land that died

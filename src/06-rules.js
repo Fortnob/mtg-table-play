@@ -17225,7 +17225,8 @@
              spell as it resolves — it goes to its owner's hand instead of the
              graveyard once it has finished */
           if (src && src.zone === 'stack' && e.to === 'hand' && ctx.obj === src) { ctx.returnsToHand = true; break; }
-          if (!src || src.zone !== (e.from || 'graveyard')) break;
+          // Ashnod's Intervention: "dies or is put into exile" — from wherever it went (exiledFromBf)
+          if (!src || !(src.zone === (e.from || 'graveyard') || (e.orExile && src.zone === 'exile'))) break;
           // "…converted", "…transformed": its back face up
           if (e.transformed && e.to === 'battlefield' && src.card.card_faces && src.card.card_faces.length > 1) { src.face = 1; src._chr = null; }
           this.moveObject(src, e.to === 'battlefield' ? 'battlefield' : 'hand',

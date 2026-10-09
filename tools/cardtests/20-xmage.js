@@ -16862,4 +16862,20 @@ module.exports = (test) => {
     T2.cast('A', ap);
     t.eq(T2.g.zones.A.library.indexOf(ap), 6, 'seventh from the top');
   });
+
+  test("Ashnod's Intervention: back to its owner's hand whether it dies or is exiled", (mk, t) => {
+    t.auto("Ashnod's Intervention");
+    for (const how of ['die', 'exile']) {
+      const T = mk();
+      T.toMain('A');
+      const bear = T.bf('A', 'Grizzly Bears');
+      T.mana('A', 'B');
+      T.cast('A', T.hand('A', "Ashnod's Intervention"), { targets: [bear] });
+      T.settle();
+      if (how === 'die') { T.mana('A', 'BBC'); T.cast('A', T.hand('A', 'Murder'), { targets: [bear] }); }
+      else { T.mana('A', 'W'); T.cast('A', T.hand('A', 'Swords to Plowshares'), { targets: [bear] }); }
+      T.settle(); T.resolve(); T.settle();
+      t.zone(bear, 'hand', how);
+    }
+  });
 };
