@@ -165,7 +165,7 @@
     if (artReg.by[key]) return artReg.by[key];
     for (const c of candidates || []) {
       if (!c || !c.url) continue;
-      const id = c.ill || c.url;
+      const id = c.ill ? String(c.ill).replace(/-/g, '').slice(0, 8).toLowerCase() : c.url;
       if (artReg.ill[id] && artReg.ill[id] !== key) continue;
       artReg.by[key] = { url: c.url, name: c.name || '', ill: id };
       artReg.ill[id] = key;
