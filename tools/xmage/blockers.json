@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11440,
+  "needed": 11436,
   "gainedCards": 1134,
-  "linesNeeded": 12256,
+  "linesNeeded": 12252,
   "linesGained": 1345,
   "gained": {
    "all": 1134,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4239,
-   "lines": 3978,
+   "score": 4238,
+   "lines": 3977,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6165,17 +6165,6 @@
    ]
   },
   {
-   "what": "PreventDamageByChosenSourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Prahv, Spires of Order",
-    "Pay No Heed",
-    "Burrenton Forge-Tender",
-    "Ajani's Aid"
-   ]
-  },
-  {
    "what": "ZuberasDiedDynamicValue.instance",
    "score": 4,
    "lines": 4,
@@ -6719,13 +6708,23 @@
     "Blessed Sanctuary",
     "Drogskol Reinforcements"
    ]
+  },
+  {
+   "what": "CantPayLifeOrSacrificeAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Angel of Jubilation",
+    "Yasharn, Implacable Earth",
+    "Karn's Sylex"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3529,
-   "cards": 3349,
+   "score": 3528,
+   "cards": 3348,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

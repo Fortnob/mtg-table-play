@@ -13797,10 +13797,17 @@
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'preventSource', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 1, max: 1, sourceId: src ? src.id : null, sourceName: ctx.name || null,
-            prompt: `Choose a ${e.color ? ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[e.color] + ' ' : ''}source: the next damage it would deal you this turn is prevented.` }, 'src');
+            prompt: e.all ? `Choose a source: all damage it would deal${e.to === 'you' ? ' to you' : e.to === 'self' && src ? ' to ' + src.name : ''} this turn is prevented.`
+              : `Choose a ${e.color ? ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[e.color] + ' ' : ''}source: the next damage it would deal you this turn is prevented.` }, 'src');
           if (got === SUSPEND) return SUSPEND;
           const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
           if (!x) break;
+          // Rith's Charm: all of it, to anything (or to you, or to this creature), for the turn
+          if (e.all) {
+            this.prevention.push({ to: e.to === 'you' ? 'you' : null, toObj: e.to === 'self' && src ? src.id : null, who: ctx.controller, sourceId: x.id, until: 'eot' });
+            this.logEvent('rules', `${me.name} chooses ${x.name}: all damage it would deal${e.to === 'you' ? ' to ' + me.name : e.to === 'self' && src ? ' to ' + src.name : ''} this turn is prevented.`);
+            break;
+          }
           this.prevention.push({ to: 'you', who: ctx.controller, sourceId: x.id, once: true, until: 'eot',
             gainLife: !!e.gainLife, reflect: e.reflect ? (src ? src.id : null) || true : null });
           this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal ${me.name} this turn is prevented.`);
@@ -20425,6 +20432,7 @@
       for (const pv of this.prevention) {
         if (pv.combatOnly && !isCombat) continue;
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
+        if (pv.toObj && !(target && target.id === pv.toObj)) continue;
         // Ethereal Haze and its kin: by creatures, by attackers, to creatures, to yours
         const tCreature = !!(target && target.zone === 'battlefield' && (this.characteristics(target) || {}).isCreature);
         if (pv.to === 'creatures' && !tCreature) continue;

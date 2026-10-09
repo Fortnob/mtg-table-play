@@ -15429,4 +15429,26 @@ module.exports = (test) => {
     t.zone(bear, 'hand');
     t.zone(aura, 'hand', 'Rancor with it');
   });
+
+  test('Pay No Heed: all damage from the chosen source is prevented this turn', (mk, t) => {
+    t.auto('Pay No Heed');
+    t.auto("Rith's Charm");
+    t.auto('Auriok Replica');
+    const T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant');
+    const other = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Craw Wurm');
+    const card = T.hand('A', 'Pay No Heed');
+    T.answer('*', (ch) => ({ picks: [giant.id], cardIds: [giant.id], ids: [giant.id] }));
+    T.mana('A', 'W');
+    T.cast('A', card);
+    T.resolve();
+    T.g.dealDamageToPlayer(T.g.player('A'), 3, giant, true);
+    T.g.dealDamageToObject(mine, 3, giant, true);
+    t.eq(T.life('A'), 20, 'none to A');
+    t.eq(mine.damage || 0, 0, 'none to the Wurm');
+    T.g.dealDamageToPlayer(T.g.player('A'), 2, other, true);
+    t.eq(T.life('A'), 18, 'another source still hurts');
+  });
 };

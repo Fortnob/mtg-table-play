@@ -7024,6 +7024,9 @@
     /* Circle of Protection, Pentagram of the Ages, Deflecting Palm: "The
        next time a (red) source of your choice would deal damage to you this
        turn, prevent that damage." — and what follows from it */
+    // Rith's Charm, Pay No Heed, Auriok Replica: "Prevent all damage a source of your choice would deal (to you) this turn."
+    { re: /^Prevent all damage a source of your choice would deal( to you| to (?:this creature|CARDNAME))? this turn\.?$/i,
+      make: (m) => [{ op: 'preventSourceOnce', all: true, to: !m[1] ? null : /you/i.test(m[1]) ? 'you' : 'self' }] },
     { re: /^The next time an? (?:(white|blue|black|red|green) )?source of your choice would deal damage to you this turn, prevent that damage\.(?: (You gain life equal to the damage prevented this way|If damage is prevented this way, (?:CARDNAME|this spell) deals that much damage to that source'?s controller)\.)?$/i,
       make: (m) => [Object.assign({ op: 'preventSourceOnce' },
         m[1] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] } : {},
