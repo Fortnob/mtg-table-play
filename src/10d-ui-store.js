@@ -145,23 +145,55 @@
     ]);
   };
 
-  /* ---------------- set art, for packs ---------------- */
-  const ART_KEY = 'packart';
-  const artCache = MTG.store.get(ART_KEY, {}) || {};
+  /* ---------------- art for packs and decks, each its own ----------------
+     Every set's packs (Play and Collector apart) and every Commander deck
+     wears an illustration no other one does. The first to ask for an
+     illustration has it, and anyone after takes its next choice; told
+     apart by Scryfall's illustration id, so a reprint of the same picture
+     counts as the same. Kept, so each keeps its picture from then on. */
+  const ART_KEY = 'artclaims';
+  const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
-  /** A striking card from a set, for the front of its packs: its best-known mythic or rare. */
-  function setArt(code) {
-    if (artCache[code]) return Promise.resolve(artCache[code]);
-    if (artWaiting.has(code)) return artWaiting.get(code);
+  /**
+   * The art for `key`: the one it has, or the first of `candidates`
+   * ({ url, name, ill }) whose illustration nobody else has. Null when all
+   * are taken.
+   */
+  function claimArt(key, candidates) {
+    if (artReg.by[key]) return artReg.by[key];
+    for (const c of candidates || []) {
+      if (!c || !c.url) continue;
+      const id = c.ill || c.url;
+      if (artReg.ill[id] && artReg.ill[id] !== key) continue;
+      artReg.by[key] = { url: c.url, name: c.name || '', ill: id };
+      artReg.ill[id] = key;
+      MTG.store.set(ART_KEY, artReg);
+      return artReg.by[key];
+    }
+    return null;
+  }
+  const artOf = (c) => {
+    const url = MTG.scry.imageUrl(c, 'art_crop', 0);
+    const ill = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null;
+    return url ? { url, name: c.name, ill } : null;
+  };
+  /**
+   * A striking card from a set, for the front of its packs: its best-known
+   * mythic or rare whose picture no other pack or deck wears (the Collector
+   * Booster another again), else any card of the set that is free.
+   */
+  function setArt(code, kind) {
+    const key = 'set:' + code + (kind === 'collector' ? ':collector' : '');
+    if (artReg.by[key]) return Promise.resolve(artReg.by[key]);
+    if (artWaiting.has(key)) return artWaiting.get(key);
     const p = (async () => {
-      let found = [];
-      try { found = await MTG.scry.search(`set:${code} (r:mythic or r:rare) -t:land`, { max: 6, order: 'edhrec', unique: 'cards' }); } catch (e) { found = []; }
-      const c = found.find(x => MTG.scry.imageUrl(x, 'art_crop', 0)) || null;
-      const art = c ? { url: MTG.scry.imageUrl(c, 'art_crop', 0), name: c.name } : null;
-      if (art) { artCache[code] = art; MTG.store.set(ART_KEY, artCache); }
+      const look = async (q, max) => { try { return await MTG.scry.search(q, { max, order: 'edhrec', unique: 'art' }); } catch (e) { return []; } };
+      let art = claimArt(key, (await look(`set:${code} (r:mythic or r:rare) -t:land`, 40)).map(artOf));
+      if (!art) art = claimArt(key, (await look(`set:${code}`, 120)).map(artOf));
+      artWaiting.delete(key);
       return art;
     })();
-    artWaiting.set(code, p);
+    artWaiting.set(key, p);
     return p;
   }
 
@@ -193,7 +225,7 @@
       ]),
       el('div', { class: 'bp-seam' }),
     ]);
-    if (setInfo && setInfo.code) setArt(setInfo.code).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    if (setInfo && setInfo.code) setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
     return node;
   }
 
@@ -406,14 +438,21 @@
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
     .map(c => ({ name: c.name, rarity: c.rarity, qty: Math.max(1, c.count || 1) }));
   /**
-   * What a tile shows: its commander's picture (the art crop, straight from
-   * the card's Scryfall id) and the rows to price it by.
+   * What a tile shows: a picture of its own (its commander's, or failing
+   * that its rarest other card's whose picture is free; the art crop,
+   * straight from the card's Scryfall id) and the rows to price it by.
    */
   async function preconInfo(p) {
     const d = await preconFile(p);
-    const c = (d.commander || [])[0] || (d.displayCommander || [])[0] || (d.mainBoard || [])[0];
-    const id = c && c.identifiers && c.identifiers.scryfallId;
-    return { art: id ? `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg` : null, rows: preconRows(d) };
+    const RANK = { mythic: 4, special: 4, rare: 3, uncommon: 2, common: 1 };
+    const rest = (d.mainBoard || []).filter(c => !/\bLand\b/.test(c.type || ''))
+      .sort((a, b) => (RANK[b.rarity] || 0) - (RANK[a.rarity] || 0));
+    const pick = [].concat(d.commander || [], d.displayCommander || [], rest).map((c) => {
+      const id = c && c.identifiers && c.identifiers.scryfallId;
+      return id ? { url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: c.name, ill: c.identifiers.scryfallIllustrationId || null } : null;
+    });
+    const art = claimArt('deck:' + p.file, pick);
+    return { art: art ? art.url : null, rows: preconRows(d) };
   }
   /** A deck's cards, as Scryfall prints them: the commanders, the rest, and all of it with counts. */
   async function preconCards(p) {
@@ -490,9 +529,10 @@
     draw();
   }
   function preconTile(p, setName) {
-    // the set's art until the commander's is in
+    // its own picture at once when it has one; a plain panel until then, never another's
     const art = el('div', { class: 'precon-art' });
-    setArt(p.code).then(a => { if (a && !art.classList.contains('face')) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    const had = artReg.by['deck:' + p.file];
+    if (had) art.style.backgroundImage = 'url("' + had.url + '")';
     const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', 'aria-label': 'Buy ' + p.name });
     const owns = el('div', { class: 'precon-owns dim' });
     btn.addEventListener('click', () => buyPrecon(p, btn));
