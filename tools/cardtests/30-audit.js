@@ -3159,4 +3159,30 @@ module.exports = (test) => {
     T.mana('A', '2R'); T.cast('A', T.hand('A', 'Acidic Soil'));
     t.eq(T.life('A'), 20 - la); t.eq(T.life('B'), 20 - lb);
   });
+
+  test('Audit: Bower Passage stops flyers blocking; Morbid Curiosity and Memorial Vault count the sacrificed mana value', (mk, t) => {
+    let T = mk();
+    for (const c of ['Bower Passage', 'Morbid Curiosity', 'Memorial Vault']) t.auto(c);
+    T.toMain('A');
+    T.bf('A', 'Bower Passage');
+    const at = T.bf('A', 'Grizzly Bears'); at.summoningSick = false;
+    const fl = T.bf('B', 'Serra Angel'), gr = T.bf('B', 'Hill Giant');
+    let refused = null;
+    T.answer('declareAttackers', () => [{ attackerId: at.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', (ch, g) => { refused = !g.declareBlockers('B', [{ blockerId: fl.id, attackerIds: [at.id] }]); return [{ blockerId: gr.id, attackerIds: [at.id] }]; });
+    T.toMain('A', 'end');
+    t.ok(refused, 'the Angel cannot block'); t.zone(at, 'graveyard', 'the Giant can');
+    T = mk();
+    T.toMain('A');
+    const hg = T.bf('A', 'Hill Giant'), mc = T.hand('A', 'Morbid Curiosity');
+    const h = T.g.zones.A.hand.length;
+    T.mana('A', '1BB'); T.cast('A', mc, { sacrificeIds: [hg.id] });
+    t.eq(T.g.zones.A.hand.length, h - 1 + 4, 'four cards for the Giant');
+    T = mk();
+    T.toMain('A');
+    const mv = T.bf('A', 'Memorial Vault'), ms = T.bf('A', 'Mind Stone');
+    T.top('A', 'Mountain'); T.top('A', 'Shock'); T.top('A', 'Opt');
+    T.activate('A', mv, 0, { sacrificeIds: [ms.id] });
+    t.eq(T.g.zones.A.exile.filter(c => c.impulseBy === 'A').length, 3, 'one plus Mind Stone\'s 2, playable');
+  });
 };
