@@ -16614,4 +16614,37 @@ module.exports = (test) => {
     t.ok(!offered || !offered.includes(bear.id), 'not a creature without defender');
     t.zone(bear, 'library');
   });
+
+  test('Repay in Kind, Acidic Soil, Meltdown, Emergency Eject', (mk, t) => {
+    for (const n of ['Repay in Kind', 'Acidic Soil', 'Meltdown', 'Emergency Eject']) t.auto(n);
+    let T = mk();
+    T.toMain('A');
+    T.g.changeLife(T.player('B'), -13);
+    T.mana('A', 'BBCCCCC');
+    T.cast('A', T.hand('A', 'Repay in Kind'));
+    T.settle();
+    t.eq(T.life('A'), 7); t.eq(T.life('B'), 7);
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Forest'); T.bf('B', 'Island'); T.bf('B', 'Island');
+    T.mana('A', 'RCC');
+    T.cast('A', T.hand('A', 'Acidic Soil'));
+    T.settle();
+    t.eq(T.life('A'), 19, 'one land'); t.eq(T.life('B'), 18, 'two lands');
+    T = mk();
+    T.toMain('A');
+    const ring = T.bf('B', 'Sol Ring'), stone = T.bf('B', 'Mind Stone'), big = T.bf('B', 'Wurmcoil Engine');
+    T.mana('A', 'RCC');
+    T.cast('A', T.hand('A', 'Meltdown'), { x: 2 });
+    T.settle();
+    t.zone(ring, 'graveyard'); t.zone(stone, 'graveyard'); t.zone(big, 'battlefield', 'mana value 6 stays');
+    T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'WCC');
+    T.cast('A', T.hand('A', 'Emergency Eject'), { targets: [giant] });
+    T.settle();
+    t.zone(giant, 'graveyard');
+    t.eq(T.bfOf('B').filter(o => o.name === 'Lander').length, 1, 'B gets a Lander');
+  });
 };

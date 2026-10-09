@@ -14605,7 +14605,9 @@
              (CR 119.5); The Endstone: half the starting life total */
           const start = (this.config && this.config.startingLife) || 20;
           // Biorhythm: each player's own count, all worked out before any life changes (eachControls)
-          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
+          // (Repay in Kind: the lowest life total among all players — eachControls)
+          const lowest = Math.min(...this.players.filter(p => !p.hasLost).map(p => p.life));
+          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
             : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
           who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
           break;

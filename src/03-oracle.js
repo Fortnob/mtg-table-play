@@ -2806,7 +2806,8 @@
     { re: /^Create half X (Food|Treasure|Clue) tokens, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: { half: 'X', up: /up/i.test(m[2]) }, token: m[1] }) },
     // Sunspine Lynx: "it deals damage to each player equal to the number of nonbasic lands that player controls"
-    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s that player controls\.?$/i,
+    // (Acidic Soil: "… the number of lands they control")
+    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s (?:that player|they) controls?\.?$/i,
       make: (m) => ({ op: 'damageEachByCount', what: m[2].toLowerCase(), mult: m[1] ? 2 : 1 }) },
     // Oswald Fiddlebender: "an artifact card with mana value equal to 1 plus the sacrificed artifact's mana value"
     { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.?$/i,
@@ -3165,6 +3166,8 @@
     // Biorhythm, Shaman of Forgotten Ways: "Each player's life total becomes the number of creatures they control."
     { re: /^Each player'?s life total becomes the number of (creatures|lands|permanents|artifacts) they control\.?$/i,
       make: (m) => ({ op: 'setLife', who: 'each', n: { eachControls: m[1].toLowerCase().replace(/s$/, '') } }) },
+    // Repay in Kind: "Each player's life total becomes the lowest life total among all players." (eachControls)
+    { re: /^Each player'?s life total becomes the lowest life total among all players\.?$/i, make: () => ({ op: 'setLife', who: 'each', n: { lowestLife: true } }) },
     // Magus of the Mirror, Mirror Universe: "Exchange life totals with target opponent."
     { re: /^Exchange life totals with target (opponent|player)\.?$/i,
       make: (m) => ({ op: 'exchangeLife', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
@@ -3224,9 +3227,9 @@
         addTypes: m[5] ? ['Artifact'] : [], keywords: m[6] ? keywordList(m[6]) : [] }) },
     /* the sentences after a counterspell, about the spell it countered */
     // Cityscape Leveler: "Its controller creates a tapped Powerstone token."
-    { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
+    { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk|Lander) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: num(m[1]), who: 'targetController', tapped: true }) },
-    { re: /^Its controller creates (a|an|one|two|three|four|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
+    { re: /^Its controller creates (a|an|one|two|three|four|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk|Lander) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', who: 'targetController', n: num(m[1]),
         token: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }) },
     { re: /^Each opponent attacking that player does the same\.?$/i, make: () => ({ op: 'noop', sameForAttacker: true }) },
@@ -4526,8 +4529,9 @@
     { re: /^Destroy each creature that blocked or was blocked this turn\.?$/i,
       make: () => ({ op: 'destroyAll', what: 'creature', blockedOrWasBlocked: true }) },
     // Dauntless Dismantler: "Destroy each artifact with mana value X."
-    { re: /^Destroy (?:each|all) (artifact|creature|enchantment|nonland permanent)s? with mana value (X|\d+)\.?$/i,
-      make: (m) => { const v = m[2] === 'X' ? 'X' : +m[2]; return { op: 'destroyAll', what: m[1].toLowerCase(), minMv: v, maxMv: v }; } },
+    // (Meltdown: "with mana value X or less" — smallSweep)
+    { re: /^Destroy (?:each|all) (artifact|creature|enchantment|nonland permanent)s? with mana value (X|\d+)( or less)?\.?$/i,
+      make: (m) => { const v = m[2] === 'X' ? 'X' : +m[2]; return Object.assign({ op: 'destroyAll', what: m[1].toLowerCase(), maxMv: v }, m[3] ? {} : { minMv: v }); } },
     { re: /^Destroy all ([A-Z][a-z]+s)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
     { re: /^Counter (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)? spell)\.?$/i,
