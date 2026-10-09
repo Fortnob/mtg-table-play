@@ -1481,4 +1481,30 @@ module.exports = (test) => {
     T.g.passPriority('A', true);
     t.no(T.g.castSpell('B', bolt.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), 'not on your turn');
   });
+
+  test('Audit: Dragon Tempest damage is dealt by the Dragon that entered', (mk, t) => {
+    const T = mk();
+    t.auto('Dragon Tempest');
+    T.bf('A', 'Dragon Tempest');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'RR4');
+    T.cast('A', T.hand('A', 'Shivan Dragon'));
+    t.eq(T.life('B'), 19);
+    t.ok(T.g.log.some(l => /^Shivan Dragon deals 1 to B/.test(l.text)), 'the Dragon is the source');
+  });
+
+  test('Audit: Pain for All: the enchanted creature deals the damage it is dealt', (mk, t) => {
+    const T = mk();
+    t.auto('Pain for All');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Pain for All'), { targets: [b] });
+    t.eq(T.life('B'), 18);
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', T.hand('B', 'Shock'), { targets: [b] });
+    t.eq(T.life('B'), 16);
+    t.ok(T.g.log.some(l => /^Grizzly Bears deals 2 to B/.test(l.text)));
+  });
 };
