@@ -2645,4 +2645,37 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.eq(T.g.powerOf(b), 6, '2/2 + two counters + two more'); t.eq(T.g.powerOf(e), 1);
   });
+
+  test('Audit: Tainted Remedy turns only opponents\' life gain into loss; Everett K. Ross counts the creatures attacking you; Stranglehold stops searches', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Tainted Remedy', 'Everett K. Ross, Hapless Attaché', 'Stranglehold']) t.auto(c);
+    T.toMain('B');
+    T.bf('A', 'Tainted Remedy');
+    T.g.changeLife(T.g.player('B'), 3); T.g.changeLife(T.g.player('A'), 3);
+    t.eq(T.life('B'), 17, 'an opponent loses instead'); t.eq(T.life('A'), 23, 'its controller still gains');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('B');
+    T.bf('A', 'Everett K. Ross, Hapless Attaché');
+    const x = T.bf('B', 'Grizzly Bears'), y = T.bf('B', 'Hill Giant');
+    x.summoningSick = y.summoningSick = false;
+    const ah = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: x.id, defenderId: 'A' }, { attackerId: y.id, defenderId: 'C' }]);
+    T.toMain('B', 'declareBlockers');
+    t.eq(T.g.zones.A.hand.length, ah, 'one at me, one at C: no card');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('B');
+    T.bf('A', 'Everett K. Ross, Hapless Attaché');
+    const x2 = T.bf('B', 'Grizzly Bears'), y2 = T.bf('B', 'Hill Giant');
+    x2.summoningSick = y2.summoningSick = false;
+    const ah2 = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: x2.id, defenderId: 'A' }, { attackerId: y2.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    t.eq(T.g.zones.A.hand.length, ah2 + 1, 'two at me: a card');
+    T = mk();
+    T.toMain('B');
+    T.bf('A', 'Stranglehold');
+    const f = T.top('B', 'Forest');
+    T.mana('B', '1G'); T.cast('B', T.hand('B', 'Sylvan Scrying'));
+    t.zone(f, 'library', 'an opponent finds nothing');
+  });
 };
