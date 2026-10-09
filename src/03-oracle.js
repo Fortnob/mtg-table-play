@@ -12861,6 +12861,12 @@
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
       { re: /^(Each opponent|Each player|Your opponents) can'?t draw more than one card each turn\.?$/i,
         make: (m) => ({ op: 'drawLimitOne', who: /player/i.test(m[1]) ? 'each' : 'opponents' }), auto: true },
+      // Kotori, Pilot Prodigy; Astor: "Vehicles you control have crew 2." — one more crew ability on each
+      { re: /^Vehicles you control have crew (\d+)\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', subtypes: ['vehicle'] }, grantText: 'Crew ' + m[1] }), auto: true },
+      // Astor, Bearer of Blades: "Equipment you control have equip {1}." — one more equip ability on each
+      { re: /^Equipment you control have equip (\{[1-9]\})\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', subtypes: ['equipment'] }, grantText: 'Equip ' + m[1] }), auto: true },
       // Puresteel Paladin: "Equipment you control have equip {0} as long as you control three or more artifacts."
       { re: /^Equipment you control have equip \{0\}(?: as long as (.+?))?\.?$/i,
         make: (m) => {

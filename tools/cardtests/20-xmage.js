@@ -16086,4 +16086,29 @@ module.exports = (test) => {
     t.zone(bear, 'battlefield', 'the Aura is destroyed instead');
     t.zone(aura, 'graveyard');
   });
+
+  test('Kotori, Astor: your Vehicles have crew 2, your Equipment have equip {1}', (mk, t) => {
+    t.auto('Kotori, Pilot Prodigy');
+    t.auto('Astor, Bearer of Blades');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Kotori, Pilot Prodigy');
+    const heart = T.bf('A', 'Heart of Kiran'), bear = T.bf('A', 'Grizzly Bears');
+    const all = heart.analysis().manaAbilities.concat(heart.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const i = all.findIndex(a => a.text === 'Crew 2');
+    t.ok(i >= 0, 'a crew 2 ability');
+    T.activate('A', heart, i, { tapIds: [bear.id] });
+    t.ok(bear.tapped, 'the Bears crew it');
+    t.ok(T.g.characteristics(heart).isCreature, 'the Vehicle is a creature');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Astor, Bearer of Blades');
+    const sword = T.bf('A', 'Sword of Fire and Ice'), ape = T.bf('A', 'Grizzly Bears');
+    const all2 = sword.analysis().abilities.filter(a => a.kind === 'activated');
+    const j = all2.findIndex(a => /^Equip \{1\}/.test(a.text || ''));
+    t.ok(j >= 0, 'an equip {1} ability');
+    T.mana('A', 'C');
+    T.activate('A', sword, j, { targets: [ape] });
+    t.eq(sword.attachedTo, ape.id, 'equipped for {1}');
+  });
 };
