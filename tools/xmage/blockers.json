@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11443,
+  "needed": 11441,
   "gainedCards": 1134,
-  "linesNeeded": 12259,
+  "linesNeeded": 12257,
   "linesGained": 1345,
   "gained": {
    "all": 1134,
@@ -2523,21 +2523,6 @@
    ]
   },
   {
-   "what": "GainControlAllEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Varchild, Betrayer of Kjeldor",
-    "Karrthus, Tyrant of Jund",
-    "Subjugate the Hobbits",
-    "Tribute to Horobi // Echo of Death's Wail",
-    "Geyadrone Dihada",
-    "Brand",
-    "Aura Thief",
-    "Gruul Charm"
-   ]
-  },
-  {
    "what": "words:withKeyword",
    "score": 8,
    "lines": 8,
@@ -3553,6 +3538,19 @@
     "Jasmine Boreal of the Seven",
     "Fang-Druid Summoner",
     "Rise from the Wreck"
+   ]
+  },
+  {
+   "what": "GainControlAllEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Varchild, Betrayer of Kjeldor",
+    "Karrthus, Tyrant of Jund",
+    "Subjugate the Hobbits",
+    "Tribute to Horobi // Echo of Death's Wail",
+    "Geyadrone Dihada",
+    "Aura Thief"
    ]
   },
   {
@@ -8376,19 +8374,6 @@
    ]
   },
   {
-   "what": "GainControlAllEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Karrthus, Tyrant of Jund",
-    "Subjugate the Hobbits",
-    "Tribute to Horobi // Echo of Death's Wail",
-    "Geyadrone Dihada",
-    "Brand",
-    "Aura Thief"
-   ]
-  },
-  {
    "what": "ShuffleIntoLibraryTargetEffect",
    "score": 7,
    "cards": 7,
@@ -9539,6 +9524,18 @@
     "Quickchange",
     "Swirling Spriggan",
     "Prismwake Merrow"
+   ]
+  },
+  {
+   "what": "GainControlAllEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Karrthus, Tyrant of Jund",
+    "Subjugate the Hobbits",
+    "Tribute to Horobi // Echo of Death's Wail",
+    "Geyadrone Dihada",
+    "Aura Thief"
    ]
   },
   {

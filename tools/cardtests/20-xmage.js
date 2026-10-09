@@ -15402,4 +15402,17 @@ module.exports = (test) => {
     t.zone(bear, 'hand', "B returns their only creature");
     t.zone(mine, 'battlefield', "A's creature stays");
   });
+
+  test('Gruul Charm: gain control of all permanents you own', (mk, t) => {
+    t.auto('Gruul Charm');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const src = T.hand('B', 'Island');
+    T.g._runEffects([{ op: 'gainControl', until: null, targets: [] }], { controller: 'B', obj: src, name: 'Test', kind: 'spell', targets: [{ kind: 'object', id: bear.id }] });
+    t.eq(bear.controller, 'B', 'B took the Bears');
+    const card = T.hand('A', 'Gruul Charm');
+    T.g._runEffects(engine().oracle.parseEffects('Gain control of all permanents you own.').effects, { controller: 'A', obj: card, name: 'Gruul Charm', kind: 'spell' });
+    t.eq(bear.controller, 'A', 'back to A');
+  });
 };

@@ -13644,6 +13644,16 @@
           this._noteLastAffected(targets);
           break;
         }
+        // Gruul Charm: everything you own that someone else controls comes back, for good
+        case 'gainControlOwned': {
+          for (const x of this.battlefield) {
+            if (x.owner !== ctx.controller || x.controller === ctx.controller || x.phasedOut) continue;
+            x.effects.push({ control: ctx.controller, until: null, ts: this._stampNew() });
+            this.logEvent('control', `${me.name} gains control of ${x.name}.`);
+          }
+          this._refreshControl();
+          break;
+        }
         // Mirror Entity: "creatures you control have base power and toughness X/X"
         case 'setBaseAll': {
           const p = n(e.p), t = n(e.t);

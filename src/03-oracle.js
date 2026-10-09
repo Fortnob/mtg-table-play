@@ -3065,6 +3065,8 @@
     // Dromoka's Command, Shieldmage Elder: "Prevent all damage target (instant or sorcery) spell would deal this turn."
     { re: /^Prevent all damage target (instant or sorcery )?spell would deal this turn\.?$/i,
       make: (m) => ({ op: 'preventFromSpell', targets: [Object.assign({ type: 'spell' }, m[1] ? { filter: 'instant or sorcery' } : {})] }) },
+    // Gruul Charm: "Gain control of all permanents you own."
+    { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
     { re: /^Untap all creatures target player controls\.?$/i,
       make: () => ({ op: 'untapAll', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
