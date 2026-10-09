@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12001,
-  "gainedCards": 1240,
-  "linesNeeded": 12968,
-  "linesGained": 1478,
+  "needed": 11983,
+  "gainedCards": 1238,
+  "linesNeeded": 12946,
+  "linesGained": 1476,
   "gained": {
-   "all": 1240,
+   "all": 1238,
    "top2000": 48,
    "stdTop": 9
   },
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 667,
-   "lines": 667,
+   "score": 666,
+   "lines": 666,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -85,6 +85,25 @@
     "Immortal Obligation",
     "Lorehold, the Historian",
     "Secret of Bloodbending"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 209,
+   "lines": 203,
+   "cards": [
+    "Plumb the Forbidden",
+    "Emrakul, the Promised End",
+    "Not of This World",
+    "Chandra's Incinerator",
+    "Bloodsoaked Insight // Sanguine Morass",
+    "Wash Away",
+    "Rottenmouth Viper",
+    "Spirit Water Revival",
+    "Hour of Revelation",
+    "Notorious Throng",
+    "Price of Fame",
+    "Shadow of Mortality"
    ]
   },
   {
@@ -104,25 +123,6 @@
     "Boseiju, Who Shelters All",
     "Edgar Markov",
     "Archpriest of Shadows"
-   ]
-  },
-  {
-   "what": "(cast modifier line)",
-   "score": 208,
-   "lines": 202,
-   "cards": [
-    "Plumb the Forbidden",
-    "Emrakul, the Promised End",
-    "Not of This World",
-    "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass",
-    "Wash Away",
-    "Rottenmouth Viper",
-    "Spirit Water Revival",
-    "Hour of Revelation",
-    "Drag to the Roots",
-    "Notorious Throng",
-    "Price of Fame"
    ]
   },
   {
@@ -355,8 +355,8 @@
   },
   {
    "what": "InfoEffect",
-   "score": 27,
-   "lines": 27,
+   "score": 26,
+   "lines": 26,
    "cards": [
     "Invert Polarity",
     "Liesa, Shroud of Dusk",
@@ -1242,25 +1242,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "It That Heralds the End",
-    "Thryx, the Sudden Storm",
-    "Helga, Skittish Seer",
-    "Delivery Moogle",
-    "Runadi, Behemoth Caller",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Gandalf, Westward Voyager",
-    "Krosan Drover",
-    "Superior Foes of Spider-Man",
-    "Storm the Festival",
-    "Spectacle Mage"
-   ]
-  },
-  {
    "what": "AddCardTypeSourceEffect",
    "score": 13,
    "lines": 13,
@@ -1499,25 +1480,6 @@
     "Eye of Ojer Taq // Apex Observatory",
     "Vesuvan Doppelganger",
     "Alhammarret, High Arbiter"
-   ]
-  },
-  {
-   "what": "CastFromZonePredicate",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Wash Away",
-    "Rivaz of the Claw",
-    "Emet-Selch of the Third Seat",
-    "Gravebreaker Lamia",
-    "Norman Osborn // Green Goblin",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Patrician Geist",
-    "Invasion of Arcavios // Invocation of the Founders",
-    "Mizzix, Replica Rider"
    ]
   },
   {
@@ -2028,34 +1990,20 @@
    ]
   },
   {
-   "what": "words:withKeyword",
+   "what": "words:mv",
    "score": 10,
    "lines": 10,
    "cards": [
-    "Warden of Evos Isle",
-    "Watcher of the Spheres",
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings",
-    "Cunning Nightbonder",
-    "Radiant, Serra Archangel",
-    "Hidden Spider",
-    "Clip Wings",
-    "Run Afoul"
-   ]
-  },
-  {
-   "what": "GainClassAbilitySourceEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Fortune Teller's Talent",
-    "Sorcerer Class",
-    "Rogue Class",
-    "Ninja Teen",
-    "Bard Class",
-    "Fisher's Talent",
-    "Advanced Reconstruction"
+    "Thryx, the Sudden Storm",
+    "Helga, Skittish Seer",
+    "Delivery Moogle",
+    "Runadi, Behemoth Caller",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Superior Foes of Spider-Man",
+    "Storm the Festival",
+    "Exile into Darkness"
    ]
   },
   {
@@ -2714,6 +2662,21 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Wash Away",
+    "Rivaz of the Claw",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Invasion of Arcavios // Invocation of the Founders",
+    "Mizzix, Replica Rider"
+   ]
+  },
+  {
    "what": "LoseLifeTriggeredAbility",
    "score": 8,
    "lines": 8,
@@ -2771,6 +2734,19 @@
     "The Swarmlord",
     "Shadow Urchin",
     "Buzzard-Wasp Colony"
+   ]
+  },
+  {
+   "what": "GainClassAbilitySourceEffect",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Fortune Teller's Talent",
+    "Sorcerer Class",
+    "Rogue Class",
+    "Ninja Teen",
+    "Bard Class",
+    "Fisher's Talent"
    ]
   },
   {
@@ -2920,6 +2896,21 @@
     "Brand",
     "Aura Thief",
     "Gruul Charm"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder",
+    "Radiant, Serra Archangel",
+    "Hidden Spider",
+    "Clip Wings",
+    "Run Afoul"
    ]
   },
   {
@@ -4949,18 +4940,6 @@
    ]
   },
   {
-   "what": "SpellCostReductionSourceEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Avatar of Woe",
-    "Avatar of Fury",
-    "Avatar of Might",
-    "Avatar of Hope",
-    "Avatar of Will"
-   ]
-  },
-  {
    "what": "Ability.setMayActivate",
    "score": 5,
    "lines": 5,
@@ -6932,13 +6911,24 @@
     "Rag Man",
     "Thoughtcutter Agent"
    ]
+  },
+  {
+   "what": "AttachedOrShareCreatureTypePredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Crown of Fury",
+    "Crown of Ascension",
+    "Crown of Vigor",
+    "Crown of Suspicion"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3558,
-   "cards": 3390,
+   "score": 3560,
+   "cards": 3392,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6950,8 +6940,8 @@
   },
   {
    "what": "custom ability",
-   "score": 577,
-   "cards": 535,
+   "score": 578,
+   "cards": 536,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6963,14 +6953,14 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 151,
-   "cards": 148,
+   "score": 152,
+   "cards": 149,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
     "Hour of Revelation",
-    "Drag to the Roots",
     "Price of Fame",
+    "Shadow of Mortality",
     "The Magic Mirror"
    ]
   },
@@ -7002,8 +6992,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 127,
-   "cards": 121,
+   "score": 128,
+   "cards": 122,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
@@ -7118,19 +7108,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 23,
-   "cards": 23,
-   "names": [
-    "Invert Polarity",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Fallaji Wayfarer",
-    "Aether Spike",
-    "Swallowed by Leviathan"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 23,
    "cards": 23,
@@ -7141,6 +7118,19 @@
     "Eclipsed Realms",
     "Frontier Siege",
     "Sin, Unending Cataclysm"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 22,
+   "cards": 22,
+   "names": [
+    "Invert Polarity",
+    "Liesa, Shroud of Dusk",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Swallowed by Leviathan"
    ]
   },
   {
@@ -7848,19 +7838,6 @@
    ]
   },
   {
-   "what": "words:withKeyword",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Warden of Evos Isle",
-    "Watcher of the Spheres",
-    "Shield-Wall Sentinel",
-    "Hand of the Praetors",
-    "Donal, Herald of Wings",
-    "Cunning Nightbonder"
-   ]
-  },
-  {
    "what": "keyword PowerUpAbility",
    "score": 10,
    "cards": 10,
@@ -7897,19 +7874,6 @@
     "Skyship Plunderer",
     "Powerful Broker",
     "Price of Betrayal"
-   ]
-  },
-  {
-   "what": "words:mv",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "It That Heralds the End",
-    "Thryx, the Sudden Storm",
-    "Delivery Moogle",
-    "Collected Company",
-    "Gandalf, Westward Voyager",
-    "Krosan Drover"
    ]
   },
   {
@@ -8290,19 +8254,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Rivaz of the Claw",
-    "Gravebreaker Lamia",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser"
-   ]
-  },
-  {
    "what": "AddCountersPlayersEffect",
    "score": 8,
    "cards": 8,
@@ -8417,6 +8368,19 @@
     "Armament of Nyx",
     "Mishra's Domination",
     "Veteran's Voice"
+   ]
+  },
+  {
+   "what": "words:withKeyword",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Shield-Wall Sentinel",
+    "Hand of the Praetors",
+    "Donal, Herald of Wings",
+    "Cunning Nightbonder",
+    "Radiant, Serra Archangel",
+    "Hidden Spider"
    ]
   },
   {
@@ -9032,6 +8996,19 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Rivaz of the Claw",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser",
+    "Mizzix, Replica Rider"
+   ]
+  },
+  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 6,
    "cards": 6,
@@ -9068,6 +9045,19 @@
     "Case of the Shattered Pact",
     "Case of the Crimson Pulse",
     "Case of the Burning Masks"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Thryx, the Sudden Storm",
+    "Delivery Moogle",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Superior Foes of Spider-Man",
+    "Storm the Festival"
    ]
   },
   {
@@ -9915,18 +9905,6 @@
    ]
   },
   {
-   "what": "SpellCostReductionSourceEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Avatar of Woe",
-    "Avatar of Fury",
-    "Avatar of Might",
-    "Avatar of Hope",
-    "Avatar of Will"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrDiesSourceTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10679,6 +10657,17 @@
     "Phoenix Chick",
     "Inniaz, the Gale Force",
     "Ruby Collector"
+   ]
+  },
+  {
+   "what": "BecomesTargetControllerTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Unsettled Mariner",
+    "Amulet of Safekeeping",
+    "Dormant Gomazoa",
+    "Leovold, Emissary of Trest"
    ]
   }
  ]

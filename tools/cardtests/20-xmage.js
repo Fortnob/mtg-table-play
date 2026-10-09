@@ -13362,4 +13362,87 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.life('A'), life + 4, 'the greatest power among Giants (itself, 4)');
   });
+
+  test('Tribal and qualified cost cuts: Goblin Warchief, Stonybrook Banneret, Eye of Ugin, Jhoira\'s Familiar, Nightscape Familiar', (mk, t) => {
+    for (const n of ['Goblin Warchief', 'Stonybrook Banneret', 'Eye of Ugin', "Jhoira's Familiar", 'Nightscape Familiar', 'Dragonspeaker Shaman']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const piker = T.hand('A', 'Goblin Piker'), bears = T.hand('A', 'Grizzly Bears'), outcast = T.hand('A', 'Changeling Outcast');
+    T.bf('A', 'Goblin Warchief');
+    t.eq(T.g.castCost(piker), '{R}', 'a Goblin costs {1} less');
+    t.eq(T.g.castCost(bears), '{1}{G}', 'a Bear does not');
+    t.eq(T.g.castCost(outcast), '{B}', 'a changeling is a Goblin too');
+    T.bf('B', 'Goblin Warchief');
+    t.eq(T.g.castCost(piker), '{R}', "an opponent's Warchief does nothing for you");
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Stonybrook Banneret');
+    t.eq(U.g.castCost(U.hand('A', 'Merfolk Looter')), '{U}', 'a Merfolk');
+    t.eq(U.g.castCost(U.hand('A', 'Fblthp, the Lost')), '{1}{U}', 'a Homunculus is neither');
+    U.bf('A', 'Eye of Ugin');
+    t.eq(U.g.castCost(U.hand('A', 'Matter Reshaper')), '{C}', 'a colorless Eldrazi costs {2} less');
+    t.eq(U.g.castCost(U.hand('A', 'Wastes')), '', 'lands cost nothing anyway');
+    U.bf('A', "Jhoira's Familiar");
+    t.eq(U.g.castCost(U.hand('A', 'Mind Stone')), '{1}', 'an artifact is historic');
+    t.eq(U.g.castCost(U.hand('A', 'Isamaru, Hound of Konda')), '{W}', 'a legendary creature is historic');
+    U.bf('A', 'Nightscape Familiar');
+    t.eq(U.g.castCost(U.hand('A', 'Hill Giant')), '{2}{R}', 'a red spell');
+    t.eq(U.g.castCost(U.hand('A', 'Craw Wurm')), '{4}{G}{G}', 'a green one is not');
+  });
+
+  test('Qualified cost cuts: Krosan Drover, Warden of Evos Isle, Gravebreaker Lamia, Savvy Trader, Geyser Drake, Centaur Omenreader', (mk, t) => {
+    for (const n of ['Krosan Drover', 'Warden of Evos Isle', 'Gravebreaker Lamia', 'Savvy Trader', 'Geyser Drake', 'Centaur Omenreader']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Krosan Drover');
+    t.eq(T.g.castCost(T.hand('A', 'Craw Wurm')), '{2}{G}{G}', 'mana value 6');
+    t.eq(T.g.castCost(T.hand('A', 'Hill Giant')), '{3}{R}', 'mana value 4');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Warden of Evos Isle');
+    t.eq(U.g.castCost(U.hand('A', 'Serra Angel')), '{2}{W}{W}', 'a creature with flying');
+    t.eq(U.g.castCost(U.hand('A', 'Hill Giant')), '{3}{R}', 'one without');
+    const V = mk();
+    V.toMain('A');
+    V.bf('A', 'Gravebreaker Lamia');
+    t.eq(V.g.castCost(V.grave('A', 'Hill Giant')), '{2}{R}', 'from the graveyard');
+    t.eq(V.g.castCost(V.hand('A', 'Hill Giant')), '{3}{R}', 'from the hand');
+    const W = mk();
+    W.toMain('A');
+    W.bf('A', 'Savvy Trader');
+    t.eq(W.g.castCost(W.grave('A', 'Hill Giant')), '{2}{R}', 'from anywhere but the hand');
+    t.eq(W.g.castCost(W.hand('A', 'Hill Giant')), '{3}{R}', 'not from the hand');
+    const X = mk();
+    X.toMain('A');
+    X.bf('A', 'Geyser Drake');
+    t.eq(X.g.castCost(X.hand('A', 'Hill Giant')), '{3}{R}', 'not on your own turn');
+    X.toMain('B');
+    t.eq(X.g.castCost(X.hand('A', 'Hill Giant')), '{2}{R}', "on an opponent's turn");
+    const Y = mk();
+    Y.toMain('A');
+    const om = Y.bf('A', 'Centaur Omenreader');
+    t.eq(Y.g.castCost(Y.hand('A', 'Hill Giant')), '{3}{R}', 'untapped');
+    om.tapped = true;
+    t.eq(Y.g.castCost(Y.hand('A', 'Hill Giant')), '{1}{R}', 'tapped');
+  });
+
+  test("Conditional self costs: Drag to the Roots, Gwaihir the Windlord, Hurkyl's Final Meditation, Avatar of Woe", (mk, t) => {
+    for (const n of ['Drag to the Roots', 'Gwaihir the Windlord', "Hurkyl's Final Meditation", 'Avatar of Woe']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const dr = T.hand('A', 'Drag to the Roots');
+    t.eq(T.g.castCost(dr), '{2}{B}{G}', 'no delirium');
+    for (const n of ['Hill Giant', 'Island', 'Shock', 'Mind Stone']) T.grave('A', n);
+    t.eq(T.g.castCost(dr), '{B}{G}', 'four card types in the graveyard');
+    const hk = T.hand('A', "Hurkyl's Final Meditation");
+    t.eq(T.g.castCost(hk), '{4}{U}{U}{U}', 'on your turn');
+    T.toMain('B');
+    t.eq(T.g.castCost(hk), '{7}{U}{U}{U}', 'on an opponent\'s turn');
+    const U = mk();
+    U.toMain('A');
+    const aw = U.hand('A', 'Avatar of Woe');
+    t.eq(U.g.castCost(aw), '{6}{B}{B}', 'too few creature cards');
+    for (let i = 0; i < 5; i++) { U.grave('A', 'Grizzly Bears'); U.grave('B', 'Hill Giant'); }
+    t.eq(U.g.castCost(aw), '{B}{B}', 'ten creature cards across the graveyards');
+  });
 };

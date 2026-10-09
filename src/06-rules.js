@@ -2749,6 +2749,17 @@
             if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!words || words === 'spell' || this._cardFitsWords(x, words))).length !== e.nthEachTurn - 1) continue;
             // Goreclaw: "with power 4 or greater", as printed on the card being cast
             if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
+            // Krosan Drover: "with mana value 6 or greater"; Warden of Evos Isle: "with flying"
+            if (e.minMv != null && !(((o.card && o.card.cmc) || 0) >= e.minMv)) continue;
+            if (e.withKeyword && !(a.keywordSet && a.keywordSet.has(e.withKeyword))) continue;
+            // Savvy Trader: "from anywhere other than your hand"
+            if (e.notFromZones && e.notFromZones.includes(o.zone)) continue;
+            // Centaur Omenreader: "As long as this creature is tapped, …"
+            if (e.cond && !this._condMet(e.cond, { controller: src.controller, obj: src })) continue;
+            /* Goblin Warchief: "Goblin spells" (a changeling is every creature
+               type); Uncle Iroh: "Lesson spells", a spell type */
+            if (e.creatureTypes && !e.creatureTypes.some(t => (/^(?:Adventure|Arcane|Lesson|Trap|Omen|Chorus)$/.test(t)
+              ? (a.subtypes || []).includes(t) : this._hasCreatureType(o, t)))) continue;
             // Defense Grid: only on a turn that isn't the caster's
             if (e.offTurn && this.activePlayer && this.activePlayer.id === pid) continue;
             // Temur Battlecrier: during your turn, and so much for each of something
@@ -9249,6 +9260,11 @@
           return !!x && (x.attachments || []).some(id => { const at = this.obj(id); return at && (at.analysis() || {}).isEquipment; });
         }
         case 'anyGraveyardAtLeast': return this.players.some(p => ((this.zones[p.id] || {}).graveyard || []).length >= (cond.n || 1));
+        case 'allGraveyardsAtLeast': {
+          let k = 0;
+          for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._matchesCategory(c, cond.what)) k++;
+          return k >= (cond.n || 1);
+        }
         case 'spellsCastOfKind': return !!me && (me.spellObjsThisTurn || []).filter(x => this._cardFitsWords(x, cond.words)).length >= (cond.n || 1);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {

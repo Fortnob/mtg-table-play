@@ -6916,28 +6916,67 @@
       return per ? { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+each[3]), per, yourTurn: !!each[1] } : null;
     }
     // Defense Grid: "…cost {3} more to cast except during its controller's turn"
-    const offTurn = / except during its controller'?s turn$/i.test(s);
-    s = s.replace(/ except during its controller'?s turn$/i, '');
+    // Centaur Omenreader: "As long as this creature is tapped, creature spells you cast cost {2} less to cast"
+    const aslong = s.match(/^As long as ([^,]+), (.+)$/i);
+    if (aslong) {
+      const c = condOf(aslong[1]);
+      const inner = c && parseCostMod(aslong[2].charAt(0).toUpperCase() + aslong[2].slice(1));
+      return inner && !inner.cond ? Object.assign(inner, { cond: c }) : null;
+    }
+    // Geyser Drake: "During turns other than yours, spells you cast cost {1} less to cast"
+    const offTurn = / except during its controller'?s turn$/i.test(s) || /^During turns other than yours, /i.test(s);
+    s = s.replace(/ except during its controller'?s turn$/i, '').replace(/^During turns other than yours, (.)/i, (x, c) => c.toUpperCase());
     // Goreclaw: "Creature spells you cast with power 4 or greater cost {2} less to cast"
     const pw = s.match(/ with power (\d+) or greater(?= costs?)/i);
     if (pw) s = s.replace(pw[0], '');
+    /* Krosan Drover: "Creature spells you cast with mana value 6 or greater";
+       Warden of Evos Isle: "Creature spells with flying you cast";
+       Gravebreaker Lamia: "Spells you cast from your graveyard";
+       Savvy Trader: "Spells you cast from anywhere other than your hand" */
+    const mvq = s.match(/ with mana value (\d+) or greater(?= costs?)/i);
+    if (mvq) s = s.replace(mvq[0], '');
+    const flq = s.match(/ spells with flying(?= you cast )/i);
+    if (flq) s = s.replace(flq[0], ' spells');
+    const fromq = s.match(/(?<=you cast) from (your graveyard|anywhere other than your hand)(?= costs?)/i);
+    if (fromq) s = s.replace(fromq[0], '');
+    const extra = Object.assign({}, mvq ? { minMv: +mvq[1] } : {}, flq ? { withKeyword: 'flying' } : {},
+      fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {});
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
-    const words = (m[1] + ' ' + (m[4] || '')).replace(/,/g, ' ').trim().toLowerCase()
-      .replace(/\band\b/g, 'or');
-    for (const w of words.split(/\s+/).filter(Boolean)) {
-      if (!/^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred)$/.test(w)) return null;
+    const CARD_WORD = /^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred|commander)$/;
+    /* Goblin Warchief: "Goblin spells you cast"; Stonybrook Banneret:
+       "Merfolk spells and Wizard spells"; Eye of Ugin: "Colorless Eldrazi
+       spells". The creature types are kept apart from the card words; a
+       spell of any one of them will do. */
+    const two = String(m[1]).match(/\b([A-Z][a-z'-]+) [A-Z][a-z'-]+/);
+    if (two && !CARD_WORD.test(two[1].toLowerCase())) return null;
+    const toks = (m[1] + ' ' + (m[4] || '')).replace(/,/g, ' ').replace(/\bspells\b/gi, ' ').split(/\s+/).filter(Boolean);
+    const creatureTypes = [], cardToks = [];
+    for (let i = 0; i < toks.length; i++) {
+      const w = toks[i], lw = w.toLowerCase();
+      if (CARD_WORD.test(lw) || lw === 'and') { cardToks.push(lw === 'and' ? 'or' : lw); continue; }
+      // a type is one capitalised word, never two side by side ("Secret Lair")
+      if (!/^[A-Z][a-z'-]+$/.test(w) || /^(?:This|That|The|Each|Next)$/.test(w) || !m[2]) return null;
+      creatureTypes.push(U.titleCase(singularType(w)));
     }
-    if (/historic/.test(words)) return null;
+    let words = cardToks.join(' ');
+    if (creatureTypes.length) {
+      // only "or"s between the types, and at most one card word with them
+      words = cardToks.filter(w => w !== 'or').join(' ');
+      if (words.split(' ').filter(Boolean).length > 1) return null;
+    }
+    if (/^or\b|\bor$/.test(words)) return null;
     const who = /opponent/i.test(m[2] || '') ? 'opponents' : /you cast/i.test(m[2] || '') ? 'you' : 'all';
     // Andradite Leech: "Black spells you cast cost {B} more to cast" — coloured mana on top
     if (/^[WUBRG]$/.test(m[5])) {
-      if (/less/i.test(m[6]) || m[3] || offTurn || pw) return null;
+      if (/less/i.test(m[6]) || m[3] || offTurn || pw || mvq || flq || fromq || creatureTypes.length) return null;
       return { op: 'costMod', who, words: words || 'spell', chosenType: false, amount: 0, symbols: '{' + m[5] + '}' };
     }
     const amount = (+m[5]) * (/less/i.test(m[6]) ? -1 : 1);
+    if (Object.keys(extra).length && who !== 'you') return null;
+    if (creatureTypes.length) extra.creatureTypes = creatureTypes;
     return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {},
-      pw ? { minPower: +pw[1] } : {});
+      pw ? { minPower: +pw[1] } : {}, extra);
   }
 
   /* "This spell costs {1} less to cast for each artifact you control",
@@ -6945,6 +6984,16 @@
      where X is the greatest power among creatures you control." */
   function parseSelfCost(line) {
     const s = String(line).trim().replace(/\.$/, '');
+    /* Avatar of Woe: "If there are ten or more creature cards total in all
+       graveyards, this spell costs {6} less to cast"; Discontinuity:
+       "During your turn, …"; Drag to the Roots: "… as long as there are
+       four or more card types among cards in your graveyard" */
+    const lead = s.match(/^(?:If ([^,]+)|(During your turn)|(During turns other than yours)), (this spell costs \{\d+\} (?:less|more) to cast)$/i) ||
+      s.match(/^()()()((?:This spell|CARDNAME) costs \{\d+\} (?:less|more) to cast) as long as (.+)$/i);
+    if (lead) {
+      const cond = lead[2] ? { kind: 'yourTurn' } : lead[3] ? { kind: 'notYourTurn' } : altCond(lead[1] || lead[5]);
+      return cond ? { amount: (+lead[4].match(/\{(\d+)\}/)[1]) * (/less/i.test(lead[4]) ? -1 : 1), cond } : null;
+    }
     let m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} (less|more) to cast for each (.+)$/i);
     if (m) {
       let phrase = m[3].trim();
@@ -7693,6 +7742,9 @@
     [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
     // Visions of Beyond: "a graveyard has twenty or more cards in it"
     [/^a graveyard has (\w+) or more cards in it$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'anyGraveyardAtLeast', n: num(m[1]) } : null)],
+    // Avatar of Woe: "there are ten or more creature cards total in all graveyards"
+    [/^there are (\w+) or more (creature|artifact|land|instant|sorcery|enchantment) cards total in all graveyards$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'allGraveyardsAtLeast', what: m[2].toLowerCase(), n: num(m[1]) } : null)],
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
     [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
@@ -9521,7 +9573,7 @@
       /* A line about what the spell costs is read by the cost machinery,
          not by the effect vocabulary — on an instant as much as on a
          permanent, so this comes before the "the line is the spell" case. */
-      if (/^(?:This spell|CARDNAME) costs \{[\dX]+\} (?:less|more) to cast/i.test(line)) {
+      if (/^(?:(?:If [^,]+|During your turn|During turns other than yours), )?(?:This spell|CARDNAME) costs \{[\dX]+\} (?:less|more) to cast/i.test(line)) {
         const sc = parseSelfCost(line);
         if (sc) (out.selfCost = out.selfCost || []).push(sc);
         out.abilities.push({ kind: 'castModifier', text: line, auto: !!sc, effects: [] });
@@ -11946,10 +11998,6 @@
       // a permanent spell's window: "Cast this spell only if a creature died this turn" (Grim Wanderer)
       { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
         make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; }, auto: true },
-      /* The cost machinery reads this off the card itself; the sentence is
-         here so it counts as read rather than as a line nobody could
-         parse. */
-      { re: /^[A-Za-z ,]*spells? you cast costs? \{\d+\} less to cast\.?$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
       // Endrek Sahr: "When you control seven or more Thrulls, sacrifice CARDNAME."
