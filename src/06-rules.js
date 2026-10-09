@@ -2837,6 +2837,7 @@
     _countValue(v, pid, src, inLayers) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
+      if (v.mult === 0 && !v.plus) return 0;
       const mult = v.mult || 1;
       if (v.scope) return this._scopeList(v.scope, pid, src, null, inLayers).length * mult;
       if (v.cardsInHand) return (((this.zones[pid] || {}).hand || []).length) * mult;
@@ -2909,6 +2910,7 @@
       if (v.opponentsPoison) return this.opponentsOf(pid).reduce((acc, q) => acc + (Number(q.poison) || 0), 0) * mult;
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
+      if (v.party) return this._partySize(pid) * mult;
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
@@ -2946,6 +2948,35 @@
         for (const t of (a.subtypes || [])) if (MANA.COLOR_OF_BASIC[t]) seen.add(t);
       }
       return seen.size;
+    }
+
+    /* Your party (CR 700.8): up to one each of a Cleric, a Rogue, a Warrior
+       and a Wizard among the creatures you control, each creature filling
+       one place at most — the most places they can fill between them. */
+    _partySize(pid) {
+      const ROLES = ['Cleric', 'Rogue', 'Warrior', 'Wizard'];
+      const fits = [];
+      for (const o of this.battlefield) {
+        if (o.controller !== pid || o.phasedOut) continue;
+        // (its types as layers 1 to 4 leave them; a changeling is every one)
+        const a = o.analysis();
+        if (!a || !a.isCreature) continue;
+        const r = ROLES.filter(t => this._hasCreatureType(o, t));
+        if (r.length) fits.push(r);
+      }
+      // a matching of places to creatures, grown one place at a time
+      const holder = new Map();
+      const place = (t, seen) => {
+        for (let i = 0; i < fits.length; i++) {
+          if (!fits[i].includes(t) || seen.has(i)) continue;
+          seen.add(i);
+          if (!holder.has(i) || place(holder.get(i), seen)) { holder.set(i, t); return true; }
+        }
+        return false;
+      };
+      let k = 0;
+      for (const t of ROLES) if (place(t, new Set())) k++;
+      return k;
     }
 
     /** Is this card the creature type named (changelings are every type)? */
@@ -9349,6 +9380,7 @@
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
+        case 'fullParty': return this._partySize(pid) >= 4;
         // True-Faith Censer: the creature it is on is a Human
         case 'attachedHasType': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._hasCreatureType(host, cond.subtype); }
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
@@ -9655,6 +9687,8 @@
     _contValue(v, o, src) {
       if (v == null) return 0;
       if (typeof v === 'number') return v;
+      // Cranial Plating: "+1/+0 for each artifact you control" adds nothing to toughness
+      if (typeof v === 'object' && v.mult === 0 && !v.plus) return 0;
       // Moraug: for each time this creature has attacked this turn
       if (typeof v === 'object' && v.attacksThisTurn) return (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) * (v.mult || 1);
       // Allosaurus Rider: "equal to 1 plus the number of lands you control"
@@ -9706,14 +9740,14 @@
       if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards)) return this._countValue(v, (src || o).controller, src || o, true);
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
       }
       if (typeof v === 'object') {
-        if (v.per) return this.countPermanents(o.controller, v) * (v.mult || 1);
+        if (v.per) return this.countPermanents(o.controller, v, o) * (v.mult || 1);
         if (v.life) return (this.player(o.controller) || { life: 0 }).life * v.life;
         if (v.posX || v.negX) { const x = o.chosenX || 0; return v.negX ? -x : x; }
       }
@@ -11558,6 +11592,8 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // "+1/+0 for each …": nothing times anything is nothing (not the "|| 1" the counts below fall back on)
+        if (v && typeof v === 'object' && v.mult === 0 && !v.plus) return 0;
         // Call the Coppercoats: the creatures the targeted players control
         if (v && typeof v === 'object' && v.creaturesOfTargetPlayers) {
           const ids = new Set(targets.filter(t => t.kind === 'player').map(t => t.id));
@@ -11720,7 +11756,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -17051,7 +17087,8 @@
         // "Artifacts you control become artifact creatures with base power and toughness 5/5"
         case 'animateAll': {
           for (const o of this._scopeList(e.scope, ctx.controller, src)) {
-            o.effects.push({ addTypes: ['Creature'], setPt: { p: n(e.p), t: n(e.t) }, until: e.duration === 'eot' ? 'eot' : null });
+            // (Start Your Engines: a Vehicle keeps its printed power and toughness)
+            o.effects.push(Object.assign({ addTypes: ['Creature'], until: e.duration === 'eot' ? 'eot' : null }, e.printedPt ? {} : { setPt: { p: n(e.p), t: n(e.t) } }));
             o._chr = null;
           }
           this.bumpBoard();

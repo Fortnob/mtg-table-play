@@ -1139,6 +1139,9 @@
         return out;
       } },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Steelswarm Operator, Sunken Citadel, Shang-Chi: "Spend this mana only to activate abilities of artifact sources."
+    { re: /^Spend this mana only to activate abilities of (artifact|land|creature) sources\.?$/i,
+      make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: m[1].toLowerCase() }) },
     { re: /^This mana can'?t be spent to cast (?:a |an )?non(artifact|creature) spells?\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
@@ -4502,6 +4505,9 @@
       make: (m) => ({ op: 'damageAndTheirs', n: num(m[1]), andPlaneswalkers: /planeswalker/i.test(m[3]),
         targets: [/planeswalker/i.test(m[2]) ? targetSpec('target player or planeswalker') : { type: 'player' }] }) },
     // Tezzeret the Seeker, The Antiquities War: every artifact a 5/5 creature for the turn
+    // Start Your Engines, The Thanos-Copter: "Vehicles you control become artifact creatures until end of turn." — as if crewed
+    { re: /^Vehicles you control become artifact creatures until end of turn\.?$/i,
+      make: () => ({ op: 'animateAll', scope: { who: 'you', what: 'permanent', subtype: 'vehicle' }, duration: 'eot', printedPt: true }) },
     { re: /^Artifacts you control become artifact creatures with base power and toughness (\d+)\/(\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'animateAll', scope: { who: 'you', what: 'artifact' }, p: +m[1], t: +m[2], duration: 'eot' }) },
     // Capenna Express: "This Vehicle becomes an artifact creature until end of turn." — not crewed, just a creature
@@ -5362,6 +5368,8 @@
     if ((m = p.match(/^colou?rs? of mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { colorsSpent: true, of: spentOf(m[1]), mult: k };
     // Verazol: "for each mana spent to cast it"
     if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
+    // Squad Commander, Malakir Blood-Priest: "for each creature in your party", "the number of creatures in your party"
+    if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // Season of Loss: "for each creature that died under your control this turn"
@@ -8061,6 +8069,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    // Nalia de'Arnise, Linvala, Shield of Sea Gate: a Cleric, a Rogue, a Warrior and a Wizard
+    [/^you have a full party$/i, () => ({ kind: 'fullParty' })],
     // Torch the Witness, Bottle-Cap Blast: "if excess damage was dealt (to a creature) this way"
     [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
@@ -10265,6 +10275,8 @@
         effects: [{ op: 'hideaway', n: parseInt(hide.arg, 10) || 4 }] });
     }
 
+    // Stonework Packbeast: the creature types it is also
+    for (const ab of out.abilities) for (const e of ab.effects || []) if (e && e.alsoSubtypes) for (const st of e.alsoSubtypes) if (!out.subtypes.includes(st)) out.subtypes = out.subtypes.concat(st);
     /* A Spacecraft with a power and toughness is an artifact creature once
        it has enough charge counters (CR 721.2): the reminder text says how
        many, or the last station line does. */
@@ -12646,6 +12658,10 @@
       // Spellbreaker Behemoth: "Creature spells you control with power 5 or greater can't be countered."
       { re: /^Creature spells you control with power (\d+) or greater can'?t be countered\.?$/i,
         make: (m) => ({ op: 'uncounterable', who: 'you', words: 'creature spells', minPower: +m[1] }), auto: true },
+      /* Stonework Packbeast: "CARDNAME is also a Cleric, Rogue, Warrior, and
+         Wizard." — what the card is, wherever it is (CR 604.3) */
+      { re: /^CARDNAME is also an? ((?:[A-Z][a-z]+, )+and [A-Z][a-z]+|[A-Z][a-z]+ and [A-Z][a-z]+|[A-Z][a-z]+)\.?$/,
+        make: (m) => ({ op: 'noop', alsoSubtypes: m[1].split(/,? and |, /).filter(Boolean) }), auto: true },
       // Root Sliver: "Sliver spells can't be countered."
       { re: /^([A-Z][a-z]+|Creature|Noncreature|Green|Blue|Black|Red|White) spells can'?t be countered\.?$/,
         make: (m) => ({ op: 'uncounterable', who: 'all', words: m[1].toLowerCase() + ' spells' }), auto: true },

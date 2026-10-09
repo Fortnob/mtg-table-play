@@ -14379,4 +14379,46 @@ module.exports = (test) => {
     t.zone(land, 'hand', 'the land goes back to its owner\'s hand');
     t.zone(wz, 'graveyard', 'the Zendikon stays in the graveyard');
   });
+  test('Party: each creature fills one place, and Malakir Blood-Priest counts them', (mk, t) => {
+    t.auto('Malakir Blood-Priest');
+    t.auto('Stonework Packbeast');
+    t.auto('Squad Commander');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Stonework Packbeast');
+    t.eq(T.g._partySize('A'), 1, 'the Packbeast is one of the party, not four');
+    T.bf('A', 'Merfolk Looter');
+    t.eq(T.g._partySize('A'), 2, 'a Rogue joins');
+    T.put('A', 'Malakir Blood-Priest', 'battlefield', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 17, 'a Cleric makes three');
+    t.eq(T.life('A'), 23);
+    T.bf('A', 'Elvish Warrior');
+    t.eq(T.g._partySize('A'), 4, 'a full party');
+  });
+
+  test('Start Your Engines: Vehicles become creatures with their own power', (mk, t) => {
+    t.auto('Start Your Engines');
+    const T = mk();
+    T.toMain('A');
+    const v = T.bf('A', 'Smuggler\'s Copter');
+    const card = T.hand('A', 'Start Your Engines');
+    const ab = card.analysis().abilities.find(a => a.kind === 'spell');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: card, name: 'Start Your Engines', kind: 'spell' });
+    t.ok(T.g.characteristics(v).isCreature, 'a creature now');
+    t.eq(T.g.powerOf(v), 5, '3 printed, +2 from the spell');
+  });
+  test('Cranial Plating: +1/+0 for each artifact leaves toughness alone', (mk, t) => {
+    t.auto('Cranial Plating');
+    t.auto("Ravager's Mace");
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const cp = T.bf('A', 'Cranial Plating');
+    T.bf('A', 'Ornithopter');
+    cp.attachedTo = bear.id; bear.attachments = [cp.id]; cp.ts = T.g._stampNew();
+    T.settle();
+    t.eq(T.g.powerOf(bear), 4, 'two artifacts: +2/+0');
+    t.eq(T.g.toughnessOf(bear), 2);
+  });
 };

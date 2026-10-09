@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11767,
-  "gainedCards": 1191,
-  "linesNeeded": 12661,
-  "linesGained": 1410,
+  "needed": 11756,
+  "gainedCards": 1199,
+  "linesNeeded": 12646,
+  "linesGained": 1422,
   "gained": {
-   "all": 1191,
-   "top2000": 47,
+   "all": 1199,
+   "top2000": 48,
    "stdTop": 9
   },
   "compare": {
@@ -21,10 +21,10 @@
   "verifyFail": 47,
   "overrides": {
    "drain": 63,
-   "count": 42,
    "group": 28,
    "x": 3,
    "it": 16,
+   "count": 24,
    "condition": 23
   }
  },
@@ -88,25 +88,6 @@
    ]
   },
   {
-   "what": "(cast modifier line)",
-   "score": 209,
-   "lines": 203,
-   "cards": [
-    "Plumb the Forbidden",
-    "Emrakul, the Promised End",
-    "Not of This World",
-    "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass",
-    "Wash Away",
-    "Rottenmouth Viper",
-    "Spirit Water Revival",
-    "Hour of Revelation",
-    "Notorious Throng",
-    "Price of Fame",
-    "Shadow of Mortality"
-   ]
-  },
-  {
    "what": "(line not matched to XMage code)",
    "score": 201,
    "lines": 180,
@@ -123,6 +104,25 @@
     "Edgar Markov",
     "Archpriest of Shadows",
     "Rise and Shine"
+   ]
+  },
+  {
+   "what": "(cast modifier line)",
+   "score": 199,
+   "lines": 193,
+   "cards": [
+    "Plumb the Forbidden",
+    "Emrakul, the Promised End",
+    "Not of This World",
+    "Chandra's Incinerator",
+    "Bloodsoaked Insight // Sanguine Morass",
+    "Wash Away",
+    "Rottenmouth Viper",
+    "Spirit Water Revival",
+    "Hour of Revelation",
+    "Notorious Throng",
+    "Price of Fame",
+    "Shadow of Mortality"
    ]
   },
   {
@@ -468,25 +468,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Mirri, Weatherlight Duelist",
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "The Destined Warrior",
-    "Tragic Trajectory",
-    "Hazardroot Herbalist",
-    "Gideon's Phalanx",
-    "Send to Sleep",
-    "Joust"
-   ]
-  },
-  {
    "what": "OrTriggeredAbility halves differ",
    "score": 22,
    "lines": 22,
@@ -522,6 +503,25 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Voldaren Pariah // Abolisher of Bloodlines"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Mirri, Weatherlight Duelist",
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory",
+    "Hazardroot Herbalist",
+    "Gideon's Phalanx",
+    "Send to Sleep",
+    "Joust",
+    "Poisoner's Apprentice"
    ]
   },
   {
@@ -741,25 +741,6 @@
    ]
   },
   {
-   "what": "Ability.setCostAdjuster",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Mariposa Military Base",
-    "Osgir, the Reconstructor",
-    "Wayta, Trainer Prodigy",
-    "Prototype Portal",
-    "Survey Mechan",
-    "Razorlash Transmogrant",
-    "Soul Foundry",
-    "Pteramander",
-    "Loreseeker's Stone",
-    "Elite Arcanist",
-    "Starport Security",
-    "Thaumaton Torpedo"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 16,
    "lines": 16,
@@ -834,22 +815,22 @@
    ]
   },
   {
-   "what": "PartyCount.instance",
+   "what": "Ability.setCostAdjuster",
    "score": 16,
    "lines": 16,
    "cards": [
-    "Burakos, Party Leader",
-    "Squad Commander",
-    "Archpriest of Iona",
-    "Malakir Blood-Priest",
-    "Concerted Defense",
-    "Practiced Tactics",
-    "Shepherd of Heroes",
-    "Emeria Captain",
-    "Allied Assault",
-    "Grotag Bug-Catcher",
-    "Ravager's Mace",
-    "Cascade Seer"
+    "Mariposa Military Base",
+    "Osgir, the Reconstructor",
+    "Wayta, Trainer Prodigy",
+    "Prototype Portal",
+    "Survey Mechan",
+    "Razorlash Transmogrant",
+    "Soul Foundry",
+    "Pteramander",
+    "Loreseeker's Stone",
+    "Elite Arcanist",
+    "Starport Security",
+    "Thaumaton Torpedo"
    ]
   },
   {
@@ -1167,6 +1148,25 @@
     "The Fantasticar",
     "Mizzium Tank",
     "War Balloon"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessSourceEffect with two values",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Unlicensed Hearse",
+    "Sewer Nemesis",
+    "Malignus",
+    "Altar of the Wretched // Wretched Bonemass",
+    "Scourge of the Skyclaves",
+    "Soulless One",
+    "Adamaro, First to Desire",
+    "Fungal Behemoth",
+    "Living Lore",
+    "Monstrous War-Leech",
+    "Mwonvuli Ooze",
+    "Umbra Stalker"
    ]
   },
   {
@@ -1686,24 +1686,6 @@
    ]
   },
   {
-   "what": "CastFromHandForFreeEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Lady Octopus, Inspired Inventor",
-    "Maelstrom Archangel",
-    "Coveted Prize",
-    "Founding the Third Path",
-    "Epistolary Librarian",
-    "West Coast Expansion",
-    "Gandalf, Party Guest",
-    "Wildfire Eternal",
-    "Surtland Elementalist",
-    "Oracle of Bones",
-    "Twinning Glass"
-   ]
-  },
-  {
    "what": "(layout flip)",
    "score": 11,
    "lines": 11,
@@ -1945,6 +1927,23 @@
    ]
   },
   {
+   "what": "AdditiveDynamicValue",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Ancestral Anger",
+    "Abomination of Llanowar",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt",
+    "Desert's Due",
+    "Lost Order of Jarkeld",
+    "Muscle Burst",
+    "Flame Burst"
+   ]
+  },
+  {
    "what": "AddCardSubTypeSourceEffect",
    "score": 10,
    "lines": 10,
@@ -1958,6 +1957,23 @@
     "Figure of Fable",
     "Evolved Sleeper",
     "Warden of the First Tree"
+   ]
+  },
+  {
+   "what": "CastFromHandForFreeEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Lady Octopus, Inspired Inventor",
+    "Maelstrom Archangel",
+    "Founding the Third Path",
+    "Epistolary Librarian",
+    "West Coast Expansion",
+    "Gandalf, Party Guest",
+    "Wildfire Eternal",
+    "Surtland Elementalist",
+    "Oracle of Bones",
+    "Twinning Glass"
    ]
   },
   {
@@ -2043,6 +2059,21 @@
     "Saving Grasp",
     "Scarab of the Unseen",
     "Obelisk of Undoing"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessSourceEffect with a duration",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Timber Paladin",
+    "Doc Ock, Sinister Scientist",
+    "Living Conundrum",
+    "Myth Realized",
+    "Mirkwood Meditator",
+    "Snowmelt Stag",
+    "Sutured Ghoul",
+    "Entropic Specter"
    ]
   },
   {
@@ -2234,22 +2265,6 @@
     "Nettling Curse",
     "Cunning",
     "Imprison"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "Desert's Due",
-    "Lost Order of Jarkeld",
-    "Muscle Burst",
-    "Flame Burst"
    ]
   },
   {
@@ -2457,20 +2472,6 @@
     "Arcum's Weathervane",
     "Balduvian Conjurer",
     "Ohran Yeti"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessSourceEffect with a duration",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Timber Paladin",
-    "Doc Ock, Sinister Scientist",
-    "Living Conundrum",
-    "Myth Realized",
-    "Mirkwood Meditator",
-    "Snowmelt Stag",
-    "Sutured Ghoul"
    ]
   },
   {
@@ -2828,6 +2829,21 @@
    ]
   },
   {
+   "what": "PartyCount.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Burakos, Party Leader",
+    "Archpriest of Iona",
+    "Concerted Defense",
+    "Practiced Tactics",
+    "Emeria Captain",
+    "Allied Assault",
+    "Grotag Bug-Catcher",
+    "Strength of Solidarity"
+   ]
+  },
+  {
    "what": "comparison EQUAL_TO",
    "score": 8,
    "lines": 8,
@@ -2838,21 +2854,6 @@
     "Homarid",
     "Tidal Influence",
     "Library of Alexandria"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessSourceEffect with two values",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Malignus",
-    "Altar of the Wretched // Wretched Bonemass",
-    "Scourge of the Skyclaves",
-    "Fungal Behemoth",
-    "Living Lore",
-    "Monstrous War-Leech",
-    "Mwonvuli Ooze",
-    "Roiling Horror"
    ]
   },
   {
@@ -3119,20 +3120,6 @@
     "Astelli Reclaimer",
     "Pull Through the Weft",
     "United Battlefront"
-   ]
-  },
-  {
-   "what": "ConditionalAnyColorManaAbility shape",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Resonating Lute",
-    "Crucible of the Spirit Dragon",
-    "Thieving Varmint",
-    "Shang-Chi, Master of Kung Fu",
-    "Overgrown Zealot",
-    "Rootcoil Creeper",
-    "Jeweled Lotus"
    ]
   },
   {
@@ -3604,6 +3591,19 @@
    ]
   },
   {
+   "what": "ConditionalAnyColorManaAbility shape",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Resonating Lute",
+    "Crucible of the Spirit Dragon",
+    "Thieving Varmint",
+    "Overgrown Zealot",
+    "Rootcoil Creeper",
+    "Jeweled Lotus"
+   ]
+  },
+  {
    "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
    "score": 6,
    "lines": 6,
@@ -4066,19 +4066,6 @@
     "Near-Death Experience",
     "Battle of Wits",
     "Barren Glory"
-   ]
-  },
-  {
-   "what": "FullPartyCondition.instance",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Nalia de'Arnise",
-    "The Destined Black Mage",
-    "Squad Commander",
-    "The Destined White Mage",
-    "Archpriest of Iona",
-    "Nimble Trapfinder"
    ]
   },
   {
@@ -5984,17 +5971,6 @@
    ]
   },
   {
-   "what": "HasSubtypesSourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Burakos, Party Leader",
-    "Stonework Packbeast",
-    "Tajuru Paragon",
-    "Veteran Adventurer"
-   ]
-  },
-  {
    "what": "SpellsCostReductionControllerEffect.setDuration",
    "score": 4,
    "lines": 4,
@@ -6100,17 +6076,6 @@
     "Flamebreak",
     "Time Bomb",
     "Borrowing the East Wind"
-   ]
-  },
-  {
-   "what": "VehiclesBecomeArtifactCreatureEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Armed and Armored",
-    "Start Your Engines",
-    "Push the Limit",
-    "The Thanos-Copter"
    ]
   },
   {
@@ -6542,6 +6507,17 @@
    ]
   },
   {
+   "what": "ChromaCount",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Springjack Shepherd",
+    "Primalcrux",
+    "Outrage Shaman",
+    "Heartlash Cinder"
+   ]
+  },
+  {
    "what": "PreventDamageByChosenSourceEffect",
    "score": 4,
    "lines": 4,
@@ -6857,13 +6833,33 @@
     "Aang's Journey",
     "Invert // Invent"
    ]
+  },
+  {
+   "what": "Ability.setUndoPossible",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Study Hall",
+    "Yuna, Grand Summoner",
+    "Solar Array"
+   ]
+  },
+  {
+   "what": "keyword ExhaustAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Riverchurn Monument",
+    "Spire Mechcycle",
+    "Sita Varma, Masked Racer"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3547,
-   "cards": 3367,
+   "score": 3549,
+   "cards": 3369,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6888,8 +6884,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 152,
-   "cards": 149,
+   "score": 147,
+   "cards": 144,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
@@ -6979,8 +6975,8 @@
   },
   {
    "what": "custom target",
-   "score": 40,
-   "cards": 40,
+   "score": 41,
+   "cards": 41,
    "names": [
     "Rampaging Yao Guai",
     "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
@@ -7095,19 +7091,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 19,
-   "cards": 19,
-   "names": [
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "The Destined Warrior"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 18,
    "cards": 18,
@@ -7134,6 +7117,19 @@
    ]
   },
   {
+   "what": "AddContinuousEffectToGame",
+   "score": 18,
+   "cards": 18,
+   "names": [
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory"
+   ]
+  },
+  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 18,
    "cards": 18,
@@ -7157,6 +7153,19 @@
     "Hraesvelgr of the First Brood",
     "Staff of the Death Magus",
     "Staff of the Sun Magus"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Security Bypass",
+    "Medomai the Ageless",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Nimble Trapfinder",
+    "Nimble Brigand"
    ]
   },
   {
@@ -7196,19 +7205,6 @@
     "Rufus Shinra",
     "Oak Street Innkeeper",
     "Glory of Warfare"
-   ]
-  },
-  {
-   "what": "ConditionalRestrictionEffect",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Security Bypass",
-    "Medomai the Ageless",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Nimble Brigand",
-    "Slippery Scoundrel"
    ]
   },
   {
@@ -7274,19 +7270,6 @@
     "Grand Architect",
     "Cryptek",
     "Pia Nalaar"
-   ]
-  },
-  {
-   "what": "Ability.setCostAdjuster",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Osgir, the Reconstructor",
-    "Prototype Portal",
-    "Survey Mechan",
-    "Razorlash Transmogrant",
-    "Soul Foundry",
-    "Pteramander"
    ]
   },
   {
@@ -7392,6 +7375,19 @@
    ]
   },
   {
+   "what": "Ability.setCostAdjuster",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Osgir, the Reconstructor",
+    "Prototype Portal",
+    "Survey Mechan",
+    "Razorlash Transmogrant",
+    "Soul Foundry",
+    "Pteramander"
+   ]
+  },
+  {
    "what": "prevent all, or only combat",
    "score": 13,
    "cards": 13,
@@ -7415,19 +7411,6 @@
     "Melancholic Poet",
     "Forum Necroscribe",
     "Conciliator's Duelist"
-   ]
-  },
-  {
-   "what": "PartyCount.instance",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Malakir Blood-Priest",
-    "Concerted Defense",
-    "Practiced Tactics",
-    "Shepherd of Heroes",
-    "Emeria Captain",
-    "Allied Assault"
    ]
   },
   {
@@ -8163,6 +8146,19 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessSourceEffect with two values",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Unlicensed Hearse",
+    "Soulless One",
+    "Adamaro, First to Desire",
+    "Fungal Behemoth",
+    "Monstrous War-Leech",
+    "Mwonvuli Ooze"
+   ]
+  },
+  {
    "what": "CompositeCost",
    "score": 8,
    "cards": 8,
@@ -8290,6 +8286,19 @@
     "Candlekeep Inspiration",
     "Archon of the Wild Rose",
     "Oko, the Trickster"
+   ]
+  },
+  {
+   "what": "PartyCount.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Burakos, Party Leader",
+    "Archpriest of Iona",
+    "Concerted Defense",
+    "Practiced Tactics",
+    "Emeria Captain",
+    "Allied Assault"
    ]
   },
   {
@@ -8829,19 +8838,6 @@
    ]
   },
   {
-   "what": "ConditionalAnyColorManaAbility shape",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Resonating Lute",
-    "Crucible of the Spirit Dragon",
-    "Thieving Varmint",
-    "Shang-Chi, Master of Kung Fu",
-    "Overgrown Zealot",
-    "Jeweled Lotus"
-   ]
-  },
-  {
    "what": "CastFromZonePredicate",
    "score": 6,
    "cards": 6,
@@ -9310,6 +9306,19 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessSourceEffect with a duration",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Timber Paladin",
+    "Doc Ock, Sinister Scientist",
+    "Myth Realized",
+    "Mirkwood Meditator",
+    "Snowmelt Stag",
+    "Entropic Specter"
+   ]
+  },
+  {
    "what": "static ability in HAND",
    "score": 6,
    "cards": 6,
@@ -9555,6 +9564,18 @@
     "Serene Master",
     "Goblin Snowman",
     "Wall of Corpses"
+   ]
+  },
+  {
+   "what": "ConditionalAnyColorManaAbility shape",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Resonating Lute",
+    "Crucible of the Spirit Dragon",
+    "Thieving Varmint",
+    "Overgrown Zealot",
+    "Jeweled Lotus"
    ]
   },
   {
@@ -9951,18 +9972,6 @@
     "Deem Inferior",
     "Trickster's Stratagem",
     "Happy Hogan, Bodyguard"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessSourceEffect with a duration",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Timber Paladin",
-    "Doc Ock, Sinister Scientist",
-    "Myth Realized",
-    "Mirkwood Meditator",
-    "Snowmelt Stag"
    ]
   },
   {
@@ -10581,17 +10590,6 @@
     "Rip, Spawn Hunter",
     "Glimmer Seeker",
     "Rootwise Survivor"
-   ]
-  },
-  {
-   "what": "AttacksAloneAttachedTriggeredAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Bilbo's Ring",
-    "Sigil of Valor",
-    "Reaper's Talisman",
-    "S.H.I.E.L.D. Spy Kit"
    ]
   }
  ]
