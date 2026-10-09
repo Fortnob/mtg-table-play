@@ -15228,6 +15228,16 @@
           this.logEvent('exile', `${x.name} is exiled.`);
           break;
         }
+        // Vexing Shusher: a spell on the stack that can't be countered from now on
+        case 'spellUncounterable': {
+          for (const t of targets) {
+            const item = t.kind === 'stack' && this.stack.find(x => x.id === t.id);
+            if (!item) continue;
+            item.uncounterable = true;
+            this.logEvent('rules', `${item.name} can't be countered.`);
+          }
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

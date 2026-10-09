@@ -13250,4 +13250,25 @@ module.exports = (test) => {
     T.g._runEffects(ab.effects, { controller: 'A', obj: hall, name: 'Hall', kind: 'ability' });
     t.eq(T.g.powerOf(hall), 7); t.ok(T.g._wardCosts(hall).length === 1, 'ward');
   });
+
+  test("Vexing Shusher: target spell can't be countered", (mk, t) => {
+    t.auto('Vexing Shusher');
+    const T = mk();
+    T.toMain('A');
+    const vs = T.bf('A', 'Vexing Shusher');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'), { resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    const ab = vs.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: vs, name: 'Vexing Shusher', kind: 'ability', targets: [{ kind: 'stack', id: item.id }] });
+    T.g._runEffects([{ op: 'counterSpell' }], { controller: 'B', name: 'Counterspell', kind: 'spell', targets: [{ kind: 'stack', id: item.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.ok(T.g.battlefield.some(o => o.name === 'Grizzly Bears'), 'it resolved');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Savannah Lions'), { resolve: false });
+    const other = T.g.stack[T.g.stack.length - 1];
+    T.g._runEffects([{ op: 'counterSpell' }], { controller: 'B', name: 'Counterspell', kind: 'spell', targets: [{ kind: 'stack', id: other.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.ok(!T.g.battlefield.some(o => o.name === 'Savannah Lions'), 'another spell is countered as usual');
+  });
 };

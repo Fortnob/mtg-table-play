@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12047,
-  "gainedCards": 1263,
-  "linesNeeded": 13024,
-  "linesGained": 1506,
+  "needed": 12067,
+  "gainedCards": 1270,
+  "linesNeeded": 13045,
+  "linesGained": 1513,
   "gained": {
-   "all": 1263,
+   "all": 1270,
    "top2000": 49,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4325,
-   "lines": 4058,
+   "score": 4329,
+   "lines": 4062,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 758,
-   "lines": 698,
+   "score": 760,
+   "lines": 700,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -944,6 +944,25 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker",
+    "Warped Tusker",
+    "Shield Mare",
+    "Bartered Cow",
+    "Brine Comber // Brinebound Gift",
+    "Esper Sojourners",
+    "Bant Sojourners",
+    "Jund Sojourners"
+   ]
+  },
+  {
    "what": "custom value",
    "score": 15,
    "lines": 15,
@@ -1086,25 +1105,6 @@
     "Living Wish",
     "Cunning Wish",
     "Death Wish"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker",
-    "Shield Mare",
-    "Bartered Cow",
-    "Brine Comber // Brinebound Gift",
-    "Esper Sojourners",
-    "Bant Sojourners",
-    "Grixis Sojourners"
    ]
   },
   {
@@ -1995,6 +1995,22 @@
    ]
   },
   {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Treasure Map // Treasure Cove",
+    "Spirit Water Revival",
+    "Bruce Banner // The Incredible Hulk",
+    "Hostile Hostel // Creeping Inn",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend",
+    "Ludevic's Test Subject // Ludevic's Abomination"
+   ]
+  },
+  {
    "what": "scope:alts",
    "score": 10,
    "lines": 10,
@@ -2250,21 +2266,6 @@
     "Taigam, Ojutai Master",
     "Goliath Daydreamer",
     "Harness the Storm"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Treasure Map // Treasure Cove",
-    "Spirit Water Revival",
-    "Bruce Banner // The Incredible Hulk",
-    "Hostile Hostel // Creeping Inn",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend",
-    "Ludevic's Test Subject // Ludevic's Abomination"
    ]
   },
   {
@@ -2630,6 +2631,16 @@
     "Tireless Angler",
     "Ishkanah, Broodmother",
     "Faithful Disciple"
+   ]
+  },
+  {
+   "what": "ExileGraveyardAllTargetPlayerEffect",
+   "score": 8,
+   "lines": 3,
+   "cards": [
+    "Rakdos Charm",
+    "Elspeth's Nightmare",
+    "Go Blank"
    ]
   },
   {
@@ -6924,24 +6935,13 @@
     "Goblin Flotilla",
     "Treacherous Vampire"
    ]
-  },
-  {
-   "what": "EnchantedSourceCondition",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Krond the Dawn-Clad",
-    "Fledgling Osprey",
-    "Flaring Flame-Kin",
-    "Skyrider Trainee"
-   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3553,
-   "cards": 3385,
+   "score": 3556,
+   "cards": 3388,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6953,8 +6953,8 @@
   },
   {
    "what": "custom ability",
-   "score": 581,
-   "cards": 539,
+   "score": 583,
+   "cards": 541,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7431,6 +7431,19 @@
    ]
   },
   {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Park Heights Maverick",
+    "Drownyard Lurker",
+    "Warped Tusker"
+   ]
+  },
+  {
    "what": "CompoundCondition",
    "score": 13,
    "cards": 13,
@@ -7532,19 +7545,6 @@
     "Apathy",
     "Slow Motion",
     "Unnatural Hunger"
-   ]
-  },
-  {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker"
    ]
   },
   {
@@ -8267,6 +8267,16 @@
    ]
   },
   {
+   "what": "ExileGraveyardAllTargetPlayerEffect",
+   "score": 8,
+   "cards": 3,
+   "names": [
+    "Rakdos Charm",
+    "Elspeth's Nightmare",
+    "Go Blank"
+   ]
+  },
+  {
    "what": "TargetActivatedOrTriggeredAbility",
    "score": 8,
    "cards": 8,
@@ -8622,6 +8632,19 @@
     "Necrogen Rotpriest",
     "Flensing Raptor",
     "Slaughter Singer"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Treasure Map // Treasure Cove",
+    "Bruce Banner // The Incredible Hulk",
+    "Cursed Recording",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {
@@ -9071,19 +9094,6 @@
     "Case of the Shattered Pact",
     "Case of the Crimson Pulse",
     "Case of the Burning Masks"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend",
-    "Ludevic's Test Subject // Ludevic's Abomination"
    ]
   },
   {
@@ -10673,17 +10683,6 @@
     "Turncoat Kunoichi",
     "Detention Chariot",
     "Driftgloom Coyote"
-   ]
-  },
-  {
-   "what": "LoseLifeTargetEffect amount",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Astarion, the Decadent",
-    "Emissary of Despair",
-    "Final Punishment",
-    "Burden of Greed"
    ]
   }
  ]

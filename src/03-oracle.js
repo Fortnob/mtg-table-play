@@ -3271,6 +3271,9 @@
     { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
     // Veil of Summer: "Spells you control can't be countered this turn."
     { re: /^Spells you control can'?t be countered this turn\.?$/i, make: () => ({ op: 'uncounterableTurn' }) },
+    // Vexing Shusher: "Target spell can't be countered."
+    { re: /^Target (spell|creature spell|instant or sorcery spell) can'?t be countered\.?$/i,
+      make: (m) => ({ op: 'spellUncounterable', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() }] }) },
     // Disrupting Shoal: "Counter target spell if its mana value is X."
     { re: /^Counter target spell if its mana value is (X|\d+)\.?$/i, make: (m) => ({ op: 'counterSpell', ifMv: /x/i.test(m[1]) ? 'X' : +m[1], targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }) },
     // Veil of Summer: "You and permanents you control gain hexproof from blue and from black until end of turn."
