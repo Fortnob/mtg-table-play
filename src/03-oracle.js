@@ -10715,7 +10715,8 @@
     let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
     // (Loch Mare, Moonlit Lamenter: "-1/-1 counters" as well as named ones)
-    etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (-1\/-1|[a-z ]+?) counters?/i);
+    // (Astral Cornucopia, Lightning Serpent: "X charge counters", "X +1/+0 counters" — the X paid)
+    etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (-1\/-1|\+1\/\+0|[a-z ]+?) counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
     /* Graft N (CR 702.58): it enters with N +1/+1 counters, and may hand
        one to each other creature as that creature enters */

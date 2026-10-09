@@ -14884,4 +14884,20 @@ module.exports = (test) => {
     t.eq(lm.counters['-1/-1'], 3);
     t.eq(cb.counters['-1/-1'], 2);
   });
+  test('Astral Cornucopia enters with X charge counters; Lightning Serpent with X +1/+0', (mk, t) => {
+    t.auto('Astral Cornucopia');
+    t.auto('Lightning Serpent');
+    const T = mk();
+    T.toMain('A');
+    const ac = T.hand('A', 'Astral Cornucopia');
+    ac.chosenX = 3;
+    T.g.moveObject(ac, 'battlefield', { controller: 'A' });
+    T.settle();
+    t.eq(ac.counters.charge, 3);
+    const ls = T.hand('A', 'Lightning Serpent');
+    ls.chosenX = 2;
+    T.g.moveObject(ls, 'battlefield', { controller: 'A' });
+    T.settle();
+    t.eq(T.g.powerOf(ls), 4, '2/1 with two +1/+0 counters');
+  });
 };
