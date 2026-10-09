@@ -13882,4 +13882,34 @@ module.exports = (test) => {
     const ids = T.g._legalTargetsFor(spec, 'A', fm.id).map(x => x.id);
     t.ok(ids.includes(fb.id) && !ids.includes(sh.id), 'Fireball, not Shock');
   });
+
+  test("Scavenger's Talent: sacrifice three other nonland permanents, a creature back with a finality counter; Coppercoat Vanguard", (mk, t) => {
+    t.auto("Scavenger's Talent"); t.auto('Coppercoat Vanguard');
+    const T = mk();
+    T.toMain('A');
+    const st = T.bf('A', "Scavenger's Talent");
+    const ps = [T.bf('A', 'Grizzly Bears'), T.bf('A', 'Mind Stone'), T.bf('A', 'Sol Ring')];
+    const giant = T.grave('A', 'Hill Giant');
+    const ab = st.analysis().abilities.find(a => /finality/.test(a.text));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: st, name: "Scavenger's Talent", kind: 'ability' });
+    T.settle();
+    t.ok(ps.every(p => p.zone === 'graveyard'), 'three sacrificed');
+    t.zone(st, 'battlefield', 'not the Talent itself');
+    t.zone(giant, 'battlefield'); t.eq(giant.counters.finality, 1, 'with a finality counter');
+    const U = mk();
+    U.toMain('A');
+    const st2 = U.bf('A', "Scavenger's Talent");
+    U.bf('A', 'Grizzly Bears'); U.bf('A', 'Mind Stone');
+    const g2 = U.grave('A', 'Hill Giant');
+    U.g._runEffects(ab.effects, { controller: 'A', obj: st2, name: "Scavenger's Talent", kind: 'ability' });
+    U.settle();
+    t.zone(g2, 'graveyard', 'only two others: nothing happens');
+    const V = mk();
+    V.bf('A', 'Coppercoat Vanguard');
+    const human = V.bf('A', 'Raging Goblin');
+    const soldier = V.bf('A', 'Elite Vanguard');
+    t.eq(V.g.powerOf(soldier), 3, 'another Human gets +1/+0');
+    t.eq(V.g.powerOf(human), 1, 'a Goblin does not');
+    t.ok(V.g._wardCosts(soldier).length === 1, 'and has ward');
+  });
 };

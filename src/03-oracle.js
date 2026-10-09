@@ -1569,6 +1569,9 @@
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
     // Quiet Disrepair: "Destroy enchanted creature."
     { re: /^Destroy enchanted (creature|permanent|artifact|land)\.?$/i, make: () => ({ op: 'destroy', scope: 'attached' }) },
+    // Scavenger's Talent: "return a creature card from your graveyard to the battlefield with a finality counter on it"
+    { re: /^(?:Then )?[Rr]eturn an? ([a-z]+) card from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/,
+      make: (m) => ({ op: 'graveyardPick', n: 1, upTo: false, filter: m[1].toLowerCase(), to: 'battlefield', counter: m[2].toLowerCase() }) },
     // Sanctum of Eternity: "Return target commander you own from the battlefield to your hand."
     { re: /^Return target commander you own from the battlefield to your hand\.?$/i,
       make: () => ({ op: 'bounce', targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent', commander: true, owner: 'you' }] }) },
@@ -11615,6 +11618,18 @@
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
        deathtouch as long as there are seven or more cards in your
        graveyard" — the condition at the end read as the one at the front */
+    /* Coppercoat Vanguard: "Each other Human you control gets +1/+0 and has
+       ward {1}." is "Other Humans you control get +1/+0 and have ward {1}." */
+    const eachKind = String(line).match(/^Each (other )?([A-Z][a-z]+) you control (gets|has) (.+)$/);
+    if (eachKind) {
+      const w = eachKind[2];
+      const IRREG = { Elf: 'Elves', Dwarf: 'Dwarves', Wolf: 'Wolves', Werewolf: 'Werewolves', Thief: 'Thieves', Merfolk: 'Merfolk',
+        Kithkin: 'Kithkin', Samurai: 'Samurai', Fungus: 'Fungi', Mouse: 'Mice', Fox: 'Foxes', Sphinx: 'Sphinxes', Fish: 'Fish' };
+      const pl = IRREG[w] || (/[^aeiou]y$/.test(w) ? w.slice(0, -1) + 'ies' : /(?:s|x|ch|sh)$/.test(w) ? w + 'es' : w + 's');
+      const rest = eachKind[4].replace(/ and has /, ' and have ').replace(/, has /, ', have ');
+      const again = parseStatic((eachKind[1] ? 'Other ' : '') + pl + ' you control ' + (eachKind[3] === 'gets' ? 'get' : 'have') + ' ' + rest, ctx);
+      if (again && again.auto) return Object.assign({}, again, { text: line });
+    }
     // Jetmir: "Creatures you control also get +1/+0 and have trample as long as …" — "also" adds nothing
     const also = String(line).match(/^((?:Other )?[A-Za-z ]+? you control) also (gets?|ha(?:ve|s)) (.+)$/i);
     if (also) {

@@ -12205,6 +12205,8 @@
             this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: ctx.controller });
             // Teval: "to the battlefield tapped"
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
+            // Scavenger's Talent: "with a finality counter on it"
+            if (e.counter && c.zone === 'battlefield') this.addCounters(c, e.counter, 1);
           }
           break;
         }
@@ -14194,15 +14196,22 @@
             this._spliceNext(e.then);
             break;
           }
-          const zone = pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && this._matchesFilter(o, pay.sacrifice.filter))
+          /* Scavenger's Talent: "you may sacrifice three other nonland
+             permanents" — as many as it says, never the source itself */
+          const sf = pay.sacrifice ? String(pay.sacrifice.filter || 'permanent') : '';
+          const sOther = /^other /i.test(sf) || !!(pay.sacrifice && pay.sacrifice.another);
+          const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
+          const need = pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1;
+          const zone = pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
             : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter));
-          if (!zone.length) break;
-          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
-            cards: zone.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: pay.sacrifice ? 'Sacrifice one.' : 'Discard one.' }, 'pay');
+          if (zone.length < need) break;
+          const picked = (me.isBot && need > 1) ? this._cheapestFirst(zone).slice(0, need).map(o => o.id)
+            : this._ask({ type: 'pickCard', playerId: ctx.controller, count: need,
+              cards: zone.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: pay.sacrifice ? (need > 1 ? `Sacrifice ${need}.` : 'Sacrifice one.') : 'Discard one.' }, 'pay');
           if (picked === SUSPEND) return SUSPEND;
-          const chosen = (picked || []).map(id => this.obj(id)).filter(Boolean);
-          if (!chosen.length) break;
+          const chosen = (picked || []).map(id => this.obj(id)).filter(o => o && zone.includes(o)).slice(0, need);
+          if (chosen.length < need) break;
           for (const o of chosen) {
             this.moveObject(o, 'graveyard');
             this.logEvent(pay.sacrifice ? 'sacrifice' : 'discard',

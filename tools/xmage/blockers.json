@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11921,
+  "needed": 11918,
   "gainedCards": 1230,
-  "linesNeeded": 12866,
+  "linesNeeded": 12862,
   "linesGained": 1464,
   "gained": {
    "all": 1230,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 49,
+  "verifyFail": 48,
   "overrides": {
    "drain": 63,
    "count": 42,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4305,
-   "lines": 4044,
+   "score": 4304,
+   "lines": 4043,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 207,
-   "lines": 186,
+   "score": 206,
+   "lines": 185,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -4690,18 +4690,6 @@
    ]
   },
   {
-   "what": "(verify) condition lost",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Jin-Gitaxias // The Great Synthesis",
-    "Depala, Pilot Exemplar",
-    "Hope-Ender Coatl",
-    "Sandman's Quicksand",
-    "Adipose Offspring"
-   ]
-  },
-  {
    "what": "ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect",
    "score": 5,
    "lines": 5,
@@ -5689,6 +5677,17 @@
     "Double Major",
     "Choreographed Sparks",
     "Aziza, Mage Tower Captain"
+   ]
+  },
+  {
+   "what": "(verify) condition lost",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Jin-Gitaxias // The Great Synthesis",
+    "Hope-Ender Coatl",
+    "Sandman's Quicksand",
+    "Adipose Offspring"
    ]
   },
   {
@@ -6974,8 +6973,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 127,
-   "cards": 121,
+   "score": 126,
+   "cards": 120,
    "names": [
     "March of Swirling Mist",
     "Winds of Abandon",
