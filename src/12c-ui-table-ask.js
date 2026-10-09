@@ -549,7 +549,9 @@
         const taken = g.ids.filter(id => sel.picks.includes(id)).length;
         const free = g.ids.find(id => !sel.picks.includes(id));
         const can = taken > 0 || (free && C.canAdd(s, sel.picks, free)) || s.max === 1;
-        const badge = g.ids.length > 1 ? (taken ? `${taken}/${g.ids.length}` : '×' + g.ids.length) : (taken ? '✓' : '');
+        // an ordered pick (Scroll Rack) says where each one goes: 1, 2, 3…
+        const at = s.ordered && taken && g.ids.length === 1 ? sel.picks.indexOf(g.ids[0]) + 1 : 0;
+        const badge = g.ids.length > 1 ? (taken ? `${taken}/${g.ids.length}` : '×' + g.ids.length) : (at ? String(at) : taken ? '✓' : '');
         const tile = this.pickTile(g.item.card, {
           cls: (taken ? 'on' : '') + (can ? '' : ' off'), badge, label: g.item.label || g.item.cost || '',
           onClick: () => {
