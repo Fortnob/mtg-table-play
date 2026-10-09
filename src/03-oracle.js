@@ -615,6 +615,32 @@
   }
 
   /** Point a target-less trigger's "it" at what the trigger is about. */
+  /* After a target, "that creature" and "its" in a trigger about this
+     permanent are the target: Sister Hospitaller's "return target creature
+     card … You gain life equal to its mana value" counts the card returned,
+     not the Hospitaller. In a trigger about another permanent "attach it" is
+     that one (Sigarda's Aid). */
+  function thatIsTheTarget(parsed, aboutOther) {
+    let targeted = false;
+    const prior = (v) => (v && typeof v === 'object' && v.ofTrigger ? Object.assign({}, v, { ofPrior: true }) : v);
+    const walk = (list) => {
+      for (const e of list || []) {
+        if (!e) continue;
+        if (e.op === 'attachSelf' && e.attachIt && aboutOther) e.op = 'attachThat';
+        delete e.attachIt;
+        const own = (e.targets || []).some(t => t && t.type !== 'player');
+        if (!aboutOther && (targeted || own)) {
+          // Hunter's Bow: "That creature deals damage equal to its power" is the creature just equipped
+          if (e.op === 'damage' && e.fromTrigger) { if (targeted && /^That creature\b/i.test(e.text || '')) parsed.auto = false; }
+          else for (const k of ['n', 'p', 't']) if (e[k] && e[k].ofTrigger) e[k] = prior(e[k]);
+        }
+        if (own) targeted = true;
+        walk(e.list); walk(e.then); walk(e.otherwise);
+      }
+    };
+    walk(parsed.effects);
+  }
+
   function itIsTheTrigger(effects, scope) {
     if (!scope) return;
     /* "Whenever this creature attacks, it gains double strike until end of
@@ -3867,7 +3893,10 @@
       make: (m) => ({ op: 'chooseFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any' }) },
     { re: /^That player discards that card\.?$/i, make: () => ({ op: 'discardChosen' }) },
     { re: /^Exile that card\.?$/i, make: () => ({ op: 'exileChosen' }) },
-    { re: /^Attach it to target creature you control\.?$/i, make: () => ({ op: 'attachSelf' }) },
+    /* Embercleave: "attach it to target creature you control" — a creature
+       chosen as the trigger goes on the stack */
+    { re: /^Attach it to target creature you control\.?$/i,
+      make: () => ({ op: 'attachSelf', attachIt: true, targets: [targetSpec('target creature you control')] }) },
     /* "Whenever a creature you control enters, you may attach this
        Equipment to it." */
     { re: /^Attach (?:this Equipment|this Aura|CARDNAME) to (?:it|that creature)\.?$/i, make: () => ({ op: 'attachSelf', scope: 'triggerObject' }) },
@@ -9421,6 +9450,7 @@
            targeted, "it" is the creature the trigger is about, this one or
            the one that set it off, not a target that was never chosen */
         itIsTheTrigger(parsed.effects, trig.aboutObject ? 'triggerObject' : trig.self ? 'self' : (objFilter ? 'triggerObject' : null));
+        thatIsTheTarget(parsed, !trig.self && (trig.aboutObject || objFilter));
         /* Exquisite Blood: "Whenever an opponent loses life, you gain that
            much life" — with no life lost earlier in the ability, "that much"
            is what set the trigger off */

@@ -1216,4 +1216,118 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.g.powerOf(mine), 2); t.eq(T.g.powerOf(theirs), 6);
   });
+
+  test('Audit: Embercleave attaches itself to the creature chosen as it enters', (mk, t) => {
+    const T = mk();
+    t.auto('Embercleave');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Craw Wurm');
+    T.mana('A', 'RR4');
+    let offered;
+    T.answer('pickTarget', (ch) => { offered = optIds(ch)[0]; return { targets: [{ kind: 'object', id: b.id }] }; });
+    T.cast('A', T.hand('A', 'Embercleave'));
+    t.eq(offered.join(), b.id, 'only your own creatures');
+    const e = T.bfOf('A').find(o => o.name === 'Embercleave');
+    t.eq(e.attachedTo, b.id);
+    t.eq(T.g.powerOf(b), 3);
+    t.ok(T.g.hasKw(b, 'double strike'));
+  });
+
+  test('Audit: Infinity Formula attaches itself to the creature chosen as it enters', (mk, t) => {
+    const T = mk();
+    t.auto('Infinity Formula');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b.id }] }));
+    T.put('A', 'Infinity Formula', 'battlefield', { etb: true });
+    T.settle(); T.resolve();
+    const e = T.bfOf('A').find(o => o.name === 'Infinity Formula');
+    t.eq(e.attachedTo, b.id);
+    t.eq(T.g.powerOf(b), 3); t.eq(T.g.toughnessOf(b), 4);
+  });
+
+  test("Audit: Sigarda's Aid attaches the Equipment that entered, not itself", (mk, t) => {
+    const T = mk();
+    t.auto("Sigarda's Aid");
+    const aid = T.bf('A', "Sigarda's Aid"), b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b.id }] }));
+    T.cast('A', T.hand('A', 'Bonesplitter'));
+    const e = T.bfOf('A').find(o => o.name === 'Bonesplitter');
+    t.eq(e.attachedTo, b.id);
+    t.no(aid.attachedTo);
+    t.eq(T.g.powerOf(b), 4);
+  });
+
+  test("Audit: Hunter's Bow is manual: the equipped creature deals the damage", (mk, t) => {
+    const T = mk();
+    t.no(T.MTG.oracle.analyze(require('../harness').card("Hunter's Bow")).fullyAutomated);
+  });
+
+  test('Audit: Cleric Class level 3 gains life equal to the returned creature\'s toughness', (mk, t) => {
+    const T = mk();
+    t.auto('Cleric Class');
+    const c = T.bf('A', 'Cleric Class');
+    const wurm = T.grave('A', 'Craw Wurm');
+    T.mana('A', 'W3'); T.activate('A', c, 0);
+    T.mana('A', 'W4'); T.activate('A', c, 1);
+    t.zone(wurm, 'battlefield');
+    t.eq(T.life('A'), 25, 'toughness 4, plus 1 from level 1');
+  });
+
+  test("Audit: Sister Hospitaller gains life equal to the returned card's mana value", (mk, t) => {
+    const T = mk();
+    t.auto('Sister Hospitaller');
+    const wurm = T.grave('A', 'Craw Wurm');
+    T.mana('A', 'WB4');
+    T.cast('A', T.hand('A', 'Sister Hospitaller'));
+    t.zone(wurm, 'battlefield');
+    t.eq(T.life('A'), 26);
+  });
+
+  test("Audit: Thickest in the Thicket counts the target's power", (mk, t) => {
+    const T = mk();
+    t.auto('Thickest in the Thicket');
+    const w = T.bf('A', 'Craw Wurm');
+    T.mana('A', 'GG3');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T.cast('A', T.hand('A', 'Thickest in the Thicket'));
+    t.eq(T.g.powerOf(w), 12);
+  });
+
+  test("Audit: Brightmare gains life equal to the tapped creature's power", (mk, t) => {
+    const T = mk();
+    t.auto('Brightmare');
+    const w = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'W2');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T.cast('A', T.hand('A', 'Brightmare'));
+    t.ok(w.tapped);
+    t.eq(T.life('A'), 26);
+  });
+
+  test("Audit: Draining Whelk grows by the countered spell's mana value", (mk, t) => {
+    const T = mk();
+    t.auto('Draining Whelk');
+    const wurm = T.hand('B', 'Craw Wurm');
+    T.nextTurn('B'); T.mana('B', 'GG4');
+    T.cast('B', wurm, { resolve: false });
+    T.g.passPriority('B', true);
+    T.mana('A', 'UU4');
+    T.answer('pickTarget', () => ({ targets: [T.stackTarget(wurm)] }));
+    T.cast('A', T.hand('A', 'Draining Whelk'));
+    t.eq(wurm.zone, 'graveyard');
+    const wh = T.bfOf('A').find(o => o.name === 'Draining Whelk');
+    t.eq(wh.counters['+1/+1'], 6);
+  });
+
+  test('Audit: Bulk Up doubles power until end of turn', (mk, t) => {
+    const T = mk();
+    t.auto('Bulk Up');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Bulk Up'), { targets: [b] });
+    t.eq(T.g.powerOf(b), 4); t.eq(T.g.toughnessOf(b), 2);
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(b), 2);
+  });
 };
