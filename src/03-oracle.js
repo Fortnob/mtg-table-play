@@ -3093,6 +3093,9 @@
       make: (m) => ({ op: 'bounce', withYourAuras: true, targets: [targetSpec(m[1])] }) },
     // (a dies trigger's "exile it", as the trigger reads it)
     { re: /^Exile the card that died\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
+    // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control get +2/+0 until end of turn"
+    { re: /^Creatures attacking your opponents(?: and\/or planeswalkers they control)? get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true } }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."

@@ -16000,4 +16000,26 @@ module.exports = (test) => {
     t.zone(egg, 'graveyard');
     t.ok(bear.zone === 'battlefield' || bear.zone === 'hand', 'the Bears (2) are discovered past the Wurm (6): its toughness is 3');
   });
+
+  test('Roar of Resistance: creatures attacking your opponents get +2/+0, not those attacking you', (mk, t) => {
+    t.auto('Roar of Resistance');
+    let T = mk();
+    T.bf('A', 'Roar of Resistance');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('A');
+    T.bf('A', 'Mountain'); T.bf('A', 'Mountain');
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 16, 'four damage');
+    T = mk();
+    T.bf('A', 'Roar of Resistance');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.toMain('B');
+    T.bf('A', 'Mountain'); T.bf('A', 'Mountain');
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: theirs.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 18, 'a creature attacking you is not helped');
+  });
 };

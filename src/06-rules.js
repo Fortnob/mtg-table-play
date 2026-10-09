@@ -20102,6 +20102,8 @@
       if (sc.attacking && !o.attacking) return false;
       // Arachnogenesis: "creatures attacking you" — you, or a planeswalker of yours
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
+      // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
+      if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;
       if (sc.withCounter && !(Number(o.counters[sc.withCounter]) > 0)) return false;
       if (sc.withAnyCounter && !Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
