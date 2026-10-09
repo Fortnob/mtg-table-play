@@ -6396,6 +6396,8 @@
       if (only.when === 'combat' && !(this.phase && this.phase.id === 'combat')) return 'Only during combat.';
       if (only.when === 'yourUpkeep' && !(this.step === 'upkeep' && this.activePlayer && this.activePlayer.id === playerId)) return 'Only during your upkeep.';
       if (only.when === 'endstep' && this.step !== 'end') return 'Only during the end step.';
+      // Desert: "Activate only during the end of combat step."
+      if (only.when === 'endCombat' && this.step !== 'endCombat') return 'Only during the end of combat step.';
       if (only.when === 'mainphase' && !this.isMain) return 'Only during a main phase.';
       if (only.cond && !this._condMet(only.cond, { controller: playerId, obj: o })) {
         return 'The condition on that ability is not met.';
@@ -8194,6 +8196,8 @@
       for (const d of declarations) {
         const b = this.obj(d.blockerId);
         b.blocking = d.attackerIds.slice();
+        // Clockwork Beast: "if this creature attacked or blocked this combat"
+        b.blockedTurn = this.turn;
         for (const aid of d.attackerIds) {
           const at = this.obj(aid);
           at.blockedBy.push(b.id);
@@ -9290,6 +9294,7 @@
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
+        case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
         // Brass Knuckles: the creature it's on wears two Equipment or more
         case 'hostEquipmentAtLeast': {
@@ -9987,7 +9992,8 @@
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
-      if (source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) this.addCounters(o, '-1/-1', amount);
+      // (Everlasting Torment: all damage as though its source had wither)
+      if ((source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) || this._anyStatic('witherAll')) this.addCounters(o, '-1/-1', amount);
       else o.damage += amount;
       // "target creature that was dealt damage this turn", until the cleanup step
       o.damagedThisTurn = true;
@@ -10482,6 +10488,8 @@
         const ga = o.analysis();
         (ga ? ga.abilities : []).forEach((ab, i) => {
           if (ab.kind !== 'triggered' || ab.event !== 'selfToGraveyard') return;
+          // Narcomoeba: only from your library
+          if (ab.fromLibrary && from !== 'library') return;
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: o.owner, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
@@ -19361,6 +19369,12 @@
      */
     _scopeHit(sc, o, oa, pid, src, inLayers) {
       if (sc.other && src && src.id === o.id) return false;
+      // Kjeldoran Frostbeast: blocking it, or blocked by it
+      if (sc.combatWithSelf) {
+        if (!src) return false;
+        const blocksIt = (o.blocking || []).includes(src.id), itBlocks = (src.blocking || []).includes(o.id);
+        if (sc.combatWithSelf === 'blocking' ? !blocksIt : sc.combatWithSelf === 'blockedBy' ? !itBlocks : !(blocksIt || itBlocks)) return false;
+      }
       // Backgrounds: "Commander creatures you own"
       // Falthis: "Commanders you control" — whoever owns them
       if (sc.commander && !(o.isCommander && (sc.commander === 'control' || o.owner === pid))) return false;
@@ -19902,6 +19916,7 @@
         const blocked = e.blockingId && this.combat && this.obj(e.blockingId);
         if (blocked && blocked.zone === 'battlefield' && blocked.attacking) {
           o.blocking = [blocked.id];
+          o.blockedTurn = this.turn;
           blocked.blockedBy.push(o.id);
           if (!blocked.blockOrder.includes(o.id)) blocked.blockOrder.push(o.id);
           this.combat.blockers.push(o.id);

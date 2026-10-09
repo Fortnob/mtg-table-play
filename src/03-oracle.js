@@ -2013,6 +2013,8 @@
        sorcery), "only during combat", "only during your upkeep" */
     { re: /^Activate (?:this ability )?only during (your turn|combat|your upkeep)\.?$/i,
       make: (m) => ({ op: 'activateOnly', when: /turn/i.test(m[1]) ? 'yourTurn' : /combat/i.test(m[1]) ? 'combat' : 'yourUpkeep' }) },
+    // Desert: "Activate only during the end of combat step."
+    { re: /^Activate (?:this ability )?only during the end of combat step\.?$/i, make: () => ({ op: 'activateOnly', when: 'endCombat' }) },
     // Vivi Ornitier, Nimbleclaw Adept: two restrictions at once
     { re: /^Activate (?:this ability )?only (during your turn|as a sorcery) and only once each turn\.?$/i,
       make: (m) => Object.assign({ op: 'activateOnly', perTurn: 1 }, /turn/i.test(m[1]) ? { when: 'yourTurn' } : {}) },
@@ -7928,6 +7930,8 @@
     [/^(?:it'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
+    // Clockwork Beast, Kjeldoran Home Guard: "this creature attacked or blocked this combat"
+    [/^(?:it|this creature|CARDNAME) attacked or blocked this (?:combat|turn)$/i, () => ({ kind: 'any', of: [{ kind: 'selfAttackedThisTurn' }, { kind: 'selfBlockedThisTurn' }] })],
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Mirrex: "Activate only if this land entered this turn."
@@ -8469,6 +8473,8 @@
     { re: /^When you cycle (?:this card|CARDNAME),? /i, event: 'cycleSelf' },
     { re: /^Whenever you cycle or discard (?:a|another) card,? /i, event: 'youDiscard' },   // cycling discards too
     { re: /^Whenever you cycle (?:a|another) card,? /i, event: 'youCycle' },
+    // Narcomoeba, Gaea's Blessing: "When this card is put into your graveyard from your library,"
+    { re: /^When (?:CARDNAME|this (?:card|creature)) is put into your graveyard from your library, /i, event: 'selfToGraveyard', extra: { fromLibrary: true } },
     { re: /^When (?:CARDNAME|this (?:card|creature)) is put into a graveyard from anywhere,? /i, event: 'selfToGraveyard' },
     { re: /^When(?:ever)? (?:this land|CARDNAME) enters untapped(?:,| )/i, event: 'etb', self: true,
       extra: { condition: { kind: 'selfUntapped' } } },
@@ -8798,6 +8804,8 @@
     // Corpseberry Cultivator: "Whenever you forage"
     { re: /^When(?:ever)? you forage(?:,| )/i, event: 'youForage' },
     { re: /^When(?:ever)? you cast your first spell (?:during|each) (?:each turn|turn|opponent'?s turn)(?:,| )/i, event: 'firstSpellEachTurn' },
+    // Lara Croft, Rose: "At end of combat on your turn,"
+    { re: /^At end of combat on your turn, /i, event: 'endOfCombat', extra: { yourTurnOnly: true } },
     { re: /^At end of combat(?:,| )/i, event: 'endOfCombat' },
     { re: /^When(?:ever)? an? (?:artifact|enchantment) enters(?: the battlefield)?(?: under your control)?(?:,| )/i, event: 'permanentEtb' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) transforms(?:,| )/i, event: 'transforms', self: true },
@@ -9420,6 +9428,9 @@
         }
         // "Whenever this creature attacks, double its power": its own power
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
+        /* Narcomoeba: "When this card is put into your graveyard from your
+           library, you may put it onto the battlefield" — "it" is the card */
+        if (trig.event === 'selfToGraveyard') body = body.replace(/^(you may )?put it onto the battlefield\.?$/i, (x, may) => (may ? 'you may ' : '') + 'return CARDNAME from your graveyard to the battlefield.');
         /* "This ability triggers only once each turn." is about the
            trigger, not something it does. */
         let oncePerTurn = false;
@@ -10702,6 +10713,12 @@
     /* "Creatures you control of the chosen type": whatever this permanent
        was told as it entered */
     // Crippling Fear: "Creatures that aren't of the chosen type"
+    /* Kjeldoran Frostbeast: "creatures blocking or blocked by this creature";
+       Wall of Nets: "creatures blocked by this creature" */
+    if ((mm0 = rest.match(/ (blocking or blocked by|blocked by|blocking) (?:this creature|CARDNAME)$/i))) {
+      sc.combatWithSelf = /blocking or/i.test(mm0[1]) ? 'either' : /^blocked/i.test(mm0[1]) ? 'blockedBy' : 'blocking';
+      rest = rest.slice(0, mm0.index);
+    }
     const notChosen = rest.match(/ that (?:aren'?t|are not|isn'?t|is not) of the chosen type$/i);
     if (notChosen) { sc.notChosenType = true; rest = rest.slice(0, notChosen.index); }
     const chosen = rest.match(/ of the chosen (type|colou?r)\b/i);
@@ -12350,6 +12367,8 @@
       { re: /^Any player may cast spells as though they had flash\.?$/i, eff: { op: 'flashGrant', anyPlayer: true }, auto: true },
       // Teferi, Mage of Zhalfir: "Creature cards you own that aren't on the battlefield have flash."
       { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
+      // Everlasting Torment: "All damage is dealt as though its source had wither."
+      { re: /^All damage is dealt as though its source had wither\.?$/i, eff: { op: 'witherAll' }, auto: true },
       // Spider-Punk: "Spells and abilities can't be countered."
       { re: /^Spells and abilities can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all', abilities: true }, auto: true },
       // Storied: three or more artifacts, legendaries and/or Sagas, and the story is yours for the game

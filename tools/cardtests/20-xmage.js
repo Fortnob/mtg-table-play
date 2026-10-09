@@ -14005,4 +14005,76 @@ module.exports = (test) => {
     aura.entered = T.g.turn - 1; T.g.bumpBoard();
     t.ok(!T.g.hasKw(bear, 'hexproof'), 'a later turn');
   });
+
+  test('Everlasting Torment: all damage is dealt as though its source had wither', (mk, t) => {
+    t.auto('Everlasting Torment');
+    const T = mk();
+    T.bf('B', 'Everlasting Torment');
+    const giant = T.bf('A', 'Hill Giant');
+    T.g._runEffects([{ op: 'damage', n: 2 }], { controller: 'A', name: 'Shock', kind: 'spell', targets: [{ kind: 'object', id: giant.id }] });
+    T.settle();
+    t.eq(giant.counters['-1/-1'], 2, 'two -1/-1 counters');
+    t.eq(giant.damage || 0, 0, 'no damage marked');
+  });
+
+  test("Narcomoeba, Gaea's Blessing: put into your graveyard from your library", (mk, t) => {
+    t.auto('Narcomoeba'); t.auto("Gaea's Blessing");
+    const T = mk();
+    T.toMain('A');
+    const nm = T.top('A', 'Narcomoeba');
+    T.g._runEffects([{ op: 'mill', n: 1, who: 'you' }], { controller: 'A', name: 'Mill', kind: 'spell' });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(nm, 'battlefield', 'milled: onto the battlefield');
+    const disc = T.hand('A', 'Narcomoeba');
+    T.g._runEffects([{ op: 'discard', n: 1, who: 'you' }], { controller: 'A', name: 'Discard', kind: 'spell' });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(disc, 'graveyard', 'discarded: it stays');
+    const U = mk();
+    U.toMain('A');
+    U.grave('A', 'Hill Giant'); U.grave('A', 'Shock');
+    const gb = U.top('A', "Gaea's Blessing");
+    U.g._runEffects([{ op: 'mill', n: 1, who: 'you' }], { controller: 'A', name: 'Mill', kind: 'spell' });
+    U.settle(); U.resolve(); U.settle();
+    t.eq(U.zone('A', 'graveyard').length, 0, 'the graveyard shuffled into the library');
+    t.zone(gb, 'library');
+  });
+
+  test('Desert: 1 damage to an attacking creature during the end of combat step', (mk, t) => {
+    t.auto('Desert');
+    const T = mk();
+    const desert = T.bf('B', 'Desert');
+    const elf = T.bf('A', 'Llanowar Elves'); elf.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: elf.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.ok(!!elf.attacking, 'still attacking in the end of combat step');
+    const idx = desert.analysis().manaAbilities.length + desert.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty').findIndex(a => /damage/.test(a.text));
+    if (T.g.priorityPlayer && T.g.priorityPlayer.id === 'A') T.g.passPriority('A');
+    T.settle();
+    const ok = T.g.activateAbility('B', desert.id, idx, { targets: [{ kind: 'object', id: elf.id }] });
+    t.ok(ok, 'activated: ' + (T.g.lastError || ''));
+    T.settle(); T.resolve(); T.settle();
+    t.zone(elf, 'graveyard', 'the Elves die');
+  });
+
+  test('At end of combat: Kjeldoran Frostbeast destroys what it fought; Kjeldoran Home Guard deserts', (mk, t) => {
+    t.auto('Kjeldoran Frostbeast'); t.auto('Greater Werewolf'); t.auto('Kjeldoran Home Guard');
+    const T = mk();
+    const fb = T.bf('A', 'Kjeldoran Frostbeast'); fb.summoningSick = false;
+    const wall = T.bf('B', 'Wall of Stone');
+    const other = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: fb.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [fb.id] }]);
+    T.toMain('A', 'endCombat');
+    T.settle(); T.resolve(); T.settle();
+    t.zone(wall, 'graveyard', 'the creature that blocked it');
+    t.zone(other, 'battlefield', 'not another creature');
+    const U = mk();
+    const hg = U.bf('A', 'Kjeldoran Home Guard'); hg.summoningSick = false;
+    U.answer('declareAttackers', () => [{ attackerId: hg.id, defenderId: 'B' }]);
+    U.toMain('A', 'endCombat');
+    U.settle(); U.resolve(); U.settle();
+    t.eq(hg.counters['-0/-1'], 1, 'a -0/-1 counter');
+    t.ok(U.bfOf('A').some(o => o.isToken && /Deserter/.test(o.name)), 'a Deserter');
+  });
 };

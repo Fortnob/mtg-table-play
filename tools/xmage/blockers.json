@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11904,
+  "needed": 11894,
   "gainedCards": 1224,
-  "linesNeeded": 12834,
+  "linesNeeded": 12822,
   "linesGained": 1447,
   "gained": {
    "all": 1224,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4301,
-   "lines": 4040,
+   "score": 4300,
+   "lines": 4039,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 752,
-   "lines": 692,
+   "score": 751,
+   "lines": 691,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 174,
-   "lines": 162,
+   "score": 173,
+   "lines": 161,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -1000,25 +1000,6 @@
    ]
   },
   {
-   "what": "EndOfCombatTriggeredAbility",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Rose, Cutthroat Raider",
-    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
-    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
-    "Wall of Nets",
-    "Heat Stroke",
-    "Daredevil Dragster",
-    "Clockwork Steed",
-    "The Wretched",
-    "Joven's Ferrets",
-    "Clockwork Beast",
-    "Clockwork Avian",
-    "Clockwork Swarm"
-   ]
-  },
-  {
    "what": "BecomesCreatureAttachedEffect",
    "score": 15,
    "lines": 15,
@@ -1719,6 +1700,24 @@
     "Sphinx's Approach",
     "Urborg Panther",
     "Kyscu Drake"
+   ]
+  },
+  {
+   "what": "EndOfCombatTriggeredAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Rose, Cutthroat Raider",
+    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
+    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
+    "Heat Stroke",
+    "Daredevil Dragster",
+    "Clockwork Steed",
+    "The Wretched",
+    "Joven's Ferrets",
+    "Clockwork Beast",
+    "Clockwork Avian",
+    "Clockwork Swarm"
    ]
   },
   {
@@ -2763,21 +2762,6 @@
    ]
   },
   {
-   "what": "IsStepCondition",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Desert",
-    "Armageddon Clock",
-    "Tolaria",
-    "Infinite Hourglass",
-    "Balduvian Warlord",
-    "General Jarkeld",
-    "Dwarven Armory",
-    "Lesser Werewolf"
-   ]
-  },
-  {
    "what": "GainAbilityWithAttachmentEffect",
    "score": 8,
    "lines": 8,
@@ -3597,17 +3581,17 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "what": "IsStepCondition",
    "score": 7,
    "lines": 7,
    "cards": [
-    "Cromat",
-    "Sisters of Stone Death",
-    "Abu Ja'far",
-    "Sentinel",
-    "Alms Beast",
-    "Steadfast Armasaur",
-    "Sworn Defender"
+    "Armageddon Clock",
+    "Tolaria",
+    "Infinite Hourglass",
+    "Balduvian Warlord",
+    "General Jarkeld",
+    "Dwarven Armory",
+    "Lesser Werewolf"
    ]
   },
   {
@@ -4437,6 +4421,19 @@
     "Bloodbraid Marauder",
     "Kaervek's Torch",
     "Torrent of Lava"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Cromat",
+    "Sisters of Stone Death",
+    "Abu Ja'far",
+    "Sentinel",
+    "Steadfast Armasaur",
+    "Sworn Defender"
    ]
   },
   {
@@ -6910,8 +6907,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3551,
-   "cards": 3380,
+   "score": 3550,
+   "cards": 3379,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6962,8 +6959,8 @@
   },
   {
    "what": "custom condition",
-   "score": 134,
-   "cards": 131,
+   "score": 133,
+   "cards": 130,
    "names": [
     "Sting, the Glinting Dagger",
     "Diamond City",
@@ -7001,8 +6998,8 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 55,
-   "cards": 43,
+   "score": 56,
+   "cards": 44,
    "names": [
     "Muldrotha, the Gravetide",
     "One with the Multiverse",
@@ -7925,19 +7922,6 @@
    ]
   },
   {
-   "what": "EndOfCombatTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Rose, Cutthroat Raider",
-    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
-    "Heat Stroke",
-    "Daredevil Dragster",
-    "The Wretched",
-    "Joven's Ferrets"
-   ]
-  },
-  {
    "what": "AdditiveDynamicValue",
    "score": 9,
    "cards": 9,
@@ -8107,6 +8091,19 @@
    ]
   },
   {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Connecting the Dots",
+    "Parallax Wave",
+    "Wall of Nets",
+    "Bomat Courier",
+    "Safe Haven",
+    "Parallax Tide"
+   ]
+  },
+  {
    "what": "keyword PowerUpAbility",
    "score": 9,
    "cards": 9,
@@ -8234,19 +8231,6 @@
     "Dragon's Approach",
     "Quest for Pure Flame",
     "Sokenzan Smelter"
-   ]
-  },
-  {
-   "what": "IsStepCondition",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Desert",
-    "Armageddon Clock",
-    "Tolaria",
-    "Infinite Hourglass",
-    "Balduvian Warlord",
-    "General Jarkeld"
    ]
   },
   {
@@ -8429,19 +8413,6 @@
     "Leave // Chance",
     "Conjured Currency",
     "Saving Grasp"
-   ]
-  },
-  {
-   "what": "ReturnFromExileForSourceEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Connecting the Dots",
-    "Parallax Wave",
-    "Bomat Courier",
-    "Safe Haven",
-    "Parallax Tide",
-    "Helvault"
    ]
   },
   {
@@ -8857,6 +8828,19 @@
    ]
   },
   {
+   "what": "IsStepCondition",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Armageddon Clock",
+    "Tolaria",
+    "Infinite Hourglass",
+    "Balduvian Warlord",
+    "General Jarkeld",
+    "Dwarven Armory"
+   ]
+  },
+  {
    "what": "KickedSpellPredicate.instance",
    "score": 7,
    "cards": 7,
@@ -9082,6 +9066,19 @@
     "Baron Strucker, HYDRA Overlord",
     "Iron Man, Bleeding Edge",
     "Lucy MacLean, Positively Armed"
+   ]
+  },
+  {
+   "what": "EndOfCombatTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rose, Cutthroat Raider",
+    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
+    "Heat Stroke",
+    "Daredevil Dragster",
+    "The Wretched",
+    "Joven's Ferrets"
    ]
   },
   {
@@ -9511,19 +9508,6 @@
     "Resistance Fighter",
     "Songstitcher",
     "Kry Shield"
-   ]
-  },
-  {
-   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Cromat",
-    "Abu Ja'far",
-    "Sentinel",
-    "Alms Beast",
-    "Steadfast Armasaur",
-    "Sworn Defender"
    ]
   },
   {
@@ -10231,6 +10215,18 @@
     "Impatience",
     "Keldon Twilight",
     "Krovikan Vampire"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Cromat",
+    "Abu Ja'far",
+    "Sentinel",
+    "Steadfast Armasaur",
+    "Sworn Defender"
    ]
   },
   {
