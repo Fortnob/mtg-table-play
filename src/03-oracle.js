@@ -5701,7 +5701,8 @@
     // Razor Rings, Windswift Slice: "the (amount of) excess damage dealt (to that creature) this way"
     if (/^(?:the (?:amount of )?excess damage dealt(?: to (?:that|the|a) (?:creature|permanent|planeswalker))?(?: this way)?|that excess damage|that much excess damage)$/i.test(p)) return done('lastExcess');
     // Ovika: "the mana value of that spell"
-    if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
+    // (Death's Presence: "the power of the creature that died")
+    if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it|the creature that died)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
     if ((m = p.match(/^(?:that card's|the revealed card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });

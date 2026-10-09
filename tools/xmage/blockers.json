@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11382,
-  "gainedCards": 1131,
-  "linesNeeded": 12186,
-  "linesGained": 1338,
+  "needed": 11389,
+  "gainedCards": 1130,
+  "linesNeeded": 12185,
+  "linesGained": 1337,
   "gained": {
-   "all": 1131,
+   "all": 1130,
    "top2000": 46,
    "stdTop": 8
   },
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 661,
-   "lines": 661,
+   "score": 662,
+   "lines": 662,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",

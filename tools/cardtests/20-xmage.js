@@ -15822,4 +15822,23 @@ module.exports = (test) => {
     t.eq(prompt, 'Brood Sliver: Create a 1/1 colorless Sliver creature token?');
     t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, 'A gets the token');
   });
+
+  test("Death's Presence: counters equal to the last-known power of the creature that died", (mk, t) => {
+    t.auto("Death's Presence");
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Death's Presence");
+    const giant = T.bf('A', 'Hill Giant'), elf = T.bf('A', 'Llanowar Elves');
+    giant.counters['+1/+1'] = 1;
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [giant] });
+    T.settle();
+    t.eq(T.g.powerOf(giant), 7, 'pumped to 7');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: elf.id }] });
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [giant] });
+    T.settle(); T.resolve();
+    t.zone(giant, 'graveyard');
+    t.eq(elf.counters['+1/+1'], 7, 'its power as it last was: 3, a counter and +3');
+  });
 };
