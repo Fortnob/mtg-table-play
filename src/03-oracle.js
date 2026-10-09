@@ -9525,7 +9525,8 @@
       if (m && out.isPlaneswalker) {
         const parsed = parseEffects(m[2]);
         out.abilities.push({
-          kind: 'loyalty', cost: { loyalty: m[1] === '0' ? 0 : parseInt(m[1], 10) },
+          // "−X:" takes X loyalty counters off, X chosen as it is activated
+          kind: 'loyalty', cost: /X/.test(m[1]) ? { loyalty: 0, loyaltyX: /^-/.test(m[1]) ? -1 : 1 } : { loyalty: m[1] === '0' ? 0 : parseInt(m[1], 10) },
           text: line, effects: parsed.effects, auto: parsed.auto, sorcerySpeed: true,
         });
         if (parsed.auto) autoLines++;

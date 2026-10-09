@@ -2235,4 +2235,42 @@ module.exports = (test) => {
     t.zone(bs, 'exile', 'and exiled afterwards');
     t.zone(cs, 'graveyard');
   });
+
+  test('Audit: a minus loyalty ability needs that much loyalty (Jace Beleren -10 at 3)', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const j = T.bf('A', 'Jace Beleren');
+    t.eq(j.counters.loyalty, 3);
+    t.no(T.g.activateAbility('A', j.id, 2, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), '-10 with 3 loyalty is refused');
+    t.eq(j.counters.loyalty, 3);
+    j.counters.loyalty = 10;
+    const lib = T.g.zones.B.library.length;
+    T.activate('A', j, 2, { targets: ['B'] });
+    t.eq(T.g.zones.B.library.length, Math.max(0, lib - 20), 'twenty milled');
+    t.zone(j, 'graveyard', 'down to 0 loyalty');
+  });
+
+  test('Audit: "-X" takes X loyalty off (Sorin, Vengeful Bloodlord; Chandra Nalaar)', (mk, t) => {
+    const T = mk();
+    t.auto('Sorin, Vengeful Bloodlord');
+    T.toMain('A');
+    const s = T.bf('A', 'Sorin, Vengeful Bloodlord');
+    t.eq(s.counters.loyalty, 4);
+    const bears = T.grave('A', 'Grizzly Bears');
+    t.no(T.g.activateAbility('A', s.id, 1, { auto: true, x: 5, targets: [{ kind: 'object', id: bears.id }] }), 'X of 5 with 4 loyalty is refused');
+    T.activate('A', s, 1, { x: 2, targets: [bears] });
+    t.eq(s.counters.loyalty, 2, 'two loyalty off');
+    t.zone(bears, 'battlefield');
+    t.ok(T.g._hasCreatureType(bears, 'Vampire'), 'a Vampire as well');
+    const U = mk();
+    t.auto('Chandra Nalaar');
+    U.toMain('A');
+    const c = U.bf('A', 'Chandra Nalaar');
+    const wurm = U.bf('B', 'Craw Wurm');
+    c.counters.loyalty = 6;
+    const idx = c.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty').findIndex(a => /-X/.test(a.text));
+    U.activate('A', c, idx, { x: 6, targets: [wurm] });
+    t.zone(wurm, 'graveyard', 'six damage');
+    t.zone(c, 'graveyard', 'Chandra used all six');
+  });
 };

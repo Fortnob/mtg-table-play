@@ -6099,6 +6099,9 @@
         if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return this.fail('One loyalty ability per turn.');
         // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
         if (ab.kind === 'loyalty') { const sun = this._anyStatic('noLoyalty'); if (sun) return this.fail(`${sun.name}: loyalty abilities can't be activated.`); }
+        // a minus ability needs that many loyalty counters to take off (CR 606.6)
+        if (ab.kind === 'loyalty' && this._loyaltyDelta(ab, opts) < 0 && (Number(o.counters.loyalty) || 0) < -this._loyaltyDelta(ab, opts))
+          return this.fail(`${o.name} does not have enough loyalty.`);
       }
 
       // the storage lands: how many counters come off is the X of what it makes
@@ -6122,7 +6125,7 @@
 
       if (ab.kind === 'loyalty') {
         o.activatedLoyaltyThisTurn = true;
-        const delta = ab.cost.loyalty;
+        const delta = this._loyaltyDelta(ab, opts);
         this.addCounters(o, 'loyalty', delta);
       }
 
@@ -21311,6 +21314,12 @@
         power: this.powerOf(o), toughness: this.toughnessOf(o),
         mv: (o.card && o.card.cmc) || 0,
       };
+    }
+    /** What a loyalty ability's cost does to its loyalty: "−2", or "−X" with the X chosen. */
+    _loyaltyDelta(ab, opts) {
+      const c = (ab && ab.cost) || {};
+      if (c.loyaltyX) return c.loyaltyX * Math.max(0, Number((opts || {}).x) || 0);
+      return Number(c.loyalty) || 0;
     }
     /** The player a creature is attacking, or the controller of the planeswalker or battle it attacks. */
     _defenderOf(o) {
