@@ -1452,7 +1452,7 @@
           c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg');
           return c;
         };
-        const strip = piece('strip', `polygon(0% 0%, 100% 0%, ${at(edge.slice().reverse())})`);
+        const strip = piece('tear-top', `polygon(0% 0%, 100% 0%, ${at(edge.slice().reverse())})`);
         const body = piece('body', `polygon(${at(edge)}, 100% 100%, 0% 100%)`);
         // the cards inside, face down in your sleeves
         const rise = el('div', { class: 'po-rise' }, [0, 1, 2].map((k) => {
