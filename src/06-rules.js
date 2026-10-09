@@ -3734,6 +3734,11 @@
           this._anyStaticOf(playerId, 'grantFlashbackInstSorc') && !out.some(u => u.via === 'flashback')) {
         out.push({ kind: 'cast', via: 'flashback', cost: a.manaCost || '', after: 'exile', label: 'Flashback ' + (a.manaCost || '') });
       }
+      // Chainer: one creature spell from your graveyard this turn
+      if (o.zone === 'graveyard' && o.owner === playerId && a.isCreature && (this.player(playerId) || {}).graveCreatureTurn === this.turn &&
+          !out.some(u => u.via === 'graveCreature')) {
+        out.push({ kind: 'cast', via: 'graveCreature', cost: a.manaCost || '', after: null, label: 'Cast from your graveyard (Chainer)' });
+      }
       // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
           this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
@@ -4596,6 +4601,8 @@
         if (via && via.via === 'prototype') o.prototyped = true;
         // Surge: "if its surge cost was paid"
         if (via && via.via === 'surge') o._surged = true;
+        // Chainer: that was the one
+        if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
         if (!via) return this.fail('That card cannot be cast that way from here.');
         if (opts.costOverride == null) cost = via.cost;
         // Emerge: the sacrificed creature's mana value off the emerge cost
@@ -8872,6 +8879,10 @@
             : this.battlefield.filter(x => !x.phasedOut && x.controller === q.id && (x.analysis() || {}).isLand).length;
           const mine = stat(p);
           return this.players.filter(q => q !== p && !q.hasLost).every(q => stat(q) < mine);
+        }
+        case 'triggerObjNotCastFromHand': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          return !!x && !(x.wasCast === this.turn && x.castFromZone === 'hand');
         }
         // Kazuul: the attacker the trigger is about is attacking you (or a planeswalker of yours)
         case 'youDefend': {
@@ -14523,6 +14534,27 @@
               this.moveObject(c, 'battlefield', { controller: q.id });
             }
           }
+          break;
+        }
+        // Chainer: a creature spell from your graveyard, once this turn
+        case 'graveCreatureOnce': me.graveCreatureTurn = this.turn; this.logEvent('rules', `${me.name} may cast a creature spell from their graveyard this turn.`); break;
+        // Scroll Rack: cards from hand set aside, that many taken off the top, the set-aside cards on top
+        case 'scrollRack': {
+          const z = this.zones[ctx.controller];
+          const hand = z.hand.slice();
+          if (!hand.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'scrollRack', kind: 'objects', zone: 'hand', ordered: true,
+            items: this._chooseItems(hand), min: 0, max: hand.length, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose cards from your hand to put back on top (first chosen ends on top).` }, 'sr');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && (got.order || got.picks)) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'hand' && x.owner === ctx.controller);
+          if (!picks.length) break;
+          for (const x of picks) this._removeFromZone(x);
+          const top = z.library.splice(0, picks.length);
+          for (const c of top) { c.zone = 'hand'; z.hand.push(c); }
+          for (const x of picks.slice().reverse()) { x.zone = 'library'; z.library.unshift(x); }
+          this.logEvent('rules', `${me.name} swaps ${picks.length} card${picks.length === 1 ? '' : 's'} with the top of their library.`);
+          this.bumpBoard();
           break;
         }
         // Mordenkainen: hand and library change places

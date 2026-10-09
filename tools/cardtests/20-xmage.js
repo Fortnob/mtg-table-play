@@ -11731,4 +11731,32 @@ module.exports = (test) => {
     T3.settle(); T3.resolve();
     t.eq(z1.zone, 'battlefield'); t.eq(z2.zone, 'graveyard');
   });
+
+  test('Chainer: a creature spell from the graveyard, once; Scroll Rack swaps with the top', (mk, t) => {
+    t.auto('Chainer, Nightmare Adept'); t.auto('Scroll Rack');
+    const T = mk();
+    const ch = T.bf('A', 'Chainer, Nightmare Adept');
+    const fodder = T.hand('A', 'Island');
+    const bear = T.grave('A', 'Grizzly Bears');
+    t.no(T.g.altUsesFor('A', bear.id).some(u => u.via === 'graveCreature'), 'not yet');
+    T.answer('pickCard', () => ({ cardIds: [fodder.id] }));
+    const la = ch.analysis(), idx = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T.g.activateAbility('A', ch.id, idx, { discard: [fodder.id], discardId: fodder.id }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.ok(T.g.altUsesFor('A', bear.id).some(u => u.via === 'graveCreature'), 'now');
+    T.mana('A', '1G');
+    t.ok(T.g.castSpell('A', bear.id, { via: 'graveCreature' }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(bear.zone, 'battlefield'); t.ok(T.g.hasKw(bear, 'haste'), 'not cast from hand: haste');
+    const T2 = mk();
+    const sr = T2.bf('A', 'Scroll Rack');
+    const a1 = T2.hand('A', 'Craw Wurm');
+    const top = T2.top('A', 'Lightning Bolt');
+    T2.answer('choose', { picks: [a1.id] });
+    T2.mana('A', '1');
+    const la2 = sr.analysis(), i2 = la2.manaAbilities.length + la2.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T2.g.activateAbility('A', sr.id, i2, {}), T2.g.lastError);
+    T2.settle(); T2.resolve();
+    t.eq(top.zone, 'hand'); t.eq(T2.g.zones.A.library[0], a1, 'the Wurm on top');
+  });
 };

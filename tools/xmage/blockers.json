@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12419,
+  "needed": 12416,
   "gainedCards": 1349,
-  "linesNeeded": 13548,
+  "linesNeeded": 13543,
   "linesGained": 1609,
   "gained": {
    "all": 1349,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4483,
-   "lines": 4129,
+   "score": 4475,
+   "lines": 4127,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
@@ -52,8 +52,8 @@
   },
   {
    "what": "custom ability",
-   "score": 775,
-   "lines": 709,
+   "score": 771,
+   "lines": 708,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -61,12 +61,12 @@
     "All Will Be One",
     "Treasure Nabber",
     "Tergrid, God of Fright // Tergrid's Lantern",
-    "Chainer, Nightmare Adept",
     "The Skullspore Nexus",
     "Grenzo, Havoc Raiser",
     "Extraplanar Lens",
     "Firemane Commando",
-    "Wedding Ring"
+    "Wedding Ring",
+    "Colossal Grave-Reaver"
    ]
   },
   {
@@ -166,8 +166,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 113,
-   "lines": 104,
+   "score": 112,
+   "lines": 103,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -7053,8 +7053,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3651,
-   "cards": 3429,
+   "score": 3647,
+   "cards": 3428,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",

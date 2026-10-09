@@ -3965,6 +3965,8 @@
     // Brass's Tunnel-Grinder, Ojer-style flips: "Then if there are three or more bore counters on it, remove those counters and transform it."
     { re: /^(?:Then )?if there are (\w+) or more ([a-z]+) counters on (?:it|CARDNAME|this [a-z]+), remove those counters and transform (?:it|CARDNAME)\.?$/i,
       make: (m) => { const k = num(m[1]); return typeof k === 'number' ? { op: 'countersThenTransform', kind: m[2].toLowerCase(), n: k } : null; } },
+    // Chainer, Nightmare Adept: "You may cast a creature spell from your graveyard this turn."
+    { re: /^You may cast a creature spell from your graveyard this turn\.?$/i, make: () => ({ op: 'graveCreatureOnce' }) },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -5436,6 +5438,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Scroll Rack: "Exile any number of cards from your hand face down. Put
+       that many cards from the top of your library into your hand. Then look
+       at the exiled cards and put them on top of your library in any order." */
+    { re: /^Exile any number of cards from your hand face down\. Put that many cards from the top of your library into your hand\. Then look at the exiled cards and put them on top of your library in any order\.$/i,
+      make: () => [{ op: 'scrollRack' }] },
     /* Well of Lost Dreams: "you may pay {X}, where X is less than or equal to
        the amount of life you gained. If you do, draw X cards." */
     { re: /^You may pay \{X\}, where X is less than or equal to the amount of life you gained\. If you do, draw X cards\.$/i,
@@ -7109,6 +7116,8 @@
       (m) => ({ kind: 'triggerPlayerMost', stat: /hand/i.test(m[1]) ? 'hand' : /lands/i.test(m[1]) ? 'lands' : 'life' })],
     // Crush of Tentacles, Reckless Bushwhacker: "if this spell's surge cost was paid", "if its surge cost was paid"
     [/^(?:this spell'?s|its) surge cost was paid$/i, () => ({ kind: 'surgePaid' })],
+    // Chainer, Nightmare Adept: "if you didn't cast it from your hand" — the permanent the trigger is about
+    [/^you didn'?t cast it from your hand$/i, () => ({ kind: 'triggerObjNotCastFromHand' })],
     // Kazuul, Tyrant of the Cliffs: "if you're the defending player" — the attacker the trigger is about attacks you
     [/^you'?re the defending player$/i, () => ({ kind: 'youDefend' })],
     // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
