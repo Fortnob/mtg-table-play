@@ -14900,4 +14900,22 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.g.powerOf(ls), 4, '2/1 with two +1/+0 counters');
   });
+  test('Stirring Hopesinger: an instant or sorcery aimed at a creature puts a counter on each of yours', (mk, t) => {
+    t.auto('Stirring Hopesinger');
+    t.auto('Legolas, Master Archer');
+    t.auto('Fin Fang Foom');
+    const T = mk();
+    T.toMain('A');
+    const sh = T.bf('A', 'Stirring Hopesinger');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [bear] });
+    T.resolve();
+    t.eq(sh.counters['+1/+1'], 1, 'a counter on the Hopesinger');
+    t.eq(bear.counters['+1/+1'], 1, 'and on the Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Llanowar Elves'));
+    T.resolve();
+    t.eq(sh.counters['+1/+1'], 1, 'a creature spell with no target does nothing');
+  });
 };

@@ -11138,6 +11138,12 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Inkling Mascot: a spell aimed at a creature (an artifact or land, …), maybe one of yours or not
+          if (ab.targetsWhat && !((data.spell && data.spell.targets) || []).some(t => {
+            const x = t.kind === 'object' && this.obj(t.id);
+            if (!x || x.zone !== 'battlefield' || !this._cardFitsWords(x, ab.targetsWhat)) return false;
+            return ab.targetsWhose === 'you' ? x.controller === o.controller : ab.targetsWhose === 'notYou' ? x.controller !== o.controller : true;
+          })) continue;
           // Season of Growth: a spell aimed at a creature of yours
           if (ab.targetsYourCreature && !((data.spell && data.spell.targets) || []).some(t => {
             const x = t.kind === 'object' && this.obj(t.id);

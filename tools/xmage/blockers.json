@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11575,
-  "gainedCards": 1151,
-  "linesNeeded": 12423,
-  "linesGained": 1367,
+  "needed": 11552,
+  "gainedCards": 1146,
+  "linesNeeded": 12399,
+  "linesGained": 1361,
   "gained": {
-   "all": 1151,
+   "all": 1146,
    "top2000": 46,
    "stdTop": 8
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 749,
-   "lines": 689,
+   "score": 748,
+   "lines": 688,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 665,
-   "lines": 665,
+   "score": 664,
+   "lines": 664,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -298,11 +298,10 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 30,
-   "lines": 30,
+   "score": 29,
+   "lines": 29,
    "cards": [
     "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy",
     "Press the Enemy",
@@ -312,7 +311,8 @@
     "Self-Destruct",
     "You Look Upon the Tarrasque",
     "Jhoira's Timebug",
-    "Nature's Revolt"
+    "Nature's Revolt",
+    "Timecrafting"
    ]
   },
   {
@@ -1200,25 +1200,6 @@
     "Crashing Tide",
     "Mutual Destruction",
     "Supernatural Rescue"
-   ]
-  },
-  {
-   "what": "ReparteeAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Stirring Hopesinger",
-    "Informed Inkwright",
-    "Graduation Day",
-    "Melancholic Poet",
-    "Forum Necroscribe",
-    "Conciliator's Duelist",
-    "Scolding Administrator",
-    "Lecturing Scornmage",
-    "Snooping Page",
-    "Inkling Mascot",
-    "Inkshape Demonstrator",
-    "Rehearsed Debater"
    ]
   },
   {
@@ -2442,21 +2423,6 @@
     "Legate Lanius, Caesar's Ace",
     "Malik, Grim Manipulator",
     "Vengeful Tracker"
-   ]
-  },
-  {
-   "what": "TargetsPermanentPredicate",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Pearl-Ear, Imperial Advisor",
-    "Avoid Fate",
-    "Legolas, Master Archer",
-    "Fugitive Droid",
-    "Ms. Marvel, Kamala Khan",
-    "Fin Fang Foom",
-    "Hawkeye, Bowslinger",
-    "Ring of Immortals"
    ]
   },
   {
@@ -4237,6 +4203,18 @@
    "cards": [
     "Alexios, Deimos of Kosmos",
     "Xantcha, Sleeper Agent"
+   ]
+  },
+  {
+   "what": "TargetsPermanentPredicate",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Pearl-Ear, Imperial Advisor",
+    "Avoid Fate",
+    "Fugitive Droid",
+    "Ms. Marvel, Kamala Khan",
+    "Ring of Immortals"
    ]
   },
   {
@@ -6779,13 +6757,23 @@
     "Dusk Legion Sergeant",
     "Cauldron Haze"
    ]
+  },
+  {
+   "what": "WUBRGInsteadEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Fist of Suns",
+    "Jodah, Archmage Eternal",
+    "Leyline of Mutation"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3540,
-   "cards": 3360,
+   "score": 3541,
+   "cards": 3361,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6940,15 +6928,15 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 27,
-   "cards": 27,
+   "score": 26,
+   "cards": 26,
    "names": [
     "Take the Bait",
-    "Aang, Swift Savior // Aang and La, Ocean's Fury",
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy",
     "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh"
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter"
    ]
   },
   {
@@ -7285,19 +7273,6 @@
     "Razorlash Transmogrant",
     "Soul Foundry",
     "Pteramander"
-   ]
-  },
-  {
-   "what": "ReparteeAbility",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Stirring Hopesinger",
-    "Informed Inkwright",
-    "Graduation Day",
-    "Melancholic Poet",
-    "Forum Necroscribe",
-    "Conciliator's Duelist"
    ]
   },
   {
@@ -9011,19 +8986,6 @@
    ]
   },
   {
-   "what": "TargetsPermanentPredicate",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Avoid Fate",
-    "Legolas, Master Archer",
-    "Ms. Marvel, Kamala Khan",
-    "Fin Fang Foom",
-    "Hawkeye, Bowslinger",
-    "Ring of Immortals"
-   ]
-  },
-  {
    "what": "TargetOpponentsChoicePermanent",
    "score": 6,
    "cards": 6,
@@ -10503,6 +10465,28 @@
     "Natural Affinity",
     "Kormus Bell",
     "Ambush Commander"
+   ]
+  },
+  {
+   "what": "EntersBattlefieldAttachToTarget",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Hidden Blade",
+    "Hunter's Bow",
+    "Rocket-Powered Goblin Glider",
+    "Novel Nunchaku"
+   ]
+  },
+  {
+   "what": "OutlawPredicate.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Double Down",
+    "Vial Smasher, Gleeful Grenadier",
+    "Rakish Crew",
+    "Mine Raider"
    ]
   }
  ]

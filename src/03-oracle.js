@@ -8834,6 +8834,14 @@
     { re: /^Whenever an opponent casts a spell with mana value, power, or toughness equal to the chosen number,? /i, event: 'opponentCastSpell', extra: { chosenNumberHit: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
+    /* Inkling Mascot, Stirring Hopesinger: "Whenever you cast an instant or
+       sorcery spell that targets a creature"; Storm, Windrider: "a spell that
+       targets one or more creatures"; Legolas: "… a creature you don't control" */
+    { re: /^Whenever you cast an? (instant or sorcery |noncreature )?spell that targets (?:one or more |an? )(creatures?|artifact or land)( you control| you don'?t control)?,? /i,
+      event: 'youCastSpell',
+      extraOf: (m) => Object.assign({ targetsWhat: m[2].toLowerCase().replace(/s$/, '') },
+        m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {},
+        m[3] ? { targetsWhose: /don/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"
     { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
@@ -9348,6 +9356,12 @@
          — a legend's "he" or "she" at the head of a clause is the legend */
       text = text.replace(/(^|\n|[.,] )(?:[Hh]e|[Ss]he) (deals|gets|gains|has|becomes) /g, (x, pre, verb) => pre + 'CARDNAME ' + verb + ' ');
     }
+    /* Ran and Shaw, Raph & Mikey: a card that is two (or more) characters
+       says "When Ran and Shaw enter", "Whenever Raph & Mikey attack" — the
+       same thing a single creature says with "enters", "attacks" */
+    // (but not "you may have CARDNAME enter as a copy", "have CARDNAME deal 4 damage to them")
+    text = text.replace(/(?<!\b(?:have|let) )\bCARDNAME (enter|attack|block|die|deal)(?=[ ,.])/g, 'CARDNAME $1s')
+      .replace(/\bCARDNAME (enters|attacks) or (attack|block|die)(?=[ ,.])/g, 'CARDNAME $1 or $2s');
 
     const out = {
       name, faceIndex,
