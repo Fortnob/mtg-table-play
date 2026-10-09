@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11312,
+  "needed": 11309,
   "gainedCards": 1131,
-  "linesNeeded": 12104,
+  "linesNeeded": 12101,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -4450,18 +4450,6 @@
    ]
   },
   {
-   "what": "PreventNextDamageFromChosenSourceToTargetEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Martyr's Cause",
-    "Circle of Despair",
-    "Samite Blessing",
-    "Charm Peddler",
-    "Sanctum Guardian"
-   ]
-  },
-  {
    "what": "not attacking",
    "score": 5,
    "lines": 5,
@@ -6665,6 +6653,16 @@
     "Kaya the Inexorable",
     "Flame-Wreathed Phoenix",
     "Mist Dragon"
+   ]
+  },
+  {
+   "what": "CounterUnlessPaysEffect.withIfTheyDo",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Don't Make a Sound",
+    "Divert Disaster",
+    "Assimilate Essence"
    ]
   }
  ],
@@ -9364,18 +9362,6 @@
    ]
   },
   {
-   "what": "PreventNextDamageFromChosenSourceToTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Martyr's Cause",
-    "Circle of Despair",
-    "Samite Blessing",
-    "Charm Peddler",
-    "Sanctum Guardian"
-   ]
-  },
-  {
    "what": "not attacking",
    "score": 5,
    "cards": 5,
@@ -10365,6 +10351,17 @@
     "Undergrowth Champion",
     "Ugin's Conjurant",
     "Oathsworn Knight"
+   ]
+  },
+  {
+   "what": "only to its controller's graveyard",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Angelic Renewal",
+    "Mortuary",
+    "Sigil of the New Dawn",
+    "Kithkin Mourncaller"
    ]
   }
  ]

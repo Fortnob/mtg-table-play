@@ -13922,7 +13922,7 @@
           const got = this._choose({ playerId: ctx.controller, purpose: 'preventSource', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 1, max: 1, sourceId: src ? src.id : null, sourceName: ctx.name || null,
             prompt: e.all ? `Choose a source: all damage it would deal${e.to === 'you' ? ' to you' : e.to === 'self' && src ? ' to ' + src.name : ''} this turn is prevented.`
-              : `Choose a ${e.color ? ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[e.color] + ' ' : ''}source: the next damage it would deal you this turn is prevented.` }, 'src');
+              : `Choose a ${e.color ? ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[e.color] + ' ' : ''}source: the next damage it would deal${e.anyTarget ? '' : ' you'} this turn is prevented.` }, 'src');
           if (got === SUSPEND) return SUSPEND;
           const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
           if (!x) break;
@@ -13932,9 +13932,10 @@
             this.logEvent('rules', `${me.name} chooses ${x.name}: all damage it would deal${e.to === 'you' ? ' to ' + me.name : e.to === 'self' && src ? ' to ' + src.name : ''} this turn is prevented.`);
             break;
           }
-          this.prevention.push({ to: 'you', who: ctx.controller, sourceId: x.id, once: true, until: 'eot',
+          // (Martyr's Cause: to anything at all — anyTargetOnce)
+          this.prevention.push({ to: e.anyTarget ? null : 'you', who: ctx.controller, sourceId: x.id, once: true, until: 'eot',
             gainLife: !!e.gainLife, reflect: e.reflect ? (src ? src.id : null) || true : null });
-          this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal ${me.name} this turn is prevented.`);
+          this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal${e.anyTarget ? '' : ' ' + me.name} this turn is prevented.`);
           break;
         }
         // Starfall Invocation: one of the cards that sweep put into your graveyard

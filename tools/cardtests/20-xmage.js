@@ -16478,4 +16478,23 @@ module.exports = (test) => {
     t.zone(ring, 'battlefield');
     t.eq(T.life('A'), 17, 'three cards revealed: 3 damage');
   });
+
+  test("Martyr's Cause: the next damage a chosen source would deal to anything is prevented", (mk, t) => {
+    t.auto("Martyr's Cause");
+    t.auto('Circle of Despair');
+    t.auto('Sanctum Guardian');
+    const T = mk();
+    T.toMain('A');
+    const cause = T.bf('A', "Martyr's Cause"), elf = T.bf('A', 'Llanowar Elves');
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears');
+    let prompt = '';
+    T.answer('choose', (q) => { prompt = q.prompt || ''; return { picks: [giant.id] }; });
+    T.activate('A', cause, 0, { sacrificeIds: [elf.id] });
+    T.resolve();
+    t.eq(prompt, 'Choose a source: the next damage it would deal this turn is prevented.');
+    T.g.dealDamageToObject(bear, 3, giant, true);
+    t.zone(bear, 'battlefield', 'prevented, to a creature');
+    T.g.dealDamageToPlayer(T.g.player('A'), 3, giant, true);
+    t.eq(T.life('A'), 17, 'only the next time');
+  });
 };

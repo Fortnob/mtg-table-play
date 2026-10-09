@@ -7184,10 +7184,11 @@
     // Rith's Charm, Pay No Heed, Auriok Replica: "Prevent all damage a source of your choice would deal (to you) this turn."
     { re: /^Prevent all damage a source of your choice would deal( to you| to (?:this creature|CARDNAME))? this turn\.?$/i,
       make: (m) => [{ op: 'preventSourceOnce', all: true, to: !m[1] ? null : /you/i.test(m[1]) ? 'you' : 'self' }] },
-    { re: /^The next time an? (?:(white|blue|black|red|green) )?source of your choice would deal damage to you this turn, prevent that damage\.(?: (You gain life equal to the damage prevented this way|If damage is prevented this way, (?:CARDNAME|this spell) deals that much damage to that source'?s controller)\.)?$/i,
-      make: (m) => [Object.assign({ op: 'preventSourceOnce' },
+    // (Martyr's Cause, Circle of Despair: "… would deal damage to any target this turn" — anyTargetOnce)
+    { re: /^The next time an? (?:(white|blue|black|red|green) )?source of your choice would deal damage to (?:you|(any target)) this turn, prevent that damage\.(?: (You gain life equal to the damage prevented this way|If damage is prevented this way, (?:CARDNAME|this spell) deals that much damage to that source'?s controller)\.)?$/i,
+      make: (m0) => { const m = [m0[0], m0[1], m0[3]]; return [Object.assign({ op: 'preventSourceOnce' }, m0[2] ? { anyTarget: true } : {},
         m[1] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] } : {},
-        m[2] && /gain life/i.test(m[2]) ? { gainLife: true } : {}, m[2] && /deals that much/i.test(m[2]) ? { reflect: true } : {})] },
+        m[2] && /gain life/i.test(m[2]) ? { gainLife: true } : {}, m[2] && /deals that much/i.test(m[2]) ? { reflect: true } : {})]; } },
     /* Sword of Wealth and Power: "Create a Treasure token. When you next
        cast an instant or sorcery spell this turn, copy that spell. …" —
        what comes first, then the turn's trigger */
