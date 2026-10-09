@@ -16497,4 +16497,28 @@ module.exports = (test) => {
     T.g.dealDamageToPlayer(T.g.player('A'), 3, giant, true);
     t.eq(T.life('A'), 17, 'only the next time');
   });
+
+  test('Winds of Abandon: each exiled creature gives its controller a basic land, tapped; overloaded, one for each', (mk, t) => {
+    t.auto('Winds of Abandon');
+    let T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.top('B', 'Forest');
+    T.mana('A', 'WC');
+    T.cast('A', T.hand('A', 'Winds of Abandon'), { targets: [giant] });
+    T.settle();
+    t.zone(giant, 'exile');
+    const lands = T.bfOf('B').filter(o => (o.analysis() || {}).isLand);
+    t.eq(lands.length, 1, 'B finds a basic land');
+    t.ok(lands[0] && lands[0].tapped, 'tapped');
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Hill Giant'); T.bf('B', 'Grizzly Bears'); const mine = T.bf('A', 'Llanowar Elves');
+    T.top('B', 'Forest'); T.top('B', 'Plains');
+    T.mana('A', 'WWCCCC');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Winds of Abandon').id, { via: 'overload', auto: true }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.bfOf('B').filter(o => (o.analysis() || {}).isLand).length, 2, 'two creatures exiled: two lands');
+    t.zone(mine, 'battlefield', 'yours stay');
+  });
 };

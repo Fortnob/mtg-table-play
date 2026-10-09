@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11309,
+  "needed": 11308,
   "gainedCards": 1131,
-  "linesNeeded": 12101,
+  "linesNeeded": 12100,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -88,25 +88,6 @@
    ]
   },
   {
-   "what": "(line not matched to XMage code)",
-   "score": 199,
-   "lines": 178,
-   "cards": [
-    "Throne of Eldraine",
-    "Case of the Locked Hothouse",
-    "March of Swirling Mist",
-    "Winds of Abandon",
-    "Alchemist's Talent",
-    "Wand of Wonder",
-    "Fangs of Kalonia",
-    "Spectacular Showdown",
-    "Boseiju, Who Shelters All",
-    "Edgar Markov",
-    "Archpriest of Shadows",
-    "Rise and Shine"
-   ]
-  },
-  {
    "what": "(cast modifier line)",
    "score": 199,
    "lines": 193,
@@ -123,6 +104,25 @@
     "Notorious Throng",
     "Price of Fame",
     "Shadow of Mortality"
+   ]
+  },
+  {
+   "what": "(line not matched to XMage code)",
+   "score": 191,
+   "lines": 176,
+   "cards": [
+    "Throne of Eldraine",
+    "Case of the Locked Hothouse",
+    "March of Swirling Mist",
+    "Alchemist's Talent",
+    "Wand of Wonder",
+    "Fangs of Kalonia",
+    "Spectacular Showdown",
+    "Boseiju, Who Shelters All",
+    "Edgar Markov",
+    "Archpriest of Shadows",
+    "Rise and Shine",
+    "Blacksmith's Talent"
    ]
   },
   {
@@ -6734,15 +6734,15 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 121,
-   "cards": 115,
+   "score": 117,
+   "cards": 114,
    "names": [
     "March of Swirling Mist",
-    "Winds of Abandon",
     "Alchemist's Talent",
     "Wand of Wonder",
     "Fangs of Kalonia",
-    "Spectacular Showdown"
+    "Spectacular Showdown",
+    "Boseiju, Who Shelters All"
    ]
   },
   {

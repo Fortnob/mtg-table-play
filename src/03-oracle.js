@@ -6517,6 +6517,16 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Winds of Abandon (and overloaded): "Exile target (each) creature you don't control. For each
+       creature exiled this way, its controller searches their library for a basic land card. Those
+       players put those cards onto the battlefield tapped, then shuffle." */
+    { re: /^(Exile (?:target|each) creature you don'?t control\.) For each creature exiled this way, its controller searches their library for a basic land card\. Those players put those cards onto the battlefield tapped, then shuffle\.$/i,
+      make: (m) => {
+        const first = parseEffectSentence(m[1], 1);
+        if (!first || first.op === 'manual') return null;
+        return [first, { op: 'eachMovedController', moved: 'exile',
+          then: [{ op: 'tutor', n: 1, filter: 'basic land', to: 'battlefield', tapped: true, prompt: 'Search your library for a basic land card.' }] }];
+      } },
     // Vexing Devil, Longhorn Firebeast: "any opponent may have it deal 4 damage to them. If a player does, sacrifice this creature."
     { re: /^Any opponent may have it deal (\d+) damage to them\. If a player does, sacrifice (?:this creature|CARDNAME)\.$/i,
       make: (m) => [{ op: 'opponentMayTakeDamage', n: +m[1] }] },

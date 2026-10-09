@@ -15271,14 +15271,17 @@
         /* Terastodon: "For each permanent put into a graveyard this way, its
            controller creates a 3/3 green Elephant creature token." */
         case 'eachMovedController': {
+          /* each one's part run in turn as that player, through the queue, so
+             a question (Winds of Abandon's land search) can wait for its answer (eachMovedQueued) */
+          const list = [];
           for (const w of (this._lastAffectedAll || [])) {
             const x = this.obj(w.id);
             const went = !x || (e.moved === 'exile' ? x.zone === 'exile' : x.zone === 'graveyard') || (x.isToken && x.zone !== 'battlefield');
             const pc = this.player(w.controller);
             if (!went || !pc || pc.hasLost) continue;
-            const sub = Object.assign({}, ctx, { controller: pc.id, targets: [], resolvedTargets: [] });
-            for (const f of e.then || []) this._runEffect(f, sub);
+            for (const f of e.then || []) list.push(Object.assign({}, f, { _as: pc.id }));
           }
+          if (list.length) this._spliceNext(list);
           break;
         }
         // Twinflame: a hasty copy of each creature chosen
