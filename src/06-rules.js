@@ -3701,7 +3701,9 @@
           /* Harmonize: from the graveyard, exiled afterwards; a creature may be tapped to help */
           if (k === 'harmonize' && ab.arg) out.push({ kind: 'cast', via: 'harmonize', cost: ab.arg, after: 'exile', harmonize: true, label: 'Harmonize ' + ab.arg });
         }
-        if (o.graveCastBy === playerId && o.graveCastTurn === this.turn) {
+        if (o.graveCastBy === playerId && o.graveCastTurn === this.turn &&
+            // Conduit of Worlds: only while no spell has been cast this turn
+            !(o._silenceAfterCast && ((this.player(playerId) || {}).spellsCastThisTurn || 0) > 0)) {
           out.push({ kind: 'cast', via: 'granted', cost: a.manaCost || '', label: 'Cast it from your graveyard' });
         }
         const self = (a.abilities || []).find(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && !x.exileOnly));
@@ -4610,6 +4612,8 @@
         if (via && via.via === 'surge') o._surged = true;
         // Chainer: that was the one
         if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
+        // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
+        if (via && via.via === 'granted' && o._silenceAfterCast) { p.silencedTurn = this.turn; o._silenceAfterCast = false; }
         if (!via) return this.fail('That card cannot be cast that way from here.');
         if (opts.costOverride == null) cost = via.cost;
         // Emerge: the sacrificed creature's mana value off the emerge cost
@@ -14698,6 +14702,14 @@
           x.effects.push({ unblockableByColor: SYM[col], until: 'eot' });
           this.logEvent('rules', `${x.name} gains toxic and hexproof from ${col.toLowerCase()}, and can't be blocked by ${col.toLowerCase()} creatures this turn.`);
           this.bumpBoard();
+          break;
+        }
+        // Conduit of Worlds: the card may be cast from the graveyard, if no spell has been cast this turn
+        case 'conduitCast': {
+          const x = firstObj();
+          if (!x || x.zone !== 'graveyard' || (me.spellsCastThisTurn || 0) > 0) break;
+          x.graveCastBy = ctx.controller; x.graveCastTurn = this.turn; x._silenceAfterCast = true;
+          this.logEvent('rules', `${me.name} may cast ${x.name} from their graveyard this turn.`);
           break;
         }
         // Mordenkainen: hand and library change places

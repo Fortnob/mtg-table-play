@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12383,
+  "needed": 12382,
   "gainedCards": 1348,
-  "linesNeeded": 13494,
+  "linesNeeded": 13493,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -1934,21 +1934,6 @@
    ]
   },
   {
-   "what": "PermanentPredicate.instance",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Conduit of Worlds",
-    "Unbound Flourishing",
-    "Squirming Emergence",
-    "Staff of Eden, Vault's Key",
-    "Myojin of Cryptic Dreams",
-    "Astelli Reclaimer",
-    "Pull Through the Weft",
-    "United Battlefront"
-   ]
-  },
-  {
    "what": "GainHarnessedAbilitySourceEffect",
    "score": 11,
    "lines": 2,
@@ -3607,6 +3592,20 @@
     "Tymna the Weaver",
     "Belbe, Corrupted Observer",
     "Brazen Cannonade"
+   ]
+  },
+  {
+   "what": "PermanentPredicate.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Unbound Flourishing",
+    "Squirming Emergence",
+    "Staff of Eden, Vault's Key",
+    "Myojin of Cryptic Dreams",
+    "Astelli Reclaimer",
+    "Pull Through the Weft",
+    "United Battlefront"
    ]
   },
   {
@@ -8065,19 +8064,6 @@
    ]
   },
   {
-   "what": "PermanentPredicate.instance",
-   "score": 9,
-   "cards": 6,
-   "names": [
-    "Conduit of Worlds",
-    "Squirming Emergence",
-    "Myojin of Cryptic Dreams",
-    "Astelli Reclaimer",
-    "Pull Through the Weft",
-    "United Battlefront"
-   ]
-  },
-  {
    "what": "TargetPermanentOrPlayer",
    "score": 9,
    "cards": 6,
@@ -10151,6 +10137,18 @@
     "Orb of Dreams",
     "False Floor",
     "Due Respect"
+   ]
+  },
+  {
+   "what": "PermanentPredicate.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Squirming Emergence",
+    "Myojin of Cryptic Dreams",
+    "Astelli Reclaimer",
+    "Pull Through the Weft",
+    "United Battlefront"
    ]
   },
   {

@@ -5452,6 +5452,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Conduit of Worlds: "Choose target nonland permanent card in your
+       graveyard. If you haven't cast a spell this turn, you may cast that
+       card. If you do, you can't cast additional spells this turn." */
+    { re: /^Choose target nonland permanent card in your graveyard\. If you haven'?t cast a spell this turn, you may cast that card\. If you do, you can'?t cast additional spells this turn\.(?: Activate only as a sorcery\.)?$/i,
+      make: () => [{ op: 'conduitCast', targets: [Object.assign(targetSpec('target nonland permanent card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
     /* Shatterskull Smashing: "deals X damage divided as you choose among up to
        two target creatures and/or planeswalkers. If X is 6 or more, CARDNAME
        deals twice X damage divided as you choose among them instead." */

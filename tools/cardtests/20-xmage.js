@@ -11934,4 +11934,21 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(a.zone, 'graveyard'); t.eq(b.zone, 'graveyard', 'twelve damage, six each');
   });
+
+  test("Conduit of Worlds: a permanent card from the graveyard, and no more spells after", (mk, t) => {
+    t.auto('Conduit of Worlds');
+    const T = mk();
+    const cw = T.bf('A', 'Conduit of Worlds');
+    const wurm = T.grave('A', 'Craw Wurm');
+    const la = cw.analysis(), idx = la.manaAbilities.length + la.abilities.filter(a => a.kind === 'activated').length - 1;
+    t.ok(T.g.activateAbility('A', cw.id, idx, { targets: [{ kind: 'object', id: wurm.id }] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.ok(T.g.altUsesFor('A', wurm.id).some(u => u.via === 'granted'), 'castable from the graveyard');
+    T.mana('A', '4GG');
+    t.ok(T.g.castSpell('A', wurm.id, { via: 'granted' }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(wurm.zone, 'battlefield');
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { targets: [{ kind: 'player', id: 'B' }] }), 'no more spells this turn');
+  });
 };
