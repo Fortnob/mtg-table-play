@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11931,
-  "gainedCards": 1233,
-  "linesNeeded": 12878,
-  "linesGained": 1468,
+  "needed": 11921,
+  "gainedCards": 1230,
+  "linesNeeded": 12866,
+  "linesGained": 1464,
   "gained": {
-   "all": 1233,
+   "all": 1230,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4307,
-   "lines": 4046,
+   "score": 4305,
+   "lines": 4044,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -3331,20 +3331,6 @@
    ]
   },
   {
-   "what": "WinGameSourceControllerEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Helix Pinnacle",
-    "Central Elevator // Promising Stairs",
-    "Mortal Combat",
-    "Happily Ever After",
-    "Near-Death Experience",
-    "Battle of Wits",
-    "Barren Glory"
-   ]
-  },
-  {
    "what": "OneShotNonTargetEffect",
    "score": 7,
    "lines": 7,
@@ -4178,6 +4164,19 @@
    ]
   },
   {
+   "what": "WinGameSourceControllerEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Central Elevator // Promising Stairs",
+    "Mortal Combat",
+    "Happily Ever After",
+    "Near-Death Experience",
+    "Battle of Wits",
+    "Barren Glory"
+   ]
+  },
+  {
    "what": "FullPartyCondition.instance",
    "score": 6,
    "lines": 6,
@@ -4727,18 +4726,6 @@
    ]
   },
   {
-   "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Quest for Renewal",
-    "Teferi, Who Slows the Sunset",
-    "Ivorytusk Fortress",
-    "Ohabi Caleria",
-    "Prophet of Kruphix"
-   ]
-  },
-  {
    "what": "SearchLibraryPutOntoBattlefieldTappedRestInHandEffect",
    "score": 5,
    "lines": 5,
@@ -4747,18 +4734,6 @@
     "Navigation Orb",
     "Viewpoint Synchronization",
     "Flourishing Bloom-Kin"
-   ]
-  },
-  {
-   "what": "VariableManaCostPredicate.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Frontline Medic",
-    "Elementalist's Palette",
-    "Geometer's Arthropod",
-    "Rosheen, Roaring Prophet",
-    "Matterbending Mage"
    ]
   },
   {
@@ -5904,6 +5879,17 @@
    ]
   },
   {
+   "what": "VariableManaCostPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Elementalist's Palette",
+    "Geometer's Arthropod",
+    "Rosheen, Roaring Prophet",
+    "Matterbending Mage"
+   ]
+  },
+  {
    "what": "a target no effect uses",
    "score": 4,
    "lines": 4,
@@ -5955,6 +5941,17 @@
     "Shielding Plax",
     "Anti-Magic Aura",
     "Spectral Shield"
+   ]
+  },
+  {
+   "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Teferi, Who Slows the Sunset",
+    "Ivorytusk Fortress",
+    "Ohabi Caleria",
+    "Prophet of Kruphix"
    ]
   },
   {
@@ -6912,8 +6909,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3555,
-   "cards": 3384,
+   "score": 3554,
+   "cards": 3383,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -9087,19 +9084,6 @@
    ]
   },
   {
-   "what": "WinGameSourceControllerEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Helix Pinnacle",
-    "Mortal Combat",
-    "Happily Ever After",
-    "Near-Death Experience",
-    "Battle of Wits",
-    "Barren Glory"
-   ]
-  },
-  {
    "what": "subject:anyCounter",
    "score": 6,
    "cards": 6,
@@ -10152,6 +10136,18 @@
     "Mentor's Guidance",
     "Social Snub",
     "Lumaret's Favor"
+   ]
+  },
+  {
+   "what": "WinGameSourceControllerEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Mortal Combat",
+    "Happily Ever After",
+    "Near-Death Experience",
+    "Battle of Wits",
+    "Barren Glory"
    ]
   },
   {

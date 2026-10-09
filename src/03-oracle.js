@@ -5412,6 +5412,9 @@
     // Drown in the Loch: "with mana value less than or equal to the number of cards in its controller's graveyard"
     const ctlGy = /\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i.test(String(phrase));
     if (ctlGy) phrase = String(phrase).replace(/\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i, '');
+    // Frontline Medic: "target spell with {X} in its mana cost"
+    const hasX = /\s+with \{X\} in its mana cost$/i.test(String(phrase));
+    if (hasX) phrase = String(phrase).replace(/\s+with \{X\} in its mana cost$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -5421,6 +5424,7 @@
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
     if (ctlGy) spec.mvAtMostCtlGy = true;
+    if (hasX) spec.hasXCost = true;
     if (colored) spec.colored = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
@@ -7871,6 +7875,9 @@
     [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
     [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
+    // Quest for Renewal: "there are four or more quest counters on this enchantment"
+    [/^there are (\w+) or more ([+\-0-9/a-z]+) counters on (?:this (?:enchantment|artifact|creature|land|permanent)|CARDNAME)$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() } : null)],
     // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
     [/^(?:this creature|CARDNAME) has fewer than (\w+) ([+\-0-9/a-z]+) counters on it$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]) - 1, cmp: 'atMost', counter: m[2].toLowerCase() } : null)],
@@ -8390,6 +8397,8 @@
     { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() }) },
     // City of Traitors: "When you play another land"
+    // The Endstone: "Whenever you play a land or cast a spell, draw a card."
+    { re: /^Whenever you play a land or cast a spell,/i, event: 'youPlayLand', also: 'youCastSpell' },
     { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
     // the Eldrazi titans: a trigger from the stack, as the spell is cast
     { re: /^When you cast (?:this spell|CARDNAME),? /i, event: 'castSelf' },
@@ -11667,6 +11676,18 @@
     /* Dáin, Lord of the Iron Hills: "As long as you have an enduring story,
        creatures can't attack you unless their controller pays {1} for each
        of those creatures." — an attack tax that holds while the condition does */
+    /* Quest for Renewal: "As long as there are four or more quest counters on
+       this enchantment, untap all creatures you control during each other
+       player's untap step." */
+    const alUntap = String(line).match(/^As long as ([^,]+), (untap all [a-z]+ you control during each other player'?s untap step\.?)$/i);
+    if (alUntap) {
+      const c = condOf(alUntap[1]);
+      const inner = c && parseStatic(alUntap[2].charAt(0).toUpperCase() + alUntap[2].slice(1), ctx);
+      if (inner && inner.auto && (inner.effects || []).length === 1 && inner.effects[0].op === 'untapOnEveryUntapStep') {
+        inner.effects[0].cond = c;
+        return Object.assign({}, inner, { text: line });
+      }
+    }
     const alTax = String(line).match(/^As long as ([^,]+), (creatures can'?t attack you .+)$/i);
     if (alTax) {
       const c = condOf(alTax[1]);
@@ -12226,6 +12247,8 @@
         make: (m) => ({ op: 'bandsWithOther', words: m[2].toLowerCase().replace(/ies$/, 'y').replace(/s$/, '') }), auto: true },
       { re: /^Double team$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Ascend$/i, eff: { op: 'ascend' }, auto: true },
+      // Spider-Punk: "Spells and abilities can't be countered."
+      { re: /^Spells and abilities can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all', abilities: true }, auto: true },
       // Storied: three or more artifacts, legendaries and/or Sagas, and the story is yours for the game
       { re: /^Storied$/i, eff: { op: 'storied' }, auto: true },
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,

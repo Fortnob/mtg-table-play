@@ -1006,6 +1006,8 @@
       const alsoUntap = [];
       for (const src of this.battlefield) {
         const ef = this._staticOp(src, 'untapOnEveryUntapStep');
+        // Quest for Renewal: only once it has four quest counters
+        if (ef && ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
         if (ef) alsoUntap.push({ controller: src.controller, filter: ef.filter || null, selfId: ef.selfOnly ? src.id : null });
       }
       // Unwinding Clock untaps only artifacts, Bender's Waterskin only itself
@@ -12235,8 +12237,10 @@
             // Disrupting Shoal: "if its mana value is X"
             if (e.ifMv != null && ((item.obj && item.obj.card && item.obj.card.cmc) || 0) !== n(e.ifMv)) { this.logEvent('counter', `${item.name} has another mana value.`); continue; }
             // an ability on the stack is countered whatever its source says about spells (Stifle)
-            const proof = item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
-              (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item));
+            const proof = (item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
+              (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item))) ||
+              // Spider-Punk: "Spells and abilities can't be countered."
+              (item.kind !== 'spell' && this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'uncounterable') || {}).abilities));
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             item.countered = true;
             if (e.exileIt) item.exileIfCountered = true;
@@ -21127,6 +21131,8 @@
       const xv = (v) => (v === 'X' ? (this._specX != null ? this._specX : null) : v);
       if (xv(spec.maxMv) != null && mv > xv(spec.maxMv)) return false;
       if (xv(spec.minMv) != null && mv < xv(spec.minMv)) return false;
+      // Frontline Medic: "with {X} in its mana cost"
+      if (spec.hasXCost && !/\{X\}/.test(String((o.card && o.card.mana_cost) || ''))) return false;
       if (xv(spec.mv) != null && mv !== xv(spec.mv)) return false;
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;

@@ -7946,6 +7946,16 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('A'), Math.ceil(((T.g.config && T.g.config.startingLife) || 20) / 2));
     t.ok((T.player('A').lifeLostThisTurn || 0) > 0, 'counted as life lost');
+    // "Whenever you play a land or cast a spell, draw a card." — a land played counts
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'The Endstone');
+    U.top('A', 'Island');
+    const forest = U.hand('A', 'Forest');
+    const hand = U.zone('A', 'hand').length;
+    U.playLand('A', forest);
+    U.settle(); U.resolve(); U.settle();
+    t.eq(U.zone('A', 'hand').length, hand, 'the Forest left the hand and a card was drawn for it');
   });
 
   test('Proliferate: your good counters and their bad ones, never your own poison', (mk, t) => {
@@ -13822,5 +13832,54 @@ module.exports = (test) => {
     T.resolve();
     t.eq(Number(bear.counters['+1/+1']) || 0, 1);
     t.ok(giant.effects.some(x => x.mustBlockId === bear.id), 'the Giant must block the Bears');
+  });
+
+  test('Quest for Renewal: with four quest counters, your creatures untap in the other players\' untap steps', (mk, t) => {
+    t.auto('Quest for Renewal');
+    const T = mk();
+    T.toMain('A');
+    const q = T.bf('A', 'Quest for Renewal');
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.tapped = true;
+    T.nextTurn('B');
+    t.ok(bear.tapped, 'three or fewer counters: still tapped');
+    q.counters.quest = 4;
+    T.nextTurn('A');
+    bear.tapped = true;
+    T.nextTurn('B');
+    t.ok(!bear.tapped, "untapped in B's untap step");
+  });
+
+  test("Spider-Punk: spells and abilities can't be countered", (mk, t) => {
+    t.auto('Spider-Punk');
+    const T = mk();
+    T.toMain('A');
+    T.bf('B', 'Spider-Punk');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'), { resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.g._runEffects([{ op: 'counterSpell' }], { controller: 'A', name: 'Counterspell', kind: 'spell', targets: [{ kind: 'stack', id: item.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.ok(T.g.battlefield.some(o => o.name === 'Grizzly Bears'), "anyone's spell, even its controller's opponent's");
+    const ab = { id: 'stx', kind: 'ability', obj: T.g.battlefield.find(o => o.name === 'Grizzly Bears'), controller: 'A', name: 'test ability', effects: [] };
+    T.g.stack.push(ab);
+    T.g._runEffects([{ op: 'counterSpell' }], { controller: 'B', name: 'Stifle', kind: 'spell', targets: [{ kind: 'stack', id: 'stx' }] });
+    T.settle();
+    t.ok(!ab.countered, 'an ability is not countered either');
+  });
+
+  test('Frontline Medic: a spell with {X} in its mana cost; Quest-style counts', (mk, t) => {
+    t.auto('Frontline Medic');
+    const T = mk();
+    T.toMain('B');
+    T.mana('B', '3RR');
+    T.cast('B', T.hand('B', 'Fireball'), { x: 2, targets: [{ kind: 'player', id: 'A' }], resolve: false });
+    T.cast('B', T.hand('B', 'Shock'), { targets: [{ kind: 'player', id: 'A' }], resolve: false });
+    const fm = T.bf('A', 'Frontline Medic');
+    const ab = fm.analysis().abilities.find(a => a.kind === 'activated' && /Counter/.test(a.text));
+    const spec = ab.effects[0].then[0].targets[0];
+    const fb = T.g.stack.find(x => x.obj && x.obj.name === 'Fireball'), sh = T.g.stack.find(x => x.obj && x.obj.name === 'Shock');
+    const ids = T.g._legalTargetsFor(spec, 'A', fm.id).map(x => x.id);
+    t.ok(ids.includes(fb.id) && !ids.includes(sh.id), 'Fireball, not Shock');
   });
 };
