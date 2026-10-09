@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11502,
-  "gainedCards": 1141,
-  "linesNeeded": 12335,
-  "linesGained": 1356,
+  "needed": 11493,
+  "gainedCards": 1139,
+  "linesNeeded": 12321,
+  "linesGained": 1351,
   "gained": {
-   "all": 1141,
+   "all": 1139,
    "top2000": 46,
    "stdTop": 8
   },
@@ -1132,25 +1132,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid not optional",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Stormshriek Feral // Flush Out",
-    "Charitable Levy",
-    "Yuna's Decision",
-    "Mistbreath Elder",
-    "Promise of Aclazotz // Foul Rebirth",
-    "Family's Favor",
-    "Marit Lage's Slumber",
-    "Dreadfeast Demon",
-    "Mystery Key",
-    "Clockwork Hydra",
-    "Exemplar of Strength",
-    "Charnel Troll"
-   ]
-  },
-  {
    "what": "second use of a later target",
    "score": 13,
    "lines": 13,
@@ -1331,6 +1312,25 @@
     "Heroic Teamwork",
     "Predictive Preparations",
     "Wind Sail"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid not optional",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Stormshriek Feral // Flush Out",
+    "Charitable Levy",
+    "Yuna's Decision",
+    "Mistbreath Elder",
+    "Promise of Aclazotz // Foul Rebirth",
+    "Family's Favor",
+    "Dreadfeast Demon",
+    "Mystery Key",
+    "Clockwork Hydra",
+    "Exemplar of Strength",
+    "Charnel Troll",
+    "Boneyard Aberration"
    ]
   },
   {
@@ -1888,23 +1888,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Quicksilver, Brash Blur",
-    "Captain Marvel, Earth's Protector",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Brawn, Amadeus Cho",
-    "Iron Fist, Hero for Hire",
-    "White Tiger, Ava Ayala",
-    "Donald Blake, Guise of Thor"
-   ]
-  },
-  {
    "what": "ConditionalContinuousEffect without a condition",
    "score": 10,
    "lines": 10,
@@ -2303,6 +2286,22 @@
     "Arcum's Weathervane",
     "Balduvian Conjurer",
     "Ohran Yeti"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Quicksilver, Brash Blur",
+    "Captain Marvel, Earth's Protector",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho",
+    "Iron Fist, Hero for Hire",
+    "Donald Blake, Guise of Thor"
    ]
   },
   {
@@ -6743,8 +6742,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3536,
-   "cards": 3356,
+   "score": 3537,
+   "cards": 3357,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7208,19 +7207,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid not optional",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Stormshriek Feral // Flush Out",
-    "Charitable Levy",
-    "Yuna's Decision",
-    "Mistbreath Elder",
-    "Promise of Aclazotz // Foul Rebirth",
-    "Family's Favor"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 13,
    "cards": 13,
@@ -7309,6 +7295,19 @@
     "Essence Anchor",
     "Karai, Future of the Foot",
     "Defenders of Humanity"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid not optional",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Stormshriek Feral // Flush Out",
+    "Charitable Levy",
+    "Yuna's Decision",
+    "Mistbreath Elder",
+    "Promise of Aclazotz // Foul Rebirth",
+    "Family's Favor"
    ]
   },
   {
@@ -7836,19 +7835,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Captain Marvel, Earth's Protector",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Brawn, Amadeus Cho"
-   ]
-  },
-  {
    "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
    "score": 9,
    "cards": 9,
@@ -8184,6 +8170,19 @@
     "Recross the Paths",
     "Thicket Elemental",
     "Foster"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Captain Marvel, Earth's Protector",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho"
    ]
   },
   {

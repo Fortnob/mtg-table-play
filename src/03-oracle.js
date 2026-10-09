@@ -439,11 +439,22 @@
      at a time; anything this does not recognise leaves the sentence
      unread rather than making a token that is not the one printed. */
   const TOKEN_COLORS = /^(?:white|blue|black|red|green|colorless)$/i;
-  function parseTokenSentence(sentence) {
+  function parseTokenSentence(sentence, nameHint) {
     let s = String(sentence).trim().replace(/\.$/, '');
+    /* Kari Zev: "Create Ragavan, a legendary 2/1 red Monkey creature token."
+       — a token with a name of its own, said first (not one named after the
+       card making it: "CARDNAME Twin" is left to a person) */
+    const named = s.match(/^Create ([A-Z][A-Za-z' -]*?), an? (legendary )?(.+)$/);
+    if (named && !/CARDNAME/.test(named[1])) {
+      const e = parseTokenSentence('Create a ' + named[3], named[1].trim());
+      if (!e) return null;
+      if (named[2]) e.legendary = true;
+      return e;
+    }
     let m = s.match(/^Create (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) /i);
     if (!m) return null;
     const e = { op: 'createToken', n: num(m[1]), keywords: [] };
+    if (nameHint) e.name = nameHint;
     s = s.slice(m[0].length);
     // Ghalta and Mavren: "a tapped and attacking X/X … token"
     if ((m = s.match(/^tapped and attacking /i))) { e.tapped = true; e.attacking = true; s = s.slice(m[0].length); }

@@ -15173,4 +15173,20 @@ module.exports = (test) => {
     T.resolve();
     t.zone(top, 'hand', 'a creature: into the hand');
   });
+
+  test('Tolsimir Wolfblood creates Voja, a legendary token with its own name', (mk, t) => {
+    t.auto('Tolsimir Wolfblood');
+    t.auto("Marit Lage's Slumber");
+    const T = mk();
+    T.toMain('A');
+    const tw = T.bf('A', 'Tolsimir Wolfblood');
+    const all = tw.analysis().manaAbilities.concat(tw.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    T.activate('A', tw, all.findIndex(a => /Voja/.test(a.text || '')));
+    T.resolve();
+    const v = T.bfOf('A').find(o => o.isToken);
+    t.ok(!!v, 'a token');
+    t.eq(v.name, 'Voja');
+    t.ok(v.analysis().isLegendary, 'legendary');
+    t.eq(T.g.powerOf(v), 4, '2/2, +1/+1 twice from Tolsimir: green and white');
+  });
 };
