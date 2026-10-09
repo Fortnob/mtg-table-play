@@ -3062,4 +3062,17 @@ module.exports = (test) => {
     T.mana('A', '2R'); T.cast('A', T.hand('A', 'Fireball'), { x: 2, targets: ['B'] }); T.settle(); T.resolve();
     t.eq(nev.counters['+1/+1'], 3, 'the second one this turn: nothing');
   });
+
+  test('Audit: Winds of Abandon overloaded: a basic land for each exiled creature, to its controller', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Winds of Abandon');
+    T.toMain('A');
+    const mine = T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant'); T.bf('C', 'Craw Wurm');
+    const lands = (p) => T.g.battlefield.filter(o => o.controller === p && (o.analysis() || {}).isLand).length;
+    const a0 = lands('A'), b0 = lands('B'), c0 = lands('C');
+    T.mana('A', '4WW'); T.g.castSpell('A', T.hand('A', 'Winds of Abandon').id, { auto: true, via: 'overload' }); T.settle(); T.resolve(); T.settle();
+    t.zone(mine, 'battlefield', 'mine stays');
+    t.eq(lands('B') - b0, 2, 'B lost two creatures: two lands'); t.eq(lands('C') - c0, 1); t.eq(lands('A') - a0, 0);
+  });
 };
