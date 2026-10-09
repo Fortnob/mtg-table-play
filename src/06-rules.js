@@ -20336,6 +20336,8 @@
       if (!o._tappedTurn || o._tappedTurn.turn !== this.turn) o._tappedTurn = { turn: this.turn, n: 0 };
       o._tappedTurn.n++;
       this._fire('becomesTapped', o.controller, { source: o, object: o, nth: o._tappedTurn.n });
+      // Solitary Sanctuary, Sharae: an effect of yours tapping an opponent's creature (youTapTheirs)
+      if (this._putBy && this._putBy !== o.controller && (o.analysis() || {}).isCreature) this._fire('youTapOpponentCreature', this._putBy, { object: o, objController: o.controller });
     }
 
     /**

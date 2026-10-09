@@ -9525,6 +9525,10 @@
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
     // Nev, Owlin Spiralmancer, Zimone: "Whenever you cast your first spell with {X} in its mana cost each turn," (firstXSpell)
     { re: /^Whenever you cast your first spell with \{X\} in its mana cost each turn, /i, event: 'youCastSpell', extra: { firstXSpell: true } },
+    /* Solitary Sanctuary, Icewrought Sentry: "Whenever you tap an untapped creature an opponent controls,";
+       Sharae of Numbing Depths: "one or more untapped creatures your opponents control" (youTapTheirs) */
+    { re: /^Whenever you tap an untapped creature an opponent controls, /i, event: 'youTapOpponentCreature' },
+    { re: /^Whenever you tap one or more untapped creatures your opponents control, /i, event: 'youTapOpponentCreature', extra: { batch: true } },
     // Captain Ripley Vance: "Whenever you cast your third spell each turn"
     { re: /^When(?:ever)? you cast your third spell each turn,? /i, event: 'youCastSpell', extra: { castNth: 3 } },
     // Midnight Clock: "When the twelfth hour counter is put on this artifact"

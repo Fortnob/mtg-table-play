@@ -16720,4 +16720,21 @@ module.exports = (test) => {
     T.settle();
     t.ok(T.g.castSpell('A', T.hand('A', 'Focus the Mind').id, { auto: true }), T.g.lastError);
   });
+
+  test("Whenever you tap an untapped creature an opponent controls: Icewrought Sentry, Sharae", (mk, t) => {
+    t.auto('Solitary Sanctuary');
+    t.auto('Icewrought Sentry');
+    t.auto('Sharae of Numbing Depths');
+    const T = mk();
+    T.toMain('A');
+    const sentry = T.bf('A', 'Icewrought Sentry'), sharae = T.bf('A', 'Sharae of Numbing Depths');
+    const g1 = T.bf('B', 'Hill Giant'), g2 = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Llanowar Elves');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', 'UCC');
+    T.cast('A', T.hand('A', 'Frost Breath'), { targets: [g1, g2] });
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.ok(g1.tapped && g2.tapped);
+    t.eq(T.g.powerOf(sentry), 2 + 2 + 2, 'two of theirs tapped: +2/+1 twice');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'Sharae: one card, once a turn');
+  });
 };
