@@ -377,6 +377,8 @@
     choosePrimary(ch) {
       const s = this.chooseSpec(ch);
       const sel = this.chooseSel(s);
+      // cards only to look at
+      if (s.kind === 'objects' && s.max === 0) return { label: 'Done', cls: 'go', sub: 'when you have looked' };
       if (!MTG.choice.solve(s)) return { label: 'Continue', cls: 'go', sub: 'nothing can be chosen' };
       const pr = MTG.choice.progress(s, sel.picks, sel.number);
       const none = s.kind !== 'number' && !sel.picks.length;
@@ -416,6 +418,15 @@
       const sel = this.chooseSel(s);
       const board = this.chooseBoardIds(s);
       if (s.kind === 'players') return null;
+      /* Cards to look at and none to take (a hand looked at with Gitaxian
+         Probe): a face-up row and a button to say you have seen them. */
+      if (s.kind === 'objects' && s.max === 0) {
+        const [vt, vs] = head('Look', '');
+        const row = el('div', { class: 'pick-row view-only' });
+        for (const it of (s.items || [])) row.appendChild(this.pickTile(it.card || (this.objIn(it.id) || {}).card || null, {}));
+        if (!(s.items || []).length) row.appendChild(el('div', { class: 'pp-empty', text: 'Nothing' }));
+        return this.panel(vt, vs, row, [{ label: 'Done', cls: 'primary', fn: () => this.chooseSend(ch, { picks: [] }) }], { wide: true, card });
+      }
       if (s.kind === 'objects' && (s.items || []).length && (s.items || []).every(x => board.has(x.id))) return null;
       const fallback = { confirm: 'Do it?', vote: 'Vote', mode: 'Choose', pickCard: 'Choose a card' }[s.legacy] || 'Choose';
       let [title, sub0] = head(fallback, s.legacy === 'vote' ? 'Everyone votes; the most votes wins.' : '');
