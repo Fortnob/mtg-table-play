@@ -704,7 +704,8 @@
   function sacrificedIsThat(list) {
     for (const e of list || []) {
       if (!e || typeof e !== 'object') continue;
-      for (const k of ['n', 'p', 't']) if (e[k] && typeof e[k] === 'object' && e[k].ofTrigger && /\bthat creature'?s\b/i.test(e.text || '')) e[k] = { ofSacrificed: e[k].ofTrigger };
+      // (Hit: "that permanent's mana value" — the artifact or creature sacrificed)
+      for (const k of ['n', 'p', 't']) if (e[k] && typeof e[k] === 'object' && e[k].ofTrigger && /\bthat (?:creature|permanent)'?s\b/i.test(e.text || '')) e[k] = { ofSacrificed: e[k].ofTrigger };
       for (const k of ['then', 'otherwise', 'list']) if (Array.isArray(e[k])) sacrificedIsThat(e[k]);
     }
   }
@@ -3174,6 +3175,17 @@
       make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
 
     /* ===== looking at somebody's hand, and taking something out of it ===== */
+    /* Hit // Run: "Attacking creatures you control get +1/+0 until end of
+       turn for each other attacking creature." — each counts the rest, so
+       every one gets the same: one less than all that attack */
+    { re: /^Attacking creatures you control get \+(\d+)\/\+(\d+) until end of turn for each other attacking creature\.?$/i,
+      make: (m) => {
+        const per = (k) => (k ? { scope: { who: 'all', what: 'creature', attacking: true }, mult: k, plus: -k, floorZero: true } : 0);
+        return { op: 'pump', p: per(+m[1]), t: per(+m[2]), duration: 'eot', scope: { who: 'you', what: 'creature', attacking: true } };
+      } },
+    // Hit // Run: "CARDNAME deals damage to that player equal to that permanent's mana value."
+    { re: /^CARDNAME deals damage to that player equal to (that [a-z ]+'s (?:power|toughness|mana value))\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'damage', n: k, toTriggerPlayer: true } : null; } },
     { re: /^Look at target (?:player|opponent)'?s hand\.?$/i,
       make: () => ({ op: 'revealHand', look: true, targets: [{ type: 'player' }] }) },
     // Seer's Vision: "Look at target player's hand and choose a card from it." — then "That player discards that card."

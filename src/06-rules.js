@@ -12277,7 +12277,8 @@
             if (p) { this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
             break;
           }
-          if (e.toTriggerPlayer) { const p = triggerPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // (in a spell, "that player" is the one it targets: Hit)
+          if (e.toTriggerPlayer) { const p = triggerPlayer() || firstPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // Hellrider: "to the player or planeswalker it's attacking"
           if (e.toDefenderOf) {
             // Generous Plunderer: the creature itself, attacking

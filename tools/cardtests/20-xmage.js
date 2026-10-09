@@ -14808,4 +14808,26 @@ module.exports = (test) => {
     T.bf('B', 'Revelation');
     t.ok(shown('A', 'B') && shown('B', 'A'), 'Revelation: everyone sees every hand');
   });
+  test("Hit // Run: the sacrificed permanent's mana value as damage; each attacker gets +1/+0 for each other", (mk, t) => {
+    t.auto('Hit // Run');
+    const T = mk();
+    T.toMain('A');
+    const hill = T.bf('B', 'Hill Giant');
+    const card = T.hand('A', 'Hit // Run');
+    const hit = card.analysis().abilities.find(a => a.kind === 'spell');
+    T.answer('*', (ch) => ({ cardIds: [hill.id], ids: [hill.id], picks: [hill.id] }));
+    T.g._runEffects(hit.effects, { controller: 'A', obj: card, name: 'Hit', kind: 'spell', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(hill, 'graveyard', 'the Giant sacrificed');
+    t.eq(T.life('B'), 16, 'and its mana value, 4, dealt to B');
+    const U = mk();
+    const a = U.bf('A', 'Grizzly Bears'), b = U.bf('A', 'Hill Giant'), c = U.bf('A', 'Llanowar Elves');
+    U.answer('declareAttackers', () => [{ attackerId: a.id, defenderId: 'B' }, { attackerId: b.id, defenderId: 'B' }, { attackerId: c.id, defenderId: 'B' }]);
+    U.toMain('A', 'declareBlockers');
+    const card2 = U.hand('A', 'Hit // Run');
+    const run = engine().oracle.analyze(card2.card, 1).abilities.find(x => x.kind === 'spell');
+    U.g._runEffects(run.effects, { controller: 'A', obj: card2, name: 'Run', kind: 'spell' });
+    t.eq(U.g.powerOf(a), 4, 'two others: +2/+0');
+    t.eq(U.g.toughnessOf(a), 2);
+  });
 };
