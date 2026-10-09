@@ -13479,4 +13479,37 @@ module.exports = (test) => {
     t.eq(V.life('B'), 18, 'Shock from the graveyard');
     t.eq(s2.zone, 'exile', 'exiled after');
   });
+
+  test('Ragost, Ygra, Senator Peacock, Gourmand\'s Talent: an artifact type and its ability, handed over', (mk, t) => {
+    for (const n of ['Ragost, Deft Gastronaut', 'Ygra, Eater of All', 'Senator Peacock', "Gourmand's Talent"]) t.auto(n);
+    const idx = (o, re) => { const a = o.analysis(); return a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty')).findIndex(x => re.test(x.text || '')); };
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Ragost, Deft Gastronaut');
+    const ms = T.bf('A', 'Mind Stone');
+    t.ok(T.g._hasSubtype(ms, 'Food'), 'Mind Stone is a Food');
+    const life = T.life('A');
+    T.mana('A', '2');
+    T.activate('A', ms, idx(ms, /You gain 3 life/));
+    t.eq(T.life('A'), life + 3, 'sacrificed for 3 life');
+    t.zone(ms, 'graveyard');
+    const U = mk();
+    U.toMain('A');
+    const ygra = U.bf('A', 'Ygra, Eater of All');
+    const bear = U.bf('B', 'Grizzly Bears');
+    t.ok(U.g._matchesCategory(bear, 'artifact') && U.g._hasSubtype(bear, 'Food'), 'another creature is a Food artifact');
+    t.ok(!U.g._hasSubtype(ygra, 'Food'), 'Ygra itself is not');
+    U.g._runEffects([{ op: 'destroy' }], { controller: 'A', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: bear.id }] });
+    U.settle(); U.resolve(); U.settle();
+    t.eq(Number((ygra.counters || {})['+1/+1']) || 0, 2, 'a Food went to the graveyard');
+    const V = mk();
+    V.toMain('A');
+    V.bf('A', 'Senator Peacock');
+    const sol = V.bf('A', 'Sol Ring');
+    V.top('A', 'Island');
+    const hand = V.zone('A', 'hand').length;
+    V.mana('A', '2');
+    V.activate('A', sol, idx(sol, /Draw a card/));
+    t.eq(V.zone('A', 'hand').length, hand + 1, 'a Clue: sacrificed to draw');
+  });
 };

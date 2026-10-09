@@ -10960,6 +10960,20 @@
         const t = U.titleCase(m[2]);
         return { op: 'continuous', layer: 4, scope, setSubtypes: [t], setMana: [MANA.COLOR_OF_BASIC[t]] };
       } },
+    /* Ragost, Deft Gastronaut: "Artifacts you control are Foods in addition
+       to their other types and have '{2}, {T}, Sacrifice this artifact: You
+       gain 3 life.'"; Ygra: "Other creatures are Food artifacts …";
+       Senator Peacock: "… are Clues …" — an artifact type (layer 4), and the
+       ability that goes with it handed over (layer 6) */
+    { re: /^(.+?) (?:is|are) (?:an? )?(Food|Clue|Treasure|Blood|Gold|Powerstone|Map|Junk)s? (artifacts? )?in addition to (?:its|their) other types(?: and (?:has|have) "([^"]+)")?\.?$/,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached) return null;
+        if (m[4] && !grantableText(m[4])) return null;
+        const list = [Object.assign({ op: 'continuous', layer: 4, scope, addSubtypes: [m[2]] }, m[3] ? { addTypes: ['Artifact'] } : {})];
+        if (m[4]) list.push({ op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: m[4] });
+        return list.length === 1 ? list[0] : { op: 'sequence', list };
+      } },
     /* Opalescence, March of the Machines, Enchanted Evening: one kind of
        permanent is another kind as well (layer 4), perhaps with its power
        and toughness its mana value (7b). */

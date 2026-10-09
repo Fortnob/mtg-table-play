@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11979,
+  "needed": 11975,
   "gainedCards": 1238,
-  "linesNeeded": 12942,
+  "linesNeeded": 12938,
   "linesGained": 1476,
   "gained": {
    "all": 1238,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4324,
-   "lines": 4057,
+   "score": 4322,
+   "lines": 4055,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -298,21 +298,21 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 32,
-   "lines": 32,
+   "score": 31,
+   "lines": 31,
    "cards": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut",
     "Press the Enemy",
     "Nicol Bolas, God-Pharaoh",
     "Dune Chanter",
     "Needle Drop",
     "Self-Destruct",
     "You Look Upon the Tarrasque",
-    "Jhoira's Timebug"
+    "Jhoira's Timebug",
+    "Nature's Revolt"
    ]
   },
   {
@@ -6927,8 +6927,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3557,
-   "cards": 3389,
+   "score": 3555,
+   "cards": 3387,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7083,15 +7083,15 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 28,
-   "cards": 28,
+   "score": 27,
+   "cards": 27,
    "names": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
     "Screaming Nemesis",
     "Lozhan, Dragons' Legacy",
-    "Ragost, Deft Gastronaut",
-    "Press the Enemy"
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh"
    ]
   },
   {

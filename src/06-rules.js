@@ -20818,7 +20818,10 @@
       if (f.who === 'enchantedPlayer' && !(src && src.attachedTo && owner === src.attachedTo)) return false;
       if (f.nontoken && x.isToken) return false;
       if (f.token && !x.isToken) return false;
-      if (f.words && !this._cardFitsWords(x, f.words)) return false;
+      /* Ygra: "Whenever a Food is put into a graveyard from the battlefield"
+         — what it was as it left (CR 603.10), a Food only while Ygra said so */
+      const asWas = x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x;
+      if (f.words && !this._cardFitsWords(asWas, f.words)) return false;
       if (f.chosenType && !(src && this._hasCreatureType(x, src.chosenType))) return false;
       if (f.chosenName && !this._chosenNameOf(src, x)) return false;
       if (f.minPower != null && this.powerOf(x) < f.minPower) return false;
