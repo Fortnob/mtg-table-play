@@ -3024,4 +3024,25 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', vd2); T.settle(); T.resolve();
     t.zone(vd2, 'battlefield', 'nobody took it: it stays');
   });
+
+  test('Audit: It That Betrays takes only an opponent\'s nontoken sacrifice; Rakshasa Debaser takes from the defending player', (mk, t) => {
+    let T = mk();
+    t.auto('It That Betrays'); t.auto('Rakshasa Debaser');
+    T.toMain('A');
+    T.bf('A', 'It That Betrays');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant');
+    T.g._sacrificeNow('A', [mine]); T.settle(); T.resolve();
+    t.zone(mine, 'graveyard', 'my own sacrifice: nothing');
+    T.g._sacrificeNow('B', [theirs]); T.settle(); T.resolve();
+    t.zone(theirs, 'battlefield'); t.eq(theirs.controller, 'A');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const rd = T.bf('A', 'Rakshasa Debaser'); rd.summoningSick = false;
+    const bg = T.grave('B', 'Hill Giant'), cg = T.grave('C', 'Craw Wurm');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = ch.options[0].map(o => o.id); return { targets: [ch.options[0][0]] }; });
+    T.answer('declareAttackers', () => [{ attackerId: rd.id, defenderId: 'C' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(JSON.stringify(offered), JSON.stringify([cg.id]), "only C's graveyard"); t.zone(cg, 'battlefield'); t.zone(bg, 'graveyard');
+  });
 };
