@@ -3309,4 +3309,20 @@ module.exports = (test) => {
     T.g.activateAbility('A', r.id, 0, { auto: true });
     t.eq(T.g.player('A').pool.B, 1, 'after a land: {B}');
   });
+
+  test('Audit: Wash Away counters only a spell not cast from hand, unless cleaved', (mk, t) => {
+    const T = mk();
+    t.auto('Wash Away');
+    T.toMain('B');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'], resolve: false }); T.settle();
+    const st = T.g.stack.find(s => s.name === 'Lightning Bolt');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('A');
+    const wa = T.hand('A', 'Wash Away');
+    T.mana('A', 'U');
+    t.no(T.g.castSpell('A', wa.id, { auto: true, targets: [{ kind: 'stack', id: st.id }] }), 'cast from hand: not a legal target');
+    T.mana('A', '1UU');
+    t.ok(T.g.castSpell('A', wa.id, { auto: true, via: 'cleave', targets: [{ kind: 'stack', id: st.id }] }), 'cleaved: any spell');
+    T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.life('A'), 20, 'the Bolt is countered');
+  });
 };
