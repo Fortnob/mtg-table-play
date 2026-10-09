@@ -15415,4 +15415,18 @@ module.exports = (test) => {
     T.g._runEffects(engine().oracle.parseEffects('Gain control of all permanents you own.').effects, { controller: 'A', obj: card, name: 'Gruul Charm', kind: 'spell' });
     t.eq(bear.controller, 'A', 'back to A');
   });
+
+  test('Orzhov Charm returns the creature and your Auras on it', (mk, t) => {
+    t.auto('Orzhov Charm');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const aura = T.bf('A', 'Rancor');
+    aura.attachedTo = bear.id; bear.attachments = [aura.id];
+    const card = T.hand('A', 'Orzhov Charm');
+    T.g._runEffects(engine().oracle.parseEffects("Return target creature you control and all Auras you control attached to it to their owner's hand.").effects,
+      { controller: 'A', obj: card, name: 'Orzhov Charm', kind: 'spell', targets: [{ kind: 'object', id: bear.id }] });
+    t.zone(bear, 'hand');
+    t.zone(aura, 'hand', 'Rancor with it');
+  });
 };

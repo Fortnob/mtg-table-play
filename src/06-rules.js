@@ -12580,7 +12580,13 @@
         case 'bounce':
           if (e.scope === 'self' && src) { this.moveObject(src, 'hand'); break; }
           for (const t of targets) {
-            if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.moveObject(o, 'hand'); }
+            if (t.kind === 'object') {
+              const o = this.obj(t.id);
+              // Orzhov Charm: "and all Auras you control attached to it", together
+              const auras = e.withYourAuras && o ? (o.attachments || []).map(id => this.obj(id)).filter(x => x && x.controller === ctx.controller && ((x.analysis() || {}).subtypes || []).includes('Aura')) : [];
+              if (o) this.moveObject(o, 'hand');
+              for (const x of auras) if (x.zone === 'battlefield' || x.zone === 'graveyard') this.moveObject(x, 'hand');
+            }
             // "return target spell to its owner's hand": off the stack, uncast
             if (t.kind === 'stack') {
               const item = this.stack.find(st => st.id === t.id);

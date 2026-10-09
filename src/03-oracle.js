@@ -3065,6 +3065,9 @@
     // Dromoka's Command, Shieldmage Elder: "Prevent all damage target (instant or sorcery) spell would deal this turn."
     { re: /^Prevent all damage target (instant or sorcery )?spell would deal this turn\.?$/i,
       make: (m) => ({ op: 'preventFromSpell', targets: [Object.assign({ type: 'spell' }, m[1] ? { filter: 'instant or sorcery' } : {})] }) },
+    // Orzhov Charm: "Return target creature you control and all Auras you control attached to it to their owner's hand."
+    { re: /^Return (target creature you control) and all Auras you control attached to it to their owner'?s'? hands?\.?$/i,
+      make: (m) => ({ op: 'bounce', withYourAuras: true, targets: [targetSpec(m[1])] }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
