@@ -14733,7 +14733,8 @@
 
         case 'ifLastWas': {
           // "untap target artifact or creature. If it's an artifact creature, …": the target
-          const x = e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
+          // (Aunt May: "If it's a Spider" — the creature the trigger is about)
+          const x = e.ofTrigger ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) : e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
             (this._lastAffected && this.obj(this._lastAffected.id));
           const fits = x && (e.filter === 'artifact creature'
             ? this._matchesCategory(x, 'artifact') && this._matchesCategory(x, 'creature') : this._matchesCategory(x, e.filter));

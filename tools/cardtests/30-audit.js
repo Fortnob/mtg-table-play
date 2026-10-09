@@ -2022,4 +2022,15 @@ module.exports = (test) => {
     const T = mk();
     t.no(T.MTG.oracle.analyze(require('../harness').card('Psychic Miasma')).fullyAutomated);
   });
+
+  test('Audit: Aunt May counts the Spider that entered', (mk, t) => {
+    const T = mk();
+    t.auto('Aunt May');
+    T.bf('A', 'Aunt May');
+    const s = T.hand('A', 'Giant Spider'), b = T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'G3'); T.cast('A', s);
+    T.mana('A', 'G1'); T.cast('A', b);
+    t.eq(s.counters['+1/+1'], 1); t.no(b.counters['+1/+1']);
+    t.eq(T.life('A'), 22);
+  });
 };

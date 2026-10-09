@@ -651,6 +651,18 @@
        Chamber: "that creature's controller creates a … token" — with
        nothing before it, "it" is what the trigger is about, not something
        an earlier sentence removed */
+    /* Aunt May: "you gain 1 life. If it's a Spider, put a +1/+1 counter on
+       it." With nothing before it that picked or moved a card, "it" is the
+       creature that entered */
+    if (aboutOther) {
+      const list = parsed.effects || [];
+      list.forEach((e, i) => {
+        if (!e || e.op !== 'ifLastWas' || e.ofTarget) return;
+        const before = list.slice(0, i);
+        if (before.some(x => x && ((x.targets || []).length || /^(?:exile|destroy|bounce|mill|reveal|lookAt|tutor|create|copy|reanimate|regrowth|sacrifice|discard)/i.test(x.op || '')))) return;
+        e.ofTrigger = true;
+      });
+    }
     if (aboutOther && d0 && !(d0.targets || []).length) {
       for (const k of ['n', 'p', 't']) if (d0[k] && typeof d0[k] === 'object' && d0[k].ofLast) d0[k] = { ofTrigger: d0[k].ofLast };
       if (d0.who === 'targetController' && ['createToken', 'createNamedToken'].includes(d0.op)) d0.who = 'triggerObjController';
