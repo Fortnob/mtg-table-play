@@ -2859,4 +2859,37 @@ module.exports = (test) => {
     T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [egg] });
     t.ok(T.g.log.some(l => /discovers 3/.test(l.text)), 'discover 3, its toughness');
   });
+
+  test('Audit: "target creature it\'s blocking / blocking it" (Wall of Corpses, Knight of Dusk); Umbra Mystic; Silkguard', (mk, t) => {
+    let T = mk();
+    for (const c of ['Wall of Corpses', 'Knight of Dusk', 'Umbra Mystic', 'Silkguard']) t.auto(c);
+    T.toMain('B');
+    const wc = T.bf('A', 'Wall of Corpses'), at = T.bf('B', 'Hill Giant'), other = T.bf('B', 'Grizzly Bears');
+    at.summoningSick = other.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: at.id, defenderId: 'A' }, { attackerId: other.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wc.id, attackerIds: [at.id] }]);
+    T.toMain('B', 'declareBlockers');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('A');
+    t.eq(JSON.stringify(T.g._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'battlefield', blockedBySelf: true }, 'A', wc.id).map(x => x.id)), JSON.stringify([at.id]), 'only the creature it blocks');
+    T.mana('A', 'B'); T.activate('A', wc, 0, { targets: [at] });
+    t.zone(at, 'graveyard'); t.zone(other, 'battlefield');
+    T = mk();
+    T.toMain('A');
+    const kd = T.bf('A', 'Knight of Dusk'); kd.summoningSick = false;
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: kd.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: b1.id, attackerIds: [kd.id] }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(JSON.stringify(T.g._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'battlefield', blockingSelf: true }, 'A', kd.id).map(x => x.id)), JSON.stringify([b1.id]), 'only its blocker');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Umbra Mystic');
+    const mine = T.bf('A', 'Grizzly Bears'), aura = T.bf('B', 'Pacifism');
+    aura.attachedTo = mine.id; mine.attachments = [aura.id];
+    const aura2 = T.bf('A', 'Rancor'), theirs = T.bf('B', 'Hill Giant');
+    aura2.attachedTo = theirs.id; theirs.attachments = [aura2.id];
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(aura, 'umbra armor'), 'an Aura on my permanent, whoever controls it');
+    t.no(T.g.hasKw(aura2, 'umbra armor'), 'not my Aura on their creature');
+  });
 };
