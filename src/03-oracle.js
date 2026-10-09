@@ -9064,6 +9064,11 @@
       event: 'ltb', self: true },
     { re: /^When(?:ever)? (?:CARDNAME|this creature|this permanent) is turned face up(?:,| )/i,
       event: 'turnedFaceUp', self: true },
+    /* Experiment Twelve, Trail of Mystery: "Whenever this creature or another
+       creature you control is turned face up", "a permanent you control is
+       turned face up" — that one */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' is turned face up,? ', 'i'),
+      event: 'turnedFaceUp', aboutObject: true, filt: (m) => subjectFilter(m[1]) },
     { re: /^Landfall\s*[-\u2014]\s*When(?:ever)? a land (?:you control )?enters(?: the battlefield)?(?:,| )/i, event: 'landfall' },
     { re: /^When(?:ever)? a land you control enters(?: the battlefield)?(?:,| )/i, event: 'landfall' },
     { re: /^When(?:ever)? a land enters under your control(?:,| )/i, event: 'landfall' },

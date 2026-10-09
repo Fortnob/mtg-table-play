@@ -15268,4 +15268,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(im.counters['+1/+1'], 1, 'Iron Monger, a Villain, gets a counter');
   });
+
+  test('Pyrotechnic Performer: another creature of yours turned face up deals its power to each opponent', (mk, t) => {
+    t.auto('Pyrotechnic Performer');
+    t.auto('True Identity');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Pyrotechnic Performer');
+    const giant = T.bf('A', 'Hill Giant');
+    T.g._fire('turnedFaceUp', 'A', { object: giant, source: giant });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), 17, 'the Giant deals 3');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.g._fire('turnedFaceUp', 'B', { object: theirs, source: theirs });
+    T.settle(); T.resolve();
+    t.eq(T.life('A'), 20, "an opponent's creature: nothing");
+  });
 };

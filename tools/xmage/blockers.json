@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11476,
-  "gainedCards": 1136,
-  "linesNeeded": 12304,
-  "linesGained": 1348,
+  "needed": 11463,
+  "gainedCards": 1134,
+  "linesNeeded": 12288,
+  "linesGained": 1345,
   "gained": {
-   "all": 1136,
+   "all": 1134,
    "top2000": 46,
    "stdTop": 8
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 735,
-   "lines": 675,
+   "score": 732,
+   "lines": 672,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -449,25 +449,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Gathering Stone",
-    "Minsc & Boo, Timeless Heroes",
-    "Shanid, Sleepers' Scourge",
-    "Obsessive Pursuit",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Mystic Barrier",
-    "Crack in Time",
-    "Staff of the Flame Magus",
-    "Staff of the Wild Magus"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -503,6 +484,25 @@
     "Send to Sleep",
     "Joust",
     "Poisoner's Apprentice"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Gathering Stone",
+    "Minsc & Boo, Timeless Heroes",
+    "Shanid, Sleepers' Scourge",
+    "Obsessive Pursuit",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Mystic Barrier",
+    "Crack in Time",
+    "Staff of the Flame Magus",
+    "Staff of the Wild Magus"
    ]
   },
   {
@@ -2524,20 +2524,6 @@
    ]
   },
   {
-   "what": "subject:faceDown",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "They Came from the Pipes",
-    "Threats Around Every Corner",
-    "Trail of Mystery",
-    "Yarus, Roar of the Old Gods",
-    "Kadena, Slinking Sorcerer",
-    "Cryptic Pursuit",
-    "Cryptid Inspector"
-   ]
-  },
-  {
    "what": "GainControlAllEffect",
    "score": 8,
    "lines": 8,
@@ -2565,21 +2551,6 @@
     "Hidden Spider",
     "Clip Wings",
     "Run Afoul"
-   ]
-  },
-  {
-   "what": "FilterPermanentThisOrAnother",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Esoteric Duplicator",
-    "Experiment Twelve",
-    "Printlifter Ooze",
-    "Pyrotechnic Performer",
-    "King of the Oathbreakers",
-    "Kingpin, Wilson Fisk",
-    "True Identity",
-    "Pine Walker"
    ]
   },
   {
@@ -3012,6 +2983,20 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
+   ]
+  },
+  {
+   "what": "subject:faceDown",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "They Came from the Pipes",
+    "Threats Around Every Corner",
+    "Trail of Mystery",
+    "Yarus, Roar of the Old Gods",
+    "Kadena, Slinking Sorcerer",
+    "Cryptic Pursuit",
+    "Cryptid Inspector"
    ]
   },
   {
@@ -4513,6 +4498,18 @@
     "Brain in a Jar",
     "Blademane Baku",
     "Mercadian Lift"
+   ]
+  },
+  {
+   "what": "FilterPermanentThisOrAnother",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Esoteric Duplicator",
+    "Experiment Twelve",
+    "Printlifter Ooze",
+    "King of the Oathbreakers",
+    "Kingpin, Wilson Fisk"
    ]
   },
   {
@@ -6165,17 +6162,6 @@
    ]
   },
   {
-   "what": "turned face up under anyone",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Aphetto Runecaster",
-    "Unblinking Bleb",
-    "Aven Farseer",
-    "Bonethorn Valesk"
-   ]
-  },
-  {
    "what": "AttacksIfAbleTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6733,6 +6719,16 @@
     "Auron, Venerated Guardian",
     "Glissa's Retriever"
    ]
+  },
+  {
+   "what": "LifeCompareCondition",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Cryptolith Fragment // Aurora of Emrakul",
+    "Vampire Lacerator",
+    "Razor Pendulum"
+   ]
   }
  ],
  "sole": [
@@ -6751,8 +6747,8 @@
   },
   {
    "what": "custom ability",
-   "score": 564,
-   "cards": 522,
+   "score": 562,
+   "cards": 520,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7010,19 +7006,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Gathering Stone",
-    "Shanid, Sleepers' Scourge",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 17,
    "cards": 17,
@@ -7059,6 +7042,19 @@
     "Act of Heroism",
     "Stall for Time",
     "Loyal Sentry"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Gathering Stone",
+    "Shanid, Sleepers' Scourge",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus"
    ]
   },
   {
@@ -8359,19 +8355,6 @@
     "Gandalf, Party Guest",
     "Wildfire Eternal",
     "Surtland Elementalist"
-   ]
-  },
-  {
-   "what": "FilterPermanentThisOrAnother",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Esoteric Duplicator",
-    "Experiment Twelve",
-    "Printlifter Ooze",
-    "Pyrotechnic Performer",
-    "Kingpin, Wilson Fisk",
-    "True Identity"
    ]
   },
   {
@@ -10372,6 +10355,17 @@
    ]
   },
   {
+   "what": "subject:faceDown",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Threats Around Every Corner",
+    "Trail of Mystery",
+    "Cryptic Pursuit",
+    "Cryptid Inspector"
+   ]
+  },
+  {
    "what": "BecomesCreatureAllEffect",
    "score": 4,
    "cards": 4,
@@ -10438,14 +10432,14 @@
    ]
   },
   {
-   "what": "CreateTokenAllEffect",
+   "what": "FilterPermanentThisOrAnother",
    "score": 4,
    "cards": 4,
    "names": [
-    "Kibo, Uktabi Prince",
-    "Edge Rover",
-    "Pursued Whale",
-    "Elephant Resurgence"
+    "Esoteric Duplicator",
+    "Experiment Twelve",
+    "Printlifter Ooze",
+    "Kingpin, Wilson Fisk"
    ]
   }
  ]
