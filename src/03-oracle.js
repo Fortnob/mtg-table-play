@@ -9186,6 +9186,8 @@
     { re: /^When the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) ([a-z]+) counter is put on (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME),? /i,
       event: 'countersPut', self: true, extraOf: (m) => ({ counterKind: m[2].toLowerCase(),
         reachesN: { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12 }[m[1].toLowerCase()] }) },
+    // Speedway Fanatic, Gearshift Ace: "Whenever this creature crews a Vehicle, that Vehicle gains haste until end of turn."
+    { re: /^Whenever (?:this creature|CARDNAME) crews a Vehicle,? /i, event: 'crewsVehicle', self: true, aboutObject: true },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes crewed(?: for the first time each turn)?(?:,| )/i, event: 'becomesCrewed', self: true,
       extraOf: (m) => (m && /first time/i.test(m[0]) ? { oncePerTurn: true } : {}) },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes saddled(?: for the first time each turn)?(?:,| )/i, event: 'becomesSaddled', self: true,
@@ -9879,6 +9881,8 @@
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
         /* Narcomoeba: "When this card is put into your graveyard from your
            library, you may put it onto the battlefield" — "it" is the card */
+        // Speedway Fanatic: "that Vehicle" is the creature it crewed
+        if (trig.event === 'crewsVehicle') body = body.replace(/\bthat Vehicle\b/g, 'that creature');
         if (trig.event === 'selfToGraveyard') body = body.replace(/^(you may )?put it onto the battlefield\.?$/i, (x, may) => (may ? 'you may ' : '') + 'return CARDNAME from your graveyard to the battlefield.');
         /* "This ability triggers only once each turn." is about the
            trigger, not something it does. */
@@ -10956,7 +10960,8 @@
       if (ab.enchantedController) for (const x of (ab.effects || [])) if (x.op === 'counters' && x.scope === 'triggerObject') x.scope = 'attached';
       if (ab.kind === 'triggered' && !ab.self) continue;
       // a creature's own trigger about another creature: the one it dealt damage to, the one it exploited
-      if (ab.kind === 'triggered' && ['dealsDamageToCreature', 'exploits', 'blocksCreature', 'blockedByCreature'].includes(ab.event)) continue;
+      // (Speedway Fanatic: the Vehicle it crewed)
+      if (ab.kind === 'triggered' && ['dealsDamageToCreature', 'exploits', 'blocksCreature', 'blockedByCreature', 'crewsVehicle'].includes(ab.event)) continue;
       /* Puncture Bolt: "deals 1 damage to target creature. Put a -1/-1
          counter on that creature." — a spell's "that creature" is the one it aimed at */
       const effs = ab.effects || [];

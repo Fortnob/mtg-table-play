@@ -14975,4 +14975,18 @@ module.exports = (test) => {
     T.g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
     t.eq(T.zone('A', 'hand').length, h + 1, 'equipped as it died: a card');
   });
+  test('Veteran Motorist: the Vehicle it crews gets +1/+1', (mk, t) => {
+    t.auto('Veteran Motorist');
+    t.auto('Speedway Fanatic');
+    const T = mk();
+    T.toMain('A');
+    const vm = T.bf('A', 'Veteran Motorist');
+    const sc = T.bf('A', "Smuggler's Copter");
+    const all = sc.analysis().manaAbilities.concat(sc.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const idx = all.findIndex(a => /^Crew/i.test(a.text || ''));
+    T.activate('A', sc, idx, { tapCostIds: [vm.id] });
+    T.resolve();
+    t.ok(vm.tapped, 'the Motorist crewed it');
+    t.eq(T.g.powerOf(sc), 4, '3/3 +1/+1');
+  });
 };

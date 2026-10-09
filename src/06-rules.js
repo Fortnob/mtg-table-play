@@ -19238,6 +19238,8 @@
           src._chr = null; this.bumpBoard();
           this.logEvent('rules', `${src.name} is crewed.`);
           this._fire('becomesCrewed', src.controller, { source: src, object: src });
+          // Speedway Fanatic: each creature tapped to crew it, crewing it
+          for (const t of (ctx.tapped || [])) { const x = this.obj(t.id); if (x) this._fire('crewsVehicle', x.controller, { source: x, object: src }); }
           break;
         case 'saddled':
           if (!src || src.zone !== 'battlefield') break;

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11541,
+  "needed": 11538,
   "gainedCards": 1146,
-  "linesNeeded": 12380,
+  "linesNeeded": 12377,
   "linesGained": 1361,
   "gained": {
    "all": 1146,
@@ -4973,18 +4973,6 @@
    ]
   },
   {
-   "what": "CrewsVehicleSourceTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Canyon Vaulter",
-    "Speedway Fanatic",
-    "Gearshift Ace",
-    "Veteran Motorist",
-    "Reckless Velocitaur"
-   ]
-  },
-  {
    "what": "DamageTargetControllerEffect",
    "score": 5,
    "lines": 5,
@@ -6752,6 +6740,16 @@
     "Mauhúr, Uruk-hai Captain",
     "Pir, Imaginative Rascal",
     "Caradora, Heart of Alacria"
+   ]
+  },
+  {
+   "what": "that player",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Glowing One",
+    "Infesting Radroach",
+    "Acquired Mutation"
    ]
   }
  ],
@@ -9830,18 +9828,6 @@
    ]
   },
   {
-   "what": "CrewsVehicleSourceTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Canyon Vaulter",
-    "Speedway Fanatic",
-    "Gearshift Ace",
-    "Veteran Motorist",
-    "Reckless Velocitaur"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesAttachedEffect",
    "score": 5,
    "cards": 5,
@@ -10471,6 +10457,17 @@
     "Ian Chesterton",
     "Djinn Illuminatus",
     "Threefold Signal"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Flopsie, Bumi's Buddy",
+    "Michelangelo, Mutant BFF",
+    "Battlefront Krushok",
+    "Rocksteady, Crash Courser"
    ]
   }
  ]
