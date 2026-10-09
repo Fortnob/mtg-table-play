@@ -11212,6 +11212,8 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // Pitiless Carnage: "that many" — how many were just sacrificed
+        if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
         // "… minus four": never less than zero
         if (v && typeof v === 'object' && v.floorZero) return Math.max(0, n(Object.assign({}, v, { floorZero: false })));
         if (v === 'X') return ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0;
@@ -17641,6 +17643,7 @@
            (a bot gives up all of them, which is what the card is for) */
         case 'sacrificeAnyNumber': {
           this._lastSacrificed = [];
+          this._lastSacCount = 0;
           const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'permanent'));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'sacrificeAnyNumber', kind: 'objects', zone: 'battlefield',
@@ -17648,6 +17651,8 @@
             prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice any number of ${e.filter || 'permanent'}s.` }, 'sacAny');
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x));
+          // "that many": what the next words count
+          this._lastSacCount = picks.length;
           if (picks.length) {
             this._sacrificeNow(ctx.controller, picks);
             this._fire('youSacrifice', ctx.controller, { count: picks.length });

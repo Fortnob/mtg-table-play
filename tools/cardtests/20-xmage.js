@@ -11795,4 +11795,32 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(w.zone, 'hand', 'white'); t.eq(r.zone, 'hand', 'red'); t.eq(u.zone, 'library', 'colorless is none of them');
   });
+
+  test('Sacrifice any number of …, then that many: Reprocess, Last-Ditch Effort, Lich-Knights\' Conquest', (mk, t) => {
+    t.auto('Reprocess'); t.auto('Last-Ditch Effort'); t.auto("Lich-Knights' Conquest");
+    const T = mk();
+    const a = T.bf('A', 'Sol Ring'), b = T.bf('A', 'Grizzly Bears'), c = T.bf('A', 'Forest');
+    T.answer('choose', (ch) => { t.eq(ch.items.length, 3, 'artifact, creature and land'); return { picks: [a.id, b.id] }; });
+    const h = T.g.zones.A.hand.length;
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'Reprocess'));
+    T.settle(); T.resolve();
+    t.eq(T.g.zones.A.hand.length, h + 2, 'two drawn'); t.eq(c.zone, 'battlefield');
+    const T2 = mk();
+    const x1 = T2.bf('A', 'Grizzly Bears'), x2 = T2.bf('A', 'Savannah Lions');
+    T2.answer('choose', { picks: [x1.id, x2.id] });
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Last-Ditch Effort'), { targets: [{ kind: 'player', id: 'B' }] });
+    T2.settle(); T2.resolve();
+    t.eq(T2.life('B'), 18, 'two damage');
+    const T3 = mk();
+    const tok = T3.bf('A', 'Sol Ring');
+    const g1 = T3.grave('A', 'Craw Wurm');
+    T3.answer('choose', { picks: [tok.id] });
+    T3.answer('pickCard', (ch) => ({ cardIds: [g1.id] }));
+    T3.mana('A', '4B');
+    T3.cast('A', T3.hand('A', "Lich-Knights' Conquest"));
+    T3.settle(); T3.resolve();
+    t.eq(g1.zone, 'battlefield', 'one back for one sacrificed');
+  });
 };

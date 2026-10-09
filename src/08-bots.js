@@ -1472,7 +1472,12 @@
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
-    sacrificeAnyNumber(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    sacrificeAnyNumber(s) {
+      // Scapeshift: every land; anything else (Pitiless Carnage): only tokens
+      const g = this.game, items = s.items || [];
+      if (items.every(x => { const o = g.obj(x.id); return o && (o.analysis() || {}).isLand; })) return { picks: items.map(x => x.id) };
+      return { picks: items.filter(x => { const o = g.obj(x.id); return o && o.isToken; }).map(x => x.id) };
+    },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

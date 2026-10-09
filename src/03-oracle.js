@@ -4740,7 +4740,7 @@
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
-    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
+    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards? from your graveyard to (your hand|the battlefield)\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : { op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[3]) ? 'hand' : 'battlefield' }) },
     // Teval, the Balanced Scale: "Then you may return a land card from your graveyard to the battlefield tapped."
@@ -5447,6 +5447,27 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Pitiless Carnage, Reprocess, Last-Ditch Effort, Renounce, Landslide,
+       Lich-Knights' Conquest: "Sacrifice any number of …, then draw that
+       many cards", "… Draw a card for each permanent sacrificed this way",
+       "… CARDNAME deals that much damage to any target" — the rest read with
+       X standing for how many were sacrificed */
+    { re: /^Sacrifice any number of ((?:[a-z]+(?:, and\/or |, | and\/or | or ))*[a-zA-Z]+?)s?(?: you control)?(?:, then |\. )([\s\S]+)$/i,
+      make: (m) => {
+        const what = m[1].toLowerCase().replace(/s(?=,| and\/or| or|$)/g, '').replace(/,? and\/or |, /g, ' or ').replace(/ or or /g, ' or ');
+        let rest = m[2].trim();
+        rest = rest.charAt(0).toUpperCase() + rest.slice(1);
+        rest = rest.replace(/\bthat many\b/g, 'X').replace(/\bthat much damage\b/g, 'X damage')
+          .replace(/^Draw a card for each (?:permanent|creature|card) sacrificed this way\./i, 'Draw X cards.')
+          .replace(/^You gain (\d+) life for each (?:permanent|creature) sacrificed this way\./i, (x, k) => (k === '2' ? 'You gain twice X life.' : x));
+        if (/sacrificed this way|that much/i.test(rest)) return null;
+        const parsed = parseSentenceList(splitSentences(rest));
+        if (!parsed.auto) return null;
+        const swap = (v) => (v === 'X' ? { lastSacCount: true, mult: 1 } : v && typeof v === 'object' && v.xTimes ? { lastSacCount: true, mult: v.xTimes } : v);
+        const walk = (l) => { for (const e of l || []) { if (!e) continue; if ('n' in e) e.n = swap(e.n); walk(e.list); walk(e.then); } };
+        walk(parsed.effects);
+        return [{ op: 'sacrificeAnyNumber', filter: what }, ...parsed.effects];
+      } },
     /* Conflux, Shard Convergence, Gem of Becoming, Yasharn: "Search your
        library for a Plains card, an Island card, … Reveal those cards, put
        them into your hand, then shuffle." — one of each */
