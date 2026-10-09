@@ -11710,6 +11710,9 @@
       // the Job select Equipment: "Equipped creature is a Wizard in addition to its other types."
       { re: /^(?:Equipped|Enchanted) creature is an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
         make: (m) => ({ op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, addSubtypes: [m[1]] }), auto: true },
+      // Firebending Student, Fire Lord Zuko: "Firebending X, where X is this creature's power."
+      { re: /^Firebending X, where X is (.+?)\.?$/i,
+        make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'firebendingX', n: k } : null; }, auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
         make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },

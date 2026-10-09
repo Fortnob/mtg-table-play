@@ -13220,4 +13220,17 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.player('B').life, life - 1, 'one damage to each opponent');
   });
+
+  test('Firebending Student: firebending X, where X is its power', (mk, t) => {
+    t.auto('Firebending Student');
+    const T = mk();
+    const fs = T.bf('A', 'Firebending Student'); fs.summoningSick = false;
+    T.g.addCounters(fs, '+1/+1', 2);
+    const pw = T.g.powerOf(fs);
+    T.answer('declareAttackers', () => [{ attackerId: fs.id, defenderId: 'B' }]);
+    T.toMain('A');
+    for (let i = 0; i < 10 && !(T.g.step === 'declareAttackers' && fs.attacking); i++) { T.settle(); const p = T.g.priorityPlayer; if (!p) break; T.g.passPriority(p.id, true); }
+    T.settle();
+    t.ok(T.g.log.some(l => (l.text || '').includes(`firebends for ${pw} red mana`)), 'as much red mana as its power');
+  });
 };

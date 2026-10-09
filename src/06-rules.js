@@ -5435,7 +5435,10 @@
         }
         /* Firebending N: red mana for the attack, and it stays through
            combat rather than draining away between steps. */
-        const fire = this._kwArg(o, 'firebending');
+        let fire = this._kwArg(o, 'firebending');
+        // Firebending X: "where X is this creature's power", "the number of experience counters you have"
+        const fx = this._staticOp(o, 'firebendingX');
+        if (fx && fx.n) fire += Math.max(0, fx.n.ofSelf === 'power' ? this.powerOf(o) : fx.n.ofSelf === 'toughness' ? this.toughnessOf(o) : this._countValue(fx.n, o.controller, o));
         if (fire) {
           const p = this.player(o.controller);
           if (p) { for (let i = 0; i < fire; i++) p.pool.add('R'); p.poolKeepUntil = 'combat'; }

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12052,
+  "needed": 12050,
   "gainedCards": 1263,
-  "linesNeeded": 13031,
+  "linesNeeded": 13027,
   "linesGained": 1506,
   "gained": {
    "all": 1263,
@@ -25,8 +25,7 @@
    "group": 28,
    "x": 3,
    "it": 18,
-   "condition": 23,
-   "opponent": 19
+   "condition": 23
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
@@ -5822,17 +5821,6 @@
    ]
   },
   {
-   "what": "keyword FirebendingAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Firebending Student",
-    "Zuko, Firebending Master",
-    "Fire Lord Zuko",
-    "Sun Warriors"
-   ]
-  },
-  {
    "what": "ExileSourceAndReturnFaceUpEffect",
    "score": 4,
    "lines": 4,
@@ -6938,6 +6926,17 @@
     "Goblin Flotilla",
     "Treacherous Vampire"
    ]
+  },
+  {
+   "what": "EnchantedSourceCondition",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Krond the Dawn-Clad",
+    "Fledgling Osprey",
+    "Flaring Flame-Kin",
+    "Skyrider Trainee"
+   ]
   }
  ],
  "sole": [
@@ -6956,8 +6955,8 @@
   },
   {
    "what": "custom ability",
-   "score": 580,
-   "cards": 538,
+   "score": 581,
+   "cards": 539,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -8309,6 +8308,19 @@
    ]
   },
   {
+   "what": "AddCountersPlayersEffect",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Otharri, Suns' Glory",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Zuko, Firebending Master",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink"
+   ]
+  },
+  {
    "what": "CompositeCost",
    "score": 8,
    "cards": 8,
@@ -8612,19 +8624,6 @@
     "Necrogen Rotpriest",
     "Flensing Raptor",
     "Slaughter Singer"
-   ]
-  },
-  {
-   "what": "AddCountersPlayersEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Otharri, Suns' Glory",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink",
-    "Megaton's Fate"
    ]
   },
   {
