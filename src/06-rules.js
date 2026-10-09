@@ -10187,7 +10187,7 @@
       }
       if (shields.length) o.redirectNext = (o.redirectNext || []).filter(x => x.turn === this.turn && x.n > 0);
       if (amount <= 0) return 0;
-      amount = this._damageAmount(amount, source, o.controller, isCombat);
+      amount = this._damageAmount(amount, source, o.controller, isCombat, false, o.id);
       if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
       // Vigor: damage to another creature of its controller's becomes +1/+1 counters
       if (o.zone === 'battlefield' && !this._noPrevention(isCombat) && (this.characteristics(o) || {}).isCreature) {
