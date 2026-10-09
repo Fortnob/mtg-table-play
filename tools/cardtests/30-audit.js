@@ -1832,4 +1832,14 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Living Destiny'));
     t.eq(T.life('A'), 26);
   });
+
+  test('Audit: Lord of Extinction counts every card in every graveyard', (mk, t) => {
+    const T = mk();
+    t.auto('Lord of Extinction');
+    T.grave('A', 'Grizzly Bears'); T.grave('B', 'Grizzly Bears'); T.grave('B', 'Island');
+    const l = T.bf('A', 'Lord of Extinction');
+    T.settle();
+    t.zone(l, 'battlefield');
+    t.eq(T.g.powerOf(l), 3); t.eq(T.g.toughnessOf(l), 3);
+  });
 };

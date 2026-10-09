@@ -11628,6 +11628,10 @@
         const flag = m[2] === 'block' ? 'cantBlock' : m[2] === 'attack' ? 'cantAttack' : 'cantAttackOrBlock';
         return { op: 'continuous', layer: 6, scope, flag };
       } },
+    // Lord of Extinction: "the number of cards in all graveyards"
+    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of (?:([a-z]+) )?cards in all graveyards\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
+        setPt: { p: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() }, t: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() } } }) },
     // "<name>'s power and toughness are each equal to the number of X you control."
     { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },

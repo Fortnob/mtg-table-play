@@ -2872,7 +2872,7 @@
       }
       if (v.cardsInAllGraveyards) {
         let k = 0;
-        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (v.cardsInAllGraveyards === 'card' || this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
         return k * mult;
       }
       // "the number of colors among permanents you control", "basic land types among lands you control"
@@ -9688,7 +9688,7 @@
       // Necrogoyf: creature cards in all graveyards
       if (typeof v === 'object' && v.cardsInAllGraveyards) {
         let k = 0;
-        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (v.cardsInAllGraveyards === 'card' || this._matchesCategory(c, v.cardsInAllGraveyards)) k++;
         return k * (v.mult || 1);
       }
       // Towering Gibbon: the greatest mana value among creatures you control, printed
