@@ -3068,6 +3068,8 @@
     // Orzhov Charm: "Return target creature you control and all Auras you control attached to it to their owner's hand."
     { re: /^Return (target creature you control) and all Auras you control attached to it to their owner'?s'? hands?\.?$/i,
       make: (m) => ({ op: 'bounce', withYourAuras: true, targets: [targetSpec(m[1])] }) },
+    // (a dies trigger's "exile it", as the trigger reads it)
+    { re: /^Exile the card that died\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -10063,6 +10065,11 @@
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
         /* Narcomoeba: "When this card is put into your graveyard from your
            library, you may put it onto the battlefield" — "it" is the card */
+        /* Patron of the Vein, Promise of Tomorrow: "Whenever a creature … dies,
+           (you may) exile it" — the card that died, from the graveyard */
+        if (trig.event === 'permDies' || trig.event === 'equippedDies' || (trig.self && (trig.event === 'dies' || trig.also === 'dies'))) {
+          body = body.replace(/^((?:you may )?)exile it(?=\.(?! If you do)|,? and |, then )/i, '$1exile the card that died');
+        }
         // Speedway Fanatic: "that Vehicle" is the creature it crewed
         if (trig.event === 'crewsVehicle') body = body.replace(/\bthat Vehicle\b/g, 'that creature');
         if (trig.event === 'selfToGraveyard') body = body.replace(/^(you may )?put it onto the battlefield\.?$/i, (x, may) => (may ? 'you may ' : '') + 'return CARDNAME from your graveyard to the battlefield.');

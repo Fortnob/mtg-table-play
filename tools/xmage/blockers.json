@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11401,
-  "gainedCards": 1135,
-  "linesNeeded": 12215,
-  "linesGained": 1344,
+  "needed": 11397,
+  "gainedCards": 1133,
+  "linesNeeded": 12201,
+  "linesGained": 1340,
   "gained": {
-   "all": 1135,
+   "all": 1133,
    "top2000": 46,
    "stdTop": 8
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4232,
-   "lines": 3971,
+   "score": 4229,
+   "lines": 3968,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 721,
-   "lines": 661,
+   "score": 720,
+   "lines": 660,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -2576,21 +2576,6 @@
    ]
   },
   {
-   "what": "ExileTargetForSourceEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Admonition Angel",
-    "Quintorius, Loremaster",
-    "Koh, the Face Stealer",
-    "Trove Warden",
-    "Chaos Shrine's Black Crystal",
-    "Profane Procession // Tomb of the Dusk Rose",
-    "Promise of Tomorrow",
-    "Bag of Devouring"
-   ]
-  },
-  {
    "what": "ChancellorAbility",
    "score": 8,
    "lines": 8,
@@ -3588,19 +3573,6 @@
    ]
   },
   {
-   "what": "only to its controller's graveyard",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Colfenor's Urn",
-    "Angelic Renewal",
-    "Mortuary",
-    "Mazzy, Truesword Paladin",
-    "Sigil of the New Dawn",
-    "Kithkin Mourncaller"
-   ]
-  },
-  {
    "what": "BeginningOfEndStepTriggeredAbility for NEXT",
    "score": 6,
    "lines": 6,
@@ -4558,6 +4530,18 @@
     "Retro-Mutation",
     "Deep Freeze",
     "Awaken the Ancient"
+   ]
+  },
+  {
+   "what": "ExileTargetForSourceEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Admonition Angel",
+    "Quintorius, Loremaster",
+    "Trove Warden",
+    "Profane Procession // Tomb of the Dusk Rose",
+    "Bag of Devouring"
    ]
   },
   {
@@ -5739,6 +5723,17 @@
    ]
   },
   {
+   "what": "only to its controller's graveyard",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Angelic Renewal",
+    "Mortuary",
+    "Sigil of the New Dawn",
+    "Kithkin Mourncaller"
+   ]
+  },
+  {
    "what": "MillCardsEachPlayerEffect",
    "score": 4,
    "lines": 4,
@@ -6711,8 +6706,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3526,
-   "cards": 3346,
+   "score": 3528,
+   "cards": 3348,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7419,6 +7414,19 @@
    ]
   },
   {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Connecting the Dots",
+    "Parallax Wave",
+    "Wall of Nets",
+    "Bomat Courier",
+    "Promise of Tomorrow",
+    "Safe Haven"
+   ]
+  },
+  {
    "what": "PreventNextDamageFromChosenSourceEffect",
    "score": 11,
    "cards": 11,
@@ -7528,19 +7536,6 @@
     "Cid, Timeless Artificer",
     "Gloom Ripper",
     "Frantic Firebolt"
-   ]
-  },
-  {
-   "what": "ReturnFromExileForSourceEffect",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Connecting the Dots",
-    "Parallax Wave",
-    "Wall of Nets",
-    "Bomat Courier",
-    "Safe Haven",
-    "Parallax Tide"
    ]
   },
   {
@@ -8745,6 +8740,19 @@
    ]
   },
   {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Colfenor's Urn",
+    "Arachnus Web",
+    "Skizzik",
+    "Lightning Shrieker",
+    "Blitz Hellion",
+    "Krovikan Horror"
+   ]
+  },
+  {
    "what": "AttachToSourceTargetEffect",
    "score": 6,
    "cards": 6,
@@ -9727,18 +9735,6 @@
     "Misinformation",
     "Shieldmage Advocate",
     "Forcemage Advocate"
-   ]
-  },
-  {
-   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Arachnus Web",
-    "Skizzik",
-    "Lightning Shrieker",
-    "Blitz Hellion",
-    "Krovikan Horror"
    ]
   },
   {

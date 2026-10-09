@@ -16974,6 +16974,16 @@
         }
         /* "Return it to the battlefield under its owner's control": the card
            the trigger is about (Luminous Broodmoth), or what was just exiled */
+        // Patron of the Vein: "Whenever a creature … dies, exile it" — the card, if it's still in the graveyard
+        case 'exileTriggerCard': {
+          const td = ctx.triggerData || {};
+          const x = (td.objectId && this.obj(td.objectId)) || src;
+          if (!x || x.zone !== 'graveyard') break;
+          this.moveObject(x, 'exile');
+          this._lastExiled = x.id;
+          this.logEvent('zone', `${x.name} is exiled from the graveyard.`);
+          break;
+        }
         case 'returnTriggerCard': {
           const td = ctx.triggerData || {};
           // what this resolution just exiled comes first ("Exile target creature. Return it …")

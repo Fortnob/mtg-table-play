@@ -15680,4 +15680,31 @@ module.exports = (test) => {
     U.toMain('A', 'endCombat');
     t.eq(U.life('B'), 16, 'four to the player');
   });
+
+  test("Inquisitor's Flail: another creature's combat damage to the equipped creature is doubled", (mk, t) => {
+    const T = mk();
+    const wurm = T.bf('A', 'Craw Wurm'), flail = T.bf('A', "Inquisitor's Flail");
+    flail.attachedTo = wurm.id; wurm.attachments = [flail.id];
+    const giant = T.bf('B', 'Hill Giant');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: giant.id, attackerIds: [wurm.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(giant, 'graveyard');
+    t.zone(wurm, 'graveyard', 'six damage to a 6/4');
+  });
+
+  test("Patron of the Vein: an opponent's creature that dies is exiled, and Vampires grow", (mk, t) => {
+    t.auto('Patron of the Vein');
+    t.auto('Curse of Clinging Webs');
+    const T = mk();
+    T.toMain('A');
+    const patron = T.bf('A', 'Patron of the Vein');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [elf] });
+    T.settle();
+    t.zone(elf, 'exile', 'exiled from the graveyard');
+    t.eq(patron.counters['+1/+1'], 1, 'the Vampire gets a counter');
+  });
 };
