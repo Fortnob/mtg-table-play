@@ -11683,7 +11683,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -14481,7 +14481,8 @@
 
         /* ===== the second batch ===== */
         case 'addManaPer': {
-          const k = (e.per && e.per.countersOnSelf) ? ((src && Number(src.counters[e.per.countersOnSelf])) || 0)
+          const k = (e.per && e.per.countersOnSelf === '*') ? (src ? Object.values(src.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0)
+            : (e.per && e.per.countersOnSelf) ? ((src && Number(src.counters[e.per.countersOnSelf])) || 0)
             : (e.per && (e.per.scope || e.per.cardsInHand || e.per.cardsInGraveyard || e.per.opponents || e.per.colorsAmongYours)) ? n(e.per)
             // anything else that counts, read the way every other number is
             : (e.per && e.per.per == null && !e.per.counteredMv) ? n(e.per)
@@ -21947,6 +21948,9 @@
           librarySize: this.zones[p.id].library.length,
           // which dungeon room they are in ({ name, room }), for the table to show
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,
+          // what a player has for good or ill, for the table to show beside them
+          rad: p.rad || 0, cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
+          ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null, speed: p.speed || 0,
           // what you noted while drafting, for your own eyes: the table needs it to tell which targets a noted colour allows
           draftNotes: p.id === playerId && p.draftNotes ? JSON.parse(JSON.stringify(p.draftNotes)) : null,
           /* "You may look at the top card of your library any time", or a
@@ -21954,9 +21958,6 @@
              nobody else; "play with the top card of your library revealed"
              shows it to everybody. The table shows it face up on the library. */
           topCard: this.zones[p.id].library.length && this._topCardShown(p.id, playerId) ? ser(this.zones[p.id].library[0]) : null,
-          // what a player has for good or ill, for the table to show beside them
-          rad: p.rad || 0, cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
-          ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null, speed: p.speed || 0,
           handSize: this.zones[p.id].hand.length,
           hand: p.id === playerId ? this.zones[p.id].hand.map(o => ser(o)) : this.zones[p.id].hand.map(o => ser(o, true)),
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),

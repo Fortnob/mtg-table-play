@@ -639,6 +639,14 @@
       }
     };
     walk(parsed.effects);
+    /* Dragon Tempest: "Whenever a creature with flying you control enters,
+       it deals X damage to any target" — the damage comes from the creature
+       that entered, for lifelink, deathtouch and the like (only as the
+       first thing it does: "put a counter on Vivi and it deals 1 damage"
+       is Vivi) */
+    const d0 = (parsed.effects || [])[0];
+    if (aboutOther && d0 && d0.op === 'damage' && !d0.fromTrigger && !d0.fromTarget && !d0.fromAttached &&
+      /^(?:It|That creature) deals\b/.test(d0.text || '')) d0.fromTrigger = true;
   }
 
   function itIsTheTrigger(effects, scope) {
