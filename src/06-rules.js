@@ -11954,7 +11954,9 @@
             if (e.random || cnt >= hand.length) {
               const pool = hand.slice();
               const gone = [];
-              for (let i = 0; i < Math.min(cnt, pool.length); i++) {
+              // (counted before the loop: the pool shrinks as cards come out of it)
+              const many = Math.min(cnt, pool.length);
+              for (let i = 0; i < many; i++) {
                 const k = e.random ? Math.floor(this.rng.next() * pool.length) : 0;
                 gone.push(pool.splice(k, 1)[0]);
               }

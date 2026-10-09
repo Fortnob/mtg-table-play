@@ -1780,4 +1780,32 @@ module.exports = (test) => {
     t.zone(s, 'graveyard');
     t.eq(T.life('A'), 23);
   });
+
+  test('Audit: discarding a whole hand, or several cards at random, takes every card asked for', (mk, t) => {
+    let T = mk();
+    t.auto('One with Nothing');
+    for (let i = 0; i < 3; i++) T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'One with Nothing'));
+    t.eq(T.zone('A', 'hand').length, 0, 'the whole hand');
+    T = mk();
+    t.auto('Burning Inquiry');
+    for (let i = 0; i < 2; i++) { T.hand('A', 'Grizzly Bears'); T.hand('B', 'Grizzly Bears'); }
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Burning Inquiry'));
+    t.eq(T.zone('A', 'hand').length, 2, 'five cards, three of them discarded');
+    t.eq(T.zone('B', 'hand').length, 2);
+  });
+
+  test('Audit: Forgotten Creation draws as many as it discarded', (mk, t) => {
+    const T = mk();
+    t.auto('Forgotten Creation');
+    T.bf('A', 'Forgotten Creation');
+    T.nextTurn('B');
+    for (let i = 0; i < 3; i++) T.hand('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.nextTurn('A');
+    t.eq(T.zone('A', 'graveyard').length, 3);
+    t.eq(T.zone('A', 'hand').length, 4, 'three for the three, and the draw step');
+  });
 };

@@ -6149,6 +6149,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Forgotten Creation: "you may discard all the cards in your hand. If
+       you do, draw that many cards." — as many as went, read off the discard */
+    { re: /^(?:You may )?discard all the cards in your hand\. If you do, draw that many cards\.?$/i,
+      make: (m) => (/^you may/i.test(m[0]) ? [{ op: 'may', then: [{ op: 'wheel', who: 'you', n: 'sameDiscarded' }] }] : [{ op: 'wheel', who: 'you', n: 'sameDiscarded' }]) },
     // Deglamer, Unravel the Aether: "Choose target artifact or enchantment. Its owner shuffles it into their library."
     { re: /^Choose (target (?:artifact|enchantment|creature|nonland permanent|permanent|artifact or enchantment))\. Its owner shuffles it into their library\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? [{ op: 'toLibrary', where: 'shuffle', targets: [t] }] : null; } },
