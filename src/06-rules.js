@@ -20484,6 +20484,8 @@
       if (isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noDamageTaken')) return true;
       // Glacial Chasm: "Prevent all damage that would be dealt to you."
       if (target && target.pool && this._anyStaticOf(target.id, 'preventAllToYou')) return true;
+      // The Wanderer, Blessed Sanctuary: "Prevent all noncombat damage that would be dealt to you and …"
+      if (!isCombat && target && target.pool && this._anyStaticOf(target.id, 'preventNoncombatToYou')) return true;
       // Crystal Barricade: "prevent all noncombat damage that would be dealt to other creatures you control"
       if (!isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noNoncombatTaken')) return true;
       for (const pv of this.prevention) {

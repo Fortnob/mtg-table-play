@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11388,
+  "needed": 11384,
   "gainedCards": 1131,
-  "linesNeeded": 12192,
+  "linesNeeded": 12188,
   "linesGained": 1338,
   "gained": {
    "all": 1131,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4227,
-   "lines": 3966,
+   "score": 4226,
+   "lines": 3965,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6639,16 +6639,6 @@
    ]
   },
   {
-   "what": "PreventAllNonCombatDamageToAllEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "The Wanderer",
-    "Blessed Sanctuary",
-    "Drogskol Reinforcements"
-   ]
-  },
-  {
    "what": "CantPayLifeOrSacrificeAbility",
    "score": 3,
    "lines": 3,
@@ -6697,13 +6687,23 @@
     "Pest Rescuer",
     "Eccentric Pestfinder // Turn Stones"
    ]
+  },
+  {
+   "what": "blocks or blocked by a kind of creature",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Mirror Shield",
+    "Corrosive Ooze",
+    "Giant Shark"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3526,
-   "cards": 3346,
+   "score": 3525,
+   "cards": 3345,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

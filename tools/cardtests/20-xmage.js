@@ -15769,4 +15769,27 @@ module.exports = (test) => {
     T.hand('A', 'Forest');
     t.ok(T.g.canAttack(bear), 'two cards in hand now');
   });
+
+  test('The Wanderer: noncombat damage to you and your other permanents is prevented', (mk, t) => {
+    t.auto('The Wanderer');
+    t.auto('Blessed Sanctuary');
+    t.auto('Drogskol Reinforcements');
+    t.auto('Magebane Armor');
+    const T = mk();
+    T.toMain('B');
+    T.bf('A', 'The Wanderer');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('B', 'RR');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    T.settle();
+    t.eq(T.life('A'), 20, 'not to you');
+    T.cast('B', T.hand('B', 'Shock'), { targets: [bear] });
+    T.settle();
+    t.zone(bear, 'battlefield', 'not to your creature');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: [theirs] });
+    T.settle();
+    t.zone(theirs, 'graveyard', "an opponent's is not protected");
+  });
 };

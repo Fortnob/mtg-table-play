@@ -12275,6 +12275,19 @@
     // Crystal Barricade: "Prevent all noncombat damage that would be dealt to other creatures you control."
     { re: /^Prevent all noncombat damage that would be dealt to (other creatures you control|creatures you control)\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 6, scope: Object.assign({ who: 'you', what: 'creature' }, /^other/i.test(m[1]) ? { other: true } : {}), flag: 'noNoncombatTaken' }) },
+    /* The Wanderer: "to you and other permanents you control"; Blessed Sanctuary:
+       "to you and creatures you control"; Drogskol Reinforcements: "to Spirits you control" */
+    { re: /^Prevent all noncombat damage that would be dealt to (you and )?(other )?(creatures|permanents|[A-Z][a-z]+s) you control\.?$/,
+      make: (m) => {
+        const kind = m[3].toLowerCase();
+        const scope = Object.assign({ who: 'you', what: kind === 'permanents' ? 'permanent' : 'creature' },
+          m[2] ? { other: true } : {}, /^(?:creatures|permanents)$/.test(kind) ? {} : { subtypes: [kind.replace(/s$/, '')] });
+        const flag = { op: 'continuous', layer: 6, scope, flag: 'noNoncombatTaken' };
+        return m[1] ? { op: 'sequence', list: [{ op: 'preventNoncombatToYou' }, flag] } : flag;
+      } },
+    // Magebane Armor: "Prevent all noncombat damage that would be dealt to equipped creature."
+    { re: /^Prevent all noncombat damage that would be dealt to (equipped|enchanted) creature\.?$/i,
+      make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'noNoncombatTaken' }) },
     { re: /^(?:CARDNAME|This creature) gets ([+-])X\/([+-])X, where X is your life total\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, scope: { self: true },
         pt: { p: { life: m[1] === '-' ? -1 : 1 }, t: { life: m[2] === '-' ? -1 : 1 } } }) },
@@ -12490,7 +12503,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
