@@ -525,3 +525,9 @@ html[data-play="1"] .hoard-chip { display: none; }
 .pack-open.shelf .po-vignette { background: linear-gradient(180deg, rgba(10, 12, 17, .35), rgba(10, 12, 17, .75)); }
 .pack-open.shelf .po-dust { opacity: .5; }
 .po-openall { box-shadow: 0 0 18px rgba(243, 221, 150, .25); }
+
+/* a pack's cards: sized so every row fits between the heading and the
+   buttons, and the stage scrolls (from the top, never cut off) if not */
+.po-stage.one { overflow-y: auto; place-content: safe center; }
+.po-grid:not(.many) .po-card { --w: clamp(64px, min(10.5vw, calc(88vw / var(--cols, 7) - 16px),
+  calc((100 * var(--vh, 1vh) - 250px) / var(--rows, 2) / 1.42 - 14px)), 200px); }

@@ -143,6 +143,11 @@
     static stale() { const e = new Error('Overtaken by a newer search.'); e.stale = true; return e; }
   }
 
+  /* Never sold, nor folded into anything: Through the Omenpaths (and its
+     bonus sheet) is the digital stand-in for Marvel's Spider-Man, which is
+     here as itself. */
+  const NOT_SOLD = new Set(['om1', 'omb']);
+
   /* ---------------- the client ---------------- */
   class Scryfall {
     constructor() {
@@ -567,7 +572,7 @@
      * "newest set" defaults keep using.
      */
     async packSets() {
-      const all = await this.sets();
+      const all = (await this.sets()).filter(s => !NOT_SOLD.has(s.code));
       const today = new Date().toISOString().slice(0, 10);
       /* A Commander product made for no set of its own (Fallout, Warhammer
          40,000, Doctor Who) is a world apart: its own packs, rather than
@@ -593,7 +598,7 @@
      */
     async packHosts() {
       if (this._hosts && Date.now() - this._hosts.t < 60 * 60 * 1000) return this._hosts.map;
-      const all = await this.sets();
+      const all = (await this.sets()).filter(s => !NOT_SOLD.has(s.code));
       const sold = await this.packSets();
       const soldCodes = new Set(sold.map(s => s.code));
       const byCode = new Map(all.map(s => [s.code, s]));

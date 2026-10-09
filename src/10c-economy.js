@@ -286,10 +286,48 @@
 
   /* ---------------- the Store ---------------- */
   /** Buy packs: Shards out, packs into the inventory. */
+  /* ---------------- what a set's packs cost ----------------
+     A set never sold in boosters, an Eternal set or a Commander product
+     sold on its own, opens what it has: Avatar's Eternal cards are all
+     mythics, so its packs are all mythics. Those packs are priced for it:
+     the wildcards a pack of it is worth on average, against an ordinary
+     pack's, times the usual price, and never less than that. Worked out
+     once a set (a few hundred packs dealt, none of them kept), and kept. */
+  const PACK_WORTH = { play: 8250, draft: 8050 };       // an ordinary pack, in wildcard Shards
+  const packMult = MTG.store.get('packMult', {}) || {};
+  const priced = (s) => !!s && (s.set_type === 'eternal' || s.set_type === 'commander');
+  /** A pack's price, from what is known of its set now (the usual one until it has been worked out). */
+  function packPrice(setInfo, kind) {
+    const base = kind === 'collector' ? PRICES.collector : PRICES.pack;
+    const m = priced(setInfo) ? (packMult[setInfo.code] || 1) : 1;
+    return Math.round(base * m / 50) * 50;
+  }
+  /** Whether a set's pack price has still to be worked out. */
+  const needsAppraisal = (setInfo) => priced(setInfo) && packMult[setInfo.code] == null;
+  /** Work out what a set's packs are worth, against an ordinary pack. */
+  async function appraise(setInfo) {
+    if (!needsAppraisal(setInfo)) return packMult[setInfo && setInfo.code] || 1;
+    const pool = await MTG.scry.setPool(setInfo.code);
+    if (!pool || !pool.all || pool.all.length < 20) return 1;
+    const D = MTG.draft;
+    const spec = D.boosterSpecFor(setInfo);
+    const rng = new MTG.RNG(20260101);
+    let worth = 0;
+    const N = 300;
+    for (let i = 0; i < N; i++) for (const c of D.makeBooster(pool, rng, spec)) worth += WC_PRICES[rarityOf(c)] || WC_PRICES.common;
+    // within a tenth of ordinary is ordinary: that much is only the luck of the deal
+    const r = worth / N / (PACK_WORTH[spec.id] || PACK_WORTH.play);
+    const m = r < 1.1 ? 1 : Math.round(r * 100) / 100;
+    packMult[setInfo.code] = m;
+    MTG.store.set('packMult', packMult);
+    return m;
+  }
+
   function buyPacks(setInfo, kind, qty) {
     load();
     qty = Math.max(1, Math.floor(qty || 1));
-    const each = kind === 'collector' ? PRICES.collector : PRICES.pack;
+    if (needsAppraisal(setInfo)) return { ok: false, why: 'Its price is still being worked out; try again in a moment.' };
+    const each = packPrice(setInfo, kind);
     const cost = each * qty;
     if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
     state.shards -= cost;
@@ -639,6 +677,7 @@
     collection: () => load().col,
     save: () => save(),
     isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard, cardValue,
+    packPrice, appraise, needsAppraisal,
     buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,

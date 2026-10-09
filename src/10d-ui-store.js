@@ -336,7 +336,7 @@
           buy: () => {
             if (E().shards() < o.cost) return { ok: false, why: `That costs ${fmtN(o.cost)} Shards.` };
             // the bundle's price, not the packs' own: the difference back first, then the packs bought
-            const packsCost = (o.kind === 'collector' ? E().PRICES.collector : E().PRICES.pack) * o.n;
+            const packsCost = E().packPrice(o.set, o.kind) * o.n;
             if (packsCost !== o.cost) E().addShards(packsCost - o.cost, 'bundle');
             o.give();
             if (o.wc) { E().state.wc[o.wc]++; E().save(); }
@@ -369,7 +369,7 @@
   document.addEventListener('keyup', (e) => { if (e.key === 'Shift') setShift(false); });
   window.addEventListener('blur', () => setShift(false));
   function buyBtn(s, kind, qty) {
-    const each = kind === 'collector' ? E().PRICES.collector : E().PRICES.pack;
+    const each = E().packPrice(s, kind);
     const label = (n) => (kind === 'collector' ? (n === 1 ? 'Collector' : `${n} Collector`) : n === 1 ? '1 pack' : `${n} packs`);
     const face = (n, cls) => el('span', { class: 'buy-face ' + cls }, [
       el('span', { text: label(n) }), el('span', { class: 'buy-price', html: shardSvg() + fmtN(each * n) }),
@@ -393,7 +393,7 @@
     return fan;
   }
   function buy(s, kind, qty) {
-    const each = kind === 'collector' ? E().PRICES.collector : E().PRICES.pack;
+    const each = E().packPrice(s, kind);
     const what = `${qty} ${kind === 'collector' ? 'Collector Booster' : 'Play Booster'}${qty > 1 ? 's' : ''}`;
     UI.purchaseDialog({
       title: what, sub: s.name, visual: packFan(s, kind, qty), cost: each * qty, fly: qty, to: 'hoard',
@@ -591,8 +591,21 @@
   }
 
   function packTile(s, extra) {
+    const S = E();
+    // a richer set's packs: priced once it is known what they hold
+    if (S.needsAppraisal(s)) {
+      const tile = el('div', { class: 'store-card pack-tile' }, [
+        boosterEl(s, 'play'),
+        el('div', { class: 'sc-title', text: s.name }),
+        el('div', { class: 'pack-notes' }, [el('span', { class: 'pack-tag', text: 'Pricing…' })]),
+      ]);
+      S.appraise(s).catch(() => 1).then(() => { if (tile.isConnected) tile.replaceWith(packTile(s, extra)); });
+      return tile;
+    }
+    const rich = S.packPrice(s, 'play') > S.PRICES.pack;
     const notes = [
       s.digital ? el('span', { class: 'pack-tag', text: 'Digital', title: 'Printed for Magic Online or Arena, never on paper' }) : null,
+      rich ? el('span', { class: 'pack-tag bonus', text: 'Rarer cards', title: 'Never sold in ordinary boosters, its packs hold rarer cards than most, and cost accordingly' }) : null,
       extra ? el('span', { class: 'pack-tag bonus', text: '+ ' + extra.short, title: extra.long }) : null,
     ].filter(Boolean);
     return el('div', { class: 'store-card pack-tile' }, [
@@ -1219,7 +1232,7 @@
       stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = '';
       const items = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
       const cols = Math.min(8, Math.ceil(items.length / 2));
-      const grid = el('div', { class: 'po-grid', style: { '--cols': String(cols) } });
+      const grid = el('div', { class: 'po-grid', style: { '--cols': String(cols), '--rows': String(Math.ceil(items.length / cols)) } });
       stage.appendChild(grid);
       const tiles = items.map((it, i) => cardTile(it, i, items.length, cols));
       for (const t of tiles) grid.appendChild(t);
