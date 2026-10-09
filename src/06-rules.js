@@ -6889,6 +6889,8 @@
         this.moveObject(x, 'graveyard');
       }
       if (!snaps.length) return;
+      // Rise of the Witch-king: who sacrificed what, for the rest of this resolution (sacrificedThisWay)
+      if (this.resolving) (this.resolving._sacBy = this.resolving._sacBy || []).push(...snaps.map(s => Object.assign({ pid }, s)));
       if (item) item.sacrificed = (item.sacrificed || []).concat(snaps);
       this._lastSacrificed = snaps;
       this._sacCount = (this._sacCount || 0) + snaps.length;
@@ -9749,6 +9751,8 @@
           return (by[cond.what] || 0) >= (cond.n || 1);
         }
         // Lilypad Village: "if a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn" (enteredTypes)
+        // Rise of the Witch-king: "If you sacrificed a creature this way" (sacrificedThisWay)
+        case 'youSacrificedThisWay': return !!me && ((this.resolving || {})._sacBy || []).some(s => s.pid === me.id && (!cond.what || (s.types || []).includes(cond.what)));
         case 'enteredTypeThisTurn': {
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
           return !!by['sub:*'] || (cond.types || []).some(t => (by['sub:' + t] || 0) > 0);
@@ -12724,7 +12728,9 @@
           // Skullwinder: "That player returns a card from their graveyard to their hand" — the chosen opponent, from theirs (gyPickOwner)
           const gyOwner = e.who === 'triggerPlayer' ? (triggerPlayer() || firstPlayer() || me) : me;
           const yard = (this.zones[gyOwner.id] || {}).graveyard || [];
-          const pool = yard.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card') &&
+          // Rise of the Witch-king: "another permanent card" — not the one sacrificed this way (sacrificedThisWay)
+          const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s => s.id) : [];
+          const pool = yard.filter(c => c !== src && !sacIds.includes(c.id) && this._cardFitsWords(c, e.filter || 'card') &&
             (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
           const want = Math.min(n(e.n) || 1, pool.length);
           if (!want) break;

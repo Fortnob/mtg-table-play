@@ -3132,6 +3132,10 @@
     // Madcap Experiment, Audacious Reshapers: "CARDNAME deals damage to you equal to the number of cards revealed this way." (revealedCountUntil)
     { re: /^(?:CARDNAME|This creature|This artifact) deals damage to you equal to the number of cards revealed this way\.?$/i,
       make: () => ({ op: 'damage', n: { revealedCount: true, mult: 1 }, toSelf: true }) },
+    // Rise of the Witch-king: "If you sacrificed a creature this way, you may return another permanent card from your graveyard to the battlefield." (sacrificedThisWay)
+    { re: /^If you sacrificed a (creature|permanent) this way, you may return another (creature|permanent) card from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: Object.assign({ kind: 'youSacrificedThisWay' }, /creature/i.test(m[1]) ? { what: 'Creature' } : {}),
+        then: [{ op: 'may', then: [{ op: 'graveyardPick', n: 1, upTo: false, filter: m[2].toLowerCase(), to: 'battlefield', notSacrificed: true }] }] }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."

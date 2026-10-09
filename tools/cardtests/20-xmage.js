@@ -16539,4 +16539,31 @@ module.exports = (test) => {
     t.eq(T.g.zones.A.library[0], mine, "on top of A's library");
     t.eq(T.g.zones.B.library[0], theirs, "on top of B's library");
   });
+
+  test('Rise of the Witch-king: if you sacrificed a creature, return another permanent card', (mk, t) => {
+    t.auto('Rise of the Witch-king');
+    let T = mk();
+    T.toMain('A');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant');
+    const ring = T.grave('A', 'Sol Ring'), old = T.grave('A', 'Craw Wurm');
+    let offered = null;
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', (q) => { offered = (q.cards || []).map(c => c.id); return { cardIds: [ring.id] }; });
+    T.mana('A', 'BGCC');
+    T.cast('A', T.hand('A', 'Rise of the Witch-king'));
+    T.settle(); T.resolve(); T.settle();
+    t.zone(mine, 'graveyard'); t.zone(theirs, 'graveyard');
+    t.zone(ring, 'battlefield', 'a permanent card back');
+    t.ok(offered && offered.includes(old.id) && !offered.includes(mine.id), 'not the creature sacrificed');
+    // nothing to sacrifice: nothing back
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Hill Giant');
+    const ring2 = T.grave('A', 'Sol Ring');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'BGCC');
+    T.cast('A', T.hand('A', 'Rise of the Witch-king'));
+    T.settle(); T.resolve(); T.settle();
+    t.zone(ring2, 'graveyard', 'you sacrificed nothing');
+  });
 };
