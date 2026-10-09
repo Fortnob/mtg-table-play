@@ -16912,4 +16912,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(toks().length, 0, 'the decayed one leaves nothing');
   });
+
+  test("Teferi's Time Twist: back at the end step, with a +1/+1 counter if it's a creature", (mk, t) => {
+    t.auto("Teferi's Time Twist");
+    for (const name of ['Grizzly Bears', 'Sol Ring']) {
+      const T = mk();
+      T.toMain('A');
+      const p = T.bf('A', name);
+      T.mana('A', 'UC');
+      T.cast('A', T.hand('A', "Teferi's Time Twist"), { targets: [p] });
+      T.settle();
+      t.zone(p, 'exile', name);
+      T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+      t.zone(p, 'battlefield', name + ' back');
+      t.eq(p.counters['+1/+1'] || 0, name === 'Sol Ring' ? 0 : 1, name);
+    }
+  });
 };

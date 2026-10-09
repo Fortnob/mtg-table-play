@@ -6540,6 +6540,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Teferi's Time Twist: "Exile target permanent you control. Return that card to the battlefield under its
+       owner's control at the beginning of the next end step. If it enters as a creature, it enters with an
+       additional +1/+1 counter on it." (enterExtraCounter) */
+    { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
+      make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
+        { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
     // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
     { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
       make: () => [{ op: 'forEachTargetPlayer', targets: [{ type: 'player', distinct: true }, { type: 'player', distinct: true }],

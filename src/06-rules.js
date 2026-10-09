@@ -5670,6 +5670,11 @@
     _onEnter(o) {
       const a = o.analysis();
       if (!a) return;
+      // Teferi's Time Twist: "if it enters as a creature, it enters with an additional +1/+1 counter" (enterExtraCounter)
+      if (o._enterExtraCounter) {
+        const ec = o._enterExtraCounter; o._enterExtraCounter = null;
+        if (!ec.ifCreature || (this.characteristics(o) || a).isCreature) this.addCounters(o, ec.kind, ec.n || 1);
+      }
       /* "…enters tapped unless you control two or fewer other lands", and the
          Karoo-style "unless you control a Swamp". These are decided as the
          permanent enters, so they are read here rather than waiting for a
@@ -16231,6 +16236,8 @@
         }
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          // (Teferi's Time Twist: the counter it enters with — enterExtraCounter)
+          if (x && e.counterIfCreature) x._enterExtraCounter = { kind: e.counterIfCreature, n: 1, ifCreature: true };
           // (under your control when the words say so, or name nobody)
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
           // Nezahal: "Return it to the battlefield tapped …"
