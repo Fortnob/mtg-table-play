@@ -3325,4 +3325,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle(); T.resolve();
     t.eq(T.life('A'), 20, 'the Bolt is countered');
   });
+
+  test('Audit: Magewright\'s Stone untaps only creatures with a {T} ability; Staff of the Storyteller counts a batch of tokens once', (mk, t) => {
+    let T = mk();
+    t.auto("Magewright's Stone"); t.auto('Staff of the Storyteller');
+    T.toMain('A');
+    const ms = T.bf('A', "Magewright's Stone");
+    const elf = T.bf('A', 'Llanowar Elves'), gb = T.bf('A', 'Grizzly Bears'), ps = T.bf('A', 'Prodigal Sorcerer');
+    const spec = ms.analysis().abilities.find(a => a.kind === 'activated').effects[0].targets[0];
+    const ok = T.g._legalTargetsFor(spec, 'A', ms.id).map(x => x.id);
+    t.ok(ok.includes(elf.id) && ok.includes(ps.id)); t.no(ok.includes(gb.id), 'the Bears have no {T} ability');
+    T = mk();
+    T.toMain('A');
+    const st = T.bf('A', 'Staff of the Storyteller');
+    T.mana('A', '1W'); T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.eq(st.counters.story, 1, 'two tokens at once: one counter');
+  });
 };
