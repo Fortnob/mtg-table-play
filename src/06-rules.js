@@ -11274,7 +11274,8 @@
           for (const id of (this._lastGroup || []).slice()) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
           return;
         }
-        if (e2.scope === 'lastAffected') { const x = this._lastAffected && this.obj(this._lastAffected.id); if (x && x.zone === 'battlefield') fn(x); return; }
+        // (Jaxis: or the copy just made, as grantLast reads it)
+        if (e2.scope === 'lastAffected') { const x = (this._lastAffected && this.obj(this._lastAffected.id)) || this._lastCopy; if (x && x.zone === 'battlefield') fn(x); return; }
         /* "Permanents you control", "other attacking creatures", "each
            creature target player controls": the same scope words a static
            ability uses, applied once, to whatever fits right now. */

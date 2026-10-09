@@ -12234,4 +12234,22 @@ module.exports = (test) => {
     const bad = T.g._illegalTargets(MTG.rules.effectSpecs(T.hand('A', 'Bioshift').analysis().abilities[0].effects), [{ kind: 'object', id: c.id }, { kind: 'object', id: foe.id }], 'A', null);
     t.ok(bad, 'Bioshift: not across controllers');
   });
+
+  test('Jaxis, the Troublemaker: a hasty copy that draws a card when it dies', (mk, t) => {
+    t.auto('Jaxis, the Troublemaker');
+    const T = mk();
+    const jx = T.bf('A', 'Jaxis, the Troublemaker');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const fx = jx.analysis().abilities.find(a => a.kind === 'activated').effects;
+    T.g._runEffects(fx, { controller: 'A', obj: jx, name: 'Jaxis', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    T.settle();
+    const tok = T.g.battlefield.find(o => o.isToken && o.name === 'Grizzly Bears');
+    t.ok(tok, 'a copy');
+    t.ok(T.g.hasKw(tok, 'haste'), 'with haste');
+    t.ok(!T.g.hasKw(bear, 'haste'), 'the original is untouched');
+    t.ok(tok.analysis().abilities.some(a => a.kind === 'triggered' && a.granted), 'and the dies trigger');
+    const hand = T.zone('A', 'hand').length;
+    T.g.moveObject(tok, 'graveyard'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'drew a card');
+  });
 };

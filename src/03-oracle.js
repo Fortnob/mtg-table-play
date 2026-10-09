@@ -1173,6 +1173,14 @@
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
     // Olivia, Crimson Bride: "It gains '…'" — the creature the sentence before was about, for good
     { re: /^(?:It|That creature|That permanent) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'lastTarget' } : null) },
+    // Jaxis, the Troublemaker: "It gains haste and "When this token dies, draw a card.""
+    { re: /^(?:It|That creature|That token) gains ([a-z ]+?) and "([^"]+)"\.?$/,
+      make: (m) => {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(k => kwKnown(k)) || !grantableText(m[2])) return null;
+        return { op: 'sequence', list: [{ op: 'grantLast', keywords: kws, until: null, plural: false },
+          { op: 'grantAbility', ability: m[2], duration: 'permanent', scope: 'lastAffected' }] };
+      } },
     // Katara, Ruthless Technomancer: "X can't be 0." — said of an ability's X; nothing to do as it resolves
     { re: /^X can'?t be 0\.?$/i, make: () => ({ op: 'noop' }) },
     // Noble Benefactor: "Then each player who searched their library this way shuffles."
