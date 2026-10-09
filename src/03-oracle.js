@@ -3060,6 +3060,9 @@
     { re: /^(Each player|Target player) discards all the cards in their hand, then draws that many cards\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'wheel', who: 'target', n: 'sameDiscarded', targets: [{ type: 'player' }] } : { op: 'wheel', n: 'sameDiscarded' }) },
     { re: /^Discard your hand, then draw cards equal to the number of cards discarded this way\.?$/i, make: () => ({ op: 'wheel', who: 'you', n: 'sameDiscarded' }) },
+    // Dromoka's Command, Shieldmage Elder: "Prevent all damage target (instant or sorcery) spell would deal this turn."
+    { re: /^Prevent all damage target (instant or sorcery )?spell would deal this turn\.?$/i,
+      make: (m) => ({ op: 'preventFromSpell', targets: [Object.assign({ type: 'spell' }, m[1] ? { filter: 'instant or sorcery' } : {})] }) },
     // Rustler Rampage: "Untap all creatures target player controls."
     { re: /^Untap all creatures target player controls\.?$/i,
       make: () => ({ op: 'untapAll', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },

@@ -15370,4 +15370,21 @@ module.exports = (test) => {
     t.eq(bear.controller, 'A', 'taken');
     t.ok(T.g.hasKw(bear, 'Haste'), 'with haste');
   });
+
+  test("Dromoka's Command: the targeted spell's damage is prevented", (mk, t) => {
+    t.auto("Dromoka's Command");
+    t.auto('Shieldmage Elder');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'R');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.g.castSpell('A', bolt.id, { targets: [{ kind: 'player', id: 'B' }], auto: true });
+    const item = T.stackItem(bolt);
+    t.ok(!!item, 'the Bolt is on the stack');
+    const src = T.hand('B', 'Island');
+    T.g._runEffects(engine().oracle.parseEffects('Prevent all damage target instant or sorcery spell would deal this turn.').effects,
+      { controller: 'B', obj: src, name: 'Test', kind: 'spell', targets: [{ kind: 'stack', id: item.id }] });
+    T.resolve();
+    t.eq(T.life('B'), 20, 'no damage');
+  });
 };

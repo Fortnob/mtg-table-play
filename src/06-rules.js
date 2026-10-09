@@ -17424,6 +17424,15 @@
           });
           break;
 
+        // Dromoka's Command: whatever damage that spell would deal this turn, prevented
+        case 'preventFromSpell': {
+          const t = targets.find(x => x.kind === 'stack');
+          const item = t && this.stack.find(s => s.id === t.id);
+          if (!item || !item.obj) break;
+          this.prevention.push({ who: ctx.controller, sourceId: item.obj.id, until: 'eot' });
+          this.logEvent('rules', `Damage ${item.obj.name} would deal is prevented this turn.`);
+          break;
+        }
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11450,
+  "needed": 11448,
   "gainedCards": 1134,
-  "linesNeeded": 12267,
+  "linesNeeded": 12265,
   "linesGained": 1345,
   "gained": {
    "all": 1134,
@@ -3829,19 +3829,6 @@
    ]
   },
   {
-   "what": "PreventDamageByTargetEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Gideon of the Trials",
-    "Boros Fury-Shield",
-    "Energy Arc",
-    "Shieldmage Elder",
-    "Songstitcher",
-    "Kry Shield"
-   ]
-  },
-  {
    "what": "into the library some way down",
    "score": 6,
    "lines": 6,
@@ -4771,6 +4758,18 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
+   ]
+  },
+  {
+   "what": "PreventDamageByTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Gideon of the Trials",
+    "Boros Fury-Shield",
+    "Energy Arc",
+    "Songstitcher",
+    "Kry Shield"
    ]
   },
   {
@@ -9795,18 +9794,6 @@
    ]
   },
   {
-   "what": "PreventDamageByTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Boros Fury-Shield",
-    "Energy Arc",
-    "Shieldmage Elder",
-    "Songstitcher",
-    "Kry Shield"
-   ]
-  },
-  {
    "what": "trigger with two effects in its constructor",
    "score": 5,
    "cards": 5,
@@ -10433,6 +10420,17 @@
     "Edge Rover",
     "Pursued Whale",
     "Elephant Resurgence"
+   ]
+  },
+  {
+   "what": "EntersWithCountersControlledEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Thunderous Velocipede",
+    "Curator Beastie",
+    "Tayam, Luminous Enigma",
+    "Zameck Guildmage"
    ]
   }
  ]
