@@ -13077,4 +13077,23 @@ module.exports = (test) => {
     T.g._runEffects(trig.effects, { controller: 'A', obj: mm, name: 'Mobilizer Mech', kind: 'ability', targets: [{ kind: 'object', id: veh.id }] });
     t.ok(T.g.characteristics(veh).isCreature, 'crewed as if');
   });
+
+  test('Karador and Kess: a spell from the graveyard once each turn', (mk, t) => {
+    t.auto('Karador, Ghost Chieftain'); t.auto('Kess, Dissident Mage');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Karador, Ghost Chieftain');
+    const b1 = T.grave('A', 'Grizzly Bears'), b2 = T.grave('A', 'Savannah Lions');
+    T.mana('A', '1GW');
+    t.ok(T.g.castSpell('A', b1.id, { auto: true }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(b1.zone, 'battlefield');
+    t.ok(!T.g.castSpell('A', b2.id, { auto: true }), 'only once this turn');
+    T.bf('A', 'Kess, Dissident Mage');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    t.ok(T.g.castSpell('A', bolt.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(bolt.zone, 'exile', 'exiled instead of the graveyard');
+  });
 };

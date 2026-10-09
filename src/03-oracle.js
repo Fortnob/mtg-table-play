@@ -12062,6 +12062,17 @@
       /* Crucible of Worlds, Courser of Kruphix, Bolas's Citadel, Mystic
          Forge: standing leave to use a card from somewhere other than the
          hand. */
+      /* Lurrus, Karador, Gisa and Geralf, Kess: "Once during each of your
+         turns, you may cast a permanent spell with mana value 2 or less from
+         your graveyard." — standing leave, once a turn for each permanent
+         that grants it */
+      { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell(?: with mana value (\d+) or less)? from your graveyard\.(?: If a spell cast this way would be put into your graveyard, exile it instead\.)?$/,
+        make: (m) => {
+          const filter = (m[1] || '').trim().replace(/\band\/or\b/g, 'or');
+          if (filter && !/^(?:(?:permanent|creature|artifact|enchantment|instant|sorcery|Aura|Equipment|[A-Z][a-z]+|or) ?)+$/.test(filter)) return null;
+          return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
+            m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {});
+        }, auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       { re: /^(During your turn, )?you may play lands from the top of your library\.?$/i,

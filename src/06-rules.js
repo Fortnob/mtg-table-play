@@ -3525,6 +3525,10 @@
             const kf = kind === 'land' ? ef.landFilter : ef.spellFilter;
             if (kf && !this._cardFitsWords(o, kf)) continue;
             if (ef.duringYourTurn && (!this.activePlayer || this.activePlayer.id !== playerId)) continue;
+            // Lurrus: once each turn for each permanent that grants it, and only up to a mana value
+            if (ef.oncePerTurn && src._playFromTurn === this.turn) continue;
+            if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
+            if (ef.oncePerTurn || ef.exileAfter) return Object.assign({}, ef, { srcId: src.id });
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Augur of Autumn, The Reality Chip: only while the condition holds
@@ -4919,6 +4923,16 @@
       }
 
       if (o.zone === 'command') { o.castFromCommandZone = true; p.commanderCasts[o.id] = (p.commanderCasts[o.id] || 0) + 1; }
+      /* Lurrus, Kess: the once-a-turn leave this cast used up, and where the
+         spell goes afterwards */
+      if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
+        const lv = this._playFromRule(playerId, o, 'spell');
+        if (lv && lv.srcId) {
+          const ls = this.obj(lv.srcId);
+          if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
+          if (lv.exileAfter) o._exileFromStack = true;
+        }
+      }
       const fromZone = o.zone;
       this._removeFromZone(o);
       o.zone = 'stack';

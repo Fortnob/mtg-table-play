@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12082,
+  "needed": 12078,
   "gainedCards": 1266,
-  "linesNeeded": 13105,
+  "linesNeeded": 13099,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -185,8 +185,8 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 84,
-   "lines": 57,
+   "score": 83,
+   "lines": 56,
    "cards": [
     "Muldrotha, the Gravetide",
     "Valgavoth, Terror Eater",
@@ -194,12 +194,12 @@
     "Nashi, Moon Sage's Scion",
     "Quilled Greatwurm",
     "Gwenom, Remorseless",
-    "Kess, Dissident Mage",
     "Serra Paragon",
     "Thundermane Dragon",
     "Ral, Monsoon Mage // Ral, Leyline Prodigy",
     "Tarrian's Journal // The Tomb of Aclazotz",
-    "Locke, Treasure Hunter"
+    "Locke, Treasure Hunter",
+    "Assemble the Players"
    ]
   },
   {
@@ -2310,22 +2310,6 @@
     "Taigam, Ojutai Master",
     "Goliath Daydreamer",
     "Harness the Storm"
-   ]
-  },
-  {
-   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Lurrus of the Dream-Den",
-    "Rivaz of the Claw",
-    "Gisa and Geralf",
-    "Danitha, New Benalia's Light",
-    "Raul, Trouble Shooter",
-    "Banon, the Returners' Leader",
-    "Edgar, Master Machinist",
-    "Karador, Ghost Chieftain",
-    "Arcade Gannon"
    ]
   },
   {
@@ -6255,6 +6239,17 @@
    ]
   },
   {
+   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Raul, Trouble Shooter",
+    "Banon, the Returners' Leader",
+    "Edgar, Master Machinist",
+    "Arcade Gannon"
+   ]
+  },
+  {
    "what": "CreateTokenCopySourceEffect",
    "score": 4,
    "lines": 4,
@@ -7062,15 +7057,15 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 56,
-   "cards": 44,
+   "score": 55,
+   "cards": 43,
    "names": [
     "Muldrotha, the Gravetide",
     "One with the Multiverse",
     "Nashi, Moon Sage's Scion",
     "Gwenom, Remorseless",
-    "Kess, Dissident Mage",
-    "Serra Paragon"
+    "Serra Paragon",
+    "Thundermane Dragon"
    ]
   },
   {
@@ -8324,6 +8319,19 @@
    ]
   },
   {
+   "what": "CastFromZonePredicate",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Nalfeshnee",
+    "Jodah, the Unifier",
+    "Rivaz of the Claw",
+    "Gravebreaker Lamia",
+    "Kellan, the Kid",
+    "Dirgur Focusmage // Braingeyser"
+   ]
+  },
+  {
    "what": "CompositeCost",
    "score": 8,
    "cards": 8,
@@ -8604,19 +8612,6 @@
    ]
   },
   {
-   "what": "CastFromZonePredicate",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Nalfeshnee",
-    "Jodah, the Unifier",
-    "Gravebreaker Lamia",
-    "Kellan, the Kid",
-    "Dirgur Focusmage // Braingeyser",
-    "Patrician Geist"
-   ]
-  },
-  {
    "what": "AddCountersPlayersEffect",
    "score": 7,
    "cards": 7,
@@ -8679,19 +8674,6 @@
     "Glacial Revelation",
     "Lead the Stampede",
     "Forging the Anchor"
-   ]
-  },
-  {
-   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Gisa and Geralf",
-    "Danitha, New Benalia's Light",
-    "Raul, Trouble Shooter",
-    "Banon, the Returners' Leader",
-    "Edgar, Master Machinist",
-    "Karador, Ghost Chieftain"
    ]
   },
   {
@@ -9102,6 +9084,19 @@
     "Rhystic Lightning",
     "Rhystic Syphon",
     "Flay"
+   ]
+  },
+  {
+   "what": "keyword CompanionAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Lurrus of the Dream-Den",
+    "Zirda, the Dawnwaker",
+    "Kaheera, the Orphanguard",
+    "Keruga, the Macrosage",
+    "Umori, the Collector",
+    "Lutri, the Spellchaser"
    ]
   },
   {
@@ -9815,18 +9810,6 @@
     "Urza, Lord Protector",
     "Vanille, Cheerful l'Cie",
     "Graf Rats"
-   ]
-  },
-  {
-   "what": "keyword CompanionAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Zirda, the Dawnwaker",
-    "Kaheera, the Orphanguard",
-    "Keruga, the Macrosage",
-    "Umori, the Collector",
-    "Lutri, the Spellchaser"
    ]
   },
   {
@@ -10716,6 +10699,17 @@
     "Turncoat Kunoichi",
     "Detention Chariot",
     "Driftgloom Coyote"
+   ]
+  },
+  {
+   "what": "LoseLifeTargetEffect amount",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Astarion, the Decadent",
+    "Emissary of Despair",
+    "Final Punishment",
+    "Burden of Greed"
    ]
   }
  ]
