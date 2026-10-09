@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12384,
+  "needed": 12383,
   "gainedCards": 1348,
-  "linesNeeded": 13495,
+  "linesNeeded": 13494,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -128,10 +128,9 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 186,
-   "lines": 174,
+   "score": 182,
+   "lines": 173,
    "cards": [
-    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
     "Lazotep Quarry",
     "Likeness Looter",
     "Kozilek's Command",
@@ -142,7 +141,8 @@
     "Dance of the Manse",
     "Ink-Eyes, Servant of Oni",
     "Doppelgang",
-    "Riptide Gearhulk"
+    "Riptide Gearhulk",
+    "Diluvian Primordial"
    ]
   },
   {
@@ -7078,19 +7078,6 @@
    ]
   },
   {
-   "what": "Ability.setTargetAdjuster",
-   "score": 161,
-   "cards": 149,
-   "names": [
-    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
-    "Lazotep Quarry",
-    "Likeness Looter",
-    "Kozilek's Command",
-    "Ruthless Technomancer",
-    "Silkguard"
-   ]
-  },
-  {
    "what": "(cast modifier line)",
    "score": 158,
    "cards": 155,
@@ -7101,6 +7088,19 @@
     "Hour of Revelation",
     "Drag to the Roots",
     "Price of Fame"
+   ]
+  },
+  {
+   "what": "Ability.setTargetAdjuster",
+   "score": 157,
+   "cards": 148,
+   "names": [
+    "Lazotep Quarry",
+    "Likeness Looter",
+    "Kozilek's Command",
+    "Ruthless Technomancer",
+    "Silkguard",
+    "Chthonian Nightmare"
    ]
   },
   {

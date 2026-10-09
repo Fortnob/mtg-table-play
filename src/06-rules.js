@@ -11234,6 +11234,8 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // Shatterskull Smashing: X, or twice X once X is big enough
+        if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
         // "… minus four": never less than zero

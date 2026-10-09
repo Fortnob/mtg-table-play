@@ -5452,6 +5452,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Shatterskull Smashing: "deals X damage divided as you choose among up to
+       two target creatures and/or planeswalkers. If X is 6 or more, CARDNAME
+       deals twice X damage divided as you choose among them instead." */
+    { re: /^CARDNAME deals X damage divided as you choose among up to two target creatures and\/or planeswalkers\. If X is (\d+) or more, CARDNAME deals twice X damage divided as you choose among them instead\.$/i,
+      make: (m) => {
+        const one = () => ({ type: 'permanent', filter: 'creature or planeswalker', zone: 'battlefield', anyOf: ['creature', 'planeswalker'], upTo: true, distinct: true });
+        return [{ op: 'damageDivided', n: { xDoubleAtLeast: +m[1] }, targets: [one(), one()] }];
+      } },
     /* Skrelv, Defector Mite: "Choose a color. Another target creature you
        control gains toxic 1 and hexproof from that color until end of turn.
        It can't be blocked by creatures of that color this turn." */

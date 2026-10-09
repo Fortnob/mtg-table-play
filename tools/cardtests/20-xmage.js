@@ -11924,4 +11924,14 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(sp.zone, 'battlefield'); t.ok(fl.every(x => x.tapped), 'four flyers tapped');
   });
+
+  test('Shatterskull Smashing: twice X divided once X is 6 or more', (mk, t) => {
+    t.auto('Shatterskull Smashing // Shatterskull, the Hammer Pass');
+    const T = mk();
+    const a = T.bf('B', 'Craw Wurm'), b = T.bf('B', 'Craw Wurm');
+    T.mana('A', '6RR');
+    T.cast('A', T.hand('A', 'Shatterskull Smashing // Shatterskull, the Hammer Pass'), { x: 6, targets: [a.id, b.id] });
+    T.settle(); T.resolve();
+    t.eq(a.zone, 'graveyard'); t.eq(b.zone, 'graveyard', 'twelve damage, six each');
+  });
 };
