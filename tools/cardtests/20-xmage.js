@@ -16521,4 +16521,22 @@ module.exports = (test) => {
     t.eq(T.bfOf('B').filter(o => (o.analysis() || {}).isLand).length, 2, 'two creatures exiled: two lands');
     t.zone(mine, 'battlefield', 'yours stay');
   });
+
+  test('Scheming Symmetry: each of two target players puts a card of their choice on top', (mk, t) => {
+    t.auto('Scheming Symmetry');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) { T.top('A', 'Island'); T.top('B', 'Swamp'); }
+    const mine = T.top('A', 'Craw Wurm'), theirs = T.top('B', 'Hill Giant');
+    for (let i = 0; i < 3; i++) { T.top('A', 'Island'); T.top('B', 'Swamp'); }
+    const asked = [];
+    T.answer('pickCard', (q) => { asked.push(q.playerId); return { cardIds: [q.playerId === 'A' ? mine.id : theirs.id] }; });
+    T.answer('pickCard', (q) => { asked.push(q.playerId); return { cardIds: [q.playerId === 'A' ? mine.id : theirs.id] }; });
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Scheming Symmetry'), { targets: ['A', 'B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(asked.join(','), 'A,B', 'each player picks their own');
+    t.eq(T.g.zones.A.library[0], mine, "on top of A's library");
+    t.eq(T.g.zones.B.library[0], theirs, "on top of B's library");
+  });
 };

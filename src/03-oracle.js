@@ -6517,6 +6517,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
+    { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
+      make: () => [{ op: 'forEachTargetPlayer', targets: [{ type: 'player', distinct: true }, { type: 'player', distinct: true }],
+        then: [{ op: 'tutor', n: 1, filter: 'any', to: 'top', prompt: 'Search your library for a card.' }] }] },
     /* Winds of Abandon (and overloaded): "Exile target (each) creature you don't control. For each
        creature exiled this way, its controller searches their library for a basic land card. Those
        players put those cards onto the battlefield tapped, then shuffle." */

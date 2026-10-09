@@ -15270,6 +15270,17 @@
         }
         /* Terastodon: "For each permanent put into a graveyard this way, its
            controller creates a 3/3 green Elephant creature token." */
+        // Scheming Symmetry: each target player does it, as that player, in turn (forEachTargetPlayer)
+        case 'forEachTargetPlayer': {
+          const list = [];
+          for (const t of targets) {
+            const p = t.kind === 'player' && this.player(t.id);
+            if (!p || p.hasLost) continue;
+            for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }));
+          }
+          if (list.length) this._spliceNext(list);
+          break;
+        }
         case 'eachMovedController': {
           /* each one's part run in turn as that player, through the queue, so
              a question (Winds of Abandon's land search) can wait for its answer (eachMovedQueued) */
