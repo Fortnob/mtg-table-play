@@ -17375,7 +17375,8 @@
           break;
         /* Second Harvest: a copy of each token you control */
         case 'copyEachToken': {
-          const toks = this.battlefield.filter(o => o.controller === ctx.controller && o.isToken && !o.phasedOut);
+          const toks = this.battlefield.filter(o => o.controller === ctx.controller && o.isToken && !o.phasedOut &&
+            (!e.filter || this._cardFitsWords(o, e.filter)));   // Rhys the Redeemed: creature tokens only
           for (const t of toks) this._runEffect({ op: 'copyPermanent', _forced: t }, ctx);
           break;
         }

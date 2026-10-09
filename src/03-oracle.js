@@ -4598,9 +4598,11 @@
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
     /* Electroduplicate: "...except it has haste and 'At the beginning of the
        end step, sacrifice this token.'" (it goes at the first end step) */
-    { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except it has haste and "At the beginning of the end step, sacrifice this (?:token|creature)\."\.?$/i,
+    // (Heat Shimmer: "… exile this token.")
+    { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except it has haste and "At the beginning of the end step, (sacrifice|exile) this (?:token|creature)\."\.?$/i,
       make: (m) => [{ op: 'copyPermanent', n: 1, targets: [targetSpec(m[1])], grant: ['Haste'] },
-        { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }] },
+        /exile/i.test(m[2]) ? { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }
+          : { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }] },
     /* Molten Duplication, Vaultborn Tyrant: "...except it's an artifact in addition to its other types" */
     { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
@@ -4913,9 +4915,15 @@
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")
-    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)\.?$/,
+    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
-        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {})) },
+        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {}, m[5] ? { tapped: true } : {})) },
+    // Mech Hangar: "Target Vehicle becomes an artifact creature until end of turn."
+    { re: /^(Target Vehicle(?: you control)?) becomes an artifact creature until end of turn\.?$/,
+      make: (m) => ({ op: 'becomes', duration: 'eot', eff: { addTypes: ['Creature'] }, targets: [targetSpec(m[1])] }) },
+    // Rhys the Redeemed: "For each creature token you control, create a token that's a copy of that creature."
+    { re: /^For each creature token you control, create a token that'?s a copy of that creature\.?$/i,
+      make: () => ({ op: 'copyEachToken', filter: 'creature' }) },
     // Teval, the Balanced Scale: "Then you may return a land card from your graveyard to the battlefield tapped."
     { re: /^(?:Then )?[Yy]ou may return (a|an|one) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: 1, upTo: true,

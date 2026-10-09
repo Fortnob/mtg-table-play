@@ -12710,4 +12710,34 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(it.zone, 'battlefield', 'played for free');
   });
+
+  test('Blossoming Tortoise, Mech Hangar, Rhys the Redeemed, Heat Shimmer', (mk, t) => {
+    t.auto('Blossoming Tortoise'); t.auto('Mech Hangar'); t.auto('Rhys the Redeemed'); t.auto('Heat Shimmer');
+    const T = mk();
+    const bt = T.bf('A', 'Blossoming Tortoise');
+    const land = T.grave('A', 'Forest');
+    T.g._runEffects(bt.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: bt, name: 'Tortoise', kind: 'ability' });
+    T.settle();
+    t.ok(T.g.battlefield.some(o => o.name === 'Forest' && o.controller === 'A' && o.tapped), 'a land back, tapped');
+    const mh = T.bf('A', 'Mech Hangar');
+    const veh = T.bf('A', 'Smuggler\'s Copter');
+    const mab = mh.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(mab.effects, { controller: 'A', obj: mh, name: 'Mech Hangar', kind: 'ability', targets: [{ kind: 'object', id: veh.id }] });
+    t.ok(T.g.characteristics(veh).isCreature, 'the Vehicle is a creature');
+    const rh = T.bf('A', 'Rhys the Redeemed');
+    T.g._createToken('A', { n: 2, pt: '1/1', subtypes: 'Elf Warrior', colorWords: ['green'], keywords: [] });
+    T.g._createToken('A', { n: 1, pt: '0/0', subtypes: 'Treasure', addTypes: ['Artifact'], colorWords: [], keywords: [], noCreature: true });
+    const before = T.g.battlefield.filter(o => o.isToken && (T.g.characteristics(o) || {}).isCreature).length;
+    const rab = rh.analysis().abilities.filter(a => a.kind === 'activated').pop();
+    T.g._runEffects(rab.effects, { controller: 'A', obj: rh, name: 'Rhys', kind: 'ability' });
+    t.eq(T.g.battlefield.filter(o => o.isToken && (T.g.characteristics(o) || {}).isCreature).length, before * 2, 'each creature token copied');
+    const foe = T.bf('B', 'Craw Wurm');
+    T.mana('A', '2RR');
+    T.cast('A', T.hand('A', 'Heat Shimmer'), { targets: [foe] });
+    T.settle(); T.resolve(); T.settle();
+    const sh = T.g.battlefield.find(o => o.isToken && o.name === 'Craw Wurm');
+    t.ok(sh && T.g.hasKw(sh, 'haste'), 'a hasty copy');
+    T.toMain('B');
+    t.ok(sh.zone === 'exile' || !T.g.battlefield.includes(sh), 'exiled at the end step');
+  });
 };
