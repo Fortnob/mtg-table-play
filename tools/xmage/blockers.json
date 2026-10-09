@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11512,
+  "needed": 11511,
   "gainedCards": 1141,
-  "linesNeeded": 12346,
+  "linesNeeded": 12345,
   "linesGained": 1356,
   "gained": {
    "all": 1141,
@@ -3498,19 +3498,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Shifting Sliver",
-    "Graaz, Unstoppable Juggernaut",
-    "Midnight Pathlighter",
-    "Wall Crawl",
-    "Jasmine Boreal of the Seven",
-    "Dread Charge"
-   ]
-  },
-  {
    "what": "EquippedPredicate.instance",
    "score": 6,
    "lines": 6,
@@ -4614,6 +4601,18 @@
     "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
     "Rakdos the Defiler",
     "Banshee"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Graaz, Unstoppable Juggernaut",
+    "Midnight Pathlighter",
+    "Wall Crawl",
+    "Jasmine Boreal of the Seven",
+    "Dread Charge"
    ]
   },
   {
@@ -10305,17 +10304,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesAllEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Shifting Sliver",
-    "Midnight Pathlighter",
-    "Wall Crawl",
-    "Dread Charge"
-   ]
-  },
-  {
    "what": "SurvivalAbility",
    "score": 4,
    "cards": 4,
@@ -10456,6 +10444,17 @@
     "Michelangelo, Mutant BFF",
     "Battlefront Krushok",
     "Rocksteady, Crash Courser"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Pursued Whale",
+    "Elephant Resurgence"
    ]
   }
  ]

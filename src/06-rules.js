@@ -7911,6 +7911,11 @@
          blocked by creatures with power 3 or greater"; Champion of Lambholt:
          "creatures with power less than this creature's power can't block
          creatures you control" */
+      // Shifting Sliver: a Sliver may be blocked only by Slivers
+      for (const s of this.battlefield) {
+        const se = !s.phasedOut && this._staticOp(s, 'subtypeEvasion');
+        if (se && this._hasCreatureType(attacker, se.subtype) && !this._hasCreatureType(blocker, se.subtype)) return false;
+      }
       for (const s of this.battlefield) {
         if (s.controller !== attacker.controller || s.phasedOut) continue;
         const g = this._staticOp(s, 'groupEvasion');

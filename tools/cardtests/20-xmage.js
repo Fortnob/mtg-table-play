@@ -15116,4 +15116,13 @@ module.exports = (test) => {
     t.no(bear.tapped, 'the modified Bears untap');
     t.ok(elf.tapped, 'the Elves stay tapped');
   });
+
+  test('Shifting Sliver: Slivers can be blocked only by Slivers', (mk, t) => {
+    t.auto('Shifting Sliver');
+    const T = mk();
+    T.toMain('A');
+    const ss = T.bf('A', 'Shifting Sliver');
+    t.no(T.g.couldBlock(T.bf('B', 'Hill Giant'), ss, 'B'), 'a Giant cannot');
+    t.ok(T.g.couldBlock(T.bf('B', 'Muscle Sliver'), ss, 'B'), 'a Sliver can');
+  });
 };

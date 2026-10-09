@@ -12891,6 +12891,9 @@
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
       { re: /^(?:CARDNAME|This creature|This permanent) can'?t be blocked by more than one creature\.?$/i,
         make: () => ({ op: 'evasion', oneBlocker: true }), auto: true },
+      // Shifting Sliver: "Slivers can't be blocked except by Slivers." — every Sliver, whoever controls it
+      { re: /^([A-Z][a-z]+)s can'?t be blocked except by \1s\.?$/,
+        make: (m) => ({ op: 'subtypeEvasion', subtype: m[1] }), auto: true },
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
