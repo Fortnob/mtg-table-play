@@ -1071,13 +1071,21 @@
       if (!card) return;
       closeInspect();
       MTG.sfx('inspect');
-      const url = MTG.scry.imageUrl(card, 'large', 0) || MTG.scry.imageUrl(card, 'normal', 0);
+      const url = MTG.scry.imageUrl(card, UI.bigSize(U.viewH() * 0.78 * 63 / 88), 0) || MTG.scry.imageUrl(card, 'normal', 0);
+      // with room, what its keywords mean to its left and the tokens it makes to its right; without, under it
+      const sides = UI.cardSides(card);
+      const wide = !!(sides.keywords || sides.tokens) && UI.roomForSides();
+      const face = el('div', { class: 'poi-card', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }, url ? [] : [UI.cardFallback(card, 0)]);
+      // as tall as it can be with a column either side still on the screen
+      if (wide) face.style.height = Math.round(Math.min(0.78 * U.viewH(), (0.96 * U.viewW() - 570) * 88 / 63)) + 'px';
       const big = el('div', { class: 'po-inspect' }, [
-        el('div', { class: 'poi-card', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }, url ? [] : [UI.cardFallback(card, 0)]),
+        el('div', { class: 'poi-row' + (wide ? ' sides' : '') }, [sides.keywords, face, sides.tokens].filter(Boolean)),
         el('div', { class: 'poi-name', text: card.name }),
         el('div', { class: 'poi-sub', text: `${RAR_NAME[S.rarityOf(card)]} · you own ${Math.min(4, S.owned(card.name))} of 4 · right-click or Esc to put it down` }),
       ]);
       big.addEventListener('click', closeInspect);
+      // reading a box or turning to the next token keeps the card up; right-click still puts it down
+      for (const s of [sides.keywords, sides.tokens]) if (s) s.addEventListener('click', (e) => e.stopPropagation());
       big.addEventListener('contextmenu', (e) => { e.preventDefault(); closeInspect(); });
       overlay.appendChild(big);
       inspecting = big;

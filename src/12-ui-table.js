@@ -2656,24 +2656,42 @@
       const faces = o.card.card_faces && o.card.card_faces.length > 1 && o.card.card_faces[0].image_uris ? o.card.card_faces.length : 1;
       const imgs = el('div', { class: 'pv-imgs' });
       for (let i = 0; i < faces; i++) {
-        const url = MTG.scry.imageUrl(o.card, 'large', faces > 1 ? i : (o.face || 0)) || MTG.scry.imageUrl(o.card, 'normal', i);
+        const url = MTG.scry.imageUrl(o.card, UI.bigSize(Math.min(300, U.viewH() * 0.3)), faces > 1 ? i : (o.face || 0)) || MTG.scry.imageUrl(o.card, 'normal', i);
         if (url) imgs.appendChild(el('img', { src: url, alt: o.card.name }));
         else imgs.appendChild(UI.cardTextBlock(o.card, i));
       }
-      p.appendChild(imgs);
+      const main = el('div', { class: 'pv-main' }, [imgs]);
       const notes = this.cardNotes(o);
       if (notes.length || MTG.settings.alwaysCardText || o.abilityText) {
-        p.appendChild(el('div', { class: 'pv-notes' }, [
+        main.appendChild(el('div', { class: 'pv-notes' }, [
           o.abilityText ? el('div', { class: 'pv-ab', html: MTG.mana.textHtml(o.abilityText) }) : null,
           ...notes.map(([cls, text]) => el('div', { class: 'pv-note ' + cls, text })),
           MTG.settings.alwaysCardText ? UI.cardTextBlock(o.card, o.face || 0) : null,
         ].filter(Boolean)));
       }
+      // what its keywords mean to the card's left, the tokens it makes to its right
+      const sides = UI.cardSides(o.card, { keywords: o.keywords, auto: true });
+      p.classList.remove('stacked');
+      p.replaceChildren(...[sides.keywords, main, sides.tokens].filter(Boolean));
       const r = U.rect(node);
       const left = r.left + r.width / 2 > U.viewW() / 2;
       p.classList.toggle('left', left);
       p.classList.toggle('right', !left);
       p.classList.add('on');
+      /* no room for a column each side, or they would cover the card being
+         looked at: both in one, toward the middle of the table; and if even
+         that covers it, the card alone, as it always was */
+      if (sides.keywords || sides.tokens) {
+        const hits = (b) => b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+        let b = U.rect(p);
+        if (b.left < 4 || b.right > U.viewW() - 4 || hits(b)) {
+          p.classList.add('stacked');
+          p.replaceChildren(main, UI.stackSides(sides));
+          b = U.rect(p);
+          if (hits(b)) { p.classList.remove('stacked'); p.replaceChildren(main); }
+        }
+        UI.fitSides(p);
+      }
       this._hoverNode = node;
     }
 
@@ -2718,25 +2736,33 @@
       })();
       if (!o || !o.card || o.hidden) return;
       this.hidePreview();
-      if (MTG.isPhone()) return UI.cardSheet(o.card);
+      if (MTG.isPhone()) return UI.cardSheet(o.card, { keywords: o.keywords });
       const card = o.card;
       const faces = card.card_faces && card.card_faces.length > 1 && card.card_faces[0].image_uris ? card.card_faces.length : 1;
       const imgs = el('div', { class: 'cardview-imgs' });
       for (let i = 0; i < faces; i++) {
-        const url = MTG.scry.imageUrl(card, 'large', faces > 1 ? i : (o.face || 0));
+        const url = MTG.scry.imageUrl(card, UI.bigSize(Math.min(U.viewH() * 0.78, 560) * 63 / 88), faces > 1 ? i : (o.face || 0));
         imgs.appendChild(url ? el('img', { src: url, alt: card.name }) : UI.cardFallback(card, i));
       }
       const notes = this.cardNotes(o);
+      // keywords to the card's left where there is room (otherwise in the panel), tokens in the panel to its right
+      const sides = UI.cardSides(card, { keywords: o.keywords });
+      // beside the card only when the card, the keywords and the panel all fit (a double-faced card is two wide)
+      const imgH = Math.min(U.viewH() * 0.78, 560);
+      const roomy = UI.roomForSides() && 264 + 22 + faces * imgH * 63 / 88 + (faces - 1) * 10 + 22 + 320 <= U.viewW() * 0.94;
       const close = () => { back.remove(); document.removeEventListener('keydown', onKey, true); };
       const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
       const back = el('div', { class: 'cardview', onclick: close }, [
         el('div', { class: 'cardview-inner', onclick: (e) => e.stopPropagation() }, [
+          roomy ? sides.keywords : null,
           imgs,
           el('div', { class: 'cardview-side' }, [
             el('h3', { text: card.name }),
             el('div', { class: 'cv-type', text: card.type_line || '' }),
             el('div', { class: 'cv-text', html: MTG.mana.textHtml(card.oracle_text || (card.card_faces || []).map(f => f.oracle_text).join('\n\n') || '') }),
             notes.length ? el('div', { class: 'cv-notes' }, notes.map(([cls, text]) => el('div', { class: 'pv-note ' + cls, text }))) : null,
+            sides.tokens,
+            roomy ? null : sides.keywords,
             el('div', { class: 'cv-meta', text: `${card.set_name || ''}${card.artist ? ' · ' + card.artist : ''}` }),
             el('div', { class: 'row', style: { marginTop: 'auto' } }, [
               el('button', { class: 'btn sm', text: 'Choose art…', onclick: () => { close(); UI.pickArt(card); } }),
@@ -2744,7 +2770,7 @@
               el('button', { class: 'btn sm primary', text: 'Close', onclick: close }),
             ]),
           ].filter(Boolean)),
-        ]),
+        ].filter(Boolean)),
       ]);
       document.addEventListener('keydown', onKey, true);
       document.body.appendChild(back);

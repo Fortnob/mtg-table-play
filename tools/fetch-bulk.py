@@ -9,6 +9,8 @@ since the file name changes daily. A copy younger than --max-age days
 (default 7) is kept unless --force is given: gameplay text changes far
 less often than that, and Scryfall asks that bulk files be fetched no
 more than they need to be.
+
+Scryfall's keyword catalogs come along too, into tools/keyword-catalogs.json.
 """
 import argparse, gzip, json, os, pathlib, shutil, sys, tempfile, time, urllib.request
 
@@ -44,6 +46,23 @@ def count_lines(path):
         return 1 + sum(1 for line in f if line.strip())
 
 
+CATALOGS = pathlib.Path(__file__).resolve().parent / 'keyword-catalogs.json'
+
+
+def fetch_catalogs(max_age, force):
+    """Scryfall's lists of keyword abilities, keyword actions and ability
+    words, into tools/keyword-catalogs.json: tools/glossarytest.js checks
+    that the glossary (src/10a-glossary.js) explains every one of them."""
+    if CATALOGS.exists() and not force and (time.time() - CATALOGS.stat().st_mtime) / 86400 < max_age:
+        return
+    out = {'updated': time.strftime('%Y-%m-%d')}
+    for name in ('keyword-abilities', 'keyword-actions', 'ability-words'):
+        with get('https://api.scryfall.com/catalog/' + name) as res:
+            out[name] = json.load(res)['data']
+    CATALOGS.write_text(json.dumps(out, indent=1, ensure_ascii=False) + '\n', encoding='utf-8', newline='\n')
+    print(f'wrote {CATALOGS} ({sum(len(v) for k, v in out.items() if k != "updated")} keywords)')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--force', action='store_true', help='download even if a recent copy is present')
@@ -56,6 +75,11 @@ def main():
     if a.type == 'default':
         INDEX = INDEX.replace('oracle-cards', 'default-cards')
         OUT = OUT.with_name('default-cards.jsonl.gz')
+
+    try:
+        fetch_catalogs(a.max_age, a.force)
+    except Exception as e:      # the glossary check keeps the copy it has
+        print(f'could not refresh {CATALOGS.name}: {e}')
 
     if OUT.exists() and not a.force:
         age = (time.time() - OUT.stat().st_mtime) / 86400

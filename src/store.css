@@ -237,6 +237,17 @@ html[data-play="1"] .shard-chip { display: none; }
 .poi-card { height: min(78vh, calc(78 * var(--vh, 1vh))); aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; background: #111 center / cover no-repeat;
   box-shadow: 0 30px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.1); animation: poiIn .28s cubic-bezier(.2, .9, .3, 1.1); }
 @keyframes poiIn { from { transform: scale(.85) translateY(20px); opacity: 0; } }
+/* the card; with room (UI.roomForSides) what its keywords mean to its left and its tokens to its right,
+   without, both under it */
+.poi-row { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; max-width: 96vw; }
+.poi-row > .poi-card { order: -1; }
+.poi-row:has(.card-aside) .poi-card { height: min(58vh, calc(58 * var(--vh, 1vh))); }
+.po-inspect:has(.card-aside) { overflow-y: auto; align-content: safe center; padding: 14px 0; }
+.po-inspect .card-aside { width: min(320px, 92vw); max-height: none; overflow: visible; cursor: default; animation: poiIn .28s cubic-bezier(.2, .9, .3, 1.1); }
+.poi-row.sides { flex-direction: row; gap: 18px; }
+.poi-row.sides > .poi-card { order: 0; }
+.poi-row.sides > .kw-side { width: 264px; max-height: min(78vh, calc(78 * var(--vh, 1vh))); overflow: hidden auto; }
+.poi-row.sides > .tok-side { width: 250px; }
 .poi-name { font: 600 20px var(--font-display, Georgia, serif); color: var(--gold-1, #f3dd96); }
 .poi-sub { font-size: 12.5px; color: #a9a294; }
 

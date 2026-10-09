@@ -320,7 +320,7 @@
           if (opts.onContext) opts.onContext(e, card, state);
         } else if (e.key.toLowerCase() === 'i') {
           e.preventDefault();
-          UI.cardSheet(card);          // read this one at full size
+          UI.cardSheet(card, { keywords: state.keywords });   // read this one at full size
         }
       });
     }
@@ -351,6 +351,7 @@
       UI.longPress(slot, () => {
         UI.cardSheet(card, {
           onActions: opts.onContext ? (ev) => opts.onContext(ev, card, state) : null,
+          keywords: state.keywords,
         });
       });
     }
@@ -542,6 +543,18 @@
     });
   };
 
+  /**
+   * The picture size an enlarged card needs at `cssWidth` page pixels:
+   * 'large' (672 wide) only where the screen has the pixels to show it
+   * (a phone, a high-density laptop), else 'normal' (488 wide), the size
+   * the cards on the table and in lists already use, so the enlarged one
+   * is usually on the device already and shows at once.
+   */
+  UI.bigSize = function (cssWidth) {
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    return cssWidth * dpr * U.zoom() > 520 ? 'large' : 'normal';
+  };
+
   /* ---------------- hover preview ---------------- */
   let previewEl = null;
   function ensurePreview() {
@@ -577,7 +590,7 @@
     const faces = faceCount(card);
     let gotImage = false;
     for (let i = 0; i < faces; i++) {
-      const url = MTG.scry.imageUrl(card, 'large', i) || MTG.scry.imageUrl(card, 'normal', i);
+      const url = MTG.scry.imageUrl(card, UI.bigSize(420), i) || MTG.scry.imageUrl(card, 'normal', i);
       if (url) { body.appendChild(el('img', { src: url, alt: card.name, class: 'card-sheet-img' })); gotImage = true; }
     }
     for (let i = 0; i < faces; i++) {
@@ -595,8 +608,12 @@
       }));
     }
     foot.appendChild(el('button', { class: 'btn primary card-sheet-close', text: 'Close' }));
+    // with room, keywords to the card's left and tokens to its right; without, under it
+    const sides = UI.cardSides(card, { keywords: opts.keywords });
+    const any = !!(sides.keywords || sides.tokens);
+    const inner = 'card-sheet-inner' + (any ? ' has-kw' : '') + (any && UI.roomForSides() ? ' sides' : '');
     const sheet = el('div', { class: 'card-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': card.name }, [
-      el('div', { class: 'card-sheet-inner' }, [body, foot]),
+      el('div', { class: inner }, [sides.keywords, body, sides.tokens, foot].filter(Boolean)),
     ]);
     sheet.addEventListener('click', close);
     document.addEventListener('keydown', onEsc, true);
@@ -644,17 +661,31 @@
       if (MTG.isTouch() && !e.forceShow) return;   // a finger has no hover
       const p = ensurePreview();
       p.innerHTML = '';
+      const cards = el('div', { class: 'prev-cards' });
       const faces = faceCount(card);
       let gotImage = false;
       for (let i = 0; i < faces; i++) {
-        const url = MTG.scry.imageUrl(card, 'large', i) || MTG.scry.imageUrl(card, 'normal', i);
-        if (url) { p.appendChild(el('img', { src: url, alt: card.name })); gotImage = true; }
+        const url = MTG.scry.imageUrl(card, UI.bigSize(320 * (MTG.settings.cardScale || 1)), i) || MTG.scry.imageUrl(card, 'normal', i);
+        if (url) { cards.appendChild(el('img', { src: url, alt: card.name })); gotImage = true; }
       }
       // no art, or the reader asked for text as well: show the card in words
       if (!gotImage || MTG.settings.alwaysCardText) {
-        for (let i = 0; i < faces; i++) p.appendChild(UI.cardTextBlock(card, i));
+        for (let i = 0; i < faces; i++) cards.appendChild(UI.cardTextBlock(card, i));
       }
-      p.style.display = 'block';
+      // keywords to the card's left, tokens to its right; a window too narrow for both gets one column of them
+      const sides = UI.cardSides(card, { auto: true });
+      p.classList.remove('stacked');
+      p.append(...[sides.keywords, cards, sides.tokens].filter(Boolean));
+      p.style.display = 'flex';
+      // three columns that fit on neither side of the pointer would cover what is being pointed at
+      if (sides.keywords || sides.tokens) {
+        const w = p.offsetWidth, pt = U.pt(e), vw = U.viewW();
+        if (w > vw - 12 || (pt.x + 14 + w > vw - 6 && pt.x - 14 - w < 6)) {
+          p.classList.add('stacked');
+          p.replaceChildren(cards, UI.stackSides(sides));
+        }
+      }
+      UI.fitSides(p);
       move(e);
     };
     const move = (e) => {
@@ -663,7 +694,11 @@
       const w = previewEl.offsetWidth || 300, h = previewEl.offsetHeight || 420;
       const pt = U.pt(e), vw = U.viewW(), vh = U.viewH();
       let x = pt.x + pad, y = pt.y + pad;
-      if (x + w > vw - 6) x = pt.x - w - pad;
+      const flip = x + w > vw - 6;
+      if (flip) x = pt.x - w - pad;
+      // too wide for either side of the pointer: as near it as the window allows
+      if (x < 6) x = Math.max(6, Math.min(pt.x + pad, vw - w - 6));
+      previewEl.classList.toggle('flip', flip);
       if (y + h > vh - 6) y = Math.max(6, vh - h - 6);
       previewEl.style.left = x + 'px';
       previewEl.style.top = y + 'px';

@@ -2277,6 +2277,8 @@
         'Makes cards in lists, packs and the deck builder bigger or smaller.'),
       pick('theme', 'Theme', [['dark', 'Dark'], ['light', 'Light']], 'The menus and deck builder. The game table is always dark.', 'dark'),
       toggle('showOracleOnHover', 'Show a large card preview on hover', 'Hover any card to read it at full size.'),
+      toggle('keywordHelp', 'Explain keywords beside enlarged cards',
+        'Flying, ward, Treasure and the rest: what each one does, next to the card when you look at it closely.'),
       toggle('peekOpponents', 'Show the other opponents\u2019 boards at the sides',
         'With two or more opponents and room on the screen, the boards next to the one in view peek in from the edges.'),
     ]));

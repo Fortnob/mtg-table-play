@@ -235,6 +235,7 @@ const defaultSettings = {
   chaosPool: null,               // {preset, sets:[code]} for chaos draft
   compactZones: false,
   showOracleOnHover: true,
+  keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
   botSpeed: 600,
   animSpeed: 1,                  // how long the table dwells on each moment

@@ -643,11 +643,17 @@
 .pop-item.mana .pop-label { color: #c3cad6; }
 
 /* ---------- reading a card ---------- */
-.arena-preview { position: fixed; top: 50%; z-index: 690; translate: 0 -50%; display: none; flex-direction: column; gap: 8px; pointer-events: none;
+.arena-preview { position: fixed; top: 50%; z-index: 690; translate: 0 -50%; display: none; flex-direction: row; align-items: center; gap: 10px; pointer-events: none;
   filter: drop-shadow(0 18px 40px rgba(0,0,0,.75)); }
 .arena-preview.on { display: flex; animation: pvIn .14s ease; }
 .arena-preview.left { left: 84px; }
 .arena-preview.right { right: 250px; }
+/* keywords to the card's left, tokens to its right; with room for neither, one column toward the middle */
+.arena-preview.right.stacked { flex-direction: row-reverse; }
+.pv-main { display: flex; flex-direction: column; gap: 8px; }
+.arena-preview .card-aside { width: 250px; }
+.arena-preview .card-aside.both > .card-aside { width: auto; }
+.arena-preview .card-aside { overflow: hidden; }
 @keyframes pvIn { from { opacity: 0; } }
 .pv-imgs { display: flex; gap: 8px; }
 .pv-imgs img { width: min(300px, calc(30 * var(--vh))); border-radius: 4.75% / 3.5%; display: block; }
@@ -667,13 +673,17 @@
 .cardview-inner { display: flex; gap: 22px; align-items: stretch; max-width: calc(94 * var(--vw)); max-height: calc(92 * var(--vh)); }
 .cardview-imgs { display: flex; gap: 10px; }
 .cardview-imgs img { height: min(calc(78 * var(--vh)), 560px); border-radius: 4.75% / 3.5%; box-shadow: 0 30px 70px rgba(0,0,0,.8); }
-.cardview-side { width: 320px; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 16px;
+.cardview-side { width: 320px; flex: none; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 16px;
   background: linear-gradient(180deg, rgba(30,34,45,.98), rgba(16,19,26,.98)); border: 1px solid rgba(255,255,255,.1); overflow: auto; }
 .cardview-side h3 { margin: 0; font: 600 22px/1.2 var(--serif); color: #fff8e4; }
 .cardview-side .cv-type { font-size: 13px; color: #b9c2d1; }
 .cardview-side .cv-text { font-size: 13.5px; line-height: 1.55; color: #e9edf4; white-space: pre-line; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); }
 .cardview-side .cv-notes { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
 .cardview-side .cv-meta { font-size: 11.5px; color: #77808f; }
+.cardview-side .card-aside { width: auto; max-height: none; overflow: visible; flex: none; }
+/* what its keywords mean, to the left of the card where there is room */
+.cardview-inner > .kw-side { align-self: center; max-height: min(calc(78 * var(--vh)), 560px); }
+.cardview-side .kw-note { background: rgba(0,0,0,.22); box-shadow: none; }
 
 .zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; max-height: calc(68 * var(--vh)); overflow: auto; padding: 4px; }
 .zone-tile { position: relative; aspect-ratio: 63 / 88; padding: 0; border: 0; border-radius: 4.8% / 3.5%; background: none; cursor: pointer;

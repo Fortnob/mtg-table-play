@@ -704,6 +704,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
   position: fixed; z-index: 680; pointer-events: none; display: none;
   filter: drop-shadow(0 10px 30px rgba(0,0,0,.6));
 }
+#preview { gap: 10px; align-items: flex-start; }
+/* one column of keywords and tokens, beside the card on the side away from the pointer */
+#preview.stacked.flip { flex-direction: row-reverse; }
 #preview img { width: 300px; border-radius: 4.75%/3.5%; display: block; }
 #preview .prev-text {
   width: 300px; background: var(--bg-2); border: 1px solid var(--line);
@@ -1665,6 +1668,66 @@ a { color: var(--info); }
 /* landscape has no room for the text under a full-height card */
 :root[data-short] .card-sheet-img { max-height: calc(58 * var(--vh)); }
 :root[data-short] .card-sheet-inner { max-width: 340px; }
+/* under the card on a narrow screen: the card, what its keywords mean, its tokens, then the buttons */
+.card-sheet-inner > .card-sheet-body { order: 1; }
+.card-sheet-inner > .kw-side { order: 2; }
+.card-sheet-inner > .tok-side { order: 3; }
+.card-sheet-inner > .card-sheet-foot { order: 4; }
+.card-sheet .card-aside { width: auto; max-height: none; overflow: visible; }
+/* on a phone a box or two shows under the card, so it is plain there is more below */
+:root[data-phone] .card-sheet-inner.has-kw .card-sheet-img { max-height: calc(60 * var(--vh)); }
+/* with room (UI.roomForSides), the way Arena has it: keywords to the card's left, tokens to its right */
+.card-sheet-inner.sides, :root[data-short] .card-sheet-inner.sides {
+  max-width: 990px; display: grid; grid-template-columns: 264px minmax(0, 420px) 250px;
+  grid-template-areas: "kw card tok" "kw foot tok"; column-gap: 16px; row-gap: 10px; align-items: start;
+}
+/* a phone on its side: a small card, so narrower columns either side of it */
+:root[data-short] .card-sheet-inner.sides { max-width: 100%; grid-template-columns: 230px minmax(0, 1fr) 250px; column-gap: 12px; }
+.card-sheet-inner.sides > .card-sheet-body { grid-area: card; }
+.card-sheet-inner.sides > .card-sheet-foot { grid-area: foot; }
+.card-sheet-inner.sides > .kw-side { grid-area: kw; }
+.card-sheet-inner.sides > .tok-side { grid-area: tok; }
+.card-sheet-inner.sides > .card-aside { align-self: center; max-height: calc(86 * var(--vh)); overflow: hidden auto; }
+
+/* ---- beside an enlarged card: the tokens it makes, and what its keywords mean (10a-glossary.js) ---- */
+.card-aside {
+  display: flex; flex-direction: column; gap: 6px; width: 264px; flex: none; text-align: left;
+  max-height: calc(86 * var(--vh)); overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+.tok-side { width: 250px; }
+/* both in one column (UI.stackSides): the inner columns just stack */
+.card-aside.both > .card-aside { width: auto; max-height: none; overflow: visible; }
+/* a preview nobody can scroll clips, and says how many boxes it left out (UI.fitSides) */
+#preview .card-aside { overflow: hidden; }
+.kw-more { padding: 6px 11px; border-radius: 10px; font-size: 11.5px; color: #a9b3c4; background: rgba(14,16,22,.92); border: 1px dashed rgba(255,255,255,.14); }
+.kw-note {
+  padding: 8px 11px 9px; border-radius: 10px; color: #dfe5ef;
+  background: linear-gradient(180deg, rgba(30,34,45,.97), rgba(16,19,26,.97));
+  border: 1px solid rgba(212,175,71,.26); box-shadow: 0 8px 22px rgba(0,0,0,.4);
+}
+.kw-name { display: flex; align-items: baseline; gap: 8px; font: 600 13.5px/1.25 var(--serif); color: var(--gold-1); }
+.kw-tag { margin-left: auto; font: 600 10px/1.2 var(--font); letter-spacing: .07em; text-transform: uppercase; color: #8fe0a8; white-space: nowrap; }
+.kw-text { margin-top: 3px; font-size: 12.5px; line-height: 1.42; color: #c4ccd9; }
+.kw-text .reminder { color: #8d97a8; }
+.kw-note.granted { border-color: rgba(127,217,154,.4); }
+.tok-view .kw-tag { color: #a9b3c4; }
+.tok-stage { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+.tok-card { --card-w: 150px; --card-h: calc(150px * 88 / 63); width: var(--card-w); height: var(--card-h); flex: none; border-radius: 4.75% / 3.5%; }
+.tok-card .card-img, .tok-card .card-fallback { box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+.tok-view.many .tok-card { cursor: pointer; }
+.tok-view.many .tok-card:focus-visible { outline: 2px solid var(--gold-1); outline-offset: 3px; }
+.tok-wait {
+  width: 100%; height: 100%; display: grid; place-items: center; padding: 10px; text-align: center;
+  border-radius: 4.75% / 3.5%; background: linear-gradient(160deg, #262b36, #171a21); color: #8d97a8; font-size: 12px;
+}
+.tok-nav {
+  flex: none; width: 30px; height: 30px; padding: 0 0 2px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #e9edf4;
+  font: 400 20px/1 var(--font); cursor: pointer; transition: background .12s, border-color .12s;
+}
+.tok-nav:hover { background: rgba(212,175,71,.18); border-color: rgba(212,175,71,.5); }
+.tok-name { margin-top: 7px; font-size: 11.5px; color: #a9b3c4; text-align: center; }
+:root[data-phone] .tok-nav { width: 38px; height: 38px; }
 
 /* The phone layout keys off data-phone, which JS sets, so the stylesheet and
    the code that builds these screens never disagree about what a phone is —
