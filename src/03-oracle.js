@@ -2956,7 +2956,7 @@
 
     /* ===== looking at somebody's hand, and taking something out of it ===== */
     { re: /^Look at target (?:player|opponent)'?s hand\.?$/i,
-      make: () => ({ op: 'revealHand', targets: [{ type: 'player' }] }) },
+      make: () => ({ op: 'revealHand', look: true, targets: [{ type: 'player' }] }) },
 
     /* ===== a sweep that spares one kind of creature ===== */
     { re: /^(?:CARDNAME|This spell) deals (\d+) damage to each creature without ([a-z]+)\.?$/i,

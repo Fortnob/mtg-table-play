@@ -12065,6 +12065,12 @@
           /* "Exile it at the beginning of the next end step": the object a
              delayed note was taken about, or what the trigger is about */
           if ((e.scope === 'thatObject' || e.scope === 'triggerObject') && !(e.targets && e.targets.length)) {
+            // Necropotence: "exile that card from your graveyard" — the card just discarded, where it went
+            if (e.fromGraveyard) {
+              const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+              if (x && x.zone === 'graveyard') { this.moveObject(x, 'exile'); this._lastExiled = x.id; this.logEvent('exile', `${x.name} is exiled.`); }
+              break;
+            }
             applyToScope(e, (x) => { if (x.zone === 'battlefield') { this.moveObject(x, 'exile'); this._lastExiled = x.id; this.logEvent('exile', `${x.name} is exiled.`); } });
             break;
           }
@@ -16296,9 +16302,23 @@
 
         /* ===== ops the whole-pool scan asked for ===== */
         case 'exileSelf': if (src) this.moveObject(src, 'exile'); break;
+        /* "Target player reveals their hand": everybody sees it, so the log
+           names the cards. "Look at target player's hand" (Gitaxian Probe):
+           only the one looking sees them, shown to that player alone. */
         case 'revealHand': {
           const p = firstPlayer() || this.opponentsOf(ctx.controller)[0];
-          if (p) this.logEvent('reveal', `${p.name} reveals their hand.`);
+          if (!p) break;
+          const hand = this.zones[p.id].hand;
+          if (!e.look) {
+            this.logEvent('reveal', `${p.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`);
+            break;
+          }
+          if (hand.length && p.id !== ctx.controller) {
+            const seen = this._choose({ playerId: ctx.controller, kind: 'objects', min: 0, max: 0,
+              items: hand.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: `${p.name}'s hand.` }, 'lookHand');
+            if (seen === SUSPEND) return SUSPEND;
+          }
+          this.logEvent('reveal', `${me.name} looks at ${p.name}'s hand.`);
           break;
         }
         case 'selfToLibrary': {
@@ -16366,13 +16386,15 @@
         case 'chooseFromHand': {
           const victim = firstPlayer() || this.opponentsOf(ctx.controller)[0];
           if (!victim) break;
+          // Lifebane Zombie: "a green or white creature card" — either colour; the words read as a search reads them
+          const raw = String(e.filter || 'any').toLowerCase();
+          const words = (/\bor\b/.test(raw) ? raw : raw.replace(/,/g, ' ')).replace(/\s+/g, ' ').trim();
           const hand = this.zones[victim.id].hand.filter(o => {
             const a = o.analysis();
             if (!a) return false;
-            if (/^nonland$/.test(e.filter || '')) return !a.isLand;
-            return this._matchesCategory(o, e.filter === 'any' ? '' : e.filter);
+            return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
-          this.logEvent('reveal', `${victim.name} reveals their hand.`);
+          // (the hand was revealed, cards named, by the sentence before)
           if (!hand.length) break;
           const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
@@ -16388,7 +16410,7 @@
           // Tidehollow Sculler: held, for "return the exiled card" when it leaves
           if (e.op === 'exileChosen' && src) o.heldBy = src.id;
           this.logEvent(e.op === 'exileChosen' ? 'exile' : 'discard',
-            `${this.player(o.owner).name} loses ${o.name}.`);
+            e.op === 'exileChosen' ? `${me.name} exiles ${o.name}.` : `${this.player(o.owner).name} discards ${o.name}.`);
           this._chosenCard = null;
           break;
         }
@@ -18771,35 +18793,26 @@
         case 'handAttack': {
           const victim = firstPlayer() || this.opponentsOf(ctx.controller)[0];
           if (!victim) break;
-          // "a noncreature, nonland card" is two conditions, not one word
-          const want = (e.filter || 'nonland').toLowerCase().split(/[\s,]+/).filter(Boolean);
+          /* "a noncreature, nonland card" is both conditions, "a creature or
+             planeswalker card" (Despise) either one: read the way a search
+             reads its words, never word by word with "or" as a condition */
+          const raw = String(e.filter || 'nonland').toLowerCase();
+          const words = (/\bor\b/.test(raw) ? raw : raw.replace(/,/g, ' ')).replace(/\s+/g, ' ').trim();
+          // for the prompt: "an artifact or creature card", "a noncreature, nonland card"
+          const want = (/^[aeiou]/.test(raw) ? 'an ' : 'a ') + raw.replace(/\s+/g, ' ').trim();
           const hand = this.zones[victim.id].hand.filter(o => {
             const a = o.analysis();
             if (!a) return false;
             // Inquisition of Kozilek: "with mana value 3 or less"
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > e.maxMv) return false;
-            return want.every((w) => {
-              switch (w) {
-                case 'card': case 'any': return true;
-                case 'nonland': return !a.isLand;
-                case 'land': return a.isLand;
-                case 'creature': return a.isCreature;
-                case 'noncreature': return !a.isCreature;
-                case 'artifact': return a.isArtifact;
-                case 'nonartifact': return !a.isArtifact;
-                case 'enchantment': return !!a.isEnchantment;
-                case 'instant': case 'sorcery': case 'planeswalker':
-                  return (o.card.type_line || '').toLowerCase().includes(w);
-                default: return (o.card.type_line || '').toLowerCase().includes(w);
-              }
-            });
+            return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
-          this.logEvent('reveal', `${victim.name} reveals their hand to ${me.name}.`);
+          this.logEvent('reveal', `${victim.name} reveals their hand: ${this.zones[victim.id].hand.map(o => o.name).join(', ') || 'no cards'}.`);
           if (!hand.length) break;
           this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1,
             purpose: e.to === 'exile' ? 'exileFromHand' : 'discardFromHand',
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Choose a ${want} card from ${victim.name}'s hand to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
+            prompt: `Choose ${want} card from ${victim.name}'s hand to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
           break;
         }
 
