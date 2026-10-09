@@ -460,6 +460,246 @@
     file.click();
   };
 
+  /* ---------------- events: a draft, the gauntlet, challenges ----------------
+     Three ways to play for prizes, beside ranked:
+       a draft event: pay to enter, draft with seven bots, then play the pod
+         one at a time, best of one, until seven wins or three losses;
+       the gauntlet: pay to enter, your deck against five bots in a row, each
+         stronger, a loss ends it;
+       challenges: a board set up for you, to win this turn, paid once.
+     The run lives on the session (sess.mode); prizes go to the inbox. */
+  const EVENT = {
+    draft: { entry: 5000, wins: 7, losses: 3,
+      prizes: [{ pack: 1 }, { pack: 1, shards: 1000 }, { pack: 2 }, { pack: 2, shards: 2500 }, { pack: 3, shards: 2500 }, { pack: 3, shards: 5000 }, { pack: 4, shards: 7500 }, { pack: 5, shards: 12500 }] },
+    gauntlet: { entry: 2500, rounds: 5, difficulty: [2, 4, 6, 8, 10],
+      prizes: [{ shards: 500 }, { shards: 1500 }, { shards: 3000 }, { shards: 5000, pack: 1 }, { shards: 7500, pack: 2 }, { shards: 12500, pack: 3 }] },
+  };
+  App.EVENTS = EVENT;
+
+  /** Enter a draft event: the entry paid, then a draft of the newest set with seven bots. */
+  App.startDraftEvent = async function () {
+    const E = MTG.economy;
+    const ev = EVENT.draft;
+    const sets = await MTG.scry.draftableSets().catch(() => []);
+    const set = sets[0];
+    if (!set) return UI.error('No set could be found to draft. Check the connection.');
+    if (E.shards() < ev.entry) { MTG.sfx('reject'); return UI.error(`A draft event costs ${ev.entry.toLocaleString()} Shards to enter; you have ${E.shards().toLocaleString()}.`); }
+    if (!await UI.confirm(`Enter a ${set.name} draft event for ${ev.entry.toLocaleString()} Shards? Draft with seven bots, keep every card you take, then play until ${ev.wins} wins or ${ev.losses} losses. The more you win, the bigger the prize.`, 'Draft event')) return;
+    E.spend(ev.entry, 'event');
+    MTG.sfx('purchase');
+    App.quickGame({ formatId: 'booster', opponents: 7, setCode: set.code, difficulty: 6, mode: { event: 'draft', set: { code: set.code, name: set.name }, wins: 0, losses: 0, idx: 0, done: false } });
+  };
+
+  /** Enter the gauntlet: your deck, five bots in a row. */
+  App.startGauntlet = function (formatId) {
+    formatId = formatId || 'standard';
+    const E = MTG.economy;
+    const ev = EVENT.gauntlet;
+    if (E.shards() < ev.entry) { MTG.sfx('reject'); return UI.error(`The gauntlet costs ${ev.entry.toLocaleString()} Shards to enter; you have ${E.shards().toLocaleString()}.`); }
+    UI.pickDeck(formatId, async (deck) => {
+      if (!deck) return;
+      if (!await App.collectionAllows(deck)) return;
+      if (!await UI.confirm(`Run the gauntlet with ${deck.name || 'this deck'} for ${ev.entry.toLocaleString()} Shards? Five bots in a row, each stronger than the last; one loss ends the run.`, 'The gauntlet')) return;
+      E.spend(ev.entry, 'event');
+      MTG.sfx('purchase');
+      App.quickGame({ formatId, deck, difficulty: ev.difficulty[0], opponents: 1, mode: { gauntlet: true, formatId, wins: 0, done: false } });
+    });
+  };
+
+  /** A finished game, from the table: an event's record moves on, a challenge is solved. */
+  App.onGameRecorded = function (won) {
+    const sess = App.session;
+    const m = sess && sess.mode;
+    if (!m) return;
+    if (m.event === 'draft') {
+      if (won) m.wins++; else m.losses++;
+      if (m.wins >= EVENT.draft.wins || m.losses >= EVENT.draft.losses) finishEvent(sess);
+    } else if (m.gauntlet) {
+      if (won) m.wins++;
+      if (!won || m.wins >= EVENT.gauntlet.rounds) finishEvent(sess);
+    } else if (m.challenge) {
+      if (won) challengeSolved(m.challenge);
+    }
+  };
+  function finishEvent(sess) {
+    const m = sess.mode;
+    if (m.done) return;
+    m.done = true;
+    const P = MTG.progress;
+    if (m.event === 'draft') {
+      const prize = EVENT.draft.prizes[Math.min(m.wins, EVENT.draft.prizes.length - 1)];
+      P.mail(`Draft event: ${m.wins}–${m.losses}`, `${m.set.name} draft event. ${m.wins >= 7 ? 'A perfect run!' : 'Well played.'}`, Object.assign({}, prize), 'event');
+      if (m.wins >= 7) P.state.stats.draftPerfect++;
+    } else {
+      const prize = EVENT.gauntlet.prizes[Math.min(m.wins, EVENT.gauntlet.prizes.length - 1)];
+      P.mail(`Gauntlet: ${m.wins} of ${EVENT.gauntlet.rounds}`, m.wins >= EVENT.gauntlet.rounds ? 'You ran the whole gauntlet!' : 'The run is over. Well played.', Object.assign({}, prize), 'event');
+      if (m.wins >= EVENT.gauntlet.rounds) P.state.stats.gauntlets++;
+    }
+    P.checkAchievements();
+  }
+
+  /**
+   * What the result screen offers in an event: the record, and the next
+   * match or the prize. Null outside an event.
+   */
+  App.eventInfo = function () {
+    const sess = App.session;
+    const m = sess && sess.mode;
+    if (!m || !(m.event || m.gauntlet || m.challenge)) return null;
+    if (m.event === 'draft') {
+      return { line: `Draft event: ${m.wins}–${m.losses}` + (m.done ? ' · finished' : ` · ${EVENT.draft.wins - m.wins} more wins for the top prize`),
+        next: m.done ? { label: 'Collect your prize', fn: () => { App.leaveGame(); setTimeout(() => UI.openInbox(), 300); } }
+          : { label: `Next match (${m.wins}–${m.losses})`, fn: () => App.nextEventMatch() } };
+    }
+    if (m.gauntlet) {
+      return { line: `Gauntlet: ${m.wins} of ${EVENT.gauntlet.rounds}` + (m.done ? ' · finished' : ''),
+        next: m.done ? { label: 'Collect your prize', fn: () => { App.leaveGame(); setTimeout(() => UI.openInbox(), 300); } }
+          : { label: `Next opponent (${m.wins + 1} of ${EVENT.gauntlet.rounds})`, fn: () => App.nextEventMatch() } };
+    }
+    const def = CHALLENGES.find(c => c.id === m.challenge);
+    const solved = !!(MTG.progress.state.puzzles || {})[m.challenge];
+    return { line: def ? `Challenge: ${def.title}` + (solved ? ' · solved' : '') : 'Challenge',
+      next: { label: solved ? 'More challenges' : 'Try again', fn: () => { if (solved) { App.leaveGame(); setTimeout(() => App.openChallenges(), 300); } else App.startChallenge(m.challenge); } } };
+  };
+
+  /** The next match of an event: another bot from the pod, or the next, stronger one. */
+  App.nextEventMatch = function () {
+    const sess = App.session;
+    const m = sess && sess.mode;
+    if (!m || m.done) return;
+    const me = sess.seat('me');
+    if (m.event === 'draft') {
+      m.idx = (m.idx + 1) % m.pod.length;
+      sess.roster = [me, m.pod[m.idx]];
+    } else if (m.gauntlet) {
+      sess.roster = [me];
+      sess.addBot(EVENT.gauntlet.difficulty[Math.min(m.wins, EVENT.gauntlet.difficulty.length - 1)]);
+    }
+    sess.match = null;
+    sess.startGame();
+  };
+
+  /* ---- challenges: a board set up to win this turn ---- */
+  const CHALLENGES = [
+    { id: 'burn', title: 'Burn Out', text: 'They are at 8. Three burn spells, three Mountains.', reward: 2500,
+      oppLife: 8, mine: { battlefield: ['Mountain', 'Mountain', 'Mountain'], hand: ['Lightning Bolt', 'Lightning Bolt', 'Lava Spike'] }, theirs: { battlefield: [] } },
+    { id: 'air', title: 'Air Superiority', text: 'They are at 7 with two Bears on the ground. You have an Angel and a trick.', reward: 3000,
+      oppLife: 7, mine: { battlefield: ['Serra Angel', 'Forest'], hand: ['Giant Growth'] }, theirs: { battlefield: ['Grizzly Bears', 'Grizzly Bears'] } },
+    { id: 'wall', title: 'Over the Wall', text: 'They are at 10 behind a Wall of Stone. Three Bears and an Overrun.', reward: 3500,
+      oppLife: 10, mine: { battlefield: ['Grizzly Bears', 'Grizzly Bears', 'Grizzly Bears', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest'], hand: ['Overrun'] }, theirs: { battlefield: ['Wall of Stone'] } },
+    { id: 'borrow', title: 'Borrowed Muscle', text: 'They are at 6 with a Colossal Dreadmaw. It could be yours for a turn.', reward: 4000,
+      oppLife: 6, mine: { battlefield: ['Mountain', 'Mountain', 'Mountain', 'Mountain', 'Mountain'], hand: ['Act of Treason', 'Fling'] }, theirs: { battlefield: ['Colossal Dreadmaw', 'Grizzly Bears'] } },
+    { id: 'skies', title: 'Clear Skies', text: 'They are at 5, and an Air Elemental guards the skies against your dragon.', reward: 4000,
+      oppLife: 5, mine: { battlefield: ['Shivan Dragon', 'Island', 'Mountain', 'Mountain', 'Mountain'], hand: ['Unsummon'] }, theirs: { battlefield: ['Air Elemental'] } },
+    { id: 'hoof', title: 'Stampede', text: 'They are at 20 with nothing on the board. You have elves, bears, eight Forests and something big.', reward: 5000,
+      oppLife: 20, mine: { battlefield: ['Llanowar Elves', 'Llanowar Elves', 'Llanowar Elves', 'Grizzly Bears', 'Grizzly Bears', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest'], hand: ['Craterhoof Behemoth'] }, theirs: { battlefield: [] } },
+  ];
+  App.CHALLENGES = CHALLENGES;
+
+  /** The list of challenges, solved and not. */
+  App.openChallenges = function () {
+    const P = MTG.progress;
+    const solved = P.state.puzzles || {};
+    const list = el('div', { class: 'challenge-list' }, CHALLENGES.map(c => el('div', { class: 'challenge' + (solved[c.id] ? ' solved' : '') }, [
+      el('div', { class: 'ch-badge', text: solved[c.id] ? '✓' : '?' }),
+      el('div', { class: 'ch-text' }, [el('b', { text: c.title }), el('span', { class: 'dim', text: c.text }), UI.rewardChips(solved[c.id] ? {} : { shards: c.reward })]),
+      el('button', { type: 'button', class: 'btn' + (solved[c.id] ? '' : ' primary'), text: solved[c.id] ? 'Play again' : 'Play', onclick: () => { m.close(); App.startChallenge(c.id); } }),
+    ])));
+    const m = UI.modal({ title: 'Challenges', content: el('div', {}, [el('p', { class: 'dim', text: 'Win this turn. Each pays once, the first time you solve it.' }), list]), className: 'challenge-modal' });
+    m.button('Close', (mm) => mm.close(), 'ghost');
+  };
+
+  /** Play a challenge: the board set up, your turn, your main phase. */
+  App.startChallenge = async function (id) {
+    const def = CHALLENGES.find(c => c.id === id);
+    if (!def) return;
+    const busy = UI.busy('Challenge', 'Setting up the board…');
+    const names = [...new Set([].concat(def.mine.battlefield, def.mine.hand, def.theirs.battlefield, ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']))];
+    let byName;
+    try {
+      const res = await MTG.scry.collection(names.map(n => ({ name: n })));
+      byName = new Map(names.map((n, i) => [n, (res.cards || [])[i]]));
+      if (names.some(n => !byName.get(n))) throw new Error('Some cards could not be loaded. Check the connection.');
+    } catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    if (App.table) { App.table.destroy(); App.table = null; }
+    App.formatId = 'standard';
+    const sess = App.session = new Session('standard');
+    sess.mode = { challenge: id };
+    sess.addLocalHost(App.myName);
+    // an opponent of its own, seated straight away (no deck to build: its library is basics)
+    const bot = { id: MTG.uid('bot'), kind: 'bot', name: 'The Challenger', difficulty: 6, personality: '', deck: null };
+    sess.roster.push(bot);
+    // libraries of basics, so nobody decks out; the board is built after the start
+    const filler = (n) => ({ name: 'Basics', format: 'standard', main: ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'].map(b => ({ card: byName.get(b), qty: n })), sideboard: [], commanders: [] });
+    sess.seat('me').deck = filler(8);
+    bot.deck = filler(8);
+    sess.onStarted = (g) => setupChallenge(g, def, byName);
+    sess.startGame();
+  };
+
+  /** The board, built: hands kept empty, on to your main phase, the cards put down. */
+  function setupChallenge(g, def, byName) {
+    const R = MTG.rules;
+    const me = 'me';
+    const opp = g.players.find(p => p.id !== me).id;
+    for (const p of g.players) { try { g.keepHand(p.id, []); } catch (e) { /* kept already */ } }
+    for (const p of g.players) {
+      const z = g.zones[p.id];
+      while (z.hand.length) { const o = z.hand.pop(); o.zone = 'library'; z.library.push(o); }
+    }
+    // on to your first main phase, with nothing in anybody's way
+    for (let guard = 0; guard < 400; guard++) {
+      if (g.over) break;
+      if (g.activePlayer && g.activePlayer.id === me && g.step === 'main' && g.phase && g.phase.id === 'precombat' && !g.stack.length && !g.pendingChoice) break;
+      if (g.pendingChoice) { try { g.resolveChoice(g.pendingChoice.playerId, {}); } catch (e) { break; } continue; }
+      const p = g.priorityPlayer;
+      if (!p) break;
+      g.passPriority(p.id, true);
+    }
+    // whatever was drawn on the way goes back: the board is exactly the puzzle
+    for (const p of g.players) {
+      const z = g.zones[p.id];
+      while (z.hand.length) { const o = z.hand.pop(); o.zone = 'library'; z.library.push(o); }
+    }
+    const put = (pid, name, zone) => {
+      const o = g._register(new R.GObj(byName.get(name), pid, zone));
+      if (zone === 'battlefield') {
+        o.zone = 'battlefield'; o.controller = pid; o.entered = g.turn - 1; o.summoningSick = false;
+        if (g._stampNew) o.ts = g._stampNew();
+        g.battlefield.push(o);
+      } else g.zones[pid][zone].push(o);
+      return o;
+    };
+    for (const n of def.mine.battlefield) put(me, n, 'battlefield');
+    for (const n of def.mine.hand) put(me, n, 'hand');
+    for (const n of def.theirs.battlefield) put(opp, n, 'battlefield');
+    g.player(opp).life = def.oppLife;
+    if (g.bumpBoard) g.bumpBoard();
+    // the turn passing without a win is the end of the attempt
+    g.on('event', (e) => {
+      if (e.type !== 'turn' || g.over) return;
+      if (e.player && e.player !== me) setTimeout(() => challengeFailed(def), 300);
+    });
+  }
+  function challengeFailed(def) {
+    const sess = App.session;
+    if (!sess || !sess.mode || sess.mode.challenge !== def.id) return;
+    MTG.sfx('lose');
+    const m = UI.modal({ title: 'Not this time', content: el('p', { text: `Your turn ended and they are still standing. ${def.text}` }) });
+    m.button('Back', () => { m.close(); App.leaveGame(); setTimeout(() => App.openChallenges(), 300); }, 'ghost');
+    m.button('Try again', () => { m.close(); App.startChallenge(def.id); }, 'primary');
+  }
+  function challengeSolved(id) {
+    const P = MTG.progress;
+    const def = CHALLENGES.find(c => c.id === id);
+    P.state.puzzles = P.state.puzzles || {};
+    if (P.state.puzzles[id]) return;
+    P.state.puzzles[id] = Date.now();
+    P.mail(`Challenge solved: ${def.title}`, 'Well played.', { shards: def.reward, xp: 250 }, 'event');
+    P.checkAchievements();
+  }
+
   /** A deck that is played: whether the collection holds it (starter decks always may be played). */
   App.collectionAllows = async function (deck) {
     if (!deck || deck.starter || deck.source === 'starter' || deck.source === 'bot') return true;
@@ -1000,6 +1240,29 @@
     sceneBackdrop(s);
     const inner = el('div', { class: 'menu-inner' });
     inner.appendChild(pageHeader('Play', 'Choose a format. Add bots or open a room for other people once the table is set up.', 'home'));
+
+    /* Events: what you can play for prizes, before the formats */
+    const P = MTG.progress;
+    const evCard = (cls, title, text, meta, fn) => el('button', { type: 'button', class: 'event-card ' + cls, onclick: fn }, [
+      el('div', { class: 'ev-glow', 'aria-hidden': 'true' }),
+      el('div', { class: 'ev-body' }, [el('h3', { text: title }), el('p', { text }), el('div', { class: 'ev-meta', html: meta })]),
+    ]);
+    const shardHtml = (n) => `${UI.shardIcon ? UI.shardIcon() : ''}<b>${n.toLocaleString()}</b>`;
+    const solved = Object.keys(P.state.puzzles || {}).length;
+    inner.appendChild(el('div', { class: 'cat-head' }, [
+      el('h2', { class: 'cat-title', text: 'Events & challenges' }),
+      el('p', { class: 'cat-blurb', text: 'Play for prizes: they wait in your inbox.' }),
+    ]));
+    inner.appendChild(el('div', { class: 'event-grid' }, [
+      evCard('ev-ranked', 'Ranked', `Climb from Bronze to Mythic against bots that get stronger as you rise. You are ${P.rankLabel(P.state.ranked)}.`,
+        '<span>Free · season rewards each month</span>', () => App.playRanked('standard')),
+      evCard('ev-draft', 'Draft event', `Draft the newest set with seven bots, keep your cards, then play until ${App.EVENTS.draft.wins} wins or ${App.EVENTS.draft.losses} losses.`,
+        `<span>Entry ${shardHtml(App.EVENTS.draft.entry)}</span><span>Up to 5 packs and 12,500 Shards</span>`, () => App.startDraftEvent()),
+      evCard('ev-gauntlet', 'The gauntlet', `Your deck against ${App.EVENTS.gauntlet.rounds} bots in a row, each stronger than the last. One loss ends the run.`,
+        `<span>Entry ${shardHtml(App.EVENTS.gauntlet.entry)}</span><span>Up to 3 packs and 12,500 Shards</span>`, () => App.startGauntlet('standard')),
+      evCard('ev-challenge', 'Challenges', 'A board set up for you: find the way to win this turn.',
+        `<span>${solved} of ${App.CHALLENGES.length} solved</span>`, () => App.openChallenges()),
+    ]));
 
     for (const cat of CATEGORIES) {
       const list = MTG.formats.list().filter(f => f.kind === cat.id);
@@ -2876,6 +3139,8 @@
       this.chaosPool = null;      // {preset, sets:[code]} — chaos draft only
       /** @type {any} what kind of game this is, for its rewards: { ranked }, { event }, { gauntlet } */
       this.mode = null;
+      /** @type {any} set up the board of a challenge, once the game has started */
+      this.onStarted = null;
       this.cube = null;
       this.game = null;
       this.draft = null;
@@ -3192,6 +3457,12 @@
       App.keepDrafted(me.pool);
       UI.buildFromPool(me.pool, this.formatId, (deck) => {
         me.deck = deck;
+        // a draft event: the pod waits, and the matches are one at a time
+        if (this.mode && this.mode.event === 'draft') {
+          this.mode.pod = this.roster.filter(r => r.kind === 'bot');
+          this.mode.idx = 0;
+          this.roster = [me, this.mode.pod[0]];
+        }
         this.startGame();
       });
       if (net.isHost) net.sendPerPeer((peerId) => {
@@ -3266,6 +3537,8 @@
         MTG.scry.prefetchImages(allCards, 'normal');
 
         g.start();
+        // a challenge builds its board here, before anybody moves
+        if (this.onStarted) { try { this.onStarted(g); } catch (e) { console.error('[challenge]', e); } }
         this.pushState();
         this.botRunner.kick();
         // how many games this browser has sat down to, for what a newcomer is offered

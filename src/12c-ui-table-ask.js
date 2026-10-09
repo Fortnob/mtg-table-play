@@ -112,7 +112,8 @@
       const v = this.view, live = this.live || v;
       const host = this.decision;
       let want = null;     // {key, build}
-      if (v.over) want = { key: 'over:' + (v.winners || []).join(',') + ':' + JSON.stringify(v.match || {}), build: () => this.gameOverPanel() };
+      // (the rewards, once settled, redraw it: _overStamp)
+      if (v.over) want = { key: 'over:' + (v.winners || []).join(',') + ':' + JSON.stringify(v.match || {}) + ':' + (this._overStamp || 0), build: () => this.gameOverPanel() };
       else if (v.mulliganPhase && this.me && !this.me.keptHand) want = { key: 'mull:' + this.me.mulligansTaken, build: () => this.mulliganPanel(), live: true };
       else if (v.mulliganPhase && this.me) want = { key: 'mullwait', build: () => this.waitPanel('Waiting for the other players to keep their hands…') };
       else if (this.asking) want = { key: 'ask:' + this.asking.key, base: 'ask:' + (this.asking.base || this.asking.key), build: () => this.asking.build() };
@@ -709,11 +710,19 @@
       else if (m && !m.decided) buttons.push({ label: `Play game ${m.gameNumber + 1}`, cls: 'primary', fn: () => MTG.app.nextGame() });
       else buttons.push({ label: m ? 'New match' : 'Rematch', cls: 'primary', fn: () => MTG.app.rematch() });
       if (!guest && !v.replay) buttons.unshift({ label: 'Back to menu', fn: () => MTG.app.leaveGame() });
+      // in an event: its record, and the next match (or the prize) in place of a rematch
+      const evInfo = !watched && MTG.app && MTG.app.eventInfo ? MTG.app.eventInfo() : null;
+      if (evInfo) {
+        const i = buttons.findIndex(b => /Rematch|New match|Play game/.test(b.label));
+        const next = { label: evInfo.next.label, cls: 'primary', fn: evInfo.next.fn };
+        if (i >= 0) buttons[i] = next; else buttons.push(next);
+      }
       buttons.unshift({ label: 'Look at the board', fn: () => { this.decision.classList.add('peek'); setTimeout(() => this.decision.classList.remove('peek'), 4000); } });
       const body = el('div', { class: 'over-body' }, [
         el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
         el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won && !watched ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
         guest ? el('div', { class: 'over-note', text: 'If the host starts another game, it opens here.' }) : null,
+        evInfo ? el('div', { class: 'over-event', text: evInfo.line }) : null,
         // what the game paid
         this._reward && !watched ? el('div', { class: 'over-reward' }, [
           el('div', { class: 'or-total', html: (UI.shardIcon ? UI.shardIcon() : '') + `<b>+${this._reward.total.toLocaleString()}</b> Shards` }),

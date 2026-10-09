@@ -998,6 +998,9 @@
             ranked: !!(sess && sess.mode && sess.mode.ranked),
           });
           if (MTG.app && MTG.app.onGameRecorded) MTG.app.onGameRecorded(won, this._progress);
+          // the result screen, drawn again with all of it (an event's record, a challenge solved)
+          this._overStamp = (this._overStamp || 0) + 1;
+          setTimeout(() => { if (this.view && this.view.over) this.render(); }, 0);
           if (this._progress.levels && this._progress.levels.length && UI.levelUp) setTimeout(() => UI.levelUp(this._progress.levels[this._progress.levels.length - 1]), 2600);
         }
       }
