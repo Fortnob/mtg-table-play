@@ -11687,4 +11687,21 @@ module.exports = (test) => {
     T2.g.checkStateBasedActions();
     t.eq(es.zone, 'graveyard', 'seven Thrulls');
   });
+
+  test('Stridehangar Automaton adds a Thopter; discard any number, draw that many plus one', (mk, t) => {
+    t.auto('Stridehangar Automaton');
+    const T = mk();
+    T.bf('A', 'Stridehangar Automaton');
+    T.g._runEffects([{ op: 'createNamedToken', token: 'Treasure', n: 1 }], { controller: 'A', name: 'tok', kind: 'ability' });
+    t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Treasure').length, 1);
+    const th = T.g.battlefield.filter(o => o.isToken && /Thopter/.test(o.name));
+    t.eq(th.length, 1, 'and a Thopter'); t.ok(T.g.hasKw(th[0], 'flying'));
+    const T2 = mk();
+    const a = T2.hand('A', 'Island'), b = T2.hand('A', 'Island');
+    T2.answer('choose', { picks: [a.id, b.id] });
+    const n0 = T2.g.zones.A.hand.length;
+    T2.g._runEffects([{ op: 'discardAnyDraw', plus: 1 }], { controller: 'A', name: 'Grinder', kind: 'ability' });
+    T2.settle();
+    t.eq(T2.g.zones.A.hand.length, n0 + 1, 'two away, three back');
+  });
 };

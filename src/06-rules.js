@@ -14451,6 +14451,29 @@
           this._createNamedToken(ctx.controller, { token: e.token, n: k });
           break;
         }
+        // Brass's Tunnel-Grinder: any number away, as many back and one more
+        case 'discardAnyDraw': {
+          const hand = this.zones[ctx.controller].hand.slice();
+          let picks = [];
+          if (hand.length) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'discardAny', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: 0, max: hand.length, optional: true, prefer: 'worst',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}discard any number of cards, then draw that many${e.plus ? ' plus ' + e.plus : ''}.` }, 'dad');
+            if (got === SUSPEND) return SUSPEND;
+            picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'hand' && x.owner === ctx.controller);
+          }
+          if (picks.length) this._discardNow(ctx.controller, picks);
+          const k = picks.length + (e.plus || 0);
+          if (k > 0) this._drawCards(me, k);
+          break;
+        }
+        // Brass's Tunnel-Grinder: enough counters, and they come off as it transforms
+        case 'countersThenTransform': {
+          if (!src || src.zone !== 'battlefield' || (Number(src.counters[e.kind]) || 0) < e.n) break;
+          src.counters[e.kind] = 0;
+          this._runEffect({ op: 'transformSelf' }, ctx);
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

@@ -3962,6 +3962,9 @@
     // Spider-Sense: "Counter target instant spell, sorcery spell, or triggered ability."
     { re: /^Counter target instant spell, sorcery spell, or triggered ability\.?$/i,
       make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'instant or sorcery', abilities: true, abilityKind: 'triggered' }] }) },
+    // Brass's Tunnel-Grinder, Ojer-style flips: "Then if there are three or more bore counters on it, remove those counters and transform it."
+    { re: /^(?:Then )?if there are (\w+) or more ([a-z]+) counters on (?:it|CARDNAME|this [a-z]+), remove those counters and transform (?:it|CARDNAME)\.?$/i,
+      make: (m) => { const k = num(m[1]); return typeof k === 'number' ? { op: 'countersThenTransform', kind: m[2].toLowerCase(), n: k } : null; } },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -5433,6 +5436,9 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Brass's Tunnel-Grinder: "discard any number of cards, then draw that many cards plus one."
+    { re: /^Discard any number of cards, then draw that many cards(?: plus (one|two))?\.$/i,
+      make: (m) => [{ op: 'discardAnyDraw', plus: m[1] ? num(m[1]) : 0 }] },
     // Witch's Oven: "Create a Food token. If the sacrificed creature's toughness was 4 or greater, create two Food tokens instead."
     { re: /^Create an? (Food|Treasure|Clue) token\. If the sacrificed creature'?s (toughness|power) was (\d+) or greater, create two \1 tokens instead\.?$/i,
       make: (m) => [{ op: 'tokenBySacrificed', token: m[1], stat: m[2].toLowerCase(), atLeast: +m[3] }] },
@@ -10395,13 +10401,14 @@
       make: (m) => ({ op: 'replace', id: 'tokMany', event: 'createToken', who: m[2] ? 'you' : 'all',
         how: /three/i.test(m[3]) ? 'triple' : 'double', tokenWhat: m[1] ? m[1].trim().toLowerCase() : null }) },
     /* Peregrin Took, Xorn, Chatterfang: those tokens, and one more of another kind */
-    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (Treasure|Food|Clue) tokens), (?:instead create )?those tokens plus (an additional|that many) ([^.]+?) tokens?(?: are created)?(?: instead)?\.?$/i,
+    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (Treasure|Food|Clue) tokens), (?:instead create )?those tokens plus (an additional|that many) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
         const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map)$/i);
         let extra = null;
         if (named) extra = { named: U.titleCase(named[1]) };
         else {
-          const tok = parseTokenSentence('Create a ' + m[4] + ' token');
+          // Stridehangar Automaton: "… Thopter artifact creature token with flying"
+          const tok = parseTokenSentence('Create a ' + m[4] + ' token' + (m[5] || ''));
           if (!tok || tok.op !== 'createToken') return null;
           extra = { spec: Object.assign({}, tok, { n: 1 }) };
         }
