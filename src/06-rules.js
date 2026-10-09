@@ -14068,10 +14068,20 @@
         case 'tutor': {
           /* "Its controller may search their library" is somebody else's
              search: their library, and their choice. */
-          const seeker = e.who === 'targetController' ? (this._lastAffectedController() || me)
+          /* Pattern of Rebirth: "When enchanted creature dies, that creature's
+             controller may search" — with nothing targeted, the one that died */
+          const tdT = ctx.triggerData || {};
+          const diedCtl = !targets.some(t => t && t.kind === 'object') && this.player(tdT.deadController || tdT.objController);
+          const seeker = e.who === 'targetController' ? (diedCtl || this._lastAffectedController() || me)
             : e.who === 'player' ? (this.player(e.pid) || me)
             // Varragoth: "Target player searches their library for a card"
             : e.who === 'target' ? (firstPlayer() || me) : me;
+          // Stranglehold: no searching for its controller's opponents (the library is still shuffled, as the effect says)
+          if (this.battlefield.some(o => !o.phasedOut && o.controller !== seeker.id && this._staticOp(o, 'noSearch'))) {
+            this.logEvent('rules', `${seeker.name} can't search libraries.`);
+            this.rng.shuffle(this.zones[seeker.id].library);
+            break;
+          }
           if (!this._doneHere('searched')) this._searched(seeker.id);
           // Bribery: a search of an opponent's library, for the searcher
           const z = this.zones[e.libOf === 'target' ? ((firstPlayer() || seeker).id) : seeker.id];

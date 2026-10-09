@@ -15332,4 +15332,19 @@ module.exports = (test) => {
     t.eq(U.g.extraTurnsQueue.length, 0, 'the extra turn is gone');
     t.ok(U.g.log.some(l => /skips an extra turn/.test(l.text)), 'and the log says so');
   });
+
+  test("Stranglehold: its controller's opponents can't search libraries", (mk, t) => {
+    t.auto('Stranglehold');
+    const T = mk();
+    T.toMain('B');
+    T.bf('A', 'Stranglehold');
+    T.top('B', 'Island');
+    const tutor = T.hand('B', 'Demonic Tutor');
+    T.mana('B', '1B');
+    const h = T.zone('B', 'hand').length;
+    T.cast('B', tutor);
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, h - 1, 'nothing found');
+    t.ok(T.g.log.some(l => /can't search libraries/.test(l.text)));
+  });
 };

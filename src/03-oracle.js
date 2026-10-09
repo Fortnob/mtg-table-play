@@ -12975,6 +12975,8 @@
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
       { re: /^(?:CARDNAME|This creature|This permanent) can'?t be blocked by more than one creature\.?$/i,
         make: () => ({ op: 'evasion', oneBlocker: true }), auto: true },
+      // Stranglehold: "Your opponents can't search libraries."
+      { re: /^Your opponents can'?t search libraries\.?$/i, eff: { op: 'noSearch', who: 'opponents' }, auto: true },
       // Tainted Remedy, Plague Drone: "If an opponent would gain life, that player loses that much life instead."
       { re: /^If an opponent would gain life, that player loses that much life instead\.?$/i, eff: { op: 'gainBecomesLoss' }, auto: true },
       // Stranglehold, Ugin's Nexus: "If a player (an opponent) would begin an extra turn, that player skips that turn instead."
