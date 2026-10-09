@@ -21534,6 +21534,10 @@
     _matchesCategory(o, filter) {
       const a = o.analysis();
       if (!a) return false;
+      /* Blech: "each Pest, Bat, Insect, Snake, and Spider you control";
+         "each Frog or Rabbit" — any one of them, not all at once */
+      const alts = String(filter || '').split(/\s*,\s*(?:and\/or\s+|and\s+|or\s+)?|\s+(?:and\/or|and|or)\s+/).filter(Boolean);
+      if (alts.length > 1) return alts.some(w => this._matchesCategory(o, w));
       const words = String(filter || '').toLowerCase().split(/\s+/).filter(Boolean);
       for (const w of words) {
         const want = w.replace(/s$/, '');

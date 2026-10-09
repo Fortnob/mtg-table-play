@@ -3363,6 +3363,11 @@
       // (a second "counter on each" in the words is a second clause, not part of the first)
       make: (m) => (/\bother\b|\bwith|\btarget\b|^of | you control |\bcounters? on\b/i.test(m[3]) ? null
         : { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: 'yourMatching', filter: m[3].trim() }) },
+    /* Oakhollow Village: "on each Frog, Rabbit, Raccoon, or Squirrel you control
+       that entered the battlefield this turn"; Blech: "each Pest, Bat, Insect, Snake, and Spider you control" */
+    { re: /^Put (a|one|two) (\+1\/\+1) counters? on each ((?:[A-Z][a-z]+, )+(?:or|and) [A-Z][a-z]+) you control( that entered (?:the battlefield )?this turn)?\.?$/,
+      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]),
+        scope: Object.assign({ who: 'you', what: 'creature', subtypes: m[3].split(/,? (?:or|and) |, /).map(w => w.toLowerCase()) }, m[4] ? { enteredThisTurn: true } : {}) }) },
     // Earth Kingdom Soldier: "put a +1/+1 counter on each of up to two target creatures you control"
     { re: /^Put (a|one|two) ([+\-]\d\/[+\-]\d) counters? on each of (up to )?(two|three) target ([a-zA-Z ]+?)( you control)?\.?$/i,
       make: (m) => { const noun = /folk$/i.test(m[5]) ? m[5] : m[5].replace(/s$/, '');

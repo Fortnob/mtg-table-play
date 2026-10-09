@@ -15600,4 +15600,28 @@ module.exports = (test) => {
     t.eq(theirs.controller, 'A', 'under your control');
     t.eq(offered, 1, "only the damaged player's graveyard");
   });
+
+  test('A list of creature types is any one of them: Blech, Oakhollow Village', (mk, t) => {
+    t.auto('Oakhollow Village');
+    t.auto('Blech, Loafing Pest');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Blech, Loafing Pest');
+    const bat = T.bf('A', 'Vampire Bats'), bear = T.bf('A', 'Grizzly Bears');
+    T.g.changeLife(T.player('A'), 2);
+    T.resolve();
+    t.eq(bat.counters['+1/+1'], 1, 'a Bat gets one');
+    t.eq(bear.counters['+1/+1'], undefined, 'a Bear does not');
+    const U = mk();
+    U.toMain('A');
+    const village = U.bf('A', 'Oakhollow Village');
+    const sq = U.bf('A', 'Squirrel Mob'), elf = U.bf('A', 'Llanowar Elves'), stale = U.bf('A', 'Toski, Bearer of Secrets');
+    sq.entered = U.g.turn; elf.entered = U.g.turn; stale.entered = U.g.turn - 1;
+    U.mana('A', 'G');
+    U.activate('A', village, 2);
+    U.settle();
+    t.eq(sq.counters['+1/+1'], 1, 'a Squirrel that entered this turn');
+    t.eq(elf.counters['+1/+1'], undefined, 'not an Elf');
+    t.eq(stale.counters['+1/+1'], undefined, 'not one from before');
+  });
 };

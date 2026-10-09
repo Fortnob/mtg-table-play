@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11412,
-  "gainedCards": 1135,
-  "linesNeeded": 12223,
-  "linesGained": 1345,
+  "needed": 11410,
+  "gainedCards": 1134,
+  "linesNeeded": 12221,
+  "linesGained": 1344,
   "gained": {
-   "all": 1135,
+   "all": 1134,
    "top2000": 46,
    "stdTop": 8
   },
@@ -1935,22 +1935,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Forge of Heroes",
-    "Oakhollow Village",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Samut, Vizier of Naktamun",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
-    "Romana II"
-   ]
-  },
-  {
    "what": "ReturnFromGraveyardToBattlefieldWithCounterTargetEffect",
    "score": 9,
    "lines": 9,
@@ -2353,6 +2337,21 @@
     "Emerald Dragon // Dissonant Wave",
     "Echo, Perceptive Prodigy",
     "Tawnos, Urza's Apprentice"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Samut, Vizier of Naktamun",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
+    "Romana II"
    ]
   },
   {
@@ -7586,19 +7585,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Forge of Heroes",
-    "Oakhollow Village",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Samut, Vizier of Naktamun",
-    "Let the Galaxy Burn"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 9,
    "cards": 9,
@@ -7856,6 +7842,19 @@
     "The Peregrine Dynamo",
     "Trickbind",
     "Emerald Dragon // Dissonant Wave"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Samut, Vizier of Naktamun",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor"
    ]
   },
   {
