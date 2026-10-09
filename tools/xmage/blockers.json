@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11894,
+  "needed": 11886,
   "gainedCards": 1224,
-  "linesNeeded": 12822,
+  "linesNeeded": 12812,
   "linesGained": 1447,
   "gained": {
    "all": 1224,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4300,
-   "lines": 4039,
+   "score": 4291,
+   "lines": 4030,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -776,20 +776,6 @@
     "Elite Arcanist",
     "Starport Security",
     "Thaumaton Torpedo"
-   ]
-  },
-  {
-   "what": "AttachEffect",
-   "score": 16,
-   "lines": 7,
-   "cards": [
-    "The Aetherspark",
-    "Felidar Umbra",
-    "Hylderblade",
-    "Bound by Moonsilver",
-    "Detainment Spell",
-    "Concealed Weapon",
-    "Stasis Cell"
    ]
   },
   {
@@ -4125,6 +4111,19 @@
    ]
   },
   {
+   "what": "AttachEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Felidar Umbra",
+    "Hylderblade",
+    "Bound by Moonsilver",
+    "Detainment Spell",
+    "Concealed Weapon",
+    "Stasis Cell"
+   ]
+  },
+  {
    "what": "SkipCombatStepEffect",
    "score": 6,
    "lines": 6,
@@ -6907,8 +6906,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3550,
-   "cards": 3379,
+   "score": 3552,
+   "cards": 3372,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -9381,6 +9380,19 @@
    ]
   },
   {
+   "what": "static ability in HAND",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Wilt-Leaf Liege",
+    "Serum Powder",
+    "Obstinate Baloth",
+    "Loxodon Smiter",
+    "Nullhide Ferox",
+    "Dodecapod"
+   ]
+  },
+  {
    "what": "BlockedPredicate.instance",
    "score": 6,
    "cards": 6,
@@ -10071,18 +10083,6 @@
     "Myth Realized",
     "Mirkwood Meditator",
     "Snowmelt Stag"
-   ]
-  },
-  {
-   "what": "static ability in HAND",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Wilt-Leaf Liege",
-    "Serum Powder",
-    "Obstinate Baloth",
-    "Loxodon Smiter",
-    "Dodecapod"
    ]
   },
   {

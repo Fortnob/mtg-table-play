@@ -2376,6 +2376,8 @@
       make: () => ({ op: 'impulseLast', duration: 'exiled' }) },
     { re: /^Untap them\.?$/i, make: () => ({ op: 'untap', scope: 'lastGroup' }) },
     { re: /^(?:Those creatures|They) don'?t untap during their controllers?'?s? next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
+    // Sleep: "Those creatures don't untap during that player's next untap step." — the player whose creatures they are
+    { re: /^(?:Those creatures|They) don'?t untap during that player'?s next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
     { re: /^(?:This land|This creature|This artifact|CARDNAME) doesn'?t untap during your next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'self' }) },
     { re: /^They'?re still lands\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Activate only as a sorcery\.?"?$/i, make: () => ({ op: 'noop' }) },
@@ -12371,6 +12373,14 @@
       { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
       // Everlasting Torment: "All damage is dealt as though its source had wither."
       { re: /^All damage is dealt as though its source had wither\.?$/i, eff: { op: 'witherAll' }, auto: true },
+      // Steel Golem: "You can't cast creature spells."
+      { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
+        make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },
+      // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
+      { re: /^Players can cast spells only during their own turns\.?$/i, eff: { op: 'castOnlyOwnTurn' }, auto: true },
+      // Root Sliver: "Sliver spells can't be countered."
+      { re: /^([A-Z][a-z]+|Creature|Noncreature|Green|Blue|Black|Red|White) spells can'?t be countered\.?$/,
+        make: (m) => ({ op: 'uncounterable', who: 'all', words: m[1].toLowerCase() + ' spells' }), auto: true },
       // Spider-Punk: "Spells and abilities can't be countered."
       { re: /^Spells and abilities can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all', abilities: true }, auto: true },
       // Storied: three or more artifacts, legendaries and/or Sagas, and the story is yours for the game

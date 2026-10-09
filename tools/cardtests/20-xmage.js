@@ -14077,4 +14077,44 @@ module.exports = (test) => {
     t.eq(hg.counters['-0/-1'], 1, 'a -0/-1 counter');
     t.ok(U.bfOf('A').some(o => o.isToken && /Deserter/.test(o.name)), 'a Deserter');
   });
+
+  test("Steel Golem, Dosan the Falling Leaf, Root Sliver: who may cast what, and what can't be countered", (mk, t) => {
+    t.auto('Steel Golem'); t.auto('Dosan the Falling Leaf'); t.auto('Root Sliver');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Steel Golem');
+    T.mana('A', 'RRR');
+    t.ok(!T.g.canCast('A', T.hand('A', 'Raging Goblin').id).ok, 'no creature spells for you');
+    t.ok(T.g.canCast('A', T.hand('A', 'Shock').id).ok, 'an instant is fine');
+    const U = mk();
+    U.toMain('A');
+    U.bf('B', 'Dosan the Falling Leaf');
+    const bolt = U.hand('B', 'Shock');
+    U.mana('B', 'R');
+    if (U.g.priorityPlayer && U.g.priorityPlayer.id === 'A') U.g.passPriority('A');
+    t.ok(!U.g.canCast('B', bolt.id).ok, "not on another player's turn");
+    const V = mk();
+    V.toMain('A');
+    V.bf('B', 'Root Sliver');
+    V.mana('A', '3');
+    V.cast('A', V.hand('A', 'Metallic Sliver'), { resolve: false });
+    const item = V.g.stack[V.g.stack.length - 1];
+    V.g._runEffects([{ op: 'counterSpell' }], { controller: 'B', name: 'Counterspell', kind: 'spell', targets: [{ kind: 'stack', id: item.id }] });
+    V.settle(); V.resolve(); V.settle();
+    t.ok(V.g.battlefield.some(o => o.name === 'Metallic Sliver'), 'a Sliver spell resolves');
+  });
+
+  test("Sleep: target player's creatures are tapped and skip their next untap", (mk, t) => {
+    t.auto('Sleep');
+    const T = mk();
+    T.toMain('A');
+    const g = T.bf('B', 'Hill Giant'), b = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Sleep'), { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.ok(g.tapped && b.tapped, 'tapped'); t.ok(!mine.tapped, 'not yours');
+    T.nextTurn('B');
+    t.ok(g.tapped && b.tapped, 'still tapped after their untap step');
+  });
 };

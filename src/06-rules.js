@@ -3215,6 +3215,17 @@
         const mv = (o.card && o.card.cmc) || 0;
         if ((mv % 2 === 0) === !!e0.even) return { ok: false, reason: `${vw.name}: you can't cast spells with ${e0.even ? 'even' : 'odd'} mana values.` };
       }
+      // Steel Golem: "You can't cast creature spells." — its controller only
+      for (const s1 of this.battlefield) {
+        if (s1.phasedOut || s1.controller !== playerId) continue;
+        const yc = this._staticOp(s1, 'youCantCast');
+        if (yc && this._cardFitsWords(o, yc.words)) return { ok: false, reason: `${s1.name}: you can't cast ${yc.words} spells.` };
+      }
+      // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
+      if (!(this.activePlayer && this.activePlayer.id === playerId)) {
+        const dosan = this._anyStatic('castOnlyOwnTurn');
+        if (dosan) return { ok: false, reason: `${dosan.name}: spells can be cast only during their caster's own turn.` };
+      }
       if (o.zone !== 'hand' && this.opponentsOf(playerId).some(q => this._anyStaticOf(q.id, 'onlyFromHand')))
         return { ok: false, reason: 'An opponent stops spells cast from anywhere but your hand.' };
       if (!midway && (!this.priorityPlayer || this.priorityPlayer.id !== playerId)) return { ok: false, reason: 'You do not have priority.' };
@@ -12920,7 +12931,10 @@
             // (Kiora Bests the Sea God: the target player's)
             const tp = e.scope.who === 'target' ? firstPlayer() : null;
             if (e.scope.who === 'target' && !tp) break;
-            for (const x of this._scopeList(e.scope, ctx.controller, src, tp ? tp.id : undefined)) this._markTapped(x);
+            const tapped = this._scopeList(e.scope, ctx.controller, src, tp ? tp.id : undefined);
+            for (const x of tapped) this._markTapped(x);
+            // Sleep: "Those creatures don't untap …" — the ones just tapped
+            this._lastGroup = tapped.map(x => x.id);
             this.emit('sfx', 'tap');
             break;
           }
