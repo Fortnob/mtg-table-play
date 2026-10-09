@@ -9296,6 +9296,14 @@
           return top > 0 && k[cond.color] === top;
         }
         case 'selfSubtype': return !!src && this._hasSubtype(src, cond.type);
+        /* Defy Death: "If it's an Angel" — the card it returned; Emiel the
+           Blessed: the creature that entered; with neither, itself */
+        case 'itSubtype': {
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const td = ctx && ctx.triggerData && ctx.triggerData.objectId;
+          const it = (tg && this.obj(tg.id)) || (td && this.obj(td)) || src;
+          return !!it && this._hasSubtype(it, cond.type);
+        }
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
         case 'gainedLifeThisTurn': return !!me && (me.lifeGainedThisTurn || 0) > 0;
         case 'lostLifeThisTurn': return !!me && (me.lifeLostThisTurn || 0) > 0;
@@ -13175,9 +13183,15 @@
           if (!biter) { this.logEvent('rules', 'Nothing to deal the damage.'); break; }
           if (e.counterFirst && !this._doneHere('ctr')) this.addCounters(biter, e.counterFirst, 1);
           const amount = this.powerOf(biter) * (e.mult || 1);      // Punishing Punch: twice its power
-          if (e.toPlayer) {
+          // Origin of Thor: "to each opponent"
+          if (e.eachOpponent) {
+            for (const who of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(who, amount, biter);
+            break;
+          }
+          // Soul's Fire: "to any target" — a player chosen, or a creature or planeswalker below
+          if (e.toPlayer || (e.anyTarget && !objs[1])) {
             const pt = targets.find(t => t.kind === 'player');
-            const who = pt ? this.player(pt.id) : this.opponentsOf(ctx.controller)[0];
+            const who = pt ? this.player(pt.id) : e.anyTarget ? null : this.opponentsOf(ctx.controller)[0];
             if (who) { this.dealDamageToPlayer(who, amount, biter); this.logEvent('damage', `${biter.name} deals ${amount} to ${who.name}.`); }
             break;
           }

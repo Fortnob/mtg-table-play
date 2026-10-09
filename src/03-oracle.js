@@ -2169,9 +2169,13 @@
       make: (m) => ({ op: 'bite',
         targets: [{ type: 'creature', controller: 'you' },
           Object.assign(targetSpec(m[2]), m[1] ? { distinct: true } : {})] }) },
-    { re: /^Target creature you control deals damage equal to its power to (?:target )?(?:each )?(player|opponent|target player|any target)\.?$/i,
-      make: (m) => ({ op: 'bite', toPlayer: true,
-        targets: [{ type: 'creature', controller: 'you' }, { type: 'player' }] }) },
+    /* Gravitic Punch: "to target player"; Soul's Fire: "to any target", a
+       creature or planeswalker as much as a player; Origin of Thor: "to each
+       opponent", every one of them */
+    { re: /^Target creature you control deals damage equal to its power to (target player|target opponent|any target|each opponent)\.?$/i,
+      make: (m) => (/each/i.test(m[1]) ? { op: 'bite', toPlayer: true, eachOpponent: true, targets: [{ type: 'creature', controller: 'you' }] }
+        : /any/i.test(m[1]) ? { op: 'bite', anyTarget: true, targets: [{ type: 'creature', controller: 'you' }, targetSpec('any target')] }
+        : { op: 'bite', toPlayer: true, targets: [{ type: 'creature', controller: 'you' }, { type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // (Captivating Crew: "target creature an opponent controls")
     // (Sliver Overlord: "Gain control of target Sliver.")
     { re: /^Gain control of target (creature|permanent|artifact|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
@@ -7611,11 +7615,16 @@
     /* Miraculous Recovery: "Return target creature card … to the
        battlefield. Put a +1/+1 counter on it." After a sentence with a
        target, "it" is that target, not this card. */
-    folded.forEach((e, i) => {
+    const itIsTarget = (e, i) => {
       // (Narset's Reversal: "Copy target instant or sorcery spell, then return it to its owner's hand" — the spell, not itself)
-      if (!e || (e.op !== 'counters' && e.op !== 'restrict' && e.op !== 'bounce') || e.scope !== 'self' || e.targets) return;
+      if (!e || !['counters', 'restrict', 'bounce', 'tap', 'untap'].includes(e.op) || e.scope !== 'self' || e.targets) return;
       if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
+    };
+    folded.forEach((e, i) => {
+      itIsTarget(e, i);
+      // Defy Death: "If it's an Angel, put two +1/+1 counters on it."
+      if (e && e.op === 'ifCond') for (const x of (e.then || []).concat(e.otherwise || [])) itIsTarget(x, i);
     });
     /* Summon: Knights of Round: "Other creatures you control get +2/+2 until
        end of turn. Put an indestructible counter on each of them." With
@@ -7791,6 +7800,15 @@
            is what the first sentence put them on */
         if (prev && prev.scope && typeof prev.scope === 'string' && !(prev.targets || []).length) {
           for (const x of e.insteadOf.effects) if (x.op === prev.op && (!x.scope || x.scope === 'triggerObject' || x.scope === 'lastTarget' || (x.scope === 'self' && / it\b/.test(x.text || '') && !/this|CARDNAME/.test(x.text || ''))) && !(x.targets || []).length) { x.scope = prev.scope; delete x.targets; }
+        }
+        /* Emiel the Blessed: "you may pay {G/W}. If you do, put a +1/+1
+           counter on it. If it's a Unicorn, put two … instead" — the two
+           replace the one, and are still paid for */
+        const last = prev && (prev.op === 'mayPay' || prev.op === 'may') && (prev.then || []).slice(-1)[0];
+        if (last && e.insteadOf.effects.some(x => x.op === last.op)) {
+          prev.then[prev.then.length - 1] = { op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [last] };
+          out.push(prev);
+          continue;
         }
         if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
         // with nothing before it on this line, the line before this one is what it replaces
@@ -8313,7 +8331,9 @@
     [/^you control (\w+) or more creatures with different powers$/i, (m) => ({ kind: 'differentPowers', n: num(m[1]) })],
     // Glistening Sphere: "Activate only if an opponent has three or more poison counters"
     // Mistform Wall: "as long as it's a Wall"
-    [/^(?:it'?s|this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],
+    [/^(?:this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],
+    // Defy Death: "if it's an Angel" — what was targeted, or what the trigger is about
+    [/^it'?s an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'itSubtype', type: m[1] })],
     [/^an opponent has (\w+) or more poison counters$/i, (m) => ({ kind: 'opponentPoison', n: num(m[1]) })],
     // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
     [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],

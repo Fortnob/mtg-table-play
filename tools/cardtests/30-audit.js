@@ -1610,4 +1610,65 @@ module.exports = (test) => {
     t.zone(ring, 'hand');
     t.ok(T.zone('A', 'hand').some(o => o.name === 'Mind Stone'), 'and the search');
   });
+
+  test("Audit: Soul's Fire can hit a creature or a player", (mk, t) => {
+    let T = mk();
+    t.auto("Soul's Fire");
+    let w = T.bf('A', 'Craw Wurm');
+    const b = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', "Soul's Fire"), { targets: [w, b] });
+    t.zone(b, 'graveyard');
+    T = mk();
+    w = T.bf('A', 'Craw Wurm');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', "Soul's Fire"), { targets: [w, 'B'] });
+    t.eq(T.life('B'), 14);
+  });
+
+  test('Audit: Origin of Thor hits each opponent', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Origin of Thor');
+    const w = T.bf('A', 'Craw Wurm');
+    T.bf('A', 'Origin of Thor', { counters: { lore: 2 } });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A'); T.resolve();
+    t.eq(T.life('B'), 14); t.eq(T.life('C'), 14); t.eq(T.life('A'), 20);
+  });
+
+  test('Audit: Defy Death checks the returned card for Angel, not itself', (mk, t) => {
+    for (const [name, want] of [['Serra Angel', 2], ['Craw Wurm', 0]]) {
+      const T = mk();
+      t.auto('Defy Death');
+      const c = T.grave('A', name);
+      T.mana('A', 'WW3');
+      T.cast('A', T.hand('A', 'Defy Death'), { targets: [c] });
+      t.zone(c, 'battlefield');
+      t.eq(c.counters['+1/+1'] || 0, want, name);
+    }
+  });
+
+  test('Audit: Emiel the Blessed: a Unicorn gets two counters, still paid for', (mk, t) => {
+    for (const [name, pay, want] of [['Grizzly Bears', true, 1], ['Lancer Sliver', false, 0], ['Emiel the Blessed', true, 2]]) {
+      const T = mk();
+      t.auto('Emiel the Blessed');
+      T.bf('A', 'Emiel the Blessed');
+      T.answer('confirm', { yes: pay });
+      T.mana('A', 'GGWW4');
+      const c = T.hand('A', name);
+      T.cast('A', c);
+      t.eq(c.counters['+1/+1'] || 0, want, name);
+    }
+  });
+
+  test("Audit: Vampire's Zeal gives first strike only to a Vampire", (mk, t) => {
+    for (const [name, fs] of [['Vampire Nighthawk', true], ['Grizzly Bears', false]]) {
+      const T = mk();
+      t.auto("Vampire's Zeal");
+      const c = T.bf('A', name);
+      T.mana('A', 'W');
+      T.cast('A', T.hand('A', "Vampire's Zeal"), { targets: [c] });
+      t.eq(T.g.hasKw(c, 'first strike'), fs, name);
+    }
+  });
 };
