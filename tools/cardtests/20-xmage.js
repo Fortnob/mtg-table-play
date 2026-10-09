@@ -12377,4 +12377,21 @@ module.exports = (test) => {
     t.eq(u.counters.charge, 13, 'a charge counter');
     t.eq(T.zone('A', 'hand').length, hand + 1, 'drew one for the one cast');
   });
+
+  test('Ruthless Technomancer: back with power X or less; Lazotep Quarry: mana value X', (mk, t) => {
+    t.auto('Ruthless Technomancer'); t.auto('Lazotep Quarry');
+    const T = mk();
+    const rt = T.bf('A', 'Ruthless Technomancer');
+    const a1 = T.bf('A', 'Sol Ring'), a2 = T.bf('A', 'Mind Stone');
+    const bear = T.grave('A', 'Grizzly Bears'), wurm = T.grave('A', 'Craw Wurm');
+    T.mana('A', '2B');
+    const ai = 0;   // its one activated ability
+    t.ok(!T.g.activateAbility('A', rt.id, ai, { x: 2, targets: [{ kind: 'object', id: wurm.id }], auto: true }), 'the Wurm is too big');
+    t.ok(T.g.activateAbility('A', rt.id, ai, { x: 2, targets: [{ kind: 'object', id: bear.id }], auto: true }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(bear.zone, 'battlefield'); t.eq(a1.zone, 'graveyard'); t.eq(a2.zone, 'graveyard');
+    const lq = T.bf('A', 'Lazotep Quarry');
+    const fx = lq.analysis().abilities.find(a => a.kind === 'activated' && /Exile/.test(a.text)).effects;
+    t.eq(fx[0].targets[0].mv, 'X');
+  });
 };

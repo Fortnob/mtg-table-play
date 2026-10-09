@@ -1234,6 +1234,12 @@
     // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Ruthless Technomancer: "Return target creature card with power X or less from your graveyard to the battlefield."
+    { re: /^Return (target [a-z ]+?) card with power (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with power ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Lazotep Quarry: "Exile target creature card with mana value X from your graveyard."
+    { re: /^Exile (target [a-z ]+?) card with mana value (\d+|X) from your graveyard\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
     { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
       make: () => ({ op: 'exileNamedEverywhere' }) },

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12326,
-  "gainedCards": 1337,
-  "linesNeeded": 13411,
-  "linesGained": 1595,
+  "needed": 12322,
+  "gainedCards": 1335,
+  "linesNeeded": 13407,
+  "linesGained": 1593,
   "gained": {
-   "all": 1337,
+   "all": 1335,
    "top2000": 50,
    "stdTop": 9
   },
@@ -127,25 +127,6 @@
    ]
   },
   {
-   "what": "Ability.setTargetAdjuster",
-   "score": 180,
-   "lines": 171,
-   "cards": [
-    "Lazotep Quarry",
-    "Likeness Looter",
-    "Ruthless Technomancer",
-    "Silkguard",
-    "Chthonian Nightmare",
-    "Tinybones, the Pickpocket",
-    "Dance of the Manse",
-    "Ink-Eyes, Servant of Oni",
-    "Doppelgang",
-    "Riptide Gearhulk",
-    "Diluvian Primordial",
-    "Hideous Taskmaster"
-   ]
-  },
-  {
    "what": "custom condition",
    "score": 175,
    "lines": 163,
@@ -162,6 +143,25 @@
     "Éowyn, Shieldmaiden",
     "Rith, Liberated Primeval",
     "Wakka, Devoted Guardian"
+   ]
+  },
+  {
+   "what": "Ability.setTargetAdjuster",
+   "score": 175,
+   "lines": 169,
+   "cards": [
+    "Likeness Looter",
+    "Silkguard",
+    "Chthonian Nightmare",
+    "Tinybones, the Pickpocket",
+    "Dance of the Manse",
+    "Ink-Eyes, Servant of Oni",
+    "Doppelgang",
+    "Riptide Gearhulk",
+    "Diluvian Primordial",
+    "Hideous Taskmaster",
+    "Desecrate Reality",
+    "Bronzebeak Foragers"
    ]
   },
   {
@@ -7069,15 +7069,15 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 156,
-   "cards": 147,
+   "score": 151,
+   "cards": 145,
    "names": [
-    "Lazotep Quarry",
     "Likeness Looter",
-    "Ruthless Technomancer",
     "Silkguard",
     "Chthonian Nightmare",
-    "Tinybones, the Pickpocket"
+    "Tinybones, the Pickpocket",
+    "Dance of the Manse",
+    "Ink-Eyes, Servant of Oni"
    ]
   },
   {
