@@ -14775,6 +14775,24 @@
           if (picks.length) this._runEffect({ op: 'phaseOut' }, Object.assign({}, ctx, { targets: picks, resolvedTargets: picks }));
           break;
         }
+        // Promise of Loyalty: one creature each keeps a vow counter, the rest are sacrificed
+        case 'promiseOfLoyalty': {
+          const keep = [];
+          for (const q of this.players.filter(x => !x.hasLost)) {
+            const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+            if (!pool.length) continue;
+            const got = this._choose({ playerId: q.id, purpose: 'keepOne', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose the creature you keep (it gets a vow counter).` }, 'pl:' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            keep.push({ q, x: (got && got.picks.length ? this.obj(got.picks[0]) : null) || pool[0] });
+          }
+          for (const { q, x } of keep) {
+            if (x.zone === 'battlefield') { this.addCounters(x, 'vow', 1); x._vowTo = ctx.controller; }
+            const rest = this.battlefield.filter(y => y !== x && y.controller === q.id && !y.phasedOut && (this.characteristics(y) || {}).isCreature);
+            if (rest.length) this._sacrificeNow(q.id, rest, null);
+          }
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
@@ -19030,6 +19048,8 @@
       let def = this.player(defenderId), walker = false;
       if (!def) { const pw = this.obj(defenderId); def = pw && this.player(pw.controller); walker = true; }
       if (!def) return null;
+      // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
+      if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();
       if (!oa) return null;
       for (const s0 of this.battlefield) {

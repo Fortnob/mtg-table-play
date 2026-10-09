@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12379,
+  "needed": 12378,
   "gainedCards": 1348,
-  "linesNeeded": 13490,
+  "linesNeeded": 13489,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -33,13 +33,12 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4424,
-   "lines": 4106,
+   "score": 4420,
+   "lines": 4105,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
     "Etali, Primal Conqueror // Etali, Primal Sickness",
-    "Promise of Loyalty",
     "Mechanized Production",
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -47,7 +46,8 @@
     "Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel",
     "Lethal Scheme",
     "Wandering Archaic // Explore the Vastlands",
-    "Valgavoth, Terror Eater"
+    "Valgavoth, Terror Eater",
+    "Vraska, Betrayal's Sting"
    ]
   },
   {
@@ -7053,15 +7053,15 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3622,
-   "cards": 3415,
+   "score": 3618,
+   "cards": 3414,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
     "Etali, Primal Conqueror // Etali, Primal Sickness",
-    "Promise of Loyalty",
     "Mechanized Production",
-    "Marvin, Murderous Mimic"
+    "Marvin, Murderous Mimic",
+    "Wheel of Misfortune"
    ]
   },
   {

@@ -5452,6 +5452,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Promise of Loyalty: "Each player puts a vow counter on a creature they
+       control and sacrifices the rest. Each of those creatures can't attack
+       you or planeswalkers you control for as long as it has a vow counter on
+       it." */
+    { re: /^Each player puts a vow counter on a creature they control and sacrifices the rest\. Each of those creatures can'?t attack you or planeswalkers you control for as long as it has a vow counter on it\.$/i,
+      make: () => [{ op: 'promiseOfLoyalty' }] },
     /* Ripples of Potential: "Proliferate, then choose any number of
        permanents you control that had a counter put on them this way. Those
        permanents phase out." */

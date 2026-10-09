@@ -11996,4 +11996,18 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(a.counters['+1/+1'], 2); t.ok(a.phasedOut, 'phased out'); t.no(b.phasedOut);
   });
+
+  test('Promise of Loyalty: one kept with a vow counter, which then cannot attack you', (mk, t) => {
+    t.auto('Promise of Loyalty');
+    const T = mk();
+    const a1 = T.bf('A', 'Grizzly Bears'), a2 = T.bf('A', 'Savannah Lions');
+    const b1 = T.bf('B', 'Craw Wurm'), b2 = T.bf('B', 'Llanowar Elves');
+    T.answer('choose', (ch) => ({ picks: [ch.playerId === 'A' ? a1.id : b1.id] }));
+    T.answer('choose', (ch) => ({ picks: [ch.playerId === 'A' ? a1.id : b1.id] }));
+    T.mana('A', '4W');
+    T.cast('A', T.hand('A', 'Promise of Loyalty'));
+    T.settle(); T.resolve();
+    t.eq(a2.zone, 'graveyard'); t.eq(b2.zone, 'graveyard'); t.eq(b1.counters.vow, 1);
+    t.ok(T.g._cantAttackYou(b1, 'A'), "the Wurm can't attack A");
+  });
 };
