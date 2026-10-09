@@ -6049,6 +6049,9 @@
     } else if (types.includes('player')) {
       if (permTypes.length) { spec.type = 'any'; spec.anyOf = permTypes; }
       else spec.type = 'player';
+    } else if (permTypes.length > 1 && !/\b(?:or|and)\b|,/i.test(String(phrase))) {
+      /* Kotori: "target artifact creature you control" — both at once, not either */
+      spec.type = permTypes[permTypes.length - 1]; spec.alsoTypes = permTypes.slice(0, -1);
     } else if (permTypes.length > 1) {
       spec.type = 'permanent'; spec.anyOf = permTypes;
     } else if (permTypes.length === 1) {
@@ -6094,6 +6097,7 @@
     if (spec.type === 'planeswalker' && !a.isPlaneswalker) return false;
     if (spec.type === 'battle' && !a.isBattle) return false;
     if (spec.anyOf && !spec.anyOf.some(w => w === 'permanent' || w === 'player' || isType(w))) return false;
+    if (spec.alsoTypes && !spec.alsoTypes.every(w => w === 'permanent' || isType(w))) return false;
     const hasSub = () => spec.subtypes.some(st => (a.subtypes || []).some(t => t.toLowerCase() === st));
     if (spec.typeOrSubtype) {
       if (!(spec.cardTypes || []).some(isType) && !hasSub()) return false;

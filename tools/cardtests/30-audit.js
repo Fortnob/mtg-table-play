@@ -2892,4 +2892,27 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(aura, 'umbra armor'), 'an Aura on my permanent, whoever controls it');
     t.no(T.g.hasKw(aura2, 'umbra armor'), 'not my Aura on their creature');
   });
+
+  test('Audit: "target artifact creature" is both types at once (Kotori, Hearth Charm); Skullwinder; Hobgoblin Bandit Lord', (mk, t) => {
+    let T = mk();
+    for (const c of ['Kotori, Pilot Prodigy', 'Hearth Charm', 'Skullwinder', 'Hobgoblin Bandit Lord']) t.auto(c);
+    T.toMain('A');
+    const k = T.bf('A', 'Kotori, Pilot Prodigy');
+    T.bf('A', 'Grizzly Bears'); const orn = T.bf('A', 'Ornithopter'); T.bf('A', 'Mind Stone');
+    const spec = k.analysis().abilities.find(a => a.kind === 'triggered').effects[0].targets[0];
+    t.eq(JSON.stringify(T.g._legalTargetsFor(spec, 'A', k.id).map(x => x.id)), JSON.stringify([orn.id]), 'only the artifact creature');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const mine = T.grave('A', 'Grizzly Bears'), bc = T.grave('B', 'Hill Giant'), cc = T.grave('C', 'Craw Wurm');
+    T.mana('A', '2G'); T.cast('A', T.hand('A', 'Skullwinder')); T.settle(); T.resolve();
+    t.zone(mine, 'hand', 'my card back');
+    t.eq([bc.zone, cc.zone].filter(z => z === 'hand').length, 1, 'and the chosen opponent takes one of theirs');
+    T = mk();
+    T.toMain('A');
+    const h = T.bf('A', 'Hobgoblin Bandit Lord'); h.summoningSick = false;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Goblin Guide'));
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Raging Goblin'));
+    T.mana('A', 'R'); T.activate('A', h, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 18, 'two Goblins entered this turn');
+  });
 };
