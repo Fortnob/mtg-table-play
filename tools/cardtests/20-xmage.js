@@ -16242,4 +16242,25 @@ module.exports = (test) => {
     T.nextTurn('A');
     t.no(T.g._protected(T.player('A')), "gone on A's next turn");
   });
+
+  test("Biorhythm sets each life total to that player's creatures; Mirror Universe exchanges life totals", (mk, t) => {
+    t.auto('Biorhythm');
+    t.auto('Mirror Universe');
+    t.auto('Magus of the Mirror');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Llanowar Elves'); T.bf('B', 'Hill Giant');
+    T.mana('A', 'GGGGGGCC');
+    T.cast('A', T.hand('A', 'Biorhythm'));
+    T.settle();
+    t.eq(T.life('A'), 2);
+    t.eq(T.life('B'), 1);
+    T = mk();
+    const mirror = T.bf('A', 'Mirror Universe');
+    T.g.changeLife(T.player('A'), -15);
+    T.toMain('A', 'upkeep');
+    T.activate('A', mirror, 0, { targets: ['B'] });
+    t.eq(T.life('A'), 20, "A takes B's 20");
+    t.eq(T.life('B'), 5, "B takes A's 5");
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11347,
+  "needed": 11343,
   "gainedCards": 1130,
-  "linesNeeded": 12147,
+  "linesNeeded": 12143,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4218,
-   "lines": 3957,
+   "score": 4217,
+   "lines": 3956,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2569,21 +2569,6 @@
    ]
   },
   {
-   "what": "IsStepCondition.getMyUpkeep",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Scourglass",
-    "Magus of the Mirror",
-    "Mirror Universe",
-    "Clockwork Steed",
-    "Clockwork Beast",
-    "Clockwork Avian",
-    "Cyclopean Tomb",
-    "Clockwork Swarm"
-   ]
-  },
-  {
    "what": "RemoveCounterSourceEffect",
    "score": 8,
    "lines": 8,
@@ -3710,6 +3695,19 @@
     "Petalmane Baku",
     "Rasputin, the Oneiromancer",
     "Loot, the Nexus"
+   ]
+  },
+  {
+   "what": "IsStepCondition.getMyUpkeep",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Scourglass",
+    "Clockwork Steed",
+    "Clockwork Beast",
+    "Clockwork Avian",
+    "Cyclopean Tomb",
+    "Clockwork Swarm"
    ]
   },
   {
@@ -6682,8 +6680,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3517,
-   "cards": 3337,
+   "score": 3516,
+   "cards": 3336,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

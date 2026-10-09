@@ -3142,6 +3142,12 @@
     // --- life ---
     { re: /^Your life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1] }) },
     { re: /^Each opponent'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'opponents' }) },
+    // Biorhythm, Shaman of Forgotten Ways: "Each player's life total becomes the number of creatures they control."
+    { re: /^Each player'?s life total becomes the number of (creatures|lands|permanents|artifacts) they control\.?$/i,
+      make: (m) => ({ op: 'setLife', who: 'each', n: { eachControls: m[1].toLowerCase().replace(/s$/, '') } }) },
+    // Magus of the Mirror, Mirror Universe: "Exchange life totals with target opponent."
+    { re: /^Exchange life totals with target (opponent|player)\.?$/i,
+      make: (m) => ({ op: 'exchangeLife', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
 
     // --- static/global that the engine tracks ---
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },

@@ -14574,12 +14574,31 @@
         }
         case 'setLife': {
           // Blessed Wind: "Target player's life total becomes 20."
-          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
           /* a life total that "becomes" a number gains or loses the difference
              (CR 119.5); The Endstone: half the starting life total */
           const start = (this.config && this.config.startingLife) || 20;
-          const to = e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n);
-          for (const p of who) { if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); }
+          // Biorhythm: each player's own count, all worked out before any life changes (eachControls)
+          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
+            : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
+          who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
+          break;
+        }
+        /* Magus of the Mirror: "Exchange life totals with target opponent." Each
+           gains or loses the difference (CR 701.12c); a life total that can't
+           change means no exchange at all (exchangeLife) */
+        case 'exchangeLife': {
+          const other = firstPlayer();
+          if (!other || other === me || other.hasLost) break;
+          if (this._lifeFrozen(me) || this._lifeFrozen(other) ||
+            (me.life < other.life && this._lifeGainStopped(me)) || (other.life < me.life && this._lifeGainStopped(other))) {
+            this.logEvent('life', `${me.name} and ${other.name} can't exchange life totals.`);
+            break;
+          }
+          const a0 = me.life, b0 = other.life;
+          if (a0 !== b0) { this.changeLife(me, b0 - a0); this.changeLife(other, a0 - b0); }
+          this.logEvent('life', `${me.name} and ${other.name} exchange life totals.`);
           break;
         }
 
