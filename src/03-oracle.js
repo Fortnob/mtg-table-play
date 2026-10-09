@@ -3144,7 +3144,8 @@
     { re: /^Shuffle the cards from your hand into your library, then draw that many cards\.?$/i, make: () => ({ op: 'shuffleHandDraw', who: 'you' }) },
     // Deadeye Tracker, Lochmere Serpent: "Exile two (five) target cards from an opponent's graveyard." — one graveyard (gyExileN)
     { re: /^Exile (two|three|four|five) target cards from an opponent'?s graveyard\.?$/i,
-      make: (m) => ({ op: 'exile', sameGraveyard: true, targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'card', zone: 'graveyard', controller: 'opponent', distinct: true })) }) },
+      // (each after the first from the same graveyard as the one before it, as it is chosen)
+      make: (m) => ({ op: 'exile', sameGraveyard: true, targets: Array.from({ length: num(m[1]) }, (_, i) => Object.assign({ type: 'permanent', filter: 'card', zone: 'graveyard', controller: 'opponent', distinct: true }, i ? { sameControllerAsPrev: true } : {})) }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."

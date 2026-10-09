@@ -3257,4 +3257,21 @@ module.exports = (test) => {
     ax.attachedTo = b.id; b.attachments = [ax.id]; T.g.bumpBoard();
     t.ok(T.g._hasCreatureType(b, 'Goblin') && T.g._hasCreatureType(b, 'Elf')); t.eq(T.g.powerOf(b), 5);
   });
+
+  test('Audit: Deadeye Tracker\'s targets come from one opponent\'s graveyard; God-Eternal Oketra goes third from the top when exiled', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Deadeye Tracker'); t.auto('God-Eternal Oketra');
+    T.toMain('A');
+    const dt = T.bf('A', 'Deadeye Tracker'); dt.summoningSick = false;
+    const b1 = T.grave('B', 'Opt'), b2 = T.grave('B', 'Lightning Bolt'), c1 = T.grave('C', 'Shock');
+    T.mana('A', '1B');
+    t.no(T.g.activateAbility('A', dt.id, 0, { auto: true, targets: [{ kind: 'object', id: b1.id }, { kind: 'object', id: c1.id }] }), 'two graveyards: refused');
+    T.activate('A', dt, 0, { targets: [b1, b2] });
+    t.zone(b1, 'exile'); t.zone(b2, 'exile'); t.zone(c1, 'graveyard');
+    T = mk();
+    T.toMain('A');
+    const go = T.bf('A', 'God-Eternal Oketra');
+    T.mana('A', 'W'); T.cast('A', T.hand('A', 'Swords to Plowshares'), { targets: [go] }); T.settle(); T.resolve();
+    t.zone(go, 'library'); t.eq(T.g.zones.A.library.indexOf(go), 2, 'third from the top');
+  });
 };
