@@ -59,9 +59,10 @@
     // your own picture
     { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
   ];
-  const REWARD = { play: 50, win: 150, firstWin: 250 };
+  // a loss pays 500, a win 2,000 (500 for playing and 1,500 more), the day's first win 2,500 on top
+  const REWARD = { play: 500, win: 1500, firstWin: 2500 };
   /** A copy past the fourth is worth this many Shards instead. */
-  const DUP_SHARDS = { common: 5, uncommon: 10, rare: 40, mythic: 80 };
+  const DUP_SHARDS = { common: 50, uncommon: 100, rare: 400, mythic: 800 };
   /** A copy of a card is never more than this many in a collection. */
   const PLAYSET = 4;
   /** Every this-many packs opened brings a rare wildcard, and every thirty a mythic one. */

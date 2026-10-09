@@ -139,7 +139,7 @@
     host.innerHTML = '';
     const head = el('div', { class: 'store-head' }, [
       el('div', { class: 'store-title' }, [el('h1', { text: 'Store' }), el('p', { class: 'dim', text: 'Spend Shards on boosters and cards. You earn Shards by playing: ' +
-        `${S.REWARD.play} a game, ${S.REWARD.win} more for a win, and ${S.REWARD.firstWin} for your first win each day.` })]),
+        `${fmtN(S.REWARD.play)} a game, ${fmtN(S.REWARD.win)} more for a win, and ${fmtN(S.REWARD.firstWin)} for your first win each day. Hold Shift to buy packs five at a time.` })]),
       el('div', { class: 'store-wallet' }, [
         shards(S.shards(), 'big'),
         el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))),
@@ -261,11 +261,23 @@
     MTG.sfx('purchase');
     UI.ok(`Bought: ${what}.`);
   }
+  /* Shift held: every pack button buys five times as many, and says so
+     while it is held (the whole page knows, through a class on the root). */
+  const SHIFT_X = 5;
+  const setShift = (on) => document.documentElement.classList.toggle('shift-buy', !!on);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Shift') setShift(true); });
+  document.addEventListener('keyup', (e) => { if (e.key === 'Shift') setShift(false); });
+  window.addEventListener('blur', () => setShift(false));
   function buyBtn(s, kind, qty) {
     const each = kind === 'collector' ? E().PRICES.collector : E().PRICES.pack;
-    const label = (kind === 'collector' ? 'Collector' : qty === 1 ? '1 pack' : `${qty} packs`);
-    return el('button', { type: 'button', class: 'btn buy' + (kind === 'play' && qty === 1 ? ' primary' : ''), onclick: () => buy(s, kind, qty) }, [
-      el('span', { text: label }), el('span', { class: 'buy-price', html: shardSvg() + fmtN(each * qty) }),
+    const label = (n) => (kind === 'collector' ? (n === 1 ? 'Collector' : `${n} Collector`) : n === 1 ? '1 pack' : `${n} packs`);
+    const face = (n, cls) => el('span', { class: 'buy-face ' + cls }, [
+      el('span', { text: label(n) }), el('span', { class: 'buy-price', html: shardSvg() + fmtN(each * n) }),
+    ]);
+    return el('button', { type: 'button', class: 'btn buy shiftable' + (kind === 'play' && qty === 1 ? ' primary' : ''),
+      title: `Hold Shift to buy ${qty * SHIFT_X}`,
+      onclick: (e) => buy(s, kind, e.shiftKey || document.documentElement.classList.contains('shift-buy') ? qty * SHIFT_X : qty) }, [
+      face(qty, 'normal'), face(qty * SHIFT_X, 'shifted'),
     ]);
   }
   /** Boosters fanned out, as many as are being bought (up to five shown). */

@@ -397,3 +397,12 @@ html[data-play="1"] .shard-chip { display: none; }
   border-radius: 99px; background: rgba(20, 14, 34, .92); border: 1px solid rgba(170, 130, 255, .45); color: #efe4ff; font-size: 13px; pointer-events: none; }
 .art-lock .shard-ico { width: 15px; height: 15px; }
 .art-option.locked:hover img { filter: brightness(.8); }
+
+/* Shift held: pack buttons show (and buy) five times as many */
+.btn.shiftable .buy-face { display: inline-flex; align-items: center; gap: 8px; }
+.btn.shiftable .buy-face.shifted { display: none; }
+:root.shift-buy .btn.shiftable .buy-face.normal { display: none; }
+:root.shift-buy .btn.shiftable .buy-face.shifted { display: inline-flex; }
+:root.shift-buy .btn.shiftable { box-shadow: 0 0 0 2px rgba(170, 130, 255, .8), 0 0 16px rgba(170, 130, 255, .45); }
+:root.shift-buy .btn.shiftable .buy-face.shifted::before { content: "×5"; font-weight: 800; font-size: 11px; padding: 0 5px; border-radius: 99px;
+  background: rgba(170, 130, 255, .9); color: #140c24; margin-right: 2px; }
