@@ -6,6 +6,12 @@
    then gives each pack the first of its set's that no other pack or deck
    wears (claimArt in src/10d-ui-store.js). With this the shelf needs no
    searches at all; a set newer than the file is still looked up live.
+   A few sets wear a card chosen by hand (FIRST), reserved for them before
+   any other pack picks.
+
+   It also counts each set's special printings (borderless, showcase,
+   extended and full art, basics aside): a set with enough of them to fill
+   Collector Boosters is offered them (MTG.collectorSets).
 
      node tools/packart.js            (about five minutes: Scryfall's
                                        searches are held to two a second)
@@ -20,6 +26,10 @@ const API = 'https://api.scryfall.com';
 const HEADERS = { 'User-Agent': 'mtg-table-packart/1.0', Accept: 'application/json' };
 const PER_SET = 6;
 const GAP = 600;
+// a set's face chosen by hand, first among its pictures and kept for it before any other pack picks
+const FIRST = { lea: 'Black Lotus', leb: 'Ancestral Recall' };
+// special printings enough for Collector Boosters: two variant slots of rares and three of uncommons need some choice
+const COLLECTOR_MIN = 15;
 // the same as NOT_A_PULL in src/10d-ui-store.js
 const NOT_A_PULL = new Set(['serialized', 'headliner', 'doublerainbow', 'gleaminggold',
   'playpromo', 'prerelease', 'promopack', 'buyabox', 'bundle', 'datestamped', 'stamped', 'judgegift', 'league',
@@ -46,6 +56,12 @@ const illOf = (c) => c.illustration_id || (c.card_faces && c.card_faces[0] && c.
 const usable = (c) => c && !(c.promo_types || []).some(t => NOT_A_PULL.has(t)) && !/z$/i.test(String(c.collector_number || '')) &&
   !/^A-/.test(c.name || '') && !!illOf(c) && !!(c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris));
 
+/** How many cards a search finds, from its first page alone. */
+async function count(q) {
+  const d = await get('/cards/search?' + new URLSearchParams({ q, unique: 'prints' }));
+  return d ? (d.total_cards || 0) : 0;
+}
+
 async function search(q, max) {
   const out = [];
   let url = '/cards/search?' + new URLSearchParams({ q, order: 'edhrec', unique: 'art' });
@@ -63,6 +79,7 @@ async function search(q, max) {
   const sets = ((await get('/sets')).data || []).filter(s => TYPES.has(s.set_type) && s.card_count >= 60 && s.released_at && s.released_at <= today);
   console.log(sets.length + ' sets');
   const map = {};
+  const collector = [];
   let n = 0;
   for (const s of sets) {
     const pick = [];
@@ -76,9 +93,12 @@ async function search(q, max) {
         pick.push(c.id.replace(/-/g, '') + ill.replace(/-/g, '').slice(0, 8));
       }
     };
+    if (FIRST[s.code]) take(await search(`!"${FIRST[s.code]}" set:${s.code}`, 1));
     take(await search(`set:${s.code} (r:mythic or r:rare) -t:land`, 40));
     if (pick.length < PER_SET) take(await search(`set:${s.code} -t:basic`, 120));
     if (pick.length) map[s.code] = pick.join('');
+    const variants = await count(`set:${s.code} (is:extendedart or is:borderless or is:showcase or is:fullart) -t:basic -is:digital lang:en`);
+    if (variants >= COLLECTOR_MIN) collector.push(s.code);
     if (++n % 25 === 0) console.log(`${n}/${sets.length}`);
   }
   const lines = Object.keys(map).sort().map(k => `    ${JSON.stringify(k)}: ${JSON.stringify(map[k])},`);
@@ -96,7 +116,13 @@ async function search(q, max) {
   MTG.packArt = {
 ${lines.join('\n')}
   };
+  /* The sets whose first picture was chosen by hand: kept for them before
+     any other pack picks, so a reprint of the same picture cannot take it. */
+  MTG.packArtReserved = ${JSON.stringify(Object.keys(FIRST))};
+  /* The sets with special printings enough to fill a Collector Booster
+     (${COLLECTOR_MIN} or more borderless, showcase, extended or full-art cards). */
+  MTG.collectorSets = new Set(${JSON.stringify(collector.sort().join(','))}.split(','));
 })(window.MTG);
 `, 'utf8');
-  console.log('wrote ' + OUT + ' (' + Object.keys(map).length + ' sets)');
+  console.log('wrote ' + OUT + ' (' + Object.keys(map).length + ' sets, ' + collector.length + ' with Collector Boosters: ' + collector.sort().join(' ') + ')');
 })().catch((e) => { console.error(e); process.exit(1); });

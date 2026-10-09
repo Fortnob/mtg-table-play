@@ -326,9 +326,23 @@
     return m;
   }
 
+  /* Collector Boosters began with Throne of Eldraine. A set has them when
+     it has special printings enough to fill them (counted ahead of time,
+     MTG.collectorSets in src/10d0-packart.js); a set newer than that count,
+     when it is a set of the kind that has had them since. */
+  const COLLECTOR_SINCE = '2019-10-04';
+  function hasCollector(setInfo) {
+    if (!setInfo) return false;
+    const code = String(typeof setInfo === 'string' ? setInfo : setInfo.code || '').toLowerCase();
+    if (MTG.collectorSets && MTG.packArt && MTG.packArt[code] !== undefined) return MTG.collectorSets.has(code);
+    if (typeof setInfo === 'string') return false;
+    return (setInfo.released_at || '') >= COLLECTOR_SINCE && ['expansion', 'core', 'masters', 'draft_innovation'].includes(setInfo.set_type);
+  }
+
   function buyPacks(setInfo, kind, qty) {
     load();
     qty = Math.max(1, Math.floor(qty || 1));
+    if (kind === 'collector' && !hasCollector(setInfo)) return { ok: false, why: `${(setInfo && setInfo.name) || 'That set'} has no Collector Boosters.` };
     if (needsAppraisal(setInfo)) return { ok: false, why: 'Its price is still being worked out; try again in a moment.' };
     const each = packPrice(setInfo, kind);
     const cost = each * qty;
@@ -698,7 +712,7 @@
     save: () => save(),
     isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard, cardValue,
     packPrice, appraise, needsAppraisal,
-    buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
+    buyPacks, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,

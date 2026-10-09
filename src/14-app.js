@@ -1185,10 +1185,20 @@
         /* A draft needs something to draft from: a set for boosters, a cube
            for a cube, and nothing at all for chaos, which picks its own. */
         const style = fmtNow && fmtNow.draft ? fmtNow.draft.style : '';
-        if (style && style !== 'cube') {
-          panel.appendChild(field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
-            q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster')));
-        }
+        /* Collector boosters only for a set that has them: one set's
+           boosters (the newest, unless another is chosen), never chaos */
+        if (style === 'booster' || style === 'commander') {
+          const kinds = field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
+            q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster'));
+          kinds.hidden = true;
+          panel.appendChild(kinds);
+          MTG.scry.draftableSets().then((sets) => {
+            const s = q.setCode ? sets.find(x => x.code === q.setCode) : sets[0];
+            const ok = !!s && MTG.economy.hasCollector(s);
+            if (!ok && q.collector) { q.collector = false; saveQuick(q); }
+            kinds.hidden = !ok;
+          }).catch(() => {});
+        } else if (q.collector) { q.collector = false; saveQuick(q); }
         // how many boosters each player opens: three, as at any draft, unless you say otherwise
         const packSel = el('select', { 'aria-label': 'Packs per player' }, [1, 2, 3, 4, 5, 6].map(n =>
           el('option', { value: String(n), text: n === 3 ? '3 (standard)' : String(n), selected: n === (q.packs || 3) })));
@@ -1202,7 +1212,7 @@
           MTG.scry.draftableSets().then((sets) => {
             for (const st of sets.slice(0, 60)) setSel.appendChild(el('option', { value: st.code, text: st.name, selected: st.code === q.setCode }));
           }).catch(() => {});
-          setSel.addEventListener('change', () => { q.setCode = setSel.value; saveQuick(q); });
+          setSel.addEventListener('change', () => { q.setCode = setSel.value; saveQuick(q); draw(); });
           source = field('Set', setSel);
         } else if (style === 'cube') {
           const cubeSel = el('select', { 'aria-label': 'Cube to draft' }, MTG.draft.recipes.map(r =>

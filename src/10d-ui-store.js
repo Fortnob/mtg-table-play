@@ -152,8 +152,8 @@
      apart by Scryfall's illustration id (its first eight hex digits), so a
      reprint of the same picture counts as the same. Kept, so each keeps its
      picture from then on. */
-  const ART_KEY = 'artclaims4';
-  for (const old of ['artclaims', 'artclaims2', 'artclaims3']) MTG.store.del(old);   // the claims of earlier ways of choosing
+  const ART_KEY = 'artclaims5';
+  for (const old of ['artclaims', 'artclaims2', 'artclaims3', 'artclaims4']) MTG.store.del(old);   // the claims of earlier ways of choosing
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -203,6 +203,11 @@
     }
     return out;
   }
+  /* A face chosen by hand (Black Lotus for Alpha, Ancestral Recall for
+     Beta) is that set's before any other pack picks: Unlimited reprints the
+     same pictures and would otherwise take them if its packs were seen first. */
+  for (const code of MTG.packArtReserved || []) claimArt('set:' + code, (preArt(code) || []).slice(0, 1));
+
   /**
    * A striking card from a set, for the front of its packs: its best-known
    * mythic or rare whose picture no other pack or deck wears (the Collector
@@ -361,8 +366,8 @@
         el('h2', { text: s.name }),
         el('p', { class: 'dim', text: `Released ${s.released_at}. Play Boosters: fourteen cards, a rare or mythic in every pack, and a foil.` }),
         el('div', { class: 'hero-buy' }, [
-          buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1),
-        ]),
+          buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), E().hasCollector(s) ? buyBtn(s, 'collector', 1) : null,
+        ].filter(Boolean)),
       ]),
     ]));
     body.appendChild(hero);
@@ -370,8 +375,8 @@
     const bundles = el('div', { class: 'store-grid bundles' });
     const offers = [
       { title: 'Starter bundle', sub: `5 packs of ${s.name}, and a rare wildcard`, cost: 5000, set: s, kind: 'play', n: 5, give: () => { E().buyPacks(s, 'play', 5); }, wc: 'rare' },
-      { title: 'Collector’s trio', sub: `3 Collector Boosters of ${s.name}`, cost: 7500, set: s, kind: 'collector', n: 3, give: () => { E().buyPacks(s, 'collector', 3); } },
-    ];
+      E().hasCollector(s) ? { title: 'Collector’s trio', sub: `3 Collector Boosters of ${s.name}`, cost: 7500, set: s, kind: 'collector', n: 3, give: () => { E().buyPacks(s, 'collector', 3); } } : null,
+    ].filter(Boolean);
     if (sets[1]) offers.push({ title: 'Catch-up bundle', sub: `6 packs of ${sets[1].name}`, cost: 6000, set: sets[1], kind: 'play', n: 6, give: () => { E().buyPacks(sets[1], 'play', 6); } });
     for (const o of offers) {
       bundles.appendChild(el('div', { class: 'store-card bundle' }, [
@@ -659,7 +664,8 @@
       boosterEl(s, 'play', { lazy: true }),
       el('div', { class: 'sc-title', text: s.name }),
       notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
-      el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1)]),
+      // Collector Boosters only where they were made, or could be (see hasCollector)
+      el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), S.hasCollector(s) ? buyBtn(s, 'collector', 1) : null].filter(Boolean)),
     ].filter(Boolean));
   }
   /** "Commander cards", "Alchemy cards": what else a set's packs may hold, from the sets folded into it. */
