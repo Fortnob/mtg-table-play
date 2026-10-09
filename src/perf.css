@@ -66,19 +66,18 @@
 .home-today { gap: 12px; }
 .home-tiles { gap: 12px; }
 .today-item { padding: 11px 15px 13px; }
-@media (max-height: 820px) {
-  .home-notes, .home-today, .home-tiles { margin-top: 10px !important; }
-  .home-today, .home-tiles { gap: 10px; }
-  .today-item { padding: 8px 13px 10px; }
-  .ti-value { font-size: 16px; }
-}
-/* a tall screen: the sections breathe */
-@media (min-height: 1000px) {
-  .home-notes, .home-today, .home-tiles { margin-top: 20px !important; }
-  .home-tile { min-height: 120px; }
-  .today-item { padding: 14px 18px 16px; }
-  .ti-value { font-size: 19px; }
-}
+/* snug: under 900 tall once zoomed, which is a 1366x768 laptop and a
+   1080p or 1440p screen alike */
+:root[data-snug] .home-notes, :root[data-snug] .home-today, :root[data-snug] .home-tiles { margin-top: 10px !important; }
+:root[data-snug] .home-today, :root[data-snug] .home-tiles { gap: 10px; }
+:root[data-snug] .today-item { padding: 8px 13px 10px; }
+:root[data-snug] .ti-value { font-size: 16px; }
+/* a tall screen, after the zoom that fits big screens (so a 1080p screen,
+   zoomed up, is not tall): the sections breathe */
+:root[data-tall] .home-notes, :root[data-tall] .home-today, :root[data-tall] .home-tiles { margin-top: 20px !important; }
+:root[data-tall] .home-tile { min-height: 120px; }
+:root[data-tall] .today-item { padding: 14px 18px 16px; }
+:root[data-tall] .ti-value { font-size: 19px; }
 
 /* ---------- spacing: the other screens ---------- */
 .store, .collection, .profile { padding-top: 22px; }
@@ -91,3 +90,25 @@
 @media (prefers-reduced-motion: reduce) {
   .bp-foil, .po-foil, .cs-gilded::before, .cs-prismatic::before, .cs-celestial::before, .po-card.waiting::before { animation: none !important; }
 }
+
+/* ---------- the home screen fits a short window whole ---------- */
+:root[data-snug] .home-wrap { padding-bottom: 2px; }
+:root[data-snug] .home-hero { margin-top: 6px; }
+:root[data-snug] .home-hero-inner { padding: 10px 18px 12px; gap: 8px; }
+:root[data-snug] .home-title { font-size: 30px; }
+:root[data-snug] .home-tag { margin-top: 4px; font-size: 13px; }
+:root[data-snug] .quick { padding: 11px 16px 13px; row-gap: 6px !important; }
+:root[data-snug] .quick .qfield { gap: 4px; }
+:root[data-snug] .quick-blurb { margin-top: -2px; font-size: 12.5px; line-height: 1.35; }
+:root[data-snug] .home-notes .resume-card { padding: 8px 14px; }
+:root[data-snug] .home-replay { margin-top: 0; margin-bottom: -4px; }
+:root[data-snug] .home-replay .btn { min-height: 0; padding-top: 3px; padding-bottom: 3px; }
+:root[data-snug] .home-tiles .home-tile { min-height: 58px !important; padding: 8px 14px; align-items: center; }
+:root[data-snug] .home-tile p { display: none; }
+
+/* with no decks yet, the replay button sits in the banner's corner rather
+   than taking a row of its own under everything */
+.home { position: relative; }
+.home > .home-replay { position: absolute; top: 18px; right: calc(clamp(12px, calc(1.4 * var(--vw)), 26px) + 14px); margin: 0 !important; z-index: 2; }
+.home > .home-replay .btn { background: rgba(10, 12, 18, .6); backdrop-filter: blur(6px); }
+:root[data-phone] .home > .home-replay { position: static; margin-top: 6px !important; }

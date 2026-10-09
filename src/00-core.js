@@ -393,6 +393,9 @@ MTG.applyLayoutMode = function () {
   // without its collapsing address bar, so the app hangs off the bottom.
   // Divided by the zoom because body carries it.
   r.style.setProperty('--app-h', (window.innerHeight / scale) + 'px');
+  // room to spare top to bottom, once zoomed
+  set('data-tall', window.innerHeight / scale >= 1000);
+  set('data-snug', window.innerHeight / scale < 900);
   if (was !== MTG.isPhone()) MTG.bus.emit('layout:changed', { phone: MTG.isPhone() });
 };
 
