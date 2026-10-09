@@ -2691,4 +2691,22 @@ module.exports = (test) => {
     t.eq(b.counters['+1/+1'], 1, 'on the Bears');
     t.eq(gs.counters['+1/+1'] || 0, 0, 'not on the Equipment');
   });
+
+  test('Audit: Blood Clock asks the player whose upkeep it is; Mana Breach bounces the caster\'s land', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Blood Clock'); t.auto('Mana Breach');
+    T.toMain('A');
+    T.bf('A', 'Blood Clock');
+    const bb = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B'); T.toMain('B');
+    const ask = T.asked.find(a => a.type === 'payOrDont');
+    t.eq(ask && ask.playerId, 'B', 'B is asked');
+    t.eq(T.life('B'), 18, 'and paid 2 life'); t.zone(bb, 'battlefield');
+    T = mk();
+    T.toMain('B');
+    T.bf('A', 'Mana Breach');
+    const bl = T.bf('B', 'Mountain'), al = T.bf('A', 'Island');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle(); T.resolve();
+    t.zone(bl, 'hand', "the caster's land goes back"); t.zone(al, 'battlefield');
+  });
 };
