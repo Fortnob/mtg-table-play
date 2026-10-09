@@ -1158,11 +1158,12 @@
     /* "Spend this mana only to cast a creature spell of the chosen type,
        and that spell can't be countered." — the mana's own restriction,
        kept with the ability that makes it. */
-    { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z /]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?\.?$/i,
+    { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z ,/]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?\.?$/i,
       make: (m) => {
         // (Codsworth: "Aura and/or Equipment spells" — either one; Tablet of Discovery: "instant and sorcery spells")
-        const words = m[1].trim().toLowerCase().replace(/ and(?:\/or)? /, ' or ');
-        if (!/^(?:creature|artifact|legendary|instant or sorcery|instant|sorcery|enchantment|colorless|noncreature|dragon|[a-z]+ creature|(?:colorless )?[a-z]+|[a-z]+ or [a-z]+)$/.test(words)) return null;
+        // (Séance Board: "instant, sorcery, Demon, and Spirit spells" — any one of them)
+        const words = m[1].trim().toLowerCase().replace(/,? and(?:\/or)? |, (?:or )?/g, ' or ');
+        if (!/^(?:creature|artifact|legendary|instant or sorcery|instant|sorcery|enchantment|colorless|noncreature|dragon|[a-z]+ creature|(?:colorless )?[a-z]+|[a-z]+(?: or [a-z]+)+)$/.test(words)) return null;
         const out = { op: 'spendOnly', words: words + ' spell', chosenType: !!m[2], uncounterable: !!m[3] };
         /* "…or activate abilities of creatures" (Castle Garenbrig, Eldrazi
            Temple): the same mana may pay for those permanents' abilities. */
@@ -13176,6 +13177,16 @@
           return { op: 'sequence', list: [
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
+        }, auto: true },
+      // Angelic Field Marshal: "As long as you control your commander, this creature gets +2/+2 and creatures you control have vigilance."
+      { re: /^As long as ([^,]+), this creature gets ([+-]\d+)\/([+-]\d+) and (other )?creatures you control have ([a-z ,]+)\.?$/i,
+        make: (m) => {
+          const c = condOf(m[1]);
+          const kws = keywordList(m[5]);
+          if (!c || !kws.length || !kws.every(kwKnown)) return null;
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
+            { op: 'continuous', layer: 6, scope: Object.assign({ who: 'you', what: 'creature' }, m[4] ? { other: true } : {}), cond: c, grant: kws }] };
         }, auto: true },
       // Bruenor Battlehammer, Forge Anew: "You may pay {0} rather than pay the equip cost of the first equip ability you activate each turn"
       { re: /^You may pay \{0\} rather than pay the equip cost of the first equip ability you activate (each turn|during each of your turns)\.?$/i,

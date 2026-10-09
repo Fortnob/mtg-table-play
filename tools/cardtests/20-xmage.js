@@ -15707,4 +15707,32 @@ module.exports = (test) => {
     t.zone(elf, 'exile', 'exiled from the graveyard');
     t.eq(patron.counters['+1/+1'], 1, 'the Vampire gets a counter');
   });
+
+  test('Angelic Field Marshal: with your commander out, +2/+2 and vigilance for your creatures', (mk, t) => {
+    t.auto('Angelic Field Marshal');
+    const T = mk();
+    const marshal = T.bf('A', 'Angelic Field Marshal'), bear = T.bf('A', 'Grizzly Bears');
+    const base = T.g.powerOf(marshal);
+    t.no(T.g.hasKw(bear, 'vigilance'), 'no commander: nothing');
+    const cmd = T.bf('A', 'Llanowar Elves');
+    cmd.isCommander = true;
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(marshal), base + 2);
+    t.ok(T.g.hasKw(bear, 'vigilance'));
+    t.no(T.g.hasKw(T.bf('B', 'Hill Giant'), 'vigilance'), "not an opponent's");
+  });
+
+  test('Séance Board: mana only for instant, sorcery, Demon and Spirit spells', (mk, t) => {
+    t.auto('Séance Board');
+    const T = mk();
+    T.toMain('A');
+    const board = T.bf('A', 'Séance Board');
+    board.counters.soul = 2;
+    T.g.tapForMana('A', board.id, 0, 'B');
+    T.settle();
+    t.eq(T.player('A').restricted.length, 2, 'two mana, set aside');
+    let threw = false;
+    try { T.cast('A', T.hand('A', 'Grizzly Bears')); } catch (err) { threw = true; }
+    t.ok(threw, 'not for a Bear');
+  });
 };
