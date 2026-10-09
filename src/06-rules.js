@@ -13440,8 +13440,9 @@
         case 'tapAll': {
           if (e.scope && typeof e.scope === 'object') {
             // (Kiora Bests the Sea God: the target player's)
-            const tp = e.scope.who === 'target' ? firstPlayer() : null;
-            if (e.scope.who === 'target' && !tp) break;
+            // (Nature's Will: "that player" is the one the trigger is about, not a target — tapThatPlayers)
+            const tp = e.scope.who === 'target' && !e.scope.thatPlayer ? firstPlayer() : null;
+            if (e.scope.who === 'target' && !e.scope.thatPlayer && !tp) break;
             const tapped = this._scopeList(e.scope, ctx.controller, src, tp ? tp.id : undefined);
             for (const x of tapped) this._markTapped(x);
             // Sleep: "Those creatures don't untap …" — the ones just tapped

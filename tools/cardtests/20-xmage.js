@@ -16582,4 +16582,20 @@ module.exports = (test) => {
     t.zone(gift, 'battlefield');
     t.eq(gift.attachedTo, bear.id, 'attached to the Bears again');
   });
+
+  test("Nature's Will: tap all lands that player controls and untap all lands you control", (mk, t) => {
+    t.auto("Nature's Will");
+    t.auto("Pretender's Claim");
+    const T = mk();
+    T.bf('A', "Nature's Will");
+    const bear = T.bf('A', 'Grizzly Bears'), myLand = T.bf('A', 'Forest'), theirLand = T.bf('B', 'Island'), otherCreature = T.bf('B', 'Llanowar Elves');
+    T.toMain('A');
+    myLand.tapped = true;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 18);
+    t.ok(theirLand.tapped, "B's land is tapped");
+    t.no(myLand.tapped, "A's land is untapped");
+    t.no(otherCreature.tapped, 'not their creatures');
+  });
 };

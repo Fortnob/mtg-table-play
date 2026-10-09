@@ -2406,7 +2406,8 @@
       make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
     /* Any other "Tap all …" whose words are a scope: "Tap all creatures you
        control", "Tap all attacking creatures", "Tap all nonwhite creatures" */
-    { re: /^Tap all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents|[A-Z][a-z]+s)(?: you control| your opponents control| without flying| with toughness \d+ or less)?)\.?$/,
+    // (Nature's Will, Torrent Elemental: "that player controls", "defending player controls" — tapThatPlayers)
+    { re: /^Tap all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents|[A-Z][a-z]+s)(?: you control| your opponents control| without flying| with toughness \d+ or less| that player controls| defending player controls)?)\.?$/,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'tapAll', scope: sc } : null; } },
     /* "Tap all creatures target player controls" (Sleep), Kiora Bests the
        Sea God: "Tap all nonland permanents target opponent controls." —

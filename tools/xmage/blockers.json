@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11305,
+  "needed": 11303,
   "gainedCards": 1131,
-  "linesNeeded": 12097,
+  "linesNeeded": 12093,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -336,12 +336,11 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 27,
-   "lines": 24,
+   "score": 26,
+   "lines": 23,
    "cards": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
-    "Nature's Will",
     "Tidus, Yuna's Guardian",
     "Tifa, Martial Artist",
     "Orochi Soul-Reaver",
@@ -350,7 +349,8 @@
     "Descendants' Fury",
     "Olivia, Opulent Outlaw",
     "Kaito, Dancing Shadow",
-    "Nettling Nuisance"
+    "Nettling Nuisance",
+    "Primo, the Unbounded"
    ]
   },
   {
@@ -6837,19 +6837,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 24,
-   "cards": 21,
-   "names": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen"
-   ]
-  },
-  {
    "what": "AsEntersBattlefieldAbility",
    "score": 24,
    "cards": 24,
@@ -6860,6 +6847,19 @@
     "Eclipsed Realms",
     "Frontier Siege",
     "Sin, Unending Cataclysm"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 23,
+   "cards": 20,
+   "names": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Kastral, the Windcrested"
    ]
   },
   {
