@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11293,
+  "needed": 11289,
   "gainedCards": 1131,
-  "linesNeeded": 12082,
+  "linesNeeded": 12077,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -89,8 +89,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 199,
-   "lines": 193,
+   "score": 196,
+   "lines": 190,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
@@ -4652,18 +4652,6 @@
    ]
   },
   {
-   "what": "CopySourceSpellEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Sage of the Skies",
-    "Ancestral Communion",
-    "Mentor's Guidance",
-    "Social Snub",
-    "Lumaret's Favor"
-   ]
-  },
-  {
    "what": "LookLibraryAndPickControllerEffect.withOtherwiseEffect",
    "score": 5,
    "lines": 5,
@@ -5933,6 +5921,17 @@
    ]
   },
   {
+   "what": "CopySourceSpellEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Ancestral Communion",
+    "Mentor's Guidance",
+    "Social Snub",
+    "Lumaret's Favor"
+   ]
+  },
+  {
    "what": "MustBeBlockedByTargetSourceEffect",
    "score": 4,
    "lines": 4,
@@ -6692,8 +6691,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 147,
-   "cards": 144,
+   "score": 145,
+   "cards": 142,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
@@ -9551,18 +9550,6 @@
    ]
   },
   {
-   "what": "CopySourceSpellEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Sage of the Skies",
-    "Ancestral Communion",
-    "Mentor's Guidance",
-    "Social Snub",
-    "Lumaret's Favor"
-   ]
-  },
-  {
    "what": "WinGameSourceControllerEffect",
    "score": 5,
    "cards": 5,
@@ -10359,6 +10346,17 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
+   ]
+  },
+  {
+   "what": "AddExtraTurnControllerEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Savor the Moment",
+    "Seedtime",
+    "Second Chance",
+    "Wormfang Manta"
    ]
   }
  ]

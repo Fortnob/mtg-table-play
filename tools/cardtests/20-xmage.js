@@ -16691,4 +16691,33 @@ module.exports = (test) => {
     t.no(flyer, 'the Hawk may not block');
     t.zone(elf, 'graveyard', 'the Elves may');
   });
+
+  test("If you've cast another spell this turn: Slick Sequence draws, Focus the Mind costs {2} less", (mk, t) => {
+    t.auto('Slick Sequence');
+    t.auto('Focus the Mind');
+    let T = mk();
+    T.toMain('A');
+    let hand = T.zone('A', 'hand').length;
+    T.mana('A', 'UR');
+    T.cast('A', T.hand('A', 'Slick Sequence'), { targets: ['B'] });
+    T.settle();
+    t.eq(T.life('B'), 18);
+    t.eq(T.zone('A', 'hand').length, hand, 'the first spell this turn: no card');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle();
+    hand = T.zone('A', 'hand').length;
+    T.mana('A', 'UR');
+    T.cast('A', T.hand('A', 'Slick Sequence'), { targets: ['B'] });
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'another spell was cast: a card');
+    T = mk();
+    T.toMain('A');
+    T.mana('A', 'UCC');
+    t.no(T.g.castSpell('A', T.hand('A', 'Focus the Mind').id, { auto: true }), 'full price first');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle();
+    t.ok(T.g.castSpell('A', T.hand('A', 'Focus the Mind').id, { auto: true }), T.g.lastError);
+  });
 };

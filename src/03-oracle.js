@@ -8718,6 +8718,8 @@
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
+    // Slick Sequence, Focus the Mind: "you've cast another spell this turn" — one other than this (castAnotherSpell)
+    [/^you'?ve cast another spell this turn$/i, () => ({ kind: 'castAnotherSpell' })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
     // Banishing Slash: "you control an artifact and an enchantment"
