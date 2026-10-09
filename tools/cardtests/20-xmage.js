@@ -11704,4 +11704,31 @@ module.exports = (test) => {
     T2.settle();
     t.eq(T2.g.zones.A.hand.length, n0 + 1, 'two away, three back');
   });
+
+  test("Well of Lost Dreams, Finale of Revelation, Patriarch's Bidding", (mk, t) => {
+    t.auto('Well of Lost Dreams'); t.auto('Finale of Revelation'); t.auto("Patriarch's Bidding");
+    const T = mk();
+    const w = T.bf('A', 'Well of Lost Dreams');
+    T.mana('A', '3');
+    T.answer('confirm', { yes: true });
+    T.answer('choose', { number: 2 });
+    const h = T.g.zones.A.hand.length;
+    T.g._runEffects(w.analysis().abilities[0].effects, { controller: 'A', obj: w, name: 'Well', kind: 'ability', triggerData: { amount: 4 } });
+    T.settle();
+    t.eq(T.g.zones.A.hand.length, h + 2, 'paid two, drew two');
+    const T2 = mk();
+    T2.grave('A', 'Grizzly Bears');
+    T2.mana('A', '10UU');
+    T2.cast('A', T2.hand('A', 'Finale of Revelation'), { x: 10 });
+    T2.settle(); T2.resolve();
+    t.ok(T2.g.player('A').noMaxHand, 'no maximum hand size'); t.eq(T2.g.zones.A.graveyard.filter(c => c.name === 'Grizzly Bears').length, 0, 'graveyard shuffled in');
+    const T3 = mk();
+    const z1 = T3.grave('A', 'Gravecrawler'), z2 = T3.grave('B', 'Grizzly Bears');
+    T3.answer('choose', (ch) => ({ picks: [ch.options.find(o => o.label === 'Zombie').i] }));
+    T3.answer('choose', (ch) => ({ picks: [ch.options.find(o => o.label === 'Zombie').i] }));
+    T3.mana('A', '3BBB');
+    T3.cast('A', T3.hand('A', "Patriarch's Bidding"));
+    T3.settle(); T3.resolve();
+    t.eq(z1.zone, 'battlefield'); t.eq(z2.zone, 'graveyard');
+  });
 };

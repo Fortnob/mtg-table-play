@@ -1477,6 +1477,15 @@
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Well of Lost Dreams: as many cards as can be paid for */
+    payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
+    /* Patriarch's Bidding: the type with the most creature cards in our own graveyard */
+    biddingType(s) {
+      const g = this.game, gy = (g.zones[this.pid] || {}).graveyard || [];
+      let best = 0, bestN = -1;
+      (s.options || []).forEach((o, i) => { const k = gy.filter(c => g._hasCreatureType(c, o.label)).length; if (k > bestN) { best = i; bestN = k; } });
+      return { picks: [best] };
+    },
     /* Mogis and kin: pay with the least of it once life is getting short */
     unlessSacrifice(s) {
       if (this.me.life > 10 || !(s.items || []).length) return { picks: [] };

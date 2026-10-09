@@ -14474,6 +14474,57 @@
           this._runEffect({ op: 'transformSelf' }, ctx);
           break;
         }
+        // Well of Lost Dreams: pay {X} up to the life gained, and draw X
+        case 'payXDraw': {
+          const most = Math.max(0, Number((ctx.triggerData || {}).amount) || 0);
+          let cap = 0;
+          for (let k = most; k > 0; k--) if (this.couldPay(ctx.controller, '{' + k + '}', this.manaSources(ctx.controller))) { cap = k; break; }
+          if (!cap) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'payXDraw', kind: 'number', number: { min: 0, max: cap },
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}pay {X} to draw X cards (X up to ${cap})?` }, 'pxd');
+          if (got === SUSPEND) return SUSPEND;
+          const x = Math.min(cap, Math.max(0, (got && got.number) || 0));
+          if (x > 0 && this.payMana(ctx.controller, '{' + x + '}', { auto: true })) this._drawCards(me, x);
+          break;
+        }
+        // Finale of Revelation
+        case 'finaleRevelation': {
+          const x = n('X');
+          if (x >= 10) {
+            const z = this.zones[ctx.controller];
+            for (const c of z.graveyard.slice()) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
+            this.rng.shuffle(z.library);
+            this._drawCards(me, x);
+            const lands = this.battlefield.filter(o => o.controller === ctx.controller && o.tapped && (o.analysis() || {}).isLand).slice(0, 5);
+            for (const l of lands) this._markUntapped(l);
+            me.noMaxHand = true;
+          } else if (x > 0) this._drawCards(me, x);
+          break;
+        }
+        // Patriarch's Bidding: each player names a type; every creature card of a named type comes back
+        case 'patriarchsBidding': {
+          const players = this.players.filter(q => !q.hasLost);
+          const seen = new Set();
+          for (const q of players) for (const c of this.zones[q.id].graveyard) if ((c.analysis() || {}).isCreature) for (const t of (c.analysis().subtypes || [])) seen.add(t);
+          const types = [...seen].sort();
+          if (!types.length) break;
+          const chosen = [];
+          for (const q of players) {
+            const got = this._choose({ playerId: q.id, purpose: 'biddingType', kind: 'options', min: 1, max: 1,
+              options: types.map((t, i) => ({ i, label: t })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a creature type.` }, 'pb:' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            const i = got && got.picks && got.picks[0];
+            if (i != null && types[i]) chosen.push(types[i]);
+          }
+          this.logEvent('rules', `Chosen: ${chosen.join(', ') || 'nothing'}.`);
+          for (const q of players) {
+            for (const c of this.zones[q.id].graveyard.slice()) {
+              if (!(c.analysis() || {}).isCreature || !chosen.some(t => this._hasCreatureType(c, t))) continue;
+              this.moveObject(c, 'battlefield', { controller: q.id });
+            }
+          }
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

@@ -5436,6 +5436,20 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Well of Lost Dreams: "you may pay {X}, where X is less than or equal to
+       the amount of life you gained. If you do, draw X cards." */
+    { re: /^You may pay \{X\}, where X is less than or equal to the amount of life you gained\. If you do, draw X cards\.$/i,
+      make: () => [{ op: 'payXDraw' }] },
+    /* Finale of Revelation: "Draw X cards. If X is 10 or more, instead shuffle
+       your graveyard into your library, draw X cards, untap up to five lands,
+       and you have no maximum hand size for the rest of the game." */
+    { re: /^Draw X cards\. If X is 10 or more, instead shuffle your graveyard into your library, draw X cards, untap up to five lands, and you have no maximum hand size for the rest of the game\.$/i,
+      make: () => [{ op: 'finaleRevelation' }] },
+    /* Patriarch's Bidding: "Each player chooses a creature type. Each player
+       returns all creature cards of a type chosen this way from their
+       graveyard to the battlefield." */
+    { re: /^Each player chooses a creature type\. Each player returns all creature cards of a type chosen this way from their graveyard to the battlefield\.$/i,
+      make: () => [{ op: 'patriarchsBidding' }] },
     // Brass's Tunnel-Grinder: "discard any number of cards, then draw that many cards plus one."
     { re: /^Discard any number of cards, then draw that many cards(?: plus (one|two))?\.$/i,
       make: (m) => [{ op: 'discardAnyDraw', plus: m[1] ? num(m[1]) : 0 }] },
