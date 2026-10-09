@@ -322,12 +322,12 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals'], ['wildcards', 'Wildcards']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
       body.innerHTML = '';
-      if (id === 'featured') featured(body, opts);
+      if (id === 'featured') featured(body, Object.assign({}, opts, { go: (t) => { MTG.sfx('click'); show(t); window.scrollTo({ top: 0 }); } }));
       else if (id === 'packs') packsTab(body, opts);
       else if (id === 'precons') preconsTab(body);
       else if (id === 'sleeves') sleevesTab(body);
@@ -372,13 +372,172 @@
     return m;
   }
 
+  /* ---------------- the Featured tab ----------------
+     The newest set; bundles, each cheaper than its parts and covering a
+     different corner of the game; the recent sets, one row of them,
+     however wide the screen; and a row from every other tab, each with
+     the way to the rest of it. */
+  const BUNDLE_OFF = 0.12;       // a bundle costs this much less than what is in it
+  const STARTER_OFF = 0.15;      // the starter bundle a little less again
+
+  /**
+   * Today's bundles, from the sets on sale (newest first): each { id,
+   * title, blurb, parts: [{ set, kind, n }], wc: { rarity: n }, off }. One
+   * that cannot be made (no masters sets yet, say) is left out.
+   */
+  function bundleOffers(sets) {
+    const S = E();
+    const core = sets.filter(s => s.set_type === 'expansion' || s.set_type === 'core');
+    const masters = sets.filter(s => s.set_type === 'masters');
+    const eternal = sets.filter(s => s.set_type === 'eternal');
+    const collectors = sets.filter(s => S.hasCollector(s));
+    const day = Math.floor(Date.now() / 864e5);
+    // a set from each age of the game, a different one each day
+    const ages = [['1993', '1998'], ['1998', '2005'], ['2005', '2012'], ['2012', '2019'], ['2019', '9999']];
+    const aged = ages.map(([a, b], i) => {
+      const list = core.filter(s => (s.released_at || '') >= a && (s.released_at || '') < b);
+      return list.length ? list[(day + i * 7) % list.length] : null;
+    }).filter(Boolean);
+    const n3 = (list) => list.slice(0, 3);
+    const newest = core[0];
+    const words = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
+    return [
+      core.length >= 3 && { id: 'starter', title: 'Starter bundle', off: STARTER_OFF,
+        blurb: 'Two packs of each of the three newest sets, a rare wildcard and two uncommon ones: a bit of everything to start a collection with.',
+        parts: n3(core).map(s => ({ set: s, kind: 'play', n: 2 })), wc: { rare: 1, uncommon: 2 } },
+      newest && { id: 'newest', title: `${newest.name} bundle`, off: BUNDLE_OFF,
+        blurb: S.hasCollector(newest) ? 'Six Play Boosters of the newest set, and a Collector Booster of it.' : 'Eight Play Boosters of the newest set.',
+        parts: S.hasCollector(newest) ? [{ set: newest, kind: 'play', n: 6 }, { set: newest, kind: 'collector', n: 1 }] : [{ set: newest, kind: 'play', n: 8 }] },
+      core.length >= 6 && { id: 'sampler', title: 'Standard sampler', off: BUNDLE_OFF,
+        blurb: 'A pack of each of the six newest sets.', parts: core.slice(0, 6).map(s => ({ set: s, kind: 'play', n: 1 })) },
+      collectors.length >= 3 && { id: 'collector', title: 'Collector’s trio', off: BUNDLE_OFF,
+        blurb: 'A Collector Booster of each of the three newest sets that have them.', parts: n3(collectors).map(s => ({ set: s, kind: 'collector', n: 1 })) },
+      masters.length >= 3 && { id: 'masters', title: 'Masters collection', off: BUNDLE_OFF,
+        blurb: 'A pack of each of the three newest Masters and remastered sets.', parts: n3(masters).map(s => ({ set: s, kind: 'play', n: 1 })) },
+      aged.length >= 4 && { id: 'ages', title: 'Through the ages', off: BUNDLE_OFF,
+        blurb: 'A pack from each age of the game, from its first years to now. Different every day.', parts: aged.map(s => ({ set: s, kind: 'play', n: 1 })) },
+      eternal.length >= 2 && { id: 'eternal', title: 'Worlds beyond', off: BUNDLE_OFF,
+        blurb: `A pack of each of the ${words[Math.min(3, eternal.length)]} newest Eternal sets, made for formats where every card is legal.`, parts: n3(eternal).map(s => ({ set: s, kind: 'play', n: 1 })) },
+      { id: 'wildcards', title: 'Wildcard chest', off: BUNDLE_OFF,
+        blurb: 'Four uncommon wildcards, two rare and a mythic: the cards you are missing, crafted.', parts: [], wc: { uncommon: 4, rare: 2, mythic: 1 } },
+    ].filter(Boolean);
+  }
+  const packsIn = (b) => b.parts.reduce((t, p) => t + p.n, 0);
+  /** What is in a bundle, in a line. */
+  function bundleContents(b) {
+    const bits = b.parts.map(p => `${p.n > 1 ? p.n + ' × ' : ''}${p.set.name}${p.kind === 'collector' ? ' Collector' : ''}`);
+    const wcs = Object.entries(b.wc || {}).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${RAR_NAME[r].toLowerCase()} wildcard${n > 1 ? 's' : ''}`);
+    return bits.concat(wcs).join(' · ');
+  }
+  /** What a bundle's parts cost apart, and what it costs: sets priced by appraisal are appraised first. */
+  async function bundlePrice(b) {
+    const S = E();
+    await Promise.all(b.parts.map(p => (S.needsAppraisal(p.set) ? S.appraise(p.set).catch(() => 1) : null)));
+    const full = b.parts.reduce((t, p) => t + S.packPrice(p.set, p.kind) * p.n, 0)
+      + Object.entries(b.wc || {}).reduce((t, [r, n]) => t + (S.WC_PRICES[r] || 0) * n, 0);
+    return { full, cost: Math.round(full * (1 - b.off) / 50) * 50 };
+  }
+  /** A bundle to look at: its packs fanned out (two of a set at most), its wildcards beside them. */
+  function bundleVisual(b) {
+    const v = el('div', { class: 'bundle-visual' });
+    const shown = b.parts.flatMap(p => Array.from({ length: Math.min(p.n, 2) }, () => p)).slice(0, 6);
+    const wcs = Object.entries(b.wc || {}).filter(([, n]) => n > 0);
+    if (shown.length) {
+      const fan = el('div', { class: 'bv-fan' });
+      shown.forEach((p, i) => {
+        const bo = boosterEl(p.set, p.kind, { lazy: true });
+        bo.style.setProperty('--k', String(i - (shown.length - 1) / 2));
+        fan.appendChild(bo);
+      });
+      v.appendChild(fan);
+    } else if (wcs.length) {
+      // all wildcards: the cards themselves, fanned
+      const faces = wcs.flatMap(([r, n]) => Array.from({ length: Math.min(n, 2) }, () => r)).slice(0, 5);
+      const fan = el('div', { class: 'bv-fan' });
+      faces.forEach((r, i) => {
+        const f = el('div', { class: 'wc-tile-face bv-wc' }, [UI.wildcardFace(r)]);
+        f.style.setProperty('--k', String(i - (faces.length - 1) / 2));
+        fan.appendChild(f);
+      });
+      v.appendChild(fan);
+    }
+    if (wcs.length) {
+      v.appendChild(el('div', { class: 'bv-wcs' }, wcs.map(([r, n]) => el('span', { class: 'bv-gem',
+        html: UI.wildcardIconHtml(r) + `<b>×${n}</b>`, title: `${n} ${RAR_NAME[r]} wildcard${n > 1 ? 's' : ''}` }))));
+    }
+    const total = packsIn(b);
+    if (total) v.appendChild(el('span', { class: 'bv-count', text: `${total} pack${total > 1 ? 's' : ''}` }));
+    return v;
+  }
+  function bundleCard(b) {
+    const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', disabled: true, 'aria-label': 'Buy the ' + b.title });
+    const was = el('s', { class: 'bundle-was dim' });
+    const card = el('div', { class: 'store-card bundle' }, [
+      bundleVisual(b),
+      el('div', { class: 'sc-title', text: b.title }),
+      el('div', { class: 'sc-sub dim', text: b.blurb }),
+      el('div', { class: 'bundle-has', text: bundleContents(b) }),
+      el('div', { class: 'bundle-buy' }, [btn, was, el('span', { class: 'pack-tag bonus', text: `Save ${Math.round(b.off * 100)}%` })]),
+    ]);
+    bundlePrice(b).then(({ full, cost }) => {
+      btn.disabled = false;
+      btn.innerHTML = shardSvg() + ' ' + fmtN(cost);
+      was.textContent = fmtN(full);
+      was.title = 'What it all costs bought apart';
+      btn.onclick = () => UI.purchaseDialog({
+        title: b.title, sub: bundleContents(b), cost, fly: Math.max(1, packsIn(b)), to: packsIn(b) ? 'hoard' : null,
+        visual: bundleVisual(b), buy: () => E().buyBundle(b.parts, b.wc, cost),
+      });
+    }).catch(() => { btn.textContent = 'Unavailable'; });
+    return card;
+  }
+
+  /**
+   * A grid that only ever shows one row: as many tiles as fit across (each
+   * at least `minW` wide, `gap` apart), and again when the width changes.
+   * `make(item)` draws a tile.
+   */
+  function oneRow(cls, items, make, minW, gap) {
+    const grid = el('div', { class: 'store-grid one-row ' + cls });
+    let shown = -1;
+    const fit = () => {
+      const w = grid.clientWidth;
+      if (!w) return;
+      const n = Math.max(1, Math.min(items.length, Math.floor((w + gap) / (minW + gap))));
+      if (n === shown) return;
+      shown = n;
+      grid.replaceChildren(...items.slice(0, n).map(make));
+    };
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => { if (!grid.isConnected && shown >= 0) { ro.disconnect(); return; } fit(); });
+      ro.observe(grid);
+    } else grid.replaceChildren(...items.slice(0, 4).map(make));
+    return grid;
+  }
+  /** A section of the featured page: its heading, the way to its whole tab, and its row. */
+  function shelf(title, tab, go, row) {
+    return el('section', { class: 'store-shelf' }, [
+      el('div', { class: 'store-h-row' }, [
+        el('h3', { class: 'store-h', text: title }),
+        tab ? el('button', { type: 'button', class: 'btn ghost sm see-all', text: 'See all \u203a', onclick: () => go(tab) }) : null,
+      ].filter(Boolean)),
+      row,
+    ]);
+  }
+  /** A small tile that leads to its tab. */
+  const miniTile = (go, tab, label, visual, title, sub) => el('button', { type: 'button', class: 'store-card mini', 'aria-label': label, onclick: () => go(tab) }, [
+    visual, el('div', { class: 'sc-title', text: title }), sub ? el('div', { class: 'sc-sub dim', html: sub }) : null,
+  ].filter(Boolean));
+
   async function featured(body, opts) {
-    const sets = await MTG.scry.draftableSets().catch(() => []);
+    const go = opts.go || (() => {});
+    const [sets, onSale] = await Promise.all([MTG.scry.draftableSets().catch(() => []), MTG.scry.packSets().catch(() => [])]);
     if (!sets.length) { body.appendChild(el('p', { class: 'dim', text: 'The sets could not be loaded. Check the connection, or download the card database in Options.' })); return; }
+    const S = E();
     const s = sets[0];
     const hero = el('section', { class: 'store-hero' });
     const bg = el('div', { class: 'hero-art' });
-    setArt(s.code).then(a => { if (a) bg.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    setArt(s.code).then(a => paintArt(bg, a));
     hero.append(bg, el('div', { class: 'hero-shade' }), el('div', { class: 'hero-in' }, [
       boosterEl(s, 'play', { big: true }),
       el('div', { class: 'hero-copy' }, [
@@ -386,43 +545,59 @@
         el('h2', { text: s.name }),
         el('p', { class: 'dim', text: `Released ${s.released_at}. Play Boosters: fourteen cards, a rare or mythic in every pack, and a foil.` }),
         el('div', { class: 'hero-buy' }, [
-          buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), E().hasCollector(s) ? buyBtn(s, 'collector', 1) : null,
+          buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), S.hasCollector(s) ? buyBtn(s, 'collector', 1) : null,
         ].filter(Boolean)),
       ]),
     ]));
     body.appendChild(hero);
-    // bundles: packs of the last few sets together
-    const bundles = el('div', { class: 'store-grid bundles' });
-    const offers = [
-      { title: 'Starter bundle', sub: `5 packs of ${s.name}, and a rare wildcard`, cost: 5000, set: s, kind: 'play', n: 5, give: () => { E().buyPacks(s, 'play', 5); }, wc: 'rare' },
-      E().hasCollector(s) ? { title: 'Collector’s trio', sub: `3 Collector Boosters of ${s.name}`, cost: 7500, set: s, kind: 'collector', n: 3, give: () => { E().buyPacks(s, 'collector', 3); } } : null,
-    ].filter(Boolean);
-    if (sets[1]) offers.push({ title: 'Catch-up bundle', sub: `6 packs of ${sets[1].name}`, cost: 6000, set: sets[1], kind: 'play', n: 6, give: () => { E().buyPacks(sets[1], 'play', 6); } });
-    for (const o of offers) {
-      bundles.appendChild(el('div', { class: 'store-card bundle' }, [
-        el('div', { class: 'sc-title', text: o.title }),
-        el('div', { class: 'sc-sub dim', text: o.sub }),
-        el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(o.cost), onclick: () => UI.purchaseDialog({
-          title: o.title, sub: o.sub, cost: o.cost, fly: o.n, to: 'hoard',
-          visual: packFan(o.set, o.kind, o.n),
-          buy: () => {
-            if (E().shards() < o.cost) return { ok: false, why: `That costs ${fmtN(o.cost)} Shards.` };
-            // the bundle's price, not the packs' own: the difference back first, then the packs bought
-            const packsCost = E().packPrice(o.set, o.kind) * o.n;
-            if (packsCost !== o.cost) E().addShards(packsCost - o.cost, 'bundle');
-            o.give();
-            if (o.wc) { E().state.wc[o.wc]++; E().save(); }
-            return { ok: true };
-          },
-        }) }),
-      ]));
-    }
-    body.appendChild(el('h3', { class: 'store-h', text: 'Bundles' }));
-    body.appendChild(bundles);
-    body.appendChild(el('h3', { class: 'store-h', text: 'Recent sets' }));
-    const grid = el('div', { class: 'store-grid packs' });
-    for (const st of sets.slice(1, 7)) grid.appendChild(packTile(st));
-    body.appendChild(grid);
+
+    // bundles, each cheaper than what is in it
+    const bundles = el('div', { class: 'store-grid bundles' }, bundleOffers(onSale.length ? onSale : sets).map(bundleCard));
+    body.appendChild(shelf('Bundles', null, go, bundles));
+
+    // the recent sets: one row of them, however wide the screen
+    body.appendChild(shelf('Recent sets', 'packs', go, oneRow('packs', sets.slice(1, 13), (st) => packTile(st), 230, 16)));
+
+    // a row from every other tab
+    const decks = oneRow('mini', [], () => null, 170, 16);
+    body.appendChild(shelf('Commander decks', 'precons', go, decks));
+    preconList().then((list) => {
+      const row = oneRow('mini', list.slice(0, 10), (p) => {
+        const art = el('div', { class: 'mini-art' });
+        const had = artReg.by['deck:' + p.file];
+        if (had) art.style.backgroundImage = 'url("' + had.url + '")';
+        else preconInfo(p).then((info) => { if (info.art) art.style.backgroundImage = 'url("' + info.art + '")'; }).catch(() => {});
+        return miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
+      }, 170, 16);
+      decks.replaceWith(row);
+    }).catch(() => decks.replaceWith(el('p', { class: 'dim', text: 'The deck lists could not be loaded.' })));
+
+    const dealRow = oneRow('mini', [], () => null, 170, 16);
+    body.appendChild(shelf('Daily deals', 'deals', go, dealRow));
+    S.dailyDeals(makeDeals).then((items) => {
+      dealRow.replaceWith(oneRow('mini', items || [], (d) => {
+        const card = d.card || { name: d.name, id: d.id };
+        const url = MTG.scry.imageUrl(card, 'normal', 0);
+        return miniTile(go, 'deals', d.name, el('div', { class: 'deal-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
+          d.name, d.bought ? 'Bought' : shardSvg() + ' ' + fmtN(d.price));
+      }, 170, 16));
+    }).catch(() => dealRow.replaceWith(el('p', { class: 'dim', text: 'No deals could be found today.' })));
+
+    const art = S.sleeves().art || {};
+    const sleeves = S.SLEEVES.filter(sl => !S.sleeves().owned.includes(sl.id) && (sl.kind !== 'art' || art[sl.id]));
+    body.appendChild(shelf('Sleeves', 'sleeves', go, oneRow('mini', sleeves, (sl) =>
+      miniTile(go, 'sleeves', sl.name + ' sleeve', sleeveFace(sl, art[sl.id]), sl.name,
+        shardSvg() + ' ' + fmtN(sl.kind === 'custom' ? S.PRICES.sleeveCustom : S.PRICES.sleeve)), 170, 16)));
+
+    const me = (MTG.app && MTG.app.myName) || 'You';
+    const frames = S.FRAMES.filter(fr => !S.state.frames.owned.includes(fr.id));
+    body.appendChild(shelf('Frames', 'frames', go, oneRow('mini', frames, (fr) =>
+      miniTile(go, 'frames', fr.name + ' frame', el('div', { class: 'mini-portrait' }, [UI.portrait(me, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id })]),
+        fr.name, shardSvg() + ' ' + fmtN(fr.price)), 170, 16)));
+
+    body.appendChild(shelf('Wildcards', 'wildcards', go, oneRow('mini', RAR, (r) =>
+      miniTile(go, 'wildcards', RAR_NAME[r] + ' wildcard', el('div', { class: 'wc-tile-face' }, [UI.wildcardFace(r)]),
+        `${RAR_NAME[r]} wildcard`, shardSvg() + ' ' + fmtN(S.WC_PRICES[r])), 170, 16)));
   }
 
   function notEnough(cost) {
@@ -715,22 +890,22 @@
     draw();
   }
 
+  /** Today's deals, the first time they are asked for: a mythic and two rares from recent sets. */
+  async function makeDeals() {
+    const sets = (await MTG.scry.draftableSets()).slice(0, 6);
+    const code = (i) => sets[i % sets.length].code;
+    const pick = async (q) => { const r = await MTG.scry.search(q, { max: 40, order: 'edhrec', unique: 'cards' }); return r[Math.floor(Math.random() * Math.min(r.length, 20))]; };
+    const out = [];
+    for (const [q, i] of [['r:mythic', 0], ['r:rare', 1], ['r:rare', 2]]) {
+      try { const c = await pick(`set:${code(i)} ${q} -t:land`); if (c) out.push(c); } catch (e) { /* skip */ }
+    }
+    return out;
+  }
   async function deals(body) {
     const wrap = el('div', { class: 'store-grid deals' }, [el('p', { class: 'dim', text: 'Finding today’s deals…' })]);
     body.append(el('p', { class: 'dim', text: 'Three cards from recent sets, new every day. A card you already have four of cannot be bought.' }), wrap);
     let items = [];
-    try {
-      items = await E().dailyDeals(async () => {
-        const sets = (await MTG.scry.draftableSets()).slice(0, 6);
-        const code = (i) => sets[i % sets.length].code;
-        const pick = async (q) => { const r = await MTG.scry.search(q, { max: 40, order: 'edhrec', unique: 'cards' }); return r[Math.floor(Math.random() * Math.min(r.length, 20))]; };
-        const out = [];
-        for (const [q, i] of [['r:mythic', 0], ['r:rare', 1], ['r:rare', 2]]) {
-          try { const c = await pick(`set:${code(i)} ${q} -t:land`); if (c) out.push(c); } catch (e) { /* skip */ }
-        }
-        return out;
-      });
-    } catch (e) { items = []; }
+    try { items = await E().dailyDeals(makeDeals); } catch (e) { items = []; }
     wrap.innerHTML = '';
     if (!items.length) { wrap.appendChild(el('p', { class: 'dim', text: 'No deals could be found today. Check the connection.' })); return; }
     items.forEach((d, i) => {

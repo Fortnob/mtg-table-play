@@ -41,6 +41,16 @@ html[data-play="1"] .shard-chip { display: none; }
 .hero-art { position: absolute; inset: 0; background: #1a1d26 center 30% / cover no-repeat; transform: scale(1.03); }
 .hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,10,16,.92) 0%, rgba(8,10,16,.7) 45%, rgba(8,10,16,.15) 100%); }
 .hero-in { position: relative; display: flex; gap: 32px; align-items: center; padding: 26px 32px; }
+/* The Store as wide as the screen and no wider: the tabs scroll sideways in
+   their own row (seven of them are wider than a phone), and the newest set
+   stands above its words. */
+.store { min-width: 0; max-width: 100%; }
+.store-tabs { overflow-x: auto; scrollbar-width: none; }
+.store-tabs::-webkit-scrollbar { display: none; }
+.store-tab { flex: none; white-space: nowrap; }
+:root[data-phone] .store-tab { padding: 10px 12px; }
+:root[data-phone] .hero-in { flex-direction: column; gap: 14px; padding: 18px 16px; text-align: center; }
+:root[data-phone] .hero-in .hero-buy { justify-content: center; }
 .hero-copy h2 { margin: 4px 0 8px; font-size: 34px; font-family: var(--font-display, inherit); }
 .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-hi, #f3cf7a); font-weight: 700; }
 .hero-buy, .pack-buys { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; justify-content: center; }
@@ -52,6 +62,35 @@ html[data-play="1"] .shard-chip { display: none; }
 .store-grid.packs { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .store-grid.bundles { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .store-grid.deals { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+/* a shelf of the featured page: exactly one row (oneRow), and the way to its tab */
+.store-grid.mini { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.store-grid.one-row { min-height: 40px; }
+.store-shelf { margin-top: 6px; }
+.store-h-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.see-all { font-size: 12.5px; white-space: nowrap; }
+.store-card.mini { cursor: pointer; padding: 12px 10px; font: inherit; color: inherit; align-content: start; }
+.store-card.mini .sc-title { font-size: 13.5px; }
+.store-card.mini .deal-img { width: 108px; }
+.store-card.mini .sleeve-tile-face, .store-card.mini .wc-tile-face { width: 96px; }
+.mini-art { width: 100%; aspect-ratio: 16 / 10; border-radius: 10px; background: #1a1d26 center 25% / cover no-repeat; }
+.mini-portrait { display: grid; place-items: center; height: 108px; }
+/* a bundle: what is in it, to look at, and what it saves */
+.store-card.bundle { align-content: start; gap: 6px; }
+.bundle-visual { position: relative; width: 100%; height: 176px; display: grid; place-items: center; margin-bottom: 4px;
+  background: radial-gradient(ellipse at 50% 62%, rgba(243, 221, 150, .13), transparent 70%); }
+.bv-fan { position: relative; width: 100%; height: 168px; }
+.bv-fan > .booster, .bv-fan > .bv-wc { position: absolute; left: 50%; top: 50%; width: 82px; translate: -50% -50%; transform-origin: 50% 96%;
+  transform: rotate(calc(var(--k) * 8deg)) translateX(calc(var(--k) * 16px)); box-shadow: 0 8px 18px rgba(0,0,0,.55); }
+.store-card.bundle:hover .bv-fan > * { transform: rotate(calc(var(--k) * 11deg)) translateX(calc(var(--k) * 22px)); transition: transform .25s ease-out; }
+.bv-wcs { position: absolute; right: 4px; bottom: 2px; display: flex; gap: 4px; }
+.bv-gem { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 4px; border-radius: 99px; font-size: 12px;
+  background: rgba(10, 12, 18, .88); border: 1px solid rgba(255,255,255,.14); }
+.bv-gem svg { width: 16px; height: 16px; }
+.bv-count { position: absolute; left: 4px; bottom: 2px; padding: 2px 9px; border-radius: 99px; font-size: 11.5px; color: #eadfb4;
+  background: rgba(10, 12, 18, .88); border: 1px solid rgba(255,255,255,.14); }
+.bundle-has { font-size: 12px; line-height: 1.4; color: #c9cfdb; }
+.bundle-buy { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.bundle-was { font-size: 12px; }
 .store-card { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 16px 14px; border-radius: 14px;
   background: linear-gradient(180deg, rgba(30, 34, 46, .9), rgba(18, 20, 28, .9)); border: 1px solid rgba(255,255,255,.08);
   transition: transform .15s, border-color .15s; }

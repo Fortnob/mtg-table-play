@@ -339,6 +339,32 @@
     return (setInfo.released_at || '') >= COLLECTOR_SINCE && ['expansion', 'core', 'masters', 'draft_innovation'].includes(setInfo.set_type);
   }
 
+  /**
+   * A bundle: packs of one or more sets, and wildcards, together for less
+   * than they cost apart. parts: [{ set, kind, n }]; wc: { rarity: n }.
+   * Paid once, at the bundle's price; nothing is bought if any part cannot be.
+   */
+  function buyBundle(parts, wc, cost) {
+    load();
+    parts = parts || [];
+    if (!(cost > 0)) return { ok: false, why: 'That bundle has no price.' };
+    for (const p of parts) {
+      if (!p.set || !p.set.code) return { ok: false, why: 'A set in that bundle is missing.' };
+      if (p.kind === 'collector' && !hasCollector(p.set)) return { ok: false, why: `${p.set.name} has no Collector Boosters.` };
+    }
+    for (const r of Object.keys(wc || {})) if (!(r in WC_PRICES)) return { ok: false, why: 'There is no such wildcard.' };
+    if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= cost;
+    for (const p of parts) {
+      for (let i = 0; i < Math.max(1, Math.floor(p.n || 1)); i++) {
+        state.packs.push({ id: MTG.uid('pk'), set: p.set.code, name: p.set.name, kind: p.kind || 'play' });
+      }
+    }
+    for (const [r, n] of Object.entries(wc || {})) state.wc[r] = (state.wc[r] || 0) + Math.max(0, Math.floor(n));
+    save('bundle', -cost);
+    return { ok: true, cost };
+  }
+
   function buyPacks(setInfo, kind, qty) {
     load();
     qty = Math.max(1, Math.floor(qty || 1));
@@ -712,7 +738,7 @@
     save: () => save(),
     isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard, cardValue,
     packPrice, appraise, needsAppraisal,
-    buyPacks, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
+    buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
