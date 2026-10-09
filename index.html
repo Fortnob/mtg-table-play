@@ -4180,6 +4180,9 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .deck-name-input { font: 600 20px/1.2 var(--serif) !important; padding: 8px 10px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
 .deck-name-input:hover { border-color: rgba(255,255,255,.12) !important; }
 .deck-name-input:focus { border-color: var(--gold-mid) !important; background: rgba(0,0,0,.3) !important; }
+/* a deck not named yet: the name it will get, faint, in a box that asks to be filled */
+.deck-name-input::placeholder { color: var(--ink-3); opacity: .6; font-style: italic; }
+.deck-name-input:placeholder-shown:not(:focus) { border-color: rgba(255,255,255,.16) !important; border-style: dashed !important; }
 .deck-head-row { display: flex; gap: 8px; align-items: center; }
 .deck-head-row select { flex: 1; min-width: 0; }
 .size-meter { height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
@@ -4673,6 +4676,16 @@ html[data-play="1"] .shard-chip { display: none; }
 .hero-art { position: absolute; inset: 0; background: #1a1d26 center 30% / cover no-repeat; transform: scale(1.03); }
 .hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,10,16,.92) 0%, rgba(8,10,16,.7) 45%, rgba(8,10,16,.15) 100%); }
 .hero-in { position: relative; display: flex; gap: 32px; align-items: center; padding: 26px 32px; }
+/* The Store as wide as the screen and no wider: the tabs scroll sideways in
+   their own row (seven of them are wider than a phone), and the newest set
+   stands above its words. */
+.store { min-width: 0; max-width: 100%; }
+.store-tabs { overflow-x: auto; scrollbar-width: none; }
+.store-tabs::-webkit-scrollbar { display: none; }
+.store-tab { flex: none; white-space: nowrap; }
+:root[data-phone] .store-tab { padding: 10px 12px; }
+:root[data-phone] .hero-in { flex-direction: column; gap: 14px; padding: 18px 16px; text-align: center; }
+:root[data-phone] .hero-in .hero-buy { justify-content: center; }
 .hero-copy h2 { margin: 4px 0 8px; font-size: 34px; font-family: var(--font-display, inherit); }
 .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-hi, #f3cf7a); font-weight: 700; }
 .hero-buy, .pack-buys { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; justify-content: center; }
@@ -4684,6 +4697,35 @@ html[data-play="1"] .shard-chip { display: none; }
 .store-grid.packs { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .store-grid.bundles { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .store-grid.deals { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+/* a shelf of the featured page: exactly one row (oneRow), and the way to its tab */
+.store-grid.mini { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.store-grid.one-row { min-height: 40px; }
+.store-shelf { margin-top: 6px; }
+.store-h-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.see-all { font-size: 12.5px; white-space: nowrap; }
+.store-card.mini { cursor: pointer; padding: 12px 10px; font: inherit; color: inherit; align-content: start; }
+.store-card.mini .sc-title { font-size: 13.5px; }
+.store-card.mini .deal-img { width: 108px; }
+.store-card.mini .sleeve-tile-face, .store-card.mini .wc-tile-face { width: 96px; }
+.mini-art { width: 100%; aspect-ratio: 16 / 10; border-radius: 10px; background: #1a1d26 center 25% / cover no-repeat; }
+.mini-portrait { display: grid; place-items: center; height: 108px; }
+/* a bundle: what is in it, to look at, and what it saves */
+.store-card.bundle { align-content: start; gap: 6px; }
+.bundle-visual { position: relative; width: 100%; height: 176px; display: grid; place-items: center; margin-bottom: 4px;
+  background: radial-gradient(ellipse at 50% 62%, rgba(243, 221, 150, .13), transparent 70%); }
+.bv-fan { position: relative; width: 100%; height: 168px; }
+.bv-fan > .booster, .bv-fan > .bv-wc { position: absolute; left: 50%; top: 50%; width: 82px; translate: -50% -50%; transform-origin: 50% 96%;
+  transform: rotate(calc(var(--k) * 8deg)) translateX(calc(var(--k) * 16px)); box-shadow: 0 8px 18px rgba(0,0,0,.55); }
+.store-card.bundle:hover .bv-fan > * { transform: rotate(calc(var(--k) * 11deg)) translateX(calc(var(--k) * 22px)); transition: transform .25s ease-out; }
+.bv-wcs { position: absolute; right: 4px; bottom: 2px; display: flex; gap: 4px; }
+.bv-gem { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 4px; border-radius: 99px; font-size: 12px;
+  background: rgba(10, 12, 18, .88); border: 1px solid rgba(255,255,255,.14); }
+.bv-gem svg { width: 16px; height: 16px; }
+.bv-count { position: absolute; left: 4px; bottom: 2px; padding: 2px 9px; border-radius: 99px; font-size: 11.5px; color: #eadfb4;
+  background: rgba(10, 12, 18, .88); border: 1px solid rgba(255,255,255,.14); }
+.bundle-has { font-size: 12px; line-height: 1.4; color: #c9cfdb; }
+.bundle-buy { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.bundle-was { font-size: 12px; }
 .store-card { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 16px 14px; border-radius: 14px;
   background: linear-gradient(180deg, rgba(30, 34, 46, .9), rgba(18, 20, 28, .9)); border: 1px solid rgba(255,255,255,.08);
   transition: transform .15s, border-color .15s; }
@@ -7721,6 +7763,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      here as itself. */
   const NOT_SOLD = new Set(['om1', 'omb']);
 
+  /* Never in the card pool: the nine cards that play for ante, banned in
+     every format and meaningless in a game not played for keeps. No
+     search, pack, draft, Collector Booster or suggestion turns one up;
+     asked for by name or id (a deck that already has one) it is still
+     found, so nothing that loads breaks. */
+  const ANTE = new Set(['Amulet of Quoz', 'Bronze Tablet', 'Contract from Below', 'Darkpact', 'Demonic Attorney',
+    'Jeweled Bird', 'Rebirth', 'Tempest Efreet', 'Timmerian Fiends']);
+  const isAnte = (c) => !!c && (ANTE.has(c.name) || /\bplaying for ante\b/i.test(c.oracle_text || ''));
+  const noAnte = (cards) => (cards || []).filter(c => !isAnte(c));
+
   /* ---------------- the client ---------------- */
   class Scryfall {
     constructor() {
@@ -8001,14 +8053,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const max = opts.max || 175;
       const local = await this._localDb(opts);
       if (local && local.answers(query, opts)) {
-        try { const cards = local.search(query, opts); this.stats.local++; return cards; }
+        try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); }
         catch (e) { if (!(e instanceof local.Unsupported)) throw e; /* beyond the local engine: Scryfall it is */ }
       }
-      try { return await this._liveSearch(query, opts, max); }
+      try { return noAnte(await this._liveSearch(query, opts, max)); }
       catch (e) {
         if (e && e.stale) throw e;
         // offline with a database that could not answer exactly: its best is better than nothing
-        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return cards; } catch (e2) {} }
+        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); } catch (e2) {} }
         throw e;
       }
     }
@@ -8051,10 +8103,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     async autocomplete(q, opts) {
       if (!q || q.length < 2) return [];
       const local = await this._localDb();
-      if (local) return local.idx.autocomplete(q, 20);
+      if (local) return local.idx.autocomplete(q, 20).filter(n => !ANTE.has(n));
       try {
         const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q), { signal: opts && opts.signal });
-        return (d && d.data) || [];
+        return ((d && d.data) || []).filter(n => !ANTE.has(n));
       } catch (e) { return []; }
     }
 
@@ -8063,11 +8115,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (local && local.answers(query || '', {})) {
         try {
           const ids = local.idx.query(query || '-t:basic', {});
-          if (ids.length) return local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
+          for (let tries = 0; ids.length && tries < 8; tries++) {
+            const c = local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
+            if (!isAnte(c)) return c;
+          }
         } catch (e) { /* Scryfall can */ }
       }
-      const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
-      return c ? (await this._store([c]))[0] : null;
+      for (let tries = 0; tries < 4; tries++) {
+        const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
+        if (!c) return null;
+        if (!isAnte(c)) return (await this._store([c]))[0];
+      }
+      return null;
     }
 
     /* ================= printings (art selection) ================= */
@@ -8362,6 +8421,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
 
     _bucket(cards) {
+      cards = noAnte(cards);
       const b = {
         all: cards, playable: [], common: [], uncommon: [], rare: [], mythic: [],
         special: [], bonus: [], basics: [], nonbasicLands: [],
@@ -8474,6 +8534,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   }
 
   MTG.scry = new Scryfall();
+  /** Whether a card is one of the ante cards, left out of the card pool. */
+  MTG.scry.isAnte = isAnte;
 
   /* ---------------- a game in progress ----------------
      Kept in IndexedDB rather than localStorage: a snapshot carries whole
@@ -12868,7 +12930,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
     /* Any other "Tap all …" whose words are a scope: "Tap all creatures you
        control", "Tap all attacking creatures", "Tap all nonwhite creatures" */
-    { re: /^Tap all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents|[A-Z][a-z]+s)(?: you control| your opponents control| without flying| with toughness \d+ or less)?)\.?$/,
+    // (Nature's Will, Torrent Elemental: "that player controls", "defending player controls" — tapThatPlayers)
+    { re: /^Tap all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents|[A-Z][a-z]+s)(?: you control| your opponents control| without flying| with toughness \d+ or less| that player controls| defending player controls)?)\.?$/,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'tapAll', scope: sc } : null; } },
     /* "Tap all creatures target player controls" (Sleep), Kiora Bests the
        Sea God: "Tap all nonland permanents target opponent controls." —
@@ -13267,7 +13330,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Create half X (Food|Treasure|Clue) tokens, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: { half: 'X', up: /up/i.test(m[2]) }, token: m[1] }) },
     // Sunspine Lynx: "it deals damage to each player equal to the number of nonbasic lands that player controls"
-    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s that player controls\.?$/i,
+    // (Acidic Soil: "… the number of lands they control")
+    { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s (?:that player|they) controls?\.?$/i,
       make: (m) => ({ op: 'damageEachByCount', what: m[2].toLowerCase(), mult: m[1] ? 2 : 1 }) },
     // Oswald Fiddlebender: "an artifact card with mana value equal to 1 plus the sacrificed artifact's mana value"
     { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.?$/i,
@@ -13598,6 +13662,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^If you sacrificed a (creature|permanent) this way, you may return another (creature|permanent) card from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: Object.assign({ kind: 'youSacrificedThisWay' }, /creature/i.test(m[1]) ? { what: 'Creature' } : {}),
         then: [{ op: 'may', then: [{ op: 'graveyardPick', n: 1, upTo: false, filter: m[2].toLowerCase(), to: 'battlefield', notSacrificed: true }] }] }) },
+    // Gift of Immortality: "Return this card to the battlefield attached to that creature at the beginning of the next end step." (returnAuraLater)
+    { re: /^Return this card to the battlefield attached to that creature at the beginning of the next end step\.?$/i, make: () => ({ op: 'returnSelfAttachedLater' }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -13624,6 +13690,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Biorhythm, Shaman of Forgotten Ways: "Each player's life total becomes the number of creatures they control."
     { re: /^Each player'?s life total becomes the number of (creatures|lands|permanents|artifacts) they control\.?$/i,
       make: (m) => ({ op: 'setLife', who: 'each', n: { eachControls: m[1].toLowerCase().replace(/s$/, '') } }) },
+    // Repay in Kind: "Each player's life total becomes the lowest life total among all players." (eachControls)
+    { re: /^Each player'?s life total becomes the lowest life total among all players\.?$/i, make: () => ({ op: 'setLife', who: 'each', n: { lowestLife: true } }) },
     // Magus of the Mirror, Mirror Universe: "Exchange life totals with target opponent."
     { re: /^Exchange life totals with target (opponent|player)\.?$/i,
       make: (m) => ({ op: 'exchangeLife', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
@@ -13683,9 +13751,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         addTypes: m[5] ? ['Artifact'] : [], keywords: m[6] ? keywordList(m[6]) : [] }) },
     /* the sentences after a counterspell, about the spell it countered */
     // Cityscape Leveler: "Its controller creates a tapped Powerstone token."
-    { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
+    { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk|Lander) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: num(m[1]), who: 'targetController', tapped: true }) },
-    { re: /^Its controller creates (a|an|one|two|three|four|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk) tokens?\.?$/i,
+    { re: /^Its controller creates (a|an|one|two|three|four|\d+) (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk|Lander) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', who: 'targetController', n: num(m[1]),
         token: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }) },
     { re: /^Each opponent attacking that player does the same\.?$/i, make: () => ({ op: 'noop', sameForAttacker: true }) },
@@ -14985,8 +15053,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Destroy each creature that blocked or was blocked this turn\.?$/i,
       make: () => ({ op: 'destroyAll', what: 'creature', blockedOrWasBlocked: true }) },
     // Dauntless Dismantler: "Destroy each artifact with mana value X."
-    { re: /^Destroy (?:each|all) (artifact|creature|enchantment|nonland permanent)s? with mana value (X|\d+)\.?$/i,
-      make: (m) => { const v = m[2] === 'X' ? 'X' : +m[2]; return { op: 'destroyAll', what: m[1].toLowerCase(), minMv: v, maxMv: v }; } },
+    // (Meltdown: "with mana value X or less" — smallSweep)
+    { re: /^Destroy (?:each|all) (artifact|creature|enchantment|nonland permanent)s? with mana value (X|\d+)( or less)?\.?$/i,
+      make: (m) => { const v = m[2] === 'X' ? 'X' : +m[2]; return Object.assign({ op: 'destroyAll', what: m[1].toLowerCase(), maxMv: v }, m[3] ? {} : { minMv: v }); } },
     { re: /^Destroy all ([A-Z][a-z]+s)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase() }) },
     { re: /^Counter (target (?:[a-z-]+, )*(?:or )?[a-z-]+(?: or [a-z-]+)? spell)\.?$/i,
@@ -15623,6 +15692,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Dark Deal: "…then draws that many cards minus one"
     { re: /^Each player discards all the cards in their hand, then draws that many cards minus one\.?$/i,
       make: () => ({ op: 'wheel', n: 'sameMinusOne' }) },
+    // Shield-Wall Sentinel, Isperia the Inscrutable: "a creature card with defender (flying)" (tutorKeyword)
+    { re: /^Search your library for an? (creature|artifact creature|[a-z]+ creature) card with (flying|defender|haste|trample|deathtouch|lifelink|vigilance|reach|first strike|flash), reveal it, put it into your hand, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), withKeyword: m[2].toLowerCase(), to: 'hand',
+        prompt: `Search your library for ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card with ${m[2].toLowerCase()}.` }) },
     /* Waterlogged Teachings: "an instant card or a card with flash" */
     { re: /^Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle\.?$/i,
       make: () => ({ op: 'tutor', n: 1, filter: 'any', instantOrFlash: true, to: 'hand' }) },
@@ -16218,6 +16291,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
+      return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
+    // Morbid Curiosity, Shadow: "the mana value of the sacrificed permanent"
+    if ((m = p.match(/^the (power|toughness|mana value) of the sacrificed (?:creature|artifact|permanent|land)$/i)))
       return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
@@ -17094,12 +17170,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        the battlefield under its owner's control. If it entered under your
        control, put a +1/+1 counter on CARDNAME." (and the same without the
        last sentence) */
-    { re: /^(Exile (?:up to one )?(?:other )?target [a-z ]+?)\. At the beginning of the next end step, return that card to the battlefield under its owner'?s control\.( If it entered under your control, put a \+1\/\+1 counter on CARDNAME\.)?$/i,
-      make: (m) => {
+    // (Otherworldly Journey, Long Road Home: "… under its owner's control with a +1/+1 counter on it" — flickerCounter)
+    { re: /^(Exile (?:up to one )?(?:other )?target [a-z ]+?)\. At the beginning of the next end step, return that card to the battlefield under its owner'?s control( with a \+1\/\+1 counter on it)?\.( If it entered under your control, put a \+1\/\+1 counter on CARDNAME\.)?$/i,
+      make: (m0) => {
+        const m = [m0[0], m0[1], m0[3]];
         const ex = parseSentenceList(splitSentences(m[1] + '.'));
         if (!ex.auto || ex.effects.length !== 1 || ex.effects[0].op !== 'exile') return null;
         return [ex.effects[0], { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
-          effects: [m[2] ? { op: 'returnThatCounterSource' } : { op: 'returnThat' }] }];
+          effects: [m[2] ? { op: 'returnThatCounterSource' } : Object.assign({ op: 'returnThat' }, m0[2] ? { counter: '+1/+1' } : {})] }];
       } },
     /* Call the Coppercoats (strive): "Choose any number of target opponents.
        Create X 1/1 white Human Soldier creature tokens, where X is the number
@@ -19166,6 +19244,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
+    // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)
+    [/^it'?s modified$/i, () => ({ kind: 'selfModified' })],
+    // Slick Sequence, Focus the Mind: "you've cast another spell this turn" — one other than this (castAnotherSpell)
+    [/^you'?ve cast another spell this turn$/i, () => ({ kind: 'castAnotherSpell' })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
     // Banishing Slash: "you control an artifact and an enchantment"
@@ -19971,6 +20053,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
     // Nev, Owlin Spiralmancer, Zimone: "Whenever you cast your first spell with {X} in its mana cost each turn," (firstXSpell)
     { re: /^Whenever you cast your first spell with \{X\} in its mana cost each turn, /i, event: 'youCastSpell', extra: { firstXSpell: true } },
+    /* Solitary Sanctuary, Icewrought Sentry: "Whenever you tap an untapped creature an opponent controls,";
+       Sharae of Numbing Depths: "one or more untapped creatures your opponents control" (youTapTheirs) */
+    { re: /^Whenever you tap an untapped creature an opponent controls, /i, event: 'youTapOpponentCreature' },
+    { re: /^Whenever you tap one or more untapped creatures your opponents control, /i, event: 'youTapOpponentCreature', extra: { batch: true } },
     // Captain Ripley Vance: "Whenever you cast your third spell each turn"
     { re: /^When(?:ever)? you cast your third spell each turn,? /i, event: 'youCastSpell', extra: { castNth: 3 } },
     // Midnight Clock: "When the twelfth hour counter is put on this artifact"
@@ -23157,7 +23243,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -23209,6 +23295,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
     };
     let mm2;
+    // Avatar of Slaughter: "All creatures have double strike and attack each combat if able."
+    if ((mm2 = String(line).match(/^(All creatures|Creatures you control|Other creatures you control) have ([a-z ]+?) and attack each combat if able\.?$/i))) {
+      const r = both(mm2[1] + ' have ' + mm2[2] + '.', mm2[1] + ' attack each combat if able.');
+      if (r) return r;
+    }
     /* Tenza, Godo's Maul: "Equipped creature gets +1/+1. As long as it's legendary, it gets an
        additional +2/+2. As long as it's red, it has trample." — "it's" is the equipped creature */
     if ((mm2 = String(line).match(/^(Enchanted|Equipped) creature gets [+-]\d+\/[+-]\d+\.(?: As long as it'?s [^.]+\.)+$/i))) {
@@ -23831,6 +23922,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // Iron Golem: "attacks or blocks each combat if able"
       { re: /^(?:CARDNAME|This creature) attacks or blocks each combat if able\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'mustBlock' }] }), auto: true },
+      // Treefolk Umbra, Gauntlets of Light: "Enchanted creature gets +0/+2 and assigns combat damage equal to its toughness rather than its power." (toughnessAttached)
+      { re: /^(Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+) and assigns combat damage equal to its toughness rather than its power\.?$/i,
+        make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[2], t: +m[3] } },
+          { op: 'toughnessDamage', who: 'attached' }] }), auto: true },
+      // Amorphous Axe, Runed Stalactite: "Equipped creature gets +1/+0 and is every creature type." — changeling, handed over (everyTypeAttached)
+      { re: /^(Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+) and is every creature type\.?$/i,
+        make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[2], t: +m[3] } },
+          { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Changeling'] }] }), auto: true },
       // Doran and kin: combat damage by toughness
       { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },
@@ -24186,6 +24285,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }, auto: true },
       // "This creature must be blocked if able."
       { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },
+      // Bower Passage: "Creatures with flying can't block creatures you control."; Heat Wave: "Blue creatures can't …" (cantBlockYours)
+      { re: /^(?:Creatures with (flying|reach|defender|horsemanship)|(white|blue|black|red|green|artifact) creatures) can'?t block creatures you control\.?$/i,
+        make: (m) => (m[1] ? { op: 'cantBlockYours', keyword: m[1].toLowerCase() } : { op: 'cantBlockYours', words: m[2].toLowerCase() + ' creature' }), auto: true },
       // Champion of Lambholt: "Creatures with power less than this creature's power can't block creatures you control."
       { re: /^Creatures with power less than (?:this creature|CARDNAME)'?s power can'?t block creatures you control\.?$/i,
         eff: { op: 'smallCantBlock' }, auto: true },
@@ -25900,6 +26002,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       return this.battlefield.some(s => {
         const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
         if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
+        // Treefolk Umbra: only the creature it's attached to (toughnessAttached)
+        if (e.who === 'attached' && s.attachedTo !== o.id) return false;
         return !e.ifTougher || this.toughnessOf(o) > this.powerOf(o);
       });
     }
@@ -33423,6 +33527,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const g = this._staticOp(s, 'groupEvasion');
         if (g && this.powerOf(attacker) <= g.maxPower && this.powerOf(blocker) > g.maxBlockerPower) return false;
         if (this._staticOp(s, 'smallCantBlock') && this.powerOf(blocker) < this.powerOf(s)) return false;
+        // Bower Passage: "Creatures with flying can't block creatures you control." (cantBlockYours)
+        const cb = this._staticOp(s, 'cantBlockYours');
+        if (cb && (cb.keyword ? this.hasKw(blocker, cb.keyword) : this._cardFitsWords(blocker, cb.words))) return false;
       }
       /* "Creatures with power less than this one's can't block it." */
       if (ev && ev.blockerAtLeastMyPower && this.powerOf(blocker) < this.powerOf(attacker)) return false;
@@ -35186,6 +35293,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           return (by[cond.what] || 0) >= (cond.n || 1);
         }
         // Lilypad Village: "if a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn" (enteredTypes)
+        // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
+        case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
+        // Slick Sequence, Focus the Mind: a spell cast this turn other than this one, whether it's being cast or resolving (castAnotherSpell)
+        case 'castAnotherSpell': return !!me && (me.spellObjsThisTurn || []).some(x => x !== src);
         // Rise of the Witch-king: "If you sacrificed a creature this way" (sacrificedThisWay)
         case 'youSacrificedThisWay': return !!me && ((this.resolving || {})._sacBy || []).some(s => s.pid === me.id && (!cond.what || (s.types || []).includes(cond.what)));
         case 'enteredTypeThisTurn': {
@@ -38875,8 +38986,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'tapAll': {
           if (e.scope && typeof e.scope === 'object') {
             // (Kiora Bests the Sea God: the target player's)
-            const tp = e.scope.who === 'target' ? firstPlayer() : null;
-            if (e.scope.who === 'target' && !tp) break;
+            // (Nature's Will: "that player" is the one the trigger is about, not a target — tapThatPlayers)
+            const tp = e.scope.who === 'target' && !e.scope.thatPlayer ? firstPlayer() : null;
+            if (e.scope.who === 'target' && !e.scope.thatPlayer && !tp) break;
             const tapped = this._scopeList(e.scope, ctx.controller, src, tp ? tp.id : undefined);
             for (const x of tapped) this._markTapped(x);
             // Sleep: "Those creatures don't untap …" — the ones just tapped
@@ -39701,6 +39813,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               const sac = (ctx.sacrificed || [])[0];
               if (!sac || mvOf(c) !== sac.mv + e.mvOfSacrificedPlus) return false;
             }
+            // Shield-Wall Sentinel, Isperia: "a creature card with defender (flying)" (tutorKeyword)
+            if (e.withKeyword && !(ca && ca.keywordSet && ca.keywordSet.has(e.withKeyword))) return false;
             // "an instant card or a card with flash"
             if (e.instantOrFlash) return !!(ca && (ca.isInstant || (ca.keywordSet && ca.keywordSet.has('flash'))));
             // Moonsilver Key: "an artifact card with a mana ability or a basic land card"
@@ -39842,7 +39956,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (!made) {
             made = [];
             // "copy this spell" (Sevinne's Reclamation) copies the one resolving
-            const sources = e.self ? [ctx] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
+            /* (Sage of the Skies: "When you cast this spell, … copy this spell" — the
+               spell on the stack, not the trigger, which would copy itself for ever) */
+            const tdS = ctx.triggerData || {};
+            const selfSpell = ctx.kind === 'spell' ? ctx : (tdS.stackId && this.stack.find(x => x.id === tdS.stackId)) || null;
+            const sources = e.self ? [selfSpell] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
             for (const item of sources) {
               if (!item) continue;
               made.push(this._copyOnStack(item, ctx.controller).id);
@@ -40037,7 +40155,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
              (CR 119.5); The Endstone: half the starting life total */
           const start = (this.config && this.config.startingLife) || 20;
           // Biorhythm: each player's own count, all worked out before any life changes (eachControls)
-          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
+          // (Repay in Kind: the lowest life total among all players — eachControls)
+          const lowest = Math.min(...this.players.filter(p => !p.hasLost).map(p => p.life));
+          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
             : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
           who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
           break;
@@ -42571,6 +42691,26 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (!c) { this.logEvent('rules', `${me.name} has no ${e.filter || 'creature'} card in their graveyard.`); break; }
           this.moveObject(c, 'battlefield', { controller: ctx.controller });
           if (c.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
+          break;
+        }
+        /* Gift of Immortality: this Aura comes back at the next end step,
+           attached to the creature the trigger is about (returnAuraLater) */
+        case 'returnSelfAttachedLater': {
+          const hostId = (ctx.triggerData || {}).objectId;
+          if (!src || !hostId) break;
+          this.scheduleDelayed({ event: 'eachEndStep', controller: ctx.controller, forPlayer: null, notBefore: null, sameTurnOk: true,
+            objId: src.id, name: `Return ${src.name}`, effects: [{ op: 'returnAuraTo', auraId: src.id, hostId }] });
+          break;
+        }
+        case 'returnAuraTo': {
+          const c = this.obj(e.auraId), host = this.obj(e.hostId);
+          if (!c || c.zone !== 'graveyard' || !host || host.zone !== 'battlefield') break;
+          this.moveObject(c, 'battlefield', { controller: c.owner });
+          if (c.zone !== 'battlefield') break;
+          c.attachedTo = host.id;
+          host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${c.name} returns attached to ${host.name}.`);
           break;
         }
         case 'returnTriggerCard': {
@@ -45741,6 +45881,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!o._tappedTurn || o._tappedTurn.turn !== this.turn) o._tappedTurn = { turn: this.turn, n: 0 };
       o._tappedTurn.n++;
       this._fire('becomesTapped', o.controller, { source: o, object: o, nth: o._tappedTurn.n });
+      // Solitary Sanctuary, Sharae: an effect of yours tapping an opponent's creature (youTapTheirs)
+      if (this._putBy && this._putBy !== o.controller && (o.analysis() || {}).isCreature) this._fire('youTapOpponentCreature', this._putBy, { object: o, objController: o.controller });
     }
 
     /**
@@ -47805,6 +47947,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           effects: JSON.parse(JSON.stringify(this.resolving.effects)),
           index: this.resolving.index,
           answers: JSON.parse(JSON.stringify(this.resolving.answers)),
+          // Rise of the Witch-king: who sacrificed what so far (sacrificedThisWay)
+          sacBy: this.resolving._sacBy ? JSON.parse(JSON.stringify(this.resolving._sacBy)) : undefined,
           manual: JSON.parse(JSON.stringify(this.resolving.manual)),
           afterKind: this.resolving.afterKind,
         } : null,
@@ -47872,7 +48016,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (ctx.objId) ctx.obj = byId(ctx.objId);
         this.resolving = {
           ctx, effects: rs.effects, index: rs.index, answers: rs.answers,
-          manual: rs.manual, afterKind: rs.afterKind,
+          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy,
           // the callback is a closure, so it is rebuilt from what it was for
           after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx) : null,
         };
@@ -61509,9 +61653,49 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return m;
   }
 
+  /* Collector Boosters began with Throne of Eldraine. A set has them when
+     it has special printings enough to fill them (counted ahead of time,
+     MTG.collectorSets in src/10d0-packart.js); a set newer than that count,
+     when it is a set of the kind that has had them since. */
+  const COLLECTOR_SINCE = '2019-10-04';
+  function hasCollector(setInfo) {
+    if (!setInfo) return false;
+    const code = String(typeof setInfo === 'string' ? setInfo : setInfo.code || '').toLowerCase();
+    if (MTG.collectorSets && MTG.packArt && MTG.packArt[code] !== undefined) return MTG.collectorSets.has(code);
+    if (typeof setInfo === 'string') return false;
+    return (setInfo.released_at || '') >= COLLECTOR_SINCE && ['expansion', 'core', 'masters', 'draft_innovation'].includes(setInfo.set_type);
+  }
+
+  /**
+   * A bundle: packs of one or more sets, and wildcards, together for less
+   * than they cost apart. parts: [{ set, kind, n }]; wc: { rarity: n }.
+   * Paid once, at the bundle's price; nothing is bought if any part cannot be.
+   */
+  function buyBundle(parts, wc, cost) {
+    load();
+    parts = parts || [];
+    if (!(cost > 0)) return { ok: false, why: 'That bundle has no price.' };
+    for (const p of parts) {
+      if (!p.set || !p.set.code) return { ok: false, why: 'A set in that bundle is missing.' };
+      if (p.kind === 'collector' && !hasCollector(p.set)) return { ok: false, why: `${p.set.name} has no Collector Boosters.` };
+    }
+    for (const r of Object.keys(wc || {})) if (!(r in WC_PRICES)) return { ok: false, why: 'There is no such wildcard.' };
+    if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
+    state.shards -= cost;
+    for (const p of parts) {
+      for (let i = 0; i < Math.max(1, Math.floor(p.n || 1)); i++) {
+        state.packs.push({ id: MTG.uid('pk'), set: p.set.code, name: p.set.name, kind: p.kind || 'play' });
+      }
+    }
+    for (const [r, n] of Object.entries(wc || {})) state.wc[r] = (state.wc[r] || 0) + Math.max(0, Math.floor(n));
+    save('bundle', -cost);
+    return { ok: true, cost };
+  }
+
   function buyPacks(setInfo, kind, qty) {
     load();
     qty = Math.max(1, Math.floor(qty || 1));
+    if (kind === 'collector' && !hasCollector(setInfo)) return { ok: false, why: `${(setInfo && setInfo.name) || 'That set'} has no Collector Boosters.` };
     if (needsAppraisal(setInfo)) return { ok: false, why: 'Its price is still being worked out; try again in a moment.' };
     const each = packPrice(setInfo, kind);
     const cost = each * qty;
@@ -61881,7 +62065,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     save: () => save(),
     isBasic, rarityOf, owned, addShards, spend, addCard, addCards, deckPrice, buyDeck, craft, useWildcard, cardValue,
     packPrice, appraise, needsAppraisal,
-    buyPacks, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
+    buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
@@ -62030,8 +62214,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     "ktk": "7dcdf1dbbfaf416080031fa2e56b00dc6e5da7c85c18c2d8995c4736bdef464abcd1d31a4324b35c11746bf1d8134ade8ce49935cebef85689df39ba323749181bcb451696aff27da752517eb2581a6dcf1fe2bf1640478187b409a1f7d35831583d855901890d3e3af342b6834fefcccc93d92144adff3e",
     "lcc": "8aa9682d51764475a0bde000f1d6999a6ea0873073ca9629b1e349d6ae10908b9e4e67cec3d94e2bb8c66fab749442b1bc4edae85a48fa41e3e4103ccf1f630e8b554f5aa7f23161801de7677c6a01f8cf00520194f346d49589ded11f3eb718e83973f2fc69ad569ae24eb5b7e2558524f6cbcc6e5da7c8",
     "lci": "32fd8b7cbaf34d3dbe6f044a917b11a0300529e10ff7858df18d4e5a9467ebef3ef53ac18c322b1f27a1bfb5ddfc49cfbaa35d1958d2067a5eb2d0cad4f6027a003a4f9d929a0b6da1fa42c94549daa548c5b98d73cd4b6999334867da6e8389249cd50b72e805e969be45c1aa04f460641a0c1e9d3136dc",
-    "lea": "55fe64491f2343dcadeed144cd505b5c96b78cb919499cb7eccb4e69af326002d447a160003de8de67b369c4faa845c8a1b998f228b696822374c264a2788d696a3a42f08736cc6b57755ecde87a70b051f8f6e1a451426290d35107caf541757eed9f3d12926dc88e6f4a47a12b4d674189615ac895f461",
-    "leb": "852d7a6886824073a44bf10f5613879c96b78cb9a11f55e87f864ca9b7379a920d9cf282003de8de9052369f840f438eb86de2f8d63395852374c26496dd2d61a43d4582b73071d4fac0fa23e87a70b037634ffe788f426288e85ab7c7ca74d67eed9f3ddbb21f21668a4d578d058db11fb82d99c895f461",
+    "lea": "b0faa7f2b54742c4a810839da50dadfe5443682455fe64491f2343dcadeed144cd505b5c96b78cb919499cb7eccb4e69af326002d447a160003de8de67b369c4faa845c8a1b998f228b696822374c264a2788d696a3a42f08736cc6b57755ecde87a70b051f8f6e1a451426290d35107caf541757eed9f3d",
+    "leb": "46b0a5c2ac85448e9e8712fc74fd4147d20eda7b852d7a6886824073a44bf10f5613879c96b78cb9a11f55e87f864ca9b7379a920d9cf282003de8de9052369f840f438eb86de2f8d63395852374c26496dd2d61a43d4582b73071d4fac0fa23e87a70b037634ffe788f426288e85ab7c7ca74d67eed9f3d",
     "leg": "3bdcfae486c94d8abcfef0a928ec29db76c55bf5111a16a2e875475680db290f9e8606db850303a5336b3b8fd1044f06ad4fc92b8a9038ca8a8e65d92bb0e8845bb441f3b04b6f638357c1664fa54e4e729feb7345814f9dba47bece72481b868e6baed3952ba126091547f09b6aa0a6dcd22c6fd43ec945",
     "lgn": "35b13321e4294497aef293a9df421d383be1444d6c45fd877b444e1ab30f41220b69d9e6aa38e38b814245de610543efacbfd12d304b6331c3c4bb0c33803c121d7849fea3a37f47c60a96b64415deb18bf966ff0fd0404dbe915b0c21035d73ba76862caa432e4eff234ad28d0a403efee86f113ca5ac98",
     "lrw": "8ee73fe8d52b43bbab915545192be676d5c6781418743fd42a1540a2ac90e3f0fef07e37d68175f2adfff880cbf64085bc05c72658b75f259ea81f295cede0be1bdd4392beafb83d0b780eb7b8ed9bd3fdcbf10e32f241c5a7a25f24662892d2526f2563fbfd3898cb064bb99d52b319e1fa2217bd109007",
@@ -62159,6 +62343,567 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     "znc": "cbbfd12c9d164abe83e9ef5fa5977631e83973f2ef3e735257684d4ebefb560b9d10a178dd5a7ad8aa4146f00c8c4b8a8d24b6c5e33eba3d0801b71f7c4d6cceef9247b9a65b870024f71e8344a1164a08c14bb4c9d941cea075a441522a52c6eff013caf675f5094343456896dd265626cb6c2b92ac37a5",
     "znr": "61f428238a484b81a037664ba1c69f290102c697309b2cb5b9a8417db5ae0a7d03ff93f015a2f270a4b759f0901f4be393fa224609b08d4835a54fcf151bdf3a444543b18cea2737c13d9deed6c5218f453406474d3e4be1b0e6e40cc56a438b76c304e0d442c32d457d4fefbba233a07bf23125273f92fb",
   };
+  /* The sets whose first picture was chosen by hand: kept for them before
+     any other pack picks, so a reprint of the same picture cannot take it. */
+  MTG.packArtReserved = ["lea","leb"];
+  /* Where the subject is in a picture whose subject is off to one side,
+     by illustration (first 8 hex digits): [percent across, percent down]. */
+  MTG.artFocus = {"54436824":[66,52],"d20eda7b":[75,56]};
+  /* The sets with special printings enough to fill a Collector Booster
+     (15 or more borderless, showcase, extended or full-art cards). */
+  MTG.collectorSets = new Set("2x2,2xm,acr,afc,afr,big,blb,blc,brc,bro,c21,clb,clu,cmm,cmr,dft,dmc,dmr,dmu,drc,dsc,dsk,ecc,ecl,eld,eoc,eoe,fdn,fic,fin,fra,frc,hob,hoc,iko,inr,khm,lcc,lci,ltc,ltr,m21,m3c,mat,mh2,mh3,mic,mid,mkc,mkm,moc,mom,msc,msh,ncc,nec,neo,onc,one,otc,otj,pip,plst,rvr,snc,soc,sos,spm,stx,tdc,tdm,thb,tla,tle,tmc,tmt,unf,ust,voc,vow,who,woc,woe,znr".split(','));
+})(window.MTG);
+/* ===== 10d1-packfocus.js ===== */
+/* ============================================================
+   10d1-packfocus.js - where the subject is in each pack's picture
+
+   Written by tools/packfocus.py from the pictures themselves (and by eye
+   where that went wrong): by illustration, the first 8 hex digits of its
+   id, [percent across, percent down]. A pack centres its subject
+   (artPosition in src/10d-ui-store.js); a focus chosen by hand in
+   src/10d0-packart.js wins over these.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  MTG.artFocus = Object.assign({
+    "001f03b1": [60, 45],
+    "003de8de": [55, 49],
+    "007b32a6": [51, 51],
+    "0102c697": [62, 44],
+    "010817ac": [47, 54],
+    "01a99fdf": [34, 48],
+    "01b86c63": [62, 51],
+    "01ef34a0": [23, 36],
+    "026a0118": [73, 48],
+    "02ee4007": [58, 40],
+    "02f0f2b2": [31, 47],
+    "040c2755": [53, 46],
+    "0430e309": [42, 48],
+    "0454de83": [49, 44],
+    "046da52f": [46, 49],
+    "04dca913": [27, 60],
+    "0505379c": [48, 46],
+    "05602716": [43, 47],
+    "05ec22d4": [51, 45],
+    "05fc2d1a": [52, 48],
+    "06f51796": [43, 53],
+    "0713f25a": [53, 51],
+    "07fb3356": [21, 48],
+    "0801b71f": [40, 63],
+    "088d3aef": [41, 47],
+    "08d9895e": [62, 45],
+    "096145fa": [71, 50],
+    "0a2abf3a": [46, 46],
+    "0a2b9149": [55, 44],
+    "0a6d1a68": [44, 43],
+    "0ab6096e": [62, 58],
+    "0c2beb17": [34, 52],
+    "0c425797": [40, 40],
+    "0c6d36e6": [59, 43],
+    "0cdea40a": [38, 57],
+    "0de755fc": [21, 47],
+    "0f4b8df6": [54, 52],
+    "0f79c473": [49, 50],
+    "0fce1cc5": [49, 58],
+    "10cf8762": [30, 48],
+    "11812b67": [53, 52],
+    "124153bf": [36, 45],
+    "13166863": [79, 51],
+    "132ef994": [23, 44],
+    "13a2d407": [68, 53],
+    "13d30382": [71, 34],
+    "141d1d89": [48, 51],
+    "1441b19b": [67, 45],
+    "146aaae4": [54, 51],
+    "1538600d": [73, 49],
+    "1574ac83": [23, 49],
+    "1594a8a8": [73, 44],
+    "15a2f270": [69, 51],
+    "16897819": [62, 47],
+    "16ae71b6": [56, 47],
+    "16b9c334": [42, 46],
+    "16f6c743": [56, 51],
+    "178abc00": [46, 53],
+    "17a10155": [62, 40],
+    "18ad1104": [49, 52],
+    "192aa46e": [47, 43],
+    "19488800": [50, 36],
+    "19e016a7": [58, 48],
+    "1bac3389": [46, 46],
+    "1c098a55": [38, 51],
+    "1c9fc07a": [47, 47],
+    "1d006cd2": [71, 46],
+    "1d00d02c": [21, 51],
+    "1d994eff": [50, 49],
+    "1e29f510": [56, 52],
+    "1ffab604": [34, 53],
+    "20381036": [47, 48],
+    "21da8cd8": [49, 48],
+    "224b8c2b": [52, 43],
+    "22ea3c61": [48, 54],
+    "2342c919": [21, 57],
+    "236fcc71": [46, 36],
+    "2374c264": [23, 52],
+    "237f514c": [56, 47],
+    "23f2852f": [23, 53],
+    "2415fae1": [31, 55],
+    "2542cadf": [49, 45],
+    "257f7d94": [54, 52],
+    "25a411a4": [79, 51],
+    "261da4b7": [44, 54],
+    "262b57dd": [62, 49],
+    "263dd274": [59, 49],
+    "2653a045": [49, 50],
+    "273799b4": [54, 50],
+    "282c97de": [50, 45],
+    "28ce7ccc": [39, 48],
+    "29037e8b": [77, 50],
+    "29639e9a": [72, 49],
+    "2a05ed26": [33, 67],
+    "2c03d938": [79, 50],
+    "2c7d4a58": [34, 48],
+    "2cc036e5": [35, 48],
+    "2d9af1e3": [46, 37],
+    "2de1342a": [54, 45],
+    "2e348fd4": [70, 47],
+    "2e6506ee": [52, 41],
+    "2ef5ed4b": [53, 52],
+    "2f24da4d": [48, 48],
+    "2f4be26e": [39, 54],
+    "2fdec6fc": [38, 52],
+    "300529e1": [51, 50],
+    "3046667a": [53, 40],
+    "3129ebcd": [52, 53],
+    "31656b79": [72, 53],
+    "31ba29c7": [40, 34],
+    "31f389a0": [30, 40],
+    "325884d5": [56, 44],
+    "3291585b": [62, 44],
+    "33eadb0b": [55, 50],
+    "341d897d": [48, 49],
+    "342aa7e1": [50, 34],
+    "34668c52": [49, 47],
+    "356998dd": [59, 45],
+    "35a54fcf": [54, 45],
+    "35f2edb7": [43, 47],
+    "36fadb26": [77, 40],
+    "38139ff0": [49, 48],
+    "38ce5652": [71, 43],
+    "39189189": [45, 38],
+    "39c07176": [56, 38],
+    "3a8ae066": [71, 50],
+    "3a919cf8": [79, 39],
+    "3b83cbc4": [56, 46],
+    "3b87e65f": [54, 47],
+    "3bd842cd": [62, 56],
+    "3be1444d": [50, 49],
+    "3cb6b72c": [51, 51],
+    "3d8f3d44": [21, 51],
+    "3dba8aff": [34, 52],
+    "3fbb33a4": [64, 50],
+    "3fc1aa01": [57, 48],
+    "4119a205": [49, 47],
+    "41c55500": [50, 41],
+    "4281d9ff": [62, 48],
+    "42a864bb": [79, 49],
+    "4324b35c": [36, 46],
+    "4374a66b": [79, 45],
+    "438a22fe": [52, 46],
+    "439d1edc": [66, 52],
+    "4441a6fc": [30, 41],
+    "4454362b": [35, 38],
+    "44836dca": [79, 49],
+    "44a0d002": [54, 53],
+    "44a1164a": [21, 40],
+    "44b7c4d9": [52, 49],
+    "45e11664": [46, 41],
+    "4627a46d": [77, 39],
+    "48ba7c2b": [51, 54],
+    "491b6ce9": [54, 42],
+    "4925d69c": [55, 55],
+    "4951cae4": [55, 51],
+    "4a451f77": [44, 40],
+    "4af87e0d": [49, 49],
+    "4b13c8e1": [46, 39],
+    "4dcb147b": [50, 49],
+    "4e21f0b4": [44, 48],
+    "4ed2d7fe": [45, 50],
+    "4f2837a0": [42, 47],
+    "4fd3a79a": [54, 40],
+    "4fe18888": [42, 38],
+    "5055c147": [46, 57],
+    "506fb908": [50, 46],
+    "507eb59a": [77, 42],
+    "51b27e14": [58, 57],
+    "51db88be": [57, 49],
+    "51fa9f3c": [21, 52],
+    "527fce06": [49, 43],
+    "52b54662": [79, 47],
+    "54462260": [51, 49],
+    "566c834c": [43, 47],
+    "56837dad": [71, 52],
+    "570bc14e": [40, 49],
+    "578e2ea3": [46, 39],
+    "57910119": [74, 50],
+    "581c4a94": [60, 43],
+    "585a2991": [42, 42],
+    "58e53a43": [65, 63],
+    "5956189e": [56, 45],
+    "59706e01": [28, 54],
+    "598ccd90": [57, 58],
+    "5a032ef0": [23, 48],
+    "5ae64cb8": [53, 50],
+    "5aeff1ca": [46, 38],
+    "5b88e603": [61, 47],
+    "5c5f9f9d": [21, 69],
+    "5c96af89": [49, 48],
+    "5ca34428": [55, 52],
+    "5cc006ba": [34, 48],
+    "5de8573f": [54, 52],
+    "5e7af37e": [40, 48],
+    "5e7bbe37": [46, 46],
+    "5e8baeda": [33, 41],
+    "5eb2d0ca": [21, 52],
+    "5f07e5bf": [35, 45],
+    "5f51eecd": [65, 50],
+    "5f95e5a5": [65, 48],
+    "604f7df7": [63, 49],
+    "60d1ddfd": [54, 50],
+    "621f6478": [38, 48],
+    "6323e279": [54, 50],
+    "64305f2d": [44, 52],
+    "64522417": [48, 49],
+    "6469e9bf": [52, 46],
+    "64790b39": [66, 48],
+    "64fdc8a6": [67, 50],
+    "6557ae56": [56, 39],
+    "6565f15d": [79, 41],
+    "65d672d4": [53, 38],
+    "66eac343": [29, 50],
+    "67103915": [55, 49],
+    "673a2151": [46, 44],
+    "675a3cfb": [45, 45],
+    "675ac3f3": [47, 49],
+    "679c0fda": [79, 47],
+    "67d3ab88": [46, 38],
+    "685d61c3": [46, 48],
+    "68a145a5": [46, 46],
+    "68cc9c99": [50, 49],
+    "69368abd": [52, 48],
+    "6ac23636": [33, 42],
+    "6ac30841": [79, 45],
+    "6b269e34": [49, 47],
+    "6b382e43": [79, 45],
+    "6c82d38a": [43, 48],
+    "6da07661": [42, 49],
+    "6e5da7c8": [72, 51],
+    "6ea08730": [46, 49],
+    "6eb94fbf": [44, 49],
+    "6fc40ffb": [49, 43],
+    "705ca760": [51, 38],
+    "70a69585": [43, 49],
+    "7106b5c0": [23, 45],
+    "7111dfce": [49, 37],
+    "716a1d8e": [50, 50],
+    "72404cbf": [55, 52],
+    "7251fe7d": [43, 52],
+    "725beeb8": [52, 53],
+    "7294481b": [60, 52],
+    "72e37375": [79, 36],
+    "72f3f38a": [67, 51],
+    "73196e32": [38, 54],
+    "734b97a8": [54, 55],
+    "738759da": [33, 51],
+    "7396490d": [60, 54],
+    "73f94d8e": [54, 50],
+    "73fe3e2c": [45, 53],
+    "742c4117": [40, 47],
+    "743cdaee": [49, 49],
+    "74414961": [21, 46],
+    "74f0ca29": [77, 45],
+    "7522ac8c": [75, 50],
+    "76c55bf5": [44, 45],
+    "77bc9c15": [53, 49],
+    "783de667": [53, 55],
+    "784b863e": [79, 51],
+    "786df791": [23, 45],
+    "790b9812": [41, 52],
+    "7962ce0e": [49, 44],
+    "79b795bf": [62, 48],
+    "79be5dc2": [50, 44],
+    "79c7079b": [51, 45],
+    "7aecf9a4": [36, 51],
+    "7c6a01f8": [48, 49],
+    "7cbc3949": [30, 58],
+    "7cfe7642": [53, 45],
+    "7ddf89a0": [40, 50],
+    "7e7452de": [60, 44],
+    "7f65773f": [48, 48],
+    "80378096": [54, 58],
+    "805a1ca8": [43, 44],
+    "80f29b1d": [45, 52],
+    "81215714": [30, 44],
+    "815deb6c": [42, 36],
+    "816e2934": [49, 48],
+    "82949fe0": [21, 42],
+    "82f69ae1": [55, 46],
+    "833030ab": [77, 47],
+    "83680573": [45, 45],
+    "8372abd3": [54, 49],
+    "83a1cf80": [61, 53],
+    "84104727": [33, 47],
+    "84a7f473": [54, 54],
+    "850303a5": [32, 55],
+    "85385d8b": [51, 47],
+    "87dd9838": [40, 53],
+    "880d99c2": [58, 42],
+    "889bb060": [55, 48],
+    "89244b2d": [48, 51],
+    "89df39ba": [46, 44],
+    "8a8e65d9": [52, 60],
+    "8bc075c3": [68, 48],
+    "8c322b1f": [21, 49],
+    "8c957ece": [48, 44],
+    "8d0f40dd": [39, 53],
+    "8d3ca6cd": [44, 55],
+    "8d98761c": [79, 51],
+    "8e2f32e3": [45, 46],
+    "8e53667f": [54, 39],
+    "8f41b049": [21, 42],
+    "9027e19f": [46, 46],
+    "909374eb": [62, 51],
+    "90d89deb": [56, 50],
+    "90e9bbba": [64, 52],
+    "92788404": [49, 43],
+    "92ac37a5": [30, 53],
+    "92c7ddbe": [40, 45],
+    "9328768c": [57, 43],
+    "9329945e": [42, 46],
+    "9350b746": [55, 50],
+    "93d600b0": [68, 43],
+    "9466206b": [51, 43],
+    "95416de8": [42, 45],
+    "96b78cb9": [38, 50],
+    "96f23609": [56, 48],
+    "9742c79d": [66, 44],
+    "97642b21": [58, 52],
+    "98288141": [43, 48],
+    "985e6a4f": [79, 47],
+    "99ee4bf2": [32, 51],
+    "99efba76": [78, 50],
+    "99f6afc0": [79, 40],
+    "9a02e4ea": [79, 46],
+    "9ab57cc9": [35, 46],
+    "9afacf86": [52, 53],
+    "9b7cd24d": [40, 50],
+    "9ba8197f": [48, 45],
+    "9c0fa379": [79, 43],
+    "9c9cbfac": [38, 50],
+    "9ca286a9": [49, 53],
+    "9d3ea6d5": [58, 45],
+    "9e4671f9": [21, 49],
+    "9e545f44": [58, 46],
+    "9e67bf77": [66, 56],
+    "9ea81f29": [57, 48],
+    "9f87ac38": [64, 42],
+    "a13ff3cc": [23, 47],
+    "a14f1f2d": [70, 53],
+    "a239ac32": [49, 50],
+    "a2929c25": [45, 52],
+    "a2ea7198": [41, 51],
+    "a304e69d": [38, 44],
+    "a320a1f4": [46, 50],
+    "a32e3b92": [44, 42],
+    "a384525f": [56, 49],
+    "a39b5828": [35, 50],
+    "a4309b19": [51, 47],
+    "a49bca39": [21, 53],
+    "a508e337": [58, 51],
+    "a5d6c290": [51, 45],
+    "a5dc1760": [54, 44],
+    "a5f07156": [53, 45],
+    "a6849980": [44, 50],
+    "a7281300": [46, 47],
+    "a733a92c": [47, 49],
+    "a7ca3865": [58, 54],
+    "a81f9469": [48, 45],
+    "a83da466": [56, 28],
+    "a88b0132": [46, 49],
+    "a8bd8770": [36, 49],
+    "a901ee68": [48, 52],
+    "a954eea3": [54, 52],
+    "a9969264": [35, 51],
+    "a9d5976e": [57, 43],
+    "aa2714a0": [40, 51],
+    "aa38e38b": [53, 38],
+    "aa39327c": [34, 59],
+    "aada5198": [46, 54],
+    "aaec089e": [64, 47],
+    "abaa72ac": [56, 32],
+    "abbfa3b6": [22, 45],
+    "abc41fe7": [36, 46],
+    "abc89ce2": [42, 53],
+    "ac5a9c0b": [36, 50],
+    "ac811f1c": [65, 50],
+    "ad8c632d": [54, 48],
+    "ada97ca1": [67, 53],
+    "add45f03": [21, 57],
+    "ae21115c": [45, 38],
+    "ae40a724": [42, 49],
+    "ae4268e4": [79, 43],
+    "aebd8eba": [44, 58],
+    "aef98108": [34, 37],
+    "af499a26": [31, 54],
+    "afd1d45d": [66, 48],
+    "b04e56aa": [27, 58],
+    "b1563e3e": [49, 49],
+    "b57c4db3": [42, 61],
+    "b630c407": [54, 49],
+    "b6583fa5": [45, 53],
+    "b78586af": [43, 39],
+    "b78f91ad": [64, 47],
+    "b809cf47": [46, 42],
+    "b85b65fc": [21, 46],
+    "b867fe14": [21, 50],
+    "b89cdb0a": [72, 45],
+    "b8babcc6": [40, 45],
+    "b95ab46e": [54, 50],
+    "b9b0203c": [55, 50],
+    "ba70e583": [31, 50],
+    "bab657a9": [79, 37],
+    "bb23278a": [41, 46],
+    "bb806ecd": [73, 52],
+    "bb8ddf44": [39, 45],
+    "bbd642e1": [21, 51],
+    "bbd77c73": [29, 50],
+    "bbdc2354": [77, 50],
+    "bc8e2662": [79, 46],
+    "bd2fbf57": [51, 53],
+    "bd4288cc": [42, 52],
+    "bd7f1cba": [59, 42],
+    "bdf00fd6": [52, 45],
+    "be49af2a": [21, 52],
+    "bf2a50a9": [51, 44],
+    "bf998ed2": [21, 58],
+    "c0641f70": [61, 49],
+    "c0aa9ebd": [57, 48],
+    "c0f59074": [59, 49],
+    "c1b94207": [52, 53],
+    "c235fd39": [56, 59],
+    "c2a2dd72": [46, 41],
+    "c2fc0471": [47, 50],
+    "c3204342": [79, 35],
+    "c3c4bb0c": [70, 51],
+    "c3d94e2b": [47, 41],
+    "c4a881a5": [54, 44],
+    "c4ed44b8": [51, 46],
+    "c5fbf407": [35, 49],
+    "c63a946f": [40, 51],
+    "c67be7ce": [59, 45],
+    "c6ab8390": [50, 43],
+    "c800114f": [56, 50],
+    "c80631ab": [40, 52],
+    "c8381b99": [21, 47],
+    "c85bd9c9": [62, 49],
+    "c895f461": [37, 51],
+    "c8f698e4": [77, 49],
+    "ca2b6879": [77, 54],
+    "cab25939": [46, 38],
+    "cb920e61": [49, 51],
+    "cc7ddbed": [46, 52],
+    "cc90b95e": [32, 56],
+    "cc95ec40": [79, 46],
+    "cd276d68": [43, 47],
+    "cda3caaf": [59, 40],
+    "ceba71bc": [68, 58],
+    "d21724aa": [69, 50],
+    "d22306af": [46, 54],
+    "d2e0d940": [48, 32],
+    "d3fce20f": [71, 38],
+    "d41559e7": [48, 46],
+    "d45a53d6": [52, 45],
+    "d4c5357f": [43, 54],
+    "d5c67814": [31, 45],
+    "d68175f2": [52, 39],
+    "d6b5d820": [45, 54],
+    "d7147662": [40, 47],
+    "d7368374": [65, 46],
+    "d7bdeff9": [49, 48],
+    "d84b1b02": [55, 52],
+    "d959ebe6": [60, 49],
+    "d9783e50": [56, 41],
+    "da106099": [21, 47],
+    "da266adb": [42, 46],
+    "da915b99": [37, 47],
+    "dab17c89": [50, 52],
+    "dbe614fa": [66, 50],
+    "dbfca4a6": [43, 41],
+    "dc8d2d3d": [48, 54],
+    "dcc8fa99": [30, 45],
+    "dd2e153f": [79, 47],
+    "dd5a7ad8": [45, 53],
+    "ddaa7b7b": [50, 48],
+    "de952325": [23, 54],
+    "deafc641": [32, 50],
+    "df923ea8": [39, 52],
+    "df9274ba": [58, 51],
+    "dfdacb36": [62, 46],
+    "e05ebb17": [36, 51],
+    "e06ce611": [31, 47],
+    "e0f36656": [79, 41],
+    "e179a6a5": [58, 45],
+    "e2240317": [38, 45],
+    "e3e4103c": [42, 41],
+    "e4273a19": [45, 53],
+    "e4cb9f8d": [49, 50],
+    "e6efd1de": [55, 54],
+    "e83973f2": [49, 49],
+    "e871d260": [21, 50],
+    "e87a70b0": [59, 47],
+    "e8862252": [61, 49],
+    "e8d91798": [54, 53],
+    "e90aadcd": [44, 39],
+    "e916667a": [27, 47],
+    "e9aa88a8": [54, 47],
+    "ea591e2d": [54, 38],
+    "ea728327": [44, 49],
+    "eb002acc": [57, 42],
+    "ec71ca9d": [39, 51],
+    "ee852820": [54, 49],
+    "ef726fe1": [37, 53],
+    "eff013ca": [51, 47],
+    "f0608409": [42, 46],
+    "f100aab7": [64, 60],
+    "f2a8c3a1": [51, 53],
+    "f3026c42": [54, 49],
+    "f3d63aed": [81, 46],
+    "f4a39630": [57, 48],
+    "f4c31698": [37, 49],
+    "f4ecc4bd": [33, 53],
+    "f50c49fb": [49, 38],
+    "f5d18450": [54, 48],
+    "f6211e11": [53, 46],
+    "f69208a0": [48, 47],
+    "f6bb80d3": [59, 42],
+    "f6ee944c": [38, 48],
+    "f7b5938b": [70, 52],
+    "f7d831b1": [50, 50],
+    "f8b4a475": [28, 42],
+    "f9110843": [41, 50],
+    "f923abf8": [33, 45],
+    "f937d422": [48, 47],
+    "f98b42c7": [21, 62],
+    "fa27f28e": [45, 45],
+    "fb4655d4": [21, 48],
+    "fbe957f8": [23, 61],
+    "fd1da4f8": [53, 44],
+    "fd415268": [46, 46],
+    "fde09ade": [41, 48],
+    "fe47df4a": [59, 55],
+    "ff5d428e": [75, 53],
+    "ff6d0e14": [67, 48],
+    "ffea5e76": [58, 44]
+  }, MTG.artFocus || {});
 })(window.MTG);
 /* ===== 10d-ui-store.js ===== */
 'use strict';
@@ -62315,8 +63060,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      apart by Scryfall's illustration id (its first eight hex digits), so a
      reprint of the same picture counts as the same. Kept, so each keeps its
      picture from then on. */
-  const ART_KEY = 'artclaims4';
-  for (const old of ['artclaims', 'artclaims2', 'artclaims3']) MTG.store.del(old);   // the claims of earlier ways of choosing
+  const ART_KEY = 'artclaims5';
+  for (const old of ['artclaims', 'artclaims2', 'artclaims3', 'artclaims4']) MTG.store.del(old);   // the claims of earlier ways of choosing
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -62366,6 +63111,31 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
     return out;
   }
+  /* A picture whose subject is off to one side (Black Lotus, Ancestral
+     Recall: MTG.artFocus) is centred on it in a box of the given shape
+     (width over height), as far as the picture reaches: "cover" scales a
+     tall box's picture to its height, so only the across matters there,
+     and a wide box's to its width, so only the down. '' for the rest. */
+  const ART_ASPECT = 563 / 451;   // Scryfall's art crops, near enough
+  function artPosition(a, boxAspect) {
+    const f = a && MTG.artFocus && MTG.artFocus[String(a.ill || '').slice(0, 8)];
+    if (!f || !(boxAspect > 0)) return '';
+    const along = (at, seen) => (seen >= 1 ? 50 : Math.round(Math.max(0, Math.min(1, (at / 100 - seen / 2) / (1 - seen))) * 100));
+    return along(f[0], boxAspect / ART_ASPECT) + '% ' + along(f[1], ART_ASPECT / boxAspect) + '%';
+  }
+  /** Paint a claimed picture into a box, centred on its subject where one is known. */
+  function paintArt(node, a, boxAspect) {
+    if (!a || !node) return;
+    node.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")';
+    const pos = artPosition(a, boxAspect || (node.offsetWidth && node.offsetHeight ? node.offsetWidth / node.offsetHeight : 0));
+    if (pos) node.style.backgroundPosition = pos;
+  }
+
+  /* A face chosen by hand (Black Lotus for Alpha, Ancestral Recall for
+     Beta) is that set's before any other pack picks: Unlimited reprints the
+     same pictures and would otherwise take them if its packs were seen first. */
+  for (const code of MTG.packArtReserved || []) claimArt('set:' + code, (preArt(code) || []).slice(0, 1));
+
   /**
    * A striking card from a set, for the front of its packs: its best-known
    * mythic or rare whose picture no other pack or deck wears (the Collector
@@ -62430,7 +63200,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       ]),
       el('div', { class: 'bp-seam' }),
     ]);
-    const paint = () => setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    const paint = () => setArt(setInfo.code, kind).then(a => paintArt(art, a, 5 / 8.6));
     if (setInfo && setInfo.code) {
       const had = artReg.by['set:' + setInfo.code + (kind === 'collector' ? ':collector' : '')];
       if (had || !opts.lazy || !lazyArt) paint();
@@ -62460,12 +63230,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['wildcards', 'Wildcards'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals'], ['wildcards', 'Wildcards']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
       body.innerHTML = '';
-      if (id === 'featured') featured(body, opts);
+      if (id === 'featured') featured(body, Object.assign({}, opts, { go: (t) => { MTG.sfx('click'); show(t); window.scrollTo({ top: 0 }); } }));
       else if (id === 'packs') packsTab(body, opts);
       else if (id === 'precons') preconsTab(body);
       else if (id === 'sleeves') sleevesTab(body);
@@ -62510,13 +63280,172 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return m;
   }
 
+  /* ---------------- the Featured tab ----------------
+     The newest set; bundles, each cheaper than its parts and covering a
+     different corner of the game; the recent sets, one row of them,
+     however wide the screen; and a row from every other tab, each with
+     the way to the rest of it. */
+  const BUNDLE_OFF = 0.12;       // a bundle costs this much less than what is in it
+  const STARTER_OFF = 0.15;      // the starter bundle a little less again
+
+  /**
+   * Today's bundles, from the sets on sale (newest first): each { id,
+   * title, blurb, parts: [{ set, kind, n }], wc: { rarity: n }, off }. One
+   * that cannot be made (no masters sets yet, say) is left out.
+   */
+  function bundleOffers(sets) {
+    const S = E();
+    const core = sets.filter(s => s.set_type === 'expansion' || s.set_type === 'core');
+    const masters = sets.filter(s => s.set_type === 'masters');
+    const eternal = sets.filter(s => s.set_type === 'eternal');
+    const collectors = sets.filter(s => S.hasCollector(s));
+    const day = Math.floor(Date.now() / 864e5);
+    // a set from each age of the game, a different one each day
+    const ages = [['1993', '1998'], ['1998', '2005'], ['2005', '2012'], ['2012', '2019'], ['2019', '9999']];
+    const aged = ages.map(([a, b], i) => {
+      const list = core.filter(s => (s.released_at || '') >= a && (s.released_at || '') < b);
+      return list.length ? list[(day + i * 7) % list.length] : null;
+    }).filter(Boolean);
+    const n3 = (list) => list.slice(0, 3);
+    const newest = core[0];
+    const words = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
+    return [
+      core.length >= 3 && { id: 'starter', title: 'Starter bundle', off: STARTER_OFF,
+        blurb: 'Two packs of each of the three newest sets, a rare wildcard and two uncommon ones: a bit of everything to start a collection with.',
+        parts: n3(core).map(s => ({ set: s, kind: 'play', n: 2 })), wc: { rare: 1, uncommon: 2 } },
+      newest && { id: 'newest', title: `${newest.name} bundle`, off: BUNDLE_OFF,
+        blurb: S.hasCollector(newest) ? 'Six Play Boosters of the newest set, and a Collector Booster of it.' : 'Eight Play Boosters of the newest set.',
+        parts: S.hasCollector(newest) ? [{ set: newest, kind: 'play', n: 6 }, { set: newest, kind: 'collector', n: 1 }] : [{ set: newest, kind: 'play', n: 8 }] },
+      core.length >= 6 && { id: 'sampler', title: 'Standard sampler', off: BUNDLE_OFF,
+        blurb: 'A pack of each of the six newest sets.', parts: core.slice(0, 6).map(s => ({ set: s, kind: 'play', n: 1 })) },
+      collectors.length >= 3 && { id: 'collector', title: 'Collector’s trio', off: BUNDLE_OFF,
+        blurb: 'A Collector Booster of each of the three newest sets that have them.', parts: n3(collectors).map(s => ({ set: s, kind: 'collector', n: 1 })) },
+      masters.length >= 3 && { id: 'masters', title: 'Masters collection', off: BUNDLE_OFF,
+        blurb: 'A pack of each of the three newest Masters and remastered sets.', parts: n3(masters).map(s => ({ set: s, kind: 'play', n: 1 })) },
+      aged.length >= 4 && { id: 'ages', title: 'Through the ages', off: BUNDLE_OFF,
+        blurb: 'A pack from each age of the game, from its first years to now. Different every day.', parts: aged.map(s => ({ set: s, kind: 'play', n: 1 })) },
+      eternal.length >= 2 && { id: 'eternal', title: 'Worlds beyond', off: BUNDLE_OFF,
+        blurb: `A pack of each of the ${words[Math.min(3, eternal.length)]} newest Eternal sets, made for formats where every card is legal.`, parts: n3(eternal).map(s => ({ set: s, kind: 'play', n: 1 })) },
+      { id: 'wildcards', title: 'Wildcard chest', off: BUNDLE_OFF,
+        blurb: 'Four uncommon wildcards, two rare and a mythic: the cards you are missing, crafted.', parts: [], wc: { uncommon: 4, rare: 2, mythic: 1 } },
+    ].filter(Boolean);
+  }
+  const packsIn = (b) => b.parts.reduce((t, p) => t + p.n, 0);
+  /** What is in a bundle, in a line. */
+  function bundleContents(b) {
+    const bits = b.parts.map(p => `${p.n > 1 ? p.n + ' × ' : ''}${p.set.name}${p.kind === 'collector' ? ' Collector' : ''}`);
+    const wcs = Object.entries(b.wc || {}).filter(([, n]) => n > 0).map(([r, n]) => `${n} ${RAR_NAME[r].toLowerCase()} wildcard${n > 1 ? 's' : ''}`);
+    return bits.concat(wcs).join(' · ');
+  }
+  /** What a bundle's parts cost apart, and what it costs: sets priced by appraisal are appraised first. */
+  async function bundlePrice(b) {
+    const S = E();
+    await Promise.all(b.parts.map(p => (S.needsAppraisal(p.set) ? S.appraise(p.set).catch(() => 1) : null)));
+    const full = b.parts.reduce((t, p) => t + S.packPrice(p.set, p.kind) * p.n, 0)
+      + Object.entries(b.wc || {}).reduce((t, [r, n]) => t + (S.WC_PRICES[r] || 0) * n, 0);
+    return { full, cost: Math.round(full * (1 - b.off) / 50) * 50 };
+  }
+  /** A bundle to look at: its packs fanned out (two of a set at most), its wildcards beside them. */
+  function bundleVisual(b) {
+    const v = el('div', { class: 'bundle-visual' });
+    const shown = b.parts.flatMap(p => Array.from({ length: Math.min(p.n, 2) }, () => p)).slice(0, 6);
+    const wcs = Object.entries(b.wc || {}).filter(([, n]) => n > 0);
+    if (shown.length) {
+      const fan = el('div', { class: 'bv-fan' });
+      shown.forEach((p, i) => {
+        const bo = boosterEl(p.set, p.kind, { lazy: true });
+        bo.style.setProperty('--k', String(i - (shown.length - 1) / 2));
+        fan.appendChild(bo);
+      });
+      v.appendChild(fan);
+    } else if (wcs.length) {
+      // all wildcards: the cards themselves, fanned
+      const faces = wcs.flatMap(([r, n]) => Array.from({ length: Math.min(n, 2) }, () => r)).slice(0, 5);
+      const fan = el('div', { class: 'bv-fan' });
+      faces.forEach((r, i) => {
+        const f = el('div', { class: 'wc-tile-face bv-wc' }, [UI.wildcardFace(r)]);
+        f.style.setProperty('--k', String(i - (faces.length - 1) / 2));
+        fan.appendChild(f);
+      });
+      v.appendChild(fan);
+    }
+    if (wcs.length) {
+      v.appendChild(el('div', { class: 'bv-wcs' }, wcs.map(([r, n]) => el('span', { class: 'bv-gem',
+        html: UI.wildcardIconHtml(r) + `<b>×${n}</b>`, title: `${n} ${RAR_NAME[r]} wildcard${n > 1 ? 's' : ''}` }))));
+    }
+    const total = packsIn(b);
+    if (total) v.appendChild(el('span', { class: 'bv-count', text: `${total} pack${total > 1 ? 's' : ''}` }));
+    return v;
+  }
+  function bundleCard(b) {
+    const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', disabled: true, 'aria-label': 'Buy the ' + b.title });
+    const was = el('s', { class: 'bundle-was dim' });
+    const card = el('div', { class: 'store-card bundle' }, [
+      bundleVisual(b),
+      el('div', { class: 'sc-title', text: b.title }),
+      el('div', { class: 'sc-sub dim', text: b.blurb }),
+      el('div', { class: 'bundle-has', text: bundleContents(b) }),
+      el('div', { class: 'bundle-buy' }, [btn, was, el('span', { class: 'pack-tag bonus', text: `Save ${Math.round(b.off * 100)}%` })]),
+    ]);
+    bundlePrice(b).then(({ full, cost }) => {
+      btn.disabled = false;
+      btn.innerHTML = shardSvg() + ' ' + fmtN(cost);
+      was.textContent = fmtN(full);
+      was.title = 'What it all costs bought apart';
+      btn.onclick = () => UI.purchaseDialog({
+        title: b.title, sub: bundleContents(b), cost, fly: Math.max(1, packsIn(b)), to: packsIn(b) ? 'hoard' : null,
+        visual: bundleVisual(b), buy: () => E().buyBundle(b.parts, b.wc, cost),
+      });
+    }).catch(() => { btn.textContent = 'Unavailable'; });
+    return card;
+  }
+
+  /**
+   * A grid that only ever shows one row: as many tiles as fit across (each
+   * at least `minW` wide, `gap` apart), and again when the width changes.
+   * `make(item)` draws a tile.
+   */
+  function oneRow(cls, items, make, minW, gap) {
+    const grid = el('div', { class: 'store-grid one-row ' + cls });
+    let shown = -1;
+    const fit = () => {
+      const w = grid.clientWidth;
+      if (!w) return;
+      const n = Math.max(1, Math.min(items.length, Math.floor((w + gap) / (minW + gap))));
+      if (n === shown) return;
+      shown = n;
+      grid.replaceChildren(...items.slice(0, n).map(make));
+    };
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => { if (!grid.isConnected && shown >= 0) { ro.disconnect(); return; } fit(); });
+      ro.observe(grid);
+    } else grid.replaceChildren(...items.slice(0, 4).map(make));
+    return grid;
+  }
+  /** A section of the featured page: its heading, the way to its whole tab, and its row. */
+  function shelf(title, tab, go, row) {
+    return el('section', { class: 'store-shelf' }, [
+      el('div', { class: 'store-h-row' }, [
+        el('h3', { class: 'store-h', text: title }),
+        tab ? el('button', { type: 'button', class: 'btn ghost sm see-all', text: 'See all \u203a', onclick: () => go(tab) }) : null,
+      ].filter(Boolean)),
+      row,
+    ]);
+  }
+  /** A small tile that leads to its tab. */
+  const miniTile = (go, tab, label, visual, title, sub) => el('button', { type: 'button', class: 'store-card mini', 'aria-label': label, onclick: () => go(tab) }, [
+    visual, el('div', { class: 'sc-title', text: title }), sub ? el('div', { class: 'sc-sub dim', html: sub }) : null,
+  ].filter(Boolean));
+
   async function featured(body, opts) {
-    const sets = await MTG.scry.draftableSets().catch(() => []);
+    const go = opts.go || (() => {});
+    const [sets, onSale] = await Promise.all([MTG.scry.draftableSets().catch(() => []), MTG.scry.packSets().catch(() => [])]);
     if (!sets.length) { body.appendChild(el('p', { class: 'dim', text: 'The sets could not be loaded. Check the connection, or download the card database in Options.' })); return; }
+    const S = E();
     const s = sets[0];
     const hero = el('section', { class: 'store-hero' });
     const bg = el('div', { class: 'hero-art' });
-    setArt(s.code).then(a => { if (a) bg.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    setArt(s.code).then(a => paintArt(bg, a));
     hero.append(bg, el('div', { class: 'hero-shade' }), el('div', { class: 'hero-in' }, [
       boosterEl(s, 'play', { big: true }),
       el('div', { class: 'hero-copy' }, [
@@ -62524,43 +63453,59 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         el('h2', { text: s.name }),
         el('p', { class: 'dim', text: `Released ${s.released_at}. Play Boosters: fourteen cards, a rare or mythic in every pack, and a foil.` }),
         el('div', { class: 'hero-buy' }, [
-          buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1),
-        ]),
+          buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), S.hasCollector(s) ? buyBtn(s, 'collector', 1) : null,
+        ].filter(Boolean)),
       ]),
     ]));
     body.appendChild(hero);
-    // bundles: packs of the last few sets together
-    const bundles = el('div', { class: 'store-grid bundles' });
-    const offers = [
-      { title: 'Starter bundle', sub: `5 packs of ${s.name}, and a rare wildcard`, cost: 5000, set: s, kind: 'play', n: 5, give: () => { E().buyPacks(s, 'play', 5); }, wc: 'rare' },
-      { title: 'Collector’s trio', sub: `3 Collector Boosters of ${s.name}`, cost: 7500, set: s, kind: 'collector', n: 3, give: () => { E().buyPacks(s, 'collector', 3); } },
-    ];
-    if (sets[1]) offers.push({ title: 'Catch-up bundle', sub: `6 packs of ${sets[1].name}`, cost: 6000, set: sets[1], kind: 'play', n: 6, give: () => { E().buyPacks(sets[1], 'play', 6); } });
-    for (const o of offers) {
-      bundles.appendChild(el('div', { class: 'store-card bundle' }, [
-        el('div', { class: 'sc-title', text: o.title }),
-        el('div', { class: 'sc-sub dim', text: o.sub }),
-        el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(o.cost), onclick: () => UI.purchaseDialog({
-          title: o.title, sub: o.sub, cost: o.cost, fly: o.n, to: 'hoard',
-          visual: packFan(o.set, o.kind, o.n),
-          buy: () => {
-            if (E().shards() < o.cost) return { ok: false, why: `That costs ${fmtN(o.cost)} Shards.` };
-            // the bundle's price, not the packs' own: the difference back first, then the packs bought
-            const packsCost = E().packPrice(o.set, o.kind) * o.n;
-            if (packsCost !== o.cost) E().addShards(packsCost - o.cost, 'bundle');
-            o.give();
-            if (o.wc) { E().state.wc[o.wc]++; E().save(); }
-            return { ok: true };
-          },
-        }) }),
-      ]));
-    }
-    body.appendChild(el('h3', { class: 'store-h', text: 'Bundles' }));
-    body.appendChild(bundles);
-    body.appendChild(el('h3', { class: 'store-h', text: 'Recent sets' }));
-    const grid = el('div', { class: 'store-grid packs' });
-    for (const st of sets.slice(1, 7)) grid.appendChild(packTile(st));
-    body.appendChild(grid);
+
+    // bundles, each cheaper than what is in it
+    const bundles = el('div', { class: 'store-grid bundles' }, bundleOffers(onSale.length ? onSale : sets).map(bundleCard));
+    body.appendChild(shelf('Bundles', null, go, bundles));
+
+    // the recent sets: one row of them, however wide the screen
+    body.appendChild(shelf('Recent sets', 'packs', go, oneRow('packs', sets.slice(1, 13), (st) => packTile(st), 230, 16)));
+
+    // a row from every other tab
+    const decks = oneRow('mini', [], () => null, 170, 16);
+    body.appendChild(shelf('Commander decks', 'precons', go, decks));
+    preconList().then((list) => {
+      const row = oneRow('mini', list.slice(0, 10), (p) => {
+        const art = el('div', { class: 'mini-art' });
+        const had = artReg.by['deck:' + p.file];
+        if (had) art.style.backgroundImage = 'url("' + had.url + '")';
+        else preconInfo(p).then((info) => { if (info.art) art.style.backgroundImage = 'url("' + info.art + '")'; }).catch(() => {});
+        return miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
+      }, 170, 16);
+      decks.replaceWith(row);
+    }).catch(() => decks.replaceWith(el('p', { class: 'dim', text: 'The deck lists could not be loaded.' })));
+
+    const dealRow = oneRow('mini', [], () => null, 170, 16);
+    body.appendChild(shelf('Daily deals', 'deals', go, dealRow));
+    S.dailyDeals(makeDeals).then((items) => {
+      dealRow.replaceWith(oneRow('mini', items || [], (d) => {
+        const card = d.card || { name: d.name, id: d.id };
+        const url = MTG.scry.imageUrl(card, 'normal', 0);
+        return miniTile(go, 'deals', d.name, el('div', { class: 'deal-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
+          d.name, d.bought ? 'Bought' : shardSvg() + ' ' + fmtN(d.price));
+      }, 170, 16));
+    }).catch(() => dealRow.replaceWith(el('p', { class: 'dim', text: 'No deals could be found today.' })));
+
+    const art = S.sleeves().art || {};
+    const sleeves = S.SLEEVES.filter(sl => !S.sleeves().owned.includes(sl.id) && (sl.kind !== 'art' || art[sl.id]));
+    body.appendChild(shelf('Sleeves', 'sleeves', go, oneRow('mini', sleeves, (sl) =>
+      miniTile(go, 'sleeves', sl.name + ' sleeve', sleeveFace(sl, art[sl.id]), sl.name,
+        shardSvg() + ' ' + fmtN(sl.kind === 'custom' ? S.PRICES.sleeveCustom : S.PRICES.sleeve)), 170, 16)));
+
+    const me = (MTG.app && MTG.app.myName) || 'You';
+    const frames = S.FRAMES.filter(fr => !S.state.frames.owned.includes(fr.id));
+    body.appendChild(shelf('Frames', 'frames', go, oneRow('mini', frames, (fr) =>
+      miniTile(go, 'frames', fr.name + ' frame', el('div', { class: 'mini-portrait' }, [UI.portrait(me, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id })]),
+        fr.name, shardSvg() + ' ' + fmtN(fr.price)), 170, 16)));
+
+    body.appendChild(shelf('Wildcards', 'wildcards', go, oneRow('mini', RAR, (r) =>
+      miniTile(go, 'wildcards', RAR_NAME[r] + ' wildcard', el('div', { class: 'wc-tile-face' }, [UI.wildcardFace(r)]),
+        `${RAR_NAME[r]} wildcard`, shardSvg() + ' ' + fmtN(S.WC_PRICES[r])), 170, 16)));
   }
 
   function notEnough(cost) {
@@ -62822,7 +63767,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       boosterEl(s, 'play', { lazy: true }),
       el('div', { class: 'sc-title', text: s.name }),
       notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
-      el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), buyBtn(s, 'collector', 1)]),
+      // Collector Boosters only where they were made, or could be (see hasCollector)
+      el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), S.hasCollector(s) ? buyBtn(s, 'collector', 1) : null].filter(Boolean)),
     ].filter(Boolean));
   }
   /** "Commander cards", "Alchemy cards": what else a set's packs may hold, from the sets folded into it. */
@@ -62852,22 +63798,22 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     draw();
   }
 
+  /** Today's deals, the first time they are asked for: a mythic and two rares from recent sets. */
+  async function makeDeals() {
+    const sets = (await MTG.scry.draftableSets()).slice(0, 6);
+    const code = (i) => sets[i % sets.length].code;
+    const pick = async (q) => { const r = await MTG.scry.search(q, { max: 40, order: 'edhrec', unique: 'cards' }); return r[Math.floor(Math.random() * Math.min(r.length, 20))]; };
+    const out = [];
+    for (const [q, i] of [['r:mythic', 0], ['r:rare', 1], ['r:rare', 2]]) {
+      try { const c = await pick(`set:${code(i)} ${q} -t:land`); if (c) out.push(c); } catch (e) { /* skip */ }
+    }
+    return out;
+  }
   async function deals(body) {
     const wrap = el('div', { class: 'store-grid deals' }, [el('p', { class: 'dim', text: 'Finding today’s deals…' })]);
     body.append(el('p', { class: 'dim', text: 'Three cards from recent sets, new every day. A card you already have four of cannot be bought.' }), wrap);
     let items = [];
-    try {
-      items = await E().dailyDeals(async () => {
-        const sets = (await MTG.scry.draftableSets()).slice(0, 6);
-        const code = (i) => sets[i % sets.length].code;
-        const pick = async (q) => { const r = await MTG.scry.search(q, { max: 40, order: 'edhrec', unique: 'cards' }); return r[Math.floor(Math.random() * Math.min(r.length, 20))]; };
-        const out = [];
-        for (const [q, i] of [['r:mythic', 0], ['r:rare', 1], ['r:rare', 2]]) {
-          try { const c = await pick(`set:${code(i)} ${q} -t:land`); if (c) out.push(c); } catch (e) { /* skip */ }
-        }
-        return out;
-      });
-    } catch (e) { items = []; }
+    try { items = await E().dailyDeals(makeDeals); } catch (e) { items = []; }
     wrap.innerHTML = '';
     if (!items.length) { wrap.appendChild(el('p', { class: 'dim', text: 'No deals could be found today. Check the connection.' })); return; }
     items.forEach((d, i) => {
@@ -63229,7 +64175,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     };
     const setBackdrop = (info) => {
       if (!info || !info.code) return;
-      setArt(info.code).then(a => { if (a) backdrop.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+      setArt(info.code).then(a => paintArt(backdrop, a, U.viewW() / Math.max(1, U.viewH())));
     };
 
     /* ---- right-click: the card held up to the light ---- */
@@ -65033,8 +65979,14 @@ Sideboard
       buttons.push({ label: 'Save deck', class: 'primary', onClick: () => save() });
     }
 
+    /* A deck started from nothing is named here, in its own name box, not
+       before: the box starts empty, showing faintly the name it gets if it
+       is left so (opts.untitled, "New Deck (2)" and the like). */
+    const untitled = opts.untitled || 'Untitled deck';
+    const titleOf = () => 'Deck — ' + (String(deck.name || '').trim() || untitled);
+    let focusName = !!opts.nameFirst && !MTG.isTouch();
     const m = UI.modal({
-      title: 'Deck — ' + deck.name,
+      title: titleOf(),
       width: '1280px',
       className: 'deck-modal',
       content: wrap,
@@ -65046,7 +65998,7 @@ Sideboard
     let headArtFor = null;
 
     function cleanName() {
-      deck.name = deck.name.trim() || 'Untitled deck';
+      deck.name = String(deck.name || '').trim() || untitled;
       return deck.name;
     }
 
@@ -65187,6 +66139,8 @@ Sideboard
         query: q,
         format: deck.format,
         colors: (validation.colorIdentity || []),
+        // a deck opened to be named first keeps the cursor in its name box
+        noFocus: focusName,
         onAdd: (card, n) => addCardObj(card, n || 1),
         onRemove: (card) => removeCardObj(card),
         inDeck: () => {
@@ -65466,8 +66420,11 @@ Sideboard
       /* ----- left: the list ----- */
       const listTop = left.scrollTop;
       left.innerHTML = '';
-      const nameInput = el('input', { type: 'text', value: deck.name, class: 'deck-name-input', 'aria-label': 'Deck name' });
-      nameInput.addEventListener('input', () => { deck.name = nameInput.value; });
+      const nameInput = el('input', { type: 'text', value: deck.name || '', class: 'deck-name-input', 'aria-label': 'Deck name',
+        placeholder: untitled, autocomplete: 'off', spellcheck: 'false' });
+      nameInput.addEventListener('input', () => { deck.name = nameInput.value; m.setTitle(titleOf()); });
+      // a new deck opens ready to be named (a phone waits for a tap, so its keyboard does not cover the deck)
+      if (focusName) setTimeout(() => { focusName = false; if (nameInput.isConnected) nameInput.focus(); }, 60);
       const fmtSel = el('select', { 'aria-label': 'Format' }, MTG.formats.list().map(f =>
         el('option', { value: f.id, text: f.name, selected: f.id === deck.format })));
       fmtSel.addEventListener('change', () => { deck.format = fmtSel.value; render(); });
@@ -66065,7 +67022,7 @@ Sideboard
       });
     }
     if (opts.query) input.value = opts.query;
-    setTimeout(() => input.focus(), 50);
+    if (!opts.noFocus) setTimeout(() => input.focus(), 50);
     if (opts.onlyCommanders) {
       status.textContent = 'Search for a legendary creature.';
       // a starting point, so the modal is not an empty box
@@ -75773,10 +76730,20 @@ Sideboard
         /* A draft needs something to draft from: a set for boosters, a cube
            for a cube, and nothing at all for chaos, which picks its own. */
         const style = fmtNow && fmtNow.draft ? fmtNow.draft.style : '';
-        if (style && style !== 'cube') {
-          panel.appendChild(field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
-            q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster')));
-        }
+        /* Collector boosters only for a set that has them: one set's
+           boosters (the newest, unless another is chosen), never chaos */
+        if (style === 'booster' || style === 'commander') {
+          const kinds = field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
+            q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster'));
+          kinds.hidden = true;
+          panel.appendChild(kinds);
+          MTG.scry.draftableSets().then((sets) => {
+            const s = q.setCode ? sets.find(x => x.code === q.setCode) : sets[0];
+            const ok = !!s && MTG.economy.hasCollector(s);
+            if (!ok && q.collector) { q.collector = false; saveQuick(q); }
+            kinds.hidden = !ok;
+          }).catch(() => {});
+        } else if (q.collector) { q.collector = false; saveQuick(q); }
         // how many boosters each player opens: three, as at any draft, unless you say otherwise
         const packSel = el('select', { 'aria-label': 'Packs per player' }, [1, 2, 3, 4, 5, 6].map(n =>
           el('option', { value: String(n), text: n === 3 ? '3 (standard)' : String(n), selected: n === (q.packs || 3) })));
@@ -75790,7 +76757,7 @@ Sideboard
           MTG.scry.draftableSets().then((sets) => {
             for (const st of sets.slice(0, 60)) setSel.appendChild(el('option', { value: st.code, text: st.name, selected: st.code === q.setCode }));
           }).catch(() => {});
-          setSel.addEventListener('change', () => { q.setCode = setSel.value; saveQuick(q); });
+          setSel.addEventListener('change', () => { q.setCode = setSel.value; saveQuick(q); draw(); });
           source = field('Set', setSel);
         } else if (style === 'cube') {
           const cubeSel = el('select', { 'aria-label': 'Cube to draft' }, MTG.draft.recipes.map(r =>
@@ -76244,13 +77211,12 @@ Sideboard
     while (taken.has(`new deck (${n})`)) n++;
     return `New Deck (${n})`;
   }
-  async function newDeck() {
-    const name = await UI.prompt('Give it a name, or leave it blank and name it later.', '', 'Name your deck', { placeholder: 'New Deck' });
-    if (name == null) return;
+  /** A deck from nothing: straight into the editor, which is where it is named. */
+  function newDeck() {
     UI.deckBuilder({
-      id: MTG.uid('deck'), name: name.trim() || untitledName(), format: App.formatId,
+      id: MTG.uid('deck'), name: '', format: App.formatId,
       main: [], sideboard: [], commanders: [], companion: null,
-    }, { onSave: () => renderDecks() });
+    }, { onSave: () => renderDecks(), untitled: untitledName(), nameFirst: true });
   }
 
   /* ================= 4. options ================= */
