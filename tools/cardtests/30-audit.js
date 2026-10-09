@@ -2390,4 +2390,31 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Heartfire Hero'));
     t.ok(T.g.log.some(l => /Valley Questcaller .* resolves/.test(l.text)), 'a Mouse entered');
   });
+
+  test('Audit: "A, B, or C" in a trigger is any one of them (Sram, Valley Questcaller, God-Pharaoh\'s Faithful)', (mk, t) => {
+    let T = mk();
+    t.auto('Sram, Senior Edificer');
+    T.toMain('A');
+    T.bf('A', 'Sram, Senior Edificer');
+    const bs = T.hand('A', 'Bonesplitter');
+    let hand = T.g.zones.A.hand.length;
+    T.mana('A', '1'); T.cast('A', bs);
+    t.eq(T.g.zones.A.hand.length, hand, 'an Equipment: Bonesplitter left, a card drawn');
+    const ra = T.hand('A', 'Rancor');
+    hand = T.g.zones.A.hand.length;
+    T.mana('A', 'G'); T.cast('A', ra, { targets: [T.bf('A', 'Grizzly Bears')] });
+    t.eq(T.g.zones.A.hand.length, hand, 'an Aura: the same');
+    T = mk();
+    t.auto('Valley Questcaller');
+    T.toMain('A');
+    T.bf('A', 'Valley Questcaller');
+    T.mana('A', '3W'); T.cast('A', T.hand('A', 'Intrepid Rabbit'));
+    t.ok(T.g.log.some(l => /Valley Questcaller .* resolves/.test(l.text)), 'a Rabbit alone sets it off');
+    T = mk();
+    t.auto("God-Pharaoh's Faithful");
+    T.toMain('A');
+    T.bf('A', "God-Pharaoh's Faithful");
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Cut Down'), { targets: [T.bf('B', 'Grizzly Bears')] });
+    t.eq(T.life('A'), 21, 'a black spell: 1 life');
+  });
 };

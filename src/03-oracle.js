@@ -8667,6 +8667,13 @@
     'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen',
     // Nahiri, Forged in Fury: "an equipped creature you control"
     'equipped']);
+  /* "Rabbits, Bats, Birds, and/or Mice": a list, any one of them will do;
+     "noncreature, nonland permanents": all of them at once */
+  function listWords(s) {
+    s = String(s || '');
+    if (/,/.test(s) && /\b(?:or|and\/or)\b/.test(s)) s = s.replace(/,\s*(?:(?:and\/)?or\s+)?/g, ' or ');
+    return s.replace(/,/g, ' ');
+  }
   function subjectFilter(raw) {
     let p = String(raw || '').trim();
     const f = {};
@@ -8714,7 +8721,7 @@
         f.withCounter = m[1]; p = p.slice(0, m.index);
       }
     }
-    const words = p.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+    const words = listWords(p).split(/\s+/).filter(Boolean);
     if (!words.length) return null;
     for (const w of words) {
       if (SUBJ_WORDS.has(w.toLowerCase()) && w === w.toLowerCase()) continue;
@@ -8739,7 +8746,7 @@
     'equipment', 'vehicle', 'historic']);
   function spellFilter(raw, mv) {
     const chosenType = / of the chosen type/i.test(String(raw || ''));
-    const words = String(raw || '').replace(/ of the chosen type/i, '').replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+    const words = listWords(String(raw || '').replace(/ of the chosen type/i, '')).split(/\s+/).filter(Boolean);
     for (const w of words) {
       if (SPELL_WORDS.has(w.toLowerCase()) && w === w.toLowerCase()) continue;
       if (/^[A-Z][a-z'-]+$/.test(w)) continue;
