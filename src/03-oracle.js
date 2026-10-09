@@ -5374,6 +5374,8 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
+    if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
     // Season of Loss: "for each creature that died under your control this turn"
     if (/^creatures? that died under your control this turn$/i.test(p)) return { diedThisTurn: true, yours: true, mult: k };
     // Fountain of Cho: "for each storage counter removed this way"
@@ -7766,6 +7768,26 @@
     if (/^(?:When|Whenever|At)[^,\n]*, if /.test(line) &&
         !abs.some(x => x.kind === 'triggered' && (x.condition || x.intervening))) return false;
     if (/Activate only if/.test(line) && !abs.some(x => x.only && x.only.cond)) return false;
+    /* Dockside Extortionist: "create X Treasure tokens, where X is the
+       number of artifacts and enchantments your opponents control" written
+       down as one Treasure. A line that counts something has to keep a
+       count somewhere in what it does. */
+    // (not "any number of target spells": that is how many targets, not an amount)
+    if (/\bfor each\b|\bwhere X is\b|\bequal to (?:the|its|that|twice|half)\b|\bX\b|\bthat many\b|(?<!any )\bnumber of\b/i.test(line.replace(/\{[^}]*\}/g, ''))) {
+      let counted = false;
+      const walk = (x) => {
+        if (Array.isArray(x)) return x.forEach(walk);
+        if (!x || typeof x !== 'object') return;
+        for (const k of Object.keys(x)) {
+          const v = x[k];
+          if ((k === 'n' || k === 'p' || k === 't' || k === 'count' || k === 'amount' || k === 'per') && v != null && typeof v !== 'number') counted = true;
+          if (k === 'perOpponentFrom' || k === 'perOpponent' || k === 'abilityDiscount' || k === 'costMod') counted = true;
+          walk(v);
+        }
+      };
+      walk(abs);
+      if (!counted) return false;
+    }
     return true;
   }
 

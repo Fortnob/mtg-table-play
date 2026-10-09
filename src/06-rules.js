@@ -2912,6 +2912,7 @@
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
       if (v.party) return this._partySize(pid) * mult;
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
+      if (v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
@@ -10415,6 +10416,8 @@
         h.permanentsLeft++;
         if (wasA && wasA.isCreature && toZone === 'graveyard') {
           h.creaturesDied++;
+          // Gadrak, the Crown-Scourge: "each nontoken creature that died this turn"
+          if (!o.isToken) h.nontokenDied = (h.nontokenDied || 0) + 1;
           // Sméagol: "a creature died under your control this turn"
           h.diedBy = h.diedBy || {};
           h.diedBy[o.controller] = (h.diedBy[o.controller] || 0) + 1;
@@ -11621,6 +11624,7 @@
         if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).colorsSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
+        if (v && typeof v === 'object' && v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return (v.yours ? ((((this.turnHistory || {}).diedBy) || {})[ctx.controller] || 0) : ((this.turnHistory || {}).creaturesDied || 0)) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         // Rackling: "3 minus the number of cards in their hand"

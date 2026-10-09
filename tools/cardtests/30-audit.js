@@ -1894,4 +1894,33 @@ module.exports = (test) => {
     for (const n of ['Slash of Light', 'Chameleon Spirit', 'Karn, Gilded Guardian', 'Skyshroud War Beast'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
+
+  test('Audit: Gadrak, the Crown-Scourge counts the nontoken creatures that died', (mk, t) => {
+    const T = mk();
+    t.auto('Gadrak, the Crown-Scourge');
+    T.bf('A', 'Gadrak, the Crown-Scourge');
+    const b = T.bf('B', 'Grizzly Bears'), c = T.bf('B', 'Runeclaw Bear');
+    T.g._createToken('B', { n: 1, pt: '1/1', subtypes: 'Goblin', colorWords: ['red'], keywords: [], addTypes: [] });
+    const tok = T.bfOf('B').find(o => o.isToken);
+    T.mana('A', 'RRR');
+    for (const x of [b, c, tok]) T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [x] });
+    T.toMain('A', 'end'); T.settle(); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2);
+  });
+
+  test('Audit: Dockside Extortionist makes a Treasure for each opposing artifact and enchantment', (mk, t) => {
+    const T = mk();
+    t.auto('Dockside Extortionist');
+    T.bf('B', 'Sol Ring'); T.bf('B', 'Mind Stone'); T.bf('B', 'Rhystic Study'); T.bf('A', 'Arcane Signet');
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Dockside Extortionist'));
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 3);
+  });
+
+  test('Audit: generated readings that dropped a count are left to a person (Fresh Meat, Murmuration, Death\'s Presence)', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Fresh Meat', 'Murmuration', "Death's Presence", 'Hoard Hauler', 'Caller of the Claw'])
+      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+  });
 };
