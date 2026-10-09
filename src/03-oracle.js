@@ -13017,6 +13017,9 @@
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
+      // Cadric, Council of Reeds, Sliver Gravemother: "… doesn't apply to tokens / creatures / Slivers you control"
+      { re: /^The "legend rule" doesn'?t apply to ((?:creature )?tokens|creatures|artifacts|[A-Z][a-z]+s) you control\.?$/,
+        make: (m) => ({ op: 'noLegendRule', words: m[1].toLowerCase() }), auto: true },
       { re: /^The "legend rule" doesn'?t apply\.?$/i, eff: { op: 'noLegendRule', all: true }, auto: true },
       // Troll of Khazad-dûm, Pathrazer of Ulamog
       { re: /^(?:CARDNAME|This creature) can'?t be blocked except by (two|three|four|five) or more creatures\.?$/i,

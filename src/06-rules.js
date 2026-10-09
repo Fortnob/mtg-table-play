@@ -20645,9 +20645,13 @@
 
         // legend rule (CR 704.5j)
         const byController = U.groupBy(this.battlefield.filter(o => { const a = o.analysis(); return a && a.isLegendary; }), o => o.controller);
-        for (const [pid, list] of byController) {
+        for (const [pid, list0] of byController) {
           // Mirror Box, Sakashima of a Thousand Faces: "the legend rule doesn't apply to permanents you control"
-          if (this.battlefield.some(x => { const r = !x.phasedOut && this._staticOp(x, 'noLegendRule'); return r && (r.all || x.controller === pid); })) continue;
+          // (Cadric: "… to tokens you control" — only those)
+          const exempting = this.battlefield.map(x => (!x.phasedOut && this._staticOp(x, 'noLegendRule')) ? { x, r: this._staticOp(x, 'noLegendRule') } : null)
+            .filter(q => q && (q.r.all || q.x.controller === pid));
+          if (exempting.some(q => !q.r.words)) continue;
+          const list = list0.filter(o => !exempting.some(q => this._cardFitsWords(o, q.r.words)));
           const byName = U.groupBy(list, o => U.frontName(o.name));
           for (const [name, dupes] of byName) {
             if (dupes.length > 1) {

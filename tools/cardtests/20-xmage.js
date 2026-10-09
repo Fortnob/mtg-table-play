@@ -14843,4 +14843,16 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(g), 1, 'two types: -2/-2');
     t.eq(T.g.toughnessOf(g), 1);
   });
+  test('Council of Reeds: the legend rule spares creatures, not other legends', (mk, t) => {
+    t.auto('Council of Reeds');
+    t.auto('Cadric, Soul Kindler');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Council of Reeds');
+    const a = T.bf('A', 'Isamaru, Hound of Konda'), b = T.bf('A', 'Isamaru, Hound of Konda');
+    const x = T.bf('A', 'Mox Amber'), y = T.bf('A', 'Mox Amber');
+    T.g.checkStateBasedActions();
+    t.ok(a.zone === 'battlefield' && b.zone === 'battlefield', 'both creatures stay');
+    t.eq([x, y].filter(o => o.zone === 'battlefield').length, 1, 'one Mox goes');
+  });
 };

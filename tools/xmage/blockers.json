@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11586,
+  "needed": 11584,
   "gainedCards": 1151,
-  "linesNeeded": 12439,
+  "linesNeeded": 12434,
   "linesGained": 1367,
   "gained": {
    "all": 1151,
@@ -4473,18 +4473,6 @@
    ]
   },
   {
-   "what": "LegendRuleDoesntApplyEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "The Master, Multiplied",
-    "Cadric, Soul Kindler",
-    "Sliver Gravemother",
-    "Spider-Verse",
-    "Council of Reeds"
-   ]
-  },
-  {
    "what": "PlayFromTopOfLibraryEffect",
    "score": 5,
    "lines": 5,
@@ -6790,13 +6778,23 @@
     "Mindslaver",
     "Worst Fears"
    ]
+  },
+  {
+   "what": "TargetPermanentOrSuspendedCard",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Clockspinning",
+    "Fury Charm",
+    "Venser's Diffusion"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3538,
-   "cards": 3358,
+   "score": 3540,
+   "cards": 3360,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8365,6 +8363,19 @@
    ]
   },
   {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Riveteers Ascendancy",
+    "G'raha Tia, Scion Reborn",
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge"
+   ]
+  },
+  {
    "what": "AddCardSubtypeAttachedEffect",
    "score": 7,
    "cards": 7,
@@ -8824,19 +8835,6 @@
     "One with the Kami",
     "Silver Sable, Mercenary Leader",
     "Expanding Ooze"
-   ]
-  },
-  {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Riveteers Ascendancy",
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
    ]
   },
   {
