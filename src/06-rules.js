@@ -10776,6 +10776,7 @@
           if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
           // Crawling Infestation: "during your turn"
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
+          if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
           // Phyrexian Dragon Engine: only when it came straight from the graveyard

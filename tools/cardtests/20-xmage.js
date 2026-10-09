@@ -13096,4 +13096,19 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(bolt.zone, 'exile', 'exiled instead of the graveyard');
   });
+
+  test("Wavebreak Hippocamp: the first spell you cast on each opponent's turn", (mk, t) => {
+    t.auto('Wavebreak Hippocamp');
+    const T = mk();
+    T.bf('A', 'Wavebreak Hippocamp');
+    T.toMain('A');
+    let hand = T.zone('A', 'hand').length;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, hand, 'not on your own turn');
+    T.toMain('B');
+    if (T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    hand = T.zone('A', 'hand').length;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'a card for the first');
+  });
 };

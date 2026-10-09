@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12078,
+  "needed": 12075,
   "gainedCards": 1266,
-  "linesNeeded": 13099,
+  "linesNeeded": 13096,
   "linesGained": 1510,
   "gained": {
    "all": 1266,
@@ -3812,19 +3812,6 @@
    ]
   },
   {
-   "what": "FirstSpellOpponentsTurnTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Wavebreak Hippocamp",
-    "Alela, Cunning Conqueror",
-    "Nymris, Oona's Trickster",
-    "Blightwing Bandit",
-    "Stinging Lionfish",
-    "Arena Trickster"
-   ]
-  },
-  {
    "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
    "score": 6,
    "lines": 6,
@@ -6961,6 +6948,17 @@
     "Ronin Cliffrider",
     "Gouged Zealot"
    ]
+  },
+  {
+   "what": "DoIfClashWonEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Pollen Lullaby",
+    "Woodland Guidance",
+    "Fire Juggler",
+    "Sentry Oak"
+   ]
   }
  ],
  "sole": [
@@ -9048,19 +9046,6 @@
    ]
   },
   {
-   "what": "FirstSpellOpponentsTurnTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Wavebreak Hippocamp",
-    "Alela, Cunning Conqueror",
-    "Nymris, Oona's Trickster",
-    "Blightwing Bandit",
-    "Stinging Lionfish",
-    "Arena Trickster"
-   ]
-  },
-  {
    "what": "ConditionalAnyColorManaAbility shape",
    "score": 6,
    "cards": 6,
@@ -10710,6 +10695,17 @@
     "Emissary of Despair",
     "Final Punishment",
     "Burden of Greed"
+   ]
+  },
+  {
+   "what": "PlayFromTopOfLibraryEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Glarb, Calamity's Augur",
+    "Elsha of the Infinite",
+    "Errant and Giada",
+    "Galea, Kindler of Hope"
    ]
   }
  ]

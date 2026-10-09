@@ -7995,6 +7995,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Alela, Wavebreak Hippocamp: "your first spell during each opponent's turn" — not on your own turn
+    { re: /^When(?:ever)? you cast your first spell during each opponent'?s turn(?:,| )/i, event: 'firstSpellEachTurn', extra: { notYourTurnOnly: true } },
     // Scrap Trawler: "Whenever this creature dies or another artifact you control is put into a graveyard from the battlefield"
     { re: /^Whenever (?:this creature|CARDNAME) dies or (another [a-z ]+? you control) is put into a graveyard from the battlefield,? /i,
       event: 'permDies', filt: (m) => subjectFilter('this creature or ' + m[1]) },
