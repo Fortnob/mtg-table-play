@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11780,
+  "needed": 11775,
   "gainedCards": 1191,
-  "linesNeeded": 12683,
+  "linesNeeded": 12677,
   "linesGained": 1410,
   "gained": {
    "all": 1191,
@@ -1170,25 +1170,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "The Council of Four",
-    "Alandra, Sky Dreamer",
-    "Minn, Wily Illusionist",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Krang, the All-Powerful",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Private Eye",
-    "Foggy Swamp Spirit Keeper",
-    "Moon Girl and Devil Dinosaur",
-    "Jaded Analyst"
-   ]
-  },
-  {
    "what": "AddCardTypeSourceEffect",
    "score": 13,
    "lines": 13,
@@ -1595,6 +1576,24 @@
     "Barbed-Back Wurm",
     "Master of Arms",
     "Flowstone Salamander"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "The Council of Four",
+    "Alandra, Sky Dreamer",
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Krang, the All-Powerful",
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Private Eye",
+    "Moon Girl and Devil Dinosaur",
+    "Jaded Analyst",
+    "Emerald Collector"
    ]
   },
   {
@@ -4798,18 +4797,6 @@
    ]
   },
   {
-   "what": "token statement SpiritWorldToken",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Realm of Koh",
-    "The Legend of Kuruk // Avatar Kuruk",
-    "Hei Bai, Forest Guardian",
-    "Baboon Spirit",
-    "Lost in the Spirit World"
-   ]
-  },
-  {
    "what": "RemoveVariableCountersSourceCost",
    "score": 5,
    "lines": 5,
@@ -6866,13 +6853,23 @@
     "Reenact the Crime",
     "Night Nurse, Healer of Heroes"
    ]
+  },
+  {
+   "what": "CantAttackYouAllEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Rite of the Raging Storm",
+    "Eriette of the Charmed Apple",
+    "Chronomantic Escape"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3544,
-   "cards": 3364,
+   "score": 3545,
+   "cards": 3365,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7821,19 +7818,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Private Eye",
-    "Foggy Swamp Spirit Keeper"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessTargetEffect",
    "score": 9,
    "cards": 9,
@@ -8143,6 +8127,19 @@
     "The Peregrine Dynamo",
     "Trickbind",
     "Emerald Dragon // Dissonant Wave"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Alandra, Sky Dreamer",
+    "King T'Challa // Black Panther, Hope Enduring",
+    "Mindless Conscription",
+    "Sneaky Snacker",
+    "Private Eye",
+    "Moon Girl and Devil Dinosaur"
    ]
   },
   {

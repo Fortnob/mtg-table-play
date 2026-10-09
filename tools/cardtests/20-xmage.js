@@ -14348,4 +14348,17 @@ module.exports = (test) => {
     U.settle(); U.resolve(); U.settle();
     t.zone(bh2, 'graveyard', 'no card to discard: sacrificed');
   });
+  test("Realm of Koh: the Spirit token can't block or be blocked by non-Spirits", (mk, t) => {
+    t.auto('Realm of Koh');
+    t.auto('Lost in the Spirit World');
+    const T = mk();
+    T.toMain('A');
+    const rk = T.bf('A', 'Realm of Koh');
+    const ab = rk.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: rk, name: 'Realm of Koh', kind: 'ability' });
+    const tok = T.bfOf('A').find(o => o.isToken);
+    t.ok(!!tok, 'a Spirit token');
+    t.ok(!T.g.couldBlock(T.bf('B', 'Grizzly Bears'), tok, 'B'), 'a Bear cannot block it');
+    t.ok(!!T.g.couldBlock(T.bf('B', 'Kami of Ancient Law'), tok, 'B'), 'a Spirit can');
+  });
 };

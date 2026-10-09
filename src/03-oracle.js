@@ -513,7 +513,7 @@
     /* A token handed an ability has to be able to use it: the text is
        read as the token's own card would be, and has to read whole. */
     if (e.grantedText) {
-      const probe = analyze({ id: 'tokentext:' + U.hash(e.grantedText), name: e.subtypes, type_line: 'Token Creature',
+      const probe = analyze({ id: 'tokentext:' + U.hash(e.grantedText), name: e.name || e.subtypes, type_line: 'Token Creature — ' + e.subtypes,
         oracle_text: e.grantedText, keywords: [], layout: 'token' });
       if (!probe || !probe.fullyAutomated) return null;
     }
@@ -7833,7 +7833,7 @@
       const has = e && e.op === 'manual' && String(e.text || '').match(/^(?:It has|They have|Those tokens have) "([^"]+)"\.?$/i);
       const host = has && out[out.length - 1];
       if (host && host.op === 'createToken' && !host.grantedText) {
-        const probe = analyze({ id: 'tokentext:' + U.hash(has[1]), name: host.subtypes || 'Token', type_line: 'Token Creature',
+        const probe = analyze({ id: 'tokentext:' + U.hash(has[1]), name: host.name || host.subtypes || 'Token', type_line: 'Token Creature — ' + (host.subtypes || 'Token'),
           oracle_text: has[1], keywords: [], layout: 'token' });
         if (probe && probe.fullyAutomated) { host.grantedText = has[1]; continue; }
       }
@@ -9091,8 +9091,11 @@
     const rawText = face.oracle_text || card.oracle_text || '';
     // Scryfall uses typographic apostrophes and dashes; normalise them so the
     // rule patterns below (written with plain ASCII) actually match real cards.
-    let text = normalizePunct(rawText)
-      .replace(new RegExp(escapeRe(normalizePunct(U.frontName(name))), 'g'), 'CARDNAME');
+    /* A token named for its creature types ("Spirit") is not talking about
+       itself when it says "non-Spirit creatures" or "each other Illusion". */
+    const typeNamed = card.layout === 'token' && !!name && tl.subtypes.join(' ') === name;
+    let text = normalizePunct(rawText);
+    if (!typeNamed) text = text.replace(new RegExp(escapeRe(normalizePunct(U.frontName(name))), 'g'), 'CARDNAME');
     // a Room's door: "this door" is the one this half is
     if (isRoom(card)) text = text.replace(/When you unlock this door/g, 'When you unlock door ' + faceIndex).replace(/\b[Tt]his Room\b/g, 'CARDNAME');
     /* A legend calls itself by its short name: "Toski attacks each combat
