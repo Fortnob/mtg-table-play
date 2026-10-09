@@ -18276,16 +18276,19 @@
         }
         // Tree of Perdition: their life total becomes its toughness, and its toughness their life total
         case 'exchangeLifeToughness': {
-          const p = firstPlayer();
+          // Tree of Redemption, Evra: "your life total" (who 'you'); Evra: "… with its power" (stat 'power')
+          const p = e.who === 'you' ? me : firstPlayer();
           if (!p || !src || src.zone !== 'battlefield') break;
-          const life = p.life, tough = this.toughnessOf(src);
+          const isPow = e.stat === 'power';
+          const life = p.life, tough = isPow ? this.powerOf(src) : this.toughnessOf(src);
           const pw = parseInt((src.card && src.card.power) || '0', 10) || 0;
+          const tg = parseInt((src.card && src.card.toughness) || '0', 10) || 0;
           if (life !== tough) {
             this.changeLife(p, tough - life, 'exchange');
             if (p.life === tough) {
-              src.effects.push({ setPt: { p: pw, t: life }, until: null });
+              src.effects.push({ setPt: isPow ? { p: life, t: tg } : { p: pw, t: life }, until: null });
               src._chr = null; this.bumpBoard();
-              this.logEvent('rules', `${src.name} and ${p.name} exchange: ${p.name} is at ${tough} life, and its toughness is ${life}.`);
+              this.logEvent('rules', `${src.name} and ${p.name} exchange: ${p.name} is at ${tough} life, and its ${isPow ? 'power' : 'toughness'} is ${life}.`);
             }
           }
           break;

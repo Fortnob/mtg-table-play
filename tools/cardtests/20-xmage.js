@@ -17020,4 +17020,24 @@ module.exports = (test) => {
     t.zone(bear, 'library');
     t.eq(T.g.zones.B.library.indexOf(bear), 1, 'into its owner\'s library, second');
   });
+
+  test('Tree of Redemption, Evra: exchange your life total with its toughness or power', (mk, t) => {
+    t.auto('Tree of Redemption');
+    t.auto('Evra, Halcyon Witness');
+    const T = mk();
+    T.toMain('A');
+    const tree = T.bf('A', 'Tree of Redemption');
+    T.g.players.find(p => p.id === 'A').life = 7;
+    T.activate('A', tree, 0);
+    T.settle();
+    t.eq(T.life('A'), 13, 'life becomes its toughness');
+    t.eq(T.g.toughnessOf(tree), 7, 'its toughness becomes the old life total');
+    const evra = T.bf('A', 'Evra, Halcyon Witness');
+    T.mana('A', '4');
+    T.activate('A', evra, 0);
+    T.settle();
+    t.eq(T.life('A'), 4, 'life becomes its power');
+    t.eq(T.g.powerOf(evra), 13, 'its power becomes the old life total');
+    t.eq(T.g.toughnessOf(evra), 4, 'its toughness is unchanged');
+  });
 };

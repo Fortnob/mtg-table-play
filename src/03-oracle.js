@@ -3720,6 +3720,9 @@
     // Tree of Perdition: "Exchange target opponent's life total with this creature's toughness."
     { re: /^Exchange target opponent'?s life total with (?:this creature|CARDNAME)'?s toughness\.?$/i,
       make: () => ({ op: 'exchangeLifeToughness', targets: [{ type: 'player', opponent: true }] }) },
+    // Tree of Redemption: "Exchange your life total with this creature's toughness."; Evra, Halcyon Witness: "… with CARDNAME's power."
+    { re: /^Exchange your life total with (?:this creature|CARDNAME)'?s (toughness|power)\.?$/i,
+      make: (m) => ({ op: 'exchangeLifeToughness', who: 'you', stat: m[1].toLowerCase() }) },
     // The Celestus: "If it's night, it becomes day. Otherwise, it becomes night."
     { re: /^If it'?s night, it becomes day\. Otherwise, it becomes night\.?$/i, make: () => ({ op: 'flipDayNight' }) },
     { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
