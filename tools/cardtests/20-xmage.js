@@ -15543,4 +15543,41 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.bfOf('A').filter(o => /Insect/.test(o.card.type_line || '')).length, 3, 'still three');
   });
+
+  test("Edric: a creature hitting one of your opponents lets its controller draw", (mk, t) => {
+    t.auto('Edric, Spymaster of Trest');
+    t.auto('Fecundity');
+    const T = mk();
+    T.bf('A', 'Edric, Spymaster of Trest');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.toMain('B');
+    const handB = T.zone('B', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 18);
+    t.eq(T.zone('B', 'hand').length, handB, "B hit Edric's controller: no draw");
+    const U = mk();
+    U.bf('A', 'Edric, Spymaster of Trest');
+    const ape = U.bf('A', 'Grizzly Bears');
+    U.toMain('A');
+    const handA = U.zone('A', 'hand').length;
+    U.answer('confirm', { yes: true });
+    U.answer('declareAttackers', () => [{ attackerId: ape.id, defenderId: 'B' }]);
+    U.toMain('A', 'endCombat');
+    t.eq(U.life('B'), 18);
+    t.eq(U.zone('A', 'hand').length, handA + 1, "A's creature hit A's opponent: A draws");
+    // Fecundity: the dead creature's controller is asked, and draws
+    const V = mk();
+    V.toMain('A');
+    V.bf('A', 'Fecundity');
+    const elf = V.bf('B', 'Llanowar Elves');
+    const handV = V.zone('B', 'hand').length;
+    let asked = null;
+    V.answer('confirm', (q) => { asked = q.playerId; return { yes: true }; });
+    V.mana('A', 'BBC');
+    V.cast('A', V.hand('A', 'Murder'), { targets: [elf] });
+    V.settle();
+    t.eq(asked, 'B', 'B decides');
+    t.eq(V.zone('B', 'hand').length, handV + 1, 'B draws');
+  });
 };

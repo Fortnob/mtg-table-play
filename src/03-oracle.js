@@ -4471,6 +4471,9 @@
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase(), abilities: true }] }) },
     { re: /^Counter target spell, activated ability, or triggered ability\.?$/i,
       make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true }] }) },
+    // Edric, Fecundity: "its controller (that creature's controller) may draw a card" — theirs to decide
+    { re: /^(?:Its|That creature'?s) controller may draw (a|one|two) cards?\.?$/i,
+      make: (m) => ({ op: 'may', who: 'targetController', then: [{ op: 'draw', n: num(m[1]), who: 'targetController' }] }) },
     { re: /^Its controller (mills|draws) (a|one|two|three|four|five|\d+) cards?\.?$/i,
       make: (m) => ({ op: /mills/i.test(m[1]) ? 'mill' : 'draw', n: num(m[2]), who: 'targetController' }) },
     { re: /^(Each player|Shuffle your) (?:shuffles their )?hand and graveyard into (?:their|your) library, then (?:draws?) (seven|five|four|three|\d+) cards\.?$/i,
@@ -9084,6 +9087,9 @@
       event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
+    // Edric, Spymaster of Trest; Gix: "Whenever a creature deals combat damage to one of your opponents," — anyone's creature
+    { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
+      event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
     /* --- spells being cast, by whom and of what kind --- */
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power|\d+(?:, \d+)*,? or \d+))?, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },

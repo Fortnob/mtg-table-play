@@ -11237,6 +11237,8 @@
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
+          // Edric, Spymaster of Trest: only damage to one of this player's opponents
+          if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
@@ -14543,9 +14545,12 @@
         }
 
         case 'may': {
-          const who = e.who === 'target' ? (firstPlayer() || me) : me;
+          // Edric: "its controller may draw a card" — whoever controls what it is about decides
+          const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
+          const d1 = e.who === 'targetController' && (e.then || [])[0];
           const yes = this._ask({ type: 'confirm', playerId: who.id,
-            prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'do it', 90)}` });
+            prompt: e.prompt || (d1 && d1.op === 'draw' ? `${ctx.name || 'Effect'}: Draw ${d1.n === 1 ? 'a card' : d1.n + ' cards'}?` : null) ||
+              `${ctx.name || 'Effect'}: ${truncate(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           if (yes) this._spliceNext(e.then);
           else this.logEvent('rules', `${who.name} declines.`);
