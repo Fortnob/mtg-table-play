@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11509,
+  "needed": 11507,
   "gainedCards": 1141,
-  "linesNeeded": 12342,
+  "linesNeeded": 12340,
   "linesGained": 1356,
   "gained": {
    "all": 1141,
@@ -6700,16 +6700,6 @@
    ]
   },
   {
-   "what": "PersistAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Cauldron of Souls",
-    "Dusk Legion Sergeant",
-    "Cauldron Haze"
-   ]
-  },
-  {
    "what": "WUBRGInsteadEffect",
    "score": 3,
    "lines": 3,
@@ -6737,6 +6727,16 @@
     "Glowing One",
     "Infesting Radroach",
     "Acquired Mutation"
+   ]
+  },
+  {
+   "what": "chapter with no effect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Phyrexian Scriptures",
+    "Time of Ice",
+    "Victory of the Pyrohammer"
    ]
   }
  ],

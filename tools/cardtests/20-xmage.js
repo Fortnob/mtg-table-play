@@ -15140,4 +15140,17 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.no(T.g._hasCreatureType(bear, 'Avatar'), 'gone next turn');
   });
+
+  test('Cauldron Haze gives persist to each creature chosen', (mk, t) => {
+    t.auto('Cauldron Haze');
+    t.auto('Cauldron of Souls');
+    const T = mk();
+    T.toMain('A');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Hill Giant'), c = T.bf('A', 'Llanowar Elves');
+    T.mana('A', '1WB');
+    T.cast('A', T.hand('A', 'Cauldron Haze'), { targets: [a, b] });
+    T.resolve();
+    t.ok(T.g.hasKw(a, 'Persist') && T.g.hasKw(b, 'Persist'), 'the two chosen');
+    t.no(T.g.hasKw(c, 'Persist'), 'not the third');
+  });
 };

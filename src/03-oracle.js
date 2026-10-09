@@ -2667,6 +2667,9 @@
         if (!kws.length) return add;
         return { op: 'sequence', list: [add, { op: 'grantKeyword', keywords: kws, duration: eot ? 'eot' : 'permanent', scope: tg ? 'lastTarget' : 'lastTarget' }] };
       } },
+    // Cauldron Haze: "Choose any number of target creatures. Each of those creatures gains persist until end of turn."
+    { re: /^Each of those creatures gains ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'eachTarget' } : null; } },
     // Guide of Souls: "It becomes an Angel in addition to its other types."
     { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
