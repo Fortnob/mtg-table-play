@@ -13810,4 +13810,17 @@ module.exports = (test) => {
     T.settle();
     t.ok(giant.effects.some(x => x.mustBlockId === bear.id), 'the Giant must block the Bears');
   });
+
+  test('Feral Contest: another target creature blocks the one that got the counter', (mk, t) => {
+    t.auto('Feral Contest');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Feral Contest'), { targets: [bear.id, giant.id] });
+    T.resolve();
+    t.eq(Number(bear.counters['+1/+1']) || 0, 1);
+    t.ok(giant.effects.some(x => x.mustBlockId === bear.id), 'the Giant must block the Bears');
+  });
 };

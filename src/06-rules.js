@@ -16925,8 +16925,12 @@
 
         // "Target creature blocks this creature this turn if able."
         case 'mustBlockThis': {
-          // Fighter Class: "blocks it" — the creature the trigger is about
-          const whom = e.ofTrigger ? this.obj((ctx.triggerData || {}).objectId) : src;
+          /* Fighter Class: "blocks it" — the creature the trigger is about;
+             Feral Contest: in a spell, the creature the sentence before acted on */
+          const tdo = (ctx.triggerData || {}).objectId;
+          const own = new Set(targets.map(t => t && t.id));
+          const prior = (ctx.resolvedTargets || ctx.targets || []).find(t => t && t.kind === 'object' && !own.has(t.id));
+          const whom = e.ofTrigger ? (tdo ? this.obj(tdo) : prior ? this.obj(prior.id) : null) : src;
           if (!whom) break;
           applyToScope(e, (o) => {
             o.effects.push({ mustBlockId: whom.id, until: 'eot' });
