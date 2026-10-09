@@ -1480,7 +1480,8 @@
     /** Turn a card over: a rare or mythic gathers itself first. */
     const flipper = (tiles, after) => {
       let flips = 0;
-      const flip = async (t, quick) => {
+      // silent: turned with the rest of a haul at once, which makes its one sound for all of them
+      const flip = async (t, quick, silent) => {
         if (t._flipped || t._charging) return;
         const it = t._item;
         const r = it.wildcard || it.rarity;
@@ -1497,6 +1498,12 @@
         t.classList.remove('waiting');
         t.classList.add('flipped');
         t.setAttribute('aria-label', it.card ? it.card.name : `${RAR_NAME[it.wildcard]} wildcard`);
+        if (silent) {
+          if (it.wildcard === 'mythic' || it.rarity === 'mythic') burst(t, 'mythic');
+          flips++;
+          after();
+          return;
+        }
         if (it.wildcard) { MTG.sfx('wildcard'); burst(t, it.wildcard === 'mythic' ? 'mythic' : 'rare'); }
         else if (it.rarity === 'mythic') { if (!quick || !after.mythicSounded) MTG.sfx('reveal_mythic'); after.mythicSounded = true; burst(t, 'mythic'); }
         else if (it.rarity === 'rare') { if (!quick || !after.rareSounded) MTG.sfx('reveal_rare'); after.rareSounded = true; burst(t, 'rare'); }
@@ -1570,29 +1577,56 @@
       stage.className = 'po-stage all';
       stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = ''; head.innerHTML = '';
       head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: `Opening ${packs.length} packs…` }));
-      const fan = el('div', { class: 'po-fan' });
-      const shown = Math.min(packs.length, 10);
-      const fanned = Array.from({ length: shown }, (_, i) => {
-        const b = boosterEl(each[i].g.info, each[i].g.kind);
-        b.style.setProperty('--k', String(i - (shown - 1) / 2));
+      /* The packs as a pile, the one being opened on top: each tears off in
+         turn and the next unopened one comes up behind the rest, so every
+         pack is seen as it opens, whatever its set. */
+      const fan = el('div', { class: 'po-fan pile' });
+      const DEPTH = Math.min(5, packs.length);
+      const pile = [];
+      const restack = () => pile.forEach((b, j) => { b.style.setProperty('--j', String(j)); b.style.zIndex = String(20 - j); });
+      const comeUp = (k) => {
+        if (k >= packs.length) return;
+        const b = boosterEl(each[k].g.info, each[k].g.kind);
         fan.appendChild(b);
-        return b;
-      });
+        pile.push(b);
+      };
+      for (let k = 0; k < DEPTH; k++) comeUp(k);
+      restack();
       stage.appendChild(fan);
-      onKey = () => {};
+      /* Clicking again (or Enter, or Space) skips the show: the rest of the
+         packs open at once, with no flash, and the cards come up already
+         turned over. The same during the wave of cards turning over. */
+      let skip = false, revealNow = null;
+      const skipAll = () => { if (skip) return; skip = true; if (revealNow) revealNow(); };
+      const onSkip = (e) => { if (e.target && e.target.closest && e.target.closest('.po-x, .po-foot button')) return; skipAll(); };
+      // from the next click on: the one that pressed Open all is still on its way up through the overlay
+      setTimeout(() => { if (!revealNow || !skip) overlay.addEventListener('click', onSkip); }, 0);
+      onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skipAll(); } };
+      head.querySelector('.po-sub').textContent = `Opening ${packs.length} packs… click to skip`;
       const results = [];
       let failed = null;
       for (let i = 0; i < packs.length; i++) {
         try { results.push(await S.openPack(packs[i].id, async () => each[i].g.info)); } catch (e) { failed = e; break; }
-        const b = fanned[i % shown];
-        if (b && !reduced()) { b.classList.remove('rip'); void b.offsetWidth; b.classList.add('rip'); }
-        MTG.sfx('pack_tear_quick', { pan: shown > 1 ? ((i % shown) / (shown - 1) - 0.5) : 0 });
-        await sleep(reduced() ? 10 : 110);
+        if (skip) continue;
+        // the top pack tears away and the next comes up
+        const top = pile.shift();
+        if (top) {
+          if (reduced()) top.remove();
+          else { top.classList.add('rip'); setTimeout(() => top.remove(), 450); }
+        }
+        comeUp(i + DEPTH);
+        restack();
+        const sub = head.querySelector('.po-sub');
+        if (sub) sub.textContent = `Opening ${i + 1} of ${packs.length}… click to skip`;
+        MTG.sfx('pack_tear_quick', { pan: (i % 3 - 1) * 0.3 });
+        await sleep(reduced() ? 10 : 150);
       }
-      if (failed && !results.length) { UI.error(failed.message || String(failed)); return inventory(); }
-      overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
-      MTG.sfx('boom');
-      await sleep(reduced() ? 50 : 520);
+      if (failed && !results.length) { overlay.removeEventListener('click', onSkip); UI.error(failed.message || String(failed)); return inventory(); }
+      if (!skip) {
+        overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
+        MTG.sfx('boom');
+        await sleep(reduced() ? 50 : 520);
+      }
       // everything, together: the same card once with how many, rarest first
       const merged = new Map();
       const wcs = { common: 0, uncommon: 0, rare: 0, mythic: 0 };
@@ -1636,17 +1670,40 @@
       const after = () => {};
       const flip = flipper(tiles, after);
       refresh();
-      // the whole haul from the top, wherever the list of packs was scrolled to
-      requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
-      setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
-      // the best of it turned over first, with its sound; the rest in a quick wave
-      const best = tiles.filter(t => t._big);
-      const rest = tiles.filter(t => !t._big);
-      let at = 400;
-      for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
-      rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+      let waveOver = false;
+      /* skipped: every card down and turned over at once, with one sound for
+         the lot (the rarest there is), and no stagger to wait out */
+      revealNow = () => {
+        if (waveOver) return;
+        waveOver = true;
+        overlay.removeEventListener('click', onSkip);
+        grid.classList.add('instant', 'dealt', 'settled');
+        stage.scrollTop = 0;
+        for (const t of tiles) flip(t, true, true);
+        const has = (r) => items.some(it => (it.wildcard || it.rarity) === r);
+        MTG.sfx(has('mythic') ? 'reveal_mythic' : has('rare') ? 'reveal_rare' : 'card_flip');
+        requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.remove('instant')));
+      };
+      if (skip) revealNow();
+      else {
+        // the whole haul from the top, wherever the list of packs was scrolled to
+        requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
+        setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
+        // the best of it turned over first, with its sound; the rest in a quick wave
+        const best = tiles.filter(t => t._big);
+        const rest = tiles.filter(t => !t._big);
+        let at = 400;
+        for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
+        rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+        // once the wave has run its course, a click is a click again
+        setTimeout(() => { waveOver = true; overlay.removeEventListener('click', onSkip); }, at + rest.length * 35 + 300);
+      }
       if (failed) UI.error(`Some packs could not be opened: ${failed.message || failed}`);
-      onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+      // Enter or Space: the cards at once while they are still turning, and away once they are all up
+      onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!waveOver) skipAll(); else close(); }
+      };
     };
 
     inventory();

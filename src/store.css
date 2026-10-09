@@ -204,6 +204,12 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-fan .booster { position: absolute; left: 35px; top: 30px; transform: rotate(calc(var(--k) * 4deg)) translateX(calc(var(--k) * 16px)); }
 .po-fan .booster.rip { animation: fanRip .4s ease-in forwards; }
 @keyframes fanRip { 30% { filter: brightness(1.8); } 100% { transform: translateY(-80px) scale(.8) rotate(calc(var(--k) * 10deg)); opacity: 0; } }
+/* Open all: a pile, the pack being opened on top, the next few behind it */
+.po-fan.pile .booster { transform: translate(calc(var(--j, 0) * 15px), calc(var(--j, 0) * -7px)) rotate(calc(var(--j, 0) * 3.5deg)) scale(calc(1 - var(--j, 0) * .045));
+  transition: transform .2s ease-out; }
+.po-fan.pile .booster.rip { z-index: 30 !important; animation: pileRip .42s ease-in forwards; }
+@keyframes pileRip { 0% { transform: none; } 25% { filter: brightness(1.9); transform: translateY(-10px) scale(1.04); }
+  100% { transform: translate(-40px, -110px) rotate(-14deg) scale(.82); opacity: 0; filter: brightness(1.4); } }
 
 /* the cards */
 .po-grid { display: grid; grid-template-columns: repeat(var(--cols, 7), auto); gap: 18px 16px; justify-content: center; align-content: center; }
@@ -217,6 +223,8 @@ html[data-play="1"] .shard-chip { display: none; }
   transition: transform .5s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 55ms), opacity .25s calc(var(--i) * 55ms), filter .2s; }
 .po-grid.many.dealt .po-card { transition: transform .4s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 12ms), opacity .2s calc(var(--i) * 12ms), filter .2s; }
 .po-grid.settled .po-card, .po-grid.many.settled .po-card { transition: transform .22s ease-out, filter .2s, opacity .2s; }
+/* skipped: the haul is simply there, nothing flying in or turning over */
+.po-grid.instant .po-card, .po-grid.instant .po-card * { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
 /* hovered, a turned card comes up to be read */
 .po-grid.dealt .po-card.flipped:hover { transform: scale(1.65); z-index: 30; transition-delay: 0s; }
 .po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.9); }
