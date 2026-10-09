@@ -16067,4 +16067,23 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(sword, 'hexproof'), 'an Equipment');
     t.no(T.g.hasKw(elf, 'hexproof'), 'an unmodified creature does not');
   });
+
+  test('Umbra Mystic: Auras on your permanents have umbra armor', (mk, t) => {
+    t.auto('Umbra Mystic');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Umbra Mystic');
+    const bear = T.bf('A', 'Grizzly Bears'), aura = T.bf('A', 'Holy Strength');
+    aura.attachedTo = bear.id; bear.attachments = [aura.id];
+    const theirs = T.bf('B', 'Hill Giant'), aura2 = T.bf('B', 'Holy Strength');
+    aura2.attachedTo = theirs.id; theirs.attachments = [aura2.id];
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(aura, 'umbra armor'));
+    t.no(T.g.hasKw(aura2, 'umbra armor'), "not on an opponent's creature");
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear] });
+    T.settle();
+    t.zone(bear, 'battlefield', 'the Aura is destroyed instead');
+    t.zone(aura, 'graveyard');
+  });
 };

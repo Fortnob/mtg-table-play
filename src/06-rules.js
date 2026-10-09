@@ -20102,6 +20102,8 @@
       if (sc.attacking && !o.attacking) return false;
       // Arachnogenesis: "creatures attacking you" — you, or a planeswalker of yours
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
+      // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura
+      if (sc.attachedToYours && !(o.attachedTo && (this.obj(o.attachedTo) || {}).controller === pid)) return false;
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
       if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;

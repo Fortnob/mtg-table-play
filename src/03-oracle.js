@@ -13267,6 +13267,9 @@
             { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, pt: { p: +m[2], t: +m[3] } },
             Object.assign({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true }, cond: c, pt: { p: +m[4], t: +m[5] } }, kws.length ? { grant: kws } : {})] };
         }, auto: true },
+      // Umbra Mystic: "Auras attached to permanents you control have umbra armor."
+      { re: /^Auras attached to permanents you control have (umbra armor|totem armor)\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { who: 'all', what: 'permanent', subtypes: ['aura'], attachedToYours: true }, grant: ['Umbra armor'] }, auto: true },
       // Absolute Virtue: "You have protection from each of your opponents."
       { re: /^You have protection from each of your opponents\.?$/i, eff: { op: 'protFromOpponents' }, auto: true },
       // Ensnaring Bridge: "Creatures with power greater than the number of cards in your hand can't attack."
