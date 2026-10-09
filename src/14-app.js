@@ -915,6 +915,48 @@
   }
   function saveQuick(q) { MTG.setSetting('quickGame', q); }
 
+  /* The home screen's strip of today's things. Claiming rewards and opening
+     packs happen over the home screen without leaving it, so the strip
+     redraws itself whenever either changes, on its own, leaving the rest
+     of the page (and whatever is set up in the quick game) alone. */
+  function todayStrip() {
+    if (!MTG.progress) return null;
+    const P = MTG.progress.state;
+    const q = P.quests || [];
+    const qDone = q.length ? q.reduce((a, x) => a + Math.min(1, x.n / x.goal), 0) / q.length : 1;
+    const box = MTG.progress.inboxCount();
+    const packs = MTG.economy.packs().length;
+    const today = (cls, label, value, sub, pct, onClick) => el('button', { type: 'button', class: 'today-item ' + cls, onclick: onClick }, [
+      el('span', { class: 'ti-label', text: label }),
+      el('b', { class: 'ti-value', text: value }),
+      sub ? el('span', { class: 'ti-sub', text: sub }) : null,
+      pct != null ? el('span', { class: 'ti-bar' }, [el('i', { style: { width: Math.round(pct * 100) + '%' } })]) : null,
+    ].filter(Boolean));
+    return el('div', { class: 'home-today', role: 'group', 'aria-label': 'Today' }, [
+      today('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', q.length ? MTG.progress.questText(q[0]) : 'A new one tomorrow', qDone, () => navProfile('quests')),
+      today('t-weekly', 'Weekly wins', `${P.weekly.wins} / 15`, 'Rewards along the way', P.weekly.wins / 15, () => navProfile('quests')),
+      today('t-inbox' + (box ? ' hot' : ''), 'Rewards', box ? `${box} to claim` : 'None waiting', box ? 'Open the inbox' : 'Earn them by playing', null, () => UI.openInbox()),
+      today('t-packs' + (packs ? ' hot' : ''), 'Your packs', packs ? `${packs} to open` : 'None', packs ? 'Open them' : 'Buy some in the Store', null, () => (packs ? App.openPacks() : showScreen('store'))),
+      today('t-rank', 'Ranked', MTG.progress.rankLabel(P.ranked), `Mastery level ${P.level}`, null, () => navProfile('ranked')),
+    ]);
+  }
+  let stripQueued = false;
+  function refreshTodayStrip() {
+    if (stripQueued) return;
+    stripQueued = true;
+    // a pile of changes at once (opening every pack) redraws it once
+    setTimeout(() => {
+      stripQueued = false;
+      const old = document.querySelector('#screen-home .home-today');
+      const fresh = old && todayStrip();
+      if (fresh) old.replaceWith(fresh);
+    }, 0);
+  }
+  if (MTG.bus) {
+    MTG.bus.on('economy:changed', refreshTodayStrip);
+    MTG.bus.on('progress:changed', refreshTodayStrip);
+  }
+
   function renderHome() {
     const s = screens.home;
     s.innerHTML = '';
@@ -1007,26 +1049,8 @@
       return t;
     };
     /* -- today: quests, the week, rewards waiting, packs to open; each goes where it says -- */
-    if (MTG.progress) {
-      const P = MTG.progress.state;
-      const q = P.quests || [];
-      const qDone = q.length ? q.reduce((a, x) => a + Math.min(1, x.n / x.goal), 0) / q.length : 1;
-      const box = MTG.progress.inboxCount();
-      const packs = MTG.economy.packs().length;
-      const today = (cls, label, value, sub, pct, onClick) => el('button', { type: 'button', class: 'today-item ' + cls, onclick: onClick }, [
-        el('span', { class: 'ti-label', text: label }),
-        el('b', { class: 'ti-value', text: value }),
-        sub ? el('span', { class: 'ti-sub', text: sub }) : null,
-        pct != null ? el('span', { class: 'ti-bar' }, [el('i', { style: { width: Math.round(pct * 100) + '%' } })]) : null,
-      ].filter(Boolean));
-      page.appendChild(el('div', { class: 'home-today', role: 'group', 'aria-label': 'Today' }, [
-        today('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', q.length ? MTG.progress.questText(q[0]) : 'A new one tomorrow', qDone, () => navProfile('quests')),
-        today('t-weekly', 'Weekly wins', `${P.weekly.wins} / 15`, 'Rewards along the way', P.weekly.wins / 15, () => navProfile('quests')),
-        today('t-inbox' + (box ? ' hot' : ''), 'Rewards', box ? `${box} to claim` : 'None waiting', box ? 'Open the inbox' : 'Earn them by playing', null, () => UI.openInbox()),
-        today('t-packs' + (packs ? ' hot' : ''), 'Your packs', packs ? `${packs} to open` : 'None', packs ? 'Open them' : 'Buy some in the Store', null, () => (packs ? App.openPacks() : showScreen('store'))),
-        today('t-rank', 'Ranked', MTG.progress.rankLabel(P.ranked), `Mastery level ${P.level}`, null, () => navProfile('ranked')),
-      ]));
-    }
+    const strip = todayStrip();
+    if (strip) page.appendChild(strip);
     page.appendChild(el('div', { class: 'home-tiles four' }, [
       tile('formats', SVG.play, 'Play', 'Every format, events and challenges. Fill the seats with friends or bots.', () => showScreen('formats')),
       tile('decks', SVG.deck, 'Decks', 'Import a list from anywhere, build one from scratch, and see what it combos into.', () => showScreen('decks')),
