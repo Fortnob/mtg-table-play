@@ -514,8 +514,10 @@
       const was = btn.parentNode.querySelector('.precon-was');
       if (was) was.remove();
       if (!all && pr.price < pr.full) btn.after(el('s', { class: 'precon-was dim', text: fmtN(pr.full) }));
-      owns.textContent = all ? 'All of it in your collection' : `You own ${pr.owned} of ${pr.cards}`;
-      owns.title = `${pr.cards} cards besides its basic lands, which are free`;
+      // as a share, never rounded up to all of it while a card is missing
+      const pct = all ? 100 : Math.min(99, Math.round(pr.owned / Math.max(1, pr.cards) * 100));
+      owns.textContent = all ? 'All of it in your collection' : `${pct}% in your collection`;
+      owns.title = `You own ${pr.owned} of its ${pr.cards} cards, basic lands aside (they are free)`;
     };
     return tile;
   }
