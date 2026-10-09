@@ -12775,7 +12775,12 @@
           if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { this._markTapped(x); this.emit('sfx', 'tap'); } break; }
           if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { this._markTapped(x); this.emit('sfx', 'tap'); } }
           else if (e.scope === 'self' && src) { this._markTapped(src); this.emit('sfx', 'tap'); }
-          else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) { this._markTapped(o); this.emit('sfx', 'tap'); } } }
+          else {
+            // Sudden Storm: "those creatures" next are the ones just tapped
+            const tapped = [];
+            for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) { this._markTapped(o); this.emit('sfx', 'tap'); tapped.push(o.id); } } }
+            if (tapped.length) this._lastGroup = tapped;
+          }
           break;
         case 'untap':
           if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { this._markUntapped(x); this.emit('sfx', 'untap'); } break; }

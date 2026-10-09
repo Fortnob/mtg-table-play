@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11724,
-  "gainedCards": 1199,
-  "linesNeeded": 12595,
-  "linesGained": 1420,
+  "needed": 11687,
+  "gainedCards": 1171,
+  "linesNeeded": 12556,
+  "linesGained": 1392,
   "gained": {
-   "all": 1199,
+   "all": 1171,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4269,
-   "lines": 4008,
+   "score": 4266,
+   "lines": 4005,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -89,8 +89,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 201,
-   "lines": 180,
+   "score": 200,
+   "lines": 179,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -146,8 +146,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 165,
-   "lines": 159,
+   "score": 163,
+   "lines": 157,
    "cards": [
     "Likeness Looter",
     "Silkguard",
@@ -5530,17 +5530,6 @@
    ]
   },
   {
-   "what": "ExileSourceAndReturnFaceUpEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Vorinclex // The Grand Evolution",
-    "Elesh Norn // The Argent Etchings",
-    "Terra, Magical Adept // Esper Terra",
-    "Jill, Shiva's Dominant // Shiva, Warden of Ice"
-   ]
-  },
-  {
    "what": "BeginningOfEndStepTriggeredAbility for OPPONENT",
    "score": 4,
    "lines": 4,
@@ -6018,17 +6007,6 @@
     "Cytoplast Manipulator",
     "The Super Hero Civil War",
     "Stromgald Spy"
-   ]
-  },
-  {
-   "what": "DontUntapInControllersNextUntapStepTargetEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Lorthos, the Tidemaker",
-    "Sudden Storm",
-    "Mana Skimmer",
-    "Samite Alchemist"
    ]
   },
   {
@@ -6768,6 +6746,16 @@
    ]
   },
   {
+   "what": "ExileSourceAndReturnFaceUpEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Vorinclex // The Grand Evolution",
+    "Elesh Norn // The Argent Etchings",
+    "Terra, Magical Adept // Esper Terra"
+   ]
+  },
+  {
    "what": "CantAttackYouAllEffect",
    "score": 3,
    "lines": 3,
@@ -6835,13 +6823,23 @@
     "Feasting Hobbit",
     "Caprichrome"
    ]
+  },
+  {
+   "what": "OneOrMoreMilledTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "The Wise Mothman",
+    "Mirelurk Queen",
+    "Screeching Scorchbeast"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3545,
-   "cards": 3365,
+   "score": 3543,
+   "cards": 3363,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6879,8 +6877,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 143,
-   "cards": 137,
+   "score": 142,
+   "cards": 136,
    "names": [
     "Likeness Looter",
     "Silkguard",

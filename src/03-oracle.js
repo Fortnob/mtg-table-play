@@ -1913,7 +1913,8 @@
     { re: /^Tap (target [a-z0-9 '-]+?)\.?$/i, make: (m) => ({ op: 'tap', targets: [targetSpec(m[1])] }) },
     /* "up to two target creatures" — the same effect, pointed at a list,
        and the player may point at fewer. */
-    { re: /^Tap up to (one|two|three|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
+    // (Lorthos, the Tidemaker: "up to eight target permanents")
+    { re: /^Tap up to (one|two|three|four|five|six|seven|eight|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
       make: (m) => ({ op: 'tap', targets: Array.from({ length: num(m[1]) },
         () => Object.assign(targetSpec(m[2]), { upTo: true })) }) },
     // Succumb to the Cold, Donatello: "one or two target creatures an opponent controls"
@@ -2334,6 +2335,10 @@
       make: (m) => ({ op: 'copyPermanent', n: num(m[1].replace(/^a$/i, 'one')), of: 'sacrificed', grant: [] }) },
     { re: /^Tap all creatures your opponents control\.?$/i,
       make: () => ({ op: 'tapAll', what: 'creatures', who: 'opponents' }) },
+    /* Any other "Tap all …" whose words are a scope: "Tap all creatures you
+       control", "Tap all attacking creatures", "Tap all nonwhite creatures" */
+    { re: /^Tap all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents|[A-Z][a-z]+s)(?: you control| your opponents control| without flying| with toughness \d+ or less)?)\.?$/,
+      make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'tapAll', scope: sc } : null; } },
     /* "Tap all creatures target player controls" (Sleep), Kiora Bests the
        Sea God: "Tap all nonland permanents target opponent controls." —
        that player's, not every opponent's */
@@ -2468,7 +2473,8 @@
     { re: /^You may play (?:that card|it|those cards|them) for as long as (?:it remains|they remain) exiled\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'exiled' }) },
     { re: /^Untap them\.?$/i, make: () => ({ op: 'untap', scope: 'lastGroup' }) },
-    { re: /^(?:Those creatures|They) don'?t untap during their controllers?'?s? next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
+    // (Sudden Storm, Lorthos: "Those creatures don't untap during their controllers' next untap steps.")
+    { re: /^(?:Those creatures|Those permanents|They) don'?t untap during their controllers?'?s? next untap steps?\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
     // Sleep: "Those creatures don't untap during that player's next untap step." — the player whose creatures they are
     { re: /^(?:Those creatures|They) don'?t untap during that player'?s next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
     { re: /^(?:This land|This creature|This artifact|CARDNAME) doesn'?t untap during your next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'self' }) },

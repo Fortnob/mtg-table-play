@@ -478,8 +478,8 @@ module.exports = (test) => {
     t.eq(T.life('A'), 17);
   });
 
-  test('XMage: Choking Tethers taps a creature when cycled', (mk, t) => {
-    generated(t, 'Choking Tethers');
+  test('Choking Tethers taps a creature when cycled', (mk, t) => {
+    t.auto('Choking Tethers');
     const T = mk();
     const bear = T.bf('B', 'Grizzly Bears');
     const ct = T.hand('A', 'Choking Tethers');
@@ -14507,5 +14507,34 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(bh, 'Indestructible'), 'at 10 of 20, yes');
     const tk = T.bf('A', 'Traproot Kami');
     t.ok(T.g.hasKw(tk, 'Defender') && T.g.hasKw(tk, 'Reach'), 'both keywords off one line');
+  });
+  test("Sudden Storm: the two it taps don't untap in their controller's next untap step", (mk, t) => {
+    t.auto('Sudden Storm');
+    t.auto('Lorthos, the Tidemaker');
+    t.auto('Breaching Leviathan');
+    const T = mk();
+    T.toMain('A');
+    const a = T.bf('B', 'Grizzly Bears'), b = T.bf('B', 'Hill Giant'), c = T.bf('B', 'Llanowar Elves');
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Sudden Storm'), { targets: [a, b] });
+    T.resolve();
+    t.ok(a.tapped && b.tapped && !c.tapped, 'two tapped');
+    t.ok(a.noUntapNext && b.noUntapNext, 'and held down');
+    t.no(c.noUntapNext);
+  });
+
+  test('Tap all creatures you control; tap all nonblue creatures', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant'), blue = T.bf('B', 'Merfolk Looter');
+    const card = T.hand('A', 'Island');
+    const mineOnly = engine().oracle.parseEffects('Tap all creatures you control.');
+    t.ok(mineOnly.auto, 'reads');
+    T.g._runEffects(mineOnly.effects, { controller: 'A', obj: card, name: 'Test', kind: 'spell' });
+    t.ok(mine.tapped && !theirs.tapped, 'only mine');
+    const ab = engine().oracle.parseEffects('Tap all nonblue creatures.');
+    t.ok(ab.auto, 'reads');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: card, name: 'Test', kind: 'spell' });
+    t.ok(theirs.tapped && !blue.tapped, 'the Giant, not the Looter');
   });
 };
