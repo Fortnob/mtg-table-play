@@ -101,13 +101,18 @@
   /**
    * What a pulled card is worth, for putting the best of a rarity where it
    * shows: its market price, the foil one for a foil (0 for a wildcard, or
-   * a card nobody has priced).
+   * a card nobody has priced). In dollars; a card with no dollar price
+   * (an Alpha dual land, say: too rare for the American market to list)
+   * goes by its euro price, at about the rate, rather than as worthless.
    */
+  const EUR_USD = 1.1;
   function cardValue(it) {
     const p = it && it.card && it.card.prices;
     if (!p) return 0;
     const n = parseFloat(it.foil ? (p.usd_foil || p.usd_etched || p.usd) : (p.usd || p.usd_foil));
-    return Number.isFinite(n) ? n : 0;
+    if (Number.isFinite(n)) return n;
+    const eur = parseFloat(p.eur || p.eur_foil);
+    return Number.isFinite(eur) ? eur * EUR_USD : 0;
   }
   /** The name a card is collected under: the whole name, both faces. */
   const nameOf = (c) => String((c && c.name) || '');

@@ -226,8 +226,13 @@ html[data-play="1"] .shard-chip { display: none; }
 /* skipped: the haul is simply there, nothing flying in or turning over */
 .po-grid.instant .po-card, .po-grid.instant .po-card * { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
 /* hovered, a turned card comes up to be read */
-.po-grid.dealt .po-card.flipped:hover { transform: scale(1.65); z-index: 30; transition-delay: 0s; }
-.po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.9); }
+.po-grid.dealt .po-card.flipped:hover { transform: scale(1.28); z-index: 30; transition-delay: 0s; cursor: zoom-in; }
+.po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.4); }
+/* hurried by a click: dealt and turned at six times the pace */
+.po-grid.hurry .po-card { transition-duration: .12s !important; transition-delay: 0s !important; }
+.po-grid.hurry .po-inner { transition-duration: .15s !important; }
+/* opening takes the whole screen: its title clear of a phone's status bar */
+.pack-open:not(.shelf) .po-head { padding-top: calc(22px + env(safe-area-inset-top, 0px)); }
 .po-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3, .7, .25, 1.15); }
 .po-card.flipped .po-inner { transform: rotateY(180deg); }
 .po-back, .po-front { position: absolute; inset: 0; border-radius: 4.8% / 3.5%; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }

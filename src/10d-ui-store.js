@@ -1190,6 +1190,23 @@
 
   /* ---------------- opening packs ---------------- */
   const RANK = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
+  /* The order cards come out in: wildcards (rarest first), then the Power
+     Nine, then the rest. Before Exodus a set symbol said nothing of a card's
+     rarity, so nobody opening those packs knew a common from a rare by
+     looking: their cards go by value alone. The rest by rarity, then value. */
+  const RARITY_SHOWN = '1998-06-15';   // Exodus, the first set symbol coloured by rarity
+  const POWER_NINE = new Set(['Black Lotus', 'Ancestral Recall', 'Time Walk', 'Timetwister',
+    'Mox Pearl', 'Mox Sapphire', 'Mox Jet', 'Mox Ruby', 'Mox Emerald']);
+  const isPower = (it) => !!(it.card && POWER_NINE.has(it.card.name));
+  const isVintage = (it) => !!(it.card && (it.card.released_at || '9999') < RARITY_SHOWN);
+  const haulTier = (it) => (it.wildcard ? 0 : isPower(it) ? 1 : isVintage(it) ? 2 : 3);
+  function haulOrder(a, b) {
+    const ta = haulTier(a), tb = haulTier(b);
+    if (ta !== tb) return ta - tb;
+    if (ta === 0) return RANK[b.wildcard] - RANK[a.wildcard];
+    if (ta === 3 && RANK[b.rarity] !== RANK[a.rarity]) return (RANK[b.rarity] || 0) - (RANK[a.rarity] || 0);
+    return E().cardValue(b) - E().cardValue(a) || a.card.name.localeCompare(b.card.name);
+  }
   const reduced = () => document.documentElement.dataset.reducedMotion === '1' ||
     (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -1258,8 +1275,9 @@
     /* the top bar's bottom is measured on the screen, and the interface is
        zoomed to fit big screens, so it is turned back into the page's own
        pixels (the overlay's on-screen height against its own) */
+    // the shelf of your packs sits under the top bar; opening them takes the whole screen
     const place = () => {
-      if (!topbar || topbar.offsetParent === null) { overlay.style.top = '0px'; return; }
+      if (!overlay.classList.contains('shelf') || !topbar || topbar.offsetParent === null) { overlay.style.top = '0px'; return; }
       const zoom = (overlay.getBoundingClientRect().height / (overlay.offsetHeight || 1)) || 1;
       overlay.style.top = Math.max(0, topbar.getBoundingClientRect().bottom / zoom) + 'px';
     };
@@ -1287,6 +1305,7 @@
 
     /* ---- right-click: the card held up to the light ---- */
     let inspecting = null;
+    let earlyHurry = false;   // a click while a pack tears: its cards come hurried
     const inspect = (card) => {
       if (!card) return;
       closeInspect();
@@ -1333,6 +1352,7 @@
       if (!gs.length) return close();
       stage.className = 'po-stage inv';
       overlay.classList.add('shelf');
+      place();
       stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
       const total = S.packs().length;
       head.append(el('div', { class: 'po-pagehead' }, [
@@ -1370,6 +1390,7 @@
     /* ---- one pack ---- */
     const openOne = (g) => {
       overlay.classList.remove('shelf');
+      place();
       const p = (groups().find(x => x.key === g.key) || { packs: [] }).packs[0];
       if (!p) return inventory();
       const info = setInfo(p);
@@ -1394,6 +1415,9 @@
       const open = async () => {
         if (opening) return;
         opening = true;
+        // a click from here on, while it gathers and tears, hurries the dealing (the next tick: this click is still going up)
+        earlyHurry = false;
+        setTimeout(() => { stage.onclick = () => { earlyHurry = true; }; }, 0);
         hint.classList.add('gone');
         // the pack lifts, the room closes in, the seam begins to glow; then it gives
         pack.classList.add('gather');
@@ -1459,6 +1483,8 @@
       t._item = it; t._big = big; t._flipped = false;
       t.addEventListener('mouseenter', () => { if (t._flipped) MTG.sfx('hover'); });
       t.addEventListener('contextmenu', (e) => { e.preventDefault(); if (t._flipped && it.card) inspect(it.card); });
+      // turned over, a click holds it up to the light too (a face-down one is turned over instead)
+      t.addEventListener('click', () => { if (t._flipped && it.card && Date.now() - (t._flippedAt || 0) > 250) inspect(it.card); });
       return t;
     };
 
@@ -1486,7 +1512,7 @@
         const it = t._item;
         const r = it.wildcard || it.rarity;
         const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
-        if (t._big && !quick && !reduced()) {
+        if (t._big && !quick && !reduced() && !(after.hurried && after.hurried())) {
           t._charging = true;
           t.classList.add('charging');
           MTG.sfx(r === 'mythic' ? 'charge_mythic' : 'charge_rare');
@@ -1495,6 +1521,7 @@
           t._charging = false;
         }
         t._flipped = true;
+        t._flippedAt = Date.now();
         t.classList.remove('waiting');
         t.classList.add('flipped');
         t.setAttribute('aria-label', it.card ? it.card.name : `${RAR_NAME[it.wildcard]} wildcard`);
@@ -1520,7 +1547,12 @@
     const deal = (res, g, info) => {
       stage.className = 'po-stage one dealt-stage';
       stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = '';
-      const items = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
+      const all = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
+      // wildcards and the Power Nine first; a pack from before rarity was shown by value, any other as it was packed
+      const rest = all.filter(it => haulTier(it) > 1);
+      const vintagePack = (info && info.released_at ? info.released_at : '9999') < RARITY_SHOWN;
+      const items = all.filter(it => haulTier(it) <= 1).sort(haulOrder)
+        .concat(vintagePack ? rest.slice().sort((a, b) => E().cardValue(b) - E().cardValue(a)) : rest);
       const cols = Math.min(8, Math.ceil(items.length / 2));
       const grid = el('div', { class: 'po-grid', style: { '--cols': String(cols), '--rows': String(Math.ceil(items.length / cols)) } });
       stage.appendChild(grid);
@@ -1535,22 +1567,44 @@
         if (S.packs().length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Back to packs', onclick: () => { MTG.sfx('click'); inventory(); } }));
         foot.appendChild(el('button', { type: 'button', class: 'btn' + (!hidden.length && !same ? ' primary' : ''), text: 'Done', onclick: () => close() }));
       };
+      /* A click while the cards are being dealt or turned (on the table,
+         not on a card) hurries them: eight times the pace, and a rare turns
+         without gathering itself first. */
+      let pace = 1;
+      const hurry = () => { if (pace > 1) return; pace = 8; grid.classList.add('hurry'); };
+      refresh.hurried = () => pace > 1;
+      // waits that shrink the moment a click hurries them, even one already begun
+      const paced = async (ms) => { for (let left = ms; left > 0;) { const step = pace > 1 ? 10 : 40; await sleep(step); left -= step * pace; } };
       const flip = flipper(tiles, refresh);
       for (const t of tiles) t.addEventListener('click', () => flip(t));
-      const revealAll = () => tiles.filter(t => !t._flipped).forEach((t, k) => setTimeout(() => flip(t, true), k * 140));
+      stage.onclick = (e) => { if (!(e.target.closest && e.target.closest('.po-card'))) hurry(); };
+      if (earlyHurry) { earlyHurry = false; hurry(); }
+      let revealing = false;
+      const revealAll = async () => {
+        if (revealing) return hurry();
+        revealing = true;
+        for (const t of tiles.filter(x => !x._flipped)) { if (!overlay.isConnected) return; flip(t, true); await paced(140); }
+      };
       refresh();
       // dealt out of the pack, one after another
       requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.add('dealt')));
-      tiles.forEach((t, k) => setTimeout(() => {
-        const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
-        MTG.sfx('card_deal', { pan });
-      }, 60 + k * 55));
-      const dealt = 60 + tiles.length * 55 + 350;
-      // dealt: from now on a card comes up and goes back at once
-      setTimeout(() => grid.classList.add('settled'), dealt + 300);
-      const auto = tiles.filter(t => !t._big);
-      auto.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t); }, dealt + k * 150));
-      setTimeout(() => { for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting'); }, dealt + auto.length * 150);
+      (async () => {
+        await paced(60);
+        for (const t of tiles) {
+          const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
+          if (pace === 1) MTG.sfx('card_deal', { pan });
+          await paced(55);
+        }
+        await paced(350);
+        // dealt: from now on a card comes up and goes back at once
+        setTimeout(() => grid.classList.add('settled'), 300 / pace);
+        for (const t of tiles.filter(x => !x._big)) {
+          if (!overlay.isConnected) return;
+          flip(t, pace > 1);
+          await paced(150);
+        }
+        for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting');
+      })();
       onKey = (e) => {
         if (e.key === 'Escape') return close();
         if (e.key !== ' ' && e.key !== 'Enter') return;
@@ -1568,6 +1622,7 @@
        torn open in a row, then everything they held laid out together. */
     const openAll = async (g) => {
       overlay.classList.remove('shelf');
+      place();
       const gs = g === 'all' ? groups() : [groups().find(x => x.key === g.key)].filter(Boolean);
       const each = gs.flatMap(x => x.packs.map(p => ({ p, g: x })));
       const packs = each.map(x => x.p);
@@ -1645,9 +1700,10 @@
         for (const r of res.bonus) wcs[r]++;
       }
       // rarest first, and within a rarity the most valuable first
-      const items = [...merged.values()].sort((a, b) => RANK[b.rarity] - RANK[a.rarity] || S.cardValue(b) - S.cardValue(a) || a.card.name.localeCompare(b.card.name));
-      for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.unshift({ wildcard: r, count: wcs[r] });
-      items.sort((a, b) => RANK[b.wildcard || b.rarity] - RANK[a.wildcard || a.rarity]);
+      const items = [...merged.values()];
+      for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.push({ wildcard: r, count: wcs[r] });
+      // wildcards, the Power Nine, cards from before rarity was shown by value, then by rarity and value
+      items.sort(haulOrder);
       stage.className = 'po-stage all summary';
       stage.innerHTML = ''; stage.scrollTop = 0;
       head.innerHTML = '';
