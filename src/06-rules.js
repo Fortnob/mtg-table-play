@@ -7584,6 +7584,9 @@
       if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender')) return false;
       if (a.abilities.some(x => (x.effects || []).some(e => e.op === 'cantAttack'))) return false;
       if (this._hasFlag(o, 'cantAttack')) return false;
+      // Ensnaring Bridge: not with power greater than the number of cards in the Bridge's controller's hand
+      if (this.battlefield.some(b => !b.phasedOut && this._staticOp(b, 'bridgeAttack') &&
+        this.powerOf(o) > ((this.zones[b.controller] || {}).hand || []).length)) return false;
       // "can't attack unless ..."
       const unless = this._staticOp(o, 'restrictUnless');
       if (unless && unless.attack && !this._condMet(unless.cond, { controller: o.controller, obj: o })) return false;

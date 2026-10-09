@@ -15754,4 +15754,19 @@ module.exports = (test) => {
     t.ok(offered && offered.length, 'asked');
     t.no(offered && offered.some(o => o.id === wurm.id), 'the Wurm (6) is not lesser');
   });
+
+  test("Ensnaring Bridge: power greater than its controller's hand size can't attack", (mk, t) => {
+    t.auto('Ensnaring Bridge');
+    const T = mk();
+    T.bf('A', 'Ensnaring Bridge');
+    const hand = T.zone('A', 'hand');
+    while (hand.length) T.g.moveObject(hand[0], 'graveyard');
+    T.hand('A', 'Island');
+    const bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+    T.toMain('B');
+    t.no(T.g.canAttack(bear), 'power 2, one card in hand');
+    t.ok(T.g.canAttack(elf), 'power 1 can');
+    T.hand('A', 'Forest');
+    t.ok(T.g.canAttack(bear), 'two cards in hand now');
+  });
 };
