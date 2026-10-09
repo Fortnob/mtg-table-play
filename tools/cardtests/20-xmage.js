@@ -15855,4 +15855,119 @@ module.exports = (test) => {
     t.zone(bear, 'graveyard', 'the Bear is no Dog');
     t.ok(T.g.log.some(l => /Combat damage to Dogs A controls is prevented this turn\./.test(l.text || '')), 'log');
   });
+
+  test('"Sacrifice a Swamp and a Forest": two different permanents (Jarad, Viscerid Drone, Sandstone Deadfall)', (mk, t) => {
+    t.auto('Jarad, Golgari Lich Lord');
+    t.auto('Viscerid Drone');
+    t.auto('Sandstone Deadfall');
+    let T = mk();
+    T.toMain('A');
+    let j = T.grave('A', 'Jarad, Golgari Lich Lord');
+    const bayou = T.bf('A', 'Bayou');
+    t.no(T.g.activateAbility('A', j.id, 1, { auto: true }), 'one dual land is not both a Swamp and a Forest to sacrifice');
+    t.zone(bayou, 'battlefield');
+    const forest = T.bf('A', 'Forest');
+    T.activate('A', j, 1);
+    t.zone(bayou, 'graveyard', 'the Bayou paid the Swamp half');
+    t.zone(forest, 'graveyard', 'the Forest paid the other');
+    t.zone(j, 'hand', 'Jarad is back');
+    // the first part leaves the second something to pay with
+    T = mk();
+    T.toMain('A');
+    j = T.grave('A', 'Jarad, Golgari Lich Lord');
+    const b2 = T.bf('A', 'Bayou'), sw = T.bf('A', 'Swamp');
+    T.activate('A', j, 1);
+    t.zone(b2, 'graveyard'); t.zone(sw, 'graveyard');
+    t.zone(j, 'hand');
+    // Viscerid Drone: a creature and a Swamp
+    T = mk();
+    T.toMain('A');
+    const drone = T.bf('A', 'Viscerid Drone'), bear = T.bf('A', 'Grizzly Bears'), swamp = T.bf('A', 'Swamp');
+    const foe = T.bf('B', 'Hill Giant');
+    T.activate('A', drone, 0, { targets: [foe], sacrificeIds: [bear.id] });
+    t.zone(bear, 'graveyard'); t.zone(swamp, 'graveyard');
+    t.zone(foe, 'graveyard', 'destroyed');
+    // Sandstone Deadfall: two lands and this artifact
+    T = mk();
+    const fall = T.bf('A', 'Sandstone Deadfall'), l1 = T.bf('A', 'Plains'), l2 = T.bf('A', 'Mountain');
+    const att = T.bf('B', 'Hill Giant');
+    T.toMain('B');
+    T.answer('declareAttackers', () => [{ attackerId: att.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('A');
+    T.activate('A', fall, 0, { targets: [att] });
+    t.zone(fall, 'graveyard'); t.zone(l1, 'graveyard'); t.zone(l2, 'graveyard');
+    t.zone(att, 'graveyard', 'the attacker is destroyed');
+  });
+
+  test('One of each kind: Sudden Reclamation returns a creature card and a land card; To the Slaughter with delirium', (mk, t) => {
+    t.auto('Sudden Reclamation');
+    t.auto('Druidic Ritual');
+    t.auto('To the Slaughter');
+    let T = mk();
+    T.toMain('A');
+    const bear = T.grave('A', 'Grizzly Bears'), forest = T.grave('A', 'Forest');
+    T.mana('A', 'GCCC');
+    T.cast('A', T.hand('A', 'Sudden Reclamation'));
+    T.settle();
+    t.zone(bear, 'hand', 'the creature card');
+    t.zone(forest, 'hand', 'and the land card');
+    // To the Slaughter, delirium: a creature and a planeswalker
+    T = mk();
+    T.toMain('A');
+    for (const n of ['Forest', 'Grizzly Bears', 'Lightning Bolt', 'Sol Ring']) T.grave('A', n);
+    const ogre = T.bf('B', 'Hill Giant'), walker = T.bf('B', 'Jace Beleren');
+    T.mana('A', 'BCC');
+    T.cast('A', T.hand('A', 'To the Slaughter'), { targets: ['B'] });
+    T.settle();
+    t.zone(ogre, 'graveyard', 'the creature');
+    t.zone(walker, 'graveyard', 'and the planeswalker');
+  });
+
+  test('Blood for Bones: one creature card to the battlefield, another to your hand', (mk, t) => {
+    t.auto('Blood for Bones');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Llanowar Elves');
+    const wurm = T.grave('A', 'Craw Wurm'), bear = T.grave('A', 'Grizzly Bears');
+    T.answer('pickCard', { cardIds: [bear.id] });
+    T.answer('pickCard', { cardIds: [wurm.id] });
+    T.mana('A', 'BCCC');
+    T.cast('A', T.hand('A', 'Blood for Bones'));
+    T.settle();
+    t.zone(bear, 'battlefield', 'the one picked first goes to the battlefield');
+    t.zone(wurm, 'hand');
+  });
+
+  test('A sacrifice made by "the greatest mana value" is one sacrifice, not two (Mayhem Devil)', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Mayhem Devil');
+    T.bf('B', 'Hill Giant');
+    let n = 0;
+    const of = T.g._fire.bind(T.g);
+    T.g._fire = (ev, c, d) => { if (ev === 'anySacrifice') n++; return of(ev, c, d); };
+    T.mana('A', 'BCC');
+    T.cast('A', T.hand('A', 'Soul Shatter'));
+    T.settle();
+    t.eq(n, 1, 'one sacrifice seen');
+  });
+
+  test('Riveteers Ascendancy: sacrificing a creature returns one of lesser mana value, tapped', (mk, t) => {
+    t.auto('Riveteers Ascendancy');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Riveteers Ascendancy');
+    const giant = T.bf('A', 'Hill Giant');
+    const bear = T.grave('A', 'Grizzly Bears'), wurm = T.grave('A', 'Craw Wurm');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.options && ch.options[0]) || []; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Village Rites'), { sacrificeIds: [giant.id] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(giant, 'graveyard');
+    t.zone(bear, 'battlefield', 'the Bears (2) come back');
+    t.ok(bear.tapped, 'tapped');
+    t.no(offered && offered.some(o => o.id === wurm.id), 'the Wurm (6) is not lesser than the Giant (4)');
+  });
 };

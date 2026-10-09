@@ -266,6 +266,16 @@
       if (/^Sacrifice (this|~|it|CARDNAME)\b/i.test(p)) { cost.sacSelf = true; continue; }
       // Transmutation Font: "Sacrifice three artifact tokens with different names" — a price the table can't check yet
       if (/^Sacrifice .+ with different names$/i.test(p)) { cost.other.push(p); continue; }
+      /* Viscerid Drone: "Sacrifice a creature and a Swamp"; Jarad: "a Swamp and a
+         Forest"; Sandstone Deadfall: "two lands and this artifact" — two parts,
+         each with its own kind, paid with different permanents (sacrificeAlso) */
+      if ((m = p.match(/^Sacrifice (a|an|one|two|three) ([A-Za-z ]+?) and (?:(a|an|one|two|three) ([A-Za-z ]+)|this [a-z]+|CARDNAME)$/i)) && !/\band\b|\bor\b/i.test(m[2]) && !/\band\b|\bor\b/i.test(m[4] || '')) {
+        const kind = (w) => w.replace(/s\b/g, '').trim();
+        cost.sacrifice = { n: WORDN(m[1].toLowerCase()) || 1, filter: kind(m[2]), another: false };
+        if (m[3]) cost.sacrificeAlso = { n: WORDN(m[3].toLowerCase()) || 1, filter: kind(m[4]) };
+        else cost.sacSelf = true;
+        continue;
+      }
       if ((m = p.match(/^Sacrifice (a|an|another|one|two|three|four|five|six|ten|\d+|X) (other )?(.+)$/i))) {
         const word = m[1].toLowerCase();
         cost.sacrifice = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word) || 1,
@@ -2508,8 +2518,9 @@
     // Phyrexian Obliterator: "that source's controller sacrifices that many permanents of their choice"
     { re: /^(?:That source'?s controller|That player) sacrifices that many (permanents|creatures|lands)(?: of their choice)?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', who: 'triggerPlayer', n: 'triggerAmount', filter: m[1].toLowerCase().replace(/s$/, '') }) },
+    // (To the Slaughter: "a creature and a planeswalker" is one of each, read by the rule further on)
     { re: /^[Tt]hat player sacrifices an? ([a-z ]+?) of their choice\.?$/,
-      make: (m) => ({ op: 'sacrificeChoice', who: 'triggerPlayer', n: 1, filter: m[1].toLowerCase() }) },
+      make: (m) => (/ and an? /.test(m[1]) ? null : { op: 'sacrificeChoice', who: 'triggerPlayer', n: 1, filter: m[1].toLowerCase() }) },
     { re: /^Activate only as an instant\.?$/i, make: () => ({ op: 'noop' }) },
     /* Yawgmoth */
     { re: /^Put a -1\/-1 counter on up to one target creature and draw a card\.?$/i,
@@ -5450,11 +5461,27 @@
       make: (m) => ({ op: 'bounce', targets: [targetSpec(m[1])] }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (target [a-zA-Z0-9 ,'/+-]+?)\.?$/,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: [targetSpec(m[2])] }) },
+    /* Sudden Reclamation: "return a creature card and a land card from your graveyard
+       to your hand"; Druidic Ritual: "up to one creature card and up to one land
+       card" — two picks, one of each kind */
+    { re: /^(?:Then )?[Rr]eturn (a|an|up to one) ([a-z]+) card and (a|an|up to one) ([a-z]+) card from your graveyard to (your hand|the battlefield)\.?$/,
+      make: (m) => ({ op: 'sequence', list: [[m[1], m[2]], [m[3], m[4]]].map(([k, f]) => ({ op: 'graveyardPick', n: 1, upTo: /^up to/.test(k),
+        filter: f.toLowerCase(), to: /hand/.test(m[5]) ? 'hand' : 'battlefield' })) }) },
+    // Blood for Bones: "Return a creature card from your graveyard to the battlefield, then return another creature card from your graveyard to your hand."
+    { re: /^Return (a|an) ([a-z]+) card from your graveyard to (the battlefield|your hand), then return another ([a-z]+) card from your graveyard to (the battlefield|your hand)\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [[m[2], m[3]], [m[4], m[5]]].map(([f, to]) => ({ op: 'graveyardPick', n: 1, upTo: false,
+        filter: f.toLowerCase(), to: /hand/i.test(to) ? 'hand' : 'battlefield' })) }) },
+    // To the Slaughter: "that player sacrifices a creature and a planeswalker of their choice" — one of each
+    { re: /^(That player|Each opponent|Each player) sacrifices (?:a|an) ([a-z]+) and (?:a|an) ([a-z]+)(?: of their choice)?\.?$/i,
+      make: (m) => { const who = /^that/i.test(m[1]) ? 'triggerPlayer' : /opponent/i.test(m[1]) ? 'opponents' : 'each';
+        // (each carries the sentence: "that player" in a spell is the one it targets)
+        return { op: 'sequence', list: [m[2], m[3]].map(f => ({ op: 'sacrificeChoice', n: 1, who, filter: f.toLowerCase(), text: m[0] })) }; } },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")
     { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
-      make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
+      // (Blood for Bones: "…to the battlefield, then return another creature card …" is two sentences, not one kind of card)
+      make: (m) => (/\btarget\b|^or |\bfrom your graveyard\b|, then\b/i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {}, m[5] ? { tapped: true } : {})) },
     // Mech Hangar: "Target Vehicle becomes an artifact creature until end of turn."
     // (Mobilizer Mech: "up to one other target Vehicle you control")

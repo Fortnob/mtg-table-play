@@ -2766,12 +2766,12 @@ module.exports = (test) => {
     t.ok(g._matchesCategory(bear, 'Pest, Bat, Bear, and Spider'), 'a list: any one of them');
   });
 
-  test('Audit: "a creature and a Swamp" style costs and picks are with a person (Viscerid Drone, Sudden Reclamation, To the Slaughter)', (mk, t) => {
+  // (two parts now: each part keeps its own kind and is paid apart — 20-xmage checks the paying)
+  test('Audit: "a creature and a Swamp" style costs and picks are read as two parts (Viscerid Drone, Sudden Reclamation, To the Slaughter)', (mk, t) => {
     const T = mk();
-    const M = T.g.constructor && T.g;
     for (const n of ['Viscerid Drone', 'Sudden Reclamation', 'To the Slaughter', 'Druidic Ritual', 'Sandstone Deadfall']) {
       const o = T.bf('A', n);
-      t.no(o.analysis().fullyAutomated, n + ' is not counted as automated');
+      t.ok(o.analysis().fullyAutomated, n + ' reads both parts');
     }
   });
 

@@ -2156,7 +2156,7 @@
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
           this.moveObject(o, 'graveyard');
-          this._fire('youSacrifice', item.controller, { count: 1 });
+          this._fire('youSacrifice', item.controller, { count: 1, object: o, objController: item.controller });   // (sacrificedObject)
         } else if (item.via === 'dash') {
           o.effects.push({ keywords: ['Haste'], until: null });
           o.dashedTurn = this.turn;
@@ -5041,7 +5041,7 @@
       if (chose.casualty) {
         this.moveObject(chose.casualty, 'graveyard');
         this.logEvent('sacrifice', `${chose.casualty.name} is sacrificed for casualty.`);
-        this._fire('youSacrifice', playerId, { count: 1 });
+        this._fire('youSacrifice', playerId, { count: 1, object: chose.casualty, objController: playerId });   // (sacrificedObject)
       }
       if (conspired.length) {
         for (const x of conspired) this._markTapped(x);
@@ -5715,8 +5715,8 @@
         const eaten = o._devourPicks.map(id => this.obj(id)).filter(x => x && x !== o && x.zone === 'battlefield' && x.controller === o.controller);
         o._devourPicks = null;
         if (eaten.length) {
+          // (_sacrificeNow tells the table of each one: oneSacrificeEach)
           this._sacrificeNow(o.controller, eaten, { controller: o.controller, obj: o });
-          this._fire('youSacrifice', o.controller, { count: eaten.length });
           o.devoured = eaten.length;
           o.counters['+1/+1'] = (Number(o.counters['+1/+1']) || 0) + a.devour * eaten.length;
           this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
@@ -6599,6 +6599,15 @@
         if (this._sacrificePool(pid, cost.sacrifice, self).length < need)
           return `Nothing to sacrifice (${cost.sacrifice.filter || 'permanent'}).`;
       }
+      /* Viscerid Drone: "Sacrifice a creature and a Swamp" — enough of each, and
+         enough different permanents for both together (sacrificeAlso) */
+      if (cost.sacrifice && cost.sacrificeAlso) {
+        const a1 = this._sacrificePool(pid, cost.sacrifice, self), a2 = this._sacrificePool(pid, cost.sacrificeAlso, self);
+        const n2 = this._costCount(cost.sacrificeAlso.n, opts);
+        if (a2.length < n2) return `Nothing to sacrifice (${cost.sacrificeAlso.filter}).`;
+        if (new Set(a1.concat(a2)).size < this._costCount(cost.sacrifice.n, opts) + n2)
+          return `Nothing to sacrifice (${cost.sacrifice.filter} and ${cost.sacrificeAlso.filter}).`;
+      }
       if (cost.discard && cost.discard.n !== 'all') {
         const need = this._costCount(cost.discard.n, opts);
         if (this._discardPool(pid, cost.discard, self, opts).length < need) return 'Not enough cards in hand to discard.';
@@ -6665,11 +6674,17 @@
         playerId: pid, purpose: 'cost', stackId: item ? item.id : null, sourceId: self ? self.id : null,
       }, choice));
       if (cost.sacrifice) {
-        const pool = this._sacrificePool(pid, cost.sacrifice, self);
+        let pool = this._sacrificePool(pid, cost.sacrifice, self);
+        /* Viscerid Drone: the first part never takes what the second part
+           needs — only what leaves enough for it (sacrificeAlso) */
+        const also = cost.sacrificeAlso ? this._sacrificePool(pid, cost.sacrificeAlso, self) : null;
+        const n2 = also ? this._costCount(cost.sacrificeAlso.n, opts) : 0;
+        if (also) pool = pool.filter(x => also.filter(y => y !== x).length >= n2);
         const need = Math.min(pool.length, this._costCount(cost.sacrifice.n, opts));
         let pick = (opts.sacrificeIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
         if (need > 0 && pick.length < need) {
-          if (auto || pool.length === need) pick = this._cheapestFirst(pool).slice(0, need);
+          // (the ones the second part can't use go first)
+          if (auto || pool.length === need) pick = (also ? this._cheapestFirst(pool.filter(x => !also.includes(x))).concat(this._cheapestFirst(pool.filter(x => also.includes(x)))) : this._cheapestFirst(pool)).slice(0, need);
           else {
             pick = null;
             ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent',
@@ -6678,6 +6693,22 @@
           }
         }
         if (pick) this._sacrificeNow(pid, pick, item);
+        // the second part, from what is left (asked after the first is answered)
+        if (also) {
+          const pool2 = this._sacrificePool(pid, cost.sacrificeAlso, self).filter(x => !(pick || []).includes(x));
+          const need2 = Math.min(pool2.length, n2);
+          let pick2 = (opts.sacrificeAlsoIds || []).map(id => pool2.find(x => x.id === id)).filter(Boolean).slice(0, need2);
+          if (need2 > 0 && pick2.length < need2) {
+            if (auto || pool2.length === need2) pick2 = this._cheapestFirst(pool2).slice(0, need2);
+            else {
+              pick2 = null;
+              ask({ type: 'sacrifice', count: need2, filter: cost.sacrificeAlso.filter,
+                candidates: pool2.map(x => x.id),
+                prompt: `Sacrifice ${need2 === 1 ? 'a' : need2} ${cost.sacrificeAlso.filter}${need2 === 1 ? '' : 's'} to pay the cost.` });
+            }
+          }
+          if (pick2) this._sacrificeNow(pid, pick2, item);
+        }
       }
       if (cost.discard) {
         const pool = this._discardPool(pid, cost.discard, self, opts);
@@ -13384,7 +13415,8 @@
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'you' ? [me].filter(Boolean)
-            : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
+            // (To the Slaughter's delirium: in a spell, "that player" is the one it targets)
+            : e.who === 'triggerPlayer' ? [triggerPlayer() || (!ctx.triggerData ? firstPlayer() : null)].filter(Boolean)
             : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             : [firstPlayer()].filter(Boolean);
           for (const p of who) {
@@ -13801,10 +13833,10 @@
           }
           if (paid && e.how === 'discard') this._discardNow(ctx.controller, [paid]);
           else if (paid && e.how === 'return') { this.moveObject(paid, 'hand'); this.logEvent('rules', `${me.name} returns ${paid.name} to hand.`); }
-          else if (paid) { this._sacrificeNow(ctx.controller, [paid], ctx); this._fire('youSacrifice', ctx.controller, { count: 1 }); }
+          else if (paid) this._sacrificeNow(ctx.controller, [paid], ctx);   // (it tells the table: oneSacrificeEach)
           else {
             this.moveObject(src, 'graveyard');
-            this._fire('youSacrifice', ctx.controller, { count: 1 });
+            this._fire('youSacrifice', ctx.controller, { count: 1, object: src, objController: ctx.controller });   // (sacrificedObject)
             this.logEvent('sacrifice', `${src.name} is sacrificed.`);
           }
           break;
@@ -13960,8 +13992,7 @@
               pick = (got && got.picks.length && this.obj(got.picks[0])) || tied[0];
             }
             if (e.exile) { this.moveObject(pick, 'exile'); this.logEvent('exile', `${q.name} exiles ${pick.name}.`); continue; }
-            this._sacrificeNow(q.id, [pick], ctx);
-            this._fire('youSacrifice', q.id, { count: 1 });
+            this._sacrificeNow(q.id, [pick], ctx);   // (it tells the table: oneSacrificeEach)
           }
           break;
         }
@@ -17014,7 +17045,7 @@
           if (x && x.zone === 'battlefield' && x.controller === ctx.controller) {
             this.moveObject(x, 'graveyard');
             this.logEvent('sacrifice', `${me.name} sacrifices ${x.name}.`);
-            this._fire('youSacrifice', ctx.controller, { count: 1 });
+            this._fire('youSacrifice', ctx.controller, { count: 1, object: x, objController: ctx.controller });   // (sacrificedObject)
           }
           break;
         }
@@ -19165,8 +19196,7 @@
           // "that many": what the next words count
           this._lastSacCount = picks.length;
           if (picks.length) {
-            this._sacrificeNow(ctx.controller, picks);
-            this._fire('youSacrifice', ctx.controller, { count: picks.length });
+            this._sacrificeNow(ctx.controller, picks);   // (it tells the table: oneSacrificeEach)
           }
           break;
         }
@@ -21358,7 +21388,7 @@
           } else {
             this.logEvent('sacrifice', `${p.name} does not pay; ${o.name} is sacrificed.`);
             this.moveObject(o, 'graveyard');
-            this._fire('youSacrifice', playerId, { count: 1 });
+            this._fire('youSacrifice', playerId, { count: 1, object: o, objController: playerId });   // (sacrificedObject)
           }
           break;
         }
