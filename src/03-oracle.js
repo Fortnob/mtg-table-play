@@ -9308,6 +9308,8 @@
       event: 'etb', self: true },
     { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
+    // God-Eternal Oketra, Ilharg: "When CARDNAME dies or is put into exile from the battlefield," (exiledFromBf)
+    { re: /^When(?:ever)? (?:CARDNAME|this creature) dies or is put into exile from the battlefield, /i, event: 'dies', also: 'exiledFromBf', self: true },
     { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token))\s+(?:dies|is put into a graveyard from the battlefield)(?:,| )/i,
       event: 'dies', self: true },
     { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|enchantment|artifact|Class|Case|Siege|Room|Curse))\s+leaves the battlefield(?:,| )/i,
@@ -10265,6 +10267,8 @@
         if (trig.self && (trig.event === 'dies' || trig.also === 'dies')) {
           body = body.replace(/^((?:if it had [^,]+, )?)return it to (the battlefield|its owner'?s hand)/i, '$1Return CARDNAME to $2');
         }
+        // God-Eternal Bontu: "put her into her owner's library" is "it" (exiledFromBf)
+        if (trig.self && trig.also === 'exiledFromBf') body = body.replace(/\bput her into her owner'?s library\b/i, "put it into its owner's library");
         // "Whenever this creature attacks, double its power": its own power
         if (trig.self) body = body.replace(/^double its power/i, "double CARDNAME's power");
         // Sleeper Agent, Goblin Cadets: "target opponent gains control of it" — this creature

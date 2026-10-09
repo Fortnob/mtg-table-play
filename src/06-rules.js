@@ -10841,6 +10841,8 @@
         // whatever this permanent was holding in exile comes back (CR 610.3)
         this._releaseExiled(o);
         this._fire('ltb', lastCtrl, { object: o, source: o });
+        // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
+        if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
         this._lastLeft = o.id;
         this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
       }
@@ -11387,14 +11389,14 @@
          a creature that dies sees its own death, and "whenever this or
          another creature dies" counts itself. */
       if ((event === 'dies' || event === 'ltb' || event === 'permDies' || event === 'permLeaves' || (event === 'youSacrifice' && data.source) ||
-          event === 'timeCounterRemoved') && data.object) {
+          event === 'timeCounterRemoved' || event === 'exiledFromBf') && data.object) {
         const o = data.object;
         const a = (o.zone !== 'battlefield' && o._lkiAnalysis) || o.analysis();
         if (a) for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
-          const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice' || event === 'timeCounterRemoved') ? ab.self
+          const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice' || event === 'timeCounterRemoved' || event === 'exiledFromBf') ? ab.self
             : !!(ab.objFilter && ab.objFilter.selfOk && this._objFits(o, Object.assign({}, ab.objFilter, { other: false, who: null }), o));
           if (!own) continue;
           if (this.pendingTriggers.some(t => t.objId === o.id && t.abilityIndex === i)) continue;
@@ -15117,9 +15119,11 @@
           const z = this.zones[src.owner].library;
           this._removeFromZone(src);
           src.zone = 'library';
-          z.splice(Math.min(e.depth || 7, z.length), 0, src);
+          // "third from the top" has two cards above it: index 2 (libraryDepthFix)
+          z.splice(Math.min((e.depth || 7) - 1, z.length), 0, src);
           src._wentToLibrary = true;
-          this.logEvent('zone', `${src.name} goes ${e.depth} from the top.`);
+          { const ord = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'][e.depth] || e.depth;
+            this.logEvent('zone', `${src.name} goes into ${(this.player(src.owner) || {}).name || 'its owner'}'s library ${ord} from the top.`); }
           break;
         }
 
@@ -16950,7 +16954,8 @@
             const z = this.zones[ctx.controller].library;
             this._removeFromZone(src);
             src.zone = 'library';
-            z.splice(Math.min(e.depth || 7, z.length), 0, src);
+            // "seventh from the top": six cards above it (libraryDepthFix)
+            z.splice(Math.min((e.depth || 7) - 1, z.length), 0, src);
             src._wentToLibrary = true;
           }
           break;

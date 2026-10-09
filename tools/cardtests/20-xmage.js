@@ -16838,4 +16838,28 @@ module.exports = (test) => {
     t.zone(c1, 'exile'); t.zone(c2, 'exile');
     t.zone(mine, 'graveyard');
   });
+
+  test("God-Eternal Rhonas: dies or exiled from the battlefield, third from the top of its owner's library", (mk, t) => {
+    t.auto('God-Eternal Oketra');
+    t.auto('God-Eternal Rhonas');
+    for (const how of ['die', 'exile']) {
+      const T = mk();
+      T.toMain('A');
+      for (let i = 0; i < 5; i++) T.top('A', 'Island');
+      const god = T.bf('A', 'God-Eternal Rhonas');
+      T.answer('confirm', { yes: true });
+      if (how === 'die') { T.mana('A', 'BBC'); T.cast('A', T.hand('A', 'Murder'), { targets: [god] }); }
+      else { T.mana('A', 'W'); T.cast('A', T.hand('A', 'Swords to Plowshares'), { targets: [god] }); }
+      T.settle(); T.resolve(); T.settle();
+      t.zone(god, 'library', how);
+      t.eq(T.g.zones.A.library.indexOf(god), 2, how + ': third from the top');
+      t.ok(T.g.log.some(l => /God-Eternal Rhonas goes into A's library third from the top\./.test(l.text || '')), 'log');
+    }
+    // Approach of the Second Sun: seventh from the top, six cards above it
+    const T2 = mk({ libraryEach: 10 });
+    const ap = T2.hand('A', 'Approach of the Second Sun');
+    T2.mana('A', 'W6');
+    T2.cast('A', ap);
+    t.eq(T2.g.zones.A.library.indexOf(ap), 6, 'seventh from the top');
+  });
 };

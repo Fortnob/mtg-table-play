@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11273,
+  "needed": 11270,
   "gainedCards": 1131,
-  "linesNeeded": 12060,
+  "linesNeeded": 12054,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 715,
-   "lines": 655,
+   "score": 714,
+   "lines": 654,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -3971,18 +3971,6 @@
    ]
   },
   {
-   "what": "GodEternalDiesTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "God-Eternal Oketra",
-    "Ilharg, the Raze-Boar",
-    "God-Eternal Bontu",
-    "God-Eternal Rhonas",
-    "God-Eternal Kefnet"
-   ]
-  },
-  {
    "what": "AbilitiesCostReductionControllerEffect",
    "score": 5,
    "lines": 5,
@@ -6656,13 +6644,23 @@
     "Marchesa, Dealer of Death",
     "Lazav, Familiar Stranger"
    ]
+  },
+  {
+   "what": "CantBeBlockedAllEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Glaring Spotlight",
+    "Leitmotif Composer",
+    "Tanglewalker"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3491,
-   "cards": 3320,
+   "score": 3494,
+   "cards": 3323,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6674,8 +6672,8 @@
   },
   {
    "what": "custom ability",
-   "score": 554,
-   "cards": 509,
+   "score": 553,
+   "cards": 508,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
