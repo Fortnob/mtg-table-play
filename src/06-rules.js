@@ -16948,10 +16948,12 @@
           if (!pool) {
             pool = e.from === 'hand' ? this.zones[ctx.controller].hand.map(c => c.id)
               : e.from === 'targets' ? targets.filter(t => t.kind === 'object').map(t => t.id)
+              : e.from === 'graveyard' ? this._freeFromGraveyardPick(e, ctx, me, firstPlayer, n)
               : e.from === 'looked' ? (this._looked || []).slice()
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             if (r) { r.marks[slot] = pool; r.marks[slot + 'n'] = 0; }
           }
+          if (pool === SUSPEND) { if (r) delete r.marks[slot]; return SUSPEND; }
           const most = e.upTo == null ? Infinity : n(e.upTo);
           const maxMv = e.maxMv == null ? null : n(e.maxMv);
           for (let k = 0; k < pool.length; k++) {
@@ -20714,6 +20716,31 @@
      * card" is either one; "a basic Forest card" and "a green creature card"
      * are every word at once; "noncreature" rules a type out.
      */
+    /* Diviner of Mist: "you may cast an instant or sorcery spell with mana
+       value 4 or less from your graveyard without paying its mana cost" —
+       the one card, picked from the graveyard as this resolves. Returns the
+       picked card's id in a list (empty for none), or SUSPEND. */
+    _freeFromGraveyardPick(e, ctx, me, firstPlayer, n) {
+      const tp = e.whose === 'target' ? firstPlayer() : null;
+      const owners = e.whose === 'any' ? this.players : e.whose === 'target' ? (tp ? [tp] : []) : [me];
+      const maxMv = e.maxMv == null ? null : n(e.maxMv);
+      const fits = [];
+      for (const p of owners) for (const c of ((this.zones[p.id] || {}).graveyard || [])) {
+        const ca = c.analysis();
+        if (!ca || ca.isLand) continue;
+        if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
+        if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
+        fits.push(c);
+      }
+      if (!fits.length) return [];
+      if (me.isBot) return [fits.slice().sort((x, y) => this._cardValue(y) - this._cardValue(x))[0].id];
+      const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+        cards: fits.map(x => ({ id: x.id, name: x.name, card: x.card })),
+        prompt: `${ctx.name || 'Effect'}: you may cast a spell from ${e.whose === 'you' ? 'your graveyard' : 'a graveyard'} without paying its mana cost.` }, 'cfg');
+      if (picked === SUSPEND) return SUSPEND;
+      return (picked || []).filter(id => fits.some(x => x.id === id)).slice(0, 1);
+    }
+
     _cardFitsWords(o, phrase) {
       const a = o.analysis();
       if (!a) return false;

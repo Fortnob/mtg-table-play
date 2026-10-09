@@ -13445,4 +13445,38 @@ module.exports = (test) => {
     for (let i = 0; i < 5; i++) { U.grave('A', 'Grizzly Bears'); U.grave('B', 'Hill Giant'); }
     t.eq(U.g.castCost(aw), '{B}{B}', 'ten creature cards across the graveyards');
   });
+
+  test('Dreadhorde Arcanist, Diviner of Mist, Sword of Once and Future, Spectral Arcanist: a free spell from a graveyard, then exiled', (mk, t) => {
+    for (const n of ['Dreadhorde Arcanist', 'Diviner of Mist', 'Sword of Once and Future', 'Spectral Arcanist']) t.auto(n);
+    const T = mk();
+    const da = T.bf('A', 'Dreadhorde Arcanist');
+    const sh = T.grave('A', 'Shock'), bolt = T.grave('A', 'Lava Spike');
+    const ab = da.analysis().abilities.find(a => a.kind === 'triggered');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.g._runEffects(ab.effects, { controller: 'A', obj: da, name: 'Dreadhorde Arcanist', kind: 'ability', targets: [{ kind: 'object', id: sh.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 18, 'Shock cast for nothing');
+    t.eq(sh.zone, 'exile', 'and exiled after');
+    t.eq(bolt.zone, 'graveyard');
+    // power 1: a two-mana spell is too much
+    const U = mk();
+    const da2 = U.bf('A', 'Dreadhorde Arcanist');
+    const big = U.grave('A', 'Lightning Strike');
+    U.g._runEffects(ab.effects, { controller: 'A', obj: da2, name: 'Dreadhorde Arcanist', kind: 'ability', targets: [{ kind: 'object', id: big.id }] });
+    U.settle();
+    t.eq(big.zone, 'graveyard', 'mana value 2 is more than its power');
+    // Diviner of Mist: mill four, then a spell of mana value 4 or less, picked as it resolves
+    const V = mk();
+    const dm = V.bf('A', 'Diviner of Mist');
+    for (let i = 0; i < 4; i++) V.top('A', 'Island');
+    const s2 = V.grave('A', 'Shock');
+    V.answer('pickCard', () => ({ cardIds: [s2.id] }));
+    V.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    const dab = dm.analysis().abilities.find(a => a.kind === 'triggered');
+    V.g._runEffects(dab.effects, { controller: 'A', obj: dm, name: 'Diviner of Mist', kind: 'ability' });
+    V.settle(); V.resolve(); V.settle();
+    t.eq(V.zone('A', 'graveyard').filter(o => o.name === 'Island').length, 4, 'milled four');
+    t.eq(V.life('B'), 18, 'Shock from the graveyard');
+    t.eq(s2.zone, 'exile', 'exiled after');
+  });
 };

@@ -1204,6 +1204,35 @@
     { re: /^Then each player who searched (?:their|a) library this way shuffles\.?$/i, make: () => ({ op: 'noop' }) },
     // Summon: Primal Odin's "that player loses the game" — the player the trigger is about
     { re: /^That player loses the game\.?$/i, make: () => ({ op: 'loseGameTarget', who: 'triggerPlayer' }) },
+    /* Dreadhorde Arcanist: "you may cast target instant or sorcery card with
+       mana value less than or equal to this creature's power from your
+       graveyard without paying its mana cost. If that spell would be put
+       into your graveyard, exile it instead." — the most it may cost,
+       counted as this resolves */
+    { re: /^(?:You may )?cast target ([a-z ,]+?) card with mana value less than or equal to ([A-Za-z' ]+?) from (your|a) graveyard without paying its mana cost(?:\.( If that spell would be put into (?:your|a) graveyard, exile it instead\.?)|\.?)$/i,
+      make: (m) => {
+        const most = amountOf(m[2]);
+        if (!most || typeof most !== 'object') return null;
+        const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard' }, /^your/i.test(m[3]) ? { controller: 'you' } : {});
+        return [{ op: 'castFree', from: 'targets', upTo: 1, maxMv: most, exileAfter: !!m[4], targets: [spec] }];
+      } },
+    /* Diviner of Mist, Sword of Once and Future: "you may cast an instant or
+       sorcery spell with mana value 4 or less from your graveyard without
+       paying its mana cost. If that spell would be put into your graveyard,
+       exile it instead." — one card, chosen as this resolves, not targeted.
+       Sorcerous Squall: "from that player's graveyard"; Spectral Arcanist:
+       "with mana value less than or equal to the number of Spirits you
+       control from a graveyard". */
+    { re: /^(?:Then )?(?:[Yy]ou may )?[Cc]ast an? ([a-z ,]+?) spell(?: with mana value (\d+) or less| with mana value less than or equal to ([A-Za-z' ]+?))? from (your|that player'?s|a) graveyard(?: with mana value (\d+) or less)? without paying its mana cost(?:\.( If that spell would be put into (?:your|a) graveyard, exile it instead\.?)|\.?)$/,
+      make: (m) => {
+        const most = m[2] || m[5] ? +(m[2] || m[5]) : m[3] ? amountOf(m[3]) : null;
+        if (m[3] && (!most || typeof most !== 'object')) return null;
+        const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        if (!/^(?:instant|sorcery|instant or sorcery|creature|artifact)$/.test(words)) return null;
+        const whose = /^your/i.test(m[4]) ? 'you' : /^that/i.test(m[4]) ? 'target' : 'any';
+        return [Object.assign({ op: 'castFree', from: 'graveyard', whose, filter: words, upTo: 1, exileAfter: !!m[6] }, most != null ? { maxMv: most } : {})];
+      } },
     // Zul Ashur: "You may cast target Zombie creature card from your graveyard this turn."
     { re: /^You may cast (target [A-Za-z ]+? card) from your graveyard this turn\.?$/,
       make: (m) => { const spec = targetSpec(m[1], 'graveyard'); return spec && !spec.unknown ? { op: 'mayCastFromGraveyard', targets: [Object.assign(spec, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -7604,7 +7633,10 @@
       }
       // Vohar: the spell cast this way is exiled rather than put into a graveyard
       if (e && e.exileAfterCastRider) {
-        const prev = out.slice().reverse().find(x => x && /^(?:mayCastFromGraveyard|mayPlayExiled)$/.test(x.op));
+        // (Diviner of Mist: "You may cast …" is the cast inside a "may")
+        const castOf = (x) => (x && /^(?:mayCastFromGraveyard|mayPlayExiled|castFree)$/.test(x.op) ? x
+          : x && x.op === 'may' && (x.then || []).length === 1 && /^castFree$/.test((x.then[0] || {}).op) ? x.then[0] : null);
+        const prev = out.slice().reverse().map(castOf).find(Boolean);
         if (!prev) { unrideable(); continue; }
         prev.exileAfter = true;
         continue;
