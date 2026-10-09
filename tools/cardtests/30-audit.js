@@ -809,4 +809,39 @@ module.exports = (test) => {
     t.ok(shown, 'the hand was shown to A');
     t.no(T.g.log.some(l => /Lightning Bolt/.test(l.text)), 'and not named to everybody');
   });
+
+  /* ---- "X or Y" filters read word by word ---- */
+
+  test('Audit: Court of Bounty puts a creature or land card from hand onto the battlefield', (mk, t) => {
+    const T = mk();
+    t.auto('Court of Bounty');
+    T.bf('A', 'Court of Bounty');
+    const f = T.hand('A', 'Forest');
+    T.nextTurn('A');
+    t.zone(f, 'battlefield', 'a land is one of the two');
+  });
+
+  test('Audit: Composer of Spring, with six enchantments, may put a creature from hand', (mk, t) => {
+    const T = mk();
+    t.auto('Composer of Spring');
+    T.bf('A', 'Composer of Spring');
+    for (let k = 0; k < 5; k++) T.bf('A', 'Ghostly Prison');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.put('A', 'Ghostly Prison', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(bear, 'battlefield', 'a creature card is one of the two');
+    t.ok(bear.tapped);
+  });
+
+  test('Audit: Phyrexian Metamorph copies an artifact, and the log names the Metamorph', (mk, t) => {
+    const T = mk();
+    t.auto('Phyrexian Metamorph');
+    T.bf('B', 'Sol Ring');
+    T.mana('A', 'U3');
+    const m = T.hand('A', 'Phyrexian Metamorph');
+    T.cast('A', m);
+    t.zone(m, 'battlefield');
+    t.eq(m.name, 'Sol Ring');
+    t.ok(T.g.log.some(l => /^Phyrexian Metamorph enters as a copy of Sol Ring\.$/.test(l.text)), 'log line');
+  });
 };

@@ -13957,7 +13957,7 @@
             break;
           }
           const list = this.battlefield.filter(o => o.controller === ctx.controller &&
-            !(e.other && o === src) && this._matchesCategory(o, e.filter || 'permanent'));
+            !(e.other && o === src) && this._fitsFilter(o, e.filter || 'permanent'));
           if (!list.length) break;
           const want = Math.min(n(e.n) || 1, list.length);
           const what = e.filter || 'permanent';
@@ -16062,7 +16062,7 @@
           for (const p of who) {
             // Anticausal Vestige: "with mana value less than or equal to the number of lands you control"
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
-            const pool = this.zones[p.id].hand.filter(o => this._matchesCategory(o, e.filter === 'any' ? '' : e.filter) &&
+            const pool = this.zones[p.id].hand.filter(o => this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap));
             if (!pool.length) continue;
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
@@ -16617,7 +16617,8 @@
           if (e.eot) src.copyUntilTurn = this.turn;
           if (e.haste) src.effects.push({ keywords: ['Haste'], until: 'eot' });
           this.bumpBoard();
-          this.logEvent('rules', `${src.name} enters as a copy of ${pick.name}${e.eot ? ' until end of turn' : ''}.`);
+          // (by the name it was cast with: "Phyrexian Metamorph enters as a copy of Sol Ring", not "Sol Ring … of Sol Ring")
+          this.logEvent('rules', `${(src.printedCard && src.printedCard.name) || src.name} enters as a copy of ${pick.name}${e.eot ? ' until end of turn' : ''}.`);
           break;
         }
         /* Shifting Woodland: a copy of a card in your graveyard, for the turn */
@@ -20729,6 +20730,12 @@
     }
 
     /** "artifact creature", "Goblin", "nonland permanent" — every word must fit. */
+    /** A filter as printed: "creature or land" is either one (read as a search reads it), one word is a category. */
+    _fitsFilter(o, filter) {
+      const f = String(filter || '').trim();
+      return /\s|,/.test(f) && /\b(?:or|and\/or)\b|,/.test(f) ? this._cardFitsWords(o, f) : this._matchesCategory(o, f);
+    }
+
     _matchesCategory(o, filter) {
       const a = o.analysis();
       if (!a) return false;
