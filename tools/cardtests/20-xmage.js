@@ -14588,4 +14588,18 @@ module.exports = (test) => {
     const ray = T.hand('A', 'Disfigure');
     t.ok(ids(ray).includes(fw.id), 'a black spell may');
   });
+  test('Cathedral Acolyte targets only a creature that entered this turn', (mk, t) => {
+    t.auto('Cathedral Acolyte');
+    t.auto("Elspeth's Nightmare");
+    t.auto("Oketra's Avenger");
+    const T = mk();
+    T.toMain('A');
+    const ca = T.bf('A', 'Cathedral Acolyte');
+    const old = T.bf('A', 'Grizzly Bears');
+    const fresh = T.put('A', 'Hill Giant', 'battlefield', { etb: true });
+    const ab = ca.analysis().abilities.find(a => a.kind === 'activated');
+    const ids = T.g._legalTargetsFor(ab.effects[0].targets[0], 'A', ca.id).map(x => x.id);
+    t.ok(ids.includes(fresh.id), 'the Giant just came in');
+    t.no(ids.includes(old.id), 'the Bears have been here a while');
+  });
 };

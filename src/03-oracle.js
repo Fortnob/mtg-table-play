@@ -708,7 +708,8 @@
     const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
-    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower', 'noRegen']
+    // (Oketra's Avenger: "prevent all combat damage that would be dealt to it this turn" — flagEot)
+    const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower', 'noRegen', 'flagEot']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
     // Revenge of Ravens: "that creature's controller loses 1 life" — the one the trigger is about
@@ -2358,6 +2359,9 @@
       make: () => ({ op: 'regrowth', targets: [{ type: 'card', zone: 'graveyard', controller: 'you' }] }) },
     { re: /^Exile target player'?s graveyard\.?$/i,
       make: () => ({ op: 'exileGraveyard', targets: [{ type: 'player' }] }) },
+    // Release to Memory, Elspeth's Nightmare: "Exile target opponent's graveyard."
+    { re: /^Exile target opponent'?s graveyard\.?$/i,
+      make: () => ({ op: 'exileGraveyard', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^Exile all cards from all graveyards\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
     { re: /^Draw a card, then discard a card\.?$/i, make: () => ({ op: 'drawDiscard', n: 1 }) },
 
@@ -2839,6 +2843,9 @@
     // Curtain of Light, Trap Runner: "Target unblocked attacking creature becomes blocked."
     { re: /^Target unblocked attacking creature becomes blocked\.?$/i,
       make: () => { const sp = targetSpec('target unblocked attacking creature'); return sp && !sp.unknown ? { op: 'becomeBlocked', targets: [sp] } : null; } },
+    // Fleeting Flight, Oketra's Avenger: "Prevent all combat damage that would be dealt to it this turn."
+    { re: /^Prevent all combat damage that would be dealt to (?:it|that creature) this turn\.?$/i,
+      make: () => ({ op: 'flagEot', scope: 'lastTarget', flags: ['noDamageTaken'] }) },
     // Azorius Ploy: "Prevent all combat damage that would be dealt to target creature this turn."
     { re: /^Prevent all combat damage that would be dealt to (target creature) this turn\.?$/i,
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken'] }) },
@@ -3932,6 +3939,9 @@
     // Beseech the Queen: "Search your library for a card with mana value less than or equal to the number of lands you control, reveal it, put it into your hand, then shuffle."
     { re: /^Search your library for a card with mana value less than or equal to ([a-z ]+?), reveal it, put it into your hand, then shuffle\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'tutor', n: 1, filter: 'any', maxMv: k, to: 'hand' } : null; } },
+    // Coronation of Chaos: "Up to three target creatures can't block this turn."
+    { re: /^Up to (one|two|three|four|five) target creatures can'?t block this turn\.?$/i,
+      make: (m) => ({ op: 'restrict', flag: 'cantBlock', targets: Array.from({ length: num(m[1]) }, () => ({ type: 'creature', upTo: true })) }) },
     { re: /^One or two target creatures can'?t block this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'cantBlock', targets: [{ type: 'creature' }, { type: 'creature', upTo: true }] }) },
     { re: /^(?:A creature|Creatures) destroyed this way can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
@@ -5649,6 +5659,9 @@
     // Frontline Medic: "target spell with {X} in its mana cost"
     const hasX = /\s+with \{X\} in its mana cost$/i.test(String(phrase));
     if (hasX) phrase = String(phrase).replace(/\s+with \{X\} in its mana cost$/i, '');
+    // Cathedral Acolyte: "target creature that entered this turn"
+    const enteredNow = /\s+that entered (?:the battlefield )?this turn$/i.test(String(phrase));
+    if (enteredNow) phrase = String(phrase).replace(/\s+that entered (?:the battlefield )?this turn$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -5660,6 +5673,7 @@
     if (ctlGy) spec.mvAtMostCtlGy = true;
     if (hasX) spec.hasXCost = true;
     if (colored) spec.colored = true;
+    if (enteredNow) spec.enteredThisTurn = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
     if (/^(?:another|other) target /i.test(String(phrase).trim()) || /^any other target$/.test(p)) spec.another = true;
@@ -5895,6 +5909,7 @@
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
+    if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11676,
-  "gainedCards": 1171,
-  "linesNeeded": 12543,
-  "linesGained": 1392,
+  "needed": 11655,
+  "gainedCards": 1160,
+  "linesNeeded": 12520,
+  "linesGained": 1380,
   "gained": {
-   "all": 1171,
+   "all": 1160,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4265,
-   "lines": 4004,
+   "score": 4264,
+   "lines": 4003,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -741,25 +741,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Forge of Heroes",
-    "Oakhollow Village",
-    "Octomancer",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Ruins of Oran-Rief",
-    "Cathedral Acolyte",
-    "Samut, Vizier of Naktamun",
-    "Ghired, Mirror of the Wilds",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessAllEffect",
    "score": 16,
    "lines": 10,
@@ -1279,25 +1260,6 @@
    ]
   },
   {
-   "what": "prevent all, or only combat",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Fleeting Flight",
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Kitsune Healer",
-    "Alabaster Potion",
-    "Battlefield Medic",
-    "Enshrouding Mist",
-    "Soratami Cloud Chariot",
-    "Leap of Faith",
-    "Redeem",
-    "Wellgabber Apothecary",
-    "Godtoucher"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 13,
    "lines": 13,
@@ -1540,6 +1502,25 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic",
+    "Enshrouding Mist",
+    "Soratami Cloud Chariot",
+    "Leap of Faith",
+    "Redeem",
+    "Wellgabber Apothecary",
+    "Godtoucher",
+    "Panacea"
    ]
   },
   {
@@ -2150,6 +2131,22 @@
     "Taigam, Ojutai Master",
     "Goliath Daydreamer",
     "Harness the Storm"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Forge of Heroes",
+    "Oakhollow Village",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Samut, Vizier of Naktamun",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
+    "Romana II"
    ]
   },
   {
@@ -6279,17 +6276,6 @@
    ]
   },
   {
-   "what": "keyword ExertAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Themberchaud",
-    "Sandstorm Crasher",
-    "Oketra's Avenger",
-    "Rhonas's Stalwart"
-   ]
-  },
-  {
    "what": "BlockedPredicate.instance",
    "score": 4,
    "lines": 4,
@@ -6826,6 +6812,16 @@
     "Rinoa, Angel Wing",
     "Blood Spatter Analysis"
    ]
+  },
+  {
+   "what": "OneOrMoreDamagePlayerTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Broodcaller Scourge",
+    "Francisco, Fowl Marauder",
+    "The Thing, Ben Grimm"
+   ]
   }
  ],
  "sole": [
@@ -7155,19 +7151,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Forge of Heroes",
-    "Oakhollow Village",
-    "Octomancer",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Ruins of Oran-Rief"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 16,
    "cards": 16,
@@ -7348,19 +7331,6 @@
    ]
   },
   {
-   "what": "prevent all, or only combat",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Fleeting Flight",
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Kitsune Healer",
-    "Alabaster Potion",
-    "Battlefield Medic"
-   ]
-  },
-  {
    "what": "ReparteeAbility",
    "score": 13,
    "cards": 13,
@@ -7475,6 +7445,19 @@
     "Discontinuity",
     "Brush Off",
     "Take for a Ride"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Kurbis, Harvest Celebrant",
+    "Cephalid Illusionist",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic",
+    "Enshrouding Mist"
    ]
   },
   {
@@ -7791,6 +7774,19 @@
     "Skyship Plunderer",
     "Powerful Broker",
     "Price of Betrayal"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Forge of Heroes",
+    "Oakhollow Village",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Samut, Vizier of Naktamun",
+    "Let the Galaxy Burn"
    ]
   },
   {
