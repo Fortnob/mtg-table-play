@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12070,
+  "needed": 12068,
   "gainedCards": 1263,
-  "linesNeeded": 13090,
+  "linesNeeded": 13087,
   "linesGained": 1506,
   "gained": {
    "all": 1263,
@@ -869,25 +869,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Flow State",
-    "Sword of the Paruns",
-    "Tomb Tyrant",
-    "Cloud, Planet's Champion",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot",
-    "Defenders of Humanity",
-    "Emergent Haunting",
-    "Trap Runner",
-    "Trade Caravan",
-    "Arcum's Sleigh"
-   ]
-  },
-  {
    "what": "two types at once",
    "score": 16,
    "lines": 16,
@@ -1018,6 +999,25 @@
     "Thunder Salvo",
     "Death's Approach",
     "Master's Councillors"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Flow State",
+    "Sword of the Paruns",
+    "Tomb Tyrant",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity",
+    "Emergent Haunting",
+    "Trap Runner",
+    "Trade Caravan",
+    "Arcum's Sleigh",
+    "Inventive Wingsmith"
    ]
   },
   {
@@ -5135,18 +5135,6 @@
    ]
   },
   {
-   "what": "ConditionalPreventionEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Multiclass Baldric",
-    "Gideon Blackblade",
-    "Sanwell, Avenger Ace",
-    "Guardian Naga // Banishing Coils",
-    "Frodo, Determined Hero"
-   ]
-  },
-  {
    "what": "IsPhaseCondition",
    "score": 5,
    "lines": 5,
@@ -6958,6 +6946,17 @@
     "Shield of the Realm",
     "Fylgja"
    ]
+  },
+  {
+   "what": "UnlessPaysDelayedEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Sabertooth Cobra",
+    "Glass Asp",
+    "Nafs Asp",
+    "Quenchable Fire"
+   ]
   }
  ],
  "sole": [
@@ -7391,19 +7390,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Flow State",
-    "Tomb Tyrant",
-    "Cloud, Planet's Champion",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot"
-   ]
-  },
-  {
    "what": "two types at once",
    "score": 14,
    "cards": 14,
@@ -7464,6 +7450,19 @@
     "Fangorn, Tree Shepherd",
     "Jolene, Plundering Pugilist",
     "Talion's Messenger"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Flow State",
+    "Tomb Tyrant",
+    "Deathbringer Regent",
+    "Essence Anchor",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity"
    ]
   },
   {
@@ -9318,6 +9317,19 @@
    ]
   },
   {
+   "what": "AttachToSourceTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Armory Automaton",
+    "Amy Rose",
+    "Sokka, Swordmaster",
+    "Kazuul's Toll Collector",
+    "Frodo, Determined Hero",
+    "Shagrat, Loot Bearer"
+   ]
+  },
+  {
    "what": "NextSpellCastHasAbilityEffect",
    "score": 6,
    "cards": 6,
@@ -9962,18 +9974,6 @@
     "Cosmium Confluence",
     "Riveteers Confluence",
     "Obscura Confluence"
-   ]
-  },
-  {
-   "what": "AttachToSourceTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Armory Automaton",
-    "Amy Rose",
-    "Sokka, Swordmaster",
-    "Kazuul's Toll Collector",
-    "Shagrat, Loot Bearer"
    ]
   },
   {

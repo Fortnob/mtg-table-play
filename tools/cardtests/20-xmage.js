@@ -13137,4 +13137,17 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(g.zone, 'hand');
   });
+
+  test('Guardian Naga: damage to it prevented during your turn only', (mk, t) => {
+    t.auto('Guardian Naga // Banishing Coils');
+    const T = mk();
+    T.toMain('A');
+    const n = T.bf('A', 'Guardian Naga // Banishing Coils');
+    const src = T.bf('B', 'Grizzly Bears');
+    T.g.dealDamageToObject(n, 3, src);
+    t.eq(n.damage || 0, 0, 'prevented on your turn');
+    T.toMain('B');
+    T.g.dealDamageToObject(n, 3, src);
+    t.eq(n.damage, 3, 'not on theirs');
+  });
 };

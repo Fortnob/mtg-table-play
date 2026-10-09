@@ -11267,6 +11267,24 @@
       const again = parseStatic(also[1] + ' ' + also[2] + ' ' + also[3], ctx);
       if (again && again.auto) return Object.assign({}, again, { text: line });
     }
+    /* Guardian Naga, Frodo, Determined Hero: "During your turn, prevent all
+       damage that would be dealt to this creature." — any standing rule the
+       rest can be read as, while it's your turn */
+    const dyt = String(line).match(/^During your turn, (.+)$/i);
+    if (dyt) {
+      const inner = parseStatic(dyt[1].charAt(0).toUpperCase() + dyt[1].slice(1), ctx);
+      const flat = [];
+      const ok = inner && inner.auto && (inner.effects || []).length && (inner.effects || []).every(e => {
+        if (e && e.op === 'continuous') { flat.push(e); return true; }
+        if (e && e.op === 'sequence' && (e.list || []).every(x => x && x.op === 'continuous')) { flat.push(...e.list); return true; }
+        return false;
+      });
+      if (ok) {
+        const cond = { kind: 'yourTurn' };
+        for (const e of flat) e.cond = e.cond ? [].concat(e.cond, cond) : cond;
+        return Object.assign({}, inner, { text: line });
+      }
+    }
     const tail = !/^As long as /i.test(line) && String(line).match(/^([^.]+?) as long as ([^,.]+)\.?$/i);
     if (tail && condOf(tail[2])) {
       const again = parseStatic('As long as ' + tail[2] + ', ' + tail[1].charAt(0).toLowerCase() + tail[1].slice(1) + '.', ctx);
