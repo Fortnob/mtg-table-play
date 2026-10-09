@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11786,
+  "needed": 11780,
   "gainedCards": 1191,
-  "linesNeeded": 12689,
+  "linesNeeded": 12683,
   "linesGained": 1410,
   "gained": {
    "all": 1191,
@@ -563,25 +563,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Azure Beastbinder",
-    "Locke, Treasure Hunter",
-    "Lydia Frye",
-    "Departed Deckhand",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Tatsunari, Toad Rider",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist",
-    "Cavern Stomper"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 20,
    "lines": 20,
@@ -738,6 +719,25 @@
     "Spring Splasher",
     "Fear of Falling",
     "Coveted Peacock"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 17,
+   "lines": 17,
+   "cards": [
+    "Azure Beastbinder",
+    "Locke, Treasure Hunter",
+    "Lydia Frye",
+    "Departed Deckhand",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Tatsunari, Toad Rider",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist",
+    "Skyscythe Engulfer"
    ]
   },
   {
@@ -4398,19 +4398,6 @@
    ]
   },
   {
-   "what": "discard at random",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Balduvian Horde",
-    "Pyromancy",
-    "Barbarian Bully",
-    "Minotaur Explorer",
-    "Pillaging Horde",
-    "Stormscale Anarch"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .addCost)",
    "score": 5,
    "lines": 2,
@@ -6869,6 +6856,16 @@
     "Reach the Horizon",
     "Alpine Houndmaster"
    ]
+  },
+  {
+   "what": "PutIntoGraveFromAnywhereThisTurnPredicate.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Abyssal Harvester",
+    "Reenact the Crime",
+    "Night Nurse, Healer of Heroes"
+   ]
   }
  ],
  "sole": [
@@ -7263,19 +7260,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 14,
    "cards": 8,
@@ -7544,6 +7528,19 @@
     "Discontinuity",
     "Brush Off",
     "Take for a Ride"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist"
    ]
   },
   {
@@ -9504,19 +9501,6 @@
    ]
   },
   {
-   "what": "discard at random",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Balduvian Horde",
-    "Pyromancy",
-    "Barbarian Bully",
-    "Minotaur Explorer",
-    "Pillaging Horde",
-    "Stormscale Anarch"
-   ]
-  },
-  {
    "what": "sacrifice trigger for OPPONENT",
    "score": 5,
    "cards": 2,
@@ -10606,6 +10590,17 @@
     "Rip, Spawn Hunter",
     "Glimmer Seeker",
     "Rootwise Survivor"
+   ]
+  },
+  {
+   "what": "AttacksAloneAttachedTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Bilbo's Ring",
+    "Sigil of Valor",
+    "Reaper's Talisman",
+    "S.H.I.E.L.D. Spy Kit"
    ]
   }
  ]

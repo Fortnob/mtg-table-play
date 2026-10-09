@@ -14320,4 +14320,32 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'exile').length + T.zone('B', 'hand').length, 2);
     t.eq(T.zone('B', 'exile').length, 1, 'one card exiled');
   });
+
+  test("Verdant Outrider: can't be blocked by power 2 or less this turn", (mk, t) => {
+    t.auto('Verdant Outrider');
+    const T = mk();
+    T.toMain('A');
+    const vo = T.bf('A', 'Verdant Outrider');
+    const ab = vo.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: vo, name: 'Verdant Outrider', kind: 'ability' });
+    t.ok(!T.g.couldBlock(T.bf('B', 'Grizzly Bears'), vo, 'B'), 'power 2 cannot block');
+    t.ok(!!T.g.couldBlock(T.bf('B', 'Hill Giant'), vo, 'B'), 'power 3 can');
+  });
+
+  test('Balduvian Horde: sacrifice it unless you discard a card at random', (mk, t) => {
+    t.auto('Balduvian Horde');
+    const T = mk();
+    T.toMain('A');
+    T.hand('A', 'Island');
+    T.answer('confirm', { yes: true });
+    const bh = T.put('A', 'Balduvian Horde', 'battlefield', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bh, 'battlefield', 'a card discarded');
+    t.eq(T.zone('A', 'hand').length, 0);
+    const U = mk();
+    U.toMain('A');
+    const bh2 = U.put('A', 'Balduvian Horde', 'battlefield', { etb: true });
+    U.settle(); U.resolve(); U.settle();
+    t.zone(bh2, 'graveyard', 'no card to discard: sacrificed');
+  });
 };

@@ -7794,6 +7794,8 @@
       if (ev && ev.maxBlockerPower != null && this.powerOf(blocker) > ev.maxBlockerPower) return false;
       // Signal Pest: only fliers and creatures with reach may block it
       if (ev && ev.onlyBy && !ev.onlyBy.some(k => this.hasKw(blocker, k))) return false;
+      // Verdant Outrider: for the turn, nothing with power 2 or less blocks it
+      if ((attacker.effects || []).some(ef => ef && ef.tempEvasion && ef.tempEvasion.minBlockerPower != null && this.powerOf(blocker) < ef.tempEvasion.minBlockerPower)) return false;
       // Dream Prowler: unblockable while it attacks alone
       if (ev && ev.attackingAlone && (this.combat.attackers || []).length === 1 && this.combat.attackers[0] === attacker.id) return false;
       // Realm of Koh's Spirit: "can't block non-Spirit creatures"
@@ -11970,6 +11972,10 @@
           }
           break;
         }
+        // Verdant Outrider: "can't be blocked by creatures with power 2 or less this turn"
+        case 'evasionEot':
+          applyToScope(e, (o) => { o.effects.push({ tempEvasion: { minBlockerPower: e.minBlockerPower }, until: 'eot' }); });
+          break;
         /* Skullcap Snail: "target opponent exiles a card from their hand" —
            the player whose hand it is picks */
         case 'exileFromHandChoice': {
@@ -13411,7 +13417,12 @@
             : this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && fits(x) &&
               !(e.untapped && x.tapped) && !(e.another && x === src) && !(e.how === 'sacrifice' && x === src));
           let paid = null;
-          if (pool.length) {
+          // Balduvian Horde: yes or no, and if yes the card is chosen at random
+          if (e.random && pool.length) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Discard a card at random, or sacrifice ${src.name}?` }, 'unlessRandom');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes === null || !!yes) paid = pool[Math.floor(this.rng.next() * pool.length)];
+          } else if (pool.length) {
             const got = this._choose({ playerId: ctx.controller, purpose: 'unlessSacrifice', kind: 'objects',
               zone: e.how === 'discard' ? 'hand' : 'battlefield', items: this._chooseItems(pool), min: 0, max: 1,
               sourceId: src.id, sourceName: src.name,

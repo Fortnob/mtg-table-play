@@ -1256,6 +1256,10 @@
     { re: /^(Target opponent|Each opponent|Target player) exiles (a|one|two) cards? from their hand\.?$/i,
       make: (m) => Object.assign({ op: 'exileFromHandChoice', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] } : {}) },
+    // Verdant Outrider, Cavern Stomper: "This creature can't be blocked by creatures with power 2 or less this turn."
+    { re: /^(This creature|CARDNAME|Target creature|It) can'?t be blocked by creatures with power (\d+) or less this turn\.?$/i,
+      make: (m) => Object.assign({ op: 'evasionEot', minBlockerPower: +m[2] + 1 },
+        /^target/i.test(m[1]) ? { targets: [targetSpec('target creature')] } : /^it$/i.test(m[1]) ? { scope: 'lastTarget' } : { scope: 'self' }) },
     // Roalesk, Apex Hybrid: "proliferate, then proliferate again"
     { re: /^Proliferate, then proliferate again\.?$/i, make: () => [{ op: 'proliferate' }, { op: 'proliferate' }] },
     // Lay Down Arms: "Exile target creature with mana value less than or equal to the number of Plains you control."
@@ -4708,6 +4712,9 @@
     // Hammer of Nazahn: "attach that Equipment to target creature you control"
     { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },
+    // Balduvian Horde: "sacrifice it unless you discard a card at random"
+    { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you discard a card at random\.?$/i,
+      make: () => ({ op: 'sacSelfUnless', how: 'discard', filter: 'card', random: true, untapped: false, another: false }) },
     /* The Gitrog Monster, Karoo, Quickling, Solitary Confinement: "sacrifice
        it unless you sacrifice a land / return an untapped Plains you control
        to its owner's hand / discard a card" */
