@@ -1861,4 +1861,37 @@ module.exports = (test) => {
     for (const n of ['Unlicensed Hearse', 'Primalcrux', 'Adamaro, First to Desire', 'Soulless One'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
+
+  test('Audit: counts of other, differently named and different-valued permanents', (mk, t) => {
+    let T = mk();
+    t.auto('Speakeasy Server');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Ornithopter');
+    T.mana('A', 'W4');
+    T.cast('A', T.hand('A', 'Speakeasy Server'));
+    t.eq(T.life('A'), 22, 'two other creatures');
+    T = mk();
+    t.auto('Lunar Insight');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Ornithopter'); T.bf('A', 'Memnite'); T.bf('A', 'Craw Wurm'); T.bf('A', 'Island');
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Lunar Insight'));
+    t.eq(T.zone('A', 'hand').length, 3, 'mana values 0, 2 and 6');
+    T = mk();
+    t.auto('Golden Ratio');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Runeclaw Bear'); T.bf('A', 'Ornithopter'); T.bf('A', 'Craw Wurm');
+    T.mana('A', 'GU2');
+    T.cast('A', T.hand('A', 'Golden Ratio'));
+    t.eq(T.zone('A', 'hand').length, 3, 'powers 0, 2 and 6');
+    T = mk();
+    t.auto('Awakened Amalgam');
+    T.bf('A', 'Island'); T.bf('A', 'Island'); T.bf('A', 'Swamp'); T.bf('A', 'Ghost Quarter');
+    const am = T.bf('A', 'Awakened Amalgam');
+    t.eq(T.g.powerOf(am), 3, 'Island, Swamp, Ghost Quarter');
+  });
+
+  test('Audit: counts that nothing here reads are left to a person (Slash of Light, Chameleon Spirit, Karn, Gilded Guardian)', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Slash of Light', 'Chameleon Spirit', 'Karn, Gilded Guardian', 'Skyshroud War Beast'])
+      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+  });
 };

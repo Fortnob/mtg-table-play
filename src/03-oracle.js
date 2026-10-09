@@ -5565,8 +5565,12 @@
   }
 
   function countSpec(phrase, mult, who) {
-    return { per: String(phrase || '').toLowerCase().trim(),
-      mult: mult == null ? 1 : mult, who: who || 'you' };
+    const per = String(phrase || '').toLowerCase().trim();
+    /* words the count of permanents can't read: a chosen colour or player,
+       one count added to another, colours among some other kind */
+    const unread = /\b(?:chosen|plus|the number of)\b|\bcolou?rs? among (?!permanents$)|\bcards?\b/.test(per) &&
+      !/^card types among cards in /.test(per);
+    return Object.assign({ per, mult: mult == null ? 1 : mult, who: who || 'you' }, unread ? { unread: true } : {});
   }
 
   // the engine works X out at resolution, so keep it as a marker here
@@ -10792,6 +10796,12 @@
     }
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
+    /* Slash of Light: "the number of creatures you control plus the number of
+       Equipment you control" — a count whose words nothing here can count
+       would quietly come to nothing */
+    for (const ab of out.abilities) {
+      if (ab.auto && /"unread":true/.test(JSON.stringify(ab.effects || []))) { ab.auto = false; out.fullyAutomated = false; }
+    }
     // a keyword the reading could do only part of (Backup granting words it can't read, "Recover—Pay half your life")
     if (out._keywordManual) out.fullyAutomated = false;
     /* A Room's locked door: its mana cost, paid any time you could cast a

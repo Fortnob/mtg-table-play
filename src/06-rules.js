@@ -2924,7 +2924,7 @@
         }
         return k * mult;
       }
-      if (v.per) return this.countPermanents(pid, v) * mult;
+      if (v.per) return this.countPermanents(pid, v, src) * mult;
       // "each land you control and each land card in your graveyard"
       if (v.sum) return v.sum.reduce((acc, x) => acc + this._countValue(x, pid, src, inLayers), 0) * mult;
       // "for each Aura attached to it"
@@ -11784,7 +11784,7 @@
         if (v === 'lastExcess') return this._lastExcess || 0;
         // "loses that much life": the amount the trigger was about
         if (v === 'triggerAmount') return Number((ctx.triggerData || {}).amount) || 0;
-        if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v) * (v.mult || 1);
+        if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v, src) * (v.mult || 1);
         if (v && typeof v === 'object' && v.attackingOther) {
           const want = String(v.attackingOther).toLowerCase();
           let k = 0;
@@ -19863,16 +19863,37 @@
      * Creature - Goblin Warrior" counts as a Goblin and not as a Warrior card
      * that happens to contain the word.
      */
-    countPermanents(pid, spec) {
+    countPermanents(pid, spec, src) {
       if (spec && spec.scope) return this._scopeList(spec.scope, pid, null).length;
       if (spec && spec.cardsInHand) return ((this.zones[pid] || {}).hand || []).length;
+      const per = String(spec.per || '').toLowerCase().trim();
+      // Hydra Trainer: "the number of counters on permanents you control"
+      if (per === 'counters on permanents') {
+        let k = 0;
+        for (const o of this.battlefield) if (o.controller === pid && !o.phasedOut) k += Object.values(o.counters || {}).reduce((s, c) => s + (Number(c) || 0), 0);
+        return k;
+      }
+      /* Lunar Insight, Golden Ratio: "each different mana value / power among
+         nonland permanents you control"; Awakened Amalgam: "differently named
+         lands"; Speakeasy Server: "each other creature you control" */
+      const among = per.match(/^different (mana value|power) among (.+)$/);
+      const named = !among && per.match(/^differently named (.+)$/);
+      const other = !among && !named && per.match(/^other (.+)$/);
+      const list = this._perList(pid, spec, among ? among[2] : named ? named[1] : other ? other[1] : per);
+      if (among) return new Set(list.map(o => among[1] === 'power' ? this.powerOf(o) : ((o.card && o.card.cmc) || 0))).size;
+      if (named) return new Set(list.map(o => o.name)).size;
+      if (other) return list.filter(o => !src || o.id !== src.id).length;
+      return list.length;
+    }
+    /** The permanents a count's words name. */
+    _perList(pid, spec, per) {
       // "artifacts and enchantments" counts anything that is either
-      const wants = String(spec.per || '').toLowerCase()
+      const wants = String(per || '')
         .split(/\s+and\s+|\s*,\s*/)
         .map(w => w.trim().replace(/(?<!plain)s$/, ''))
         .filter(Boolean);
-      if (!wants.length) return 0;
-      let k = 0;
+      if (!wants.length) return [];
+      const out = [];
       for (const o of this.battlefield) {
         if (spec.who === 'opponents') { if (o.controller === pid) continue; }
         else if (spec.who !== 'any' && o.controller !== pid) continue;
@@ -19885,9 +19906,9 @@
           (a.subtypes || []).some(x => x.toLowerCase() === want) ||
           // Hagra Mauling: "basic lands", more than one word
           (/\s/.test(want) && this._cardFitsWords(o, want)));
-        if (hit) k++;
+        if (hit) out.push(o);
       }
-      return k;
+      return out;
     }
 
     /** Regeneration (CR 701.15): a shield replaces the next destruction. */
@@ -21156,6 +21177,8 @@
         // Vengeful Ancestor: "a goaded creature"
         if (w === 'goaded') return o.goadedBy != null || (!!o.attacking && o._goadedAttack === this.turn);
         if (w === 'blocking') return !!(o.blocking || []).length;
+        // Jor Kadeen: "equipped creatures you control"
+        if (w === 'equipped') return (o.attachments || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
         if (w === 'tapped') return !!o.tapped;
         if (w === 'untapped') return !o.tapped;
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it
