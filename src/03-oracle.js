@@ -5712,6 +5712,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Stonehewer Giant: "Search your library for an Equipment card, put it
+       onto the battlefield, attach it to a creature you control, then shuffle." */
+    { re: /^Search your library for an? (Equipment|Aura) card, put it onto the battlefield, attach it to a creature you control, then shuffle\.$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', prompt: `Search your library for an ${m[1]} card.` },
+        { op: 'attachPutToChosen' }] },
     /* Jace, the Mind Sculptor: "Look at the top card of target player's
        library. You may put that card on the bottom of that player's library." */
     { re: /^Look at the top card of target player'?s library\. You may put that card on the bottom of that player'?s library\.$/i,

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12159,
+  "needed": 12157,
   "gainedCards": 1287,
-  "linesNeeded": 13215,
+  "linesNeeded": 13213,
   "linesGained": 1537,
   "gained": {
    "all": 1287,
@@ -33,8 +33,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4337,
-   "lines": 4070,
+   "score": 4336,
+   "lines": 4069,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1712,25 +1712,6 @@
    ]
   },
   {
-   "what": "CompositeCost",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for Pure Flame",
-    "Ultimecia, Time Sorceress // Ultimecia, Omnipotent",
-    "Quest for the Holy Relic",
-    "Sokenzan Smelter",
-    "Fugitive of the Judoon",
-    "Sphinx's Approach",
-    "Urborg Panther",
-    "Kyscu Drake"
-   ]
-  },
-  {
    "what": "target count 1-2",
    "score": 12,
    "lines": 12,
@@ -1964,6 +1945,24 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
+   ]
+  },
+  {
+   "what": "CompositeCost",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Ultimecia, Time Sorceress // Ultimecia, Omnipotent",
+    "Sokenzan Smelter",
+    "Fugitive of the Judoon",
+    "Sphinx's Approach",
+    "Urborg Panther",
+    "Kyscu Drake"
    ]
   },
   {
@@ -7011,8 +7010,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3557,
-   "cards": 3389,
+   "score": 3556,
+   "cards": 3388,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8104,19 +8103,6 @@
    ]
   },
   {
-   "what": "CompositeCost",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for Pure Flame",
-    "Quest for the Holy Relic"
-   ]
-  },
-  {
    "what": "EndOfCombatTriggeredAbility",
    "score": 9,
    "cards": 9,
@@ -8374,6 +8360,19 @@
     "Hexavus",
     "Soul Diviner",
     "Xavier Sal, Infested Captain"
+   ]
+  },
+  {
+   "what": "CompositeCost",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Sokenzan Smelter"
    ]
   },
   {

@@ -1486,6 +1486,12 @@
     returnAttached(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
+    /* Stonehewer Giant: the Equipment goes on the strongest creature */
+    attachTo(s) {
+      const g = this.game;
+      const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
+      return best ? { picks: [best.id] } : null;
+    },
     /* Resourceful Defense: counters go where they were asked to go */
     moveCounters(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Patriarch's Bidding: the type with the most creature cards in our own graveyard */

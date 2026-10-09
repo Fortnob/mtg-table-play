@@ -15136,6 +15136,26 @@
           this.logEvent('counters', `${me.name} doubles their counters.`);
           break;
         }
+        // Stonehewer Giant: what was just put onto the battlefield, attached to a creature you choose
+        case 'attachPutToChosen': {
+          const eq = this._lastPut && this.obj(this._lastPut);
+          if (!eq || eq.zone !== 'battlefield') break;
+          const pool = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && o !== eq && (this.characteristics(o) || {}).isCreature);
+          if (!pool.length) break;
+          let host = pool.length === 1 ? pool[0] : null;
+          if (!host) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'attachTo', kind: 'objects', items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `Attach ${eq.name} to a creature you control.` }, 'atc');
+            if (got === SUSPEND) return SUSPEND;
+            host = this.obj(((got && got.picks) || [])[0]) || pool[0];
+          }
+          eq.attachedTo = host.id;
+          eq.ts = this._stampNew();
+          host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

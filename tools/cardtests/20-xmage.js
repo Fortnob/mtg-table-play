@@ -12867,4 +12867,19 @@ module.exports = (test) => {
     T.toMain('B');
     t.ok(!T.g._cardFitsWords(bear, 'artifact'), 'only for the turn');
   });
+
+  test('Stonehewer Giant: an Equipment from the library, attached', (mk, t) => {
+    t.auto('Stonehewer Giant');
+    const T = mk();
+    const sg = T.bf('A', 'Stonehewer Giant');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.top('A', 'Bonesplitter');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Bonesplitter').id] }));
+    T.answer('choose', (ch) => ({ picks: [bear.id] }));
+    T.g._runEffects(sg.analysis().abilities.find(a => a.kind === 'activated').effects, { controller: 'A', obj: sg, name: 'Stonehewer Giant', kind: 'ability' });
+    T.settle();
+    const bs = T.g.battlefield.find(o => o.name === 'Bonesplitter');
+    t.ok(bs, 'on the battlefield'); t.eq(bs.attachedTo, bear.id);
+    t.eq(T.g.powerOf(bear), 4);
+  });
 };
