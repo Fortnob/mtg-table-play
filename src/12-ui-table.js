@@ -2289,7 +2289,21 @@
         const total = anyMix.amount === 'X' ? (x || 0) : (typeof anyMix.amount === 'number' ? anyMix.amount : 0);
         if (total > 1) return this._askColours(o.card.name, total, !!anyMix.distinct, (cols) => this.activate(o, a, index, ab, x, cols), o.card, 'Activate');
       }
+      /* "Remove a counter from this creature", of any kind: which kind comes
+         off, when it has more than one (a -1/-1 counter is not a +1/+1) */
+      const kindSet = !!this._actKind && this._actKind.id === o.id && this._actKind.index === index;
+      if (((ab.cost || {}).removeCounters || {}).kind === '*' && !kindSet) {
+        const kinds = this._counterKinds(o);
+        if (kinds.length > 1) {
+          return this._askCounterKind(o.card, kinds, (k) => {
+            this._actKind = { id: o.id, index, kind: k };
+            this.activate(o, a, index, ab, x, split == null ? undefined : split);
+          });
+        }
+      }
+      /** @type {any} */
       const more = Object.assign({}, x != null ? { x } : {}, split != null ? { manaSplit: split } : {});
+      if (kindSet && this._actKind.kind) more.counterKind = this._actKind.kind;
       // a cost the table would otherwise pay from what is to hand (Forensic Researcher, City of Shadows...)
       if (!this._costAsked) {
         const rows = (((this.live || this.view).costPicks || {})[o.id] || []).filter(r => r.index === index);
@@ -2301,6 +2315,7 @@
         }
       }
       if (this._costAsked) Object.assign(more, this._costAsked);
+      this._actKind = null;
       const specs = [];
       for (const s of this._effectTargets(ab.effects)) {
         if (!s.multi) { specs.push(s); continue; }
@@ -2395,6 +2410,28 @@
       const max = Math.max(1, Math.floor((this.manaHere() - fixed) / per));
       this._askNumber(`${o.card.name}: suspend with how many time counters?`, `X is both the time counters and the {X} in ${use.xCost}. You can afford up to ${max}.`,
         1, max, max, (x) => this.send({ kind: 'suspend', objId: o.id, x }), o.card);
+    }
+
+    /** The kinds of counter on a permanent, with how many of each. */
+    _counterKinds(o) {
+      return Object.entries((o && o.counters) || {}).filter(([, n]) => Number(n) > 0).map(([kind, n]) => ({ kind, n: Number(n) }));
+    }
+
+    /**
+     * Which kind of counter comes off, for a cost that takes "a counter":
+     * a button a kind, with how many there are. `done` gets the kind, or
+     * null to leave it to the game. @this {MTG.TableInstance}
+     */
+    _askCounterKind(card, kinds, done) {
+      const word = (k) => (/counters?$/i.test(k) ? k : k + ' counter');
+      const key = 'ckind:' + (card ? card.name : '') + ':' + kinds.map(k => k.kind + k.n).join(',');
+      this.asking = { base: key, key, build: () => this.panel(`${escapeHtml(card ? card.name : 'Cost')}: remove which counter?`,
+        'It has more than one kind.', null, [
+          { label: 'Let the game choose', fn: () => { this.asking = null; this.render(); done(null); } },
+          ...kinds.map((k, i) => ({ label: `${word(k.kind)} (${k.n})`, cls: i === 0 ? 'primary' : '',
+            fn: () => { this.asking = null; this.render(); done(k.kind); } })),
+        ], { card }) };
+      this.render();
     }
 
     /**

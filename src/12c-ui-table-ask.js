@@ -1147,6 +1147,24 @@
           ], { card }) };
           return this.render();
         }
+        /* a counter off a permanent of yours: which permanent, then which
+           kind of counter when it has more than one */
+        if (r.kindKey) {
+          const ids1 = r.candidates || [];
+          const askKind = (id) => {
+            const x = this.objIn(id);
+            const kinds = this._counterKinds(x);
+            if (kinds.length < 2) return next();
+            this._askCounterKind(x.card, kinds, (k) => { if (k) out[r.kindKey] = k; next(); });
+          };
+          if (!ids1.length) return next();
+          if (ids1.length === 1) { out[r.key] = ids1[0]; return askKind(ids1[0]); }
+          return this._pickPayers({ label: r.label || 'Choose what pays', ids: ids1, count: 1 }, card, (chosen) => {
+            if (!chosen) return next();
+            out[r.key] = chosen[0];
+            askKind(chosen[0]);
+          });
+        }
         const ids = r.kind === 'forage' && !(r.candidates || []).length ? (r.foods || []) : (r.candidates || []);
         const key = r.kind === 'forage' && !(r.candidates || []).length ? (r.foodKey || 'forageFoodId') : r.key;
         const need = r.need === 'X' ? x : (Number(r.need) || 1);
