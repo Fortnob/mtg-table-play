@@ -2732,4 +2732,17 @@ module.exports = (test) => {
     t.zone(hg, 'graveyard', 'the creature is sacrificed'); t.zone(fc, 'battlefield', 'the Equipment stays');
     t.eq(T.g.zones.A.hand.length, h + 3, 'three cards for its power');
   });
+
+  test('Audit: Harsh Mentor punishes the opponent who activates, not mana abilities', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Harsh Mentor');
+    T.toMain('B');
+    T.bf('A', 'Harsh Mentor');
+    const ps = T.bf('B', 'Prodigal Sorcerer'), el = T.bf('B', 'Llanowar Elves');
+    ps.summoningSick = false; el.summoningSick = false;
+    T.activate('B', ps, 0, { targets: ['C'] }); T.settle(); T.resolve();
+    t.eq(T.life('B'), 18, 'B activated: 2 damage to B'); t.eq(T.life('C'), 19);
+    T.g.activateAbility('B', el.id, 0, { auto: true }); T.settle(); T.resolve();
+    t.eq(T.life('B'), 18, 'a mana ability: nothing');
+  });
 };
