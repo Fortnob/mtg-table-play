@@ -6854,7 +6854,7 @@
   const ABILITY_WORDS = new Set(['adamant', 'addendum', 'alliance', 'battalion', 'bloodrush',
     'celebration', 'channel', 'chroma', 'cohort', 'constellation', 'converge', "council's dilemma",
     'corrupted', 'coven', 'delirium', 'descend', 'domain', 'eerie', 'enrage', 'fateful hour',
-    'fathomless descent', 'ferocious', 'flurry', 'formidable', 'grandeur', 'hellbent', 'heroic',
+    'fathomless descent', 'ferocious', 'super nova', 'flurry', 'formidable', 'grandeur', 'hellbent', 'heroic',
     'imprint', 'inspired', 'join forces', 'kinship', 'landfall', 'lieutenant', 'magecraft',
     'metalcraft', 'morbid', 'pack tactics', 'paradox', 'parley', 'radiance', 'raid', 'rally',
     'revolt', 'secret council', 'spell mastery', 'strive', 'survival', 'sweep', 'tempting offer',
@@ -7987,6 +7987,8 @@
     { re: /^At end of combat(?:,| )/i, event: 'endOfCombat' },
     { re: /^When(?:ever)? an? (?:artifact|enchantment) enters(?: the battlefield)?(?: under your control)?(?:,| )/i, event: 'permanentEtb' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) transforms(?:,| )/i, event: 'transforms', self: true },
+    // Sephiroth, One-Winged Angel: "As this creature transforms into CARDNAME, you get an emblem …" — read as it transforms
+    { re: /^As (?:this creature|CARDNAME) transforms into (?:CARDNAME|this creature),? /i, event: 'transforms', self: true },
   ];
 
   /* ---------------- the main analyser ---------------- */
