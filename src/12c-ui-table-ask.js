@@ -712,6 +712,11 @@
         el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
         el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won && !watched ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
         guest ? el('div', { class: 'over-note', text: 'If the host starts another game, it opens here.' }) : null,
+        // what the game paid
+        this._reward && !watched ? el('div', { class: 'over-reward' }, [
+          el('div', { class: 'or-total', html: (UI.shardIcon ? UI.shardIcon() : '') + `<b>+${this._reward.total.toLocaleString()}</b> Shards` }),
+          el('div', { class: 'or-parts' }, this._reward.parts.map(([label, n]) => el('span', { text: `${label} +${n}` }))),
+        ]) : null,
         m ? el('div', { class: 'over-match' }, [
           el('div', { class: 'tiny', text: m.label }),
           el('div', { class: 'over-scores' }, m.scores.map(sc => el('span', { class: 'sc' + (sc.leading ? ' lead' : '') }, [el('i', { text: sc.name }), el('b', { text: String(sc.wins) })]))),

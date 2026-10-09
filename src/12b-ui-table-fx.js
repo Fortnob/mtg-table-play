@@ -979,6 +979,12 @@
     _gameOverFx(v) {
       // the result screen is drawn by the decision layer; this is the flourish under it
       this.flash(v.winners.includes(this.meId) ? 'win' : 'lose');
+      /* Shards for the game, once: for a seat that played it, not for a
+         replay or someone watching */
+      if (!v.replay && !v.spectating && this.me && MTG.economy) {
+        this._reward = MTG.economy.awardGame({ won: (v.winners || []).includes(this.meId) });
+        if (this._reward) setTimeout(() => MTG.sfx('shards', { intensity: Math.min(1, this._reward.total / 400) }), 1400);
+      }
     },
   });
 })(window.MTG);

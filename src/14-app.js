@@ -236,7 +236,7 @@
   /* ================= shell ================= */
   let screens = {};
   const CRUMBS = {
-    home: '', formats: 'Play', decks: 'Deck builder', options: 'Options',
+    home: '', formats: 'Play', decks: 'Deck builder', options: 'Options', store: 'Store', collection: 'Collection',
     lobby: 'Play \u203a Table setup', draft: 'Draft', table: 'Game',
   };
 
@@ -265,6 +265,7 @@
         onclick: () => navTo(id),
       }))),
       el('span', { class: 'grow' }),
+      UI.shardChip(() => navTo('store')),
       el('div', { class: 'net-badge', id: 'netBadge' }, [el('span', { class: 'net-dot' }), el('span', { text: 'solo' })]),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.sound, title: 'Sound', 'aria-label': 'Sound', onclick: soundMenu }),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.gear, title: 'Options', 'aria-label': 'Options', onclick: () => navTo('options') }),
@@ -275,6 +276,8 @@
       formats: el('div', { class: 'screen', id: 'screen-formats' }),
       decks: el('div', { class: 'screen', id: 'screen-decks' }),
       options: el('div', { class: 'screen', id: 'screen-options' }),
+      store: el('div', { class: 'screen', id: 'screen-store' }),
+      collection: el('div', { class: 'screen', id: 'screen-collection' }),
       lobby: el('div', { class: 'screen', id: 'screen-lobby' }),
       draft: el('div', { class: 'screen', id: 'screen-draft' }),
       table: el('div', { class: 'screen', id: 'screen-table' }),
@@ -309,11 +312,43 @@
     if (name === 'formats') renderFormats();
     if (name === 'decks') renderDecks();
     if (name === 'options') renderOptions();
+    if (name === 'store') UI.renderStore(screens.store, { onOpenPacks: () => App.openPacks() });
+    if (name === 'collection') UI.renderCollection(screens.collection);
     window.scrollTo && window.scrollTo(0, 0);
   }
   App.showScreen = showScreen;
 
-  const NAV = [['home', 'Home'], ['formats', 'Play'], ['decks', 'Decks'], ['options', 'Options']];
+  const NAV = [['home', 'Home'], ['formats', 'Play'], ['decks', 'Decks'], ['collection', 'Collection'], ['store', 'Store'], ['options', 'Options']];
+
+  /** Open every pack in the inventory, then show the Store or Collection again with the new totals. */
+  App.openPacks = function () {
+    UI.openPacks(() => { if (App.screen === 'store' || App.screen === 'collection') showScreen(App.screen); });
+  };
+
+  /* The backquote key: ten thousand Shards, for trying the Store out. Not
+     while typing, and not with a modifier held. */
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '`' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    MTG.economy.grantTest();
+    UI.ok('+10,000 Shards');
+  });
+
+  /** A deck that is played: whether the collection holds it (starter decks always may be played). */
+  App.collectionAllows = async function (deck) {
+    if (!deck || deck.starter || deck.source === 'starter' || deck.source === 'bot') return true;
+    return UI.checkCollection(deck);
+  };
+  /** The cards of a draft, kept: Arena lets you keep what you drafted. */
+  App.keepDrafted = function (pool) {
+    const cards = (pool || []).map(x => (x && x.card) || x).filter(c => c && c.name);
+    if (!cards.length) return;
+    const res = MTG.economy.addCards(cards, 'draft');
+    const fresh = res.filter(r => r.isNew).length;
+    UI.toast(`${cards.length} drafted cards added to your collection${fresh ? ` (${fresh} new)` : ''}.`, 'ok', 5000);
+  };
 
   /** Go to one of the top-level screens, leaving a table properly on the way. */
   async function navTo(name) {
@@ -741,6 +776,7 @@
             if (!deck) { go.disabled = false; return UI.error('That deck could not be loaded.'); }
             const ok = await UI.checkAutomation(deck, { onEdit: (d) => UI.deckBuilder(d, { onSave: () => renderHome() }) });
             if (!ok) { go.disabled = false; return; }
+            if (!await App.collectionAllows(deck)) { go.disabled = false; return; }
           }
           App.quickGame({
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
@@ -1436,6 +1472,7 @@
 
     /* -- gameplay -- */
     sections.push(group('gameplay', 'Gameplay', null, [
+      toggle('useCollection', 'Build from my collection', 'Decks you play use the cards you own; a wildcard crafts one you are missing. Starter decks and decks the bots build for you are always allowed. Off: any card, as before.'),
       toggle('beginnerHints', 'Beginner hints', 'A line under the big button that says what is going on and what you could do, in plain English.',
         () => { if (App.table) App.table.render(); }),
       el('div', { class: 'opt-row' }, [
@@ -1929,6 +1966,7 @@
               } }),
             });
             if (!ok || App.session !== sess) return;
+            if (!await App.collectionAllows(me.deck) || App.session !== sess) return;
           }
           sess.start();
         },
@@ -2591,7 +2629,8 @@
     if (fmt.kind !== 'limited') {
       box.appendChild(el('div', { class: 'client-go' }, [
         el('button', { class: 'btn primary hero-btn', html: `${SVG.deck}<span>Choose my deck</span>`, onclick: () => {
-          UI.pickDeck(payload.formatId, (d) => {
+          UI.pickDeck(payload.formatId, async (d) => {
+            if (!await App.collectionAllows(d)) return;
             const v = MTG.formats.validate(d, fmt);
             net.intent({ kind: 'setDeck', deck: slimDeckForWire(d), name: App.myName });
             if (!v.ok) UI.toast('Sent, but the host’s rules say: ' + v.errors[0], 'err', 6000);
@@ -3010,6 +3049,7 @@
         }
       }
       const me = this.seat('me');
+      App.keepDrafted(me.pool);
       UI.buildFromPool(me.pool, this.formatId, (deck) => {
         me.deck = deck;
         this.startGame();
@@ -3594,6 +3634,7 @@
       App.draftUI.update(view);
       if (view.buildNow && !App._buildingPool) {
         App._buildingPool = true;
+        App.keepDrafted(view.pool);
         UI.buildFromPool(view.pool, view.formatId || App.formatId, (deck) => {
           App._buildingPool = false;
           net.intent({ kind: 'setDeck', deck: slimDeckForWire(deck) });

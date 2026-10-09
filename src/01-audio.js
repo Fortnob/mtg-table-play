@@ -42,7 +42,8 @@
   /* Which sounds belong to the interface rather than the game. They have
      their own volume, so a player can keep the cards and lose the clicks. */
   const UI_SOUNDS = new Set(['click', 'hover', 'confirm', 'cancel', 'error', 'reject', 'pickup', 'notify', 'chat',
-    'join', 'leave', 'pack_open', 'pick', 'ui_attack', 'ui_block', 'ui_play', 'priority', 'choice', 'target']);
+    'join', 'leave', 'pack_open', 'pick', 'ui_attack', 'ui_block', 'ui_play', 'priority', 'choice', 'target',
+    'pack_shake', 'pack_tear', 'card_flip', 'reveal_rare', 'reveal_mythic', 'new_card', 'shards', 'purchase', 'wildcard']);
 
   /* Each colour of mana as sound: the notes it is built from and how they
      are played. Notes are in hertz; the first is the root. */
@@ -966,6 +967,65 @@
       this.chord([660, 880, 1320], { type: 'sine', dur: 0.28, gain: 0.065, spread: 0.075, delay: 0.14, send: 0.5 });
     },
     pick(o) { this.tone(720, { type: 'sine', slideTo: 1150, dur: 0.11, gain: 0.09, send: 0.3 }); },
+
+    /* ---- the Store and opening packs ---- */
+    /** A booster picked up and turned in the hand: foil crinkle. */
+    pack_shake(o) {
+      this.noise({ filter: 'bandpass', freq: 5200, q: 0.7, dur: 0.16, gain: 0.05, rate: 1.6, send: 0.15 });
+      this.noise({ filter: 'bandpass', freq: 3600, q: 0.9, dur: 0.12, gain: 0.04, rate: 1.4, delay: 0.09, send: 0.15 });
+    },
+    /** The foil torn along the top, and the air of the pack opening. */
+    pack_tear(o) {
+      this.dip(0.3, 0.8);
+      this.noise({ filter: 'bandpass', freq: 4200, sweepTo: 1200, q: 0.6, dur: 0.38, gain: 0.2, rate: 0.9, attack: 0.01, send: 0.3 });
+      this.noise({ filter: 'highpass', freq: 6000, dur: 0.25, gain: 0.06, delay: 0.05, send: 0.2 });
+      this.thump(120, { dur: 0.25, gain: 0.1, delay: 0.3 });
+      this.chord([523.3, 784, 1046.5, 1568], { type: 'sine', dur: 0.6, attack: 0.04, gain: 0.05, spread: 0.06, delay: 0.32, send: 0.6 });
+    },
+    /** One card turned face up; the pitch climbs as the pack goes on. */
+    card_flip(o) {
+      const k = 1 + Math.min(12, o.index || 0) * 0.045;
+      this.noise({ filter: 'bandpass', freq: 2600 * k, q: 1.1, dur: 0.05, gain: 0.07, rate: 1.4, send: 0.1 });
+      this.tone(620 * k, { type: 'triangle', dur: 0.07, gain: 0.025, delay: 0.015, send: 0.25 });
+    },
+    /** A rare turned over: a gold chime with a little sparkle. */
+    reveal_rare(o) {
+      this.dip(0.25, 1);
+      this.chord([659.3, 987.8, 1318.5, 1975.5], { type: 'triangle', dur: 0.7, attack: 0.01, gain: 0.06, spread: 0.05, send: 0.65 });
+      this.bell(1318.5, { ratio: 2.76, index: 1.5, dur: 1.1, gain: 0.04, delay: 0.18, send: 0.7 });
+      this.noise({ filter: 'highpass', freq: 7000, dur: 0.6, attack: 0.08, gain: 0.03, delay: 0.1, send: 0.8 });
+      this.thump(90, { dur: 0.3, gain: 0.08 });
+    },
+    /** A mythic: a bigger, brassier swell, and a long shimmer. */
+    reveal_mythic(o) {
+      this.dip(0.4, 1.6);
+      this.thump(70, { dur: 0.5, gain: 0.13 });
+      [392, 523.3, 659.3, 784].forEach((f, i) => this.tone(f, { type: 'sawtooth', filter: 'lowpass', filterFreq: 2400, attack: 0.03, dur: 0.9, gain: 0.035, delay: i * 0.07, send: 0.65 }));
+      this.chord([1046.5, 1318.5, 1568, 2093], { type: 'triangle', dur: 1.4, attack: 0.08, gain: 0.04, spread: 0.06, delay: 0.3, send: 0.8 });
+      this.bell(2093, { ratio: 2.76, index: 2, dur: 1.6, gain: 0.035, delay: 0.45, send: 0.8 });
+      this.noise({ filter: 'highpass', freq: 6500, dur: 1.4, attack: 0.3, gain: 0.035, delay: 0.2, send: 0.9 });
+    },
+    /** A card the collection did not have yet. */
+    new_card(o) { this.chord([1318.5, 1760], { type: 'sine', dur: 0.12, gain: 0.04, spread: 0.05, send: 0.4 }); },
+    /** A wildcard: a bright two-tone ping. */
+    wildcard(o) {
+      this.bell(1174.7, { ratio: 1.5, index: 1.2, dur: 0.6, gain: 0.05, send: 0.6 });
+      this.tone(1760, { type: 'sine', dur: 0.3, gain: 0.03, delay: 0.08, send: 0.6 });
+    },
+    /** Shards coming in: crystals tinkling, more of them for more Shards. */
+    shards(o) {
+      const n = Math.max(3, Math.min(10, Math.round(3 + (o.intensity || 0.3) * 7)));
+      for (let i = 0; i < n; i++) {
+        const f = [1568, 1760, 2093, 2349, 2637, 3136][Math.floor(Math.random() * 6)];
+        this.bell(f, { ratio: 2.76, index: 0.8, dur: 0.35, gain: 0.03, delay: i * 0.055 + Math.random() * 0.02, send: 0.6 });
+      }
+    },
+    /** Bought: the till, then a warm chord. */
+    purchase(o) {
+      this.noise({ filter: 'bandpass', freq: 3000, q: 2, dur: 0.04, gain: 0.08, send: 0.1 });
+      this.bell(1046.5, { ratio: 2, index: 1, dur: 0.5, gain: 0.05, delay: 0.04, send: 0.5 });
+      this.chord([523.3, 659.3, 784], { type: 'triangle', dur: 0.45, gain: 0.045, spread: 0.04, delay: 0.1, send: 0.5 });
+    },
     chat(o) { this.tone(1046, { type: 'sine', dur: 0.06, gain: 0.055, send: 0.25 }); },
     join(o) { [440, 587, 880].forEach((f, i) => this.tone(f, { type: 'sine', dur: 0.13, gain: 0.075, delay: i * 0.065, send: 0.4 })); },
     leave(o) { [880, 587, 440].forEach((f, i) => this.tone(f, { type: 'sine', dur: 0.13, gain: 0.075, delay: i * 0.065, send: 0.4 })); },
@@ -985,6 +1045,7 @@
     ['Life', [['life_gain', { intensity: 0.4 }], ['life_loss', { intensity: 0.2 }, 'lose a little'], ['life_loss', { intensity: 1 }, 'lose a lot'], ['poison', {}]]],
     ['The turn', [['turn_mine', {}, 'your turn'], ['turn_theirs', {}, 'their turn'], ['priority', {}], ['choice', {}], ['win', {}], ['lose', {}], ['eliminated', {}]]],
     ['Interface', [['hover', {}], ['click', {}], ['confirm', {}], ['cancel', {}], ['reject', {}], ['error', {}]]],
+    ['Store', [['purchase', {}], ['shards', { intensity: 0.6 }], ['pack_tear', {}], ['card_flip', {}], ['reveal_rare', {}], ['reveal_mythic', {}], ['wildcard', {}]]],
   ];
 
   MTG.audio = new Audio();

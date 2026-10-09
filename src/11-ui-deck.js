@@ -647,6 +647,30 @@ Sideboard
       const fmt = MTG.formats.get(deck.format);
       const e = deck.main.find(x => x.card.id === card.id);
       if (e && fmt.singleton) { UI.error(card.name + ' is already in this singleton deck.'); return false; }
+      /* Built from the collection: no more copies than you own, and a
+         wildcard to craft the next one when you have one to spare */
+      const ec = MTG.economy;
+      if (ec && ec.rulesOn() && !drafted && !ec.isBasic(card.name)) {
+        const inDeck = deck.main.concat(deck.sideboard || []).filter(x => x.card.name === card.name).reduce((a, x) => a + x.qty, 0) +
+          (deck.commanders || []).filter(c => c.name === card.name).length;
+        const want = inDeck + (qty || 1);
+        if (ec.owned(card.name) < Math.min(want, ec.PLAYSET)) {
+          const r = ec.rarityOf(card);
+          if (ec.wildcards()[r] > 0 && ec.owned(card.name) < ec.PLAYSET) {
+            UI.confirm(`You own ${ec.owned(card.name)} ${card.name}. Craft one with a ${r} wildcard (you have ${ec.wildcards()[r]})?`, 'Craft a card').then(yes => {
+              if (!yes) return;
+              const res = ec.craft(card);
+              if (!res.ok) return UI.error(res.why);
+              MTG.sfx('wildcard');
+              addCardObj(card, 1);
+            });
+          } else {
+            MTG.sfx('reject');
+            UI.error(`You own ${ec.owned(card.name)} ${card.name}, and no ${r} wildcard to craft another. Open packs or visit the Store.`);
+          }
+          return false;
+        }
+      }
       if (e) e.qty += (qty || 1);
       else deck.main.push({ card, qty: qty || 1 });
       UI.ok('Added ' + card.name + '.');

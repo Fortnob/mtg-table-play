@@ -207,7 +207,8 @@ MTG.bus = new Emitter();
 const LS_KEY = 'mtgtable.settings.v1';
 const defaultSettings = {
   playerName: '',
-  avatar: null,          // a profile picture: a small image as a data URL (src/10b-ui-avatar.js)
+  avatar: null,
+  useCollection: true,    // decks are built from the cards you own (src/10c-economy.js)          // a profile picture: a small image as a data URL (src/10b-ui-avatar.js)
   volume: 0.5,
   muted: false,
   cardBack: 'classic',
