@@ -5447,6 +5447,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Conflux, Shard Convergence, Gem of Becoming, Yasharn: "Search your
+       library for a Plains card, an Island card, … Reveal those cards, put
+       them into your hand, then shuffle." — one of each */
+    { re: /^Search your library for ((?:an? [A-Za-z ]+? card, )*an? [A-Za-z ]+? card,? and an? [A-Za-z ]+? card)(?:\. Reveal those cards|, reveal those cards), put them into your hand, then shuffle\.$/i,
+      make: (m) => {
+        const parts = m[1].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().replace(/^an? /i, '').replace(/ card$/i, '').toLowerCase()).filter(Boolean);
+        return parts.length >= 2 ? [{ op: 'tutorEach', filters: parts }] : null;
+      } },
     /* Scroll Rack: "Exile any number of cards from your hand face down. Put
        that many cards from the top of your library into your hand. Then look
        at the exiled cards and put them on top of your library in any order." */
@@ -11055,6 +11063,9 @@
       // Leonin Shikari, Forge Anew: "(During your turn,) you may activate equip abilities any time you could cast an instant."
       { re: /^(During your turn, )?you may activate equip abilities any time you could cast an instant\.?$/i,
         make: (m) => ({ op: 'instantEquip', yourTurn: !!m[1] }), auto: true },
+      // Kruphix, Horizon Stone, Omnath, Ozai: "If you would lose unspent mana, that mana becomes colorless (red, black) instead."
+      { re: /^If you would lose unspent mana, that mana becomes (colorless|white|blue|black|red|green) instead\.?$/i,
+        make: (m) => ({ op: 'manaBecomes', color: { colorless: 'C', white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }), auto: true },
       // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
       { re: /^You may pay \{0\} rather than pay the mana cost for ((?:[A-Z][a-z]+ )?(?:creature |artifact |enchantment )?)spells you cast\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: (m[1] || 'card').trim().toLowerCase() || 'card' }), auto: true },

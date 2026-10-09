@@ -11777,4 +11777,22 @@ module.exports = (test) => {
     T2.g._runEffects(ab.effects, { controller: 'A', obj: cw, name: 'Codsworth', kind: 'ability', targets: [{ kind: 'object', id: bs2.id }, { kind: 'object', id: b2.id }] });
     t.eq(bs2.attachedTo, b2.id);
   });
+
+  test('Kruphix keeps unspent mana as colorless; Conflux finds one of each', (mk, t) => {
+    t.auto('Kruphix, God of Horizons'); t.auto('Conflux');
+    const T = mk();
+    T.bf('A', 'Kruphix, God of Horizons');
+    T.mana('A', 'GG');
+    T.toMain('A', 'beginCombat');
+    t.eq(Number(T.g.player('A').pool.C) || 0, 2, 'two colorless kept'); t.eq(Number(T.g.player('A').pool.G) || 0, 0);
+    const T2 = mk();
+    const w = T2.top('A', 'Savannah Lions'), u = T2.top('A', 'Ornithopter'), r = T2.top('A', 'Lightning Bolt');
+    T2.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T2.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T2.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T2.mana('A', '3WUBRG');
+    T2.cast('A', T2.hand('A', 'Conflux'));
+    T2.settle(); T2.resolve();
+    t.eq(w.zone, 'hand', 'white'); t.eq(r.zone, 'hand', 'red'); t.eq(u.zone, 'library', 'colorless is none of them');
+  });
 };

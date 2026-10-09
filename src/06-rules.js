@@ -866,9 +866,14 @@
         // The Last Agni Kai: one colour kept for the rest of this turn
         if (p.keepColorTurn && p.keepColorTurn.turn === this.turn) kept[p.keepColorTurn.color] = p.pool[p.keepColorTurn.color] || 0;
         const keptAny = Object.values(kept).some(v => v > 0);
-        if (!p.pool.isEmpty() && !keptAny) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
+        // Kruphix, Horizon Stone: what would be lost becomes colorless (or one colour) instead
+        const becomes = this._withEmblems(this.battlefield).map(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'manaBecomes')).find(Boolean);
+        let carry = 0;
+        if (becomes) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) carry += Math.max(0, (Number(p.pool[c]) || 0) - (kept[c] || 0));
+        if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
         p.pool.clear();
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
+        if (carry) p.pool[becomes.color] = (Number(p.pool[becomes.color]) || 0) + carry;
         p.restricted = [];
         p.manaRiders = [];
         p.poolKeepUntil = null;
@@ -14576,6 +14581,25 @@
             host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
           }
           this.bumpBoard();
+          break;
+        }
+        // Conflux and kin: one card for each description, revealed, into your hand
+        case 'tutorEach': {
+          const z = this.zones[ctx.controller];
+          const got = [];
+          for (let i = 0; i < (e.filters || []).length; i++) {
+            const want = e.filters[i];
+            const pool = z.library.filter(c => !got.includes(c) && this._cardFitsWords(c, want));
+            if (!pool.length) continue;
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true, fromLibrary: true,
+              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: `Search your library for a ${want} card.` }, 'te' + i);
+            if (picked === SUSPEND) return SUSPEND;
+            const c = (picked || []).map(id => this.obj(id)).find(x => x && pool.includes(x));
+            if (c) got.push(c);
+          }
+          for (const c of got) this.moveObject(c, 'hand');
+          if (got.length) this.logEvent('search', `${me.name} reveals ${got.map(c => c.name).join(', ')} and puts them into their hand.`);
+          this.rng.shuffle(z.library);
           break;
         }
         // Mordenkainen: hand and library change places
