@@ -14557,6 +14557,27 @@
           this.bumpBoard();
           break;
         }
+        // Mantle of the Ancients: Auras and Equipment back from the graveyard, on the enchanted creature
+        case 'returnAttachedToEnchanted': {
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          if (!host || host.zone !== 'battlefield') break;
+          const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, 'aura') || this._cardFitsWords(c, 'equipment'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'returnAttached', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}return any number of Auras and Equipment attached to ${host.name}.` }, 'rae');
+          if (got === SUSPEND) return SUSPEND;
+          for (const id of (got && got.picks) || []) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'graveyard') continue;
+            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            if (c.zone !== 'battlefield') continue;
+            c.attachedTo = host.id;
+            host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
+          }
+          this.bumpBoard();
+          break;
+        }
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];

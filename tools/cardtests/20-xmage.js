@@ -11759,4 +11759,22 @@ module.exports = (test) => {
     T2.settle(); T2.resolve();
     t.eq(top.zone, 'hand'); t.eq(T2.g.zones.A.library[0], a1, 'the Wurm on top');
   });
+
+  test('Mantle of the Ancients returns Auras and Equipment onto its creature; Codsworth attaches', (mk, t) => {
+    t.auto('Mantle of the Ancients'); t.auto('Codsworth, Handy Helper');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const m = T.bf('A', 'Mantle of the Ancients'); m.attachedTo = bear.id; bear.attachments = [m.id];
+    const bs = T.grave('A', 'Bonesplitter'), r = T.grave('A', 'Rancor');
+    T.answer('choose', (ch) => ({ picks: ch.items.map(x => x.id) }));
+    T.g._runEffects(m.analysis().abilities.find(a => a.kind === 'triggered').effects, { controller: 'A', obj: m, name: 'Mantle', kind: 'ability' });
+    T.settle();
+    t.eq(bs.zone, 'battlefield'); t.eq(bs.attachedTo, bear.id); t.eq(r.attachedTo, bear.id);
+    const T2 = mk();
+    const cw = T2.bf('A', 'Codsworth, Handy Helper');
+    const bs2 = T2.bf('A', 'Bonesplitter'), b2 = T2.bf('A', 'Grizzly Bears');
+    const ab = cw.analysis().abilities.filter(a => a.kind === 'activated').find(a => /Attach/.test(a.text));
+    T2.g._runEffects(ab.effects, { controller: 'A', obj: cw, name: 'Codsworth', kind: 'ability', targets: [{ kind: 'object', id: bs2.id }, { kind: 'object', id: b2.id }] });
+    t.eq(bs2.attachedTo, b2.id);
+  });
 };

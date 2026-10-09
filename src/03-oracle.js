@@ -1010,10 +1010,11 @@
     /* "Spend this mana only to cast a creature spell of the chosen type,
        and that spell can't be countered." — the mana's own restriction,
        kept with the ability that makes it. */
-    { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z ]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?\.?$/i,
+    { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z /]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?\.?$/i,
       make: (m) => {
-        const words = m[1].trim().toLowerCase();
-        if (!/^(?:creature|artifact|legendary|instant or sorcery|instant|sorcery|enchantment|colorless|noncreature|dragon|[a-z]+ creature|(?:colorless )?[a-z]+)$/.test(words)) return null;
+        // (Codsworth: "Aura and/or Equipment spells" — either one)
+        const words = m[1].trim().toLowerCase().replace(/ and\/or /, ' or ');
+        if (!/^(?:creature|artifact|legendary|instant or sorcery|instant|sorcery|enchantment|colorless|noncreature|dragon|[a-z]+ creature|(?:colorless )?[a-z]+|[a-z]+ or [a-z]+)$/.test(words)) return null;
         const out = { op: 'spendOnly', words: words + ' spell', chosenType: !!m[2], uncounterable: !!m[3] };
         /* "…or activate abilities of creatures" (Castle Garenbrig, Eldrazi
            Temple): the same mana may pay for those permanents' abilities. */
@@ -1089,6 +1090,14 @@
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^Each player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'each' }) },
+    // Codsworth, Handy Helper: "Attach target Aura or Equipment you control to target creature you control."
+    { re: /^Attach target Aura or Equipment you control to target creature you control\.?$/i,
+      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Aura or Equipment you control', subtypes: ['aura', 'equipment'] }, { type: 'creature', controller: 'you' }] }) },
+    /* Mantle of the Ancients: "return any number of target Aura and/or
+       Equipment cards from your graveyard to the battlefield attached to
+       enchanted creature" (picked as it resolves) */
+    { re: /^Return any number of target Aura and\/or Equipment cards from your graveyard to the battlefield attached to enchanted creature\.?$/i,
+      make: () => ({ op: 'returnAttachedToEnchanted' }) },
     // Brass Squire: "Attach target Equipment you control to target creature you control."
     { re: /^Attach target Equipment you control to target creature you control\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
