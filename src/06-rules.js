@@ -6151,6 +6151,11 @@
         if (!legal.some(same)) return `${what} isn't a legal target for ${name}.`;
         // "any other target", "another target creature": not one already chosen
         if (sp.distinct && tg.slice(0, i).some(same)) return `${what} isn't a legal target for ${name}.`;
+        // Bioshift: "another target creature with the same controller"
+        if (sp.sameControllerAsPrev && i > 0) {
+          const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
+          if (!a0 || !b0 || b0.controller !== a0.controller) return `${what} doesn't have the same controller as the first target.`;
+        }
         // Goblin Welder: "target artifact card in that player's graveyard"
         if (sp.ownedByPrevController && i > 0) {
           const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
@@ -14926,6 +14931,45 @@
           this._sacrificeNow(pid, [art]);
           this.moveObject(card, 'battlefield', { controller: pid });
           this.logEvent('rules', `${this.player(pid).name} swaps ${art.name} for ${card.name}.`);
+          break;
+        }
+        // Resourceful Defense: the counters the permanent that left had, onto a target
+        case 'giveLeftCounters': {
+          const gone = (ctx.triggerData || {}).object;
+          const to = e.self ? src : firstObj();
+          if (!gone || !to || to.zone !== 'battlefield') break;
+          const had = gone._diedCounters || {};
+          for (const k of Object.keys(had)) if (Number(had[k]) > 0) this.addCounters(to, k, Number(had[k]));
+          break;
+        }
+        /* Resourceful Defense, Fate Transfer, Bioshift: counters moved from
+           one target to the other, all of them or as many of each kind as
+           its controller likes */
+        case 'moveCountersAny': {
+          const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id));
+          const [from, to] = objs;
+          if (!from || !to || from === to || from.zone !== 'battlefield' || to.zone !== 'battlefield') break;
+          if (from.controller !== to.controller && (e.targets || [])[1] && e.targets[1].sameControllerAsPrev) break;
+          const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0 && (!e.kind || k === e.kind));
+          const moved = [];
+          for (let i = 0; i < kinds.length; i++) {
+            const k = kinds[i], have = Number(from.counters[k]) || 0;
+            let m = have;
+            if (!e.all) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'moveCounters', kind: 'number', number: { min: 0, max: have },
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}move how many ${k} counters from ${from.name} to ${to.name}?` }, 'mca:' + i);
+              if (got === SUSPEND) return SUSPEND;
+              m = Math.min(have, Math.max(0, (got && got.number) || 0));
+            }
+            if (m > 0) moved.push([k, m]);
+          }
+          for (const [k, m] of moved) {
+            const left = (Number(from.counters[k]) || 0) - m;
+            if (left > 0 || k === 'loyalty') from.counters[k] = Math.max(0, left); else delete from.counters[k];
+            this.addCounters(to, k, m, { noReplace: true });
+            this.logEvent('counters', `${m} ${k} counter${m === 1 ? '' : 's'} move${m === 1 ? 's' : ''} from ${from.name} to ${to.name}.`);
+          }
+          from._chr = null; this.bumpBoard();
           break;
         }
         // Mordenkainen: hand and library change places

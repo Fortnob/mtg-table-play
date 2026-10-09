@@ -2562,6 +2562,20 @@
     /* Plaguecrafter */
     { re: /^Each player sacrifices an? (creature or planeswalker|creature|artifact or creature) of their choice\. Each player who can'?t discards a card\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', who: 'each', n: 1, filter: m[1].toLowerCase(), orDiscard: true }) },
+    /* Resourceful Defense: "put those counters on target permanent you
+       control" — the counters the permanent that left had on it */
+    { re: /^Put those counters on (target [a-z ]+?|CARDNAME|this [a-z]+)\.?$/i,
+      make: (m) => /^target /i.test(m[1]) ? { op: 'giveLeftCounters', targets: [targetSpec(m[1])] } : { op: 'giveLeftCounters', self: true } },
+    /* Resourceful Defense, Fate Transfer, Bioshift: "Move any number of
+       counters from target permanent you control onto a second target
+       permanent you control", "Move all counters from …" */
+    { re: /^Move (any number of|all) (\+1\/\+1 )?counters from (target [a-z ]+?) onto (?:a second |another )(target [a-z ]+?)( with the same controller)?\.?$/i,
+      make: (m) => {
+        const a = targetSpec(m[3]), b = targetSpec(m[4]);
+        if (!a || !b) return null;
+        return { op: 'moveCountersAny', all: /^all$/i.test(m[1]), kind: m[2] ? '+1/+1' : null,
+          targets: [a, Object.assign({}, b, { distinct: true }, m[5] ? { sameControllerAsPrev: true } : {})] };
+      } },
     /* Forgotten Ancient: its counters handed out one at a time */
     { re: /^Move any number of (\+1\/\+1|[a-z]+) counters from (?:this creature|CARDNAME) onto other creatures\.?$/i,
       make: (m) => ({ op: 'moveCountersOut', kind: m[1].toLowerCase() }) },

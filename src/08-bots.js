@@ -1486,6 +1486,8 @@
     returnAttached(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
+    /* Resourceful Defense: counters go where they were asked to go */
+    moveCounters(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Patriarch's Bidding: the type with the most creature cards in our own graveyard */
     biddingType(s) {
       const g = this.game, gy = (g.zones[this.pid] || {}).graveyard || [];

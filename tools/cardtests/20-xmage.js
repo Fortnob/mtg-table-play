@@ -12210,4 +12210,28 @@ module.exports = (test) => {
     T.resolve(); T.settle();
     t.eq(ring.zone, 'graveyard'); t.eq(theirs.zone, 'battlefield'); t.eq(theirs.controller, 'B');
   });
+
+  test('Resourceful Defense: counters kept when a permanent leaves, and moved at will; Fate Transfer', (mk, t) => {
+    t.auto('Resourceful Defense'); t.auto('Fate Transfer'); t.auto('Bioshift');
+    const T = mk();
+    const rd = T.bf('A', 'Resourceful Defense');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Savannah Lions');
+    T.g.addCounters(a, '+1/+1', 2);
+    T.g.moveObject(a, 'graveyard');
+    const [trig, act] = rd.analysis().abilities;
+    T.g._runEffects(trig.effects, { controller: 'A', obj: rd, name: 'Resourceful Defense', kind: 'ability', triggerData: { object: a }, targets: [{ kind: 'object', id: b.id }] });
+    t.eq(b.counters['+1/+1'], 2, 'the two counters went on');
+    const c = T.bf('A', 'Craw Wurm');
+    T.answer('choose', () => ({ number: 1 }));
+    T.g._runEffects(act.effects, { controller: 'A', obj: rd, name: 'Resourceful Defense', kind: 'ability', targets: [{ kind: 'object', id: b.id }, { kind: 'object', id: c.id }] });
+    T.settle();
+    t.eq(b.counters['+1/+1'], 1); t.eq(c.counters['+1/+1'], 1, 'one moved');
+    T.mana('A', '1U');
+    T.cast('A', T.hand('A', 'Fate Transfer'), { targets: [b, c] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(b.counters['+1/+1'] || 0, 0); t.eq(c.counters['+1/+1'], 2, 'all moved');
+    const foe = T.bf('B', 'Grizzly Bears');
+    const bad = T.g._illegalTargets(MTG.rules.effectSpecs(T.hand('A', 'Bioshift').analysis().abilities[0].effects), [{ kind: 'object', id: c.id }, { kind: 'object', id: foe.id }], 'A', null);
+    t.ok(bad, 'Bioshift: not across controllers');
+  });
 };

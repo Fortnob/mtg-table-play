@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12350,
+  "needed": 12346,
   "gainedCards": 1337,
-  "linesNeeded": 13444,
+  "linesNeeded": 13435,
   "linesGained": 1595,
   "gained": {
    "all": 1337,
@@ -223,10 +223,9 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 58,
-   "lines": 55,
+   "score": 52,
+   "lines": 52,
    "cards": [
-    "Resourceful Defense",
     "Tidus, Yuna's Guardian",
     "Contest of Claws",
     "Cosmic Hunger",
@@ -237,7 +236,8 @@
     "Friendly Rivalry",
     "Allies at Last",
     "Burning Sun's Avatar",
-    "Bioshift"
+    "Fleeting Reflection",
+    "Reckless Rage"
    ]
   },
   {
@@ -1310,25 +1310,6 @@
    ]
   },
   {
-   "what": "DiesThisOrAnotherTriggeredAbility",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Jackdaw Savior",
-    "Rundvelt Hordemaster",
-    "Reluctant Role Model",
-    "Shadow the Hedgehog",
-    "Archghoul of Thraben",
-    "Colfenor, the Last Yew",
-    "Havi, the All-Father",
-    "Slurrk, All-Ingesting",
-    "Cass, Hand of Vengeance",
-    "The Ghoul, Gunslinger",
-    "Orah, Skyclave Hierophant",
-    "Polukranos Reborn // Polukranos, Engine of Ruin"
-   ]
-  },
-  {
    "what": "BecomesColorTargetEffect",
    "score": 14,
    "lines": 14,
@@ -1536,6 +1517,25 @@
     "Grave Defiler",
     "Enlistment Officer",
     "Lair Delve"
+   ]
+  },
+  {
+   "what": "DiesThisOrAnotherTriggeredAbility",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Jackdaw Savior",
+    "Rundvelt Hordemaster",
+    "Shadow the Hedgehog",
+    "Archghoul of Thraben",
+    "Colfenor, the Last Yew",
+    "Havi, the All-Father",
+    "Slurrk, All-Ingesting",
+    "Cass, Hand of Vengeance",
+    "The Ghoul, Gunslinger",
+    "Orah, Skyclave Hierophant",
+    "Polukranos Reborn // Polukranos, Engine of Ruin",
+    "The Dragon-Kami Reborn // Dragon-Kami's Egg"
    ]
   },
   {
@@ -1889,21 +1889,6 @@
     "Barbed-Back Wurm",
     "Master of Arms",
     "Flowstone Salamander"
-   ]
-  },
-  {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 11,
-   "lines": 8,
-   "cards": [
-    "Resourceful Defense",
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Genku, Future Shaper",
-    "Nikara, Lair Scavenger",
-    "Dual Nature"
    ]
   },
   {
@@ -2514,22 +2499,6 @@
    ]
   },
   {
-   "what": "subject:anyCounter",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Yuna, Grand Summoner",
-    "Felisa, Fang of Silverquill",
-    "Village Pillagers",
-    "Puca's Covenant",
-    "Cleopatra, Exiled Pharaoh",
-    "Donatello, Mutant Mechanic",
-    "The Swarmlord",
-    "Shadow Urchin",
-    "Buzzard-Wasp Colony"
-   ]
-  },
-  {
    "what": "FilterPermanentThisOrAnother",
    "score": 9,
    "lines": 9,
@@ -3001,6 +2970,21 @@
     "Keeper of Progenitus",
     "Snowfall",
     "Winter's Night"
+   ]
+  },
+  {
+   "what": "subject:anyCounter",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Yuna, Grand Summoner",
+    "Felisa, Fang of Silverquill",
+    "Village Pillagers",
+    "Puca's Covenant",
+    "Cleopatra, Exiled Pharaoh",
+    "The Swarmlord",
+    "Shadow Urchin",
+    "Buzzard-Wasp Colony"
    ]
   },
   {
@@ -3628,6 +3612,20 @@
     "Bloodbraid Marauder",
     "Kaervek's Torch",
     "Torrent of Lava"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Suki, Courageous Rescuer",
+    "Genku, Future Shaper",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -7042,8 +7040,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3588,
-   "cards": 3414,
+   "score": 3589,
+   "cards": 3415,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7146,8 +7144,8 @@
   },
   {
    "what": "Target.setTargetTag",
-   "score": 47,
-   "cards": 47,
+   "score": 45,
+   "cards": 45,
    "names": [
     "Contest of Claws",
     "Cosmic Hunger",
@@ -7611,6 +7609,19 @@
    ]
   },
   {
+   "what": "ReparteeAbility",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Stirring Hopesinger",
+    "Informed Inkwright",
+    "Graduation Day",
+    "Melancholic Poet",
+    "Forum Necroscribe",
+    "Conciliator's Duelist"
+   ]
+  },
+  {
    "what": "PartyCount.instance",
    "score": 13,
    "cards": 13,
@@ -7725,19 +7736,6 @@
     "Legion Angel",
     "Coax from the Blind Eternities",
     "Burning Wish"
-   ]
-  },
-  {
-   "what": "ReparteeAbility",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Stirring Hopesinger",
-    "Informed Inkwright",
-    "Graduation Day",
-    "Melancholic Poet",
-    "Forum Necroscribe",
-    "Conciliator's Duelist"
    ]
   },
   {
