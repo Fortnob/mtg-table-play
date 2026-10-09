@@ -12762,4 +12762,16 @@ module.exports = (test) => {
     t.ok(T.g.activateAbility('A', ax.id, mi, { manaChoice: 'G' }), T.g.lastError);
     t.eq(T.player('A').pool.snapshot().G, 2, 'two defenders, two mana');
   });
+
+  test('Thraben Charm: twice the number of creatures you control', (mk, t) => {
+    t.auto('Thraben Charm');
+    const T = mk();
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Savannah Lions');
+    const w = T.bf('B', 'Craw Wurm');
+    T.answer('mode', { modes: [0] });
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Thraben Charm'), { targets: [w] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(w.zone, 'graveyard', 'four damage to a 6/4');
+  });
 };

@@ -5053,6 +5053,9 @@
    */
   function amountOf(phrase) {
     let p = String(phrase || '').trim().replace(/\.$/, '');
+    // Thraben Charm: "twice the number of creatures you control"
+    const tw = p.match(/^twice (the number of .+)$/i);
+    if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }
     let plus = 0;
     const pl = p.match(/^(.+?) plus (one|two|three|four|five|\d+)$/i);
     if (pl) { p = pl[1]; plus = num(pl[2]); if (typeof plus !== 'number') return null; }
