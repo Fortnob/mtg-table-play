@@ -1565,6 +1565,8 @@
           continue;
         }
         if (!xa.isLand) continue;
+        // Gond Gate: only a Gate (Star Compass: a basic land) of yours (landWords)
+        if (e.landWords && !this._cardFitsWords(x, e.landWords)) continue;
         /* What the land could make: its own abilities, read the same way
            — but never by asking another Reflecting Pool, which would only
            ask back. */

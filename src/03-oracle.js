@@ -1205,6 +1205,9 @@
       make: (m) => ({ op: 'addManaAmong', from: 'opponentLands', amount: 1, anyType: /type/i.test(m[1]) }) },
     { re: /^Add one mana of any (color|type) that a land you control could produce\.?$/i,
       make: (m) => ({ op: 'addManaAmong', from: 'yourLands', amount: 1, anyType: /type/i.test(m[1]) }) },
+    // Gond Gate, Plaza of Harmony, Star Compass: "… that a Gate (basic land) you control could produce" (landWords)
+    { re: /^Add one mana of any (color|type) that an? (Gate|basic land|Desert|Forest|Island|Mountain|Plains|Swamp) you control could produce\.?$/i,
+      make: (m) => ({ op: 'addManaAmong', from: 'yourLands', amount: 1, anyType: /type/i.test(m[1]), landWords: m[2].toLowerCase() }) },
     { re: /^Add one mana of any color among legendary creatures and planeswalkers you control\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', amount: 1 }) },
     { re: /^Add one mana of any colou?r among legendary permanents you control\.?$/i,

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11267,
+  "needed": 11264,
   "gainedCards": 1131,
-  "linesNeeded": 12051,
+  "linesNeeded": 12048,
   "linesGained": 1337,
   "gained": {
    "all": 1131,
@@ -6137,16 +6137,6 @@
    ]
   },
   {
-   "what": "AnyColorLandsProduceManaAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Gond Gate",
-    "Star Compass",
-    "Plaza of Harmony"
-   ]
-  },
-  {
    "what": "words:another",
    "score": 3,
    "lines": 3,
@@ -6653,6 +6643,16 @@
     "Glaring Spotlight",
     "Leitmotif Composer",
     "Tanglewalker"
+   ]
+  },
+  {
+   "what": "or of EnchantedPredicate.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Koll, the Forgemaster",
+    "Kestia, the Cultivator",
+    "Feast of Dreams"
    ]
   }
  ],

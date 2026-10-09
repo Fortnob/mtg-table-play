@@ -16928,4 +16928,20 @@ module.exports = (test) => {
       t.eq(p.counters['+1/+1'] || 0, name === 'Sol Ring' ? 0 : 1, name);
     }
   });
+
+  test('Gond Gate: any color a Gate you control could produce; Star Compass: a basic land', (mk, t) => {
+    t.auto('Gond Gate');
+    t.auto('Star Compass');
+    t.auto('Plaza of Harmony');
+    const T = mk();
+    const gate = T.bf('A', 'Gond Gate');
+    T.bf('A', 'Azorius Guildgate'); T.bf('A', 'Mountain');
+    const ab = gate.analysis().manaAbilities.find(a => (a.effects || []).some(e => e.op === 'addManaAmong'));
+    const cols = T.g._manaAmong(ab.effects.find(e => e.op === 'addManaAmong'), gate, 'A').sort().join('');
+    t.eq(cols, 'UW', "the Guildgate's colours, not the Mountain's");
+    const compass = T.bf('A', 'Star Compass');
+    T.bf('A', 'Command Tower');
+    const ab2 = compass.analysis().manaAbilities.find(a => (a.effects || []).some(e => e.op === 'addManaAmong'));
+    t.eq(T.g._manaAmong(ab2.effects.find(e => e.op === 'addManaAmong'), compass, 'A').join(''), 'R', 'only the basic Mountain');
+  });
 };
