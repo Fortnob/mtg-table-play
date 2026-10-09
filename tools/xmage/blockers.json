@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12383,
+  "needed": 12382,
   "gainedCards": 1348,
-  "linesNeeded": 13492,
+  "linesNeeded": 13483,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -33,21 +33,21 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4381,
-   "lines": 4105,
+   "score": 4377,
+   "lines": 4104,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
     "Wheel of Misfortune",
     "Valgavoth, Terror Eater",
-    "Vraska, Betrayal's Sting",
     "Agatha's Soul Cauldron",
     "Invasion of Ikoria // Zilortha, Apex of Ikoria",
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Ulamog, the Defiler",
     "Malcolm, Alluring Scoundrel",
     "Cloud, Midgar Mercenary",
-    "Avatar's Wrath"
+    "Avatar's Wrath",
+    "Replicating Ring"
    ]
   },
   {
@@ -2170,20 +2170,6 @@
    ]
   },
   {
-   "what": "keyword CompleatedAbility",
-   "score": 10,
-   "lines": 7,
-   "cards": [
-    "Vraska, Betrayal's Sting",
-    "Nissa, Ascended Animist",
-    "Jace, the Perfected Mind",
-    "Ajani, Sleeper Agent",
-    "Tamiyo, Compleated Sage",
-    "Lukka, Bound to Ruin",
-    "Nahiri, the Unforgiving"
-   ]
-  },
-  {
    "what": "cost reduction shape",
    "score": 10,
    "lines": 7,
@@ -2421,19 +2407,6 @@
     "Noggin Whack",
     "Gruesome Discovery",
     "Pulse of the Dross"
-   ]
-  },
-  {
-   "what": "becomes a creature and loses something",
-   "score": 9,
-   "lines": 6,
-   "cards": [
-    "Vraska, Betrayal's Sting",
-    "Lizard, Connors's Curse",
-    "Awakening of Vitu-Ghazi",
-    "Sparkshaper Visionary",
-    "The Curse of Fenric",
-    "Dance of the Skywise"
    ]
   },
   {
@@ -5732,6 +5705,18 @@
    ]
   },
   {
+   "what": "becomes a creature and loses something",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Lizard, Connors's Curse",
+    "Awakening of Vitu-Ghazi",
+    "Sparkshaper Visionary",
+    "The Curse of Fenric",
+    "Dance of the Skywise"
+   ]
+  },
+  {
    "what": "targeted trigger pointing at the spell",
    "score": 5,
    "lines": 5,
@@ -7052,13 +7037,24 @@
     "Silent Gravestone",
     "Ultimate Nullification"
    ]
+  },
+  {
+   "what": "CardTypesInGraveyardCount.YOU",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Deluge of Doom",
+    "Broodspinner",
+    "Peer Past the Veil",
+    "Lucid Dreams"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3588,
-   "cards": 3414,
+   "score": 3589,
+   "cards": 3415,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7096,8 +7092,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 157,
-   "cards": 148,
+   "score": 158,
+   "cards": 149,
    "names": [
     "Lazotep Quarry",
     "Likeness Looter",
@@ -7755,6 +7751,19 @@
    ]
   },
   {
+   "what": "second use of a later target",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Ajani, Sleeper Agent",
+    "Coronation of Chaos",
+    "Last Night Together",
+    "Sea Hag // Aquatic Ingress",
+    "Involuntary Cooldown",
+    "Sparkmage's Gambit"
+   ]
+  },
+  {
    "what": "prevent damage by some permanents",
    "score": 12,
    "cards": 12,
@@ -7917,19 +7926,6 @@
     "Evolved Spinoderm",
     "Mind Carver",
     "Sea Legs"
-   ]
-  },
-  {
-   "what": "second use of a later target",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Coronation of Chaos",
-    "Last Night Together",
-    "Sea Hag // Aquatic Ingress",
-    "Involuntary Cooldown",
-    "Sparkmage's Gambit",
-    "Join Forces"
    ]
   },
   {

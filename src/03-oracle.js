@@ -45,6 +45,8 @@
     'Afflict', 'Annihilator', 'Undying', 'Persist', 'Modular', 'Riot', 'Extort', 'Graft', 'Backup', 'Phasing', 'Devour', 'Recover', 'Ravenous', 'Provoke', 'Read ahead',
     'Bloodthirst', 'Cascade', 'Storm', 'Amass', 'Convoke', 'Improvise', 'Delve',
     'Affinity', 'Toxic', 'Myriad', 'Enlist',
+    // a planeswalker cast with life for its Phyrexian mana enters with less loyalty
+    'Compleated',
     // keywords the engine now runs on its own
     'Afterlife', 'Fabricate', 'Mobilize', 'Firebending', 'Living metal',
     'Totem armor', 'Umbra armor',
@@ -1297,6 +1299,19 @@
       make: () => ({ op: 'reanimate', ownerControl: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
     { re: /^Each opponent gains (one|two|three|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'opponents' }) },
     { re: /^Each player gets (a|one|two|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'each' }) },
+    // Vraska, Betrayal's Sting: "If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference."
+    { re: /^If target player has fewer than (\w+) poison counters, they get a number of poison counters equal to the difference\.?$/i,
+      make: (m) => ({ op: 'poison', upTo: num(m[1]), n: 0, who: 'target', targets: [{ type: 'player' }] }) },
+    /* Vraska, Betrayal's Sting: "Target creature becomes a Treasure artifact
+       with '{T}, Sacrifice this artifact: Add one mana of any color' and
+       loses all other card types and abilities." */
+    { re: /^(Target [a-z ]+?) becomes a Treasure artifact with "(\{T\}, Sacrifice this artifact: Add one mana of any color\.?)" and loses all other card types and abilities\.?$/i,
+      make: (m) => {
+        const t = targetSpec(m[1]);
+        if (!t) return null;
+        return { op: 'becomes', duration: 'permanent', targets: [t],
+          eff: { setTypes: ['Artifact'], addSubtypes: ['Treasure'], loseAll: true, grantText: m[2].replace(/\.?$/, '.') } };
+      } },
     { re: /^Discard (?:all the cards in your hand|your hand)\.?$/i, make: () => ({ op: 'discard', n: 'all', who: 'you' }) },
     // Soul's Majesty: "Draw cards equal to the power of target creature you control."
     { re: /^Draw cards equal to the power of (target creature(?: you control)?)\.?$/i,

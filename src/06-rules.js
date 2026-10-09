@@ -3270,6 +3270,8 @@
     }
     _noteSpent(plan) {
       if (plan && this._spentAcc) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) this._spentAcc[c] = (this._spentAcc[c] || 0) + (plan[c] || 0);
+      // compleated: the life that went into a spell's Phyrexian mana
+      if (plan && this._spentAcc && plan.life > 0) this._spentAcc.life = (this._spentAcc.life || 0) + plan.life;
       return plan;
     }
     /* "The amount of mana spent to cast that spell / this spell / it": the
@@ -4787,6 +4789,7 @@
       const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
       if (plan && plan.error) return this.fail(plan.error);
       if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
+      o._phyLife = 0;
       if (!opts.free || (addPick && addPick.mana)) {
         // what taps for convoke is not there to tap for mana
         const held = plan ? plan.tap.filter(x => !x.tapped) : [];
@@ -4797,6 +4800,7 @@
         o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
         // adamant: how much of each
         o.manaSpentBy = Object.assign({}, this._spentAcc);
+        o._phyLife = this._spentAcc.life || 0;
         // Devour: what it will eat
         o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
         // Read ahead: the chapter it starts at
@@ -9474,7 +9478,7 @@
         const said = (e) => e.grantText || ('\u0002' + JSON.stringify(e.grantAbilities));
         texts = own.map(said);
         // when each was handed over, so an effect that takes every ability away can tell what came after it
-        stamps = own.map(e => (e.ts != null ? e.ts : (this._tsSeq || 0) + 0.5));
+        stamps = own.map(e => this._effTs(e, o.effects.indexOf(e)));
         const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
         for (const entry of sources) {
           const ss = lb && lb.st.get(entry.src.id);
@@ -10186,6 +10190,13 @@
           if (o._keepUntapped) o.tapped = false;
           if (o._forcedTapped) o.tapped = true;
           if (a.isPlaneswalker) o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
+          /* Compleated (CR 702.150): two fewer loyalty counters for each
+             Phyrexian symbol paid with life, which is the life paid */
+          if (a.isPlaneswalker && o._phyLife > 0 && o.wasCast === this.turn && (a.keywords || []).some(k => k.keyword === 'Compleated')) {
+            o.counters.loyalty = Math.max(0, o.counters.loyalty - o._phyLife);
+            this.logEvent('rules', `${o.name} is compleated: ${o._phyLife / 2} Phyrexian mana paid with life, ${o.counters.loyalty} loyalty.`);
+          }
+          o._phyLife = 0;
           if (a.isBattle) o.counters.defense = parseInt(a.defense, 10) || 0;
           // a Saga arrives with its first chapter already counted (CR 714.2)
           if (a.isSaga) {
@@ -15865,6 +15876,8 @@
             // "defending player gets a poison counter": whoever the trigger was about
             : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
             : [firstPlayer()].filter(Boolean);
+          // Vraska, Betrayal's Sting: up to a number, whatever they had
+          if (e.upTo != null) { for (const p of who) if ((p.poison || 0) < e.upTo) this.addPoison(p, e.upTo - (p.poison || 0), ctx.controller); break; }
           for (const p of who) this.addPoison(p, n(e.n) || 1, ctx.controller);
           break;
         }
@@ -18699,7 +18712,12 @@
             const one = JSON.parse(JSON.stringify(eff));
             // Karn, Silver Golem: a creature as big as its mana value
             if (one.setPtMv) { const k = (o.card && o.card.cmc) || 0; one.setPt = { p: k, t: k }; delete one.setPtMv; }
+            /* Vraska, Betrayal's Sting: what it loses goes first, so the
+               ability it is handed in the same breath stays */
+            const handed = one.loseAll && one.grantText ? { grantText: one.grantText, until } : null;
+            if (handed) delete one.grantText;
             o.effects.push(Object.assign(one, { until }));
+            if (handed) o.effects.push(handed);
             o._chr = null;
           });
           // Purelace: a spell on the stack changes colour too

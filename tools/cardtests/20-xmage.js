@@ -12133,4 +12133,25 @@ module.exports = (test) => {
     run(); T.settle();
     t.eq(T.g.battlefield.filter(o => o.isToken && o.name === 'Insect').length, 2, 'declined: another Insect');
   });
+
+  test("Vraska, Betrayal's Sting: compleated, a Treasure, poison up to nine", (mk, t) => {
+    t.auto("Vraska, Betrayal's Sting");
+    const T = mk();
+    T.mana('A', '4B');
+    T.cast('A', T.hand('A', "Vraska, Betrayal's Sting"));
+    T.settle(); T.resolve(); T.settle();
+    const v = T.g.battlefield.find(o => o.name === "Vraska, Betrayal's Sting");
+    t.ok(v, 'on the battlefield');
+    t.eq(T.g.players.find(p => p.id === 'A').life, 18, 'two life for the Phyrexian black');
+    t.eq(v.counters.loyalty, 4, 'two fewer loyalty');
+    const abs = v.analysis().abilities;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g._runEffects(abs.find(a => /^-2/.test(a.text)).effects, { controller: 'A', obj: v, name: 'Vraska', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    const c = T.g.characteristics(bear);
+    t.ok(!c.isCreature && T.g._cardFitsWords(bear, 'artifact') && T.g._cardFitsWords(bear, 'Treasure'), 'a Treasure artifact, not a creature');
+    t.ok(T.g.manaAbilitiesOf(bear).length === 1, 'one mana ability');
+    const b = T.g.players.find(p => p.id === 'B'); b.poison = 3;
+    T.g._runEffects(abs.find(a => /^-9/.test(a.text)).effects, { controller: 'A', obj: v, name: 'Vraska', kind: 'ability', targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(b.poison, 9);
+  });
 };
