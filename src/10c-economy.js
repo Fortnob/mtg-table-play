@@ -192,6 +192,7 @@
     if (!useWildcard(r)) return { ok: false, why: `You have no ${r} wildcards.` };
     addCard(card, 1);
     save('craft');
+    if (MTG.progress && card.set) MTG.progress.checkSets([card.set]);
     return { ok: true, rarity: r };
   }
 
@@ -302,6 +303,7 @@
     else if (state.track.rare >= WC_TRACK.rare) { state.track.rare = 0; state.wc.rare++; bonus.push('rare'); }
     state.packs.splice(at, 1);
     save('open');
+    if (MTG.progress) { MTG.progress.notePulls(out); MTG.progress.checkSets([pack.set]); }
     // rarest last, the way they are turned over
     const rank = (x) => x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity) + (x.foil ? 0.25 : 0);
     out.sort((a, b) => rank(a) - rank(b));
@@ -375,7 +377,8 @@
   }
 
   /* ---------------- sleeves ---------------- */
-  const sleeveById = (id) => SLEEVES.find(x => x.id === id) || null;
+  const sleeveById = (id) => SLEEVES.find(x => x.id === id) ||
+    (/^set-[a-z0-9]+$/.test(String(id || '')) ? { id, name: `${String(id).slice(4).toUpperCase()} set sleeve`, kind: 'art', setCode: String(id).slice(4), rim: '#f1d58a', earned: true } : null);
   function buySleeve(id) {
     load();
     const sl = sleeveById(id);
@@ -464,6 +467,7 @@
       save('wildcards', -plan.shortCost);
     }
     const left = craftMissing(deck);
+    if (MTG.progress) MTG.progress.checkSets([...new Set(plan.missing.map(m => m.card && m.card.set).filter(Boolean))]);
     return { ok: !left.length, left };
   }
   /** Whether a printing's art is yours: one you pulled, crafted or bought, or bought on its own. */

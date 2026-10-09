@@ -717,8 +717,16 @@
         // what the game paid
         this._reward && !watched ? el('div', { class: 'over-reward' }, [
           el('div', { class: 'or-total', html: (UI.shardIcon ? UI.shardIcon() : '') + `<b>+${this._reward.total.toLocaleString()}</b> Shards` }),
-          el('div', { class: 'or-parts' }, this._reward.parts.map(([label, n]) => el('span', { text: `${label} +${n}` }))),
+          el('div', { class: 'or-parts' }, this._reward.parts.map(([label, n]) => el('span', { text: `${label} +${n.toLocaleString()}` }))),
         ]) : null,
+        // what else the game moved: quests, XP, the ladder
+        this._progress && !watched ? el('div', { class: 'over-progress' }, [
+          el('span', { class: 'op-xp', text: `+${this._progress.xp} XP` }),
+          ...(this._progress.quests || []).map(q => el('span', { class: 'op-quest', text: `Quest done: ${MTG.progress.questText(q)}` })),
+          this._progress.ranked ? el('span', { class: 'op-rank', text: `${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }) : null,
+          this._progress.weekly ? el('span', { class: 'op-weekly', text: `Weekly win ${this._progress.weekly.wins} of 15` }) : null,
+          (MTG.progress.inboxCount() ? el('button', { type: 'button', class: 'btn xs', text: `Rewards to claim (${MTG.progress.inboxCount()})`, onclick: () => UI.openInbox() }) : null),
+        ].filter(Boolean)) : null,
         m ? el('div', { class: 'over-match' }, [
           el('div', { class: 'tiny', text: m.label }),
           el('div', { class: 'over-scores' }, m.scores.map(sc => el('span', { class: 'sc' + (sc.leading ? ' lead' : '') }, [el('i', { text: sc.name }), el('b', { text: String(sc.wins) })]))),

@@ -268,7 +268,7 @@
   /* ================= shell ================= */
   let screens = {};
   const CRUMBS = {
-    home: '', formats: 'Play', decks: 'Deck builder', options: 'Options', store: 'Store', collection: 'Collection',
+    home: '', formats: 'Play', decks: 'Deck builder', options: 'Options', store: 'Store', collection: 'Collection', profile: 'Profile',
     lobby: 'Play \u203a Table setup', draft: 'Draft', table: 'Game',
   };
 
@@ -297,6 +297,7 @@
         onclick: () => navTo(id),
       }))),
       el('span', { class: 'grow' }),
+      UI.inboxChip(),
       UI.hoardChip(() => App.openPacks()),
       UI.shardChip(() => navTo('store')),
       el('div', { class: 'net-badge', id: 'netBadge' }, [el('span', { class: 'net-dot' }), el('span', { text: 'solo' })]),
@@ -311,6 +312,7 @@
       options: el('div', { class: 'screen', id: 'screen-options' }),
       store: el('div', { class: 'screen', id: 'screen-store' }),
       collection: el('div', { class: 'screen', id: 'screen-collection' }),
+      profile: el('div', { class: 'screen', id: 'screen-profile' }),
       lobby: el('div', { class: 'screen', id: 'screen-lobby' }),
       draft: el('div', { class: 'screen', id: 'screen-draft' }),
       table: el('div', { class: 'screen', id: 'screen-table' }),
@@ -351,11 +353,28 @@
     if (name === 'options') renderOptions();
     if (name === 'store') UI.renderStore(screens.store, { onOpenPacks: () => App.openPacks() });
     if (name === 'collection') UI.renderCollection(screens.collection);
+    if (name === 'profile') UI.renderProfile(screens.profile, { onRanked: (f) => App.playRanked(f) });
     window.scrollTo && window.scrollTo(0, 0);
   }
   App.showScreen = showScreen;
 
-  const NAV = [['home', 'Home'], ['formats', 'Play'], ['decks', 'Decks'], ['collection', 'Collection'], ['store', 'Store'], ['options', 'Options']];
+  // (Options is the gear at the right of the bar)
+  const NAV = [['home', 'Home'], ['formats', 'Play'], ['decks', 'Decks'], ['collection', 'Collection'], ['store', 'Store'], ['profile', 'Profile']];
+  App.navTo = (n) => navTo(n);
+
+  /**
+   * A ranked game: your deck for the format, against a bot as strong as
+   * your tier. The result moves you on the ladder (src/10e-progress.js).
+   */
+  App.playRanked = function (formatId) {
+    formatId = formatId || 'standard';
+    const tier = MTG.progress.state.ranked.tier;
+    UI.pickDeck(formatId, async (deck) => {
+      if (!deck) return;
+      if (!await App.collectionAllows(deck)) return;
+      App.quickGame({ formatId, deck, difficulty: MTG.progress.RANK_DIFFICULTY[tier] || 5, opponents: 1, mode: { ranked: true } });
+    });
+  };
 
   /** Open every pack in the inventory, then show the Store or Collection again with the new totals. */
   App.openPacks = function () {
@@ -1890,6 +1909,8 @@
     opts = opts || {};
     App.formatId = opts.formatId || 'standard';
     const sess = App.session = new Session(App.formatId);
+    // ranked, an event, the gauntlet: what kind of game this is, for its rewards
+    sess.mode = opts.mode || null;
     sess.addLocalHost(App.myName);
     const me = sess.seat('me');
     if (sess.fmt.kind === 'limited') return quickDraft(sess, opts);
@@ -2853,6 +2874,8 @@
       this.enforcement = 'full';
       this.setCode = '';
       this.chaosPool = null;      // {preset, sets:[code]} — chaos draft only
+      /** @type {any} what kind of game this is, for its rewards: { ranked }, { event }, { gauntlet } */
+      this.mode = null;
       this.cube = null;
       this.game = null;
       this.draft = null;

@@ -982,8 +982,24 @@
       /* Shards for the game, once: for a seat that played it, not for a
          replay or someone watching */
       if (!v.replay && !v.spectating && this.me && MTG.economy) {
-        this._reward = MTG.economy.awardGame({ won: (v.winners || []).includes(this.meId) });
-        if (this._reward) setTimeout(() => MTG.sfx('shards', { intensity: Math.min(1, this._reward.total / 400) }), 1400);
+        const won = (v.winners || []).includes(this.meId);
+        this._reward = MTG.economy.awardGame({ won });
+        if (this._reward) setTimeout(() => MTG.sfx('shards', { intensity: Math.min(1, this._reward.total / 4000) }), 1400);
+        // quests, the weekly track, mastery, ranked (src/10e-progress.js)
+        if (this._reward && MTG.progress) {
+          const app = MTG.app || {};
+          const sess = app.session;
+          const seat = sess && sess.seat ? sess.seat('me') : null;
+          const deck = seat && seat.deck;
+          if (this._reward) MTG.progress.noteEarned(this._reward.total);
+          this._progress = MTG.progress.gameEnded({
+            won, format: (sess && sess.formatId) || app.clientFormatId || null,
+            deck: deck && deck.name, commander: deck && deck.commanders && deck.commanders[0] ? deck.commanders[0].name : null,
+            ranked: !!(sess && sess.mode && sess.mode.ranked),
+          });
+          if (MTG.app && MTG.app.onGameRecorded) MTG.app.onGameRecorded(won, this._progress);
+          if (this._progress.levels && this._progress.levels.length && UI.levelUp) setTimeout(() => UI.levelUp(this._progress.levels[this._progress.levels.length - 1]), 2600);
+        }
       }
     },
   });

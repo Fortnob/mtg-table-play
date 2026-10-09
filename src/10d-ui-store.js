@@ -603,6 +603,10 @@
         missing.forEach((x, i) => { const c = (res.cards || [])[i]; const u = c && MTG.scry.imageUrl(c, 'art_crop', 0); if (u) S.noteSleeveArt(x.id, u); });
       } catch (e) { /* drawn without them */ }
     }
+    // a set's own sleeve, earned by completing the set: its art is the set's
+    for (const id of S.sleeves().owned.filter(x => /^set-/.test(x))) {
+      if (!(S.sleeves().art || {})[id]) { const a = await setArt(id.slice(4)); if (a) S.noteSleeveArt(id, a.url); }
+    }
     const art = S.sleeves().art || {};
     body.innerHTML = '';
     body.appendChild(el('p', { class: 'dim', text: `Sleeves go over the back of your cards, on the table and in your packs, and the other players see them. Sleeves are ${fmtN(S.PRICES.sleeve)} Shards; a sleeve of your own picture is ${fmtN(S.PRICES.sleeveCustom)}.` }));
@@ -615,7 +619,8 @@
       el('div', { class: 'sc-title', text: 'Classic back' }),
       el('button', { type: 'button', class: 'btn' + (!on ? '' : ' primary'), disabled: !on, text: !on ? 'Wearing' : 'Wear', onclick: () => { S.equipSleeve(null); MTG.sfx('confirm'); redraw(); } }),
     ]));
-    for (const sl of list) {
+    const earned = S.sleeves().owned.filter(x => /^set-/.test(x)).map(id => S.sleeveById(id));
+    for (const sl of earned.concat(list)) {
       const owned = S.sleeves().owned.includes(sl.id);
       const worn = on === sl.id;
       const custom = sl.kind === 'custom';

@@ -766,10 +766,14 @@
   };
   Table.prototype.update = function (view) {
     if (!this._feelOn) { this._feelOn = true; MTG.audio.ambience(true, 'table'); }
+    // quests count what happens, as it happens (src/10e-progress.js)
+    try { if (MTG.progress && view) { this._gameKey = this._gameKey || MTG.uid('g'); MTG.progress.seeEvents(view, this.meId, this._gameKey); } } catch (e) { /* never in the way of the game */ }
     return base.update.apply(this, arguments);
   };
   Table.prototype.destroy = function () {
     MTG.audio.quiet();
+    // left before the end: what was done still counts for quests
+    try { if (MTG.progress && this.view && !this.view.over) MTG.progress.gameLeft(); } catch (e) { /* no matter */ }
     return base.destroy.apply(this, arguments);
   };
 
