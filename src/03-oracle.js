@@ -2020,7 +2020,7 @@
     { re: /^Gain control of target (creature|permanent|artifact)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/i,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
     // Archmage's Charm: "...with mana value 1 or less"
-    { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value \d+ or less)\.?$/i,
+    { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
     /* Threaten: "Untap target creature and gain control of it until end of turn." */
     { re: /^Untap (target [a-z' ]+?) and gain control of it until end of turn\.?$/i,
@@ -5716,6 +5716,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Nightmare Shepherd: "you may exile it. If you do, create a token that's
+       a copy of that creature, except it's 1/1 and it's a Nightmare in
+       addition to its other types." */
+    { re: /^[Yy]ou may exile it\. If you do, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+) and it'?s an? ([A-Z][a-z]+) in addition to its other types\.$/,
+      make: (m) => [{ op: 'may', then: [{ op: 'exileTriggerCard' },
+        { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
     /* Liliana, Heretical Healer: "exile Liliana, then return her to the
        battlefield transformed under her owner's control. If you do, create a
        2/2 black Zombie creature token." */

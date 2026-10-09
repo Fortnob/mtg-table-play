@@ -12921,4 +12921,19 @@ module.exports = (test) => {
     t.eq(li.zone, 'battlefield'); t.eq(li.face || 0, 1, 'a planeswalker now');
     t.ok(T.g.battlefield.some(o => o.isToken && o.name === 'Zombie'), 'and a Zombie');
   });
+
+  test('Nightmare Shepherd: a 1/1 Nightmare copy of what died', (mk, t) => {
+    t.auto('Nightmare Shepherd');
+    const T = mk();
+    T.bf('A', 'Nightmare Shepherd');
+    const wurm = T.bf('A', 'Craw Wurm');
+    T.answer('confirm', { yes: true });
+    T.g.moveObject(wurm, 'graveyard');
+    T.settle(); T.resolve(); T.settle();
+    t.eq(wurm.zone, 'exile');
+    const tok = T.g.battlefield.find(o => o.isToken && o.name === 'Craw Wurm');
+    t.ok(tok, 'a copy');
+    t.eq(T.g.powerOf(tok), 1); t.eq(T.g.toughnessOf(tok), 1);
+    t.ok(T.g._cardFitsWords(tok, 'Nightmare'), 'a Nightmare');
+  });
 };

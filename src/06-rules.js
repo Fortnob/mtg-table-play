@@ -14307,6 +14307,11 @@
             const ex = (this._resExiled || []).slice(-1)[0] || this._lastExiled;
             source = ex ? this.obj(ex) : null;
           }
+          // Nightmare Shepherd: "a copy of that creature" — the card the trigger is about, wherever it went
+          if (!source && e.scope === 'triggerObject') {
+            const td = ctx.triggerData || {};
+            source = td.objectId ? this.obj(td.objectId) : null;
+          }
           if (!source) break;
           const cnt = n(e.n) || 1;
           // "except the token isn't legendary" (Helm of the Host)
@@ -14329,6 +14334,13 @@
           if (e.addLegendary && !/\bLegendary\b/.test(String(card.type_line || ''))) {
             const line = 'Legendary ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':legend:' + U.hash(line), type_line: line, card_faces: null });
+          }
+          // Nightmare Shepherd: "and it's a Nightmare in addition to its other types"
+          for (const st of (e.addSubtypes || [])) {
+            const line0 = String(card.type_line || '');
+            if (new RegExp('\\b' + st + '\\b').test(line0)) continue;
+            const line = /\u2014/.test(line0) ? line0 + ' ' + st : line0 + ' \u2014 ' + st;
+            card = Object.assign({}, card, { id: card.id + ':sub:' + U.hash(line), type_line: line, card_faces: null });
           }
           // "except it's an artifact in addition to its other types"
           for (const t of (e.addTypes || [])) {
@@ -15162,6 +15174,16 @@
           host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
           this.bumpBoard();
           this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
+          break;
+        }
+        // Nightmare Shepherd: the card the trigger is about, exiled from the graveyard
+        case 'exileTriggerCard': {
+          const td = ctx.triggerData || {};
+          const x = td.objectId && this.obj(td.objectId);
+          if (!x || x.zone !== 'graveyard') break;
+          this.moveObject(x, 'exile');
+          this._lastExiled = x.id;
+          this.logEvent('exile', `${x.name} is exiled.`);
           break;
         }
         // Mordenkainen: hand and library change places
