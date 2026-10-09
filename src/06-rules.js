@@ -14417,7 +14417,11 @@
           if (!made) {
             made = [];
             // "copy this spell" (Sevinne's Reclamation) copies the one resolving
-            const sources = e.self ? [ctx] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
+            /* (Sage of the Skies: "When you cast this spell, … copy this spell" — the
+               spell on the stack, not the trigger, which would copy itself for ever) */
+            const tdS = ctx.triggerData || {};
+            const selfSpell = ctx.kind === 'spell' ? ctx : (tdS.stackId && this.stack.find(x => x.id === tdS.stackId)) || null;
+            const sources = e.self ? [selfSpell] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
             for (const item of sources) {
               if (!item) continue;
               made.push(this._copyOnStack(item, ctx.controller).id);

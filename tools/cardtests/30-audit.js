@@ -3185,4 +3185,27 @@ module.exports = (test) => {
     T.activate('A', mv, 0, { sacrificeIds: [ms.id] });
     t.eq(T.g.zones.A.exile.filter(c => c.impulseBy === 'A').length, 3, 'one plus Mind Stone\'s 2, playable');
   });
+
+  test('Audit: Sage of the Skies copies the spell once, not its own trigger for ever; Slick Sequence; Icewrought Sentry', (mk, t) => {
+    let T = mk();
+    for (const c of ['Sage of the Skies', 'Slick Sequence', 'Icewrought Sentry']) t.auto(c);
+    T.toMain('A');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    const s = T.hand('A', 'Sage of the Skies');
+    T.mana('A', '2WW'); T.cast('A', s); T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.zone(s, 'battlefield');
+    t.eq(T.g.battlefield.filter(o => o.name === 'Sage of the Skies').length, 2, 'the Sage and one token copy');
+    t.eq(T.g.stack.length, 0, 'nothing left copying itself');
+    T = mk();
+    T.toMain('A');
+    const ss = T.hand('A', 'Slick Sequence'), h = T.g.zones.A.hand.length;
+    T.mana('A', 'UR'); T.cast('A', ss, { targets: ['B'] });
+    t.eq(T.g.zones.A.hand.length, h - 1, 'the first spell this turn: no card');
+    T = mk();
+    T.toMain('A');
+    const is = T.bf('A', 'Icewrought Sentry'), p0 = T.g.powerOf(is);
+    const ob = T.bf('B', 'Grizzly Bears'), ob2 = T.bf('B', 'Hill Giant'); ob2.tapped = true;
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Frost Breath'), { targets: [ob, ob2] });
+    t.eq(T.g.powerOf(is), p0 + 2, 'one untapped creature tapped: once');
+  });
 };
