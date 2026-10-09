@@ -2958,6 +2958,8 @@
       if (v.party) return this._partySize(pid) * mult;
       // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredYours) return ((((((this.turnHistory || {}).enteredBy) || {})[pid]) || {})[v.enteredYours] || 0) * mult;
+      // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
+      if (v.combatHitPlayers) { const hit = ((this.turnHistory || {}).combatHit) || []; return hit.filter(id => v.combatHitPlayers === 'players' || this.opponentsOf(pid).some(q => q.id === id)).length * mult; }
       // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
@@ -8566,6 +8568,11 @@
         if (as.targetKind === 'player') {
           const p = this.player(as.targetId);
           got = this.dealDamageToPlayer(p, as.amount, as.source, true) || 0;
+          // Tymna the Weaver: which players were dealt combat damage this turn (combatHitPlayers)
+          if (got > 0) {
+            const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+            if (!(h.combatHit = h.combatHit || []).includes(p.id)) h.combatHit.push(p.id);
+          }
           // Steel Hellkite: who this creature has hit this turn
           if (got > 0 && as.source) {
             if (!as.source._hitPlayers || as.source._hitPlayers.turn !== this.turn) as.source._hitPlayers = { turn: this.turn, ids: [] };
@@ -12102,7 +12109,7 @@
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -14734,6 +14741,9 @@
            twice: once for the offer, once for what to pay it with. */
         case 'mayPay': {
           let pay = e.pay || {};
+          // Mask of Griselbrand: "pay X life, where X is its power" — the number as it resolves (payLifeX)
+          const lifeX = pay.life != null && typeof pay.life === 'object' ? Math.max(0, n(pay.life) || 0) : null;
+          if (lifeX != null) pay = Object.assign({}, pay, { life: lifeX });
           /* "You may pay {E}{E}{E}": energy, not mana (Guide of Souls) */
           const eN = (String(pay.mana || '').match(/\{E\}/gi) || []).length;
           if (eN) pay = Object.assign({}, pay, { energy: eN, mana: String(pay.mana).replace(/\{E\}/gi, '') || null });
@@ -14754,7 +14764,7 @@
           if (!able && (pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
-            prompt: e.prompt || `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}` }, 'q');
+            prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${truncate(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} (X is ${lifeX}.)` : `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}`) }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
           if (pay.energy && !this._doneHere('energyPaid')) {

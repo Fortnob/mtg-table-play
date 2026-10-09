@@ -17041,6 +17041,67 @@ module.exports = (test) => {
     t.eq(T.g.toughnessOf(evra), 4, 'its toughness is unchanged');
   });
 
+  test('Mask of Griselbrand: pay X life, where X is its power, to draw X cards', (mk, t) => {
+    t.auto('Mask of Griselbrand');
+    const T = mk();
+    T.toMain('A');
+    const ox = T.bf('A', 'Craw Wurm');
+    const mask = T.bf('A', 'Mask of Griselbrand');
+    mask.attachedTo = ox.id; ox.attachments = [mask.id];
+    for (let i = 0; i < 8; i++) T.top('A', 'Island');
+    const hand = T.zone('A', 'hand').length;
+    let prompt = '';
+    T.answer('confirm', (ch) => { prompt = ch.prompt; return { yes: true }; });
+    T.g._runEffects([{ op: 'destroy' }], { controller: 'B', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: ox.id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(ox, 'graveyard');
+    t.eq(prompt, 'Mask of Griselbrand: You may pay X life, where X is its power. If you do, draw X cards. (X is 6.)', 'the prompt says what X is');
+    t.eq(T.life('A'), 14, 'six life, for a 6/4');
+    t.eq(T.zone('A', 'hand').length, hand + 6, 'six cards');
+  });
+
+  test('Tymna the Weaver: X is the number of opponents dealt combat damage this turn', (mk, t) => {
+    t.auto('Tymna the Weaver');
+    t.auto('Moonshae Pixie // Pixie Dust');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const ty = T.bf('A', 'Tymna the Weaver');
+    const bear = T.bf('A', 'Grizzly Bears');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const hand = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ty.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'C' }]);
+    T.answer('confirm', { yes: true });
+    T.toMain('A', 'end');
+    t.eq(T.life('A'), 20, 'two life from lifelink, two paid');
+    t.eq(T.zone('A', 'hand').length, hand + 2, 'two opponents hit: two cards');
+  });
+
+  test("G'raha Tia: pay X life for a Hero with X counters; Tivash: an X/X Demon", (mk, t) => {
+    t.auto("G'raha Tia, Scion Reborn");
+    t.auto('Tivash, Gloom Summoner');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "G'raha Tia, Scion Reborn");
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Divination'));
+    T.settle();
+    const hero = T.g.battlefield.find(o => o.isToken && /Hero/.test(o.name));
+    t.ok(hero, 'a Hero');
+    t.eq(hero && (hero.counters['+1/+1'] || 0), 3, 'three counters, for a 3-mana spell');
+    t.eq(T.life('A'), 17, 'three life paid');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Tivash, Gloom Summoner');
+    U.g._runEffects([{ op: 'gainLife', n: 4 }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    U.answer('confirm', { yes: true });
+    U.toMain('A', 'end'); U.settle(); U.resolve(); U.settle();
+    const demon = U.g.battlefield.find(o => o.isToken && /Demon/.test(o.name));
+    t.ok(demon, 'a Demon');
+    t.eq(demon && U.g.powerOf(demon), 4, 'a 4/4, for four life gained');
+    t.eq(U.life('A'), 20, 'gained four, paid four');
+  });
+
   test('"Create a 0/0 token. Put X +1/+1 counters on it": the token, not the card (Wild Hypothesis, Additive Evolution)', (mk, t) => {
     t.auto('Wild Hypothesis');
     t.auto('Additive Evolution');

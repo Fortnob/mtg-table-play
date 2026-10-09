@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11258,
-  "gainedCards": 1131,
-  "linesNeeded": 12042,
+  "needed": 11254,
+  "gainedCards": 1132,
+  "linesNeeded": 12037,
   "linesGained": 1337,
   "gained": {
-   "all": 1131,
+   "all": 1132,
    "top2000": 46,
    "stdTop": 8
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4184,
-   "lines": 3932,
+   "score": 4182,
+   "lines": 3930,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -544,25 +544,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 20,
-   "lines": 17,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Kaito, Bane of Nightmares",
-    "Change of Fortune",
-    "Blitzball Stadium",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Moonshae Pixie // Pixie Dust",
-    "Misty Knight, Hero for Hire",
-    "Amber Gristle O'Maul"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 20,
    "lines": 20,
@@ -596,6 +577,25 @@
     "Runic Repetition",
     "Nyla, Shirshu Sleuth",
     "Blade of the Swarm"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 19,
+   "lines": 16,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Kaito, Bane of Nightmares",
+    "Change of Fortune",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Misty Knight, Hero for Hire",
+    "Amber Gristle O'Maul",
+    "April O'Neil, Hacktivist"
    ]
   },
   {
@@ -3050,19 +3050,6 @@
    ]
   },
   {
-   "what": "BeginningOfPostcombatMainTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Sphinx of the Second Sun",
-    "Florian, Voldaren Scion",
-    "Shadow of the Second Sun",
-    "Tymna the Weaver",
-    "Belbe, Corrupted Observer",
-    "Brazen Cannonade"
-   ]
-  },
-  {
    "what": "SacrificeAllControllerEffect",
    "score": 6,
    "lines": 6,
@@ -3357,19 +3344,6 @@
     "Woodwork Prodigy // Soul Tether",
     "Stingerquill Voxmancer // Vicious Verse",
     "Paradox Shaper // Omit Variables"
-   ]
-  },
-  {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
    ]
   },
   {
@@ -3970,6 +3944,18 @@
    ]
   },
   {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade"
+   ]
+  },
+  {
    "what": "AbilitiesCostReductionControllerEffect",
    "score": 5,
    "lines": 5,
@@ -4372,6 +4358,18 @@
     "Wall Crawl",
     "Jasmine Boreal of the Seven",
     "Dread Charge"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {
@@ -6657,8 +6655,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3491,
-   "cards": 3320,
+   "score": 3489,
+   "cards": 3318,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6994,19 +6992,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 15,
-   "cards": 12,
-   "names": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Change of Fortune",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Moonshae Pixie // Pixie Dust"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 15,
    "cards": 15,
@@ -7030,6 +7015,19 @@
     "Quag Feast",
     "Abuelo's Awakening",
     "Cloudspire Skycycle"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 14,
+   "cards": 11,
+   "names": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Misty Knight, Hero for Hire"
    ]
   },
   {
@@ -8405,19 +8403,6 @@
    ]
   },
   {
-   "what": "BeginningOfPostcombatMainTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Sphinx of the Second Sun",
-    "Florian, Voldaren Scion",
-    "Shadow of the Second Sun",
-    "Tymna the Weaver",
-    "Belbe, Corrupted Observer",
-    "Brazen Cannonade"
-   ]
-  },
-  {
    "what": "CastFromZonePredicate",
    "score": 6,
    "cards": 6,
@@ -8597,19 +8582,6 @@
     "Grim Giganotosaurus",
     "Vitality Hunter",
     "Sealock Monster"
-   ]
-  },
-  {
-   "what": "Ability.setDoOnlyOnceEachTurn",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "G'raha Tia, Scion Reborn",
-    "Krile Baldesion",
-    "Spider-Verse",
-    "Baron Strucker, HYDRA Overlord",
-    "Iron Man, Bleeding Edge",
-    "Lucy MacLean, Positively Armed"
    ]
   },
   {
@@ -9074,6 +9046,18 @@
    ]
   },
   {
+   "what": "BeginningOfPostcombatMainTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Sphinx of the Second Sun",
+    "Florian, Voldaren Scion",
+    "Shadow of the Second Sun",
+    "Belbe, Corrupted Observer",
+    "Brazen Cannonade"
+   ]
+  },
+  {
    "what": "targeted by FilterSpell",
    "score": 5,
    "cards": 5,
@@ -9323,6 +9307,18 @@
     "Iron Hills Stalwart",
     "Aura Finesse",
     "Swordsman, Sharp Scoundrel"
+   ]
+  },
+  {
+   "what": "Ability.setDoOnlyOnceEachTurn",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Krile Baldesion",
+    "Spider-Verse",
+    "Baron Strucker, HYDRA Overlord",
+    "Iron Man, Bleeding Edge",
+    "Lucy MacLean, Positively Armed"
    ]
   },
   {

@@ -5694,6 +5694,9 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
+    if ((m = p.match(/^(opponents?|players?) (?:that|who) (?:was|were) dealt combat damage this turn$/i)))
+      return { combatHitPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
     // Kinbinding: "the number of creatures that entered the battlefield under your control this turn"
@@ -7880,7 +7883,7 @@
     /* "You gain X life and draw X cards, where X is …": both halves read
        with X in them, and the rider fills in both. */
     const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/);
-    if (wx && !/bwhere Xb/.test(wx[1])) {
+    if (wx && !/\bwhere X\b/.test(wx[1])) {
       const k = amountOf(wx[2]);
       const both = k && parseCompound(wx[1] + '.');
       if (both && both.every(x => x.op !== 'manual' && !hasManualStep(x))) {
@@ -8024,6 +8027,27 @@
         if (tp.auto && (!usesX || xv)) {
           swapX(tp.effects);
           effects.push({ op: 'may', text: s + ' ' + next, then: [{ op: 'sacThen', filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects }] });
+          i++;
+          continue;
+        }
+      }
+      /* Mask of Griselbrand, G'raha Tia, Tivash: "You may pay X life, where X
+         is its power. If you do, draw X cards." — X read as it resolves, the
+         life paid and every X after it that number (payLifeX) */
+      const payX = may && ifDo && may[1].match(/^pay X life, where X is ([^,]+?)$/i);
+      if (payX) {
+        const k = amountOf(payX[1]);
+        const tp = k && parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        // Tivash: "create an X/X black Demon creature token" — the size the same X
+        const sizeX = (list) => { for (const x of list || []) if (x && typeof x === 'object') {
+          if (x.op === 'createToken' && /^X\/X$/i.test(String(x.pt || '')) && !x.ptX) x.ptX = k;
+          for (const kk of ['then', 'otherwise', 'list']) if (Array.isArray(x[kk])) sizeX(x[kk]);
+        } };
+        if (tp) { sizeX(tp.effects); for (const x of tp.effects) fillX(x, k); }
+        // (an X left unfilled — a target's "mana value X" — leaves the card to a person)
+        if (tp && tp.auto && tp.effects.length &&
+          !/"X"|"X\/|\/X"/.test(JSON.stringify(tp.effects, (k2, v) => (k2 === 'text' || (k2 === 'pt' && /^X\/X$/i.test(String(v)))) ? undefined : v))) {
+          effects.push({ op: 'mayPay', pay: { life: k }, then: tp.effects, text: s + ' ' + next });
           i++;
           continue;
         }
