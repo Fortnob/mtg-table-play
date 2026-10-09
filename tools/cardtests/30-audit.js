@@ -3227,4 +3227,34 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.eq(T.life('B'), 16, 'a 2/4: four damage');
   });
+
+  test('Audit: Skyward Spider flies only while modified (an opponent\'s Aura does not count)', (mk, t) => {
+    const T = mk();
+    t.auto('Skyward Spider');
+    T.toMain('A');
+    const g = T.bf('A', 'Skyward Spider');
+    t.no(T.g.hasKw(g, 'flying'));
+    g.counters['+1/+1'] = 1; T.g.bumpBoard();
+    t.ok(T.g.hasKw(g, 'flying'), 'a counter: modified');
+    g.counters['+1/+1'] = 0;
+    const r = T.bf('B', 'Pacifism'); r.attachedTo = g.id; g.attachments = [r.id]; T.g.bumpBoard();
+    t.no(T.g.hasKw(g, 'flying'), "an opponent's Aura: not modified");
+  });
+
+  test('Audit: Whirlpool Warrior shuffles and redraws for each player; Amorphous Axe makes every creature type', (mk, t) => {
+    let T = mk();
+    t.auto('Whirlpool Warrior'); t.auto('Amorphous Axe');
+    T.toMain('A');
+    const w = T.bf('A', 'Whirlpool Warrior');
+    for (const n of ['Island', 'Opt']) T.hand('A', n);
+    for (const n of ['Island', 'Opt', 'Forest', 'Shock']) T.hand('B', n);
+    const ha = T.g.zones.A.hand.length, hb = T.g.zones.B.hand.length;
+    T.mana('A', 'R'); T.activate('A', w, 0);
+    t.eq(T.g.zones.A.hand.length, ha); t.eq(T.g.zones.B.hand.length, hb, 'each player draws as many as they shuffled');
+    T = mk();
+    T.toMain('A');
+    const ax = T.bf('A', 'Amorphous Axe'), b = T.bf('A', 'Grizzly Bears');
+    ax.attachedTo = b.id; b.attachments = [ax.id]; T.g.bumpBoard();
+    t.ok(T.g._hasCreatureType(b, 'Goblin') && T.g._hasCreatureType(b, 'Elf')); t.eq(T.g.powerOf(b), 5);
+  });
 };
