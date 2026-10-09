@@ -11895,4 +11895,18 @@ module.exports = (test) => {
     T2.settle(); T2.resolve(); T2.settle(); T2.resolve();
     t.eq(small.zone, 'battlefield');
   });
+
+  test('Skrelv: toxic, hexproof from a colour and unblockable by it', (mk, t) => {
+    t.auto('Skrelv, Defector Mite');
+    const T = mk();
+    const sk = T.bf('A', 'Skrelv, Defector Mite');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const greenBlocker = T.bf('B', 'Llanowar Elves'), whiteBlocker = T.bf('B', 'Savannah Lions');
+    T.answer('choose', (ch) => ({ picks: [4] }));
+    T.g._runEffects(sk.analysis().abilities.find(a => a.kind === 'activated').effects, { controller: 'A', obj: sk, name: 'Skrelv', kind: 'ability', targets: [{ kind: 'object', id: bear.id }] });
+    T.settle();
+    t.ok(T.g.hasKw(bear, 'toxic 1'), 'toxic');
+    bear.attacking = 'B';
+    t.no(T.g.canBlock(greenBlocker, bear), 'not by green'); t.ok(T.g.canBlock(whiteBlocker, bear), 'white can');
+  });
 };

@@ -5452,6 +5452,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Skrelv, Defector Mite: "Choose a color. Another target creature you
+       control gains toxic 1 and hexproof from that color until end of turn.
+       It can't be blocked by creatures of that color this turn." */
+    { re: /^Choose a colou?r\. (Another target creature you control) gains toxic (\d+) and hexproof from that colou?r until end of turn\. It can'?t be blocked by creatures of that colou?r this turn\.$/i,
+      make: (m) => [{ op: 'colorWard', toxic: +m[2], targets: [targetSpec(m[1])] }] },
     /* Ugin, the Ineffable: "Exile the top card of your library face down and
        look at it. Create a 2/2 colorless Spirit creature token. When that
        token leaves the battlefield, put the exiled card into your hand." */

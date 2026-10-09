@@ -7523,6 +7523,8 @@
       if (A('unblockable')) return false;
       // The Black Gate: "can't be blocked by creatures that player controls this turn"
       if ((attacker.effects || []).some(e => e && e.unblockableBy === blocker.controller)) return false;
+      // Skrelv: "can't be blocked by creatures of that color this turn"
+      if ((attacker.effects || []).some(e => e && e.unblockableByColor && (((blocker.analysis() || {}).colors) || []).includes(e.unblockableByColor))) return false;
       if (this._hasFlag(blocker, 'blocksFliersOnly') && !this.hasKw(attacker, 'flying')) return false;
       // Gingerbrute: "can't be blocked this turn except by creatures with haste"
       if (this._hasFlag(attacker, 'exceptByHaste') && !B('haste')) return false;
@@ -14675,6 +14677,21 @@
           if (!x || x.zone !== 'hand') break;
           if (src) x._kodamaPut = src.id;
           this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          break;
+        }
+        // Skrelv: a colour chosen; toxic and hexproof from it, and unblockable by it, this turn
+        case 'colorWard': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const NAMES = ['White', 'Blue', 'Black', 'Red', 'Green'], SYM = { White: 'W', Blue: 'U', Black: 'B', Red: 'R', Green: 'G' };
+          const got = this._choose({ playerId: ctx.controller, purpose: 'protectionColor', kind: 'options', min: 1, max: 1,
+            options: NAMES.map((c, i) => ({ i, label: c })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a colour.` }, 'cw');
+          if (got === SUSPEND) return SUSPEND;
+          const col = NAMES[(got && got.picks && got.picks[0]) || 0];
+          x.effects.push({ keywords: ['Toxic ' + (e.toxic || 1), 'Hexproof from ' + col.toLowerCase()], until: 'eot' });
+          x.effects.push({ unblockableByColor: SYM[col], until: 'eot' });
+          this.logEvent('rules', `${x.name} gains toxic and hexproof from ${col.toLowerCase()}, and can't be blocked by ${col.toLowerCase()} creatures this turn.`);
+          this.bumpBoard();
           break;
         }
         // Mordenkainen: hand and library change places
