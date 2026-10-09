@@ -1989,4 +1989,32 @@ module.exports = (test) => {
     T.activate('A', s, 1, { targets: ['B'] });
     t.eq(T.life('B'), 17); t.eq(T.zone('B', 'hand').length, 1);
   });
+
+  test('Audit: Lay Down Arms gives the life to the exiled creature\'s controller', (mk, t) => {
+    const T = mk();
+    t.auto('Lay Down Arms');
+    T.bf('A', 'Plains'); T.bf('A', 'Plains');
+    const b = T.bf('B', 'Grizzly Bears'), w = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'W');
+    t.no(T.g.castSpell('A', T.hand('A', 'Lay Down Arms').id, { auto: true, targets: [{ kind: 'object', id: w.id }] }), 'mana value 6 is more than two Plains');
+    T.cast('A', T.hand('A', 'Lay Down Arms'), { targets: [b] });
+    t.zone(b, 'exile');
+    t.eq(T.life('B'), 23); t.eq(T.life('A'), 20);
+  });
+
+  test('Audit: Recurring Insight draws as many as the target opponent holds', (mk, t) => {
+    const T = mk();
+    t.auto('Recurring Insight');
+    for (let i = 0; i < 3; i++) T.hand('B', 'Island');
+    T.mana('A', 'UU4');
+    T.cast('A', T.hand('A', 'Recurring Insight'), { targets: ['B'] });
+    t.eq(T.zone('A', 'hand').length, 3);
+  });
+
+  test('Audit: "that creature\'s toughness" after an opponent\'s sacrifice is left to a person', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Entrapment Maneuver', 'Tribute to Hunger', 'Twisted Justice'])
+      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+  });
 };

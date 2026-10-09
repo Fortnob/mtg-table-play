@@ -7764,6 +7764,14 @@
       if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
     };
+    /* Entrapment Maneuver, Tribute to Hunger: "Target player sacrifices a
+       creature. You gain life equal to that creature's toughness." The
+       player's choice is asked after the rest of the spell has resolved, so
+       nothing here can read what they sacrificed: a person finishes it. */
+    folded.forEach((e, i) => {
+      if (!e || i === 0 || !folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice' && x.who !== 'you')) return;
+      if (/"ofTrigger"/.test(JSON.stringify(e)) && /\bthat creature'?s\b/i.test(e.text || '')) folded[i] = { op: 'manual', text: e.text };
+    });
     folded.forEach((e, i) => {
       itIsTarget(e, i);
       // Defy Death: "If it's an Angel, put two +1/+1 counters on it."
