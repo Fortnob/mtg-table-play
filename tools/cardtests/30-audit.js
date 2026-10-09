@@ -2951,4 +2951,31 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.g.powerOf(k1), 2, 'counted afresh each turn');
   });
+
+  test('Audit: Trailblazer\'s Torch hits only the blockers; Biorhythm per player; Mirror Universe swaps with the target only', (mk, t) => {
+    let T = mk();
+    for (const c of ["Trailblazer's Torch", 'Biorhythm', 'Mirror Universe']) t.auto(c);
+    T.toMain('A');
+    const tt = T.bf('A', "Trailblazer's Torch"), c = T.bf('A', 'Craw Wurm');
+    c.summoningSick = false; tt.attachedTo = c.id; c.attachments = [tt.id]; T.g.bumpBoard();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Llanowar Elves'), b3 = T.bf('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: c.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: b1.id, attackerIds: [c.id] }, { blockerId: b2.id, attackerIds: [c.id] }]);
+    T.toMain('A', 'declareBlockers'); T.settle(); T.resolve();
+    t.ok(T.g.log.some(l => /Craw Wurm deals 2 to Grizzly Bears/.test(l.text)), 'the equipped creature deals it');
+    t.eq(b3.damage || 0, 0, 'not to a creature that did not block');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+    T.mana('A', '6GG'); T.cast('A', T.hand('A', 'Biorhythm'));
+    t.eq(T.life('A'), 1); t.eq(T.life('B'), 2); t.eq(T.life('C'), 0);
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.g.player('A').life = 5;
+    const mu = T.bf('A', 'Mirror Universe');
+    const ab = mu.analysis().abilities.find(a => a.kind === 'activated');
+    T.g._runEffects(ab.effects, { controller: 'A', obj: mu, name: 'Mirror Universe', kind: 'ability', targets: [{ kind: 'player', id: 'C' }] });
+    T.settle();
+    t.eq(T.life('A'), 20); t.eq(T.life('C'), 5); t.eq(T.life('B'), 20);
+  });
 };
