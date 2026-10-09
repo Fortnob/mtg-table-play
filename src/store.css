@@ -406,3 +406,46 @@ html[data-play="1"] .shard-chip { display: none; }
 :root.shift-buy .btn.shiftable { box-shadow: 0 0 0 2px rgba(170, 130, 255, .8), 0 0 16px rgba(170, 130, 255, .45); }
 :root.shift-buy .btn.shiftable .buy-face.shifted::before { content: "×5"; font-weight: 800; font-size: 11px; padding: 0 5px; border-radius: 99px;
   background: rgba(170, 130, 255, .9); color: #140c24; margin-right: 2px; }
+
+/* ---------- your packs, as a hoard ---------- */
+.pack-hoard { position: relative; display: grid; grid-template-columns: 150px auto; align-items: center; gap: 10px; padding: 4px 14px 4px 6px;
+  border: 0; background: none; color: inherit; cursor: pointer; border-radius: 12px; transition: transform .2s; }
+.pack-hoard:hover:not(:disabled) { transform: translateY(-2px); }
+.pack-hoard:hover:not(:disabled) .ph-heap .booster { filter: brightness(1.12); }
+.pack-hoard:disabled { cursor: default; }
+.ph-heap { position: relative; width: 150px; height: 92px; }
+.ph-heap::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: -4px; height: 14px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(243, 221, 150, .35), transparent 70%); filter: blur(2px); }
+.pack-hoard:not(.empty) .ph-heap::before { content: ""; position: absolute; inset: -14px -10px -6px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 70%, rgba(243, 221, 150, .16), transparent 65%); animation: hoardGlow 3s ease-in-out infinite; }
+@keyframes hoardGlow { 50% { opacity: .55; } }
+.ph-heap .booster { position: absolute; left: 50%; bottom: 0; width: 46px; margin-left: -23px; transform: translate(var(--hx), var(--hy)) rotate(var(--hr));
+  box-shadow: 0 4px 10px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.14); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1), filter .2s; }
+.ph-heap .booster .bp-top, .ph-heap .booster .bp-band, .ph-heap .booster .bp-name { display: none; }
+.ph-heap .booster .bp-logo { bottom: 12%; }
+.ph-heap .booster .bp-icon { width: 16px; height: 16px; }
+.pack-hoard:hover .ph-heap .booster { transform: translate(var(--hx), calc(var(--hy) - 3px)) rotate(calc(var(--hr) * 1.3)); }
+.pack-hoard.empty .ph-heap { border: 1.5px dashed rgba(243, 221, 150, .25); border-radius: 10px; height: 70px; }
+.ph-label { display: grid; gap: 2px; text-align: left; }
+.ph-label b { font: 600 18px/1.1 var(--font-display, Georgia, serif); color: var(--gold-1, #f3dd96); }
+.ph-label span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #cdbf95; }
+.pack-hoard:not(.empty) .ph-label span::after { content: " \2192"; }
+.pack-hoard.landed .ph-heap { animation: hoardLand .4s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes hoardLand { 30% { transform: scale(1.08, .92) translateY(3px); } 60% { transform: scale(.97, 1.04) translateY(-2px); } }
+
+/* ---------- one-click buying, with weight ---------- */
+.btn.stamp { animation: stamp .42s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes stamp { 0% { transform: scale(1); } 18% { transform: scale(.86) translateY(2px); filter: brightness(1.6); box-shadow: 0 0 26px rgba(243, 221, 150, .8); }
+  55% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.btn.denied { animation: denied .38s ease-out; }
+@keyframes denied { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.buy-sparks { position: fixed; z-index: 7000; width: 0; height: 0; pointer-events: none; }
+.buy-sparks i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff2cf; box-shadow: 0 0 8px 2px rgba(243, 221, 150, .9);
+  animation: buySpark .7s cubic-bezier(.15, .7, .3, 1) var(--d) forwards; }
+@keyframes buySpark { from { transform: translate(0, 0) scale(1.3); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+.buy-sparks b { position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%;
+  border: 2px solid rgba(243, 221, 150, .85); animation: buyRing .55s ease-out forwards; }
+@keyframes buyRing { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+#app.jolt { animation: jolt .32s ease-out; }
+@keyframes jolt { 25% { transform: translate(0, 3px); } 55% { transform: translate(0, -2px); } 80% { transform: translate(0, 1px); } }
+.fly-ghost.from-button { transition: transform .58s cubic-bezier(.45, -0.3, .6, 1), opacity .15s; }

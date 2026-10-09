@@ -172,11 +172,7 @@
     });
   };
 
-  function openPacksButton(onOpen) {
-    const n = E().packs().length;
-    return el('button', { type: 'button', class: 'btn' + (n ? ' primary glow-btn' : ''), disabled: !n,
-      text: n ? `Open packs (${n})` : 'No packs to open', onclick: () => onOpen && onOpen() });
-  }
+  function openPacksButton(onOpen) { return UI.packHoard(onOpen); }
 
   function welcome(opts) {
     const S = E();
@@ -363,71 +359,130 @@
     });
   }
 
-  /* ---------------- buying: a moment of weight ---------------- */
+  /* ---------------- buying: one click, with weight ---------------- */
+  /* The button that was pressed, so a purchase can start from it. */
+  let lastPressed = null;
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target && e.target.closest && e.target.closest('button, .art-option');
+    if (b) lastPressed = b;
+  }, true);
+
   /**
-   * The purchase, as a window: what you are buying, large, and what it
-   * costs against what you have. Buying sets off the sound and sends the
-   * goods flying to where they will be (your packs, or the Shards chip).
-   * `o.visual` is the thing shown; `o.buy()` makes the purchase and says
-   * { ok, why }; `o.fly` is how many to send flying (default 1).
+   * Buy, at once: no window. The weight is in the moment instead: the
+   * button stamps down and throws sparks, the room jolts, the Shards drain
+   * from the chip, and the goods fly out of the button into your hoard of
+   * packs (or your wallet), landing one by one. `o.visual` is what flies;
+   * `o.buy()` makes the purchase and says { ok, why }; `o.fly` how many fly.
+   * (Named as before, so every buy button goes through it.)
    */
   UI.purchaseDialog = function (o) {
     const S = E();
-    const have = S.shards();
-    const short = have < o.cost;
-    const visual = el('div', { class: 'pd-visual' }, [o.visual]);
-    const body = el('div', { class: 'pd' }, [
-      visual,
-      el('div', { class: 'pd-copy' }, [
-        el('div', { class: 'pd-title', text: o.title }),
-        o.sub ? el('div', { class: 'pd-sub dim', text: o.sub }) : null,
-        el('div', { class: 'pd-price', html: `${shardSvg()}<b>${fmtN(o.cost)}</b>` }),
-        el('div', { class: 'pd-after dim', text: short ? `You have ${fmtN(have)}: ${fmtN(o.cost - have)} short.` : `You have ${fmtN(have)}; ${fmtN(have - o.cost)} after.` }),
-      ].filter(Boolean)),
-    ]);
-    const m = UI.modal({ title: 'Store', content: body, className: 'pd-modal' });
-    m.button('Cancel', (mm) => mm.close(), 'ghost');
-    const buyB = m.button(short ? 'Not enough Shards' : `Buy for ${fmtN(o.cost)}`, () => {
-      if (buyB.disabled) return;
-      const r = o.buy();
-      if (!r || !r.ok) { MTG.sfx('reject'); return UI.error((r && r.why) || 'That could not be bought.'); }
-      buyB.disabled = true;
-      MTG.sfx('purchase');
-      body.classList.add('bought');
-      const from = [...visual.querySelectorAll('.booster, .sleeve-tile-face, .deal-img, .wc-tile-face')];
-      flyTo(from.length ? from : [visual], o.fly || from.length || 1);
-      setTimeout(() => { m.close(); if (o.after) o.after(); }, 900);
-    }, 'primary');
-    if (short) buyB.disabled = true;
-    return m;
+    const from = o.from || lastPressed;
+    const deny = (why) => {
+      MTG.sfx('reject');
+      if (from) { from.classList.remove('denied'); void from.offsetWidth; from.classList.add('denied'); }
+      UI.error(why);
+    };
+    if (S.shards() < o.cost) return deny(`That costs ${fmtN(o.cost)} Shards; you have ${fmtN(S.shards())}. Play some games to earn more.`);
+    const r = o.buy();
+    if (!r || !r.ok) return deny((r && r.why) || 'That could not be bought.');
+    MTG.sfx('purchase');
+    if (from) {
+      from.classList.remove('stamp'); void from.offsetWidth; from.classList.add('stamp');
+      sparksAt(from);
+    }
+    const app = document.getElementById('app') || document.body;
+    app.classList.remove('jolt'); void app.offsetWidth; app.classList.add('jolt');
+    setTimeout(() => app.classList.remove('jolt'), 400);
+    UI.ok(`Bought: ${o.title}${o.sub ? ' (' + o.sub + ')' : ''}.`);
+    flyFrom(from, o.visual, o.fly || 1);
+    if (o.after) setTimeout(() => o.after(), 60);
   };
 
-  /** Copies of the bought things fly to your packs (or the Shards chip), landing one after another. */
-  function flyTo(nodes, n) {
-    const target = document.querySelector('.store-wallet .glow-btn, .store-wallet .btn') || document.querySelector('.shard-chip');
-    if (!target) return;
-    const tr = target.getBoundingClientRect();
-    const tx = tr.left + tr.width / 2, ty = tr.top + tr.height / 2;
+  /** Sparks thrown off the button that was pressed. */
+  function sparksAt(node) {
+    if (document.documentElement.dataset.reducedMotion === '1') return;
+    const r = node.getBoundingClientRect();
+    const b = el('div', { class: 'buy-sparks', style: { left: (r.left + r.width / 2) + 'px', top: (r.top + r.height / 2) + 'px' } });
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 + Math.random() * 0.4;
+      const d = 30 + Math.random() * 45;
+      b.appendChild(el('i', { style: { '--dx': (Math.cos(a) * d).toFixed(0) + 'px', '--dy': (Math.sin(a) * d * 0.7).toFixed(0) + 'px', '--d': (Math.random() * 0.08).toFixed(2) + 's' } }));
+    }
+    b.appendChild(el('b'));
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 900);
+  }
+
+  /** The goods fly out of the button into your hoard (packs) or your wallet. */
+  function flyFrom(from, visual, n) {
+    const target = document.querySelector('.pack-hoard') || document.querySelector('.store-wallet') || document.querySelector('.shard-chip');
+    if (!target || !from) return;
+    const fr = from.getBoundingClientRect();
     const count = Math.min(10, Math.max(1, n));
+    const proto = visual && (visual.querySelector ? (visual.querySelector('.booster, .wc-tile-face, .sleeve-tile-face, .deal-img') || visual) : null);
     for (let i = 0; i < count; i++) {
-      const src = nodes[i % nodes.length];
-      const r = src.getBoundingClientRect();
-      const ghost = src.cloneNode(true);
-      ghost.classList.add('fly-ghost');
-      Object.assign(ghost.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+      const ghost = proto ? proto.cloneNode(true) : el('div', { class: 'booster' });
+      ghost.classList.add('fly-ghost', 'from-button');
+      const w = 54, h = Math.round(w * 1.55);
+      Object.assign(ghost.style, { left: (fr.left + fr.width / 2 - w / 2) + 'px', top: (fr.top + fr.height / 2 - h / 2) + 'px', width: w + 'px', height: h + 'px', opacity: '0' });
       document.body.appendChild(ghost);
-      const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
+      const jitter = (Math.random() - 0.5) * 40;
       setTimeout(() => {
-        ghost.style.transform = `translate(${dx}px, ${dy}px) scale(.12) rotate(${(i % 2 ? 1 : -1) * 12}deg)`;
-        ghost.style.opacity = '0.2';
-      }, 30 + i * 90);
+        const tgt = document.querySelector('.pack-hoard') || target;
+        const tr = tgt.getBoundingClientRect();
+        const dx = tr.left + tr.width / 2 - (fr.left + fr.width / 2) + jitter, dy = tr.top + tr.height / 2 - (fr.top + fr.height / 2);
+        ghost.style.opacity = '1';
+        ghost.style.transform = `translate(${dx}px, ${dy}px) rotate(${(i % 2 ? 1 : -1) * (8 + Math.random() * 10)}deg) scale(.8)`;
+      }, 40 + i * 85);
       setTimeout(() => {
         ghost.remove();
         MTG.sfx('pack_land', { index: i });
-        target.classList.remove('landed'); void target.offsetWidth; target.classList.add('landed');
-      }, 680 + i * 90);
+        const tgt = document.querySelector('.pack-hoard') || target;
+        tgt.classList.remove('landed'); void tgt.offsetWidth; tgt.classList.add('landed');
+      }, 640 + i * 85);
     }
   }
+
+  /**
+   * Your packs, as a hoard: the boosters themselves heaped up, the newest
+   * sets on top, more of them the more you have, and how many. Click it to
+   * open them.
+   */
+  UI.packHoard = function (onOpen) {
+    const S = E();
+    const packs = S.packs();
+    const n = packs.length;
+    const node = el('button', { type: 'button', class: 'pack-hoard' + (n ? '' : ' empty'), disabled: !n,
+      title: n ? `Your packs: ${n}. Click to open them.` : 'No packs yet. Buy some here.', 'aria-label': n ? `Open your ${n} packs` : 'No packs',
+      onclick: () => { if (n && onOpen) onOpen(); } });
+    const heap = el('div', { class: 'ph-heap' });
+    // one of each set first, then the rest, at most nine on the heap
+    const seen = new Set();
+    const order = packs.filter(p => { const k = (p.set || 'new' + (p.newest || 0)) + p.kind; if (seen.has(k)) return false; seen.add(k); return true; })
+      .concat(packs).slice(0, Math.min(9, n));
+    MTG.scry.draftableSets().catch(() => []).then((sets) => {
+      order.forEach((p, k) => {
+        const info = p.set ? (sets.find(s => s.code === p.set) || { code: p.set, name: p.name || '' }) : (sets[p.newest || 0] || sets[0] || null);
+        const b = boosterEl(info, p.kind);
+        // a heap: wider at the bottom, each one a little askew
+        const row = k < 4 ? 0 : k < 7 ? 1 : 2;
+        const inRow = row === 0 ? k : row === 1 ? k - 4 : k - 7;
+        const across = row === 0 ? 4 : row === 1 ? 3 : 2;
+        const seed = (k * 37) % 11 - 5;
+        b.style.setProperty('--hx', ((inRow - (across - 1) / 2) * 22 + seed * 0.8).toFixed(1) + 'px');
+        b.style.setProperty('--hy', (-row * 16 - Math.abs(seed) * 0.3).toFixed(1) + 'px');
+        b.style.setProperty('--hr', (seed * 2.2).toFixed(1) + 'deg');
+        b.style.zIndex = String(1 + row * 10 + inRow);
+        heap.appendChild(b);
+      });
+    });
+    node.append(heap, el('div', { class: 'ph-label' }, [
+      el('b', { text: n ? `${n} pack${n === 1 ? '' : 's'}` : 'No packs' }),
+      el('span', { text: n ? 'Open' : 'Buy some below' }),
+    ]));
+    return node;
+  };
 
   /* ---------------- sleeves ---------------- */
   /** What a sleeve draws with: a background, and the colour of its rim. */
