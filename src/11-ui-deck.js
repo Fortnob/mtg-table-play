@@ -183,6 +183,12 @@
         MTG.scry.prefetchImages(res.deck.main.map(e => e.card).concat(res.deck.commanders), 'small');
         const openBuilder = () => UI.deckBuilder(res.deck,
           { validation: res.validation, missing: res.missing, warnings: res.warnings, onSave: onDone });
+        /* built from the collection: what the list needs that you do not own,
+           and a craft-all for it, before the report */
+        const ec = MTG.economy;
+        if (ec && ec.rulesOn() && UI.craftAllDialog && ec.missingFor(res.deck).length) {
+          await UI.craftAllDialog(res.deck, { title: 'Import: cards to craft' });
+        }
         // a report first: what the list is, whether it is legal, what it combos into
         UI.deckReport(res.deck, fmtSelect.value, {
           validation: res.validation, missing: res.missing,
@@ -1201,6 +1207,9 @@ Sideboard
     const inColor = el('input', { type: 'checkbox', checked: !!(opts.colors || []).length, id: 'cs-color' });
     // a filter on what came back rather than part of the query: automation is ours, not Scryfall's
     const autoOnly = el('input', { type: 'checkbox', checked: !!MTG.settings.searchAutoOnly, id: 'cs-auto' });
+    // your collection: how many of each you own, and only those if you like
+    const ec = MTG.economy && MTG.economy.rulesOn() ? MTG.economy : null;
+    const ownedOnly = el('input', { type: 'checkbox', checked: !!(ec && MTG.settings.searchOwnedOnly), id: 'cs-owned' });
 
     /* Narrowing by what a card is and what it costs is most of searching,
        so those are chips you tap rather than syntax you have to remember.
@@ -1236,6 +1245,8 @@ Sideboard
             : null,
           el('label', { class: 'inline-check', for: 'cs-auto', title: 'Hide cards with text the game cannot carry out by itself' },
             [autoOnly, el('span', { text: 'Only cards the game runs fully' })]),
+          ec ? el('label', { class: 'inline-check', for: 'cs-owned', title: 'Only cards in your collection' },
+            [ownedOnly, el('span', { text: 'Only cards I own' })]) : null,
           el('span', { class: 'grow' }),
           status,
         ].filter(Boolean)),
@@ -1267,7 +1278,8 @@ Sideboard
       if (inColor.checked && (opts.colors || []).length) query += ` id<=${opts.colors.join('')}`;
       if (opts.onlyCommanders && !/is:commander/.test(query)) query += ' is:commander';
       let cards = [];
-      try { cards = await MTG.scry.search(query, { max: 60, unique: 'cards', order: 'edhrec' }); }
+      // owned only: a wider net, since most of what comes back is then left out
+      try { cards = await MTG.scry.search(query, { max: ownedOnly.checked ? 400 : 60, unique: 'cards', order: 'edhrec' }); }
       catch (e) {
         if (q && !looksLikeQuery && !chips) {
           try { const c = await MTG.scry.byName(q); if (c) cards = [c]; } catch (e2) {}
@@ -1284,6 +1296,7 @@ Sideboard
       MTG.setSetting('searchAutoOnly', autoOnly.checked);
       if (last) draw(last.cards, last.q); else run();
     });
+    ownedOnly.addEventListener('change', () => { MTG.setSetting('searchOwnedOnly', ownedOnly.checked); run(); });
 
     function draw(cards, q) {
       last = { cards, q };
@@ -1294,7 +1307,12 @@ Sideboard
         hidden = cards.length - keep.length;
         cards = keep;
       }
-      const hiddenNote = hidden ? ` · ${hidden} hidden that need a hand` : '';
+      if (ec && ownedOnly.checked) {
+        const keep = cards.filter(c => ec.owned(c.name) > 0);
+        hidden += cards.length - keep.length;
+        cards = keep.slice(0, 120);
+      }
+      const hiddenNote = hidden ? ` · ${hidden} hidden` : '';
       if (!cards.length) {
         status.textContent = 'Nothing matched.' + hiddenNote;
         results.appendChild(el('div', { class: 'empty-note', text: hidden
@@ -1317,6 +1335,14 @@ Sideboard
         slot.appendChild(UI.autoBadge(c, { corner: true }));
         tile.appendChild(slot);
         tile.appendChild(el('div', { class: 'search-name', text: c.name }));
+        // how many you own: four diamonds, lit for each copy (basics: all you like)
+        if (ec) {
+          const own = ec.owned(c.name);
+          const inf = own === Infinity;
+          tile.appendChild(el('div', { class: 'search-own' + (own ? '' : ' none'), title: inf ? 'Basic lands are free' : `You own ${Math.min(4, own)} of 4` },
+            inf ? [el('span', { text: 'Free' })] : [0, 1, 2, 3].map(i => el('i', { class: i < own ? 'on' : '' }))));
+          if (!own) tile.classList.add('unowned');
+        }
         tile.appendChild(el('div', { class: 'search-count', dataset: { id: c.id }, text: n ? n + ' in deck' : '' }));
         results.appendChild(tile);
       }

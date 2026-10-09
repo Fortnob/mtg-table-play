@@ -449,3 +449,42 @@ html[data-play="1"] .shard-chip { display: none; }
 #app.jolt { animation: jolt .32s ease-out; }
 @keyframes jolt { 25% { transform: translate(0, 3px); } 55% { transform: translate(0, -2px); } 80% { transform: translate(0, 1px); } }
 .fly-ghost.from-button { transition: transform .58s cubic-bezier(.45, -0.3, .6, 1), opacity .15s; }
+
+/* ---------- the hoard in the top bar ---------- */
+.hoard-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 6px; margin-right: 6px; border-radius: 99px; cursor: pointer;
+  border: 1px solid rgba(243, 221, 150, .35); background: linear-gradient(180deg, rgba(60, 46, 20, .85), rgba(28, 22, 10, .85)); color: var(--gold-1, #f3dd96);
+  font: 700 13px/1 var(--font); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 2px 8px rgba(0,0,0,.4); }
+.hoard-chip:hover { border-color: rgba(243, 221, 150, .7); }
+.hoard-chip.empty { opacity: .6; }
+.hc-heap { position: relative; width: 30px; height: 26px; }
+.hc-heap .booster { position: absolute; left: 50%; bottom: -3px; width: 15px; margin-left: -7.5px; border-radius: 2px;
+  transform: rotate(calc(var(--k) * 14deg)) translateX(calc(var(--k) * 6px)); box-shadow: 0 1px 3px rgba(0,0,0,.6); transition: transform .3s cubic-bezier(.3, 1.6, .5, 1); }
+.hc-heap .booster > :not(.bp-art):not(.bp-shade) { display: none; }
+.hc-empty { position: absolute; inset: 3px 7px; border: 1.5px dashed rgba(243, 221, 150, .45); border-radius: 3px; }
+.hc-n { min-width: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.hoard-chip.arrive { animation: hoardArrive .5s cubic-bezier(.3, 1.6, .5, 1); }
+.hoard-chip.arrive .hc-heap .booster { transform: rotate(calc(var(--k) * 22deg)) translateX(calc(var(--k) * 8px)) translateY(-4px); }
+@keyframes hoardArrive { 0% { box-shadow: 0 0 0 0 rgba(243, 221, 150, .9); } 25% { transform: scale(1.14); } 60% { transform: scale(.96); }
+  100% { box-shadow: 0 0 0 14px rgba(243, 221, 150, 0); transform: scale(1); } }
+.hc-plus { position: absolute; right: 2px; top: -4px; font: 800 12px/1 var(--font); color: #fff2c8; text-shadow: 0 0 8px rgba(243, 221, 150, .9);
+  pointer-events: none; animation: hcPlus .9s ease-out forwards; }
+@keyframes hcPlus { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-18px); opacity: 0; } }
+html[data-play="1"] .hoard-chip { display: none; }
+
+/* ---------- the wildcard track ---------- */
+.wc-col { display: grid; gap: 6px; }
+.wc-track { display: grid; gap: 3px; min-width: 170px; }
+.wt-title { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #a79f8c; }
+.wt-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 6px; align-items: center; }
+.wt-gem .wc-gem { width: 14px; height: 14px; display: block; }
+.wt-bar { height: 6px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.wt-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b8862b, #ffe6a0); }
+.wt-row:nth-child(3) .wt-bar i { background: linear-gradient(90deg, #b3400f, #ffc08a); }
+.wt-n { font-size: 11px; color: #c9c0aa; font-variant-numeric: tabular-nums; }
+
+/* ---------- card search: what you own ---------- */
+.search-own { display: flex; justify-content: center; gap: 4px; margin-top: 3px; }
+.search-own i { width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1.5px; background: rgba(255,255,255,.14); }
+.search-own i.on { background: var(--gold-1, #f3dd96); box-shadow: 0 0 4px rgba(243, 221, 150, .6); }
+.search-own span { font-size: 10.5px; color: #a79f8c; }
+.search-card.unowned .card-slot, .search-card.unowned .card-img { filter: saturate(.75) brightness(.85); }

@@ -75,6 +75,76 @@
     return chip;
   };
 
+  /**
+   * Your hoard in the top bar, beside the Shards: a little heap of your
+   * unopened boosters and how many. Bought packs fly here; as each lands
+   * the heap jumps, the count ticks up with a "+1" and the rim flashes.
+   * Click it to open them.
+   */
+  UI.hoardChip = function (onClick) {
+    const heap = el('span', { class: 'hc-heap' });
+    const count = el('b', { class: 'hc-n' });
+    const chip = el('button', { type: 'button', class: 'hoard-chip', title: 'Your packs: click to open them', 'aria-label': 'Your packs',
+      onclick: () => { if (E().packs().length) onClick && onClick(); else MTG.sfx('reject'); } }, [heap, count]);
+    let shown = E().packs().length;
+    const draw = () => {
+      const packs = E().packs();
+      heap.innerHTML = '';
+      const seen = new Set();
+      const order = packs.filter(p => { const k = (p.set || 'n' + (p.newest || 0)) + p.kind; if (seen.has(k)) return false; seen.add(k); return true; })
+        .concat(packs).slice(0, Math.min(3, packs.length));
+      MTG.scry.draftableSets().catch(() => []).then((sets) => {
+        heap.innerHTML = '';
+        order.forEach((p, k) => {
+          const info = p.set ? (sets.find(s => s.code === p.set) || { code: p.set }) : (sets[p.newest || 0] || null);
+          const b = boosterEl(info, p.kind);
+          b.style.setProperty('--k', String(k - (order.length - 1) / 2));
+          heap.appendChild(b);
+        });
+        if (!order.length) heap.appendChild(el('span', { class: 'hc-empty' }));
+      });
+      chip.classList.toggle('empty', !packs.length);
+    };
+    const setCount = (n) => { count.textContent = String(n); };
+    draw(); setCount(shown);
+    /* a pack arriving (UI.purchaseDialog's flight lands here): the count
+       goes up one at a time, as each lands */
+    chip.landOne = () => {
+      shown = Math.min(E().packs().length, shown + 1);
+      setCount(shown);
+      const plus = el('span', { class: 'hc-plus', text: '+1' });
+      chip.appendChild(plus);
+      setTimeout(() => plus.remove(), 900);
+      chip.classList.remove('arrive'); void chip.offsetWidth; chip.classList.add('arrive');
+    };
+    MTG.bus.on('economy:changed', (ev) => {
+      const n = E().packs().length;
+      draw();
+      // packs bought fly in and count themselves; anything else (opened, granted) shows at once
+      if (ev.why === 'buy' || ev.why === 'bundle') return;
+      shown = n; setCount(n);
+    });
+    // after a flight, whatever has not been counted is
+    chip.settle = () => { shown = E().packs().length; setCount(shown); };
+    return chip;
+  };
+
+  /** How far along the wildcard track you are: a rare every six packs, a mythic every thirty. */
+  UI.wildcardTrack = function () {
+    const S = E();
+    const t = S.state.track || { rare: 0, mythic: 0 };
+    const bar = (r, n, of) => el('div', { class: 'wt-row', title: `${RAR_NAME[r]} wildcard in ${of - n} more pack${of - n === 1 ? '' : 's'}` }, [
+      el('span', { class: 'wt-gem', html: gemSvg(r) }),
+      el('span', { class: 'wt-bar' }, [el('i', { style: { width: (100 * n / of).toFixed(0) + '%' } })]),
+      el('span', { class: 'wt-n', text: `${n}/${of}` }),
+    ]);
+    return el('div', { class: 'wc-track', 'aria-label': 'Wildcard track' }, [
+      el('div', { class: 'wt-title', text: 'Wildcard track' }),
+      bar('rare', t.rare % S.WC_TRACK.rare, S.WC_TRACK.rare),
+      bar('mythic', t.mythic % S.WC_TRACK.mythic, S.WC_TRACK.mythic),
+    ]);
+  };
+
   /* ---------------- set art, for packs ---------------- */
   const ART_KEY = 'packart';
   const artCache = MTG.store.get(ART_KEY, {}) || {};
@@ -142,7 +212,7 @@
         `${fmtN(S.REWARD.play)} a game, ${fmtN(S.REWARD.win)} more for a win, and ${fmtN(S.REWARD.firstWin)} for your first win each day. Hold Shift to buy packs five at a time.` })]),
       el('div', { class: 'store-wallet' }, [
         shards(S.shards(), 'big'),
-        el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))),
+        el('div', { class: 'wc-col' }, [el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), UI.wildcardTrack()]),
         openPacksButton(opts.onOpenPacks),
       ]),
     ]);
@@ -168,7 +238,7 @@
       if (!host.isConnected) { if (off) off(); return; }
       const w = host.querySelector('.store-wallet');
       if (w) w.replaceWith(el('div', { class: 'store-wallet' }, [shards(S.shards(), 'big'),
-        el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), openPacksButton(opts.onOpenPacks)]));
+        el('div', { class: 'wc-col' }, [el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), UI.wildcardTrack()]), openPacksButton(opts.onOpenPacks)]));
     });
   };
 
@@ -227,7 +297,7 @@
         el('div', { class: 'sc-title', text: o.title }),
         el('div', { class: 'sc-sub dim', text: o.sub }),
         el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(o.cost), onclick: () => UI.purchaseDialog({
-          title: o.title, sub: o.sub, cost: o.cost, fly: o.n,
+          title: o.title, sub: o.sub, cost: o.cost, fly: o.n, to: 'hoard',
           visual: packFan(o.set, o.kind, o.n),
           buy: () => {
             if (E().shards() < o.cost) return { ok: false, why: `That costs ${fmtN(o.cost)} Shards.` };
@@ -292,7 +362,7 @@
     const each = kind === 'collector' ? E().PRICES.collector : E().PRICES.pack;
     const what = `${qty} ${kind === 'collector' ? 'Collector Booster' : 'Play Booster'}${qty > 1 ? 's' : ''}`;
     UI.purchaseDialog({
-      title: what, sub: s.name, visual: packFan(s, kind, qty), cost: each * qty, fly: qty,
+      title: what, sub: s.name, visual: packFan(s, kind, qty), cost: each * qty, fly: qty, to: 'hoard',
       buy: () => E().buyPacks(s, kind, qty),
     });
   }
@@ -395,7 +465,7 @@
     app.classList.remove('jolt'); void app.offsetWidth; app.classList.add('jolt');
     setTimeout(() => app.classList.remove('jolt'), 400);
     UI.ok(`Bought: ${o.title}${o.sub ? ' (' + o.sub + ')' : ''}.`);
-    flyFrom(from, o.visual, o.fly || 1);
+    flyFrom(from, o.visual, o.fly || 1, o.to);
     if (o.after) setTimeout(() => o.after(), 60);
   };
 
@@ -415,8 +485,11 @@
   }
 
   /** The goods fly out of the button into your hoard (packs) or your wallet. */
-  function flyFrom(from, visual, n) {
-    const target = document.querySelector('.pack-hoard') || document.querySelector('.store-wallet') || document.querySelector('.shard-chip');
+  function flyFrom(from, visual, n, to) {
+    const chip = document.querySelector('.hoard-chip');
+    const chipShown = chip && chip.offsetParent !== null;
+    const where = () => (to === 'hoard' && chipShown ? chip : (document.querySelector('.pack-hoard') || document.querySelector('.store-wallet') || document.querySelector('.shard-chip')));
+    const target = where();
     if (!target || !from) return;
     const fr = from.getBoundingClientRect();
     const count = Math.min(10, Math.max(1, n));
@@ -429,7 +502,7 @@
       document.body.appendChild(ghost);
       const jitter = (Math.random() - 0.5) * 40;
       setTimeout(() => {
-        const tgt = document.querySelector('.pack-hoard') || target;
+        const tgt = where() || target;
         const tr = tgt.getBoundingClientRect();
         const dx = tr.left + tr.width / 2 - (fr.left + fr.width / 2) + jitter, dy = tr.top + tr.height / 2 - (fr.top + fr.height / 2);
         ghost.style.opacity = '1';
@@ -438,10 +511,13 @@
       setTimeout(() => {
         ghost.remove();
         MTG.sfx('pack_land', { index: i });
-        const tgt = document.querySelector('.pack-hoard') || target;
-        tgt.classList.remove('landed'); void tgt.offsetWidth; tgt.classList.add('landed');
+        const tgt = where() || target;
+        if (tgt.landOne) tgt.landOne();
+        else { tgt.classList.remove('landed'); void tgt.offsetWidth; tgt.classList.add('landed'); }
       }, 640 + i * 85);
     }
+    // the count catches up with however many were bought (more than ten fly as ten)
+    setTimeout(() => { const c = document.querySelector('.hoard-chip'); if (c && c.settle) c.settle(); }, 760 + count * 85);
   }
 
   /**
@@ -1031,7 +1107,7 @@
     host.append(el('div', { class: 'collection' }, [
       el('div', { class: 'col-head' }, [
         el('div', {}, [el('h1', { text: 'Collection' }), el('p', { class: 'dim', text: `${fmtN(uniq)} different cards, ${fmtN(copies)} in all. Basic lands are free and unlimited.` })]),
-        el('div', { class: 'store-wallet' }, [shards(S.shards()), el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r])))]),
+        el('div', { class: 'store-wallet' }, [shards(S.shards()), el('div', { class: 'wc-col' }, [el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), UI.wildcardTrack()])]),
       ]),
       el('div', { class: 'col-filters' }, [
         setSel, search,

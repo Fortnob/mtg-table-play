@@ -297,6 +297,7 @@
         onclick: () => navTo(id),
       }))),
       el('span', { class: 'grow' }),
+      UI.hoardChip(() => App.openPacks()),
       UI.shardChip(() => navTo('store')),
       el('div', { class: 'net-badge', id: 'netBadge' }, [el('span', { class: 'net-dot' }), el('span', { text: 'solo' })]),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.sound, title: 'Sound', 'aria-label': 'Sound', onclick: soundMenu }),
@@ -394,6 +395,51 @@
     MTG.sfx('hover');
   }, true);
   document.addEventListener('pointerout', (e) => { if (App._hovered && !App._hovered.contains(e.relatedTarget)) App._hovered = null; }, true);
+
+  /* ---------------- your profile, backed up ----------------
+     Everything this browser keeps for you (collection, Shards, packs,
+     wildcards, sleeves, decks, cubes, settings, your name and picture) in
+     one file, and back again. Caches of card data and art are left out:
+     they are fetched again as needed. */
+  const BACKUP_SKIP = /^mtgtable\.(?:packart|cardDb\.|clientToken|autoWarned|savedGame)/;
+  App.exportProfile = function () {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('mtgtable.') || BACKUP_SKIP.test(k)) continue;
+      data[k] = localStorage.getItem(k);
+    }
+    const blob = new Blob([JSON.stringify({ app: 'mtg-table', kind: 'profile', v: 1, at: new Date().toISOString(), data }, null, 0)], { type: 'application/json' });
+    const a = el('a', { href: URL.createObjectURL(blob), download: `mtg-table-profile-${new Date().toISOString().slice(0, 10)}.json` });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    MTG.sfx('confirm');
+    UI.ok('Profile saved to a file. Keep it somewhere safe.');
+  };
+  App.importProfile = function () {
+    const file = el('input', { type: 'file', accept: '.json,application/json', class: 'sr-only' });
+    document.body.appendChild(file);
+    file.addEventListener('change', async () => {
+      const f = file.files && file.files[0];
+      file.remove();
+      if (!f) return;
+      let doc = null;
+      try { doc = JSON.parse(await f.text()); } catch (e) { return UI.error('That file is not a profile backup.'); }
+      if (!doc || doc.app !== 'mtg-table' || doc.kind !== 'profile' || !doc.data || typeof doc.data !== 'object') return UI.error('That file is not an MTG Table profile backup.');
+      const keys = Object.keys(doc.data).filter(k => k.startsWith('mtgtable.') && typeof doc.data[k] === 'string');
+      const eco = (() => { try { return JSON.parse(doc.data['mtgtable.economy'] || 'null'); } catch (e) { return null; } })();
+      const what = eco ? `${(eco.shards || 0).toLocaleString()} Shards, ${Object.keys(eco.col || {}).length} different cards, ${(eco.packs || []).length} packs` : 'its settings and decks';
+      if (!await UI.confirm(`Load this profile from ${String(doc.at || '').slice(0, 10) || 'a backup'} (${what})? It replaces what this browser has now.`, 'Load a profile')) return;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('mtgtable.') && !BACKUP_SKIP.test(k)) localStorage.removeItem(k);
+      }
+      for (const k of keys) { try { localStorage.setItem(k, doc.data[k]); } catch (e) { /* full */ } }
+      UI.ok('Profile loaded. Starting again with it…');
+      setTimeout(() => location.reload(), 700);
+    });
+    file.click();
+  };
 
   /** A deck that is played: whether the collection holds it (starter decks always may be played). */
   App.collectionAllows = async function (deck) {
@@ -1527,6 +1573,14 @@
           el('button', { type: 'button', class: 'btn sm ghost', style: { marginTop: '8px' }, text: MTG.settings.avatar ? 'Change profile picture…' : 'Choose a profile picture…',
             onclick: () => App.chooseAvatar(() => renderOptions()) }),
         ]),
+      ]),
+      el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label', text: 'Back up your profile' }),
+          el('div', { class: 'opt-help', text: 'Your collection, Shards, packs, wildcards, sleeves, decks and settings live only in this browser. Save them to a file, and load that file here or on another computer.' }),
+        ]),
+        el('button', { type: 'button', class: 'btn sm', text: 'Save to a file', onclick: () => App.exportProfile() }),
+        el('button', { type: 'button', class: 'btn sm ghost', text: 'Load from a file…', onclick: () => App.importProfile() }),
       ]),
     ]));
 

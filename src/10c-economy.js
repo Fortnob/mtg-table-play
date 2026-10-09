@@ -266,6 +266,17 @@
     let cards = D.makeBooster(pool, rng, spec, { variants });
     // basics are not collected; a real pack's basic is no loss
     cards = cards.filter(c => !isBasic(c.name));
+    /* Duplicate protection, as Arena does it: a rare or mythic you already
+       have four of is swapped for one of the set's of the same rarity that
+       you have not, while there are any (a foil stays a foil). */
+    cards = cards.map((c) => {
+      const r = rarityOf(c);
+      if ((r !== 'rare' && r !== 'mythic') || owned(c.name) < PLAYSET) return c;
+      const list = (pool[r] || []).filter(x => !isBasic(x.name) && owned(x.name) < PLAYSET && !cards.some(y => y.name === x.name));
+      if (!list.length) return c;
+      const pick = list[rng.int(list.length)];
+      return c._foil ? Object.assign({}, pick, { _foil: true }) : pick;
+    });
 
     /* Arena's wildcards: now and then one takes a card's place, of the
        card's own rarity. */
