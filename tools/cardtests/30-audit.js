@@ -2344,4 +2344,50 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(wurm), 3, 'three basic land types: -3/-3'); t.eq(T.g.toughnessOf(wurm), 1);
     t.zone(giant, 'graveyard');
   });
+
+  test('Audit: "Whenever a source … deals damage to you" triggers, and Michiko\'s "that player" is the source\'s controller', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Retaliator Griffin', "Azor's Elocutors", 'Michiko Konda, Truth Seeker', 'Auntie Blyte, Bad Influence']) t.auto(c);
+    T.toMain('B');
+    const g = T.bf('A', 'Retaliator Griffin'), az = T.bf('A', "Azor's Elocutors");
+    az.counters.filibuster = 3;
+    T.bf('A', 'Michiko Konda, Truth Seeker');
+    const bb = T.bf('B', 'Grizzly Bears'), cb = T.bf('C', 'Grizzly Bears');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(g.counters['+1/+1'], 3, 'Griffin: three counters for three damage');
+    t.eq(az.counters.filibuster, 2, 'Elocutors: one counter off');
+    t.zone(bb, 'graveyard', 'B, who controlled the Bolt, sacrifices');
+    t.zone(cb, 'battlefield');
+    t.eq(T.g.player('A').life, 17);
+    T = mk();
+    T.toMain('A');
+    const au = T.bf('A', 'Auntie Blyte, Bad Influence'), gr = T.bf('A', 'Retaliator Griffin');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(au.counters['+1/+1'], 3, 'my own Bolt: Auntie Blyte counts it');
+    t.eq(gr.counters['+1/+1'] || 0, 0, 'the Griffin does not');
+  });
+
+  test('Audit: "permanents" and "Mice" in a trigger match (Nefarious Imp, Builder\'s Talent, Valley Questcaller)', (mk, t) => {
+    let T = mk();
+    t.auto('Nefarious Imp');
+    T.toMain('A');
+    T.bf('A', 'Nefarious Imp');
+    const b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Cut Down'), { targets: [b] });
+    t.ok(T.asked.some(a => a.type === 'scry'), 'a permanent left: scry 1');
+    T = mk();
+    t.auto("Builder's Talent");
+    T.toMain('A');
+    const bt = T.bf('A', "Builder's Talent");
+    bt.counters.level = 1; bt._chr = null; T.g.bumpBoard();
+    const c = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2'); T.cast('A', T.hand('A', 'Mind Stone'));
+    t.eq(c.counters['+1/+1'], 1, 'a noncreature, nonland permanent entered');
+    T = mk();
+    t.auto('Valley Questcaller');
+    T.toMain('A');
+    T.bf('A', 'Valley Questcaller');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Heartfire Hero'));
+    t.ok(T.g.log.some(l => /Valley Questcaller .* resolves/.test(l.text)), 'a Mouse entered');
+  });
 };

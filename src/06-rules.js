@@ -10301,7 +10301,8 @@
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${p.name} (${p.life} life).`);
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!combat, player: p.id });
       // No Mercy: "Whenever a creature deals damage to you" — the damaged player's triggers
-      if (source) this._fire('youDealtDamage', p.id, { object: source, objController: source.controller, amount, combat: !!combat, player: p.id });
+      // (Michiko Konda: "that player" is whoever controls the source; "you" are the one hurt)
+      if (source) this._fire('youDealtDamage', p.id, { object: source, objController: source.controller, amount, combat: !!combat });
       // Niv-Mizzet, Visionary: a source of yours hurt an opponent
       if (source && source.controller != null && source.controller !== p.id) this._fire('yourSourceDamagesOpponent', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       if (source && (source.attachments || []).length) {
@@ -21457,7 +21458,8 @@
         if (w === 'colorless') return colors.length === 0;
         if (w === 'multicolored') return colors.length > 1;
         if (w === 'monocolored') return colors.length === 1;
-        if (w === 'permanent') return !!a.isPermanent;
+        // (Nefarious Imp: "one or more permanents you control")
+        if (w === 'permanent' || w === 'permanents') return !!a.isPermanent;
         // historic: legendary, an artifact, or a Saga
         if (w === 'historic') return !!a.isLegendary || !!a.isArtifact || (a.subtypes || []).includes('Saga');
         // an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
@@ -21481,7 +21483,8 @@
         if (w === 'spell' || w === 'spells') return true;
         const bare = w.replace(/s$/, '');
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
-        const alt = w === 'plains' ? w : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
+        // (Valley Questcaller: "Mice" are Mouse creatures)
+        const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
         return types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line);
       };
       const alts = String(phrase || '').toLowerCase().replace(/\bcards?\b/g, ' ')
