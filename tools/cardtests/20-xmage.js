@@ -16223,4 +16223,21 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.g.powerOf(bear), 2, 'a new turn: none yet');
   });
+
+  test('The Stasis Coffin: protection from everything until your next turn', (mk, t) => {
+    t.auto('The Stasis Coffin');
+    const T = mk();
+    T.toMain('A');
+    const coffin = T.bf('A', 'The Stasis Coffin');
+    T.mana('A', 'CC');
+    T.activate('A', coffin, 0);
+    t.zone(coffin, 'exile');
+    T.toMain('B');
+    T.mana('B', 'R');
+    let threw = false;
+    try { T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] }); } catch (err) { threw = true; }
+    t.ok(threw, "A can't be targeted");
+    T.nextTurn('A');
+    t.no(T.g._protected(T.player('A')), "gone on A's next turn");
+  });
 };

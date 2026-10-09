@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11348,
+  "needed": 11347,
   "gainedCards": 1130,
-  "linesNeeded": 12149,
+  "linesNeeded": 12147,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -2733,20 +2733,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Surge of Salvation",
-    "The Stasis Coffin",
-    "Captain America, Super-Soldier",
-    "Gor Muldrak, Amphinologist",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "lines": 7,
@@ -3168,6 +3154,19 @@
     "Edward Kenway",
     "Rogue Class",
     "Etrata, Deadly Fugitive"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Surge of Salvation",
+    "Captain America, Super-Soldier",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
    ]
   },
   {
@@ -8496,19 +8495,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Surge of Salvation",
-    "The Stasis Coffin",
-    "Captain America, Super-Soldier",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker"
-   ]
-  },
-  {
    "what": "SacrificeTargetCost",
    "score": 6,
    "cards": 6,
@@ -9131,6 +9117,18 @@
     "Opaline Sliver",
     "Illuminator Virtuoso",
     "Fugitive Druid"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Surge of Salvation",
+    "Captain America, Super-Soldier",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
    ]
   },
   {

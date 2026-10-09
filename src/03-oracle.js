@@ -3117,6 +3117,8 @@
     // Moira, Urborg Haunt: "return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn"
     { re: /^Return to the battlefield (target creature card in your graveyard that was put there from the battlefield this turn)\.?$/i,
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
+    // The Stasis Coffin: "You gain protection from everything until your next turn."
+    { re: /^You gain protection from everything until your next turn\.?$/i, make: () => ({ op: 'playerProtection' }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
