@@ -2588,4 +2588,24 @@ module.exports = (test) => {
     T.mana('A', 'RR');
     for (const c of ex) t.ok(T.g.castSpell('A', c.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), c.name + ' cast on the next turn');
   });
+
+  test('Audit: Necroskitter takes the dying creature back; Tanuki Transplanter adds the equipped creature\'s power', (mk, t) => {
+    let T = mk();
+    t.auto('Necroskitter'); t.auto('Tanuki Transplanter'); t.auto('Abduction');
+    T.toMain('A');
+    T.bf('A', 'Necroskitter');
+    const ob = T.bf('B', 'Grizzly Bears');
+    ob.counters['-1/-1'] = 1; T.g.bumpBoard();
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [ob] });
+    t.zone(ob, 'battlefield', 'back from the graveyard');
+    t.eq(ob.controller, 'A', 'under my control');
+    T = mk();
+    T.toMain('A');
+    const tt = T.bf('A', 'Tanuki Transplanter'), hg = T.bf('A', 'Hill Giant');
+    hg.summoningSick = false;
+    tt.attachedTo = hg.id; hg.attachments = [tt.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: hg.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.player('A').pool.G, 3, "the Hill Giant's power, 3");
+  });
 };

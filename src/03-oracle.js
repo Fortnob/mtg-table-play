@@ -10062,6 +10062,15 @@
         { const f = parsed.effects[0]; if (f && f.op === 'gainLife' && f.n === 'lastLifeLost') f.n = 'triggerAmount'; }
         /* Kaya's Ghostform: "return that card to the battlefield under your
            control" is the enchanted card that just left, not one held in exile */
+        /* (Necroskitter: "Whenever a creature an opponent controls … dies, you
+           may return that card to the battlefield under your control"; Abduction:
+           "under its owner's control" — the card that died either way) */
+        if (trig.event === 'permDies' || trig.event === 'equippedDies') {
+          for (const e of parsed.effects) {
+            if (!e || e.op !== 'returnExiled' || !/^(?:you may )?return that card\b/i.test(String(e.text || ''))) continue;
+            e.op = 'returnTriggerCard'; e.yours = /under your control/i.test(e.text || ''); e.triggerOnly = true;
+          }
+        }
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }
           // Zendikons: "return that card to its owner's hand" — the land that died

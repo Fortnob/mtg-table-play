@@ -12088,7 +12088,11 @@
         /* "Add X mana of any one color, where X is this creature's power". */
         case 'addManaX': {
           // Food Chain: an amount read off what was paid
-          const k = e.amount ? Math.max(0, n(e.amount)) : this._manaXValue(e, src, ctx.controller);
+          /* Tanuki Transplanter: "Whenever this creature or equipped creature
+             attacks, add {G} equal to its power" — the creature that attacked */
+          const td0 = ctx.triggerData || {};
+          const about = e.x === 'power' && ['permAttacks', 'permCombatDamage'].includes(td0.event) && td0.objectId && this.obj(td0.objectId);
+          const k = e.amount ? Math.max(0, n(e.amount)) : this._manaXValue(e, (about && about.zone === 'battlefield') ? about : src, ctx.controller);
           const color = e.symbol ? e.symbol
             : ctx.manaChoice && MANA.COLORS.includes(ctx.manaChoice) ? ctx.manaChoice : this._preferredColor(me);
           for (let i = 0; i < k; i++) me.pool.add(color);
