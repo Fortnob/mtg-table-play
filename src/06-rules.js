@@ -1985,7 +1985,7 @@
       this._exiledNow = [];
       this._resExiled = [];
       this._returnedNow = [];
-      this._lastAffected = null; this._lastAffectedAll = null;
+      this._lastAffected = null; this._lastAffectedAll = null; this._trigObjCtlId = null;
       this._lastCopy = null;
       this._lastPut = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
@@ -9851,7 +9851,9 @@
       // Renata: "your devotion to green"
       if (typeof v === 'object' && v.devotion) return this.devotionOf((src || o).controller, v.devotion) * (v.mult || 1);
       // Toxrill: "for each slime counter on them" — on each one it touches
-      if (typeof v === 'object' && v.countersOnIt) return (Number((o.counters || {})[v.countersOnIt]) || 0) * (v.mult || 1);
+      // (Luxior: "for each counter on it" — of every kind)
+      if (typeof v === 'object' && v.countersOnIt) return (v.countersOnIt === '*' ? Object.values(o.counters || {}).reduce((k, x) => k + (Number(x) || 0), 0)
+        : (Number((o.counters || {})[v.countersOnIt]) || 0)) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
       // Kyler, Sigardian Emissary: every counter on it, whatever kind
       if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
@@ -11560,6 +11562,8 @@
         const d = ctx.triggerData || {};
         const att = d.objectId && this.obj(d.objectId);
         this._defendingPid = ((this._defenderOf(src) || this._defenderOf(att)) || {}).id || null;
+        // "its controller" with nothing chosen yet: the controller of what the trigger is about (Kavu Lair)
+        this._trigObjCtlId = d.deadController || d.objController || null;
       }
       let targets = (ctx.resolvedTargets || ctx.targets || []);
       let sliced = false;
@@ -12304,7 +12308,7 @@
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           // Priest of Forgotten Gods: each player aimed at
           else if (e.who === 'targets') { for (const p of new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))) this.changeLife(p, -cnt); }
-          else if (e.who === 'targetController') { const o = firstObj(); const p = o && this.player(o.controller); if (p) this.changeLife(p, -cnt); }
+          else if (e.who === 'targetController') { const o = firstObj(); const p = o ? this.player(o.controller) : this._lastAffectedController(); if (p) this.changeLife(p, -cnt); }
           // Suture Priest: the controller of the creature the trigger is about
           else if (e.who === 'triggerObjController') {
             const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
@@ -21412,7 +21416,7 @@
     }
     _lastAffectedController() {
       const s = this._lastAffected;
-      return s ? this.player(s.controller) || this.player(s.owner) : null;
+      return s ? this.player(s.controller) || this.player(s.owner) : (this._trigObjCtlId ? this.player(this._trigObjCtlId) : null);
     }
 
     /** Devotion to a colour: coloured pips on your permanents (CR 700.5). */

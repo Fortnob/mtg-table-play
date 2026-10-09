@@ -11158,6 +11158,19 @@
       out.abilities.push({ kind: 'activated', text: ab.text + ' (unattach)', auto: true, sorcerySpeed: true, onlyAttached: true,
         cost: ab.cost, effects: [{ op: 'unattachSelf' }] });
     }
+    /* Clamavus: "Each creature you control gets +1/+1 for each +1/+1
+       counter on it"; Luxior: "Equipped creature gets +1/+1 for each counter
+       on it" — "it" is each creature the rule touches, not the source */
+    for (const ab of out.abilities) {
+      if (ab.kind !== 'static' || !/\bfor each (?:[+\-0-9/a-z]+ )?counter on it\b/i.test(ab.text || '')) continue;
+      for (const e of ab.effects || []) {
+        if (!e || e.op !== 'continuous' || !e.pt || !e.scope || e.scope.self) continue;
+        for (const k of ['p', 't']) {
+          const v = e.pt[k];
+          if (v && typeof v === 'object' && v.countersOnSelf) e.pt[k] = { countersOnIt: v.countersOnSelf, mult: v.mult || 1 };
+        }
+      }
+    }
     // "Cast this spell only during combat": the window, where the table looks for it
     for (const ab of out.abilities) {
       const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.castWindow) out.castWindow = e.castWindow; walk(e.list); } };

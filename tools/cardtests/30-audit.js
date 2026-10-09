@@ -2608,4 +2608,41 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers');
     t.eq(T.g.player('A').pool.G, 3, "the Hill Giant's power, 3");
   });
+
+  test('Audit: "its controller" in a trigger about another permanent (Kavu Lair, Decomposition, Pattern of Rebirth)', (mk, t) => {
+    let T = mk();
+    for (const c of ['Kavu Lair', 'Decomposition', 'Pattern of Rebirth']) t.auto(c);
+    T.toMain('B');
+    T.bf('A', 'Kavu Lair');
+    const cw = T.hand('B', 'Craw Wurm');
+    const bh = T.g.zones.B.hand.length, ah = T.g.zones.A.hand.length;
+    T.mana('B', '4GG'); T.cast('B', cw); T.settle(); T.resolve();
+    t.eq(T.g.zones.B.hand.length, bh - 1 + 1, "the Wurm's controller draws");
+    t.eq(T.g.zones.A.hand.length, ah, 'not the Lair\'s');
+    T = mk();
+    T.toMain('A');
+    const d = T.bf('A', 'Decomposition'), ob2 = T.bf('B', 'Grizzly Bears');
+    d.attachedTo = ob2.id; ob2.attachments = [d.id]; T.g.bumpBoard();
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [ob2] }); T.settle(); T.resolve();
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 20);
+    T = mk();
+    T.toMain('A');
+    const p = T.bf('A', 'Pattern of Rebirth'), ob3 = T.bf('B', 'Grizzly Bears');
+    p.attachedTo = ob3.id; ob3.attachments = [p.id]; T.g.bumpBoard();
+    const hg = T.top('B', 'Hill Giant'); T.top('A', 'Craw Wurm');
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [ob3] }); T.settle(); T.resolve();
+    t.zone(hg, 'battlefield', "B, the Bears' controller, searched");
+    t.eq(hg.controller, 'B');
+  });
+
+  test('Audit: Clamavus counts the counters on each creature', (mk, t) => {
+    const T = mk();
+    t.auto('Clamavus');
+    T.toMain('A');
+    T.bf('A', 'Clamavus');
+    const b = T.bf('A', 'Grizzly Bears'); b.counters['+1/+1'] = 2;
+    const e = T.bf('A', 'Llanowar Elves');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(b), 6, '2/2 + two counters + two more'); t.eq(T.g.powerOf(e), 1);
+  });
 };
