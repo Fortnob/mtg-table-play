@@ -988,6 +988,9 @@
     // Sanctum Weaver: "Add X mana of any one color, where X is the number of enchantments you control."
     { re: /^Add X mana of any one colou?r, where X is the number of ([-a-zA-Z' ]+? you control)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
+    // Food Chain: "Add X mana of any one color, where X is 1 plus the exiled creature's mana value."
+    { re: /^Add X mana of any one colou?r, where X is ((?:one|1) plus )?the exiled (?:creature|card|permanent)'s (mana value|power)\.?$/i,
+      make: (m) => ({ op: 'addManaX', amount: Object.assign({ ofExiledCost: /power/i.test(m[2]) ? 'power' : 'mv' }, m[1] ? { plus: 1 } : {}) }) },
     // The Eternity Elevator: "Add X mana of any one color, where X is the number of charge counters on CARDNAME."
     { re: /^Add X mana of any one colou?r, where X is the number of ([a-z]+) counters on (?:CARDNAME|this (?:artifact|creature|land|permanent))\.?$/i,
       make: (m) => ({ op: 'addManaX', x: 'counters', counter: m[1].toLowerCase() }) },

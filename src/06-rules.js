@@ -5958,6 +5958,16 @@
 
       if (isMana) {
         // mana abilities do not use the stack (CR 605.3a)
+        /* Food Chain: the creature exiled to pay is what the mana is counted
+           from, so that price is paid first and remembered */
+        if (ab.cost && ab.cost.exileOwn) {
+          const paid = {};
+          this._payThingCosts(playerId, ab.cost, o, opts, paid);
+          this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name + ' mana', manaChoice: opts.manaChoice, x: opts.x, manaSplit: opts.manaSplit, exiledCost: paid.exiledCost });
+          this.emit('sfx', 'mana');
+          this.touch();
+          return true;
+        }
         this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name + ' mana', manaChoice: opts.manaChoice, x: opts.x, manaSplit: opts.manaSplit });
         this._payThingCosts(playerId, ab.cost, o, opts, null);
         this.emit('sfx', 'mana');
@@ -7193,7 +7203,7 @@
       if (ab && ab.levelCond && !this._condMet(ab.levelCond, { controller: playerId, obj: o })) return false;
       if ((c.other || []).length) return false;
       // choosing which other permanent to give up is the player's call
-      if (c.sacrifice || c.discard || c.exile || c.removeCounters) return false;
+      if (c.sacrifice || c.discard || c.exile || c.removeCounters || c.exileOwn) return false;
       // and so is which creatures to tap (Springleaf Drum): it is clicked, never reached for
       if (c.tapCreatures) return false;
       if (c.tap && o.tapped) return false;
@@ -11456,6 +11466,8 @@
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
+        // Food Chain: the creature exiled to pay for it
+        if (v && typeof v === 'object' && v.ofExiledCost) return ((ctx.exiledCost || {})[v.ofExiledCost] || 0) + (v.plus || 0);
         if (v && typeof v === 'object' && v.greatestMv) {
           let best = 0;
           for (const o of this._scopeList(v.greatestMv, ctx.controller, src)) best = Math.max(best, (o.card && o.card.cmc) || 0);
@@ -11600,7 +11612,8 @@
           break;
         /* "Add X mana of any one color, where X is this creature's power". */
         case 'addManaX': {
-          const k = this._manaXValue(e, src, ctx.controller);
+          // Food Chain: an amount read off what was paid
+          const k = e.amount ? Math.max(0, n(e.amount)) : this._manaXValue(e, src, ctx.controller);
           const color = e.symbol ? e.symbol
             : ctx.manaChoice && MANA.COLORS.includes(ctx.manaChoice) ? ctx.manaChoice : this._preferredColor(me);
           for (let i = 0; i < k; i++) me.pool.add(color);

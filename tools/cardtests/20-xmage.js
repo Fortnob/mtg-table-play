@@ -12584,4 +12584,17 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, ha + 1, 'A drew');
     t.eq(T.zone('B', 'hand').length, hb + 1, 'B drew');
   });
+
+  test('Food Chain: one more than the exiled creature, for creature spells', (mk, t) => {
+    t.auto('Food Chain');
+    const T = mk();
+    const fc = T.bf('A', 'Food Chain');
+    const wurm = T.bf('A', 'Craw Wurm');
+    t.ok(T.g.activateAbility('A', fc.id, 0, { exileIds: [wurm.id], manaChoice: 'G' }), T.g.lastError);
+    t.eq(wurm.zone, 'exile');
+    const pool = T.player('A').pool;
+    const total = ['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (pool.snapshot()[c] || 0), 0) + ((T.player('A').restricted || []).length || 0);
+    t.eq(total, 7, 'seven mana: 1 plus six');
+    t.ok(!T.g._manaCostPayable('A', fc, fc.analysis().manaAbilities[0]), 'the auto-tapper leaves it alone');
+  });
 };
