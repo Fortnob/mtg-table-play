@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11644,
+  "needed": 11635,
   "gainedCards": 1160,
-  "linesNeeded": 12506,
+  "linesNeeded": 12495,
   "linesGained": 1380,
   "gained": {
    "all": 1160,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4264,
-   "lines": 4003,
+   "score": 4266,
+   "lines": 4005,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1132,25 +1132,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever",
-    "Blinding Fog",
-    "Safe Passage",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage",
-    "Divine Light",
-    "Inner Sanctum",
-    "Forfend"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 13,
    "lines": 13,
@@ -1429,25 +1410,6 @@
    ]
   },
   {
-   "what": "prevent damage by some permanents",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Ethereal Haze",
-    "Haze Frog",
-    "Fog of War",
-    "Hindervines",
-    "Snag",
-    "Hunter's Ambush",
-    "Inspire Awe",
-    "Tanglesap",
-    "Frontline Strategist",
-    "Harmless Assault",
-    "Vine Snare",
-    "Radiant Kavu"
-   ]
-  },
-  {
    "what": "keyword ChampionAbility",
    "score": 12,
    "lines": 12,
@@ -1464,25 +1426,6 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
-   ]
-  },
-  {
-   "what": "prevent all, or only combat",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Kitsune Healer",
-    "Alabaster Potion",
-    "Battlefield Medic",
-    "Enshrouding Mist",
-    "Soratami Cloud Chariot",
-    "Leap of Faith",
-    "Redeem",
-    "Wellgabber Apothecary",
-    "Godtoucher",
-    "Panacea"
    ]
   },
   {
@@ -1626,6 +1569,24 @@
     "Clockwork Beast",
     "Clockwork Avian",
     "Clockwork Swarm"
+   ]
+  },
+  {
+   "what": "prevent damage by some permanents",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Haze Frog",
+    "Fog of War",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush",
+    "Inspire Awe",
+    "Tanglesap",
+    "Frontline Strategist",
+    "Harmless Assault",
+    "Vine Snare",
+    "Radiant Kavu"
    ]
   },
   {
@@ -1984,6 +1945,23 @@
     "Saving Grasp",
     "Scarab of the Unseen",
     "Obelisk of Undoing"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Kurbis, Harvest Celebrant",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic",
+    "Enshrouding Mist",
+    "Leap of Faith",
+    "Redeem",
+    "Wellgabber Apothecary",
+    "Godtoucher",
+    "Panacea"
    ]
   },
   {
@@ -3079,20 +3057,6 @@
    ]
   },
   {
-   "what": "granting a mana ability",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Great Divide Guide",
-    "Brightcap Badger // Fungus Frolic",
-    "Song of Freyalise",
-    "Petrified Hamlet",
-    "Huatli, Poet of Unity // Roar of the Fifth People",
-    "Orochi Merge-Keeper",
-    "Mul Daya Channelers"
-   ]
-  },
-  {
    "what": "Ability.setWorksFaceDown",
    "score": 7,
    "lines": 7,
@@ -3244,6 +3208,20 @@
     "Call to the Grave",
     "Redcap Raiders",
     "Archdemon of Unx"
+   ]
+  },
+  {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Pack Leader",
+    "Rescue Retriever",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage",
+    "Inner Sanctum"
    ]
   },
   {
@@ -4622,6 +4600,18 @@
     "Vaan, Street Thief",
     "Gonti, Canny Acquisitor",
     "Nita, Forum Conciliator"
+   ]
+  },
+  {
+   "what": "granting a mana ability",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Song of Freyalise",
+    "Petrified Hamlet",
+    "Huatli, Poet of Unity // Roar of the Fifth People",
+    "Orochi Merge-Keeper",
+    "Mul Daya Channelers"
    ]
   },
   {
@@ -6822,8 +6812,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3542,
-   "cards": 3362,
+   "score": 3544,
+   "cards": 3364,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6952,8 +6942,8 @@
   },
   {
    "what": "AlternativeCostSourceAbility",
-   "score": 39,
-   "cards": 39,
+   "score": 40,
+   "cards": 40,
    "names": [
     "Invigorate",
     "Foil",
@@ -7404,19 +7394,6 @@
    ]
   },
   {
-   "what": "prevent damage by some permanents",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Ethereal Haze",
-    "Haze Frog",
-    "Fog of War",
-    "Hindervines",
-    "Snag",
-    "Hunter's Ambush"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 12,
    "cards": 12,
@@ -7427,19 +7404,6 @@
     "Discontinuity",
     "Brush Off",
     "Take for a Ride"
-   ]
-  },
-  {
-   "what": "prevent all, or only combat",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Kurbis, Harvest Celebrant",
-    "Cephalid Illusionist",
-    "Kitsune Healer",
-    "Alabaster Potion",
-    "Battlefield Medic",
-    "Enshrouding Mist"
    ]
   },
   {
@@ -7517,19 +7481,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Pack Leader",
-    "Loyal Unicorn",
-    "Rescue Retriever",
-    "Blinding Fog",
-    "Safe Passage",
-    "Emmara Tandris"
-   ]
-  },
-  {
    "what": "RemoveCountersSourceCost",
    "score": 11,
    "cards": 11,
@@ -7592,6 +7543,19 @@
     "Lightning Crafter",
     "Boggart Mob",
     "Unstoppable Ash"
+   ]
+  },
+  {
+   "what": "prevent damage by some permanents",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Haze Frog",
+    "Fog of War",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush",
+    "Inspire Awe"
    ]
   },
   {
@@ -7730,6 +7694,19 @@
     "Bomat Courier",
     "Safe Haven",
     "Parallax Tide"
+   ]
+  },
+  {
+   "what": "prevent all, or only combat",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Kurbis, Harvest Celebrant",
+    "Kitsune Healer",
+    "Alabaster Potion",
+    "Battlefield Medic",
+    "Enshrouding Mist",
+    "Leap of Faith"
    ]
   },
   {
@@ -8958,6 +8935,19 @@
    ]
   },
   {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Pack Leader",
+    "Rescue Retriever",
+    "Emmara Tandris",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage",
+    "Inner Sanctum"
+   ]
+  },
+  {
    "what": "AddCardSubtypeAttachedEffect",
    "score": 6,
    "cards": 6,
@@ -9476,18 +9466,6 @@
     "Thieving Varmint",
     "Overgrown Zealot",
     "Jeweled Lotus"
-   ]
-  },
-  {
-   "what": "granting a mana ability",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Great Divide Guide",
-    "Brightcap Badger // Fungus Frolic",
-    "Song of Freyalise",
-    "Huatli, Poet of Unity // Roar of the Fifth People",
-    "Orochi Merge-Keeper"
    ]
   },
   {
@@ -10547,6 +10525,17 @@
     "Avatar of Slaughter",
     "Goblin Diplomats",
     "Hellraiser Goblin"
+   ]
+  },
+  {
+   "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Raul, Trouble Shooter",
+    "Banon, the Returners' Leader",
+    "Edgar, Master Machinist",
+    "Arcade Gannon"
    ]
   }
  ]

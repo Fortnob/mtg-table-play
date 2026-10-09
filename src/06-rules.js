@@ -17203,8 +17203,14 @@
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
-            tokenPer: e.tokenPer || null });
-          this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'} is prevented this turn${e.to === 'you' ? ` to ${me.name}` : ''}.`);
+            tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking });
+          {
+            // "Damage from attacking creatures to Alice is prevented this turn." — said the way the card says it
+            const by = e.fromCreatures ? ' that creatures would deal' : e.fromAttacking ? ' from attacking creatures' : '';
+            const to = e.to === 'you' ? ` to ${me.name}` : e.to === 'creatures' ? ' to creatures'
+              : e.to === 'yourCreatures' ? ` to creatures ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
+            this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'}${by}${to} is prevented this turn.`);
+          }
           break;
 
         case 'preventNext': {
@@ -20148,6 +20154,13 @@
       for (const pv of this.prevention) {
         if (pv.combatOnly && !isCombat) continue;
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
+        // Ethereal Haze and its kin: by creatures, by attackers, to creatures, to yours
+        const tCreature = !!(target && target.zone === 'battlefield' && (this.characteristics(target) || {}).isCreature);
+        if (pv.to === 'creatures' && !tCreature) continue;
+        if (pv.to === 'yourCreatures' && !(tCreature && target.controller === pv.who)) continue;
+        if (pv.to === 'youAndYours' && !(target && (target.id === pv.who || (tCreature && target.controller === pv.who)))) continue;
+        if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;
+        if (pv.fromAttacking && !(source && source.attacking)) continue;
         // Defend the Hearth: "to players" — not to permanents
         if (pv.to === 'players' && !(target && target.pool)) continue;
         // Obscuring Haze: "by creatures your opponents control"

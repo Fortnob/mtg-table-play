@@ -4611,6 +4611,24 @@
       make: (m) => ({ op: 'preventDamage', combatOnly: true, fromNotSubtype: m[1] }) },
     { re: /^Prevent all damage that would be dealt this turn\.?$/i,
       make: () => ({ op: 'preventDamage' }) },
+    // Ethereal Haze: "Prevent all damage that would be dealt by creatures this turn."
+    { re: /^Prevent all (combat )?damage that would be dealt by creatures this turn\.?$/i,
+      make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], fromCreatures: true }) },
+    // "…dealt to creatures this turn", "…dealt this turn to creatures you control"
+    { re: /^Prevent all (combat )?damage that would be dealt (?:to creatures( you control)? this turn|this turn to creatures( you control)?)\.?$/i,
+      make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: m[2] || m[3] ? 'yourCreatures' : 'creatures' }) },
+    // "Prevent all combat damage that would be dealt to you and creatures you control this turn."
+    { re: /^Prevent all (combat )?damage that would be dealt to you and creatures you control this turn\.?$/i,
+      make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'youAndYours' }) },
+    // "Prevent all damage that would be dealt to you this turn by attacking creatures."
+    { re: /^Prevent all (combat )?damage that would be dealt to you this turn by attacking creatures\.?$/i,
+      make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'you', fromAttacking: true }) },
+    // "Prevent all combat damage that would be dealt by that creature this turn."
+    { re: /^Prevent all combat damage that would be dealt by (?:that creature|it) this turn\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'noDamage', scope: 'lastTarget' }) },
+    // "…dealt to and dealt by target creature you control this turn"
+    { re: /^Prevent all combat damage that would be dealt to and dealt by (target creature(?: you control)?) this turn\.?$/i,
+      make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamage', 'noDamageTaken'] }) },
     { re: /^Prevent all (combat )?damage that would be dealt to you this turn\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'you' }) },
     { re: /^Prevent the next (\d+) damage that would be dealt to (any target|target creature|target player|you|CARDNAME|this creature) this turn\.?$/i,
@@ -12101,6 +12119,14 @@
         for (const e of again.effects || []) if (e && e.op === 'continuous' && e.addTypes && !e.addTypes.includes('Land')) e.addTypes = e.addTypes.concat('Land');
         return Object.assign({}, again, { text: line });
       }
+    }
+    /* Great Divide Guide, Brightcap Badger: "Each land and Ally you control
+       has '{T}: Add one mana of any color.'" — either kind, by card type or
+       creature type */
+    const eachTwo = String(line).match(/^Each (land|artifact|creature|enchantment|[A-Z][a-z]+) and ([A-Z][a-z]+) you control has "([^"]+)"\.?$/);
+    if (eachTwo && grantableText(eachTwo[3])) {
+      return { kind: 'static', text: line, auto: true, effects: [{ op: 'continuous', layer: 6,
+        scope: { who: 'you', what: 'permanent', anyOf: [eachTwo[1].toLowerCase(), eachTwo[2].toLowerCase()] }, grantText: eachTwo[3] }] };
     }
     // Jetmir: "Creatures you control also get +1/+0 and have trample as long as …" — "also" adds nothing
     const also = String(line).match(/^((?:Other )?[A-Za-z ]+? you control) also (gets?|ha(?:ve|s)) (.+)$/i);
