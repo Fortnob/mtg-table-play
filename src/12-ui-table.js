@@ -1051,6 +1051,14 @@
       return null;
     }
 
+    /** "Tempted by the Ring twice; Frodo is the Ring-bearer." */
+    ringTip(p) {
+      const n = p.ringLevel || 0;
+      const bearer = p.ringBearer ? this.objIn(p.ringBearer) : null;
+      return `The Ring has tempted them ${n === 1 ? 'once' : n === 2 ? 'twice' : n + ' times'}` +
+        (bearer && bearer.card ? `; ${bearer.card.name} is the Ring-bearer` : '; no Ring-bearer');
+    }
+
     paintFlags(host, p) {
       const v = this.view;
       const flags = [
@@ -1060,6 +1068,11 @@
         p.energy ? ['', `⚡ ${p.energy}`, 'Energy'] : null,
         p.experience ? ['', `★ ${p.experience}`, 'Experience counters'] : null,
         p.rad ? ['bad', `☢ ${p.rad} rad`, 'Rad counters: at the start of their precombat main phase they mill that many, and lose 1 life and 1 rad for each nonland card milled'] : null,
+        p.cityBlessing ? ['crown', '✶ City’s blessing', 'Has the city’s blessing for the rest of the game'] : null,
+        p.enduringStory ? ['crown', '❧ Enduring story', 'Has an enduring story for the rest of the game'] : null,
+        p.ringLevel ? ['crown', `◎ Ring ${p.ringLevel}`, this.ringTip(p)] : null,
+        p.speed ? ['', p.speed >= 4 ? '» Max speed' : `» Speed ${p.speed}`,
+          p.speed >= 4 ? 'Speed 4, as fast as it goes' : 'Goes up by one, once each of their turns, when an opponent loses life; it stops at 4'] : null,
       ].filter(Boolean);
       // a dungeon: which room they are in, and how many they have finished
       const done = typeof p.dungeonsCompleted === 'number' ? p.dungeonsCompleted : (p.dungeonsCompleted || []).length;

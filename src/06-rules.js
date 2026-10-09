@@ -21305,6 +21305,8 @@
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
         battlefield: this.battlefield.map(o => o.id),
+          // for the rest of the game, once had: they have to survive a save
+          cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
         stack: this.stack.map(it => Object.assign({}, it, {
           obj: undefined, objId: it.obj ? it.obj.id : it.objId,
           effects: it.effects ? JSON.parse(JSON.stringify(it.effects)) : null,
@@ -21779,6 +21781,9 @@
              nobody else; "play with the top card of your library revealed"
              shows it to everybody. The table shows it face up on the library. */
           topCard: this.zones[p.id].library.length && this._topCardShown(p.id, playerId) ? ser(this.zones[p.id].library[0]) : null,
+          // what a player has for good or ill, for the table to show beside them
+          rad: p.rad || 0, cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
+          ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null, speed: p.speed || 0,
           handSize: this.zones[p.id].hand.length,
           hand: p.id === playerId ? this.zones[p.id].hand.map(o => ser(o)) : this.zones[p.id].hand.map(o => ser(o, true)),
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),
