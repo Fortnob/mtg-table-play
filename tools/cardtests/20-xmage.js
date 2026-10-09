@@ -16168,4 +16168,44 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bear), 3, 'the Bears: just +1/+1');
     t.no(T.g.hasKw(bear, 'trample'), 'green: no trample');
   });
+
+  test("Fateful Absence: the destroyed creature's controller investigates", (mk, t) => {
+    t.auto('Fateful Absence');
+    const T = mk();
+    T.toMain('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'WC');
+    T.cast('A', T.hand('A', 'Fateful Absence'), { targets: [giant] });
+    T.settle();
+    t.zone(giant, 'graveyard');
+    t.eq(T.bfOf('B').filter(o => o.name === 'Clue').length, 1, 'B gets the Clue');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Clue').length, 0);
+  });
+
+  test("Cards put into your graveyard from the battlefield this turn: Faith's Reward, Othelm, Gleancrawler", (mk, t) => {
+    for (const n of ["Faith's Reward", 'Othelm, Sigardian Outcast', 'Gleancrawler', 'Second Sunrise', 'Thrilling Encore', 'Grim Return', 'Salvager of Ruin', 'Samwise the Stouthearted', 'Moira, Urborg Haunt', "Gerrard's Hourglass Pendant", 'Gerrard, Weatherlight Hero']) t.auto(n);
+    let T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), ring = T.bf('A', 'Sol Ring');
+    const old = T.grave('A', 'Hill Giant');
+    T.g.moveObject(bear, 'graveyard'); T.g.moveObject(ring, 'graveyard');
+    T.mana('A', 'WCCC');
+    T.cast('A', T.hand('A', "Faith's Reward"));
+    T.settle();
+    t.zone(bear, 'battlefield', 'the Bears went there this turn');
+    t.zone(ring, 'battlefield', 'so did the Sol Ring');
+    t.zone(old, 'graveyard', 'the Giant was there already');
+    // Othelm: only a card that went there from the battlefield this turn is a target
+    T = mk();
+    T.toMain('A');
+    const oth = T.bf('A', 'Othelm, Sigardian Outcast');
+    const elf = T.bf('A', 'Llanowar Elves'), old2 = T.grave('A', 'Craw Wurm');
+    T.g.moveObject(elf, 'graveyard');
+    const k = oth.analysis().manaAbilities.length;
+    T.mana('A', 'CC');
+    t.no(T.g.activateAbility('A', oth.id, k, { targets: [{ kind: 'object', id: old2.id }] }), 'not the Wurm');
+    T.activate('A', oth, k, { targets: [elf] });
+    t.zone(elf, 'battlefield');
+    t.ok(elf.tapped, 'tapped');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11362,
+  "needed": 11349,
   "gainedCards": 1130,
-  "linesNeeded": 12163,
+  "linesNeeded": 12150,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4224,
-   "lines": 3963,
+   "score": 4218,
+   "lines": 3957,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2009,22 +2009,6 @@
    ]
   },
   {
-   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Brought Back",
-    "Samwise the Stouthearted",
-    "Continue?",
-    "Lobelia Sackville-Baggins",
-    "Grim Return",
-    "Salvager of Ruin",
-    "Moira, Urborg Haunt",
-    "Othelm, Sigardian Outcast",
-    "Sudden Salvation"
-   ]
-  },
-  {
    "what": "AddCardSubtypeAttachedEffect",
    "score": 9,
    "lines": 9,
@@ -3054,20 +3038,6 @@
     "Wild Might",
     "Rhystic Shield",
     "Nakaya Shade"
-   ]
-  },
-  {
-   "what": "ReturnToHandFromGraveyardAllEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Twilight Shepherd",
-    "No Rest for the Wicked",
-    "Gleancrawler",
-    "Underworld Cerberus",
-    "Fell Shepherd",
-    "Infernal Caretaker",
-    "Saprazzan Bailiff"
    ]
   },
   {
@@ -4807,6 +4777,18 @@
    ]
   },
   {
+   "what": "ReturnToHandFromGraveyardAllEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Twilight Shepherd",
+    "Underworld Cerberus",
+    "Fell Shepherd",
+    "Infernal Caretaker",
+    "Saprazzan Bailiff"
+   ]
+  },
+  {
    "what": "DamageTargetControllerEffect",
    "score": 5,
    "lines": 5,
@@ -5423,6 +5405,17 @@
     "Sigil of Valor",
     "Reaper's Talisman",
     "S.H.I.E.L.D. Spy Kit"
+   ]
+  },
+  {
+   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Brought Back",
+    "Continue?",
+    "Lobelia Sackville-Baggins",
+    "Sudden Salvation"
    ]
   },
   {
@@ -6690,8 +6683,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3523,
-   "cards": 3343,
+   "score": 3517,
+   "cards": 3337,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7598,19 +7591,6 @@
     "Dragon's Approach",
     "Quest for Pure Flame",
     "Sokenzan Smelter"
-   ]
-  },
-  {
-   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Brought Back",
-    "Samwise the Stouthearted",
-    "Continue?",
-    "Lobelia Sackville-Baggins",
-    "Grim Return",
-    "Salvager of Ruin"
    ]
   },
   {
@@ -8958,19 +8938,6 @@
    ]
   },
   {
-   "what": "ReturnToHandFromGraveyardAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Twilight Shepherd",
-    "No Rest for the Wicked",
-    "Gleancrawler",
-    "Underworld Cerberus",
-    "Fell Shepherd",
-    "Infernal Caretaker"
-   ]
-  },
-  {
    "what": "LookTargetHandChooseDiscardEffect",
    "score": 6,
    "cards": 6,
@@ -10172,6 +10139,17 @@
    ]
   },
   {
+   "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Brought Back",
+    "Continue?",
+    "Lobelia Sackville-Baggins",
+    "Sudden Salvation"
+   ]
+  },
+  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 4,
    "cards": 4,
@@ -10389,6 +10367,17 @@
     "From the Rubble",
     "Mirror of the Forebears",
     "Belbe's Portal"
+   ]
+  },
+  {
+   "what": "DontUntapInPlayersNextUntapStepAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Icebreaker Kraken",
+    "Exhaustion",
+    "Mana Vapors",
+    "Misstep"
    ]
   }
  ]

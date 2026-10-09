@@ -10695,6 +10695,8 @@
         o._diedCounters = Object.assign({}, o.counters);
         // Garna, Desculpting Blast: "if it was attacking", asked after it has gone
         o._wasAttacking = from === 'battlefield' && !!o.attacking;
+        // Faith's Reward: "cards in your graveyard that were put there from the battlefield this turn" (fromBfThisTurn)
+        o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         o.tapped = false; o.damage = 0; o.counters = {};
@@ -18691,6 +18693,8 @@
         case 'regrowthAll': {
           for (const c of this.zones[ctx.controller].graveyard.slice()) {
             if (!this._cardFitsWords(c, e.filter)) continue;
+            // Gleancrawler: only what went there from the battlefield this turn (fromBfThisTurn)
+            if (e.fromBfThisTurn && c._toGraveFromBf !== this.turn) continue;
             // Dawn: "with power 2 or less"
             if (e.maxPower != null && !((parseInt((c.card || {}).power, 10) || 0) <= e.maxPower)) continue;
             this.moveObject(c, 'hand');
@@ -19868,8 +19872,12 @@
           // "all land cards from your graveyard", or every creature card in every graveyard
           const from = e.yours ? [me] : this.players;
           for (const p of from) {
+            // Supper for Spiders: only your opponents' graveyards
+            if (e.opponentsOnly && p.id === ctx.controller) continue;
             for (const c of this.zones[p.id].graveyard) {
               if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > n(e.maxMv)) continue;
+              // Faith's Reward: only what went there from the battlefield this turn (fromBfThisTurn)
+              if (e.fromBfThisTurn && c._toGraveFromBf !== this.turn) continue;
               // Bloodline Bidding: "of the chosen type"
               if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(c, src.chosenType))) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);

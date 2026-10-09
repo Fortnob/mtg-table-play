@@ -3104,6 +3104,19 @@
         return { op: 'sequence', list: [
           { op: 'grantKeyword', keywords: [kw], duration: 'eot', scope: { who: 'you', what: 'permanent', subtypes: ['aura', 'equipment'] } },
           { op: 'grantKeyword', keywords: [kw], duration: 'eot', scope: { who: 'you', what: 'creature', modified: true } }] }; } },
+    /* Faith's Reward, Gerrard's Hourglass Pendant, Second Sunrise, Thrilling Encore, Supper for
+       Spiders, Gleancrawler: "… cards in your graveyard that were put there from the battlefield this turn" */
+    { re: /^Return to the battlefield( tapped)? all ([a-z ,]+?) cards in your graveyard that were put there from the battlefield this turn\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[2].toLowerCase().replace(/,? and |, /g, ' or '), yours: true, tapped: !!m[1], fromBfThisTurn: true }) },
+    { re: /^Each player returns to the battlefield all ([a-z ,]+?) cards in their graveyard that were put there from the battlefield this turn\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/,? and |, /g, ' or '), yours: false, fromBfThisTurn: true }) },
+    { re: /^Put onto the battlefield under your control all creature cards in (all graveyards|your opponents'? graveyards) that were put there from the battlefield this turn\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: 'creature', yours: false, mine: true, fromBfThisTurn: true, opponentsOnly: /opponents/i.test(m[1]) }) },
+    { re: /^Return (?:to your hand )?all creature cards in your graveyard that were put there from the battlefield this turn(?: to your hand)?\.?$/i,
+      make: () => ({ op: 'regrowthAll', filter: 'creature', fromBfThisTurn: true }) },
+    // Moira, Urborg Haunt: "return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn"
+    { re: /^Return to the battlefield (target creature card in your graveyard that was put there from the battlefield this turn)\.?$/i,
+      make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -3451,6 +3464,8 @@
 
     /* ===== keyword actions that make a thing ===== */
     { re: /^Investigate\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue' }) },
+    // Fateful Absence: "Its controller investigates." — the controller of what was just destroyed
+    { re: /^Its controller investigates\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue', who: 'targetController' }) },
     { re: /^Investigate (two|three|\d+) times\.?$/i, make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: 'Clue' }) },
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
     // Gallia of the Endless Dance: "discard a card at random"
@@ -5885,6 +5900,9 @@
     if (blockingSelf) phrase = String(phrase).replace(/\s+blocking (?:it|this creature|CARDNAME)$/i, '');
     const blockedBySelf = /\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i.test(String(phrase));
     if (blockedBySelf) phrase = String(phrase).replace(/\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i, '');
+    // Moira, Grim Return: "target creature card in your graveyard that was put there from the battlefield this turn"
+    const fromBf = /\s+that was put there from the battlefield this turn$/i.test(String(phrase));
+    if (fromBf) phrase = String(phrase).replace(/\s+that was put there from the battlefield this turn$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -5898,6 +5916,7 @@
     if (colored) spec.colored = true;
     if (enteredNow) spec.enteredThisTurn = true;
     if (blockingSelf) spec.blockingSelf = true;
+    if (fromBf) spec.fromBfThisTurn = true;
     if (blockedBySelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
@@ -6145,6 +6164,8 @@
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
+    // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
+    if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
@@ -6466,6 +6487,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Othelm, Salvager of Ruin, Samwise, Grim Return: "Choose (up to one) target creature card in
+       your graveyard (a graveyard) that was put there from the battlefield this turn. Return it to the
+       battlefield tapped (to your hand)." / "Put that card onto the battlefield under your control." */
+    { re: /^Choose (up to one )?target (creature|permanent) card in (your graveyard|a graveyard) that was put there from the battlefield this turn\. (?:Return it to (the battlefield( tapped)?|your hand)|Put that card onto the battlefield under your control)\.( Then the Ring tempts you\.)?$/i,
+      make: (m) => {
+        const spec = Object.assign({ type: m[2].toLowerCase() === 'creature' ? 'creature' : 'permanent', filter: m[2].toLowerCase(), zone: 'graveyard', fromBfThisTurn: true },
+          /your/i.test(m[3]) ? { controller: 'you' } : {}, m[1] ? { upTo: true } : {});
+        // (Samwise: "Then the Ring tempts you.")
+        const ring = m[6] ? [{ op: 'ringTempts' }] : [];
+        if (/hand/i.test(m[4] || '')) return [{ op: 'regrowth', targets: [spec] }].concat(ring);
+        return [Object.assign({ op: 'reanimate', targets: [spec] }, m[5] ? { tapped: true } : {}, /your graveyard/i.test(m[3]) ? {} : { mine: true })].concat(ring);
+      } },
     /* Goblin Guide: "defending player reveals the top card of their library.
        If it's a land card, that player puts it into their hand." */
     { re: /^Defending player reveals the top card of their library\. If it'?s an? ([a-z]+) card, that player puts it into their hand\.?$/i,
