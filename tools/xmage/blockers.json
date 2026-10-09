@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11538,
+  "needed": 11532,
   "gainedCards": 1146,
-  "linesNeeded": 12377,
+  "linesNeeded": 12369,
   "linesGained": 1361,
   "gained": {
    "all": 1146,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 748,
-   "lines": 688,
+   "score": 746,
+   "lines": 686,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -1405,24 +1405,6 @@
     "Barbed-Back Wurm",
     "Master of Arms",
     "Flowstone Salamander"
-   ]
-  },
-  {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "The Council of Four",
-    "Alandra, Sky Dreamer",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Krang, the All-Powerful",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Private Eye",
-    "Moon Girl and Devil Dinosaur",
-    "Jaded Analyst",
-    "Emerald Collector"
    ]
   },
   {
@@ -4172,6 +4154,18 @@
    ]
   },
   {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "The Council of Four",
+    "Alandra, Sky Dreamer",
+    "Private Eye",
+    "Moon Girl and Devil Dinosaur",
+    "Jaded Analyst"
+   ]
+  },
+  {
    "what": "TargetsPermanentPredicate",
    "score": 5,
    "lines": 5,
@@ -6756,8 +6750,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3542,
-   "cards": 3362,
+   "score": 3543,
+   "cards": 3363,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6769,8 +6763,8 @@
   },
   {
    "what": "custom ability",
-   "score": 576,
-   "cards": 534,
+   "score": 574,
+   "cards": 532,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7924,19 +7918,6 @@
     "The Peregrine Dynamo",
     "Trickbind",
     "Emerald Dragon // Dissonant Wave"
-   ]
-  },
-  {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "King T'Challa // Black Panther, Hope Enduring",
-    "Mindless Conscription",
-    "Sneaky Snacker",
-    "Private Eye",
-    "Moon Girl and Devil Dinosaur"
    ]
   },
   {
@@ -10039,6 +10020,17 @@
     "Dearly Departed",
     "Viral Spawning",
     "Retriever Phoenix"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Alandra, Sky Dreamer",
+    "Private Eye",
+    "Moon Girl and Devil Dinosaur",
+    "Jaded Analyst"
    ]
   },
   {

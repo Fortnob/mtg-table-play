@@ -10865,7 +10865,7 @@
         if (!silent) {
           this._fire('youDraw', p.id, { object: o, nth: p.drawnThisTurn });
           // Spiteful Visions: "whenever a player draws a card"
-          this._fire('anyDraw', null, { object: o, player: p.id, drawer: p.id });
+          this._fire('anyDraw', null, { object: o, player: p.id, drawer: p.id, nth: p.drawnThisTurn });
           for (const other of this.players) {
             if (other.id === p.id || other.hasLost) continue;
             this._fire('opponentDraw', other.id, { object: o, drawer: p.id, nth: p.drawnThisTurn,
@@ -11148,6 +11148,8 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Captain Ripley Vance: only the third spell its controller casts this turn
+          if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
           // Vine Gecko: only a spell that was kicked
           if (ab.kickedOnly && !(data.object && data.object.wasKicked)) continue;
           // Inkling Mascot: a spell aimed at a creature (an artifact or land, …), maybe one of yours or not

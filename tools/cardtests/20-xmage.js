@@ -15015,4 +15015,22 @@ module.exports = (test) => {
     t.eq(lm.counters.stun || 0, 0, 'two counters: the chosen kind first');
     t.eq(lm.counters['-1/-1'], 1, 'then the rest by the usual order');
   });
+
+  test('Captain Ripley Vance triggers on the third spell; Sneaky Snacker returns on the third draw', (mk, t) => {
+    t.auto('Captain Ripley Vance');
+    t.auto('Sneaky Snacker');
+    const T = mk();
+    T.toMain('A');
+    const cr = T.bf('A', 'Captain Ripley Vance');
+    for (let i = 0; i < 2; i++) { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.resolve(); }
+    t.eq(cr.counters['+1/+1'] || 0, 0, 'two spells: nothing yet');
+    T.answer('*', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.resolve();
+    t.eq(cr.counters['+1/+1'], 1, 'the third: a counter');
+    const ss = T.grave('A', 'Sneaky Snacker');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.g.drawCards('A', 3); T.settle(); T.resolve();
+    t.zone(ss, 'battlefield', 'back on the third draw');
+    t.ok(ss.tapped, 'tapped');
+  });
 };

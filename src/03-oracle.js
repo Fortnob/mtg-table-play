@@ -9189,6 +9189,13 @@
     { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
+    // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
+    { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
+    // King T'Challa, Krang: "Whenever a player draws their second card each turn"
+    { re: /^When(?:ever)? a player draws their (second|third) card each turn,? /i, event: 'anyDraw',
+      extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
+    // Captain Ripley Vance: "Whenever you cast your third spell each turn"
+    { re: /^When(?:ever)? you cast your third spell each turn,? /i, event: 'youCastSpell', extra: { castNth: 3 } },
     // Midnight Clock: "When the twelfth hour counter is put on this artifact"
     { re: /^When the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) ([a-z]+) counter is put on (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME),? /i,
       event: 'countersPut', self: true, extraOf: (m) => ({ counterKind: m[2].toLowerCase(),
