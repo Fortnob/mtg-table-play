@@ -14,7 +14,11 @@ wear. Written to src/10d1-packfocus.js as MTG.artFocus, by illustration:
 contact sheets) wins.
 
     python tools/packfocus.py                 # write src/10d1-packfocus.js
-    python tools/packfocus.py --sheet DIR     # also draw contact sheets of every pack, as it will look
+    python tools/packfocus.py --sheet DIR     # also draw contact sheets of every pack on sale, as it will look
+
+The packs on sale and the picture each one wears are worked out as the
+Store does it (packSets in src/02-scryfall.js, assignAll in
+src/10d-ui-store.js), from Scryfall's list of sets.
 
 Needs Pillow. Pictures are kept in the system's temp folder between runs.
 """
@@ -46,18 +50,73 @@ OVERRIDE = {
     'd45a53d6': [52, 45],   # Doctor Who: the burning ship
     'b8babcc6': [40, 45],   # Unhinged, Unsanctioned: the goblin and the pig
     '9ba8197f': [48, 45],   # Mercadian Masques: the hand-off between the two
+    'e12665f8': [45, 40],   # Fourth Edition, Sengir Vampire: the vampire's face
+    'd326c884': [68, 35],   # Unlimited, Shivan Dragon: the dragon's head and body
+    'abca40cd': [45, 40],   # Antiquities, Mishra's Workshop
+    '194bc2dc': [27, 45],   # Teenage Mutant Ninja Turtles Eternal, Irma
+    '99f6afc0': [52, 45],   # Magic 2013, Talrand
+    '81a0ebd4': [50, 50],   # The Hobbit Eternal, the Necklace of Girion
+    'bc953a16': [62, 50],   # Conspiracy, Scourge of the Throne
+    'bbd642e1': [50, 35],   # Magic 2014, Liliana
+    '42a864bb': [40, 40],   # Magic 2012, Grand Abolisher
 }
 
 
-def candidates():
+def candidates(per_set=PER_SET):
     """Each set's pictures, in order: (set code, rank, card id, illustration)."""
     s = DATA.read_text(encoding='utf-8')
     out = []
     for code, hexes in re.findall(r'^\s+"([a-z0-9]+)": "([0-9a-f]+)",$', s, re.M):
-        for i in range(0, min(len(hexes) // 40, PER_SET)):
+        for i in range(0, min(len(hexes) // 40, per_set)):
             h = hexes[i * 40:i * 40 + 40]
             cid = f'{h[0:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}'
             out.append((code, i, cid, h[32:40]))
+    return out
+
+
+def sold_sets():
+    """The sets on sale, newest first, as MTG.scry.packSets has them."""
+    r = subprocess.run(['curl', '-s', '-f', '--max-time', '60', '-A', HEADERS['User-Agent'], '-H', 'Accept: application/json',
+                        'https://api.scryfall.com/sets'], capture_output=True)
+    sets = json.loads(r.stdout.decode('utf-8'))['data']
+    today = time.strftime('%Y-%m-%d')
+    plain_cmd = re.compile(r"^Commander(?: \d{4}| Anthology| Collection|'s Arsenal| Legends)|^Commander$|^Starter Commander", re.I)
+    def standalone(x):
+        return x['set_type'] == 'commander' and not x.get('parent_set_code') and not plain_cmd.search(x.get('name') or '')
+    out = [x for x in sets if x['code'] not in ('om1', 'omb')
+           and (x['set_type'] in ('expansion', 'core', 'draft_innovation', 'masters', 'eternal') or standalone(x))
+           and (x.get('card_count', 0) >= 100 or (x.get('card_count', 0) >= 70 and (x.get('released_at') or '') < '1997-01-01'))
+           and x.get('released_at') and x['released_at'] <= today
+           and not re.search(r'Foreign Black Border|^Renaissance$|^Rinascimento$', x.get('name') or '', re.I)
+           and x['code'] not in ('ren', 'rin', 'bchr', '4bb', 'fbb')]
+    return sorted(out, key=lambda x: x['released_at'], reverse=True)
+
+
+def assignment(sold):
+    """The picture each pack on sale wears: claimed as assignAll does, the hand-chosen first, one illustration per pack."""
+    data = DATA.read_text(encoding='utf-8')
+    by_set = {}
+    for code, rank, cid, ill in candidates(99):
+        by_set.setdefault(code, []).append((cid, ill))
+    reserved = json.loads((re.search(r'MTG\.packArtReserved = (\[.*?\]);', data) or [None, '[]'])[1])
+    m = re.search(r'MTG\.collectorSets = new Set\("([^"]*)"', data)
+    collector = set(m.group(1).split(',')) if m else set()
+    taken, out = {}, {}
+    def claim(key, code, first_only=False):
+        for cid, ill in by_set.get(code, [])[:1 if first_only else None]:
+            if taken.get(ill, key) != key:
+                continue
+            taken[ill] = key
+            out[key] = (code, cid, ill)
+            return
+    for code in reserved:
+        claim('set:' + code, code, True)
+    for x in sold:
+        if 'set:' + x['code'] not in out:
+            claim('set:' + x['code'], x['code'])
+    for x in sold:
+        if x['code'] in collector:
+            claim('set:' + x['code'] + ':collector', x['code'])
     return out
 
 
@@ -156,10 +215,10 @@ def sheets(rows, outdir):
         tw, th = round(206 * PACK), 206
         sheet = Image.new('RGB', (cols * (tw + 8) + 8, math.ceil(len(chunk) / cols) * (th + 26) + 8), (20, 22, 28))
         d = ImageDraw.Draw(sheet)
-        for j, (code, rank, cid, ill, img, f) in enumerate(chunk):
+        for j, (label, img, f) in enumerate(chunk):
             x, y = 8 + (j % cols) * (tw + 8), 8 + (j // cols) * (th + 26)
             sheet.paste(pack_crop(img, f, th), (x, y))
-            d.text((x, y + th + 4), f'{code} {ill} {f[0]}', fill=(240, 220, 150), font=font)
+            d.text((x, y + th + 4), label, fill=(240, 220, 150), font=font)
         name = outdir / f'packs-{k // per + 1}.png'
         sheet.save(name)
         print('wrote', name)
@@ -167,22 +226,25 @@ def sheets(rows, outdir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--sheet', help='draw contact sheets of each set\'s first picture, as its pack shows it, into this folder')
+    ap.add_argument('--sheet', help='draw contact sheets of every pack on sale, as it will look, into this folder')
     a = ap.parse_args()
     hand = hand_focus()
-    focus, shown = {}, []
-    cands = candidates()
-    print(f'{len(cands)} pictures')
-    for n, (code, rank, cid, ill) in enumerate(cands):
+    sold = sold_sets()
+    final = assignment(sold)
+    print(f'{len(sold)} sets on sale; {len(final)} packs given a picture', flush=True)
+    # the pictures packs wear now, and each set's first few, for when a new set shifts the claims
+    todo = {ill: cid for code, cid, ill in final.values()}
+    for code, rank, cid, ill in candidates():
+        todo.setdefault(ill, cid)
+    focus, imgs = {}, {}
+    for n, (ill, cid) in enumerate(sorted(todo.items())):
         img = picture(cid)
         if img is None:
             continue
-        f = OVERRIDE.get(ill) or hand.get(ill) or focus_of(img)
-        focus[ill] = f
-        if rank == 0:
-            shown.append((code, rank, cid, ill, img, f))
+        imgs[ill] = img
+        focus[ill] = OVERRIDE.get(ill) or hand.get(ill) or focus_of(img)
         if (n + 1) % 100 == 0:
-            print(f'  {n + 1}/{len(cands)}', flush=True)
+            print(f'  {n + 1}/{len(todo)}', flush=True)
     # the hand-chosen focus is in the data file already; only what was worked out goes here
     computed = {k: v for k, v in sorted(focus.items()) if k not in hand}
     body = ',\n'.join(f'    "{k}": [{v[0]}, {v[1]}]' for k, v in computed.items())
@@ -204,7 +266,17 @@ def main():
 ''', encoding='utf-8', newline='\n')
     print(f'wrote {OUT} ({len(computed)} pictures)')
     if a.sheet:
-        sheets(shown, a.sheet)
+        names = {x['code']: x['name'] for x in sold}
+        rows = []
+        for x in sold:
+            got = final.get('set:' + x['code'])
+            if got and got[2] in imgs:
+                rows.append((f"{x['code']} {got[2]} {focus[got[2]][0]}", imgs[got[2]], focus[got[2]]))
+        sheets(rows, a.sheet)
+        (pathlib.Path(a.sheet) / 'packs.json').write_text(json.dumps(
+            {x['code']: {'name': names[x['code']], 'type': x['set_type'], 'released': x['released_at'],
+                         'ill': (final.get('set:' + x['code']) or [None, None, None])[2],
+                         'id': (final.get('set:' + x['code']) or [None, None, None])[1]} for x in sold}, indent=1), encoding='utf-8')
 
 
 if __name__ == '__main__':

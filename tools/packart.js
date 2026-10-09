@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* The art on the front of every set's packs, chosen ahead of time:
    src/10d0-packart.js. For each set that could be sold, its best-known
-   rares and mythics by EDHREC rank, one per illustration, never a
+   rares and mythics by EDHREC rank, the cards new to it first (a reprint
+   set, a Masters set, has its reprints), one per illustration, never a
    numbered chase printing, a promo or an Alchemy rebalance; the store
    then gives each pack the first of its set's that no other pack or deck
    wears (claimArt in src/10d-ui-store.js). With this the shelf needs no
@@ -32,6 +33,24 @@ const GAP = 600;
 const FIRST = {
   lea: { name: 'Black Lotus', focus: [66, 52] },          // the flower
   leb: { name: 'Ancestral Recall', focus: [75, 56] },     // the scholar's face
+  /* The classic sets wear the card they are remembered by: claimed newest
+     first, the reprint sets that came after would otherwise take them. */
+  '2ed': { name: 'Shivan Dragon' },
+  '3ed': { name: 'Serra Angel' },
+  '4ed': { name: 'Sengir Vampire' },
+  arn: { name: 'Juzám Djinn' },
+  atq: { name: 'Mishra\'s Workshop' },
+  leg: { name: 'Mana Drain' },
+  fem: { name: 'Hymn to Tourach' },
+  ice: { name: 'Necropotence' },
+  chr: { name: 'Nicol Bolas' },
+  hml: { name: 'Baron Sengir' },
+  all: { name: 'Force of Will' },
+  wth: { name: 'Null Rod' },
+  tmp: { name: 'Wasteland' },
+  sth: { name: 'Mox Diamond' },
+  exo: { name: 'Survival of the Fittest' },
+  usg: { name: 'Gaea\'s Cradle' },
 };
 // special printings enough for Collector Boosters: two variant slots of rares and three of uncommons need some choice
 const COLLECTOR_MIN = 15;
@@ -104,7 +123,9 @@ async function search(q, max) {
       take(found);
       if (found[0] && FIRST[s.code].focus) focus[illOf(found[0]).replace(/-/g, '').slice(0, 8)] = FIRST[s.code].focus;
     }
-    take(await search(`set:${s.code} (r:mythic or r:rare) -t:land`, 40));
+    // the set's own new cards first: a staple reprinted everywhere (Sol Ring, Arcane Signet) says nothing of the set
+    take(await search(`set:${s.code} (r:mythic or r:rare) -t:land not:reprint`, 40));
+    if (pick.length < PER_SET) take(await search(`set:${s.code} (r:mythic or r:rare) -t:land`, 40));
     if (pick.length < PER_SET) take(await search(`set:${s.code} -t:basic`, 120));
     if (pick.length) map[s.code] = pick.join('');
     const variants = await count(`set:${s.code} (is:extendedart or is:borderless or is:showcase or is:fullart) -t:basic -is:digital lang:en`);

@@ -152,8 +152,8 @@
      apart by Scryfall's illustration id (its first eight hex digits), so a
      reprint of the same picture counts as the same. Kept, so each keeps its
      picture from then on. */
-  const ART_KEY = 'artclaims5';
-  for (const old of ['artclaims', 'artclaims2', 'artclaims3', 'artclaims4']) MTG.store.del(old);   // the claims of earlier ways of choosing
+  const ART_KEY = 'artclaims6';
+  for (const old of ['artclaims', 'artclaims2', 'artclaims3', 'artclaims4', 'artclaims5']) MTG.store.del(old);   // the claims of earlier ways of choosing
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
   /**
@@ -235,11 +235,26 @@
    * the list made ahead of time; a set newer than the list is looked up,
    * behind anything the player is waiting on.
    */
+  /* Every set on sale has its picture handed out at once, in one order:
+     the hand-chosen ones first (above), then the sets from newest to
+     oldest, their Play Boosters before their Collector Boosters. So each
+     pack wears the same picture whichever shelf is looked at first, and
+     the picture tools/packfocus.py --final shows it wearing. */
+  let assigned = null;
+  const assignAll = () => assigned || (assigned = MTG.scry.packSets().then((sets) => {
+    for (const s of sets) claimArt('set:' + s.code, preArt(s.code));
+    for (const s of sets) if (E().hasCollector(s)) claimArt('set:' + s.code + ':collector', preArt(s.code));
+  }).catch(() => {}));
+
   function setArt(code, kind) {
     const key = 'set:' + code + (kind === 'collector' ? ':collector' : '');
     if (artReg.by[key]) return Promise.resolve(artReg.by[key]);
+    return assignAll().then(() => artFor(code, kind, key));
+  }
+  function artFor(code, kind, key) {
+    if (artReg.by[key]) return artReg.by[key];
     const ready = claimArt(key, preArt(code));
-    if (ready) return Promise.resolve(ready);
+    if (ready) return ready;
     if (artWaiting.has(key)) return artWaiting.get(key);
     const p = (async () => {
       const look = async (q, max) => { try { return await MTG.scry.search(q, { max, order: 'edhrec', unique: 'art', low: true, quiet: true }); } catch (e) { return []; } };
