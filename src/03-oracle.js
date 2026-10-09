@@ -5000,6 +5000,14 @@
         if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
         return { op: 'sequence', list: [a, b] };
       } },
+    /* Wash Out: "Return all permanents of the color of your choice to their
+       owners' hands." — a colour chosen, then the same as "of the chosen color" */
+    { re: /^(.*\ball (?:nonland )?(?:permanents|creatures|artifacts|enchantments)) of the colou?r of your choice(.*)$/i,
+      make: (m) => {
+        const inner = parseEffectSentence(m[1] + ' of the chosen color' + m[2]);
+        if (!inner || inner.op === 'manual' || hasManualStep(inner)) return null;
+        return { op: 'sequence', list: [{ op: 'chooseColor' }].concat(inner.op === 'sequence' ? inner.list : [inner]) };
+      } },
     /* Emeria's Call: "Non-Angel creatures you control gain indestructible
        until your next turn." — read as "until end of turn", then made to last */
     { re: /^(.+? (?:gain|gains|get|gets) [^.]+?) until your next turn\.?$/i,

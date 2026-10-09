@@ -13042,4 +13042,15 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.ok(T.g._illegalTargets(specs, [{ kind: 'object', id: hit.id }], 'A', sp), 'only this turn');
   });
+
+  test('Wash Out: every permanent of the chosen colour goes home', (mk, t) => {
+    t.auto('Wash Out');
+    const T = mk();
+    const g1 = T.bf('B', 'Grizzly Bears'), g2 = T.bf('A', 'Llanowar Elves'), w1 = T.bf('B', 'Savannah Lions');
+    T.answer('mode', { modes: [4] });
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Wash Out'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(g1.zone, 'hand'); t.eq(g2.zone, 'hand'); t.eq(w1.zone, 'battlefield');
+  });
 };
