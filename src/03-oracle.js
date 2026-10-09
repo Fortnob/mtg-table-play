@@ -3981,6 +3981,8 @@
       make: (m) => { const k = num(m[1]); return typeof k === 'number' ? { op: 'countersThenTransform', kind: m[2].toLowerCase(), n: k } : null; } },
     // Chainer, Nightmare Adept: "You may cast a creature spell from your graveyard this turn."
     { re: /^You may cast a creature spell from your graveyard this turn\.?$/i, make: () => ({ op: 'graveCreatureOnce' }) },
+    // The Infinity Stones: "Harness CARDNAME."
+    { re: /^Harness (?:CARDNAME|this [a-z]+)\.?$/i, make: () => ({ op: 'harness' }) },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -8255,8 +8257,12 @@
     for (const line0 of lines) {
       /* A token's own standing rule: "This token's power and toughness are
          …", "This token can't block" say what "This creature …" says */
-      const line = /^This token(?:'s)?\b/.test(line0) && !/^[^.]*:/.test(line0) ? line0.replace(/^This token/, 'This creature') : line0;
-      lineMarks.push({ text: line, ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines });
+      /* The Infinity Stones: "∞ — …" is an ability that works only once the
+         Stone is harnessed; the words after the mark are read as usual */
+      const infinity = /^\u221e\s*[\u2014-]\s*/.test(line0);
+      const line = (/^This token(?:'s)?\b/.test(line0) && !/^[^.]*:/.test(line0) ? line0.replace(/^This token/, 'This creature') : line0)
+        .replace(/^\u221e\s*[\u2014-]\s*/, '');
+      lineMarks.push({ text: line, ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines, infinity });
       totalLines++;
       /* "12+ | {G}, {T}: Add {G} for each creature you control." (station)
          and "Max speed — This creature has double strike." An ordinary
@@ -9015,6 +9021,13 @@
       out.abilities.push({ kind: 'static', text: line, auto: false, effects: [{ op: 'manual', text: line }] });
     }
 
+    // ∞ abilities: marked, for the engine to switch on once harnessed
+    lineMarks.forEach((mk, i) => {
+      if (!mk.infinity) return;
+      const nx = lineMarks[i + 1] || { ab: out.abilities.length, mana: out.manaAbilities.length };
+      for (const ab of out.abilities.slice(mk.ab, nx.ab)) ab.infinity = true;
+      for (const ab of out.manaAbilities.slice(mk.mana, nx.mana)) ab.infinity = true;
+    });
     const lineInfo = lineMarks.map((mk, i) => {
       const nx = lineMarks[i + 1] || { ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines };
       const got = nx.auto - mk.auto;

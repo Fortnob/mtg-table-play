@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 12386,
+  "needed": 12384,
   "gainedCards": 1348,
-  "linesNeeded": 13497,
+  "linesNeeded": 13493,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -1455,17 +1455,6 @@
    ]
   },
   {
-   "what": "ExileTargetCost",
-   "score": 13,
-   "lines": 4,
-   "cards": [
-    "The Soul Stone",
-    "Curie, Emergent Intelligence",
-    "The War Games",
-    "Wormfang Drake"
-   ]
-  },
-  {
    "what": "UnlockThisDoorTriggeredAbility",
    "score": 13,
    "lines": 4,
@@ -1950,15 +1939,6 @@
     "Barbed-Back Wurm",
     "Master of Arms",
     "Flowstone Salamander"
-   ]
-  },
-  {
-   "what": "GainHarnessedAbilitySourceEffect",
-   "score": 11,
-   "lines": 2,
-   "cards": [
-    "The Soul Stone",
-    "The Mind Stone"
    ]
   },
   {
@@ -7049,6 +7029,28 @@
     "Cartouche of Strength",
     "Warbriar Blessing",
     "Pitiless Fists"
+   ]
+  },
+  {
+   "what": "BecomesChosenCreatureTypeTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Trickery Charm",
+    "Unnatural Selection",
+    "Imagecrafter",
+    "Mistform Mutant"
+   ]
+  },
+  {
+   "what": "ExileGraveyardAllPlayersEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Calamity's Wake",
+    "Sanctifier en-Vec",
+    "Silent Gravestone",
+    "Ultimate Nullification"
    ]
   }
  ],

@@ -5808,6 +5808,8 @@
       const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
       const ab = all[abilityIndex];
       if (!ab) return this.fail('No such ability.');
+      // an Infinity Stone's ∞ ability waits for the Stone to be harnessed
+      if (ab.infinity && !o.harnessed) return this.fail(`${o.name} isn't harnessed yet.`);
       /* An ability printed to work from the graveyard works from there and
          nowhere else; the rest only work on the battlefield. */
       if (ab.fromGraveyard) {
@@ -8517,6 +8519,7 @@
         if (!a) continue;
         const ts = this._tsOf(src);
         a.abilities.forEach((ab, ai) => {
+          if (ab.infinity && !src.harnessed) return;
           // a sentence that says two standing things at once arrives as a
           // sequence, and both halves are standing rules, from one ability
           const group = src.id + '#' + ai;
@@ -10573,6 +10576,7 @@
           const ab = a.abilities[i];
           // "enters or attacks" is one ability that answers to either event
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+          if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           // a graveyard ability works from there and nowhere else
           if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
           if (ab.self && data.source && data.source.id !== o.id) continue;
@@ -10736,6 +10740,7 @@
           for (let i = 0; i < a.abilities.length; i++) {
             const ab = a.abilities[i];
             if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+          if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
             if (ab.objFilter && !this._objFits(data.object, ab.objFilter, o, data.objController)) continue;
             push(o, i, ab);
           }
@@ -10751,6 +10756,7 @@
         if (a) for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+          if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice' || event === 'timeCounterRemoved') ? ab.self
             : !!(ab.objFilter && ab.objFilter.selfOk && this._objFits(o, Object.assign({}, ab.objFilter, { other: false, who: null }), o));
           if (!own) continue;
@@ -14884,6 +14890,8 @@
           for (const c of rest) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
           break;
         }
+        // The Infinity Stones: harnessed, its ∞ abilities work from now on
+        case 'harness': if (src && src.zone === 'battlefield') { src.harnessed = true; this.logEvent('rules', `${src.name} is harnessed.`); } break;
         // Mordenkainen: hand and library change places
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
@@ -19142,6 +19150,7 @@
       if (!a) return null;
       for (const ab of (a.abilities || [])) {
         if (ab.kind && ab.kind !== 'static') continue;
+        if (ab.infinity && !o.harnessed) continue;
         for (const e of (ab.effects || [])) {
           if (e.op === op) return e;
           // a line that says two standing things arrives as a sequence

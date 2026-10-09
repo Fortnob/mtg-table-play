@@ -12099,4 +12099,19 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle(); T.resolve();
     t.eq(T.life('B'), 20, 'the Bolt was countered'); t.eq(bear.zone, 'battlefield', 'the Bears were cast for nothing');
   });
+
+  test('The Soul Stone: its ∞ ability waits for the harness', (mk, t) => {
+    t.auto('The Soul Stone');
+    const T = mk();
+    const st = T.bf('A', 'The Soul Stone');
+    const ab = st.analysis().abilities.find(a => a.kind === 'triggered');
+    t.ok(ab && ab.infinity, 'the upkeep trigger is an ∞ ability');
+    st.harnessed = false;
+    T.g._fire('yourUpkeep', 'A', { playerId: 'A' });
+    t.eq(T.g.pendingTriggers.filter(p => p.obj === st).length, 0, 'not harnessed: nothing');
+    T.g._runEffects([{ op: 'harness' }], { controller: 'A', obj: st, name: 'Soul Stone', kind: 'ability' });
+    t.ok(st.harnessed);
+    T.g._fire(ab.event, 'A', { playerId: 'A' });
+    t.ok(T.g.pendingTriggers.some(p => p.obj === st), 'harnessed: it triggers');
+  });
 };
