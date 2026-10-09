@@ -203,6 +203,26 @@
     }
     return out;
   }
+  /* A picture whose subject is off to one side (Black Lotus, Ancestral
+     Recall: MTG.artFocus) is centred on it in a box of the given shape
+     (width over height), as far as the picture reaches: "cover" scales a
+     tall box's picture to its height, so only the across matters there,
+     and a wide box's to its width, so only the down. '' for the rest. */
+  const ART_ASPECT = 563 / 451;   // Scryfall's art crops, near enough
+  function artPosition(a, boxAspect) {
+    const f = a && MTG.artFocus && MTG.artFocus[String(a.ill || '').slice(0, 8)];
+    if (!f || !(boxAspect > 0)) return '';
+    const along = (at, seen) => (seen >= 1 ? 50 : Math.round(Math.max(0, Math.min(1, (at / 100 - seen / 2) / (1 - seen))) * 100));
+    return along(f[0], boxAspect / ART_ASPECT) + '% ' + along(f[1], ART_ASPECT / boxAspect) + '%';
+  }
+  /** Paint a claimed picture into a box, centred on its subject where one is known. */
+  function paintArt(node, a, boxAspect) {
+    if (!a || !node) return;
+    node.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")';
+    const pos = artPosition(a, boxAspect || (node.offsetWidth && node.offsetHeight ? node.offsetWidth / node.offsetHeight : 0));
+    if (pos) node.style.backgroundPosition = pos;
+  }
+
   /* A face chosen by hand (Black Lotus for Alpha, Ancestral Recall for
      Beta) is that set's before any other pack picks: Unlimited reprints the
      same pictures and would otherwise take them if its packs were seen first. */
@@ -272,7 +292,7 @@
       ]),
       el('div', { class: 'bp-seam' }),
     ]);
-    const paint = () => setArt(setInfo.code, kind).then(a => { if (a) art.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+    const paint = () => setArt(setInfo.code, kind).then(a => paintArt(art, a, 5 / 8.6));
     if (setInfo && setInfo.code) {
       const had = artReg.by['set:' + setInfo.code + (kind === 'collector' ? ':collector' : '')];
       if (had || !opts.lazy || !lazyArt) paint();
@@ -1072,7 +1092,7 @@
     };
     const setBackdrop = (info) => {
       if (!info || !info.code) return;
-      setArt(info.code).then(a => { if (a) backdrop.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")'; });
+      setArt(info.code).then(a => paintArt(backdrop, a, U.viewW() / Math.max(1, U.viewH())));
     };
 
     /* ---- right-click: the card held up to the light ---- */

@@ -267,6 +267,9 @@
   /* The sets whose first picture was chosen by hand: kept for them before
      any other pack picks, so a reprint of the same picture cannot take it. */
   MTG.packArtReserved = ["lea","leb"];
+  /* Where the subject is in a picture whose subject is off to one side,
+     by illustration (first 8 hex digits): [percent across, percent down]. */
+  MTG.artFocus = {"54436824":[66,52],"d20eda7b":[75,56]};
   /* The sets with special printings enough to fill a Collector Booster
      (15 or more borderless, showcase, extended or full-art cards). */
   MTG.collectorSets = new Set("2x2,2xm,acr,afc,afr,big,blb,blc,brc,bro,c21,clb,clu,cmm,cmr,dft,dmc,dmr,dmu,drc,dsc,dsk,ecc,ecl,eld,eoc,eoe,fdn,fic,fin,fra,frc,hob,hoc,iko,inr,khm,lcc,lci,ltc,ltr,m21,m3c,mat,mh2,mh3,mic,mid,mkc,mkm,moc,mom,msc,msh,ncc,nec,neo,onc,one,otc,otj,pip,plst,rvr,snc,soc,sos,spm,stx,tdc,tdm,thb,tla,tle,tmc,tmt,unf,ust,voc,vow,who,woc,woe,znr".split(','));

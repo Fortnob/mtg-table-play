@@ -26,8 +26,13 @@ const API = 'https://api.scryfall.com';
 const HEADERS = { 'User-Agent': 'mtg-table-packart/1.0', Accept: 'application/json' };
 const PER_SET = 6;
 const GAP = 600;
-// a set's face chosen by hand, first among its pictures and kept for it before any other pack picks
-const FIRST = { lea: 'Black Lotus', leb: 'Ancestral Recall' };
+/* A set's face chosen by hand, first among its pictures and kept for it
+   before any other pack picks; with where its subject is in the art crop
+   (percent across and down), for a tall pack to be centred on it. */
+const FIRST = {
+  lea: { name: 'Black Lotus', focus: [66, 52] },          // the flower
+  leb: { name: 'Ancestral Recall', focus: [75, 56] },     // the scholar's face
+};
 // special printings enough for Collector Boosters: two variant slots of rares and three of uncommons need some choice
 const COLLECTOR_MIN = 15;
 // the same as NOT_A_PULL in src/10d-ui-store.js
@@ -80,6 +85,7 @@ async function search(q, max) {
   console.log(sets.length + ' sets');
   const map = {};
   const collector = [];
+  const focus = {};
   let n = 0;
   for (const s of sets) {
     const pick = [];
@@ -93,7 +99,11 @@ async function search(q, max) {
         pick.push(c.id.replace(/-/g, '') + ill.replace(/-/g, '').slice(0, 8));
       }
     };
-    if (FIRST[s.code]) take(await search(`!"${FIRST[s.code]}" set:${s.code}`, 1));
+    if (FIRST[s.code]) {
+      const found = await search(`!"${FIRST[s.code].name}" set:${s.code}`, 1);
+      take(found);
+      if (found[0] && FIRST[s.code].focus) focus[illOf(found[0]).replace(/-/g, '').slice(0, 8)] = FIRST[s.code].focus;
+    }
     take(await search(`set:${s.code} (r:mythic or r:rare) -t:land`, 40));
     if (pick.length < PER_SET) take(await search(`set:${s.code} -t:basic`, 120));
     if (pick.length) map[s.code] = pick.join('');
@@ -119,6 +129,9 @@ ${lines.join('\n')}
   /* The sets whose first picture was chosen by hand: kept for them before
      any other pack picks, so a reprint of the same picture cannot take it. */
   MTG.packArtReserved = ${JSON.stringify(Object.keys(FIRST))};
+  /* Where the subject is in a picture whose subject is off to one side,
+     by illustration (first 8 hex digits): [percent across, percent down]. */
+  MTG.artFocus = ${JSON.stringify(focus)};
   /* The sets with special printings enough to fill a Collector Booster
      (${COLLECTOR_MIN} or more borderless, showcase, extended or full-art cards). */
   MTG.collectorSets = new Set(${JSON.stringify(collector.sort().join(','))}.split(','));
