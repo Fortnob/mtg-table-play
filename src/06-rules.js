@@ -6332,6 +6332,11 @@
           const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
           if (!a0 || !b0 || b0.owner !== a0.controller) return `${what} isn't in the graveyard of the first target's controller.`;
         }
+        // Gaea's Blessing: "Target player shuffles up to three target cards from their graveyard"
+        if (sp.ownedByTargetPlayer) {
+          const pl = tg.find(u => u.kind === 'player'), b0 = t.kind === 'object' && this.obj(t.id);
+          if (!pl || !b0 || b0.owner !== pl.id) return `${what} isn't in that player's graveyard.`;
+        }
         // Secret Tunnel: "two target creatures … that share a creature type"
         if (sp.sharesTypeWithPrev && i > 0) {
           const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
@@ -18002,10 +18007,11 @@
         // Quandrix Command: cards from a graveyard into their owner's library, shuffled
         case 'shuffleGraveCards': {
           const owners = new Set();
+          const tp = firstPlayer();
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const c = this.obj(t.id);
-            if (!c || c.zone !== 'graveyard') continue;
+            if (!c || c.zone !== 'graveyard' || (tp && c.owner !== tp.id)) continue;
             this.moveObject(c, 'library');
             owners.add(c.owner);
           }

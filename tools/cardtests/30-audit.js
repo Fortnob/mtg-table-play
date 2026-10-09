@@ -1415,4 +1415,70 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A');
     t.ok(T.g.over || T.g.player('B').hasLost, 'thirty artifacts at upkeep');
   });
+
+  test('Audit: Desert pings an attacker during the end of combat step, and only then', (mk, t) => {
+    const T = mk();
+    t.auto('Desert');
+    const d = T.bf('B', 'Desert');
+    const elf = T.bf('A', 'Llanowar Elves');
+    T.answer('declareAttackers', () => [{ attackerId: elf.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(T.g.activateAbility('B', d.id, 1, { auto: true, targets: [{ kind: 'object', id: elf.id }] }), 'not before the end of combat step');
+    T.toMain('A', 'endCombat');
+    T.g.passPriority('A', true);
+    t.ok(T.g.activateAbility('B', d.id, 1, { auto: true, targets: [{ kind: 'object', id: elf.id }] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.zone(elf, 'graveyard');
+  });
+
+  test('Audit: Kjeldoran Frostbeast destroys what it fought at end of combat', (mk, t) => {
+    const T = mk();
+    t.auto('Kjeldoran Frostbeast');
+    const fb = T.bf('A', 'Kjeldoran Frostbeast'), wall = T.bf('B', 'Wall of Stone'), other = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: fb.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [fb.id] }]);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.zone(wall, 'graveyard');
+    t.zone(other, 'battlefield');
+    t.zone(fb, 'battlefield');
+  });
+
+  test('Audit: Zurgo Helmsmasher grows only from creatures it damaged', (mk, t) => {
+    const T = mk();
+    t.auto('Zurgo Helmsmasher');
+    const z = T.bf('A', 'Zurgo Helmsmasher'), bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+    T.answer('declareAttackers', () => [{ attackerId: z.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bear.id, attackerIds: [z.id] }]);
+    T.toMain('A', 'endCombat');
+    t.zone(bear, 'graveyard');
+    t.eq(z.counters['+1/+1'] || 0, 1);
+    T.toMain('A', 'main');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [elf] });
+    t.zone(elf, 'graveyard');
+    t.eq(z.counters['+1/+1'] || 0, 1, 'not for a creature something else killed');
+  });
+
+  test("Audit: Gaea's Blessing shuffles cards from the target player's graveyard", (mk, t) => {
+    const T = mk();
+    t.auto("Gaea's Blessing");
+    const theirs = T.grave('B', 'Craw Wurm'), mine = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    const ok = T.g.castSpell('A', T.hand('A', "Gaea's Blessing").id, { auto: true, targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: mine.id }] });
+    t.no(ok, 'a card from another graveyard is not theirs');
+    T.cast('A', T.hand('A', "Gaea's Blessing"), { targets: ['B', theirs] });
+    t.zone(theirs, 'library');
+    t.zone(mine, 'graveyard');
+  });
+
+  test('Audit: Teferi, Mage of Zhalfir keeps opponents to sorcery speed', (mk, t) => {
+    const T = mk();
+    t.auto('Teferi, Mage of Zhalfir');
+    T.bf('A', 'Teferi, Mage of Zhalfir');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    t.no(T.g.castSpell('B', bolt.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), 'not on your turn');
+  });
 };

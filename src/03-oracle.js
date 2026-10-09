@@ -1185,7 +1185,7 @@
     // Quandrix Command, Dwell on the Past: cards from a graveyard shuffled back
     { re: /^Target player shuffles up to (one|two|three|four|five) target cards from their graveyard into their library\.?$/i,
       make: (m) => ({ op: 'shuffleGraveCards', targets: [{ type: 'player' }].concat(Array.from({ length: num(m[1]) },
-        () => ({ type: 'card', zone: 'graveyard', filter: 'card', upTo: true, distinct: true }))) }) },
+        () => ({ type: 'card', zone: 'graveyard', filter: 'card', upTo: true, distinct: true, ownedByTargetPlayer: true }))) }) },
     // Gimli's Reckless Might: "fights up to one target creature you don't control"
     { re: /^(Target (?:attacking )?creature you control) fights up to one (target creature (?:you don'?t control|an opponent controls))\.?$/i,
       make: (m) => ({ op: 'fight', targets: [targetSpec(m[1]), Object.assign(targetSpec(m[2]), { upTo: true })] }) },
