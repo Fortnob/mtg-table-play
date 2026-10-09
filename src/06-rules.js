@@ -5976,6 +5976,15 @@
         const most = this._countValue(x.n, playerId, o);
         if ((opts.x || 0) > most) return this.fail(`X can't be greater than ${most} for ${o.name}.`);
       }
+      /* Kozilek, the Great Distortion: "Discard a card with mana value X:
+         Counter target spell with mana value X" — X is the mana value of the
+         spell chosen, and the card discarded has to match it */
+      if (opts.x == null && ab.cost && ab.cost.discard && /mana value X$/i.test(ab.cost.discard.filter || '') && !/\{X\}/.test(ab.cost.mana || '')) {
+        const st = (opts.targets || []).find(t => t && t.kind === 'stack');
+        const it = st && this.stack.find(x => x.id === st.id);
+        const sp = it && this.obj(it.objId);
+        if (sp) opts = Object.assign({}, opts, { x: (sp.card && sp.card.cmc) || 0 });
+      }
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
         this._specX = opts.x || 0;
@@ -6422,9 +6431,10 @@
         (/^(?:permanent|permanents)$/i.test(filter) || this._cardFitsWords(x, filter)));
     }
     /** The cards in hand a discard cost could take. */
-    _discardPool(pid, spec, self) {
+    _discardPool(pid, spec, self, opts) {
       const hand = ((this.zones[pid] || {}).hand || []).filter(c => !self || c.id !== self.id);
       const f = String((spec && spec.filter) || 'card');
+      if (/^(?:a )?card with mana value X$/i.test(f)) return hand.filter(c => ((c.card && c.card.cmc) || 0) === ((opts && opts.x) || 0));
       return /^(?:card|cards|a card)$/i.test(f) ? hand : hand.filter(c => this._cardFitsWords(c, f));
     }
     /** The cards in a graveyard an exile cost could take. */
@@ -6477,7 +6487,7 @@
       }
       if (cost.discard && cost.discard.n !== 'all') {
         const need = this._costCount(cost.discard.n, opts);
-        if (this._discardPool(pid, cost.discard, self).length < need) return 'Not enough cards in hand to discard.';
+        if (this._discardPool(pid, cost.discard, self, opts).length < need) return 'Not enough cards in hand to discard.';
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && !cost.exile.viaAbility) {
         const need = this._costCount(cost.exile.n, opts);
@@ -6556,7 +6566,7 @@
         if (pick) this._sacrificeNow(pid, pick, item);
       }
       if (cost.discard) {
-        const pool = this._discardPool(pid, cost.discard, self);
+        const pool = this._discardPool(pid, cost.discard, self, opts);
         const need = cost.discard.n === 'all' ? pool.length : Math.min(pool.length, this._costCount(cost.discard.n, opts));
         let pick = (opts.discardIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
         if (need > 0 && pick.length < need) {

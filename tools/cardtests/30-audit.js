@@ -1365,4 +1365,54 @@ module.exports = (test) => {
     t.eq(T.g.combat.attackers.length, 0);
     t.ok(T.g.turnHistory.attacked, 'it still attacked this turn');
   });
+
+  test('Audit: Kozilek, the Great Distortion counters a spell by discarding a card of the same mana value', (mk, t) => {
+    for (const withMatch of [true, false]) {
+      const T = mk();
+      t.auto('Kozilek, the Great Distortion');
+      const k = T.bf('A', 'Kozilek, the Great Distortion');
+      const bears = T.hand('A', 'Grizzly Bears');
+      const elf = withMatch ? T.hand('A', 'Llanowar Elves') : null;
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.mana('B', 'R');
+      T.g.passPriority('A', true);
+      T.cast('B', bolt, { targets: ['A'], resolve: false });
+      T.g.passPriority('B', true);
+      const ok = T.g.activateAbility('A', k.id, 0, { auto: true, targets: [T.stackTarget(bolt)] });
+      if (!withMatch) { t.no(ok, 'no card with mana value 1 to discard'); t.zone(bears, 'hand'); continue; }
+      t.ok(ok, T.g.lastError);
+      T.settle(); T.resolve();
+      t.zone(elf, 'graveyard'); t.zone(bears, 'hand');
+      t.zone(bolt, 'graveyard');
+      t.eq(T.life('A'), 20);
+    }
+  });
+
+  test("Audit: Hazoret's Monument discards first and only if you want to", (mk, t) => {
+    for (const yes of [false, true]) {
+      const T = mk();
+      t.auto("Hazoret's Monument");
+      T.bf('A', "Hazoret's Monument");
+      const keep = T.hand('A', 'Lightning Bolt');
+      T.top('A', 'Island');
+      T.answer('confirm', { yes });
+      T.mana('A', 'G1');
+      T.cast('A', T.hand('A', 'Grizzly Bears'));
+      if (!yes) { t.zone(keep, 'hand'); t.eq(T.zone('A', 'hand').length, 1, 'nothing drawn'); continue; }
+      t.zone(keep, 'graveyard');
+      t.eq(T.zone('A', 'hand').map(o => o.name).join(), 'Island');
+    }
+  });
+
+  test('Audit: Knuckles the Echidna needs thirty artifacts to win', (mk, t) => {
+    const T = mk();
+    t.auto('Knuckles the Echidna');
+    T.bf('A', 'Knuckles the Echidna');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Sol Ring');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.no(T.g.over, 'three artifacts are not thirty');
+    for (let i = 0; i < 27; i++) T.bf('A', 'Sol Ring');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(T.g.over || T.g.player('B').hasLost, 'thirty artifacts at upkeep');
+  });
 };

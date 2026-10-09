@@ -3906,8 +3906,8 @@
        spell suspended as it resolves */
     { re: /^Exile (?:CARDNAME|this spell|it) with (two|three|four|five|\d+) time counters on it\.?$/i,
       make: (m) => ({ op: 'suspendSelf', n: num(m[1]) }) },
-    { re: /^Attach (?:CARDNAME|it) to (target creature you control|target creature)\.?$/i,
-      make: () => ({ op: 'attachSelf' }) },
+    { re: /^Attach (CARDNAME|it) to (target creature you control|target creature)\.?$/i,
+      make: (m) => Object.assign({ op: 'attachSelf', targets: [targetSpec(m[2])] }, /^it$/i.test(m[1]) ? { attachIt: true } : {}) },
     { re: /^If that (?:creature|permanent)(?: or planeswalker)? would die this turn, exile it instead\.?$/i,
       make: () => ({ op: 'exileIfItDies' }) },
     // Yamabushi's Flame: "If a creature dealt damage this way would die this turn, exile it instead."
@@ -5420,7 +5420,7 @@
 
   // the engine works X out at resolution, so keep it as a marker here
   const BIG_WORDS = { eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16,
-    seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+    seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50 };
   function num(w) {
     const big = BIG_WORDS[String(w || '').trim().toLowerCase()];
     return big != null ? big : U.numWord(w, 'X');
@@ -5813,7 +5813,7 @@
       // Aethersphere Harvester: "This Vehicle gains lifelink" — a permanent talking about itself
       .replace(/^This (?:Vehicle|Spacecraft|permanent) (gains|gets|has) /, 'This creature $1 ')
       // "Each opponent mills fourteen cards": the big number words as digits
-      .replace(/\b(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/gi, (w) => String(BIG_WORDS[w.toLowerCase()]))
+      .replace(/\b(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)\b/gi, (w) => String(BIG_WORDS[w.toLowerCase()]))
       // Faith & Grief: "target artifact and/or enchantment cards" — either kind, as "or" says
       .replace(/\b(artifact|creature|enchantment|land|planeswalker|instant|sorcery|battle) and\/or (artifact|creature|enchantment|land|planeswalker|instant|sorcery|battle)( cards?\b)/gi, '$1 or $2$3')
       // Aurelia: "each of your opponents" is each opponent
@@ -6824,8 +6824,10 @@
     { re: /^[Yy]ou may reveal an? ([A-Za-z]+) card from your hand\. CARDNAME enters(?: the battlefield)? tapped unless you revealed an? [A-Za-z]+ card this way or you control an? ([A-Za-z]+)\.?$/i,
       make: (m) => [{ op: 'etbTappedUnlessReveal', types: [m[1].toLowerCase()],
         orControl: m[2].toLowerCase() }] },
+    /* Hazoret's Monument: the discard comes first and is up to you; nothing
+       is drawn without it */
     { re: /^You may discard a card\. If you do, draw a card\.?$/i,
-      make: () => [{ op: 'drawDiscard', n: 1, discard: 1 }] },
+      make: () => [{ op: 'may', then: [{ op: 'rummage' }] }] },
     { re: /^Target (opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
       make: (m) => [{ op: 'handAttack', filter: m[2].replace(/,/g, ' ').toLowerCase(),
         to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }] },
