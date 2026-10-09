@@ -7050,6 +7050,28 @@
 
       /* "Remove three spore counters from this": a cost paid out of the
          permanent's own counters. */
+      /* Glen Elendra Guardian: "Remove a counter from this creature" — any
+         kind; the ones that hold it back go first (-1/-1, stun, then the
+         rest), +1/+1 counters last */
+      if (cost.removeCounters && cost.removeCounters.kind === '*') {
+        const want = Number(cost.removeCounters.n) || 1;
+        const rank = (k) => (k === '-1/-1' ? 0 : k === 'stun' ? 1 : k === '+1/+1' ? 3 : 2);
+        const kinds = Object.keys(o.counters || {}).filter(k => (Number(o.counters[k]) || 0) > 0).sort((x, y) => rank(x) - rank(y));
+        const total = kinds.reduce((t, k) => t + (Number(o.counters[k]) || 0), 0);
+        if (total < want) return this.fail(`${o.name} does not have ${want === 1 ? 'a counter' : want + ' counters'} to remove.`);
+        let left = want;
+        const taken = [];
+        for (const k of kinds) {
+          if (!left) break;
+          const take = Math.min(left, Number(o.counters[k]) || 0);
+          o.counters[k] -= take; left -= take;
+          taken.push(`${take} ${k} counter${take === 1 ? '' : 's'}`);
+        }
+        this._lastRemovedCounters = want;
+        o._chr = null; this.bumpBoard();
+        this.logEvent('rules', `${taken.join(' and ')} removed from ${o.name}.`);
+        return true;
+      }
       if (cost.removeCounters) {
         const kind = String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim();
         const have = Number(o.counters[kind]) || 0;

@@ -346,6 +346,10 @@
       }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
+      // Glen Elendra Guardian, Loch Mare: "Remove a counter from this creature" — of any kind
+      if ((m = p.match(/^Remove (a|an|one|two|three|four|five|\d+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|enchantment|land))$/i))) {
+        cost.removeCounters = { n: WORDN(m[1]) || num(m[1]), kind: '*' }; continue;
+      }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
         // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
         cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11584,
+  "needed": 11575,
   "gainedCards": 1151,
-  "linesNeeded": 12434,
+  "linesNeeded": 12423,
   "linesGained": 1367,
   "gained": {
    "all": 1151,
@@ -1129,25 +1129,6 @@
     "Grave Defiler",
     "Enlistment Officer",
     "Lair Delve"
-   ]
-  },
-  {
-   "what": "RemoveCountersSourceCost",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Glen Elendra Guardian",
-    "Gwen Stacy // Ghost-Spider",
-    "Flitterwing Nuisance",
-    "The Duke, Rebel Sentry",
-    "Reaping Willow",
-    "Loch Mare",
-    "Moonlit Lamenter",
-    "Slumbering Walker",
-    "Burdened Stoneback",
-    "Brambleback Brute",
-    "Gnarlbark Elm",
-    "Hovel Hurler"
    ]
   },
   {
@@ -6788,6 +6769,16 @@
     "Fury Charm",
     "Venser's Diffusion"
    ]
+  },
+  {
+   "what": "PersistAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Cauldron of Souls",
+    "Dusk Legion Sergeant",
+    "Cauldron Haze"
+   ]
   }
  ],
  "sole": [
@@ -7459,19 +7450,6 @@
     "Nimble Hobbit",
     "Thrull Wizard",
     "Bullseye, Death Dealer"
-   ]
-  },
-  {
-   "what": "RemoveCountersSourceCost",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Glen Elendra Guardian",
-    "Flitterwing Nuisance",
-    "The Duke, Rebel Sentry",
-    "Reaping Willow",
-    "Loch Mare",
-    "Moonlit Lamenter"
    ]
   },
   {
@@ -10514,6 +10492,17 @@
     "Magus of the Vineyard",
     "Eladamri's Vineyard",
     "Cheering Crowd"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Vihaan, Goldwaker",
+    "Natural Affinity",
+    "Kormus Bell",
+    "Ambush Commander"
    ]
   }
  ]

@@ -14855,4 +14855,22 @@ module.exports = (test) => {
     t.ok(a.zone === 'battlefield' && b.zone === 'battlefield', 'both creatures stay');
     t.eq([x, y].filter(o => o.zone === 'battlefield').length, 1, 'one Mox goes');
   });
+  test('Moonlit Lamenter: "Remove a counter from this creature" takes the -1/-1 counter first', (mk, t) => {
+    t.auto('Moonlit Lamenter');
+    t.auto('Glen Elendra Guardian');
+    t.auto('Loch Mare');
+    const T = mk();
+    T.toMain('A');
+    const ml = T.bf('A', 'Moonlit Lamenter', { counters: { '-1/-1': 1, '+1/+1': 1 } });
+    T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    const all = ml.analysis().manaAbilities.concat(ml.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const idx = all.findIndex(a => a.cost && a.cost.removeCounters);
+    T.mana('A', '1W');
+    T.activate('A', ml, idx);
+    T.resolve();
+    t.eq(ml.counters['-1/-1'] || 0, 0, 'the -1/-1 counter came off');
+    t.eq(ml.counters['+1/+1'], 1, 'the +1/+1 counter stayed');
+    t.eq(T.zone('A', 'hand').length, h + 1, 'a card drawn');
+  });
 };
