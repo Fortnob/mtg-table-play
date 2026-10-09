@@ -1267,6 +1267,11 @@
     // Metallurgic Summonings: "Return all instant and sorcery cards from your graveyard to your hand."
     { re: /^Return all ([a-z]+(?: and [a-z]+)?) cards from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'regrowthAll', filter: m[1].toLowerCase().replace(/ and /, ' or ') }) },
+    // Dawn: "Return all creature cards with power 2 or less from your graveyard to your hand."
+    { re: /^Return all ([a-z]+) cards with power (\d+) or less from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'regrowthAll', filter: m[1].toLowerCase(), maxPower: +m[2] }) },
+    // Etali, Primal Sickness: "they get that many poison counters"
+    { re: /^(?:They|That player) gets? that many poison counters\.?$/i, make: () => ({ op: 'poison', n: 'triggerAmount', who: 'triggerPlayer' }) },
     // Open the Vaults: from every graveyard, under their owners' control
     { re: /^Return all ([a-z]+(?: and [a-z]+)?) cards from all graveyards to the battlefield under their owners'? control\.?$/i,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ and /, ' or '), yours: false }) },
@@ -5452,6 +5457,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Anim Pakal: "put a +1/+1 counter on Anim Pakal, then create X 1/1 … tapped and attacking, where X is …"
+    { re: /^Put a \+1\/\+1 counter on (?:CARDNAME|Anim Pakal), then (create [\s\S]+)$/i,
+      make: (m) => { const rest = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return rest.auto ? [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }, ...rest.effects] : null; } },
+    // Sephiroth, One-Winged Angel: "you may sacrifice any number of other creatures. If you do, draw that many cards."
+    { re: /^(?:You may )?sacrifice any number of other creatures\. If you do, draw that many cards\.$/i,
+      make: () => [{ op: 'sacrificeAnyNumber', filter: 'creature', other: true }, { op: 'draw', who: 'you', n: { lastSacCount: true, mult: 1 } }] },
     /* Promise of Loyalty: "Each player puts a vow counter on a creature they
        control and sacrifices the rest. Each of those creatures can't attack
        you or planeswalkers you control for as long as it has a vow counter on
@@ -7911,6 +7922,8 @@
     { re: /^Whenever you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // Anim Pakal: "Whenever you attack with one or more non-Gnome creatures"
+    { re: /^Whenever you attack with one or more non-([A-Z][a-z]+) creatures,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
     { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },

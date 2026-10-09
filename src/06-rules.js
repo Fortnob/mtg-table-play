@@ -10683,6 +10683,8 @@
           if (ab.minAttackers && ((this.combat && this.combat.attackers) || []).length < ab.minAttackers) continue;
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
+          // Anim Pakal: at least one attacker that isn't a Gnome
+          if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
@@ -17349,7 +17351,12 @@
         }
         // Metallurgic Summonings: every card of a kind from your graveyard to your hand
         case 'regrowthAll': {
-          for (const c of this.zones[ctx.controller].graveyard.slice()) if (this._cardFitsWords(c, e.filter)) this.moveObject(c, 'hand');
+          for (const c of this.zones[ctx.controller].graveyard.slice()) {
+            if (!this._cardFitsWords(c, e.filter)) continue;
+            // Dawn: "with power 2 or less"
+            if (e.maxPower != null && !((parseInt((c.card || {}).power, 10) || 0) <= e.maxPower)) continue;
+            this.moveObject(c, 'hand');
+          }
           break;
         }
         // Brass Squire: an Equipment of yours onto a creature of yours
@@ -17835,7 +17842,9 @@
         case 'sacrificeAnyNumber': {
           this._lastSacrificed = [];
           this._lastSacCount = 0;
-          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'permanent'));
+          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'permanent') &&
+            // Sephiroth: "other creatures"
+            !(e.other && src && x.id === src.id));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'sacrificeAnyNumber', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 0, max: pool.length,

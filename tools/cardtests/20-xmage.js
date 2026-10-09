@@ -12010,4 +12010,19 @@ module.exports = (test) => {
     t.eq(a2.zone, 'graveyard'); t.eq(b2.zone, 'graveyard'); t.eq(b1.counters.vow, 1);
     t.ok(T.g._cantAttackYou(b1, 'A'), "the Wurm can't attack A");
   });
+
+  test('Anim Pakal makes attacking Gnomes; Dawn returns small creature cards', (mk, t) => {
+    t.auto('Anim Pakal, Thousandth Moon'); t.auto('Dusk // Dawn');
+    const T = mk();
+    T.bf('A', 'Anim Pakal, Thousandth Moon');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    const gn = T.g.battlefield.filter(o => o.isToken && /Gnome/.test(o.name));
+    t.eq(gn.length, 1, 'one Gnome'); t.eq(T.life('B'), 20 - 2 - 1, 'the Bears and the Gnome');
+    const T2 = mk();
+    const s1 = T2.grave('A', 'Grizzly Bears'), s2 = T2.grave('A', 'Craw Wurm');
+    T2.g._runEffects([{ op: 'regrowthAll', filter: 'creature', maxPower: 2 }], { controller: 'A', name: 'Dawn', kind: 'spell' });
+    t.eq(s1.zone, 'hand'); t.eq(s2.zone, 'graveyard', 'power 6 stays');
+  });
 };

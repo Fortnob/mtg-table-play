@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31818,
   "skippedLayout": 21,
-  "needed": 12378,
+  "needed": 12375,
   "gainedCards": 1348,
-  "linesNeeded": 13489,
+  "linesNeeded": 13485,
   "linesGained": 1607,
   "gained": {
    "all": 1348,
@@ -33,12 +33,11 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4420,
-   "lines": 4105,
+   "score": 4406,
+   "lines": 4103,
    "cards": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
-    "Etali, Primal Conqueror // Etali, Primal Sickness",
     "Mechanized Production",
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -47,7 +46,8 @@
     "Lethal Scheme",
     "Wandering Archaic // Explore the Vastlands",
     "Valgavoth, Terror Eater",
-    "Vraska, Betrayal's Sting"
+    "Vraska, Betrayal's Sting",
+    "Agatha's Soul Cauldron"
    ]
   },
   {
@@ -447,25 +447,6 @@
     "Haunt the Network",
     "Beastie Beatdown",
     "Fatal Fissure"
-   ]
-  },
-  {
-   "what": "attack with a kind of creature",
-   "score": 26,
-   "lines": 17,
-   "cards": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance",
-    "Witch-king, Sky Scourge",
-    "Jocasta, Automaton Avenger"
    ]
   },
   {
@@ -917,6 +898,25 @@
     "Painwracker Oni",
     "Fires of Victory",
     "Gutwrencher Oni"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge",
+    "Jocasta, Automaton Avenger",
+    "Mordor Trebuchet"
    ]
   },
   {
@@ -2955,18 +2955,6 @@
     "Tireless Angler",
     "Ishkanah, Broodmother",
     "Faithful Disciple"
-   ]
-  },
-  {
-   "what": "keyword AftermathAbility",
-   "score": 8,
-   "lines": 5,
-   "cards": [
-    "Dusk // Dawn",
-    "Indulge // Excess",
-    "Rags // Riches",
-    "Failure // Comply",
-    "Reduce // Rubble"
    ]
   },
   {
@@ -7048,20 +7036,31 @@
     "Imagecrafter",
     "Mistform Mutant"
    ]
+  },
+  {
+   "what": "ExileGraveyardAllPlayersEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Calamity's Wake",
+    "Sanctifier en-Vec",
+    "Silent Gravestone",
+    "Ultimate Nullification"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3618,
-   "cards": 3414,
+   "score": 3614,
+   "cards": 3413,
    "names": [
     "Tibalt's Trickery",
     "Springheart Nantuko",
-    "Etali, Primal Conqueror // Etali, Primal Sickness",
     "Mechanized Production",
     "Marvin, Murderous Mimic",
-    "Wheel of Misfortune"
+    "Wheel of Misfortune",
+    "Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel"
    ]
   },
   {
@@ -7218,19 +7217,6 @@
     "Lozhan, Dragons' Legacy",
     "Ragost, Deft Gastronaut",
     "Press the Enemy"
-   ]
-  },
-  {
-   "what": "attack with a kind of creature",
-   "score": 24,
-   "cards": 15,
-   "names": [
-    "Anim Pakal, Thousandth Moon",
-    "Ainok Strike Leader",
-    "Alibou, Ancient Witness",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd"
    ]
   },
   {
@@ -7529,6 +7515,19 @@
     "Fire Nation Turret",
     "Iroh, Dragon of the West",
     "Fire Nation Cadets"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Ainok Strike Leader",
+    "Alibou, Ancient Witness",
+    "The Earth King",
+    "Choco, Seeker of Paradise",
+    "Fangorn, Tree Shepherd",
+    "Jolene, Plundering Pugilist"
    ]
   },
   {
@@ -8426,18 +8425,6 @@
     "Experimental Pilot",
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter"
-   ]
-  },
-  {
-   "what": "keyword AftermathAbility",
-   "score": 8,
-   "cards": 5,
-   "names": [
-    "Dusk // Dawn",
-    "Indulge // Excess",
-    "Rags // Riches",
-    "Failure // Comply",
-    "Reduce // Rubble"
    ]
   },
   {
@@ -10816,6 +10803,17 @@
     "Saheeli's Lattice // Mastercraft Raptor",
     "Pallimud",
     "Haunting Apparition"
+   ]
+  },
+  {
+   "what": "MultipliedValue of \"X\"",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Nuclear Fallout",
+    "Thassa's Intervention",
+    "Increasing Confusion",
+    "Stonesplitter Bolt"
    ]
   }
  ]
