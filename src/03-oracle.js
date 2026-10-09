@@ -2354,6 +2354,9 @@
         const one = m[1].replace(/s$/, '');
         return { op: 'exchangeControl', targets: [targetSpec('target ' + one), targetSpec('another target ' + one)] };
       } },
+    // Avarice Totem, Eyes Everywhere: "Exchange control of this artifact and target nonland permanent." (withSelf)
+    { re: /^Exchange control of (?:this (?:artifact|enchantment|creature|permanent)|CARDNAME) and (target [a-z ]+?)\.?$/i,
+      make: (m) => { const b = targetSpec(m[1]); return b && !b.unknown ? { op: 'exchangeControl', withSelf: true, targets: [b] } : null; } },
     /* Oko, Thief of Crowns: "Exchange control of target artifact or
        creature you control and target creature an opponent controls with
        power 3 or less." */

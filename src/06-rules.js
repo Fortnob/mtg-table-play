@@ -14101,7 +14101,8 @@
         /* Switcheroo: "Exchange control of two target creatures." Both
            change hands at once, or neither does (CR 701.12b). */
         case 'exchangeControl': {
-          const pair = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && x.zone === 'battlefield');
+          // Avarice Totem: this permanent and the one targeted (withSelf)
+          const pair = (e.withSelf ? [src] : []).concat(targets.filter(t => t.kind === 'object').map(t => this.obj(t.id))).filter(x => x && x.zone === 'battlefield');
           if (pair.length !== 2 || pair[0].controller === pair[1].controller) {
             this.logEvent('control', 'Nothing changes hands.');
             break;

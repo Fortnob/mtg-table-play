@@ -16308,4 +16308,17 @@ module.exports = (test) => {
     T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
     t.zone(bear, 'exile', 'exiled at the end step');
   });
+
+  test('Avarice Totem: exchange control of this artifact and target nonland permanent', (mk, t) => {
+    t.auto('Avarice Totem');
+    t.auto('Eyes Everywhere');
+    t.auto('Phyrexian Infiltrator');
+    const T = mk();
+    T.toMain('A');
+    const totem = T.bf('A', 'Avarice Totem'), giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'CCCCC');
+    T.activate('A', totem, 0, { targets: [giant] });
+    t.eq(giant.controller, 'A', "the Giant is A's");
+    t.eq(totem.controller, 'B', "the Totem is B's");
+  });
 };

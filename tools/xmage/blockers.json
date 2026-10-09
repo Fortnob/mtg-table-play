@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11335,
+  "needed": 11332,
   "gainedCards": 1130,
-  "linesNeeded": 12133,
+  "linesNeeded": 12130,
   "linesGained": 1337,
   "gained": {
    "all": 1130,
@@ -4678,18 +4678,6 @@
    ]
   },
   {
-   "what": "ExchangeControlTargetEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Eyes Everywhere",
-    "Avarice Totem",
-    "Visions of Duplicity",
-    "Shrewd Negotiation",
-    "Phyrexian Infiltrator"
-   ]
-  },
-  {
    "what": "token ability VibraniumToken",
    "score": 5,
    "lines": 5,
@@ -6671,6 +6659,16 @@
     "Lantern of Insight",
     "Soldier of Fortune",
     "Boggart Forager"
+   ]
+  },
+  {
+   "what": "CorruptedCondition.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "The Seedcore",
+    "Zealot's Conviction",
+    "Ravenous Necrotitan"
    ]
   }
  ],
@@ -9571,18 +9569,6 @@
    ]
   },
   {
-   "what": "ExchangeControlTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Eyes Everywhere",
-    "Avarice Totem",
-    "Visions of Duplicity",
-    "Shrewd Negotiation",
-    "Phyrexian Infiltrator"
-   ]
-  },
-  {
    "what": "token ability VibraniumToken",
    "score": 5,
    "cards": 5,
@@ -10370,6 +10356,17 @@
     "Flamebreak",
     "Time Bomb",
     "Borrowing the East Wind"
+   ]
+  },
+  {
+   "what": "CardLeftYourGraveyardThisTurnCondition.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Gau, Feral Youth",
+    "Relic Retriever",
+    "Primary Research",
+    "Living History"
    ]
   }
  ]
