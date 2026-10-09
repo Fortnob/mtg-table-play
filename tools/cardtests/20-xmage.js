@@ -12037,4 +12037,18 @@ module.exports = (test) => {
     console.warn = warn;
     t.no(threw, 'no exception'); t.ok(a && a.unreadable && !a.fullyAutomated, 'marked unreadable, for a person');
   });
+
+  test('Lethal Scheme: each creature that convoked it connives; Mechanized Production', (mk, t) => {
+    t.auto('Lethal Scheme'); t.auto('Mechanized Production');
+    const T = mk();
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Savannah Lions');
+    const foe = T.bf('B', 'Craw Wurm');
+    T.answer('choose', (ch) => ({ picks: ch.items.slice(0, 1).map(x => x.id) }));
+    T.answer('choose', (ch) => ({ picks: ch.items.slice(0, 1).map(x => x.id) }));
+    T.mana('A', 'BB');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Lethal Scheme').id, { targets: [foe.id], convokeIds: [b1.id, b2.id] }), T.g.lastError);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(foe.zone, 'graveyard'); t.ok(b1.tapped && b2.tapped, 'both convoked');
+    t.eq(T.g.log.filter(l => / connives\./.test(l.text || '')).length, 2, 'each connived');
+  });
 };

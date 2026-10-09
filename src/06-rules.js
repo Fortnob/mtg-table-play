@@ -3049,6 +3049,8 @@
     /** Pay with a checked plan, or (with none) with the cheapest things there are. */
     _payReduction(pid, o, plan) {
       const p = this.player(pid);
+      // Lethal Scheme: the creatures that convoked it
+      o._convokers = [];
       if (plan) {
         if (plan.exile.length) {
           for (const c of plan.exile) this.moveObject(c, 'exile');
@@ -3056,6 +3058,7 @@
         }
         const taps = plan.tap.filter(x => x.zone === 'battlefield' && !x.tapped);
         for (const x of taps) this._markTapped(x);
+        o._convokers = taps.filter(x => (this.characteristics(x) || {}).isCreature).map(x => x.id);
         if (taps.length) this.logEvent('rules', `${p.name} taps ${taps.map(x => x.name).join(', ')} to pay for ${o.name}.`);
         return;
       }
@@ -3073,6 +3076,7 @@
         if (!r.cr[kw] || left <= 0) continue;
         const pool = cheap(this._reductionCandidates(pid, o, kw)).slice(0, left);
         for (const x of pool) this._markTapped(x);
+        if (kw === 'convoke') o._convokers = o._convokers.concat(pool.map(x => x.id));
         if (pool.length) this.logEvent('rules', `${p.name} taps ${pool.map(x => x.name).join(', ')} to ${kw}.`);
         left -= pool.length;
       }
@@ -8895,6 +8899,13 @@
           const mine = stat(p);
           return this.players.filter(q => q !== p && !q.hasLost).every(q => stat(q) < mine);
         }
+        // Mechanized Production: eight or more artifacts of yours with one name
+        case 'sameNameArtifacts': {
+          if (!me) return false;
+          const k = new Map();
+          for (const o of this.battlefield) if (o.controller === me.id && !o.phasedOut && (o.analysis() || {}).isArtifact) k.set(o.name, (k.get(o.name) || 0) + 1);
+          return [...k.values()].some(v => v >= (cond.n || 8));
+        }
         // Moraug: "if it's your main phase"
         case 'yourMainPhase': return !!me && !!this.activePlayer && this.activePlayer.id === me.id && !!this.phase && /^(?:precombat|postcombat)$/.test(this.phase.id);
         case 'triggerObjNotCastFromHand': {
@@ -12669,7 +12680,8 @@
         case 'connive': {
           const count = n(e.n) || 1;
           const who = this.player(ctx.controller);
-          const x = e.scope === 'self' ? src
+          // (Lethal Scheme: a creature named by id, conniving for its controller)
+          const x = e.objId ? this.obj(e.objId) : e.scope === 'self' ? src
             : (targets[0] && targets[0].kind === 'object' && this.obj(targets[0].id)) || src;
           if (!who) break;
           /* Draw, then discard as many — the player picks which (the draw is kept
@@ -14793,6 +14805,12 @@
             const rest = this.battlefield.filter(y => y !== x && y.controller === q.id && !y.phasedOut && (this.characteristics(y) || {}).isCreature);
             if (rest.length) this._sacrificeNow(q.id, rest, null);
           }
+          break;
+        }
+        // Lethal Scheme: each creature that convoked it connives
+        case 'conniveConvokers': {
+          const list = ((src && src._convokers) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield');
+          this._spliceNext(list.map(x => ({ op: 'connive', n: 1, objId: x.id, _as: x.controller })));
           break;
         }
         // Mordenkainen: hand and library change places

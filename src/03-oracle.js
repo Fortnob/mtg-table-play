@@ -5457,6 +5457,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Lethal Scheme: "Destroy target creature or planeswalker. Each creature that convoked this spell connives."
+    { re: /^([^.]+\.) Each creature that convoked this spell connives\.$/i,
+      make: (m) => { const pre = parseSentenceList(splitSentences(m[1])); return pre.auto ? [...pre.effects, { op: 'conniveConvokers' }] : null; } },
+    /* Mechanized Production: "create a token that's a copy of enchanted
+       artifact. Then if you control eight or more artifacts with the same
+       name as one another, you win the game." */
+    { re: /^Create a token that'?s a copy of enchanted artifact\. Then if you control (\w+) or more artifacts with the same name as one another, you win the game\.$/i,
+      make: (m) => [{ op: 'copyPermanent', n: 1, of: 'attached', grant: [] },
+        { op: 'ifCond', cond: { kind: 'sameNameArtifacts', n: num(m[1]) }, then: [{ op: 'winGame' }] }] },
     // Anim Pakal: "put a +1/+1 counter on Anim Pakal, then create X 1/1 … tapped and attacking, where X is …"
     { re: /^Put a \+1\/\+1 counter on (?:CARDNAME|Anim Pakal), then (create [\s\S]+)$/i,
       make: (m) => { const rest = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return rest.auto ? [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }, ...rest.effects] : null; } },
