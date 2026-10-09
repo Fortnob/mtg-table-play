@@ -14946,4 +14946,33 @@ module.exports = (test) => {
     T.resolve();
     t.zone(elves, 'battlefield', 'the Elves (mana value 1) cast free off a 2-drop');
   });
+  test('Ulvenwald Observer: a creature of yours with toughness 4 or greater dies, draw', (mk, t) => {
+    t.auto('Ulvenwald Observer');
+    t.auto('Teysa, Envoy of Ghosts');
+    t.auto('Stone Haven Outfitter');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Ulvenwald Observer');
+    const bear = T.bf('A', 'Grizzly Bears'), wurm = T.bf('A', 'Craw Wurm');
+    T.top('A', 'Island'); T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h, 'toughness 2: nothing');
+    T.g.moveObject(wurm, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 1, 'toughness 4: a card');
+  });
+  test('Stone Haven Outfitter: an equipped creature of yours dies, draw', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Stone Haven Outfitter');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    const sw = T.bf('A', 'Short Sword');
+    sw.attachedTo = bear.id; bear.attachments = [sw.id];
+    T.top('A', 'Island'); T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.g.moveObject(elf, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h, 'not equipped: nothing');
+    T.g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 1, 'equipped as it died: a card');
+  });
 };

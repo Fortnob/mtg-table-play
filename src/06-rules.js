@@ -10458,6 +10458,8 @@
         if (i >= 0) this.battlefield.splice(i, 1);
         // detach
         for (const aid of o.attachments.slice()) { const at = this.obj(aid); if (at) at.attachedTo = null; }
+        // Stone Haven Outfitter: "whenever an equipped creature you control dies" — what it had on it as it went
+        o._lastAttachments = o.attachments.slice();
         o.attachments = [];
         if (o.attachedTo) {
           const host = this.obj(o.attachedTo);
@@ -21469,7 +21471,7 @@
         if (w === 'goaded') return o.goadedBy != null || (!!o.attacking && o._goadedAttack === this.turn);
         if (w === 'blocking') return !!(o.blocking || []).length;
         // Jor Kadeen: "equipped creatures you control"
-        if (w === 'equipped') return (o.attachments || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
+        if (w === 'equipped') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
         if (w === 'tapped') return !!o.tapped;
         if (w === 'untapped') return !o.tapped;
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it
@@ -21518,8 +21520,12 @@
       if (f.words && !this._cardFitsWords(asWas, f.words)) return false;
       if (f.chosenType && !(src && this._hasCreatureType(x, src.chosenType))) return false;
       if (f.chosenName && !this._chosenNameOf(src, x)) return false;
+      // Circle of Affliction: "a source of the chosen color"
+      if (f.chosenColor && !(src && src.chosenColor && ((x.analysis() || {}).colors || []).includes(src.chosenColor))) return false;
       if (f.minPower != null && this.powerOf(x) < f.minPower) return false;
       if (f.maxPower != null && this.powerOf(x) > f.maxPower) return false;
+      if (f.minToughness != null && this.toughnessOf(x) < f.minToughness) return false;
+      if (f.maxToughness != null && this.toughnessOf(x) > f.maxToughness) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11546,
+  "needed": 11541,
   "gainedCards": 1146,
-  "linesNeeded": 12389,
+  "linesNeeded": 12380,
   "linesGained": 1361,
   "gained": {
    "all": 1146,
@@ -1721,23 +1721,6 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
-   ]
-  },
-  {
-   "what": "EquippedPredicate.instance",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Cloud, Ex-SOLDIER",
-    "Nahiri, Forged in Fury",
-    "Dáin Ironfoot",
-    "Barret Wallace",
-    "Stone Haven Outfitter",
-    "Syr Gwyn, Hero of Ashvale",
-    "Nazahn, Revered Bladesmith",
-    "Item Shopkeep",
-    "Swordsman, Sharp Scoundrel",
-    "Hemlock Vial"
    ]
   },
   {
@@ -3548,6 +3531,19 @@
    ]
   },
   {
+   "what": "EquippedPredicate.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Cloud, Ex-SOLDIER",
+    "Nahiri, Forged in Fury",
+    "Dáin Ironfoot",
+    "Barret Wallace",
+    "Item Shopkeep",
+    "Hemlock Vial"
+   ]
+  },
+  {
    "what": "AttacksIfAbleAllEffect",
    "score": 6,
    "lines": 6,
@@ -4221,18 +4217,6 @@
     "Shirei, Shizo's Caretaker",
     "Edea, Possessed Sorceress",
     "Nihiloor"
-   ]
-  },
-  {
-   "what": "DealsDamageToYouAllTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "The Cabbage Merchant",
-    "Strixhaven Stadium",
-    "Teysa, Envoy of Ghosts",
-    "Contested War Zone",
-    "Hixus, Prison Warden"
    ]
   },
   {
@@ -6459,6 +6443,16 @@
     "Tandem Lookout",
     "Mirage Phalanx",
     "Breathkeeper Seraph"
+   ]
+  },
+  {
+   "what": "DealsDamageToYouAllTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "The Cabbage Merchant",
+    "Contested War Zone",
+    "Hixus, Prison Warden"
    ]
   },
   {
@@ -9464,18 +9458,6 @@
    ]
   },
   {
-   "what": "EquippedPredicate.instance",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Nahiri, Forged in Fury",
-    "Barret Wallace",
-    "Stone Haven Outfitter",
-    "Item Shopkeep",
-    "Hemlock Vial"
-   ]
-  },
-  {
    "what": "CastAsThoughItHadFlashIfConditionAbility",
    "score": 5,
    "cards": 5,
@@ -9545,6 +9527,18 @@
     "Cosmium Confluence",
     "Riveteers Confluence",
     "Obscura Confluence"
+   ]
+  },
+  {
+   "what": "AttachTargetToTargetEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Raubahn, Bull of Ala Mhigo",
+    "Barret, Avalanche Leader",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Swordsman, Sharp Scoundrel"
    ]
   },
   {
@@ -10040,17 +10034,6 @@
    ]
   },
   {
-   "what": "DealsDamageToYouAllTriggeredAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "The Cabbage Merchant",
-    "Teysa, Envoy of Ghosts",
-    "Contested War Zone",
-    "Hixus, Prison Warden"
-   ]
-  },
-  {
    "what": "CantAttackYouUnlessPayAllEffect",
    "score": 4,
    "cards": 4,
@@ -10400,6 +10383,17 @@
     "Avatar of Slaughter",
     "Goblin Diplomats",
     "Hellraiser Goblin"
+   ]
+  },
+  {
+   "what": "EquippedPredicate.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Nahiri, Forged in Fury",
+    "Barret Wallace",
+    "Item Shopkeep",
+    "Hemlock Vial"
    ]
   },
   {

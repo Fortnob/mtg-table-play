@@ -8664,7 +8664,9 @@
     'nonbasic', 'white', 'blue', 'black', 'red', 'green', 'colorless', 'multicolored', 'or', 'and/or',
     'equipment', 'aura', 'vehicle', 'nonlegendary', 'goaded', 'modified',
     // Gorgon Recluse: "a nonblack creature"
-    'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen']);
+    'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen',
+    // Nahiri, Forged in Fury: "an equipped creature you control"
+    'equipped']);
   function subjectFilter(raw) {
     let p = String(raw || '').trim();
     const f = {};
@@ -8694,6 +8696,10 @@
       p = who(p);
       if ((m = p.match(/ with power (\d+) or (greater|more|less)$/))) {
         if (/less/.test(m[2])) f.maxPower = +m[1]; else f.minPower = +m[1];
+        p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with toughness (\d+) or (greater|more|less)$/))) {
+        // Ulvenwald Observer: "a creature you control with toughness 4 or greater"
+        if (/less/.test(m[2])) f.maxToughness = +m[1]; else f.minToughness = +m[1];
         p = p.slice(0, m.index);
       } else if ((m = p.match(/ with (?:mana value|converted mana cost) (\d+) or (greater|more)$/))) {
         f.minMv = +m[1]; p = p.slice(0, m.index);
@@ -8856,9 +8862,22 @@
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
     { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
     { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
+    // The Cabbage Merchant, Teysa: "Whenever a creature deals combat damage to you"
+    { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
+      filt: (m) => ({ words: m[1].toLowerCase() }), extra: { combatOnly: true } },
     // No Mercy, Mikaeus: "Whenever a creature deals damage to you"
     { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals damage to you,/i, event: 'youDealtDamage', aboutObject: true,
-      filt: (m) => ({ words: m[1].toLowerCase() }) },
+      filt: (m) => {
+        // Retaliator Griffin: "a source an opponent controls" — any spell or permanent, by who controls it
+        let w = m[1].toLowerCase();
+        const f = {};
+        const c = w.match(/ (you control|an opponent controls)$/);
+        if (c) { f.who = /^you/.test(c[1]) ? 'you' : 'opponent'; w = w.slice(0, c.index); }
+        if (/ of the chosen colou?r$/.test(w)) { f.chosenColor = true; w = w.replace(/ of the chosen colou?r$/, ''); }
+        w = w.replace(/^source$/, '').trim();
+        if (w) f.words = w;
+        return f;
+      } },
     // City of Traitors: "When you play another land"
     // The Endstone: "Whenever you play a land or cast a spell, draw a card."
     { re: /^Whenever you play a land or cast a spell,/i, event: 'youPlayLand', also: 'youCastSpell' },
