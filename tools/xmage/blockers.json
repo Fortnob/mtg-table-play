@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11617,
-  "gainedCards": 1161,
-  "linesNeeded": 12475,
-  "linesGained": 1380,
+  "needed": 11595,
+  "gainedCards": 1152,
+  "linesNeeded": 12451,
+  "linesGained": 1368,
   "gained": {
-   "all": 1161,
-   "top2000": 48,
-   "stdTop": 9
+   "all": 1152,
+   "top2000": 46,
+   "stdTop": 8
   },
   "compare": {
    "same": 0,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4261,
-   "lines": 4000,
+   "score": 4260,
+   "lines": 3999,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 666,
-   "lines": 666,
+   "score": 665,
+   "lines": 665,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -146,8 +146,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 162,
-   "lines": 156,
+   "score": 161,
+   "lines": 155,
    "cards": [
     "Likeness Looter",
     "Silkguard",
@@ -1554,24 +1554,6 @@
    ]
   },
   {
-   "what": "prevent damage by some permanents",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Haze Frog",
-    "Fog of War",
-    "Hindervines",
-    "Snag",
-    "Hunter's Ambush",
-    "Inspire Awe",
-    "Tanglesap",
-    "Frontline Strategist",
-    "Harmless Assault",
-    "Vine Snare",
-    "Radiant Kavu"
-   ]
-  },
-  {
    "what": "ConditionalContinuousRuleModifyingEffect",
    "score": 11,
    "lines": 11,
@@ -2378,6 +2360,22 @@
    ]
   },
   {
+   "what": "prevent damage by some permanents",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Haze Frog",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush",
+    "Inspire Awe",
+    "Tanglesap",
+    "Frontline Strategist",
+    "Harmless Assault",
+    "Radiant Kavu"
+   ]
+  },
+  {
    "what": "filter:snow",
    "score": 9,
    "lines": 9,
@@ -2893,21 +2891,6 @@
     "Gruesome Scourger",
     "Final Strike",
     "Eternal Flame"
-   ]
-  },
-  {
-   "what": "CantAttackBlockAttachedEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Faith's Fetters",
-    "Realmbreaker's Grasp",
-    "Heliod's Punishment",
-    "Bound in Gold",
-    "Intercessor's Arrest",
-    "Hold for Ransom",
-    "Revoke Privileges",
-    "Serra Bestiary"
    ]
   },
   {
@@ -3792,19 +3775,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByMoreThanOneAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Flopsie, Bumi's Buddy",
-    "Michelangelo, Mutant BFF",
-    "Familiar Ground",
-    "Battlefront Krushok",
-    "Rocksteady, Crash Courser",
-    "Yuan Shao, the Indecisive"
-   ]
-  },
-  {
    "what": "PreventDamageAndRemoveCountersEffect",
    "score": 6,
    "lines": 6,
@@ -4179,6 +4149,19 @@
     "Kudzu",
     "Steam Vines",
     "Orcish Mine"
+   ]
+  },
+  {
+   "what": "CantAttackBlockAttachedEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Heliod's Punishment",
+    "Bound in Gold",
+    "Intercessor's Arrest",
+    "Hold for Ransom",
+    "Revoke Privileges",
+    "Serra Bestiary"
    ]
   },
   {
@@ -5843,6 +5826,17 @@
    ]
   },
   {
+   "what": "CantBeBlockedByMoreThanOneAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Flopsie, Bumi's Buddy",
+    "Michelangelo, Mutant BFF",
+    "Battlefront Krushok",
+    "Rocksteady, Crash Courser"
+   ]
+  },
+  {
    "what": "keyword CraftAbility",
    "score": 4,
    "lines": 4,
@@ -5969,17 +5963,6 @@
     "Relic Retriever",
     "Primary Research",
     "Living History"
-   ]
-  },
-  {
-   "what": "filter:historic",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "What Must Be Done",
-    "Lost to Legend",
-    "Tegan Jovanka",
-    "Guardians of Koilos"
    ]
   },
   {
@@ -6802,13 +6785,23 @@
     "Lily Bowen, Raging Grandma",
     "Paradox Zone"
    ]
+  },
+  {
+   "what": "ExploreSourceEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Amalia Benavides Aguirre",
+    "Jadelight Spelunker",
+    "Deepfathom Echo"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3539,
-   "cards": 3359,
+   "score": 3538,
+   "cards": 3358,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6846,8 +6839,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 141,
-   "cards": 135,
+   "score": 140,
+   "cards": 134,
    "names": [
     "Likeness Looter",
     "Silkguard",
@@ -7541,19 +7534,6 @@
    ]
   },
   {
-   "what": "prevent damage by some permanents",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Haze Frog",
-    "Fog of War",
-    "Hindervines",
-    "Snag",
-    "Hunter's Ambush",
-    "Inspire Awe"
-   ]
-  },
-  {
    "what": "PreventNextDamageFromChosenSourceEffect",
    "score": 11,
    "cards": 11,
@@ -7926,6 +7906,19 @@
    ]
   },
   {
+   "what": "prevent damage by some permanents",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Haze Frog",
+    "Hindervines",
+    "Snag",
+    "Hunter's Ambush",
+    "Inspire Awe",
+    "Tanglesap"
+   ]
+  },
+  {
    "what": "keyword PowerUpAbility",
    "score": 9,
    "cards": 9,
@@ -8261,19 +8254,6 @@
     "Spider-Slayer, Hatred Honed",
     "East-Mark Cavalier",
     "Simic Basilisk"
-   ]
-  },
-  {
-   "what": "CantAttackBlockAttachedEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Faith's Fetters",
-    "Realmbreaker's Grasp",
-    "Heliod's Punishment",
-    "Bound in Gold",
-    "Intercessor's Arrest",
-    "Hold for Ransom"
    ]
   },
   {
@@ -8969,19 +8949,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByMoreThanOneAllEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Flopsie, Bumi's Buddy",
-    "Michelangelo, Mutant BFF",
-    "Familiar Ground",
-    "Battlefront Krushok",
-    "Rocksteady, Crash Courser",
-    "Yuan Shao, the Indecisive"
-   ]
-  },
-  {
    "what": "FilterCreatureAttackingYou",
    "score": 6,
    "cards": 6,
@@ -9304,6 +9271,19 @@
     "Sorrow's Path",
     "Barrin's Spite",
     "Retribution"
+   ]
+  },
+  {
+   "what": "CantAttackBlockAttachedEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Heliod's Punishment",
+    "Bound in Gold",
+    "Intercessor's Arrest",
+    "Hold for Ransom",
+    "Revoke Privileges",
+    "Serra Bestiary"
    ]
   },
   {
@@ -10530,6 +10510,17 @@
     "Banon, the Returners' Leader",
     "Edgar, Master Machinist",
     "Arcade Gannon"
+   ]
+  },
+  {
+   "what": "BeginningOfFirstMainTriggeredAbility for EACH_PLAYER",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Blinkmoth Urn",
+    "Magus of the Vineyard",
+    "Eladamri's Vineyard",
+    "Cheering Crowd"
    ]
   }
  ]

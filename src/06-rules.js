@@ -6452,6 +6452,8 @@
       if (ab && ab.licidEnd && !o.licid) return 'There is no effect to end.';
       // Arrest, Null Rod, Koma: "its activated abilities can't be activated"
       if (o && o.zone === 'battlefield' && this._hasFlag(o, 'cantActivate')) return "Its activated abilities can't be activated.";
+      // Faith's Fetters: all but its mana abilities
+      if (o && o.zone === 'battlefield' && ab && ab.kind !== 'mana' && this._hasFlag(o, 'cantActivateNonMana')) return "Its activated abilities can't be activated unless they're mana abilities.";
       const label = ab && ab.cost && ab.cost.label;
       if (label === 'boast') {
         if (o.attackedTurn !== this.turn) return 'It can boast only after attacking this turn.';
@@ -8251,7 +8253,8 @@
         for (const [aid, n] of counts) {
           const at = this.obj(aid);
           const ev = at && this._staticOp(at, 'evasion');
-          if (!ev || !ev.oneBlocker || n < 2) continue;
+          // (Familiar Ground: handed to each creature its controller controls)
+          if (!((ev && ev.oneBlocker) || (at && this._hasFlag(at, 'oneBlocker'))) || n < 2) continue;
           if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked by more than one creature.`);
           let kept = false;
           declarations = declarations.map(d => {
@@ -14570,7 +14573,8 @@
           const payer = e.who === 'you' ? me
             : tdObj ? this.player(tdObj.controller)
             : e.who === 'triggerPlayer' ? (triggerPlayer() || this.opponentsOf(ctx.controller)[0])
-            : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
+            // Erratic Portal: "unless its controller pays" — the targeted creature's controller, yours included
+            : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || (firstObj() && this.player(firstObj().controller)) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
             : (firstPlayer() || onStack() || triggerPlayer() || this.opponentsOf(ctx.controller)[0]);
           if (!payer) { this._spliceNext(e.then); break; }
           /* Mogis: "…unless they sacrifice a creature of their choice" (Torment
@@ -17296,10 +17300,12 @@
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
-            tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking });
+            tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking,
+            fromMaxPower: e.fromMaxPower != null ? e.fromMaxPower : null });
           {
             // "Damage from attacking creatures to Alice is prevented this turn." — said the way the card says it
-            const by = e.fromCreatures ? ' that creatures would deal' : e.fromAttacking ? ' from attacking creatures' : '';
+            const by = e.fromCreatures ? ' that creatures would deal' : e.fromAttacking ? ' from attacking creatures'
+              : e.fromMaxPower != null ? ` from creatures with power ${e.fromMaxPower} or less` : '';
             const to = e.to === 'you' ? ` to ${me.name}` : e.to === 'creatures' ? ' to creatures'
               : e.to === 'yourCreatures' ? ` to creatures ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
             this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'}${by}${to} is prevented this turn.`);
@@ -20266,6 +20272,8 @@
         if (pv.to === 'youAndYours' && !(target && (target.id === pv.who || (tCreature && target.controller === pv.who)))) continue;
         if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;
         if (pv.fromAttacking && !(source && source.attacking)) continue;
+        // Fog of War: only what creatures with power 2 or less deal
+        if (pv.fromMaxPower != null && !(source && (this.characteristics(source) || {}).isCreature && this.powerOf(source) <= pv.fromMaxPower)) continue;
         // Defend the Hearth: "to players" — not to permanents
         if (pv.to === 'players' && !(target && target.pool)) continue;
         // Obscuring Haze: "by creatures your opponents control"

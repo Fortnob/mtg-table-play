@@ -1287,7 +1287,8 @@
     { re: /^Untap all ((?:creatures|lands|artifacts|permanents)(?: and (?:creatures|lands|artifacts|permanents))?)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc && sc.who === 'all' ? { op: 'untapAll', scope: sc } : null; } },
     // Sewer-veillance Cam, Twiddle: "Tap or untap target creature."
-    { re: /^Tap or untap (target (?:creature|permanent|artifact|land|artifact or creature))\.?$/i,
+    // (Stinging Lionfish: "target nonland permanent")
+    { re: /^Tap or untap (target (?:creature|permanent|nonland permanent|artifact|land|artifact or creature))\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'tapOrUntap', targets: [t] } : null; } },
     // Keening Stone: "Target player mills X cards, where X is the number of cards in that player's graveyard."
     { re: /^Target player mills X cards, where X is the number of cards in that player'?s graveyard\.?$/i,
@@ -1913,7 +1914,8 @@
       make: (m) => ({ op: m[1].toLowerCase(), targets: m[2].split(/,? (?:and )?(?=target )/i).map(x => targetSpec(x.trim())) }) },
     { re: /^(?:Its|Their) owner shuffles (?:their|his or her) graveyard into (?:their|his or her) library\.?$/i,
       make: () => ({ op: 'graveyardToLibrary' }) },
-    { re: /^Return (target [a-z0-9 '-]+?) to (its|their) owner's hand\.?$/i,
+    // (Niambi: "Return another target creature you control to its owner's hand.")
+    { re: /^Return ((?:another )?target [a-z0-9 '-]+?) to (its|their) owner's hand\.?$/i,
       make: (m) => ({ op: 'bounce', targets: [targetSpec(m[1])] }) },
     // Scrap Trawler: "with lesser mana value" than the permanent the trigger is about
     { re: /^Return to your hand (target [a-z]+ card) in your graveyard with lesser mana value\.?$/i,
@@ -4623,6 +4625,9 @@
         scope: /^target/i.test(m[1]) ? null : (/^it$/i.test(m[1]) ? 'lastTarget' : 'self') }) },
     { re: /^Prevent all combat damage that would be dealt this turn\.?$/i,
       make: () => ({ op: 'preventDamage', combatOnly: true }) },
+    // Fog of War, Vine Snare: "Prevent all combat damage that would be dealt this turn by creatures with power 2 or less."
+    { re: /^Prevent all combat damage that would be dealt this turn by creatures with power (\d+) or less\.?$/i,
+      make: (m) => ({ op: 'preventDamage', combatOnly: true, fromMaxPower: +m[1] }) },
     // Galadhrim Ambush: "Prevent all combat damage that would be dealt this turn by non-Elf creatures."
     { re: /^Prevent all combat damage that would be dealt this turn by non-([A-Z][a-z]+) creatures\.?$/,
       make: (m) => ({ op: 'preventDamage', combatOnly: true, fromNotSubtype: m[1] }) },
@@ -7770,6 +7775,11 @@
           // Athreos: "unless target opponent pays 3 life" — the opponent is a target
           /^target opponent$/i.test(unless[2]) ? { targets: [{ type: 'player', opponent: true }] } : {}));
         if (!inner.auto) auto = false;
+        /* Withdraw: "Then return another target creature to its owner's hand
+           unless its controller pays {1}" — the second target's controller,
+           where the table would ask the first one's; a person settles it */
+        if (/^its controller$/i.test(unless[2]) && effects.some(x => x && (x.targets || []).length) &&
+          /"targets":\[\{"type":"(?!spell)/.test(JSON.stringify(inner.effects))) auto = false;
         continue;
       }
 
@@ -11804,6 +11814,17 @@
         if (!scope) return null;
         return { op: 'continuous', layer: 6, scope, flag: 'mustAttackEot' };
       } },
+    // Faith's Fetters: "… and its activated abilities can't be activated unless they're mana abilities."
+    { re: /^(.+?) can'?t (block|attack|attack or block), and its activated abilities can'?t be activated unless they'?re mana abilities\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        const flag = m[2] === 'block' ? 'cantBlock' : m[2] === 'attack' ? 'cantAttack' : 'cantAttackOrBlock';
+        return { op: 'sequence', list: [
+          { op: 'continuous', layer: 6, scope, flag },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, scope), flag: 'cantActivateNonMana' },
+        ] };
+      } },
     // "Enchanted creature can't attack or block, and its activated abilities
     // can't be activated." — one sentence, two standing rules
     { re: /^(.+?) can'?t (block|attack|attack or block), and its activated abilities can'?t be activated\.?$/i,
@@ -12726,6 +12747,9 @@
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
       { re: /^(?:CARDNAME|This creature|This permanent) can'?t be blocked by more than one creature\.?$/i,
         make: () => ({ op: 'evasion', oneBlocker: true }), auto: true },
+      // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
+      { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
       { re: /^You may have (?:CARDNAME|this creature) assign its combat damage as though it weren'?t blocked\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { self: true }, grant: ['Trample'] }), auto: true },
       { re: /^Creatures with power less than (?:CARDNAME'?s?|this creature'?s) power can'?t block it\.?$/i,
