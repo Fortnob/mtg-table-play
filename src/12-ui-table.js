@@ -1910,7 +1910,7 @@
               fn: () => this.activate(o, a, i, ab) });
             return;
           }
-          uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: i }) });
+          uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.tapMana(o, i, ab) });
         });
         // prepared: a copy of the spell printed with it, cast from here
         for (const use of ((live.uses || {})[o.id] || [])) {
@@ -2269,6 +2269,14 @@
             (n) => this.activate(o, a, index, ab, x, n), o.card, (n) => `{${c1}}\u00d7${total - n} \u00b7 {${c2}}\u00d7${n}`);
         }
       }
+      /* "Add three mana in any combination of colors" (or "of different
+         colors"): a colour for each, chosen now, since a mana ability can't
+         stop to ask. Only when the amount is known now. */
+      const anyMix = split == null ? (ab.effects || []).find(e => e && e.op === 'addManaAny' && !e.sameColor && !e.commanderIdentity) : null;
+      if (anyMix) {
+        const total = anyMix.amount === 'X' ? (x || 0) : (typeof anyMix.amount === 'number' ? anyMix.amount : 0);
+        if (total > 1) return this._askColours(o.card.name, total, !!anyMix.distinct, (cols) => this.activate(o, a, index, ab, x, cols), o.card, 'Activate');
+      }
       const more = Object.assign({}, x != null ? { x } : {}, split != null ? { manaSplit: split } : {});
       // a cost the table would otherwise pay from what is to hand (Forensic Researcher, City of Shadows...)
       if (!this._costAsked) {
@@ -2370,6 +2378,52 @@
       const max = Math.max(1, Math.floor((this.manaHere() - fixed) / per));
       this._askNumber(`${o.card.name}: suspend with how many time counters?`, `X is both the time counters and the {X} in ${use.xCost}. You can afford up to ${max}.`,
         1, max, max, (x) => this.send({ kind: 'suspend', objId: o.id, x }), o.card);
+    }
+
+    /**
+     * Tap a source for mana. "Add two mana in any combination of colors"
+     * asks for the colours first: a mana ability can't stop to ask, so
+     * they go with the tap. @this {MTG.TableInstance}
+     */
+    tapMana(o, i, ab) {
+      const mix = (ab.effects || []).find(e => e && e.op === 'addManaAny' && !e.sameColor && !e.commanderIdentity &&
+        typeof e.amount === 'number' && e.amount > 1);
+      if (mix) return this._askColours(o.card.name, mix.amount, !!mix.distinct, (cols) => this.send({ kind: 'mana', objId: o.id, index: i, split: cols }), o.card);
+      this.send({ kind: 'mana', objId: o.id, index: i });
+    }
+
+    /**
+     * A colour for each of `total` mana: the generic options panel, a colour
+     * a row, picked as often as wanted (or once each, for "different
+     * colors"), then on with the letters. @this {MTG.TableInstance}
+     */
+    _askColours(name, total, distinct, onDone, card, verb) {
+      const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+      const cols = Object.keys(NAMES);
+      const s = MTG.choice.normalize({ kind: 'options', min: total, max: total, repeat: !distinct,
+        options: cols.map(c => ({ label: `{${c}} ${NAMES[c]}` })) });
+      const sel = { picks: [] };
+      const key = 'cols:' + name + ':' + total;
+      const title = `${escapeHtml(name)}: ${total} mana`;
+      const sub = distinct ? `Choose ${total} different colours.` : 'Choose a colour for each; the same one as often as you like.';
+      this.asking = { base: key, get key() { return key + ':' + sel.picks.join(','); }, build: () => {
+        const pr = MTG.choice.progress(s, sel.picks);
+        return this.panel(title, escapeHtml(sub) + `<br><span class="choose-status${pr.ok ? '' : ' short'}">${escapeHtml(pr.text)}</span>`,
+          this.chooseBody(s, sel, {
+            onPick: (k) => {
+              const n = sel.picks.filter(p => p === k).length;
+              if (MTG.choice.canAdd(s, sel.picks, k)) sel.picks.push(k);
+              else if (n) sel.picks.splice(sel.picks.lastIndexOf(k), 1);
+              this.render();
+            },
+            onLess: (k) => { const i = sel.picks.lastIndexOf(k); if (i >= 0) sel.picks.splice(i, 1); this.render(); },
+          }),
+          [
+            { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
+            { label: verb || 'Add mana', cls: 'primary', disabled: !pr.ok, fn: () => { this.asking = null; this.render(); onDone(sel.picks.map(k => cols[k])); } },
+          ], { card });
+      } };
+      this.render();
     }
 
     /** A number to pick, between min and max: a stepper, then on with it. @this {MTG.TableInstance} */
@@ -2679,7 +2733,7 @@
         items.push(['Turn this hidden agenda face up', () => this.send({ kind: 'manual', action: 'revealAgenda', objId: o.id })]);
       } else if (loc.zone === 'battlefield' && mine && a) {
         const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
-        a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: i })]));
+        a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.tapMana(o, i, ab)]));
         acts.forEach((ab) => {
           const idx = a.manaAbilities.length + acts.indexOf(ab);
           items.push([truncate(MTG.oracle.abilityLabel(ab, o), 52), () => this.activate(o, a, idx, ab)]);

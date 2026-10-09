@@ -6951,7 +6951,8 @@
     /* ---------- mana ---------- */
 
     /** Tap a permanent for mana using its first (or chosen) mana ability. */
-    tapForMana(playerId, objId, abilityIndex, manaChoice) {
+    /** `manaSplit`: for "in any combination of colors", a colour letter for each mana. */
+    tapForMana(playerId, objId, abilityIndex, manaChoice, manaSplit) {
       const o = this.obj(objId);
       if (!o) return this.fail('No such permanent.');
       if (o.controller !== playerId) return this.fail('Not yours.');
@@ -6982,7 +6983,7 @@
         return true;
       }
       if (!a || !a.manaAbilities.length) return this.fail(`${o.name} has no mana ability.`);
-      return this.activateAbility(playerId, objId, abilityIndex || 0, { manaChoice });
+      return this.activateAbility(playerId, objId, abilityIndex || 0, { manaChoice, manaSplit });
     }
 
     /** Try to pay `cost`; may auto-tap lands. Returns true on success. */

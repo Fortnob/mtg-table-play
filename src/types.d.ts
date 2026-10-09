@@ -426,8 +426,8 @@ declare namespace MTG {
       /** what pays a cost the table would otherwise pick */
       evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string;
     }
-    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string }
-    | { kind: 'mana'; objId: Id; index?: number; choice?: string | null }
+    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string }
+    | { kind: 'mana'; objId: Id; index?: number; choice?: string | null; split?: string[] }
     | { kind: 'declareAttackers'; declarations: AttackDeclaration[] }
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }
     | { kind: 'choice'; data: ChoiceAnswer }

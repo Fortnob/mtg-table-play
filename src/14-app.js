@@ -3902,11 +3902,15 @@
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
           // "in any combination of two colours": how much of the second
-          manaSplit: Number.isFinite(+intent.manaSplit) && intent.manaSplit != null ? Math.max(0, Math.min(99, Math.floor(+intent.manaSplit))) : undefined,
+          // or, "in any combination of colors", a colour letter for each
+          manaSplit: Array.isArray(intent.manaSplit) ? intent.manaSplit.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c))
+            : Number.isFinite(+intent.manaSplit) && intent.manaSplit != null ? Math.max(0, Math.min(99, Math.floor(+intent.manaSplit))) : undefined,
           ...costPicksOf(intent),
           sacrificeIds: Array.isArray(intent.sacrificeIds) ? intent.sacrificeIds.slice(0, 20).map(String) : undefined,
           discardIds: Array.isArray(intent.discardIds) ? intent.discardIds.slice(0, 20).map(String) : undefined }); break;
-        case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0, intent.choice); break;
+        case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0, intent.choice,
+          // "in any combination of colors": a colour letter for each, chosen at the table
+          Array.isArray(intent.split) ? intent.split.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c)) : undefined); break;
         case 'declareAttackers': g.declareAttackers(actorId, intent.declarations || []); break;
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
         case 'choice': g.resolveChoice(actorId, intent.data || {}); break;
