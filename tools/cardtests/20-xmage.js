@@ -15240,4 +15240,18 @@ module.exports = (test) => {
     T.g._fire('youPlayLand', 'A', { object: fr, fromZone: 'exile' }); T.settle(); T.resolve();
     t.eq(treasures(), 1, 'from exile: a Treasure');
   });
+
+  test('Chainflail Centipede: it, or the creature it equips, gets +2/+0 when attacking', (mk, t) => {
+    t.auto('Chainflail Centipede');
+    t.auto('Acquisition Octopus');
+    const T = mk();
+    const cc = T.bf('A', 'Chainflail Centipede');
+    const bear = T.bf('A', 'Grizzly Bears');
+    cc.attachedTo = bear.id; bear.attachments = [cc.id]; cc.ts = T.g._stampNew();
+    const giant = T.bf('A', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: giant.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(T.g.powerOf(bear) >= 4, 'the equipped Bears get +2/+0');
+    t.eq(T.g.powerOf(giant), 3, 'the Giant does not');
+  });
 };

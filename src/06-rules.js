@@ -21539,6 +21539,8 @@
       if (f.commander && !(x.isCommander && src && x.owner === src.controller)) return false;
       // "whenever equipped creature attacks": the creature this is attached to
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
+      // Komainu Battle Armor: itself, or the creature it is attached to
+      if (f.selfOrEquipped && !(src && (x.id === src.id || src.attachedTo === x.id))) return false;
       /* "you control" is decided by who controlled it at the time, which
          for something that has just died is who controlled it as it went. */
       const owner = ctrl || x.controller;

@@ -9017,6 +9017,13 @@
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' blocks?(?:,| )', 'i'),
       event: 'permBlocks', filt: (m) => subjectFilter(m[1]) },
+    /* Komainu Battle Armor, Acquisition Octopus, Razorfield Ripper: "Whenever
+       this creature or equipped creature deals combat damage to a player /
+       attacks" — the Equipment itself, or what it is on */
+    { re: /^Whenever (?:this creature|CARDNAME) or equipped creature deals combat damage to a player,? /i,
+      event: 'permCombatDamage', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
+    { re: /^Whenever (?:this creature|CARDNAME) or equipped creature attacks,? /i,
+      event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     /* --- spells being cast, by whom and of what kind --- */
