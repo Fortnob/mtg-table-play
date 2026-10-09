@@ -16464,4 +16464,18 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(nev.counters['+1/+1'], 3, 'only the first one each turn');
   });
+
+  test('Madcap Experiment: an artifact onto the battlefield, and damage for each card revealed', (mk, t) => {
+    t.auto('Madcap Experiment');
+    t.auto('Audacious Reshapers');
+    const T = mk();
+    T.toMain('A');
+    const ring = T.top('A', 'Sol Ring');
+    T.top('A', 'Forest'); T.top('A', 'Grizzly Bears');
+    T.mana('A', 'RCCC');
+    T.cast('A', T.hand('A', 'Madcap Experiment'));
+    T.settle();
+    t.zone(ring, 'battlefield');
+    t.eq(T.life('A'), 17, 'three cards revealed: 3 damage');
+  });
 };

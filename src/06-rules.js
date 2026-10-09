@@ -13825,6 +13825,8 @@
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
             if (shown.length) this.logEvent('rules', `${p.name} reveals ${shown.map(c => c.name).join(', ')}.`);
+            // Madcap Experiment: "the number of cards revealed this way" (revealedCountUntil)
+            this._revealedCount = shown.length;
             const rest = shown.filter(c => !found.includes(c));
             for (const c of found) {
               if (e.dest === 'hand') this.moveObject(c, 'hand');

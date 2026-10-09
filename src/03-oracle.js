@@ -3129,6 +3129,9 @@
     { re: /^Put an? ([+-]1\/[+-]1) counter on target creature, two \1 counters on another target creature, and three \1 counters on a third target creature\.?$/i,
       make: (m) => ({ op: 'sequence', list: [1, 2, 3].map(k => ({ op: 'counters', kind: m[1], n: k,
         targets: [Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield' }, k > 1 ? { distinct: true } : {})] })) }) },
+    // Madcap Experiment, Audacious Reshapers: "CARDNAME deals damage to you equal to the number of cards revealed this way." (revealedCountUntil)
+    { re: /^(?:CARDNAME|This creature|This artifact) deals damage to you equal to the number of cards revealed this way\.?$/i,
+      make: () => ({ op: 'damage', n: { revealedCount: true, mult: 1 }, toSelf: true }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
