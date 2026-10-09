@@ -782,6 +782,12 @@
       // extra turns first
       if (this.extraTurnsQueue.length) {
         const pid = this.extraTurnsQueue.shift();
+        // Stranglehold, Ugin's Nexus: that extra turn is skipped
+        const stop = this.battlefield.some(o => { const e = !o.phasedOut && this._staticOp(o, 'skipExtraTurns'); return e && (e.who === 'all' || o.controller !== pid); });
+        if (stop) {
+          this.logEvent('turn', `${(this.player(pid) || {}).name} skips an extra turn.`);
+          return this._nextTurn();
+        }
         this.activeIndex = this.turnOrder.indexOf(pid);
       } else {
         let guard = 0, np = null;
@@ -10371,6 +10377,11 @@
       if (delta > 0 && this._lifeGainStopped(p)) {
         this.logEvent('life', `${p.name} can't gain life.`);
         return;
+      }
+      // Tainted Remedy: an opponent's gain becomes a loss of as much
+      if (delta > 0 && this.battlefield.some(o => !o.phasedOut && o.controller !== p.id && this._staticOp(o, 'gainBecomesLoss'))) {
+        this.logEvent('life', `${p.name} would gain ${delta} life, and loses it instead.`);
+        delta = -delta;
       }
       if (delta > 0) {
         const ev = this._replace({ kind: 'gainLife', n: delta, controller: p.id });

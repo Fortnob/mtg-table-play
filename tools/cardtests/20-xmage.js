@@ -15312,4 +15312,24 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers');
     t.eq(T.zone('B', 'hand').length, h + 1, 'two attackers: a card');
   });
+
+  test("Tainted Remedy turns an opponent's life gain into loss; Stranglehold skips their extra turns", (mk, t) => {
+    t.auto('Tainted Remedy');
+    t.auto('Plague Drone');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Tainted Remedy');
+    T.g.changeLife('B', 3);
+    t.eq(T.life('B'), 17, 'gains 3: loses 3');
+    T.g.changeLife('A', 2);
+    t.eq(T.life('A'), 22, 'its controller still gains');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Stranglehold');
+    U.g.extraTurnsQueue.push('B');
+    U.g._nextTurn();
+    t.eq(U.g.activePlayer.id, 'B', 'B takes the next turn in order, not an extra one');
+    t.eq(U.g.extraTurnsQueue.length, 0, 'the extra turn is gone');
+    t.ok(U.g.log.some(l => /skips an extra turn/.test(l.text)), 'and the log says so');
+  });
 };
