@@ -8719,7 +8719,9 @@
     // Nahiri, Forged in Fury: "an equipped creature you control"
     'equipped',
     // Arbaaz Mir: "another nontoken historic permanent you control" — legendary, an artifact or a Saga
-    'historic']);
+    'historic',
+    // Trail of Mystery: "a face-down creature you control"
+    'face-down']);
   /* "Rabbits, Bats, Birds, and/or Mice": a list, any one of them will do;
      "noncreature, nonland permanents": all of them at once */
   function listWords(s) {

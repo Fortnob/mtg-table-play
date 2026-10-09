@@ -15284,4 +15284,19 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(T.life('A'), 20, "an opponent's creature: nothing");
   });
+
+  test('Cryptid Inspector: a face-down permanent of yours entering puts a counter on it', (mk, t) => {
+    t.auto('Cryptid Inspector');
+    t.auto('Trail of Mystery');
+    const T = mk();
+    T.toMain('A');
+    const ci = T.bf('A', 'Cryptid Inspector');
+    const up = T.hand('A', 'Grizzly Bears');
+    T.g.moveObject(up, 'battlefield', { controller: 'A' }); T.settle(); T.resolve();
+    t.eq(ci.counters['+1/+1'] || 0, 0, 'face up: nothing');
+    const down = T.hand('A', 'Hill Giant');
+    down.faceDown = true;
+    T.g.moveObject(down, 'battlefield', { controller: 'A' }); T.settle(); T.resolve();
+    t.eq(ci.counters['+1/+1'], 1, 'face down: a counter');
+  });
 };

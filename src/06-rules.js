@@ -21524,6 +21524,8 @@
         if (w === 'blocking') return !!(o.blocking || []).length;
         // Jor Kadeen: "equipped creatures you control"
         if (w === 'equipped') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
+        // Trail of Mystery: "a face-down creature"
+        if (w === 'face-down') return !!o.faceDown;
         if (w === 'tapped') return !!o.tapped;
         if (w === 'untapped') return !o.tapped;
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it

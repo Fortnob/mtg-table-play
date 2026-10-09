@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11463,
+  "needed": 11460,
   "gainedCards": 1134,
-  "linesNeeded": 12288,
+  "linesNeeded": 12282,
   "linesGained": 1345,
   "gained": {
    "all": 1134,
@@ -316,25 +316,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 28,
-   "lines": 25,
-   "cards": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Nature's Will",
-    "Tidus, Yuna's Guardian",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen",
-    "Kastral, the Windcrested",
-    "Descendants' Fury",
-    "Olivia, Opulent Outlaw",
-    "Kaito, Dancing Shadow",
-    "Nettling Nuisance"
-   ]
-  },
-  {
    "what": "CaseAbility",
    "score": 27,
    "lines": 18,
@@ -351,6 +332,25 @@
     "Case of the Gorgon's Kiss",
     "Case of the Burning Masks",
     "Case of the Lost Witness"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 27,
+   "lines": 24,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Nature's Will",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Kastral, the Windcrested",
+    "Descendants' Fury",
+    "Olivia, Opulent Outlaw",
+    "Kaito, Dancing Shadow",
+    "Nettling Nuisance"
    ]
   },
   {
@@ -2983,20 +2983,6 @@
     "Quagnoth",
     "Mangara's Blessing",
     "Sand Golem"
-   ]
-  },
-  {
-   "what": "subject:faceDown",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "They Came from the Pipes",
-    "Threats Around Every Corner",
-    "Trail of Mystery",
-    "Yarus, Roar of the Old Gods",
-    "Kadena, Slinking Sorcerer",
-    "Cryptic Pursuit",
-    "Cryptid Inspector"
    ]
   },
   {
@@ -6729,6 +6715,16 @@
     "Vampire Lacerator",
     "Razor Pendulum"
    ]
+  },
+  {
+   "what": "SignInversionDynamicValue of \"X\"",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Black Sun's Twilight",
+    "Scavenger Regent // Exude Toxin",
+    "Drana, Kalastria Bloodchief"
+   ]
   }
  ],
  "sole": [
@@ -10355,17 +10351,6 @@
    ]
   },
   {
-   "what": "subject:faceDown",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Threats Around Every Corner",
-    "Trail of Mystery",
-    "Cryptic Pursuit",
-    "Cryptid Inspector"
-   ]
-  },
-  {
    "what": "BecomesCreatureAllEffect",
    "score": 4,
    "cards": 4,
@@ -10440,6 +10425,17 @@
     "Experiment Twelve",
     "Printlifter Ooze",
     "Kingpin, Wilson Fisk"
+   ]
+  },
+  {
+   "what": "CreateTokenAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Kibo, Uktabi Prince",
+    "Edge Rover",
+    "Pursued Whale",
+    "Elephant Resurgence"
    ]
   }
  ]
