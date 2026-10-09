@@ -8666,6 +8666,8 @@
     [/^you control (\w+) or more permanents you don'?t own$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'controlNotOwned', n: num(m[1]) } : null)],
     // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
     [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
+    // Luminarch Ascension: "you didn't lose life this turn"
+    [/^you didn'?t lose life this turn$/i, () => ({ kind: 'not', cond: { kind: 'lostLife', who: 'you', n: 1 } })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
     // Vengevine: "if it's the second creature spell you cast this turn"

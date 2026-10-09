@@ -17120,4 +17120,21 @@ module.exports = (test) => {
     t.eq(ae.counters['+1/+1'] || 0, 0, 'none on the enchantment');
     t.eq(T.g.battlefield.filter(o => o.isToken && /Fractal/.test(o.name) && (o.counters['+1/+1'] || 0) === 3).length, 1, 'three on the new Fractal');
   });
+
+  test("Luminarch Ascension: a quest counter on an opponent's end step only if you didn't lose life", (mk, t) => {
+    t.auto('Luminarch Ascension');
+    const T = mk();
+    T.toMain('A');
+    const asc = T.bf('A', 'Luminarch Ascension');
+    T.answer('confirm', { yes: true });
+    T.toMain('B', 'end');
+    T.settle();
+    t.eq(asc.counters.quest || 0, 1, 'no life lost: a counter');
+    T.toMain('A'); T.toMain('B');
+    T.g.changeLife(T.g.player('A'), -2, 'test');
+    T.answer('confirm', { yes: true });
+    T.toMain('B', 'end');
+    T.settle();
+    t.eq(asc.counters.quest || 0, 1, 'lost life this turn: none');
+  });
 };
