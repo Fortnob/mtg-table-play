@@ -7058,7 +7058,9 @@
          rest), +1/+1 counters last */
       if (cost.removeCounters && cost.removeCounters.kind === '*') {
         const want = Number(cost.removeCounters.n) || 1;
-        const rank = (k) => (k === '-1/-1' ? 0 : k === 'stun' ? 1 : k === '+1/+1' ? 3 : 2);
+        // the kind the player chose, when it has one of those, comes off first (the table asks)
+        const chosen = opts && opts.counterKind && (Number((o.counters || {})[opts.counterKind]) || 0) > 0 ? opts.counterKind : null;
+        const rank = (k) => (k === chosen ? -1 : k === '-1/-1' ? 0 : k === 'stun' ? 1 : k === '+1/+1' ? 3 : 2);
         const kinds = Object.keys(o.counters || {}).filter(k => (Number(o.counters[k]) || 0) > 0).sort((x, y) => rank(x) - rank(y));
         const total = kinds.reduce((t, k) => t + (Number(o.counters[k]) || 0), 0);
         if (total < want) return this.fail(`${o.name} does not have ${want === 1 ? 'a counter' : want + ' counters'} to remove.`);

@@ -14989,4 +14989,30 @@ module.exports = (test) => {
     t.ok(vm.tapped, 'the Motorist crewed it');
     t.eq(T.g.powerOf(sc), 4, '3/3 +1/+1');
   });
+
+  test("Loch Mare: the counter kind the player chose comes off; an absent kind falls back", (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const lm = T.bf('A', 'Loch Mare', { counters: { '-1/-1': 3, stun: 1 } });
+    T.top('A', 'Island'); T.top('A', 'Island'); T.top('A', 'Island');
+    const all = lm.analysis().manaAbilities.concat(lm.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const one = all.findIndex(a => a.cost && a.cost.removeCounters && a.cost.removeCounters.n === 1);
+    const two = all.findIndex(a => a.cost && a.cost.removeCounters && a.cost.removeCounters.n === 2);
+    T.mana('A', '1U');
+    T.activate('A', lm, one, { counterKind: 'stun' });
+    T.resolve();
+    t.eq(lm.counters.stun || 0, 0, 'the stun counter, as chosen');
+    t.eq(lm.counters['-1/-1'], 3);
+    T.mana('A', '1U');
+    T.activate('A', lm, one, { counterKind: '+1/+1' });
+    T.resolve();
+    t.eq(lm.counters['-1/-1'], 2, 'a kind it does not have: the usual order');
+    lm.counters.stun = 1;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2U');
+    T.activate('A', lm, two, { counterKind: 'stun', targets: [bear] });
+    T.resolve();
+    t.eq(lm.counters.stun || 0, 0, 'two counters: the chosen kind first');
+    t.eq(lm.counters['-1/-1'], 1, 'then the rest by the usual order');
+  });
 };
