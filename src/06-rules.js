@@ -7529,7 +7529,16 @@
           }));
         if (!has) return false;
       }
+      // Goblin Goon: more creatures than a player it could attack
+      if (needs && needs.moreThanDefender) {
+        const mine = this._countOfKind(o.controller, needs.moreThanDefender);
+        if (!this.players.some(p => p.id !== o.controller && !p.hasLost && this._countOfKind(p.id, needs.moreThanDefender) < mine)) return false;
+      }
       return true;
+    }
+    /** How many creatures (or lands) a player controls, for Goblin Goon's comparisons. */
+    _countOfKind(pid, kind) {
+      return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._cardFitsWords(x, kind)).length;
     }
 
     _declareAttackersStep() {
@@ -7838,6 +7847,9 @@
       // Goblin Mutant: "can't block creatures with power 3 or greater"
       const bpl = this._staticOp(blocker, 'blockPowerLimit');
       if (bpl && this.powerOf(attacker) >= bpl.min) return false;
+      // Goblin Goon: more creatures than the attacking player, or no blocking
+      const breq = this._staticOp(blocker, 'blockRequires');
+      if (breq && breq.moreThanAttacker && !(this._countOfKind(blocker.controller, breq.moreThanAttacker) > this._countOfKind(attacker.controller, breq.moreThanAttacker))) return false;
       // Bouncing Beebles: unblockable while the defending player controls an artifact
       if (ev && ev.defenderControls && this.battlefield.some(x => x.controller === blocker.controller && !x.phasedOut &&
         this._cardFitsWords(x, ev.defenderControls))) return false;
@@ -8474,6 +8486,13 @@
         if (o.destroyAtEndOfCombat !== this.turn) continue;
         o.destroyAtEndOfCombat = null;
         if (!this.hasKw(o, 'indestructible') && !this._regenerated(o)) { this.moveObject(o, 'graveyard'); this.logEvent('destroy', `${o.name} is destroyed at end of combat.`); }
+      }
+      // Wall of Tears: what it blocked goes back to its owner's hand
+      for (const o of this.battlefield.slice()) {
+        if (o.bounceAtEndOfCombat !== this.turn) continue;
+        o.bounceAtEndOfCombat = null;
+        this.moveObject(o, 'hand');
+        this.logEvent('zone', `${o.name} returns to its owner's hand at end of combat.`);
       }
       // myriad's copies
       for (const o of this.battlefield.slice()) {
@@ -9382,6 +9401,8 @@
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
         case 'fullParty': return this._partySize(pid) >= 4;
+        // Myrkul, Lord of Bones: at or under half the life the game started with
+        case 'lifeAtMostHalfStart': return !!me && me.life * 2 <= ((this.config && this.config.startingLife) || 20);
         // True-Faith Censer: the creature it is on is a Human
         case 'attachedHasType': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._hasCreatureType(host, cond.subtype); }
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
@@ -18381,6 +18402,10 @@
           this.logEvent('turn', `${p.name} will skip their next turn.`);
           break;
         }
+        // Wall of Tears: back to its owner's hand as combat ends
+        case 'bounceAtEndOfCombat':
+          applyToScope(e, (o) => { o.bounceAtEndOfCombat = this.turn; });
+          break;
         case 'destroyAtEndOfCombat':
           applyToScope(e, (o) => { o.destroyAtEndOfCombat = this.turn; });
           break;

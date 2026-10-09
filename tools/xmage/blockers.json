@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11752,
+  "needed": 11724,
   "gainedCards": 1199,
-  "linesNeeded": 12638,
-  "linesGained": 1422,
+  "linesNeeded": 12595,
+  "linesGained": 1420,
   "gained": {
    "all": 1199,
    "top2000": 48,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4275,
-   "lines": 4014,
+   "score": 4269,
+   "lines": 4008,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 173,
-   "lines": 161,
+   "score": 170,
+   "lines": 158,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -392,25 +392,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 25,
-   "lines": 25,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Wall of Tears",
-    "Aether Membrane",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry",
-    "Mindbender Spores"
-   ]
-  },
-  {
    "what": "ChooseACardNameEffect",
    "score": 24,
    "lines": 24,
@@ -541,6 +522,25 @@
     "Become the Pilot",
     "Queen Mother Ramonda",
     "Stature, Size Shifter"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 21,
+   "lines": 21,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry",
+    "Mindbender Spores",
+    "Alaborn Zealot",
+    "Angrath's Fury",
+    "Silent Assassin"
    ]
   },
   {
@@ -1686,24 +1686,6 @@
    ]
   },
   {
-   "what": "(layout flip)",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
-    "Nezumi Graverobber // Nighteyes the Desecrator",
-    "Nezumi Shortfang // Stabwhisker the Odious",
-    "Sasaya, Orochi Ascendant // Sasaya's Essence",
-    "Homura, Human Ascendant // Homura's Essence",
-    "Bushi Tenderfoot // Kenzo the Hardhearted",
-    "Kitsune Mystic // Autumn-Tail, Kitsune Sage",
-    "Akki Lavarunner // Tok-Tok, Volcano Born",
-    "Student of Elements // Tobita, Master of Winds",
-    "Initiate of Blood // Goka the Unjust",
-    "Erayo, Soratami Ascendant // Erayo's Essence"
-   ]
-  },
-  {
    "what": "ConditionalContinuousRuleModifyingEffect",
    "score": 11,
    "lines": 11,
@@ -2011,37 +1993,20 @@
    ]
   },
   {
-   "what": "BecomesCreatureAttachedEffect",
+   "what": "(layout flip)",
    "score": 10,
    "lines": 10,
    "cards": [
-    "Spider-Man No More",
-    "In Too Deep",
-    "Retro-Mutation",
-    "Zoetic Glyph",
-    "Deep Freeze",
-    "Ensoul Artifact",
-    "Awaken the Ancient",
-    "Mightstone's Animation",
-    "Tezzeret's Touch",
-    "Puppet Crafting"
-   ]
-  },
-  {
-   "what": "keyword FlyingAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Eradicator Valkyrie",
-    "Niv-Mizzet, Guildpact",
-    "Niv-Mizzet, Supreme",
-    "Teeka's Dragon",
-    "Dust Elemental",
-    "Kjeldoran Skyknight",
-    "Bayou Dragonfly",
-    "Knight of Sursi",
-    "Kjeldoran Skycaptain",
-    "Phobian Phantasm"
+    "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
+    "Nezumi Graverobber // Nighteyes the Desecrator",
+    "Nezumi Shortfang // Stabwhisker the Odious",
+    "Sasaya, Orochi Ascendant // Sasaya's Essence",
+    "Homura, Human Ascendant // Homura's Essence",
+    "Kitsune Mystic // Autumn-Tail, Kitsune Sage",
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Student of Elements // Tobita, Master of Winds",
+    "Initiate of Blood // Goka the Unjust",
+    "Erayo, Soratami Ascendant // Erayo's Essence"
    ]
   },
   {
@@ -4862,6 +4827,18 @@
    ]
   },
   {
+   "what": "BecomesCreatureAttachedEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Spider-Man No More",
+    "In Too Deep",
+    "Retro-Mutation",
+    "Deep Freeze",
+    "Awaken the Ancient"
+   ]
+  },
+  {
    "what": "PreventNextDamageFromChosenSourceToTargetEffect",
    "score": 5,
    "lines": 5,
@@ -6219,17 +6196,6 @@
    ]
   },
   {
-   "what": "keyword TrampleAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Thrasta, Tempest's Roar",
-    "Varchild's War-Riders",
-    "Gorilla Berserkers",
-    "Giant Solifuge"
-   ]
-  },
-  {
    "what": "FightEnchantedTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6849,6 +6815,26 @@
     "Parapet Thrasher",
     "Kotis, Sibsig Champion"
    ]
+  },
+  {
+   "what": "UntapAllLandsControllerEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Bumi, Unleashed",
+    "Rude Awakening",
+    "Innocuous Researcher"
+   ]
+  },
+  {
+   "what": "keyword DevourAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Famished Worldsire",
+    "Feasting Hobbit",
+    "Caprichrome"
+   ]
   }
  ],
  "sole": [
@@ -6906,8 +6892,8 @@
   },
   {
    "what": "custom condition",
-   "score": 134,
-   "cards": 131,
+   "score": 133,
+   "cards": 130,
    "names": [
     "Sting, the Glinting Dagger",
     "Diamond City",
@@ -7074,19 +7060,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 20,
-   "cards": 20,
-   "names": [
-    "Wall of Tears",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Scrappy Bruiser",
-    "Fire Giant's Fury",
-    "Act of Heroism"
-   ]
-  },
-  {
    "what": "Ability.modes.setChooseText",
    "score": 18,
    "cards": 18,
@@ -7175,6 +7148,19 @@
     "Captain Mar-Vell, Space-Born",
     "Demon Wall",
     "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 17,
+   "cards": 17,
+   "names": [
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry"
    ]
   },
   {
@@ -7739,6 +7725,19 @@
    ]
   },
   {
+   "what": "keyword CumulativeUpkeepAbility",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Braid of Fire",
+    "Phyrexian Soulgorger",
+    "Wall of Shards",
+    "Sheltering Ancient",
+    "Varchild's War-Riders",
+    "Psychic Vortex"
+   ]
+  },
+  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 10,
    "cards": 10,
@@ -7749,6 +7748,19 @@
     "Havi, the All-Father",
     "Slurrk, All-Ingesting",
     "Cass, Hand of Vengeance"
+   ]
+  },
+  {
+   "what": "AdditiveDynamicValue",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Ancestral Anger",
+    "Abomination of Llanowar",
+    "Hobbit's Sting",
+    "Cid, Timeless Artificer",
+    "Gloom Ripper",
+    "Frantic Firebolt"
    ]
   },
   {
@@ -7830,19 +7842,6 @@
    ]
   },
   {
-   "what": "keyword CumulativeUpkeepAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Braid of Fire",
-    "Phyrexian Soulgorger",
-    "Wall of Shards",
-    "Sheltering Ancient",
-    "Psychic Vortex",
-    "Vexing Sphinx"
-   ]
-  },
-  {
    "what": "CardsInAllGraveyardsCount",
    "score": 9,
    "cards": 9,
@@ -7853,19 +7852,6 @@
     "Accumulated Knowledge",
     "Rune Snag",
     "Life Burst"
-   ]
-  },
-  {
-   "what": "AdditiveDynamicValue",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Ancestral Anger",
-    "Hobbit's Sting",
-    "Cid, Timeless Artificer",
-    "Gloom Ripper",
-    "Frantic Firebolt",
-    "Desert's Due"
    ]
   },
   {
@@ -7983,19 +7969,6 @@
     "Skarrgan Firebird",
     "Proctor of Potential",
     "Kuldotha Phoenix"
-   ]
-  },
-  {
-   "what": "BecomesCreatureAttachedEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Spider-Man No More",
-    "In Too Deep",
-    "Retro-Mutation",
-    "Zoetic Glyph",
-    "Deep Freeze",
-    "Ensoul Artifact"
    ]
   },
   {
@@ -8321,19 +8294,6 @@
     "Prison Break",
     "Perennation",
     "Graceful Restoration"
-   ]
-  },
-  {
-   "what": "keyword FlyingAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Eradicator Valkyrie",
-    "Teeka's Dragon",
-    "Dust Elemental",
-    "Kjeldoran Skyknight",
-    "Bayou Dragonfly",
-    "Knight of Sursi"
    ]
   },
   {
@@ -8831,6 +8791,19 @@
     "Tymna the Weaver",
     "Belbe, Corrupted Observer",
     "Brazen Cannonade"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Tinder Wall",
+    "Guardian of the Gateless",
+    "Serene Master",
+    "Goblin Snowman",
+    "Wall of Corpses",
+    "Whip Vine"
    ]
   },
   {
@@ -9538,18 +9511,6 @@
    ]
   },
   {
-   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Tinder Wall",
-    "Guardian of the Gateless",
-    "Serene Master",
-    "Goblin Snowman",
-    "Wall of Corpses"
-   ]
-  },
-  {
    "what": "ConditionalAnyColorManaAbility shape",
    "score": 5,
    "cards": 5,
@@ -9787,6 +9748,18 @@
     "Detainment Spell",
     "Concealed Weapon",
     "Stasis Cell"
+   ]
+  },
+  {
+   "what": "BecomesCreatureAttachedEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Spider-Man No More",
+    "In Too Deep",
+    "Retro-Mutation",
+    "Deep Freeze",
+    "Awaken the Ancient"
    ]
   },
   {
@@ -10584,6 +10557,17 @@
     "Sigil of Valor",
     "Reaper's Talisman",
     "S.H.I.E.L.D. Spy Kit"
+   ]
+  },
+  {
+   "what": "DiscardOneOrMoreCardsTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Captain Howler, Sea Scourge",
+    "Doctor Doom, King of Latveria",
+    "Urza, Powerstone Prodigy",
+    "Mishra, Excavation Prodigy"
    ]
   }
  ]

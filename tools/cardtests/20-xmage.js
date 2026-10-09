@@ -14458,4 +14458,54 @@ module.exports = (test) => {
     t.zone(bear, 'hand', 'a creature: taken, and nothing else goes');
     t.eq(T.zone('A', 'graveyard').length, 1);
   });
+  test('Wall of Tears returns what it blocked at end of combat', (mk, t) => {
+    t.auto('Wall of Tears');
+    t.auto('Aether Membrane');
+    const T = mk();
+    const w = T.bf('B', 'Wall of Tears');
+    const giant = T.bf('A', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: w.id, attackerIds: [giant.id] }]);
+    T.toMain('A', 'end');
+    t.zone(giant, 'hand', 'back in its owner\'s hand');
+    t.zone(w, 'battlefield');
+  });
+
+  test('Goblin Goon attacks and blocks only with more creatures', (mk, t) => {
+    t.auto('Goblin Goon');
+    t.auto('Monstrous Hound');
+    const T = mk();
+    T.toMain('A');
+    const gg = T.bf('A', 'Goblin Goon');
+    T.bf('B', 'Grizzly Bears');
+    t.no(T.g.canAttack(gg), 'one creature each: no attack');
+    T.bf('A', 'Llanowar Elves');
+    t.ok(T.g.canAttack(gg), 'two against one');
+    const U = mk();
+    const gb = U.bf('B', 'Goblin Goon');
+    const bear = U.bf('A', 'Grizzly Bears');
+    U.bf('A', 'Llanowar Elves');
+    t.no(U.g.couldBlock(gb, bear, 'B'), 'fewer creatures than the attacking player: no block');
+    U.bf('B', 'Llanowar Elves'); U.bf('B', 'Llanowar Elves');
+    t.ok(U.g.couldBlock(gb, bear, 'B'), 'three against two');
+  });
+
+  test('Ensoul Artifact makes a 5/5; Bhaal is indestructible at half life; Defender; reach', (mk, t) => {
+    t.auto('Ensoul Artifact');
+    t.auto('Bhaal, Lord of Murder');
+    t.auto("Teeka's Dragon");
+    const T = mk();
+    T.toMain('A');
+    const orn = T.bf('A', 'Ornithopter');
+    const ea = T.bf('A', 'Ensoul Artifact');
+    ea.attachedTo = orn.id; orn.attachments = [ea.id]; ea.ts = T.g._stampNew();
+    T.settle();
+    t.eq(T.g.powerOf(orn), 5); t.eq(T.g.toughnessOf(orn), 5);
+    const bh = T.bf('A', 'Bhaal, Lord of Murder');
+    t.no(T.g.hasKw(bh, 'Indestructible'), 'at 20 life, no');
+    T.player('A').life = 10; T.g.bumpBoard();
+    t.ok(T.g.hasKw(bh, 'Indestructible'), 'at 10 of 20, yes');
+    const tk = T.bf('A', 'Traproot Kami');
+    t.ok(T.g.hasKw(tk, 'Defender') && T.g.hasKw(tk, 'Reach'), 'both keywords off one line');
+  });
 };

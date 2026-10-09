@@ -183,8 +183,8 @@
   ];
 
   function splitKeywordLine(line) {
-    // "Flying, first strike, trample" -> three
-    return line.split(/,\s*(?![^(]*\))/).map(s => s.trim()).filter(Boolean);
+    // "Flying, first strike, trample" -> three; Aether Membrane's "Defender; reach" -> two
+    return line.split(/[,;]\s*(?![^(]*\))/).map(s => s.trim()).filter(Boolean);
   }
 
   function matchKeyword(clause) {
@@ -4523,6 +4523,8 @@
     { re: /^(?:CARDNAME|This creature) deals (\d+) damage to itself\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toSelf2: true }) },
     // Abomination: "destroy that creature at end of combat"
     { re: /^Destroy that creature at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'triggerObject' }) },
+    // Wall of Tears, Aether Membrane: "Return that creature to its owner's hand at end of combat."
+    { re: /^Return that creature to its owner'?s hand at end of combat\.?$/i, make: () => ({ op: 'bounceAtEndOfCombat', scope: 'triggerObject' }) },
     // Shared Animosity: "it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it"
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn for each other attacking creature that shares a creature type with it\.?$/i,
       make: (m) => ({ op: 'pumpPerKinAttacker', p: +m[1], t: +m[2] }) },
@@ -8097,6 +8099,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    // Myrkul, Bane and Bhaal, Lords: "your life total is less than or equal to half your starting life total"
+    [/^your life total is less than or equal to half your starting life total$/i, () => ({ kind: 'lifeAtMostHalfStart' })],
     // Nalia de'Arnise, Linvala, Shield of Sea Gate: a Cleric, a Rogue, a Warrior and a Wizard
     [/^you have a full party$/i, () => ({ kind: 'fullParty' })],
     // Torch the Witness, Bottle-Cap Blast: "if excess damage was dealt (to a creature) this way"
@@ -8929,6 +8933,8 @@
     { re: /^When(?:ever)? equipped creature dies(?:,| )/i, event: 'equippedDies' },
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
     // Zendikons: "When enchanted land dies, return that card to its owner's hand."
+    // Tezzeret's Touch: "When enchanted artifact is put into a graveyard, return that card to its owner's hand."
+    { re: /^When(?:ever)? enchanted artifact is put into a graveyard,/i, event: 'equippedDies' },
     { re: /^When(?:ever)? enchanted land dies,/i, event: 'equippedDies' },
     // Kaya's Ghostform: "When enchanted permanent dies or is put into exile"
     { re: /^When(?:ever)? enchanted (?:creature|permanent) dies or is put into exile(?:,| )/i, event: 'equippedDies', extra: { orExiled: true } },
@@ -11263,7 +11269,8 @@
         continue;
       }
       // "becomes a blue Frog with base power and toughness 1/1", "is an Insect artifact creature with base power and toughness 0/1"
-      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)$/))) {
+      // (Ensoul Artifact: "is a creature with base power and toughness 5/5 in addition to its other types")
+      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)(?: in addition to its other types)?$/))) {
         if (!typed(m[1], m[2], [m[3], m[4]])) return null;
         continue;
       }
@@ -12604,6 +12611,11 @@
         make: (m) => ({ op: 'blockPowerLimit', min: +m[1] }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'evasion', defenderControls: m[1].trim().toLowerCase() }), auto: true },
+      // Goblin Goon, Monstrous Hound: "can't attack unless you control more creatures than defending player"
+      { re: /^(?:CARDNAME|This creature) can'?t attack unless you control more (creature|land)s than defending player\.?$/i,
+        make: (m) => ({ op: 'attackRequires', moreThanDefender: m[1].toLowerCase() }), auto: true },
+      { re: /^(?:CARDNAME|This creature) can'?t block unless you control more (creature|land)s than attacking player\.?$/i,
+        make: (m) => ({ op: 'blockRequires', moreThanAttacker: m[1].toLowerCase() }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t attack unless defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'attackRequires', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^CARDNAME can'?t be countered\.?$/i, eff: { op: 'cantBeCountered' }, auto: true },
