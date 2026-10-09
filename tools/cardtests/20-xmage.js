@@ -12438,4 +12438,18 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.ok(bb.tapped && !cc.tapped, "B's creature tapped at B's combat");
   });
+
+  test('Ghalta and Mavren: a tapped and attacking Dinosaur as big as the biggest other attacker', (mk, t) => {
+    t.auto('Ghalta and Mavren');
+    const T = mk();
+    const gm = T.bf('A', 'Ghalta and Mavren'), wurm = T.bf('A', 'Craw Wurm'), bear = T.bf('A', 'Grizzly Bears');
+    for (const o of [gm, wurm, bear]) o.summoningSick = false;
+    T.answer('declareAttackers', () => [gm, wurm, bear].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    T.answer('mode', { modes: [0] });
+    T.toMain('A');
+    for (let i = 0; i < 30 && !T.g.battlefield.some(o => o.isToken); i++) { T.settle(); const p = T.g.priorityPlayer; if (!p) break; T.g.passPriority(p.id, true); }
+    const tok = T.g.battlefield.find(o => o.isToken && o.controller === 'A');
+    t.ok(tok, 'a Dinosaur');
+    t.eq(T.g.powerOf(tok), 6, 'as big as the Wurm'); t.ok(tok.tapped && tok.attacking, 'tapped and attacking');
+  });
 };

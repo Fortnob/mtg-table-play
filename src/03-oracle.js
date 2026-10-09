@@ -425,6 +425,8 @@
     if (!m) return null;
     const e = { op: 'createToken', n: num(m[1]), keywords: [] };
     s = s.slice(m[0].length);
+    // Ghalta and Mavren: "a tapped and attacking X/X … token"
+    if ((m = s.match(/^tapped and attacking /i))) { e.tapped = true; e.attacking = true; s = s.slice(m[0].length); }
     if ((m = s.match(/^tapped /i))) { e.tapped = true; s = s.slice(m[0].length); }
     if (!(m = s.match(/^([\dX*]+\/[\dX*]+) /))) return null;
     e.pt = m[1];
@@ -5032,7 +5034,7 @@
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestMv: sc }) : null;
     }
-    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures)$/i))) {
+    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures|(?:other )?attacking creatures)$/i))) {
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
     }
