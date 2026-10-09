@@ -333,6 +333,18 @@
   /* The back of a card. It shows up at three sizes now — a face-down
      permanent, a card in someone else's hand, and the stacks on the mat —
      so the ornament is drawn rather than typed, and scales with the card. */
+  /* The real back of a Magic card, as Scryfall serves it. Once it has
+     loaded, every back in the app wears it (see :root[data-real-backs] in
+     style.css); until then, or offline, the drawn back stands in. */
+  UI.CARD_BACK = 'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
+  if (typeof Image !== 'undefined' && typeof document !== 'undefined') {
+    const img = new Image();
+    img.onload = () => {
+      document.documentElement.style.setProperty('--card-back', `url("${UI.CARD_BACK}")`);
+      document.documentElement.dataset.realBacks = '1';
+    };
+    img.src = UI.CARD_BACK;
+  }
   UI.cardBack = function () {
     return el('div', { class: 'card-img card-back' }, [
       el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' })),

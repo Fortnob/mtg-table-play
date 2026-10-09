@@ -1753,3 +1753,24 @@ a { color: var(--info); }
 .script-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
 .script-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-3); }
 textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; resize: vertical; }
+
+/* ---------- the real card back ----------
+   Every face-down card in the app, once the picture of a real Magic back
+   has loaded: on the battlefield, in a hand, on the piles, in a pack. */
+:root[data-real-backs] .card-back,
+:root[data-real-backs] .cv-face.back,
+:root[data-real-backs] .pile-card.back,
+:root[data-real-backs] .po-back {
+  background: var(--card-back) center / 100% 100% no-repeat, #16110c;
+  border-color: transparent;
+}
+:root[data-real-backs] .cv-face.back,
+:root[data-real-backs] .card-back { box-shadow: 0 0 0 1px rgba(0,0,0,.55); }
+:root[data-real-backs] .card-back::before,
+:root[data-real-backs] .cv-face.back::before,
+:root[data-real-backs] .po-back::before,
+:root[data-real-backs] .card-back .back-ring,
+:root[data-real-backs] .cv-face.back .back-ring,
+:root[data-real-backs] .po-back .back-ring { display: none; }
+/* an empty pile is an outline, not a back */
+:root[data-real-backs] .pile.empty .pile-card { background: none; }
