@@ -11255,6 +11255,17 @@
       out.abilities.push({ kind: 'activated', text: ab.text + ' (unattach)', auto: true, sorcerySpeed: true, onlyAttached: true,
         cost: ab.cost, effects: [{ op: 'unattachSelf' }] });
     }
+    /* Viscerid Drone: "Sacrifice a creature and a Swamp"; Sudden Reclamation:
+       "return a creature card and a land card" — two different things read as
+       one kind of card that is both, which nothing ever is: with a person */
+    {
+      const TWO = /\b(?:and|then) (?:a|an|up to|this|thi|two|three|another|return|that)\b|, then\b|\bfrom your graveyard\b|\bto the battlefield\b/i;
+      const bad = (x) => { if (!x || typeof x !== 'object') return false; if (Array.isArray(x)) return x.some(bad);
+        if (['filter', 'what', 'type'].some(k => typeof x[k] === 'string' && TWO.test(x[k]))) return true;
+        return Object.values(x).some(bad); };
+      for (const ab of out.abilities) if (ab.auto && (bad(ab.effects) || bad(ab.cost))) { ab.auto = false; ab.twoKinds = true; }
+      if (out.abilities.some(ab => ab.twoKinds)) autoLines = Math.max(0, autoLines - out.abilities.filter(ab => ab.twoKinds).length);
+    }
     /* Clamavus: "Each creature you control gets +1/+1 for each +1/+1
        counter on it"; Luxior: "Equipped creature gets +1/+1 for each counter
        on it" — "it" is each creature the rule touches, not the source */
