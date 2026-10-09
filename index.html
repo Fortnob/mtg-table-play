@@ -4839,6 +4839,12 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-fan .booster { position: absolute; left: 35px; top: 30px; transform: rotate(calc(var(--k) * 4deg)) translateX(calc(var(--k) * 16px)); }
 .po-fan .booster.rip { animation: fanRip .4s ease-in forwards; }
 @keyframes fanRip { 30% { filter: brightness(1.8); } 100% { transform: translateY(-80px) scale(.8) rotate(calc(var(--k) * 10deg)); opacity: 0; } }
+/* Open all: a pile, the pack being opened on top, the next few behind it */
+.po-fan.pile .booster { transform: translate(calc(var(--j, 0) * 15px), calc(var(--j, 0) * -7px)) rotate(calc(var(--j, 0) * 3.5deg)) scale(calc(1 - var(--j, 0) * .045));
+  transition: transform .2s ease-out; }
+.po-fan.pile .booster.rip { z-index: 30 !important; animation: pileRip .42s ease-in forwards; }
+@keyframes pileRip { 0% { transform: none; } 25% { filter: brightness(1.9); transform: translateY(-10px) scale(1.04); }
+  100% { transform: translate(-40px, -110px) rotate(-14deg) scale(.82); opacity: 0; filter: brightness(1.4); } }
 
 /* the cards */
 .po-grid { display: grid; grid-template-columns: repeat(var(--cols, 7), auto); gap: 18px 16px; justify-content: center; align-content: center; }
@@ -4852,9 +4858,16 @@ html[data-play="1"] .shard-chip { display: none; }
   transition: transform .5s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 55ms), opacity .25s calc(var(--i) * 55ms), filter .2s; }
 .po-grid.many.dealt .po-card { transition: transform .4s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 12ms), opacity .2s calc(var(--i) * 12ms), filter .2s; }
 .po-grid.settled .po-card, .po-grid.many.settled .po-card { transition: transform .22s ease-out, filter .2s, opacity .2s; }
+/* skipped: the haul is simply there, nothing flying in or turning over */
+.po-grid.instant .po-card, .po-grid.instant .po-card * { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
 /* hovered, a turned card comes up to be read */
-.po-grid.dealt .po-card.flipped:hover { transform: scale(1.65); z-index: 30; transition-delay: 0s; }
-.po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.9); }
+.po-grid.dealt .po-card.flipped:hover { transform: scale(1.28); z-index: 30; transition-delay: 0s; cursor: zoom-in; }
+.po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.4); }
+/* hurried by a click: dealt and turned at six times the pace */
+.po-grid.hurry .po-card { transition-duration: .12s !important; transition-delay: 0s !important; }
+.po-grid.hurry .po-inner { transition-duration: .15s !important; }
+/* opening takes the whole screen: its title clear of a phone's status bar */
+.pack-open:not(.shelf) .po-head { padding-top: calc(22px + env(safe-area-inset-top, 0px)); }
 .po-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3, .7, .25, 1.15); }
 .po-card.flipped .po-inner { transform: rotateY(180deg); }
 .po-back, .po-front { position: absolute; inset: 0; border-radius: 4.8% / 3.5%; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
@@ -11729,6 +11742,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'addManaAmong', from: 'opponentLands', amount: 1, anyType: /type/i.test(m[1]) }) },
     { re: /^Add one mana of any (color|type) that a land you control could produce\.?$/i,
       make: (m) => ({ op: 'addManaAmong', from: 'yourLands', amount: 1, anyType: /type/i.test(m[1]) }) },
+    // Gond Gate, Plaza of Harmony, Star Compass: "… that a Gate (basic land) you control could produce" (landWords)
+    { re: /^Add one mana of any (color|type) that an? (Gate|basic land|Desert|Forest|Island|Mountain|Plains|Swamp) you control could produce\.?$/i,
+      make: (m) => ({ op: 'addManaAmong', from: 'yourLands', amount: 1, anyType: /type/i.test(m[1]), landWords: m[2].toLowerCase() }) },
     { re: /^Add one mana of any color among legendary creatures and planeswalkers you control\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', amount: 1 }) },
     { re: /^Add one mana of any colou?r among legendary permanents you control\.?$/i,
@@ -12521,6 +12537,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Each opponent discards (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'discard', n: num(m[1]), who: 'opponents' }) },
     { re: /^Untap ((?:another )?target [a-z0-9 '-]+?)\.?$/i, make: (m) => ({ op: 'untap', targets: [targetSpec(m[1])] }) },
+    // Magewright's Stone
+    { re: /^Untap (target creature that has an activated ability with \{T\} in its cost)\.?$/i, make: (m) => ({ op: 'untap', targets: [targetSpec(m[1])] }) },
     { re: /^Untap (CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
       make: (m) => Object.assign({ op: 'untap', scope: 'self' }, /^it$/i.test(m[1]) ? { itWord: true } : {}) },
     { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
@@ -13668,7 +13686,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Shuffle the cards from your hand into your library, then draw that many cards\.?$/i, make: () => ({ op: 'shuffleHandDraw', who: 'you' }) },
     // Deadeye Tracker, Lochmere Serpent: "Exile two (five) target cards from an opponent's graveyard." — one graveyard (gyExileN)
     { re: /^Exile (two|three|four|five) target cards from an opponent'?s graveyard\.?$/i,
-      make: (m) => ({ op: 'exile', sameGraveyard: true, targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'card', zone: 'graveyard', controller: 'opponent', distinct: true })) }) },
+      // (each after the first from the same graveyard as the one before it, as it is chosen)
+      make: (m) => ({ op: 'exile', sameGraveyard: true, targets: Array.from({ length: num(m[1]) }, (_, i) => Object.assign({ type: 'permanent', filter: 'card', zone: 'graveyard', controller: 'opponent', distinct: true }, i ? { sameControllerAsPrev: true } : {})) }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
     // Rustler Rampage: "Untap all creatures target player controls."
@@ -15087,6 +15106,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
         /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, /don'?t control/i.test(m[0]) ? { controller: 'opponent' } : {})] }) },
     // Tale's End: "Counter target activated ability, triggered ability, or legendary spell."
+    // Wash Away: "Counter target spell [that wasn't cast from its owner's hand]." (notFromHand)
+    { re: /^Counter target spell \[?that wasn'?t cast from its owner'?s hand\]?\.?$/i,
+      make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', notFromHand: true }] }) },
     { re: /^Counter target activated ability, triggered ability, or (legendary|noncreature|creature|artifact|instant or sorcery) spell\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase(), abilities: true }] }) },
     { re: /^Counter target spell, activated ability, or triggered ability\.?$/i,
@@ -16477,6 +16499,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (blockingSelf) phrase = String(phrase).replace(/\s+blocking (?:it|this creature|CARDNAME)$/i, '');
     const blockedBySelf = /\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i.test(String(phrase));
     if (blockedBySelf) phrase = String(phrase).replace(/\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i, '');
+    // Magewright's Stone: "target creature that has an activated ability with {T} in its cost" (hasTapAbility)
+    const tapAb = /\s+that has an activated ability with \{T\} in its cost$/i.test(String(phrase));
+    if (tapAb) phrase = String(phrase).replace(/\s+that has an activated ability with \{T\} in its cost$/i, '');
     // Moira, Grim Return: "target creature card in your graveyard that was put there from the battlefield this turn"
     const fromBf = /\s+that was put there from the battlefield this turn$/i.test(String(phrase));
     if (fromBf) phrase = String(phrase).replace(/\s+that was put there from the battlefield this turn$/i, '');
@@ -16494,6 +16519,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (enteredNow) spec.enteredThisTurn = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
+    if (tapAb) spec.hasTapAbility = true;
     if (blockedBySelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
@@ -16741,6 +16767,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
+    // (hasTapAbility: an activated ability, mana abilities among them, with {T} in its cost)
+    if (spec.hasTapAbility && !((analysis.abilities || []).concat(analysis.manaAbilities || []).some(ab => ab && ab.kind !== 'triggered' && ab.kind !== 'static' && ab.cost && ab.cost.tap))) return false;
     // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
     if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
@@ -17064,6 +17092,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Teferi's Time Twist: "Exile target permanent you control. Return that card to the battlefield under its
+       owner's control at the beginning of the next end step. If it enters as a creature, it enters with an
+       additional +1/+1 counter on it." (enterExtraCounter) */
+    { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
+      make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
+        { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
     // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
     { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
       make: () => [{ op: 'forEachTargetPlayer', targets: [{ type: 'player', distinct: true }, { type: 'player', distinct: true }],
@@ -19249,6 +19283,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
+    // Wilhelt, the Rotcleaver: "it didn't have decayed" — the creature that died, as it last was (triggerObjKeyword)
+    [/^it (didn'?t have|had) (decayed|flying|deathtouch|lifelink|trample|haste|vigilance|undying|persist)$/i,
+      (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)
     [/^you played a land this turn$/i, () => ({ kind: 'playedLandThisTurn' })],
     // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)
@@ -27115,6 +27152,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           continue;
         }
         if (!xa.isLand) continue;
+        // Gond Gate: only a Gate (Star Compass: a basic land) of yours (landWords)
+        if (e.landWords && !this._cardFitsWords(x, e.landWords)) continue;
         /* What the land could make: its own abilities, read the same way
            — but never by asking another Reflecting Pool, which would only
            ask back. */
@@ -31220,6 +31259,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     _onEnter(o) {
       const a = o.analysis();
       if (!a) return;
+      // Teferi's Time Twist: "if it enters as a creature, it enters with an additional +1/+1 counter" (enterExtraCounter)
+      if (o._enterExtraCounter) {
+        const ec = o._enterExtraCounter; o._enterExtraCounter = null;
+        if (!ec.ifCreature || (this.characteristics(o) || a).isCreature) this.addCounters(o, ec.kind, ec.n || 1);
+      }
       /* "…enters tapped unless you control two or fewer other lands", and the
          Karoo-style "unless you control a Swamp". These are decided as the
          permanent enters, so they are read here rather than waiting for a
@@ -34931,6 +34975,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         // Charismatic Conqueror: the permanent the trigger is about came in untapped
         case 'triggerObjUntapped': { const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId); return !!x && x.zone === 'battlefield' && !x.tapped; }
+        // Wilhelt: whether the creature the trigger is about had that keyword, as it last was (triggerObjKeyword)
+        case 'triggerObjKeyword': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          if (!x) return false;
+          const xa = (x.zone !== 'battlefield' && x._lkiAnalysis) || null;
+          const has = x.zone === 'battlefield' ? this.hasKw(x, cond.kw) : !!(xa ? xa.keywordSet && xa.keywordSet.has(cond.kw) : ((x.analysis() || {}).keywordSet || new Set()).has(cond.kw));
+          return cond.not ? !has : has;
+        }
         case 'selfCountersTotal': return !!src && Object.values(src.counters || {}).reduce((k, v) => k + (Number(v) || 0), 0) >= cond.n;
         case 'greatestMvArtifact': {
           const arts = this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isArtifact);
@@ -41773,6 +41825,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          // (Teferi's Time Twist: the counter it enters with — enterExtraCounter)
+          if (x && e.counterIfCreature) x._enterExtraCounter = { kind: e.counterIfCreature, n: 1, ifCreature: true };
           // (under your control when the words say so, or name nobody)
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
           // Nezahal: "Return it to the battlefield tapped …"
@@ -47688,6 +47742,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (xv(spec.minMv) != null && mv < xv(spec.minMv)) return false;
       // Frontline Medic: "with {X} in its mana cost"
       if (spec.hasXCost && !/\{X\}/.test(String((o.card && o.card.mana_cost) || ''))) return false;
+      // Wash Away: a spell that wasn't cast from its owner's hand (notFromHand)
+      if (spec.notFromHand && item.fromZone === 'hand') return false;
       if (xv(spec.mv) != null && mv !== xv(spec.mv)) return false;
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;
@@ -61450,13 +61506,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   /**
    * What a pulled card is worth, for putting the best of a rarity where it
    * shows: its market price, the foil one for a foil (0 for a wildcard, or
-   * a card nobody has priced).
+   * a card nobody has priced). In dollars; a card with no dollar price
+   * (an Alpha dual land, say: too rare for the American market to list)
+   * goes by its euro price, at about the rate, rather than as worthless.
    */
+  const EUR_USD = 1.1;
   function cardValue(it) {
     const p = it && it.card && it.card.prices;
     if (!p) return 0;
     const n = parseFloat(it.foil ? (p.usd_foil || p.usd_etched || p.usd) : (p.usd || p.usd_foil));
-    return Number.isFinite(n) ? n : 0;
+    if (Number.isFinite(n)) return n;
+    const eur = parseFloat(p.eur || p.eur_foil);
+    return Number.isFinite(eur) ? eur * EUR_USD : 0;
   }
   /** The name a card is collected under: the whole name, both faces. */
   const nameOf = (c) => String((c && c.name) || '');
@@ -64247,6 +64308,23 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   /* ---------------- opening packs ---------------- */
   const RANK = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
+  /* The order cards come out in: wildcards (rarest first), then the Power
+     Nine, then the rest. Before Exodus a set symbol said nothing of a card's
+     rarity, so nobody opening those packs knew a common from a rare by
+     looking: their cards go by value alone. The rest by rarity, then value. */
+  const RARITY_SHOWN = '1998-06-15';   // Exodus, the first set symbol coloured by rarity
+  const POWER_NINE = new Set(['Black Lotus', 'Ancestral Recall', 'Time Walk', 'Timetwister',
+    'Mox Pearl', 'Mox Sapphire', 'Mox Jet', 'Mox Ruby', 'Mox Emerald']);
+  const isPower = (it) => !!(it.card && POWER_NINE.has(it.card.name));
+  const isVintage = (it) => !!(it.card && (it.card.released_at || '9999') < RARITY_SHOWN);
+  const haulTier = (it) => (it.wildcard ? 0 : isPower(it) ? 1 : isVintage(it) ? 2 : 3);
+  function haulOrder(a, b) {
+    const ta = haulTier(a), tb = haulTier(b);
+    if (ta !== tb) return ta - tb;
+    if (ta === 0) return RANK[b.wildcard] - RANK[a.wildcard];
+    if (ta === 3 && RANK[b.rarity] !== RANK[a.rarity]) return (RANK[b.rarity] || 0) - (RANK[a.rarity] || 0);
+    return E().cardValue(b) - E().cardValue(a) || a.card.name.localeCompare(b.card.name);
+  }
   const reduced = () => document.documentElement.dataset.reducedMotion === '1' ||
     (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -64315,8 +64393,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* the top bar's bottom is measured on the screen, and the interface is
        zoomed to fit big screens, so it is turned back into the page's own
        pixels (the overlay's on-screen height against its own) */
+    // the shelf of your packs sits under the top bar; opening them takes the whole screen
     const place = () => {
-      if (!topbar || topbar.offsetParent === null) { overlay.style.top = '0px'; return; }
+      if (!overlay.classList.contains('shelf') || !topbar || topbar.offsetParent === null) { overlay.style.top = '0px'; return; }
       const zoom = (overlay.getBoundingClientRect().height / (overlay.offsetHeight || 1)) || 1;
       overlay.style.top = Math.max(0, topbar.getBoundingClientRect().bottom / zoom) + 'px';
     };
@@ -64344,6 +64423,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
     /* ---- right-click: the card held up to the light ---- */
     let inspecting = null;
+    let earlyHurry = false;   // a click while a pack tears: its cards come hurried
     const inspect = (card) => {
       if (!card) return;
       closeInspect();
@@ -64390,6 +64470,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!gs.length) return close();
       stage.className = 'po-stage inv';
       overlay.classList.add('shelf');
+      place();
       stage.innerHTML = ''; foot.innerHTML = ''; head.innerHTML = '';
       const total = S.packs().length;
       head.append(el('div', { class: 'po-pagehead' }, [
@@ -64427,6 +64508,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* ---- one pack ---- */
     const openOne = (g) => {
       overlay.classList.remove('shelf');
+      place();
       const p = (groups().find(x => x.key === g.key) || { packs: [] }).packs[0];
       if (!p) return inventory();
       const info = setInfo(p);
@@ -64451,6 +64533,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const open = async () => {
         if (opening) return;
         opening = true;
+        // a click from here on, while it gathers and tears, hurries the dealing (the next tick: this click is still going up)
+        earlyHurry = false;
+        setTimeout(() => { stage.onclick = () => { earlyHurry = true; }; }, 0);
         hint.classList.add('gone');
         // the pack lifts, the room closes in, the seam begins to glow; then it gives
         pack.classList.add('gather');
@@ -64516,6 +64601,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       t._item = it; t._big = big; t._flipped = false;
       t.addEventListener('mouseenter', () => { if (t._flipped) MTG.sfx('hover'); });
       t.addEventListener('contextmenu', (e) => { e.preventDefault(); if (t._flipped && it.card) inspect(it.card); });
+      // turned over, a click holds it up to the light too (a face-down one is turned over instead)
+      t.addEventListener('click', () => { if (t._flipped && it.card && Date.now() - (t._flippedAt || 0) > 250) inspect(it.card); });
       return t;
     };
 
@@ -64537,12 +64624,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /** Turn a card over: a rare or mythic gathers itself first. */
     const flipper = (tiles, after) => {
       let flips = 0;
-      const flip = async (t, quick) => {
+      // silent: turned with the rest of a haul at once, which makes its one sound for all of them
+      const flip = async (t, quick, silent) => {
         if (t._flipped || t._charging) return;
         const it = t._item;
         const r = it.wildcard || it.rarity;
         const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
-        if (t._big && !quick && !reduced()) {
+        if (t._big && !quick && !reduced() && !(after.hurried && after.hurried())) {
           t._charging = true;
           t.classList.add('charging');
           MTG.sfx(r === 'mythic' ? 'charge_mythic' : 'charge_rare');
@@ -64551,9 +64639,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           t._charging = false;
         }
         t._flipped = true;
+        t._flippedAt = Date.now();
         t.classList.remove('waiting');
         t.classList.add('flipped');
         t.setAttribute('aria-label', it.card ? it.card.name : `${RAR_NAME[it.wildcard]} wildcard`);
+        if (silent) {
+          if (it.wildcard === 'mythic' || it.rarity === 'mythic') burst(t, 'mythic');
+          flips++;
+          after();
+          return;
+        }
         if (it.wildcard) { MTG.sfx('wildcard'); burst(t, it.wildcard === 'mythic' ? 'mythic' : 'rare'); }
         else if (it.rarity === 'mythic') { if (!quick || !after.mythicSounded) MTG.sfx('reveal_mythic'); after.mythicSounded = true; burst(t, 'mythic'); }
         else if (it.rarity === 'rare') { if (!quick || !after.rareSounded) MTG.sfx('reveal_rare'); after.rareSounded = true; burst(t, 'rare'); }
@@ -64570,7 +64665,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const deal = (res, g, info) => {
       stage.className = 'po-stage one dealt-stage';
       stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = '';
-      const items = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
+      const all = res.cards.concat(res.bonus.map(r => ({ wildcard: r, track: true })));
+      // wildcards and the Power Nine first; a pack from before rarity was shown by value, any other as it was packed
+      const rest = all.filter(it => haulTier(it) > 1);
+      const vintagePack = (info && info.released_at ? info.released_at : '9999') < RARITY_SHOWN;
+      const items = all.filter(it => haulTier(it) <= 1).sort(haulOrder)
+        .concat(vintagePack ? rest.slice().sort((a, b) => E().cardValue(b) - E().cardValue(a)) : rest);
       const cols = Math.min(8, Math.ceil(items.length / 2));
       const grid = el('div', { class: 'po-grid', style: { '--cols': String(cols), '--rows': String(Math.ceil(items.length / cols)) } });
       stage.appendChild(grid);
@@ -64585,22 +64685,44 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (S.packs().length) foot.appendChild(el('button', { type: 'button', class: 'btn', text: 'Back to packs', onclick: () => { MTG.sfx('click'); inventory(); } }));
         foot.appendChild(el('button', { type: 'button', class: 'btn' + (!hidden.length && !same ? ' primary' : ''), text: 'Done', onclick: () => close() }));
       };
+      /* A click while the cards are being dealt or turned (on the table,
+         not on a card) hurries them: eight times the pace, and a rare turns
+         without gathering itself first. */
+      let pace = 1;
+      const hurry = () => { if (pace > 1) return; pace = 8; grid.classList.add('hurry'); };
+      refresh.hurried = () => pace > 1;
+      // waits that shrink the moment a click hurries them, even one already begun
+      const paced = async (ms) => { for (let left = ms; left > 0;) { const step = pace > 1 ? 10 : 40; await sleep(step); left -= step * pace; } };
       const flip = flipper(tiles, refresh);
       for (const t of tiles) t.addEventListener('click', () => flip(t));
-      const revealAll = () => tiles.filter(t => !t._flipped).forEach((t, k) => setTimeout(() => flip(t, true), k * 140));
+      stage.onclick = (e) => { if (!(e.target.closest && e.target.closest('.po-card'))) hurry(); };
+      if (earlyHurry) { earlyHurry = false; hurry(); }
+      let revealing = false;
+      const revealAll = async () => {
+        if (revealing) return hurry();
+        revealing = true;
+        for (const t of tiles.filter(x => !x._flipped)) { if (!overlay.isConnected) return; flip(t, true); await paced(140); }
+      };
       refresh();
       // dealt out of the pack, one after another
       requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.add('dealt')));
-      tiles.forEach((t, k) => setTimeout(() => {
-        const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
-        MTG.sfx('card_deal', { pan });
-      }, 60 + k * 55));
-      const dealt = 60 + tiles.length * 55 + 350;
-      // dealt: from now on a card comes up and goes back at once
-      setTimeout(() => grid.classList.add('settled'), dealt + 300);
-      const auto = tiles.filter(t => !t._big);
-      auto.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t); }, dealt + k * 150));
-      setTimeout(() => { for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting'); }, dealt + auto.length * 150);
+      (async () => {
+        await paced(60);
+        for (const t of tiles) {
+          const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
+          if (pace === 1) MTG.sfx('card_deal', { pan });
+          await paced(55);
+        }
+        await paced(350);
+        // dealt: from now on a card comes up and goes back at once
+        setTimeout(() => grid.classList.add('settled'), 300 / pace);
+        for (const t of tiles.filter(x => !x._big)) {
+          if (!overlay.isConnected) return;
+          flip(t, pace > 1);
+          await paced(150);
+        }
+        for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting');
+      })();
       onKey = (e) => {
         if (e.key === 'Escape') return close();
         if (e.key !== ' ' && e.key !== 'Enter') return;
@@ -64618,6 +64740,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        torn open in a row, then everything they held laid out together. */
     const openAll = async (g) => {
       overlay.classList.remove('shelf');
+      place();
       const gs = g === 'all' ? groups() : [groups().find(x => x.key === g.key)].filter(Boolean);
       const each = gs.flatMap(x => x.packs.map(p => ({ p, g: x })));
       const packs = each.map(x => x.p);
@@ -64627,29 +64750,56 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       stage.className = 'po-stage all';
       stage.innerHTML = ''; stage.scrollTop = 0; foot.innerHTML = ''; head.innerHTML = '';
       head.append(el('div', { class: 'po-title', text: info.name }), el('div', { class: 'po-sub', text: `Opening ${packs.length} packs…` }));
-      const fan = el('div', { class: 'po-fan' });
-      const shown = Math.min(packs.length, 10);
-      const fanned = Array.from({ length: shown }, (_, i) => {
-        const b = boosterEl(each[i].g.info, each[i].g.kind);
-        b.style.setProperty('--k', String(i - (shown - 1) / 2));
+      /* The packs as a pile, the one being opened on top: each tears off in
+         turn and the next unopened one comes up behind the rest, so every
+         pack is seen as it opens, whatever its set. */
+      const fan = el('div', { class: 'po-fan pile' });
+      const DEPTH = Math.min(5, packs.length);
+      const pile = [];
+      const restack = () => pile.forEach((b, j) => { b.style.setProperty('--j', String(j)); b.style.zIndex = String(20 - j); });
+      const comeUp = (k) => {
+        if (k >= packs.length) return;
+        const b = boosterEl(each[k].g.info, each[k].g.kind);
         fan.appendChild(b);
-        return b;
-      });
+        pile.push(b);
+      };
+      for (let k = 0; k < DEPTH; k++) comeUp(k);
+      restack();
       stage.appendChild(fan);
-      onKey = () => {};
+      /* Clicking again (or Enter, or Space) skips the show: the rest of the
+         packs open at once, with no flash, and the cards come up already
+         turned over. The same during the wave of cards turning over. */
+      let skip = false, revealNow = null;
+      const skipAll = () => { if (skip) return; skip = true; if (revealNow) revealNow(); };
+      const onSkip = (e) => { if (e.target && e.target.closest && e.target.closest('.po-x, .po-foot button')) return; skipAll(); };
+      // from the next click on: the one that pressed Open all is still on its way up through the overlay
+      setTimeout(() => { if (!revealNow || !skip) overlay.addEventListener('click', onSkip); }, 0);
+      onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skipAll(); } };
+      head.querySelector('.po-sub').textContent = `Opening ${packs.length} packs… click to skip`;
       const results = [];
       let failed = null;
       for (let i = 0; i < packs.length; i++) {
         try { results.push(await S.openPack(packs[i].id, async () => each[i].g.info)); } catch (e) { failed = e; break; }
-        const b = fanned[i % shown];
-        if (b && !reduced()) { b.classList.remove('rip'); void b.offsetWidth; b.classList.add('rip'); }
-        MTG.sfx('pack_tear_quick', { pan: shown > 1 ? ((i % shown) / (shown - 1) - 0.5) : 0 });
-        await sleep(reduced() ? 10 : 110);
+        if (skip) continue;
+        // the top pack tears away and the next comes up
+        const top = pile.shift();
+        if (top) {
+          if (reduced()) top.remove();
+          else { top.classList.add('rip'); setTimeout(() => top.remove(), 450); }
+        }
+        comeUp(i + DEPTH);
+        restack();
+        const sub = head.querySelector('.po-sub');
+        if (sub) sub.textContent = `Opening ${i + 1} of ${packs.length}… click to skip`;
+        MTG.sfx('pack_tear_quick', { pan: (i % 3 - 1) * 0.3 });
+        await sleep(reduced() ? 10 : 150);
       }
-      if (failed && !results.length) { UI.error(failed.message || String(failed)); return inventory(); }
-      overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
-      MTG.sfx('boom');
-      await sleep(reduced() ? 50 : 520);
+      if (failed && !results.length) { overlay.removeEventListener('click', onSkip); UI.error(failed.message || String(failed)); return inventory(); }
+      if (!skip) {
+        overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
+        MTG.sfx('boom');
+        await sleep(reduced() ? 50 : 520);
+      }
       // everything, together: the same card once with how many, rarest first
       const merged = new Map();
       const wcs = { common: 0, uncommon: 0, rare: 0, mythic: 0 };
@@ -64668,9 +64818,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         for (const r of res.bonus) wcs[r]++;
       }
       // rarest first, and within a rarity the most valuable first
-      const items = [...merged.values()].sort((a, b) => RANK[b.rarity] - RANK[a.rarity] || S.cardValue(b) - S.cardValue(a) || a.card.name.localeCompare(b.card.name));
-      for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.unshift({ wildcard: r, count: wcs[r] });
-      items.sort((a, b) => RANK[b.wildcard || b.rarity] - RANK[a.wildcard || a.rarity]);
+      const items = [...merged.values()];
+      for (const r of ['mythic', 'rare', 'uncommon', 'common']) if (wcs[r]) items.push({ wildcard: r, count: wcs[r] });
+      // wildcards, the Power Nine, cards from before rarity was shown by value, then by rarity and value
+      items.sort(haulOrder);
       stage.className = 'po-stage all summary';
       stage.innerHTML = ''; stage.scrollTop = 0;
       head.innerHTML = '';
@@ -64693,17 +64844,40 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const after = () => {};
       const flip = flipper(tiles, after);
       refresh();
-      // the whole haul from the top, wherever the list of packs was scrolled to
-      requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
-      setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
-      // the best of it turned over first, with its sound; the rest in a quick wave
-      const best = tiles.filter(t => t._big);
-      const rest = tiles.filter(t => !t._big);
-      let at = 400;
-      for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
-      rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+      let waveOver = false;
+      /* skipped: every card down and turned over at once, with one sound for
+         the lot (the rarest there is), and no stagger to wait out */
+      revealNow = () => {
+        if (waveOver) return;
+        waveOver = true;
+        overlay.removeEventListener('click', onSkip);
+        grid.classList.add('instant', 'dealt', 'settled');
+        stage.scrollTop = 0;
+        for (const t of tiles) flip(t, true, true);
+        const has = (r) => items.some(it => (it.wildcard || it.rarity) === r);
+        MTG.sfx(has('mythic') ? 'reveal_mythic' : has('rare') ? 'reveal_rare' : 'card_flip');
+        requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.remove('instant')));
+      };
+      if (skip) revealNow();
+      else {
+        // the whole haul from the top, wherever the list of packs was scrolled to
+        requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
+        setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
+        // the best of it turned over first, with its sound; the rest in a quick wave
+        const best = tiles.filter(t => t._big);
+        const rest = tiles.filter(t => !t._big);
+        let at = 400;
+        for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
+        rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+        // once the wave has run its course, a click is a click again
+        setTimeout(() => { waveOver = true; overlay.removeEventListener('click', onSkip); }, at + rest.length * 35 + 300);
+      }
       if (failed) UI.error(`Some packs could not be opened: ${failed.message || failed}`);
-      onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+      // Enter or Space: the cards at once while they are still turning, and away once they are all up
+      onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!waveOver) skipAll(); else close(); }
+      };
     };
 
     inventory();
