@@ -14193,4 +14193,38 @@ module.exports = (test) => {
     V.player('A').drawnThisTurn = 3; V.g.bumpBoard();
     t.eq(V.g.powerOf(b3), 5, 'three cards drawn this turn');
   });
+
+  test('Kalemne, Aggressive Mining, Biovisionary, Cynical Loner, The Theorist, Giggling Skitterspike', (mk, t) => {
+    for (const n of ['Kalemne, Disciple of Iroas', 'Aggressive Mining', 'Biovisionary', 'Cynical Loner', 'The Theorist, Jace Beleren', 'Giggling Skitterspike']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const k = T.bf('A', 'Kalemne, Disciple of Iroas');
+    const base = T.g.powerOf(k);
+    T.player('A').experience = 2; T.g.bumpBoard();
+    t.eq(T.g.powerOf(k), base + 2, 'two experience counters');
+    T.bf('A', 'Aggressive Mining');
+    t.ok(!T.g.canPlayLand('A'), 'no lands');
+    const bio = T.bf('A', 'Biovisionary');
+    const cond = bio.analysis().abilities.find(a => a.kind === 'triggered').condition;
+    t.ok(!T.g._condMet(cond, { controller: 'A', obj: bio }), 'one Biovisionary');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Biovisionary');
+    t.ok(T.g._condMet(cond, { controller: 'A', obj: bio }), 'four');
+    const loner = T.bf('A', 'Cynical Loner');
+    t.ok(!!T.g.couldBlock(T.bf('B', 'Grizzly Bears'), loner, 'B'), 'a Bear may block it');
+    const sk = T.bf('B', 'Giggling Skitterspike');
+    const ab = sk.analysis().abilities.find(a => a.kind === 'triggered');
+    t.ok(ab.event === 'attacks' && ab.also === 'becomesTarget' && ab.also2 === 'blocks', 'three events');
+  });
+
+  test('Giggling Skitterspike: blocking triggers it too', (mk, t) => {
+    const T = mk();
+    const sk = T.bf('B', 'Giggling Skitterspike');
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const life = T.life('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: sk.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'combatDamage');
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), life - T.g.powerOf(sk), 'damage equal to its power to each opponent');
+  });
 };

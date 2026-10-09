@@ -5326,6 +5326,8 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Kalemne, Disciple of Iroas: "for each experience counter you have"
+    if (/^experience counter you have$/i.test(p)) return { playerStat: 'experience', mult: k };
     // Commander's Insignia: "for each time you've cast your commander from the command zone this game"
     if (/^time you'?ve cast your commander from the command zone this game$/i.test(p)) return { commanderCasts: true, mult: k };
     // Kyler, Sigardian Emissary: "for each counter on CARDNAME" — of any kind
@@ -8014,6 +8016,8 @@
     [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
     [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
+    // Biovisionary: "you control four or more creatures named CARDNAME"
+    [/^you control (\w+) or more creatures named CARDNAME$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'control', scope: { who: 'you', what: 'creature', nameSelf: true }, n: num(m[1]) } : null)],
     // Ice-Fang Coatl: "you control at least three other snow permanents"
     [/^you control at least (\w+) (other )?((?:snow |legendary |artifact )?(?:permanents|creatures|lands|artifacts))$/i, (m) => {
       const sc = scopeOf((m[2] ? 'other ' : '') + m[3] + ' you control');
@@ -8562,6 +8566,9 @@
     // Kira, Glyph Keeper: "for the first time each turn"
     { re: /^When(?:ever)? (?:this creature|CARDNAME|this permanent) becomes the target of a spell or ability for the first time each turn,? /i,
       event: 'becomesTarget', self: true, extra: { firstTargetEachTurn: true } },
+    // Giggling Skitterspike: "Whenever this creature attacks, blocks, or becomes the target of a spell," — three events
+    { re: /^Whenever (?:this creature|CARDNAME) attacks, blocks, or becomes the target of a spell, /i,
+      event: 'attacks', also: 'becomesTarget', also2: 'blocks', self: true, extra: { bySpellOnly: true } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) attacks or becomes the target of a spell(?:,| )/i,
       event: 'attacks', also: 'becomesTarget', self: true, extra: { bySpellOnly: true } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
@@ -8654,6 +8661,8 @@
     { re: /^When(?:ever)? an opponent draws their (second|third) card each turn(?:,| )/i, event: 'opponentDraw',
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
+    // The Theorist, Jace Beleren: "At the beginning of each opponent's draw step,"
+    { re: /^At the beginning of each opponent'?s draw step, /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
     { re: /^At the beginning of each player'?s draw step(?:,| )/i, event: 'eachDrawStep' },
     // Camellia: "Whenever you sacrifice one or more Foods" (heard once for each one)
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
@@ -9570,6 +9579,7 @@
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
+          ...(trig.also2 ? { also2: trig.also2 } : {}),
           text: line, effects: parsed.effects, auto: parsed.auto, condition,
           atLevel: lvlHit ? +lvlHit[1] : undefined,
           objFilter: objFilter || undefined, oncePerTurn: oncePerTurn || undefined, onceEver: onceEver || undefined,
@@ -12460,6 +12470,11 @@
       { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
       // Everlasting Torment: "All damage is dealt as though its source had wither."
       { re: /^All damage is dealt as though its source had wither\.?$/i, eff: { op: 'witherAll' }, auto: true },
+      // Aggressive Mining: "You can't play lands."
+      { re: /^You can'?t play lands\.?$/i, eff: { op: 'cantPlayLands' }, auto: true },
+      // Cynical Loner: "This creature can't be blocked by Glimmers."
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked by ([A-Z][a-z]+s)\.?$/,
+        make: (m) => { const spec = targetSpec('target ' + U.titleCase(singularType(m[1]))); if (!spec || spec.unknown || !(spec.subtypes || []).length) return null; delete spec.filter; return { op: 'evasion', notBy: spec }; }, auto: true },
       // Steel Golem: "You can't cast creature spells."
       { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },

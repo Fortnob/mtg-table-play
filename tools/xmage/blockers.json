@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11859,
-  "gainedCards": 1221,
-  "linesNeeded": 12777,
-  "linesGained": 1441,
+  "needed": 11843,
+  "gainedCards": 1212,
+  "linesNeeded": 12754,
+  "linesGained": 1431,
   "gained": {
-   "all": 1221,
+   "all": 1212,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4287,
-   "lines": 4026,
+   "score": 4285,
+   "lines": 4024,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -525,25 +525,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Azure Beastbinder",
-    "Locke, Treasure Hunter",
-    "Lydia Frye",
-    "Cynical Loner",
-    "Departed Deckhand",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Tatsunari, Toad Rider",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 21,
    "lines": 21,
@@ -579,6 +560,25 @@
     "Moonshae Pixie // Pixie Dust",
     "Misty Knight, Hero for Hire",
     "Amber Gristle O'Maul"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Azure Beastbinder",
+    "Locke, Treasure Hunter",
+    "Lydia Frye",
+    "Departed Deckhand",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Tatsunari, Toad Rider",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist",
+    "Cavern Stomper"
    ]
   },
   {
@@ -1448,25 +1448,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Otharri, Suns' Glory",
-    "The Wise Mothman",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Screeching Scorchbeast",
-    "Tato Farmer",
-    "Zuko, Firebending Master",
-    "Katara, Waterbending Master",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink",
-    "Megaton's Fate",
-    "Phyrexian Vatmother"
-   ]
-  },
-  {
    "what": "PutCounterOnPermanentTriggeredAbility",
    "score": 12,
    "lines": 12,
@@ -1650,6 +1631,24 @@
     "Pristine Angel",
     "Spare from Evil",
     "Masked Gorgon"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "The Wise Mothman",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Screeching Scorchbeast",
+    "Tato Farmer",
+    "Zuko, Firebending Master",
+    "Katara, Waterbending Master",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink",
+    "Megaton's Fate",
+    "Phyrexian Vatmother"
    ]
   },
   {
@@ -3441,20 +3440,6 @@
    ]
   },
   {
-   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Colfenor's Urn",
-    "Biovisionary",
-    "Arachnus Web",
-    "Skizzik",
-    "Lightning Shrieker",
-    "Blitz Hellion",
-    "Krovikan Horror"
-   ]
-  },
-  {
    "what": "ShuffleIntoLibraryTargetEffect",
    "score": 7,
    "lines": 7,
@@ -4029,6 +4014,19 @@
     "Mazzy, Truesword Paladin",
     "Sigil of the New Dawn",
     "Kithkin Mourncaller"
+   ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Colfenor's Urn",
+    "Arachnus Web",
+    "Skizzik",
+    "Lightning Shrieker",
+    "Blitz Hellion",
+    "Krovikan Horror"
    ]
   },
   {
@@ -5957,17 +5955,6 @@
    ]
   },
   {
-   "what": "CountersControllerCount",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Aang, Airbending Master",
-    "Katara, Waterbending Master",
-    "Atreus, Impulsive Son",
-    "Kratos, Stoic Father"
-   ]
-  },
-  {
    "what": "DiscardOneOrMoreCardsTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -5976,17 +5963,6 @@
     "Doctor Doom, King of Latveria",
     "Urza, Powerstone Prodigy",
     "Mishra, Excavation Prodigy"
-   ]
-  },
-  {
-   "what": "SourceControllerCountersCount.EXPERIENCE",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Minthara, Merciless Soul",
-    "Kalemne, Disciple of Iroas",
-    "Kelsien, the Plague",
-    "Azula, Ruthless Firebender"
    ]
   },
   {
@@ -6896,13 +6872,33 @@
     "Mirage Phalanx",
     "Breathkeeper Seraph"
    ]
+  },
+  {
+   "what": "ExileCardsFromTopOfLibraryTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Oblivion Sower",
+    "Ashiok, Wicked Manipulator",
+    "Raven Guild Master"
+   ]
+  },
+  {
+   "what": "AnyColorLandsProduceManaAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Gond Gate",
+    "Star Compass",
+    "Plaza of Harmony"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3548,
-   "cards": 3368,
+   "score": 3547,
+   "cards": 3367,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7173,6 +7169,19 @@
    ]
   },
   {
+   "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
+   "score": 18,
+   "cards": 18,
+   "names": [
+    "Adarkar Valkyrie",
+    "Kelsien, the Plague",
+    "Rushed Rebirth",
+    "Turn Inside Out",
+    "Scarblade's Malice",
+    "Desperate Measures"
+   ]
+  },
+  {
    "what": "OrTriggeredAbility halves differ",
    "score": 17,
    "cards": 17,
@@ -7212,19 +7221,6 @@
    ]
   },
   {
-   "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Adarkar Valkyrie",
-    "Rushed Rebirth",
-    "Turn Inside Out",
-    "Scarblade's Malice",
-    "Desperate Measures",
-    "Felonious Rage"
-   ]
-  },
-  {
    "what": "EnteredThisTurnPredicate.instance",
    "score": 16,
    "cards": 16,
@@ -7248,19 +7244,6 @@
     "Nightkin Ambusher",
     "Nimble Brigand",
     "Slippery Scoundrel"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Cynical Loner",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger"
    ]
   },
   {
@@ -7300,6 +7283,19 @@
     "Quag Feast",
     "Abuelo's Awakening",
     "Cloudspire Skycycle"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Ant-Man, Elusive Avenger",
+    "Exit Specialist"
    ]
   },
   {
@@ -8206,10 +8202,10 @@
    "score": 8,
    "cards": 8,
    "names": [
-    "Otharri, Suns' Glory",
     "Phyresis Outbreak",
     "Feral Ghoul",
     "Zuko, Firebending Master",
+    "Katara, Waterbending Master",
     "Vault 12: The Necropolis",
     "Contaminated Drink"
    ]
@@ -9297,19 +9293,6 @@
    ]
   },
   {
-   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Biovisionary",
-    "Arachnus Web",
-    "Skizzik",
-    "Lightning Shrieker",
-    "Blitz Hellion",
-    "Krovikan Horror"
-   ]
-  },
-  {
    "what": "BoostEnchantedEffect p/t",
    "score": 6,
    "cards": 6,
@@ -10165,6 +10148,18 @@
    ]
   },
   {
+   "what": "BeginningOfEndStepTriggeredAbility for NEXT",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Arachnus Web",
+    "Skizzik",
+    "Lightning Shrieker",
+    "Blitz Hellion",
+    "Krovikan Horror"
+   ]
+  },
+  {
    "what": "CrewsVehicleSourceTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10434,6 +10429,17 @@
    ]
   },
   {
+   "what": "AirbendTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Appa, Steadfast Guardian",
+    "Aang, Airbending Master",
+    "Appa, Loyal Sky Bison",
+    "Whirlwind Technique"
+   ]
+  },
+  {
    "what": "copy with changes",
    "score": 4,
    "cards": 4,
@@ -10629,17 +10635,6 @@
     "Amulet of Safekeeping",
     "Dormant Gomazoa",
     "Leovold, Emissary of Trest"
-   ]
-  },
-  {
-   "what": "becomes the target, under anyone",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Shay Cormac",
-    "Willbreaker",
-    "Horobi, Death's Wail",
-    "Cowardice"
    ]
   }
  ]

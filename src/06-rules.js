@@ -2644,6 +2644,8 @@
       const p = this.player(playerId);
       // Solfatara: "can't play lands this turn"
       if (p && p.noLandsTurn === this.turn) return false;
+      // Aggressive Mining: "You can't play lands."
+      if (this.battlefield.some(o => o.controller === playerId && !o.phasedOut && this._staticOp(o, 'cantPlayLands'))) return false;
       return this.activePlayer.id === playerId && this.isMain && this.stackEmpty
         && this.priorityPlayer && this.priorityPlayer.id === playerId
         && p.landsPlayed < this.landAllowance(p);
@@ -8243,7 +8245,8 @@
           }
         }
         this.combat.blockers.push(b.id);
-        this._fire('blocks', b.controller, { blocker: b, source: b });
+        // (the blocker is what "it" means in the trigger: Giggling Skitterspike's damage)
+        this._fire('blocks', b.controller, { blocker: b, source: b, object: b });
         /* Inferno Elemental, Netcaster Spider: each blocker and attacker pair,
            seen from either side ("that creature" is the other one) */
         for (const aid of d.attackerIds) {
@@ -10840,7 +10843,7 @@
         for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
           // "enters or attacks" is one ability that answers to either event
-          if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+          if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           // a graveyard ability works from there and nowhere else
           if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
@@ -11005,7 +11008,7 @@
           if (!a) continue;
           for (let i = 0; i < a.abilities.length; i++) {
             const ab = a.abilities[i];
-            if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+            if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
             if (ab.objFilter && !this._objFits(data.object, ab.objFilter, o, data.objController)) continue;
             push(o, i, ab);
@@ -11021,7 +11024,7 @@
         const a = (o.zone !== 'battlefield' && o._lkiAnalysis) || o.analysis();
         if (a) for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
-          if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event)) continue;
+          if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice' || event === 'timeCounterRemoved') ? ab.self
             : !!(ab.objFilter && ab.objFilter.selfOk && this._objFits(o, Object.assign({}, ab.objFilter, { other: false, who: null }), o));
@@ -19428,6 +19431,8 @@
       if (sc.commander && !(o.isCommander && (sc.commander === 'control' || o.owner === pid))) return false;
       // "other creatures you control named Hare Apparent"
       if (sc.name && o.name !== sc.name) return false;
+      // Biovisionary: "creatures named CARDNAME" — the source's own name
+      if (sc.nameSelf && !(src && o.name === src.name)) return false;
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
       if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
