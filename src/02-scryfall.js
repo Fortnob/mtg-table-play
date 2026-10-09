@@ -112,19 +112,35 @@
   class Queue {
     /* `slowGap` is for the endpoints Scryfall holds to two a second; a 429
        from those locks the whole client out for thirty seconds. */
-    constructor(minGap, slowGap) { this.gap = minGap; this.slowGap = slowGap || minGap; this.last = 0; this.chain = Promise.resolve(); this.pending = 0; }
-    run(fn, slow) {
+    constructor(minGap, slowGap) { this.gap = minGap; this.slowGap = slowGap || minGap; this.last = 0; this.lastSlow = 0; this.chain = Promise.resolve(); this.pending = 0; }
+    /* A request given an AbortSignal that fires while it queues (a search
+       for "gob" once "goblin" is typed) drops out without being sent, and
+       one already sent is cut off, so the search wanted is not left
+       waiting its turn behind it. The slow endpoints are spaced from each
+       other, not from every quick lookup in between. */
+    run(fn, slow, signal) {
       this.pending++;
       MTG.bus.emit('scryfall:pending', this.pending);
       const p = this.chain.then(async () => {
-        const wait = (slow ? this.slowGap : this.gap) - (Date.now() - this.last);
+        if (signal && signal.aborted) {
+          this.pending--; MTG.bus.emit('scryfall:pending', this.pending);
+          throw Queue.stale();
+        }
+        const now = Date.now();
+        const wait = Math.max(this.gap - (now - this.last), slow ? this.slowGap - (now - this.lastSlow) : 0);
         if (wait > 0) await U.sleep(wait);
+        if (signal && signal.aborted) {
+          this.pending--; MTG.bus.emit('scryfall:pending', this.pending);
+          throw Queue.stale();
+        }
         this.last = Date.now();
+        if (slow) this.lastSlow = this.last;
         try { return await fn(); } finally { this.pending--; MTG.bus.emit('scryfall:pending', this.pending); }
       });
       this.chain = p.catch(() => {});
       return p;
     }
+    static stale() { const e = new Error('Overtaken by a newer search.'); e.stale = true; return e; }
   }
 
   /* ---------------- the client ---------------- */
@@ -156,7 +172,7 @@
     async _fetch(path, opts) {
       opts = opts || {};
       this.stats.requests++;
-      return this.q.run(() => this._doFetch(path, opts), /\/cards\/(search|named|random|collection)/.test(path));
+      return this.q.run(() => this._doFetch(path, opts), /\/cards\/(search|named|random|collection)/.test(path), opts.signal);
     }
 
     async _doFetch(path, opts) {
@@ -170,8 +186,10 @@
             headers: Object.assign({ 'Accept': 'application/json;q=0.9,*/*;q=0.8' },
               opts.body ? { 'Content-Type': 'application/json' } : {}),
             body: opts.body ? JSON.stringify(opts.body) : undefined,
+            signal: opts.signal,
           }), opts.timeout || 20000);
         } catch (e) {
+          if (opts.signal && opts.signal.aborted) throw Queue.stale();
           // one retry for a dropped connection, then admit it
           if (attempt < 1 && !/timed out/i.test(e.message || '')) { await U.sleep(600); continue; }
           this.stats.errors++; this.offline = true;
@@ -402,6 +420,7 @@
       }
       try { return await this._liveSearch(query, opts, max); }
       catch (e) {
+        if (e && e.stale) throw e;
         // offline with a database that could not answer exactly: its best is better than nothing
         if (local) { try { const cards = local.search(query, opts); this.stats.local++; return cards; } catch (e2) {} }
         throw e;
@@ -433,7 +452,7 @@
       for (let page = 0; url && out.length < max && page < 40; page++) {
         if (seenPages.has(url)) break;
         seenPages.add(url);
-        const data = await this._fetch(url);
+        const data = await this._fetch(url, { signal: opts.signal });
         if (!data) break;
         out.push(...(data.data || []));
         url = data.has_more ? data.next_page : null;
@@ -443,12 +462,12 @@
       return cards;
     }
 
-    async autocomplete(q) {
+    async autocomplete(q, opts) {
       if (!q || q.length < 2) return [];
       const local = await this._localDb();
       if (local) return local.idx.autocomplete(q, 20);
       try {
-        const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q));
+        const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q), { signal: opts && opts.signal });
         return (d && d.data) || [];
       } catch (e) { return []; }
     }

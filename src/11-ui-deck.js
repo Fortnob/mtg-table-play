@@ -244,20 +244,23 @@ Sideboard
     const isBasic = (card) => MTG.formats.isBasicLand(card);
 
     const left = el('div', { class: 'panel deck-list' });
+    const paneAdd = el('div', { class: 'deck-pane pane-add' });
     const paneOverview = el('div', { class: 'deck-pane' });
     const paneAdvisor = el('div', { class: 'deck-pane' });
     const paneCards = el('div', { class: 'deck-pane' });
-    const panes = { overview: paneOverview, advisor: paneAdvisor, cards: paneCards };
-    let activePane = 'overview';
+    const panes = { add: paneAdd, overview: paneOverview, advisor: paneAdvisor, cards: paneCards };
+    // an empty deck opens on the search, since adding cards is the whole of the next step
+    const empty = !(deck.main || []).length && !(deck.commanders || []).length;
+    let activePane = !drafted && empty ? 'add' : 'overview';
     const tabsBar = el('div', { class: 'side-tabs', role: 'tablist', 'aria-label': 'Deck views' });
-    const paneHost = el('div', { class: 'deck-pane-host' }, [paneOverview, paneAdvisor, paneCards]);
+    const paneHost = el('div', { class: 'deck-pane-host' }, [paneAdd, paneOverview, paneAdvisor, paneCards]);
     // On a phone there is no room for a list beside the panes, so the list
     // becomes a tab of its own and the builder is one full-screen stack.
     const phone = MTG.isPhone();
     const tabDefs = (phone
-      ? [['list', 'Deck'], ['overview', 'Overview'], ['advisor', 'Suggestions'], ['cards', 'Cards']]
-      : [['overview', 'Overview'], ['advisor', 'Suggestions & combos'], ['cards', 'Cards']])
-      .filter(([id]) => !(drafted && id === 'advisor'));
+      ? [['list', 'Deck'], ['add', 'Add cards'], ['overview', 'Overview'], ['advisor', 'Suggestions'], ['cards', 'Cards']]
+      : [['add', 'Add cards'], ['overview', 'Overview'], ['advisor', 'Suggestions & combos'], ['cards', 'Cards']])
+      .filter(([id]) => !(drafted && (id === 'advisor' || id === 'add')));
     if (phone) { panes.list = left; activePane = 'list'; }
     for (const [id, label] of tabDefs) {
       const t = el('button', {
@@ -272,7 +275,7 @@ Sideboard
     }
     panes[activePane].classList.add('active');
     const right = phone
-      ? el('div', { class: 'panel deck-right' }, [tabsBar, el('div', { class: 'deck-pane-host' }, [left, paneOverview, paneAdvisor, paneCards])])
+      ? el('div', { class: 'panel deck-right' }, [tabsBar, el('div', { class: 'deck-pane-host' }, [left, paneAdd, paneOverview, paneAdvisor, paneCards])])
       : el('div', { class: 'panel deck-right' }, [tabsBar, paneHost]);
     const wrap = el('div', { class: 'deck-layout' + (phone ? ' stacked' : '') },
       phone ? [right] : [left, right]);
@@ -427,6 +430,35 @@ Sideboard
         x.setAttribute('aria-selected', x.dataset.pane === id ? 'true' : 'false');
       }
       for (const k in panes) panes[k].classList.toggle('active', k === id);
+      if (id === 'add') { mountSearch(); if (search) search.focus(); }
+    }
+
+    /* The search lives in a pane beside the list, so what you add shows up
+       in the deck as you click, rather than behind a window over it. It is
+       built again when the format or the colours change, keeping the words
+       typed. */
+    let search = null, searchKey = '';
+    function mountSearch() {
+      if (drafted) return;
+      const key = deck.format + '|' + (validation.colorIdentity || []).join('');
+      if (search && key === searchKey) return;
+      const q = search ? search.query() : '';
+      paneAdd.innerHTML = '';
+      searchKey = key;
+      search = UI.cardSearch({
+        host: paneAdd,
+        query: q,
+        format: deck.format,
+        colors: (validation.colorIdentity || []),
+        onAdd: (card, n) => addCardObj(card, n || 1),
+        onRemove: (card) => removeCardObj(card),
+        inDeck: () => {
+          const have = new Map();
+          for (const e of deck.main) have.set(e.card.id, e.qty);
+          for (const c of deck.commanders) have.set(c.id, 1);
+          return have;
+        },
+      });
     }
 
     function matchesHighlight(card) {
@@ -631,19 +663,7 @@ Sideboard
       if (!countOf('W') && !countOf('U') && !countOf('B') && !countOf('R') && !countOf('G') && nonLand) suggest();
     }
 
-    function addCard() {
-      UI.cardSearch({
-        format: deck.format,
-        colors: (validation.colorIdentity || []),
-        onAdd: (card, n) => addCardObj(card, n || 1),
-        inDeck: () => {
-          const m = new Map();
-          for (const e of deck.main) m.set(e.card.id, e.qty);
-          for (const c of deck.commanders) m.set(c.id, 1);
-          return m;
-        },
-      });
-    }
+    function addCard() { showPane('add'); }
 
     /* These report whether they did anything, because the advisor's rows
        take themselves off the list once their action has been carried out
@@ -655,7 +675,8 @@ Sideboard
       if (e && fmt.singleton) { UI.error(card.name + ' is already in this singleton deck.'); return false; }
       if (e) e.qty += (qty || 1);
       else deck.main.push({ card, qty: qty || 1 });
-      UI.ok('Added ' + card.name + '.');
+      // beside the list the line lighting up says it; elsewhere, a word
+      if (activePane === 'add') justAdded = card.id; else UI.ok('Added ' + card.name + '.');
       MTG.sfx('click');
       render();
       return true;
@@ -669,6 +690,7 @@ Sideboard
       } catch (err) { UI.error(err.message); }
     }
 
+    let justAdded = null;
     function removeCardObj(card) {
       const i = deck.main.findIndex(x => x.card.id === card.id);
       if (i < 0) return false;
@@ -773,6 +795,13 @@ Sideboard
         for (const e of UI.sortCards(deck.sideboard, 'cmc')) left.appendChild(entryRow(e));
       }
       left.scrollTop = listTop;
+      if (justAdded) {
+        const lit = left.querySelector('.deck-entry.just');
+        if (lit) lit.scrollIntoView({ block: 'nearest' });
+        justAdded = null;
+      }
+      if (search) { mountSearch(); search.refresh(); }
+      else if (activePane === 'add') mountSearch();
 
       /* ----- right: validation + stats ----- */
       paneOverview.innerHTML = '';
@@ -1052,7 +1081,7 @@ Sideboard
         title: isCmd ? e.card.name
           : inPool ? `${e.card.name} \u2014 click to put one in the deck`
           : drafted && !isBasic(e.card) ? `${e.card.name} \u2014 click to put one back in your pool`
-          : `${e.card.name} \u2014 click to take one out, click the number to add one`,
+          : `${e.card.name} \u2014 \u2212 and + change how many; right-click for more`,
       }, [
         qty,
         el('span', { class: 'nm', text: e.card.name }),
@@ -1061,13 +1090,25 @@ Sideboard
         MTG.settings.showCardPrices
           ? el('span', { class: 'tiny price', text: U.money(U.priceOf(e.card)) })
           : null,
+        !isCmd && !drafted ? el('span', { class: 'qty-ctl' }, [
+          el('button', { type: 'button', class: 'qty-btn', text: '\u2212', title: `One fewer ${e.card.name}`, 'aria-label': `One fewer ${e.card.name}`,
+            onclick: (ev) => { ev.stopPropagation(); changeQty(e, -1); MTG.sfx('click'); } }),
+          // one of each in a singleton deck, basics aside
+          MTG.formats.get(deck.format).singleton && !isBasic(e.card)
+            ? el('button', { type: 'button', class: 'qty-btn', text: '+', disabled: true, title: 'One of each in this format' })
+            : el('button', { type: 'button', class: 'qty-btn', text: '+', title: `One more ${e.card.name}`, 'aria-label': `One more ${e.card.name}`,
+              onclick: (ev) => { ev.stopPropagation(); changeQty(e, 1); MTG.sfx('click'); } }),
+        ]) : null,
       ].filter(Boolean)), e.card);
+      if (justAdded && e.card.id === justAdded) row.classList.add('just');
       UI.setArt(row, e.card);
       UI.attachPreview(row, e.card, 0);
       if (!isCmd) {
         qty.addEventListener('click', (ev) => { ev.stopPropagation(); changeQty(e, 1); MTG.sfx('click'); });
-        // a card in the pool comes into the deck; one in the deck goes back to the pool
-        row.addEventListener('click', () => { changeQty(e, inPool ? 1 : -1); MTG.sfx('click'); });
+        // a card in the pool comes into the deck; one in the deck goes back to
+        // the pool. Building from scratch, a click on the line reads the card.
+        if (drafted) row.addEventListener('click', () => { changeQty(e, inPool ? 1 : -1); MTG.sfx('click'); });
+        else row.addEventListener('click', () => UI.cardSheet(e.card));
       }
       row.addEventListener('contextmenu', (ev) => {
         ev.preventDefault();
@@ -1217,7 +1258,12 @@ Sideboard
     const TYPES = [['Creature', 't:creature'], ['Instant', 't:instant'], ['Sorcery', 't:sorcery'], ['Artifact', 't:artifact'],
       ['Enchantment', 't:enchantment'], ['Planeswalker', 't:planeswalker'], ['Land', 't:land']];
     const COSTS = [['0–1', 'mv<=1'], ['2', 'mv=2'], ['3', 'mv=3'], ['4', 'mv=4'], ['5', 'mv=5'], ['6+', 'mv>=6']];
+    // colours: any of those picked, the way a card shop's shelves are sorted
+    const COLOURS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']];
     let typeOn = null, costOn = null;
+    const coloursOn = new Set();
+    const colourQuery = () => (coloursOn.size
+      ? '(' + [...coloursOn].map(c => 'c:' + (c === 'M' ? 'm' : c === 'C' ? 'c' : c.toLowerCase())).join(' or ') + ')' : '');
     const chipRow = el('div', { class: 'search-chips' });
     const drawChips = () => {
       chipRow.innerHTML = '';
@@ -1228,13 +1274,31 @@ Sideboard
       chipRow.append(...TYPES.map(([l, q]) => chip(l, q, typeOn, (v) => { typeOn = v; })),
         el('span', { class: 'chip-gap' }),
         el('span', { class: 'tiny dim', text: 'Mana value' }),
-        ...COSTS.map(([l, q]) => chip(l, q, costOn, (v) => { costOn = v; })));
+        ...COSTS.map(([l, q]) => chip(l, q, costOn, (v) => { costOn = v; })),
+        el('span', { class: 'chip-gap' }),
+        ...COLOURS.map(([c, name]) => el('button', {
+          type: 'button', class: 'chip colour-chip' + (coloursOn.has(c) ? ' on' : ''), title: name, 'aria-label': name,
+          'aria-pressed': coloursOn.has(c) ? 'true' : 'false',
+          html: c === 'C' ? '<i class="pip pip-c">C</i>' : `<i class="pip pip-${c.toLowerCase()}">${c}</i>`,
+          onclick: () => { if (coloursOn.has(c)) coloursOn.delete(c); else coloursOn.add(c); drawChips(); run(); },
+        })));
     };
     drawChips();
+    // with no card database in this browser every search is a trip to
+    // Scryfall; say so where it is felt, with the cure a click away
+    const dbSlot = el('div', { class: 'search-db-slot' });
+    if (MTG.cardDb && MTG.app && MTG.app.startCardDb) {
+      MTG.cardDb.ready().then((ok) => {
+        if (ok || MTG.cardDb.job || !dbSlot.isConnected && !opts.host) return;
+        dbSlot.appendChild(el('div', { class: 'search-db-note' }, [
+          el('span', { class: 'grow', text: 'Each search asks Scryfall, which takes a second or so. With the card database saved in this browser, searching is instant.' }),
+          el('button', { type: 'button', class: 'btn xs', text: 'Download it', onclick: () => { dbSlot.innerHTML = ''; MTG.app.startCardDb('default_cards'); } }),
+        ]));
+      }).catch(() => {});
+    }
 
-    const m = UI.modal({
-      title: opts.title || 'Add a card', width: '1020px',
-      content: el('div', { class: 'card-search' }, [
+    const content = el('div', { class: 'card-search' + (opts.host ? ' embedded' : '') }, [
+        el('div', { class: 'search-top' }, [
         el('div', { class: 'search-bar' }, [el('span', { class: 'search-ico', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>' }), input]),
         suggestBox,
         opts.onlyCommanders ? null : chipRow,
@@ -1250,10 +1314,20 @@ Sideboard
           el('span', { class: 'grow' }),
           status,
         ].filter(Boolean)),
+        ]),
+        dbSlot,
+        opts.onRemove ? el('div', { class: 'tiny dim search-how', text: 'Click a card to add one. Right-click to take one out.' }) : null,
         results,
-      ]),
-      buttons: [{ label: 'Done', class: 'primary', onClick: () => m.close() }],
-    });
+      ].filter(Boolean));
+    let m;
+    if (opts.host) { opts.host.appendChild(content); m = { close() {}, embedded: true }; }
+    else {
+      m = UI.modal({
+        title: opts.title || 'Add a card', width: '1020px', content,
+        buttons: [{ label: 'Done', class: 'primary', onClick: () => m.close() }],
+      });
+    }
+    if (opts.query) input.value = opts.query;
     setTimeout(() => input.focus(), 50);
     if (opts.onlyCommanders) {
       status.textContent = 'Search for a legendary creature.';
@@ -1262,12 +1336,16 @@ Sideboard
     }
 
     let token = 0;
+    // the search in flight, cut off when a newer one starts
+    let inFlight = null, suggestFlight = null;
     const run = U.debounce(async () => {
       const q = input.value.trim();
       suggestBox.innerHTML = '';
-      const chips = [typeOn, costOn].filter(Boolean).join(' ');
-      if (!q && !chips) { results.innerHTML = ''; status.textContent = 'Start typing, or pick a type or a cost.'; return; }
+      const chips = [typeOn, costOn, colourQuery()].filter(Boolean).join(' ');
+      if (!q && !chips) { results.innerHTML = ''; status.textContent = 'Start typing, or pick a type, a cost or a colour.'; return; }
       const mine = ++token;
+      if (inFlight) inFlight.abort();
+      const ctl = inFlight = new AbortController();
       status.textContent = 'Searching…';
       results.classList.add('loading');
       // a bare word is a name search; anything with a colon or comparison is a query
@@ -1279,8 +1357,9 @@ Sideboard
       if (opts.onlyCommanders && !/is:commander/.test(query)) query += ' is:commander';
       let cards = [];
       // owned only: a wider net, since most of what comes back is then left out
-      try { cards = await MTG.scry.search(query, { max: ownedOnly.checked ? 400 : 60, unique: 'cards', order: 'edhrec' }); }
+      try { cards = await MTG.scry.search(query, { max: ownedOnly.checked ? 400 : 60, unique: 'cards', order: 'edhrec', signal: ctl.signal }); }
       catch (e) {
+        if (mine !== token) return;
         if (q && !looksLikeQuery && !chips) {
           try { const c = await MTG.scry.byName(q); if (c) cards = [c]; } catch (e2) {}
         }
@@ -1288,7 +1367,7 @@ Sideboard
       if (mine !== token) return;
       results.classList.remove('loading');
       draw(cards, q || chips);
-    }, 260);
+    }, 200);
     legalOnly.addEventListener('change', () => run());
     inColor.addEventListener('change', () => run());
     let last = null;
@@ -1331,6 +1410,7 @@ Sideboard
             MTG.sfx('click');
             if (opts.once) m.close(); else redrawCounts();
           },
+          onContext: opts.onRemove ? () => { if (opts.onRemove(c)) { MTG.sfx('click'); redrawCounts(); } } : null,
         });
         slot.appendChild(UI.autoBadge(c, { corner: true }));
         tile.appendChild(slot);
@@ -1360,8 +1440,11 @@ Sideboard
       run();
       // name completions while you type, if it is not a query
       const q = input.value.trim();
+      if (suggestFlight) suggestFlight.abort();
+      suggestFlight = null;
       if (q.length >= 2 && !/[:<>=]/.test(q)) {
-        MTG.scry.autocomplete(q).then((names) => {
+        suggestFlight = new AbortController();
+        MTG.scry.autocomplete(q, { signal: suggestFlight.signal }).then((names) => {
           if (input.value.trim() !== q) return;
           suggestBox.innerHTML = '';
           for (const nm of names.slice(0, 8)) {
@@ -1374,7 +1457,8 @@ Sideboard
       }
     });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
-    return m;
+    if (opts.query) run();
+    return Object.assign(m, { refresh: redrawCounts, focus: () => input.focus(), query: () => input.value });
   };
 
   /* ---------------- sideboarding between games ----------------

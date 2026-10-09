@@ -1418,3 +1418,41 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .av-thumb-face { box-shadow: 0 3px 10px rgba(0,0,0,.55) !important; }
 .av-thumb:hover .av-thumb-face { box-shadow: 0 0 0 2px rgba(255,255,255,.5), 0 3px 12px rgba(0,0,0,.6) !important; }
 .av-mask::after { box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
+
+/* ---------- building a deck: the search in a pane beside the list ---------- */
+.card-search { display: flex; flex-direction: column; }
+/* only the box you type in stays put as the results scroll under it */
+.card-search.embedded { gap: 10px; }
+.card-search.embedded .search-top { display: contents; }
+.card-search.embedded .search-bar { position: sticky; top: -14px; z-index: 3; margin: -14px -14px 0; padding: 14px 14px 8px;
+  background: linear-gradient(180deg, rgba(14, 16, 22, .98) 82%, rgba(14, 16, 22, 0)); }
+:root[data-theme="light"] .card-search.embedded .search-bar { background: linear-gradient(180deg, var(--bg-3) 82%, transparent); }
+.card-search.embedded .search-bar .search-ico { left: 28px; translate: 0 -40%; }
+.card-search.embedded .search-chips { gap: 5px; }
+.card-search.embedded .search-chips .chip { padding: 5px 9px; font-size: 11px; }
+.card-search.embedded .search-suggest { display: flex; flex-wrap: wrap; gap: 5px; max-height: 30px; overflow: hidden; }
+.card-search.embedded .search-suggest:empty { display: none; }
+.card-search.embedded .search-filters { font-size: 12px; }
+.card-search:not(.embedded) .search-top { display: grid; gap: 12px; }
+.card-search.embedded .search-grid { max-height: none; overflow: visible; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); --card-w: 124px; --card-h: 173px; }
+.card-search.embedded .search-bar input { padding-top: 11px; padding-bottom: 11px; font-size: 15px; }
+.search-how { margin: -4px 2px 0; }
+.chip.colour-chip { padding: 4px 6px; line-height: 0; }
+.chip.colour-chip .pip { width: 18px; height: 18px; margin: 0; vertical-align: 0; }
+.chip.colour-chip:not(.on) .pip { filter: saturate(.55) brightness(.85); }
+.chip.colour-chip.on { box-shadow: 0 0 0 1px var(--gold-hi), 0 0 10px rgba(246, 220, 140, .35); }
+.search-db-note { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; font-size: 12px; color: var(--ink-2);
+  border: 1px dashed rgba(212, 175, 71, .35); background: rgba(212, 175, 71, .06); }
+.search-db-slot:empty { display: none; }
+
+/* each line of the list: minus and plus, shown on hover (always, by touch) */
+.deck-entry .qty-ctl { flex: none; display: inline-flex; gap: 3px; opacity: 0; transition: opacity var(--fast); }
+.deck-entry:hover .qty-ctl, .deck-entry:focus-within .qty-ctl, :root[data-touch] .deck-entry .qty-ctl { opacity: 1; }
+.qty-btn { width: 22px; height: 22px; padding: 0; border-radius: 6px; display: grid; place-items: center; font: 700 14px/1 var(--font);
+  color: var(--ink); background: rgba(8, 10, 14, .75); border: 1px solid rgba(255, 255, 255, .14); cursor: pointer; }
+.qty-btn:disabled { opacity: .35; cursor: default; }
+.qty-btn:not(:disabled):hover { color: #241a05; background: linear-gradient(180deg, var(--gold-hi), var(--gold-mid)); border-color: transparent; }
+.deck-entry.strip { cursor: pointer; }
+/* the line a card just went into lights up */
+.deck-entry.just { animation: entryJust 1.1s ease-out; }
+@keyframes entryJust { 0% { box-shadow: 0 0 0 2px var(--gold-hi), 0 0 18px rgba(246, 220, 140, .6); filter: brightness(1.4); } 100% { box-shadow: 0 0 0 0 transparent; filter: none; } }

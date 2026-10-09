@@ -1623,11 +1623,19 @@
     return d + (d === 1 ? ' day ago' : ' days ago');
   }
 
+  /** "New Deck", or "New Deck (2)" when there is already a New Deck, and so on. */
+  function untitledName() {
+    const taken = new Set(MTG.decks.index().map(d => String(d.name || '').trim().toLowerCase()));
+    if (!taken.has('new deck')) return 'New Deck';
+    let n = 1;
+    while (taken.has(`new deck (${n})`)) n++;
+    return `New Deck (${n})`;
+  }
   async function newDeck() {
-    const name = await UI.prompt('Name this deck', 'New deck');
+    const name = await UI.prompt('Give it a name, or leave it blank and name it later.', '', 'Name your deck', { placeholder: 'New Deck' });
     if (name == null) return;
     UI.deckBuilder({
-      id: MTG.uid('deck'), name: name || 'New deck', format: App.formatId,
+      id: MTG.uid('deck'), name: name.trim() || untitledName(), format: App.formatId,
       main: [], sideboard: [], commanders: [], companion: null,
     }, { onSave: () => renderDecks() });
   }
@@ -1671,6 +1679,7 @@
     const f = job.total ? Math.min(1, job.got / job.total) : 0;
     return job.phase === 'download' ? f * 0.7 : job.phase === 'unpack' ? 0.7 + f * 0.27 : job.phase === 'store' ? 0.98 : 1;
   }
+  App.startCardDb = (kind) => startCardDb(kind || 'default_cards');
   function startCardDb(kind) {
     const run = MTG.cardDb.download(kind);
     cardDbProgress();
