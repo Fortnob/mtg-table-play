@@ -14302,4 +14302,22 @@ module.exports = (test) => {
     const ro = U.bf('A', 'Roalesk, Apex Hybrid');
     t.eq(ro.analysis().abilities.find(a => a.kind === 'triggered' && /proliferate again/.test(a.text)).effects.filter(e => e.op === 'proliferate').length, 2, 'two proliferates');
   });
+
+  test('True-Faith Censer: more for a Human; Skullcap Snail: the opponent exiles a card of their choice', (mk, t) => {
+    t.auto('True-Faith Censer'); t.auto('Skullcap Snail');
+    const T = mk();
+    T.toMain('A');
+    const human = T.bf('A', 'Elite Vanguard'), bear = T.bf('A', 'Grizzly Bears');
+    const c1 = T.bf('A', 'True-Faith Censer'), c2 = T.bf('A', 'True-Faith Censer');
+    T.g._attachAura(c1, human); T.g._attachAura(c2, bear); T.g.bumpBoard();
+    t.eq(T.g.powerOf(human), 2 + 1 + 1, 'a Human: +2/+1');
+    t.eq(T.g.powerOf(bear), 2 + 1, 'not a Human: +1/+1');
+    const a = T.hand('B', 'Island'), b = T.hand('B', 'Shock');
+    T.answer('pickCard', () => ({ cardIds: [b.id] }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.put('A', 'Skullcap Snail', 'battlefield', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('B', 'exile').length + T.zone('B', 'hand').length, 2);
+    t.eq(T.zone('B', 'exile').length, 1, 'one card exiled');
+  });
 };

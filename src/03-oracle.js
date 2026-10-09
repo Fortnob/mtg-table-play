@@ -1252,6 +1252,10 @@
     // Ashling's Command: "2 damage to each creature target player controls"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // Skullcap Snail: "target opponent exiles a card from their hand" — their choice
+    { re: /^(Target opponent|Each opponent|Target player) exiles (a|one|two) cards? from their hand\.?$/i,
+      make: (m) => Object.assign({ op: 'exileFromHandChoice', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
+        /^target/i.test(m[1]) ? { targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] } : {}) },
     // Roalesk, Apex Hybrid: "proliferate, then proliferate again"
     { re: /^Proliferate, then proliferate again\.?$/i, make: () => [{ op: 'proliferate' }, { op: 'proliferate' }] },
     // Lay Down Arms: "Exile target creature with mana value less than or equal to the number of Plains you control."
@@ -12381,7 +12385,11 @@
       // Shielding Plax, Canopy Cover: "can't be the target of spells or abilities your opponents control" is hexproof
       { re: /^(Enchanted|Equipped) creature can'?t be the target of spells or abilities your opponents control\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Hexproof'] }), auto: true },
-      // Prowler's Helm, Invisibility: "Equipped creature can't be blocked except by Walls."
+        // True-Faith Censer: "As long as equipped creature is a Human, it gets an additional +1/+0."
+      { re: /^As long as (equipped|enchanted) creature is an? ([A-Z][a-z]+), it gets an additional ([+-]\d+)\/([+-]\d+)\.?$/,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[3], t: +m[4] },
+          cond: { kind: 'attachedHasType', subtype: m[2] } }), auto: true },
+    // Prowler's Helm, Invisibility: "Equipped creature can't be blocked except by Walls."
       { re: /^(?:Enchanted|Equipped) creature can'?t be blocked except by ([A-Z][a-z]+)s\.?$/,
         make: (m) => ({ op: 'evasionAttached', onlyBySubtype: U.titleCase(singularType(m[1] + 's')) }), auto: true },
       // Instill Energy: "Enchanted creature can attack as though it had haste."

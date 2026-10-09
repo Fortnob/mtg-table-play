@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11800,
+  "needed": 11786,
   "gainedCards": 1191,
-  "linesNeeded": 12707,
+  "linesNeeded": 12689,
   "linesGained": 1410,
   "gained": {
    "all": 1191,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4282,
-   "lines": 4021,
+   "score": 4279,
+   "lines": 4018,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -298,8 +298,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 31,
-   "lines": 31,
+   "score": 30,
+   "lines": 30,
    "cards": [
     "Take the Bait",
     "Aang, Swift Savior // Aang and La, Ocean's Fury",
@@ -1793,24 +1793,6 @@
     "Ornitharch",
     "Thunder Brute",
     "Shrike Harpy"
-   ]
-  },
-  {
-   "what": "ExileFromZoneTargetEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Perfect Intimidation",
-    "Skullcap Snail",
-    "Ruthless Negotiation",
-    "Kyoki, Sanity's Eclipse",
-    "Unscrupulous Agent",
-    "Aim for the Head",
-    "Decaying Soil",
-    "Mindmelter",
-    "Witness the End",
-    "Vessel of Malignity",
-    "Parallax Nexus"
    ]
   },
   {
@@ -4296,19 +4278,6 @@
     "Helicarrier Strike",
     "Timeline Inquiry",
     "Beast Mode"
-   ]
-  },
-  {
-   "what": "EquippedHasSubtypeCondition",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Gift of Fangs",
-    "Bladed Bracers",
-    "Bonds of Faith",
-    "True-Faith Censer",
-    "Silver-Inlaid Dagger",
-    "Heavy Mattock"
    ]
   },
   {
@@ -6880,13 +6849,33 @@
     "Ezio Auditore da Firenze",
     "Hidetsugu Consumes All // Vessel of the All-Consuming"
    ]
+  },
+  {
+   "what": "TargetControlledLandPermanent",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Toph, Hardheaded Teacher",
+    "The Legend of Kyoshi // Avatar Kyoshi",
+    "Earthshape"
+   ]
+  },
+  {
+   "what": "search with TargetCardWithDifferentNameInLibrary",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Tiamat",
+    "Reach the Horizon",
+    "Alpine Houndmaster"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3545,
-   "cards": 3365,
+   "score": 3544,
+   "cards": 3364,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7796,6 +7785,19 @@
    ]
   },
   {
+   "what": "ReturnFromExileForSourceEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Connecting the Dots",
+    "Parallax Wave",
+    "Wall of Nets",
+    "Bomat Courier",
+    "Safe Haven",
+    "Parallax Tide"
+   ]
+  },
+  {
    "what": "(verify) number 2 missing",
    "score": 10,
    "cards": 10,
@@ -8069,19 +8071,6 @@
    ]
   },
   {
-   "what": "ReturnFromExileForSourceEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Connecting the Dots",
-    "Parallax Wave",
-    "Wall of Nets",
-    "Bomat Courier",
-    "Safe Haven",
-    "Parallax Tide"
-   ]
-  },
-  {
    "what": "keyword PowerUpAbility",
    "score": 9,
    "cards": 9,
@@ -8105,19 +8094,6 @@
     "Knight of Dusk",
     "Baneblade Scoundrel // Baneclaw Marauder",
     "Godo's Irregulars"
-   ]
-  },
-  {
-   "what": "ExileFromZoneTargetEffect",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Perfect Intimidation",
-    "Skullcap Snail",
-    "Ruthless Negotiation",
-    "Kyoki, Sanity's Eclipse",
-    "Unscrupulous Agent",
-    "Aim for the Head"
    ]
   },
   {
@@ -9307,6 +9283,19 @@
    ]
   },
   {
+   "what": "OneShotNonTargetEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Boltbender",
+    "Amy Pond",
+    "Wormfang Newt",
+    "Wormfang Turtle",
+    "Temporal Firestorm",
+    "Muse Vessel"
+   ]
+  },
+  {
    "what": "BoostSourceEffect p/t",
    "score": 6,
    "cards": 6,
@@ -9395,19 +9384,6 @@
     "Underworld Cerberus",
     "Fell Shepherd",
     "Infernal Caretaker"
-   ]
-  },
-  {
-   "what": "EquippedHasSubtypeCondition",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Gift of Fangs",
-    "Bladed Bracers",
-    "Bonds of Faith",
-    "True-Faith Censer",
-    "Silver-Inlaid Dagger",
-    "Heavy Mattock"
    ]
   },
   {
@@ -9964,18 +9940,6 @@
     "Stronghold Arena",
     "Lightkeeper of Emeria",
     "Spell Contortion"
-   ]
-  },
-  {
-   "what": "OneShotNonTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Boltbender",
-    "Amy Pond",
-    "Wormfang Newt",
-    "Wormfang Turtle",
-    "Temporal Firestorm"
    ]
   },
   {
@@ -10620,6 +10584,28 @@
     "Lofty Denial",
     "Dispelling Exhale",
     "Silumgar's Scorn"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Shifting Sliver",
+    "Midnight Pathlighter",
+    "Wall Crawl",
+    "Dread Charge"
+   ]
+  },
+  {
+   "what": "SurvivalAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Reluctant Role Model",
+    "Rip, Spawn Hunter",
+    "Glimmer Seeker",
+    "Rootwise Survivor"
    ]
   }
  ]

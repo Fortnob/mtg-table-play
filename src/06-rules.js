@@ -9345,6 +9345,8 @@
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
+        // True-Faith Censer: the creature it is on is a Human
+        case 'attachedHasType': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._hasCreatureType(host, cond.subtype); }
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
         // Brass Knuckles: the creature it's on wears two Equipment or more
         case 'hostEquipmentAtLeast': {
@@ -11963,6 +11965,34 @@
             const got = this._ask({ type: 'discard', playerId: p.id, count: Math.min(cnt, hand.length),
               prompt: `Discard ${cnt === 1 ? 'a card' : cnt + ' cards'}.` }, 'd' + p.id);
             if (got === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
+        /* Skullcap Snail: "target opponent exiles a card from their hand" —
+           the player whose hand it is picks */
+        case 'exileFromHandChoice': {
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : [firstPlayer()];
+          const cnt = n(e.n) || 1;
+          for (const p of who) {
+            if (!p || p.hasLost) continue;
+            // (a player already done is not asked again when this resumes for the next one)
+            const rr = this.resolving, doneKey = rr ? rr.index + ':xhd' + p.id : null;
+            if (rr && rr.marks && rr.marks[doneKey]) continue;
+            const hand = this.zones[p.id].hand.slice();
+            if (!hand.length) continue;
+            let picks;
+            if (p.isBot || hand.length <= cnt) picks = this._cheapestFirst(hand).slice(0, cnt).map(c => c.id);
+            else {
+              const got = this._ask({ type: 'pickCard', playerId: p.id, count: cnt, cards: hand.map(c => ({ id: c.id, name: c.name, card: c.card })),
+                prompt: `Exile ${cnt === 1 ? 'a card' : cnt + ' cards'} from your hand.` }, 'xh' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              picks = (got || []).filter(id => hand.some(c => c.id === id)).slice(0, cnt);
+              if (picks.length < cnt) picks = this._cheapestFirst(hand).slice(0, cnt).map(c => c.id);
+            }
+            const gone = picks.map(id => this.obj(id)).filter(c => c && c.zone === 'hand');
+            for (const c of gone) this.moveObject(c, 'exile');
+            if (gone.length) this.logEvent('exile', `${p.name} exiles ${gone.map(c => c.name).join(', ')} from their hand.`);
+            if (rr) { rr.marks = rr.marks || {}; rr.marks[doneKey] = true; }
           }
           break;
         }
