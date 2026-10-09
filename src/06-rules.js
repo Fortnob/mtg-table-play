@@ -12054,6 +12054,13 @@
           break;
         }
         /* Bloom Tender: one of each colour among your permanents. */
+        // Doubling Cube: as much again of each type of mana in the pool
+        case 'addManaDouble': {
+          const had = me.pool.snapshot();
+          for (const c of Object.keys(had)) if (had[c] > 0) me.pool.add(c, had[c]);
+          this.logEvent('mana', `${me.name} doubles their mana (${me.pool.toString()}).`);
+          break;
+        }
         case 'addManaEachColor':
           for (const c of this._colorsAmongYours(ctx.controller)) me.pool.add(c);
           break;

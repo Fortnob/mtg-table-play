@@ -389,7 +389,7 @@
      the damage comes with the mana, it does not wait on the stack — so a
      few things that happen alongside the mana are allowed to come with it. */
   const MANA_OPS = new Set(['addMana', 'addManaAny', 'addManaChoice', 'addManaPer', 'addManaChosen',
-    'addManaAmong', 'addManaDevotion', 'addManaX', 'addManaEachColor']);
+    'addManaAmong', 'addManaDevotion', 'addManaX', 'addManaEachColor', 'addManaDouble']);
   function isManaAbility(effects) {
     if (!effects || !effects.length) return false;
     /* The Great Henge: "Add {G}{G}. You gain 2 life."; Ilysian Caryatid:
@@ -1140,6 +1140,8 @@
     // Castle Garenbrig: "Add six {G}."
     { re: /^Add (two|three|four|five|six|seven|eight|nine|ten) (\{[WUBRGC]\})\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: Array.from({ length: num(m[1]) }, () => m[2].replace(/[{}]/g, '').toUpperCase()) }) },
+    // Doubling Cube: "Double the amount of each type of unspent mana you have."
+    { re: /^Double the amount of each type of unspent mana you have\.?$/i, make: () => ({ op: 'addManaDouble' }) },
     { re: /^Add one mana of any color in your commander's color identity\.?$/i,
       make: () => ({ op: 'addManaAny', amount: 1, commanderIdentity: true }) },
     /* "Spend this mana only to cast a creature spell of the chosen type,

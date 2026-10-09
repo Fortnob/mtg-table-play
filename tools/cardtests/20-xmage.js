@@ -15084,4 +15084,18 @@ module.exports = (test) => {
     T.nextTurn('B'); T.toMain('B');
     t.eq(T.g.powerOf(rs), 7, 'still a 7/7 next turn');
   });
+
+  test('Doubling Cube doubles the unspent mana left after its cost', (mk, t) => {
+    t.auto('Doubling Cube');
+    const T = mk();
+    T.toMain('A');
+    const dc = T.bf('A', 'Doubling Cube');
+    const p = T.g.player('A');
+    p.pool.add('C', 3); p.pool.add('R', 2); p.pool.add('G', 1);
+    T.g.activateAbility('A', dc.id, 0, { auto: true });
+    T.settle();
+    t.eq(p.pool.R, 4, 'two red become four');
+    t.eq(p.pool.G, 2, 'one green becomes two');
+    t.eq(p.pool.C, 0, 'the colorless paid for it');
+  });
 };
