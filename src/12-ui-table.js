@@ -2177,6 +2177,11 @@
         if (p && spec.ownedByPrevController && o.owner !== p.controller) return false;
         if (p && spec.sameControllerAsPrev && o.controller !== p.controller) return false;
       }
+      // Gaea's Blessing, Dwell on the Past: cards from the graveyard of the player already chosen
+      if (spec.ownedByTargetPlayer) {
+        const pl = t.chosen.find(c => c.kind === 'player');
+        if (pl && o.owner !== pl.id) return false;
+      }
       // Callidus Assassin: one with the same name as the card aiming
       if (spec.sameNameAsSource) {
         const src = t.source ? this.objIn(t.source) : null;
