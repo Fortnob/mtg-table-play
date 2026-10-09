@@ -3346,8 +3346,8 @@
       for (const e of flat) {
         const base = effectWorth(e, 0);
         if (e.op === 'pump' && e.duration === 'eot') {
-          // a pump outside combat does nothing
-          if (!(g.combat && g.combat.attackers.length)) continue;
+          // a pump outside combat does nothing, nor once the damage is dealt
+          if (!(g.combat && g.combat.attackers.length) || g.step === 'endCombat') continue;
         }
         if (e.op === 'untap' || e.op === 'tap' && !(e.targets || []).length) continue;
         if (e.op === 'gainLife' && !this.underPressure()) { v += base * 0.4; continue; }

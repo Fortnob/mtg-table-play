@@ -850,6 +850,7 @@
     _advanceStep() {
       if (this.over) return;
       this.holdFor = null;          // holding priority lasts for one step only
+      if (this.phase && this.phase.id === 'combat' && this.step === 'endCombat') this._endCombat();
       // clear mana pools between steps and phases (CR 500.4)
       for (const p of this.players) {
         /* …unless something said the mana keeps until combat is over. */
@@ -981,7 +982,10 @@
         case 'combatDamage':
           if (!this.combat.attackers.length) { this._advanceStep(); return; }
           this._combatDamage(false); break;
-        case 'endCombat': this._fire('endOfCombat', null, {}); this._endCombat(); break;
+        /* The end of combat step: "at end of combat" happens as it begins,
+           but creatures stay attacking and blocking until it ends (CR 511.3),
+           so an ability used in this step still finds them. */
+        case 'endCombat': this._fire('endOfCombat', null, {}); this._atEndOfCombat(); break;
         case 'end': {
           // the monarch draws a card at the beginning of their end step (CR 720.3a)
           const king = this.players.find(p => p.monarch && !p.hasLost);
@@ -8380,12 +8384,7 @@
       this._givePriority(this.activeIndex);
     }
 
-    _endCombat() {
-      for (const id of this.combat.attackers.concat(this.combat.blockers)) {
-        const o = this.obj(id);
-        if (!o) continue;
-        o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
-      }
+    _atEndOfCombat() {
       /* Tokens that only came along for the fight (mobilize) go away when
          the fight is over. */
       // Abomination: what it fought is destroyed as combat ends
@@ -8405,6 +8404,14 @@
         this.moveObject(o, 'graveyard');
         this.logEvent('sacrifice', `${o.name} is sacrificed at end of combat.`);
       }
+    }
+    /** The end of combat step is over: nothing is attacking or blocking any more. */
+    _endCombat() {
+      for (const id of this.combat.attackers.concat(this.combat.blockers)) {
+        const o = this.obj(id);
+        if (!o) continue;
+        o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
+      }
       /* Mana kept through combat by firebending drains away with it. */
       for (const p of this.players) {
         if (p.poolKeepUntil === 'combat') { p.pool.clear(); p.poolKeepUntil = null; }
@@ -8412,7 +8419,8 @@
       this.combat = { attackers: [], blockers: [], damageDealt: false, firstStrikeDone: false };
     }
     combatCleanupIfNeeded(step) {
-      if (step === 'untap') this._endCombat();
+      // a turn ended in the middle of combat: whatever was waiting for its end goes now
+      if (step === 'untap') { this._atEndOfCombat(); this._endCombat(); }
     }
 
     /* ---------- characteristics with continuous effects ---------- */

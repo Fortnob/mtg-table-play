@@ -1330,4 +1330,39 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.g.powerOf(b), 2);
   });
+
+  test('Audit: creatures are still attacking during the end of combat step', (mk, t) => {
+    const T = mk();
+    const b = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.g.step, 'endCombat');
+    t.eq(b.attacking, 'B', 'still attacking until the step ends');
+    t.ok(T.g.turnHistory.attacked);
+    // an "attacking creatures" spell cast in this step finds it
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Trumpet Blast'));
+    t.eq(T.g.powerOf(b), 4);
+    // and a "target attacking creature" spell can choose it
+    T.g.passPriority('A', true);
+    T.mana('B', 'W3');
+    T.cast('B', T.hand('B', 'Divine Verdict'), { targets: [b] });
+    t.zone(b, 'graveyard');
+  });
+
+  test('Audit: attacking and blocking end when the end of combat step does', (mk, t) => {
+    const T = mk();
+    const w = T.bf('A', 'Craw Wurm'), wall = T.bf('B', 'Wall of Stone');
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [w.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(w.attacking, 'B');
+    t.ok(wall.blocking.includes(w.id), 'still blocking until the step ends');
+    T.g.passPriority('A', true); T.g.passPriority('B', true); T.settle();
+    t.eq(T.g.phase.id, 'postcombat');
+    t.no(w.attacking, 'no longer attacking after combat');
+    t.eq(wall.blocking.length, 0);
+    t.eq(T.g.combat.attackers.length, 0);
+    t.ok(T.g.turnHistory.attacked, 'it still attacked this turn');
+  });
 };
