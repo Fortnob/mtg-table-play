@@ -583,6 +583,8 @@ function checkAnswer(ch, data, game) {
       if (Array.isArray(data.modes) && !ch.repeatable && new Set(data.modes).size !== data.modes.length) bad('answer.sense', 'answer.modes', 'picks a mode twice');
       // ("choose one or more": as many as the question's max allows)
       if (Array.isArray(data.modes) && data.modes.length > (ch.max != null ? ch.max : ch.count)) bad('answer.sense', 'answer.modes', `picks ${data.modes.length} modes of ${ch.max != null ? ch.max : ch.count}`);
+      // and no fewer than its min (a min of 0 is the "none at all" answer: Hullbreaker Horror)
+      if (Array.isArray(data.modes) && ch.min != null && data.modes.length < ch.min) bad('answer.sense', 'answer.modes', `picks ${data.modes.length} modes, fewer than ${ch.min}`);
       break;
     }
     case 'pickTarget': {

@@ -7790,6 +7790,11 @@
       if (!e || i === 0 || !folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice' && x.who !== 'you')) return;
       if (/"ofTrigger"/.test(JSON.stringify(e)) && /\bthat creature'?s\b/i.test(e.text || '')) folded[i] = { op: 'manual', text: e.text };
     });
+    // (Psychic Miasma: "Target player discards a card. If a land card is discarded this way …" — the same wait)
+    folded.forEach((e, i) => {
+      if (!e || i === 0 || !folded.slice(0, i).some(x => x && x.op === 'discard' && x.who !== 'you' && !x.random)) return;
+      if (/"how":"discarded"/.test(JSON.stringify(e))) folded[i] = { op: 'manual', text: e.text };
+    });
     folded.forEach((e, i) => {
       itIsTarget(e, i);
       // Defy Death: "If it's an Angel, put two +1/+1 counters on it."

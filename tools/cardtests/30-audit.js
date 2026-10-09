@@ -2017,4 +2017,9 @@ module.exports = (test) => {
     for (const n of ['Entrapment Maneuver', 'Tribute to Hunger', 'Twisted Justice'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
+
+  test('Audit: Psychic Miasma is left to a person: the discard is chosen after it resolves', (mk, t) => {
+    const T = mk();
+    t.no(T.MTG.oracle.analyze(require('../harness').card('Psychic Miasma')).fullyAutomated);
+  });
 };
