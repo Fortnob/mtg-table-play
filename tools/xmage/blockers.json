@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11975,
-  "gainedCards": 1238,
-  "linesNeeded": 12938,
-  "linesGained": 1476,
+  "needed": 11955,
+  "gainedCards": 1232,
+  "linesNeeded": 12906,
+  "linesGained": 1469,
   "gained": {
-   "all": 1238,
+   "all": 1232,
    "top2000": 48,
    "stdTop": 9
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4322,
-   "lines": 4055,
+   "score": 4313,
+   "lines": 4052,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 666,
-   "lines": 666,
+   "score": 665,
+   "lines": 665,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -127,12 +127,11 @@
   },
   {
    "what": "custom condition",
-   "score": 175,
-   "lines": 163,
+   "score": 174,
+   "lines": 162,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
-    "Queen Marchesa",
     "The Chain Veil",
     "Diamond City",
     "Blitzball",
@@ -141,7 +140,8 @@
     "Lilypad Village",
     "Éowyn, Shieldmaiden",
     "Rith, Liberated Primeval",
-    "Wakka, Devoted Guardian"
+    "Wakka, Devoted Guardian",
+    "Tinybones, Trinket Thief"
    ]
   },
   {
@@ -165,8 +165,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 106,
-   "lines": 97,
+   "score": 105,
+   "lines": 96,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -1184,25 +1184,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Gideon of the Trials",
-    "Bombur, Gentle Dreamer",
-    "Fall from Favor",
-    "Alirios, Enraptured",
-    "Moonhold",
-    "Steel Dromedary",
-    "Stunning Strike",
-    "Scorching Lava",
-    "Merseine",
-    "Cocoon",
-    "Venarian Gold",
-    "Walking Dream"
-   ]
-  },
-  {
    "what": "UnlockThisDoorTriggeredAbility",
    "score": 13,
    "lines": 4,
@@ -1653,25 +1634,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Quicksilver, Brash Blur",
-    "Captain Marvel, Earth's Protector",
-    "Loki Laufeyson",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Brawn, Amadeus Cho",
-    "Iron Fist, Hero for Hire",
-    "White Tiger, Ava Ayala",
-    "Hercules, Prince of Power",
-    "Donald Blake, Guise of Thor"
-   ]
-  },
-  {
    "what": "BlockingOrBlockedBySourcePredicate.BLOCKING",
    "score": 12,
    "lines": 12,
@@ -1761,24 +1723,6 @@
    ]
   },
   {
-   "what": "ConditionalReplacementEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Phial of Galadriel",
-    "Vampire Socialite",
-    "Batwing Brume",
-    "Aether Revolt",
-    "Dáin, Lord of the Iron Hills",
-    "Winds of Qal Sisma",
-    "Spirit of Resistance",
-    "Woolly Razorback",
-    "Veteran Bodyguard",
-    "Orim's Touch",
-    "Martyrs of Korlis"
-   ]
-  },
-  {
    "what": "CompositeCost",
    "score": 11,
    "lines": 11,
@@ -1833,6 +1777,24 @@
    ]
   },
   {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Gideon of the Trials",
+    "Fall from Favor",
+    "Moonhold",
+    "Steel Dromedary",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Merseine",
+    "Cocoon",
+    "Venarian Gold",
+    "Lurker",
+    "Limited Resources"
+   ]
+  },
+  {
    "what": "PreventNextDamageFromChosenSourceEffect",
    "score": 11,
    "lines": 11,
@@ -1866,6 +1828,24 @@
     "Ornitharch",
     "Thunder Brute",
     "Shrike Harpy"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Quicksilver, Brash Blur",
+    "Captain Marvel, Earth's Protector",
+    "Loki Laufeyson",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho",
+    "Iron Fist, Hero for Hire",
+    "White Tiger, Ava Ayala",
+    "Donald Blake, Guise of Thor"
    ]
   },
   {
@@ -2004,6 +1984,23 @@
     "Superior Foes of Spider-Man",
     "Storm the Festival",
     "Exile into Darkness"
+   ]
+  },
+  {
+   "what": "ConditionalReplacementEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Phial of Galadriel",
+    "Vampire Socialite",
+    "Batwing Brume",
+    "Aether Revolt",
+    "Winds of Qal Sisma",
+    "Spirit of Resistance",
+    "Woolly Razorback",
+    "Veteran Bodyguard",
+    "Orim's Touch",
+    "Martyrs of Korlis"
    ]
   },
   {
@@ -2926,21 +2923,6 @@
     "Kingpin, Wilson Fisk",
     "True Identity",
     "Pine Walker"
-   ]
-  },
-  {
-   "what": "keyword StoriedAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Kíli the Resourceful",
-    "Thorin Oakenshield",
-    "Dáin, Lord of the Iron Hills",
-    "Fíli the Pathfinder",
-    "Balin, Loremaster",
-    "Óin the Brave",
-    "Bombur, Gentle Dreamer",
-    "Ori, Keeper of Songs"
    ]
   },
   {
@@ -5981,17 +5963,6 @@
    ]
   },
   {
-   "what": "WardAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Coppercoat Vanguard",
-    "Leyline Immersion",
-    "Paladin's Arms",
-    "Thorin Oakenshield"
-   ]
-  },
-  {
    "what": "LoseAllAbilitiesTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6230,17 +6201,6 @@
     "Revivify",
     "Diviner's Portent",
     "Aberrant Mind Sorcerer"
-   ]
-  },
-  {
-   "what": "BecomesColorSourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Miles Morales // Ultimate Spider-Man",
-    "Wild Mongrel",
-    "Repentant Vampire",
-    "Wayward Angel"
    ]
   },
   {
@@ -6922,13 +6882,45 @@
     "Crown of Vigor",
     "Crown of Suspicion"
    ]
+  },
+  {
+   "what": "blocked trigger pointing at the blocker",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Thresher Beast",
+    "Robber Fly",
+    "Corrupt Official",
+    "Port Inspector"
+   ]
+  },
+  {
+   "what": "MoreCardsInHandThanOpponentsCondition.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Kitsune Bonesetter",
+    "Descendant of Kiyomaro",
+    "Secretkeeper",
+    "Okina Nightwatch"
+   ]
+  },
+  {
+   "what": "GainAbilityPairedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Tandem Lookout",
+    "Mirage Phalanx",
+    "Breathkeeper Seraph"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3555,
-   "cards": 3387,
+   "score": 3556,
+   "cards": 3388,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6979,15 +6971,15 @@
   },
   {
    "what": "custom condition",
-   "score": 135,
-   "cards": 132,
+   "score": 134,
+   "cards": 131,
    "names": [
     "Sting, the Glinting Dagger",
-    "Queen Marchesa",
     "Diamond City",
     "Blitzball",
     "Elanor Gardner",
-    "Lux Artillery"
+    "Lux Artillery",
+    "Lilypad Village"
    ]
   },
   {
@@ -7838,19 +7830,6 @@
    ]
   },
   {
-   "what": "keyword PowerUpAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Nick Fury, Agent of S.H.I.E.L.D.",
-    "Captain Marvel, Earth's Protector",
-    "Thanos, the Mad Titan",
-    "Kang the Conqueror",
-    "Abomination, Terrifying Titan",
-    "Brawn, Amadeus Cho"
-   ]
-  },
-  {
    "what": "(verify) number 2 missing",
    "score": 10,
    "cards": 10,
@@ -8160,6 +8139,19 @@
     "Cathartic Parting",
     "Unravel the Aether",
     "Deglamer"
+   ]
+  },
+  {
+   "what": "keyword PowerUpAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Nick Fury, Agent of S.H.I.E.L.D.",
+    "Captain Marvel, Earth's Protector",
+    "Thanos, the Mad Titan",
+    "Kang the Conqueror",
+    "Abomination, Terrifying Titan",
+    "Brawn, Amadeus Cho"
    ]
   },
   {
@@ -8511,19 +8503,6 @@
     "Recross the Paths",
     "Thicket Elemental",
     "Foster"
-   ]
-  },
-  {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Fall from Favor",
-    "Alirios, Enraptured",
-    "Moonhold",
-    "Stunning Strike",
-    "Scorching Lava",
-    "Walking Dream"
    ]
   },
   {
@@ -9513,6 +9492,19 @@
     "True-Faith Censer",
     "Silver-Inlaid Dagger",
     "Heavy Mattock"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Fall from Favor",
+    "Moonhold",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Lurker",
+    "Limited Resources"
    ]
   },
   {

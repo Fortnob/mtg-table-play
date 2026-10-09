@@ -76,8 +76,6 @@
     "necropotence": {
       abilities: [
         { kind: 'static', auto: true, text: 'Skip your draw step.', effects: [{ op: 'skipStep', step: 'draw', who: 'you' }] },
-        { kind: 'triggered', event: 'youDiscard', auto: true, text: 'Whenever you discard a card, exile that card from your graveyard.',
-          effects: [{ op: 'exile', scope: 'triggerObject', fromGraveyard: true }] },
         { kind: 'activated', auto: true, cost: { mana: '', life: 1, tap: false, other: [] },
           text: 'Pay 1 life: Exile the top card of your library face down. Put that card into your hand at the beginning of your next end step.',
           effects: [
@@ -194,10 +192,11 @@
     "green sun's zenith": {
       abilities: [{
         kind: 'spell', auto: true,
-        text: "Search your library for a green creature card with mana value X or less, put it onto the battlefield, then shuffle. Shuffle Green Sun's Zenith into its owner's library.",
+        text: "Search your library for a green creature card with mana value X or less, put it onto the battlefield, then shuffle. Put this card into its owner's library third from the top.",
         effects: [
-          { op: 'tutor', n: 1, filter: 'green creature', to: 'battlefield', maxMv: 'X' },
-          { op: 'selfToLibrary', shuffle: true },
+          { op: 'tutor', n: 1, filter: 'creature', to: 'battlefield', maxMv: 'X' },
+          { op: 'shuffle' },
+          { op: 'selfToLibraryDepth', depth: 3 },
         ],
       }],
     },

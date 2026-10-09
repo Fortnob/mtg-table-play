@@ -2956,7 +2956,7 @@
 
     /* ===== looking at somebody's hand, and taking something out of it ===== */
     { re: /^Look at target (?:player|opponent)'?s hand\.?$/i,
-      make: () => ({ op: 'revealHand', look: true, targets: [{ type: 'player' }] }) },
+      make: () => ({ op: 'revealHand', targets: [{ type: 'player' }] }) },
 
     /* ===== a sweep that spares one kind of creature ===== */
     { re: /^(?:CARDNAME|This spell) deals (\d+) damage to each creature without ([a-z]+)\.?$/i,
@@ -4189,6 +4189,10 @@
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
+    // Puppeteer Clique: "At the beginning of your next end step, exile it." — the other word order
+    { re: /^At the beginning of (the|your) next end step, exile (it|that (?:creature|token|permanent))\.?$/i,
+      make: (m) => Object.assign({ op: 'delayed', event: /your/i.test(m[1]) ? 'yourEndStep' : 'eachEndStep', subject: 'lastTarget',
+        name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }, /your/i.test(m[1]) ? { forPlayer: 'you' } : {}) },
     /* (Daretti's emblem: "return that card to the battlefield at the
        beginning of the next end step" — with nobody named, under your control) */
     { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
@@ -7764,6 +7768,8 @@
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
     [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
     [/^you'?re the monarch$/i, () => ({ kind: 'monarch' })],
+    // Queen Marchesa: "if an opponent is the monarch"
+    [/^an opponent is the monarch$/i, () => ({ kind: 'opponentMonarch' })],
     // Sneak: "if this creature's sneak cost was paid"
     [/^(?:this creature|this spell|CARDNAME)'?s sneak cost was paid$/i, () => ({ kind: 'sneaked' })],
     // Triskaidekaphile: "if you have exactly thirteen cards in your hand"
@@ -8052,6 +8058,7 @@
     [/^(?:CARDNAME|this spell|it) wasn'?t kicked$/i, () => ({ kind: 'kicked', n: 0, cmp: 'atMost' })],
     [/^(?:CARDNAME|this spell|it) was bought back$/i, () => ({ kind: 'boughtBack' })],
     [/^you have the city'?s blessing$/i, () => ({ kind: 'cityBlessing' })],
+    [/^you have an enduring story$/i, () => ({ kind: 'enduringStory' })],
     [/^you'?ve completed a dungeon$/i, () => ({ kind: 'completedDungeon' })],
     [/^you control (\w+) or more lands with different names$/i, (m) => ({ kind: 'landNames', n: num(m[1]) })],
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
@@ -8771,11 +8778,15 @@
     if (tl.supertypes.includes('Legendary')) {
       const full = normalizePunct(U.frontName(name));
       const short = full.includes(',') ? full.split(',')[0].trim()
-        : (/^([A-Z][a-z'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
+        : (/^([A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
       if (short && short.length >= 3 && short !== full && !/^(?:The|A|An)$/.test(short)) {
         // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
-        text = text.replace(new RegExp('\\b' + escapeRe(short) + '\\b(?!,\\s*[A-Z])', 'g'), 'CARDNAME');
+        // (Óin, Fíli: a letter with an accent is still part of the word)
+        text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(short) + '(?![\\w\\u00C0-\\u024F])(?!,\\s*[A-Z])', 'g'), 'CARDNAME');
       }
+      /* Dáin of the Ancient Halls: "Whenever Dáin attacks, he deals damage …"
+         — a legend's "he" or "she" at the head of a clause is the legend */
+      text = text.replace(/(^|\n|[.,] )(?:[Hh]e|[Ss]he) (deals|gets|gains|has|becomes) /g, (x, pre, verb) => pre + 'CARDNAME ' + verb + ' ');
     }
 
     const out = {
@@ -11577,6 +11588,31 @@
         return Object.assign({}, inner, { text: line });
       }
     }
+    /* Dáin, Lord of the Iron Hills: "As long as you have an enduring story,
+       creatures can't attack you unless their controller pays {1} for each
+       of those creatures." — an attack tax that holds while the condition does */
+    const alTax = String(line).match(/^As long as ([^,]+), (creatures can'?t attack you .+)$/i);
+    if (alTax) {
+      const c = condOf(alTax[1]);
+      const inner = c && parseStatic(alTax[2].charAt(0).toUpperCase() + alTax[2].slice(1), ctx);
+      if (inner && inner.auto && (inner.effects || []).length && inner.effects.every(e => e && e.op === 'attackTax' && !e.cond)) {
+        for (const e of inner.effects) e.cond = c;
+        return Object.assign({}, inner, { text: line });
+      }
+    }
+    /* Bombur, Gentle Dreamer: "CARDNAME doesn't untap during your untap step
+       unless you have an enduring story." — the standing rule, while the
+       condition holds (or fails) */
+    const noUntapIf = String(line).match(/^(.+? doesn'?t untap during (?:your|its controller'?s) untap step) (if|unless) ([^.]+?)\.?$/i);
+    if (noUntapIf) {
+      const c0 = condOf(noUntapIf[3]);
+      const inner = c0 && parseStatic(noUntapIf[1] + '.', ctx);
+      if (inner && inner.auto && (inner.effects || []).length && inner.effects.every(e => e && e.op === 'continuous' && !e.cond)) {
+        const c = /unless/i.test(noUntapIf[2]) ? { kind: 'not', cond: c0 } : c0;
+        for (const e of inner.effects) e.cond = c;
+        return Object.assign({}, inner, { text: line });
+      }
+    }
     const tail = !/^As long as /i.test(line) && String(line).match(/^([^.]+?) as long as ([^,.]+)\.?$/i);
     if (tail && condOf(tail[2])) {
       const again = parseStatic('As long as ' + tail[2] + ', ' + tail[1].charAt(0).toLowerCase() + tail[1].slice(1) + '.', ctx);
@@ -12104,6 +12140,8 @@
         make: (m) => ({ op: 'bandsWithOther', words: m[2].toLowerCase().replace(/ies$/, 'y').replace(/s$/, '') }), auto: true },
       { re: /^Double team$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Ascend$/i, eff: { op: 'ascend' }, auto: true },
+      // Storied: three or more artifacts, legendaries and/or Sagas, and the story is yours for the game
+      { re: /^Storied$/i, eff: { op: 'storied' }, auto: true },
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
