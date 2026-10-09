@@ -16779,4 +16779,19 @@ module.exports = (test) => {
     t.eq(T.g.stack.length, 0, 'the stack empties');
     t.eq(T.life('B'), 18, 'the spell and one copy');
   });
+
+  test("Obstinate Gargoyle: flying as long as it's modified", (mk, t) => {
+    t.auto('Obstinate Gargoyle');
+    t.auto('Skyward Spider');
+    const T = mk();
+    const g = T.bf('A', 'Obstinate Gargoyle');
+    t.no(T.g.hasKw(g, 'flying'), 'unmodified');
+    T.g.addCounters(g, '+1/+1', 1);
+    t.ok(T.g.hasKw(g, 'flying'), 'a counter');
+    const s2 = T.bf('A', 'Skyward Spider'), sword = T.bf('A', 'Bonesplitter');
+    t.no(T.g.hasKw(s2, 'flying'));
+    sword.attachedTo = s2.id; s2.attachments = [sword.id];
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(s2, 'flying'), 'an Equipment');
+  });
 };

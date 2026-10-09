@@ -9756,6 +9756,8 @@
           return (by[cond.what] || 0) >= (cond.n || 1);
         }
         // Lilypad Village: "if a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn" (enteredTypes)
+        // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
+        case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
         // Slick Sequence, Focus the Mind: a spell cast this turn other than this one, whether it's being cast or resolving (castAnotherSpell)
         case 'castAnotherSpell': return !!me && (me.spellObjsThisTurn || []).some(x => x !== src);
         // Rise of the Witch-king: "If you sacrificed a creature this way" (sacrificedThisWay)
