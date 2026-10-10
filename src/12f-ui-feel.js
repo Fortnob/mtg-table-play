@@ -717,27 +717,6 @@
           input,
         ]);
       };
-      const test = el('div', { class: 'feel-test' });
-      for (const [title, list] of A.CATALOGUE) {
-        test.appendChild(el('div', { class: 'feel-test-row' }, [
-          el('span', { class: 'feel-test-head', text: title }),
-          el('div', { class: 'sound-chips' }, list.map(([name, opt, label]) => el('button', {
-            type: 'button', class: 'chip', text: label || name.replace(/_/g, ' '),
-            onclick: () => { A._ensure(); MTG.sfx(name, Object.assign({}, opt)); },
-          }))),
-        ]));
-      }
-      const all = el('button', { type: 'button', class: 'btn sm', text: 'Play the whole palette', onclick: () => {
-        A._ensure();
-        let i = 0;
-        const flat = [].concat(...A.CATALOGUE.map(([, l]) => l));
-        clearInterval(Feel._tour);
-        Feel._tour = setInterval(() => {
-          if (i >= flat.length) { clearInterval(Feel._tour); return; }
-          const [name, opt] = flat[i++];
-          MTG.sfx(name, Object.assign({}, opt));
-        }, 650);
-      } });
       return [
         slider('volume', 'Master volume', null, 0.5, (x) => A.setVolume(x)),
         toggle(prefix + 'muted', 'Mute everything', null, !!S.muted, (on) => A.setMuted(on)),
@@ -745,11 +724,6 @@
         slider('volUi', 'Interface', 'Clicks, hovers, and the ping when it is your move.', 0.7, (x) => A.setLevel('volUi', x)),
         toggle(prefix + 'ambience', 'Music', 'A quiet score: warmer and more melodic on the menus, sparser and lower under a game.', val('ambience', true), (on) => A.setAmbience(on)),
         slider('volAmb', 'Music', null, 0.35, (x) => A.setLevel('volAmb', x)),
-        el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
-          el('div', { class: 'opt-label', text: 'Sound test' }),
-          el('div', { class: 'opt-help', text: 'Every sound the table makes. Spells and lands take the colour of their mana.' }),
-          test, el('div', { class: 'row wrap', style: { marginTop: '8px' } }, [all]),
-        ])),
       ];
     },
   };

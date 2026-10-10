@@ -156,12 +156,6 @@
 .hslot > .cv.feel-reject::after { box-shadow: 0 0 0 2px rgba(255,107,92,.9), 0 0 18px 4px rgba(255,90,70,.5); animation: feelShadow .5s ease-out both; }
 @keyframes feelReject { 15% { translate: -7px 0; rotate: -3deg; } 35% { translate: 6px 0; rotate: 2deg; } 55% { translate: -4px 0; } 75% { translate: 2px 0; rotate: 0deg; } }
 
-/* ---------- options: the sound test ---------- */
-.feel-test { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.feel-test-row { display: flex; flex-direction: column; gap: 4px; }
-.feel-test-head { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
-.feel-test .sound-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-
 /* ---------- less motion, and phones ---------- */
 :root[data-reduce-motion] .feel-shard, :root[data-reduce-motion] .feel-smoke, :root[data-reduce-motion] .feel-spark,
 :root[data-reduce-motion] .feel-burst, :root[data-reduce-motion] .feel-ripple { display: none; }
