@@ -5549,4 +5549,28 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.name === 'Thornscape Battlemage').length, 2);
     t.eq(T.life('B'), 16, 'both deal 2');
   });
+
+  test('Audit: Kaalia of the Vast offers only an Angel, Demon or Dragon, which enters attacking the same opponent; Lead the Stampede takes any number of creatures', (mk, t) => {
+    t.auto('Kaalia of the Vast'); t.auto('Lead the Stampede');
+    let T = mk();
+    T.toMain('A');
+    const k = T.bf('A', 'Kaalia of the Vast'); k.summoningSick = false;
+    const sd = T.hand('A', 'Shivan Dragon'); T.hand('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [sd.id] }; });
+    T.answer('declareAttackers', () => [{ attackerId: k.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle();
+    t.eq(JSON.stringify(offered), JSON.stringify(['Shivan Dragon']), 'not the Bears');
+    t.zone(sd, 'battlefield'); t.eq(T.life('B'), 20 - 2 - 5, 'Kaalia 2 and the Dragon 5');
+    T = mk();
+    T.toMain('A');
+    for (const n of ['Island', 'Grizzly Bears', 'Hill Giant', 'Shock', 'Craw Wurm']) T.top('A', n);
+    let offered2 = null;
+    T.answer('pickCard', (ch) => { offered2 = ch.cards.map(c => c.name).sort(); return { cardIds: ch.cards.map(c => c.id) }; });
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Lead the Stampede')); T.settle();
+    t.eq(JSON.stringify(offered2), JSON.stringify(['Craw Wurm', 'Grizzly Bears', 'Hill Giant']), 'the creatures among the five');
+    t.eq(T.zone('A', 'hand').filter(c => ['Craw Wurm', 'Grizzly Bears', 'Hill Giant'].includes(c.name)).length, 3);
+  });
 };
