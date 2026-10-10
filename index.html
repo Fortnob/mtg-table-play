@@ -7062,6 +7062,7 @@ const defaultSettings = {
   compactZones: false,
   showOracleOnHover: true,
   recommanderRelay: '',          // the relay Commander suggestions are asked through (src/16b-recommander.js); empty: the one built in
+  suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
   botSpeed: 600,
@@ -21500,10 +21501,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        "that land is a Plains", "that creature is a Demon", "that creature is a Bird, Frog, Otter, or Rat" —
        the thing the sentence before acted on, or the one the trigger is about (thatObjIs). Only words the
        table knows how to check: "another Hero", "rare", "1/1" stay for a person. */
-    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) is (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
+    /* (Gloomlance, Molten Rain, Endless Evil: "that creature was green or white", "that land was nonbasic",
+       "that creature was a Horror" — what it was as it left: what the card is, or the token was. Not
+       "was attacking", "was tapped": a card that has left is neither) */
+    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) (is|was) (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
       (m) => {
-        const w = listWords(m[2].replace(/(,|\bor) an? /g, '$1 ')).trim();
-        const ok = w.split(/\s+/).every(x => SUBJ_WORDS.has(x.toLowerCase()) || /^(?:attacking|blocking|tapped|untapped)$/.test(x) || /^[A-Z][a-z]+$/.test(x));
+        const w = listWords(m[3].replace(/(,|\bor) an? /g, '$1 ')).trim();
+        const state = /^(?:attacking|blocking|tapped|untapped|equipped|enchanted|goaded|modified|face-down)$/;
+        const ok = w.split(/\s+/).every(x => (SUBJ_WORDS.has(x.toLowerCase()) && !(m[2] === 'was' && state.test(x))) ||
+          (m[2] === 'is' && state.test(x)) || /^[A-Z][a-z]+$/.test(x));
         return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? { kind: 'thatObjIs', noun: m[1], words: w } : null;
       }],
     // Star Charter: "you gained or lost life this turn"
@@ -67506,7 +67512,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        reading and EDHREC stand in, as before. */
     const commander = (deck.commanders || [])[0];
     const recPicks = [];
-    if (commander && fmt.commander && opts.recommander !== false && MTG.recommander && MTG.recommander.ready()) {
+    // (Options, Suggestions: EDHREC chosen instead, and Recommander is not asked)
+    const fromRec = opts.recommander !== false && (MTG.settings || {}).suggestFrom !== 'edhrec';
+    if (commander && fmt.commander && fromRec && MTG.recommander && MTG.recommander.ready()) {
       const list = await MTG.recommander.top(deck).catch(() => null);
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, Math.max(limit * 3, 60));
@@ -93610,7 +93618,7 @@ Sideboard
 
     /* -- online -- */
     sections.push(onlineGroup(group));
-    sections.push(suggestionsGroup(group));
+    sections.push(suggestionsGroup(group, pick));
 
     /* -- data -- */
     const cacheInfo = el('div', { class: 'opt-help', text: 'Reading cache…' });
@@ -95794,8 +95802,9 @@ Sideboard
    */
   /* Commander suggestions come from Recommander, asked through a relay
      (tools/recommander-relay): the address, and a test that it answers. */
-  function suggestionsGroup(group) {
+  function suggestionsGroup(group, pick) {
     const R = MTG.recommander;
+    const edhrec = MTG.settings.suggestFrom === 'edhrec';
     const input = el('input', { type: 'text', id: 'opt-rec-relay', value: MTG.settings.recommanderRelay || '',
       placeholder: R && R.relay && !MTG.settings.recommanderRelay ? R.relay : 'https://recommander-relay.yourname.workers.dev', autocomplete: 'off', spellcheck: 'false' });
     const result = el('div', { class: 'opt-help net-test', 'aria-live': 'polite' });
@@ -95817,8 +95826,13 @@ Sideboard
       result.textContent = r === true ? 'The relay answered with suggestions: Commander decks are suggested from Recommander.' : r;
     };
     const testBtn = el('button', { class: 'btn sm', text: 'Test', onclick: () => testBtn && test(testBtn) });
-    return group('suggest', 'Suggestions', 'The deck builder suggests cards for a Commander deck from Recommander (recommander.cards), which ranks what your list in particular is missing. Other formats, or no relay, use the deck builder\u2019s own reading and EDHREC.', [
-      el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
+    return group('suggest', 'Suggestions', 'Card suggestions for a Commander deck in the deck builder. Other formats use the deck builder\u2019s own reading of your list.', [
+      pick('suggestFrom', 'Suggest cards from', [['recommander', 'Recommander'], ['edhrec', 'EDHREC']],
+        edhrec
+          ? 'EDHREC: what other people most often play with your commander, weighed with the deck builder\u2019s own reading of your list.'
+          : 'Recommander (recommander.cards) ranks what your list in particular is missing, learned from a great many real decks. If it cannot be reached, EDHREC is used instead.',
+        'recommander'),
+      edhrec ? null : el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Recommander relay' }),
         el('div', { class: 'opt-help', text: 'Recommander answers only its own website from a browser, so the app asks through a small relay of your own: a free Cloudflare Worker (the steps are in tools/recommander-relay/README.md). Paste its address here.' }),
         el('label', { class: 'field' }, [el('span', { text: 'Address' }), input]),
@@ -95828,7 +95842,7 @@ Sideboard
         ]),
         result,
       ])),
-    ]);
+    ].filter(Boolean));
   }
 
   function onlineGroup(group) {
