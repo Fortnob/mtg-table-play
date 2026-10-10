@@ -143,7 +143,7 @@
       const sl = pats[h % pats.length];
       return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
     }
-    return App.cleanSleeve(r.sleeve);
+    return withGif(App.cleanSleeve(r.sleeve), r);
   };
   /**
    * A sleeve another player sent, kept only if it is one this app draws:
@@ -154,9 +154,119 @@
     const known = MTG.economy.sleeveById(sl.id);
     if (sl.kind === 'pattern' && known && known.kind === 'pattern') return { id: known.id, kind: 'pattern', css: known.css, rim: known.rim };
     if (sl.kind === 'art' && known && typeof sl.art === 'string' && /^https:\/\/cards\.scryfall\.io\//.test(sl.art)) return { id: known.id, kind: 'art', art: sl.art, rim: known.rim };
-    if (sl.kind === 'custom' && typeof sl.img === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(sl.img) && sl.img.length <= 100000) return { id: 'custom', kind: 'custom', img: sl.img, rim: '#f1d58a' };
+    if (sl.kind === 'custom' && typeof sl.img === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(sl.img) && sl.img.length <= 100000) {
+      const out = { id: 'custom', kind: 'custom', img: sl.img, rim: '#f1d58a' };
+      // a GIF behind it: its name, and where to look in it
+      const ref = sl.ref, c = ref && ref.crop;
+      const frac = (n, lo) => typeof n === 'number' && n >= lo && n <= 1;
+      if (ref && typeof ref.h === 'string' && GIF_HASH.test(ref.h) && c && frac(c.x, 0) && frac(c.y, 0) && frac(c.w, 0.001) && frac(c.h, 0.001))
+        out.ref = { h: ref.h, crop: { x: c.x, y: c.y, w: c.w, h: c.h } };
+      return out;
+    }
     return null;
   };
+
+  /* ---- moving sleeves at a table ----
+     A sleeve that is a GIF travels as a reference: its name (a hash of the
+     file) and where to look in it. The GIF itself is asked for once, by
+     whoever does not have it, through the host, which passes it on to
+     anyone else who wants it; it comes in pieces a little apart, so the
+     game's own messages are not held up behind it, and it is checked
+     against its name before it is used. It is kept in memory for the
+     match and let go when the table is left. Until it is in, the still is
+     shown. */
+  const GIF_HASH = /^[0-9a-f]{32}$/;
+  const GIF_PART = 48000;                        // base64 characters a message
+  const GIF_PARTS_MAX = Math.ceil(5.6e6 / GIF_PART);
+  const gifs = {
+    have: new Map(),       // name -> blob URL
+    data: new Map(),       // host: name -> base64, to pass on
+    asked: new Set(),      // names asked for
+    waiting: new Map(),    // host: name -> who else wants it
+    parts: new Map(),      // name -> pieces so far
+    clear() {
+      for (const u of this.have.values()) URL.revokeObjectURL(u);
+      this.have.clear(); this.data.clear(); this.asked.clear(); this.waiting.clear(); this.parts.clear();
+    },
+  };
+  /** A seat's sleeve with its GIF, once it is here; asked for when it is not. */
+  function withGif(sl, seat) {
+    if (!sl || !sl.ref) return sl;
+    const url = gifs.have.get(sl.ref.h);
+    if (url) return Object.assign({}, sl, { anim: url, crop: sl.ref.crop });
+    askGif(sl.ref.h);
+    return sl;
+  }
+  /** The remote seat whose sleeve is this GIF (the host asks its owner). */
+  function gifOwner(h) {
+    const sess = App.session;
+    return sess ? sess.roster.find(r => r.kind === 'remote' && r.peerId && r.sleeve && r.sleeve.ref && r.sleeve.ref.h === h) : null;
+  }
+  function askGif(h) {
+    if (!net.online || gifs.asked.has(h) || gifs.have.has(h) || MTG.economy.ownGifHash() === h) return;
+    if (net.isClient) { gifs.asked.add(h); net.send(null, { t: 'gif:want', h }); return; }
+    const owner = net.isHost ? gifOwner(h) : null;
+    if (owner) { gifs.asked.add(h); net.send(owner.peerId, { t: 'gif:want', h }); }
+  }
+  /** A GIF down one connection (to the host, from a guest), in pieces a little apart. */
+  async function sendGif(to, h) {
+    let p = null;
+    if (MTG.economy.ownGifHash() === h) p = await MTG.economy.animPayload();
+    else if (gifs.data.has(h)) p = { h, type: 'image/gif', d: gifs.data.get(h) };
+    if (!p || !p.d || p.d.length > GIF_PART * GIF_PARTS_MAX) return;
+    const n = Math.ceil(p.d.length / GIF_PART);
+    for (let i = 0; i < n; i++) {
+      if (!net.online) return;
+      net.send(to, { t: 'gif:part', h, i, n, d: p.d.slice(i * GIF_PART, (i + 1) * GIF_PART) });
+      await U.sleep(20);
+    }
+  }
+  function gotGifWant(from, msg) {
+    const h = msg && msg.h;
+    if (typeof h !== 'string' || !GIF_HASH.test(h)) return;
+    const to = net.isHost ? from : null;
+    if (MTG.economy.ownGifHash() === h || gifs.data.has(h)) { sendGif(to, h); return; }
+    // the host has not got it yet: from its owner first, then on
+    if (net.isHost) {
+      if (!gifs.waiting.has(h)) gifs.waiting.set(h, new Set());
+      gifs.waiting.get(h).add(from);
+      askGif(h);
+    }
+  }
+  async function gotGifPart(from, msg) {
+    const h = msg.h;
+    if (typeof h !== 'string' || !GIF_HASH.test(h) || !gifs.asked.has(h) || gifs.have.has(h)) return;
+    if (!(Number.isInteger(msg.n) && msg.n > 0 && msg.n <= GIF_PARTS_MAX && Number.isInteger(msg.i) && msg.i >= 0 && msg.i < msg.n) || typeof msg.d !== 'string') return;
+    let buf = gifs.parts.get(h);
+    if (!buf) { buf = { n: msg.n, got: 0, parts: new Array(msg.n) }; gifs.parts.set(h, buf); }
+    if (buf.n !== msg.n || buf.parts[msg.i] != null) return;
+    buf.parts[msg.i] = msg.d;
+    if (++buf.got < buf.n) return;
+    gifs.parts.delete(h);
+    const d = buf.parts.join('');
+    if (!/^[A-Za-z0-9+/]+=*$/.test(d)) { gifs.asked.delete(h); return; }
+    let bytes;
+    try { bytes = await (await fetch('data:image/gif;base64,' + d)).arrayBuffer(); } catch (e) { gifs.asked.delete(h); return; }
+    // a GIF, and the one asked for
+    const head = new Uint8Array(bytes, 0, Math.min(6, bytes.byteLength));
+    if (String.fromCharCode(...head).slice(0, 4) !== 'GIF8' || await MTG.economy.digestHex(bytes) !== h) { gifs.asked.delete(h); return; }
+    gifs.have.set(h, URL.createObjectURL(new Blob([bytes], { type: 'image/gif' })));
+    if (net.isHost) {
+      gifs.data.set(h, d);
+      const w = gifs.waiting.get(h);
+      gifs.waiting.delete(h);
+      if (w) for (const p of w) sendGif(p, h);
+    }
+    // the table draws it at once
+    if (App.table && App.table.view) App.table.render();
+  }
+  /** Every seat's GIF asked for as soon as it is known: in the lobby, before the match. */
+  function askSeatGifs(members) {
+    for (const r of members || []) {
+      const sl = App.cleanSleeve(r && r.sleeve);
+      if (sl && sl.ref) askGif(sl.ref.h);
+    }
+  }
 
   /** A seat's portrait frame: yours from the Store, the others' as they sent them. */
   App.frameFor = function (pid) {
@@ -4485,6 +4595,7 @@
       // their profile picture, if it is one (a small image, nothing else)
       if (seat) seat.avatar = payload && UI.isAvatar(payload.avatar) ? payload.avatar : null;
       if (seat) seat.sleeve = App.cleanSleeve(payload && payload.sleeve);
+      if (seat && seat.sleeve && seat.sleeve.ref) askGif(seat.sleeve.ref.h);
       if (seat) seat.frame = payload && typeof payload.frame === 'string' && MTG.economy.frameById(payload.frame) ? payload.frame : null;
       if (payload && payload.autoPass && seat && sess.game) sess.game.setAutoPass(seat.id, payload.autoPass);
       sess.broadcastLobby();
@@ -4510,7 +4621,7 @@
       }
       sess.handleIntent(r.id, payload);
     });
-    net.on('lobby', (payload) => renderClientLobbyData(payload));
+    net.on('lobby', (payload) => { askSeatGifs(payload && payload.members); renderClientLobbyData(payload); });
     const showView = (view) => {
       const myId = view.you || findMe(view);
       const game = view.game || (view.config ? view.config.seed : null);
@@ -4530,6 +4641,8 @@
     net.on('open', () => { App.syncIn = new MTG.sync.Decoder(); });
     net.on('message', (from, msg) => {
       if (!msg) return;
+      if (msg.t === 'gif:want') { gotGifWant(from, msg); return; }
+      if (msg.t === 'gif:part') { gotGifPart(from, msg); return; }
       if (net.isClient && msg.t === 'sv') {
         const dec = App.syncIn || (App.syncIn = new MTG.sync.Decoder());
         const r = dec.decode(msg);
@@ -4583,7 +4696,7 @@
       updateRttPills(); App.paintNetChip();
       UI.error('Could not get back to that table. The host may have closed it.');
     });
-    net.on('kicked', (m) => { UI.error('Removed from the table: ' + m); showScreen('home'); });
+    net.on('kicked', (m) => { gifs.clear(); UI.error('Removed from the table: ' + m); showScreen('home'); });
   }
 
   function findMe(view) {
@@ -4616,6 +4729,8 @@
     if (App.session && App.session.draftTimer) clearInterval(App.session.draftTimer);
     if (App.table) { App.table.destroy(); App.table = null; }
     App.session = null;
+    // the other players' moving sleeves were for that match only
+    gifs.clear();
     if (App.draftUI && App.draftUI.destroy) App.draftUI.destroy();
     App.draftUI = null;
     if (!opts.keepSave) MTG.savedGame.clear();

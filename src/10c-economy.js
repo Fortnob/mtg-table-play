@@ -651,6 +651,23 @@
       } catch (e) { res(mode === 'get' ? null : false); }
     });
   }
+  /**
+   * What a GIF is, in 32 hex digits: the name it goes by between players
+   * (src/14-app.js), so one sent is checked against the one asked for.
+   */
+  async function digestHex(buf) {
+    try {
+      if (typeof crypto !== 'undefined' && crypto.subtle) {
+        const d = await crypto.subtle.digest('SHA-256', buf);
+        return [...new Uint8Array(d)].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch (e) { /* the long way, below */ }
+    // FNV-1a twice over, where the page has no crypto.subtle
+    const a = new Uint8Array(buf);
+    let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+    for (let i = 0; i < a.length; i++) { h1 = Math.imul(h1 ^ a[i], 16777619) >>> 0; h2 = Math.imul(h2 ^ a[i], 2246822519) >>> 0; }
+    return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0') + a.length.toString(16).padStart(16, '0')).slice(0, 32);
+  }
   let animUrl = null;
   async function loadAnim() {
     const want = state && state.sleeves.anim;
@@ -658,7 +675,23 @@
     const rec = await media('get', ANIM_KEY);
     if (!rec || !rec.buf || !state.sleeves.anim || state.sleeves.anim.v !== rec.v) return;
     animUrl = URL.createObjectURL(new Blob([rec.buf], { type: rec.type || 'image/gif' }));
+    // one kept before it had a name between players gets one now
+    if (!state.sleeves.anim.h) { state.sleeves.anim.h = await digestHex(rec.buf); MTG.store.set(KEY, state); }
     if (MTG.bus) MTG.bus.emit('economy:changed', { shards: state.shards, why: 'sleeve', delta: 0 });
+  }
+  /** Your GIF, to send to another player: { h, type, d } (d: base64), or null. */
+  async function animPayload() {
+    load();
+    if (!state.sleeves.anim || !state.sleeves.anim.h) return null;
+    const rec = await media('get', ANIM_KEY);
+    if (!rec || !rec.buf) return null;
+    const d = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result || '').split(',')[1] || '');
+      fr.onerror = () => res('');
+      fr.readAsDataURL(new Blob([rec.buf], { type: 'image/gif' }));
+    });
+    return d ? { h: state.sleeves.anim.h, type: 'image/gif', d } : null;
   }
   /**
    * Your own sleeve's picture: a card-shaped JPEG data URL, and with it,
@@ -672,7 +705,7 @@
     if (anim && anim.buf) {
       const v = Date.now();
       const ok = await media('put', ANIM_KEY, { buf: anim.buf, type: anim.type || 'image/gif', v });
-      state.sleeves.anim = ok ? { crop: anim.crop, v } : null;
+      state.sleeves.anim = ok ? { crop: anim.crop, v, h: await digestHex(anim.buf) } : null;
       if (ok) animUrl = URL.createObjectURL(new Blob([anim.buf], { type: anim.type || 'image/gif' }));
     } else {
       if (state.sleeves.anim) media('del', ANIM_KEY);
@@ -695,7 +728,8 @@
     if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
     if (!state.sleeves.custom) return null;
     const out = { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim };
-    // the moving one, here on this device (the others at a table are sent the still)
+    // the moving one: here, the picture itself; to the others at a table, what to ask for
+    if (state.sleeves.anim && state.sleeves.anim.h) out.ref = { h: state.sleeves.anim.h, crop: state.sleeves.anim.crop };
     if (animUrl && state.sleeves.anim) { out.anim = animUrl; out.crop = state.sleeves.anim.crop; }
     return out;
   }
@@ -833,6 +867,9 @@
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    digestHex, animPayload,
+    /** Your GIF's name between players, or null. */
+    ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
     /** Your moving sleeve, on this device: { anim, crop }, or nothing. */
     customAnim: () => (animUrl && state && state.sleeves.anim ? { anim: animUrl, crop: state.sleeves.anim.crop } : {}),
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
