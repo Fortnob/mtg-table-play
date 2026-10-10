@@ -14819,10 +14819,21 @@
               const bad = kinds.filter(k => BAD.has(k)).length, good = kinds.length - bad;
               const mine = x.controller === ctx.controller;
               if (mine ? bad > good : bad === 0) continue;
-              for (const k of kinds) { x.counters[k]++; n2++; }
+              for (const k of kinds) {
+                /* the counters are put on like any others (Hardened Scales, Doubling Season, "whenever
+                   a counter is put"); a Saga's lore counter reads its next chapter */
+                const had = Number(x.counters[k]) || 0;
+                if (k === 'lore' && (x.analysis() || {}).isSaga) this._advanceSaga(x, 1);
+                else this.addCounters(x, k, 1, { by: ctx.controller });
+                n2 += Math.max(0, (Number(x.counters[k]) || 0) - had);
+              }
               if (mine && !this._lastProliferated.includes(x.id)) this._lastProliferated.push(x.id);
             }
             for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller) { p.poison++; n2++; }
+            // your own energy and experience, and opponents' rad counters
+            if ((me.energy || 0) > 0) { me.energy++; n2++; }
+            if ((me.experience || 0) > 0) { me.experience++; n2++; }
+            for (const p of this.opponentsOf(ctx.controller)) if ((p.rad || 0) > 0) { p.rad++; n2++; }
             this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
           }
           this.logEvent('proliferate', `Proliferate adds ${n2} counter${n2 === 1 ? '' : 's'}.`);

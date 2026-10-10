@@ -20556,4 +20556,25 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Curious Herd'), { targets: ['B'] });
     t.eq(T.bfOf('A').filter(o => o.name.includes('Beast')).length, 2, "two Beasts for the opponent's two artifacts (not yours)");
   });
+
+  test("Proliferate puts counters on like any others: Hardened Scales adds one, a Saga reads its next chapter, your energy grows", (mk, t) => {
+    t.auto('Hardened Scales'); t.auto("Tezzeret's Gambit"); t.auto('The Eldest Reborn');
+    const T = mk({ library: ['Island', 'Island', 'Island', 'Island'] });
+    T.toMain('A');
+    T.bf('A', 'Hardened Scales');
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.counters['+1/+1'] = 1;
+    const er = T.bf('A', 'The Eldest Reborn');
+    er.counters.lore = 1;
+    T.bf('B', 'Hill Giant');
+    T.hand('B', 'Island');
+    T.g.player('A').energy = 2;
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', "Tezzeret's Gambit"));
+    T.resolve();
+    t.eq(bear.counters['+1/+1'], 3, 'one proliferated, and Hardened Scales adds one');
+    t.eq(er.counters.lore, 2, 'the Saga gets its lore counter');
+    t.eq(T.zone('B', 'hand').length, 0, 'chapter II: the opponent discarded their card');
+    t.eq(T.g.player('A').energy, 3, 'your energy: one more');
+  });
 };
