@@ -5376,8 +5376,17 @@
     { re: /^Counter that spell if it has the same mana value as the revealed card\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true, ifMvRevealed: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
-    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control)?)\.?$/i,
+    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
+    // Ramos, Dragon Engine: "put a +1/+1 counter on Ramos for each of that spell's colors" (spellColorCount)
+    { re: /^Put an? ([+-]\d+\/[+-]\d+) counter on (?:CARDNAME|this creature) for each of that spell'?s colou?rs\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: { ofTrigger: 'colorCount' }, scope: 'self' }) },
+    // Toph, Hardheaded Teacher: "put an additional +1/+1 counter on that land" — the one the sentence before acted on
+    { re: /^Put an additional ([+-]\d+\/[+-]\d+) counter on that (land|creature|permanent)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: 1, scope: 'lastTarget' }) },
+    // Alandra, Sky Dreamer: "CARDNAME and Drakes you control each get +X/+X …" — the group, and this one as well (orSelf)
+    { re: /^CARDNAME and ([A-Z][a-z]+s) you control each get (.+)$/,
+      make: (m) => { const e = parseEffectSentence(m[1] + ' you control get ' + m[2]); return e && e.op === 'pump' && e.scope && typeof e.scope === 'object' ? Object.assign(e, { scope: Object.assign({}, e.scope, { orSelf: true }) }) : null; } },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -6324,9 +6333,13 @@
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
+    // Lulu, Stern Guardian, Flash Foliage: "target creature attacking you" — attacking this player itself (attackingYouSpec)
+    const atYou = /\s+(?:that'?s )?attacking you$/i.test(String(phrase));
+    if (atYou) phrase = String(phrase).replace(/\s+(?:that'?s )?attacking you$/i, '');
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
+    if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
     if (ctlGy) spec.mvAtMostCtlGy = true;
@@ -6584,6 +6597,7 @@
     if (mvMin != null && (obj.card.cmc || 0) < mvMin) return false;
     if (mvIs != null && (obj.card.cmc || 0) !== mvIs) return false;
     if (spec.attacking && !obj.attacking) return false;
+    if (spec.attackingYou && me != null && obj.attacking !== me) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
@@ -9421,7 +9435,7 @@
     /* (Gloomlance, Molten Rain, Endless Evil: "that creature was green or white", "that land was nonbasic",
        "that creature was a Horror" — what it was as it left: what the card is, or the token was. Not
        "was attacking", "was tapped": a card that has left is neither) */
-    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) (is|was) (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
+    [/^that (creature|permanent|land|artifact|enchantment|planeswalker|spell) (is|was) (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
       (m) => {
         const w = listWords(m[3].replace(/(,|\bor) an? /g, '$1 ')).trim();
         const state = /^(?:attacking|blocking|tapped|untapped|equipped|enchanted|goaded|modified|face-down)$/;
@@ -10278,6 +10292,9 @@
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
     // Fabrication Module, Territorial Gorger: "Whenever you get one or more {E}"
     { re: /^Whenever you get one or more \{E\},? /i, event: 'youGetEnergy' },
+    // Alandra, Sky Dreamer: "Whenever you draw your fifth card each turn" (drawNthMore)
+    { re: /^When(?:ever)? you draw your (fourth|fifth|sixth|seventh) card each turn,? /i, event: 'youDraw',
+      extraOf: (m) => ({ drawNth: { fourth: 4, fifth: 5, sixth: 6, seventh: 7 }[m[1].toLowerCase()] }) },
     // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
     { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
     /* The Council of Four: "Whenever a player draws their second card during their turn", "casts their
@@ -12420,6 +12437,9 @@
           if (!e || typeof e !== 'object') continue;
           if ((e.targets || []).length) seen = 'target';
           if (e.op === 'manifest') seen = 'put';
+          // Lulu, Stern Guardian: "choose target creature attacking you. Put a stun counter on that creature" — the one chosen (choseThat)
+          if (e.op === 'chooseTarget') seen = 'chose';
+          if (seen === 'chose' && e.scope === 'triggerObject' && /\bthat (?:creature|permanent|artifact|enchantment|land|planeswalker)\b/i.test(e.text || '')) e.scope = 'lastTarget';
           // (Djeru's Resolve: "… dealt to it this turn" — "this turn" is no "this creature")
           if (seen && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\bthis (?:creature|permanent|artifact|enchantment|land|card|spell|Equipment|Aura|Vehicle)\b|CARDNAME/i.test(e.text || '')) e.scope = seen === 'put' ? 'thatObject' : 'lastTarget';
           seen = itToTarget(e.list, seen);

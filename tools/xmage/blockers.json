@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10607,
+  "needed": 10601,
   "gainedCards": 970,
-  "linesNeeded": 11295,
+  "linesNeeded": 11289,
   "linesGained": 1140,
   "gained": {
    "all": 970,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4060,
-   "lines": 3814,
+   "score": 4059,
+   "lines": 3813,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 676,
-   "lines": 622,
+   "score": 675,
+   "lines": 621,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -3084,19 +3084,6 @@
    ]
   },
   {
-   "what": "FilterCreatureAttackingYou",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Soul Snare",
-    "Ice Floe",
-    "Flash Foliage",
-    "Snow Fortress",
-    "Giant Trap Door Spider",
-    "Hunting Kavu"
-   ]
-  },
-  {
    "what": "EntersWithCountersControlledEffect",
    "score": 6,
    "lines": 6,
@@ -4524,17 +4511,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Alandra, Sky Dreamer",
-    "Private Eye",
-    "Moon Girl and Devil Dinosaur",
-    "Jaded Analyst"
-   ]
-  },
-  {
    "what": "AnotherTargetPredicate",
    "score": 4,
    "lines": 4,
@@ -4938,6 +4914,17 @@
     "Armor Wars",
     "Spellbinding Soprano",
     "Urza, Planeswalker"
+   ]
+  },
+  {
+   "what": "FilterCreatureAttackingYou",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Soul Snare",
+    "Flash Foliage",
+    "Giant Trap Door Spider",
+    "Hunting Kavu"
    ]
   },
   {
@@ -5601,16 +5588,6 @@
     "Vorpal Sword",
     "Ezio Auditore da Firenze",
     "Hidetsugu Consumes All // Vessel of the All-Consuming"
-   ]
-  },
-  {
-   "what": "TargetControlledLandPermanent",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Toph, Hardheaded Teacher",
-    "The Legend of Kyoshi // Avatar Kyoshi",
-    "Earthshape"
    ]
   },
   {
@@ -6509,13 +6486,33 @@
     "Karolina Dean, Runaway",
     "Niko Defies Destiny"
    ]
+  },
+  {
+   "what": "(constructor: assignment)",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Banewhip Punisher",
+    "Ammit Eternal",
+    "Bull Elephant"
+   ]
+  },
+  {
+   "what": "RemoveUpToAmountCountersEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Rhys, the Evermore",
+    "Render Inert",
+    "Mabel, Bitter Recluse"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3389,
-   "cards": 3224,
+   "score": 3388,
+   "cards": 3223,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6527,8 +6524,8 @@
   },
   {
    "what": "custom ability",
-   "score": 520,
-   "cards": 481,
+   "score": 519,
+   "cards": 480,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -8266,19 +8263,6 @@
    ]
   },
   {
-   "what": "FilterCreatureAttackingYou",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Soul Snare",
-    "Ice Floe",
-    "Flash Foliage",
-    "Snow Fortress",
-    "Giant Trap Door Spider",
-    "Hunting Kavu"
-   ]
-  },
-  {
    "what": "BeginningOfEndStepTriggeredAbility for NEXT",
    "score": 6,
    "cards": 6,
@@ -9298,17 +9282,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Alandra, Sky Dreamer",
-    "Private Eye",
-    "Moon Girl and Devil Dinosaur",
-    "Jaded Analyst"
-   ]
-  },
-  {
    "what": "AnotherTargetPredicate",
    "score": 4,
    "cards": 4,
@@ -9614,6 +9587,17 @@
     "Experiment Twelve",
     "Printlifter Ooze",
     "Kingpin, Wilson Fisk"
+   ]
+  },
+  {
+   "what": "FilterCreatureAttackingYou",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Soul Snare",
+    "Flash Foliage",
+    "Giant Trap Door Spider",
+    "Hunting Kavu"
    ]
   },
   {
@@ -10164,6 +10148,17 @@
     "Glass Asp",
     "Nafs Asp",
     "Quenchable Fire"
+   ]
+  },
+  {
+   "what": "EnchantedSourceCondition",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Krond the Dawn-Clad",
+    "Fledgling Osprey",
+    "Flaring Flame-Kin",
+    "Skyrider Trainee"
    ]
   }
  ]

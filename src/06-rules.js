@@ -9791,7 +9791,9 @@
           const ids = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).filter(t => t && t.kind === 'object').map(t => t.id);
           if (ctx && ctx.triggerData && ctx.triggerData.objectId) ids.push(ctx.triggerData.objectId);
           const noun = cond.noun === 'permanent' ? null : cond.noun;
-          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || this._cardFitsWords(x, noun)));
+          // (Toph, Hardheaded Teacher: "if that spell is a Lesson" — the spell the trigger is about, never a target)
+          if (noun === 'spell') ids.splice(0, ids.length, ...((ctx && ctx.triggerData && ctx.triggerData.objectId) ? [ctx.triggerData.objectId] : []));
+          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
           return !!it && this._cardFitsWords(it, cond.words);
         }
         case 'triggerObjNotCastFromHand': {
@@ -12598,6 +12600,8 @@
           if (!o) return (((ctx.sacrificed || [])[0] || {})[v.ofTrigger]) || 0;
           const gone = o.zone !== 'battlefield' && o._lastPower != null;
           if (v.ofTrigger === 'power') return gone ? o._lastPower : this.powerOf(o);
+          // Ramos, Dragon Engine: "for each of that spell's colors" (spellColorCount)
+          if (v.ofTrigger === 'colorCount') return ((o.analysis() || {}).colors || []).length;
           if (v.ofTrigger === 'toughness') return gone ? o._lastToughness : this.toughnessOf(o);
           // Jaws of Defeat: "the difference between that creature's power and its toughness"
           if (v.ofTrigger === 'ptDiff') return Math.abs((gone ? o._lastPower : this.powerOf(o)) - (gone ? o._lastToughness : this.toughnessOf(o)));
@@ -21260,6 +21264,8 @@
      * its counters stand in.
      */
     _scopeHit(sc, o, oa, pid, src, inLayers) {
+      // Alandra, Sky Dreamer: "Alandra and Drakes you control" — this one as well (orSelf)
+      if (sc.orSelf && src && src.id === o.id) return true;
       if (sc.other && src && src.id === o.id) return false;
       // Kjeldoran Frostbeast: blocking it, or blocked by it
       if (sc.combatWithSelf) {

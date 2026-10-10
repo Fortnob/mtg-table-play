@@ -21293,4 +21293,46 @@ module.exports = (test) => {
     T.answer('sacrifice', () => ({ cardIds: [hu.id] })); T.activate('A', fa, 0); T.resolve();
     t.eq(fa.counters['+1/+1'], 1, 'a Human: a counter');
   });
+
+  test('Commanders: Alandra, Sky Dreamer, Ramos, Dragon Engine, Lulu, Stern Guardian, Toph, Hardheaded Teacher', (mk, t) => {
+    for (const n of ['Alandra, Sky Dreamer', 'Ramos, Dragon Engine', 'Lulu, Stern Guardian', 'Toph, Hardheaded Teacher']) t.auto(n);
+    // Alandra: the fifth card drawn in a turn, +X/+X where X is the cards in hand
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const al = T.bf('A', 'Alandra, Sky Dreamer');
+    T.g.drawCards('A', 4); T.resolve();
+    t.eq(T.g.powerOf(al), 2, 'four cards: nothing yet');
+    T.g.drawCards('A', 1); T.resolve();
+    t.eq(T.g.powerOf(al), 2 + T.zone('A', 'hand').length, 'the fifth: +X/+X, X the cards in hand');
+    // Ramos: a counter for each of the spell's colours
+    const T2 = mk();
+    T2.toMain('A');
+    const r = T2.bf('A', 'Ramos, Dragon Engine');
+    T2.mana('A', '2RG'); T2.cast('A', T2.hand('A', 'Ghor-Clan Rampager')); T2.resolve();
+    t.eq(r.counters['+1/+1'], 2, 'a red and green spell: two counters');
+    // Lulu: a stun counter on the creature chosen from those attacking you
+    const T3 = mk({ library: Array(10).fill('Island') });
+    T3.bf('A', 'Lulu, Stern Guardian');
+    T3.toMain('B');
+    const g = T3.bf('B', 'Hill Giant'); g.summoningSick = false;
+    const g2 = T3.bf('B', 'Grizzly Bears'); g2.summoningSick = false;
+    const pw = T3.bf('A', 'Jace Beleren'); pw.counters.loyalty = 3;
+    let offered = null;
+    T3.answer('pickTarget', (q) => { offered = JSON.stringify(q); return { targets: [{ kind: 'object', id: g.id }] }; });
+    T3.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'A' }, { attackerId: g2.id, defenderId: pw.id }]);
+    T3.toMain('B', 'declareBlockers'); T3.resolve();
+    t.eq(g.counters.stun, 1, 'a stun counter on the attacker');
+    t.ok(offered && offered.includes(g.id) && !offered.includes(g2.id), 'only a creature attacking you, not one attacking your planeswalker');
+    // Toph: earthbend 1, and one more counter on that land for a Lesson
+    const T4 = mk();
+    T4.toMain('A');
+    T4.bf('A', 'Toph, Hardheaded Teacher');
+    const f1 = T4.bf('A', 'Forest'), f2 = T4.bf('A', 'Forest'), bear = T4.bf('A', 'Grizzly Bears');
+    T4.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: f1.id }] }));
+    T4.mana('A', 'R'); T4.cast('A', T4.hand('A', 'Shock'), { targets: ['B'] }); T4.resolve();
+    t.eq(f1.counters['+1/+1'], 1, 'not a Lesson: one counter');
+    T4.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: f2.id }] }));
+    T4.mana('A', '1W'); T4.cast('A', T4.hand('A', "Sokka's Sword Training"), { targets: [bear] }); T4.resolve();
+    t.eq(f2.counters['+1/+1'], 2, 'a Lesson: one more on that land');
+  });
 };
