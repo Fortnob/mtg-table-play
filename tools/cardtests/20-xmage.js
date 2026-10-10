@@ -18815,4 +18815,38 @@ module.exports = (test) => {
     t.eq(wb.counters.fire, 3, 'a third fire counter');
     t.ok(T.g.characteristics(wb).isCreature, 'three: an artifact creature');
   });
+
+  test('Wild-Magic Sorcerer: the first spell you cast from exile each turn has cascade, the second does not', (mk, t) => {
+    t.auto('Wild-Magic Sorcerer');
+    const T = mk({ library: ['Island'] });
+    T.toMain('A');
+    T.bf('A', 'Wild-Magic Sorcerer');
+    const bears = T.top('A', 'Grizzly Bears');
+    const g1 = T.put('A', 'Hill Giant', 'exile'); g1.impulseBy = 'A'; g1.impulseUntil = T.g.turn;
+    const g2 = T.put('A', 'Hill Giant', 'exile'); g2.impulseBy = 'A'; g2.impulseUntil = T.g.turn;
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R3');
+    T.cast('A', g1);
+    T.resolve();
+    t.zone(bears, 'battlefield');
+    const top = T.top('A', 'Grizzly Bears');
+    T.mana('A', 'R3');
+    T.cast('A', g2);
+    T.resolve();
+    t.zone(top, 'library');
+  });
+
+  test('Storm on a spell cast without paying its mana cost (Grapeshot)', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    const gs = T.hand('A', 'Grapeshot');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.g._castFree('A', gs);
+    T.resolve();
+    t.eq(T.g.player('B').life, 15, 'the Bolt, Grapeshot and one storm copy');
+  });
 };

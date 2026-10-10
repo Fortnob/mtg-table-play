@@ -5348,6 +5348,8 @@
       this.stormCount++;
       this.spellsThisTurn = (this.spellsThisTurn || 0) + 1;   // day/night watches this
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
+      // Wild-Magic Sorcerer: how many spells this player has cast from exile this turn
+      if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -5606,6 +5608,9 @@
         const g = this._staticOp(src, 'grantCastKeyword');
         if (!g || g.keyword !== 'cascade') return false;
         if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) < g.minMv) return false;
+        // Wild-Magic Sorcerer: the first spell cast from exile this turn, and no other
+        if (g.fromZones && !g.fromZones.includes(item.fromZone)) return false;
+        if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) return false; }
         return !g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter);
       });
       if (!a.keywordSet.has('cascade') && !granted) return;
@@ -20888,11 +20893,15 @@
       this.stormCount++;
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
       // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
+      if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)
       this.logEvent('cast', `${p.name} casts ${o.name} ${(how && how.how) || 'without paying its mana cost'}.`);
       this.emit('stack:add', item);
+      // storm and cascade trigger on casting, paid for or not (a miracle, a rebound, a copy cast)
+      this._storm(item, a);
+      this._cascade(item, a);
       const castData = { spell: item, object: o, stackId: item.id, playerId };
       this._fire('anyCastSpell', null, castData);
       this._fire('youCastSpell', playerId, castData);

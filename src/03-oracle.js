@@ -13501,6 +13501,9 @@
       // Prismari, the Inspiration; Ral, Crackling Wit's emblem: "Instant and sorcery spells you cast have storm."
       { re: /^([A-Za-z ]*?)spells you cast have storm\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'storm', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
+      // Wild-Magic Sorcerer: "The first spell you cast from exile each turn has cascade."
+      { re: /^The first spell you cast from exile each turn has cascade\.?$/i,
+        make: () => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },
