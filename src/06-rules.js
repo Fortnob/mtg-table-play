@@ -19923,11 +19923,13 @@
             return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
           this.logEvent('reveal', `${victim.name} reveals their hand: ${this.zones[victim.id].hand.map(o => o.name).join(', ') || 'no cards'}.`);
+          // Memory Leak: "from that player's graveyard or hand" (alsoGraveyard)
+          if (e.alsoGraveyard) hand.push(...this.zones[victim.id].graveyard.filter(o => words === 'any' || words === 'card' || this._cardFitsWords(o, words)));
           if (!hand.length) break;
           this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1,
             purpose: e.to === 'exile' ? 'exileFromHand' : 'discardFromHand',
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Choose ${want} card from ${victim.name}'s hand to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
+            prompt: `Choose ${want} card from ${victim.name}'s ${e.alsoGraveyard ? 'graveyard or hand' : 'hand'} to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
           break;
         }
 
@@ -21648,7 +21650,7 @@
             if (ch.purpose === 'blightCost') { if (o.zone === 'battlefield') this._blightOn(o, ch.n || 1, playerId); continue; }
             if (ch.purpose === 'beholdCost') { this._beholdOne(playerId, o, !!ch.exile, this.obj(ch.sourceId)); continue; }
             if (ch.purpose === 'landFromHand') { this.moveObject(o, 'battlefield', { controller: playerId }); this.logEvent('land', `${this.player(playerId).name} puts ${o.name} onto the battlefield.`); }
-            else if (ch.purpose === 'exileFromHand') { this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s hand.`); }
+            else if (ch.purpose === 'exileFromHand') { const fromZ = o.zone === 'graveyard' ? 'graveyard' : 'hand'; this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s ${fromZ}.`); }
             else if (ch.purpose === 'discardFromHand') { this.moveObject(o, 'graveyard'); this.logEvent('discard', `${this.player(o.owner).name} discards ${o.name}.`); this._afterDiscard(o.owner, o); }
           }
           break;

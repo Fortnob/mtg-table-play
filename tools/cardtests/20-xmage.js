@@ -17622,4 +17622,23 @@ module.exports = (test) => {
     t.eq(T.g.zones.A.library[0], c2, 'the Forest back on top');
     t.zone(c1, 'graveyard'); t.zone(c3, 'graveyard');
   });
+
+  test("Never Happened: a nonland card from that player's graveyard or hand, exiled", (mk, t) => {
+    t.auto('Never Happened');
+    t.auto('Memory Leak');
+    const T = mk();
+    T.toMain('A');
+    const inHand = T.hand('B', 'Lightning Bolt');
+    T.hand('B', 'Mountain');
+    const inYard = T.grave('B', 'Shock');
+    T.grave('B', 'Forest');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort().join(', '); return { cardIds: [inYard.id] }; });
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Never Happened'), { targets: ['B'] });
+    T.settle();
+    t.eq(offered, 'Lightning Bolt, Shock', 'the nonland cards from both');
+    t.zone(inYard, 'exile', 'the Shock from the graveyard');
+    t.zone(inHand, 'hand');
+  });
 };

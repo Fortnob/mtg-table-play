@@ -7452,6 +7452,9 @@
        is drawn without it */
     { re: /^You may discard a card\. If you do, draw a card\.?$/i,
       make: () => [{ op: 'may', then: [{ op: 'rummage' }] }] },
+    // Memory Leak, Never Happened: "You choose a nonland card from that player's graveyard or hand and exile it." (alsoGraveyard)
+    { re: /^Target opponent reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from that player'?s graveyard or hand and exile it\.?$/i,
+      make: (m) => [{ op: 'handAttack', filter: m[1].replace(/,/g, ' ').toLowerCase(), to: 'exile', alsoGraveyard: true, targets: [{ type: 'player', opponent: true }] }] },
     { re: /^Target (opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
       make: (m) => [{ op: 'handAttack', filter: m[2].replace(/,/g, ' ').toLowerCase(),
         to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }] },
