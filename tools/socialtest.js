@@ -73,6 +73,12 @@ class Broker {
         setTimeout(() => this._emit('close'), 0);
         if (this.other) setTimeout(() => this.other.close(), 2);
       }
+      /** Gone at this end only, the far end none the wiser: a phone put to sleep. */
+      vanish() {
+        this.gone = true; this.open = false;
+        this.owner.conns.delete(this);
+        setTimeout(() => this._emit('close'), 0);
+      }
     }
     class FakePeer extends Emitter {
       constructor(id) {
@@ -348,15 +354,30 @@ async function main() {
   await sleep(40);
   check(inv === null, 'an invite to a room code that cannot be one is dropped');
 
+  /* ---------------- a line that died at one end only ---------------- */
+  // Ben's phone slept: his end of the line is gone, Ann's still looks up. Ben dials again,
+  // and Ann takes the new line rather than holding on to the dead one
+  ann.hub._links.get(ben.code).openedAt -= 20000;
+  const t0 = Date.now();
+  ben.hub._links.get(ann.code).conn.vanish();
+  await until(() => !ben.hub.isOnline(ann.code), 1000, 'Ben’s end notices');
+  await until(() => ann.hub.isOnline(ben.code) && ben.hub.isOnline(ann.code) && ann.hub._links.get(ben.code).conn.open && !ann.hub._links.get(ben.code).conn.gone &&
+    ann.hub._links.get(ben.code).conn.other === ben.hub._links.get(ann.code).conn, 2000, 'the friends are back on one live line');
+  check(Date.now() - t0 < TIMING.quiet, 'without waiting for the dead line to time out');
+
   /* ---------------- junk on the line ---------------- */
   const junk = [null, 7, 'hello', [], { t: 5 }, { t: 'hi', code: 'ZZZZZZZZ' }, { t: '~', id: 1, i: 0, n: 1e9, d: 'x' },
     { t: '~', id: 2, i: 5, n: 2, d: 'x' }, { t: 'accept', s: 'not hex' }, { t: 'presence', p: 'everywhere' }, { t: 'tr', op: 'commit', id: 'zz' },
     { t: 'profile', name: { evil: 1 }, avatar: 'javascript:alert(1)', frame: '../../x' }, { t: 'invite', room: 12 }, { t: 'proof', m: 123 }];
   let threw = false;
-  for (const m of junk) { try { annLink.conn.send(m); } catch (e) { threw = true; } }
+  const liveLink = ann.hub._links.get(ben.code);
+  for (const m of junk) { try { liveLink.conn.send(m); } catch (e) { threw = true; } }
   await sleep(60);
   check(!threw && ann.hub.isOnline(ben.code) && ben.hub.isOnline(ann.code), 'junk on the line changes nothing and breaks nothing');
   check(entryOf(ann, ben.code).name === 'Benedict', 'a profile made of junk is ignored');
+  liveLink.conn.send({ t: 'profile', name: 'Benedict', avatar: 'data:image/png;base64,AAAA") ; background: url("https://example.com/x' });
+  await sleep(40);
+  check(entryOf(ann, ben.code).avatar === null, 'a "picture" that would break out of its CSS url() is not kept');
 
   // a stranger who says hello and nothing else is hung up on
   const lurker = new (broker.makePeerClass())(FC.PREFIX + FC.makeCode(8));

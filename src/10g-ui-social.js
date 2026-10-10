@@ -534,8 +534,11 @@
             onclick: async () => { const r = await openRoom(); if (r) invitePicker(r, o.fmt || tableFormat()); } }),
           el('button', { type: 'button', class: 'btn sm ghost', html: `${SVG.link}<span>Copy invite link</span>`, disabled: !net.peerAvailable() || (o.guest && !room),
             onclick: async () => {
+              // a browser copies only straight from a tap: with the room already open, now
+              if (net.online && net.roomCode) { copy(roomLink(net.roomCode), 'Invite link copied. Whoever opens it comes straight to this table.', 'The link'); return; }
+              // otherwise the tap went on opening the room, and the link waits in a window of its own
               const r = await openRoom();
-              if (r) copy(roomLink(r), 'Invite link copied. Whoever opens it comes straight to this table.', 'The link');
+              if (r) linkWindow(r);
             } }),
         ]),
       );
@@ -544,6 +547,19 @@
     lobbyRows.add(box);
     return box;
   };
+  /** A room's invite link, to copy or share with a tap of its own. */
+  function linkWindow(room) {
+    const link = roomLink(room);
+    const box = el('input', { type: 'text', class: 'link-box', value: link, readonly: true, 'aria-label': 'Invite link' });
+    box.addEventListener('focus', () => { try { box.select(); } catch (e) {} });
+    const m = UI.modal({ title: 'Invite link', className: 'friends-modal', width: 'min(520px, 96vw)', content: el('div', null, [
+      el('p', { class: 'small muted', style: { marginTop: 0 }, text: `Room ${room} is open. Whoever opens this link comes straight to this table.` }),
+      box,
+    ]) });
+    m.button('Close', (mm) => mm.close(), 'ghost');
+    if (navigator.share && MTG.isTouch()) m.button('Share…', () => share(link, 'Join my table on MTG Table', 'Invite link copied.'));
+    m.button('Copy link', (mm) => { copy(link, 'Invite link copied. Whoever opens it comes straight to this table.', 'The link'); mm.close(); }, 'primary');
+  }
   function invitePicker(room, fmt) {
     const list = el('div', { class: 'fr-rows picker' });
     const m = UI.modal({ title: 'Invite friends', className: 'friends-modal invite-modal', width: 'min(520px, 96vw)', content: el('div', null, [

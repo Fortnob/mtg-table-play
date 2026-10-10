@@ -5,7 +5,7 @@
    kept as its text with the tags taken out. Nothing is laid out. */
 'use strict';
 
-const ENTITIES = { '&times;': '×', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' };
+const ENTITIES = { '&times;': '×', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': '\u00a0' };
 
 class Node0 {
   constructor(doc) { this.ownerDocument = doc; this.parentNode = null; this.childNodes = []; this._on = {}; }

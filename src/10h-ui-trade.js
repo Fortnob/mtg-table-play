@@ -228,8 +228,8 @@
       confirm.disabled = finishing || !!T.problems(s);
       confirm.textContent = mine ? 'Change my mind' : 'Confirm trade';
       confirm.className = 'btn ' + (mine ? '' : 'primary');
+      // closing while it finishes leaves it to finish: the journal sees it through
       leave.textContent = st === 'open' || st === 'asking' ? 'Cancel trade' : 'Close';
-      leave.disabled = st === 'committing';
     }
 
     function drawDeal(editable) {
@@ -278,6 +278,10 @@
       const v = w.view;
       const keepFocus = document.activeElement && document.activeElement.classList.contains('tr-search');
       const caret = keepFocus ? document.activeElement.selectionStart : null;
+      // the deal changes under you as you pick: the list stays where you had scrolled it
+      const was = binders.querySelector('.tr-list');
+      const keepTop = was && !v.fresh ? was.scrollTop : 0;
+      v.fresh = false;
       binders.innerHTML = '';
       const wants = T.wish.names();
       const theirsList = [...s.theirs.values()];
@@ -288,7 +292,7 @@
         ['theirs', `${s.name}’s cards`, theirsList.length, wantedTheirs],
         ['mine', 'Your cards', mineList.length, wantedMine],
       ].map(([id, label, n, wn]) => el('button', { type: 'button', role: 'tab', class: 'seg-btn' + (v.tab === id ? ' on' : ''), 'aria-selected': v.tab === id ? 'true' : 'false',
-        onclick: () => { v.tab = id; v.shown = 120; draw(); } }, [
+        onclick: () => { v.tab = id; v.shown = 120; v.fresh = true; draw(); } }, [
         el('span', { text: label }), el('span', { class: 'tr-tab-n', text: ` ${fmtN(n)}` }),
         wn ? el('span', { class: 'tr-tab-w', title: id === 'theirs' ? 'Cards you want' : 'Cards they want', html: `${STAR}${wn}` }) : null,
       ].filter(Boolean))));
@@ -341,6 +345,7 @@
         if (rows.length > v.shown) list.appendChild(el('button', { type: 'button', class: 'btn sm ghost tr-more', text: `Show more (${rows.length - v.shown})`, onclick: () => { v.shown += 200; drawList(); } }));
       }
       drawList();
+      if (keepTop) list.scrollTop = keepTop;
     }
 
     async function doConfirm() {

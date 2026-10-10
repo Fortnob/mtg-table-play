@@ -43,7 +43,7 @@
   const E = () => MTG.economy;
   const PLAYSET = 4;
   const MAX_SIDE = 40;           // different cards on one side of a deal
-  const MAX_BINDER = 6000;       // cards in a binder sent by the other side
+  const MAX_BINDER = 30000;      // cards in a binder sent by the other side (every card there is, near enough)
   const MAX_WISH = 500;
   const ASK_WAIT = 60000;        // how long an asked friend has to say yes
   const CONFIRMED_DAYS = 14;     // a confirmation never committed is let go after this long

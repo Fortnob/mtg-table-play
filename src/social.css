@@ -135,6 +135,7 @@ html[data-play="1"] .friends-chip { display: none; }
 .li-count { font-size: 12px; color: var(--ink-3); }
 .li-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .li-btns .btn { display: inline-flex; align-items: center; gap: 6px; flex: 1 1 auto; justify-content: center; }
+.link-box { width: 100%; margin: 0; font: 500 13px/1.4 var(--mono); }
 
 /* ---------------- moving a save ---------------- */
 .move-body { display: grid; gap: 12px; }

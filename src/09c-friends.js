@@ -224,10 +224,12 @@
   const cleanName = (v) => {
     if (typeof v !== 'string') return '';
     // eslint-disable-next-line no-control-regex
-    return v.replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);
+    return v.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);
   };
-  const isAvatar = (v) => (MTG.ui && MTG.ui.isAvatar ? MTG.ui.isAvatar(v)
-    : typeof v === 'string' && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 60000);
+  /* A picture is drawn as a CSS url("…"), so a friend's must be nothing
+     but base64 after its header: no quote or bracket could end it early. */
+  const isAvatar = (v) => typeof v === 'string' && v.length <= 60000 && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) &&
+    (!MTG.ui || !MTG.ui.isAvatar || MTG.ui.isAvatar(v));
   const cleanFrame = (v) => {
     if (typeof v !== 'string' || !/^[a-z0-9-]{1,24}$/.test(v)) return null;
     return MTG.economy && MTG.economy.frameById && !MTG.economy.frameById(v) ? null : v;
@@ -393,9 +395,14 @@
       dropPeer();
       setStatus('off');
     }
-    /** Back in front of the person (a phone woken, the network back): reconnect and look round. */
+    /**
+     * Back in front of the person (a phone woken, the network back): lines
+     * that went quiet while asleep are let go, the broker is found again,
+     * and everyone is looked for.
+     */
     function wake() {
       if (!wanted) return;
+      heartbeat();
       if (!peer || peer.destroyed) { clearTimeout(retryTimer); start(); return; }
       if (peer.disconnected) { try { peer.reconnect(); } catch (e) { restart(); } return; }
       sweep();
@@ -441,7 +448,7 @@
     function attach(conn, code, initiator) {
       const link = {
         conn, code, initiator, opened: false, closed: false, nonce: randomHex(32),
-        hello: null, verified: false, presence: null, heard: now(), unchunk: new Unchunker(200),
+        hello: null, verified: false, presence: null, heard: now(), unchunk: new Unchunker(400),
         lastInvite: 0, strangerTimer: null,
       };
       conn.on('open', () => opened(link));
@@ -458,11 +465,15 @@
       if (a && a.link === link) { clearTimeout(a.timer); attempts.delete(link.code); }
       /* Both sides may have dialled at once. Keep one line: the one the
          side with the smaller code opened (each side works this out the
-         same way), or, both from the same side, the newer. */
+         same way), or, both from the same side, the newer. A line that
+         has been up a while is not a crossed call: the other side dialled
+         again because, for them, it had died, so the new one wins. */
+      link.openedAt = now();
       const have = links.get(link.code);
       if (have && have !== link && !have.closed) {
         const iShouldDial = myCode() < link.code;
-        const keepNew = link.initiator === have.initiator || link.initiator === iShouldDial;
+        const crossed = now() - (have.openedAt || 0) < 10000;
+        const keepNew = !crossed || link.initiator === have.initiator || link.initiator === iShouldDial;
         if (!keepNew) { closeLink(link); return; }
         retire(have);
       }
