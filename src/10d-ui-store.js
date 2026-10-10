@@ -1043,9 +1043,12 @@
   function extrasNote(kids, all) {
     if (!kids || !kids.length) return null;
     const info = kids.map(c => all.find(s => s.code === c) || { code: c, name: c.toUpperCase() });
-    const kinds = new Set(info.map(s => s.set_type === 'commander' ? 'Commander' : s.set_type === 'alchemy' ? 'Alchemy' : s.digital ? 'digital' : 'bonus'));
-    const short = kinds.has('Commander') && kinds.has('Alchemy') ? 'Commander & Alchemy cards'
-      : kinds.size === 1 ? `${[...kinds][0]} cards` : 'bonus cards';
+    const kinds = new Set(info.map(s => s.set_type === 'commander' ? 'Commander' : s.set_type === 'alchemy' ? 'Alchemy'
+      : s.set_type === 'eternal' ? 'Eternal' : s.digital ? 'digital' : 'bonus'));
+    // two kinds named ("Commander & Eternal cards"); more than that, or unnamed ones, are bonus cards
+    const named = [...kinds].filter(k => k !== 'bonus' && k !== 'digital');
+    const short = kinds.size === 1 ? `${[...kinds][0]} cards`
+      : named.length === kinds.size && named.length === 2 ? `${named.join(' & ')} cards` : 'bonus cards';
     return { short: short.charAt(0).toUpperCase() + short.slice(1), long: 'Now and then, one of the new cards from ' + info.map(s => s.name).join(', ') + '.' };
   }
 

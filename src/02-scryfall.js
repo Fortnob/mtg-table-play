@@ -706,7 +706,12 @@
         // a hundred cards makes a set worth its own packs; the small early ones (Arabian Nights) were sold in boosters all the same
         .filter(s => (s.card_count >= 100 || (s.card_count >= 70 && (s.released_at || '') < '1997-01-01')) && s.released_at && s.released_at <= today)
         .filter(s => !/Foreign Black Border|^Renaissance$|^Rinascimento$/i.test(s.name || '') && !['ren', 'rin', 'bchr', '4bb', 'fbb'].includes(s.code))
-        .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''));
+        .sort((a, b) => (b.released_at || '').localeCompare(a.released_at || ''))
+        /* An Eternal set made beside a set of its own (The Hobbit Eternal,
+           beside The Hobbit) is not sold apart: its cards come in that set's
+           packs now and then, as a Commander set's do (packHosts). One with
+           no set sold beside it (Assassin's Creed) is sold on its own. */
+        .filter((s, i, list) => !(s.set_type === 'eternal' && s.parent_set_code && list.some(x => x.code === s.parent_set_code)));
     }
 
     /**
