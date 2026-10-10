@@ -4039,8 +4039,10 @@
     // Aether Vial: "You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield."
     { re: /^You may put an? (creature|artifact|enchantment|permanent) card with mana value equal to the number of ([a-z]+) counters on (?:this artifact|this enchantment|CARDNAME) from your hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', exactMv: { countersOnSelf: m[2].toLowerCase(), mult: 1 } }) },
-    { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
+    /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
+       "you may" it is not — optional: false, and a card is put if there is one) */
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
     { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,
@@ -4848,8 +4850,8 @@
       make: (m) => ({ op: 'shuffleFromGraveyard',
         max: /any number/i.test(m[1]) ? 99 : /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1 }) },
     // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
-    { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => { const k = amountOf(m[1]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[2] ? { tapped: true } : {}); } },
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
     // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
     { re: /^When you next cast a creature spell this turn, that creature enters with an additional \+1\/\+1 counter on it\.?$/i,
       make: () => ({ op: 'nextCreatureCounter', n: 1 }) },

@@ -19363,4 +19363,31 @@ module.exports = (test) => {
     t.eq(lands.length, 3, 'all three lands from hand');
     t.ok(lands.every(o => o.tapped), 'tapped');
   });
+
+  test('Put a card from your hand onto the battlefield: a choice with "you may" (The Ur-Dragon), a must without it', (mk, t) => {
+    t.auto('The Ur-Dragon');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const ud = T.bf('A', 'The Ur-Dragon');
+    const giant = T.hand('A', 'Hill Giant');
+    T.answer('pickCard', (ch) => { t.ok(ch.optional, 'you may: asked, and none is an answer'); return { cardIds: [] }; });
+    T.answer('declareAttackers', () => [{ attackerId: ud.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.zone(giant, 'hand', 'declined: it stays in hand');
+    const probe = T.MTG.oracle.analyze({ id: 'probe:must-put', name: 'Probe', type_line: 'Sorcery', mana_cost: '', cmc: 0, layout: 'normal',
+      oracle_text: 'Draw a card, then put a creature card from your hand onto the battlefield.' });
+    const eff = probe.abilities[0].effects;
+    t.eq(eff[1].optional, false, 'no "you may": not a choice');
+    T.toMain('A');
+    T.answer('pickCard', (ch) => { t.no(ch.optional, 'one must be picked'); return { cardIds: [giant.id] }; });
+    T.g._runEffects(eff, { controller: 'A', name: 'Probe', kind: 'spell', targets: [] });
+    T.settle();
+    t.zone(giant, 'battlefield');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.g.player('A').isBot = true;
+    T.g._runEffects(eff, { controller: 'A', name: 'Probe', kind: 'spell', targets: [] });
+    T.settle();
+    t.zone(bear, 'battlefield', 'with nobody to choose, one is still put');
+  });
 };

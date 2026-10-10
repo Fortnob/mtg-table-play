@@ -17420,11 +17420,18 @@
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
             if (!pool.length) continue;
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
-            const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: true,
+            /* "You may put", "any number", "up to two" are choices; a card that
+               says only "put a creature card from your hand onto the battlefield"
+               (optional: false) has one put if there is one */
+            const must = e.optional === false;
+            const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: !must,
               cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: many > 1 ? 'Put any number of these cards from your hand onto the battlefield.' : 'Put a card from your hand onto the battlefield.' }, 'p' + p.id);
+              prompt: must ? 'Put one of these cards from your hand onto the battlefield.'
+                : many > 1 ? 'Put any number of these cards from your hand onto the battlefield.' : 'You may put a card from your hand onto the battlefield.' }, 'p' + p.id);
             if (picked === SUSPEND) return SUSPEND;
-            for (const id of (picked || []).slice(0, many)) {
+            let ids = (picked || []).filter(id => pool.some(o => o.id === id)).slice(0, many);
+            if (must && ids.length < many) ids = ids.concat(this._cheapestFirst(pool).reverse().filter(o => !ids.includes(o.id)).slice(0, many - ids.length).map(o => o.id));
+            for (const id of ids) {
               const o = this.obj(id);
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id });
