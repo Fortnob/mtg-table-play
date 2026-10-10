@@ -15087,7 +15087,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => {
         const cond = condOf(m[1]);
         if (!cond) return null;
-        const inner = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        const said = m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.';
+        let inner = parseEffectSentence(said);
+        // Lofty Denial, Dazzling Denial: "counter that spell unless its controller pays {4} instead" — a sentence the list reads
+        if ((!inner || inner.op === 'manual') && / unless /i.test(said)) {
+          const l = parseSentenceList(splitSentences(said));
+          inner = l.auto && l.effects.length === 1 ? l.effects[0] : null;
+        }
         if (!inner || inner.op === 'manual') return null;
         return { op: 'noop', insteadOf: { cond, effects: [inner] } };
       } },
@@ -16786,6 +16792,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Thraben Charm: "twice the number of creatures you control"
     const tw = p.match(/^twice (the number of .+)$/i);
     if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }
+    /* Prophet of the Scarab: "the number of Zombies you control or the number of Zombie cards in your
+       graveyard, whichever is greater"; Triumphant Chomp: "2 or the greatest power among …" (maxOf) */
+    const wg = p.match(/^(.+?) or (.+?), whichever is greater$/i);
+    if (wg) {
+      const side = (x) => (/^\d+$/.test(x.trim()) ? +x.trim() : amountOf(x));
+      const a = side(wg[1]), b = side(wg[2]);
+      return a != null && b != null && a !== false && b !== false ? { maxOf: [a, b] } : null;
+    }
     // Endless Ranks of the Dead: "half the number of Zombies you control, rounded down"
     const hf = p.match(/^half (the number of .+), rounded (up|down)$/i);
     if (hf) { const k = amountOf(hf[1]); return k ? { half: k, up: /up/i.test(hf[2]) } : null; }
@@ -24229,6 +24243,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Port Razer, Bloodthirster: one attack on each player a turn, however many combats (noRepeatAttack)
       { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
+      // Trinisphere: "As long as this artifact is untapped, each spell that would cost less than three mana to cast costs three mana to cast." (costFloor)
+      { re: /^As long as this artifact is untapped, each spell that would cost less than three mana to cast costs three mana to cast\.?$/i,
+        eff: { op: 'costFloor', n: 3, whileUntapped: true }, auto: true },
       // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
       { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
       // Obstinate Baloth, Wilt-Leaf Liege, Loxodon Smiter, Nullhide Ferox: discarded by an opponent's effect, it enters instead (discardToBattlefield)
@@ -31238,6 +31255,22 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (hit) d += ef.amount || 0;
         }
         if (d) cost = this._addGeneric(cost || '', d);
+      }
+      /* Trinisphere: "each spell that would cost less than three mana to cast
+         costs three mana to cast" — the last word on the price, once
+         everything else has had its say (costFloor) */
+      if (!opts.free) {
+        const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
+        const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
+        /* convoke, improvise and delve pay for the spell rather than make it
+           cheaper (CR 702.51b), so what they would pay is still in its price */
+        const paidOther = floor && !via && opts.costOverride == null && chk.cost === this.castCost(o, opts)
+          ? Math.max(0, (this._reductionRoom(playerId, o) || {}).left || 0) : 0;
+        const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}')) + paidOther;
+        if (floor && total < floor) {
+          cost = this._addGeneric(cost || '', floor - total);
+          this.logEvent('rules', `${fl.name}: ${o.name} costs ${floor} mana.`);
+        }
       }
       // The Defilers: paid in life, one less mana of that colour
       const dfl = !opts.free && ((((opts.choices || {}).defiler || {}).picks || [])[0] === 0) ? this._defilerFor(playerId, o) : null;
@@ -38253,6 +38286,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (v && typeof v === 'object' && v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return (v.yours ? ((((this.turnHistory || {}).diedBy) || {})[ctx.controller] || 0) : ((this.turnHistory || {}).creaturesDied || 0)) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        // Prophet of the Scarab: "…, whichever is greater" (maxOf)
+        if (v && typeof v === 'object' && Array.isArray(v.maxOf)) return Math.max(...v.maxOf.map(x => (typeof x === 'number' ? x : n(x)) || 0));
         // Rackling: "3 minus the number of cards in their hand"
         if (v && typeof v === 'object' && v.minusHand != null) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, v.minusHand - (p ? this.zones[p.id].hand.length : 0)); }
         // Kozilek: "draw cards equal to the difference" — up to seven in hand
