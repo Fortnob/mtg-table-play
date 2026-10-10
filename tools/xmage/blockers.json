@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11129,
+  "needed": 11126,
   "gainedCards": 1121,
-  "linesNeeded": 11901,
+  "linesNeeded": 11898,
   "linesGained": 1321,
   "gained": {
    "all": 1121,
@@ -4063,18 +4063,6 @@
    ]
   },
   {
-   "what": "counter of a non-spell",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Dazzling Denial",
-    "Lofty Denial",
-    "Dispelling Exhale",
-    "We Say Thee Nay!",
-    "Silumgar's Scorn"
-   ]
-  },
-  {
    "what": "words:owner",
    "score": 5,
    "lines": 5,
@@ -6614,6 +6602,15 @@
     "Diabolic Vision",
     "Jace, the Living Guildpact",
     "Soulcipher Board // Cipherbound Spirit"
+   ]
+  },
+  {
+   "what": "(constructor: local method addSuperType)",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Jon Irenicus, Shattered One",
+    "Brokkos, Apex of Forever"
    ]
   }
  ],
@@ -9906,17 +9903,6 @@
    ]
   },
   {
-   "what": "counter of a non-spell",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Dazzling Denial",
-    "Lofty Denial",
-    "Dispelling Exhale",
-    "Silumgar's Scorn"
-   ]
-  },
-  {
    "what": "SurvivalAbility",
    "score": 4,
    "cards": 4,
@@ -10299,6 +10285,17 @@
     "Forsaken Wastes",
     "Lava Runner",
     "Retromancer"
+   ]
+  },
+  {
+   "what": "keyword AftermathAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Indulge // Excess",
+    "Rags // Riches",
+    "Failure // Comply",
+    "Reduce // Rubble"
    ]
   }
  ]

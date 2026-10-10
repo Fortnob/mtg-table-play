@@ -17923,4 +17923,25 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.zone('A', 'hand').length, h - 1 + 3, 'three from the graveyard beat two on the battlefield');
   });
+
+  test('Lofty Denial: unless its controller pays {1}, or {4} if you control a flier', (mk, t) => {
+    t.auto('Lofty Denial');
+    t.auto('Dazzling Denial');
+    for (const flier of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      if (flier) T.bf('B', 'Wind Drake');
+      const bolt = T.hand('A', 'Lightning Bolt');
+      T.mana('A', 'R4');
+      T.cast('A', bolt, { targets: ['B'], resolve: false });
+      T.g.passPriority('A', true);
+      let cost = null;
+      T.answer('payOrDont', (ch) => { cost = ch.cost; return { pay: !flier }; });
+      T.mana('B', 'U1');
+      T.cast('B', T.hand('B', 'Lofty Denial'), { targets: [{ kind: 'stack', id: T.stackItem(bolt).id }] });
+      T.settle(); T.resolve(); T.settle();
+      t.eq(cost, flier ? '{4}' : '{1}', flier ? 'a flier: {4}' : 'no flier: {1}');
+      t.eq(T.life('B'), flier ? 20 : 17, flier ? 'A declined {4}: countered' : 'A paid {1}: the bolt resolves');
+    }
+  });
 };

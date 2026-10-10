@@ -4120,7 +4120,13 @@
       make: (m) => {
         const cond = condOf(m[1]);
         if (!cond) return null;
-        const inner = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        const said = m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.';
+        let inner = parseEffectSentence(said);
+        // Lofty Denial, Dazzling Denial: "counter that spell unless its controller pays {4} instead" — a sentence the list reads
+        if ((!inner || inner.op === 'manual') && / unless /i.test(said)) {
+          const l = parseSentenceList(splitSentences(said));
+          inner = l.auto && l.effects.length === 1 ? l.effects[0] : null;
+        }
         if (!inner || inner.op === 'manual') return null;
         return { op: 'noop', insteadOf: { cond, effects: [inner] } };
       } },
