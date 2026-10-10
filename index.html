@@ -7059,7 +7059,7 @@ const defaultSettings = {
   suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
-  botSpeed: 600,
+  botSpeed: 600,                 // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES)
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
   splitOpponents: false,         // two or three opponents side by side instead of one at a time
@@ -7435,6 +7435,11 @@ MTG.ManaPool = ManaPool;
 /* ---------- logging ---------- */
 MTG.log = function (...a) { if (MTG.DEBUG) console.log('[mtg]', ...a); };
 MTG.DEBUG = /[?&]debug/.test(location.search);
+/* How fast the bots play: how long each one pauses before each thing it
+   does, so a person can follow it. One setting for the whole table
+   (settings.botSpeed), named here for Options and the game menu. Very
+   fast is the pace the bots have always kept, and the default. */
+MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'Slow'], [3200, 'Very slow']];
 
 
 /* ===== 01-audio.js ===== */
@@ -42105,6 +42110,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           }
           break;
         case 'regrowth':
+          // (Mirkwood Elk, Healing Technique: "you gain life equal to that card's power" — the card returned: regrowthNotes)
+          this._noteLastAffected(targets);
           for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.moveObject(o, 'hand'); } }
           break;
         /* "return a creature card from your graveyard to your hand" — no
@@ -47537,6 +47544,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             // "cards exiled with this enchantment" (Valakut Exploration)
             if (src) o.exiledWithId = src.id;
           }
+          // (Daxos of Meletis, Elminster: "you gain life equal to that card's mana value" — the one card exiled: impulseNotes)
+          if (this._lastExiledList.length === 1) this._noteLastAffected([{ kind: 'object', id: this._lastExiledList[0] }]);
           this.logEvent('exile', `${me.name} exiles the top ${cnt} card${cnt === 1 ? '' : 's'}${e.play ? ' and may play ' + (cnt === 1 ? 'it' : 'them') : ''}.`);
           break;
         }
@@ -84165,8 +84174,9 @@ Sideboard
   const PACES = [[0.55, 'quick'], [1, 'normal'], [1.6, 'relaxed']];
   const paceName = (v) => (PACES.find(p => p[0] === (v == null ? 1 : v)) || [0, 'custom'])[1];
   const nextPace = (v) => { const i = PACES.findIndex(p => p[0] === (v == null ? 1 : v)); return PACES[(i + 1) % PACES.length][0]; };
-  const BOT_PACES = [[250, 'snappy'], [600, 'normal'], [1100, 'deliberate']];
-  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 600 : v)) || [0, 'custom'])[1];
+  // the bots' speed: the same named steps as Options (MTG.BOT_PACES), one setting for every bot
+  const BOT_PACES = MTG.BOT_PACES;
+  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 600 : v)) || [0, 'custom'])[1].toLowerCase();
   const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 600 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
 
   function toggleIn(list, id, max) {
@@ -93302,7 +93312,7 @@ Sideboard
     ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['rules', 'House rules'], ['pace', 'Pace'], ['stops', 'Stops'],
     ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['suggest', 'Suggestions'], ['data', 'Card data'],
   ];
-  const BOT_PACE = [[0, 'Instant'], [250, 'Quick'], [600, 'Normal'], [1200, 'Unhurried']];
+  const BOT_PACE = MTG.BOT_PACES;
   const ANIM_PACE = [[0.5, 'Fast'], [1, 'Normal'], [1.6, 'Relaxed']];
 
   function renderOptions() {
@@ -93443,8 +93453,8 @@ Sideboard
     const botNow = S.botSpeed == null ? 600 : S.botSpeed;
     const botOut = el('span', { class: 'opt-value', text: botNow + ' ms' });
     const botRange = el('input', {
-      type: 'range', min: '0', max: '2000', step: '50', value: String(botNow), id: 'opt-botSpeed',
-      'aria-label': 'Bot thinking time, in milliseconds', 'aria-valuetext': botNow + ' milliseconds',
+      type: 'range', min: '0', max: '4000', step: '50', value: String(botNow), id: 'opt-botSpeed',
+      'aria-label': 'Bot speed: the pause before each thing a bot does, in milliseconds', 'aria-valuetext': botNow + ' milliseconds',
     });
     botRange.addEventListener('input', () => {
       const v = parseInt(botRange.value, 10);
@@ -93457,7 +93467,7 @@ Sideboard
         b.setAttribute('aria-checked', on ? 'true' : 'false');
       }
     });
-    const botSeg = segmented(BOT_PACE, botNow, (v) => { MTG.setSetting('botSpeed', v); renderOptions(); }, 'Bot thinking time');
+    const botSeg = segmented(BOT_PACE, botNow, (v) => { MTG.setSetting('botSpeed', v); renderOptions(); }, 'Bot speed');
     botSeg.classList.add('bot-seg');
     botSeg.querySelectorAll('.seg-btn').forEach((b, i) => { b.dataset.v = String(BOT_PACE[i][0]); });
     sections.push(group('rules', 'House rules', 'Sets of house rules with a name, kept for a format. Pick one in the quick game, or in a table\u2019s House rules when you host.',
@@ -93467,8 +93477,8 @@ Sideboard
         'How long cards take to fly, flip and land. Fast keeps games brisk; relaxed lets you follow every move.', 1),
       el('div', { class: 'opt-row stacked' }, [
         el('div', { class: 'grow' }, [
-          el('div', { class: 'opt-label' }, [el('span', { text: 'Bot thinking time' }), botOut]),
-          el('div', { class: 'opt-help', text: 'How long a bot pauses before each thing it does, so you can see it happen.' }),
+          el('div', { class: 'opt-label' }, [el('span', { text: 'Bot speed' }), botOut]),
+          el('div', { class: 'opt-help', text: 'How fast every bot at the table plays: the pause before each thing it does. Very fast is the usual pace; slower lets you follow each play.' }),
           botSeg,
           el('div', { class: 'fine-tune' }, [el('span', { class: 'tiny dim', text: 'Fine tune' }), botRange]),
         ]),
