@@ -3768,4 +3768,19 @@ module.exports = (test) => {
     T.grave('A', 'Grizzly Bears'); T.grave('B', 'Hill Giant'); T.grave('B', 'Opt');
     t.eq(T.g.powerOf(n), 2, 'two creature cards in all graveyards');
   });
+
+  test('Audit: Towering Titan counts the toughness of the others; Shadow of the Goblin ignores spells from hand', (mk, t) => {
+    let T = mk();
+    t.auto('Towering Titan'); t.auto('Shadow of the Goblin');
+    T.toMain('A');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Hill Giant');
+    T.mana('A', '4GGG'); T.cast('A', T.hand('A', 'Towering Titan'));
+    const tt = T.g.battlefield.find(o => o.name === 'Towering Titan');
+    t.eq(tt.counters['+1/+1'], 5, '2 + 3 toughness');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Shadow of the Goblin');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.life('B'), 18, 'cast from hand: only the Shock');
+  });
 };
