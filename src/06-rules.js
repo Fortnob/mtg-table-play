@@ -4089,18 +4089,21 @@
       this.moveObject(o, 'exile');
       let made = 0;
       for (const foe of this.opponentsOf(playerId)) {
-        const copy = this._register(new GObj(card, playerId, 'battlefield'));
-        copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
-        copy.entered = this.turn; copy.summoningSick = false;
-        copy.effects.push({ keywords: ['Haste'], until: null });
-        copy.mustAttackPlayer = foe.id;
-        copy.sacAtEndOfTurn = this.turn;
-        copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-        this.battlefield.push(copy);
-        this.bumpBoard();
-        this._onEnter(copy);
-        this._fireEnters(copy);
-        made++;
+        for (let k = this._copyTokenCount(playerId, 1, card.type_line); k > 0; k--) {
+          const copy = this._register(new GObj(card, playerId, 'battlefield'));
+          copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
+          copy.entered = this.turn; copy.summoningSick = false;
+          copy.effects.push({ keywords: ['Haste'], until: null });
+          copy.mustAttackPlayer = foe.id;
+          copy.sacAtEndOfTurn = this.turn;
+          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+          this.battlefield.push(copy);
+          this.bumpBoard();
+          this._onEnter(copy);
+          this._fireEnters(copy);
+          this._fire('youCreateToken', playerId, { object: copy });
+          made++;
+        }
       }
       this.logEvent('token', `${this.player(playerId).name} encores ${card.name}: ${made} cop${made === 1 ? 'y' : 'ies'}.`);
       this.emit('sfx', 'play_card');
@@ -6003,7 +6006,8 @@
         const copies = (o._offspring ? 1 : 0) + (o._squad || 0);
         const small = !!o._offspring && !o._squad;
         o._offspring = false; o._squad = 0;
-        for (let i = 0; i < copies; i++) {
+        const madeCopies = this._copyTokenCount(o.controller, copies, o.card.type_line);
+        for (let i = 0; i < madeCopies; i++) {
           const copy = this._register(new GObj(o.card, o.controller, 'battlefield'));
           copy.isToken = true; copy.zone = 'battlefield';
           copy.entered = this.turn; copy.summoningSick = true; copy.face = o.face || 0;
@@ -15731,7 +15735,8 @@
             const line = t + ' ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
           }
-          for (let i = 0; i < cnt; i++) {
+          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
+          for (let i = 0; i < made; i++) {
             const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
             copy.isToken = true;
             copy.controller = ctx.controller;
@@ -15751,7 +15756,8 @@
             this._lastCopy = copy;
             (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
             // Orthion: "They gain haste." — every copy made
-            if (cnt > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
+            if (made > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
+            this._fire('youCreateToken', ctx.controller, { object: copy });
           }
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
@@ -17086,6 +17092,11 @@
           // "Exile them at the beginning of the next end step": a note for each token just made
           if (e.subject === 'made') {
             for (const id of (this._madeThisResolution || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
+          /* Kiki-Jiki with Parallel Lives: "Sacrifice it" — each of the copies that one copy became */
+          if (e.subject === 'lastTarget' && this._lastCopy && (this._lastGroup || []).length > 1 && this._lastGroup.includes(this._lastCopy.id)) {
+            for (const id of this._lastGroup.slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
           // Ghostway: each card this exiled
@@ -19244,17 +19255,20 @@
           const defPid = at ? at.controller : src.attacking;
           for (const p of this.opponentsOf(ctx.controller)) {
             if (p.hasLost || p.id === defPid) continue;
-            const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
-            Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
-              summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
-            copy.ts = this._stampNew();
-            this.battlefield.push(copy);
-            copy.attacking = p.id;
-            this.combat.attackers.push(copy.id);
-            this.bumpBoard();
-            this._onEnter(copy);
-            this._fireEnters(copy);
-            this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+            for (let k = this._copyTokenCount(ctx.controller, 1, src.card.type_line); k > 0; k--) {
+              const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
+              Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
+                summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
+              copy.ts = this._stampNew();
+              this.battlefield.push(copy);
+              copy.attacking = p.id;
+              this.combat.attackers.push(copy.id);
+              this.bumpBoard();
+              this._onEnter(copy);
+              this._fireEnters(copy);
+              this._fire('youCreateToken', ctx.controller, { object: copy });
+              this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+            }
           }
           break;
         }
@@ -21568,6 +21582,17 @@
     /* Peregrin Took, Chatterfang, Xorn: tokens that come along with the
        ones being made. They are part of the same event, so nothing doubles
        them twice. */
+    /* Parallel Lives, Doubling Season, Chatterfang: a token that's a copy (Kiki-Jiki, myriad,
+       offspring, squad, encore) is a token created like any other, so what changes token-making
+       applies to it too (CR 111.1). How many to make; 0 when none are. */
+    _copyTokenCount(controller, n, typeLine) {
+      const tev = this._replace({ kind: 'createToken', n, controller, tokenTypes: String(typeLine || '') });
+      if (tev.cancelled || !(tev.n > 0)) return 0;
+      this._tokenExtras(controller, tev, tev.n);
+      (this.player(controller) || {}).tokensMadeTurn = this.turn;
+      return tev.n;
+    }
+
     _tokenExtras(controller, ev, n) {
       for (const x of (ev.extras || [])) {
         const k = x.thatMany ? n : (x.n || 1);
