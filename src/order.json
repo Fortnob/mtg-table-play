@@ -27,6 +27,8 @@
  "10c-economy.js",
  "10d0-packart.js",
  "10d1-packfocus.js",
+ "10d2-packchoice.js",
+ "10d3-packvalue.js",
  "10d-ui-store.js",
  "10e-progress.js",
  "10f-ui-progress.js",

@@ -452,11 +452,18 @@
   const PACK_WORTH = { play: 8250, draft: 8050 };       // an ordinary pack, in wildcard Shards
   const packMult = MTG.store.get('packMult', {}) || {};
   const priced = (s) => !!s && (s.set_type === 'eternal' || s.set_type === 'commander');
-  /** A pack's price, from what is known of its set now (the usual one until it has been worked out). */
+  /**
+   * A pack's price, from what is known of its set now (the usual one until
+   * it has been worked out): the usual price, times the more of what its
+   * rarities are worth (above) and what its cards are worth on the market
+   * (MTG.packValue, src/10d3-packvalue.js: a Masters set's packs, say). An
+   * expansion or a core set costs the usual.
+   */
   function packPrice(setInfo, kind) {
     const base = kind === 'collector' ? PRICES.collector : PRICES.pack;
-    const m = priced(setInfo) ? (packMult[setInfo.code] || 1) : 1;
-    return Math.round(base * m / 50) * 50;
+    const byRarity = priced(setInfo) ? (packMult[setInfo.code] || 1) : 1;
+    const byValue = (setInfo && MTG.packValue && MTG.packValue[setInfo.code]) || 1;
+    return Math.round(base * Math.max(byRarity, byValue) / 50) * 50;
   }
   /** Whether a set's pack price has still to be worked out. */
   const needsAppraisal = (setInfo) => priced(setInfo) && packMult[setInfo.code] == null;

@@ -152,7 +152,7 @@
      apart by Scryfall's illustration id (its first eight hex digits), so a
      reprint of the same picture counts as the same. Kept, so each keeps its
      picture from then on. */
-  const ART_KEY = 'artclaims6';
+  const ART_KEY = 'artclaims7';
   for (const old of ['artclaims', 'artclaims2', 'artclaims3', 'artclaims4', 'artclaims5']) MTG.store.del(old);   // the claims of earlier ways of choosing
   const artReg = MTG.store.get(ART_KEY, null) || { by: {}, ill: {} };
   const artWaiting = new Map();
@@ -209,20 +209,39 @@
      tall box's picture to its height, so only the across matters there,
      and a wide box's to its width, so only the down. '' for the rest. */
   const ART_ASPECT = 563 / 451;   // Scryfall's art crops, near enough
-  function artPosition(a, boxAspect) {
-    const f = a && MTG.artFocus && MTG.artFocus[String(a.ill || '').slice(0, 8)];
-    if (!f || !(boxAspect > 0)) return '';
-    const along = (at, seen) => (seen >= 1 ? 50 : Math.round(Math.max(0, Math.min(1, (at / 100 - seen / 2) / (1 - seen))) * 100));
-    return along(f[0], boxAspect / ART_ASPECT) + '% ' + along(f[1], ART_ASPECT / boxAspect) + '%';
+  /* A picture chosen by eye (MTG.packArtChosen) brings its own point and
+     zoom, set for a pack: in a tall box it is placed so; in a wide one (the
+     Store's banner) its point is kept and the zoom left, being for a pack. */
+  function artPlacement(a, boxAspect) {
+    if (!a || !(boxAspect > 0)) return null;
+    const f = a.focus || (MTG.artFocus && MTG.artFocus[String(a.ill || '').slice(0, 8)]);
+    const zoom = a.zoom > 1 && boxAspect < 1 ? a.zoom : 1;
+    if (!f && zoom === 1) return null;
+    // the picture against the box, across and down: "cover", times the zoom
+    const rw = Math.max(1, ART_ASPECT / boxAspect) * zoom, rh = Math.max(1, boxAspect / ART_ASPECT) * zoom;
+    const along = (at, r) => (r <= 1 ? 50 : Math.max(0, Math.min(100, (at / 100 * r - 0.5) / (r - 1) * 100)));
+    return {
+      pos: `${along(f ? f[0] : 50, rw).toFixed(1)}% ${along(f ? f[1] : 50, rh).toFixed(1)}%`,
+      size: zoom > 1 ? `${(rw * 100).toFixed(2)}% ${(rh * 100).toFixed(2)}%` : null,
+    };
   }
   /** Paint a claimed picture into a box, centred on its subject where one is known. */
   function paintArt(node, a, boxAspect) {
     if (!a || !node) return;
     node.style.backgroundImage = 'url("' + a.url.replace(/"/g, '%22') + '")';
-    const pos = artPosition(a, boxAspect || (node.offsetWidth && node.offsetHeight ? node.offsetWidth / node.offsetHeight : 0));
-    if (pos) node.style.backgroundPosition = pos;
+    const at = artPlacement(a, boxAspect || (node.offsetWidth && node.offsetHeight ? node.offsetWidth / node.offsetHeight : 0));
+    if (at) { node.style.backgroundPosition = at.pos; if (at.size) node.style.backgroundSize = at.size; }
   }
 
+  /* The pictures chosen by eye (src/10d2-packchoice.js) are their packs'
+     first of all, placed as chosen: two packs may share one, if that is
+     what was chosen. */
+  for (const [key, v] of Object.entries(MTG.packArtChosen || {})) {
+    const h = v[0], id = `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    artReg.by['set:' + key] = { url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: '', ill: v[1], focus: [v[2], v[3]], zoom: v[4] };
+    artReg.ill[v[1]] = 'set:' + key;
+  }
+  MTG.store.set(ART_KEY, artReg);
   /* A face chosen by hand (Black Lotus for Alpha, Ancestral Recall for
      Beta) is that set's before any other pack picks: Unlimited reprints the
      same pictures and would otherwise take them if its packs were seen first. */

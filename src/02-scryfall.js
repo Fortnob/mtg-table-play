@@ -701,6 +701,8 @@
         !/^Commander(?: \d{4}| Anthology| Collection|'s Arsenal| Legends)|^Commander$|^Starter Commander/i.test(s.name || '');
       return all
         .filter(s => ['expansion', 'core', 'draft_innovation', 'masters', 'eternal'].includes(s.set_type) || standalone(s))
+        // not the Double Features (reprints of their sets in another frame), nor a core set every card of which an older set's packs hold (MTG.coreCovered)
+        .filter(s => !/Double Feature/i.test(s.name || '') && !(MTG.coreCovered && MTG.coreCovered.has(s.code)))
         // a hundred cards makes a set worth its own packs; the small early ones (Arabian Nights) were sold in boosters all the same
         .filter(s => (s.card_count >= 100 || (s.card_count >= 70 && (s.released_at || '') < '1997-01-01')) && s.released_at && s.released_at <= today)
         .filter(s => !/Foreign Black Border|^Renaissance$|^Rinascimento$/i.test(s.name || '') && !['ren', 'rin', 'bchr', '4bb', 'fbb'].includes(s.code))
