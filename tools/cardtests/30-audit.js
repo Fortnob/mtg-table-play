@@ -5190,4 +5190,23 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [rogue.id] }); T.settle(); T.resolve(); T.settle();
     t.eq(T.life('B'), l - 1, 'an outlaw died: B loses 1');
   });
+
+  test("Audit: Tawnos copies an artifact's ability, not a creature's", (mk, t) => {
+    t.auto("Tawnos, Urza's Apprentice");
+    const T = mk();
+    T.toMain('A');
+    const tw = T.bf('A', "Tawnos, Urza's Apprentice"); tw.summoningSick = false;
+    const rod = T.bf('A', 'Rod of Ruin');
+    const ps = T.bf('A', 'Prodigal Sorcerer'); ps.summoningSick = false;
+    T.mana('A', '3');
+    t.ok(T.g.activateAbility('A', rod.id, 0, { auto: true, targets: [{ kind: 'player', id: 'B' }] }));
+    t.ok(T.g.activateAbility('A', ps.id, 0, { auto: true, targets: [{ kind: 'player', id: 'B' }] }));
+    const rodItem = T.g.stack.find(s => s.objId === rod.id), psItem = T.g.stack.find(s => s.objId === ps.id);
+    T.mana('A', 'UR');
+    t.no(T.g.activateAbility('A', tw.id, 0, { auto: true, targets: [{ kind: 'stack', id: psItem.id }] }), "the Sorcerer's is a creature's");
+    t.ok(T.g.activateAbility('A', tw.id, 0, { auto: true, targets: [{ kind: 'stack', id: rodItem.id }] }), "the Rod's");
+    T.answer('confirm', { yes: false });
+    for (let i = 0; i < 5; i++) { T.settle(); T.resolve(); }
+    t.eq(T.life('B'), 17, 'the Rod twice, the Sorcerer once');
+  });
 };
