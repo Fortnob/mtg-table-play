@@ -525,7 +525,10 @@
       // a face-down card wears its owner's sleeve
       if (hidden && UI.applySleeve) UI.applySleeve(face, MTG.app && MTG.app.sleeveFor ? MTG.app.sleeveFor(o.owner || o.controller) : null);
       n.classList.toggle('tapped', !!o.tapped);
-      n.classList.toggle('sick', !!o.summoningSick && o.zone === 'battlefield' && o.power != null);
+      // summoning sick: a creature that cannot attack or tap yet (haste lets it)
+      const sickNow = !!o.summoningSick && o.zone === 'battlefield' && o.power != null &&
+        !(o.keywords || []).some(w => String(w).toLowerCase() === 'haste');
+      n.classList.toggle('sick', sickNow);
       n.classList.toggle('attacking', !!o.attacking);
       n.classList.toggle('blocking', !!(o.blocking && o.blocking.length));
       n.classList.toggle('token', !!o.isToken);
@@ -534,7 +537,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -558,6 +561,9 @@
         ]);
         n.appendChild(pt);
       }
+      // its keywords at a glance, printed or given (src/12i-ui-keywords.js), and the mark of a creature not ready yet
+      if (UI.keywordIcons) { const kws = UI.keywordIcons(o.keywords); if (kws) n.appendChild(kws); }
+      if (sickNow && UI.sickMark) n.appendChild(UI.sickMark());
       const c = o.counters || {};
       if (c.loyalty != null && !(a && a.isCreature)) {
         n.appendChild(el('div', { class: 'cv-mark cv-loy', text: String(c.loyalty) }));
@@ -1673,6 +1679,11 @@
         const cv = e.target.closest('.cv');
         if (!cv) return;
         e.preventDefault();
+        /* A card in your hand is read on a right-click: it is what you are
+           deciding whether to play. What else it can do (cycling, plot,
+           suspend, a face-down cast) waits under Actions in that view. */
+        const loc = this.locate(cv.dataset.id);
+        if (loc && loc.zone === 'hand' && loc.player === this.meId) { this.showCard(cv.dataset.id, { actions: true }); return; }
         this.cardMenu(cv.dataset.id, e);
       });
       a.addEventListener('dblclick', (e) => {
@@ -2737,14 +2748,15 @@
       return out;
     }
 
-    showCard(id) {
+    showCard(id, opts) {
+      opts = opts || {};
       const o = this.objIn(id) || (() => {
         const s = (this.view.stack || []).find(x => x.objId === id || x.id === id);
         return s && s.card ? { id, card: s.card } : null;
       })();
       if (!o || !o.card || o.hidden) return;
       this.hidePreview();
-      if (MTG.isPhone()) return UI.cardSheet(o.card, { keywords: o.keywords });
+      if (MTG.isPhone()) return UI.cardSheet(o.card, { keywords: o.keywords, onActions: opts.actions ? (ev) => this.cardMenu(id, ev) : null });
       const card = o.card;
       const faces = card.card_faces && card.card_faces.length > 1 && card.card_faces[0].image_uris ? card.card_faces.length : 1;
       const imgs = el('div', { class: 'cardview-imgs' });
@@ -2777,6 +2789,12 @@
             el('div', { class: 'row', style: { marginTop: 'auto' } }, [
               el('button', { class: 'btn sm', text: 'Choose art…', onclick: () => { close(); UI.pickArt(card); } }),
               el('span', { class: 'grow' }),
+              // everything else it can do, as the right-click once showed (opened from your hand)
+              opts.actions ? el('button', { class: 'btn sm', text: 'Actions…', onclick: (ev) => {
+                const r = ev.currentTarget.getBoundingClientRect();
+                close();
+                this.cardMenu(id, { clientX: r.left, clientY: r.top, preventDefault() {} });
+              } }) : null,
               el('button', { class: 'btn sm primary', text: 'Close', onclick: close }),
             ]),
           ].filter(Boolean)),

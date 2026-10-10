@@ -137,7 +137,7 @@
   background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.16) 48%, transparent 60%); }
 .cv:hover .cv-shine { opacity: 1; }
 .cv.tapped .cv-body { rotate: 90deg; }
-.cv.sick .cv-body { filter: saturate(.72) brightness(.9); }
+.cv.sick .cv-body { filter: saturate(.6) brightness(.82); }
 .cv.token .cv-body::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(160,200,255,.35); }
 
 /* what you can do */
@@ -174,6 +174,33 @@
   border-radius: 4px 4px 50% 50% / 4px 4px 40% 40%; box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .cv-def { background: linear-gradient(180deg, #7b3a2c, #3a1a13); }
 .cv-chips { left: -4%; top: 8%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+/* its keywords at a glance (12i-ui-keywords.js): small symbols down the right edge */
+.cv-kws { right: -7%; top: 7%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cv.tapped .cv-kws { right: -26%; top: 16%; }
+.kw-ic {
+  --kw: max(13px, calc(var(--w, 100px) * .19));
+  width: var(--kw); height: var(--kw); border-radius: 50%; display: grid; place-items: center; color: #e9edf5;
+  background: radial-gradient(circle at 35% 30%, #3c4352, #12151c 75%);
+  border: 1px solid rgba(255,255,255,.28); box-shadow: 0 1px 3px rgba(0,0,0,.65);
+}
+.kw-ic svg { width: 64%; height: 64%; display: block; }
+.kw-txt { font: 800 calc(var(--kw) * .44)/1 var(--font); letter-spacing: -.03em; }
+.kw-ic.tone-sky { color: #a9d8ff; } .kw-ic.tone-green { color: #93e08c; } .kw-ic.tone-steel { color: #dfe5ef; }
+.kw-ic.tone-death { color: #b8e6a6; background: radial-gradient(circle at 35% 30%, #2f3a2c, #0d120c 75%); }
+.kw-ic.tone-life { color: #ffb6c6; } .kw-ic.tone-light { color: #fff1c2; } .kw-ic.tone-fire { color: #ffae6b; }
+.kw-ic.tone-sea { color: #7fe3dc; } .kw-ic.tone-gold { color: #f3dd96; border-color: rgba(243,221,150,.5); }
+/* summoning sick: a "Zz" over the top edge, the card a little dim and drowsy */
+.cv-sick {
+  left: 50%; top: -9%; translate: -50% 0; width: max(16px, calc(var(--w, 100px) * .24)); height: max(16px, calc(var(--w, 100px) * .24));
+  border-radius: 50%; display: grid; place-items: center; color: #cfd8ff;
+  background: radial-gradient(circle at 35% 30%, #3a4470, #151a33 75%); border: 1px solid rgba(190,205,255,.45);
+  box-shadow: 0 1px 4px rgba(0,0,0,.6), 0 0 8px rgba(140,160,255,.35);
+  animation: sickBob 2.6s ease-in-out infinite;
+}
+.cv-sick svg { width: 70%; height: 70%; display: block; }
+.cv.tapped .cv-sick { top: 6%; }
+@keyframes sickBob { 50% { translate: -50% -2px; } }
+:root[data-reduce-motion] .cv-sick { animation: none; }
 .cv-chips .chip { font: 700 max(7px, calc(var(--w) * .1))/1.35 var(--font); padding: 0 .4em; border-radius: 99px;
   background: rgba(14,16,22,.92); color: #e9edf5; border: 1px solid rgba(255,255,255,.25); white-space: nowrap;
   box-shadow: 0 1px 4px rgba(0,0,0,.6); }
