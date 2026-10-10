@@ -9335,6 +9335,10 @@
     // City of Traitors: "When you play another land"
     // The Endstone: "Whenever you play a land or cast a spell, draw a card."
     { re: /^Whenever you play a land or cast a spell,/i, event: 'youPlayLand', also: 'youCastSpell' },
+    // Shanid, Sleepers' Scourge: "Whenever you play a legendary land or cast a legendary spell,"
+    { re: /^Whenever you play a legendary land or cast a legendary spell,/i, event: 'youPlayLand', also: 'youCastSpell', filt: () => ({ words: 'legendary' }) },
+    // Shadow of the Goblin: "… from anywhere other than your hand" — the land's zone or the spell's (notFromHand)
+    { re: /^Whenever you play a land or cast a spell from anywhere other than your hand,/i, event: 'youPlayLand', also: 'youCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
     // the Eldrazi titans: a trigger from the stack, as the spell is cast
     { re: /^When you cast (?:this spell|CARDNAME),? /i, event: 'castSelf' },

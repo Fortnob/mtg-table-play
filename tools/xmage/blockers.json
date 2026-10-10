@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11141,
+  "needed": 11139,
   "gainedCards": 1121,
-  "linesNeeded": 11915,
+  "linesNeeded": 11913,
   "linesGained": 1321,
   "gained": {
    "all": 1121,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 708,
-   "lines": 648,
+   "score": 707,
+   "lines": 647,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -683,25 +683,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Gathering Stone",
-    "Minsc & Boo, Timeless Heroes",
-    "Shanid, Sleepers' Scourge",
-    "Obsessive Pursuit",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Mystic Barrier",
-    "Crack in Time",
-    "Staff of the Flame Magus",
-    "Staff of the Wild Magus"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 16,
    "lines": 16,
@@ -886,6 +867,25 @@
     "Esper Sojourners",
     "Bant Sojourners",
     "Jund Sojourners"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Gathering Stone",
+    "Minsc & Boo, Timeless Heroes",
+    "Obsessive Pursuit",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Mystic Barrier",
+    "Crack in Time",
+    "Staff of the Flame Magus",
+    "Staff of the Wild Magus",
+    "Staff of the Mind Magus"
    ]
   },
   {
@@ -6633,8 +6633,8 @@
   },
   {
    "what": "custom ability",
-   "score": 548,
-   "cards": 503,
+   "score": 547,
+   "cards": 502,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -7137,19 +7137,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Gathering Stone",
-    "Shanid, Sleepers' Scourge",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus"
-   ]
-  },
-  {
    "what": "CompoundCondition",
    "score": 12,
    "cards": 12,
@@ -7221,6 +7208,19 @@
     "Jace, Memory Adept",
     "Officious Interrogation",
     "Hollow Marauder"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Gathering Stone",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Crack in Time"
    ]
   },
   {

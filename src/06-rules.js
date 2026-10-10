@@ -11323,7 +11323,8 @@
           // "whenever you expend 4": only that threshold
           if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
-          if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // (Shadow of the Goblin: a land played is judged by the zone it came from)
+          if (ab.notFromHand && !(data.spell ? (data.spell.fromZone && data.spell.fromZone !== 'hand') : (event === 'youPlayLand' && data.fromZone && data.fromZone !== 'hand'))) continue;
           // Taigam, Ojutai Master: only a spell cast from the hand
           if (ab.fromHandOnly && !(data.spell && data.spell.fromZone === 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only

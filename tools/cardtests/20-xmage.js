@@ -17769,4 +17769,33 @@ module.exports = (test) => {
     ex.attachedTo = bear.id; bear.attachments = [ex.id]; T.g.bumpBoard();
     t.eq(T.g.powerOf(bear), 4, 'the enchanted Bears get +2/+2');
   });
+
+  test("Shanid: a card for a legendary land or spell; Shadow of the Goblin: 1 damage for a spell cast from elsewhere than the hand", (mk, t) => {
+    t.auto("Shanid, Sleepers' Scourge");
+    t.auto('Shadow of the Goblin');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Shanid, Sleepers' Scourge");
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h0 = T.zone('A', 'hand').length;
+    T.playLand('A', T.hand('A', 'Kor Haven'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'played Kor Haven, drew one');
+    t.eq(T.life('A'), 19, 'and lost 1 life');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.settle();
+    t.eq(T.life('A'), 19, 'not for a nonlegendary spell');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Shadow of the Goblin');
+    U.mana('A', 'R');
+    U.cast('A', U.hand('A', 'Shock'), { targets: ['B'] });
+    U.settle();
+    t.eq(U.life('B'), 18, 'cast from the hand: just the Shock');
+    U.mana('A', 'RCC');
+    U.cast('A', U.grave('A', 'Faithless Looting'), { via: 'flashback' });
+    U.settle();
+    t.eq(U.life('B'), 17, 'flashed back: 1 damage');
+  });
 };
