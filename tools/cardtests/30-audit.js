@@ -4229,4 +4229,26 @@ module.exports = (test) => {
     t.eq(T.g.battlefield.filter(o => o.controller === 'A' && /Forest/.test(o.name)).length, 2, 'A searched for two');
     t.eq(T.g.battlefield.filter(o => o.controller === 'B' && /Plains/.test(o.name)).length, 0, 'B declined');
   });
+
+  test('Audit: Echoing Truth returns every permanent of that name, either side; Expansion Algorithm proliferates X times', (mk, t) => {
+    t.auto('Echoing Truth'); t.auto('Expansion Algorithm');
+    let T = mk();
+    T.toMain('A');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Grizzly Bears'), other = T.bf('B', 'Hill Giant');
+    T.mana('A', '1U');
+    T.cast('A', T.hand('A', 'Echoing Truth'), { targets: [b1.id] });
+    T.settle();
+    t.zone(b1, 'hand'); t.zone(b2, 'hand'); t.zone(mine, 'hand', 'mine too: every permanent with the name');
+    t.zone(other, 'battlefield');
+    t.eq(T.g.zones.A.hand.includes(mine), true, "to its owner's hand");
+    T = mk();
+    T.toMain('A');
+    const c = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const opp = T.bf('B', 'Hill Giant', { counters: { '+1/+1': 1 } });
+    T.mana('A', 'UU3');
+    T.cast('A', T.hand('A', 'Expansion Algorithm'), { x: 3 });
+    T.settle();
+    t.eq(c.counters['+1/+1'], 4, 'three times: three more');
+    t.eq(opp.counters['+1/+1'], 1, "the opponent's creature is left alone");
+  });
 };
