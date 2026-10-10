@@ -4954,4 +4954,18 @@ module.exports = (test) => {
     put(hy); t.eq(ws.counters['+1/+1'] || 0, 0, 'a Hydra: no');
     put(bear); t.eq(ws.counters['+1/+1'] || 0, 1, 'the Bears: yes');
   });
+
+  test("Audit: Dread Summons: each player mills X, and a Zombie for every creature card milled from either library", (mk, t) => {
+    t.auto('Dread Summons');
+    const T = mk();
+    T.toMain('A');
+    T.top('A', 'Island'); T.top('A', 'Grizzly Bears');
+    T.top('B', 'Hill Giant'); T.top('B', 'Craw Wurm');
+    const ds = T.hand('A', 'Dread Summons');
+    T.mana('A', 'BB2');
+    t.ok(T.g.castSpell('A', ds.id, { auto: true, x: 2 })); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'graveyard').filter(c => c.name !== 'Dread Summons').length, 2); t.eq(T.zone('B', 'graveyard').length, 2);
+    const z = T.g.battlefield.filter(o => o.isToken && /Zombie/.test(o.name));
+    t.eq(z.length, 3, 'the Bears, the Giant and the Wurm'); t.ok(z.every(o => o.controller === 'A' && o.tapped), 'tapped, all A\'s');
+  });
 };
