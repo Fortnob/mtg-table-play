@@ -4326,6 +4326,15 @@
         /* Court of Ardenvale: "return target permanent card … to your hand. If you're the monarch,
            return that card to the battlefield instead" — the card the first sentence targeted */
         if (/^Return that (?:permanent |creature )?card to the battlefield\.$/i.test(said)) return { op: 'noop', insteadOf: { cond, effects: [{ op: 'reanimate', sameAsPrevTarget: true }] } };
+        /* Emeria Shepherd: "you may return that nonland permanent card to the battlefield instead";
+           Sweep Away, Ether Well, Consign to Dream: "(you may) put it on top of (on the bottom of) its owner's
+           library instead" — the thing the sentence before acted on, not this spell. "You may": the
+           other way is still there to take (optional) */
+        const rb = said.match(/^(You may )?return that (?:nonland )?(?:permanent |creature )?card to the battlefield\.$/i);
+        if (rb) return { op: 'noop', insteadOf: { cond, optional: !!rb[1], yesLabel: 'Onto the battlefield', effects: [{ op: 'reanimate', sameAsPrevTarget: true }] } };
+        const tl = said.match(/^(You may )?put (?:it|that (?:creature|permanent)) on (top|the bottom) of its owner'?s library\.$/i);
+        if (tl) return { op: 'noop', insteadOf: { cond, optional: !!tl[1], yesLabel: /bottom/i.test(tl[2]) ? 'Bottom of its library' : 'Top of its library',
+          effects: [{ op: 'toLibrary', where: /bottom/i.test(tl[2]) ? 'bottom' : 'top', scope: 'lastTarget' }] } };
         let inner = parseEffectSentence(said);
         // Lofty Denial, Dazzling Denial: "counter that spell unless its controller pays {4} instead" — a sentence the list reads
         if ((!inner || inner.op === 'manual') && / unless /i.test(said)) {
@@ -8894,6 +8903,11 @@
       }
       if (e && e.insteadOf) {
         const prev = out.pop();
+        // (Sweep Away: "you may put it on top of its owner's library instead" — asked, and a no is the sentence before)
+        const insteadThen = (other) => (e.insteadOf.optional ? [{ op: 'may', then: e.insteadOf.effects, otherwise: other,
+          yesLabel: e.insteadOf.yesLabel || 'Yes', noLabel: other.some(x => x && (x.op === 'bounce' || x.op === 'regrowth')) ? 'Return it to hand'
+            : other.some(x => x && x.op === 'toLibrary') ? (other.some(x => x && x.where === 'bottom') ? 'Bottom of its library' : 'Top of its library') : 'No',
+          text: (e.text || '').replace(/^If [^,]+, /i, '').replace(/^you may /i, '') }] : e.insteadOf.effects);
         /* Exhibition Tidecaller: "target player mills three cards. If …, that
            player mills ten cards instead" — the same player, chosen once */
         if (prev && prev.who === 'target' && prev.targets) {
@@ -8912,12 +8926,17 @@
         if (prev && prev.scope && typeof prev.scope === 'string' && !(prev.targets || []).length) {
           for (const x of e.insteadOf.effects) if (x.op === prev.op && (!x.scope || x.scope === 'triggerObject' || x.scope === 'lastTarget' || (x.scope === 'self' && / it\b/.test(x.text || '') && !/this|CARDNAME/.test(x.text || ''))) && !(x.targets || []).length) { x.scope = prev.scope; delete x.targets; }
         }
+        /* Guul Draz Overseer: "other creatures you control get +1/+0 … If that land is a Swamp, those
+           creatures get +2/+0 … instead" — "those creatures" are the ones the sentence before named */
+        if (prev && prev.scope && typeof prev.scope === 'object' && !(prev.targets || []).length) {
+          for (const x of e.insteadOf.effects) if (x.op === prev.op && x.scope === 'lastGroup' && !(x.targets || []).length) x.scope = prev.scope;
+        }
         /* Emiel the Blessed: "you may pay {G/W}. If you do, put a +1/+1
            counter on it. If it's a Unicorn, put two … instead" — the two
            replace the one, and are still paid for */
         const last = prev && (prev.op === 'mayPay' || prev.op === 'may') && (prev.then || []).slice(-1)[0];
         if (last && e.insteadOf.effects.some(x => x.op === last.op)) {
-          prev.then[prev.then.length - 1] = { op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [last] };
+          prev.then[prev.then.length - 1] = { op: 'ifCond', cond: e.insteadOf.cond, then: insteadThen([last]), otherwise: [last] };
           out.push(prev);
           continue;
         }
@@ -8928,17 +8947,22 @@
         const onIt = (x) => !(x.targets || []).length && (x.scope === 'lastTarget' ||
           (x.scope === 'self' && /\bit\b/i.test(x.text || '') && !/\bthis\b|CARDNAME/.test(x.text || '')) ||
           // (The Destined White Mage: "… on target creature you control. If …, put three … on that creature instead")
-          (x.scope === 'triggerObject' && /\bthat (?:creature|permanent|artifact|enchantment|land|planeswalker)\b/i.test(x.text || '')));
+          (x.scope === 'triggerObject' && /\bthat (?:creature|permanent|artifact|enchantment|land|planeswalker)\b/i.test(x.text || '')) ||
+          // (Éowyn, Lady of Rohan: "it gains first strike and vigilance … instead")
+          (x.op === 'grantLast' && !x.plural && !x.madeNow));
         if (prev && prev.op !== 'sequence' && (prev.targets || []).length === 1 && prev.targets[0].type !== 'player' &&
             e.insteadOf.effects.length && e.insteadOf.effects.every(onIt)) {
-          for (const x of e.insteadOf.effects) x.scope = 'lastTarget';
+          for (const x of e.insteadOf.effects) {
+            if (x.op === 'grantLast') { x.op = 'grantKeyword'; x.duration = x.until || 'eot'; delete x.until; delete x.plural; }
+            x.scope = 'lastTarget';
+          }
           out.push({ op: 'noop', targets: prev.targets, text: prev.text });
           const rest = Object.assign({}, prev, { scope: 'lastTarget' });
           delete rest.targets;
-          out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [rest] });
+          out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: insteadThen([rest]), otherwise: [rest] });
           continue;
         }
-        if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
+        if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: insteadThen([prev]), otherwise: [prev] });
         // with nothing before it on this line, the line before this one is what it replaces
         else out.push(e);
         continue;
@@ -9367,6 +9391,16 @@
     [/^(?:it|that (?:creature|permanent|spell|card)) had mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Deathbringer Liege: "it's tapped"
     [/^it'?s (tapped|untapped)$/i, (m) => ({ kind: 'itTapped', tapped: /^tapped$/i.test(m[1]) })],
+    /* Sweep Away, Emeria Shepherd, Grey Knight Paragon, Splash Portal: "that creature is attacking",
+       "that land is a Plains", "that creature is a Demon", "that creature is a Bird, Frog, Otter, or Rat" —
+       the thing the sentence before acted on, or the one the trigger is about (thatObjIs). Only words the
+       table knows how to check: "another Hero", "rare", "1/1" stay for a person. */
+    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) is (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
+      (m) => {
+        const w = listWords(m[2].replace(/(,|\bor) an? /g, '$1 ')).trim();
+        const ok = w.split(/\s+/).every(x => SUBJ_WORDS.has(x.toLowerCase()) || /^(?:attacking|blocking|tapped|untapped)$/.test(x) || /^[A-Z][a-z]+$/.test(x));
+        return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? { kind: 'thatObjIs', noun: m[1], words: w } : null;
+      }],
     // Star Charter: "you gained or lost life this turn"
     [/^you gained or lost life this turn$/i, () => ({ kind: 'lifeChangedThisTurn' })],
     // Trystan, Walltop Sentries: "there is an Elf card in your graveyard", "there's a Lesson card in your graveyard"

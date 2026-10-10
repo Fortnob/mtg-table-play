@@ -9758,6 +9758,16 @@
         }
         // Moraug: "if it's your main phase"
         case 'yourMainPhase': return !!me && !!this.activePlayer && this.activePlayer.id === me.id && !!this.phase && /^(?:precombat|postcombat)$/.test(this.phase.id);
+        /* Sweep Away, Emeria Shepherd: "if that creature is attacking", "if that land is a Plains" — the
+           target the sentence before acted on, else what the trigger is about: the first that is that
+           kind of thing (thatObjIs) */
+        case 'thatObjIs': {
+          const ids = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).filter(t => t && t.kind === 'object').map(t => t.id);
+          if (ctx && ctx.triggerData && ctx.triggerData.objectId) ids.push(ctx.triggerData.objectId);
+          const noun = cond.noun === 'permanent' ? null : cond.noun;
+          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || this._cardFitsWords(x, noun)));
+          return !!it && this._cardFitsWords(it, cond.words);
+        }
         case 'triggerObjNotCastFromHand': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           return !!x && !(x.wasCast === this.turn && x.castFromZone === 'hand');
@@ -15446,10 +15456,14 @@
           const nm = (src && src.name) || ctx.name || 'Effect';
           const ask = d1 && String(e.text || '').replace(/^(?:its|that [a-z]+'?s) controller may /i, '').replace(/\.$/, '');
           const yes = this._ask({ type: 'confirm', playerId: who.id,
+            // (Sweep Away: "Top of its library" / "Return it to hand")
+            ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             prompt: e.prompt || (ask ? `${nm}: ${truncate(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
               `${ctx.name || 'Effect'}: ${truncate(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           if (yes) this._spliceNext(e.then);
+          // (an optional "instead": a no is the way the sentence before it said — mayOtherwise)
+          else if ((e.otherwise || []).length) this._spliceNext(e.otherwise);
           else this.logEvent('rules', `${who.name} declines.`);
           break;
         }

@@ -20985,4 +20985,67 @@ module.exports = (test) => {
     T3.resolve();
     t.eq(T3.life('B'), 17, "targeted by an opponent's spell: 3 damage to each opponent");
   });
+
+  test('"If that creature is attacking", "If that land is a Plains": Sweep Away, Emeria Shepherd, Consign to Dream, Guul Draz Overseer, Starfall, Koth', (mk, t) => {
+    for (const n of ['Sweep Away', 'Emeria Shepherd', 'Consign to Dream', 'Guul Draz Overseer', 'Starfall', 'Koth, the Geomancer']) t.auto(n);
+    // Sweep Away: an attacking creature may go on top of its library instead; a no is the hand
+    const T = mk();
+    T.toMain('A');
+    const w = T.bf('B', 'Hill Giant'); w.attacking = 'A';
+    T.answer('confirm', { yes: true });
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Sweep Away'), { targets: [w] }); T.resolve();
+    t.ok(T.zone('B', 'library')[0] === w, 'attacking, and yes: on top of its library');
+    const w2 = T.bf('B', 'Hill Giant'); w2.attacking = 'A';
+    T.answer('confirm', { yes: false });
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Sweep Away'), { targets: [w2] }); T.resolve();
+    t.zone(w2, 'hand', 'attacking, and no: its hand');
+    const w3 = T.bf('B', 'Hill Giant');
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Sweep Away'), { targets: [w3] }); T.resolve();
+    t.zone(w3, 'hand', 'not attacking: its hand');
+    // Consign to Dream: red goes on top of the library, blue to the hand
+    const r = T.bf('B', 'Hill Giant'), u = T.bf('B', 'Wind Drake');
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Consign to Dream'), { targets: [r] }); T.resolve();
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Consign to Dream'), { targets: [u] }); T.resolve();
+    t.zone(r, 'library', 'red: on top of its library');
+    t.zone(u, 'hand', 'blue: its hand');
+    // Starfall: an enchantment creature's controller takes 3 as well
+    const nyx = T.bf('B', 'Nyxborn Rollicker'), hg = T.bf('B', 'Hill Giant');
+    const l0 = T.life('B');
+    T.mana('A', '4R'); T.cast('A', T.hand('A', 'Starfall'), { targets: [hg] }); T.resolve();
+    t.eq(T.life('B'), l0, 'not an enchantment: no damage to the player');
+    T.mana('A', '4R'); T.cast('A', T.hand('A', 'Starfall'), { targets: [nyx] }); T.resolve();
+    t.eq(T.life('B'), l0 - 3, 'an enchantment creature: 3 to its controller');
+    // Emeria Shepherd: a Plains may put the card onto the battlefield; another land returns it to hand
+    const T2 = mk();
+    T2.toMain('A');
+    T2.bf('A', 'Emeria Shepherd');
+    const g1 = T2.put('A', 'Hill Giant', 'graveyard');
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g1.id }] }));
+    T2.answer('confirm', { yes: true }); T2.answer('confirm', { yes: true });
+    T2.put('A', 'Plains', 'battlefield', { etb: true }); T2.resolve();
+    t.zone(g1, 'battlefield', 'a Plains: onto the battlefield');
+    const g2 = T2.put('A', 'Craw Wurm', 'graveyard');
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g2.id }] }));
+    T2.answer('confirm', { yes: true });
+    T2.put('A', 'Island', 'battlefield', { etb: true }); T2.resolve();
+    t.zone(g2, 'hand', 'an Island: to hand');
+    // Guul Draz Overseer: a Swamp is +2/+0 for the others; Koth: a Mountain adds {R}
+    const T3 = mk();
+    T3.toMain('A');
+    T3.bf('A', 'Guul Draz Overseer');
+    const gb = T3.bf('A', 'Grizzly Bears');
+    T3.put('A', 'Swamp', 'battlefield', { etb: true }); T3.resolve();
+    t.eq(T3.g.powerOf(gb), 4, 'a Swamp: +2/+0');
+    T3.put('A', 'Forest', 'battlefield', { etb: true }); T3.resolve();
+    t.eq(T3.g.powerOf(gb), 5, 'a Forest: +1/+0 more');
+    // Éowyn, Lady of Rohan: an equipped creature gains both first strike and vigilance
+    t.auto('Éowyn, Lady of Rohan');
+    const T4 = mk();
+    T4.bf('A', 'Éowyn, Lady of Rohan');
+    const eb = T4.bf('A', 'Grizzly Bears'), bs = T4.bf('A', 'Bonesplitter');
+    bs.attachedTo = eb.id; eb.attachments = [bs.id];
+    T4.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: eb.id }] }));
+    T4.toMain('A', 'beginCombat'); T4.resolve();
+    t.ok(T4.g.hasKw(eb, 'first strike') && T4.g.hasKw(eb, 'vigilance'), 'equipped: first strike and vigilance');
+  });
 };
