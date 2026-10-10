@@ -5042,4 +5042,21 @@ module.exports = (test) => {
     T.mana('A', 'GU2'); T.activate('A', b2, 0); T.settle();
     t.eq(b2.counters['+1/+1'], 4, 'doubled');
   });
+
+  test('Audit: Mauhúr adds one more counter only on an Army, Goblin or Orc of yours; Angel of Suffering mills twice the damage it prevents', (mk, t) => {
+    t.auto('Mauhúr, Uruk-hai Captain'); t.auto('Angel of Suffering');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Mauhúr, Uruk-hai Captain');
+    const gob = T.bf('A', 'Goblin Piker'), bear = T.bf('A', 'Grizzly Bears'), foe = T.bf('B', 'Goblin Piker');
+    const put = (x) => T.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [{ kind: 'object', id: x.id }] });
+    put(gob); put(bear); put(foe); T.settle();
+    t.eq(gob.counters['+1/+1'], 2, 'a Goblin: one more'); t.eq(bear.counters['+1/+1'], 1, 'a Bear: as is'); t.eq(foe.counters['+1/+1'], 1, "B's Goblin: as is");
+    T = mk();
+    T.toMain('B');
+    T.bf('A', 'Angel of Suffering');
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle();
+    t.eq(T.life('A'), 20, 'prevented'); t.eq(T.zone('A', 'graveyard').length, 4, 'two damage: four milled');
+  });
 };
