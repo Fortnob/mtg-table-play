@@ -4,7 +4,8 @@
 
    Drawn from the same parts as the menus: the gold accent for what
    wants an answer, green for who is online, the panels and pills of
-   screens.css. Everything here works by touch at 375px wide.
+   screens.css. Everything here is laid out to be used by touch at 375px
+   wide: on a phone, rows put their buttons on a line of their own.
    ============================================================ */
 
 /* things hidden by script stay hidden, whatever display a class gives them */
