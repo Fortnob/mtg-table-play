@@ -12519,8 +12519,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     'Mayhem', 'Harmonize',
     // something given up as it is cast, for a better spell
     'Bargain',
-    // an unblocked attacker swapped for a Ninja
-    'Ninjutsu',
+    // an unblocked attacker swapped for a Ninja (Yuriko: from the command zone too — commanderNinjutsu)
+    'Ninjutsu', 'Commander ninjutsu',
     // modes, each with a price of its own
     'Spree',
     // cast onto another creature, and the two become one
@@ -12548,7 +12548,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     'Cycling', 'Transmute', 'Morph', 'Megamorph', 'Disguise', 'Prototype', 'Impending',
     'Offering', 'Splice', 'Spree', 'Gift', 'Plot', 'Freerunning', 'Warp',
     'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu',
-    'Replicate', 'Conspire', 'Assist', 'Sneak']);
+    'Replicate', 'Conspire', 'Assist', 'Sneak', 'Commander ninjutsu']);
 
   /* Keyword names are title-cased before they are looked up, which turns
      "Split second" into "Split Second". Compare in lower case so a keyword
@@ -12564,7 +12564,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway|Amplify)\s+\d+$/i,
     // parameterised keywords with a cost
-    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
+    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Commander ninjutsu|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
   ];
 
   function splitKeywordLine(line) {
@@ -14280,7 +14280,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* Connive (CR 702.153). */
     { re: /^(?:It|He|She|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, scope: 'self' }) },
-    { re: /^(Target creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
+    // (Raffine, Scheming Seer: "Target attacking creature connives X" — raffineConnive)
+    { re: /^(Target (?:attacking )?creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[2] ? num(m[2]) : 1, targets: [targetSpec(m[1])] }) },
 
     /* "…copy that spell." */
@@ -14388,8 +14389,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         /^target/i.test(m[1]) ? { targets: [{ type: 'player' }] } : {}) : null) },
     // Flare of Malice, Soul Shatter
     // Myrkul's Edict, Professor Onyx, Consumed by Greed, Olórin's Searing Light: the biggest by power
-    { re: /^(Each opponent|Target opponent) (sacrifices|exiles) a creature with the greatest power among creatures (?:that player|they) controls?\.?$/i,
+    // (Papalymo Totolymo: "Each opponent who lost life this turn sacrifices …" — lostLifeOnly)
+    { re: /^(Each opponent(?: who lost life this turn)?|Target opponent) (sacrifices|exiles) a creature with the greatest power among creatures (?:that player|they) controls?\.?$/i,
       make: (m) => Object.assign({ op: 'sacGreatestMv', what: ['creature'], by: 'power' },
+        /who lost life/i.test(m[1]) ? { lostLifeOnly: true } : {},
         /^target/i.test(m[1]) ? { who: 'target', targets: [{ type: 'player', opponent: true }] } : {},
         /exile/i.test(m[2]) ? { exile: true } : {}) },
     { re: /^Each opponent sacrifices an? (creature or planeswalker|creature) with the greatest mana value among (?:creatures and planeswalkers|creatures) they control\.?$/i,
@@ -15903,6 +15906,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
     { re: /^Exile the top (a|one|two|three|\d+)? ?cards? of your library face down\.?$/i,
       make: (m) => ({ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: false, faceDown: true }) },
+    // Muxus, Goblin Grandee: "Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield …" — every one (takeAll)
+    { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: 'battlefield', rest: 'bottomRandom' }) },
     { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? (?:with (?:mana value|converted mana cost) (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' }) },
@@ -17771,6 +17777,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this combat" (blockLimitCombat)
     { re: /^Each opponent can'?t block with more than (one|two|three) creatures? this combat\.?$/i,
       make: (m) => ({ op: 'blockLimitCombat', n: num(m[1]) }) },
+    // Golbez, Crystal Collector: "each opponent loses life equal to that card's power" (lifeEqualTo)
+    { re: /^Each opponent loses life equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -18412,6 +18421,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Rose, Cutthroat Raider: "for each opponent you attacked (this turn)" (opponentsAttacked)
+    if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
     if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
@@ -21774,6 +21785,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
+    // Éowyn, Shieldmaiden: "another Human entered the battlefield under your control this turn" — not this one (enteredOther)
+    [/^another ([A-Z][a-z]+) entered the battlefield under your control this turn$/,
+      (m) => ({ kind: 'enteredTypeThisTurn', types: [m[1].toLowerCase()], other: true })],
     // Wilhelt, the Rotcleaver: "it didn't have decayed" — the creature that died, as it last was (triggerObjKeyword)
     [/^it (didn'?t have|had) (decayed|flying|deathtouch|lifelink|trample|haste|vigilance|undying|persist)$/i,
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
@@ -21864,6 +21878,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
     [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
       (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
+    [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
+    // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
+    [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
+      (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],
     // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
     [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
@@ -22774,6 +22793,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
       extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
         m[3] && !m[2] ? { minAttackers: num(m[3]) } : {}) },
+    // Merry, Esquire of Rohan: "Whenever you attack with Merry and another legendary creature" (withSelfAnd)
+    { re: /^Whenever you attack with (?:CARDNAME|this creature) and another ([a-z ]+?), /i, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
     // Horizon Explorer: "Whenever you attack a player" (read as any attack you make)
     { re: /^Whenever you attack a player,? /i, event: 'youAttack' },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
@@ -31673,7 +31694,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /** Ninjutsu: the attacker home, and an ability to bring the Ninja in, on the stack. */
     _ninjutsuSwap(pid, ninjaId, back) {
       const ninja = this.obj(ninjaId);
-      if (!ninja || ninja.zone !== 'hand' || !back || back.zone !== 'battlefield') return;
+      // (commanderNinjutsu: a commander from the command zone)
+      if (!ninja || !(ninja.zone === 'hand' || (ninja.zone === 'command' && ninja.isCommander)) || !back || back.zone !== 'battlefield') return;
       const defender = back.attacking;
       this.moveObject(back, 'hand');
       this.combat.attackers = this.combat.attackers.filter(id => id !== back.id);
@@ -32195,6 +32217,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (v.party) return this._partySize(pid) * mult;
       // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredYours) return ((((((this.turnHistory || {}).enteredBy) || {})[pid]) || {})[v.enteredYours] || 0) * mult;
+      // Rose, Cutthroat Raider: "for each opponent you attacked" this turn (opponentsAttacked)
+      if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
@@ -33102,6 +33126,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (o.zone === 'hand' && arg && k === 'ninjutsu') {
         out.push({ kind: 'cast', via: 'ninjutsu', cost: arg, label: 'Ninjutsu ' + arg });
       }
+      // Yuriko, the Tiger's Shadow: "Commander ninjutsu" — from your hand, or from the command zone (commanderNinjutsu)
+      if ((o.zone === 'hand' || (o.zone === 'command' && o.isCommander && o.owner === playerId)) && arg && k === 'commander ninjutsu') {
+        out.push({ kind: 'cast', via: 'ninjutsu', cost: arg, label: 'Commander ninjutsu ' + arg });
+      }
       /* Cheaper ways in from your hand, each with a string attached:
            evoke sacrifices it as it lands, dash sends it home at the end
            of the turn but lets it attack the moment it arrives. */
@@ -33509,6 +33537,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      // The Raven Man: "if a player discarded a card this turn" (discardedThisTurn)
+      { const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); h.discards = (h.discards || 0) + 1; }
       /* Obstinate Baloth: "If a spell or ability an opponent controls causes
          you to discard this card, put it onto the battlefield instead" — the
          cause is whatever is resolving (discardToBattlefield) */
@@ -37372,6 +37402,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (declarations.length) {
         (this.turnHistory || (this.turnHistory = {})).attacked = true;
         this.turnHistory.attackers = (this.turnHistory.attackers || 0) + declarations.length;
+        // Rose, Cutthroat Raider: which players each player attacked this turn (opponentsAttacked)
+        const apb = this.turnHistory.attackedPlayersBy || (this.turnHistory.attackedPlayersBy = {});
+        for (const d of declarations) if (this.player(d.defenderId) && !(apb[playerId] || []).includes(d.defenderId)) (apb[playerId] = apb[playerId] || []).push(d.defenderId);
         this.emit('sfx', 'attack');
         this._attackKeywords(declarations.map(d => this.obj(d.attackerId)).filter(Boolean));
         this.logEvent('combat', `${this.player(playerId).name} attacks with ${declarations.map(d => this.obj(d.attackerId).name).join(', ')}.`);
@@ -39298,6 +39331,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const mv = it.card.cmc || 0;
           return cond.cmp === 'atLeast' ? mv >= cond.n : mv <= cond.n;
         }
+        case 'discardedThisTurn': return ((this.turnHistory || {}).discards || 0) > 0;
         case 'didThisWay': {
           const ids = cond.how === 'milled' ? (this._lastMilled || []) : cond.how === 'revealed' ? [this._lastRevealed].filter(Boolean)
             : cond.how === 'discarded' ? (this._lastDiscarded || [])
@@ -39386,6 +39420,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'youSacrificedThisWay': return !!me && ((this.resolving || {})._sacBy || []).some(s => s.pid === me.id && (!cond.what || (s.types || []).includes(cond.what)));
         case 'enteredTypeThisTurn': {
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
+          // Éowyn, Shieldmaiden: "another Human" — one more than this one, if it came in this turn as well (enteredOther)
+          if (cond.other) {
+            const selfIn = src && src.entered === this.turn && (cond.types || []).some(t => this._hasCreatureType(src, t)) ? 1 : 0;
+            return (cond.types || []).some(t => (by['sub:' + t] || 0) + (by['sub:*'] || 0) > selfIn);
+          }
           return !!by['sub:*'] || (cond.types || []).some(t => (by['sub:' + t] || 0) > 0);
         }
         case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
@@ -40899,6 +40938,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
           if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
+          // Merry, Esquire of Rohan: this creature and another of that kind among the attackers (withSelfAnd)
+          if (ab.withSelfAnd) {
+            const at = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(Boolean);
+            if (!at.some(x => x.id === o.id) || !at.some(x => x.id !== o.id && this._cardFitsWords(x, ab.withSelfAnd))) continue;
+          }
           // The Council of Four: "during their turn" — the player who drew or cast is the one whose turn it is (duringOwnTurn)
           if (ab.duringOwnTurn && (data.drawer != null ? data.drawer : data.playerId) !== (this.activePlayer && this.activePlayer.id)) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
@@ -41843,7 +41887,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -43953,7 +43997,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'sacGreatestMv': {
           // Myrkul's Edict, Olórin's Searing Light: by power, a target opponent, or exiled
           const val = (x) => (e.by === 'power' ? this.powerOf(x) : ((x.card && x.card.cmc) || 0));
-          const whom = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller);
+          const whom = (e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
+            // Papalymo Totolymo: only the opponents who lost life this turn (lostLifeOnly)
+            .filter(q => !e.lostLifeOnly || (q.lifeLostThisTurn || 0) > 0);
           for (const q of whom) {
             const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
             if (!pool.length) continue;
@@ -46669,7 +46715,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             return this._matchesFilter(o, e.filter);
           });
           let taken = [];
-          if (legal.length) {
+          // Muxus, Goblin Grandee: "Put all … from among them" — no choosing (takeAll)
+          if (legal.length && e.all) taken = legal.slice();
+          else if (legal.length) {
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: Math.min(want, legal.length),
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               // "If it's a land card, put it into your hand": not a choice
@@ -49813,7 +49861,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         /* Ninjutsu resolving: in, tapped and attacking the same defender */
         case 'ninjaIn': {
-          if (!src || src.zone !== 'hand') break;
+          // (commanderNinjutsu: or from the command zone)
+          if (!src || !(src.zone === 'hand' || (src.zone === 'command' && src.isCommander))) break;
           this.moveObject(src, 'battlefield', { controller: ctx.controller });
           src.tapped = true;
           if (this.phase && this.phase.id === 'combat' && e.defender) {
