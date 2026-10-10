@@ -13953,6 +13953,11 @@
           // Brimaz: "a token that's blocking that creature" — the creature the trigger is about
           const blockingId = e.blockingTriggerObject ? (ctx.triggerData || {}).objectId : null;
           this._createToken(owner.id, Object.assign({}, e, { n: many }, sized, blockingId ? { blockingId } : {}));
+          /* Elemental Appeal: "Create a 7/1 … token. … that creature gets +7/+0" — with nothing targeted,
+             the one token just made is what "it" and "that creature" mean next (as reanimateTop does) */
+          if ((this._lastTokenGroup || []).length === 1 && !(ctx.resolvedTargets || []).length && !targets.some(t => t && t.kind === 'object')) {
+            ctx.resolvedTargets = [{ kind: 'object', id: this._lastTokenGroup[0] }];
+          }
           break;
         }
         case 'createNamedToken': {

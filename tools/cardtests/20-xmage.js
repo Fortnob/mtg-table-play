@@ -20868,4 +20868,16 @@ module.exports = (test) => {
     t.zone(wurm, 'battlefield');
     t.ok(T3.g.hasKw(wurm, 'indestructible'), 'Savage Order (its sacrifice "a creature with power 4 or greater" payable): the Dinosaur found gains indestructible');
   });
+
+  test('Elemental Appeal kicked: "that creature gets +7/+0" is the token just made', (mk, t) => {
+    t.auto('Elemental Appeal');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'RRRRRRRRR');
+    T.cast('A', T.hand('A', 'Elemental Appeal'), { kick: true });
+    const el = T.bfOf('A').find(o => o.isToken);
+    t.eq(T.g.powerOf(el), 14, '7 and 7 more');
+    T.toMain('B');
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'exiled at the end step');
+  });
 };
