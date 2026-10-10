@@ -204,6 +204,12 @@ def steps(quick):
         Step('syntax', node('-e', SYNTAX_JS, ROOT / 'index.html'), judge_exit, 120),
         # the card-picture worker: what it keeps and what it never touches
         Step('sw', node(TOOLS / 'swtest.js'), judge_exit, 60),
+        # card pictures in another language, against a Scryfall made up for the test
+        Step('card language', node(TOOLS / 'langtest.js'), judge_exit, 60),
+        # the table by keyboard and screen reader: what is said, the labels, the keys
+        Step('access', node(TOOLS / 'accesstest.js'), judge_exit, 120),
+        # the tutorials, each played through the right way and the wrong ways
+        Step('lessons', node(TOOLS / 'lessontest.js'), judge_exit, 600, needs_bulk=True),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
         # Commander brackets: what moves a deck up, where decks land, a table's bracket turning one away

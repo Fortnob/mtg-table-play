@@ -17,7 +17,11 @@ const zlib = require('zlib');
 const { load, SRC } = require('./engine');
 
 process.env.OFFLINE = '1';
+// (the card cache has no IndexedDB here, and says so; that is no news to this test)
+const warn = console.warn;
+console.warn = () => {};
 const MTG = load();
+console.warn = warn;
 vm.runInThisContext(fs.readFileSync(path.join(SRC, '14b-lessons.js'), 'utf8'), { filename: '14b-lessons.js' });
 const L = MTG.lessons;
 

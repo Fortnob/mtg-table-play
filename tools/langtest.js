@@ -11,7 +11,11 @@
 'use strict';
 const { load } = require('./engine');
 
+// (the card cache has no IndexedDB here, and says so; that is no news to this test)
+const warn = console.warn;
+console.warn = () => {};
 const MTG = load({ modules: ['00-core.js', '02-scryfall.js', '02b-cardlang.js'] });
+console.warn = warn;
 const scry = MTG.scry;
 
 const img = (tag) => ({ small: `https://cards.scryfall.io/small/${tag}.jpg`, normal: `https://cards.scryfall.io/normal/${tag}.jpg`,

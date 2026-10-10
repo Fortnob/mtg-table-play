@@ -13,6 +13,9 @@ with `OFFLINE=1` to stay off the network.
 | `smoke.js` | plays every automated card once (`--generated` for every card using a translated line) |
 | `sim.js`, `botsim.js` | bot games |
 | `dumpauto.js`, `opaudit.js`, `misses.js` | what the parser made of cards, and what it could not |
+| `langtest.js` | card pictures in another language, against a made-up Scryfall |
+| `accesstest.js` | the table by keyboard and screen reader: what is read out, the labels, the keys |
+| `lessontest.js` | the tutorials, each played through the right way and the wrong ways |
 | `xmage/` | the XMage translator, below |
 
 ## xmage/: card scripts translated from XMage
