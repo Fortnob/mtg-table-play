@@ -2779,6 +2779,26 @@
     }
 
     /**
+     * What a spell cast without paying its mana cost still costs (CR
+     * 601.2f): "without paying its mana cost" is a cost of nothing, and the
+     * increases go on top of that as on any other: a Thalia's tax, commander
+     * tax, Andradite Leech's {B}. Reductions (a Herald's Horn, the spell's own
+     * "costs {1} less") can take off what the increases put on and no more.
+     * A kicker chosen, a tax for its targets and Trinisphere's floor are
+     * added where the cast is paid for (castSpell).
+     */
+    _freeCastPrice(o, pid) {
+      let gen = 0;
+      if (o.zone === 'command' && o.isCommander) {
+        const p = this.player(o.owner);
+        gen += ((p && p.commanderCasts[o.id]) || 0) * 2;
+      }
+      gen += this._costDelta(o, pid);
+      gen += (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
+      return (gen > 0 ? '{' + gen + '}' : '') + this._costExtraSymbols(o, pid);
+    }
+
+    /**
      * The standing changes to what a spell costs, added up: a Thalia's tax,
      * a Herald's Horn's discount, and the spell's own "costs {1} less to
      * cast for each artifact you control". More is positive, less negative.
@@ -3392,13 +3412,32 @@
         if (p.life < mv || (mv > 0 && this._lifeFrozen(p))) return { ok: false, reason: 'Not enough life.' };
         return { ok: true, cost: '', lifeInstead: mv };
       }
-      if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: '' };
+      // Omniscience: without paying the mana cost, which leaves the taxes (CR 601.2f)
+      if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: this._freeCastPrice(o, playerId) };
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       if (!opts && this.battlefield.some(s => s.controller === playerId && !s.phasedOut &&
-        (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: '' };
+        (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: this._freeCastPrice(o, playerId) };
       const base = this.castCost(o, opts);
       const gTax = /^\{\d+\}$/.test(flashTax) ? parseInt(flashTax.slice(1), 10) : 0;
-      return { ok: true, cost: gTax ? this._addGeneric(base, gTax) : base + flashTax };
+      const plainCost = gTax ? this._addGeneric(base, gTax) : base + flashTax;
+      /* Trinisphere: the price the table shows, and whether it can be paid,
+         as the cast will have it; the cast itself starts from baseCost and
+         raises it once its own additions are in (an {X} is chosen then) */
+      const fl = !opts && !/\{X\}/.test(plainCost) ? this._floorCost(playerId, o, plainCost, 0, true) : null;
+      return fl && fl.fl ? { ok: true, cost: fl.cost, baseCost: plainCost } : { ok: true, cost: plainCost };
+    }
+
+    /* Trinisphere (costFloor): a spell's total raised to the floor while an
+       untapped one is out. Delve, convoke and improvise pay toward it rather
+       than lower it (CR 702.51b), so what they would pay is counted back in
+       when the cost is the card's own (plain); affinity still lowers it first. */
+    _floorCost(playerId, o, cost, x, plain) {
+      const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
+      if (!fl) return { cost, fl: null };
+      const floor = this._staticOp(fl, 'costFloor').n || 3;
+      const paidOther = plain ? Math.max(0, (this._reductionRoom(playerId, o) || {}).left || 0) : 0;
+      const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (x || 0) + '}')) + paidOther;
+      return total < floor ? { cost: this._addGeneric(cost || '', floor - total), fl, floor } : { cost, fl: null };
     }
 
     /**
@@ -3494,6 +3533,8 @@
       const mt = this._multiOf(o.analysis());
       const got = mt ? Math.max(0, ((opts || {}).targets || []).length - mt.fixed) : 0;
       if (mt && mt.spec.multi.perExtra && got > 1) cost += mt.spec.multi.perExtra.repeat(got - 1);
+      // Trinisphere: the floor, as the cast will meet it (an {X} is left for the cast to settle)
+      if (!/\{X\}/.test(cost)) { const fl = this._floorCost(playerId, o, cost, 0, true); if (fl.fl) cost = fl.cost; }
       return cost;
     }
     /** The players still in, in turn order, starting with this one (voting goes round this way). */
@@ -4833,7 +4874,9 @@
       if (asked) return asked === 'asked' ? true : this.fail(asked);
       const addPick = a && a.additionalCost && a.additionalCost.choice
         ? a.additionalCost.choice[opts.additionalChoice || 0] : null;
-      let cost = opts.costOverride != null ? opts.costOverride : chk.cost;
+      // (the price before Trinisphere's floor, which is settled below with the rest of it)
+      const chkBase = chk.baseCost != null ? chk.baseCost : chk.cost;
+      let cost = opts.costOverride != null ? opts.costOverride : chkBase;
       // fused: the right half's cost as well
       const fused = !!(opts.fuse && this._fusable(o) && o.zone === 'hand');
       if (fused && !opts.free) cost = (cost || '') + (((o.card.card_faces[1] || {}).mana_cost) || '');
@@ -4885,6 +4928,14 @@
           }
         }
       }
+
+      /* Cast without paying its mana cost (cascade, suspend, discover, a
+         copy cast for free): the price starts from nothing, not from the
+         card's corner, but every increase still comes on top (CR 601.2f),
+         and what that comes to is paid as the spell is cast, there and
+         then, mid-resolution if that is where it is cast. A kicker chosen,
+         a tax for its targets and Trinisphere's floor are added below. */
+      if (opts.free) cost = this._freeCastPrice(o, playerId);
 
       /* Escape asks for cards out of the graveyard as well as mana. */
       let toExile = [];
@@ -4996,9 +5047,9 @@
 
       /* A mana price chosen as the additional cost is paid with the rest,
          even for a spell cast without paying its mana cost. */
-      if (addPick && addPick.mana) cost = opts.free ? addPick.mana : (cost || '') + addPick.mana;
+      if (addPick && addPick.mana) cost = (cost || '') + addPick.mana;
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
-      if (!opts.free) {
+      {
         let tTax = 0;
         for (const t of (opts.targets || [])) {
           const x = this.obj((t && t.id) || t);
@@ -5010,7 +5061,7 @@
       }
       /* Killian, Ink Duelist: "Spells you cast that target a creature cost {2} less"; Esior: "Spells your
          opponents cast that target one or more commanders you control cost {3} more" (targetCostMod) */
-      if (!opts.free) {
+      {
         let d = 0;
         for (const s0 of this.battlefield) {
           if (s0.phasedOut) continue;
@@ -5028,13 +5079,14 @@
       }
       /* Trinisphere: "each spell that would cost less than three mana to cast
          costs three mana to cast" — the last word on the price, once
-         everything else has had its say (costFloor) */
-      if (!opts.free) {
+         everything else has had its say (costFloor), a spell cast without
+         paying its mana cost too: nothing is less than three */
+      {
         const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
         const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
         /* convoke, improvise and delve pay for the spell rather than make it
            cheaper (CR 702.51b), so what they would pay is still in its price */
-        const paidOther = floor && !via && opts.costOverride == null && chk.cost === this.castCost(o, opts)
+        const paidOther = floor && !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts)
           ? Math.max(0, (this._reductionRoom(playerId, o) || {}).left || 0) : 0;
         const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}')) + paidOther;
         if (floor && total < floor) {
@@ -5059,17 +5111,19 @@
          player chose (checked before any mana goes), or the cheapest there
          is. Whatever they chose not to use is paid in mana. */
       // (only when the cost is the one with the discount in it: not Omniscience's nothing)
-      const reduces = !opts.free && !via && opts.costOverride == null && chk.cost === this.castCost(o, opts);
+      const reduces = !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts);
       const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
       if (plan && plan.error) return this.fail(plan.error);
       if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
       o._phyLife = 0;
-      if (!opts.free || (addPick && addPick.mana)) {
+      if (!opts.free || cost) {
         // what taps for convoke is not there to tap for mana
         const held = plan ? plan.tap.filter(x => !x.tapped) : [];
         for (const x of held) x.tapped = true;
         this._spentAcc = {};
-        const paid = this.payMana(playerId, cost, Object.assign({}, opts, { forSpell: o }));
+        // a free spell's taxes are paid where it is cast, often mid-resolution: from the pool, then the lands
+        const paid = this.payMana(playerId, cost, Object.assign({}, opts, { forSpell: o }, opts.free ? { auto: true } : null));
+        if (paid && opts.free) this.logEvent('rules', `${p.name} pays ${cost} to cast ${o.name}.`);
         // converge: how many colours of mana went into it
         o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
         // adamant: how much of each
@@ -20659,6 +20713,21 @@
       const a = o.analysis();
       const p = this.player(playerId);
       if (!a || !p) return false;
+      /* a copy cast without paying its mana cost is still cast: its taxes
+         and Trinisphere's floor are paid now, or it is not cast (CR 601.2f) */
+      {
+        let price = this._freeCastPrice(o, playerId);
+        const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
+        const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
+        if (floor && MANA.cmc(price) < floor) price = this._addGeneric(price, floor - MANA.cmc(price));
+        if (price) {
+          if (!this.payMana(playerId, price, { auto: true, forSpell: o })) {
+            this.logEvent('rules', `${p.name} can't pay ${price} for ${o.name}, so it isn't cast.`);
+            return false;
+          }
+          this.logEvent('rules', `${p.name} pays ${price} to cast ${o.name}.`);
+        }
+      }
       const fromZone = o.zone;
       this._removeFromZone(o);
       o.zone = 'stack';
