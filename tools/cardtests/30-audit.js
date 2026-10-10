@@ -3982,4 +3982,24 @@ module.exports = (test) => {
     t.zone(tm2, 'hand', 'two Plains are not enough');
     t.eq(T.g.battlefield.filter(o => o.name === 'Plains' && o.tapped).length, 0, 'and nothing is spent');
   });
+
+  test('Audit: deathtouch damage counts only until the next state check: an indestructible creature that lived through it is not doomed later', (mk, t) => {
+    let T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const av = T.bf('A', 'Avacyn, Angel of Hope');
+    const rats = T.bf('B', 'Typhoid Rats');
+    T.g.dealDamageToObject(bear, 1, rats, false);
+    T.g.checkStateBasedActions(); T.settle();
+    t.zone(bear, 'battlefield', 'indestructible');
+    T.g.moveObject(av, 'graveyard');
+    T.g.checkStateBasedActions(); T.settle();
+    t.zone(bear, 'battlefield', 'Avacyn gone: 1 damage on a 2/2 is not lethal');
+    T = mk();
+    T.toMain('A');
+    const b2 = T.bf('A', 'Grizzly Bears');
+    T.g.dealDamageToObject(b2, 1, T.bf('B', 'Typhoid Rats'), false);
+    T.g.checkStateBasedActions(); T.settle();
+    t.zone(b2, 'graveyard', 'deathtouch still kills');
+  });
 };

@@ -21304,6 +21304,9 @@
               this.moveObject(o, exiled ? 'exile' : 'graveyard'); repeat = true; continue;
             }
           }
+          /* deathtouch counts damage dealt since the last check (CR 704.5h):
+             one that lived through it (indestructible) is not marked after */
+          if (o.dealtDeathtouch) o.dealtDeathtouch = false;
           if (a.isPlaneswalker && (o.counters.loyalty || 0) <= 0) {
             this.logEvent('sba', `${o.name} is put into the graveyard (0 loyalty).`);
             this.moveObject(o, 'graveyard'); repeat = true; continue;
