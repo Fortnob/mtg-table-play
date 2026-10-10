@@ -1,6 +1,6 @@
 /* ============================================================
-   decktools.css - a card's rulings, and the offer a deck link
-   makes when it is opened
+   decktools.css - a card's rulings, the deck builder's Playtest
+   tab, and the offer a deck link makes when it is opened
    ============================================================ */
 
 /* ---- a card's rulings, folded away under it (10g-rulings.js) ----
@@ -30,6 +30,34 @@
 .rul-src { font: 600 10px/1.2 var(--font); letter-spacing: .07em; text-transform: uppercase; color: #9cc7ff; }
 .rul-text { margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: #c4ccd9; overflow-wrap: anywhere; }
 .rul-wait { margin: 0 0 4px; font-size: 12px; color: #8d97a8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---- the deck builder's Playtest tab (11b-ui-playtest.js) ---- */
+.pt-status { margin: -4px 0 12px; }
+.pt-hand { --pt-w: calc(112px * var(--card-scale)); display: flex; flex-wrap: wrap; gap: 10px; }
+.pt-card {
+  --card-w: var(--pt-w); --card-h: calc(var(--pt-w) * 88 / 63);
+  position: relative; flex: none; width: var(--card-w); height: var(--card-h); padding: 0; border: 0;
+  background: none; border-radius: 4.75% / 3.5%; cursor: pointer; color: inherit;
+}
+.pt-card:hover .card-img { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0,0,0,.55); }
+.pt-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+/* a mulligan: the cards waiting to be chosen for the bottom glow the colour of choosing */
+.pt-hand.choosing .pt-card .card-img, .pt-hand.choosing .pt-card .card-fallback { box-shadow: 0 0 0 2px #ffc94d, 0 6px 14px rgba(0,0,0,.45); }
+.pt-card.drawn .card-img, .pt-card.drawn .card-fallback { box-shadow: 0 0 0 2px var(--good), 0 6px 14px rgba(0,0,0,.45); }
+.pt-tag {
+  position: absolute; left: 50%; bottom: -7px; translate: -50% 0; padding: 2px 7px; border-radius: 99px; pointer-events: none;
+  font: 700 9.5px/1.3 var(--font); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--good); background: var(--good-bg); border: 1px solid var(--good-line);
+}
+.pt-bottom { margin: 12px 0 0; }
+.pt-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.pt-draw { gap: 6px; }
+/* room above the tallest bar for its figure */
+.curve-bar.pt-odds { margin-top: 20px; }
+.pt-odds-say { margin: 0; line-height: 1.55; }
+/* four cards to a row on a phone, two rows for a hand */
+:root[data-phone] .pt-hand { --pt-w: 76px; gap: 6px; }
+:root[data-phone] .pt-ctl .btn { flex: 1 1 auto; justify-content: center; }
 
 /* ---- a deck link, opened (11c-ui-decklink.js) ---- */
 .dl-name { font: 600 22px/1.25 var(--serif); overflow-wrap: anywhere; }

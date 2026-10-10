@@ -344,18 +344,25 @@ Sideboard
     const paneAdvisor = el('div', { class: 'deck-pane' });
     const paneCards = el('div', { class: 'deck-pane' });
     const panes = { add: paneAdd, overview: paneOverview, advisor: paneAdvisor, cards: paneCards };
+    /* Tabs other modules add (UI.deckPanes): each {id, label, mount(host, api)},
+       built the first time it is opened; what mount returns may have show()
+       and refresh(), the latter called on every redraw. */
+    const extra = (UI.deckPanes || []).map(p => Object.assign({ host: el('div', { class: 'deck-pane pane-' + p.id }), live: null }, p));
+    for (const p of extra) panes[p.id] = p.host;
+    const paneApi = { deck: () => deck, opts, close: () => m.close() };
     // an empty deck opens on the search, since adding cards is the whole of the next step
     const empty = !(deck.main || []).length && !(deck.commanders || []).length;
     let activePane = !drafted && empty ? 'add' : 'overview';
     const tabsBar = el('div', { class: 'side-tabs', role: 'tablist', 'aria-label': 'Deck views' });
-    const paneHost = el('div', { class: 'deck-pane-host' }, [paneAdd, paneOverview, paneAdvisor, paneCards]);
+    const paneHost = el('div', { class: 'deck-pane-host' }, [paneAdd, paneOverview, paneAdvisor, paneCards].concat(extra.map(p => p.host)));
     // On a phone there is no room for a list beside the panes, so the list
     // becomes a tab of its own and the builder is one full-screen stack.
     const phone = MTG.isPhone();
     const tabDefs = (phone
       ? [['list', 'Deck'], ['add', 'Add cards'], ['overview', 'Overview'], ['advisor', 'Suggestions'], ['cards', 'Cards']]
       : [['add', 'Add cards'], ['overview', 'Overview'], ['advisor', 'Suggestions & combos'], ['cards', 'Cards']])
-      .filter(([id]) => !(drafted && (id === 'advisor' || id === 'add')));
+      .filter(([id]) => !(drafted && (id === 'advisor' || id === 'add')))
+      .concat(extra.map(p => [p.id, p.label]));
     if (phone) { panes.list = left; activePane = 'list'; }
     for (const [id, label] of tabDefs) {
       const t = el('button', {
@@ -370,7 +377,7 @@ Sideboard
     }
     panes[activePane].classList.add('active');
     const right = phone
-      ? el('div', { class: 'panel deck-right' }, [tabsBar, el('div', { class: 'deck-pane-host' }, [left, paneAdd, paneOverview, paneAdvisor, paneCards])])
+      ? el('div', { class: 'panel deck-right' }, [tabsBar, el('div', { class: 'deck-pane-host' }, [left, paneAdd, paneOverview, paneAdvisor, paneCards].concat(extra.map(p => p.host)))])
       : el('div', { class: 'panel deck-right' }, [tabsBar, paneHost]);
     const wrap = el('div', { class: 'deck-layout' + (phone ? ' stacked' : '') },
       phone ? [right] : [left, right]);
@@ -542,6 +549,8 @@ Sideboard
       }
       for (const k in panes) panes[k].classList.toggle('active', k === id);
       if (id === 'add') { mountSearch(); if (search) search.focus(); }
+      const x = extra.find(p => p.id === id);
+      if (x) { if (!x.live) x.live = x.mount(x.host, paneApi) || {}; if (x.live.show) x.live.show(); }
     }
 
     /* The search lives in a pane beside the list, so what you add shows up
@@ -1123,6 +1132,7 @@ Sideboard
       if (drafted) { /* no suggestions for a drafted deck */ }
       else if (activePane === 'advisor') advisor.refresh(validation);
       else advisor.refreshLocalOnly(validation);
+      for (const p of extra) if (p.live && p.live.refresh) p.live.refresh();
     }
 
     /** The deck's automation share under its size: a tap marks the cards that need a hand. */

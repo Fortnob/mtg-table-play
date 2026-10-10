@@ -5,6 +5,9 @@
      back out the same, links stay short, a link made by version 1 of
      the packing still opens (a fixed one is kept below, and must never
      change), and a link cut short or tampered with is turned away;
+   - sample hands and their odds (src/16a-playtest.js): the land chances
+     add up and match the known figures, mulligans put the right number
+     of cards on the bottom, and no card goes missing or doubles;
    - rulings (src/10g-rulings.js): asked for once and kept, oldest first,
      dated the British way, and nothing asked for a card that has none.
 
@@ -21,12 +24,13 @@ const warn = console.warn;
 console.warn = () => {};
 const MTG = engine();
 console.warn = warn;
-for (const m of ['05a-decklink.js', '10g-rulings.js']) {
+for (const m of ['05a-decklink.js', '16a-playtest.js', '10g-rulings.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'src', m), 'utf8'), { filename: m });
 }
 
 let fails = 0, passes = 0;
 const check = (ok, what) => { if (ok) passes++; else { fails++; console.log('FAIL ' + what); } };
+const near = (a, b, eps) => Math.abs(a - b) <= (eps || 1e-6);
 
 /* ================= deck links ================= */
 const L = MTG.decklink;
@@ -138,6 +142,57 @@ const burn = deckOf('modern', 'Burn — "the fast one" \u{1F525}', [
   let msg = '';
   try { L.decode('9abc'); } catch (e) { msg = e.message; }
   check(/newer version/.test(msg), 'a newer link asks for a reload');
+}
+
+/* ================= sample hands and odds ================= */
+const P = MTG.playtest;
+{
+  const deck = deckOf('standard', 'x', [[24, 'Mountain'], [36, 'Raging Goblin']]);
+  const o = P.openingOdds(deck);
+  check(o.lands === 24 && o.size === 60 && o.exactly.length === 8, 'a 60-card deck with 24 lands');
+  check(near(o.exactly.reduce((a, b) => a + b, 0), 1, 1e-9), 'the chances add up to one');
+  /* the figures for 24 lands in 60, seven cards, counted out in whole numbers:
+     C(60,7) = 386,206,920 hands; C(24,3)·C(36,4) = 119,223,720 of them hold three
+     lands, C(36,7) = 8,347,680 none, and 104,049,792 + 119,223,720 + 75,869,640
+     two to four */
+  const HANDS = 386206920;
+  check(near(o.exactly[3], 119223720 / HANDS, 1e-9), `three lands: 30.9% (${(o.exactly[3] * 100).toFixed(2)}%)`);
+  check(near(o.exactly[0], 8347680 / HANDS, 1e-9), `no lands: 2.2% (${(o.exactly[0] * 100).toFixed(2)}%)`);
+  check(near(P.between(o.exactly, 2, 4), (104049792 + 119223720 + 75869640) / HANDS, 1e-9),
+    `two to four lands: 77.5% (${(P.between(o.exactly, 2, 4) * 100).toFixed(2)}%)`);
+  const edh = deckOf('commander', 'x', [[37, 'Forest'], [62, 'Llanowar Elves']]);
+  const e = P.openingOdds(edh);
+  check(e.size === 99 && near(e.exactly.reduce((a, b) => a + b, 0), 1, 1e-9), 'a 99-card deck works too');
+  const small = deckOf('standard', 'x', [[3, 'Mountain'], [2, 'Raging Goblin']]);
+  check(P.openingOdds(small).drawn === 5, 'a deck smaller than a hand draws what it has');
+  check(P.isLand(card('Shatterskull Smashing')) && P.isLand(card('Forest')) && !P.isLand(card('Lightning Bolt')) && !P.isLand(card('Delver of Secrets')),
+    'a modal double-faced card with a land on its back counts as a land; a transforming one does not');
+}
+{
+  const deck = deckOf('standard', 'x', [[24, 'Mountain'], [36, 'Raging Goblin']]);
+  const h = new P.SampleHand(deck, { seed: 3 });
+  const total = () => h.hand.length + h.library.length;
+  check(h.hand.length === 7 && h.library.length === 53 && h.kept, 'seven dealt, fifty-three left, nothing to bottom');
+  h.mulligan();
+  check(h.hand.length === 7 && h.toBottom === 1 && !h.kept && total() === 60, 'a mulligan is seven more and one to put back');
+  check(h.draw() === null, 'no drawing until the card is put back');
+  const goes = h.hand[0];
+  h.bottom(goes.key);
+  check(h.hand.length === 6 && h.kept && h.library[h.library.length - 1] === goes, 'the card chosen goes to the bottom');
+  h.mulligan();
+  check(h.toBottom === 2 && h.hand.length === 7 && total() === 60, 'a second mulligan puts two back, and the first card is shuffled back in');
+  h.bottom(h.hand[0].key); h.bottom(h.hand[0].key);
+  check(h.bottom(h.hand[0].key) === false && h.hand.length === 5, 'no more than two');
+  const drawn = h.draw();
+  check(!!drawn && h.hand.length === 6 && total() === 60 && h.mulligan() === false, 'drawing on keeps the hand');
+  const keys = new Set(h.hand.concat(h.library).map(x => x.key));
+  check(keys.size === 60, 'every card is still there, once');
+  check(h.lands() === h.hand.filter(x => x.card.name === 'Mountain').length, 'lands in hand are counted');
+  const free = new P.SampleHand(deck, { seed: 3, freeMulligans: 1 });
+  free.mulligan();
+  check(free.toBottom === 0, 'a free mulligan puts nothing back');
+  h.reset();
+  check(h.hand.length === 7 && h.mulligans === 0 && h.draws === 0, 'a new hand starts over');
 }
 
 /* ================= rulings ================= */
