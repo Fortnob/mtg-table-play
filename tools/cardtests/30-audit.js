@@ -3659,4 +3659,27 @@ module.exports = (test) => {
     T.toMain('A'); T.mana('A', '3'); T.activate('A', sh, 0, { targets: ['B'] });
     t.eq(T.life('B'), 16);
   });
+
+  test('Audit: Loxodon Smiter enters when an opponent makes you discard it, not when you do; Sage of Days may keep none', (mk, t) => {
+    let T = mk();
+    t.auto('Loxodon Smiter'); t.auto('Sage of Days');
+    T.toMain('B');
+    while (T.g.zones.A.hand.length) T.g.moveObject(T.g.zones.A.hand[0], 'library');
+    const sm = T.hand('A', 'Loxodon Smiter');
+    T.mana('B', '2B'); T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.zone(sm, 'battlefield'); t.eq(sm.controller, 'A');
+    T = mk();
+    T.toMain('A');
+    while (T.g.zones.A.hand.length) T.g.moveObject(T.g.zones.A.hand[0], 'library');
+    const mr = T.hand('A', 'Mind Rot'), sm2 = T.hand('A', 'Loxodon Smiter');
+    T.mana('A', '2B'); T.cast('A', mr, { targets: ['A'] });
+    t.zone(sm2, 'graveyard', 'my own spell: no');
+    T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.top('A', 'Opt'); T.top('A', 'Shock');
+    T.answer('pickCard', () => ({ cardIds: [] }));
+    T.mana('A', '4U'); T.cast('A', T.hand('A', 'Sage of Days')); T.settle(); T.resolve();
+    t.eq(T.g.zones.A.graveyard.length, 3, 'none kept: all three to the graveyard');
+  });
 };
