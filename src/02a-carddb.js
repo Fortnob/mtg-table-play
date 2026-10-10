@@ -659,6 +659,12 @@
         case 'power': cmp = num(pi => (r(pi).pow[0] != null ? r(pi).pow[0] : -99)); break;
         case 'toughness': cmp = num(pi => (r(pi).tou[0] != null ? r(pi).tou[0] : -99)); break;
         case 'color': cmp = num(pi => r(pi).cs[0]); break;
+        // white, blue, black, red, green, then several colours, then none; by mana value within each
+        case 'colormv': {
+          const grp = (b) => { const n = popcount(b); return n === 0 ? 6 : n > 1 ? 5 : [1, 2, 4, 8, 16].indexOf(b); };
+          cmp = (a, b) => (grp(r(a).cs[0]) - grp(r(b).cs[0])) || (r(a).cmc - r(b).cmc) || byName(a, b);
+          break;
+        }
         case 'usd': cmp = num(price); break;
         case 'artist': cmp = (a, b) => String(P_[a][P.artist] || '').localeCompare(String(P_[b][P.artist] || '')) || byName(a, b); break;
         default: cmp = byName;

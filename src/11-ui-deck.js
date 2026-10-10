@@ -1243,8 +1243,11 @@ Sideboard
         if (inPool) {
           menu.push(['Put one in the deck', () => changeQty(e, 1)]);
         } else if (!isCmd) {
-          menu.push(['+1', () => changeQty(e, 1)]);
-          menu.push(['-1', () => changeQty(e, -1)]);
+          // one of a card is taken out, not counted down; a singleton deck has no second to add
+          const one = MTG.formats.get(deck.format).singleton && !isBasic(e.card);
+          if (!one) menu.push(['+1', () => changeQty(e, 1)]);
+          if (e.qty > 1) menu.push(['-1', () => changeQty(e, -1)]);
+          else menu.push(['Remove card', () => changeQty(e, -1)]);
           if (MTG.formats.canBeCommander(e.card, MTG.formats.get(deck.format)) && MTG.formats.get(deck.format).commander)
             menu.push(['Make commander', () => setCommander(e.card)]);
           menu.push(['Move to sideboard', () => {
@@ -1385,12 +1388,26 @@ Sideboard
     const TYPES = [['Creature', 't:creature'], ['Instant', 't:instant'], ['Sorcery', 't:sorcery'], ['Artifact', 't:artifact'],
       ['Enchantment', 't:enchantment'], ['Planeswalker', 't:planeswalker'], ['Land', 't:land']];
     const COSTS = [['0–1', 'mv<=1'], ['2', 'mv=2'], ['3', 'mv=3'], ['4', 'mv=4'], ['5', 'mv=5'], ['6+', 'mv>=6']];
-    // colours: any of those picked, the way a card shop's shelves are sorted
+    /* Colours: any of those picked, the way a card shop's shelves are
+       sorted. Shift-click one (on a phone, press and hold) for a colour
+       identity instead: a card whose cost or text has that colour in it,
+       the way Commander counts. */
     const COLOURS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']];
     let typeOn = null, costOn = null;
-    const coloursOn = new Set();
+    /** @type {Map<string, 'c'|'id'>} each colour picked, as a colour or as a colour identity */
+    const coloursOn = new Map();
+    const PAIRS = ['wu', 'wb', 'wr', 'wg', 'ub', 'ur', 'ug', 'br', 'bg', 'rg'];
+    const colourTerm = (c, mode) => (mode === 'id'
+      ? (c === 'M' ? '(' + PAIRS.map(p => 'id>=' + p).join(' or ') + ')' : c === 'C' ? 'id=c' : 'id>=' + c.toLowerCase())
+      : (c === 'M' ? 'c:m' : c === 'C' ? 'c:c' : 'c:' + c.toLowerCase()));
     const colourQuery = () => (coloursOn.size
-      ? '(' + [...coloursOn].map(c => 'c:' + (c === 'M' ? 'm' : c === 'C' ? 'c' : c.toLowerCase())).join(' or ') + ')' : '');
+      ? '(' + [...coloursOn].map(([c, mode]) => colourTerm(c, mode)).join(' or ') + ')' : '');
+    // a plain click is the colour; shift (or holding it) the identity; the same again takes it off
+    const toggleColour = (c, mode) => {
+      const cur = coloursOn.get(c);
+      if (cur === mode) coloursOn.delete(c); else coloursOn.set(c, mode);
+      drawChips(); run();
+    };
     const chipRow = el('div', { class: 'search-chips' });
     const drawChips = () => {
       chipRow.innerHTML = '';
@@ -1398,17 +1415,38 @@ Sideboard
         type: 'button', class: 'chip' + (cur === q ? ' on' : ''), text: label, 'aria-pressed': cur === q ? 'true' : 'false',
         onclick: () => { set(cur === q ? null : q); drawChips(); run(); },
       });
-      chipRow.append(...TYPES.map(([l, q]) => chip(l, q, typeOn, (v) => { typeOn = v; })),
-        el('span', { class: 'chip-gap' }),
+      // choosing a commander, every card is a creature (or says it can be one): no type to pick
+      if (!opts.onlyCommanders) chipRow.append(...TYPES.map(([l, q]) => chip(l, q, typeOn, (v) => { typeOn = v; })), el('span', { class: 'chip-gap' }));
+      chipRow.append(
         el('span', { class: 'tiny dim', text: 'Mana value' }),
         ...COSTS.map(([l, q]) => chip(l, q, costOn, (v) => { costOn = v; })),
         el('span', { class: 'chip-gap' }),
-        ...COLOURS.map(([c, name]) => el('button', {
-          type: 'button', class: 'chip colour-chip' + (coloursOn.has(c) ? ' on' : ''), title: name, 'aria-label': name,
-          'aria-pressed': coloursOn.has(c) ? 'true' : 'false',
-          html: c === 'C' ? '<i class="pip pip-c">C</i>' : `<i class="pip pip-${c.toLowerCase()}">${c}</i>`,
-          onclick: () => { if (coloursOn.has(c)) coloursOn.delete(c); else coloursOn.add(c); drawChips(); run(); },
-        })));
+        ...COLOURS.map(([c, name]) => {
+          const mode = coloursOn.get(c);
+          const b = el('button', {
+            type: 'button', class: 'chip colour-chip' + (mode ? ' on' : '') + (mode === 'id' ? ' ident' : ''),
+            title: mode === 'id' ? `${name} in its colour identity. Click to take it off.` : `${name}. Shift-click (or hold) for colour identity.`,
+            'aria-label': mode === 'id' ? `${name} colour identity` : name,
+            'aria-pressed': mode ? 'true' : 'false',
+            html: c === 'C' ? '<i class="pip pip-c">C</i>' : `<i class="pip pip-${c.toLowerCase()}">${c}</i>`,
+          });
+          // a press held on a phone is a shift-click
+          let held = null, wasHeld = false;
+          b.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse') return;
+            wasHeld = false;
+            held = setTimeout(() => { held = null; wasHeld = true; toggleColour(c, 'id'); }, 480);
+          });
+          const letGo = () => { if (held) { clearTimeout(held); held = null; } };
+          b.addEventListener('pointerup', letGo);
+          b.addEventListener('pointerleave', letGo);
+          b.addEventListener('contextmenu', (e) => { if (wasHeld) e.preventDefault(); });
+          b.addEventListener('click', (e) => {
+            if (wasHeld) { wasHeld = false; return; }
+            toggleColour(c, e.shiftKey ? 'id' : (mode === 'id' ? 'id' : 'c'));
+          });
+          return b;
+        }));
     };
     drawChips();
     // with no card database in this browser every search is a trip to
@@ -1428,7 +1466,7 @@ Sideboard
         el('div', { class: 'search-top' }, [
         el('div', { class: 'search-bar' }, [el('span', { class: 'search-ico', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>' }), input]),
         suggestBox,
-        opts.onlyCommanders ? null : chipRow,
+        chipRow,
         el('div', { class: 'row wrap search-filters' }, [
           el('label', { class: 'inline-check', for: 'cs-legal' }, [legalOnly, el('span', { text: `Legal in ${fmt.name || 'this format'}` })]),
           (opts.colors || []).length
@@ -1456,79 +1494,114 @@ Sideboard
     }
     if (opts.query) input.value = opts.query;
     if (!opts.noFocus) setTimeout(() => input.focus(), 50);
-    if (opts.onlyCommanders) {
-      status.textContent = 'Search for a legendary creature.';
-      // a starting point, so the modal is not an empty box
-      setTimeout(() => { input.value = input.value || 'is:commander'; run(); }, 0);
-    }
+    if (opts.onlyCommanders) status.textContent = 'Legendary creatures, and the cards that say they can be your commander.';
 
+    /* Results come in by colour (white, blue, black, red, green, several,
+       none) and by mana value within each, a page at a time: more are read
+       in as the list is scrolled to its end. */
+    const PAGE = 60;
     let token = 0;
     // the search in flight, cut off when a newer one starts
     let inFlight = null, suggestFlight = null;
+    let pager = null, shownN = 0, hiddenN = 0, lastQ = '', lastText = '', busy = 0;
+    const more = el('div', { class: 'search-more', 'aria-live': 'polite' });
     const run = U.debounce(async () => {
       const q = input.value.trim();
       suggestBox.innerHTML = '';
       const chips = [typeOn, costOn, colourQuery()].filter(Boolean).join(' ');
-      if (!q && !chips) { results.innerHTML = ''; status.textContent = 'Start typing, or pick a type, a cost or a colour.'; return; }
       const mine = ++token;
       if (inFlight) inFlight.abort();
-      const ctl = inFlight = new AbortController();
+      inFlight = null;
+      pager = null; shownN = 0; hiddenN = 0;
+      results.innerHTML = '';
+      more.textContent = '';
+      // the end of the list, in it (the list may scroll on its own): reaching it reads in more
+      results.appendChild(more);
+      // choosing a commander, the legendary creatures are there before anything is typed
+      if (!q && !chips && !opts.onlyCommanders) { status.textContent = 'Start typing, or pick a type, a cost or a colour.'; return; }
       status.textContent = 'Searching…';
       results.classList.add('loading');
       // a bare word is a name search; anything with a colon or comparison is a query
       const looksLikeQuery = /[:<>=]/.test(q);
-      let query = !q ? chips
-        : (looksLikeQuery ? q : `name:/${q.replace(/[/\\]/g, '')}/`) + (chips ? ' ' + chips : '');
+      let query = [q ? (looksLikeQuery ? q : `name:/${q.replace(/[/\\]/g, '')}/`) : '', chips].filter(Boolean).join(' ');
       if (legalOnly.checked && fmt.scryKey) query += ` legal:${fmt.scryKey}`;
       if (inColor.checked && (opts.colors || []).length) query += ` id<=${opts.colors.join('')}`;
       if (opts.onlyCommanders && !/is:commander/.test(query)) query += ' is:commander';
-      let cards = [];
-      // owned only: a wider net, since most of what comes back is then left out
-      try { cards = await MTG.scry.search(query, { max: ownedOnly.checked ? 400 : 60, unique: 'cards', order: 'edhrec', signal: ctl.signal }); }
-      catch (e) {
-        if (mine !== token) return;
-        if (q && !looksLikeQuery && !chips) {
-          try { const c = await MTG.scry.byName(q); if (c) cards = [c]; } catch (e2) {}
-        }
-      }
-      if (mine !== token) return;
-      results.classList.remove('loading');
-      draw(cards, q || chips);
+      lastQ = q || chips || 'that';
+      lastText = !looksLikeQuery && !chips ? q : '';
+      pager = MTG.scry.pager(query.trim(), { order: 'colormv', per: PAGE });
+      await readMore(mine);
     }, 200);
     legalOnly.addEventListener('change', () => run());
     inColor.addEventListener('change', () => run());
-    let last = null;
-    autoOnly.addEventListener('change', () => {
-      MTG.setSetting('searchAutoOnly', autoOnly.checked);
-      if (last) draw(last.cards, last.q); else run();
-    });
+    autoOnly.addEventListener('change', () => { MTG.setSetting('searchAutoOnly', autoOnly.checked); run(); });
     ownedOnly.addEventListener('change', () => { MTG.setSetting('searchOwnedOnly', ownedOnly.checked); run(); });
 
-    function draw(cards, q) {
-      // Alchemy's rebalanced versions of existing cards ("A-…") are left out: only its new cards are cards here
-      cards = cards.filter(c => !/^A-/.test(c.name || ''));
-      last = { cards, q };
-      results.innerHTML = '';
-      let hidden = 0;
-      if (autoOnly.checked) {
-        const keep = cards.filter(c => UI.autoInfo(c).auto);
-        hidden = cards.length - keep.length;
-        cards = keep;
-      }
-      if (ec && ownedOnly.checked) {
-        const keep = cards.filter(c => ec.owned(c.name) > 0);
-        hidden += cards.length - keep.length;
-        cards = keep.slice(0, 120);
-      }
-      const hiddenNote = hidden ? ` · ${hidden} hidden` : '';
-      if (!cards.length) {
+    /** The next page in, or more than one when what is left out leaves it thin. */
+    async function readMore(mine) {
+      if (!pager || pager.done || busy === mine) return;
+      busy = mine;
+      const ctl = inFlight = new AbortController();
+      more.textContent = shownN ? 'Loading more…' : '';
+      let got = 0;
+      try {
+        // owned only, or only what the game runs: read on a few pages to fill a screen
+        for (let pages = 0; got < PAGE && !pager.done && pages < 8; pages++) {
+          let cards;
+          try { cards = await pager.next(ctl.signal); }
+          catch (e) {
+            if (mine !== token) return;
+            // a name Scryfall's search could not read: the card of that name, if there is one
+            if (!shownN && !got && lastText) {
+              try { const c = await MTG.scry.byName(lastText); if (c) got += draw([c]); } catch (e2) {}
+            }
+            pager.done = true;
+            if (!shownN && !got) status.textContent = e && e.message ? e.message : 'The search did not work.';
+            break;
+          }
+          if (mine !== token) return;
+          got += draw(cards);
+        }
+      } finally { if (busy === mine) busy = 0; }
+      if (mine !== token) return;
+      results.classList.remove('loading');
+      say();
+      // still at the end of the list: on with the next
+      if (!pager.done) { seen.unobserve(more); seen.observe(more); }
+    }
+    const seen = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting) && pager && !pager.done && !busy) readMore(token);
+    }, { rootMargin: '300px' });
+    seen.observe(more);
+
+    /** What the list holds so far, said under the search. */
+    function say() {
+      const hiddenNote = hiddenN ? ` · ${hiddenN} hidden` : '';
+      if (!shownN) {
+        if (!pager || !pager.done) return;
         status.textContent = 'Nothing matched.' + hiddenNote;
-        results.appendChild(el('div', { class: 'empty-note', text: hidden
-          ? `Everything found for “${q}” needs a hand. Untick “Only cards the game runs fully” to see them.`
-          : `No cards found for “${q}”. Try a Scryfall query, like t:instant c:u mv<=2.` }));
+        results.insertBefore(el('div', { class: 'empty-note', text: hiddenN
+          ? `Everything found for “${lastQ}” is left out by the boxes ticked above.`
+          : `No cards found for “${lastQ}”. Try a Scryfall query, like t:instant c:u mv<=2.` }), more);
+        more.textContent = '';
         return;
       }
-      status.textContent = `${cards.length} card${cards.length === 1 ? '' : 's'}${hiddenNote}`;
+      const total = pager.total != null && !hiddenN ? pager.total : null;
+      status.textContent = pager.done
+        ? `${shownN} card${shownN === 1 ? '' : 's'}${hiddenNote}`
+        : `${shownN}${total ? ' of ' + total : '+'} cards${hiddenNote}`;
+      more.textContent = pager.done ? '' : 'Scroll for more';
+    }
+
+    /** Lays out a page of cards after the last; returns how many it showed. */
+    function draw(cards) {
+      // Alchemy's rebalanced versions of existing cards ("A-…") are left out: only its new cards are cards here
+      cards = cards.filter(c => !/^A-/.test(c.name || ''));
+      const before = cards.length;
+      if (autoOnly.checked) cards = cards.filter(c => UI.autoInfo(c).auto);
+      if (ec && ownedOnly.checked) cards = cards.filter(c => ec.owned(c.name) > 0);
+      hiddenN += before - cards.length;
+      shownN += cards.length;
       const have = opts.inDeck ? opts.inDeck() : new Map();
       for (const c of cards) {
         const n = have.get(c.id) || 0;
@@ -1553,8 +1626,9 @@ Sideboard
           if (!own) tile.classList.add('unowned');
         }
         tile.appendChild(el('div', { class: 'search-count', dataset: { id: c.id }, text: n ? n + ' in deck' : '' }));
-        results.appendChild(tile);
+        results.insertBefore(tile, more);
       }
+      return cards.length;
     }
     function redrawCounts() {
       const have = opts.inDeck ? opts.inDeck() : new Map();
@@ -1586,7 +1660,7 @@ Sideboard
       }
     });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
-    if (opts.query) run();
+    if (opts.query || opts.onlyCommanders) run();
     return Object.assign(m, { refresh: redrawCounts, focus: () => input.focus(), query: () => input.value });
   };
 

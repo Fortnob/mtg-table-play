@@ -34,6 +34,18 @@
    * window (the deck builder is one), and `opts.art` — a card — lays that
    * card's art behind the title, the way a screen in a card game is headed.
    */
+  /* A right-click that does nothing here does nothing at all: no browser
+     menu over the table. Text you can type in or have selected keeps its
+     menu, for copying and pasting. */
+  document.addEventListener('contextmenu', (e) => {
+    if (e.defaultPrevented) return;
+    const t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+    const sel = window.getSelection && window.getSelection();
+    if (sel && !sel.isCollapsed && String(sel).trim()) return;
+    e.preventDefault();
+  });
+
   UI.modal = function (opts) {
     const id = 'modal-title-' + (++modalSeq);
     const back = el('div', { class: 'modal-back' });

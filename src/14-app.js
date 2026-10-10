@@ -1624,8 +1624,10 @@
 
   /**
    * The starter decks, as a shelf of deck boxes under your own: ready to
-   * play, or to copy into your decks and change.
+   * play, or to copy into your decks and change. Folded away until opened,
+   * and left as it was while the page is open.
    */
+  let startersOpen = false;
   function starterShelf() {
     if (!MTG.starters || !MTG.starters.list.length) return null;
     // a row of boxes for each format, under its name when there is more than one
@@ -1639,12 +1641,19 @@
         onUse: (deck) => playWithDeck(deck),
       }))));
     }
-    return el('section', { class: 'starter-shelf', 'aria-labelledby': 'starterTitle' }, [
-      el('div', { class: 'cat-head' }, [
-        el('h2', { class: 'cat-title', id: 'starterTitle', text: 'Starter decks' }),
-        el('p', { class: 'cat-blurb', text: 'Ready to play, in Standard and Modern. The game runs every card in them by itself. Copy one into your decks to change it.' }),
+    const shelf = el('details', { class: 'starter-shelf' }, [
+      el('summary', { class: 'cat-head' }, [
+        el('div', { class: 'grow' }, [
+          el('h2', { class: 'cat-title', id: 'starterTitle', text: `Starter decks \u00b7 ${MTG.starters.list.length}` }),
+          el('p', { class: 'cat-blurb', text: 'Ready to play, in Standard and Modern. The game runs every card in them by itself. Copy one into your decks to change it.' }),
+        ]),
+        el('span', { class: 'rules-chev', 'aria-hidden': 'true' }),
       ]),
-    ].concat(rows));
+      el('div', { class: 'starter-rows' }, rows),
+    ]);
+    shelf.open = startersOpen;
+    shelf.addEventListener('toggle', () => { startersOpen = shelf.open; });
+    return shelf;
   }
 
   function timeAgo(ts) {

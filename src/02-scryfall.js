@@ -477,6 +477,73 @@
       }
     }
 
+    /**
+     * A search read a page at a time, for a list that scrolls on: each
+     * next() gives the next lot, and `done` says when there are no more.
+     * opts.order 'colormv': by colour (white, blue, black, red, green, then
+     * several colours, then none) and by mana value within each. From the
+     * card database when there is one; otherwise from Scryfall a colour at
+     * a time, each by mana value, so the order holds from page to page.
+     */
+    pager(query, opts) {
+      opts = Object.assign({ unique: 'cards' }, opts || {});
+      const per = opts.per || 60;
+      const self = this;
+      const colourWise = opts.order === 'colormv';
+      const GROUPS = colourWise ? ['c=w', 'c=u', 'c=b', 'c=r', 'c=g', 'c:m', 'c=c'] : [null];
+      let mode = null, local = null, ids = null, at = 0;
+      let gi = 0, url = null;
+      const buf = [], seen = new Set();
+      const p = {
+        done: false,
+        /** How many in all, when that is known (from the card database). */
+        total: null,
+        async next(signal) {
+          if (p.done) return [];
+          if (!mode) {
+            mode = 'live';
+            local = await self._localDb(opts);
+            if (local && local.answers(query, opts)) {
+              try {
+                ids = local.idx.query(query, Object.assign({}, opts, { order: opts.order }));
+                mode = 'local';
+                p.total = ids.length;
+                self.stats.local++;
+              } catch (e) { if (!(e instanceof local.Unsupported)) throw e; }
+            }
+          }
+          if (mode === 'local') {
+            const out = [];
+            while (out.length < per && at < ids.length) {
+              const c = local.idx.card(ids[at++]);
+              if (c && !isAnte(c)) out.push(c);
+            }
+            if (at >= ids.length) p.done = true;
+            return out;
+          }
+          while (buf.length < per && gi < GROUPS.length) {
+            if (!url) {
+              const g = GROUPS[gi];
+              const params = new URLSearchParams({ q: g ? `(${query}) ${g}` : query, unique: opts.unique,
+                order: colourWise ? 'cmc' : (opts.order || 'name') });
+              if (opts.dir) params.set('dir', opts.dir);
+              url = '/cards/search?' + params.toString();
+            }
+            const data = await self._fetch(url, { signal });
+            // nothing in this colour (Scryfall says so with a 404): on to the next
+            if (!data) { gi++; url = null; continue; }
+            for (const c of noAnte(await self._store(data.data || []))) if (!seen.has(c.id)) { seen.add(c.id); buf.push(c); }
+            if (data.has_more && data.next_page) url = data.next_page;
+            else { gi++; url = null; }
+          }
+          const out = buf.splice(0, per);
+          if (!buf.length && gi >= GROUPS.length) p.done = true;
+          return out;
+        },
+      };
+      return p;
+    }
+
     async _liveSearch(query, opts, max) {
       const params = new URLSearchParams({ q: query });
       if (opts.unique) params.set('unique', opts.unique);
