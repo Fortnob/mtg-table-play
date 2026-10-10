@@ -19,6 +19,7 @@ with `OFFLINE=1` to stay off the network.
 | `lessontest.js` | the tutorials, each played through the right way and the wrong ways |
 | `xmage/` | the XMage translator, below |
 | `socialtest.js` | friends, invites, trades and moving a save: devices against a pretend PeerJS broker, and their windows clicked through on a pretend DOM (`fakedom.js`) |
+| `tournamenttest.js` | friends tournaments: Swiss pairing and the standings on their own, whole tournaments between devices (hostile messages and apps closed part way included), the windows on the pretend DOM; and the draft that waits for every deck |
 
 ## xmage/: card scripts translated from XMage
 

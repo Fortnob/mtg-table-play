@@ -272,7 +272,7 @@ async function main() {
   /* ---------------- Swiss pairing, over many made-up tournaments ---------------- */
   let seed = 7;
   const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-  let rematches = 0, doubleByes = 0, badRounds = 0, missedByes = 0, runs = 0, droppedPaired = 0;
+  let rematches = 0, badRounds = 0, missedByes = 0, runs = 0, droppedPaired = 0;
   const firstPairs = new Set();
   for (let n = 3; n <= 16; n++) {
     for (let k = 0; k < 12; k++) {
@@ -296,7 +296,7 @@ async function main() {
         if (seated.some(c => t.players.find(p => p.code === c).st !== 'in')) droppedPaired++;
         const byePairs = round.pairs.filter(p => !p.b);
         if (byePairs.length !== active.length % 2) badRounds++;
-        for (const p of byePairs) { if (byes.has(p.a)) { doubleByes++; if (lacked) missedByes++; } byes.add(p.a); }
+        for (const p of byePairs) { if (byes.has(p.a) && lacked) missedByes++; byes.add(p.a); }
         if (r === 1 && n === 8) firstPairs.add(round.pairs.map(p => p.a + p.b).sort().join());
         for (const p of round.pairs) {
           if (!p.b) continue;
@@ -355,6 +355,8 @@ async function main() {
   check(T.readT(byeLie).rnds[0].pairs[1].res.a === 2, 'a bye is a 2-0 win whatever is said of it');
 
   await devicesRun();
+  await windowsRun();
+  await draftRun();
   console.log(`tournaments: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
 }
@@ -617,6 +619,221 @@ async function devicesRun() {
 
   for (const d of [ann, ben, cat, dan, eve, fay, ann2, ben2]) d.hub.stop();
 }
+/* ============================================================
+   The windows, on a pretend DOM, clicked through from three devices
+   ============================================================ */
+const UI_MODULES = ['00-core.js', '04-formats.js', '09-net.js', '10c-economy.js', '09c-friends.js', '09d-trade.js', '09e-move.js', '09f-tourney.js',
+  '10-ui-core.js', '10b-ui-avatar.js', '10g-ui-social.js', '10h-ui-trade.js', '10i-ui-tourney.js'];
+const UI_CODE = UI_MODULES.map(f => [f, SRC(f)]);
+function uiDevice(name, broker, roomBase) {
+  const { Document } = require('./fakedom');
+  const store = new Map();
+  const doc = new Document();
+  const timers = [];
+  const ctx = {
+    console, setTimeout, clearTimeout, clearInterval, TextEncoder, performance, URLSearchParams,
+    setInterval: (f, ms) => { const t = setInterval(f, ms); timers.push(t); return t; },
+    crypto: nodeCrypto.webcrypto, unescape, encodeURIComponent, document: doc, Blob: class {}, localStorage: memStorage(store),
+    location: { search: '', pathname: '/play/', origin: 'https://example.com', hash: '', href: 'https://example.com/play/' },
+    history: { state: null, replaceState() {} },
+    navigator: {}, innerWidth: 1440, innerHeight: 900, CSS: { escape: (s) => s },
+    addEventListener() {}, removeEventListener() {}, requestAnimationFrame: (f) => setTimeout(f, 0), cancelAnimationFrame: clearTimeout,
+  };
+  ctx.window = ctx;
+  ctx.Peer = broker.makePeerClass();
+  vm.createContext(ctx);
+  const run = (file, code) => vm.runInContext(code, ctx, { filename: file });
+  run('00-core.js', UI_CODE[0][1]);
+  const MTG = ctx.MTG;
+  MTG.sfx = () => {};
+  MTG.scry = { imageUrl: () => '', forgetArt() {}, byId: async () => null, byName: async () => null, collection: async () => ({ cards: [] }) };
+  for (const [file, code] of UI_CODE.slice(1)) run(file, code);
+  MTG.settings.playerName = name;
+  MTG.decks = { index: () => [], load: async () => null };
+  let rooms = 0;
+  const app = MTG.app = {
+    screen: 'home', myName: name, joined: [], hosted: [], formatId: 'modern',
+    joinRoom(code) { app.joined.push(code); },
+    async hostTableFor(o) { app.hosted.push(o); return roomBase + 'ABCDEFGH'[rooms++]; },
+    async exitToMenu() { app.screen = 'home'; },
+    leaveGame() { app.screen = 'home'; },
+  };
+  return {
+    name, ctx, MTG, doc, store, app, timers, T: MTG.tourney,
+    get code() { return MTG.friends.code; },
+    /** The button whose words are `text`, inside `root` (a selector or a node), the last one found. */
+    button(text, root) {
+      const host = typeof root === 'string' ? doc.querySelectorAll(root).pop() : (root || doc);
+      if (!host) return null;
+      const list = host.querySelectorAll('button').filter(b => b.textContent.trim() === text);
+      return list[list.length - 1] || null;
+    },
+    text: (sel) => { const n = doc.querySelectorAll(sel).pop(); return n ? n.textContent : ''; },
+    /** The note whose title matches `re`, if there is one. */
+    note: (re) => doc.querySelectorAll('.social-note').find(n => re.test(n.textContent)) || null,
+  };
+}
+async function windowsRun() {
+  const { makeEvent } = require('./fakedom');
+  const ub = new Broker();
+  // room codes never have I, O, 0 or 1 in them
+  const uma = uiDevice('Uma', ub, 'UMA'), vic = uiDevice('Vic', ub, 'VYC'), wes = uiDevice('Wes', ub, 'WES');
+  const all = [uma, vic, wes];
+  for (const d of all) d.MTG.bus.emit('app:ready');
+  await until(() => all.every(d => d.MTG.friends.status === 'online'), 2000, 'the three hubs reach the broker');
+  for (const d of [vic, wes]) {
+    uma.MTG.friends.add(d.code);
+    await until(() => (d.MTG.friends.entry(uma.code) || {}).state === 'in', 2000, `${d.name} gets Uma’s request`);
+    d.MTG.friends.accept(uma.code);
+    await until(() => uma.MTG.friends.isOnline(d.code) && d.MTG.friends.isOnline(uma.code), 2000, `Uma and ${d.name} are friends`);
+  }
+  for (const n of [...vic.doc.querySelectorAll('.social-note'), ...wes.doc.querySelectorAll('.social-note'), ...uma.doc.querySelectorAll('.social-note')]) n.remove();
+
+  // the Friends window has a Tournaments tab, empty to begin with
+  uma.MTG.ui.openFriends();
+  check(!!uma.button('Tournaments', '.friends-modal'), 'the Friends window has a Tournaments tab');
+  uma.button('Tournaments', '.friends-modal').click();
+  check(/No tournaments yet/.test(uma.text('.tn-lists')), 'which starts empty');
+  uma.button('New tournament', '.friends-modal').click();
+  check(!!uma.doc.querySelector('.tn-create'), 'New tournament opens the window to set one up');
+  check(uma.doc.querySelectorAll('.tn-create .tn-friend').length === 2, 'listing both friends to invite');
+  check(uma.button('Send invites', '.tn-create').disabled, 'Send invites waits for two friends to be picked');
+  uma.doc.querySelector('#tn-name').value = 'Uma’s Pioneer night';
+  const fmtSel = uma.doc.querySelector('#tn-fmt');
+  check(!fmtSel.querySelectorAll('option').some(o => /Draft|Sealed|Jumpstart/.test(o.textContent)), 'only constructed formats are offered');
+  fmtSel.value = 'pioneer';
+  fmtSel.dispatchEvent(makeEvent('change'));
+  uma.button('Best of 1', '.tn-create').click();
+  for (const box of uma.doc.querySelectorAll('.tn-create input[type=checkbox]')) { box.checked = true; box.dispatchEvent(makeEvent('change')); }
+  check(/3 players, you included/.test(uma.text('.tn-count')) && /2 for 3/.test(uma.text('.tn-hint')), 'it counts three players, and two rounds to suit them');
+  uma.button('Send invites', '.tn-create').click();
+  check(!uma.doc.querySelector('.tn-create') && !!uma.doc.querySelector('.tn-modal'), 'sending the invites opens the tournament’s window');
+  const tid = uma.T.list()[0].id;
+  check(uma.T.get(tid).fmt === 'pioneer' && uma.T.get(tid).bo === 1 && uma.T.get(tid).name === 'Uma’s Pioneer night', 'with the format, the match length and the name chosen');
+  check(uma.button('Start with 1', '.tn-modal').disabled, 'it cannot start with only Uma in');
+
+  // both are asked in a note, and join from the tournament's window
+  for (const d of [vic, wes]) {
+    await until(() => d.note(/invites you to a tournament/), 2000, `${d.name} gets a note inviting them`);
+    d.button('Open', d.note(/invites you to a tournament/)).click();
+    check(!!d.doc.querySelector('.tn-modal') && /invites you/.test(d.text('.tn-status')), `${d.name}’s window says who invites them`);
+    d.button('Join', '.tn-modal').click();
+  }
+  await until(() => uma.button('Start with 3', '.tn-modal') && !uma.button('Start with 3', '.tn-modal').disabled, 2000, 'Uma can start once both are in');
+  uma.button('Start with 3', '.tn-modal').click();
+  await until(() => all.every(d => d.T.get(tid) && d.T.get(tid).state === 'running' && d.T.get(tid).rev === uma.T.get(tid).rev), 2000, 'round one reaches everyone');
+  const dev = (code) => all.find(d => d.code === code);
+  const hostedBefore = new Map(all.map(d => [d, 0]));
+  const playRound = async (r, decide) => {
+    await until(() => all.every(d => d.T.get(tid).rev === uma.T.get(tid).rev && d.T.get(tid).rnds.length === r), 2000, `round ${r} reaches everyone`);
+    await sleep(60);
+    const t = uma.T.get(tid);
+    const pair = t.rnds[r - 1].pairs.find(p => p.b);
+    const bye = dev(t.rnds[r - 1].pairs.find(p => !p.b).a);
+    const host = dev(pair.a), guest = dev(pair.b);
+    await until(() => /a bye/i.test(bye.text('.tn-modal .tn-match') || (bye.note(/a bye/) || { textContent: '' }).textContent), 1000, `round ${r}: ${bye.name} is told of the bye`);
+    // the host opens the table: from the note, or from the window if it is open
+    let open = host.note(/you play/) && host.button('Open the table', host.note(/you play/));
+    if (!open) { host.MTG.ui.openTourney(tid); open = host.button('Open the table', '.tn-modal'); }
+    check(!!open, `round ${r}: ${host.name} has a button to open the table`);
+    if (!open) return;
+    const had = hostedBefore.get(host);
+    open.click();
+    await until(() => host.app.hosted.length > had, 2000, `round ${r}: the table opens`);
+    hostedBefore.set(host, had + 1);
+    const ho = host.app.hosted[had];
+    check(ho.formatId === 'pioneer' && ho.rules.bestOf === 1 && ho.mode.tourney.id === tid, 'in the tournament’s format and match length, marked as its match');
+    await until(() => guest.note(/table is open/), 2000, `round ${r}: ${guest.name} is told the table is open`);
+    const joinedBefore = guest.app.joined.length;
+    guest.button('Join', guest.note(/table is open/)).click();
+    await until(() => guest.app.joined.length > joinedBefore, 2000, `round ${r}: ${guest.name} joins`);
+    check(guest.app.joined[joinedBefore] === host.T.myMatch(host.T.get(tid)).room, 'the room the host opened');
+    await decide(host, guest, host.T.myMatch(host.T.get(tid)).room);
+  };
+  // round one: the table sees the game end on both sides, and the result goes in by itself
+  await playRound(1, async (host, guest, room) => {
+    for (const [d, won] of [[host, true], [guest, false]]) {
+      d.MTG.net.mode = 'client';
+      d.MTG.net.roomCode = room;
+      d.MTG.ui.tourneySeeView({ meId: 'me' }, { over: true, game: 'g1', players: [{ id: 'me' }, { id: 'you' }], winners: won ? ['me'] : ['you'] });
+      d.MTG.ui.tourneySeeView({ meId: 'me' }, { over: true, game: 'g1', players: [{ id: 'me' }, { id: 'you' }], winners: won ? ['me'] : ['you'] });
+      d.MTG.net.mode = 'offline';
+      d.MTG.net.roomCode = null;
+    }
+  });
+  await until(() => uma.T.get(tid).rnds.length === 2, 2000, 'the game seen to its end on both sides settles round one, and round two is paired');
+  check(uma.T.get(tid).rnds[0].pairs.find(p => p.b).by === 'agreed', 'by the two reports agreeing');
+  check(all.some(d => /won 1–0/.test(d.doc.textContent)), 'the winner is told the result went in');
+  // round two: both report by hand, and say different things; Uma settles it
+  await playRound(2, async (host, guest) => {
+    for (const d of [host, guest]) {
+      d.MTG.ui.openTourney(tid);
+      await until(() => d.button('Report the result', '.tn-modal'), 1000, `${d.name} has Report the result`);
+      d.button('Report the result', '.tn-modal').click();
+      check(!!d.doc.querySelector('.tn-pick'), `${d.name} is asked how it went`);
+      check(d.button('Send', '.tn-pick').disabled, 'Send waits for a result that can be');
+      d.button('I won 1–0', '.tn-pick').click();
+      d.button('Send', '.tn-pick').click();
+    }
+  });
+  await until(() => uma.T.disputed(uma.T.get(tid).rnds[1].pairs.find(p => p.b)), 2000, 'two reports that disagree put the match in dispute');
+  uma.MTG.ui.openTourney(tid);
+  await until(() => uma.doc.querySelector('.tn-modal .tn-pair.dispute'), 1000, 'Uma’s window shows the dispute');
+  uma.button('Set result', '.tn-modal .tn-pair.dispute').click();
+  const pick = uma.doc.querySelectorAll('.tn-pick').pop();
+  const winnerName = uma.T.nameOf(uma.T.get(tid), uma.T.get(tid).rnds[1].pairs.find(p => p.b).a);
+  uma.button(`${winnerName} wins 1–0`, pick).click();
+  uma.button('Set result', pick).click();
+  await until(() => all.every(d => d.T.get(tid).state === 'done' && d.T.get(tid).rev === uma.T.get(tid).rev), 2000, 'Uma’s result ends the tournament for everyone');
+  for (const d of all) {
+    d.MTG.ui.openTourney(tid);
+    await until(() => /Final standings/.test(d.text('.tn-modal')), 1000, `${d.name} sees the final standings`);
+  }
+  check(uma.doc.querySelectorAll('.tn-modal .tn-st-row').length === 4, 'a header and a row for each player');
+  check(/Winner/.test(uma.text('.tn-modal .tn-winner')), 'and the winner');
+  await until(() => all.every(d => d.note(/is over/)), 1000, 'everyone gets a note that it is over');
+  uma.MTG.ui.openFriends('tourneys');
+  await until(() => /Finished/.test(uma.text('.tn-lists')), 1000, 'the tab lists it as finished');
+  const words = (d) => d.doc.body.textContent;
+  check(all.every(d => !/\bnull\b|\bundefined\b|NaN|\[object/.test(words(d))), 'no "null", "undefined" or "NaN" anywhere on screen');
+  for (const d of all) { d.MTG.friends.stop(); d.timers.forEach(clearInterval); }
+}
+
+/* ============================================================
+   After an online draft: the game waits for every person's deck
+   ============================================================ */
+async function draftRun() {
+  const { Document } = require('./fakedom');
+  const ctx = { console, setTimeout, clearTimeout, setInterval, clearInterval, localStorage: memStorage(new Map()), document: new Document(),
+    navigator: {}, innerWidth: 1440, innerHeight: 900, addEventListener() {}, removeEventListener() {}, location: { search: '' } };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  for (const f of ['00-core.js', '07-draft.js']) vm.runInContext(SRC(f), ctx, { filename: f });
+  const D = ctx.MTG.draft;
+  const seats = [{ id: 'a', name: 'Ann', deck: null }, { id: 'b', name: 'Ben', deck: null }, { id: 'c', name: 'Cat', deck: { main: [] } }];
+  let heard = [];
+  const t0 = Date.now();
+  const p = D.awaitDecks(() => seats, { timeout: 2000, every: 10, onWait: (m) => heard.push(m.map(s => s.name).join()) });
+  setTimeout(() => { seats[0].deck = { main: [] }; }, 60);
+  setTimeout(() => { seats[1].deck = { main: [] }; }, 140);
+  const left = await p;
+  check(left.length === 0 && Date.now() - t0 < 1000, 'the game goes as soon as the last deck is in');
+  check(heard[0] === 'Ann,Ben' && heard.includes('Ben'), 'saying who is still building as that changes');
+  check((await D.awaitDecks(() => seats, { timeout: 1000 })).length === 0, 'with every deck in already, there is no wait');
+  const slow = [{ id: 'd', name: 'Dan', deck: null }, { id: 'e', name: 'Eve', deck: { main: [] } }];
+  const t1 = Date.now();
+  const late = await D.awaitDecks(() => slow, { timeout: 150, every: 10 });
+  check(late.length === 1 && late[0].name === 'Dan' && Date.now() - t1 >= 140, 'after the wait, whoever is still building is handed back, to be dealt a deck from their picks');
+  let room = [{ id: 'f', name: 'Fay', deck: null }, { id: 'g', name: 'Gus', deck: { main: [] } }];
+  setTimeout(() => { room = room.filter(s => s.id !== 'f'); }, 50);
+  check((await D.awaitDecks(() => room, { timeout: 2000, every: 10 })).length === 0, 'somebody who leaves is not waited for');
+  let go = false;
+  setTimeout(() => { go = true; }, 50);
+  const t2 = Date.now();
+  const now = await D.awaitDecks(() => slow, { timeout: 5000, every: 10, stop: () => go });
+  check(now.length === 1 && Date.now() - t2 < 1000, 'and the host can say start now');
+}
+
 const sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const FC_make = (d) => d.MTG.friendsCore.makeCode(8);
 
