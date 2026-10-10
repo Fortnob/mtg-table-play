@@ -2758,6 +2758,8 @@
     { re: /^[Aa]irbend (up to one )?(other )?(target [a-z ]+?)\.?$/,
       make: (m) => { const t = tgt(m[3]); return t ? { op: 'airbend', targets: [Object.assign(t, m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] } : null; } },
     { re: /^[Mm]anifest dread\.?$/, make: () => ({ op: 'manifestDread' }) },
+    // They Came from the Pipes: "manifest dread twice" — once, then again
+    { re: /^[Mm]anifest dread (twice|three times)\.?$/, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'manifestDread' })) }) },
     // Unwanted Remake, Fear of Impostors: "Its controller manifests dread." — the controller of what was destroyed or countered
     { re: /^Its controller manifests dread\.?$/i, make: () => ({ op: 'manifestDread', who: 'targetController' }) },
     { re: /^(?:Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,

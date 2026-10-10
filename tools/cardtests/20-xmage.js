@@ -20913,4 +20913,15 @@ module.exports = (test) => {
     t.zone(mine, 'library', 'yours stays');
     t.eq(T.life('A'), 21, 'a land: 1 life');
   });
+
+  test('They Came from the Pipes: manifest dread twice — two face-down creatures, and a card for each', (mk, t) => {
+    t.auto('They Came from the Pipes');
+    const T = mk({ library: ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island'] });
+    T.toMain('A');
+    const h0 = T.zone('A', 'hand').length;
+    T.put('A', 'They Came from the Pipes', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.faceDown).length, 2, 'two face-down 2/2s');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'and its other trigger draws a card for each');
+  });
 };
