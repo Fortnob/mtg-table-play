@@ -10336,6 +10336,8 @@
           return cond.cmp === 'atLeast' ? pw >= cond.n : pw <= cond.n;
         }
         case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
+        // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
+        case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
         case 'unspentMana': return !!me && this._unspentMana(me, '*') >= (cond.n || 1);
         // Elanor Gardner: "if you sacrificed a Food this turn" (sacrificedThisTurn)
@@ -11219,6 +11221,11 @@
       o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
       if (o.counters[kind] <= 0 && kind !== 'loyalty' && kind !== 'defense') delete o.counters[kind];
       // "Whenever one or more +1/+1 counters are put on this creature"
+      // Wakka, Devoted Guardian: "if a counter was put on it this turn" (counterPutOnSelf)
+      if (n > 0 && o.zone === 'battlefield') {
+        const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+        (h.countersPutOn = h.countersPutOn || {})[o.id] = true;
+      }
       if (n > 0 && o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n, putter });
       this.emit('sfx', n > 0 ? 'counter_add' : 'counter_remove', { player: o.controller, size: Math.abs(n) });
       this.emit('counters', { object: o, kind, n });
@@ -13635,7 +13642,9 @@
         case 'graveyardPick': {
           // Skullwinder: "That player returns a card from their graveyard to their hand" — the chosen opponent, from theirs (gyPickOwner)
           const gyOwner = e.who === 'triggerPlayer' ? (triggerPlayer() || firstPlayer() || me) : me;
-          const yard = (this.zones[gyOwner.id] || {}).graveyard || [];
+          // Soul of Windgrace: "from a graveyard … under your control" — any player's (putFromGraveyard)
+          const yard = e.anyGraveyard ? this.players.reduce((acc, q) => acc.concat((this.zones[q.id] || {}).graveyard || []), [])
+            : (this.zones[gyOwner.id] || {}).graveyard || [];
           // Rise of the Witch-king: "another permanent card" — not the one sacrificed this way (sacrificedThisWay)
           const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s => s.id) : [];
           const pool = yard.filter(c => c !== src && !sacIds.includes(c.id) && this._cardFitsWords(c, e.filter || 'card') &&
@@ -18834,6 +18843,8 @@
           this.bumpBoard();
           this.logEvent('rules', `${x.name} transforms.`);
           this.emit('sfx', 'transform');
+          // Huntmaster of the Fells, the werewolves: "whenever this creature transforms (into …)" (transformsInto)
+          if (x.zone === 'battlefield') this._fire('transforms', x.controller, { object: x, source: x });
           break;
         }
 

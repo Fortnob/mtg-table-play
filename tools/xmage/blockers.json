@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10539,
-  "gainedCards": 968,
-  "linesNeeded": 11213,
+  "needed": 10523,
+  "gainedCards": 969,
+  "linesNeeded": 11185,
   "linesGained": 1136,
   "gained": {
-   "all": 968,
+   "all": 969,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4040,
-   "lines": 3794,
+   "score": 4035,
+   "lines": 3789,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 159,
-   "lines": 147,
+   "score": 158,
+   "lines": 146,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -136,12 +136,12 @@
     "Blitzball",
     "Lux Artillery",
     "Rith, Liberated Primeval",
-    "Wakka, Devoted Guardian",
     "Tinybones, Trinket Thief",
     "March of the Canonized",
     "Gavel of the Righteous",
     "Eshki, Temur's Roar",
-    "Sab-Sunen, Luxa Embodied"
+    "Sab-Sunen, Luxa Embodied",
+    "Shelinda, Yevon Acolyte"
    ]
   },
   {
@@ -408,25 +408,6 @@
     "Kamahl's Will",
     "Outlaws' Merriment",
     "Sakashima's Will"
-   ]
-  },
-  {
-   "what": "TransformIntoSourceTriggeredAbility",
-   "score": 22,
-   "lines": 22,
-   "cards": [
-    "Ashling, Rekindled // Ashling, Rimebound",
-    "Thing in the Ice // Awoken Horror",
-    "Sidequest: Raise a Chocobo // Black Chocobo",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Huntmaster of the Fells // Ravager of the Fells",
-    "Havengul Laboratory // Havengul Mystery",
-    "Casal, Lurkwood Pathfinder // Casal, Pathbreaker Owlbear",
-    "Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha",
-    "Ultimecia, Time Sorceress // Ultimecia, Omnipotent",
-    "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
-    "Trystan, Callous Cultivator // Trystan, Penitent Culler",
-    "Voldaren Pariah // Abolisher of Bloodlines"
    ]
   },
   {
@@ -1739,19 +1720,19 @@
    ]
   },
   {
-   "what": "TransformsOrEntersTriggeredAbility",
+   "what": "TransformIntoSourceTriggeredAbility",
    "score": 9,
    "lines": 9,
    "cards": [
     "Ashling, Rekindled // Ashling, Rimebound",
-    "Brigid, Clachan's Heart // Brigid, Doun's Mind",
-    "Howlpack Piper // Wildsong Howler",
+    "Sidequest: Raise a Chocobo // Black Chocobo",
     "Huntmaster of the Fells // Ravager of the Fells",
-    "Grub, Storied Matriarch // Grub, Notorious Auntie",
+    "Havengul Laboratory // Havengul Mystery",
     "Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha",
-    "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
-    "Brutal Cathar // Moonrage Brute"
+    "Afflicted Deserter // Werewolf Ransacker",
+    "Concealing Curtains // Revealing Eye",
+    "Nezumi Freewheeler // Hideous Fleshwheeler"
    ]
   },
   {
@@ -2074,21 +2055,6 @@
     "Workshop Elders",
     "Tezzeret the Schemer",
     "Thran Forge"
-   ]
-  },
-  {
-   "what": "PermanentsEnterBattlefieldTappedEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Phyrexian Censor",
-    "Spider-Woman, Stunning Savior",
-    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
-    "Zhao, the Moon Slayer",
-    "Radiant Grace // Radiant Restraints",
-    "Orb of Dreams",
-    "Ashling's Prerogative",
-    "Due Respect"
    ]
   },
   {
@@ -2485,6 +2451,20 @@
     "Kazuul's Toll Collector",
     "Frodo, Determined Hero",
     "Shagrat, Loot Bearer"
+   ]
+  },
+  {
+   "what": "PermanentsEnterBattlefieldTappedEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Phyrexian Censor",
+    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
+    "Zhao, the Moon Slayer",
+    "Radiant Grace // Radiant Restraints",
+    "Orb of Dreams",
+    "Ashling's Prerogative",
+    "Due Respect"
    ]
   },
   {
@@ -6487,13 +6467,23 @@
     "Kadena, Slinking Sorcerer",
     "Dream Chisel"
    ]
+  },
+  {
+   "what": "EntersBattlefieldOrLeavesSourceTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Wernog, Rider's Chaplain",
+    "Raving Oni-Slave",
+    "Sundering Titan"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3376,
-   "cards": 3211,
+   "score": 3373,
+   "cards": 3208,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6505,8 +6495,8 @@
   },
   {
    "what": "custom ability",
-   "score": 513,
-   "cards": 474,
+   "score": 514,
+   "cards": 475,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6544,15 +6534,15 @@
   },
   {
    "what": "custom condition",
-   "score": 125,
-   "cards": 122,
+   "score": 124,
+   "cards": 121,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
     "Lux Artillery",
     "Rith, Liberated Primeval",
-    "Wakka, Devoted Guardian",
-    "March of the Canonized"
+    "March of the Canonized",
+    "Eshki, Temur's Roar"
    ]
   },
   {
@@ -6901,19 +6891,6 @@
    ]
   },
   {
-   "what": "TransformIntoSourceTriggeredAbility",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Thing in the Ice // Awoken Horror",
-    "Sidequest: Raise a Chocobo // Black Chocobo",
-    "Casal, Lurkwood Pathfinder // Casal, Pathbreaker Owlbear",
-    "Voldaren Pariah // Abolisher of Bloodlines",
-    "Afflicted Deserter // Werewolf Ransacker",
-    "Concealing Curtains // Revealing Eye"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 13,
    "cards": 13,
@@ -7209,6 +7186,19 @@
    ]
   },
   {
+   "what": "CompositeCost",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Mechtitan Core",
+    "Grimoire of the Dead",
+    "Killer Service",
+    "Dragon's Approach",
+    "Quest for Pure Flame",
+    "Ultimecia, Time Sorceress // Ultimecia, Omnipotent"
+   ]
+  },
+  {
    "what": "custom value",
    "score": 10,
    "cards": 10,
@@ -7310,19 +7300,6 @@
     "Adamaro, First to Desire",
     "Fungal Behemoth",
     "Monstrous War-Leech"
-   ]
-  },
-  {
-   "what": "CompositeCost",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Mechtitan Core",
-    "Grimoire of the Dead",
-    "Killer Service",
-    "Dragon's Approach",
-    "Quest for Pure Flame",
-    "Sokenzan Smelter"
    ]
   },
   {
@@ -7544,6 +7521,19 @@
     "Interceptor Mechan",
     "Plasma Bolt",
     "Insatiable Skittermaw"
+   ]
+  },
+  {
+   "what": "TransformIntoSourceTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Ashling, Rekindled // Ashling, Rimebound",
+    "Sidequest: Raise a Chocobo // Black Chocobo",
+    "Huntmaster of the Fells // Ravager of the Fells",
+    "Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha",
+    "Trystan, Callous Cultivator // Trystan, Penitent Culler",
+    "Afflicted Deserter // Werewolf Ransacker"
    ]
   },
   {
@@ -8179,6 +8169,19 @@
    ]
   },
   {
+   "what": "words: non-subtype",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Call to the Grave",
+    "Archdemon of Unx"
+   ]
+  },
+  {
    "what": "keyword EquipAbility",
    "score": 6,
    "cards": 6,
@@ -8695,18 +8698,6 @@
     "Vernal Equinox",
     "Cherished Hatchling",
     "Rootwater Shaman"
-   ]
-  },
-  {
-   "what": "words: non-subtype",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Ruthless Winnower",
-    "Call to the Grave",
-    "Archdemon of Unx"
    ]
   },
   {

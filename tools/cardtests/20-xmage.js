@@ -21910,4 +21910,52 @@ module.exports = (test) => {
     N2.toMain('A', 'declareBlockers');
     t.ok(!N2.bfOf('A').some(o => o.name === 'Norin the Wary'), 'Norin: exiled when a creature attacks');
   });
+
+  test("Commanders: Spider-Woman, Soul of Windgrace, Wakka, Ashling, Brigid, Ulrich, Grub, Trystan; Huntmaster of the Fells, Wreck and Rebuild, Extract from Darkness", (mk, t) => {
+    for (const n of ['Spider-Woman, Stunning Savior', 'Soul of Windgrace', 'Wakka, Devoted Guardian', 'Wreck and Rebuild', 'Extract from Darkness']) t.auto(n);
+    // the faces that say "Whenever this creature enters or transforms into CARDNAME"
+    for (const n of ['Ashling, Rekindled // Ashling, Rimebound', "Brigid, Clachan's Heart // Brigid, Doun's Mind", 'Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha',
+      'Grub, Storied Matriarch // Grub, Notorious Auntie', 'Trystan, Callous Cultivator // Trystan, Penitent Culler', 'Huntmaster of the Fells // Ravager of the Fells']) {
+      const T0 = mk();
+      const a = T0.put('A', n, 'library').analysis();
+      t.ok(a.abilities.some(ab => ab.event === 'transforms' && ab.auto), n + ': the transform trigger is read');
+    }
+    // Spider-Woman: artifacts and creatures your opponents control enter tapped
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Spider-Woman, Stunning Savior');
+    const theirs = T.put('B', 'Grizzly Bears', 'battlefield', { etb: true });
+    const mine = T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    t.ok(theirs.tapped && !mine.tapped, "Spider-Woman: the opponent's creature enters tapped, mine doesn't");
+    // Soul of Windgrace: a land card from any graveyard onto the battlefield tapped under your control
+    const W = mk({ library: Array(10).fill('Island') });
+    W.toMain('A');
+    const fo = W.grave('B', 'Forest');
+    W.answer('confirm', { yes: true });
+    W.put('A', 'Soul of Windgrace', 'battlefield', { etb: true }); W.resolve();
+    t.zone(fo, 'battlefield');
+    t.ok(fo.controller === 'A' && fo.tapped, "Soul of Windgrace: the opponent's Forest, tapped, under my control");
+    // Wakka: a +1/+1 counter on each other creature at the end step if a counter was put on Wakka this turn
+    const K = mk({ library: Array(10).fill('Island') });
+    K.toMain('A');
+    const wk = K.bf('A', 'Wakka, Devoted Guardian'), gb = K.bf('A', 'Grizzly Bears');
+    K.toMain('A', 'end'); K.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 0, 'Wakka: no counter on Wakka, nothing');
+    K.nextTurn('B'); K.nextTurn('A');
+    K.g.addCounters(wk, '+1/+1', 1);
+    K.toMain('A', 'end'); K.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 1, 'Wakka: a counter was put on Wakka, the Bears get one');
+    // Huntmaster of the Fells: Ravager transforms back at the upkeep after a player cast two spells, and a Wolf and 2 life come with it
+    const H = mk({ library: Array(20).fill('Island') });
+    H.toMain('A');
+    const hm = H.bf('A', 'Huntmaster of the Fells // Ravager of the Fells');
+    hm.face = 1; hm._chr = null; H.g.bumpBoard();
+    const wolves = () => H.bfOf('A').filter(o => o.isToken && /Wolf/.test(o.name)).length;
+    H.nextTurn('B');
+    H.mana('B', 'UU'); H.cast('B', H.hand('B', 'Opt')); H.resolve(); H.cast('B', H.hand('B', 'Opt')); H.resolve();
+    H.nextTurn('A');
+    t.eq(hm.face, 0, 'two spells last turn: Huntmaster again');
+    t.eq(wolves(), 1, 'Huntmaster: a Wolf as it transforms into Huntmaster');
+    t.eq(H.life('A'), 22, 'and 2 life');
+  });
 };

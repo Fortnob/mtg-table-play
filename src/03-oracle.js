@@ -5949,6 +5949,10 @@
     { re: /^(?:Then )?[Yy]ou may return (a|an|one) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: 1, upTo: true,
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield', tapped: !!m[5] }, m[3] ? { maxMv: +m[3] } : {})) },
+    // Soul of Windgrace: "put a land card from a graveyard onto the battlefield tapped under your control"; Wreck and Rebuild: "… from your graveyard …" (putFromGraveyard)
+    { re: /^(?:Then )?([Yy]ou may )?[Pp]ut (a|an|one) ([a-zA-Z ,-]+?) card from (your|a|any) graveyard onto the battlefield( tapped)?( under your control)?\.?$/,
+      make: (m) => (/\btarget\b|^or /i.test(m[3]) || (m[4] !== 'your' && !m[6]) ? null : Object.assign({ op: 'graveyardPick', n: 1, upTo: !!m[1],
+        filter: m[3].trim().toLowerCase(), to: 'battlefield', tapped: !!m[5] }, m[4] !== 'your' ? { anyGraveyard: true } : {})) },
     // Domri, Anarch of Bolas: "Creature spells you cast this turn can't be countered."
     { re: /^(Creature |Instant and sorcery |Noncreature )?spells you cast this turn can'?t be countered\.?$/i,
       make: (m) => ({ op: 'uncounterableTurn', words: (m[1] || '').trim().toLowerCase().replace(/ and /, ' or ') || null }) },
@@ -8925,7 +8929,7 @@
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
-      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells )/.test(m[2].trim()) ||
+      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -9534,6 +9538,8 @@
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
     [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
+    // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
+    [/^a counter was put on (?:CARDNAME|this creature|it) this turn$/i, () => ({ kind: 'counterPutOnSelf' })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
     [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
     // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
@@ -10490,6 +10496,8 @@
     { re: /^At end of combat on your turn, /i, event: 'endOfCombat', extra: { yourTurnOnly: true } },
     { re: /^At end of combat(?:,| )/i, event: 'endOfCombat' },
     { re: /^When(?:ever)? an? (?:artifact|enchantment) enters(?: the battlefield)?(?: under your control)?(?:,| )/i, event: 'permanentEtb' },
+    // Ashling, Rimebound, Brigid, Doun's Mind: "Whenever this creature transforms into CARDNAME" — the face it turns to (transformsInto)
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) transforms into (?:CARDNAME|this creature),? /i, event: 'transforms', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) transforms(?:,| )/i, event: 'transforms', self: true },
     // Sephiroth, One-Winged Angel: "As this creature transforms into CARDNAME, you get an emblem …" — read as it transforms
     { re: /^As (?:this creature|CARDNAME) transforms into (?:CARDNAME|this creature),? /i, event: 'transforms', self: true },
