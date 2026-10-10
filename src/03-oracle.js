@@ -3708,9 +3708,16 @@
     { re: /^If X is (\d+) or more, this spell can'?t be countered and the damage can'?t be prevented\.?$/i,
       make: (m) => ({ op: 'noop', bigX: +m[1] }) },
     // Mirelurk Queen and the Fallout cards: "target player gets two rad counters"
-    { re: /^(?:Target player|Each opponent|Target opponent|You) gets? (a|an|one|two|three|four|five|\d+|X) rad counters?\.?$/i,
-      make: (m) => ({ op: 'rad', n: num(m[1]), who: /^target/i.test(m[0]) ? 'target' : /^each opponent/i.test(m[0]) ? 'opponents' : 'you',
-        targets: /^target/i.test(m[0]) ? [{ type: 'player', opponent: /opponent/i.test(m[0]) }] : undefined }) },
+    /* (Megaton's Fate: "Each player gets four rad counters"; Glowing One, Infesting Radroach: "they get
+       four (that many) rad counters"; Acquired Mutation: "defending player gets two"; Tato Farmer: "you may get two") */
+    { re: /^(?:(Target player|Each opponent|Target opponent|You|Each player|They|That player|Defending player) gets?|Get) (a|an|one|two|three|four|five|\d+|X|that many) rad counters?\.?$/i,
+      make: (m) => {
+        const w = (m[1] || 'you').toLowerCase();
+        return { op: 'rad', n: /^that many$/i.test(m[2]) ? 'triggerAmount' : num(m[2]),
+          who: /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : w === 'each player' ? 'each'
+            : w === 'they' || w === 'that player' ? 'triggerPlayer' : w === 'defending player' ? 'defending' : 'you',
+          targets: /^target/.test(w) ? [{ type: 'player', opponent: /opponent/.test(w) }] : undefined };
+      } },
     // Meren, Otharri: "you get an experience counter"
     { re: /^(?:You )?get (a|an|one|two|three|\d+) experience counters?\.?$/i, make: (m) => ({ op: 'experience', n: num(m[1]) }) },
 
@@ -9646,6 +9653,13 @@
     { re: /^Whenever an opponent taps an? ([a-z ]+?) for mana,? /i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }), extra: { toOpponent: true } },
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    /* Mirelurk Queen, Screeching Scorchbeast: "Whenever one or more nonland cards are milled"; Zellix:
+       "Whenever a player mills one or more creature cards" — one trigger for the lot, "that many" of the
+       kind; Glowing One: "Whenever a player mills a nonland card" — once for each */
+    { re: /^Whenever (?:one or more (nonland |creature |land |artifact )?cards are milled|a player mills one or more (nonland |creature |land |artifact )?cards),? /i,
+      event: 'cardMilled', extraOf: (m) => Object.assign({ batch: true }, (m[1] || m[2]) ? { spellFilter: (m[1] || m[2]).trim().toLowerCase() } : {}) },
+    { re: /^Whenever a player mills an? (nonland |creature |land |artifact )?card,? /i,
+      event: 'cardMilled', extraOf: (m) => (m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     // Voracious Tome-Skimmer, Dream Spoilers: "Whenever you cast a spell during an opponent's turn"
     // (Gandalf of the Secret Fire: "an instant or sorcery spell from your hand during an opponent's turn")
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell( from your hand)? during an opponent'?s turn,? /i, event: 'youCastSpell',

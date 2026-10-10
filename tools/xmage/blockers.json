@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10805,
-  "gainedCards": 1022,
-  "linesNeeded": 11515,
+  "needed": 10799,
+  "gainedCards": 1023,
+  "linesNeeded": 11503,
   "linesGained": 1206,
   "gained": {
-   "all": 1022,
+   "all": 1023,
    "top2000": 42,
    "stdTop": 6
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 692,
-   "lines": 632,
+   "score": 691,
+   "lines": 631,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -1447,23 +1447,6 @@
     "Obosh, the Preypiercer",
     "Umori, the Collector",
     "Lutri, the Spellchaser"
-   ]
-  },
-  {
-   "what": "AddCountersPlayersEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "The Wise Mothman",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Screeching Scorchbeast",
-    "Tato Farmer",
-    "Zuko, Firebending Master",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink",
-    "Megaton's Fate",
-    "Phyrexian Vatmother"
    ]
   },
   {
@@ -3786,6 +3769,18 @@
    ]
   },
   {
+   "what": "AddCountersPlayersEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Zuko, Firebending Master",
+    "Contaminated Drink",
+    "Phyrexian Vatmother"
+   ]
+  },
+  {
    "what": "PlayFromTopOfLibraryEffect",
    "score": 5,
    "lines": 5,
@@ -5846,16 +5841,6 @@
    ]
   },
   {
-   "what": "OneOrMoreMilledTriggeredAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "The Wise Mothman",
-    "Mirelurk Queen",
-    "Screeching Scorchbeast"
-   ]
-  },
-  {
    "what": "TargetCardInGraveyardBattlefieldOrStack",
    "score": 3,
    "lines": 3,
@@ -5913,16 +5898,6 @@
     "Clockspinning",
     "Fury Charm",
     "Venser's Diffusion"
-   ]
-  },
-  {
-   "what": "that player",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Glowing One",
-    "Infesting Radroach",
-    "Acquired Mutation"
    ]
   },
   {
@@ -6542,6 +6517,26 @@
     "Rope",
     "Wolfrider's Saddle"
    ]
+  },
+  {
+   "what": "PutCardFromHandOnTopOfLibraryCost",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Penance",
+    "Hidden Retreat",
+    "Leashling"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAttachedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Octopus Umbra",
+    "Stasis Field",
+    "Coerced to Kill"
+   ]
   }
  ],
  "sole": [
@@ -6560,8 +6555,8 @@
   },
   {
    "what": "custom ability",
-   "score": 537,
-   "cards": 492,
+   "score": 536,
+   "cards": 491,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -7860,19 +7855,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Zuko, Firebending Master",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink",
-    "Megaton's Fate"
-   ]
-  },
-  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -8808,6 +8790,18 @@
     "Dream-Thief's Bandana",
     "Predators' Hour",
     "Petty Larceny"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Zuko, Firebending Master",
+    "Contaminated Drink",
+    "Phyrexian Vatmother"
    ]
   },
   {

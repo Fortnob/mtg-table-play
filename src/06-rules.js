@@ -957,11 +957,13 @@
           if (this.phase.id === 'precombat' && (this.activePlayer.rad || 0) > 0) {
             const ap = this.activePlayer, lib = this.zones[ap.id].library;
             let hits = 0, milled = 0;
+            const radMilled = [];
             for (let i = 0; i < ap.rad && lib.length; i++) {
               const c = lib[0];
-              this.moveObject(c, 'graveyard'); milled++;
+              this.moveObject(c, 'graveyard'); milled++; radMilled.push(c.id);
               if (!(c.analysis() || {}).isLand) hits++;
             }
+            this._noteMilled(ap.id, radMilled);
             if (hits) { this.changeLife(ap, -hits); ap.rad = Math.max(0, ap.rad - hits); }
             this.logEvent('rules', `${ap.name}'s rad counters: ${milled} milled, ${hits} life lost (${ap.rad} rad left).`);
           }
@@ -11492,7 +11494,8 @@
         if (((ab.objFilter && ab.objFilter.batch) || ab.batch)) {
           const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i);
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
-          if (had && event === 'cardToGraveyardAny') had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
+          // (Screeching Scorchbeast: "create that many" — each nonland card milled)
+          if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
           if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
           if (had) return;
@@ -13779,8 +13782,10 @@
             const evM = cnt1 > 0 ? this._replace({ kind: 'mill', n: cnt1, controller: p.id }) : { n: cnt1 };
             if (evM.cancelled) continue;
             const many = evM.n;
+            const before = this._lastMilled.length;
             for (let i = 0; i < many; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); this._lastMilled.push(o.id); }
             this.logEvent('mill', `${p.name} mills ${many}.`);
+            this._noteMilled(p.id, this._lastMilled.slice(before));
           }
           break;
         }
@@ -19887,7 +19892,10 @@
         }
         // rad counters on a player
         case 'rad': {
-          const who = e.who === 'target' ? [firstPlayer()].filter(Boolean) : e.who === 'opponents' ? this.opponentsOf(ctx.controller) : [me];
+          const who = e.who === 'target' ? [firstPlayer()].filter(Boolean) : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            // Megaton's Fate: each player; Glowing One: the player it hit; Acquired Mutation: the player it attacks
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
+            : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : [me];
           for (const p of who) { p.rad = (p.rad || 0) + Math.max(0, n(e.n)); this.logEvent('counters', `${p.name} gets ${n(e.n)} rad counter${n(e.n) === 1 ? '' : 's'} (${p.rad}).`); }
           break;
         }
@@ -21636,6 +21644,15 @@
     /* Peregrin Took, Chatterfang, Xorn: tokens that come along with the
        ones being made. They are part of the same event, so nothing doubles
        them twice. */
+    /* Glowing One, Zellix, Mirelurk Queen: "whenever … cards are milled" — the cards one player just
+       milled, each one an event; "one or more" triggers count them as one batch */
+    _noteMilled(pid, ids) {
+      for (const id of ids || []) {
+        const c = this.obj(id);
+        if (c) this._fire('cardMilled', null, { object: c, playerId: pid, amount: 1 });
+      }
+    }
+
     /* Parallel Lives, Doubling Season, Chatterfang: a token that's a copy (Kiki-Jiki, myriad,
        offspring, squad, encore) is a token created like any other, so what changes token-making
        applies to it too (CR 111.1). How many to make; 0 when none are. */
