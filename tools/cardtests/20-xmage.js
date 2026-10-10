@@ -21085,4 +21085,23 @@ module.exports = (test) => {
     t.zone(e1, 'hand', 'a Horror died: back to hand');
     t.zone(e2, 'graveyard', 'a Bear died: it stays in the graveyard');
   });
+
+  test("Nissa's Revelation, Interpret the Signs, Sifter Wurm: \"its power\", \"that card's mana value\" is the card revealed from the top", (mk, t) => {
+    for (const n of ["Nissa's Revelation", 'Interpret the Signs', 'Sifter Wurm']) t.auto(n);
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const top = (name) => { const c = T.put('A', name, 'library'); const lib = T.zone('A', 'library'); lib.splice(lib.indexOf(c), 1); lib.unshift(c); return c; };
+    top('Craw Wurm');
+    let h = T.zone('A', 'hand').length;
+    T.mana('A', '5GG'); T.cast('A', T.hand('A', "Nissa's Revelation")); T.resolve();
+    t.eq(T.zone('A', 'hand').length - h, 6, 'a 6/4 on top: six cards');
+    t.eq(T.life('A'), 24, 'and 4 life');
+    top('Hill Giant');
+    h = T.zone('A', 'hand').length;
+    T.mana('A', '5U'); T.cast('A', T.hand('A', 'Interpret the Signs')); T.resolve();
+    t.eq(T.zone('A', 'hand').length - h, 4, 'mana value 4 on top: four cards');
+    top('Grizzly Bears');
+    T.put('A', 'Sifter Wurm', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.life('A'), 26, 'Sifter Wurm: life equal to the mana value 2');
+  });
 };

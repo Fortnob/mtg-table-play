@@ -17337,6 +17337,9 @@
           const shown = from.slice(0, n(e.n)).map(o => o.name);
           // "Reveal the top card of your library. If it's a creature card, …"
           if (from.length) this._lastRevealed = from[0].id;
+          /* Nissa's Revelation, Interpret the Signs, Sifter Wurm: "equal to its power", "that card's mana
+             value" — the one card revealed from the top (revealNotes) */
+          if (from.length && e.from === 'library' && n(e.n) === 1) this._noteLastAffected([{ kind: 'object', id: from[0].id }]);
           this.logEvent('reveal', `${me.name} reveals ${shown.join(', ') || 'nothing'}.`);
           break;
         }
