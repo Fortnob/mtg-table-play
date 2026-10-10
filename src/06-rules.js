@@ -7250,7 +7250,9 @@
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
           mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary,
           // (Falkenrath Aristocrat: "if the sacrificed creature was a Human" — sacrificedSubtype)
-          subtypes: ((x.analysis() || {}).subtypes || []).slice() });
+          subtypes: ((x.analysis() || {}).subtypes || []).slice(),
+          // (a changeling is every creature type, as it was sacrificed: CR 702.73a, 608.2h)
+          everyCreatureType: !!(((x.analysis() || {}).keywordSet || new Set()).has('changeling') || this.hasKw(x, 'changeling')) });
         this.moveObject(x, 'graveyard');
       }
       if (!snaps.length) return;
@@ -9825,7 +9827,9 @@
           const noun = cond.noun === 'permanent' ? null : cond.noun;
           // (Toph, Hardheaded Teacher: "if that spell is a Lesson" — the spell the trigger is about, never a target)
           if (noun === 'spell') ids.splice(0, ids.length, ...((ctx && ctx.triggerData && ctx.triggerData.objectId) ? [ctx.triggerData.objectId] : []));
-          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
+          // "that creature was a Horror": one that has left is judged as it last was (CR 608.2h)
+          const asWas = (x) => (cond.was && x && x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x);
+          const it = ids.map(id => asWas(this.obj(id))).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
           return !!it && this._cardFitsWords(it, cond.words);
         }
         case 'triggerObjNotCastFromHand': {
@@ -9904,7 +9908,10 @@
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
-          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what);
+          if (cond.what === 'legendary') return !!sn.legendary;
+          if ((sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what)) return true;
+          // a changeling sacrificed was a Human, a Goblin, every creature type (CR 702.73a)
+          return !!sn.everyCreatureType && CREATURE_TYPES_LOWER.has(cond.what);
         }
         case 'manaSpentOverPower': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
@@ -23139,7 +23146,9 @@
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
         // (Valley Questcaller: "Mice" are Mouse creatures)
         const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
-        return types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line);
+        if (types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\b' + bare + 's?\b').test(line)) return true;
+        // a changeling is every creature type, wherever it is (CR 702.73a): "a Goblin card", "if it was a Human"
+        return !!(a.keywordSet && a.keywordSet.has('changeling')) && [w, bare, alt].some(x => CREATURE_TYPES_LOWER.has(x));
       };
       // (Fallaji Archaeologist: "a noncreature, nonland card" — with no "or" in it, the commas join words, every one of which must fit)
       const ph0 = String(phrase || '').toLowerCase();
@@ -24245,6 +24254,7 @@
     'Varmint', 'Vedalken', 'Villain', 'Volver', 'Vorta', 'Vulcan', 'Wall', 'Walrus', 'Warlock', 'Warrior', 'Weasel', 'Weird',
     'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Xindi', 'Yeti', 'Zombie', 'Zubera',
   ];
+  const CREATURE_TYPES_LOWER = new Set(CREATURE_TYPES.map(t => t.toLowerCase()));
 
   /* Jilt, Mind Spiral, Return to Dust: a target inside "if this spell was kicked", "if the gift was
      promised" or "if you cast this spell during your main phase" is one of the spell's targets only

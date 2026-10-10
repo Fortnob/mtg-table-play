@@ -9463,7 +9463,8 @@
         const state = /^(?:attacking|blocking|tapped|untapped|equipped|enchanted|goaded|modified|face-down)$/;
         const ok = w.split(/\s+/).every(x => (SUBJ_WORDS.has(x.toLowerCase()) && !(m[2] === 'was' && state.test(x))) ||
           (m[2] === 'is' && state.test(x)) || /^[A-Z][a-z]+$/.test(x));
-        return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? { kind: 'thatObjIs', noun: m[1], words: w } : null;
+        // ("was": as it last was, if it has left — thatObjIs's was)
+        return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? Object.assign({ kind: 'thatObjIs', noun: m[1], words: w }, m[2] === 'was' ? { was: true } : {}) : null;
       }],
     // Star Charter: "you gained or lost life this turn"
     [/^you gained or lost life this turn$/i, () => ({ kind: 'lifeChangedThisTurn' })],

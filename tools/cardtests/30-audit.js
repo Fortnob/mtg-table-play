@@ -6309,4 +6309,28 @@ module.exports = (test) => {
     t.eq(s.attachedTo, b.id); t.ok(s.bestowed, 'bestowed, as it entered');
     t.eq(T.g.powerOf(b), 6, '+4/+2'); t.eq((b.attachments || []).length, 1);
   });
+
+  test('Audit: "the sacrificed creature was a Human", "that creature was a Horror": as it last was, a changeling every type (Falkenrath Aristocrat, Endless Evil)', (mk, t) => {
+    t.auto('Falkenrath Aristocrat');   // (Endless Evil's upkeep copy is left to a person; its dies trigger is not)
+    for (const [n, human, made] of [['Woodland Changeling', true, false], ['Grizzly Bears', false, false], ['Grizzly Bears', true, true]]) {
+      const T = mk(); T.toMain('A');
+      const fa = T.bf('A', 'Falkenrath Aristocrat'), x = T.bf('A', n);
+      // (made a Human by an effect, as it was sacrificed)
+      if (made) { x.effects.push({ addSubtypes: ['Human'], until: 'eot', ts: 99 }); x._chr = null; }
+      T.answer('sacrifice', () => ({ cardIds: [x.id] }));
+      T.activate('A', fa, 0); T.settle(); T.resolve();
+      t.zone(x, 'graveyard');
+      t.eq(fa.counters['+1/+1'] || 0, human ? 1 : 0, `${n}${made ? ' made a Human' : ''}: ${human ? 'a Human' : 'no Human'}`);
+    }
+    for (const [n, horror] of [['Woodland Changeling', true], ['Grizzly Bears', false]]) {
+      const T = mk(); T.toMain('A');
+      const c = T.bf('A', n);
+      const ee = T.hand('A', 'Endless Evil');
+      T.mana('A', 'U2'); T.cast('A', ee, { targets: [c.id] });
+      T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+      T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [c.id] }); T.settle(); T.resolve();
+      t.zone(c, 'graveyard');
+      t.zone(ee, horror ? 'hand' : 'graveyard', horror ? 'a changeling was a Horror: back to hand' : 'not a Horror: stays gone');
+    }
+  });
 };
