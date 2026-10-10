@@ -4909,4 +4909,29 @@ module.exports = (test) => {
     T.mana('A', 'RG');
     t.no(T.g.castSpell('A', T.hand('A', 'Hill Giant').id, { auto: true }), 'the third: full price');
   });
+
+  test("Audit: \"a number of +1/+1 counters equal to …\": Lattice Library's Fractal by study counters, Reverent Hunter counting itself, Vincent Valentine by the dead creature's last power", (mk, t) => {
+    t.auto('Lattice Library'); t.auto('Reverent Hunter'); t.auto('Vincent Valentine // Galian Beast');
+    let T = mk();
+    T.toMain('A');
+    const ll = T.hand('A', 'Lattice Library');
+    T.mana('A', 'GG3');
+    t.ok(T.g.castSpell('A', ll.id, { auto: true, x: 3 })); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.eq(ll.counters.study, 3);
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Fractal/.test(o.name)).map(o => o.counters['+1/+1']).join(','), '3');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Llanowar Elves');
+    const rh = T.hand('A', 'Reverent Hunter');
+    T.mana('A', 'G2');
+    T.cast('A', rh); T.settle(); T.resolve(); T.settle();
+    t.eq(rh.counters['+1/+1'], 2, 'the Elves and the Hunter itself');
+    T = mk();
+    T.toMain('A');
+    const vv = T.bf('A', 'Vincent Valentine // Galian Beast');
+    const g = T.bf('B', 'Hill Giant');
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [g.id] });
+    T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [g.id] }); T.settle(); T.resolve(); T.settle();
+    t.eq(vv.counters['+1/+1'], 6, 'the Giant died a 6/6');
+  });
 };
