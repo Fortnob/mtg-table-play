@@ -20312,6 +20312,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
     // paid for on the way down
     [/^(?:CARDNAME|this spell|it) was kicked$/i, () => ({ kind: 'kicked', n: 1 })],
+    // the Battlemages: "if it was kicked with its {W} kicker" — that one of its "and/or" kicker costs
+    [/^(?:CARDNAME|this spell|it) was kicked with its ((?:\{[^}]+\})+) kicker$/i, (m) => ({ kind: 'kickedWith', cost: m[1] })],
     // an optional additional cost, paid, is counted as the spell's kicker
     [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
     // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost
@@ -30819,18 +30821,21 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this.moveObject(o, 'exile');
       let made = 0;
       for (const foe of this.opponentsOf(playerId)) {
-        const copy = this._register(new GObj(card, playerId, 'battlefield'));
-        copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
-        copy.entered = this.turn; copy.summoningSick = false;
-        copy.effects.push({ keywords: ['Haste'], until: null });
-        copy.mustAttackPlayer = foe.id;
-        copy.sacAtEndOfTurn = this.turn;
-        copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-        this.battlefield.push(copy);
-        this.bumpBoard();
-        this._onEnter(copy);
-        this._fireEnters(copy);
-        made++;
+        for (let k = this._copyTokenCount(playerId, 1, card.type_line); k > 0; k--) {
+          const copy = this._register(new GObj(card, playerId, 'battlefield'));
+          copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
+          copy.entered = this.turn; copy.summoningSick = false;
+          copy.effects.push({ keywords: ['Haste'], until: null });
+          copy.mustAttackPlayer = foe.id;
+          copy.sacAtEndOfTurn = this.turn;
+          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+          this.battlefield.push(copy);
+          this.bumpBoard();
+          this._onEnter(copy);
+          this._fireEnters(copy);
+          this._fire('youCreateToken', playerId, { object: copy });
+          made++;
+        }
       }
       this.logEvent('token', `${this.player(playerId).name} encores ${card.name}: ${made} cop${made === 1 ? 'y' : 'ies'}.`);
       this.emit('sfx', 'play_card');
@@ -31194,7 +31199,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword || !ab.arg) continue;
         const k = ab.keyword.toLowerCase();
-        if (k === 'kicker') out.push({ kind: 'kicker', cost: ab.arg, label: 'Kicker ' + ab.arg });
+        /* Archangel of Wrath: "Kicker {B} and/or {R}" — either cost, or both (costs: each one
+           on its own, paid by the cast's kickPaid) */
+        if (k === 'kicker') {
+          const parts = String(ab.arg).split(/\s+and\/or\s+/i);
+          out.push(Object.assign({ kind: 'kicker', cost: ab.arg, label: 'Kicker ' + ab.arg }, parts.length > 1 ? { costs: parts } : {}));
+        }
         else if (k === 'multikicker') out.push({ kind: 'multikicker', cost: ab.arg, label: 'Multikicker ' + ab.arg });
         else if (k === 'buyback') out.push({ kind: 'buyback', cost: ab.arg, label: 'Buyback ' + ab.arg });
         else if (k === 'entwine') out.push({ kind: 'entwine', cost: ab.arg, label: 'Entwine ' + ab.arg });
@@ -31720,14 +31730,23 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
          says how many times to kick, or whether to buy it back, and the
          cost it pays grows to match. */
       const extras = this.extraCostsFor(objId);
-      const chose = { kicked: 0, boughtBack: false, entwined: false,
+      const chose = { kicked: 0, kickPaid: null, boughtBack: false, entwined: false,
         offspring: false, squad: 0, casualty: null, spree: null };
       // an optional additional cost, paid: "if this spell's additional cost was paid" reads it as kicked
       const optAdd = a && a.additionalCost && a.additionalCost.optional && !a.additionalCost.choice;
       if (optAdd && opts.payAdditional && !opts.skipAdditional) chose.kicked = Math.max(chose.kicked, 1);
       for (const ex of extras) {
-        // (Stronghold Arena: "Kicker {G} and/or {W}" — kicked, both are paid, and that is kicked twice)
-        if (ex.kind === 'kicker' && opts.kick) { cost += ex.cost; chose.kicked = / and\/or /.test(ex.cost) ? 2 : 1; }
+        /* Archangel of Wrath, Stronghold Arena: "Kicker {B} and/or {R}" — kickPaid says which
+           were paid ([0], [1] or [0, 1]), each a kick; without it, kicking pays them all */
+        if (ex.kind === 'kicker' && ex.costs && Array.isArray(opts.kickPaid)) {
+          const paid = [...new Set(opts.kickPaid.map(Number))].filter(i => Number.isInteger(i) && i >= 0 && i < ex.costs.length).sort((x, y) => x - y);
+          for (const i of paid) cost += ex.costs[i];
+          chose.kicked = paid.length; chose.kickPaid = paid.length ? paid : null;
+        } else if (ex.kind === 'kicker' && opts.kick) {
+          cost += ex.costs ? ex.costs.join('') : ex.cost;
+          chose.kicked = ex.costs ? ex.costs.length : 1;
+          if (ex.costs) chose.kickPaid = ex.costs.map((c, i) => i);
+        }
         else if (ex.kind === 'multikicker' && opts.kick) {
           const times = Math.max(1, Math.min(20, parseInt(opts.kick, 10) || 1));
           cost += ex.cost.repeat(times); chose.kicked = times;
@@ -31930,6 +31949,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       o.wasKicked = chose.kicked > 0;
       o.airbent = false;
       o.kickedTimes = chose.kicked || 0;
+      // (the Battlemages: which of an "and/or" kicker's costs were paid)
+      o.kickPaid = chose.kickPaid || null;
       // who was promised the gift, if anybody: the permanent remembers it as it enters
       o.giftTo = (a && a.gift && opts.gift) || null;
       // Emerge: the creature goes as the spell is cast
@@ -31992,7 +32013,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             targets: [{ type: 'land', filter: 'land you control', zone: 'battlefield', controller: 'you' }] }] : []) : null,
         auto: a ? a.autoCoverage >= 0.999 : false,
         fromZone,
-        kicked: chose.kicked, boughtBack: chose.boughtBack, entwined: chose.entwined,
+        kicked: chose.kicked, kickPaid: chose.kickPaid || null, boughtBack: chose.boughtBack, entwined: chose.entwined,
         spreeModes: chose.spree, gift: o.giftTo, bargained, castInMain: !!this.isMain && this.activePlayer && this.activePlayer.id === playerId,
         via: via ? via.via : null, viaAfter: via ? via.after : null,
       };
@@ -32733,7 +32754,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const copies = (o._offspring ? 1 : 0) + (o._squad || 0);
         const small = !!o._offspring && !o._squad;
         o._offspring = false; o._squad = 0;
-        for (let i = 0; i < copies; i++) {
+        const madeCopies = this._copyTokenCount(o.controller, copies, o.card.type_line);
+        for (let i = 0; i < madeCopies; i++) {
           const copy = this._register(new GObj(o.card, o.controller, 'battlefield'));
           copy.isToken = true; copy.zone = 'battlefield';
           copy.entered = this.turn; copy.summoningSick = true; copy.face = o.face || 0;
@@ -32742,6 +32764,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           this.battlefield.push(copy);
           this.bumpBoard();
           this._fireEnters(copy);
+          this._fire('youCreateToken', o.controller, { object: copy });
         }
         this.logEvent('token', `${o.name} brings ${copies} copy${copies === 1 ? '' : 'ies'} along.`);
       }
@@ -36493,6 +36516,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const kickedSrc = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
           const times = (ctx && ctx.kicked) || (kickedSrc && kickedSrc.kickedTimes) || 0;
           return cond.cmp === 'atMost' ? times <= (cond.n || 0) : times >= (cond.n == null ? 1 : cond.n);
+        }
+        /* the Battlemages: "if it was kicked with its {W} kicker" — that cost among the ones
+           paid, asked of the spell or of the permanent it became (as "kicked" is) */
+        case 'kickedWith': {
+          const ks = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
+          const paid = (ctx && ctx.kicked != null ? ctx.kickPaid : ks && ks.kickPaid) || [];
+          const holder = ks || (ctx && ctx.obj) || src;
+          const kab = holder && ((holder.analysis() || {}).abilities || []).find(x => x.kind === 'castModifier' && /^kicker$/i.test(x.keyword || ''));
+          const parts = kab ? String(kab.arg).split(/\s+and\/or\s+/i) : [];
+          const at = parts.findIndex(c => c.replace(/\s+/g, '') === String(cond.cost).replace(/\s+/g, ''));
+          return at >= 0 && paid.includes(at);
         }
         case 'boughtBack': return !!(ctx && ctx.boughtBack);
         case 'surgePaid': return !!(ctx && ((ctx.obj && ctx.obj._surged) || ctx.via === 'surge'));
@@ -42461,7 +42495,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             const line = t + ' ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
           }
-          for (let i = 0; i < cnt; i++) {
+          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
+          for (let i = 0; i < made; i++) {
             const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
             copy.isToken = true;
             copy.controller = ctx.controller;
@@ -42481,7 +42516,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             this._lastCopy = copy;
             (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
             // Orthion: "They gain haste." — every copy made
-            if (cnt > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
+            if (made > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
+            this._fire('youCreateToken', ctx.controller, { object: copy });
           }
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
@@ -43818,13 +43854,30 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             for (const id of (this._madeThisResolution || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
+          /* Lagomos, War Effort, Manaform Hellkite: "create a … token. Sacrifice it (exile that token)
+             at the beginning of the next end step" — "it" is the token just made, each of them if
+             Parallel Lives made more */
+          if (e.subject === 'lastTarget' && !this._lastCopy && !firstObj() && this._lastAffected &&
+              (this._lastTokenGroup || []).includes(this._lastAffected.id)) {
+            for (const id of this._lastTokenGroup.slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
+          /* Kiki-Jiki with Parallel Lives: "Sacrifice it" — each of the copies that one copy became */
+          if (e.subject === 'lastTarget' && this._lastCopy && (this._lastGroup || []).length > 1 && this._lastGroup.includes(this._lastCopy.id)) {
+            for (const id of this._lastGroup.slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
           // Ghostway: each card this exiled
           if (e.subject === 'exiledNow') {
             for (const id of (this._exiledNow || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
           // (Daretti's emblem: "that card" is the one the trigger is about, when nothing was aimed at)
-          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id ||
+          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' || e.subject === 'lastPut' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id ||
+              /* Sneak Attack, Through the Breach, Purphoros: "sacrifice it" — the creature just put onto
+                 the battlefield; Nezahal, Necropotence: "return it", "put that card into your hand" — the
+                 card just exiled */
+              this._lastPut || this._lastExiled ||
               (ctx.triggerData || {}).objectId)
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
           this.scheduleDelayed({
@@ -44489,7 +44542,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
 
         /* ===== ops the whole-pool scan asked for ===== */
-        case 'exileSelf': if (src) this.moveObject(src, 'exile'); break;
+        // (Nezahal: "Exile Nezahal. Return it …" — what "it" is)
+        case 'exileSelf': if (src) { this.moveObject(src, 'exile'); this._lastExiled = src.id; } break;
         /* "Target player reveals their hand": everybody sees it, so the log
            names the cards. "Look at target player's hand" (Gitaxian Probe):
            only the one looking sees them, shown to that player alone. */
@@ -45974,17 +46028,20 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const defPid = at ? at.controller : src.attacking;
           for (const p of this.opponentsOf(ctx.controller)) {
             if (p.hasLost || p.id === defPid) continue;
-            const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
-            Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
-              summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
-            copy.ts = this._stampNew();
-            this.battlefield.push(copy);
-            copy.attacking = p.id;
-            this.combat.attackers.push(copy.id);
-            this.bumpBoard();
-            this._onEnter(copy);
-            this._fireEnters(copy);
-            this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+            for (let k = this._copyTokenCount(ctx.controller, 1, src.card.type_line); k > 0; k--) {
+              const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
+              Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
+                summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
+              copy.ts = this._stampNew();
+              this.battlefield.push(copy);
+              copy.attacking = p.id;
+              this.combat.attackers.push(copy.id);
+              this.bumpBoard();
+              this._onEnter(copy);
+              this._fireEnters(copy);
+              this._fire('youCreateToken', ctx.controller, { object: copy });
+              this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+            }
           }
           break;
         }
@@ -48259,8 +48316,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         power: p, toughness: t, rarity: 'common', set: 'tkn', set_name: 'Token',
         collector_number: '0', image_uris: null, _isToken: true,
       };
+      // the tokens this one event made: what "Sacrifice it at the beginning of the next end step" means
+      this._lastTokenGroup = [];
       for (let i = 0; i < n; i++) {
         const o = this._register(new GObj(card, controller, 'battlefield'));
+        this._lastTokenGroup.push(o.id);
         o.isToken = true; o.controller = controller;
         o.zone = 'battlefield'; o.entered = this.turn; o.summoningSick = true;
         if (e.tapped) o.tapped = true;
@@ -48298,6 +48358,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* Peregrin Took, Chatterfang, Xorn: tokens that come along with the
        ones being made. They are part of the same event, so nothing doubles
        them twice. */
+    /* Parallel Lives, Doubling Season, Chatterfang: a token that's a copy (Kiki-Jiki, myriad,
+       offspring, squad, encore) is a token created like any other, so what changes token-making
+       applies to it too (CR 111.1). How many to make; 0 when none are. */
+    _copyTokenCount(controller, n, typeLine) {
+      const tev = this._replace({ kind: 'createToken', n, controller, tokenTypes: String(typeLine || '') });
+      if (tev.cancelled || !(tev.n > 0)) return 0;
+      this._tokenExtras(controller, tev, tev.n);
+      (this.player(controller) || {}).tokensMadeTurn = this.turn;
+      return tev.n;
+    }
+
     _tokenExtras(controller, ev, n) {
       for (const x of (ev.extras || [])) {
         const k = x.thatMany ? n : (x.n || 1);
@@ -57021,6 +57092,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (!picked.length) return false;
             opts.spree = picked;
             spare = left;
+            continue;
+          }
+          /* Archangel of Wrath: "Kicker {B} and/or {R}" — both when the mana is there,
+             otherwise the cheaper one that can be paid */
+          if (ex.kind === 'kicker' && ex.costs) {
+            const base = String(choice.costStr || choice.o.card.mana_cost || '');
+            const can = (c) => g.couldPay(this.pid, base + c, this.manaSources());
+            if (price <= spare && can(ex.costs.join(''))) { opts.kickPaid = ex.costs.map((c, i) => i); spare -= price; continue; }
+            const one = ex.costs.map((c, i) => ({ i, c, n: MTG.mana.cmc(c) })).filter(k => k.n <= spare && can(k.c)).sort((x, y) => x.n - y.n)[0];
+            if (one) { opts.kickPaid = [one.i]; spare -= one.n; }
             continue;
           }
           if (price > spare) continue;
@@ -75974,7 +76055,7 @@ Sideboard
       const picks = all.filter(x => x.key && (x.candidates || x.foods));
       const extras = all.filter(x => !PAYS.includes(x.kind) && !picks.includes(x));
       const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
-      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
+      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, kickPaid: [], buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       // the cost being paid: one half of a split card, or the face that is up
       const faces = o.card.card_faces;
       steps.cost = (via === 'fuse' && faces && faces[1] ? (faces[0].mana_cost || '') + (faces[1].mana_cost || '')
@@ -76061,6 +76142,8 @@ Sideboard
         return (ex.choose.items || []).filter(it => sel.picks.includes(it.id)).reduce((n, it) => n + MTG.mana.cmc(it.cost || ''), 0);
       };
       const spent = () => (st.kick ? MTG.mana.cmc((extras.find(x => x.kind === 'kicker' || x.kind === 'multikicker') || {}).cost || '') * st.kick : 0) +
+        // ("Kicker {B} and/or {R}": each cost that is on)
+        extras.filter(x => x.kind === 'kicker' && x.costs).reduce((n, x) => n + st.kickPaid.reduce((m, i) => m + MTG.mana.cmc(x.costs[i] || ''), 0), 0) +
         extras.filter(x => ['buyback', 'entwine', 'offspring'].includes(x.kind) && st[x.kind]).reduce((n, x) => n + MTG.mana.cmc(x.cost || ''), 0) +
         (st.squad ? MTG.mana.cmc((extras.find(x => x.kind === 'squad') || {}).cost || '') * st.squad : 0) +
         extras.filter(x => x.choose).reduce((n, x) => n + chosenCost(x), 0);
@@ -76118,6 +76201,18 @@ Sideboard
                 html: `Escalate ${MTG.mana.html(ex.escalate)} for each mode after the first` +
                   (extra ? ` — paying it ${extra === 1 ? 'once' : extra + ' times'}.` : '.') }));
             }
+          } else if (ex.kind === 'kicker' && ex.costs) {
+            // "Kicker {B} and/or {R}": a toggle for each cost, any or all of them
+            ex.costs.forEach((c, i) => {
+              const on = st.kickPaid.includes(i);
+              const broke = !on && MTG.mana.cmc(c) > spare;
+              rows.appendChild(el('button', { type: 'button', class: 'mode-opt' + (on ? ' on' : '') + (broke ? ' off' : ''), disabled: broke,
+                title: broke ? 'You do not have the mana for this as well' : '',
+                onclick: () => { st.kickPaid = on ? st.kickPaid.filter(k => k !== i) : st.kickPaid.concat(i).sort((x, y) => x - y); this.render(); } }, [
+                el('span', { class: 'mode-dot', text: on ? '✓' : '' }),
+                el('span', { class: 'mode-text', html: MTG.mana.textHtml('Kicker ' + c) + (broke ? ' <i class="cant">not enough mana</i>' : '') }),
+              ]));
+            });
           } else if (ex.kind === 'multikicker' || ex.kind === 'squad') {
             const prop = ex.kind === 'squad' ? 'squad' : 'kick';
             rows.appendChild(el('div', { class: 'stepper-row' }, [
@@ -76207,6 +76302,7 @@ Sideboard
       if (via === 'bestow') specs.push({ type: 'creature', zone: 'battlefield' });
       if (via === 'mutate') specs.push({ type: 'creature', zone: 'battlefield', controller: 'you', notSubtype: 'human' });
       const extra = { kick: picked.kick || 0, buyback: !!picked.buyback, entwine: !!picked.entwine,
+        kickPaid: picked.kickPaid && picked.kickPaid.length ? picked.kickPaid.slice() : undefined,
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
       if (via === 'fuse') extra.fuse = true;
@@ -83555,6 +83651,8 @@ Sideboard
         case 'playLand': g.playLand(actorId, intent.objId, intent.face === 1 ? 1 : 0); break;
         case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: true,
           free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
+          // which of an "and/or" kicker's costs were paid (Archangel of Wrath)
+          kickPaid: Array.isArray(intent.kickPaid) ? intent.kickPaid.filter(i => Number.isInteger(i) && i >= 0 && i < 4) : undefined,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,
           spree: intent.spree || null, via: intent.via || null,
           face: intent.face === 1 ? 1 : 0,       // which half of a split card
