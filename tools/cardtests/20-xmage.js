@@ -18265,4 +18265,16 @@ module.exports = (test) => {
     t.eq(lands('B'), 2, 'and B two of their own');
     t.ok(askedB, 'B was asked');
   });
+
+  test('Expansion Algorithm: proliferate X times', (mk, t) => {
+    t.auto('Expansion Algorithm');
+    t.auto("Tromell, Seymour's Butler");
+    const T = mk();
+    T.toMain('A');
+    const g = T.bf('A', 'Hill Giant', { counters: { '+1/+1': 1 } });
+    T.mana('A', 'UU3');
+    T.cast('A', T.hand('A', 'Expansion Algorithm'), { x: 3 });
+    T.settle();
+    t.eq(g.counters['+1/+1'] || 0, 4, 'three more counters');
+  });
 };

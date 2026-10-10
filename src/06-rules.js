@@ -14475,6 +14475,12 @@
           }
           break;
         }
+        // Expansion Algorithm: "Proliferate X times" — that many, one after another
+        case 'proliferateTimes': {
+          const k = Math.max(0, Math.min(50, n(e.n) || 0));
+          if (k) this._spliceNext(Array.from({ length: k }, () => ({ op: 'proliferate' })));
+          break;
+        }
         case 'proliferate': {
           /* Whose to choose: your own permanents unless what they carry hurts
              them, an opponent's only when it does, and opponents' poison —

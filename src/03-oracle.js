@@ -2443,6 +2443,9 @@
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
     // Contagion Engine: "Proliferate twice."
+    // Expansion Algorithm: "Proliferate X times."; Tromell: "Proliferate X times, where X is …" (proliferateTimes)
+    { re: /^Proliferate (X|\d+) times(?:, where X is (.+?))?\.?$/i,
+      make: (m) => { const k = m[2] ? amountOf(m[2]) : (/^x$/i.test(m[1]) ? 'X' : +m[1]); return k == null || k === false ? null : { op: 'proliferateTimes', n: k }; } },
     { re: /^Proliferate (twice|three times)\.?$/i, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'proliferate' })) }) },
     { re: /^Put a \+1\/\+1 counter on each creature you control\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: 'yourCreatures' }) },
