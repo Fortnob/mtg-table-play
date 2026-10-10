@@ -12225,8 +12225,10 @@
       if (!sp || !sp.fullyAutomated) out.fullyAutomated = false;
     }
     /* Shore Up, Big Play: in a spell, "Untap it." and "Put a +1/+1 counter on it." after a target — "it"
-       is what the spell targets; a spell is no permanent to untap or grow */
-    if (!out.isPermanent) {
+       is what the spell targets; a spell is no permanent to untap or grow. (Haunted Hellride, Doctor Doom,
+       Sanctuary Wall: the same in a permanent's ability — after a target, "it" is that target, and the
+       permanent itself is "this creature" or its name) */
+    {
       // (Formless Nurturing: "Manifest the top card of your library, then put a +1/+1 counter on it" — the card manifested)
       const itToTarget = (list, seen) => {
         for (const e of list || []) {
@@ -12242,7 +12244,7 @@
         }
         return seen;
       };
-      for (const ab of out.abilities) if (ab.kind === 'spell') itToTarget(ab.effects, false);
+      for (const ab of out.abilities) if (ab.kind === 'spell' || ab.kind === 'activated' || ab.kind === 'triggered' || ab.kind === 'loyalty') itToTarget(ab.effects, false);
     }
     if (!out.isPermanent) {
       const spellEffects = [];

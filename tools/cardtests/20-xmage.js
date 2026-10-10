@@ -20811,4 +20811,25 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Charge the Sanctum'), { targets: [b3] });
     t.eq(b3.counters['+1/+1'], 1, 'Charge the Sanctum: the counter on the target');
   });
+
+  test('In a permanent\'s ability, "it" after a target is the target: Sanctuary Wall\'s stun counter, Haunted Hellride\'s untap', (mk, t) => {
+    t.auto('Sanctuary Wall'); t.auto('Haunted Hellride');
+    const T = mk();
+    T.toMain('A');
+    const sw = T.bf('A', 'Sanctuary Wall');
+    const ogre = T.bf('B', 'Hill Giant');
+    T.mana('A', '2W');
+    T.answer('confirm', () => ({ yes: true }));
+    T.activate('A', sw, 0, { targets: [ogre] });
+    t.ok(ogre.tapped, 'the target is tapped');
+    t.eq(ogre.counters.stun, 1, 'the stun counter on the target');
+    t.eq(sw.counters.stun, 1, 'and one on the Wall, as paid for');
+    const T2 = mk();
+    T2.bf('A', 'Haunted Hellride');
+    const bear = T2.bf('A', 'Grizzly Bears');
+    T2.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T2.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T2.toMain('A', 'declareBlockers');
+    t.no(bear.tapped, 'Haunted Hellride untaps the attacking target');
+  });
 };
