@@ -21222,4 +21222,22 @@ module.exports = (test) => {
     t.eq(T3.life('B'), 17, 'green and white: 3 life');
     t.eq(asks, 1, 'one target');
   });
+
+  test('The Council of Four: a second card or a second spell counts only on the turn of the player who drew or cast it', (mk, t) => {
+    t.auto('The Council of Four');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'The Council of Four');
+    const knights = () => T.bfOf('A').filter(o => o.isToken && /Knight/.test(o.name)).length;
+    let h = T.zone('A', 'hand').length;
+    T.g.drawCards('B', 2); T.resolve();
+    t.eq(T.zone('A', 'hand').length - h, 0, "an opponent's second card on your turn: nothing");
+    h = T.zone('A', 'hand').length;
+    T.g.drawCards('A', 2); T.resolve();
+    t.eq(T.zone('A', 'hand').length - h, 3, 'your second card on your turn: one more');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.resolve();
+    t.eq(knights(), 0, 'your first spell: no Knight');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.resolve();
+    t.eq(knights(), 1, 'your second spell on your turn: a Knight');
+  });
 };

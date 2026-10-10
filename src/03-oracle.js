@@ -10266,6 +10266,11 @@
     { re: /^Whenever you get one or more \{E\},? /i, event: 'youGetEnergy' },
     // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
     { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
+    /* The Council of Four: "Whenever a player draws their second card during their turn", "casts their
+       second spell during their turn" — on the turn of the player who does it (duringOwnTurn) */
+    { re: /^When(?:ever)? a player draws their (second|third) card during their turn,? /i, event: 'anyDraw',
+      extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3, duringOwnTurn: true }) },
+    { re: /^When(?:ever)? a player casts their second spell during their turn,? /i, event: 'anySecondSpell', extra: { duringOwnTurn: true } },
     // King T'Challa, Krang: "Whenever a player draws their second card each turn"
     { re: /^When(?:ever)? a player draws their (second|third) card each turn,? /i, event: 'anyDraw',
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },

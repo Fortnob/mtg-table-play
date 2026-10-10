@@ -11722,6 +11722,8 @@
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
           if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
+          // The Council of Four: "during their turn" — the player who drew or cast is the one whose turn it is (duringOwnTurn)
+          if (ab.duringOwnTurn && (data.drawer != null ? data.drawer : data.playerId) !== (this.activePlayer && this.activePlayer.id)) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // Hapatra: "Whenever you put one or more -1/-1 counters on a creature"
           if (ab.putByYou && (data.putter || data.objController) !== o.controller) continue;

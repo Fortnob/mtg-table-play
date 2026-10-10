@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10643,
+  "needed": 10642,
   "gainedCards": 993,
-  "linesNeeded": 11341,
+  "linesNeeded": 11339,
   "linesGained": 1170,
   "gained": {
    "all": 993,
@@ -3506,18 +3506,6 @@
    ]
   },
   {
-   "what": "DrawNthCardTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "The Council of Four",
-    "Alandra, Sky Dreamer",
-    "Private Eye",
-    "Moon Girl and Devil Dinosaur",
-    "Jaded Analyst"
-   ]
-  },
-  {
    "what": "TargetsPermanentPredicate",
    "score": 5,
    "lines": 5,
@@ -4534,6 +4522,17 @@
     "Ashiok, Sculptor of Fears",
     "Gilt-Leaf Archdruid",
     "Tezzeret, Master of Metal"
+   ]
+  },
+  {
+   "what": "DrawNthCardTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Alandra, Sky Dreamer",
+    "Private Eye",
+    "Moon Girl and Devil Dinosaur",
+    "Jaded Analyst"
    ]
   },
   {
