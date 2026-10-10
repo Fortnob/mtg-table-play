@@ -2326,6 +2326,7 @@
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
       el('div', { class: 'col-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }, url ? [] : [UI.cardFallback(c, 0)]),
       el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' }))),
+      UI.wishMark ? UI.wishMark(c.name) : null,
     ]);
     UI.attachPreview(t, c, 0);
     t.addEventListener('click', () => cardDetail(c, () => UI.renderCollection(host)));
@@ -2349,6 +2350,7 @@
           el('p', { text: `${RAR_NAME[r]} · you own ${Math.min(4, have)} of 4.` }),
           el('p', { class: 'dim' }, [document.createTextNode('Crafting takes one '), wcIcon(r, null), document.createTextNode(` ${r} wildcard. You have ${wc}.`)]),
           UI.cardStyles(c, reopen),
+          UI.wishButton ? UI.wishButton(c) : null,
         ]),
       ]),
       buttons: [
