@@ -234,6 +234,8 @@ def steps(quick):
         Step('build', [sys.executable, TOOLS / 'build.py'], judge_exit, 120),
         Step('syntax', node('-e', SYNTAX_JS, ROOT / 'index.html'), judge_exit, 120),
         Step('switch cases', node('-e', DUPCASE_JS, ROOT / 'src'), judge_exit, 60),
+        # patterns built from strings, new RegExp('\\b' + w): a backslash written once there changes what they match
+        Step('regexp strings', node(TOOLS / 'regexpstrings.js', ROOT / 'src'), judge_exit, 60),
         # the card-picture worker: what it keeps and what it never touches
         Step('sw', node(TOOLS / 'swtest.js'), judge_exit, 60),
         # card pictures in another language, against a Scryfall made up for the test
