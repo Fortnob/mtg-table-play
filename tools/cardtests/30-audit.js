@@ -5392,4 +5392,19 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
     t.eq(soldiers(), 1, "on B's turn: a Soldier");
   });
+
+  test('Audit: Elvish Guidance counts every Elf on the battlefield, yours and theirs; Glittering Frost makes only its land snow', (mk, t) => {
+    t.auto('Elvish Guidance'); t.auto('Glittering Frost');
+    const T = mk();
+    T.toMain('A');
+    const f = T.bf('A', 'Forest');
+    const eg = T.bf('A', 'Elvish Guidance'); eg.attachedTo = f.id; f.attachments = [eg.id];
+    T.bf('A', 'Llanowar Elves'); T.bf('B', 'Elvish Mystic');
+    T.g.bumpBoard();
+    T.g.activateAbility('A', f.id, 0, { auto: true });
+    t.eq(T.g.player('A').pool.G, 3, 'the Forest, and one more for each of two Elves');
+    const f2 = T.bf('A', 'Forest');
+    const gf = T.bf('A', 'Glittering Frost'); gf.attachedTo = f2.id; f2.attachments = [gf.id]; T.g.bumpBoard();
+    t.ok(T.g._cardFitsWords(f2, 'snow land')); t.no(T.g._cardFitsWords(f, 'snow land'));
+  });
 };
