@@ -20230,4 +20230,15 @@ module.exports = (test) => {
     T3.cast('B', T3.hand('B', 'Lightning Bolt'), { targets: ['A'] });
     t.eq(T3.life('A'), 20, 'a Bolt at you, unpaid: countered');
   });
+
+  test('Fireball: X damage divided evenly, rounded down — X=5 between two targets is 2 each, the odd point is lost', (mk, t) => {
+    // (the card stays a person's for its extra cost per target; the division itself is the engine's)
+    const T = mk();
+    T.toMain('A');
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.mana('A', '111111R');
+    T.cast('A', T.hand('A', 'Fireball'), { x: 5, targets: ['B', wurm] });
+    t.eq(T.life('B'), 18, 'the player: 2');
+    t.eq(wurm.damage, 2, 'the Wurm: 2, not 3');
+  });
 };

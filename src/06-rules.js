@@ -17638,7 +17638,8 @@
           if (!objs.length) break;
           // spread it as evenly as the numbers allow, remainder to the first
           const each = Math.floor(total / objs.length);
-          let spare = total - each * objs.length;
+          // (Fireball: "divided evenly, rounded down" — what doesn't divide evenly is not dealt)
+          let spare = e.evenly ? 0 : total - each * objs.length;
           for (const t of objs) {
             const amt = each + (spare-- > 0 ? 1 : 0);
             if (amt <= 0) continue;
