@@ -4855,4 +4855,19 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
     t.eq(T.g.powerOf(cat), 10, 'eminence +3 at the start of combat, then +5 for its power of 5'); t.ok(T.g.hasKw(cat, 'trample'));
   });
+
+  test('Audit: "you may put a land card from your hand onto the battlefield" stays a choice (Growth Spiral): no puts none, yes puts one', (mk, t) => {
+    t.auto('Growth Spiral');
+    for (const yes of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      T.top('A', 'Island');
+      const f = T.hand('A', 'Forest');
+      T.answer('confirm', { yes });
+      T.answer('pickCard', (ch) => ({ cardIds: [f.id] }));
+      T.mana('A', 'GU');
+      T.cast('A', T.hand('A', 'Growth Spiral')); T.settle();
+      t.zone(f, yes ? 'battlefield' : 'hand', yes ? 'yes: the Forest' : 'no: nothing put');
+    }
+  });
 };
