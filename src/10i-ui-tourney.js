@@ -578,11 +578,22 @@
   UI.tourneyLobbyNote = function (info) {
     const t = info && T.get(info.id);
     if (!t) return null;
+    const opp = info.opp || 'your opponent';
+    const what = info.guest ? `Choose your deck; ${opp} starts the match once you both have.`
+      : `Choose your deck; once ${opp} has joined and chosen theirs, start.`;
     return el('section', { class: 'panel tn-lobby' }, [
       el('div', { class: 'eyebrow', text: 'Tournament match' }),
       el('b', { text: `${t.name} · round ${info.r}` }),
-      el('p', { class: 'small muted', text: `Against ${info.opp || 'your opponent'}, best of ${t.bo}. Choose your deck; once ${info.opp || 'they'} ${info.opp ? 'has' : 'have'} joined and chosen theirs, start. The result goes to ${t.role === 'org' ? 'the standings' : orgName(t)} by itself when the match is over.` }),
+      el('p', { class: 'small muted', text: `Against ${opp}, best of ${t.bo}. ${what} The result goes to ${t.role === 'org' ? 'the standings' : orgName(t)} by itself when the match is over.` }),
     ]);
+  };
+  /** The same, in a guest's lobby: found by the room joined, if it is a tournament match's. */
+  UI.tourneyRoomNote = function (room) {
+    for (const t of T.active()) {
+      const mm = t.state === 'running' ? T.myMatch(t) : null;
+      if (mm && !mm.bye && !mm.res && room && mm.room === room) return UI.tourneyLobbyNote({ id: t.id, r: mm.r, t: mm.pair.t, opp: mm.oppName, guest: true });
+    }
+    return null;
   };
 
   /* ---------------- notes ---------------- */

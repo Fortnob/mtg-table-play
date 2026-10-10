@@ -754,6 +754,9 @@ async function windowsRun() {
     guest.button('Join', guest.note(/table is open/)).click();
     await until(() => guest.app.joined.length > joinedBefore, 2000, `round ${r}: ${guest.name} joins`);
     check(guest.app.joined[joinedBefore] === host.T.myMatch(host.T.get(tid)).room, 'the room the host opened');
+    const hostNote = host.MTG.ui.tourneyLobbyNote(ho.mode.tourney), guestNote = guest.MTG.ui.tourneyRoomNote(guest.app.joined[joinedBefore]);
+    check(hostNote && guestNote && new RegExp(`round ${r}`).test(hostNote.textContent) && new RegExp(`Against ${host.name}`).test(guestNote.textContent),
+      'both lobbies say which tournament match it is');
     await decide(host, guest, host.T.myMatch(host.T.get(tid)).room);
   };
   // round one: the table sees the game end on both sides, and the result goes in by itself

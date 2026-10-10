@@ -3685,7 +3685,11 @@
       ]),
     ]);
     App.clientLobbyBox = el('div', { class: 'panel seats-panel' }, el('div', { class: 'empty-note', text: 'Connected. Waiting for the host…' }));
-    inner.append(App.clientBanner, App.clientLobbyBox);
+    inner.append(App.clientBanner);
+    // a friends tournament's match: which one (src/10i-ui-tourney.js)
+    const tourneyNote = UI.tourneyRoomNote ? UI.tourneyRoomNote(net.roomCode) : null;
+    if (tourneyNote) inner.appendChild(tourneyNote);
+    inner.appendChild(App.clientLobbyBox);
     if (UI.lobbyInvites) inner.appendChild(UI.lobbyInvites({ guest: true }));
     s.appendChild(el('div', { class: 'menu-wrap' }, inner));
   }
