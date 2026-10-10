@@ -20772,4 +20772,20 @@ module.exports = (test) => {
     t.zone(g, 'graveyard', 'mana value 4 stays');
     t.zone(f, 'graveyard', 'a land stays');
   });
+
+  test('"Put a counter on target creature with flying / that entered this turn" goes on the target, not this card: Cathedral Acolyte, Stinging Shot', (mk, t) => {
+    t.auto('Cathedral Acolyte'); t.auto('Stinging Shot');
+    const T = mk();
+    T.toMain('A');
+    const ca = T.bf('A', 'Cathedral Acolyte');
+    const bear = T.bf('A', 'Grizzly Bears');
+    bear.entered = T.g.turn;
+    T.activate('A', ca, 0, { targets: [bear] });
+    t.eq(bear.counters['+1/+1'], 1, 'the creature that entered this turn gets it');
+    t.no(ca.counters['+1/+1'], 'not the Acolyte');
+    const bird = T.bf('B', 'Serra Angel');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Stinging Shot'), { targets: [bird] });
+    t.eq(bird.counters['-1/-1'], 3, 'Stinging Shot: three -1/-1 counters on the flyer');
+  });
 };

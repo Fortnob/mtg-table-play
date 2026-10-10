@@ -1933,7 +1933,9 @@
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
     { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
-      make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /it|this|CARDNAME/.test(m[3]) ? 'self' : null }) },
+      /* (a target is never this permanent: "target creature with flying", "… that entered this turn" hold
+         "it" and "this" in their words, which made them read as "on this creature" — Cathedral Acolyte) */
+      make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /target/.test(m[3]) ? null : 'self' }) },
     // Palantír of Orthanc: "put an influence counter on CARDNAME and scry 2"
     { re: /^Put (a|an|one|two|three) ([a-z]+) counters? on (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) and (scry|surveil) (\d+)\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'counters', kind: m[2], n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), scope: 'self' }, { op: m[3].toLowerCase(), n: +m[4] }] }) },
