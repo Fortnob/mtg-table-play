@@ -493,6 +493,8 @@ declare namespace MTG {
     | { t: 'error'; payload: string }
     | { t: 'kick'; payload: any }
     | { t: 'ping' }
+    /** a friends tournament's match: which one this table is (src/10i-ui-tourney.js), checked by the guest against its own copy */
+    | { t: 'tourney:table'; id: string; r: number; tb: number; host: string }
   ) & { seq?: number };
 
   type NetMessage = NetToHost | NetToGuest | NetChunk;

@@ -40,22 +40,42 @@
    by hand. A round with every result in is followed straight away by the
    next round's pairings, or after the last, by the final standings.
 
+   Bots can fill seats. A bot lives in the organiser's copy like anyone
+   else, under an id no friend code can be (bot- and eight hex digits),
+   with a level and a style from the lobby's scale (src/08-bots.js). A
+   person paired with a bot plays it on their own device and reports; a
+   bot cannot report, so that one report settles it. Two bots paired
+   together are settled on the organiser's device as the round is paired
+   (botMatch, below), so a tournament of the organiser and bots runs with
+   nobody else online. Bots are never dropped.
+
+   Friends can be invited after the tournament is set up: before it
+   starts, into any seat left (a bot giving up its seat if need be); once
+   it is under way, to come in from the next round. A late entrant has a
+   match lost 0-2 for each round already paired when they came in, as the
+   Magic Tournament Rules treat a player added late: no points, those
+   rounds counted in their own match-win and game-win percentages, and no
+   opponent for anyone in them.
+
    The store ('tourneys'): { v, list: [tournament] }. A tournament is
      { id, org, name, fmt, bo, rounds, state, at, done, rev,
-       players: [{ code, name, st, seed }],
+       players: [{ code, name, st, seed, late, bot }],
        rnds: [{ pairs: [{ t, a, b, res, by, rep, room }] }] }
    with, kept here only: role ('org', ours; 'player', a mirror), pend
    (what we still have to tell the organiser) and hint (rooms heard of
    from a friend's own invite). state: 'inviting', 'running', 'done',
-   'cancelled'; st: 'invited', 'in', 'declined', 'dropped'. A pair's a
-   and b are friend codes (b null for a bye), res is its result as games
-   { a, b, d } (a's wins, b's wins, drawn games), by says how it was
-   settled, rep holds each player's report.
+   'cancelled'; st: 'invited', 'in', 'declined', 'dropped'. late: the
+   rounds missed, for a late entrant. bot: { lvl, style } for a bot. A
+   pair's a and b are player codes (b null for a bye), res is its result
+   as games { a, b, d } (a's wins, b's wins, drawn games), by says how it
+   was settled ('agreed', 'org', 'drop', 'bye', 'bot': one report against
+   a bot, 'sim': two bots), rep holds each person's report.
    ============================================================ */
 'use strict';
 (function (MTG) {
   const FC = () => MTG.friendsCore;
-  const MIN_PLAYERS = 3, MAX_PLAYERS = 16;
+  const MIN_PLAYERS = 3, MAX_PLAYERS = 16;     // seats, bots included
+  const MAX_ENTRIES = 32;       // players listed, those who said no included
   const MAX_ROUNDS = 8;
   const MAX_ORGANISED = 2;      // tournaments of ours not yet over
   const MAX_ACTIVE = 8;         // tournaments not yet over, ours and others'
@@ -69,7 +89,8 @@
   const FLOOD_MAX = 120, FLOOD_MS = 10000;  // messages from one friend in that long, at most (a busy round sends a few dozen)
   const STATES = new Set(['inviting', 'running', 'done', 'cancelled']);
   const PSTATES = new Set(['invited', 'in', 'declined', 'dropped']);
-  const BY = new Set(['agreed', 'org', 'drop']);
+  const BY = new Set(['agreed', 'org', 'drop', 'bot', 'sim']);
+  const MAX_LEVEL = 10;         // the lobby's bot levels run 1 to 10
 
   const tourney = MTG.tourney = new MTG.Emitter();
   let hub = null;
@@ -79,13 +100,27 @@
   /* ---------------- checking ---------------- */
   const isId = (v) => typeof v === 'string' && /^[0-9a-f]{24}$/.test(v);
   const isCode = (v) => FC().isCode(v);
+  /** A bot's id: never a friend code (those are capitals and digits, without a dash). */
+  const isBot = (v) => typeof v === 'string' && /^bot-[0-9a-f]{8}$/.test(v);
+  /** A bot's style: one of the lobby's, or '' (any); where the bots are not loaded (a test), any short word. */
+  function cleanStyle(v) {
+    if (typeof v !== 'string' || !/^[a-z]{0,20}$/.test(v)) return null;
+    const P = MTG.bots && MTG.bots.PERSONALITIES;
+    return !v || !P || Object.prototype.hasOwnProperty.call(P, v) ? v : null;
+  }
+  /** What a bot is, from the wire: { lvl, style }, or null. */
+  function cleanBot(v) {
+    if (!v || typeof v !== 'object') return null;
+    const lvl = int(v.lvl, 1, MAX_LEVEL), style = cleanStyle(v.style == null ? '' : v.style);
+    return lvl && style != null ? { lvl, style } : null;
+  }
   const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
   const stamp = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
   /** A tournament's name: one line of plain text, not too long. */
   function cleanTitle(v) {
     if (typeof v !== 'string') return '';
     // eslint-disable-next-line no-control-regex
-    return v.replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    return v.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
   }
   /** A format a tournament can be played in: a constructed one this app knows. */
   function cleanFmt(v) {
@@ -124,16 +159,27 @@
     const rounds = int(raw.rounds, 0, MAX_ROUNDS);
     const state = STATES.has(raw.state) ? raw.state : null;
     if (!id || !org || !fmt || !bo || rounds == null || !state) return null;
-    if (!Array.isArray(raw.players) || !raw.players.length || raw.players.length > MAX_PLAYERS) return null;
+    if (!Array.isArray(raw.players) || !raw.players.length || raw.players.length > MAX_ENTRIES) return null;
     const players = [];
     const codes = new Set();
     for (const p of raw.players) {
-      if (!p || typeof p !== 'object' || !isCode(p.code) || codes.has(p.code) || !PSTATES.has(p.st)) return null;
+      if (!p || typeof p !== 'object' || codes.has(p.code) || !PSTATES.has(p.st)) return null;
+      const bot = isBot(p.code);
+      // a bot is a bot by its id, and has a level; it is always in (bots never drop, and are never invited)
+      if (!bot && !isCode(p.code)) return null;
+      if (bot !== (p.bot != null) || (bot && (!cleanBot(p.bot) || p.st !== 'in'))) return null;
       codes.add(p.code);
       const seed = int(p.seed, 0, 99);
-      players.push({ code: p.code, name: FC().cleanName(p.name) || FC().formatCode(p.code), st: p.st, seed: seed == null ? players.length : seed });
+      const entry = { code: p.code, name: FC().cleanName(p.name) || (bot ? 'Bot' : FC().formatCode(p.code)), st: p.st, seed: seed == null ? players.length : seed };
+      const late = int(p.late, 1, MAX_ROUNDS);
+      if (late && !bot) entry.late = late;
+      if (bot) entry.bot = cleanBot(p.bot);
+      players.push(entry);
     }
-    if (!codes.has(org)) return null;
+    if (!codes.has(org) || isBot(org)) return null;
+    if (players.filter(p => p.st !== 'declined').length > MAX_PLAYERS) return null;
+    // who can sit at a table: whoever is in, or was until they dropped
+    const seatable = new Set(players.filter(p => p.st === 'in' || p.st === 'dropped').map(p => p.code));
     const list = Array.isArray(raw.rnds) ? raw.rnds : [];
     if (list.length > MAX_ROUNDS || (state === 'inviting' && list.length)) return null;
     const rnds = [];
@@ -143,8 +189,8 @@
       const pairs = [];
       for (const p of r.pairs) {
         if (!p || typeof p !== 'object') return null;
-        const a = codes.has(p.a) ? p.a : null;
-        const b = p.b == null ? null : codes.has(p.b) ? p.b : undefined;
+        const a = seatable.has(p.a) ? p.a : null;
+        const b = p.b == null ? null : seatable.has(p.b) ? p.b : undefined;
         const t = int(p.t, 1, MAX_PLAYERS);
         if (!a || b === undefined || a === b || seated.has(a) || (b && seated.has(b)) || t == null || pairs.some(x => x.t === t)) return null;
         seated.add(a);
@@ -159,12 +205,14 @@
         const rep = {};
         if (b && p.rep && typeof p.rep === 'object') {
           for (const c of [a, b]) {
-            if (!Object.prototype.hasOwnProperty.call(p.rep, c)) continue;
+            // a bot never reports
+            if (isBot(c) || !Object.prototype.hasOwnProperty.call(p.rep, c)) continue;
             const x = cleanResult(p.rep[c], bo);
             if (x) rep[c] = x;
           }
         }
-        pairs.push({ t, a, b, res, by, rep, room: b ? FC().cleanRoom(p.room) : null });
+        // a match with a bot in it is played on one device: it has no room
+        pairs.push({ t, a, b, res, by, rep, room: b && !isBot(a) && !isBot(b) ? FC().cleanRoom(p.room) : null });
       }
       rnds.push({ pairs });
     }
@@ -234,26 +282,36 @@
   const myCode = () => (hub ? hub.code : '');
   const meOf = (t) => t.players.find(p => p.code === myCode()) || null;
   const isOver = (t) => t.state === 'done' || t.state === 'cancelled';
-  const isInvite = (t) => t.role === 'player' && t.state === 'inviting' && (t.players.find(p => p.code === myCode()) || {}).st === 'invited';
+  /** An invitation to answer: to a tournament not yet started, or one under way (to come in late). */
+  const isInvite = (t) => t.role === 'player' && !isOver(t) && (t.players.find(p => p.code === myCode()) || {}).st === 'invited';
+  /** Seats taken: everyone in, invited or dropped (a dropped player stays in the standings), bots included. */
+  const seatsTaken = (t) => t.players.filter(p => p.st !== 'declined').length;
   const nameOf = (t, code) => (t.players.find(p => p.code === code) || {}).name || FC().formatCode(code);
   /** The pair `code` is in, in round `r` (1-based), or null. */
   const pairOf = (t, r, code) => ((t.rnds[r - 1] || { pairs: [] }).pairs.find(p => p.a === code || p.b === code) || null);
-  /** The room a pair plays in: as the organiser has it, or as heard straight from the friend. */
+  /** The room a pair plays in: as the organiser has it, or as heard straight from the friend or the table. */
   const roomOf = (t, r, p) => (p && (p.room || (t.hint || {})[r + ':' + p.t])) || null;
+  /** Every room a pair's match may be at: the organiser's, and one heard of here (the two can differ, if the host opened another). */
+  const roomsOf = (t, r, p) => (p ? [p.room, (t.hint || {})[r + ':' + p.t]].filter(Boolean) : []);
   const disputed = (p) => !p.res && !!p.b && !!p.rep[p.a] && !!p.rep[p.b] && !sameResult(p.rep[p.a], p.rep[p.b]);
   function changed(t) { tourney.emit('change', t); }
 
   /* ---------------- Swiss: standings ---------------- */
   /**
-   * The standings, best first: [{ code, name, st, seed, rank, mp, w, l, d,
-   * gw, gl, gd, rounds, byes, opps, mwp, gwp, omw, ogw }]. Only settled
-   * matches count. A bye is a match won 2-0 for the player's own record,
-   * and is left out of everybody's opponents.
+   * The standings, best first: [{ code, name, st, seed, bot, late, rank,
+   * mp, w, l, d, gw, gl, gd, rounds, byes, opps, mwp, gwp, omw, ogw }], of
+   * everyone who is or was playing. Only settled matches count. A bye is a
+   * match won 2-0 for the player's own record, and is left out of
+   * everybody's opponents; so is each round a late entrant missed, which
+   * is a match lost 0-2.
    */
   function standings(t) {
     const rec = new Map();
     for (const p of t.players) {
-      rec.set(p.code, { code: p.code, name: p.name, st: p.st, seed: p.seed, mp: 0, w: 0, l: 0, d: 0, gw: 0, gl: 0, gd: 0, rounds: 0, byes: 0, opps: [] });
+      if (p.st !== 'in' && p.st !== 'dropped') continue;
+      const late = p.late || 0;
+      rec.set(p.code, { code: p.code, name: p.name, st: p.st, seed: p.seed, bot: p.bot || null, late,
+        mp: 0, w: 0, l: late, d: 0, gw: 0, gl: 2 * late, gd: 0, rounds: late, byes: 0, opps: [] });
     }
     for (const r of t.rnds) {
       for (const p of r.pairs) {
@@ -377,8 +435,52 @@
   function pairRound(t, rand) {
     const got = nextPairs(t, rand);
     if (!got) return false;
-    t.rnds.push({ pairs: got.map(p => ({ t: p.t, a: p.a, b: p.b, res: p.b ? null : BYE_RESULT(), by: p.b ? null : 'bye', rep: {}, room: null })) });
+    const r = t.rnds.length + 1;
+    t.rnds.push({ pairs: got.map((p) => {
+      const pair = { t: p.t, a: p.a, b: p.b, res: p.b ? null : BYE_RESULT(), by: p.b ? null : 'bye', rep: {}, room: null };
+      // two bots: settled here and now, with no table
+      if (p.b && isBot(p.a) && isBot(p.b)) { pair.res = botMatch(t, r, pair); pair.by = 'sim'; }
+      return pair;
+    }) });
     return true;
+  }
+
+  /* ---------------- two bots ---------------- */
+  /**
+   * A match between two bots, settled on the organiser's device as the
+   * round is paired. It is not played out: a real game needs both bots to
+   * build decks from Scryfall's card data first and then runs for tens of
+   * seconds to minutes even at full speed, on the organiser's device, in
+   * the middle of their own match; it cannot run at all without the card
+   * data (offline, or in the tests); and a stalled game would hold up the
+   * round for everyone. So each game goes to one bot or the other by a
+   * roll weighted by their levels (an even chance between equals, three
+   * in four for two levels apart, nine in ten for four apart),
+   * until one has won the match: 1-0 in a best of one, 2-0 or 2-1 in a
+   * best of three. The roll is seeded by the tournament, the round and the
+   * table, so the same match always comes out the same way.
+   */
+  function botMatch(t, r, pair) {
+    const lvl = (code) => ((t.players.find(p => p.code === code) || {}).bot || { lvl: 5 }).lvl;
+    const pa = 1 / (1 + Math.exp(-0.55 * (lvl(pair.a) - lvl(pair.b))));
+    const seed = parseInt(FC().sha256(`${t.id}:${r}:${pair.t}:${pair.a}:${pair.b}`).slice(0, 8), 16) || 1;
+    const rng = new MTG.RNG(seed);
+    const n = need(t.bo);
+    const res = { a: 0, b: 0, d: 0 };
+    while (res.a < n && res.b < n) { if (rng.next() < pa) res.a++; else res.b++; }
+    return res;
+  }
+  /** A new bot for `t`: a name not taken there, a level, and a style (one of the lobby's at random, where they are loaded). */
+  function newBot(t, lvl) {
+    const names = t.players.map(p => p.name);
+    const P = MTG.bots && MTG.bots.PERSONALITIES ? Object.keys(MTG.bots.PERSONALITIES) : [];
+    let code;
+    do { code = 'bot-' + FC().randomHex(8); } while (t.players.some(p => p.code === code));
+    return {
+      code, name: MTG.botName ? MTG.botName(names, random) : 'Bot ' + (names.length + 1), st: 'in',
+      seed: t.players.reduce((m, p) => Math.max(m, p.seed + 1), 0),
+      bot: { lvl: int(lvl, 1, MAX_LEVEL) || 5, style: P.length ? P[Math.floor(random() * P.length)] : '' },
+    };
   }
 
   /* ---------------- a finished game, as a result ---------------- */
@@ -408,7 +510,7 @@
   const sendState = (t, code) => sendTo(t, code, { op: 'state', s: pub(t) });
   /** Everyone still following the tournament, sent it as it is now (whoever is away gets it when they are back). */
   function broadcast(t) {
-    for (const p of t.players) if (p.st !== 'declined') sendState(t, p.code);
+    for (const p of t.players) if (p.st !== 'declined' && !p.bot) sendState(t, p.code);
   }
   /**
    * After any change to a tournament of ours: a round with every result
@@ -424,12 +526,14 @@
     changed(t);
   }
   function advance(t) {
-    if (t.state !== 'running') return;
-    const last = t.rnds[t.rnds.length - 1];
-    if (last && last.pairs.some(p => !p.res)) return;
-    const left = t.players.filter(p => p.st === 'in').length;
-    if (t.rnds.length >= t.rounds || left < 2) { t.state = 'done'; t.done = now(); return; }
-    pairRound(t);
+    // a round of bots and byes is settled as soon as it is paired, so the next may follow at once
+    while (t.state === 'running') {
+      const last = t.rnds[t.rnds.length - 1];
+      if (last && last.pairs.some(p => !p.res)) return;
+      const left = t.players.filter(p => p.st === 'in').length;
+      if (t.rnds.length >= t.rounds || left < 2) { t.state = 'done'; t.done = now(); return; }
+      pairRound(t);
+    }
   }
 
   /**
@@ -446,19 +550,103 @@
     const fmt = cleanFmt(o.fmt);
     if (!fmt) return { why: 'Choose a constructed format.' };
     const codes = [...new Set((Array.isArray(o.invite) ? o.invite : []).filter(c => isCode(c) && c !== myCode()))];
-    if (codes.length < MIN_PLAYERS - 1) return { why: `Invite at least ${MIN_PLAYERS - 1} friends: a tournament is ${MIN_PLAYERS} to ${MAX_PLAYERS} players, you included.` };
-    if (codes.length > MAX_PLAYERS - 1) return { why: `Invite at most ${MAX_PLAYERS - 1} friends: a tournament is ${MAX_PLAYERS} players at most, you included.` };
-    for (const c of codes) { const f = hub.entry(c); if (!f || f.state !== 'friend') return { why: 'Only your friends can be invited.' }; }
+    const bots = int(o.bots == null ? 0 : o.bots, 0, MAX_PLAYERS - 1);
+    if (bots == null) return { why: `At most ${MAX_PLAYERS - 1} bots.` };
+    if (codes.length + bots < MIN_PLAYERS - 1) return { why: `Invite friends or add bots, ${MIN_PLAYERS - 1} at least: a tournament is ${MIN_PLAYERS} to ${MAX_PLAYERS} players, you included.` };
+    if (codes.length + bots > MAX_PLAYERS - 1) return { why: `${MAX_PLAYERS - 1} friends and bots at most: a tournament is ${MAX_PLAYERS} players at most, you included.` };
+    for (const c of codes) if (!canInvite(c)) return { why: 'Only your friends can be invited.' };
     const me = hub.myName();
     const t = {
       v: 1, id: FC().randomHex(24), org: myCode(), name: cleanTitle(o.name) || `${me}’s tournament`, fmt, bo: o.bo === 3 ? 3 : 1,
       rounds: int(o.rounds, 0, MAX_ROUNDS) || 0, state: 'inviting', at: now(), done: 0, rev: 0,
-      players: [{ code: myCode(), name: me, st: 'in', seed: 0 }].concat(codes.map((c, i) => ({ code: c, name: FC().cleanName(hub.nameOf(c)) || FC().formatCode(c), st: 'invited', seed: i + 1 }))),
+      players: [{ code: myCode(), name: me, st: 'in', seed: 0 }].concat(codes.map((c, i) => ({ code: c, name: friendName(c), st: 'invited', seed: i + 1 }))),
       rnds: [], role: 'org', pend: {}, hint: {},
     };
+    for (let i = 0; i < bots; i++) t.players.push(newBot(t, o.botLevel));
     list.push(t);
     commit(t);
     return t;
+  }
+  /** A friend on a proved friendship, not blocked: someone who can be invited. */
+  function canInvite(code) {
+    const f = hub && isCode(code) && code !== myCode() ? hub.entry(code) : null;
+    return !!f && f.state === 'friend' && !hub.blocked().some(b => b.code === code);
+  }
+  const friendName = (code) => FC().cleanName(hub.nameOf(code)) || FC().formatCode(code);
+  /** Ours, and still open to more players: before it starts, or under way with a round still to be paired. */
+  function openToMore(t) {
+    return !!t && t.role === 'org' && (t.state === 'inviting' || (t.state === 'running' && t.rnds.length < t.rounds));
+  }
+
+  /**
+   * Invite more friends: before the start, into seats left (with
+   * `o.replaceBots`, bots give up theirs if there are not enough); once
+   * under way, to come in from the next round. Someone who said no can be
+   * asked again. Returns '' or what stops it.
+   */
+  function invite(id, codes, o) {
+    o = o || {};
+    const t = byId(id);
+    if (!openToMore(t)) return 'No more players can come into that tournament.';
+    codes = [...new Set((Array.isArray(codes) ? codes : []).filter(c => c !== myCode()))];
+    if (!codes.length) return 'Choose a friend to invite.';
+    for (const c of codes) {
+      if (!canInvite(c)) return 'Only your friends can be invited.';
+      const p = t.players.find(x => x.code === c);
+      if (p && p.st !== 'declined') return `${p.name} is already ${p.st === 'invited' ? 'invited' : 'in'}.`;
+    }
+    const free = MAX_PLAYERS - seatsTaken(t);
+    const short = codes.length - free;
+    const bots = t.players.filter(p => p.bot);
+    if (short > 0 && !(o.replaceBots && t.state === 'inviting' && bots.length >= short)) {
+      return free <= 0 ? `All ${MAX_PLAYERS} seats are taken.` : `Only ${free} seat${free === 1 ? ' is' : 's are'} left.`;
+    }
+    const before = snap(t);
+    // the bots added last give up their seats first
+    if (short > 0) { const gone = new Set(bots.slice(-short).map(p => p.code)); t.players = t.players.filter(p => !gone.has(p.code)); }
+    // the list keeps who said no, to show it; past its length the oldest of them go
+    if (t.players.length + codes.length > MAX_ENTRIES) {
+      let over = t.players.length + codes.length - MAX_ENTRIES;
+      t.players = t.players.filter(p => !(p.st === 'declined' && !codes.includes(p.code) && over-- > 0));
+    }
+    let seed = t.players.reduce((m, p) => Math.max(m, p.seed + 1), 0);
+    for (const c of codes) {
+      const p = t.players.find(x => x.code === c);
+      if (p) { p.st = 'invited'; p.name = friendName(c); delete p.late; } else t.players.push({ code: c, name: friendName(c), st: 'invited', seed: seed++ });
+    }
+    commit(t, before);
+    return '';
+  }
+  /** Take back an invitation not yet answered. */
+  function uninvite(id, code) {
+    const t = byId(id);
+    const p = t && t.role === 'org' && !isOver(t) ? t.players.find(x => x.code === code) : null;
+    if (!p || p.st !== 'invited') return false;
+    const before = snap(t);
+    t.players = t.players.filter(x => x !== p);
+    sendTo(t, code, { op: 'gone', why: 'withdrawn' });
+    commit(t, before);
+    return true;
+  }
+  /** Bots into seats left, before the start: `n` of them at level `lvl`. Returns '' or what stops it. */
+  function addBots(id, n, lvl) {
+    const t = byId(id);
+    if (!t || t.role !== 'org' || t.state !== 'inviting') return 'Bots can only be added before the tournament starts.';
+    n = int(n, 1, MAX_PLAYERS);
+    if (!n) return 'Add one bot at least.';
+    const free = MAX_PLAYERS - seatsTaken(t);
+    if (n > free) return free ? `Only ${free} seat${free === 1 ? ' is' : 's are'} left.` : `All ${MAX_PLAYERS} seats are taken.`;
+    for (let i = 0; i < n; i++) t.players.push(newBot(t, lvl));
+    commit(t, snap(t));
+    return '';
+  }
+  /** Take a bot off, before the start. */
+  function removeBot(id, code) {
+    const t = byId(id);
+    if (!t || t.role !== 'org' || t.state !== 'inviting' || !isBot(code) || !t.players.some(p => p.code === code)) return false;
+    t.players = t.players.filter(p => p.code !== code);
+    commit(t, snap(t));
+    return true;
   }
   /** Start with whoever is in: at least three, the organiser included. Returns '' or what stops it. */
   function start(id, rand) {
@@ -499,7 +687,8 @@
    */
   function dropPlayer(t, code) {
     const p = t.players.find(x => x.code === code);
-    if (!p || p.st !== 'in') return false;
+    // bots never drop: before the start one is taken off (removeBot), after it they play on
+    if (!p || p.st !== 'in' || p.bot) return false;
     if (t.state === 'inviting') {
       p.st = 'declined';
       sendTo(t, code, { op: 'gone', why: 'removed' });
@@ -549,12 +738,22 @@
     const before = snap(t);
     switch (msg.op) {
       case 'yes':
-        if (t.state === 'inviting' && (p.st === 'invited' || p.st === 'declined')) { p.st = 'in'; commit(t, before); }
-        else if (t.state === 'inviting' || p.st === 'in' || p.st === 'dropped') sendState(t, from);
-        else sendTo(t, from, { op: 'gone', why: 'started' });
+        if (p.st === 'invited' && t.state === 'inviting') { p.st = 'in'; commit(t, before); }
+        else if (p.st === 'invited' && t.state === 'running' && t.rnds.length < t.rounds) {
+          // in late: paired from the next round, the rounds already paired counted as lost (see the top)
+          p.st = 'in';
+          if (t.rnds.length) p.late = t.rnds.length;
+          commit(t, before);
+        } else if (p.st === 'invited') {
+          // too late: the last round is already paired, or it is over
+          t.players = t.players.filter(x => x !== p);
+          sendTo(t, from, { op: 'gone', why: 'late' });
+          commit(t, before);
+        } else if (p.st === 'in' || p.st === 'dropped') sendState(t, from);
         return;
       case 'no':
-        if (t.state === 'inviting' && (p.st === 'invited' || p.st === 'in') && from !== t.org) { p.st = 'declined'; commit(t, before); }
+        if (p.st === 'invited' && !isOver(t)) { p.st = 'declined'; commit(t, before); }
+        else if (t.state === 'inviting' && p.st === 'in' && from !== t.org) { p.st = 'declined'; commit(t, before); }
         return;
       case 'drop':
         if (p.st === 'in' && from !== t.org && !isOver(t) && dropPlayer(t, from)) commit(t, before);
@@ -577,7 +776,7 @@
         const r = int(msg.r, 1, t.rnds.length);
         const pair = r === t.rnds.length && t.state === 'running' ? (t.rnds[r - 1].pairs.find(x => x.t === msg.tb) || null) : null;
         const room = FC().cleanRoom(msg.room);
-        if (!pair || !pair.b || pair.res || (pair.a !== from && pair.b !== from) || !room) return;
+        if (!pair || !pair.b || pair.res || (pair.a !== from && pair.b !== from) || !room || isBot(pair.a) || isBot(pair.b)) return;
         if (pair.room === room) { sendState(t, from); return; }
         pair.room = room;
         commit(t, before);
@@ -589,6 +788,8 @@
   /** A report into a pair (in the pair's own order): two that agree settle it. */
   function takeReport(t, pair, code, res) {
     pair.rep[code] = res;
+    // against a bot the one person there is the only one who can say
+    if (isBot(pair.a) || isBot(pair.b)) { pair.res = { a: res.a, b: res.b, d: res.d }; pair.by = 'bot'; return; }
     const ra = pair.rep[pair.a], rb = pair.rep[pair.b];
     if (ra && rb && sameResult(ra, rb)) { pair.res = { a: ra.a, b: ra.b, d: ra.d }; pair.by = 'agreed'; }
   }
@@ -600,7 +801,7 @@
   function answer(id, yes) {
     const t = byId(id);
     const me = t && meOf(t);
-    if (!t || t.role !== 'player' || t.state !== 'inviting' || !me || me.st !== 'invited') return false;
+    if (!t || t.role !== 'player' || isOver(t) || !me || me.st !== 'invited') return false;
     if (yes) {
       me.st = 'in';
       t.pend.yes = true;
@@ -624,7 +825,7 @@
     if (t.role === 'org') return drop(id, myCode());
     const me = meOf(t);
     if (!me) return false;
-    if (t.state === 'inviting') {
+    if (t.state === 'inviting' || me.st === 'invited') {
       hub.sendTourney(t.org, { op: 'no', id });
       forgetNow(t);
       return true;
@@ -680,6 +881,7 @@
     const pair = t.rnds[r - 1].pairs.find(x => x.t === tb);
     if (!pair || !pair.b || pair.res || (pair.a !== me && pair.b !== me)) return false;
     const opp = pair.a === me ? pair.b : pair.a;
+    if (isBot(opp)) return false;           // a bot is played on this device, with no room
     if (t.role === 'org') {
       // measured against nothing: a room of our own opening is no news to us
       pair.room = room;
@@ -707,13 +909,32 @@
       if (t.state !== 'running') continue;
       const r = t.rnds.length;
       const pair = pairOf(t, r, me);
-      if (!pair || !pair.b || pair.res || roomOf(t, r, pair) !== room) continue;
+      if (!pair || !pair.b || pair.res || !roomsOf(t, r, pair).includes(room)) continue;
       // reported already: a friendly rematch at the same table afterwards is not the match
       if (pair.rep[me]) return null;
       const got = report(t.id, r, pair.t, res.w, res.l, res.d, true);
       return got.ok ? { t, pair, res } : null;
     }
+    // a table whose note is waiting for our copy to catch up: the first result is kept for then
+    const n = tables.find(x => x.room === room);
+    if (n && !n.res) n.res = { w: res.w, l: res.l, d: res.d };
     return null;
+  }
+  /**
+   * A game against a tournament's bot ended at a table on this device,
+   * set up for match `info` ({ id, r, t }: the tournament, round and
+   * table), with `res` ({ w, l, d } for you) as the match's result: it is
+   * reported, which settles it. Returns { t, pair, res } when it was, else null.
+   */
+  function botGameOver(info, res) {
+    const t = info && byId(info.id);
+    if (!t || t.state !== 'running' || !res || info.r !== t.rnds.length) return null;
+    const me = myCode();
+    const pair = t.rnds[info.r - 1].pairs.find(x => x.t === info.t);
+    if (!pair || !pair.b || pair.res || (pair.a !== me && pair.b !== me) || !isBot(pair.a === me ? pair.b : pair.a)) return null;
+    if (pair.rep[me]) return null;
+    const got = report(t.id, info.r, pair.t, res.w, res.l, res.d, true);
+    return got.ok ? { t, pair, res } : null;
   }
   /** Take a finished tournament (or one you are out of) off the list. */
   function forget(id) {
@@ -734,7 +955,9 @@
       const t = byId(msg.id);
       if (!t || t.role !== 'player' || t.org !== from) return;
       const why = msg.why === 'started' ? `${nameOf(t, from)} started ${t.name} without you.`
-        : msg.why === 'removed' ? `${nameOf(t, from)} took you off ${t.name}.` : `${t.name} is no longer running.`;
+        : msg.why === 'removed' ? `${nameOf(t, from)} took you off ${t.name}.`
+          : msg.why === 'withdrawn' ? `${nameOf(t, from)} took back the invitation to ${t.name}.`
+            : msg.why === 'late' ? `${t.name} has no rounds left to come in for.` : `${t.name} is no longer running.`;
       if (isOver(t)) return;
       forgetNow(t);
       tourney.emit('removed', t, why);
@@ -747,8 +970,8 @@
     let t = byId(s.id);
     if (t && (t.role === 'org' || t.org !== from)) return;
     if (!t) {
-      // something we have not heard of is an invitation, or nothing
-      if (!meP || meP.st !== 'invited' || s.state !== 'inviting') return;
+      // something we have not heard of is an invitation (to the start, or to come in late), or nothing
+      if (!meP || meP.st !== 'invited' || isOver(s) || (s.state === 'running' && s.rnds.length >= s.rounds)) return;
       const invites = load().filter(isInvite);
       if (invites.length >= MAX_INVITES || invites.filter(i => i.org === from).length >= MAX_FROM_ONE) return;
       if (list.filter(x => !isOver(x)).length >= MAX_ACTIVE) return;
@@ -762,10 +985,12 @@
     }
     if (s.rev < t.rev) return;      // overtaken by a newer one
     if (!meP) { forgetNow(t); tourney.emit('removed', t, `You are no longer in ${t.name}.`); return; }
+    // an invitation never answered, to something now over: nothing to keep
+    if (meP.st === 'invited' && isOver(s)) { forgetNow(t); return; }
     const before = snap(t);
     const at = t.at;
     Object.assign(t, s);
-    if (t.state === 'inviting') t.at = at;
+    if (meP.st === 'invited') t.at = at;
     // what we said and the organiser has not taken in yet stays as we said it
     const pd = t.pend;
     const me = myCode();
@@ -790,6 +1015,55 @@
     save();
     noteChanges(t, before);
     changed(t);
+    // a table that said which match it was, heard before this copy had caught up with it
+    retryTables();
+  }
+
+  /* ---------------- a table that says which match it is ----------------
+     A host who opened a tournament match's table tells each guest, over
+     the game's own connection, which match it is (src/10i-ui-tourney.js):
+     { id, r, tb, host }. That is what lets someone who joined by typing
+     the room's code, with the organiser away, have their result go in by
+     itself. It is believed only as far as it agrees with this device's
+     own copy: a tournament we are in, its current round, our own match at
+     that table, and the host as our opponent there. So a host can link a
+     table to the match its guest really has with them, and to nothing
+     else. A note for a round our copy has not reached yet is kept, and
+     tried again as each new copy arrives; a match that ended meanwhile is
+     reported then. */
+  let tables = [];              // notes kept for later: { id, r, tb, host, room, res }
+  /** A table's note, heard at room `room`. True once it is linked to our match. */
+  function tableNote(note, room) {
+    room = FC().cleanRoom(room);
+    if (!note || typeof note !== 'object' || !room || !isId(note.id) || !int(note.r, 1, MAX_ROUNDS) || !int(note.tb, 1, MAX_PLAYERS) ||
+      !isCode(note.host) || note.host === myCode()) return false;
+    const n = { id: note.id, r: note.r, tb: note.tb, host: note.host, room, res: null };
+    const got = linkTable(n);
+    if (got === 'later') tables = tables.filter(x => x.room !== room).concat([n]).slice(-4);
+    return got === 'linked';
+  }
+  /** 'linked', 'later' (our copy is behind), or 'no'. */
+  function linkTable(n) {
+    const t = byId(n.id);
+    if (!t || isOver(t)) return 'no';
+    if (t.state === 'inviting' || n.r > t.rnds.length) return n.r <= (t.rounds || MAX_ROUNDS) ? 'later' : 'no';
+    if (t.state !== 'running' || n.r < t.rnds.length) return 'no';
+    const me = myCode();
+    const p = t.rnds[n.r - 1].pairs.find(x => x.t === n.tb);
+    if (!p || !p.b || (p.a !== me && p.b !== me) || (p.a === me ? p.b : p.a) !== n.host) return 'no';
+    if (!roomsOf(t, n.r, p).includes(n.room)) {
+      t.hint[n.r + ':' + n.tb] = n.room;
+      save();
+      changed(t);
+    }
+    if (n.res) gameOver(n.room, n.res);
+    return 'linked';
+  }
+  function retryTables() {
+    if (!tables.length) return;
+    const was = tables;
+    tables = [];
+    for (const n of was) if (linkTable(n) === 'later') tables.push(n);
   }
 
   /* ---------------- what changed, for the person ---------------- */
@@ -907,25 +1181,27 @@
     if (!p) return null;
     const opp = p.a === me ? p.b : p.a;
     const asMine = (x) => (x ? (p.a === me ? x : flip(x)) : null);
+    const oppBot = opp ? (t.players.find(x => x.code === opp) || {}).bot || null : null;
     return {
-      r, pair: p, opp, oppName: opp ? nameOf(t, opp) : '', host: p.a === me, bye: !p.b, room: roomOf(t, r, p),
+      r, pair: p, opp, oppName: opp ? nameOf(t, opp) : '', oppBot, host: p.a === me, bye: !p.b, room: oppBot ? null : roomOf(t, r, p),
       res: asMine(p.res), mine: asMine(p.rep[me]), theirs: opp ? asMine(p.rep[opp]) : null,
       pending: !!(t.pend.rep && t.pend.rep.r === r && t.pend.rep.tb === p.t),
     };
   }
 
   Object.assign(tourney, {
-    attach, create, start, setResult, drop, cancel, answer, leave, report, roomOpened, gameOver, forget,
+    attach, create, start, setResult, drop, cancel, answer, leave, report, roomOpened, gameOver, botGameOver, tableNote, forget,
+    invite, uninvite, addBots, removeBot, canInvite, openToMore, seatsTaken, isBot,
     list: () => load().slice().sort((x, y) => (isOver(x) - isOver(y)) || ((y.done || y.at) - (x.done || x.at))),
     get: byId,
     invites: () => load().filter(isInvite),
     active: () => load().filter(t => !isOver(t) && !isInvite(t)),
     finished: () => load().filter(isOver).sort((x, y) => (y.done || y.at) - (x.done || x.at)),
-    myMatch, standings, isInvite, isOver, disputed, nameOf, need,
+    myMatch, standings, isInvite, isOver, disputed, nameOf, need, roomsOf,
     me: () => myCode(),
     // the pieces tools/tournamenttest.js checks on their own
-    readT, pub, cleanResult, nextPairs, pairRound, defaultRounds, resultFromView, search,
-    MIN_PLAYERS, MAX_PLAYERS, MAX_ROUNDS,
+    readT, pub, cleanResult, nextPairs, pairRound, defaultRounds, resultFromView, search, botMatch,
+    MIN_PLAYERS, MAX_PLAYERS, MAX_ROUNDS, MAX_LEVEL,
     /** Forget what was read from the store, so the next look reads it again (a test's restart). */
     _reload() { list = null; },
   });
