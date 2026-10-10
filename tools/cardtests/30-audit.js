@@ -3751,4 +3751,21 @@ module.exports = (test) => {
     T.mana('A', '1RR'); T.cast('A', T.hand('A', 'Wall of Stone')); T.settle(); T.resolve();
     t.eq(T.life('B'), 12, '0/8: eight life');
   });
+
+  test('Audit: Fevered Visions burns only an opponent with four or more cards; Nighthowler counts all graveyards', (mk, t) => {
+    let T = mk();
+    t.auto('Fevered Visions'); t.auto('Nighthowler');
+    T.toMain('A');
+    T.bf('A', 'Fevered Visions');
+    for (let i = 0; i < 5; i++) T.hand('B', 'Island');
+    T.nextTurn('B'); T.toMain('B', 'end'); T.settle(); T.resolve();
+    t.eq(T.life('B'), 18);
+    T.nextTurn('A'); T.toMain('A', 'end'); T.settle(); T.resolve();
+    t.eq(T.life('A'), 20, 'not me');
+    T = mk();
+    T.toMain('A');
+    const n = T.bf('A', 'Nighthowler');
+    T.grave('A', 'Grizzly Bears'); T.grave('B', 'Hill Giant'); T.grave('B', 'Opt');
+    t.eq(T.g.powerOf(n), 2, 'two creature cards in all graveyards');
+  });
 };
