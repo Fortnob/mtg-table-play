@@ -17743,4 +17743,16 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.eq(T.g.powerOf(es), base, 'back once it is no longer attacking');
   });
+
+  test('Fevered Visions: each player draws at their end step; an opponent with four or more cards takes 2', (mk, t) => {
+    t.auto('Fevered Visions');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Fevered Visions');
+    for (let i = 0; i < 5; i++) { T.hand('A', 'Island'); T.hand('B', 'Island'); }
+    T.toMain('B');
+    t.eq(T.life('A'), 20, 'not you');
+    T.toMain('A');
+    t.eq(T.life('B'), 18, 'the opponent with four or more cards: 2 damage');
+  });
 };

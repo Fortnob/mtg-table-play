@@ -9783,6 +9783,8 @@
         case 'thatPlayerHand': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
+          // Fevered Visions: "if the player is your opponent and …"
+          if (cond.opponent && (!p || p.id === (ctx && ctx.controller))) return false;
           return !!p && this.zones[p.id].hand.length >= (cond.n || 0);
         }
         case 'itHadCounters': {

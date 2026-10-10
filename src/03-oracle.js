@@ -8907,6 +8907,8 @@
     [/^there(?: is|'s) an? ([A-Z][a-z]+|creature|land|artifact|enchantment|instant|sorcery) card in your graveyard$/, (m) => ({ kind: 'graveyard', what: m[1].toLowerCase(), n: 1 })],
     // Ebony Owl Netsuke: "that player has four or more cards in hand"
     [/^that player has (\w+) or more cards in hand$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'thatPlayerHand', n: num(m[1]) } : null)],
+    // Fevered Visions: "the player is your opponent and has four or more cards in hand" (thatPlayerHand opponent)
+    [/^the player is your opponent and has (\w+) or more cards in hand$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'thatPlayerHand', n: num(m[1]), opponent: true } : null)],
     // Host of the Hereafter, Archfiend of the Dross, Deadly Grub: "it had counters on it", "it has no oil counters on it", "it had no time counters on it"
     [/^it (?:had|has) counters on it$/i, () => ({ kind: 'itHadCounters' })],
     [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
