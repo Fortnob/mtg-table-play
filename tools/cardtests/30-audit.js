@@ -3892,4 +3892,35 @@ module.exports = (test) => {
     t.ok(T.g.castSpell('A', fm.id, { auto: true }));
     t.ok(T.g.player('A').pool.isEmpty());
   });
+
+  test('Audit: Prophet of the Scarab counts itself; Dispelling Exhale asks {4} once a Dragon is beheld', (mk, t) => {
+    t.auto('Prophet of the Scarab'); t.auto('Dispelling Exhale');
+    let T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Walking Corpse');
+    T.grave('A', 'Walking Corpse'); T.grave('A', 'Walking Corpse');
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    const p = T.hand('A', 'Prophet of the Scarab');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', 'U4');
+    T.cast('A', p);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h - 1 + 4, 'three Corpses and the Prophet itself beat two in the graveyard');
+    for (const behold of [true, false]) {
+      T = mk();
+      T.toMain('A');
+      const bolt = T.hand('A', 'Lightning Bolt');
+      T.mana('A', 'R4');
+      T.cast('A', bolt, { targets: ['B'], resolve: false });
+      T.g.passPriority('A', true);
+      let cost = null;
+      T.answer('payOrDont', (ch) => { cost = ch.cost; return { pay: true }; });
+      T.hand('B', 'Shivan Dragon');
+      T.mana('B', 'U1');
+      T.cast('B', T.hand('B', 'Dispelling Exhale'), { targets: [{ kind: 'stack', id: T.stackItem(bolt).id }], payAdditional: behold });
+      T.settle(); T.resolve(); T.settle();
+      t.eq(cost, behold ? '{4}' : '{2}');
+      t.eq(T.life('B'), 17, 'paid: the bolt resolves');
+    }
+  });
 };
