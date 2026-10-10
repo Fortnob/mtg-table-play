@@ -4370,4 +4370,24 @@ module.exports = (test) => {
     t.eq(T.life('B'), 18, "the creature's controller: 9 doubled");
     t.eq(T.life('A'), 15, 'the Mantle owner takes 5');
   });
+
+  test("Audit: Halo Fountain: an opponent's tapped creature doesn't pay; fifteen of yours win the game", (mk, t) => {
+    t.auto('Halo Fountain');
+    let T = mk();
+    T.toMain('A');
+    const hf = T.bf('A', 'Halo Fountain');
+    T.bf('B', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'W');
+    t.no(T.g.activateAbility('A', hf.id, 0, { auto: true }), "B's tapped Bears are not A's");
+    T = mk();
+    T.toMain('A');
+    const hf2 = T.bf('A', 'Halo Fountain');
+    for (let i = 0; i < 14; i++) T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'WWWWW');
+    t.no(T.g.activateAbility('A', hf2.id, 2, { auto: true }), 'fourteen are not enough');
+    T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.activate('A', hf2, 2);
+    T.settle();
+    t.ok(T.g.player('B').hasLost, 'fifteen: A wins');
+  });
 };

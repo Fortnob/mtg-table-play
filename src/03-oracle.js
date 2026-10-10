@@ -366,7 +366,8 @@
       }
       // Halo Fountain: "Untap a tapped creature you control", "Untap fifteen tapped creatures you control" (untapCreatures)
       if ((m = p.match(/^Untap (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|\d+) tapped ([A-Za-z ]+?) you control$/i))) {
-        const k = /^an?$/i.test(m[1]) ? 1 : (WORDN(m[1].toLowerCase()) || num(m[1]));
+        // (WORDN stops at ten and calls anything past it 1: "fifteen" is num's)
+        const k = /^an?$/i.test(m[1]) ? 1 : num(m[1].toLowerCase());
         if (typeof k === 'number' && k > 0) {
           cost.untapCreatures = { n: k, filter: m[2].trim().toLowerCase().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') };
           continue;
