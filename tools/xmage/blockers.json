@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10793,
+  "needed": 10790,
   "gainedCards": 1023,
-  "linesNeeded": 11496,
+  "linesNeeded": 11491,
   "linesGained": 1206,
   "gained": {
    "all": 1023,
@@ -2971,19 +2971,6 @@
     "Olivia, Mobilized for War",
     "Boldwyr Intimidator",
     "Coward // Killer"
-   ]
-  },
-  {
-   "what": "BecomesTargetControllerTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Unsettled Mariner",
-    "Reidane, God of the Worthy // Valkmira, Protector's Shield",
-    "Parnesse, the Subtle Brush",
-    "Amulet of Safekeeping",
-    "Dormant Gomazoa",
-    "Leovold, Emissary of Trest"
    ]
   },
   {
@@ -6533,6 +6520,16 @@
     "Blitz of the Thunder-Raptor",
     "Unnatural Aggression"
    ]
+  },
+  {
+   "what": "(verify) \"may\" lost",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Drillworks Mole",
+    "Liliana's Influence",
+    "Invasion of Vryn // Overloaded Mage-Ring"
+   ]
   }
  ],
  "sole": [
@@ -6551,8 +6548,8 @@
   },
   {
    "what": "custom ability",
-   "score": 535,
-   "cards": 490,
+   "score": 536,
+   "cards": 491,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -9562,17 +9559,6 @@
    ]
   },
   {
-   "what": "BecomesTargetControllerTriggeredAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Unsettled Mariner",
-    "Amulet of Safekeeping",
-    "Dormant Gomazoa",
-    "Leovold, Emissary of Trest"
-   ]
-  },
-  {
    "what": "becomes the target, under anyone",
    "score": 4,
    "cards": 4,
@@ -10197,6 +10183,17 @@
     "Arrow Storm",
     "Flames of the Blood Hand",
     "Lightning Surge"
+   ]
+  },
+  {
+   "what": "ChromaCount",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Springjack Shepherd",
+    "Primalcrux",
+    "Outrage Shaman",
+    "Heartlash Cinder"
    ]
   }
  ]

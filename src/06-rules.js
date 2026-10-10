@@ -5459,6 +5459,8 @@
       for (const t of item.targets || []) {
         const x = t.kind === 'object' && this.obj(t.id);
         if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, bySpell: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
+        // Unsettled Mariner: "Whenever you … become the target" — a player aimed at (playerTarget)
+        if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, bySpell: true, playerId, stackId: item.id });
       }
       this._fire('opponentCastSpell', null, Object.assign({ except: playerId }, castData));
       this._crimeCheck(playerId, item.targets);
@@ -6421,6 +6423,7 @@
       for (const t of item.targets || []) {
         const x = t.kind === 'object' && this.obj(t.id);
         if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
+        if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, playerId, stackId: item.id });
       }
       this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab, o), 80)}`);
       this._crimeCheck(playerId, item.targets);
@@ -11566,7 +11569,10 @@
              every creature: the trigger says what it is watching for. */
           if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
           // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
-          if (ab.objFilter && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
+          // a player aimed at is only for "you or a permanent you control" (orYou); "you become the target": only that (youTargetedOnly)
+          if (data.playerTarget && !(ab.orYou && data.playerTarget === o.controller)) continue;
+          if (ab.youTargetedOnly && !data.playerTarget) continue;
+          if (ab.objFilter && !data.playerTarget && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
           /* a card leaving a graveyard is seen from before it left (CR 603.10a):
              the card itself, come back from there, was not around to see it */
           if (event === 'leftGraveyard' && data.object && data.object.id === o.id) continue;

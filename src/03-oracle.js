@@ -9766,6 +9766,12 @@
       event: 'attacks', also: 'becomesTarget', also2: 'blocks', self: true, extra: { bySpellOnly: true } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) attacks or becomes the target of a spell(?:,| )/i,
       event: 'attacks', also: 'becomesTarget', self: true, extra: { bySpellOnly: true } },
+    /* Unsettled Mariner, Leovold: "Whenever you or a permanent you control becomes the target of a spell or
+       ability an opponent controls"; Amulet of Safekeeping: "Whenever you become the target of …" (orYou) */
+    { re: /^Whenever you or (a|another) permanent you control becomes the target of a spell or ability an opponent controls,? /i,
+      event: 'becomesTarget', filt: (m) => subjectFilter(m[1].toLowerCase() + ' permanent you control'), extra: { byOpponent: true, orYou: true } },
+    { re: /^Whenever you become the target of a spell or ability an opponent controls,? /i,
+      event: 'becomesTarget', extra: { byOpponent: true, orYou: true, youTargetedOnly: true } },
     // (Opaline Sliver's granted "this permanent")
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
