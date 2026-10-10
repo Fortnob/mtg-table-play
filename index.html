@@ -5448,6 +5448,49 @@ html[data-play="1"] .hoard-chip { display: none; }
 /* a card in its vintage printing, as it is turned over and in the art picker */
 .po-bonus.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .6); background: rgba(48, 34, 18, .95); }
 .art-option .pill.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .5); background: rgba(80, 56, 26, .45); }
+
+/* ---------- what is in a pack (packPreview) ---------- */
+.pack-look { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.pack-look:hover .booster { transform: translateY(-3px); }
+.pack-look:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 4px; border-radius: 10px; }
+.store-sub { margin: 28px 2px 4px; font: 600 12px/1.2 var(--font); letter-spacing: .18em; text-transform: uppercase; color: var(--gold-hi); }
+.pack-view-modal .modal-body { padding-top: 14px; }
+.pack-view { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+.pv-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; }
+.pv-pack { display: grid; place-items: center; padding: 4px 0; }
+.pv-pack .booster.big { width: 150px; }
+.pv-kind { display: flex; gap: 6px; }
+.pv-kind .chip { flex: 1; justify-content: center; text-align: center; }
+.pv-buys { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-buys .btn { flex: 1; }
+.pv-block h4 { margin: 0 0 6px; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.pv-slots { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.5; color: var(--ink); }
+.pv-rar { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.pv-rar-row { display: flex; align-items: center; gap: 8px; }
+.pv-gem { flex: none; width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg); background: #9aa3b2; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+.r-uncommon .pv-gem { background: linear-gradient(135deg, #e3eaf2, #8c9bb0); }
+.r-rare .pv-gem { background: linear-gradient(135deg, #fbe8a6, #b8902e); }
+.r-mythic .pv-gem { background: linear-gradient(135deg, #ffb27a, #d4401c); }
+.pv-notes { margin: 0; padding-left: 16px; line-height: 1.45; }
+.pv-main { min-width: 0; }
+.pv-chips { margin-bottom: 10px; }
+.pv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 14px 10px; }
+.pv-card { position: relative; display: flex; flex-direction: column; gap: 5px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
+.pv-img { --card-w: 100%; aspect-ratio: 63 / 88; border-radius: 4.75% / 3.5%; overflow: hidden; box-shadow: 0 6px 16px rgba(0,0,0,.45); transition: transform var(--fast), box-shadow var(--fast); }
+.pv-img .card-img, .pv-img .card-fallback { width: 100%; height: 100%; min-height: 0; }
+.pv-card:hover .pv-img { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0,0,0,.55), 0 0 0 1px rgba(246,220,140,.4); }
+.pv-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.pv-price { color: var(--gold-hi); }
+.pv-odds { margin-left: auto; color: var(--ink-2); font-size: 11px; white-space: nowrap; }
+.pv-tag, .pv-own { position: absolute; top: 6px; padding: 2px 6px; border-radius: 99px; font: 700 9.5px/1.2 var(--font); box-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.pv-tag { left: 6px; text-transform: uppercase; letter-spacing: .05em; color: #0b1a26; background: #9fd8ff; }
+.pv-own { right: 6px; color: #fff; background: rgba(10,12,16,.85); border: 1px solid rgba(255,255,255,.25); }
+.pv-grid .search-more { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  .pack-view { grid-template-columns: 1fr; gap: 14px; }
+  .pv-side { position: static; }
+  .pv-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}
 /* ============================================================
    progress.css - the inbox, the Profile screen, quests, mastery,
    ranked and achievements (src/10e-progress.js, src/10f-ui-progress.js)
@@ -14804,6 +14847,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+|X)\.?$/i,
       make: (m) => ({ op: 'amass', n: m[2] === 'X' ? 'X' : +m[2], kind: (m[1] || 'Zombie').trim() }) },
     { re: /^(?:Then )?[Cc]onnive\.?$/i, make: () => ({ op: 'connive', n: 1 }) },
+    /* Recruit (Esgaroth Garrison, Lake-town Lookout, The Queen of Dale): "Draw a card, then discard a
+       card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token." */
+    { re: /^(?:Then )?(?:you )?recruit\.?$/i, make: () => ({ op: 'recruit' }) },
     { re: /^(?:Then )?[Cc]onnive (\d+)\.?$/i, make: (m) => ({ op: 'connive', n: +m[1] }) },
     { re: /^[Ss]cry (\d+), then draw (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'scry', n: +m[1] }, { op: 'draw', n: num(m[2]), who: 'you' }] }) },
@@ -19730,7 +19776,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^(?:there are )?(\w+) or more card types (?:are )?among cards in your graveyard$/i,
       (m) => ({ kind: 'graveyardTypes', n: num(m[1]) })],
     // Dark Petition, spell mastery: "there are two or more instant and/or sorcery cards in your graveyard"
-    [/^there are (\w+) or more ([a-z]+) and\/or ([a-z]+) cards in your graveyard$/i,
+    // (the sentence reader has already made "and/or" between card types plain "or")
+    [/^there are (\w+) or more ([a-z]+) (?:and\/or|or) ([a-z]+) cards in your graveyard$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', anyOf: [m[2].toLowerCase(), m[3].toLowerCase()], n: num(m[1]) } : null)],
     // H.E.R.B.I.E., Council of Reeds: "you've cast a noncreature spell this turn"
     [/^you'?ve cast an? (noncreature|creature|instant or sorcery|instant|sorcery|artifact|enchantment|multicolored) spell this turn$/i,
@@ -20321,6 +20368,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
+    // Contaminant Grafter, Forth Eorlingas!: "… deal combat damage to one or more players" — once for the lot ("one or more" batches)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to one or more players(?:,| )', 'i'),
+      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     // Edric, Spymaster of Trest; Gix: "Whenever a creature deals combat damage to one of your opponents," — anyone's creature
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
@@ -20538,6 +20588,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
     // Spiteful Visions: "Whenever a player draws a card"
     { re: /^When(?:ever)? a player draws a card(?:,| )/i, event: 'anyDraw' },
+    // the Shrines: "At the beginning of your upkeep and whenever you cast a white spell," — two moments, one ability
+    { re: /^At the beginning of your upkeep and whenever you cast an? (white|blue|black|red|green) spell,? /i, event: 'yourUpkeep', also: 'youCastSpell',
+      filt: (m) => ({ words: m[1].toLowerCase() }), extra: { filterOnlyOn: 'youCastSpell' } },
     { re: /^At the beginning of your upkeep(?:,| )/i, event: 'yourUpkeep' },
     { re: /^At the beginning of each upkeep(?:,| )/i, event: 'eachUpkeep' },
     { re: /^At the beginning of your end step(?:,| )/i, event: 'yourEndStep' },
@@ -24112,6 +24165,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Port Razer, Bloodthirster: one attack on each player a turn, however many combats (noRepeatAttack)
       { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
+      // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
+      { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
@@ -27160,7 +27215,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           o.noUntapNext = false;
           if (o.tapped) this.logEvent('step', `${o.name} does not untap.`);
         } else if (o.tapped) {
-          this._markUntapped(o); n++;
+          if (this._markUntapped(o)) n++;
         }
         if (o.controller === ap.id) o.summoningSick = false;
       }
@@ -36436,6 +36491,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const a = o.analysis();
       // protection prevents damage too (CR 702.16e), unless damage can't be prevented
       if (a && source && this._protectedFrom(o, source) && !this._noPrevention(isCombat)) return;
+      /* A shield counter (CR 122.1c): "If it would be dealt damage, instead
+         remove a shield counter from it" — a replacement, so it works even
+         where damage can't be prevented */
+      if (o.zone === 'battlefield' && (Number((o.counters || {}).shield) || 0) > 0) {
+        o.counters.shield -= 1;
+        if (o.counters.shield <= 0) delete o.counters.shield;
+        o._chr = null; this.bumpBoard();
+        this.logEvent('damage', `${o.name} loses a shield counter instead of being dealt ${amount} damage.`);
+        return 0;
+      }
       // excess damage (CR 120.4a): whatever was more than it took to be lethal
       const excess = Math.max(0, amount - this._lethalLeft(o, source));
       if (excess > 0) {
@@ -37348,7 +37413,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
              "whenever a creature with power 4 or greater enters" is not
              every creature: the trigger says what it is watching for. */
           if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
-          if (ab.objFilter && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
+          // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
+          if (ab.objFilter && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
@@ -38971,7 +39037,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             }
             // an ability on the stack is countered whatever its source says about spells (Stifle)
             const proof = (item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
-              (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item))) ||
+              (ab.effects || []).some(ef => ef.op === 'cantBeCountered' ||
+                // Exquisite Firecraft: "Spell mastery — If …, this spell can't be countered" — judged as it would be countered
+                (ef.op === 'ifCond' && (ef.then || []).some(x => x && x.op === 'cantBeCountered') && this._condMet(ef.cond, { controller: item.controller, obj: item.obj }))))) || this._uncounterable(item))) ||
               // Spider-Punk: "Spells and abilities can't be countered."
               (item.kind !== 'spell' && this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'uncounterable') || {}).abilities));
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
@@ -39753,6 +39821,35 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           this.logEvent('rules', `${x ? x.name : who.name} connives${grew ? ` and grows by ${grew}` : ''}.`);
           // Iron Monger: "Whenever a creature you control connives"
           if (x && x.zone === 'battlefield') this._fire('connives', x.controller, { object: x, objController: x.controller });
+          break;
+        }
+
+        /* Recruit: draw a card, then discard a card; a nonland card discarded
+           makes a 1/1 white Human Soldier (the draw kept across a pause for the question) */
+        case 'recruit': {
+          const who = this.player(ctx.controller);
+          if (!who) break;
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'recr' + (r ? r.index : 0);
+          if (!(r && r.marks[slot])) { this._drawCards(who, 1); if (r) r.marks[slot] = true; }
+          const hand = (this.zones[who.id] || {}).hand || [];
+          if (!hand.length) { this.logEvent('rules', `${who.name} recruits, with nothing to discard.`); break; }
+          let toss = hand[hand.length - 1];
+          if (hand.length > 1) {
+            const got = this._choose({ playerId: who.id, purpose: 'recruit', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: 1, max: 1, prefer: 'worst',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}discard a card. A nonland card makes a 1/1 Human Soldier.` }, slot + 'd');
+            if (got === SUSPEND) return SUSPEND;
+            const picked = ((got && got.picks) || []).map(id => this.obj(id)).find(c => c && hand.includes(c));
+            if (picked) toss = picked;
+          }
+          const ta = toss.analysis();
+          this.moveObject(toss, 'graveyard');
+          this._afterDiscard(who.id, toss);
+          this._lastDiscarded = [toss.id];
+          this.logEvent('discard', `${who.name} recruits and discards ${toss.name}.`);
+          if (ta && !ta.isLand) this._spliceNext([{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], addTypes: [], subtypes: 'Human Soldier', keywords: [] }]);
           break;
         }
 
@@ -46531,6 +46628,20 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      */
     _markUntapped(o) {
       if (!o || !o.tapped) return false;
+      /* A stun counter (CR 122.1d): "If a permanent with a stun counter would
+         become untapped, instead remove a stun counter from it." */
+      if (o.zone === 'battlefield' && (Number((o.counters || {}).stun) || 0) > 0) {
+        // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
+        const lock = this.battlefield.find(s0 => !s0.phasedOut && s0.controller !== o.controller && this._staticOp(s0, 'stunLock'));
+        if (lock) this.logEvent('rules', `${o.name} stays tapped: its stun counter can't be removed (${lock.name}).`);
+        else {
+          o.counters.stun = (Number(o.counters.stun) || 0) - 1;
+          if (o.counters.stun <= 0) delete o.counters.stun;
+          o._chr = null; this.bumpBoard();
+          this.logEvent('rules', `${o.name} stays tapped and loses a stun counter.`);
+        }
+        return false;
+      }
       o.tapped = false;
       if (o.zone === 'battlefield') {
         this._fire('becomesUntapped', o.controller, { source: o, object: o });
@@ -46759,7 +46870,19 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      * Aura takes the hit instead, and the creature under it walks away with
      * its damage wiped off.
      */
+    /* A shield counter (CR 122.1c): "If it would be destroyed, instead remove
+       a shield counter from it." Asked first wherever destruction is
+       replaced (umbra armor, regeneration); "can't be regenerated" does not stop it. */
+    _shieldCounter(o) {
+      if (!o || o.zone !== 'battlefield' || !((Number((o.counters || {}).shield) || 0) > 0)) return false;
+      o.counters.shield -= 1;
+      if (o.counters.shield <= 0) delete o.counters.shield;
+      o._chr = null; this.bumpBoard();
+      this.logEvent('rules', `${o.name} loses a shield counter instead of being destroyed.`);
+      return true;
+    }
     _totemArmor(o) {
+      if (this._shieldCounter(o)) return true;
       if (!o || !(o.attachments || []).length) return false;
       for (const id of o.attachments.slice()) {
         const aura = this.obj(id);
@@ -46775,6 +46898,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
 
     _regenerated(o) {
+      if (this._shieldCounter(o)) return true;
       if (!o || !o.shields) return false;
       if (o.noRegenThisTurn) { this.logEvent('rules', `${o.name} can't be regenerated this turn.`); return false; }
       o.shields--;
@@ -51030,6 +51154,65 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return out;
   }
 
+  /**
+   * What a pack holds, by the odds makeBooster draws with: each slot's
+   * chance of each rarity, how many of each a pack holds on average, the
+   * chance a pack has at least one of a rarity, and each card's chance of
+   * being in a pack (its rarity's share in each slot, split among that
+   * rarity's cards; the cards folded in from other sets take their share
+   * by BONUS_RATE). A card is never twice in a pack, so the chance of one
+   * and the number to expect are the same.
+   * opts: { bonus } (MTG.scry.packExtras), { variants } (collector printings).
+   */
+  function packOdds(spec, pool, opts) {
+    opts = opts || {};
+    const count = (src, r) => ((src && src[r]) || []).length;
+    const has = (r) => count(pool, r) > 0;
+    const bonus = opts.bonus || null;
+    const v = opts.variants || null;
+    const rareMix = (mythicShare) => (has('mythic') && has('rare') ? { rare: 1 - mythicShare, mythic: mythicShare } : has('mythic') ? { mythic: 1 } : { rare: 1 });
+    const BONUS_SLOT = { common: 'common', uncommon: 'uncommon', rareMythic: 'rareMythic', wildcard: 'wildcard' };
+    const slots = spec.slots.map((slot) => {
+      let mix;
+      switch (slot.pick) {
+        case 'common': case 'commonOrList': case 'commonOrLand': mix = has('common') ? { common: 1 } : { uncommon: 1 }; break;
+        case 'uncommon': case 'variantUncommon': mix = has('uncommon') ? { uncommon: 1 } : { common: 1 }; break;
+        case 'rareMythic': mix = rareMix(0.125); break;
+        case 'variantRare': mix = rareMix(v && (v.rare.length || v.mythic.length) ? 0.2 : 0.125); break;
+        case 'wildcard': mix = Object.fromEntries(WILDCARD_MIX); break;
+        case 'land': mix = Object.fromEntries(LAND_SLOT_MIX); break;
+        default: mix = { common: 1 };
+      }
+      const b = bonus && BONUS_SLOT[slot.pick] ? BONUS_RATE[BONUS_SLOT[slot.pick]] || 0 : 0;
+      return { pick: slot.pick, n: slot.n, foil: !!slot.foil, mix, bonus: b };
+    });
+    const RAR = ['common', 'uncommon', 'rare', 'mythic'];
+    const expect = {}, own = {}, folded = {};
+    for (const r of RAR) { expect[r] = 0; own[r] = 0; folded[r] = 0; }
+    for (const s of slots) {
+      for (const r of RAR) {
+        const p = (s.mix[r] || 0) * s.n;
+        expect[r] += p;
+        // a folded-in card of that rarity, when there is one to take
+        const fromBonus = s.bonus && count(bonus, r) ? s.bonus : 0;
+        folded[r] += p * fromBonus;
+        own[r] += p * (1 - fromBonus);
+      }
+    }
+    // at least one of a rarity: one less the chance that no slot gives one
+    const atLeast = {};
+    for (const r of RAR) atLeast[r] = 1 - slots.reduce((q, s) => q * Math.pow(1 - (s.mix[r] || 0), s.n), 1);
+    atLeast.rarePlus = 1 - slots.reduce((q, s) => q * Math.pow(1 - (s.mix.rare || 0) - (s.mix.mythic || 0), s.n), 1);
+    return {
+      slots, expect, atLeast, size: spec.size,
+      /** A card's chance of being in a pack: one of the set's own, or (folded) one folded in. */
+      chance(rarity, isFolded) {
+        const r = RAR.includes(rarity) ? rarity : rarity === 'special' || rarity === 'bonus' ? 'mythic' : 'common';
+        return isFolded ? folded[r] / Math.max(1, count(bonus, r)) : own[r] / Math.max(1, count(pool, r));
+      },
+    };
+  }
+
   /** A cube pack: N singleton cards off the shuffled cube. */
   function makeCubePack(cubeCards, rng, size, usedSet) {
     const out = [];
@@ -52627,7 +52810,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     DRAFT_ABILITIES, draftAbilityOf, LAND_SLOT_MIX, DRAFT_SCRIPTS,
     isConspiracy, agendaOf, agendaNames, PREGAME_EXILE, pregameDefaults, applyPregame, wholePoolUsed,
     Draft, makeBooster, makeCubePack, boosterSpecFor,
-    PLAY_BOOSTER, DRAFT_BOOSTER, COLLECTOR_BOOSTER, WILDCARD_MIX,
+    PLAY_BOOSTER, DRAFT_BOOSTER, COLLECTOR_BOOSTER, WILDCARD_MIX, BONUS_RATE, packOdds,
     cubes, autoBuildLimited, getBasics,
   };
 })(window.MTG);
@@ -62354,25 +62537,148 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     ].join(', ');
   })();
 
+  /* The woven sleeves, each a picture in layers of gradient (the first on
+     top): a pattern, light and shade across it, and something at its
+     heart. Sizes are shares of the card, so they hold from a library pile
+     to the Store. */
+  // a diamond (or, drawn twice, its outline) at the middle: four triangles,
+  // each in a quarter-box; w and h are its width and height as shares
+  const diamond = (col, w, h) => {
+    const qw = w / 2, qh = h / 2, at = (lo, box) => (lo / (100 - box) * 100).toFixed(3) + '%';
+    const x0 = at(50 - qw, qw), x1 = at(50, qw), y0 = at(50 - qh, qh), y1 = at(50, qh), sz = `${qw}% ${qh}%`;
+    return [
+      `linear-gradient(to top left, ${col} 50%, transparent 50%) ${x0} ${y0} / ${sz} no-repeat`,
+      `linear-gradient(to top right, ${col} 50%, transparent 50%) ${x1} ${y0} / ${sz} no-repeat`,
+      `linear-gradient(to bottom left, ${col} 50%, transparent 50%) ${x0} ${y1} / ${sz} no-repeat`,
+      `linear-gradient(to bottom right, ${col} 50%, transparent 50%) ${x1} ${y1} / ${sz} no-repeat`,
+    ];
+  };
+  // a ruled border inside the edge: lines at `inset` (a share of the shorter side)
+  const border = (col, inset, px) => {
+    const iy = (inset * 63 / 88).toFixed(2);
+    return [
+      `linear-gradient(${col}, ${col}) 50% ${iy}% / ${100 - inset * 2}% ${px}px no-repeat`,
+      `linear-gradient(${col}, ${col}) 50% ${100 - iy}% / ${100 - inset * 2}% ${px}px no-repeat`,
+      `linear-gradient(${col}, ${col}) ${inset}% 50% / ${px}px ${100 - iy * 2}% no-repeat`,
+      `linear-gradient(${col}, ${col}) ${100 - inset}% 50% / ${px}px ${100 - iy * 2}% no-repeat`,
+    ];
+  };
+  // a medallion: rings about the middle, `rings` as [colour, from, to] in % of the card's half-diagonal
+  const medallion = (rings) => `radial-gradient(circle at 50% 50%, ${rings.map(([c, a, b]) => `transparent ${a - .4}%, ${c} ${a}% ${b}%, transparent ${b + .4}%`).join(', ')})`;
+
+  const SLEEVE_CSS = {
+    // black lacquer under a fine gold lattice, a ruled double border, a gold diamond at its heart
+    obsidian: [
+      'radial-gradient(ellipse 85% 40% at 50% -6%, rgba(255,232,170,.16), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,.75))',
+      ...diamond('#f3dd96', 5, 3.6),
+      ...diamond('rgba(8,7,6,.96)', 14, 10),
+      ...diamond('#e2c063', 20, 14.3),
+      ...diamond('rgba(8,7,6,.95)', 26, 18.6),
+      ...diamond('rgba(201,162,74,.6)', 29, 20.8),
+      ...border('rgba(214,178,92,.75)', 6, 1), ...border('rgba(214,178,92,.4)', 8, 1),
+      'radial-gradient(circle at 50% 50%, rgba(201,162,74,.28) 0 9%, transparent 10%) 0 0 / 11% 8%',
+      'repeating-linear-gradient(45deg, rgba(201,162,74,.13) 0 1px, transparent 1px 8px)',
+      'repeating-linear-gradient(-45deg, rgba(201,162,74,.13) 0 1px, transparent 1px 8px)',
+      'linear-gradient(160deg, #1d1a15, #0b0a08 55%, #030303)',
+    ].join(', '),
+    // a forge: coals glowing at the foot, sparks rising, a ring of fire at the heart
+    crimson: [
+      'radial-gradient(circle at 22% 30%, rgba(255,214,140,.95) 0 .6%, transparent 1%)',
+      'radial-gradient(circle at 74% 22%, rgba(255,190,110,.9) 0 .5%, transparent .9%)',
+      'radial-gradient(circle at 63% 64%, rgba(255,226,160,.9) 0 .55%, transparent .95%)',
+      'radial-gradient(circle at 31% 72%, rgba(255,170,90,.85) 0 .5%, transparent .9%)',
+      'radial-gradient(circle at 84% 48%, rgba(255,200,120,.8) 0 .45%, transparent .85%)',
+      'radial-gradient(circle at 12% 54%, rgba(255,180,100,.8) 0 .45%, transparent .85%)',
+      'radial-gradient(circle at 46% 14%, rgba(255,220,150,.75) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 38% 40%, rgba(255,200,120,.75) 0 .35%, transparent .7%)',
+      'radial-gradient(circle at 57% 33%, rgba(255,170,90,.7) 0 .3%, transparent .65%)',
+      'radial-gradient(circle at 18% 86%, rgba(255,210,130,.8) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 90% 82%, rgba(255,180,100,.75) 0 .35%, transparent .7%)',
+      'radial-gradient(circle at 66% 88%, rgba(255,226,160,.85) 0 .45%, transparent .85%)',
+      'radial-gradient(circle at 42% 92%, rgba(255,190,110,.8) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 8% 26%, rgba(255,170,90,.6) 0 .3%, transparent .65%)',
+      'radial-gradient(circle at 93% 32%, rgba(255,190,110,.6) 0 .3%, transparent .65%)',
+      medallion([['rgba(255,196,110,.9)', 15.2, 16], ['rgba(140,20,10,.85)', 16, 20.4], ['rgba(255,140,60,.75)', 20.4, 21.2]]),
+      'radial-gradient(circle at 50% 50%, rgba(255,120,40,.35), transparent 15%)',
+      'radial-gradient(ellipse 120% 45% at 50% 112%, rgba(255,150,50,.75), rgba(200,50,15,.45) 45%, transparent 75%)',
+      'radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(10,0,0,.7))',
+      'repeating-linear-gradient(90deg, rgba(255,120,60,.05) 0 2px, transparent 2px 9px)',
+      'linear-gradient(180deg, #2a0606, #5a0d0d 55%, #7a1a0c)',
+    ].join(', '),
+    // green strands woven over and under, lit from the top left, a leafy ring at the heart
+    verdant: [
+      'radial-gradient(ellipse 90% 55% at 20% 0%, rgba(210,255,170,.22), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(2,14,4,.7))',
+      medallion([['rgba(220,255,190,.85)', 15, 15.8], ['rgba(28,72,30,.9)', 15.8, 20.6], ['rgba(150,215,110,.8)', 20.6, 21.4]]),
+      'radial-gradient(circle at 50% 50%, rgba(170,230,120,.25), transparent 15%)',
+      // the weave: strands both ways, and which lies over which, cell by cell
+      'conic-gradient(from 90deg at 50% 50%, rgba(0,20,4,.38) 0 25%, rgba(200,255,160,.1) 0 50%, rgba(0,20,4,.38) 0 75%, rgba(200,255,160,.1) 0) 0 0 / 16% 11.45%',
+      'repeating-linear-gradient(0deg, rgba(0,30,8,.5) 0 1px, transparent 1px 2.86%)',
+      'repeating-linear-gradient(90deg, rgba(0,30,8,.5) 0 1px, transparent 1px 4%)',
+      'linear-gradient(90deg, transparent 0 6%, rgba(130,195,95,.32) 6% 44%, transparent 44% 56%, rgba(130,195,95,.32) 56% 94%, transparent 94%) 0 0 / 16% 11.45%',
+      'linear-gradient(0deg, transparent 0 6%, rgba(110,175,80,.3) 6% 44%, transparent 44% 56%, rgba(110,175,80,.3) 56% 94%, transparent 94%) 0 0 / 16% 11.45%',
+      'linear-gradient(160deg, #24572a, #12351a 55%, #081d0d)',
+    ].join(', '),
+    // ivory under golden rays, a sun at the heart, a ruled gold border
+    ivory: [
+      'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(120,92,40,.45))',
+      ...border('rgba(184,140,58,.85)', 6, 1), ...border('rgba(184,140,58,.45)', 8, 1),
+      medallion([['#fffaf0', 0, 7], ['rgba(232,190,90,.95)', 7, 8.4], ['#fff6dc', 8.4, 10], ['rgba(184,140,58,.9)', 10, 10.8]]),
+      'radial-gradient(circle at 50% 50%, rgba(255,226,140,.7), transparent 30%)',
+      'repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,162,74,.34) 0 4deg, transparent 4deg 9deg, rgba(201,162,74,.16) 9deg 10.5deg, transparent 10.5deg 15deg)',
+      'radial-gradient(circle at 50% 50%, #fffbef, #ece0c2 60%, #cbb88e)',
+    ].join(', '),
+    // violet silk drawn across, faceted light, a gem at the heart, a few glints
+    amethyst: [
+      'radial-gradient(circle at 26% 24%, rgba(255,255,255,.9) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 72% 70%, rgba(240,220,255,.85) 0 .35%, transparent .75%)',
+      'radial-gradient(circle at 78% 18%, rgba(240,220,255,.7) 0 .3%, transparent .7%)',
+      medallion([['rgba(230,205,255,.85)', 13.6, 14.4], ['rgba(40,14,80,.9)', 14.4, 18.8], ['rgba(199,155,255,.8)', 18.8, 19.6]]),
+      'conic-gradient(from 0deg at 50% 50%, rgba(220,190,255,.0), rgba(220,190,255,.35) 12.5%, rgba(120,70,210,.0) 25%, rgba(220,190,255,.35) 37.5%, rgba(120,70,210,0) 50%, rgba(220,190,255,.35) 62.5%, rgba(120,70,210,0) 75%, rgba(220,190,255,.35) 87.5%, rgba(220,190,255,0)) 50% 50% / 26% 18.6% no-repeat',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(8,2,20,.7))',
+      'repeating-linear-gradient(120deg, rgba(220,190,255,.05) 0 2px, transparent 2px 22px)',
+      'radial-gradient(ellipse 70% 30% at 30% 25%, rgba(220,180,255,.35), transparent 70%)',
+      'radial-gradient(ellipse 80% 35% at 72% 78%, rgba(140,90,230,.45), transparent 70%)',
+      'linear-gradient(160deg, #331a60, #1a0b36 55%, #0b0418)',
+    ].join(', '),
+    // beaten gold, a raised lattice with a rivet at each crossing, a dark cameo at the heart
+    gilded: [
+      'radial-gradient(ellipse 80% 40% at 30% 0%, rgba(255,250,220,.5), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(80,50,8,.55))',
+      medallion([['rgba(60,38,6,.95)', 0, 12], ['#fff1bf', 12, 12.8], ['#9a6d1c', 12.8, 14], ['#f5d27a', 14, 15]]),
+      'radial-gradient(circle at 50% 50%, #fff5cc 0 7%, #a87a24 8% 12%, transparent 14%) 0 0 / 12.5% 8.95%',
+      'repeating-linear-gradient(0deg, rgba(255,245,200,.35) 0 1px, rgba(70,44,8,.45) 1px 2px, transparent 2px 8.95%)',
+      'repeating-linear-gradient(90deg, rgba(255,245,200,.35) 0 1px, rgba(70,44,8,.45) 1px 2px, transparent 2px 12.5%)',
+      'linear-gradient(135deg, #f7d985, #b8862b 45%, #f0c860 70%, #a87a24)',
+    ].join(', '),
+    // the dark between the stars: a ring of light about nothing at all, a haze at the edges
+    void: [
+      'radial-gradient(circle at 18% 22%, rgba(255,255,255,.8) 0 .25%, transparent .6%)',
+      'radial-gradient(circle at 81% 71%, rgba(207,216,255,.7) 0 .25%, transparent .6%)',
+      'radial-gradient(circle at 70% 14%, rgba(255,255,255,.5) 0 .2%, transparent .5%)',
+      'radial-gradient(circle at 27% 83%, rgba(207,216,255,.5) 0 .2%, transparent .5%)',
+      'radial-gradient(circle at 50% 50%, #000 0 11.5%, rgba(255,236,200,.95) 12.2%, rgba(170,190,255,.55) 13.2%, rgba(110,120,220,.2) 16%, transparent 22%)',
+      'radial-gradient(ellipse 60% 6% at 50% 50%, rgba(255,226,180,.55), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(60,70,140,.22) 70%, rgba(2,3,10,.85))',
+      'radial-gradient(ellipse 90% 60% at 0% 100%, rgba(90,60,160,.25), transparent 70%)',
+      'radial-gradient(ellipse 80% 50% at 100% 0%, rgba(40,80,160,.22), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, #10142a, #03040a 75%)',
+    ].join(', '),
+  };
+
   /* Sleeves: what goes over the back of your cards. Woven patterns and
      card art at one price, and a sleeve of your own picture at four times
      that. A sleeve is drawn from what is here (src/10d-ui-store.js). */
   const SLEEVES = [
-    { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a',
-      css: 'radial-gradient(circle at 50% 50%, rgba(201,162,74,.22) 0 9%, transparent 10%) 0 0 / 22% 16%, repeating-linear-gradient(45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), linear-gradient(160deg, #1b1916, #050505)' },
+    { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a', css: SLEEVE_CSS.obsidian },
     { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: AZURE },
-    { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a',
-      css: 'radial-gradient(ellipse at 50% 110%, rgba(255,140,60,.5), transparent 55%), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 2px, transparent 2px 7px), linear-gradient(180deg, #5a0d0d, #1c0404)' },
-    { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a',
-      css: 'repeating-linear-gradient(60deg, rgba(160,220,120,.12) 0 2px, transparent 2px 10px), repeating-linear-gradient(-60deg, rgba(160,220,120,.12) 0 2px, transparent 2px 10px), linear-gradient(160deg, #1f4d22, #0a1f0c)' },
-    { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a',
-      css: 'repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,162,74,.22) 0 6deg, transparent 6deg 18deg), radial-gradient(circle at 50% 50%, #fff8e6, #d9cbaa 70%, #9c8a63)' },
-    { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff',
-      css: 'radial-gradient(circle at 30% 20%, rgba(220,180,255,.35), transparent 40%), radial-gradient(circle at 75% 80%, rgba(140,90,230,.4), transparent 45%), linear-gradient(160deg, #2a1450, #0d0620)' },
-    { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a',
-      css: 'repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 12px), repeating-linear-gradient(90deg, rgba(0,0,0,.25) 0 1px, transparent 1px 12px), linear-gradient(135deg, #f5d27a, #b8862b 50%, #f0c860)' },
-    { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8',
-      css: 'radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 80%, #cfd8ff, transparent), radial-gradient(1px 1px at 85% 15%, #fff, transparent), radial-gradient(ellipse at 50% 50%, #1a1f3a, #03040a 75%)' },
+    { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a', css: SLEEVE_CSS.crimson },
+    { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a', css: SLEEVE_CSS.verdant },
+    { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a', css: SLEEVE_CSS.ivory },
+    { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff', css: SLEEVE_CSS.amethyst },
+    { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a', css: SLEEVE_CSS.gilded },
+    { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8', css: SLEEVE_CSS.void },
     // the art of the game's best-known faces and moments
     { id: 'art-bolas', name: 'Nicol Bolas', kind: 'art', card: 'Nicol Bolas, Dragon-God', rim: '#e05a3a' },
     { id: 'art-ugin', name: 'Ugin', kind: 'art', card: 'Ugin, the Spirit Dragon', rim: '#9fd8e6' },
@@ -62936,6 +63242,23 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       } catch (e) { res(mode === 'get' ? null : false); }
     });
   }
+  /**
+   * What a GIF is, in 32 hex digits: the name it goes by between players
+   * (src/14-app.js), so one sent is checked against the one asked for.
+   */
+  async function digestHex(buf) {
+    try {
+      if (typeof crypto !== 'undefined' && crypto.subtle) {
+        const d = await crypto.subtle.digest('SHA-256', buf);
+        return [...new Uint8Array(d)].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch (e) { /* the long way, below */ }
+    // FNV-1a twice over, where the page has no crypto.subtle
+    const a = new Uint8Array(buf);
+    let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+    for (let i = 0; i < a.length; i++) { h1 = Math.imul(h1 ^ a[i], 16777619) >>> 0; h2 = Math.imul(h2 ^ a[i], 2246822519) >>> 0; }
+    return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0') + a.length.toString(16).padStart(16, '0')).slice(0, 32);
+  }
   let animUrl = null;
   async function loadAnim() {
     const want = state && state.sleeves.anim;
@@ -62943,7 +63266,23 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const rec = await media('get', ANIM_KEY);
     if (!rec || !rec.buf || !state.sleeves.anim || state.sleeves.anim.v !== rec.v) return;
     animUrl = URL.createObjectURL(new Blob([rec.buf], { type: rec.type || 'image/gif' }));
+    // one kept before it had a name between players gets one now
+    if (!state.sleeves.anim.h) { state.sleeves.anim.h = await digestHex(rec.buf); MTG.store.set(KEY, state); }
     if (MTG.bus) MTG.bus.emit('economy:changed', { shards: state.shards, why: 'sleeve', delta: 0 });
+  }
+  /** Your GIF, to send to another player: { h, type, d } (d: base64), or null. */
+  async function animPayload() {
+    load();
+    if (!state.sleeves.anim || !state.sleeves.anim.h) return null;
+    const rec = await media('get', ANIM_KEY);
+    if (!rec || !rec.buf) return null;
+    const d = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result || '').split(',')[1] || '');
+      fr.onerror = () => res('');
+      fr.readAsDataURL(new Blob([rec.buf], { type: 'image/gif' }));
+    });
+    return d ? { h: state.sleeves.anim.h, type: 'image/gif', d } : null;
   }
   /**
    * Your own sleeve's picture: a card-shaped JPEG data URL, and with it,
@@ -62957,7 +63296,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (anim && anim.buf) {
       const v = Date.now();
       const ok = await media('put', ANIM_KEY, { buf: anim.buf, type: anim.type || 'image/gif', v });
-      state.sleeves.anim = ok ? { crop: anim.crop, v } : null;
+      state.sleeves.anim = ok ? { crop: anim.crop, v, h: await digestHex(anim.buf) } : null;
       if (ok) animUrl = URL.createObjectURL(new Blob([anim.buf], { type: anim.type || 'image/gif' }));
     } else {
       if (state.sleeves.anim) media('del', ANIM_KEY);
@@ -62980,7 +63319,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
     if (!state.sleeves.custom) return null;
     const out = { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim };
-    // the moving one, here on this device (the others at a table are sent the still)
+    // the moving one: here, the picture itself; to the others at a table, what to ask for
+    if (state.sleeves.anim && state.sleeves.anim.h) out.ref = { h: state.sleeves.anim.h, crop: state.sleeves.anim.crop };
     if (animUrl && state.sleeves.anim) { out.anim = animUrl; out.crop = state.sleeves.anim.crop; }
     return out;
   }
@@ -63118,6 +63458,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    digestHex, animPayload, VINTAGE_RATE,
+    /** Your GIF's name between players, or null. */
+    ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
     /** Your moving sleeve, on this device: { anim, crop }, or nothing. */
     customAnim: () => (animUrl && state && state.sleeves.anim ? { anim: animUrl, crop: state.sleeves.anim.crop } : {}),
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
@@ -65097,9 +65440,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       rich ? el('span', { class: 'pack-tag bonus', text: 'Rarer cards', title: 'Never sold in ordinary boosters, its packs hold rarer cards than most, and cost accordingly' }) : null,
       extra ? el('span', { class: 'pack-tag bonus', text: '+ ' + extra.short, title: extra.long }) : null,
     ].filter(Boolean);
+    // the pack and its name open it up, to see what it holds; the buttons buy
+    const look = el('button', { type: 'button', class: 'pack-look', title: `What is in a ${s.name} pack`, 'aria-label': `What is in a ${s.name} pack`,
+      onclick: () => packPreview(s, 'play') }, [boosterEl(s, 'play', { lazy: true }), el('div', { class: 'sc-title', text: s.name })]);
     return el('div', { class: 'store-card pack-tile' }, [
-      boosterEl(s, 'play', { lazy: true }),
-      el('div', { class: 'sc-title', text: s.name }),
+      look,
       notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
       // Collector Boosters only where they were made, or could be (see hasCollector)
       el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), S.hasCollector(s) ? buyBtn(s, 'collector', 1) : null].filter(Boolean)),
@@ -65121,15 +65466,164 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const all = await MTG.scry.sets().catch(() => []);
     if (!sets.length) { body.appendChild(el('p', { class: 'dim', text: 'The sets could not be loaded.' })); return; }
     const search = el('input', { type: 'search', placeholder: 'Find a set…', class: 'store-search', 'aria-label': 'Find a set' });
+    // the regular sets first, newest first; the Eternal sets (Assassin's Creed and its like) after them
     const grid = el('div', { class: 'store-grid packs' });
+    const eternalHead = el('h3', { class: 'store-sub', text: 'Eternal sets' });
+    const eternalBlurb = el('p', { class: 'dim small', text: 'Sets made for the formats that use every card, rather than for Standard.' });
+    const eternalGrid = el('div', { class: 'store-grid packs' });
     const draw = () => {
       const q = search.value.trim().toLowerCase();
-      grid.innerHTML = '';
-      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
+      grid.innerHTML = ''; eternalGrid.innerHTML = '';
+      let eternal = 0;
+      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q)) {
+        const isEternal = s.set_type === 'eternal';
+        if (isEternal) eternal++;
+        (isEternal ? eternalGrid : grid).appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
+      }
+      eternalHead.hidden = eternalBlurb.hidden = eternalGrid.hidden = !eternal;
     };
     search.addEventListener('input', draw);
-    body.append(search, grid);
+    body.append(search, grid, eternalHead, eternalBlurb, eternalGrid);
     draw();
+  }
+
+  /* ---------------- what is in a pack ----------------
+     A set's pack looked into before it is bought: what each slot holds and
+     how often, the rarities to expect, and every card it can hold, the
+     most valuable first, each with its chance of being in a pack (by the
+     odds the packs are made with, MTG.draft.packOdds). */
+  const PV_ORDER = ['mythic', 'rare', 'uncommon', 'common'];
+  const PV_RAR = { mythic: 'Mythic', rare: 'Rare', uncommon: 'Uncommon', common: 'Common' };
+  const pctOf = (p) => (p >= 0.995 ? '100%' : p >= 0.01 ? +(p * 100).toFixed(1) + '%' : +(p * 100).toFixed(2) + '%');
+  /** "in every pack", "1 in 3 packs", "1 in 1,240 packs". */
+  const oddsOf = (p) => (p >= 0.995 ? 'every pack' : p >= 0.5 ? `${Math.round(p * 100)}% of packs` : `1 in ${fmtN(Math.max(2, Math.round(1 / Math.max(p, 1e-6))))} packs`);
+  /** A slot of a pack, in words: "3 uncommons", "1 foil wildcard: …". */
+  function slotWords(sl) {
+    const mixText = Object.entries(sl.mix).filter(([, p]) => p > 0).sort((a, b) => b[1] - a[1])
+      .map(([r, p]) => `${PV_RAR[r] || r} ${pctOf(p)}`).join(', ');
+    const foil = sl.foil ? 'foil ' : '';
+    const many = sl.n > 1;
+    switch (sl.pick) {
+      case 'common': case 'commonOrList': case 'commonOrLand': return `${sl.n} ${foil}common${many ? 's' : ''}`;
+      case 'uncommon': return `${sl.n} ${foil}uncommon${many ? 's' : ''}`;
+      case 'variantUncommon': return `${sl.n} ${foil}uncommon${many ? 's' : ''} in a special printing`;
+      case 'rareMythic': return `${sl.n} ${foil}rare or mythic (${mixText})`;
+      case 'variantRare': return `${sl.n} ${foil}rare or mythic in a special printing (${mixText})`;
+      case 'wildcard': return `${sl.n} ${foil}card of any rarity (${mixText})`;
+      case 'land': return `${sl.n} ${foil}card in place of the basic land (${mixText})`;
+    }
+    return `${sl.n} ${foil}card${many ? 's' : ''}`;
+  }
+
+  async function packPreview(s, kind) {
+    const S = E();
+    const D = MTG.draft;
+    kind = kind === 'collector' && S.hasCollector(s) ? 'collector' : 'play';
+    const busy = UI.busy(s.name, 'Looking into the pack…');
+    let pool, bonus, variants;
+    try {
+      [pool, bonus, variants] = await Promise.all([
+        MTG.scry.setPool(s.code),
+        MTG.scry.packExtras(s.code).catch(() => null),
+        kind === 'collector' ? MTG.scry.setVariants(s.code).catch(() => null) : Promise.resolve(null),
+      ]);
+    } catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    if (!pool || !pool.all || pool.all.length < 20) return UI.error(`The cards of ${s.name} could not be loaded.`);
+    const spec = kind === 'collector' ? D.COLLECTOR_BOOSTER : D.boosterSpecFor(s);
+    const odds = D.packOdds(spec, pool, { bonus, variants });
+
+    // every card it can hold, with its chance and its worth
+    const rarOf = (c) => (PV_ORDER.includes(c.rarity) ? c.rarity : c.rarity === 'special' || c.rarity === 'bonus' ? 'mythic' : 'common');
+    const seen = new Set();
+    const items = [];
+    const add = (c, folded) => {
+      if (!c || S.isBasic(c.name) || seen.has(c.name)) return;
+      seen.add(c.name);
+      items.push({ card: c, rarity: rarOf(c), folded, chance: odds.chance(rarOf(c), folded), value: S.cardValue({ card: c }) });
+    };
+    for (const c of pool.all) add(c, false);
+    for (const c of (bonus && bonus.all) || []) add(c, true);
+    items.sort((a, b) => (b.value - a.value) || (PV_ORDER.indexOf(a.rarity) - PV_ORDER.indexOf(b.rarity)) || a.card.name.localeCompare(b.card.name));
+
+    /* -- beside the cards: the pack, its price, what is in it -- */
+    const side = el('aside', { class: 'pv-side' }, [
+      el('div', { class: 'pv-pack' }, [boosterEl(s, kind, { big: true })]),
+      S.hasCollector(s) ? el('div', { class: 'pv-kind', role: 'radiogroup', 'aria-label': 'Kind of booster' }, [['play', 'Play Booster'], ['collector', 'Collector']].map(([k, label]) =>
+        el('button', { type: 'button', role: 'radio', class: 'chip' + (kind === k ? ' on' : ''), 'aria-checked': kind === k ? 'true' : 'false', text: label,
+          onclick: () => { if (k !== kind) { m.close(); packPreview(s, k); } } }))) : null,
+      el('div', { class: 'pv-buys' }, kind === 'collector' ? [buyBtn(s, 'collector', 1)] : [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10)]),
+      el('div', { class: 'tiny dim', text: `${s.name}${s.released_at ? ', ' + s.released_at.slice(0, 4) : ''} \u00b7 ${spec.size} cards a pack` }),
+      el('section', { class: 'pv-block' }, [
+        el('h4', { text: 'In every pack' }),
+        el('ul', { class: 'pv-slots' }, odds.slots.map(sl => el('li', { text: slotWords(sl) }))),
+      ]),
+      el('section', { class: 'pv-block' }, [
+        el('h4', { text: 'The rarities' }),
+        el('div', { class: 'pv-rar' }, PV_ORDER.filter(r => odds.expect[r] > 0).map(r => el('div', { class: 'pv-rar-row r-' + r }, [
+          el('i', { class: 'pv-gem', 'aria-hidden': 'true' }),
+          el('b', { text: PV_RAR[r] }),
+          el('span', { class: 'grow', text: `${+odds.expect[r].toFixed(2)} a pack` }),
+          el('span', { class: 'dim', text: odds.atLeast[r] >= 0.995 ? 'in every pack' : `in ${pctOf(odds.atLeast[r])} of packs` }),
+        ])).concat(odds.atLeast.rarePlus >= 0.995 ? [el('div', { class: 'pv-rar-row tiny dim', text: 'A rare or a mythic in every pack.' })] : [])),
+      ]),
+      el('ul', { class: 'pv-notes tiny dim' }, [
+        bonus && bonus.all && bonus.all.length ? el('li', { text: `Now and then a card folded in from another set takes a slot (${pctOf(D.BONUS_RATE.rareMythic)} of rares, less often in the others); those are marked "extra" below.` }) : null,
+        (s.released_at || '9999') >= '2003-07-28' && kind !== 'collector' ? el('li', { text: `About ${pctOf(S.VINTAGE_RATE)} of packs have a card in an old-frame printing.` }) : null,
+        el('li', { text: 'A rare or mythic you already have four of comes as one of the set\u2019s you have not, while there are any.' }),
+      ].filter(Boolean)),
+    ].filter(Boolean));
+
+    /* -- the cards, the most valuable first, a page at a time -- */
+    let rarOn = null;
+    const chips = el('div', { class: 'search-chips pv-chips' });
+    const grid = el('div', { class: 'pv-grid' });
+    const more = el('div', { class: 'search-more' });
+    const count = el('span', { class: 'tiny dim' });
+    let list = items, shown = 0;
+    const PAGE = 48;
+    const tile = (it) => {
+      const own = S.owned(it.card.name);
+      const t = el('button', { type: 'button', class: 'pv-card r-' + it.rarity + (it.folded ? ' folded' : ''), 'aria-label': it.card.name }, [
+        el('div', { class: 'pv-img' }, [UI.cardImage(it.card, 'normal', 0)]),
+        el('div', { class: 'pv-meta' }, [
+          el('i', { class: 'pv-gem', title: PV_RAR[it.rarity], 'aria-hidden': 'true' }),
+          el('b', { class: 'pv-price', text: it.value ? '$' + (it.value >= 100 ? Math.round(it.value).toLocaleString() : it.value.toFixed(2)) : '\u2014' }),
+          el('span', { class: 'pv-odds', text: oddsOf(it.chance), title: `About ${pctOf(it.chance)} of packs` }),
+        ]),
+        it.folded ? el('span', { class: 'pv-tag', text: 'extra', title: 'Folded in from another set: it takes a slot now and then' }) : null,
+        own ? el('span', { class: 'pv-own', text: own === Infinity ? 'free' : '\u00d7' + Math.min(own, 4), title: `You own ${Math.min(own, 4)}` }) : null,
+      ].filter(Boolean));
+      t.addEventListener('click', () => UI.cardSheet(it.card));
+      UI.attachPreview(t, it.card, 0);
+      return t;
+    };
+    const page = () => {
+      const next = list.slice(shown, shown + PAGE);
+      for (const it of next) grid.insertBefore(tile(it), more);
+      shown += next.length;
+      more.textContent = shown < list.length ? 'Scroll for more' : '';
+    };
+    const draw = () => {
+      list = rarOn ? items.filter(it => it.rarity === rarOn) : items;
+      grid.innerHTML = '';
+      grid.appendChild(more);
+      shown = 0;
+      page();
+      count.textContent = `${list.length} card${list.length === 1 ? '' : 's'}, the most valuable first`;
+      chips.innerHTML = '';
+      chips.append(...[[null, 'All']].concat(PV_ORDER.filter(r => items.some(it => it.rarity === r)).map(r => [r, PV_RAR[r]])).map(([r, label]) =>
+        el('button', { type: 'button', class: 'chip' + (rarOn === r ? ' on' : ''), 'aria-pressed': rarOn === r ? 'true' : 'false', text: label,
+          onclick: () => { rarOn = r; draw(); } })), el('span', { class: 'grow' }), count);
+    };
+    const seen2 = new IntersectionObserver((en) => { if (en.some(e => e.isIntersecting) && shown < list.length) { page(); seen2.unobserve(more); seen2.observe(more); } }, { rootMargin: '400px' });
+    draw();
+    const main = el('div', { class: 'pv-main' }, [chips, grid]);
+    const body = el('div', { class: 'pack-view' }, [side, main]);
+    const m = UI.modal({ title: `${s.name}: ${kind === 'collector' ? 'Collector Booster' : spec.id === 'play' ? 'Play Booster' : 'Draft Booster'}`, width: '1100px', className: 'pack-view-modal', content: body });
+    seen2.observe(more);
+    const off = MTG.bus.on('economy:changed', () => { if (!body.isConnected) { off(); seen2.disconnect(); } });
+    return m;
   }
 
   /** Today's deals, the first time they are asked for: a mythic and two rares from recent sets. */
@@ -77380,7 +77874,7 @@ Sideboard
       const sl = pats[h % pats.length];
       return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
     }
-    return App.cleanSleeve(r.sleeve);
+    return withGif(App.cleanSleeve(r.sleeve), r);
   };
   /**
    * A sleeve another player sent, kept only if it is one this app draws:
@@ -77391,9 +77885,119 @@ Sideboard
     const known = MTG.economy.sleeveById(sl.id);
     if (sl.kind === 'pattern' && known && known.kind === 'pattern') return { id: known.id, kind: 'pattern', css: known.css, rim: known.rim };
     if (sl.kind === 'art' && known && typeof sl.art === 'string' && /^https:\/\/cards\.scryfall\.io\//.test(sl.art)) return { id: known.id, kind: 'art', art: sl.art, rim: known.rim };
-    if (sl.kind === 'custom' && typeof sl.img === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(sl.img) && sl.img.length <= 100000) return { id: 'custom', kind: 'custom', img: sl.img, rim: '#f1d58a' };
+    if (sl.kind === 'custom' && typeof sl.img === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(sl.img) && sl.img.length <= 100000) {
+      const out = { id: 'custom', kind: 'custom', img: sl.img, rim: '#f1d58a' };
+      // a GIF behind it: its name, and where to look in it
+      const ref = sl.ref, c = ref && ref.crop;
+      const frac = (n, lo) => typeof n === 'number' && n >= lo && n <= 1;
+      if (ref && typeof ref.h === 'string' && GIF_HASH.test(ref.h) && c && frac(c.x, 0) && frac(c.y, 0) && frac(c.w, 0.001) && frac(c.h, 0.001))
+        out.ref = { h: ref.h, crop: { x: c.x, y: c.y, w: c.w, h: c.h } };
+      return out;
+    }
     return null;
   };
+
+  /* ---- moving sleeves at a table ----
+     A sleeve that is a GIF travels as a reference: its name (a hash of the
+     file) and where to look in it. The GIF itself is asked for once, by
+     whoever does not have it, through the host, which passes it on to
+     anyone else who wants it; it comes in pieces a little apart, so the
+     game's own messages are not held up behind it, and it is checked
+     against its name before it is used. It is kept in memory for the
+     match and let go when the table is left. Until it is in, the still is
+     shown. */
+  const GIF_HASH = /^[0-9a-f]{32}$/;
+  const GIF_PART = 48000;                        // base64 characters a message
+  const GIF_PARTS_MAX = Math.ceil(5.6e6 / GIF_PART);
+  const gifs = {
+    have: new Map(),       // name -> blob URL
+    data: new Map(),       // host: name -> base64, to pass on
+    asked: new Set(),      // names asked for
+    waiting: new Map(),    // host: name -> who else wants it
+    parts: new Map(),      // name -> pieces so far
+    clear() {
+      for (const u of this.have.values()) URL.revokeObjectURL(u);
+      this.have.clear(); this.data.clear(); this.asked.clear(); this.waiting.clear(); this.parts.clear();
+    },
+  };
+  /** A seat's sleeve with its GIF, once it is here; asked for when it is not. */
+  function withGif(sl, seat) {
+    if (!sl || !sl.ref) return sl;
+    const url = gifs.have.get(sl.ref.h);
+    if (url) return Object.assign({}, sl, { anim: url, crop: sl.ref.crop });
+    askGif(sl.ref.h);
+    return sl;
+  }
+  /** The remote seat whose sleeve is this GIF (the host asks its owner). */
+  function gifOwner(h) {
+    const sess = App.session;
+    return sess ? sess.roster.find(r => r.kind === 'remote' && r.peerId && r.sleeve && r.sleeve.ref && r.sleeve.ref.h === h) : null;
+  }
+  function askGif(h) {
+    if (!net.online || gifs.asked.has(h) || gifs.have.has(h) || MTG.economy.ownGifHash() === h) return;
+    if (net.isClient) { gifs.asked.add(h); net.send(null, { t: 'gif:want', h }); return; }
+    const owner = net.isHost ? gifOwner(h) : null;
+    if (owner) { gifs.asked.add(h); net.send(owner.peerId, { t: 'gif:want', h }); }
+  }
+  /** A GIF down one connection (to the host, from a guest), in pieces a little apart. */
+  async function sendGif(to, h) {
+    let p = null;
+    if (MTG.economy.ownGifHash() === h) p = await MTG.economy.animPayload();
+    else if (gifs.data.has(h)) p = { h, type: 'image/gif', d: gifs.data.get(h) };
+    if (!p || !p.d || p.d.length > GIF_PART * GIF_PARTS_MAX) return;
+    const n = Math.ceil(p.d.length / GIF_PART);
+    for (let i = 0; i < n; i++) {
+      if (!net.online) return;
+      net.send(to, { t: 'gif:part', h, i, n, d: p.d.slice(i * GIF_PART, (i + 1) * GIF_PART) });
+      await U.sleep(20);
+    }
+  }
+  function gotGifWant(from, msg) {
+    const h = msg && msg.h;
+    if (typeof h !== 'string' || !GIF_HASH.test(h)) return;
+    const to = net.isHost ? from : null;
+    if (MTG.economy.ownGifHash() === h || gifs.data.has(h)) { sendGif(to, h); return; }
+    // the host has not got it yet: from its owner first, then on
+    if (net.isHost) {
+      if (!gifs.waiting.has(h)) gifs.waiting.set(h, new Set());
+      gifs.waiting.get(h).add(from);
+      askGif(h);
+    }
+  }
+  async function gotGifPart(from, msg) {
+    const h = msg.h;
+    if (typeof h !== 'string' || !GIF_HASH.test(h) || !gifs.asked.has(h) || gifs.have.has(h)) return;
+    if (!(Number.isInteger(msg.n) && msg.n > 0 && msg.n <= GIF_PARTS_MAX && Number.isInteger(msg.i) && msg.i >= 0 && msg.i < msg.n) || typeof msg.d !== 'string') return;
+    let buf = gifs.parts.get(h);
+    if (!buf) { buf = { n: msg.n, got: 0, parts: new Array(msg.n) }; gifs.parts.set(h, buf); }
+    if (buf.n !== msg.n || buf.parts[msg.i] != null) return;
+    buf.parts[msg.i] = msg.d;
+    if (++buf.got < buf.n) return;
+    gifs.parts.delete(h);
+    const d = buf.parts.join('');
+    if (!/^[A-Za-z0-9+/]+=*$/.test(d)) { gifs.asked.delete(h); return; }
+    let bytes;
+    try { bytes = await (await fetch('data:image/gif;base64,' + d)).arrayBuffer(); } catch (e) { gifs.asked.delete(h); return; }
+    // a GIF, and the one asked for
+    const head = new Uint8Array(bytes, 0, Math.min(6, bytes.byteLength));
+    if (String.fromCharCode(...head).slice(0, 4) !== 'GIF8' || await MTG.economy.digestHex(bytes) !== h) { gifs.asked.delete(h); return; }
+    gifs.have.set(h, URL.createObjectURL(new Blob([bytes], { type: 'image/gif' })));
+    if (net.isHost) {
+      gifs.data.set(h, d);
+      const w = gifs.waiting.get(h);
+      gifs.waiting.delete(h);
+      if (w) for (const p of w) sendGif(p, h);
+    }
+    // the table draws it at once
+    if (App.table && App.table.view) App.table.render();
+  }
+  /** Every seat's GIF asked for as soon as it is known: in the lobby, before the match. */
+  function askSeatGifs(members) {
+    for (const r of members || []) {
+      const sl = App.cleanSleeve(r && r.sleeve);
+      if (sl && sl.ref) askGif(sl.ref.h);
+    }
+  }
 
   /** A seat's portrait frame: yours from the Store, the others' as they sent them. */
   App.frameFor = function (pid) {
@@ -81722,6 +82326,7 @@ Sideboard
       // their profile picture, if it is one (a small image, nothing else)
       if (seat) seat.avatar = payload && UI.isAvatar(payload.avatar) ? payload.avatar : null;
       if (seat) seat.sleeve = App.cleanSleeve(payload && payload.sleeve);
+      if (seat && seat.sleeve && seat.sleeve.ref) askGif(seat.sleeve.ref.h);
       if (seat) seat.frame = payload && typeof payload.frame === 'string' && MTG.economy.frameById(payload.frame) ? payload.frame : null;
       if (payload && payload.autoPass && seat && sess.game) sess.game.setAutoPass(seat.id, payload.autoPass);
       sess.broadcastLobby();
@@ -81747,7 +82352,7 @@ Sideboard
       }
       sess.handleIntent(r.id, payload);
     });
-    net.on('lobby', (payload) => renderClientLobbyData(payload));
+    net.on('lobby', (payload) => { askSeatGifs(payload && payload.members); renderClientLobbyData(payload); });
     const showView = (view) => {
       const myId = view.you || findMe(view);
       const game = view.game || (view.config ? view.config.seed : null);
@@ -81767,6 +82372,8 @@ Sideboard
     net.on('open', () => { App.syncIn = new MTG.sync.Decoder(); });
     net.on('message', (from, msg) => {
       if (!msg) return;
+      if (msg.t === 'gif:want') { gotGifWant(from, msg); return; }
+      if (msg.t === 'gif:part') { gotGifPart(from, msg); return; }
       if (net.isClient && msg.t === 'sv') {
         const dec = App.syncIn || (App.syncIn = new MTG.sync.Decoder());
         const r = dec.decode(msg);
@@ -81820,7 +82427,7 @@ Sideboard
       updateRttPills(); App.paintNetChip();
       UI.error('Could not get back to that table. The host may have closed it.');
     });
-    net.on('kicked', (m) => { UI.error('Removed from the table: ' + m); showScreen('home'); });
+    net.on('kicked', (m) => { gifs.clear(); UI.error('Removed from the table: ' + m); showScreen('home'); });
   }
 
   function findMe(view) {
@@ -81853,6 +82460,8 @@ Sideboard
     if (App.session && App.session.draftTimer) clearInterval(App.session.draftTimer);
     if (App.table) { App.table.destroy(); App.table = null; }
     App.session = null;
+    // the other players' moving sleeves were for that match only
+    gifs.clear();
     if (App.draftUI && App.draftUI.destroy) App.draftUI.destroy();
     App.draftUI = null;
     if (!opts.keepSave) MTG.savedGame.clear();
