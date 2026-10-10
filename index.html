@@ -13248,6 +13248,28 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
+    /* Veteran Explorer, Jungle Wayfinder, New Frontiers: "Each player may search their library for up to two basic land
+       cards, put them onto the battlefield, then shuffle." — each player's own search, in turn order (forEachPlayer) */
+    { re: /^Each player may (search their library for [^.]+?)\.?$/i,
+      make: (m) => {
+        const own = 'You may ' + m[1].replace(/\btheir hands?\b/gi, 'your hand').replace(/\btheir\b/gi, 'your').replace(/\bthey\b/gi, 'you') + '.';
+        const inner = parseSentenceList(splitSentences(own));
+        if (!inner.auto || !inner.effects.length || JSON.stringify(inner.effects).includes('"targets":[{')) return null;
+        return { op: 'forEachPlayer', then: inner.effects };
+      } },
+    /* Jace, Memory Adept, Riverchurn Monument, Wheel and Deal: "Any number of target players each draw twenty cards" —
+       the words read as each player's own ("their" is "your"), and done as each of them in turn (forEachTargetPlayer).
+       Words that speak of you, the caster, are left to a person. */
+    { re: /^Any number of target (players|opponents) each (.+?)\.?$/i,
+      make: (m) => {
+        if (/\b(?:you|your|that player)\b/i.test(m[2])) return null;
+        const own = 'You ' + m[2].replace(/\btheir hands\b/gi, 'your hand').replace(/\btheir\b/gi, 'your').replace(/\bthey\b/gi, 'you') + '.';
+        const inner = parseSentenceList(splitSentences(own));
+        if (!inner.auto || !inner.effects.length || JSON.stringify(inner.effects).includes('"targets":[{')) return null;
+        const opp = /^opponents$/i.test(m[1]);
+        return { op: 'forEachTargetPlayer', then: inner.effects,
+          targets: [1, 2, 3, 4].map(() => Object.assign({ type: 'player', upTo: true, distinct: true }, opp ? { opponent: true } : {})) };
+      } },
     // Priest of Forgotten Gods: "Any number of target players each lose 2 life and sacrifice a creature of their choice."
     { re: /^Any number of target players each lose (\d+) life and sacrifice (a|one) (creature|permanent) of their choice\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
@@ -13393,6 +13415,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
     // Contagion Engine: "Proliferate twice."
+    // Expansion Algorithm: "Proliferate X times."; Tromell: "Proliferate X times, where X is …" (proliferateTimes)
+    { re: /^Proliferate (X|\d+) times(?:, where X is (.+?))?\.?$/i,
+      make: (m) => { const k = m[2] ? amountOf(m[2]) : (/^x$/i.test(m[1]) ? 'X' : +m[1]); return k == null || k === false ? null : { op: 'proliferateTimes', n: k }; } },
     { re: /^Proliferate (twice|three times)\.?$/i, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'proliferate' })) }) },
     { re: /^Put a \+1\/\+1 counter on each creature you control\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: 'yourCreatures' }) },
@@ -19396,8 +19421,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   function stripAbilityWord(line) {
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     // (Company Commander: "Bring it Down! — …")
-    // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label)
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?!?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -19881,6 +19906,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
     // Dragon Whelp, Initiates of the Ebon Hand: "this ability has been activated four or more times this turn" (abilityUsesThisTurn)
     [/^this ability has been activated (\w+) or more times this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'abilityUsesThisTurn', n: num(m[1]) } : null)],
+    // Archive Trap: "an opponent searched their library this turn"
+    [/^an opponent searched their library this turn$/i, () => ({ kind: 'opponentSearchedThisTurn' })],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)
     [/^you played a land this turn$/i, () => ({ kind: 'playedLandThisTurn' })],
     // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)
@@ -22941,7 +22968,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       /* Brightcap Badger: "Each Fungus and Saproling you control", "Fungi and
          Saprolings": a permanent of either creature type */
       const two = words.length === 3 && /^(?:and|or|and\/or)$/i.test(words[1]) && /^[A-Z]/.test(words[0]) && /^[A-Z]/.test(words[2]);
-      const sing = (x) => SAME[x.toLowerCase()] || (/s$/.test(x) ? singularType(x) : x.toLowerCase());
+      // (Thurid: "Pegasi"; Bruse Tarl: "Oxen" — plurals without an s)
+      const sing = (x) => SAME[x.toLowerCase()] || singularType(x);
       // Outlaws: "Outlaws you control" — Assassins, Mercenaries, Pirates, Rogues and Warlocks
       if (/^outlaws$/i.test(w) && words.length <= 2) {
         sc.subtypeAny = ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock']; sc.what = 'permanent'; words.pop();
@@ -25222,7 +25250,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      and "Faeries" a Faerie. */
   const PLURAL_TYPES = { elves: 'elf', wolves: 'wolf', werewolves: 'werewolf', dwarves: 'dwarf', thieves: 'thief',
     mice: 'mouse', fungi: 'fungus', heroes: 'hero', faeries: 'faerie', zombies: 'zombie', pixies: 'pixie',
-    octopuses: 'octopus', cyclopes: 'cyclops', oxen: 'ox', djinn: 'djinn', efreet: 'efreet' };
+    octopuses: 'octopus', cyclopes: 'cyclops', oxen: 'ox', djinn: 'djinn', efreet: 'efreet', pegasi: 'pegasus' };
   function singularType(w) {
     const lw = String(w).trim().toLowerCase();
     if (PLURAL_TYPES[lw]) return PLURAL_TYPES[lw];
@@ -28741,6 +28769,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
     /** Somebody searched their library: whoever watches for that hears of it. */
     _searched(pid) {
+      // Archive Trap: "If an opponent searched their library this turn" (opponentSearchedThisTurn)
+      const sp = this.player(pid);
+      if (sp) sp.searchedTurn = this.turn;
       this._fire('opponentSearches', null, { except: pid, player: pid, playerId: pid });
     }
 
@@ -36188,6 +36219,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'playedLandThisTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id && (me.landsPlayed || 0) > 0;
         // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
         case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
+        // Archive Trap: an opponent searched their library this turn
+        case 'opponentSearchedThisTurn': return !!me && this.opponentsOf(me.id).some(q => q.searchedTurn === this.turn);
         // Dragon Whelp: how often its ability has been activated this turn (the most-used one, for a card with several)
         case 'abilityUsesThisTurn': {
           const u = src && src._turnUses && src._turnUses.turn === this.turn ? Math.max(0, ...Object.values(src._turnUses.n || {})) : 0;
@@ -37320,7 +37353,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           });
         });
       }
-      if (from === 'graveyard' && toZone !== 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
+      if (from === 'graveyard' && toZone !== 'graveyard') {
+        // the moment it left, for a card that left beside it (null: not in the middle of an effect)
+        o._leftGraveEpoch = this._moveEpoch != null ? this._moveEpoch : null;
+        this._fire('leftGraveyard', null, { object: o, objController: o.owner });
+      }
       if (o._shuffleIn) {
         o._shuffleIn = false;
         this.rng.shuffle(this.zones[o.owner].library);
@@ -37650,6 +37687,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           /* a card leaving a graveyard is seen from before it left (CR 603.10a):
              the card itself, come back from there, was not around to see it */
           if (event === 'leftGraveyard' && data.object && data.object.id === o.id) continue;
+          /* nor was a card that left the graveyard at the same moment as it
+             (a Tormod brought back with the rest): it was in the graveyard
+             too, not on the battlefield watching it */
+          if (event === 'leftGraveyard' && this._moveEpoch != null && o._leftGraveEpoch === this._moveEpoch) continue;
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
@@ -37966,6 +38007,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         // Abstract Paintmage: what mana this makes, for a "spend this mana only" after it (restrictedMana)
         const manaBy = /^addMana/.test(e.op || '') ? this.player(ctxNow.controller) : null;
         const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
+        // (what an effect done as another player puts next in line is done as that player too: _spliceNext)
+        this._curAs = e._as || null;
+        /* One effect is one moment: everything it moves, it moves together
+           (Rise of the Dark Realms puts every creature card onto the
+           battlefield at once), which a trigger looking back needs to know
+           (_moveEpoch, CR 603.10a). An effect run inside another is part of
+           the same moment. */
+        const outerMoment = this._moveEpoch == null;
+        if (outerMoment) this._moveEpoch = (this._epochSeq = (this._epochSeq || 0) + 1);
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
@@ -37973,7 +38023,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           r.index++;
           continue;
         }
-        finally { this._putBy = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; }
+        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
         r.index++;
       }
@@ -40721,6 +40771,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           }
           break;
         }
+        // Expansion Algorithm: "Proliferate X times" — that many, one after another
+        case 'proliferateTimes': {
+          const k = Math.max(0, Math.min(50, n(e.n) || 0));
+          if (k) this._spliceNext(Array.from({ length: k }, () => ({ op: 'proliferate' })));
+          break;
+        }
         case 'proliferate': {
           /* Whose to choose: your own permanents unless what they carry hurts
              them, an opponent's only when it does, and opponents' poison —
@@ -41866,6 +41922,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         /* Terastodon: "For each permanent put into a graveyard this way, its
            controller creates a 3/3 green Elephant creature token." */
         // Scheming Symmetry: each target player does it, as that player, in turn (forEachTargetPlayer)
+        // Veteran Explorer: "Each player may search their library …" — as each player in turn, starting with you
+        case 'forEachPlayer': {
+          const list = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }));
+          if (list.length) this._spliceNext(list);
+          break;
+        }
         case 'forEachTargetPlayer': {
           const list = [];
           for (const t of targets) {
@@ -48353,7 +48416,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     _spliceNext(list) {
       if (!list || !list.length || !this.resolving) return;
       const r = this.resolving;
-      r.effects.splice(r.index + 1, 0, ...list);
+      /* Veteran Explorer: "each player may search …" — the "may" done as one
+         player puts its search next in line as that same player */
+      const as = this._curAs;
+      r.effects.splice(r.index + 1, 0, ...(as ? list.map(x => (x && x._as == null ? Object.assign({}, x, { _as: as }) : x)) : list));
     }
 
     /**
