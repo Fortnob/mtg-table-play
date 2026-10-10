@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10964,
+  "needed": 10961,
   "gainedCards": 1075,
-  "linesNeeded": 11708,
+  "linesNeeded": 11704,
   "linesGained": 1266,
   "gained": {
    "all": 1075,
@@ -3144,19 +3144,6 @@
    ]
   },
   {
-   "what": "MayCastTargetCardEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Arcane Heist",
-    "Chandra, Acolyte of Flame",
-    "Quistis Trepe",
-    "Chandra, Flame's Catalyst",
-    "Toshiro Umezawa",
-    "Sins of the Past"
-   ]
-  },
-  {
    "what": "put from hand tapped, or for another player",
    "score": 6,
    "lines": 6,
@@ -6185,6 +6172,16 @@
    ]
   },
   {
+   "what": "MayCastTargetCardEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Arcane Heist",
+    "Quistis Trepe",
+    "Sins of the Past"
+   ]
+  },
+  {
    "what": "AmassEffect",
    "score": 3,
    "lines": 3,
@@ -8985,18 +8982,6 @@
    ]
   },
   {
-   "what": "MayCastTargetCardEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Arcane Heist",
-    "Chandra, Acolyte of Flame",
-    "Quistis Trepe",
-    "Toshiro Umezawa",
-    "Sins of the Past"
-   ]
-  },
-  {
    "what": "PermanentPredicate.instance",
    "score": 5,
    "cards": 5,
@@ -10257,6 +10242,17 @@
     "Zenith Flare",
     "Rooting Moloch",
     "Sacred Excavation"
+   ]
+  },
+  {
+   "what": "attack trigger with its own text",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Captain Vargus Wrath",
+    "Graven Abomination",
+    "Wolf of Devil's Breach",
+    "Shrouded Serpent"
    ]
   }
  ]

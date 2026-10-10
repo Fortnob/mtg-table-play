@@ -18466,8 +18466,9 @@
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
-            const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
-              prompt: `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
+            // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
+            const yes = e.must ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+              prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
             const want = yes === null ? true : !!yes;
             if (!want) { if (r) r.marks[slot + 'done' + k] = true; continue; }

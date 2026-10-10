@@ -19159,4 +19159,62 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, 1, 'a card');
   });
+
+  test('Chandra, Acolyte of Flame: -2 casts a cheap instant from your graveyard, paying for it, and exiles it after', (mk, t) => {
+    t.auto('Chandra, Acolyte of Flame');
+    const T = mk();
+    T.toMain('A');
+    const ch = T.bf('A', 'Chandra, Acolyte of Flame', { counters: { loyalty: 4 } });
+    const bolt = T.grave('A', 'Lightning Bolt');
+    const a = ch.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const k = list.findIndex(x => x.cost && x.cost.loyalty === -2);
+    T.answer('confirm', (q) => { t.ok(/paying its mana cost/.test(q.prompt), 'paid for, not free'); return { yes: true }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R');
+    T.activate('A', ch, k, { targets: [bolt.id] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 17, 'the Bolt');
+    t.zone(bolt, 'exile', 'exiled instead of going back to the graveyard');
+    const big = T.grave('A', 'Lava Axe');
+    T.g.turn++;
+    ch.counters.loyalty = 4; ch._turnUses = null; ch.activatedTurn = null;
+    t.no(T.g._legalTargetsFor(list[k].effects[0].targets[0], 'A', ch.id).some(x => (x.id || x) === big.id), 'mana value 5 is too much');
+  });
+
+  test("Chandra, Flame's Catalyst: -8 wheels, then spells from your hand are free this turn", (mk, t) => {
+    t.auto("Chandra, Flame's Catalyst");
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    T.top('A', 'Lava Axe');
+    const ch = T.bf('A', "Chandra, Flame's Catalyst", { counters: { loyalty: 8 } });
+    T.hand('A', 'Forest');
+    const a = ch.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', ch, list.findIndex(x => x.cost && x.cost.loyalty === -8));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 7, 'seven new cards');
+    const axe = T.zone('A', 'hand').find(c => c.name === 'Lava Axe');
+    T.cast('A', axe, { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 15, 'Lava Axe for nothing');
+  });
+
+  test('Toshiro Umezawa: an opposing creature dying lets you cast an instant from your graveyard, paid for, then exiled', (mk, t) => {
+    t.auto('Toshiro Umezawa');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Toshiro Umezawa');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bolt.id }] }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R');
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.eq(T.g.player('B').life, 17, 'the Bolt, cast for {R}');
+    t.zone(bolt, 'exile');
+  });
 };

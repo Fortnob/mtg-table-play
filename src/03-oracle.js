@@ -3625,6 +3625,9 @@
         return Object.assign({ op: 'discard', n: num(m[2]), who, random: true },
           who === 'target' ? { targets: [/opponent/.test(w) ? { type: 'player', opponent: true } : { type: 'player' }] } : {});
       } },
+    // Chandra, Flame's Catalyst: "Until end of turn, you may cast spells from your hand without paying their mana costs." — Omniscience for the turn
+    { re: /^Until end of turn, you may cast spells from your hand without paying their mana costs\.?$/i,
+      make: () => ({ op: 'getEmblem', emblemText: 'You may cast spells from your hand without paying their mana costs.', thisTurn: true, name: 'Until end of turn' }) },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -7380,6 +7383,18 @@
           /^your/i.test(m[3]) ? { controller: 'you' } : /^that player/i.test(m[3]) ? { controller: 'triggerPlayer' } : /opponent/i.test(m[3]) ? { controller: 'opponent' } : {},
           m[2] ? { maxMv: +m[2] } : {});
         return [{ op: 'castFree', from: 'targets', upTo: 1, exileAfter: /exile it instead/i.test(m[0]), targets: [spec] }];
+      } },
+    /* Chandra, Acolyte of Flame, Toshiro Umezawa: "You may cast target
+       instant or sorcery card with mana value 3 or less from your graveyard.
+       If that spell would be put into your graveyard, exile it instead." —
+       now, as this resolves, paying its mana cost */
+    { re: /^(You may )?cast target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from your graveyard\.(?: If that (?:spell|card) would be put into (?:your|a) graveyard,? exile it instead\.)?$/i,
+      make: (m) => {
+        const words = m[2].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', controller: 'you' }, m[3] ? { maxMv: +m[3] } : {});
+        if (spec.unknown) return null;
+        // (a trigger's "you may" is asked as it triggers: what is left is a must)
+        return [{ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] }];
       } },
     // Singularity Rupture: "Destroy all creatures, then any number of target players each mill half their library, rounded down."
     { re: /^Destroy all creatures, then any number of target players each mill half their library, rounded (down|up)\.?$/i,
