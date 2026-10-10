@@ -6268,4 +6268,26 @@ module.exports = (test) => {
     t.zone(isl, 'graveyard', 'the card chosen'); t.zone(fo, 'hand', 'and only that one');
     t.zone(pl, 'hand', 'one card drawn');
   });
+
+  test('Audit: Sylvan Library charges 4 life for each of two cards, not a third time, and puts back only a card drawn this turn', (mk, t) => {
+    t.auto('Sylvan Library');
+    for (const keepBoth of [true, false]) {
+      const T = mk(); T.toMain('B');
+      T.bf('A', 'Sylvan Library');
+      T.g.zones.A.hand.length = 0; const old = T.hand('A', 'Mountain');
+      T.g.zones.A.library.length = 0; const c3 = T.top('A', 'Swamp'), c2 = T.top('A', 'Forest'), c1 = T.top('A', 'Island');
+      let offered = null;
+      T.answer('confirm', { yes: true });              // draw two more
+      T.answer('confirm', { yes: true });              // pay for the first
+      T.answer('confirm', { yes: keepBoth });          // and the second?
+      T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort().join(','); return { cardIds: [c2.id] }; });
+      T.nextTurn('A'); T.settle(); T.resolve();
+      t.eq(T.life('A'), keepBoth ? 12 : 16, keepBoth ? 'two cards kept: 8 life' : 'one kept: 4 life');
+      if (!keepBoth) {
+        t.eq(offered, 'Forest,Island,Swamp', 'only the cards drawn this turn are offered');
+        t.zone(c2, 'library'); t.eq(T.g.zones.A.library[0], c2, 'on top');
+      }
+      t.zone(old, 'hand');
+    }
+  });
 };

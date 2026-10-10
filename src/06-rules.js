@@ -11104,6 +11104,8 @@
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
+      // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
+      o.drawnTurn = null;
       // out of exile, an adventure is over
       if (from === 'exile' && toZone !== 'exile') o.adventureBy = null;
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
@@ -11506,6 +11508,8 @@
         }
         const o = z.library.shift();
         o.zone = 'hand';
+        // (Sylvan Library: "cards in your hand drawn this turn")
+        o.drawnTurn = this.turn;
         z.hand.push(o);
         drawnNow++;
         p.drawnThisTurn = (p.drawnThisTurn || 0) + 1;
@@ -17972,11 +17976,17 @@
             const pay = this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: `Pay ${e.life || 4} life to keep a card? (otherwise one goes back on top)` }, 'k' + i);
             if (pay === SUSPEND) return SUSPEND;
-            if (pay && me.life > (e.life || 4)) { this.changeLife(me, -(e.life || 4), 'cost'); continue; }
+            /* (come back to for the next card's answer, a payment or a card put back is not made again:
+               Sylvan Library charged 4 life a third time) */
+            if (pay && me.life > (e.life || 4)) { if (!this._doneHere('slPaid' + i)) this.changeLife(me, -(e.life || 4), 'cost'); continue; }
+            // "a card in your hand drawn this turn"
+            const drawn = hand.filter(o => o.drawnTurn === this.turn);
+            const from = drawn.length ? drawn : hand;
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
-              cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: 'Put a card on top of your library.' }, 'b' + i);
+              cards: from.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: 'Put a card drawn this turn on top of your library.' }, 'b' + i);
             if (picked === SUSPEND) return SUSPEND;
+            if (this._doneHere('slBack' + i)) continue;
             const o = this.obj((picked || [])[0]);
             if (!o) break;
             this._removeFromZone(o);
