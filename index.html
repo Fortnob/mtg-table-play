@@ -13605,8 +13605,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Alley Grifters, Silent Skimmer: "defending player discards a card", "defending player loses 2 life"
     { re: /^(?:the )?defending player discards (a|one|two|\d+) cards?\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'defending' }) },
     { re: /^(?:the )?defending player loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[1], who: 'defending' }) },
-    // Weapon Rack, Simic Fluxmage: "Move a +1/+1 counter from this onto target creature."
-    { re: /^Move (a|an|one|two|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent)) onto (target [a-z ]+?)\.?$/i,
+    // Weapon Rack, Simic Fluxmage: "Move a +1/+1 counter from this onto target creature." (Diamond City: "from this land")
+    { re: /^Move (a|an|one|two|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|land|enchantment)) onto (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'moveCounterFromSelf', n: num(m[1]), kind: m[2].toLowerCase(), targets: [targetSpec(m[3])] }) },
     // Spinal Parasite: "Remove a counter from target permanent."
     { re: /^Remove (a|an|one|two|three|\d+) ((?:[+\-0-9/a-z]+ )?)counters? from (target [a-z ]+?)\.?$/i,
@@ -19314,6 +19314,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^you control (\w+) or more permanents you don'?t own$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'controlNotOwned', n: num(m[1]) } : null)],
     // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
     [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
+    // Luminarch Ascension: "you didn't lose life this turn"
+    [/^you didn'?t lose life this turn$/i, () => ({ kind: 'not', cond: { kind: 'lostLife', who: 'you', n: 1 } })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
     // Vengevine: "if it's the second creature spell you cast this turn"
@@ -22386,11 +22388,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Curse of Death's Hold: "Creatures enchanted player controls"
     const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
     if (WE) { sc.who = 'enchantedPlayer'; rest = rest.slice(0, WE.index); }
-    const W = !WE && rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls)$/i);
+    // (Mjölnir, Storm Hammer: "each opponent … that opponent controls" — that player)
+    const W = !WE && rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls|that opponent controls)$/i);
     if (W) {
-      sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player)/i.test(W[1]) ? 'target' : 'opponents';
+      sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player|that opponent)/i.test(W[1]) ? 'target' : 'opponents';
       // Cavern-Hoard Dragon: "for each artifact that player controls"
-      if (/^that player/i.test(W[1])) sc.thatPlayer = true;
+      if (/^that (?:player|opponent)/i.test(W[1])) sc.thatPlayer = true;
       // Silumgar, the Drifting Death: "creatures defending player controls" — the one opponent attacked
       if (/^defending/i.test(W[1])) sc.defending = true;
       rest = rest.slice(0, W.index);
