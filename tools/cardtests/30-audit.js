@@ -5080,4 +5080,34 @@ module.exports = (test) => {
     t.ok(T.g.castSpell('A', m.id, { auto: true, x: 3, targets: [{ kind: 'player', id: 'B' }] })); T.settle(); T.resolve(); T.settle();
     t.eq(T.zone('B', 'hand').length, 8, 'X is 3: eight cards');
   });
+
+  test("Audit: Maelstrom Nexus cascades the first spell each turn only; Aethershield Artificer's target must be an artifact creature; Skyknight Squire flies at three counters", (mk, t) => {
+    t.auto('Maelstrom Nexus'); t.auto('Aethershield Artificer'); t.auto('Skyknight Squire');
+    let T = mk({ library: ['Island'] });
+    T.toMain('A');
+    T.bf('A', 'Maelstrom Nexus');
+    const top1 = T.top('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R3'); T.cast('A', T.hand('A', 'Hill Giant')); T.resolve(); T.settle();
+    t.zone(top1, 'battlefield', 'the first spell: cascade');
+    const top2 = T.top('A', 'Grizzly Bears');
+    T.mana('A', 'R3'); T.cast('A', T.hand('A', 'Hill Giant')); T.resolve(); T.settle();
+    t.zone(top2, 'library', 'the second: none');
+    T = mk();
+    T.toMain('A');
+    const ar = T.bf('A', 'Aethershield Artificer');
+    const orn = T.bf('A', 'Ornithopter'), bear = T.bf('A', 'Grizzly Bears');
+    const spec = ar.analysis().abilities.find(a => a.kind === 'triggered').effects[0].list[0].targets[0];
+    const ids = T.g._legalTargetsFor(spec, 'A', ar.id).map(x => x.id);
+    t.ok(ids.includes(orn.id), 'the Ornithopter'); t.no(ids.includes(bear.id), 'not the Bears');
+    T = mk();
+    T.toMain('A');
+    const sq = T.bf('A', 'Skyknight Squire', { counters: { '+1/+1': 2 } });
+    T.g.bumpBoard();
+    t.no(T.g.hasKw(sq, 'flying'));
+    T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(T.put('A', 'Grizzly Bears', 'hand'), 'battlefield'); T.settle(); T.resolve(); T.settle();
+    T.g.bumpBoard();
+    t.eq(sq.counters['+1/+1'], 3); t.ok(T.g.hasKw(sq, 'flying'), 'three: flying'); t.ok(T.g._hasSubtype(sq, 'Knight'));
+  });
 };
