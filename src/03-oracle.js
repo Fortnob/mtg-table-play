@@ -9349,6 +9349,13 @@
     [/^you control your commander$/i, () => ({ kind: 'controlCommander' })],
     [/^there are (\w+) or more permanent cards in your graveyard$/i, (m) => ({ kind: 'graveyardPermanents', n: num(m[1]) })],
     [/^you descended this turn$/i, () => ({ kind: 'descended' })],
+    // Hour of Revelation, Portcullis: "there are ten or more nonland permanents (two or more other creatures) on the battlefield"
+    [/^there are (\w+) or more (other )?([a-z ]+?) on the battlefield$/i, (m) => {
+      const k = num(m[1].toLowerCase());
+      const sc = typeof k === 'number' ? scopeOf(m[3]) : null;
+      if (!sc) return null;
+      return { kind: 'control', scope: Object.assign({}, sc, { who: 'all' }, m[2] ? { other: true } : {}), n: k };
+    }],
     // Cloakwood Hermit, Raphael, Fiendish Savior: "a creature card was put into your graveyard from anywhere this turn"
     [/^an? creature card was put into your graveyard from anywhere this turn$/i, () => ({ kind: 'creatureCardToGrave' })],
     [/^this spell was bargained$/i, () => ({ kind: 'bargained' })],
@@ -10041,7 +10048,8 @@
     { re: /^When(?:ever)? an? \+1\/\+1 counter is put on (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
       extra: { counterKind: '+1/+1', perAmount: true } },
     // Simic Ascendancy, Animation Module: "one or more +1/+1 counters are put on a creature you control"
-    { re: /^When(?:ever)? one or more \+1\/\+1 counters are put on (a|another) (creature|permanent) you control(?:,| )/i, event: 'countersPut',
+    // (Wildwood Scourge: "another non-Hydra creature you control")
+    { re: /^When(?:ever)? one or more \+1\/\+1 counters are put on (a|another) ((?:non-[A-Z][a-z]+ )?creature|permanent) you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: m[2].toLowerCase(), who: 'you', other: /another/i.test(m[1]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? you put one or more \+1\/\+1 counters on (?:a|another) creature you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
@@ -10058,7 +10066,8 @@
     { re: /^Whenever a player plays a land,? /i, event: 'anyPlayLand' },
     { re: /^Whenever an opponent plays a land,? /i, event: 'opponentPlaysLand' },
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
-    { re: /^Whenever you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    // (Legion's Landing: "When you attack with three or more creatures")
+    { re: /^When(?:ever)? you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)

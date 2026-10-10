@@ -19488,4 +19488,32 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.eq(T.g.player('A').pool.R, 2, 'still there at the end step');
   });
+
+  test("Hour of Revelation, Wildwood Scourge, Legion's Landing: counts on the battlefield, non-Hydras, three attackers", (mk, t) => {
+    t.auto('Hour of Revelation'); t.auto('Wildwood Scourge'); t.auto("Legion's Landing // Adanto, the First Fort");
+    const T = mk();
+    T.toMain('A');
+    const hr = T.hand('A', 'Hour of Revelation');
+    t.eq(T.g.castCostFor('A', hr.id), '{3}{W}{W}{W}', 'few permanents: full price');
+    for (let i = 0; i < 5; i++) { T.bf('A', 'Sol Ring'); T.bf('B', 'Sol Ring'); }
+    T.g.bumpBoard();
+    t.eq(T.g.castCostFor('A', hr.id), '{W}{W}{W}', 'ten nonland permanents on the battlefield, either side: {3} less');
+    const ws = T.bf('A', 'Wildwood Scourge');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1);
+    T.resolve();
+    t.eq(ws.counters['+1/+1'], 1, 'a counter on a non-Hydra: one on the Scourge');
+    T.g.addCounters(ws, '+1/+1', 1);
+    T.resolve();
+    t.eq(ws.counters['+1/+1'], 2, 'not for its own (a Hydra, and not another)');
+  });
+
+  test("Legion's Landing: attacking with three creatures transforms it", (mk, t) => {
+    const T = mk();
+    const ll = T.bf('A', "Legion's Landing // Adanto, the First Fort");
+    const a = ['Grizzly Bears', 'Grizzly Bears', 'Hill Giant'].map(n => T.bf('A', n));
+    T.answer('declareAttackers', () => a.map(x => ({ attackerId: x.id, defenderId: 'B' })));
+    T.toMain('A', 'endCombat');
+    t.eq(ll.face, 1, 'transformed');
+  });
 };
