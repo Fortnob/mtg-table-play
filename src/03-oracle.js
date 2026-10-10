@@ -3728,15 +3728,16 @@
         rest: /graveyard/i.test(m[2]) ? 'graveyard' : 'bottom' }) },
 
 
-    { re: /^(Target (?:attacking |blocking |attacking or blocking )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
+    // (Imotekh the Stormlord: "another target artifact creature you control")
+    { re: /^((?:Another )?Target (?:attacking |blocking |attacking or blocking )?(?:artifact )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
         { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
-          targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-          scope: /^target/i.test(m[1]) ? null : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : 'self') },
+          targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
+          scope: /^(?:another )?target/i.test(m[1]) ? null : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : 'self') },
         { op: 'grantKeyword', keywords: m[4].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean),
           duration: 'eot',
-          targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-          scope: /^target/i.test(m[1]) ? null : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : 'self') }] }) },
+          targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
+          scope: /^(?:another )?target/i.test(m[1]) ? null : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : 'self') }] }) },
     // (Arahbo, Roar of the World: "it gains trample and gets +X/+X" — what the sentence before, or the trigger, is about)
     { re: /^(Target creature(?: you control)?|CARDNAME|This creature|It|That creature) gains ([a-z, ']+?) and gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
       make: (m) => {
@@ -13783,8 +13784,10 @@
       { re: /^([A-Za-z ]*?)spells you cast have storm\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'storm', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
       // Wild-Magic Sorcerer: "The first spell you cast from exile each turn has cascade."
-      { re: /^The first spell you cast from exile each turn has cascade\.?$/i,
-        make: () => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }), auto: true },
+      // (Maelstrom Nexus: "The first spell you cast each turn has cascade.")
+      { re: /^The first spell you cast( from exile)? each turn has cascade\.?$/i,
+        make: (m) => (m[1] ? { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }
+          : { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', firstEachTurn: true }), auto: true },
       // Thrumming Stone: "Spells you cast have ripple 4."
       { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },

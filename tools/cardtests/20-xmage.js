@@ -19669,4 +19669,29 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('B', 'hand').length, 8, 'X = 3: eight cards');
   });
+
+  test('Maelstrom Nexus, Imotekh: the first spell each turn cascades; another artifact creature +2/+2 and menace', (mk, t) => {
+    t.auto('Maelstrom Nexus'); t.auto('Imotekh the Stormlord');
+    const T = mk({ library: ['Island'] });
+    T.toMain('A');
+    T.bf('A', 'Maelstrom Nexus');
+    const elf = T.top('A', 'Llanowar Elves');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.zone(elf, 'battlefield', 'the first spell cascades into the Elves');
+    const elf2 = T.top('A', 'Llanowar Elves');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.zone(elf2, 'library', 'the second does not');
+    const T2 = mk();
+    T2.bf('A', 'Imotekh the Stormlord');
+    const golem = T2.bf('A', 'Bronze Sable');
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: golem.id }] }));
+    T2.toMain('A', 'beginCombat');
+    T2.resolve();
+    t.eq(T2.g.powerOf(golem), 4, 'a 2/1 artifact creature gets +2/+2');
+    t.ok(T2.g.hasKw(golem, 'menace'), 'and menace');
+  });
 };

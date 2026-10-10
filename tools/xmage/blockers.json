@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10893,
+  "needed": 10889,
   "gainedCards": 1052,
-  "linesNeeded": 11619,
+  "linesNeeded": 11615,
   "linesGained": 1239,
   "gained": {
    "all": 1052,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4105,
-   "lines": 3859,
+   "score": 4104,
+   "lines": 3858,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -666,25 +666,6 @@
    ]
   },
   {
-   "what": "two types at once",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Imotekh the Stormlord",
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar",
-    "Golem Artisan",
-    "Aethershield Artificer",
-    "Neurok Transmuter",
-    "Baxter Stockman",
-    "Abuna Acolyte",
-    "Auriok Siege Sled"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 16,
    "lines": 16,
@@ -990,6 +971,24 @@
     "Monstrous War-Leech",
     "Mwonvuli Ooze",
     "Umbra Stalker"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar",
+    "Golem Artisan",
+    "Neurok Transmuter",
+    "Abuna Acolyte",
+    "Auriok Siege Sled",
+    "Argivian Blacksmith",
+    "Weldfast Engineer"
    ]
   },
   {
@@ -6576,8 +6575,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3427,
-   "cards": 3262,
+   "score": 3426,
+   "cards": 3261,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6948,19 +6947,6 @@
    ]
   },
   {
-   "what": "two types at once",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Imotekh the Stormlord",
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar"
-   ]
-  },
-  {
    "what": "ActivateIfConditionActivatedAbility without a condition",
    "score": 13,
    "cards": 4,
@@ -7173,6 +7159,19 @@
     "Fancy Footwork",
     "Wanderwine Farewell",
     "Become Brutes"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Pia Nalaar",
+    "Golem Artisan"
    ]
   },
   {

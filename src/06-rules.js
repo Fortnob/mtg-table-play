@@ -5650,6 +5650,8 @@
         // Wild-Magic Sorcerer: the first spell cast from exile this turn, and no other
         if (g.fromZones && !g.fromZones.includes(item.fromZone)) return false;
         if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) return false; }
+        // Maelstrom Nexus: the first spell its controller casts this turn
+        if (g.firstEachTurn && ((this.player(item.controller) || {}).spellsCastThisTurn || 0) !== 1) return false;
         return !g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter);
       });
       if (!a.keywordSet.has('cascade') && !granted) return;
