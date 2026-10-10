@@ -5406,6 +5406,10 @@ html[data-play="1"] .shard-chip { display: none; }
 .col-card:hover .col-img::after { opacity: 1; }
 .col-card.r-rare .col-img, .col-card.r-mythic .col-img { box-shadow: 0 0 0 1px rgba(var(--rc), .4), 0 6px 16px rgba(0,0,0,.55), 0 0 14px rgba(var(--rc), .18); }
 .col-card.unowned .col-img { filter: grayscale(.9) brightness(.45); }
+/* the picture is an image now, so a failed one can be noticed and replaced */
+.col-img, .col-detail-img { overflow: hidden; }
+.col-img > img, .col-detail-img > img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.col-img > .card-fallback, .col-detail-img > .card-fallback { width: 100%; height: 100%; min-height: 0; }
 .col-card.unowned:hover .col-img { filter: grayscale(.5) brightness(.7); }
 /* the copies held: four pips in a small dark bar under the card */
 .col-pips { justify-self: center; display: flex; gap: 5px; padding: 4px 9px; border-radius: 99px;
@@ -18879,6 +18883,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Thor: "Equipment, instant, or sorcery card" is any one of them, not all at once
       if (spec.subtypes && /\bor\b/.test(p)) spec.typeOrSubtype = true;
     }
+    /* Roadside Blowout, Lotusguard Disciple, Okiba Salvage: "target creature or Vehicle" is a creature, or
+       a Vehicle whether it is a creature right now or not — not only a creature that is a Vehicle
+       (typeOrSubtypePerm) */
+    if (!spec.spellish && (spec.subtypes || []).length && permTypes.length === 1 && permTypes[0] !== 'permanent' &&
+        spec.type === permTypes[0] && new RegExp('\\b' + permTypes[0] + 's?,? (?:and\\/)?or (?:an? )?[a-z]+\\b').test(p)) {
+      spec.cardTypes = permTypes.slice(); spec.type = 'permanent'; spec.typeOrSubtype = true;
+    }
     return spec;
   }
 
@@ -21622,7 +21633,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Progenitor Mimic: "if this creature isn't a token"
     [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
-    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment))$/i, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
+    // (Falkenrath Aristocrat, Evereth, Hellish Sideswipe: "was a Human", "was a Treasure", "was a Vehicle" — sacrificedSubtype)
+    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment)|an? [A-Z][a-z]+)$/, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
     // Twenty-Toed Toad: "there are twenty or more counters on it or you have twenty or more cards in hand"
     [/^there are (\w+) or more counters on (?:it|CARDNAME|this (?:creature|artifact|permanent))(?: or you have (\w+) or more cards in hand)?$/i, (m) => {
       const k = num(m[1]);
@@ -36281,7 +36293,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const x of list) {
         if (!x || x.zone !== 'battlefield') continue;
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
-          mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary });
+          mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary,
+          // (Falkenrath Aristocrat: "if the sacrificed creature was a Human" — sacrificedSubtype)
+          subtypes: ((x.analysis() || {}).subtypes || []).slice() });
         this.moveObject(x, 'graveyard');
       }
       if (!snaps.length) return;
@@ -38921,7 +38935,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
-          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).some(t => t.toLowerCase() === cond.what);
+          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what);
         }
         case 'manaSpentOverPower': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
@@ -75447,12 +75461,41 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     drawGrid();
   };
 
+  /**
+   * A card's picture that does not give up: the printing you own, and if
+   * that has no picture or it will not load (a printing whose picture was
+   * not out yet when the card data was saved, a request that failed), the
+   * card's usual printing from Scryfall; only failing both, the card
+   * written out. Loaded lazily, so a long collection asks for what is on
+   * screen.
+   */
+  function cardPic(c, cls) {
+    const box = el('div', { class: cls });
+    const img = el('img', { alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+    let tried = false;
+    const words = () => { img.remove(); if (!box.querySelector('.card-fallback')) box.appendChild(UI.cardFallback(c, 0)); };
+    const usual = async () => {
+      if (tried) return words();
+      tried = true;
+      try {
+        const other = await MTG.scry.byName(c.name);
+        const u = other && MTG.scry.imageUrl(other, 'normal', 0);
+        if (u && u !== img.getAttribute('src')) { img.src = u; return; }
+      } catch (e) { /* no other picture to be had */ }
+      words();
+    };
+    img.addEventListener('error', usual);
+    const url = MTG.scry.imageUrl(c, 'normal', 0);
+    box.appendChild(img);
+    if (url) img.src = url; else usual();
+    return box;
+  }
+
   function colTile(c, host) {
     const S = E();
     const n = Math.min(4, S.owned(c.name));
-    const url = MTG.scry.imageUrl(c, 'normal', 0);
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
-      el('div', { class: 'col-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }, url ? [] : [UI.cardFallback(c, 0)]),
+      cardPic(c, 'col-img'),
       el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' }))),
       UI.wishMark ? UI.wishMark(c.name) : null,
     ]);
@@ -75469,11 +75512,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const r = S.rarityOf(c);
     const have = S.owned(c.name);
     const wc = S.wildcards()[r];
-    const url = MTG.scry.imageUrl(c, 'normal', 0);
     const m = mm = UI.modal({
       title: c.name,
       content: el('div', { class: 'col-detail' }, [
-        el('div', { class: 'col-detail-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
+        cardPic(c, 'col-detail-img'),
         el('div', {}, [
           el('p', { text: `${RAR_NAME[r]} · you own ${Math.min(4, have)} of 4.` }),
           el('p', { class: 'dim' }, [document.createTextNode('Crafting takes one '), wcIcon(r, null), document.createTextNode(` ${r} wildcard. You have ${wc}.`)]),
