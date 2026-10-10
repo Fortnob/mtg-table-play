@@ -144,6 +144,8 @@
         el('div', { class: 'ph-xp', title: `${fmtN(S.xp)} XP this season` }, [el('i', { style: { width: lvlPct.toFixed(0) + '%' } })]),
       ]),
       el('div', { class: 'ph-actions' }, [
+        // friends, your wishlist and your trades (src/10g-ui-social.js)
+        UI.openFriends ? el('button', { type: 'button', class: 'btn', html: `${UI.socialIcons.people}<span>Friends</span>`, onclick: () => UI.openFriends() }) : null,
         el('button', { type: 'button', class: 'btn', html: `${BELL}<span>Inbox${S.inbox.length ? ` (${S.inbox.length})` : ''}</span>`, onclick: () => UI.openInbox() }),
       ]),
     ]);

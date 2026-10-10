@@ -53,6 +53,8 @@
       if (App.screen === 'decks') renderDecks();
       if (App.screen === 'home') renderHome();
     }, 120));
+    // the shell is up: friends, and a link the page was opened with (src/10g-ui-social.js)
+    MTG.bus.emit('app:ready');
   };
 
   const NAME_A = ['Quiet', 'Brass', 'Amber', 'Storm', 'Ivory', 'Hollow', 'Gilded', 'Mossy', 'Iron', 'Pale',
@@ -438,6 +440,7 @@
         onclick: () => navTo(id),
       }))),
       el('span', { class: 'grow' }),
+      UI.friendsChip ? UI.friendsChip() : null,
       UI.inboxChip(),
       UI.hoardChip(() => App.openPacks()),
       // a click on the Shards: ten thousand more, like the backquote key, and the Store to spend them in
@@ -497,6 +500,7 @@
     if (name === 'collection') UI.renderCollection(screens.collection);
     if (name === 'profile') UI.renderProfile(screens.profile, { onRanked: (f) => App.playRanked(f) });
     window.scrollTo && window.scrollTo(0, 0);
+    MTG.bus.emit('screen', name);
   }
   App.showScreen = showScreen;
 
@@ -2356,6 +2360,8 @@
         el('button', { type: 'button', class: 'btn sm', text: 'Save to a file', onclick: () => App.exportProfile() }),
         el('button', { type: 'button', class: 'btn sm ghost', text: 'Load from a file…', onclick: () => App.importProfile() }),
       ]),
+      // the same, straight to another device (src/10g-ui-social.js)
+      UI.moveSaveRow ? UI.moveSaveRow() : null,
     ]));
 
     /* -- gameplay -- */
@@ -2784,6 +2790,7 @@
       UI.error(e.message || String(e));
     }
   }
+  App.joinRoom = joinRoom;
 
   function renderLobby() {
     const s = screens.lobby;
@@ -2898,6 +2905,8 @@
         }),
       );
     }
+    // friends to invite, and a link to the room (src/10g-ui-social.js)
+    if (UI.lobbyInvites) online.appendChild(UI.lobbyInvites({ fmt: fmt.name, onOpened: () => { setNetBadge(); renderLobby(); } }));
     side.appendChild(online);
 
     /* -- what is being drafted, and the format in a sentence -- */
@@ -3587,6 +3596,7 @@
     ]);
     App.clientLobbyBox = el('div', { class: 'panel seats-panel' }, el('div', { class: 'empty-note', text: 'Connected. Waiting for the host…' }));
     inner.append(App.clientBanner, App.clientLobbyBox);
+    if (UI.lobbyInvites) inner.appendChild(UI.lobbyInvites({ guest: true }));
     s.appendChild(el('div', { class: 'menu-wrap' }, inner));
   }
 
