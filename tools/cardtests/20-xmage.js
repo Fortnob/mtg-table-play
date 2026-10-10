@@ -21195,4 +21195,31 @@ module.exports = (test) => {
     T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [hu] }); T.resolve();
     t.eq(spirits(), 1, 'a Human died: a Spirit');
   });
+
+  test('Ana, Ceta, Dega and Necra Sanctuary: "if you control a blue permanent and a black permanent", the bigger effect instead', (mk, t) => {
+    for (const n of ['Ana Sanctuary', 'Ceta Sanctuary', 'Dega Sanctuary', 'Necra Sanctuary']) t.auto(n);
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('B');
+    T.bf('A', 'Ana Sanctuary'); T.bf('A', 'Wind Drake');
+    const g = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g.id }] }));
+    T.toMain('A');
+    t.eq(T.g.powerOf(g), 3, 'blue only: +1/+1');
+    const T2 = mk({ library: Array(10).fill('Island') });
+    T2.toMain('B');
+    T2.bf('A', 'Ana Sanctuary'); T2.bf('A', 'Wind Drake'); T2.bf('A', 'Vampire Nighthawk');
+    const g2 = T2.bf('A', 'Grizzly Bears');
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g2.id }] }));
+    T2.toMain('A');
+    t.eq(T2.g.powerOf(g2), 7, 'blue and black: +5/+5 instead');
+    // Necra Sanctuary: the player is chosen once, and loses 3 with green and white
+    const T3 = mk({ library: Array(10).fill('Island') });
+    T3.toMain('B');
+    T3.bf('A', 'Necra Sanctuary'); T3.bf('A', 'Llanowar Elves'); T3.bf('A', 'Savannah Lions');
+    let asks = 0;
+    T3.answer('pickTarget', () => { asks++; return { targets: [{ kind: 'player', id: 'B' }] }; });
+    T3.toMain('A');
+    t.eq(T3.life('B'), 17, 'green and white: 3 life');
+    t.eq(asks, 1, 'one target');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10647,
+  "needed": 10643,
   "gainedCards": 993,
-  "linesNeeded": 11345,
+  "linesNeeded": 11341,
   "linesGained": 1170,
   "gained": {
    "all": 993,
@@ -4331,18 +4331,6 @@
    ]
   },
   {
-   "what": "SanctuaryTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Ana Sanctuary",
-    "Ceta Sanctuary",
-    "Dega Sanctuary",
-    "Raka Sanctuary",
-    "Necra Sanctuary"
-   ]
-  },
-  {
    "what": "keyword LandwalkAbility",
    "score": 5,
    "lines": 5,
@@ -6513,6 +6501,16 @@
     "Accursed Witch // Infectious Curse",
     "Spellwild Ouphe",
     "Elderwood Scion"
+   ]
+  },
+  {
+   "what": "FractalToken.getEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Body of Research",
+    "Serpentine Curve",
+    "Snarl Song"
    ]
   }
  ],
@@ -9173,18 +9171,6 @@
    ]
   },
   {
-   "what": "SanctuaryTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Ana Sanctuary",
-    "Ceta Sanctuary",
-    "Dega Sanctuary",
-    "Raka Sanctuary",
-    "Necra Sanctuary"
-   ]
-  },
-  {
    "what": "keyword LandwalkAbility",
    "score": 5,
    "cards": 5,
@@ -10170,6 +10156,17 @@
     "Swathcutter Giant",
     "Ronin Cliffrider",
     "Gouged Zealot"
+   ]
+  },
+  {
+   "what": "AttachedToPredicate",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Seedling Charm",
+    "Bride's Gown",
+    "Groom's Finery",
+    "Piety Charm"
    ]
   }
  ]

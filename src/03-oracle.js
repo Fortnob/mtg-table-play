@@ -9364,6 +9364,8 @@
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
     // Banishing Slash: "you control an artifact and an enchantment"
     [/^you control an? ([a-z]+) and an? ([a-z]+)$/i, (m) => [{ kind: 'control', what: m[1].toLowerCase(), n: 1 }, { kind: 'control', what: m[2].toLowerCase(), n: 1 }]],
+    // Ana Sanctuary: "you control a blue permanent and a black permanent" — each half as a condition of its own (controlBoth)
+    [/^you control (an? [a-z ]+?) and (an? [a-z ]+?)$/i, (m) => { const a = condOf('you control ' + m[1]), b = condOf('you control ' + m[2]); return a && b && !Array.isArray(a) && !Array.isArray(b) ? [a, b] : null; }],
     // Survival Cache: "you have more life than an opponent"
     [/^you have more life than an opponent$/i, () => ({ kind: 'moreLifeThanAnOpponent' })],
     // Thickest in the Thicket: "you control the creature with the greatest power or tied for the greatest power"
