@@ -4968,4 +4968,17 @@ module.exports = (test) => {
     const z = T.g.battlefield.filter(o => o.isToken && /Zombie/.test(o.name));
     t.eq(z.length, 3, 'the Bears, the Giant and the Wurm'); t.ok(z.every(o => o.controller === 'A' && o.tapped), 'tapped, all A\'s');
   });
+
+  test('Audit: Scavenging Ooze exiles just its target: a creature card grows it and gains 1 life, a land card does neither', (mk, t) => {
+    t.auto('Scavenging Ooze');
+    const T = mk();
+    T.toMain('A');
+    const oz = T.bf('A', 'Scavenging Ooze');
+    const bear = T.grave('B', 'Grizzly Bears'), isl = T.grave('B', 'Island'), mine = T.grave('A', 'Craw Wurm');
+    T.mana('A', 'G'); T.activate('A', oz, 0, { targets: [isl.id] }); T.settle();
+    t.zone(isl, 'exile'); t.zone(bear, 'graveyard'); t.zone(mine, 'graveyard');
+    t.eq(oz.counters['+1/+1'] || 0, 0); t.eq(T.life('A'), 20);
+    T.mana('A', 'G'); T.activate('A', oz, 0, { targets: [bear.id] }); T.settle();
+    t.zone(bear, 'exile'); t.eq(oz.counters['+1/+1'], 1); t.eq(T.life('A'), 21);
+  });
 };
