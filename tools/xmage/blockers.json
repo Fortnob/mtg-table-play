@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10601,
+  "needed": 10600,
   "gainedCards": 970,
-  "linesNeeded": 11289,
+  "linesNeeded": 11288,
   "linesGained": 1140,
   "gained": {
    "all": 970,
@@ -2815,19 +2815,6 @@
    ]
   },
   {
-   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Rakdos, Patron of Chaos",
-    "Tomb Blade",
-    "Carrionette",
-    "Rhystic Lightning",
-    "Rhystic Syphon",
-    "Flay"
-   ]
-  },
-  {
    "what": "PlayFromGraveyardControllerEffect",
    "score": 6,
    "lines": 6,
@@ -4266,6 +4253,18 @@
     "Bloodbraid Marauder",
     "Kaervek's Torch",
     "Torrent of Lava"
+   ]
+  },
+  {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Tomb Blade",
+    "Carrionette",
+    "Rhystic Lightning",
+    "Rhystic Syphon",
+    "Flay"
    ]
   },
   {
@@ -8146,19 +8145,6 @@
    ]
   },
   {
-   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Rakdos, Patron of Chaos",
-    "Tomb Blade",
-    "Carrionette",
-    "Rhystic Lightning",
-    "Rhystic Syphon",
-    "Flay"
-   ]
-  },
-  {
    "what": "keyword CompanionAbility",
    "score": 6,
    "cards": 6,
@@ -9137,6 +9123,18 @@
     "Bloodbraid Marauder",
     "Kaervek's Torch",
     "Torrent of Lava"
+   ]
+  },
+  {
+   "what": "DoUnlessTargetPlayerOrTargetsControllerPaysEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Tomb Blade",
+    "Carrionette",
+    "Rhystic Lightning",
+    "Rhystic Syphon",
+    "Flay"
    ]
   },
   {

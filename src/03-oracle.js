@@ -8520,6 +8520,25 @@
           continue;
         }
       }
+      /* Rakdos, Patron of Chaos, Braids's Frightful Return: "Target opponent may sacrifice two nonland,
+         nontoken permanents of their choice. If they don't, you draw two cards." — the punisher, read as
+         "… unless they sacrifice them" (maySacOrElse) */
+      const msac = s.match(/^Target (opponent|player) may sacrifice (an?|two|three) ([a-z ,-]+?) of their choice\.$/i);
+      const mnot = msac && next.match(/^If they don'?t, (.+)$/i);
+      if (msac && mnot) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(mnot[1].charAt(0)) + mnot[1].slice(1)));
+        const k = /^an?$/i.test(msac[2]) ? 1 : num(msac[2]);
+        if (tp.auto && typeof k === 'number' && !/"who":"(?:triggerPlayer|target)"/.test(JSON.stringify(tp.effects))) {
+          effects.push({ op: 'unlessPays', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(msac[1]) }],
+            cost: Object.assign({ sacrifice: msac[3].replace(/permanents\b/i, 'permanent').replace(/creatures\b/i, 'creature').toLowerCase() }, k > 1 ? { sacrificeN: k } : {}),
+            then: tp.effects, text: s + ' ' + next,
+            // (asked of the opponent: "If you don't, your opponent draws two cards")
+            prompt: 'Sacrifice ' + msac[2].toLowerCase() + ' ' + msac[3] + "? If you don't, " +
+              mnot[1].replace(/\.$/, '').replace(/^you (\w+)/i, (w0, v) => 'your opponent ' + (/(?:s|sh|ch|x)$/.test(v) ? v + 'es' : v + 's')) + '.' });
+          i++;
+          continue;
+        }
+      }
       // (not "sacrifice an artifact or discard a card": two prices, not one)
       const sacMay = may && ifDo && !/ or (?:discard|pay|exile)\b/i.test(may[1]) && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
       if (sacMay) {

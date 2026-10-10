@@ -15802,6 +15802,20 @@
             const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, e.cost.sacrifice));
             const hand = e.cost.orDiscard ? this.zones[payer.id].hand.slice() : [];
             if (!perms.length && !hand.length) { this._spliceNext(e.then); break; }
+            /* Rakdos, Patron of Chaos: "may sacrifice two nonland, nontoken permanents" — all of them, or it
+               happens (sacrificeN) */
+            if ((e.cost.sacrificeN || 1) > 1) {
+              const need = e.cost.sacrificeN;
+              if (perms.length < need) { this._spliceNext(e.then); break; }
+              const gotN = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
+                items: this._chooseItems(perms), min: 0, max: need, prefer: 'worst',
+                prompt: e.prompt || `Sacrifice ${need} ${String(e.cost.sacrifice).replace(/(permanent|creature|artifact|land|enchantment)$/, '$1s')}? If you don't: ${truncate(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
+              if (gotN === SUSPEND) return SUSPEND;
+              const xs = ((gotN && gotN.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x));
+              if (xs.length === need) this._sacrificeNow(payer.id, xs, null);
+              else this._spliceNext(e.then);
+              break;
+            }
             const got = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
               items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
               prompt: e.prompt || `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac');

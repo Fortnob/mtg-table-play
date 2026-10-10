@@ -21335,4 +21335,26 @@ module.exports = (test) => {
     T4.mana('A', '1W'); T4.cast('A', T4.hand('A', "Sokka's Sword Training"), { targets: [bear] }); T4.resolve();
     t.eq(f2.counters['+1/+1'], 2, 'a Lesson: one more on that land');
   });
+
+  test("Rakdos, Patron of Chaos: the opponent sacrifices two nonland, nontoken permanents, or you draw two", (mk, t) => {
+    t.auto('Rakdos, Patron of Chaos');
+    const run = (pick) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.toMain('A');
+      T.bf('A', 'Rakdos, Patron of Chaos');
+      const a = T.bf('B', 'Hill Giant'), b = T.bf('B', 'Mind Stone');
+      T.bf('B', 'Forest');
+      T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+      T.answer('choose', () => ({ picks: pick(a, b) }));
+      const h = T.zone('A', 'hand').length;
+      T.toMain('B');
+      return { a, b, drew: T.zone('A', 'hand').length - h };
+    };
+    const both = run((a, b) => [a.id, b.id]);
+    t.zone(both.a, 'graveyard'); t.zone(both.b, 'graveyard');
+    t.eq(both.drew, 0, 'two sacrificed: no cards');
+    const one = run((a) => [a.id]);
+    t.zone(one.a, 'battlefield', 'one is not enough: nothing sacrificed');
+    t.eq(one.drew, 2, 'and you draw two');
+  });
 };
