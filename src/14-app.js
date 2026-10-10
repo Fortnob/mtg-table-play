@@ -1176,6 +1176,15 @@
             saveQuick(q); draw();
           },
         })));
+      // house rules of your own for this format: by the book, or one of them
+      const presets = MTG.formats.presets.forFormat(q.formatId);
+      if (q.preset && !presets.some(p => p.name === q.preset)) q.preset = '';
+      if (presets.length) {
+        const pSel = el('select', { 'aria-label': 'House rules' }, [el('option', { value: '', text: 'By the book' })]
+          .concat(presets.map(p => el('option', { value: p.name, text: p.name, selected: p.name === q.preset }))));
+        pSel.addEventListener('change', () => { q.preset = pSel.value; saveQuick(q); draw(); });
+        panel.appendChild(field('House rules', pSel));
+      }
       if (!limited) {
         panel.appendChild(el('div', { class: 'quick-pair' }, [
           mine.length || starters.length ? field('Your deck', deckSel) : null,
@@ -1246,12 +1255,18 @@
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
             collector: !!q.collector, packs: q.packs || 3, allAtOnce: !!q.allAtOnce,
+            rules: q.preset ? ((presets.find(p => p.name === q.preset) || {}).rules || null) : null,
           });
         },
       });
       panel.appendChild(el('div', { class: 'quick-go' }, [
         go,
-        el('span', { class: 'quick-note', text: `${fmt.name} · ${fmt.startingLife} life · ${q.opponents + 1} players` }),
+        el('span', { class: 'quick-note', text: (() => {
+          // as the chosen house rules have it
+          const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
+          const f = pr ? MTG.formats.effective(q.formatId, pr.rules) : fmt;
+          return `${f.name} · ${f.startingLife} life · ${q.opponents + 1} players` + (pr ? ` · ${pr.name}` : '');
+        })() }),
       ]));
     };
     draw();
@@ -2101,7 +2116,7 @@
   /* The options, one category at a time: the list down the side picks
      which, and the page remembers the last one you looked at. */
   const OPT_SECTIONS = [
-    ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['pace', 'Pace'], ['stops', 'Stops'],
+    ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['rules', 'House rules'], ['pace', 'Pace'], ['stops', 'Stops'],
     ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['data', 'Card data'],
   ];
   const BOT_PACE = [[0, 'Instant'], [250, 'Quick'], [600, 'Normal'], [1200, 'Unhurried']];
@@ -2253,6 +2268,8 @@
     const botSeg = segmented(BOT_PACE, botNow, (v) => { MTG.setSetting('botSpeed', v); renderOptions(); }, 'Bot thinking time');
     botSeg.classList.add('bot-seg');
     botSeg.querySelectorAll('.seg-btn').forEach((b, i) => { b.dataset.v = String(BOT_PACE[i][0]); });
+    sections.push(group('rules', 'House rules', 'Sets of house rules with a name, kept for a format. Pick one in the quick game, or in a table\u2019s House rules when you host.',
+      rulePresetRows(() => renderOptions())));
     sections.push(group('pace', 'Pace', 'How quickly the table moves. Nothing here changes the rules.', [
       pick('animSpeed', 'Table animations', ANIM_PACE,
         'How long cards take to fly, flip and land. Fast keeps games brisk; relaxed lets you follow every move.', 1),
@@ -2521,7 +2538,8 @@
   App.quickGame = async function (opts) {
     opts = opts || {};
     App.formatId = opts.formatId || 'standard';
-    const sess = App.session = new Session(App.formatId);
+    // house rules chosen for the quick game, or the format as it is
+    const sess = App.session = new Session(App.formatId, opts.rules || null);
     // ranked, an event, the gauntlet: what kind of game this is, for its rewards
     sess.mode = opts.mode || null;
     sess.addLocalHost(App.myName);
@@ -3178,6 +3196,7 @@
         ? 'The numbers this table plays by. Everyone who joins sees them.'
         : 'Everyone who joins sees these, and decks are checked against them.' }));
 
+    const setRule = (k, v) => { sess.setRule(k, v); renderLobby(); };
     const byKey = new Map(fields.map(f => [f.key, f]));
     const placed = new Set();
     for (const [gid, title, keys] of RULE_GROUPS) {
@@ -3194,7 +3213,7 @@
         el('span', { class: 'rules-chev', 'aria-hidden': 'true' }),
       ].filter(Boolean)));
       const grid = el('div', { class: 'rule-grid' });
-      for (const f of list) grid.appendChild(ruleCell(sess, f));
+      for (const f of list) grid.appendChild(ruleCell(sess.rules, f, setRule));
       fold.appendChild(grid);
       panel.appendChild(fold);
     }
@@ -3202,7 +3221,7 @@
     const rest = fields.filter(f => !placed.has(f.key));
     if (rest.length) {
       const grid = el('div', { class: 'rule-grid' });
-      for (const f of rest) grid.appendChild(ruleCell(sess, f));
+      for (const f of rest) grid.appendChild(ruleCell(sess.rules, f, setRule));
       panel.appendChild(grid);
     }
 
@@ -3218,9 +3237,13 @@
     return panel;
   }
 
-  /** One rule, with the format's own value shown when it has been changed. */
-  function ruleCell(sess, f) {
-    const cur = sess.rules[f.key];
+  /**
+   * One rule, with the format's own value shown when it has been changed.
+   * `rules` is what it reads; `set(key, value)` changes it (a table's rule,
+   * or a preset being written).
+   */
+  function ruleCell(rules, f, set) {
+    const cur = rules[f.key];
     const isDefault = cur === f.value;
     const cell = el('div', { class: 'rule-cell' + (isDefault ? '' : ' changed') });
     const id = 'rule-' + f.key;
@@ -3233,7 +3256,7 @@
     if (f.type === 'bool') {
       const box = el('input', { type: 'checkbox', id });
       box.checked = !!cur;
-      box.addEventListener('change', () => { sess.setRule(f.key, box.checked); renderLobby(); });
+      box.addEventListener('change', () => set(f.key, box.checked));
       cell.append(
         el('label', { class: 'rule-label rule-toggle', for: id }, [box, el('span', { text: f.label }), was]),
         el('div', { class: 'rule-hint', text: f.hint }),
@@ -3247,19 +3270,13 @@
       const on = el('input', { type: 'checkbox' });
       on.checked = !!cur;
       const n = el('input', { type: 'number', id, min: String(f.min), max: String(f.max), value: String(cur || f.value || 21), disabled: !cur });
-      on.addEventListener('change', () => {
-        sess.setRule(f.key, on.checked ? (parseInt(n.value, 10) || f.value || 21) : 0);
-        renderLobby();
-      });
-      n.addEventListener('change', () => {
-        sess.setRule(f.key, U.clamp(parseInt(n.value, 10) || f.value, f.min, f.max));
-        renderLobby();
-      });
+      on.addEventListener('change', () => set(f.key, on.checked ? (parseInt(n.value, 10) || f.value || 21) : 0));
+      n.addEventListener('change', () => set(f.key, U.clamp(parseInt(n.value, 10) || f.value, f.min, f.max)));
       control = el('div', { class: 'row rule-onoff', style: { gap: '8px' } }, [
         el('label', { class: 'rule-toggle inline-check' }, [on, el('span', { text: cur ? 'on' : 'off' })]),
         n,
       ]);
-    } else {
+    } else if (f.type !== 'bracket') {
       const step = f.type === 'odd' ? 2 : 1;
       const n = el('input', { type: 'number', id, min: String(f.min), max: String(f.max), step: String(step), value: String(cur) });
       n.addEventListener('change', () => {
@@ -3268,10 +3285,15 @@
         v = U.clamp(v, f.min, f.max);
         if (f.type === 'odd' && v % 2 === 0) v = v + 1 > f.max ? v - 1 : v + 1;
         n.value = String(v);
-        sess.setRule(f.key, v);
-        renderLobby();
+        set(f.key, v);
       });
       control = n;
+    } else if (f.type === 'bracket') {
+      // a preset's bracket (a table's has its own panel): any, or one of the five
+      const B = MTG.brackets;
+      control = el('select', { id }, [0, 1, 2, 3, 4, 5].map(n =>
+        el('option', { value: String(n), text: n ? B.label(n) : 'Any bracket', selected: n === (cur || 0) })));
+      control.addEventListener('change', () => set(f.key, parseInt(control.value, 10) || 0));
     }
 
     cell.append(
@@ -3284,8 +3306,100 @@
 
   function fmtRuleValue(f, v) {
     if (f.type === 'bool') return v ? 'on' : 'off';
+    if (f.type === 'bracket') return v ? MTG.brackets.label(v) : 'any';
     if (f.type === 'intOff') return v ? String(v) : 'off';
     return String(v);
+  }
+
+  /**
+   * A preset written (or changed) on its own: a name, a format, and the
+   * format's rules to bend. Saved beside the others, it can be picked at
+   * any table of that format and in the quick game.
+   */
+  function editRulePreset(formatId, preset, onDone) {
+    const editable = MTG.formats.list().filter(f => MTG.formats.houseFields(f.id).length);
+    let fid = formatId || (editable[0] || {}).id;
+    let rules = Object.assign(MTG.formats.houseDefaults(fid), preset ? preset.rules : {});
+    const name = el('input', { type: 'text', value: preset ? preset.name : '', placeholder: 'Kitchen table, Big life, Pauper cube…', maxlength: '40', 'aria-label': 'Preset name' });
+    const fmtSel = el('select', { 'aria-label': 'Format', disabled: !!preset }, editable.map(f =>
+      el('option', { value: f.id, text: f.name, selected: f.id === fid })));
+    const cells = el('div', { class: 'preset-rules' });
+    const draw = () => {
+      cells.innerHTML = '';
+      const fields = MTG.formats.houseFields(fid);
+      const byKey = new Map(fields.map(f => [f.key, f]));
+      const set = (k, v) => { rules[k] = v; draw(); };
+      const placed = new Set();
+      /** @type {Array<[string, string, string[]]>} */
+      const groups = [['bracket', 'The table', ['bracket']]];
+      groups.push(...RULE_GROUPS);
+      for (const [, title, keys] of groups) {
+        const list = keys.map(k => byKey.get(k)).filter(Boolean);
+        if (!list.length) continue;
+        list.forEach(f => placed.add(f.key));
+        cells.appendChild(el('div', { class: 'section-title', text: title }));
+        cells.appendChild(el('div', { class: 'rule-grid' }, list.map(f => ruleCell(rules, f, set))));
+      }
+      const rest = fields.filter(f => !placed.has(f.key));
+      if (rest.length) cells.appendChild(el('div', { class: 'rule-grid' }, rest.map(f => ruleCell(rules, f, set))));
+    };
+    fmtSel.addEventListener('change', () => { fid = fmtSel.value; rules = MTG.formats.houseDefaults(fid); draw(); });
+    draw();
+    const m = UI.modal({
+      title: preset ? `House rules: ${preset.name}` : 'New house rules', width: '760px', className: 'preset-modal',
+      content: el('div', null, [
+        el('div', { class: 'row wrap preset-head', style: { gap: '10px' } }, [
+          el('label', { class: 'grow qfield' }, [el('span', { class: 'qlabel', text: 'Name' }), name]),
+          el('label', { class: 'qfield' }, [el('span', { class: 'qlabel', text: 'Format' }), fmtSel]),
+        ]),
+        el('p', { class: 'tiny dim', text: 'Change what you like; anything left alone stays as the format has it.' }),
+        cells,
+      ]),
+      buttons: [
+        { label: 'Cancel', onClick: () => m.close() },
+        { label: 'Save', class: 'primary', onClick: () => {
+          const nm = name.value.trim();
+          if (!nm) { name.focus(); return UI.error('Give it a name.'); }
+          if (preset && preset.name !== nm) MTG.formats.presets.remove(fid, preset.name);
+          MTG.formats.presets.save(fid, nm, rules);
+          m.close();
+          UI.ok(`Saved “${nm}”.`);
+          if (onDone) onDone();
+        } },
+      ],
+    });
+    setTimeout(() => { if (!preset) name.focus(); }, 60);
+    return m;
+  }
+
+  /** The House rules section of Options: every preset, and a new one. */
+  function rulePresetRows(redraw) {
+    const all = MTG.formats.presets.all();
+    const rows = [];
+    for (const f of MTG.formats.list()) {
+      for (const pr of (all[f.id] || [])) {
+        const changed = MTG.formats.houseSummary(f.id, pr.rules);
+        rows.push(el('div', { class: 'opt-row preset-row' }, [
+          el('div', { class: 'grow' }, [
+            el('div', { class: 'opt-label' }, [el('span', { text: pr.name }), el('span', { class: 'pill', text: f.name })]),
+            el('div', { class: 'opt-help', text: changed.length ? changed.join(' \u00b7 ') : 'The format as it is.' }),
+          ]),
+          el('div', { class: 'row', style: { gap: '6px' } }, [
+            el('button', { class: 'btn sm', text: 'Edit', onclick: () => editRulePreset(f.id, pr, redraw) }),
+            el('button', { class: 'btn sm ghost danger-ghost', text: 'Delete', onclick: async () => {
+              if (!await UI.confirm(`Delete “${pr.name}”?`, 'House rules', { yes: 'Delete', no: 'Keep it' })) return;
+              MTG.formats.presets.remove(f.id, pr.name);
+              redraw();
+            } }),
+          ]),
+        ]));
+      }
+    }
+    if (!rows.length) rows.push(el('div', { class: 'opt-row' }, el('div', { class: 'opt-help', text: 'None yet. A preset is a set of house rules with a name: 40 life in Standard, Commander at Bracket 2, five packs a draft.' })));
+    rows.push(el('div', { class: 'opt-row' }, [
+      el('button', { class: 'btn sm primary', text: '+ New house rules', onclick: () => editRulePreset(null, null, redraw) }),
+    ]));
+    return rows;
   }
 
   async function saveRulePreset(sess) {
