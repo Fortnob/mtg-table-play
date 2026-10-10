@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10833,
-  "gainedCards": 1033,
-  "linesNeeded": 11543,
-  "linesGained": 1217,
+  "needed": 10809,
+  "gainedCards": 1022,
+  "linesNeeded": 11519,
+  "linesGained": 1206,
   "gained": {
-   "all": 1033,
+   "all": 1022,
    "top2000": 42,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4104,
-   "lines": 3858,
+   "score": 4102,
+   "lines": 3856,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1272,24 +1272,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "The Wise Mothman",
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Screeching Scorchbeast",
-    "Tato Farmer",
-    "Zuko, Firebending Master",
-    "Katara, Waterbending Master",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink",
-    "Megaton's Fate",
-    "Phyrexian Vatmother"
-   ]
-  },
-  {
    "what": "CreateTokenTargetEffect",
    "score": 11,
    "lines": 11,
@@ -1468,6 +1450,23 @@
    ]
   },
   {
+   "what": "AddCountersPlayersEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "The Wise Mothman",
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Screeching Scorchbeast",
+    "Tato Farmer",
+    "Zuko, Firebending Master",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink",
+    "Megaton's Fate",
+    "Phyrexian Vatmother"
+   ]
+  },
+  {
    "what": "keyword EquipAbility",
    "score": 10,
    "lines": 10,
@@ -1533,23 +1532,6 @@
     "Surtland Elementalist",
     "Oracle of Bones",
     "Twinning Glass"
-   ]
-  },
-  {
-   "what": "OpponentsTurnCondition.instance",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "The Watcher in the Water",
-    "Voracious Tome-Skimmer",
-    "Brineborn Cutthroat",
-    "Faerie Tauntings",
-    "Unwelcome Sprite",
-    "Nightmare Sower",
-    "Breath of the Sleepless",
-    "Glen Elendra Pranksters",
-    "Dream Spoilers",
-    "Dreamspoiler Witches"
    ]
   },
   {
@@ -6550,13 +6532,23 @@
     "Biblioplex Tomekeeper",
     "Hexhaven Dueling Arena"
    ]
+  },
+  {
+   "what": "DealsCombatDamageTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Dropkick Bomber",
+    "Aisha of Sparks and Smoke",
+    "Leyline Phantom"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3428,
-   "cards": 3263,
+   "score": 3426,
+   "cards": 3261,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7467,19 +7459,6 @@
    ]
   },
   {
-   "what": "OpponentsTurnCondition.instance",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Voracious Tome-Skimmer",
-    "Brineborn Cutthroat",
-    "Faerie Tauntings",
-    "Unwelcome Sprite",
-    "Nightmare Sower",
-    "Breath of the Sleepless"
-   ]
-  },
-  {
    "what": "Zone.GRAVEYARD",
    "score": 9,
    "cards": 9,
@@ -7594,19 +7573,6 @@
     "Hexavus",
     "Soul Diviner",
     "Xavier Sal, Infested Captain"
-   ]
-  },
-  {
-   "what": "AddCountersPlayersEffect",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Phyresis Outbreak",
-    "Feral Ghoul",
-    "Zuko, Firebending Master",
-    "Katara, Waterbending Master",
-    "Vault 12: The Necropolis",
-    "Contaminated Drink"
    ]
   },
   {
@@ -7891,6 +7857,19 @@
     "Glacial Revelation",
     "Lead the Stampede",
     "Forging the Anchor"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Phyresis Outbreak",
+    "Feral Ghoul",
+    "Zuko, Firebending Master",
+    "Vault 12: The Necropolis",
+    "Contaminated Drink",
+    "Megaton's Fate"
    ]
   },
   {
@@ -10219,6 +10198,17 @@
     "Energy Arc",
     "Songstitcher",
     "Kry Shield"
+   ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.EITHER",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Cromat",
+    "Sentinel",
+    "Steadfast Armasaur",
+    "Sworn Defender"
    ]
   }
  ]

@@ -6778,9 +6778,11 @@
       if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return inner; }
     }
     // Duelist's Heritage: "have target attacking creature gain double strike"; "have target player mill two cards"
-    const hv = !depth && s.match(/^Have (target [a-z ]+?) (gain|mill|draw|lose|discard|sacrifice) (.+)$/i);
+    // (Faerie Tauntings: "have each opponent lose 1 life"; Dreamspoiler Witches: "have target creature get -1/-1")
+    const hv = !depth && s.match(/^Have (target [a-z ]+?|each opponent|each player) (gain|get|mill|draw|lose|discard|sacrifice) (.+)$/i);
     if (hv) {
-      const inner = parseEffectSentence(U.titleCase(hv[1].charAt(0)) + hv[1].slice(1) + ' ' + hv[2].toLowerCase() + 's ' + hv[3], 1);
+      // (Hazoret's Favor: "get +2/+0 and gain haste" — both verbs agree with the creature)
+      const inner = parseEffectSentence(U.titleCase(hv[1].charAt(0)) + hv[1].slice(1) + ' ' + hv[2].toLowerCase() + 's ' + hv[3].replace(/\band (gain|get|lose)\b/g, 'and $1s'), 1);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return inner; }
     }
     /* "…and you may return up to one target creature card": the half of a
@@ -9644,6 +9646,10 @@
     { re: /^Whenever an opponent taps an? ([a-z ]+?) for mana,? /i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }), extra: { toOpponent: true } },
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
+    // Voracious Tome-Skimmer, Dream Spoilers: "Whenever you cast a spell during an opponent's turn"
+    // (Gandalf of the Secret Fire: "an instant or sorcery spell from your hand during an opponent's turn")
+    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell( from your hand)? during an opponent'?s turn,? /i, event: 'youCastSpell',
+      extraOf: (m) => Object.assign({ notYourTurnOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}, m[2] ? { fromHandOnly: true } : {}) },
     // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
     // (Ojer Pakpatiq: "an instant spell", "a sorcery spell")
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your hand,? /i, event: 'youCastSpell',
