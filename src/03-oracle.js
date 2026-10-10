@@ -5185,8 +5185,11 @@
         return inner.auto ? { op: 'ifDiscarded', type: m[2].toLowerCase(), not: /n'?t/i.test(m[1]), then: inner.effects } : null;
       } },
     /* Thirst for Knowledge: "Then discard two cards unless you discard an artifact card." */
-    { re: /^(?:Then )?[Dd]iscard (two|three) cards unless you discard an? ([a-z]+) card\.?$/,
-      make: (m) => ({ op: 'discardUnlessType', n: num(m[1]), type: m[2].toLowerCase() }) },
+    /* (Thirst for Discovery: "a basic land card"; Arm-Mounted Anchor: "a Pirate card"; Compulsive Research:
+       "Then that player discards two cards unless they discard a land card"; Wrench Mind, Bandit's Talent) */
+    { re: /^(?:Then )?(?:[Dd]iscard|(That player|Target player|Each opponent) discards) (two|three) cards unless (?:you|they) discard an? ([A-Za-z ]+?) card\.?$/,
+      make: (m) => (/ card\b| or an? /.test(m[3]) ? null : Object.assign({ op: 'discardUnlessType', n: num(m[2]), type: m[3].toLowerCase() },
+        !m[1] ? {} : /^Each/.test(m[1]) ? { who: 'opponents' } : /^Target/.test(m[1]) ? { who: 'target', targets: [{ type: 'player' }] } : { who: 'target' })) },
     // Murderous Rider: "When this creature dies, put it on the bottom of its owner's library."
     { re: /^Put (?:it|CARDNAME|this card) on the bottom of its owner'?s library\.?$/i, make: () => ({ op: 'selfToLibrary', bottom: true }) },
     // Intruder Alarm

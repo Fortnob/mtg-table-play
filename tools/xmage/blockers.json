@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11163,
+  "needed": 11158,
   "gainedCards": 1130,
-  "linesNeeded": 11940,
+  "linesNeeded": 11934,
   "linesGained": 1331,
   "gained": {
    "all": 1130,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 47,
+  "verifyFail": 44,
   "overrides": {
    "drain": 63,
    "group": 28,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4159,
-   "lines": 3910,
+   "score": 4157,
+   "lines": 3908,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 190,
-   "lines": 175,
+   "score": 189,
+   "lines": 174,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -2635,20 +2635,6 @@
     "Bubble Smuggler",
     "Crowd-Control Warden",
     "Aquamorph Entity"
-   ]
-  },
-  {
-   "what": "(verify) optional where the card is not",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Thirst for Discovery",
-    "Cavalier of Thorns",
-    "Arm-Mounted Anchor",
-    "Reclaim the Wastes",
-    "Practical Research",
-    "Nissa Revane",
-    "Steamcore Scholar"
    ]
   },
   {
@@ -5238,6 +5224,17 @@
    ]
   },
   {
+   "what": "(verify) optional where the card is not",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Cavalier of Thorns",
+    "Reclaim the Wastes",
+    "Nissa Revane",
+    "Steamcore Scholar"
+   ]
+  },
+  {
    "what": "EnchantedCreatureColorCondition",
    "score": 4,
    "lines": 4,
@@ -6626,8 +6623,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3467,
-   "cards": 3299,
+   "score": 3465,
+   "cards": 3297,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8397,19 +8394,6 @@
     "Dragon's Herald",
     "Demon's Herald",
     "Sphinx's Herald"
-   ]
-  },
-  {
-   "what": "(verify) optional where the card is not",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Thirst for Discovery",
-    "Arm-Mounted Anchor",
-    "Reclaim the Wastes",
-    "Practical Research",
-    "Nissa Revane",
-    "Steamcore Scholar"
    ]
   },
   {
@@ -10308,6 +10292,17 @@
     "Awakening of Vitu-Ghazi",
     "Sparkshaper Visionary",
     "Dance of the Skywise"
+   ]
+  },
+  {
+   "what": "targeted trigger pointing at the spell",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Reality Smasher",
+    "Forsaken Wastes",
+    "Lava Runner",
+    "Retromancer"
    ]
   }
  ]

@@ -17668,4 +17668,35 @@ module.exports = (test) => {
     t.zone(c1, 'graveyard'); t.zone(c3, 'graveyard');
     t.zone(c4, 'library', 'the fourth card was never revealed');
   });
+
+  test('Thirst for Discovery: a basic land card, or two cards; Compulsive Research: the target player chooses', (mk, t) => {
+    t.auto('Thirst for Discovery');
+    t.auto('Compulsive Research');
+    t.auto('Wrench Mind');
+    t.auto('Arm-Mounted Anchor');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Lightning Bolt');
+    const isl = T.hand('A', 'Island');
+    let prompt = '';
+    T.answer('pickCard', (ch) => { prompt = ch.prompt; return { cardIds: [isl.id] }; });
+    T.mana('A', 'U2');
+    const hand0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Thirst for Discovery'));
+    T.settle();
+    t.eq(prompt, 'Discard a basic land card? Choose none to discard 2 cards instead.');
+    t.zone(isl, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, hand0 + 3 - 1, 'three drawn, the Island discarded');
+    const U = mk();
+    U.toMain('A');
+    for (let i = 0; i < 3; i++) U.top('B', 'Lightning Bolt');
+    U.hand('B', 'Shock');
+    let who = null;
+    U.answer('discard', (ch) => { who = ch.playerId; return { cardIds: U.zone('B', 'hand').slice(0, 2).map(c => c.id) }; });
+    U.mana('A', 'U2');
+    U.cast('A', U.hand('A', 'Compulsive Research'), { targets: ['B'] });
+    U.settle();
+    t.eq(who, 'B', 'B discards');
+    t.eq(U.zone('B', 'hand').length, 2, 'four in hand, two discarded');
+  });
 };

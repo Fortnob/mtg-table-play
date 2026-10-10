@@ -12493,18 +12493,39 @@
         /* "Discard two cards unless you discard an artifact card": one card
            of that kind, or two of anything */
         case 'discardUnlessType': {
-          const hand = this.zones[ctx.controller].hand;
-          const pool = hand.filter(c => this._matchesCategory(c, e.type));
-          let one = null;
-          if (pool.length) {
-            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
-              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: `Discard an ${e.type} card? Choose none to discard ${n(e.n)} cards instead.` }, 'dut');
-            if (picked === SUSPEND) return SUSPEND;
-            one = (picked || []).map(id => this.obj(id)).find(o => o && pool.includes(o)) || null;
+          // Compulsive Research, Wrench Mind: "that (target) player discards …"; Bandit's Talent: each opponent
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer() || this._lastAffectedController() || me] : [me];
+          const fits = (c) => (/\s/.test(e.type) ? this._cardFitsWords(c, e.type) : this._matchesCategory(c, e.type));
+          // (each player's part noted once it is done, so a pause for the next player's answer does not redo it)
+          const rz = this.resolving;
+          const finished = (p) => !!(rz && rz.marks && rz.marks[rz.index + ':dut' + p.id]);
+          for (const p of who) {
+            if (!p || p.hasLost || finished(p)) continue;
+            const hand = this.zones[p.id].hand;
+            const pool = hand.filter(fits);
+            let one = null;
+            if (pool.length) {
+              const picked = this._ask({ type: 'pickCard', playerId: p.id, count: 1, optional: true,
+                cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
+                prompt: `Discard ${this._aCard(e.type, 'card')}? Choose none to discard ${n(e.n)} cards instead.` }, 'dut1' + p.id);
+              if (picked === SUSPEND) return SUSPEND;
+              one = (picked || []).map(id => this.obj(id)).find(o => o && pool.includes(o)) || null;
+            }
+            if (one) { this.moveObject(one, 'graveyard'); this._afterDiscard(p.id, one); this.logEvent('discard', `${p.name} discards ${one.name}.`); this._doneHere('dut' + p.id); continue; }
+            const cnt = Math.min(n(e.n), hand.length);
+            if (cnt && cnt >= hand.length) {
+              const gone = hand.slice();
+              for (const c of gone) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+              this.logEvent('discard', `${p.name} discards ${gone.map(c => c.name).join(', ')}.`);
+            } else if (cnt) {
+              // (the discard itself is made as the answer comes in)
+              this._doneHere('dut' + p.id);
+              const got = this._ask({ type: 'discard', playerId: p.id, count: cnt, prompt: `Discard ${cnt} cards.` }, 'dut2' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              continue;
+            }
+            this._doneHere('dut' + p.id);
           }
-          if (one) { this.moveObject(one, 'graveyard'); this._afterDiscard(ctx.controller, one); this.logEvent('discard', `${me.name} discards ${one.name}.`); }
-          else this._spliceNext([{ op: 'discard', n: e.n, who: 'you' }]);
           break;
         }
         case 'gainLife': {
