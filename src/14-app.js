@@ -1733,16 +1733,22 @@
       else if (st.job && st.job.phase === 'error') UI.error(cardDbJobText(st.job));
     });
   }
-  /** The download's progress in a window that can be hidden while it carries on. */
+  /**
+   * The download's progress in a window. Hidden (or closed some other way
+   * while it is still going), it goes to a strip at the foot of the screen
+   * (cardDbDock), and the app is yours again while it carries on.
+   */
   function cardDbProgress() {
+    removeCardDbDock();
     const bar = el('div', { class: 'progress' }, el('div', { style: { width: '0%' } }));
     const text = el('p', { class: 'small muted', 'aria-live': 'polite', style: { margin: '0 0 10px' } });
+    let over = false;
     const m = UI.modal({
       title: 'Downloading the card database',
       content: el('div', null, [text, bar,
-        el('p', { class: 'tiny dim', style: { margin: '12px 0 0' }, text: 'Carry on using the app if you like; Options, under Card data, shows how far it has got.' })]),
+        el('p', { class: 'tiny dim', style: { margin: '12px 0 0' }, text: 'Hide it and carry on using the app: its progress stays at the foot of the screen.' })]),
       buttons: [
-        { label: 'Stop', onClick: () => { MTG.cardDb.cancel(); m.close(); } },
+        { label: 'Stop', onClick: () => { over = true; MTG.cardDb.cancel(); m.close(); } },
         { label: 'Hide', class: 'primary', onClick: () => m.close() },
       ],
     });
@@ -1750,10 +1756,55 @@
       if (!job) return;
       text.textContent = cardDbJobText(job);
       bar.firstChild.style.width = Math.round(cardDbJobShare(job) * 100) + '%';
-      if (/done|error|cancelled/.test(job.phase)) { off(); setTimeout(() => m.close(), job.phase === 'done' ? 700 : 0); }
+      if (/done|error|cancelled/.test(job.phase)) { over = true; off(); setTimeout(() => m.close(), job.phase === 'done' ? 700 : 0); }
     };
     const off = MTG.bus.on('carddb:progress', paint);
-    m._onClose = () => off();
+    m._onClose = () => { off(); if (!over) cardDbDock(); };
+    paint(MTG.cardDb.job);
+  }
+
+  /* The download, hidden: a strip at the foot of the screen over whatever
+     you go on to do, with how far it has got. A click on it brings the
+     window back; Stop stops it. When it is done it says so and goes. */
+  let dbDock = null;
+  function removeCardDbDock() {
+    if (!dbDock) return;
+    dbDock._off();
+    dbDock.remove();
+    dbDock = null;
+    document.documentElement.classList.remove('has-db-dock');
+  }
+  function cardDbDock() {
+    removeCardDbDock();
+    const fill = el('i');
+    const text = el('span', { class: 'db-dock-text' });
+    const pct = el('b', { class: 'db-dock-pct' });
+    const stop = el('button', { type: 'button', class: 'btn xs db-dock-stop', text: 'Stop', title: 'Stop the download (what has come down is kept)',
+      onclick: () => MTG.cardDb.cancel() });
+    const d = dbDock = el('div', { class: 'db-dock', role: 'status', 'aria-live': 'polite' }, [
+      el('button', { type: 'button', class: 'db-dock-main', title: 'Show the download', onclick: () => cardDbProgress() }, [
+        el('span', { class: 'db-dock-title', text: 'Card database' }), text, pct,
+        el('span', { class: 'db-dock-bar', 'aria-hidden': 'true' }, fill),
+      ]),
+      stop,
+    ]);
+    const paint = (job) => {
+      if (!job || dbDock !== d) return;
+      const share = cardDbJobShare(job);
+      fill.style.width = Math.round(share * 100) + '%';
+      pct.textContent = Math.round(share * 100) + '%';
+      text.textContent = job.phase === 'download' ? (job.total ? `${megabytes(job.got)} of ${megabytes(job.total)}` : 'Starting…')
+        : job.phase === 'unpack' ? 'Unpacking…' : job.phase === 'store' ? 'Saving…'
+        : job.phase === 'done' ? 'Ready' : job.phase === 'error' ? 'It did not finish' : 'Stopped';
+      if (/done|error|cancelled/.test(job.phase)) {
+        d.classList.add('end', job.phase);
+        stop.remove();
+        setTimeout(() => { if (dbDock === d) removeCardDbDock(); }, job.phase === 'done' ? 2500 : 5000);
+      }
+    };
+    d._off = MTG.bus.on('carddb:progress', paint);
+    document.body.appendChild(d);
+    document.documentElement.classList.add('has-db-dock');
     paint(MTG.cardDb.job);
   }
   /** The Card data row: what is stored, and the buttons to fetch, update or remove it. */
