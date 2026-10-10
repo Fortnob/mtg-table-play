@@ -1410,6 +1410,7 @@
           const c = x.cost || {};
           if ((c.other || []).length) return false;                 // not something we can price
           if (c.tapCreatures && this._tapCostPool(playerId, c.tapCreatures, o).length < this._costCount(c.tapCreatures.n, null)) return false;
+          if (c.untapCreatures && this._untapCostPool(playerId, c.untapCreatures, o).length < c.untapCreatures.n) return false;
           if (c.tap && o.tapped) return false;
           if (c.untap && !o.tapped) return false;
           if (c.life && p.life <= c.life) return false;
@@ -6789,6 +6790,9 @@
         if (this._tapCostPool(pid, cost.tapCreatures, self, cost.tap).length < need)
           return `Not enough untapped ${cost.tapCreatures.filter}s to tap.`;
       }
+      // Halo Fountain: "Untap a tapped creature you control" (untapCreatures)
+      if (cost.untapCreatures && this._untapCostPool(pid, cost.untapCreatures, self).length < cost.untapCreatures.n)
+        return `Not enough tapped ${cost.untapCreatures.filter}s to untap.`;
       if (cost.life != null && cost.spellLife) {
         const k = cost.life === 'X' ? ((opts && opts.x) || 0) : cost.life;
         if (p && p.life < k) return 'Not enough life.';
@@ -6993,7 +6997,20 @@
         }
         if (pick) this._tapForCost(pid, pick, item);
       }
+      /* Halo Fountain: tapped permanents untapped as the price — the ones
+         worth most first (untapCreatures) */
+      if (cost.untapCreatures) {
+        const pool = this._untapCostOrder(this._untapCostPool(pid, cost.untapCreatures, self));
+        for (const x of pool.slice(0, cost.untapCreatures.n)) this._markUntapped(x);
+      }
     }
+    /** What may be untapped to pay "Untap a tapped creature you control". */
+    _untapCostPool(pid, spec, self) {
+      const f = String((spec && spec.filter) || 'creature');
+      return this.battlefield.filter(x => x.controller === pid && x.tapped && !x.phasedOut && x !== self &&
+        (/^creatures?$/i.test(f) ? this.characteristics(x).isCreature : this._cardFitsWords(x, f)));
+    }
+    _untapCostOrder(pool) { return pool.slice().sort((x, y) => this._cardValue(y) - this._cardValue(x)); }
 
     /** Which permanents to tap for a cost first: the ones that would do least today. */
     _tapCostOrder(pool) {

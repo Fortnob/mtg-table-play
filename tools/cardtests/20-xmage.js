@@ -18409,4 +18409,18 @@ module.exports = (test) => {
     t.eq(T.life('A'), 14, '7 doubled');
     t.eq(T.life('B'), 15, 'a 5/5 Bear');
   });
+
+  test('Halo Fountain: untapping tapped creatures you control is the price', (mk, t) => {
+    t.auto('Halo Fountain');
+    const T = mk();
+    T.toMain('A');
+    const hf = T.bf('A', 'Halo Fountain');
+    t.no(T.g.activateAbility('A', hf.id, 0, { auto: true }), 'no tapped creature: it cannot be paid');
+    const b1 = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'W');
+    T.activate('A', hf, 0);
+    T.settle();
+    t.no(b1.tapped, 'the Bears untapped to pay');
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Citizen/.test(o.name)).length, 1, 'a Citizen');
+  });
 };

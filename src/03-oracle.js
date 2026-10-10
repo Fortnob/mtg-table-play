@@ -364,6 +364,14 @@
         // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
         cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
       }
+      // Halo Fountain: "Untap a tapped creature you control", "Untap fifteen tapped creatures you control" (untapCreatures)
+      if ((m = p.match(/^Untap (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|\d+) tapped ([A-Za-z ]+?) you control$/i))) {
+        const k = /^an?$/i.test(m[1]) ? 1 : (WORDN(m[1].toLowerCase()) || num(m[1]));
+        if (typeof k === 'number' && k > 0) {
+          cost.untapCreatures = { n: k, filter: m[2].trim().toLowerCase().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') };
+          continue;
+        }
+      }
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
          price, the way convoke taps them for a spell. */

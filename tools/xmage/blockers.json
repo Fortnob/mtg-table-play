@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11040,
+  "needed": 11038,
   "gainedCards": 1090,
-  "linesNeeded": 11799,
+  "linesNeeded": 11795,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -1007,15 +1007,6 @@
     "Mirror Room // Fractured Realm",
     "Central Elevator // Promising Stairs",
     "Experimental Lab // Staff Room"
-   ]
-  },
-  {
-   "what": "UntapTargetCost",
-   "score": 13,
-   "lines": 4,
-   "cards": [
-    "Halo Fountain",
-    "Crackleburr"
    ]
   },
   {
@@ -6600,6 +6591,16 @@
     "Villainous Hideout",
     "Valentina Allegra de Fontaine"
    ]
+  },
+  {
+   "what": "keyword FlyingAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Eradicator Valkyrie",
+    "Niv-Mizzet, Guildpact",
+    "Niv-Mizzet, Supreme"
+   ]
   }
  ],
  "sole": [
@@ -8850,15 +8851,6 @@
    ]
   },
   {
-   "what": "UntapTargetCost",
-   "score": 5,
-   "cards": 2,
-   "names": [
-    "Halo Fountain",
-    "Crackleburr"
-   ]
-  },
-  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 5,
    "cards": 5,
@@ -10281,6 +10273,17 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
+   ]
+  },
+  {
+   "what": "TurnFaceUpTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ixidor, Reality Sculptor",
+    "Expose the Culprit",
+    "Skirk Alarmist",
+    "Break Open"
    ]
   }
  ]
