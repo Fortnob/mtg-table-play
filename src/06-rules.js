@@ -18489,7 +18489,7 @@
             if (tg === SUSPEND) return SUSPEND;
             if (r) r.marks[slot + 'done' + k] = true;
             if (tg === null) continue;
-            const ok = this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
+            const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
             if (!ok) continue;
             if (r) r.marks[slot + 'n']++;
             const it = this.stack.find(st => st.objId === c.id);
