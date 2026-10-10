@@ -2107,7 +2107,7 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.16) 48%, transparent 60%); }
 .cv:hover .cv-shine { opacity: 1; }
 .cv.tapped .cv-body { rotate: 90deg; }
-.cv.sick .cv-body { filter: saturate(.72) brightness(.9); }
+.cv.sick .cv-body { filter: saturate(.6) brightness(.82); }
 .cv.token .cv-body::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(160,200,255,.35); }
 
 /* what you can do */
@@ -2144,6 +2144,33 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   border-radius: 4px 4px 50% 50% / 4px 4px 40% 40%; box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .cv-def { background: linear-gradient(180deg, #7b3a2c, #3a1a13); }
 .cv-chips { left: -4%; top: 8%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+/* its keywords at a glance (12i-ui-keywords.js): small symbols down the right edge */
+.cv-kws { right: -7%; top: 7%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cv.tapped .cv-kws { right: -26%; top: 16%; }
+.kw-ic {
+  --kw: max(13px, calc(var(--w, 100px) * .19));
+  width: var(--kw); height: var(--kw); border-radius: 50%; display: grid; place-items: center; color: #e9edf5;
+  background: radial-gradient(circle at 35% 30%, #3c4352, #12151c 75%);
+  border: 1px solid rgba(255,255,255,.28); box-shadow: 0 1px 3px rgba(0,0,0,.65);
+}
+.kw-ic svg { width: 64%; height: 64%; display: block; }
+.kw-txt { font: 800 calc(var(--kw) * .44)/1 var(--font); letter-spacing: -.03em; }
+.kw-ic.tone-sky { color: #a9d8ff; } .kw-ic.tone-green { color: #93e08c; } .kw-ic.tone-steel { color: #dfe5ef; }
+.kw-ic.tone-death { color: #b8e6a6; background: radial-gradient(circle at 35% 30%, #2f3a2c, #0d120c 75%); }
+.kw-ic.tone-life { color: #ffb6c6; } .kw-ic.tone-light { color: #fff1c2; } .kw-ic.tone-fire { color: #ffae6b; }
+.kw-ic.tone-sea { color: #7fe3dc; } .kw-ic.tone-gold { color: #f3dd96; border-color: rgba(243,221,150,.5); }
+/* summoning sick: a "Zz" over the top edge, the card a little dim and drowsy */
+.cv-sick {
+  left: 50%; top: -9%; translate: -50% 0; width: max(16px, calc(var(--w, 100px) * .24)); height: max(16px, calc(var(--w, 100px) * .24));
+  border-radius: 50%; display: grid; place-items: center; color: #cfd8ff;
+  background: radial-gradient(circle at 35% 30%, #3a4470, #151a33 75%); border: 1px solid rgba(190,205,255,.45);
+  box-shadow: 0 1px 4px rgba(0,0,0,.6), 0 0 8px rgba(140,160,255,.35);
+  animation: sickBob 2.6s ease-in-out infinite;
+}
+.cv-sick svg { width: 70%; height: 70%; display: block; }
+.cv.tapped .cv-sick { top: 6%; }
+@keyframes sickBob { 50% { translate: -50% -2px; } }
+:root[data-reduce-motion] .cv-sick { animation: none; }
 .cv-chips .chip { font: 700 max(7px, calc(var(--w) * .1))/1.35 var(--font); padding: 0 .4em; border-radius: 99px;
   background: rgba(14,16,22,.92); color: #e9edf5; border: 1px solid rgba(255,255,255,.25); white-space: nowrap;
   box-shadow: 0 1px 4px rgba(0,0,0,.6); }
@@ -42919,7 +42946,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             });
             if (!pool.length) {
               if (e.orDiscard && this.zones[p.id].hand.length) {
-                this.queueChoice({ type: 'discard', playerId: p.id, count: 1, prompt: 'You have nothing to sacrifice: discard a card.' });
+                // (waited for, as the sacrifice is)
+                const q = { type: 'discard', playerId: p.id, count: 1, prompt: 'You have nothing to sacrifice: discard a card.' };
+                const got = this.resolving ? this._ask(q, 'sacOrDiscard' + p.id) : null;
+                if (got === SUSPEND) return SUSPEND;
+                if (!this.resolving) this.queueChoice(q);
               }
               continue;
             }
@@ -44013,9 +44044,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         case 'drawDiscard': {
           const drew = n(e.n), toss = e.discard == null ? drew : n(e.discard);
-          this._drawCards(me, drew);
+          // (drawn once, however many times this resumes)
+          if (!this._doneHere('ddDraw')) this._drawCards(me, drew);
           const can = Math.min(toss, this.zones[ctx.controller].hand.length);
-          if (can > 0) this.queueChoice({ type: 'discard', playerId: ctx.controller, count: can, prompt: `Discard ${can}.` });
+          if (can > 0) {
+            /* Frantic Search, Jace, Vryn's Prodigy: the discard is waited for, so what comes after it
+               (the untap, "if there are five or more cards in your graveyard") comes after it */
+            const q = { type: 'discard', playerId: ctx.controller, count: can, prompt: `Discard ${can}.` };
+            const got = this._ask(q, 'ddToss');
+            if (got === SUSPEND) return SUSPEND;
+            if (got === null && !this.resolving) this.queueChoice(q);
+          }
           break;
         }
         /* Timetwister: hand and graveyard shuffled into the library, then
@@ -81627,7 +81666,10 @@ Sideboard
       // a face-down card wears its owner's sleeve
       if (hidden && UI.applySleeve) UI.applySleeve(face, MTG.app && MTG.app.sleeveFor ? MTG.app.sleeveFor(o.owner || o.controller) : null);
       n.classList.toggle('tapped', !!o.tapped);
-      n.classList.toggle('sick', !!o.summoningSick && o.zone === 'battlefield' && o.power != null);
+      // summoning sick: a creature that cannot attack or tap yet (haste lets it)
+      const sickNow = !!o.summoningSick && o.zone === 'battlefield' && o.power != null &&
+        !(o.keywords || []).some(w => String(w).toLowerCase() === 'haste');
+      n.classList.toggle('sick', sickNow);
       n.classList.toggle('attacking', !!o.attacking);
       n.classList.toggle('blocking', !!(o.blocking && o.blocking.length));
       n.classList.toggle('token', !!o.isToken);
@@ -81636,7 +81678,7 @@ Sideboard
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -81660,6 +81702,9 @@ Sideboard
         ]);
         n.appendChild(pt);
       }
+      // its keywords at a glance, printed or given (src/12i-ui-keywords.js), and the mark of a creature not ready yet
+      if (UI.keywordIcons) { const kws = UI.keywordIcons(o.keywords); if (kws) n.appendChild(kws); }
+      if (sickNow && UI.sickMark) n.appendChild(UI.sickMark());
       const c = o.counters || {};
       if (c.loyalty != null && !(a && a.isCreature)) {
         n.appendChild(el('div', { class: 'cv-mark cv-loy', text: String(c.loyalty) }));
@@ -82775,6 +82820,11 @@ Sideboard
         const cv = e.target.closest('.cv');
         if (!cv) return;
         e.preventDefault();
+        /* A card in your hand is read on a right-click: it is what you are
+           deciding whether to play. What else it can do (cycling, plot,
+           suspend, a face-down cast) waits under Actions in that view. */
+        const loc = this.locate(cv.dataset.id);
+        if (loc && loc.zone === 'hand' && loc.player === this.meId) { this.showCard(cv.dataset.id, { actions: true }); return; }
         this.cardMenu(cv.dataset.id, e);
       });
       a.addEventListener('dblclick', (e) => {
@@ -83839,14 +83889,15 @@ Sideboard
       return out;
     }
 
-    showCard(id) {
+    showCard(id, opts) {
+      opts = opts || {};
       const o = this.objIn(id) || (() => {
         const s = (this.view.stack || []).find(x => x.objId === id || x.id === id);
         return s && s.card ? { id, card: s.card } : null;
       })();
       if (!o || !o.card || o.hidden) return;
       this.hidePreview();
-      if (MTG.isPhone()) return UI.cardSheet(o.card, { keywords: o.keywords });
+      if (MTG.isPhone()) return UI.cardSheet(o.card, { keywords: o.keywords, onActions: opts.actions ? (ev) => this.cardMenu(id, ev) : null });
       const card = o.card;
       const faces = card.card_faces && card.card_faces.length > 1 && card.card_faces[0].image_uris ? card.card_faces.length : 1;
       const imgs = el('div', { class: 'cardview-imgs' });
@@ -83879,6 +83930,12 @@ Sideboard
             el('div', { class: 'row', style: { marginTop: 'auto' } }, [
               el('button', { class: 'btn sm', text: 'Choose art…', onclick: () => { close(); UI.pickArt(card); } }),
               el('span', { class: 'grow' }),
+              // everything else it can do, as the right-click once showed (opened from your hand)
+              opts.actions ? el('button', { class: 'btn sm', text: 'Actions…', onclick: (ev) => {
+                const r = ev.currentTarget.getBoundingClientRect();
+                close();
+                this.cardMenu(id, { clientX: r.left, clientY: r.top, preventDefault() {} });
+              } }) : null,
               el('button', { class: 'btn sm primary', text: 'Close', onclick: close }),
             ]),
           ].filter(Boolean)),
@@ -88614,6 +88671,108 @@ Sideboard
   };
 
   Table.accessKeys = KEYS;
+})(window.MTG);
+/* ===== 12i-ui-keywords.js ===== */
+/* ============================================================
+   12i-ui-keywords.js - a creature's keywords at a glance
+   On the battlefield each permanent wears a small symbol for every
+   keyword it has right now, printed or given (a wing for flying, a
+   heart for lifelink), so a board can be read without hovering every
+   card. The words are on the symbols for a screen reader, and the
+   enlarged card still explains each one in full.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const { el } = MTG;
+  const UI = MTG.ui = MTG.ui || {};
+
+  // drawn on a 24-unit square; filled unless the icon says stroke
+  const P = {
+    wing: '<path d="M2.5 15.5c5.5-.4 9.6-3.4 12-9.5 1.6 3.4 1.2 6.3-.6 8.6 2.6.2 5.2-.6 7.6-2.4-1.8 5.6-6.8 8.8-12.6 8.8-2.9 0-5.1-1.6-6.4-5.5z"/>',
+    reach: '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M12 21V4M6 10l6-6 6 6M5 21h14"/>',
+    trample: '<path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M4 6l6 6-6 6M12 6l6 6-6 6"/>',
+    sword: '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 19L18 6M15 4.5l4.5 4.5M3.5 15.5l5 5M5.5 18.5l-2 2"/>',
+    swords: '<path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 20L17 7M15 5l4 4M20 20L7 7M9 5L5 9M3 17l4 4M21 17l-4 4"/>',
+    skull: '<path d="M12 2.5a8 8 0 0 0-8 8c0 2.8 1.4 4.6 3.2 5.6V20h9.6v-3.9c1.8-1 3.2-2.8 3.2-5.6a8 8 0 0 0-8-8zm-3 7a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8zm6 0a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8z" fill-rule="evenodd"/>',
+    heart: '<path d="M12 20.5s-7.6-4.6-9.2-9.4C1.6 7.4 4 4 7.4 4c2 0 3.5 1.1 4.6 2.7C13.1 5.1 14.6 4 16.6 4 20 4 22.4 7.4 21.2 11.1c-1.6 4.8-9.2 9.4-9.2 9.4z"/>',
+    eye: '<path d="M12 5C6.5 5 2.6 9.7 1.5 12c1.1 2.3 5 7 10.5 7s9.4-4.7 10.5-7C21.4 9.7 17.5 5 12 5zm0 3.4a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2z" fill-rule="evenodd"/>',
+    bolt: '<path d="M13.5 2L4 13.5h6.5L9.5 22 20 9.5h-6.5z"/>',
+    shield: '<path d="M12 2l8.5 3.2v6.1c0 5.2-3.6 9.2-8.5 10.7-4.9-1.5-8.5-5.5-8.5-10.7V5.2z"/>',
+    shieldOff: '<path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M12 2.5l8 3v5.8c0 5-3.4 8.7-8 10.2-4.6-1.5-8-5.2-8-10.2V5.5z"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M5 19L19 5"/>',
+    gem: '<path d="M12 2l8.5 10L12 22 3.5 12z"/>',
+    horns: '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M3.5 4l6 6.5M20.5 4l-6 6.5M6.5 18c3.2-3.2 7.8-3.2 11 0"/>',
+    wall: '<path d="M2.5 5h8.5v4.5H2.5zM13 5h8.5v4.5H13zM2.5 11.5H7V16H2.5zM9 11.5h6V16H9zM17 11.5h4.5V16H17zM2.5 18h8.5v3H2.5zM13 18h8.5v3H13z"/>',
+    ward: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="4.2"/>',
+    star: '<path d="M12 2l2.7 6.4 6.9.6-5.3 4.5 1.6 6.8L12 16.7 6.1 20.3l1.6-6.8L2.4 9l6.9-.6z"/>',
+    drop: '<path d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/>',
+    ghost: '<path d="M12 2.5a7.5 7.5 0 0 0-7.5 7.5v11.5l2.5-2 2.5 2 2.5-2 2.5 2 2.5-2 2.5 2V10A7.5 7.5 0 0 0 12 2.5zM9 9.2a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2zm6 0a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z" fill-rule="evenodd"/>',
+    path: '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M7 21c0-6 10-6 10-12 0-3-2-5-5-6"/><path d="M12 1.5l2.5 3-3.4 1.2z"/>',
+  };
+
+  /* The keywords worth a symbol on the battlefield, and how each looks:
+     an icon, or a few letters for the rarer ones. `tone` tints it. */
+  const KW = [
+    ['flying', 'wing', 'sky'], ['reach', 'reach', 'green'], ['trample', 'trample', 'green'],
+    ['first strike', 'sword', 'steel'], ['double strike', 'swords', 'steel'], ['deathtouch', 'skull', 'death'],
+    ['lifelink', 'heart', 'life'], ['vigilance', 'eye', 'light'], ['haste', 'bolt', 'fire'],
+    ['hexproof', 'shield', 'sea'], ['shroud', 'shieldOff', 'sea'], ['indestructible', 'gem', 'gold'],
+    ['menace', 'horns', 'fire'], ['defender', 'wall', 'steel'], ['ward', 'ward', 'sea'],
+    ['protection', 'shield', 'light'], ['prowess', 'star', 'sea'], ['infect', 'drop', 'death'],
+    ['wither', 'drop', 'death'], ['toxic', 'drop', 'death'], ['fear', 'ghost', 'death'],
+    ['intimidate', 'ghost', 'steel'], ['shadow', 'ghost', 'death'], ['skulk', 'ghost', 'steel'],
+    ['horsemanship', 'path', 'steel'], ['walk', 'path', 'green'],
+    ['annihilator', 'An', 'death'], ['persist', 'Pe', 'death'], ['undying', 'Un', 'death'],
+    ['exalted', 'Ex', 'light'], ['flanking', 'Fl', 'steel'], ['bushido', 'Bu', 'steel'],
+    ['banding', 'Ba', 'light'], ['afflict', 'Af', 'death'], ['battle cry', 'BC', 'fire'],
+    ['training', 'Tr', 'light'], ['mentor', 'Me', 'light'], ['decayed', 'De', 'death'],
+    ['myriad', 'My', 'steel'], ['rampage', 'Ra', 'green'], ['provoke', 'Pv', 'green'],
+  ];
+
+  /** The symbol for one keyword as the engine names it ("flying", "ward {2}", "islandwalk"), or null. */
+  function lookup(word) {
+    const w = String(word || '').toLowerCase().trim();
+    for (const k of KW) {
+      if (w === k[0] || w.startsWith(k[0] + ' ') || (k[0] === 'walk' && /walk$/.test(w) && w !== 'walk')) return k;
+    }
+    return null;
+  }
+
+  /**
+   * The symbols for a permanent's keywords, in a column, or null when it
+   * has none worth one. At most `max` are drawn; more say how many more.
+   */
+  UI.keywordIcons = function (keywords, opts) {
+    opts = opts || {};
+    const max = opts.max || 6;
+    const seen = new Set();
+    const items = [];
+    for (const word of (keywords || [])) {
+      const k = lookup(word);
+      if (!k || seen.has(k[0] === 'walk' ? String(word).toLowerCase() : k[0])) continue;
+      seen.add(k[0] === 'walk' ? String(word).toLowerCase() : k[0]);
+      items.push([String(word), k]);
+    }
+    if (!items.length) return null;
+    const shown = items.slice(0, max);
+    const box = el('div', { class: 'cv-mark cv-kws', role: 'img', 'aria-label': 'Keywords: ' + items.map(i => i[0]).join(', ') });
+    for (const [word, [, icon, tone]] of shown) {
+      const art = P[icon];
+      box.appendChild(el('span', { class: 'kw-ic tone-' + tone + (art ? '' : ' kw-txt'), 'aria-hidden': 'true', dataset: { kw: word.toLowerCase() } },
+        art ? null : icon));
+      if (art) box.lastChild.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${art}</svg>`;
+    }
+    if (items.length > max) box.appendChild(el('span', { class: 'kw-ic kw-txt tone-steel', 'aria-hidden': 'true', text: '+' + (items.length - max) }));
+    return box;
+  };
+
+  /** The mark of a creature that came under its controller's control this turn: it cannot attack or tap yet. */
+  UI.sickMark = function () {
+    const m = el('div', { class: 'cv-mark cv-sick', role: 'img', 'aria-label': 'Summoning sick: it can’t attack or use a tap ability this turn' });
+    m.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h7L3 14h7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 12h6l-6 7h6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return m;
+  };
+
+  UI.keywordIcons.lookup = lookup;
 })(window.MTG);
 /* ===== 12h-ui-rematch.js ===== */
 'use strict';
