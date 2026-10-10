@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10579,
-  "gainedCards": 972,
-  "linesNeeded": 11258,
-  "linesGained": 1140,
+  "needed": 10572,
+  "gainedCards": 971,
+  "linesNeeded": 11250,
+  "linesGained": 1139,
   "gained": {
-   "all": 972,
+   "all": 971,
    "top2000": 41,
    "stdTop": 6
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 673,
-   "lines": 619,
+   "score": 672,
+   "lines": 618,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -4568,17 +4568,6 @@
    ]
   },
   {
-   "what": "discard trigger for a kind of card",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Hashaton, Scarab's Fist",
-    "Mary Read and Anne Bonny",
-    "Oskar, Rubbish Reclaimer",
-    "Shipwreck Sifters"
-   ]
-  },
-  {
    "what": "PutCardFromHandOrGraveyardOntoBattlefieldEffect",
    "score": 4,
    "lines": 4,
@@ -4667,28 +4656,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Phyresis Outbreak",
-    "Zuko, Firebending Master",
-    "Contaminated Drink",
-    "Phyrexian Vatmother"
-   ]
-  },
-  {
-   "what": "VariableManaCostPredicate.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Elementalist's Palette",
-    "Geometer's Arthropod",
-    "Rosheen, Roaring Prophet",
-    "Matterbending Mage"
-   ]
-  },
-  {
    "what": "a target no effect uses",
    "score": 4,
    "lines": 4,
@@ -4729,17 +4696,6 @@
     "Abigale, Eloquent First-Year",
     "The Wondrous Wasp",
     "Invasion of Muraganda // Primordial Plasm"
-   ]
-  },
-  {
-   "what": "ExploreSourceEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Amalia Benavides Aguirre",
-    "Astrid Peth",
-    "Jadelight Spelunker",
-    "Deepfathom Echo"
    ]
   },
   {
@@ -5621,6 +5577,16 @@
    ]
   },
   {
+   "what": "discard trigger for a kind of card",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Hashaton, Scarab's Fist",
+    "Oskar, Rubbish Reclaimer",
+    "Shipwreck Sifters"
+   ]
+  },
+  {
    "what": "Ability.setUndoPossible",
    "score": 3,
    "lines": 3,
@@ -5647,6 +5613,16 @@
     "Bumi, Unleashed",
     "Rude Awakening",
     "Innocuous Researcher"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Phyresis Outbreak",
+    "Contaminated Drink",
+    "Phyrexian Vatmother"
    ]
   },
   {
@@ -5687,6 +5663,16 @@
     "White Lotus Tile",
     "Skemfar Shadowsage",
     "Basalt Ravager"
+   ]
+  },
+  {
+   "what": "ExploreSourceEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Amalia Benavides Aguirre",
+    "Jadelight Spelunker",
+    "Deepfathom Echo"
    ]
   },
   {
@@ -6496,13 +6482,23 @@
     "Spiteful Shadows",
     "Binding Agony"
    ]
+  },
+  {
+   "what": "BeginningOfEndStepTriggeredAbility from GRAVEYARD",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Kami of Transience",
+    "Sproutback Trudge",
+    "Spellpyre Phoenix"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3384,
-   "cards": 3219,
+   "score": 3385,
+   "cards": 3220,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6514,8 +6510,8 @@
   },
   {
    "what": "custom ability",
-   "score": 517,
-   "cards": 478,
+   "score": 516,
+   "cards": 477,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -9390,17 +9386,6 @@
    ]
   },
   {
-   "what": "AddCountersPlayersEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Phyresis Outbreak",
-    "Zuko, Firebending Master",
-    "Contaminated Drink",
-    "Phyrexian Vatmother"
-   ]
-  },
-  {
    "what": "PlayFromTopOfLibraryEffect",
    "score": 4,
    "cards": 4,
@@ -9431,17 +9416,6 @@
     "Thieving Varmint",
     "Overgrown Zealot",
     "Jeweled Lotus"
-   ]
-  },
-  {
-   "what": "ExploreSourceEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Amalia Benavides Aguirre",
-    "Astrid Peth",
-    "Jadelight Spelunker",
-    "Deepfathom Echo"
    ]
   },
   {
@@ -10146,6 +10120,28 @@
     "Withering Gaze",
     "Rag Man",
     "Thoughtcutter Agent"
+   ]
+  },
+  {
+   "what": "AttachedOrShareCreatureTypePredicate.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Crown of Fury",
+    "Crown of Ascension",
+    "Crown of Vigor",
+    "Crown of Suspicion"
+   ]
+  },
+  {
+   "what": "MoreCardsInHandThanOpponentsCondition.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Kitsune Bonesetter",
+    "Descendant of Kiyomaro",
+    "Secretkeeper",
+    "Okina Nightwatch"
    ]
   }
  ]

@@ -21583,4 +21583,54 @@ module.exports = (test) => {
     T.mana('A', 'R');
     t.no(T.g.activateAbility('A', y.id, 0, { auto: true }), 'a battlefield ability, from the command zone: refused');
   });
+
+  test('Commanders: Zaxara, the Exemplary, Zuko, Firebending Master, Mary Read and Anne Bonny, Astrid Peth', (mk, t) => {
+    for (const n of ['Zaxara, the Exemplary', 'Zuko, Firebending Master', 'Mary Read and Anne Bonny', 'Astrid Peth', 'Geometer\'s Arthropod']) t.auto(n);
+    // Zaxara: a spell with {X}: a 0/0 Hydra with X counters; a spell without: nothing
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Zaxara, the Exemplary');
+    const hydras = () => T.bfOf('A').filter(o => o.isToken && /Hydra/.test(o.name));
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.resolve();
+    t.no(T.g.log.some(l => /Hydra/.test(l.text || '')), 'no {X}: no Hydra, not even one that dies');
+    T.mana('A', '3R'); T.cast('A', T.hand('A', 'Fireball'), { targets: ['B'], x: 3 }); T.resolve();
+    t.eq(hydras().length, 1, '{X}: a Hydra');
+    t.eq((hydras()[0] || { counters: {} }).counters['+1/+1'], 3, 'with X counters');
+    // Zuko: an experience counter for a spell cast during combat, not in the main phase
+    const T2 = mk({ library: Array(10).fill('Island') });
+    T2.bf('A', 'Zuko, Firebending Master');
+    T2.toMain('A');
+    T2.mana('A', 'R'); T2.cast('A', T2.hand('A', 'Shock'), { targets: ['B'] }); T2.resolve();
+    t.no(T2.player('A').experience, 'in the main phase: none');
+    T2.toMain('A', 'beginCombat');
+    T2.mana('A', 'R'); T2.cast('A', T2.hand('A', 'Shock'), { targets: ['B'] }); T2.resolve();
+    t.eq(T2.player('A').experience, 1, 'during combat: one');
+    // Mary Read and Anne Bonny: a tapped Treasure for an Island discarded, nothing for a Swamp
+    const T3 = mk({ library: Array(10).fill('Island') });
+    T3.toMain('A');
+    const mr = T3.bf('A', 'Mary Read and Anne Bonny');
+    const sw = T3.put('A', 'Swamp', 'hand');
+    T3.answer('discard', () => ({ cardIds: [sw.id] }));
+    T3.activate('A', mr, 0); T3.resolve();
+    const treasures = () => T3.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name));
+    t.eq(treasures().length, 0, 'a Swamp: no Treasure');
+    mr.tapped = false;
+    const isl = T3.put('A', 'Island', 'hand');
+    T3.answer('discard', () => ({ cardIds: [isl.id] }));
+    T3.activate('A', mr, 0); T3.resolve();
+    t.eq(treasures().length, 1, 'an Island: a Treasure');
+    t.ok(treasures()[0] && treasures()[0].tapped, 'tapped');
+    // Astrid Peth: explores when a Clue or a Food is sacrificed, not a Treasure
+    const T4 = mk({ library: Array(10).fill('Island') });
+    T4.toMain('A');
+    const as = T4.bf('A', 'Astrid Peth');
+    const lib0 = T4.zone('A', 'library').length;
+    const vs = T4.bf('A', 'Viscera Seer'), gb = T4.bf('A', 'Grizzly Bears');
+    T4.answer('sacrifice', () => ({ cardIds: [gb.id] }));
+    T4.activate('A', vs, 0); T4.resolve();
+    t.eq(T4.zone('A', 'library').length, lib0, 'a creature sacrificed: no explore');
+    const food = T4.bf('A', 'Food');
+    T4.mana('A', '2'); T4.activate('A', food, 0); T4.resolve();
+    t.ok(T4.zone('A', 'library').length < lib0 || (as.counters['+1/+1'] || 0) > 0, 'a Food: it explores');
+  });
 };

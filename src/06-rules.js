@@ -11970,6 +11970,9 @@
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
           // Captain Ripley Vance: only the third spell its controller casts this turn
           if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
+          // Zaxara: a spell with {X} in its mana cost (xSpell); Zuko: one cast during combat (duringCombat)
+          if (ab.xSpell && !/\{X\}/.test(((data.object && data.object.card) || {}).mana_cost || '')) continue;
+          if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
           if (ab.firstXSpell) {
             const hasX = (x) => /\{X\}/.test(((x && x.card) || {}).mana_cost || '');

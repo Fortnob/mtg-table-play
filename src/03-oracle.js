@@ -9805,6 +9805,10 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
+    { re: /^Whenever you cast a spell during combat,? /i, event: 'youCastSpell', extra: { duringCombat: true } },
+    // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
+    { re: /^Whenever you cast a spell with \{X\} in its mana cost,? /i, event: 'youCastSpell', extra: { xSpell: true } },
     // Alela, Wavebreak Hippocamp: "your first spell during each opponent's turn" — not on your own turn
     { re: /^When(?:ever)? you cast your first spell during each opponent'?s turn(?:,| )/i, event: 'firstSpellEachTurn', extra: { notYourTurnOnly: true } },
     // Scrap Trawler: "Whenever this creature dies or another artifact you control is put into a graveyard from the battlefield"
@@ -9845,6 +9849,8 @@
     { re: /^When you sacrifice (?:this (?:Aura|enchantment|artifact|creature|permanent)|CARDNAME),? /i, event: 'youSacrifice', self: true },
     // Bone Miser: "Whenever you discard a creature (land) card"
     { re: /^Whenever you discard an? ((?:non)?(?:creature|land|artifact|enchantment|instant|sorcery)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: m[1].toLowerCase() }) },
+    // (Mary Read and Anne Bonny: "Whenever you discard an Island, Pirate, or Vehicle card" — any one of them: discardEither)
+    { re: /^Whenever you discard an? ((?:[A-Z][a-z]+, )*[A-Z][a-z]+,? or [A-Z][a-z]+) card,? /, event: 'youDiscard', extraOf: (m) => ({ discardWords: m[1].replace(/,? or |, /g, ' or ').toLowerCase() }) },
     // Bone Miser: "Whenever you discard a noncreature, nonland card"
     { re: /^Whenever you discard an? (non(?:creature|land|artifact)), (non(?:creature|land|artifact)) card,? /i, event: 'youDiscard', extraOf: (m) => ({ discardWords: (m[1] + ' ' + m[2]).toLowerCase() }) },
     // Shimmering Efreet: "Whenever this creature phases in"
@@ -10135,6 +10141,8 @@
     { re: /^At the beginning of each player'?s draw step(?:,| )/i, event: 'eachDrawStep' },
     // Camellia: "Whenever you sacrifice one or more Foods" (heard once for each one)
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
+    // (Astrid Peth: "Whenever you sacrifice a Clue or Food" — sacrificeEither)
+    { re: /^When(?:ever)? you sacrifice an? ([A-Z][a-z]+) or ([A-Z][a-z]+),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase() }) },
     { re: /^When(?:ever)? you sacrifice an? ([A-Za-z]+)(?:,| )/i, event: 'youSacrifice',
       filt: (m) => (/^permanent$/i.test(m[1]) ? { words: 'permanent' } : subjectFilter('a ' + m[1])) },
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
@@ -11286,7 +11294,7 @@
           parsed.auto = true;
         }
         // Nev, the Practical Dean: "put X +1/+1 counters" — the X of the spell that set it off (firstXSpell)
-        if (trig.extra && trig.extra.firstXSpell) {
+        if (trig.extra && (trig.extra.firstXSpell || trig.extra.xSpell)) {
           const wx = (list) => (list || []).forEach(e => { if (!e) return; for (const k of ['n']) if (e[k] === 'X') e[k] = { triggerSpellX: true }; wx(e.then); wx(e.list); });
           wx(parsed.effects);
         }
