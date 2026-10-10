@@ -616,6 +616,9 @@
     // caught on the way down, so Escape closes the card and not the window under it
     const onEsc = (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); close(); } };
     const foot = el('div', { class: 'card-sheet-foot' });
+    // wanted, for trading with friends (src/10h-ui-trade.js)
+    const want = UI.wishButton ? UI.wishButton(card) : null;
+    if (want) foot.appendChild(want);
     // whatever this card could do stays one tap away from the blown-up view
     if (opts.onActions) {
       foot.appendChild(el('button', {

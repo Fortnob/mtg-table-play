@@ -270,7 +270,9 @@ MTG.setSetting = function (k, v) { MTG.settings[k] = v; MTG.saveSettings(); };
 MTG.resetSettings = function () {
   const keepArt = MTG.settings.artPreferences;
   const keepName = MTG.settings.playerName;
-  MTG.settings = Object.assign({}, defaultSettings, { artPreferences: keepArt, playerName: keepName, avatar: MTG.settings.avatar || null });
+  // your friend code too: a new one would be a stranger to all your friends
+  MTG.settings = Object.assign({}, defaultSettings, { artPreferences: keepArt, playerName: keepName, avatar: MTG.settings.avatar || null,
+    friendCode: MTG.settings.friendCode || '' });
   MTG.saveSettings();
 };
 
