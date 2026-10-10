@@ -12261,8 +12261,11 @@
     /* Emissary Escort, Glint Raker: "This creature gets +X/+0, where X is the
        greatest mana value among other artifacts you control" — a count the
        layers can make, with its sign */
-    { re: /^(?:CARDNAME|This creature) gets ([+-])X\/([+-])(X|0), where X is (.+?)\.?$/,
-      make: (m) => {
+    // (Nighthowler: "enchanted creature" too — the creature it's attached to)
+    { re: /^(CARDNAME|This creature|Enchanted creature|Equipped creature) gets ([+-])X\/([+-])(X|0), where X is (.+?)\.?$/,
+      make: (m0) => {
+        const onAttached = /^(?:Enchanted|Equipped)/.test(m0[1]);
+        const m = [m0[0], m0[2], m0[3], m0[4], m0[5]];
         /* Elturel Survivors: "the number of lands defending player controls" — the player it is
            attacking; there is none, and nothing counts, when it isn't (selfAttacking) */
         const defending = /defending player/i.test(m[4]);
@@ -12272,7 +12275,7 @@
         if (!k || typeof k !== 'object' || k.plus || !OK.some(x => k[x])) return null;
         if ((m[1] === '-') !== (m[2] === '-') && m[3] === 'X') return null;
         const signed = Object.assign({}, k, { mult: (k.mult || 1) * (m[1] === '-' ? -1 : 1) });
-        return Object.assign({ op: 'continuous', layer: 7, scope: { self: true }, pt: { p: signed, t: m[3] === 'X' ? Object.assign({}, signed) : 0 } },
+        return Object.assign({ op: 'continuous', layer: 7, scope: onAttached ? { attached: true } : { self: true }, pt: { p: signed, t: m[3] === 'X' ? Object.assign({}, signed) : 0 } },
           defending ? { cond: { kind: 'selfAttacking' } } : {});
       } },
     // Knowledge Is Power: "Creatures you control get +X/+X, where X is the number of cards you've drawn this turn."
@@ -12959,6 +12962,11 @@
     // Thryx, the Sudden Storm: "Spells you cast with mana value 5 or greater cost {1} less to cast and can't be countered."
     if ((mm2 = String(line).match(/^(Spells you cast with mana value \d+ or greater) (cost \{\d+\} less to cast) and can'?t be countered\.?$/i))) {
       const r = both(mm2[1] + ' ' + mm2[2] + '.', mm2[1] + " can't be countered.");
+      if (r) return r;
+    }
+    // Nighthowler: "This creature and enchanted creature each get +X/+X, where X is …" — itself, and what it's bestowed on
+    if ((mm2 = String(line).match(/^(?:This creature|CARDNAME) and (enchanted|equipped) creature each get (.+)$/i))) {
+      const r = both('This creature gets ' + mm2[2], mm2[1].charAt(0).toUpperCase() + mm2[1].slice(1) + ' creature gets ' + mm2[2]);
       if (r) return r;
     }
     if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) has ([a-z ,]+?) and can'?t be blocked\.?$/i))) {

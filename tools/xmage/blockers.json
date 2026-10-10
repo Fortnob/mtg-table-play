@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11148,
-  "gainedCards": 1126,
-  "linesNeeded": 11922,
-  "linesGained": 1326,
+  "needed": 11141,
+  "gainedCards": 1121,
+  "linesNeeded": 11915,
+  "linesGained": 1321,
   "gained": {
-   "all": 1126,
+   "all": 1121,
    "top2000": 45,
    "stdTop": 8
   },
@@ -1925,22 +1925,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Nighthowler",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Rune Snag",
-    "Life Burst",
-    "Feast of Flesh",
-    "Kjeldoran War Cry",
-    "Mind Burst"
-   ]
-  },
-  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -2887,6 +2871,20 @@
     "Mild-Mannered Librarian",
     "Goblin Ski Patrol",
     "Subversive Acolyte"
+   ]
+  },
+  {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Accumulated Knowledge",
+    "Rune Snag",
+    "Life Burst",
+    "Feast of Flesh",
+    "Kjeldoran War Cry",
+    "Mind Burst"
    ]
   },
   {
@@ -7494,19 +7492,6 @@
    ]
   },
   {
-   "what": "CardsInAllGraveyardsCount",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Nighthowler",
-    "The Long Reach of Night // Animus of Night's Reach",
-    "Exoskeletal Armor",
-    "Accumulated Knowledge",
-    "Rune Snag",
-    "Life Burst"
-   ]
-  },
-  {
    "what": "CompositeCost",
    "score": 9,
    "cards": 9,
@@ -8217,6 +8202,19 @@
     "Heartseeker",
     "Leonin Bola",
     "Shuriken"
+   ]
+  },
+  {
+   "what": "CardsInAllGraveyardsCount",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "The Long Reach of Night // Animus of Night's Reach",
+    "Accumulated Knowledge",
+    "Rune Snag",
+    "Life Burst",
+    "Feast of Flesh",
+    "Kjeldoran War Cry"
    ]
   },
   {

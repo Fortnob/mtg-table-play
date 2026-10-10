@@ -17755,4 +17755,18 @@ module.exports = (test) => {
     T.toMain('A');
     t.eq(T.life('B'), 18, 'the opponent with four or more cards: 2 damage');
   });
+
+  test('Nighthowler, Exoskeletal Armor: +X/+X for the creature cards in all graveyards, on itself and on what it enchants', (mk, t) => {
+    t.auto('Nighthowler');
+    t.auto('Exoskeletal Armor');
+    const T = mk();
+    T.toMain('A');
+    T.grave('A', 'Grizzly Bears'); T.grave('B', 'Hill Giant'); T.grave('B', 'Lightning Bolt');
+    const nh = T.bf('A', 'Nighthowler');
+    t.eq(T.g.powerOf(nh), 2, 'two creature cards: 2/2');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ex = T.bf('A', 'Exoskeletal Armor');
+    ex.attachedTo = bear.id; bear.attachments = [ex.id]; T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 4, 'the enchanted Bears get +2/+2');
+  });
 };
