@@ -4356,4 +4356,18 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(T.zone('A', 'hand').length, h2 + 1, 'an enchantment creature attacked');
   });
+
+  test("Audit: Celestial Mantle on an opponent's creature doubles that player's life, not its owner's", (mk, t) => {
+    t.auto('Celestial Mantle');
+    const T = mk();
+    T.toMain('B');
+    T.g.player('B').life = 9;
+    const bear = T.bf('B', 'Grizzly Bears'); bear.summoningSick = false;
+    const m = T.bf('A', 'Celestial Mantle');
+    m.attachedTo = bear.id; bear.attachments = [m.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('B'), 18, "the creature's controller: 9 doubled");
+    t.eq(T.life('A'), 15, 'the Mantle owner takes 5');
+  });
 };
